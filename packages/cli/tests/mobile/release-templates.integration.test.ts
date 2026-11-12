@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { withoutBackup } from '../../src/mobile/android-backup'
+import { withFreshInstall } from '../../src/mobile/ios-fresh-install'
+import { withTokenForwarding } from '../../src/mobile/ios-push'
 import { buildFileId, fileRefId } from '../../src/mobile/privacy-manifest'
 import { prepareReleaseProject } from '../../src/mobile/release-project'
 
@@ -32,6 +34,12 @@ describe('the edits on Capacitor\'s templates', () => {
     expect(manifest).not.toContain('android:allowBackup="true"')
     expect(manifest).toContain('xmlns:tools="http://schemas.android.com/tools"')
     expect(manifest).toContain('        tools:replace="android:allowBackup,android:dataExtractionRules"\n')
+  })
+
+  it('prepare a fresh iOS install at launch, beside the push setup', () => {
+    const delegate = withTokenForwarding(withFreshInstall(read('ios', 'App', 'App', 'AppDelegate.swift')))
+    expect(delegate).toContain('import ProtobaseMobile\n')
+    expect(delegate).toMatch(/didFinishLaunchingWithOptions[^{]*\{\n        ProtobaseFreshInstall\.prepare\(\)\n/)
   })
 
   it('sign and version the Android release', async () => {

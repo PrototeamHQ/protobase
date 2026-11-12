@@ -46,7 +46,7 @@ Signing in works in the app as on the web, with nothing more to set up:
 
 - Emailed codes, passwords and the second step of two-factor authentication work. <gap>Passkeys do not work in the app yet.</gap> <gap>Sign-in with another provider does not work in the app yet.</gap>
 - The app calls `/api/auth` through the device's native HTTP, naming its Capacitor origin. With a mobile section, sign-in trusts the Capacitor origin a request names, for that request only, without CORS. A POST from a Capacitor origin must send a JSON body: any other is refused with 415, as only a page in the app sends one.
-- The session lives in the device's cookie store, so it survives reloads, updates and relaunches. On iOS, signing in or out within about a second of killing the app may be lost.
+- The session survives reloads, updates and relaunches. On Android it lives in the device's cookie store; on iOS in a keychain item that stays on the device, out of the WebView and the device's cookie store.
 - <gap>"Forgot password?" is not offered in the app, as the emailed link cannot lead back into it.</gap>
 - Page script cannot reach the session cookie, on iOS and Android alike: Capacitor's `CapacitorHttp`, `CapacitorCookies` and `WebView` plugins are refused to it, and so are the app's local file routes. A plugin that reads files for its JavaScript, such as `@capacitor/filesystem`, could still hand the cookie over.
 - While you develop over plain `http://localhost` with a mobile section, a page served on `https://localhost` in the same browser can send sign-in requests that carry your dev session, as some browsers treat the two as the same site. Do not open untrusted pages on `https://localhost` while you develop.
@@ -112,7 +112,7 @@ makes a signed release binary: an `.aab` to upload to Google Play, an `.ipa` to 
 - A release calls its server over https, at `--api` or the app's `url`: plain http, `localhost` and `10.0.2.2` are refused.
 - `--app-version` is the version the stores show, one to three numbers such as `1.2.3`. `--build-number` is a whole number that must rise with every upload, such as your CI's run number.
 - Extra plugins run at build time with access to your signing key, so add only plugins you trust.
-- Android apps built by `protobase mobile run` and `protobase mobile build` opt out of Android's backup and device-to-device transfer, so no working session sits in a cloud backup or on another phone. On a new phone, or after restoring a backup, the app starts as a fresh install: your users sign in again, and unsent drafts are gone. <gap>An iOS app restored from a backup or moved to a new iPhone cannot start as a fresh install because opting the iOS app out of backup is not implemented.</gap>
+- iOS and Android apps built by `protobase mobile run` and `protobase mobile build` carry nothing over to a new phone or from a backup, so no working session sits in a backup or on another phone. Android apps opt out of backup and device-to-device transfer; an iOS app keeps its session in a keychain item that never leaves the device, and its first launch after a restore, even on the same iPhone, or a move to a new one, removes everything the app kept before its page loads. On a new phone, or after restoring a backup, the app starts as a fresh install: your users sign in again, and unsent drafts and downloaded live updates are gone. Reinstalling an iOS app starts it as a fresh install too.
 
 **Android.** Make an upload key once, outside the project, and never commit it:
 

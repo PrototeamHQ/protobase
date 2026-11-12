@@ -7,6 +7,7 @@ import { writeAndroidTemplate } from './android-template-fixture'
 import { mobileBuild } from './build'
 import type { ChildOptions } from './child-process'
 import { iosArchiveArgs, iosExportArgs } from './ios-release'
+import { templateAppDelegate } from './ios-template-fixture'
 import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
 import { nativeDependencies } from './pinned-packages'
 import { protobaseIosPluginClasses, protobasePluginClasses } from './protobase-plugin'
@@ -84,6 +85,7 @@ const fakeRun = (calls: Call[], gradleOutcome: 'bundle' | 'nothing' | 'fail' = '
     } else {
       write(path.join(ws, 'ios/App/App.xcodeproj/project.pbxproj'), pbxproj)
       write(path.join(ws, 'ios/App/App/Info.plist'), '<plist version="1.0">\n<dict>\n</dict>\n</plist>\n')
+      write(path.join(ws, 'ios/App/App/AppDelegate.swift'), templateAppDelegate)
       write(path.join(ws, 'ios/App/App/capacitor.config.json'), JSON.stringify({ packageClassList: ['AppPlugin', ...protobaseIosPluginClasses] }))
       write(path.join(ws, 'ios/App/CapApp-SPM/Package.swift'), '.product(name: "ProtobaseMobile", package: "ProtobaseMobile")')
     }
@@ -233,6 +235,7 @@ describe('mobileBuild ios', () => {
     expect(project_.match(/MARKETING_VERSION = 1\.2\.3;/g)).toHaveLength(2)
     expect(readFileSync(path.join(ws(dir), 'ios/App/App/PrivacyInfo.xcprivacy'), 'utf8')).toContain('CA92.1')
     expect(readFileSync(path.join(ws(dir), 'ios/App/App/Info.plist'), 'utf8')).not.toContain('NSAppTransportSecurity')
+    expect(readFileSync(path.join(ws(dir), 'ios/App/App/AppDelegate.swift'), 'utf8')).toContain('ProtobaseFreshInstall.prepare()')
     const config = JSON.parse(readFileSync(path.join(ws(dir), 'capacitor.config.json'), 'utf8'))
     expect(Object.keys(config).sort()).toEqual(['android', 'appId', 'appName', 'appendUserAgent', 'includePlugins', 'ios', 'plugins', 'webDir'])
     expect(config.ios).toEqual({ webContentsDebuggingEnabled: false })

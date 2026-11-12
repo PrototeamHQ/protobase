@@ -23,6 +23,6 @@ public class ProtobaseAuthPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func request(_ call: CAPPluginCall) {
-        AuthRequest.send(call, config: getConfig(), capConfig: bridge?.config)
+        AuthRequest.send(call, config: getConfig())
     }
 }

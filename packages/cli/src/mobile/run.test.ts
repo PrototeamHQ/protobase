@@ -179,6 +179,7 @@ describe('mobileRun', () => {
       expect(config.plugins).not.toHaveProperty('ProtobasePush')
       expect(existsSync(path.join(ws, 'ios', 'App', 'App', 'App.entitlements'))).toBe(false)
       expect(readFileSync(path.join(ws, 'ios', 'App', 'App', 'AppDelegate.swift'), 'utf8')).not.toContain('RemoteNotifications')
+      expect(readFileSync(path.join(ws, 'ios', 'App', 'App', 'AppDelegate.swift'), 'utf8')).toContain('ProtobaseFreshInstall.prepare()')
     })
 
     it('names native push in the fingerprint, so turning it on or off rebuilds the app natively', async () => {
