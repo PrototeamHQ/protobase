@@ -26,10 +26,16 @@ describe('apiUrl', () => {
 })
 
 describe('httpAllowances', () => {
-  it('allows plain http for an http API, and mixed content only for the emulator\'s host', () => {
+  it('allows plain http for an http API, and mixed content only for plain http to the emulator\'s host', () => {
     expect(httpAllowances(new URL('https://api.example.com'))).toEqual({ cleartext: false, mixedContent: false })
     expect(httpAllowances(new URL('http://localhost:3000'))).toEqual({ cleartext: true, mixedContent: false })
     expect(httpAllowances(new URL('http://10.0.2.2:3000'))).toEqual({ cleartext: true, mixedContent: true })
+    expect(httpAllowances(new URL('https://10.0.2.2:3443'))).toEqual({ cleartext: false, mixedContent: false })
+  })
+
+  it('allows no mixed content for a host that only starts like the emulator\'s, which plain http may not reach at all', () => {
+    expect(httpAllowances(new URL('http://10.0.2.2.attacker.example:3443')).mixedContent).toBe(false)
+    expect(() => apiUrl('http://10.0.2.2.attacker.example:3443', undefined, 'android')).toThrow('plain http is only for a server on this machine')
   })
 })
 
@@ -49,7 +55,7 @@ describe('checkReleaseUrl', () => {
   })
 
   it('refuses plain http, and https to this machine or the emulator\'s host', () => {
-    for (const url of ['http://localhost:3000', 'http://10.0.2.2:3000', 'https://localhost:3000', 'https://app.localhost', 'https://127.0.0.2', 'https://[::1]', 'https://10.0.2.2', 'https://0.0.0.0']) {
+    for (const url of ['http://localhost:3000', 'http://10.0.2.2:3000', 'https://localhost:3000', 'https://app.localhost', 'https://127.0.0.2', 'https://[::1]', 'https://10.0.2.2', 'https://10.0.2.2:3443', 'https://0.0.0.0']) {
       expect(() => checkReleaseUrl(new URL(url)), url).toThrow('A release build calls its server over https')
     }
   })
