@@ -2,7 +2,7 @@ import { generateKeyPairSync } from 'node:crypto'
 import { inspect } from 'node:util'
 import { describe, expect, it } from 'vitest'
 import { apnsTestEnv } from '../testing/apns-service'
-import { readApnsSettings } from './apns-settings'
+import { pemWithLineBreaks, readApnsSettings } from './apns-settings'
 
 const full = apnsTestEnv()
 
@@ -34,6 +34,17 @@ describe('readApnsSettings', () => {
   })
 
   it.each([
+    ['spaces for its line breaks', (pem: string) => pem.trim().replace(/\n/g, ' ')],
+    ['no line breaks at all', (pem: string) => pem.replace(/\n/g, '')],
+  ])('reads a key pasted on one line with %s', (_, oneLine) => {
+    const key = oneLine(full.PROTOBASE_APNS_KEY)
+    expect(key).not.toContain('\n')
+    const settings = readApnsSettings({ ...full, PROTOBASE_APNS_KEY: key })!
+    const expected = readApnsSettings(full)!.key
+    expect(settings.key.equals(expected)).toBe(true)
+  })
+
+  it.each([
     [['PROTOBASE_APNS_KEY'], 'PROTOBASE_APNS_KEY must be set'],
     [['PROTOBASE_APNS_KEY_ID'], 'PROTOBASE_APNS_KEY_ID must be set'],
     [['PROTOBASE_APNS_TEAM_ID'], 'PROTOBASE_APNS_TEAM_ID must be set'],
@@ -56,6 +67,7 @@ describe('readApnsSettings', () => {
   ])('stops on %s as the key, naming the variable only', (_, key) => {
     const error = failure({ ...full, PROTOBASE_APNS_KEY: key })
     expect(error.message).toMatch(/^PROTOBASE_APNS_KEY is not an APNs key/)
+    expect(error.message).toContain('on one line')
     expect(error.message).not.toContain(key.split('\n')[1] ?? key)
   })
 
@@ -65,5 +77,21 @@ describe('readApnsSettings', () => {
       expect(error.message).toMatch(new RegExp(`^${name} is not`))
       expect(error.message).not.toContain(value)
     }
+  })
+})
+
+describe('pemWithLineBreaks', () => {
+  const pem = generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
+
+  it('keeps a PEM with its line breaks, and rebuilds one that lost them', () => {
+    expect(pemWithLineBreaks(pem)).toBe(pem)
+    expect(pemWithLineBreaks(pem.replace(/\n/g, ' '))).toBe(pem)
+    expect(pemWithLineBreaks(pem.replace(/\n/g, ''))).toBe(pem)
+  })
+
+  it('keeps text that is no PEM, or whose END line does not match its BEGIN line', () => {
+    expect(pemWithLineBreaks('not a key')).toBe('not a key')
+    const mismatched = '-----BEGIN PRIVATE KEY----- AAAA -----END PUBLIC KEY-----'
+    expect(pemWithLineBreaks(mismatched)).toBe(mismatched)
   })
 })

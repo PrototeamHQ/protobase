@@ -179,6 +179,6 @@ Put your Firebase project's `google-services.json` in the project folder, next t
 
 `protobase mobile` adds the push capability to the iOS app and forwards its APNs token to Capacitor itself, on every run and build. Automatic signing turns push on for the app id in your Apple developer account; with manual signing (`--certificate` and `--profile`), the provisioning profile must include push notifications. A free team cannot sign an app with push, so running one on a phone needs a paid team; the simulator needs none.
 
-The server sends through APNs once you create an APNs key in your Apple developer account (Certificates, Identifiers & Profiles, Keys) and set three variables on the server: the `.p8` file's text in `PROTOBASE_APNS_KEY`, the key's id in `PROTOBASE_APNS_KEY_ID` and your team's id in `PROTOBASE_APNS_TEAM_ID`. See [iOS in the notifications reference](/reference/notifications/#ios).
+The server sends through APNs once you create an APNs key in your Apple developer account (Certificates, Identifiers & Profiles, Keys) and set three variables on the server: the `.p8` file's text in `PROTOBASE_APNS_KEY`, with its line breaks or pasted on one line, the key's id in `PROTOBASE_APNS_KEY_ID` and your team's id in `PROTOBASE_APNS_TEAM_ID`. See [iOS in the notifications reference](/reference/notifications/#ios).
 
 Development runs (`protobase mobile run` and `open`) register with the APNs sandbox, and store builds (`protobase mobile build`) with production, so a phone gets push only from a server sending to the environment its build registered in.
