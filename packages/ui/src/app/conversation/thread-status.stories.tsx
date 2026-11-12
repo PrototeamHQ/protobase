@@ -27,12 +27,12 @@ const chat_messages = resource('chat_messages')
     sender: f.text(),
     sent_at: f.timestamp().readOnly().sortable(),
     body: f.text(),
-    delivery: f.enum(['sent', 'delivered']).optional(),
+    delivery: f.enum(['sent', 'delivered', 'failed']).optional(),
   })
   .primaryKey((r) => r.id)
   .live()
 
-const messagesView = view<typeof chat_messages>('chat_messages').fields((r) => ({ delivery: r.delivery.valueLabels({ sent: 'Sent', delivered: 'Delivered' }) }))
+const messagesView = view<typeof chat_messages>('chat_messages').fields((r) => ({ delivery: r.delivery.valueLabels({ sent: 'Sent', delivered: 'Delivered', failed: 'Not sent' }).valueColors({ failed: 'red' }) }))
 const chatsView = view<typeof chats>('chats')
   .title((r) => r.title)
   .layout((r) => [
@@ -46,6 +46,7 @@ const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).
 const rows = () => ({
   chats: [{ id: 1, title: 'Release planning', state: 'working' }],
   chat_messages: [
+    { id: 3, chat_id: 1, sender: 'Story User', sent_at: minutesAgo(15), body: 'Is the build green?', delivery: 'failed' },
     { id: 1, chat_id: 1, sender: 'Assistant', sent_at: minutesAgo(12), body: 'The release branch is cut.', delivery: null },
     { id: 2, chat_id: 1, sender: 'Story User', sent_at: minutesAgo(2), body: 'Write the changelog, please.', delivery: 'delivered' },
   ],
@@ -84,7 +85,7 @@ const ChatPage = () => {
 
 export const ThreadStatus: StoryObj = { name: 'A chat with delivery and a working assistant', render: () => <ChatPage /> }
 
-/** A message with a status shows its label under it and one without shows none; the working indicator goes once the chat stops working. */
+/** A message with a status shows its label under it, one without shows none, and a failed one reads as a problem; the working indicator goes once the chat stops working. */
 export const Checks: StoryObj = {
   ...ThreadStatus,
   name: 'A chat with delivery and a working assistant (checks)',
@@ -95,12 +96,16 @@ export const Checks: StoryObj = {
     await within(log).findByText('Write the changelog, please.')
     expect(within(log).getByText('Delivered')).toBeVisible()
     expect(within(log).queryByText('Sent')).toBeNull()
-    expect(log.querySelectorAll('[data-from="person"] p.text-xs')).toHaveLength(1)
+    expect(log.querySelectorAll('[data-from="person"] p.text-xs')).toHaveLength(2)
+    // A value the view colours red reads as a problem
+    expect(within(log).getByText('Not sent')).toHaveClass('text-danger-text')
 
     await waitFor(() => expect(canvasElement.querySelector('[data-chat-working]')).toHaveTextContent('Writing a reply…'))
 
     stored.chats![0]!.state = 'idle'
     for (const listener of listeners) listener.onChanges([{ resource: 'chats', key: '1', operation: 'update' }])
     await waitFor(() => expect(canvasElement.querySelector('[data-chat-working]')).toBeNull())
+    // The region stays, empty, so the next reply being written is announced
+    expect(log.parentElement!.querySelector(':scope > [role=status]')).toBeEmptyDOMElement()
   },
 }

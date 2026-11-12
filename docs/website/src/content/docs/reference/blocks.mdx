@@ -386,7 +386,7 @@ The latest messages that match `filter`, oldest first, each under its sender's n
 | `sender` | Who wrote each message: a relation, named as the record it points at, or a text field. Required. |
 | `time` | When each was sent: a date or timestamp field the API can sort by, which orders them. Required. |
 | `text` | The message; shown rendered when the message resource's view marks it [`.markdown()`](/reference/ui-config/#names-and-columns). Required. |
-| `status` | A short line under each message, such as whether it was delivered: a text or enum field, shown with its view's value labels; a message without a value shows none. Left out for a user who cannot read it. Experimental, see [Message status and a working indicator](/reference/ui-config/#message-status-and-a-working-indicator). |
+| `status` | A short line under each message, such as whether it was delivered: a text or enum field, shown with its view's value labels, in red for a value it colours `red`; a message without a value shows none. Left out for a user who cannot read it. Experimental, see [Message status and a working indicator](/reference/ui-config/#message-status-and-a-working-indicator). |
 | `working` | A condition on the record around the thread, as [`Show`](#show) takes, such as `state = 'working'`: while it holds, the thread ends in a working indicator. Left out for a user who cannot read what it names. Experimental. |
 | `limit` | How many of the latest it shows at first, and how many each **Load earlier messages** adds: 1 to 500, the API's largest page; default 50. |
 | `title`, `description`, `actions` | The heading; no card is drawn around the thread, so it can sit in a `Card` with its composer. |

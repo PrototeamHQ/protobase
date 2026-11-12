@@ -22,7 +22,7 @@ export const ThreadBlock = ({ node, slots, className }: BlockProps) => {
     <section className={cn('flex min-w-0 flex-col', className)} aria-label={title}>
       <SectionContent title={title} help={description} actions={slots.actions}>
         <ThreadBox>
-          <MessageThread model={model} filter={filter} sender={sender} time={time} text={text} status={status} limit={limit} empty={empty} working={busy === true} />
+          <MessageThread model={model} filter={filter} sender={sender} time={time} text={text} status={status} limit={limit} empty={empty} working={working === undefined ? undefined : busy === true} />
         </ThreadBox>
       </SectionContent>
     </section>

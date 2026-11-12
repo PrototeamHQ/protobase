@@ -16,7 +16,7 @@ export const ThreadSection = ({ item, scope }: { item: ThreadSectionModel; scope
   return (
     <Section title={item.title} help={item.help}>
       <ThreadBox>
-        <MessageThread model={model} filter={recordMessagesFilter(item.field, scope.key)} sender={item.sender} time={item.time} text={item.text} status={item.status} limit={item.limit} empty={item.empty} working={working === true} />
+        <MessageThread model={model} filter={recordMessagesFilter(item.field, scope.key)} sender={item.sender} time={item.time} text={item.text} status={item.status} limit={item.limit} empty={item.empty} working={item.working === undefined ? undefined : working === true} />
       </ThreadBox>
     </Section>
   )

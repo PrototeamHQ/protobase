@@ -1,5 +1,5 @@
 import { threadSort, type MessageFields } from '@protobase/layout'
-import { enumLabel, type ResourceModel } from '@protobase/schema'
+import type { ResourceModel } from '@protobase/schema'
 import { ChatDivider, ChatMessage, ChatThread } from '../../chat'
 import { useOptionalAuth } from '../../auth/auth-provider'
 import { useList } from '../../data/use-list'
@@ -10,6 +10,7 @@ import { isMarkdown } from '../../markdown/markdown-hint'
 import { Quiet } from '../pages/blocks/card-frame'
 import { ErrorBanner } from '../error-banner'
 import { useAdminMeta } from '../meta-gate'
+import { MessageStatus } from './message-status'
 import { threadItems } from './thread-items'
 import { retryOf, showsErrorAbove, threadState } from './thread-state'
 import { text } from './messages'
@@ -20,7 +21,7 @@ export type MessageThreadProps = MessageFields & {
   filter?: string
   limit?: number
   empty?: string
-  /** The other side is writing a reply, so the thread ends in a working indicator. */
+  /** Whether the other side is writing a reply, which the thread's end says; left out, it never says. */
   working?: boolean
 }
 
@@ -41,7 +42,7 @@ export const MessageThread = ({ model, filter, sender, time, text: body, status,
   if (state === 'loading') return <div className="p-4"><Quiet>{text('loadingMessages')}</Quiet></div>
   const rows = withLabels(resources, model, [sender], list.items, list.labels)
   const items = threadItems(rows, { key: (row) => String(recordKey(model, row)), sender, time, text: body, status })
-  const statusLabels = status === undefined ? undefined : views[model.name]?.fields[status]?.valueLabels
+  const statusHints = status === undefined ? undefined : views[model.name]?.fields[status]
   const markdown = model.fields[body] !== undefined && isMarkdown(model.fields[body], views[model.name]?.fields[body])
   // The reader's own newest message: when one arrives, the thread goes to the end wherever they were
   const own = items.findLast((item) => item.kind === 'message' && item.author.id === reader)
@@ -54,7 +55,7 @@ export const MessageThread = ({ model, filter, sender, time, text: body, status,
           item.kind === 'day' ? (
             <ChatDivider key={item.key} label={item.label} />
           ) : (
-            <ChatMessage key={item.key} author={item.author} time={item.time} continued={item.continued} footer={item.status !== undefined && enumLabel(item.status, statusLabels)}>
+            <ChatMessage key={item.key} author={item.author} time={item.time} continued={item.continued} footer={item.status !== undefined && <MessageStatus value={item.status} hints={statusHints} />}>
               {/* A message keeps its line breaks; rendered markdown makes its own */}
               {markdown && item.text !== '' ? <Markdown source={item.text} className="whitespace-normal" /> : item.text}
             </ChatMessage>

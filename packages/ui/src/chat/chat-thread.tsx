@@ -24,7 +24,7 @@ export type ChatThreadProps = {
    * when they scroll to the end, and when the page shows again with them there. Moves a read position, for one.
    */
   onReadToEnd?: () => void
-  /** The other side is writing a reply: the chat ends in a working indicator, which a reader at the end follows. */
+  /** Whether the other side is writing a reply, which the chat's end says and a reader at the end follows; leave it out for a chat that never says. */
   working?: boolean
 }
 
@@ -89,7 +89,7 @@ export const ChatThread = ({ children, empty, length, onLoadEarlier, loadingEarl
       <div ref={list} role="log" aria-live="polite" className={cn('flex flex-col gap-4', showsEmpty && 'hidden')}>
         {children}
       </div>
-      {working && <ChatWorking />}
+      {working !== undefined && <ChatWorking working={working} />}
     </div>
   )
 }
