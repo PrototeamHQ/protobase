@@ -14,6 +14,8 @@ import { useFittedColumns } from './use-fitted-columns'
 import { withResizedWidths } from './column-resize'
 import { useColumnResize } from './use-column-resize'
 import { useIsDesktop } from '../lib/use-media-query'
+import { useRootFontSize } from '../lib/use-root-font-size'
+import { gridHeights } from './grid-heights'
 import { GridHeader } from './grid-header'
 import { DataRow, SkeletonRow } from './grid-row'
 import type { RowSource } from './row-source'
@@ -71,15 +73,9 @@ export type DataGridProps = {
   className?: string
 }
 
-const headerHeight = 32
-// A small button's height and the gap above it, for a column with something `below` its cells; in pixels, as are the
-// row heights above that rows are placed and virtualized by, so it scales with root text size only once they all do
-const belowHeight = 32
-const footerHeight = 36
-
 export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowLink, rowActions, cellEditor, rowPatches, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable: selecting = true, reorder, fit = false, scroll = 'own', className }: DataGridProps) => {
   const selectable = selecting && !reorder
-  const rowHeight = (compact ? 28 : 36) + (given.some((spec) => spec.below) ? belowHeight : 0)
+  const { header: headerHeight, row: rowHeight, footer: footerHeight } = gridHeights(useRootFontSize(), { compact, withBelow: given.some((spec) => spec.below) })
   const narrow = !useIsDesktop()
   // A phone keeps every column whole, so pinning there could leave nothing to scroll
   const pinsByDefault = (defaultPinned ?? (narrow ? [] : defaultPins(given))).join(' ')
