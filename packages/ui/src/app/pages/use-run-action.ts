@@ -31,7 +31,7 @@ const message = (error: unknown) => (error instanceof Error ? error.message : te
  * `blocked` says why one cannot run; `afterRun` hears about every action that succeeded.
  * `submit` runs one with the answers to its inputs (a handler gets them, an update writes them) and throws its failure, for the dialog to show.
  * `runEach` runs one on each of several records it applies to, as a list's selection does, with the answers to its inputs
- * as each record gets them, and says how that went, naming the records the person may not change.
+ * as each record gets them, and says how that went, naming the records the person may not change; it resolves to its outcome.
  */
 export const useActionRunner = (resource: string, scope: LayoutRecord | undefined, afterRun?: (action: ActionModel) => void) => {
   const { views, resources } = useAdminMeta()
@@ -138,6 +138,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
     const description = [refused.length > 0 && text('refusedOn', { records: refused.join(', '), count: refused.length }), outcome.failed > 0 && message(outcome.error)].filter(Boolean).join(' ')
     toast.show({ state: outcome.failed > 0 || refused.length > 0 ? 'error' : 'success', title, ...(description && { description }) })
     if (outcome.done > 0) afterRun?.(action)
+    return outcome
   }
 
   return { actions, blocked, blockedOn, appliesOn, verdictOn, running, run, submit, runEach: runOnEach }
