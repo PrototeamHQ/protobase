@@ -76,6 +76,9 @@ describe('file fields in a bucket', () => {
     const avatar = await create('/api/v1/avatars', { name: 'me', picture: (await upload('avatars', 'picture', png, 'me.png', as(undefined))).body.value }, as(undefined))
     expect(avatar.picture.url).toMatch(/^https:\/\/files\.example\.com\/app\/public\/_\/[0-9a-f-]{36}\.png$/)
     expect(objects.get(`app/public/${avatar.picture.url.slice('https://files.example.com/app/public/'.length)}`)?.type).toBe('image/png')
+    const read = await fixture.app.request(appReadUrl(`/api/files/public/${avatar.picture.url.slice('https://files.example.com/app/public/'.length)}`))
+    expect(read.status).toBe(200)
+    expect(new Uint8Array(await read.arrayBuffer())).toEqual(png)
   })
 
   it('answer an upload past the provider\'s limit with 507', async () => {

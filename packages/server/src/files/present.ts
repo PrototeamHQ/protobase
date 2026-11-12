@@ -1,5 +1,5 @@
 import type { FieldModel } from '@protobase/schema'
-import { encodeKey } from '@protobase/schema/internal'
+import { encodeKey, filePath } from '@protobase/schema/internal'
 import type { RequestAccess } from '../request-access'
 import type { Row } from '../types'
 import { downloadExpiry, signedDownloadUrl } from './download-url'
@@ -22,7 +22,7 @@ export type FileObject =
 // How to link a file's paths for this caller: a public provider's permanent address, or a signed link to this row's field.
 const linker = async (files: FilesRuntime, access: RequestAccess, row: Row, field: string, ref: FileRef, expires: number) => {
   const provider = files.providers[ref.provider]!
-  if (provider.public) return async (path: string) => `${provider.publicUrl ?? `${files.path}/${ref.provider}`}/${path}`
+  if (provider.public) return async (path: string) => (provider.publicUrl ? `${provider.publicUrl}/${path}` : filePath(files.path, ref.provider, path))
   const key = access.full.primaryKey.map((name) => row[name])
   if (key.some((part) => typeof part !== 'string' && typeof part !== 'number')) return undefined
   const keyText = encodeKey(key as Array<string | number>)

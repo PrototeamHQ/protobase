@@ -2,7 +2,8 @@ import type { KeyValue } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
 import { labelEntries, listWire, photosWire, queryString, filterText, type FilterInput, type ListParams, type MapParams } from './query-string'
 import { originOf, photosWithOrigin, withFileOrigin } from './file-urls'
-import { createTransport, type CacheMode, type ClientOptions } from './transport'
+import { createTransport, systemUrlOf, type CacheMode, type ClientOptions } from './transport'
+import { fileReadUrl } from './file-read-url'
 import { fetchWithProgress, type UploadProgress } from './upload-request'
 import { followLive, type LiveHandlers } from './live'
 import { sharedLive } from './shared-live'
@@ -425,7 +426,10 @@ export const createClient = (options: ClientOptions = {}) => {
   /** Whether the calls of the organization the signed-in user works in take guests (see `callGuestsClient`). */
   const callGuests = callGuestsClient(send)
 
-  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, bridges, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes, workflowRunTrace }
+  /** Where a page reads a stored file's bytes with `fetch`, from an API's own origin (see `fileReadUrl`). */
+  const readUrl = (file: { uri: string; url: string }) => fileReadUrl(file, systemUrlOf(options.baseUrl))
+
+  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, bridges, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes, workflowRunTrace, fileReadUrl: readUrl }
 }
 
 export type Client = ReturnType<typeof createClient>

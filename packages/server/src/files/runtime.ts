@@ -1,6 +1,6 @@
 import type { Db } from '@protobase/query'
 import type { ResourceModel } from '@protobase/schema'
-import { parseSize } from '@protobase/schema/internal'
+import { filesPath, parseSize } from '@protobase/schema/internal'
 import { fileColumns, runCleanup, type FileColumn } from './cleanup-runner'
 import { storageCleanupSchedule, type CleanupSchedule } from './cleanup-schedule'
 import type { Sharp } from './images'
@@ -75,7 +75,7 @@ export const createFilesRuntime = ({ options = {}, env, secret: appSecret, model
     signer: createSigner(secret),
     schedule: storageCleanupSchedule(providers),
     retention: (provider) => retention(providers[provider]!),
-    path: `${systemPath}/files`,
+    path: filesPath(systemPath),
     columns: fileColumns(models),
     trustedHosts: trustedImageHosts(providers, options.trustedHosts),
     types: mediaTypes(options.types),
