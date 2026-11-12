@@ -43,8 +43,9 @@ const selectedKey = (model: ResourceModel, row: GridRow) => {
 }
 
 /**
- * The list's Export: `open` shows its settings, with the selected rows when there are some, and `dialogs` draws them and
- * the progress while the file is built. Rows come through the list API as the user may read them; the file is built in
+ * The list's Export: `open` shows its settings, with the selected rows when there are some, and resolves to the rows
+ * still open once the dialog ends: none once it exported, all of them otherwise. `dialogs` draws the settings and the
+ * progress while the file is built. Rows come through the list API as the user may read them; the file is built in
  * a worker and written as it goes.
  */
 export const useExportFlow = ({ model, view, resources, views, plural, filter, orderBy, createPort = createWorkerPort, createSink = defaultSink }: ExportFlowOptions) => {
@@ -52,6 +53,7 @@ export const useExportFlow = ({ model, view, resources, views, plural, filter, o
   const toast = useToast()
   const [stage, setStage] = useState<Stage>({ kind: 'closed' })
   const abort = useRef<AbortController | undefined>(undefined)
+  const pending = useRef<{ rows: GridRow[]; settle: (open: GridRow[]) => void } | undefined>(undefined)
 
   const counted = useQuery({
     queryKey: keys.exportCount(model.name, filter),
@@ -63,13 +65,34 @@ export const useExportFlow = ({ model, view, resources, views, plural, filter, o
   })
   const count: RowCount = counted.data ?? { kind: 'counting' }
 
-  const open = (rows: GridRow[] = []) => setStage({ kind: 'settings', selected: exportsSelection(model) ? rows.map((row) => selectedKey(model, row)) : [] })
+  // Ends the open dialog's promise, or only `which` when given: no rows are left open once it exported, all of them otherwise
+  const settle = (exported: boolean, which = pending.current) => {
+    const ending = pending.current
+    if (!ending || ending !== which) return
+    pending.current = undefined
+    ending.settle(exported ? [] : ending.rows)
+  }
+
+  const open = (rows: GridRow[] = []) => {
+    settle(false)
+    setStage({ kind: 'settings', selected: exportsSelection(model) ? rows.map((row) => selectedKey(model, row)) : [] })
+    return new Promise<GridRow[]>((resolve) => {
+      pending.current = { rows, settle: resolve }
+    })
+  }
+
+  const close = () => {
+    setStage({ kind: 'closed' })
+    settle(false)
+  }
 
   const start = async (settings: ExportSettings, selected: Array<string | number>) => {
     const name = exportFileName(plural, settings.format)
     // The save picker opens from the click on Export, as the browser asks
     const sink = await createSink(name, settings.format)
     if (!sink) return
+    // Settles the dialog this export started from, not one opened after its Cancel
+    const dialog = pending.current
     const limit = exportLimit(view, settings.format)
     const rows = settings.scope === 'selected' ? selected.length : countedRows(count)
     const total = rows === undefined ? undefined : Math.min(rows, limit)
@@ -96,6 +119,7 @@ export const useExportFlow = ({ model, view, resources, views, plural, filter, o
         title: text('exported', { count: formatInt(result.rows), plural }),
         description: result.truncated ? text('truncated', { name, count: formatInt(result.rows) }) : name,
       })
+      settle(true, dialog)
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       if (!isApiError(error)) throw error
@@ -103,13 +127,14 @@ export const useExportFlow = ({ model, view, resources, views, plural, filter, o
     } finally {
       abort.current = undefined
       setStage((current) => (current.kind === 'running' ? { kind: 'closed' } : current))
+      settle(false, dialog)
     }
   }
 
   // The dialog closes at once; the export stops after the page it is reading and discards the file
   const cancel = () => {
     abort.current?.abort()
-    setStage({ kind: 'closed' })
+    close()
   }
 
   const fields = exportableFields(model)
@@ -125,7 +150,7 @@ export const useExportFlow = ({ model, view, resources, views, plural, filter, o
         selected={stage.selected.length > 0 ? stage.selected.length : undefined}
         open
         onExport={(settings) => void start(settings, stage.selected)}
-        onClose={() => setStage({ kind: 'closed' })}
+        onClose={close}
       />
     ) : stage.kind === 'running' ? (
       <ExportProgressDialog plural={plural} done={stage.done} total={stage.total} onCancel={cancel} />
