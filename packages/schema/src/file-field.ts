@@ -41,6 +41,22 @@ export class FileField<V> extends Field<V> {
   }
 
   /**
+   * Writes each file's media type into this read-only text field (`attachment_type`), so lists and aggregates can read
+   * it, and serving and file viewers take the type from it. An external URL whose extension names no type leaves it null.
+   */
+  typeField(field: string) {
+    return this.withFile({ typeField: field })
+  }
+
+  /**
+   * Writes each file's size in bytes into this read-only integer or bigint field (`attachment_size`), so lists and
+   * aggregates can read it. An external URL leaves it null, as its size is unknown.
+   */
+  sizeField(field: string) {
+    return this.withFile({ sizeField: field })
+  }
+
+  /**
    * Resized copies of each image, stored beside it under these names: `{ card: { width: 640, height: 480, fit: 'cover',
    * format: 'webp' } }`. `{ original }` stores that image instead of the upload. Other files get none.
    */

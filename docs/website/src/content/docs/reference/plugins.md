@@ -176,7 +176,7 @@ The create form and the record's form pick the members of the organization the s
 
 ## File viewers
 
-A file viewer shows files of one media type in the app, such as a report the app writes as JSON, instead of downloading them. A plugin registers it by the type, which the server must know: a built-in type, or one of the app's own in `files.types` (see [Your own types](/reference/files/#your-own-types)).
+A file viewer shows files of one media type in the app, such as a report the app writes as JSON, instead of downloading them. `@protobase/image-viewer` and `@protobase/pdf-viewer` are two such plugins for images and PDFs (see [Image and PDF viewers](/reference/files/#image-and-pdf-viewers)). A plugin registers it by the type, which the server must know: a built-in type, or one of the app's own in `files.types` (see [Your own types](/reference/files/#your-own-types)).
 
 ```tsx
 // protobase.ui.tsx

@@ -6,8 +6,11 @@ export type StoredObject = { path: string; size: number; modified: Date }
  * operation on a path that does not exist is harmless: `head` and `read` give `undefined`, `delete` does nothing.
  */
 export type FileStore = {
-  /** Writes the whole stream, or nothing when it fails: a reader never sees part of an object. */
-  put(path: string, body: ReadableStream<Uint8Array>): Promise<{ size: number }>
+  /**
+   * Writes the whole stream, or nothing when it fails: a reader never sees part of an object. `type` is the media type
+   * the bytes were decided to be, for a store that keeps it with them, such as a bucket serving public files itself.
+   */
+  put(path: string, body: ReadableStream<Uint8Array>, options?: { type?: string }): Promise<{ size: number }>
   head(path: string): Promise<StoredObject | undefined>
   /** The bytes, or the inclusive byte range `start`–`end`. */
   read(path: string, range?: { start: number; end: number }): Promise<ReadableStream<Uint8Array> | undefined>

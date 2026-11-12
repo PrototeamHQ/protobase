@@ -1,3 +1,4 @@
+import type { FieldModel } from '@protobase/schema'
 import { appReadMaxBytes, isAppRead } from '@protobase/schema/internal'
 import { HttpProblem, forbidden, notFound } from '../problem'
 import type { Deps } from '../deps'
@@ -7,7 +8,7 @@ import { readTransaction } from '../transactions'
 import { downloadExpiry, readDownloadUrl } from './download-url'
 import { contentDisposition } from './media-types'
 import type { FileStore } from './store'
-import { isFilePath, parseUri, tenantSegment, variantPaths } from './uri'
+import { isFilePath, parseUri, tenantSegment, variantPaths, type FileRef } from './uri'
 
 const gone = () => notFound('There is no such file')
 
@@ -28,8 +29,15 @@ const heldFile = (value: unknown, provider: string, path: string) => {
   return ref.path === path || Object.values(variantPaths(ref)).includes(path) ? ref : undefined
 }
 
+// The type the row's type field holds for the file itself, not a variant, when it is a type the app's table knows, so a
+// download is never served as a type outside it, such as HTML.
+const heldType = (deps: Deps, row: Record<string, unknown>, field: FieldModel, held: FileRef, path: string) => {
+  const type = field.file!.typeField === undefined || held.path !== path ? undefined : row[field.file!.typeField]
+  return typeof type === 'string' && deps.files!.types.isKnownType(type) ? type : undefined
+}
+
 // The row behind a signed URL still holds this file, or the file it is a variant of, and it sits under that row's tenant.
-const grantedName = async (deps: Deps, provider: string, path: string, query: URLSearchParams) => {
+const grantedFile = async (deps: Deps, provider: string, path: string, query: URLSearchParams) => {
   const read = await readDownloadUrl(deps.files!.signer, provider, path, query)
   if (read.status === 'invalid') throw forbidden('invalid-signature', 'This file link is not valid')
   if (read.status === 'expired') throw forbidden('link-expired', 'This file link expired; load the record again for a new one')
@@ -38,13 +46,14 @@ const grantedName = async (deps: Deps, provider: string, path: string, query: UR
   const field = entry?.model.fields[grant.field]
   if (!entry || field?.type !== 'file') throw gone()
   const tenantField = entry.model.tenant ? entry.model.fields[entry.model.tenant] : undefined
-  const fields = tenantField ? [field, tenantField] : [field]
+  const typeField = field.file?.typeField === undefined ? undefined : entry.model.fields[field.file.typeField]
+  const fields = [field, ...(tenantField ? [tenantField] : []), ...(typeField ? [typeField] : [])]
   const row = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) => fetchRecord(trx, entry, decodeKeyText(entry, grant.key), undefined, { deleted: 'show', fields }))
   const value = row?.record[field.name]
   const held = heldFile(value, provider, path)
   if (!held) throw gone()
   if (tenantField && path.split('/')[0] !== (await tenantSegment(row!.record[tenantField.name] as string | number))) throw gone()
-  return { name: held.name, expires: grant.expires }
+  return { name: held.name, type: heldType(deps, row!.record, field, held, path), expires: grant.expires }
 }
 
 // A store that links its own bytes, such as a bucket: the browser downloads from there for as long as the app's link
@@ -57,7 +66,8 @@ const redirectToStore = async (store: FileStore, path: string, type: string, nam
 
 /**
  * `GET <systemPath>/files/<provider>/<path>`: a public provider's file for anyone; a private one's only through a signed
- * URL whose row still holds it. The Content-Type comes from the path's extension, never from what was uploaded, and
+ * URL whose row still holds it. The Content-Type comes from the row's type field when the field has one and it holds a
+ * type the app's table knows, else from the path's extension, never from what a client sent, and
  * nothing renders: `nosniff`, a sandboxing CSP, and `inline` only for images, PDF, audio and video. A store with its own
  * download links gets a redirect to one instead, with the same type and disposition, except for an app read (`appReadUrl`):
  * a page reading the file with `fetch` gets the bytes from the app's origin, up to `appReadMaxBytes`, since a bucket
@@ -68,9 +78,9 @@ export const serveFile = async (deps: Deps, request: Request, provider: string, 
   const configured = files?.providers[provider]
   if (!files || !configured || !isFilePath(path)) throw gone()
   const query = new URL(request.url).searchParams
-  const granted = configured.public ? undefined : await grantedName(deps, provider, path, query)
+  const granted = configured.public ? undefined : await grantedFile(deps, provider, path, query)
   const appRead = isAppRead(query)
-  const type = files.types.servedType(path)
+  const type = granted?.type ?? files.types.servedType(path)
   const name = files.types.downloadName(granted?.name ?? path.slice(path.lastIndexOf('/') + 1), type)
   if (configured.store.downloadUrl && !appRead) return redirectToStore(configured.store, path, type, name, granted?.expires ?? downloadExpiry())
 

@@ -38,6 +38,8 @@ const cliModuleFiles = ['packages/cli/src/project/admin-app.ts', 'packages/cli/s
 const exampleDatabase = (example) => ({ from: [`tests/examples/${example}/**`], reads: [`tests/apps/${example}/db/migrations/**`, `tests/apps/${example}/seed/**`] })
 
 export const edges = [
+  // The plugin build's test builds a plugin that extends the file viewer plugins, which it names only in that plugin's code.
+  { from: ['packages/cli/tests/build/build-plugin.integration.test.ts'], loads: ['packages/image-viewer/src/index.ts', 'packages/pdf-viewer/src/index.ts'] },
   // The CLI's tests start the CLI from source in the ERP, or in a project beside it.
   { from: ['packages/cli/tests/support/auth-project.ts'], starts: ['packages/cli/bin/protobase-source.mjs', 'tests/apps/erp/protobase.config.ts'], reads: ['tests/apps/erp/**'] },
   // The Supabase move's test imports into a new scratch app and serves it with `protobase dev`, with pg_dump and psql
