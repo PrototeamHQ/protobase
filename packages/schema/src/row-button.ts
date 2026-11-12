@@ -9,8 +9,17 @@ const shape = "a row button is { label, to } or { label, href }, such as { label
 /** A row button's choices, in order: the one it is, or each of its list. */
 export const rowButtonChoices = (button: RowButtonModel): readonly RowButtonChoice[] => (Array.isArray(button) ? button : [button as RowButtonChoice])
 
+/** Where a choice goes: its `href` when it has one, as the check reads it, otherwise its address in `to`. */
+export const rowButtonTarget = (choice: RowButtonChoice): { href: string } | { to: AppAddress } => {
+  const href = (choice as { href?: string }).href
+  return href === undefined ? { to: (choice as { to: AppAddress }).to } : { href }
+}
+
 /** The fields of the row a choice's label and address or href read; a row without a value for one of them skips it. */
-export const rowButtonChoiceFields = (choice: RowButtonChoice) => [...new Set([...textPlaceholders(choice.label), ...('href' in choice ? textPlaceholders(choice.href) : addressPlaceholders(choice.to))])]
+export const rowButtonChoiceFields = (choice: RowButtonChoice) => {
+  const target = rowButtonTarget(choice)
+  return [...new Set([...textPlaceholders(choice.label), ...('href' in target ? textPlaceholders(target.href) : addressPlaceholders(target.to))])]
+}
 
 /** The fields of the row any of a button's choices reads, to load with the rows. */
 export const rowButtonFields = (button: RowButtonModel) => [...new Set(rowButtonChoices(button).flatMap(rowButtonChoiceFields))]

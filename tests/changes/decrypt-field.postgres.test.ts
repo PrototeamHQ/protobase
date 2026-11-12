@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { createAdmin, defineFunction, defineJob, jobsSchemaMigration, startJobs, type AuditEvent, type AuditQueue, type JobsRuntime } from '@protobase/server'
 import { connectServer, databaseUrl, serverReachable } from '../../scripts/test-db/templates'
+import { statementTimeoutMs } from '../../test-support/postgres-database'
 
 // Workers poll on real timers, which a busy machine stretches.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -49,7 +50,7 @@ describe.skipIf(!reachable)('decryptField in jobs and API functions', () => {
   const authenticate = () => ({ user: { id: 'u1', roles: ['admin'] }, tenant: 1 })
   const adminWith = (encryptionKey: string, queue: AuditQueue) => {
     vi.stubEnv('PROTOBASE_ENCRYPTION_KEY', encryptionKey)
-    const admin = createAdmin({ resources: [targets], db, authenticate, functions: { dispatch }, jobs: [readJob], options: { audit: queue } })
+    const admin = createAdmin({ resources: [targets], db, authenticate, functions: { dispatch }, jobs: [readJob], options: { statementTimeoutMs, audit: queue } })
     vi.unstubAllEnvs()
     return admin
   }

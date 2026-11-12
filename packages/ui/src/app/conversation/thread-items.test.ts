@@ -26,4 +26,14 @@ describe('threadItems', () => {
     const [, message] = threadItems([{ id: 1, author: 'Ann', sent_at: '2026-11-10T09:00:00Z', body: 'Hi' }], fields, now)
     expect(message).toMatchObject({ kind: 'message', author: { id: 'Ann', name: 'Ann' }, time: '2026-11-10T09:00:00Z' })
   })
+
+  it('gives a message with a status that status, and one without none', () => {
+    const rows = [
+      { id: 3, author: 'Ann', sent_at: '2026-11-10T09:02:00Z', body: 'Thanks', state: '' },
+      { id: 2, author: 'Ann', sent_at: '2026-11-10T09:01:00Z', body: 'Hi', state: null },
+      { id: 1, author: 'Ann', sent_at: '2026-11-10T09:00:00Z', body: 'Hello', state: 'delivered' },
+    ]
+    const messages = threadItems(rows, { ...fields, status: 'state' }, now).flatMap((item) => (item.kind === 'message' ? [item.status] : []))
+    expect(messages).toEqual(['delivered', undefined, undefined])
+  })
 })

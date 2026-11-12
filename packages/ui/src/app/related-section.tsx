@@ -58,7 +58,8 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
   }
   if (item.presentation === 'record') {
     if (match === null) return <Section {...heading}><Empty empty={item.empty} /></Section>
-    return <RelatedRecord {...heading} model={model} view={view} filter={match} sort={item.sort ?? ''} fields={columns} button={item.button} empty={item.empty} />
+    // A new match starts afresh, so the previous record never shows while its query loads
+    return <RelatedRecord key={match} {...heading} model={model} view={view} filter={match} sort={item.sort ?? ''} fields={columns} button={item.button} empty={item.empty} />
   }
   const handOrder = relatedHandOrder(item, model, permissions)
   const displaySwitch = <EmbeddedDisplaySwitch view={view} value={display} onChange={pick} />

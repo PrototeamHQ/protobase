@@ -59,6 +59,16 @@ export const fillAddress = (to: AppAddress, record: Record<string, unknown> = {}
 export const bareFilterFields = (to: AppAddress) =>
   to.kind === 'list' && to.filter !== undefined ? [...new Set([...to.filter.matchAll(filterPlaceholder)].flatMap((match) => (match[3] === undefined ? [] : [match[3]])))] : []
 
+const quotedLiteral = /(["'])(?:\\[\s\S]|(?!\1)[^\\])*\1/g
+
+const wholeQuoted = /^(["'])\{[A-Za-z_][A-Za-z0-9_]*\}\1$/
+
+/**
+ * The fields a filter takes inside a longer quoted value, such as `{name}` in `title = 'abc{name}'`; only a quoted value
+ * that is the placeholder alone is escaped when filled, so these are refused.
+ */
+export const embeddedFilterFields = (filter: string) => [...new Set([...filter.matchAll(quotedLiteral)].flatMap(([literal]) => (wholeQuoted.test(literal) ? [] : names(literal))))]
+
 /**
  * Whether an href leaves the app: it starts with a scheme (`https:`, `mailto:`) or `//`. A path inside the app is an
  * address, given as `to`, so that it is written one way everywhere.

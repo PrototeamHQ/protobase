@@ -1658,7 +1658,8 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "newMessages": "New messages",
-    "loadEarlier": "Load earlier messages"
+    "loadEarlier": "Load earlier messages",
+    "working": "Writing a reply…"
   },
   "compact-table": {
     "table": "Table",
@@ -1762,7 +1763,8 @@
     "yes": "Yes",
     "no": "No",
     "shownIn": "Shown in {zone}",
-    "fileMissing": "File missing"
+    "fileMissing": "File missing",
+    "jsonItems": "{count, plural, one {# item} other {# items}}"
   },
   "mailbox": {
     "missingTitle": "Connect a mailbox to send",

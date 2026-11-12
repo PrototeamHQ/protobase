@@ -8,7 +8,7 @@ import { defineRoles } from '@protobase/schema'
 import { configExports, createAdmin, startJobs, workflowsMigration, type AuditEvent, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -58,7 +58,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('storage configurations 
         const person = people[request.headers.get('x-user')!]!
         return { user: { id: request.headers.get('x-user')!, roles: person.roles }, tenant: person.tenant }
       },
-      options: { roles, audit: { publish: async (event) => void events.push(event) } },
+      options: { statementTimeoutMs, roles, audit: { publish: async (event) => void events.push(event) } },
     })
     vi.unstubAllEnvs()
     receiver = createServer((request, response) => {

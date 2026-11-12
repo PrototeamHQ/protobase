@@ -1,10 +1,10 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
 import type { RecordPageModel, ActionInputModel, AppAddress, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, RecordTrendModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ThreadSectionModel, ViewModel } from '@protobase/schema'
-import { addressErrors, chartFields, followableRowButton, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay, type RefShape } from '@protobase/schema/internal'
+import { addressErrors, chartFields, followableRowButton, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay, textPlaceholders, type RefShape } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
-import { threadSectionErrors } from './view-conversation'
+import { pruneThreadSection } from './view-conversation'
 import { recordChartErrors } from './view-record-chart'
 import { recordTrendErrors } from './view-record-trend'
 import { openErrors, relatedSectionErrors } from './view-related'
@@ -166,8 +166,12 @@ const sectionFields = (model: ResourceModel, writeOnly: ReadonlySet<string>) =>
     return kept.length > 0 ? kept : undefined
   })
 
+// A link's text goes when it names a field the caller cannot read, so the link shows its address.
+const readableLinkText = (model: ResourceModel, { linkText, ...hints }: FieldViewModel): FieldViewModel =>
+  linkText === undefined || textPlaceholders(linkText).some((name) => !Object.hasOwn(model.fields, name)) ? hints : { ...hints, linkText }
+
 const fieldHints = (model: ResourceModel, writeOnly: ReadonlySet<string>) =>
-  s.map<Record<string, FieldViewModel>>((hints) => Object.fromEntries(Object.entries(hints).filter(([name]) => formFields(model, writeOnly)(name))))
+  s.map<Record<string, FieldViewModel>>((hints) => Object.fromEntries(Object.entries(hints).filter(([name]) => formFields(model, writeOnly)(name)).map(([name, hint]) => [name, readableLinkText(model, hint)])))
 
 // A composer creates its messages, so it needs the caller to create them with both its fields, not only update them.
 // Startup checked its fields against the full models; the caller need not read them, as a write-only text is still sent.
@@ -190,8 +194,8 @@ const layoutShape = (resource: string, model: ResourceModel, models: Record<stri
     gallery: s.map<GalleryModel>((item) => pruneGallery(item, resource, model, models)),
     history: s.object<HistorySectionModel>({ kind: s.data, title: s.data, limit: s.data, when: s.data }),
     comments: s.object<CommentsSectionModel>({ kind: s.data, title: s.data, when: s.data }),
-    // A conversation goes when the caller cannot read the messages or a field it shows; its box when they cannot create one
-    thread: s.map<ThreadSectionModel>((item) => (threadSectionErrors(item, resource, models).length === 0 ? item : undefined)),
+    // A conversation goes when the caller cannot read the messages or a field each one needs; its box when they cannot create one
+    thread: s.map<ThreadSectionModel>((item) => pruneThreadSection(item, resource, models)),
     composer: s.map<ComposerSectionModel>((item) => (creates(item, creatable) ? item : undefined)),
     // A custom section falls back to any main-column item, another custom section included, so its shape, set below, holds these cases, itself included.
     // A fallback the caller can see none of stays, empty, so the client still draws nothing in the component's place.

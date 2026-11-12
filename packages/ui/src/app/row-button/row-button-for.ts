@@ -1,5 +1,5 @@
 import type { AppAddress, ResourceModel, RowButtonModel, ViewModel } from '@protobase/schema'
-import { bareFilterFields, fillAddress, fillText, hrefField, rowButtonChoiceFields, rowButtonChoices } from '@protobase/schema/internal'
+import { bareFilterFields, fillAddress, fillText, hrefField, rowButtonChoiceFields, rowButtonChoices, rowButtonTarget } from '@protobase/schema/internal'
 import { displayValue } from '../../live/display-value'
 
 const isEmpty = (value: unknown) => value === null || value === undefined || value === ''
@@ -24,10 +24,11 @@ export const rowButtonFor = (button: RowButtonModel, model: ResourceModel, view:
     return field ? displayValue(field, record[name], view?.fields[name]) : String(record[name])
   }
   const label = fillText(choice.label, shown)
-  if ('href' in choice) {
-    const href = httpsUrl(record[hrefField(choice.href) ?? ''])
+  const target = rowButtonTarget(choice)
+  if ('href' in target) {
+    const href = httpsUrl(record[hrefField(target.href) ?? ''])
     return href === undefined ? undefined : { label, href }
   }
-  if (!bareFilterFields(choice.to).every((name) => plainValue(record[name]))) return
-  return { label, to: fillAddress(choice.to, record) }
+  if (!bareFilterFields(target.to).every((name) => plainValue(record[name]))) return
+  return { label, to: fillAddress(target.to, record) }
 }

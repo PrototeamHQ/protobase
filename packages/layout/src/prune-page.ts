@@ -2,6 +2,7 @@ import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, 
 import { addressErrors, followableRowButton, pruneByShape, shapes } from '@protobase/schema/internal'
 import { chartFields } from './check-chart'
 import { threadFields } from './check-conversation'
+import { conditionReadable } from './check-condition'
 import { elementResource, linkSource } from './check-page'
 import { countedResource, parseCondition } from './condition'
 import { resolveFieldPath } from './field-path'
@@ -64,9 +65,15 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
       return text(node.props.field) === undefined || readable(String(node.props.field)) ? node : null
     case 'Chart':
       return model && chartFields(node).every((name) => Object.hasOwn(model.fields, name)) ? node : null
-    // A thread needs every field of its messages; a composer needs to create one with its text and values.
-    case 'Thread':
-      return model && threadFields(node).every((name) => Object.hasOwn(model.fields, name)) ? node : null
+    // A thread needs every field of its messages, and drops a status line or working indicator the caller cannot read;
+    // a composer needs to create one with its text and values.
+    case 'Thread': {
+      if (!model || !threadFields(node).every((name) => Object.hasOwn(model.fields, name))) return null
+      const { status, working, ...props } = node.props
+      const keepsStatus = typeof status === 'string' && Object.hasOwn(model.fields, status)
+      const keepsWorking = typeof working === 'string' && conditionReadable(working, scope.record ? scope.resource : undefined, models)
+      return { ...node, props: { ...props, ...(keepsStatus && { status }), ...(keepsWorking && { working }) } }
+    }
     case 'Composer': {
       if (!model || resource === undefined || !access.permissions[resource]?.create) return null
       const names = [String(node.props.field), ...Object.keys((node.props.values as Record<string, unknown> | undefined) ?? {})]

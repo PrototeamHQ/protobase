@@ -147,6 +147,12 @@ describe('loadedFields and sortFields', () => {
     expect(loadedFields(steps.toModel(), signed, ['title'])).toEqual(['title', 'checklist'])
   })
 
+  it("loads the fields a column's link text names", () => {
+    const reports = resource('reports').table('reports').fields({ id: f.integer(), url: f.text(), title: f.text() }).primaryKey((r) => r.id)
+    const linked = view<typeof reports>('reports').fields((r) => ({ url: r.url.format('url', { text: '{title}' }) })).list((r) => ({ columns: [r.url] })).toModel(reports.toModel())
+    expect(loadedFields(reports.toModel(), linked, ['url'])).toEqual(['url', 'title'])
+  })
+
   it('sorts a display by the sortable fields it shows', () => {
     expect(sortFields(model, boardView, shownDisplay(boardView, 'cards')!)).toEqual(['number', 'bookedOn'])
   })

@@ -10,7 +10,7 @@ import c from '../../packages/workflows/src/reference/c.json'
 import d from '../../packages/workflows/src/reference/d.json'
 import g from '../../packages/workflows/src/reference/g.json'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -53,7 +53,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("the report's reference 
       insert into orders (customer_email, total) values ('c@example.com', 99.50), ('d@example.com', 12.00)`)
     const { resources, views } = configExports({ ...workflowsModule(workflows), ...Object.fromEntries(app.map((source) => [source.toModel().name, source])) })
     const files = { providers: { private: localFiles({ dir: folder.dir }) }, secret: 'files-secret-for-the-reference-flows' }
-    admin = createAdmin({ resources, views, db, files, authenticate: () => ({ user: { id: 'ada', roles: ['builder'] }, tenant: '1' }), workflows, options: { roles } })
+    admin = createAdmin({ resources, views, db, files, authenticate: () => ({ user: { id: 'ada', roles: ['builder'] }, tenant: '1' }), workflows, options: { statementTimeoutMs, roles } })
     receiver = createServer((request, response) => {
       const chunks: Buffer[] = []
       request.on('data', (chunk: Buffer) => chunks.push(chunk))

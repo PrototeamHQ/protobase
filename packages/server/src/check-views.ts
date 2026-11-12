@@ -1,6 +1,6 @@
 import { conditionProblems } from '@protobase/layout'
 import { isRecordCondition, type ActionInputModel, type ActionRun, type CardPhotosModel, type GalleryModel, type ResourceModel, type ViewModel } from '@protobase/schema'
-import { actionInputErrors, addressErrors, builtInFieldTypes, addressPlaceholders, boardErrors, datesErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, layoutItems, linkActionError, promptError, promptFields, updateSetErrors, viewOfList } from '@protobase/schema/internal'
+import { actionInputErrors, addressErrors, builtInFieldTypes, addressPlaceholders, boardErrors, datesErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, layoutItems, linkActionError, promptError, promptFields, textPlaceholders, updateSetErrors, viewOfList } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -82,6 +82,14 @@ const textHintErrors = (view: ViewModel, model: ResourceModel) =>
     if (!field || field.type === 'text') return []
     const format = hints.format !== undefined && textFormats.has(hints.format) ? [`format('${hints.format}') of "${name}" needs a text field, not ${field.type}`] : []
     return [...textHints.filter((hint) => hints[hint]).map((hint) => `${hint} "${name}" needs a text field, not ${field.type}`), ...format]
+  })
+
+// A link's text shows on a url link, filled from fields the record has.
+const linkTextErrors = (view: ViewModel, model: ResourceModel) =>
+  Object.entries(view.fields).flatMap(([name, hints]) => {
+    if (hints.linkText === undefined) return []
+    if (hints.format !== 'url') return [`link text of "${name}" needs format('url')`]
+    return textPlaceholders(hints.linkText).filter((field) => !Object.hasOwn(model.fields, field)).map((field) => `link text of "${name}" names field "${field}", which ${model.name} does not have`)
   })
 
 // A create needs a value for a field that cannot be empty and has no default, so its form cannot leave it off; a boolean
@@ -275,7 +283,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
       return []
     })
     const comments = model.comments ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'comments' ? [`comments "${item.title}" needs .comments() on resource "${view.resource}"`] : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...notOnCreateErrors(view, model), ...numberHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...conversations, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...opensErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...actionWhenErrors(view, model), ...inputErrors(view, model, models), ...createErrors(view, pageNames)]
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...linkTextErrors(view, model), ...notOnCreateErrors(view, model), ...numberHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...conversations, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...opensErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...actionWhenErrors(view, model), ...inputErrors(view, model, models), ...createErrors(view, pageNames)]
   }
   // A named list is checked as a view of its own, without the record page, which the view's own check covers
   const problems = views.flatMap((view) => {

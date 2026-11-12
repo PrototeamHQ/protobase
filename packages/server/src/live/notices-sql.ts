@@ -2,6 +2,7 @@ import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import { quoteIdent } from '../changes/capture-sql'
 import type { ResourceChange } from '../changes/resource-change'
+import type { NoticeChange } from './live-notices'
 
 /**
  * The recent changes of the resources with `.live()`, which open pages refresh from: a row per record and transaction,
@@ -36,7 +37,7 @@ export const keptMinutes = 10
  * Adds the changes as notices, in their order, and deletes those older than `keptMinutes`, but never the newest, so a
  * reader's last notice is gone only once a later one was pruned. One dispatch's transaction does both.
  */
-export const writeNotices = async (db: Db, schema: string, changes: readonly ResourceChange[]) => {
+export const writeNotices = async (db: Db, schema: string, changes: readonly NoticeChange[]) => {
   if (changes.length === 0) return
   const table = tableOf(schema)
   const rows = JSON.stringify(changes.map((change) => ({ resource: change.resource, record_key: change.key, tenant_id: change.tenant === undefined ? null : String(change.tenant), operation: change.operation })))

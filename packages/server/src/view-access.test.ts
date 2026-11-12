@@ -56,6 +56,13 @@ describe('pruneView', () => {
     expect(filters(['paid', 'urgent'])).toEqual([])
   })
 
+  it("drops a url link's text that names a field the caller cannot read, so the link shows its address", () => {
+    const repairsView = view<typeof repairs>('repairs').fields((r) => ({ number: r.number.format('url', { text: 'Costs {costPrice}' }) })).toModel()
+    expect(pruneView(repairsView, all.repairs, all).fields).toEqual({ number: { format: 'url', linkText: 'Costs {costPrice}' } })
+    const hidden = without({ repairs: ['costPrice'] })
+    expect(pruneView(repairsView, hidden.repairs!, hidden).fields).toEqual({ number: { format: 'url' } })
+  })
+
   it('leaves out links that read a hidden field or lead where the caller cannot go', () => {
     const repairsView = view<typeof repairs>('repairs')
       .actions((a) => [
@@ -391,6 +398,24 @@ describe('pruneView', () => {
     expect(layout(['body'])).toEqual(['composer'])
     expect(layout(['repairId'])).toEqual(['composer'])
     expect(layout(['at'])).toEqual(['composer'])
+  })
+
+  it("drops a conversation's status line and working indicator for a caller who cannot read what they name", () => {
+    const notes = resource('repair_notes')
+      .table('repair_notes')
+      .fields({ id: f.integer(), repairId: f.relation('repairs').filterable(), author: f.text(), at: f.timestamp().sortable(), body: f.text(), state: f.text() })
+      .primaryKey((r) => r.id)
+      .toModel()
+    const written = view<typeof repairs>('repairs')
+      .layout(() => [l.thread('Notes', { resource: 'repair_notes', field: 'repairId', sender: 'author', time: 'at', text: 'body', status: 'state', working: "number = 'R1'" })])
+      .toModel()
+    const thread = (hidden: Record<string, string[]>) => {
+      const models: Record<string, ResourceModel> = { ...without({ repairs: hidden.repairs ?? [] }), repair_notes: restrictModel(notes, { readableFields: Object.keys(notes.fields).filter((name) => !hidden.repair_notes?.includes(name)), writableFields: { create: [], update: [] } }) }
+      const [item] = pruneView(written, models.repairs!, models).layout
+      return item?.kind === 'thread' ? { status: item.status, working: item.working } : item
+    }
+    expect(thread({})).toEqual({ status: 'state', working: "number = 'R1'" })
+    expect(thread({ repair_notes: ['state'], repairs: ['number'] })).toEqual({ status: undefined, working: undefined })
   })
 
   it("prunes a conversation in a custom section's fallback as one outside it", () => {

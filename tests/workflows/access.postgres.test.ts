@@ -7,7 +7,7 @@ import { defineRoles, f, resource } from '@protobase/schema'
 import { configExports, createAdmin, startJobs, unauthorized, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -61,7 +61,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
     }
     folder = await tempDir()
     const files = { providers: { private: localFiles({ dir: folder.dir }) }, secret: 'files-secret-for-the-access-tests' }
-    admin = createAdmin({ resources, views, db, files, authenticate, workflows, options: { roles } })
+    admin = createAdmin({ resources, views, db, files, authenticate, workflows, options: { statementTimeoutMs, roles } })
     receiver = createServer((request, response) => {
       authorizations.push(request.headers.authorization ?? '')
       response.writeHead(500, { 'content-type': 'text/plain' }).end(`denied for ${request.headers.authorization}`)

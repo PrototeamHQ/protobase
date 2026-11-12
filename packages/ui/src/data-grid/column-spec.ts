@@ -46,6 +46,8 @@ export type ColumnSpec = {
   labels?: Record<string, string>
   /** For a `text` column of addresses: each value a link that writes to, calls or opens it. */
   link?: ContactFormat
+  /** For a `link` column: the text a row's link shows instead of the address; the address when it gives none. */
+  linkText?: (row: GridRow) => string | undefined
   /** For a `user` column: the person behind an id; an id it does not know shows as itself. */
   users?: (id: string) => CellUser | undefined
   /** Reads the cell value; defaults to `row[id]`. */

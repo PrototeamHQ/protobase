@@ -5,7 +5,7 @@ import { changesMigration, checkDerived, createAdmin, derivedMigration, startJob
 import { fieldTypes } from '../../packages/server/src/derived/affected'
 import { claim, keep, markStale } from '../../packages/server/src/derived/derived-state'
 import { runDerived } from '../../packages/server/src/derived/run-derived'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 
 // Workers poll on real timers, which a busy machine stretches.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -55,7 +55,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
     await pg.exec((await changesMigration(db, models))!)
     await pg.exec((await derivedMigration(db, models))!)
     expect(await derivedMigration(db, models)).toBeUndefined()
-    admin = createAdmin({ resources: [objectives, tasks], db, authenticate: () => ({ user: { id: 'u1', roles: ['admin'] } }), derived: { 'objectives.verdict': verdict } })
+    admin = createAdmin({ resources: [objectives, tasks], db, authenticate: () => ({ user: { id: 'u1', roles: ['admin'] } }), derived: { 'objectives.verdict': verdict }, options: { statementTimeoutMs } })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
   })
 

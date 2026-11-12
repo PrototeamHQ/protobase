@@ -4,7 +4,7 @@ import { deriveKey } from 'altcha-lib/algorithms/web/sha'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { defineRoles, f, resource, view } from '@protobase/schema'
 import { createAdmin } from '@protobase/server'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { testAuthenticator } from '../../test-support/server'
 
 // A visitor's public form that creates a record under a parent (`.parent()`), set by a column default since a form takes
@@ -41,7 +41,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('a public form creating
       db: database.db,
       authenticate: testAuthenticator,
       secret: 'forms secret',
-      options: { roles },
+      options: { statementTimeoutMs, roles },
       formsDifficulty: { min: 1, max: 20 },
     })
   })

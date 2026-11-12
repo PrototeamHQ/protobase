@@ -20,6 +20,6 @@ export const withFieldTypeCells = (columns: ColumnSpec[], model: ResourceModel, 
     if (!shown) return spec
     return {
       ...spec,
-      render: (row) => <WidgetPart shown={shown} part="cell" field={field} value={apiValue(field, row[spec.id])} fallback={renderCell(spec, spec.value ? spec.value(row) : row[spec.id])} />,
+      render: (row) => <WidgetPart shown={shown} part="cell" field={field} value={apiValue(field, row[spec.id])} fallback={renderCell(spec, spec.value ? spec.value(row) : row[spec.id], row)} />,
     }
   })

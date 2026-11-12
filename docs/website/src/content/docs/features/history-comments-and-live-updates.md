@@ -10,6 +10,7 @@ description: The changes of each record, comments on it, and pages that refresh 
 - [Mentions](/reference/comments/#mentions): Mentioning a colleague in a comment sends them an email with a link to the record.
 - [Comment moderation](/reference/comments/#moderation): Admins find and delete comments across the app.
 - [Live updates](/reference/live/#what-a-page-hears): Open lists and record pages refresh within seconds when a record changes, including changes made outside the API.
+- [Live views](/reference/live/#resources-backed-by-a-view) (experimental): A resource backed by a view updates live when the tables it reads change.
 - [Change stream](/reference/live/#the-stream): Apps follow record changes over a stream that catches up after a reconnect.
 - [Polling, then a socket](/reference/live/#polling-then-a-socket): Apps and Node scripts poll for changes first and switch to a WebSocket after 30 seconds, or at once, falling back to polling while the socket is down.
 - [Presence](/reference/channels/#presence) (beta): Apps see who else has a record open and what each of them tracks, such as online or away, for whoever may read the record.

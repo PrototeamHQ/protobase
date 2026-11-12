@@ -28,10 +28,12 @@ description: The page of one record, with its sections, related records, galleri
 - [Related records](/reference/ui-config/#related-records): Every record page shows how many records point at it, and can list related records, also through a join resource, as a table, another display or cards with buttons, each row or card with a button to an address its fields name.
 - [Compact related cards](/reference/ui-config/#compact-related-cards) (experimental): Related records can show as compact cards, coloured by a field.
 - [Counts in headings](/reference/ui-config/#counts-in-headings) (experimental): Related lists can show their count in the heading.
+- [Group help lines](/reference/ui-config/#groups) (experimental): A group can show a short line under its heading, also while it is closed.
 - [A related record in full](/reference/ui-config/#a-related-record-in-full): A related record can show its fields in full, without a card, for reading tabs such as notes.
 - [Record lines](/reference/ui-config/#record-lines): The related table a record's view marks as its lines, such as an invoice's, shows all of them on its page, where you edit, add, remove and reorder them, and Save writes the record and its lines together.
 - [Custom section fallbacks](/reference/custom-components/#record-section-fallbacks) (experimental): Where your own component on a record page cannot be drawn, such as on a watch, what you declare shows in its place: any main-column item in the main column, conversations included, and sidebar maps and sidebar custom components in the sidebar.
 - [Conversations](/reference/ui-config/#conversations): A record page holds a chat about the record, such as a task's, with its messages in markdown and a box that sends one, declared in its layout with no component of the app's own.
+- [Message status and a working indicator](/reference/ui-config/#message-status-and-a-working-indicator) (experimental): Threads can show each message's status and when a reply is being written.
 - [Charts of samples](/reference/ui-config/#charts-of-related-records): A record page graphs numeric samples over the last hour, day or week, such as a server's CPU use.
 - [Trends of related records](/reference/ui-config/#trends-of-related-records) (experimental): Record pages can chart their related records over time.
 - [Fresh data on return](/reference/ui-config/#the-record-page): Records and lists reload when the browser tab is focused again, keeping unsaved edits.

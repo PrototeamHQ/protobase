@@ -2,7 +2,10 @@ import { readEventStream } from '@protobase/schema/internal'
 import { queryString } from './query-string'
 import type { Transport } from './transport'
 
-/** A record of a `.live()` resource that changed: its key, never its values. */
+/**
+ * A record of a `.live()` resource that changed: its key, never its values. The key is empty for a resource live from
+ * others (`.live({ reads })`), such as one backed by a view, when one of those changed: any of its records may have.
+ */
 export type LiveChange = { resource: string; key: string; operation: 'create' | 'update' | 'delete' | 'undelete' }
 
 export type LiveHandlers = {

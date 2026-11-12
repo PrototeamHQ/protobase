@@ -147,6 +147,15 @@ describe('resource builder', () => {
     const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id)
     expect(notes.toModel()).not.toHaveProperty('live')
     expect(notes.live().toModel().live).toBe(true)
+    expect(notes.live().toModel()).not.toHaveProperty('liveReads')
+  })
+
+  it('refreshes a resource backed by a view from the resources it reads, each named once and not itself', () => {
+    const thread = resource('thread').table('thread_items').fields({ id: f.text(), body: f.text() }).primaryKey((r) => r.id)
+    expect(thread.live({ reads: ['messages', 'replies'] }).toModel()).toMatchObject({ live: true, liveReads: ['messages', 'replies'] })
+    expect(() => thread.live({ reads: [] }).toModel()).toThrow('live reads names no resource')
+    expect(() => thread.live({ reads: ['thread'] }).toModel()).toThrow('live reads names the resource itself')
+    expect(() => thread.live({ reads: ['messages', 'messages'] }).toModel()).toThrow('live reads names a resource twice')
   })
 
   it('takes .encrypted() on text only, sensitive too, and refuses what only the database could write', () => {

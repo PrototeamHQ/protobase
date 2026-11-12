@@ -172,6 +172,10 @@ export type ThreadProps = Heading & {
   time: string
   /** The message itself. */
   text: string
+  /** A short line under each message, such as whether it was delivered: a text or enum field, its enum labels shown. */
+  status?: string
+  /** A condition on the record around it, as `<Show when>` takes, such as `state = 'working'`: while it holds, the thread ends in a working indicator. */
+  working?: string
   /** How many of the latest messages it shows at first; default 50. Earlier ones load on request. */
   limit?: number
   empty?: string

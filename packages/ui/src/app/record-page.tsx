@@ -69,6 +69,8 @@ import { ComposerSection } from './conversation/composer-section'
 import { ThreadSection } from './conversation/thread-section'
 import { isMarkdown } from '../markdown/markdown-hint'
 import { ContactLink } from '../live/contact-link'
+import { linkTextOf } from '../live/link-text'
+import { jsonSummary } from '../live/json-summary'
 import { contactFormat } from '../live/contact-links'
 import { text as appText } from './messages'
 import { text } from './record-messages'
@@ -283,7 +285,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     ) : field.sensitive ? (
       <FieldEditor field={field} hints={hint(name)} value="" stored={stored.record[name]} locked reveal={() => client.reveal(model.name, recordKey, name)} resource={model.name} onChange={(next) => editor.change(name, next)} />
     ) : (
-      <FieldValue model={model} field={field} value={stored.record[name]} relationLabel={related.labels[name]} />
+      <FieldValue model={model} field={field} value={stored.record[name]} relationLabel={related.labels[name]} record={stored.record} />
     )
     return { label: hint(name)?.label ?? humanize(name), help: fieldHelp(hint(name), view, editing), wide: isWideField(fieldTypes, field, hint(name)), value }
   }
@@ -299,10 +301,11 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         if (!known(name)) return [{ label: hint(name)?.label ?? humanize(name), value: <Skeleton className="h-4 w-24" /> }]
         const value = stored.record[name]
         const markdown = isMarkdown(field, hint(name)) && typeof value === 'string' && value !== ''
-        // A sidebar value stays on one line, so markdown shows as its plain-text excerpt, like a list cell
-        const text = markdown ? markdownExcerpt(value) : displayValue(field, value, hint(name))
+        // A sidebar value stays on one line, so markdown shows as its plain-text excerpt and JSON as its summary, like a list cell
+        const json = field.type === 'json' && value !== null && value !== undefined
+        const text = markdown ? markdownExcerpt(value) : json ? jsonSummary(value) : displayValue(field, value, hint(name))
         const contact = field.type === 'text' && typeof value === 'string' && value !== '' ? contactFormat(hint(name)) : undefined
-        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : contact ? <ContactLink format={contact} value={text} /> : <span title={valueTitle(field, value, undefined, hint(name))}>{text}</span>
+        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : contact ? <ContactLink format={contact} value={text} label={linkTextOf(model, view, name, stored.record)} /> : <span title={valueTitle(field, value, undefined, hint(name))}>{text}</span>
         const shown = shownWidget(fieldTypes, field, hint(name))
         return [{ label: hint(name)?.label ?? humanize(name), title: text, value: shown ? <WidgetPart shown={shown} part="display" field={field} value={stored.record[name]} fallback={builtIn} /> : builtIn }]
       })}
@@ -360,7 +363,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     if (item.kind === 'map') return item.sidebar ? [] : [<MapSection key={`map:${index}`} item={item} record={stored.record} />]
     if (item.kind === 'gallery') return [<GallerySection key={`gallery:${index}`} item={item} record={stored.record} recordKey={recordKey} />]
     if (item.kind === 'history') return [<HistorySection key={`history:${index}`} item={item} model={model} view={view} recordKey={recordKey} etag={stored.etag} />]
-    if (item.kind === 'thread') return [<ThreadSection key={`thread:${index}`} item={item} recordKey={recordKey} />]
+    if (item.kind === 'thread') return [<ThreadSection key={`thread:${index}`} item={item} scope={scope} />]
     // Writing waits for the record, so a message never goes out from the preview
     if (item.kind === 'composer') return preview ? [] : [<ComposerSection key={`composer:${index}`} item={item} owner={model} recordKey={recordKey} />]
     if (item.kind === 'comments') return [<CommentsSection key={`comments:${index}`} item={item} resource={model.name} recordKey={recordKey} canWrite={auth.kind !== 'visitor'} />]

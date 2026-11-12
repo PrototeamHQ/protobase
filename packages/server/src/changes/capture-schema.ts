@@ -2,7 +2,7 @@ import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import type { ResourceModel } from '@protobase/schema'
 import { capturePlan, planSql, uncaptured, type CaptureState, type FoundTrigger } from './capture-plan'
-import { capturedBy, isCaptured, quoteIdent, tableSql } from './capture-sql'
+import { capturedBy, quoteIdent, tableSql } from './capture-sql'
 import { changesSchema, type EventsOptions } from './events-options'
 import { hasIndexes } from '../has-indexes'
 import { historyIndexes } from '../history/history-sql'
@@ -26,9 +26,14 @@ const readCaptureState = async (db: Db, schema: string, models: readonly Resourc
     sql<{ oid: string; source: string; definer: boolean }>`select p.oid::text as oid, p.prosrc as source, p.prosecdef as definer from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = ${schema} and p.proname = 'capture' and p.pronargs = 0`,
   )
   const tables: Record<string, string | null> = {}
+  const views: string[] = []
   for (const model of models) {
-    const [found] = await rowsOf(db, sql<{ oid: string | null }>`select to_regclass(${tableSql(model)})::oid::text as oid`)
+    const [found] = await rowsOf(
+      db,
+      sql<{ oid: string | null; view: boolean | null }>`select c.oid::text as oid, c.relkind in ('v', 'm') as view from (select to_regclass(${tableSql(model)}) as oid) r left join pg_class c on c.oid = r.oid`,
+    )
     tables[model.name] = found?.oid ?? null
+    if (found?.view) views.push(model.name)
   }
   const oids = Object.values(tables).filter((oid) => oid !== null)
   const triggers = await rowsOf(
@@ -48,6 +53,7 @@ const readCaptureState = async (db: Db, schema: string, models: readonly Resourc
     ...(capture && { capture }),
     triggers: triggers.map((trigger) => ({ ...trigger, args: triggerArgs(trigger.args) })),
     tables,
+    views,
   }
 }
 
@@ -73,7 +79,7 @@ export const changesMigration = async (db: Db, models: readonly ResourceModel[],
  * new version serves.
  */
 export const checkChanges = async (db: Db, models: readonly ResourceModel[], options?: EventsOptions) => {
-  if (!models.some(isCaptured)) return
+  if (!models.some(capturedBy(models))) return
   const { plan: found } = await plan(db, models, options)
   const missing = uncaptured(found, models)
   if (missing.length === 0) return

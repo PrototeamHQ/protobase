@@ -445,6 +445,13 @@ describe('view builder', () => {
     expect(hinted.fields).toEqual({ title: { multiline: true, label: 'Body' } })
   })
 
+  it("carries a url link's text, and refuses one on another format or an empty one", () => {
+    const linked = view<typeof article>('article').fields((r) => ({ title: r.title.format('url', { text: 'Report of {status}' }) })).toModel()
+    expect(linked.fields).toEqual({ title: { format: 'url', linkText: 'Report of {status}' } })
+    expect(() => view<typeof article>('article').fields((r) => ({ title: r.title.format('email', { text: 'Mail' }) }))).toThrow(`Field "title": only format('url') takes a link text`)
+    expect(() => view<typeof article>('article').fields((r) => ({ title: r.title.format('url', { text: ' ' }) }))).toThrow(`Field "title": format('url') needs a link text that is not empty`)
+  })
+
   it('carries markdown as a field hint', () => {
     const hinted = view<typeof article>('article').fields((r) => ({ title: r.title.markdown() })).toModel()
     expect(hinted.fields).toEqual({ title: { markdown: true } })

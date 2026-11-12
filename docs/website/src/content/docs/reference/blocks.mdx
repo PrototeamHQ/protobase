@@ -162,6 +162,10 @@ The first records of a list, drawn the way the resource's list page draws them: 
 
 #### Row buttons
 
+:::caution[Experimental]
+Row buttons may change in any release. They do not show when a table switches to a list display such as cards, and on a mobile screen they sit at the end of the row, out of view until the table scrolls sideways.
+:::
+
 `button: { label, to }` adds a last column with a button on each row: a link, drawn as a button, to `to`, an [address](/reference/layouts/#addresses) in the app, such as a record on one of its [tabs](/reference/ui-config/#tabs). `{field}` in the address or the label is replaced by the row's value, the label's as the record page shows it (an enum value by its label), so each row can name its own next step. A row with no value for a field the button names shows no button. The button is checked when the config loads, and `/meta` gives it, on the block or the related section, to callers who can read the fields it names and follow its address, and leaves it out for the others. A [related section](/reference/ui-config/#related-records) takes the same `button`, on its table's rows or its cards.
 
 ```tsx
@@ -177,7 +181,7 @@ The first records of a list, drawn the way the resource's list page draws them: 
 Each row can decide where its button goes:
 
 - **A record's tab from a field**: `tab: '{tab}'` opens the tab the row's `tab` field names; a name the record page has no tab for opens its first tab.
-- **A filtered list**: `{ kind: 'list', resource: 'holds', filter: 'task_id = {task_id} AND state = "{state}"' }` opens the list with a filter built from the row. A text value goes in quotes, escaped so a title with quotes in it stays one value; a value outside quotes must be a number or `true`/`false`, and a row with any other value there shows no button. The filter's fields must be filterable, as in any address.
+- **A filtered list**: `{ kind: 'list', resource: 'holds', filter: 'task_id = {task_id} AND state = "{state}"' }` opens the list with a filter built from the row. A text value goes in quotes, on its own, escaped so a title with quotes in it stays one value; a `{field}` inside a longer quoted value, such as `'re {verb}'`, is refused when the config loads; a value outside quotes must be a number or `true`/`false`, and a row with any other value there shows no button. The filter's fields must be filterable, as in any address.
 - **An outside page**: `{ label: 'Error report', href: '{report_url}' }` opens the page the row's `report_url` field holds, in a new tab without the referrer, and the button carries the outside-link mark, which screen readers hear as "opens in a new tab". The `href` is one field, never a URL put together from parts, and a row whose field holds no `https:` URL shows no button.
 - **A different kind per row**: `button` takes a list of these, and each row shows the first whose fields it holds, so one list can hold items that each need a different act. A row whose first such choice leads nowhere, such as an `href` field without an `https:` URL, shows no button rather than the next choice. A caller who cannot read a choice's fields or follow its address gets the list without it.
 
@@ -196,7 +200,7 @@ Each row can decide where its button goes:
 
 <gap>A row button cannot show when the table switches to a list display such as cards because drawing it on a display is not implemented.</gap>
 
-<gap>A row button cannot show beside its row's first cell on a phone, where the table scrolls sideways to reach it, because a phone layout for table rows is not implemented.</gap>
+<gap>A row button cannot show beside its row's first cell on a phone, where the table scrolls sideways to reach it, because a mobile layout for table rows is not implemented.</gap>
 
 #### Signing several records off
 
@@ -421,6 +425,8 @@ The latest messages that match `filter`, oldest first, each under its sender's n
 | `sender` | Who wrote each message: a relation, named as the record it points at, or a text field. Required. |
 | `time` | When each was sent: a date or timestamp field the API can sort by, which orders them. Required. |
 | `text` | The message; shown rendered when the message resource's view marks it [`.markdown()`](/reference/ui-config/#names-and-columns). Required. |
+| `status` | A short line under each message, such as whether it was delivered: a text or enum field, shown with its view's value labels, in red for a value it colours `red`; a message without a value shows none. Left out for a user who cannot read it. Experimental, see [Message status and a working indicator](/reference/ui-config/#message-status-and-a-working-indicator). |
+| `working` | A condition on the record around the thread, as [`Show`](#show) takes, such as `state = 'working'`: while it holds, the thread ends in a working indicator. Left out for a user who cannot read what it names. Experimental. |
 | `limit` | How many of the latest it shows at first, and how many each **Load earlier messages** adds: 1 to 500, the API's largest page; default 50. |
 | `title`, `description`, `actions` | The heading; no card is drawn around the thread, so it can sit in a `Card` with its composer. |
 | `empty` | Text while there are no messages. |

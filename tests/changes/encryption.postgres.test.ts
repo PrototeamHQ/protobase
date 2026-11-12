@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { changesMigration, createAdmin, createEncryptionTools, jobsSchemaMigration, startJobs } from '@protobase/server'
 import { connectServer, databaseUrl, serverReachable } from '../../scripts/test-db/templates'
+import { statementTimeoutMs } from '../../test-support/postgres-database'
 
 // Workers poll on real timers, which a busy machine stretches.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -59,7 +60,7 @@ describe.skipIf(!reachable)('encrypting a column that history and the outbox cap
 
   it('removes the old plaintext from history and the outbox, captures nothing of its own, and leaves capture on', async () => {
     // Before: a plain note reaches history through the worker; a token written while it is stopped stays in the outbox.
-    const plain = createAdmin({ resources: [notesWith(false), drafts], db, authenticate, history: { days: 30 } })
+    const plain = createAdmin({ resources: [notesWith(false), drafts], db, authenticate, history: { days: 30 }, options: { statementTimeoutMs } })
     const errors: unknown[] = []
     const runtime = await startJobs({ db, jobs: plain.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
     expect((await call(plain, '/notes', 'POST', { title: 'a', note: noteCanary })).status).toBe(201)
@@ -103,7 +104,7 @@ describe.skipIf(!reachable)('encrypting a column that history and the outbox cap
     expect(after.fields.every((field) => field.plaintext === 0 && field.history === 0 && field.outbox === 0 && field.unreadable.length === 0)).toBe(true)
 
     vi.stubEnv('PROTOBASE_ENCRYPTION_KEY', key)
-    const encrypted = createAdmin({ resources: [notesWith(true), drafts, children], db, authenticate, history: { days: 30 } })
+    const encrypted = createAdmin({ resources: [notesWith(true), drafts, children], db, authenticate, history: { days: 30 }, options: { statementTimeoutMs } })
     vi.unstubAllEnvs()
     expect(await (await call(encrypted, '/notes/1:reveal', 'POST', { field: 'note' })).json()).toEqual({ field: 'note', value: noteCanary })
     expect(await (await call(encrypted, '/notes/1:reveal', 'POST', { field: 'token' })).json()).toEqual({ field: 'token', value: tokenCanary })

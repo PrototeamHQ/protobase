@@ -5,7 +5,7 @@ import { cn } from '../lib/cn'
 import { FileImage } from '../live/file-image'
 import { fileShown, shownImage } from '../live/file-values'
 import { valueColor } from '../live/value-color'
-import type { ColumnSpec } from './column-spec'
+import type { ColumnSpec, GridRow } from './column-spec'
 import { cellText } from './cell-text'
 import { formatDateTime } from '../format/date'
 import { viewerZone, zoneLabel } from '../format/zone'
@@ -15,12 +15,13 @@ import { text as message } from './messages'
 
 const muted = (text: string) => <span className="text-faint-foreground">{text}</span>
 
-export const renderCell = (spec: ColumnSpec, value: unknown) => {
+/** A cell of `spec` for `value`; `row`, the row it sits in, gives a link column its link text. */
+export const renderCell = (spec: ColumnSpec, value: unknown, row?: GridRow) => {
   if (value === null || value === undefined) return muted('—')
   const text = cellText(spec, value) ?? ''
   switch (spec.kind) {
     case 'text':
-      return spec.link ? <ContactLink format={spec.link} value={text} className="block min-w-0 truncate" /> : <TruncatedText text={text} />
+      return spec.link ? <ContactLink format={spec.link} value={text} label={row && spec.linkText?.(row)} className="block min-w-0 truncate" /> : <TruncatedText text={text} />
     case 'id':
       return <TruncatedText text={text} className="font-mono text-xs text-muted-foreground" />
     case 'money':

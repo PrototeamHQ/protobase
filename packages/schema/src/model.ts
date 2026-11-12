@@ -162,6 +162,11 @@ export type ResourceModel = {
   comments?: true
   /** Whether open pages refresh as soon as its records change (`.live()`). */
   live?: true
+  /**
+   * The resources whose changes refresh its open pages in place of its own (`.live({ reads })`), for one backed by a
+   * database view: its own table is not captured, and a change names no record of it.
+   */
+  liveReads?: string[]
   /** The field whose change makes a record's new ETag (`.etagFrom()`), in place of a `version` or `updated_at` column found by name. */
   etagFrom?: string
   /** Whether role wildcards such as `*.read` leave it out, so only `*` and capabilities naming it grant it (`.explicitGrants()`). */
@@ -365,6 +370,11 @@ export type FieldViewModel = {
   confirm?: string
   /** How the value is shown. */
   format?: FieldFormat
+  /**
+   * The text a `url` field's link shows instead of the address: fixed, such as `Error report`, or with `{field}`
+   * placeholders filled from the record, such as `{title}`; the address shows when it comes out empty.
+   */
+  linkText?: string
   /** A text that runs over several lines: forms edit it in a box that grows with it, and its line breaks show. */
   multiline?: boolean
   /** Markdown: forms edit its source with a preview, and it shows rendered, raw HTML as text. */
@@ -1101,6 +1111,10 @@ export type ThreadSectionModel = {
   time: string
   /** The message itself: a text field. */
   text: string
+  /** A short line under each message, such as whether it was delivered: a text or enum field, its enum labels shown. */
+  status?: string
+  /** An AIP-160 condition over the saved record, such as `state = 'working'`: while it holds, the thread ends in a working indicator. */
+  working?: string
   /** How many of the latest messages it shows at first; 50 when omitted. */
   limit?: number
   /** What it says while there are no messages. */

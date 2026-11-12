@@ -9,7 +9,7 @@ import { defineRoles, f, resource } from '@protobase/schema'
 import { configExports, createAdmin, startJobs, unauthorized, workflowsMigration, type JobsRuntime, type MailMessage, type WorkflowsOptions } from '@protobase/server'
 import { workflowsModule } from '@protobase/server/internal'
 import type { Plugin } from '@protobase/workflows/plugin'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { traceFiles } from './support/run-trace'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -87,7 +87,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
       if (!person) throw unauthorized('Sign in first')
       return { user: { id: request.headers.get('x-user')!, roles: person.roles }, tenant: person.tenant }
     }
-    admin = createAdmin({ resources, views, db, files: trace.files, authenticate, workflows, options: { roles } })
+    admin = createAdmin({ resources, views, db, files: trace.files, authenticate, workflows, options: { statementTimeoutMs, roles } })
     receiver = createServer((request, response) => {
       received.push(`${request.method} ${request.url}`)
       response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ stock: 3 }))
