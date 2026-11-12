@@ -86,3 +86,9 @@ export const outsideBar = ({ bar, controls }) =>
     if (top - ring >= bar.top && bottom + ring <= bar.bottom) return []
     return [`the top bar's "${text}" runs from ${top - ring}px to ${bottom + ring}px, outside the bar's ${bar.top}px to ${bar.bottom}px`]
   })
+
+/** The search text's line, `line`, when it runs past the inside of its field's border, `field`, both a top and bottom in pixels. */
+export const textOutsideField = ({ field, line }) => {
+  if (line.top >= field.top && line.bottom <= field.bottom) return []
+  return [`the search text's line runs from ${line.top}px to ${line.bottom}px, outside its field's ${field.top}px to ${field.bottom}px`]
+}

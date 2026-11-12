@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { axProblems, fixedText, hiddenFocus, offScreen, outlineShows, outsideBar, ringWidth } from './ax-problems.mjs'
+import { axProblems, fixedText, hiddenFocus, offScreen, outlineShows, outsideBar, ringWidth, textOutsideField } from './ax-problems.mjs'
 
 type Node = { nodeId: string; parentId?: string; childIds?: string[]; ignored?: boolean; role?: { value: string }; name?: { value: string }; properties?: Array<{ name: string; value: { value: unknown } }>; backendDOMNodeId?: number }
 
@@ -80,5 +80,13 @@ describe('outsideBar', () => {
       'the top bar\'s "Search field" runs from -1px to 50px, outside the bar\'s 0px to 50px',
       'the top bar\'s "Close search" runs from 2px to 51px, outside the bar\'s 0px to 50px',
     ])
+  })
+})
+
+describe('textOutsideField', () => {
+  const field = { top: 10, bottom: 40 }
+  it('finds a text line that runs past its field', () => {
+    expect(textOutsideField({ field, line: { top: 10, bottom: 40 } })).toEqual([])
+    expect(textOutsideField({ field, line: { top: 2, bottom: 41 } })).toEqual(["the search text's line runs from 2px to 41px, outside its field's 10px to 40px"])
   })
 })
