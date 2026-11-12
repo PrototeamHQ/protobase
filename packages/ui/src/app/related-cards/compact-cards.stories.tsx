@@ -114,7 +114,7 @@ export const Checks: StoryObj = {
     expect(card.getByText('Blocked')).toBeVisible()
 
     const third = (await section.findByRole('link', { name: 'Lists lose their place on the way back' })).closest('li')!
-    const action = card.getByRole('button', { name: 'Mark clear' })
+    const action = card.getByRole('button', { name: 'Mark clear: Related cards push the first action below the fold' })
     expect(third.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight)
     expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight)
 

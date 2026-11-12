@@ -28,12 +28,13 @@ type CompactCardProps = {
  */
 export const CompactCard = ({ scope, view, fields, time, tone, actions, button }: CompactCardProps) => {
   const titleOf = useRecordTitle()
+  const title = titleOf(scope.model, view, scope.record, scope.key)
   return (
     <li className="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 rounded-lg border border-border bg-surface px-4 py-2.5">
       {tone && <ToneEdge view={view} field={tone} record={scope.record} />}
       <div className="col-span-2 flex min-w-0 items-baseline gap-2 sm:col-span-1">
         <AppLink to={{ kind: 'record', resource: scope.model.name, key: recordKey(scope.model, scope.record) }} className="line-clamp-2 min-w-0 font-medium [overflow-wrap:anywhere] text-primary-text hover:underline">
-          {titleOf(scope.model, view, scope.record, scope.key)}
+          {title}
         </AppLink>
         {time && (
           <div className="ml-auto shrink-0 text-body whitespace-nowrap text-muted-foreground empty:hidden">
@@ -54,7 +55,7 @@ export const CompactCard = ({ scope, view, fields, time, tone, actions, button }
         <RecordScope value={scope}>
           <div className="col-start-2 flex flex-wrap items-center justify-end gap-2 sm:row-span-2 sm:row-start-1">
             {button && <RowButtonLink button={button} model={scope.model} view={view} record={scope.record} />}
-            {actions.map((name) => <ActionButton key={name} name={name} />)}
+            {actions.map((name) => <ActionButton key={name} name={name} about={title} />)}
           </div>
         </RecordScope>
       )}

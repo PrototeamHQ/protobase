@@ -15,11 +15,12 @@ import { ToneEdge } from './tone-edge'
  */
 export const RelatedCard = ({ scope, view, fields, tone, actions, button }: { scope: LayoutRecord; view: ViewModel | undefined; fields: string[]; tone?: string; actions: string[]; button?: RowButtonModel }) => {
   const titleOf = useRecordTitle()
+  const title = titleOf(scope.model, view, scope.record, scope.key)
   return (
     <li className="relative flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-surface p-4">
       {tone && <ToneEdge view={view} field={tone} record={scope.record} />}
       <AppLink to={{ kind: 'record', resource: scope.model.name, key: recordKey(scope.model, scope.record) }} className="self-start font-medium text-primary-text hover:underline">
-        {titleOf(scope.model, view, scope.record, scope.key)}
+        {title}
       </AppLink>
       {fields.length > 0 && (
         <dl className="flex flex-col gap-3">
@@ -30,7 +31,7 @@ export const RelatedCard = ({ scope, view, fields, tone, actions, button }: { sc
         <RecordScope value={scope}>
           <div className="flex flex-wrap items-center gap-2">
             {button && <RowButtonLink button={button} model={scope.model} view={view} record={scope.record} />}
-            {actions.map((name) => <ActionButton key={name} name={name} />)}
+            {actions.map((name) => <ActionButton key={name} name={name} about={title} />)}
           </div>
         </RecordScope>
       )}
