@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, within } from 'storybook/test'
 import { createStaticSession } from '@protobase/client'
-import type { LayoutItemModel, RelatedModel } from '@protobase/schema'
+import { appPath, type LayoutItemModel, type RelatedModel } from '@protobase/schema'
 import { App } from './app'
 import { fakeApi } from './testing/fake-api'
 import { objectiveResources, objectiveRows, objectiveViews } from './testing/objectives-domain'
@@ -37,7 +37,7 @@ const views = objectiveViews.map((view) => (view.resource === 'objectives' ? { .
 // On the browser's own history, which keeps the address the story starts at
 const Objective = () => {
   const [api] = useState(() => {
-    window.history.replaceState(null, '', '/objectives/1')
+    window.history.replaceState(null, '', appPath({ kind: 'record', resource: 'objectives', key: 1 }))
     return fakeApi({ resources: objectiveResources, views, rows: objectiveRows })
   })
   return (
