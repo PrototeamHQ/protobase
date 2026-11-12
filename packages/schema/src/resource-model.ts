@@ -175,6 +175,15 @@ const fileProblems = (model: ResourceModel) =>
       ...writtenTypeProblems(model, field.file!.sizeField, 'size', integerField),
     ].map((problem) => `file field "${field.name}" ${problem}`))
 
+// Two file fields that write one field overwrite each other's type, size or derived values.
+const sharedTargetProblems = (model: ResourceModel) => {
+  const writers = new Map<string, string[]>()
+  for (const field of Object.values(model.fields)) {
+    for (const target of new Set(field.file?.derive ?? [])) writers.set(target, [...(writers.get(target) ?? []), field.name])
+  }
+  return [...writers].filter(([, names]) => names.length > 1).map(([target, names]) => `file fields ${names.map((name) => `"${name}"`).join(' and ')} both write "${target}"`)
+}
+
 // Each field an upload writes is written for one reason: a `.derive()` target, the placeholder, the type or the size.
 const writtenTwiceProblems = (field: FieldModel) => {
   const derive = field.file!.derive ?? []
@@ -279,7 +288,7 @@ const liveReadsProblems = (model: ResourceModel) => {
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...bucketsProblems(model), ...derivedProblems(model), ...liveReadsProblems(model), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...sharedTargetProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...bucketsProblems(model), ...derivedProblems(model), ...liveReadsProblems(model), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }

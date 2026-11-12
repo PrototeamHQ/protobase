@@ -68,6 +68,7 @@ describe('f.file()', () => {
     expect(() => products({ attachment: f.file().typeField('attachment_type'), attachment_type: f.integer().readOnly() }).toModel()).toThrow('has "attachment_type" as its type, which must be a text field')
     expect(() => products({ attachment: f.file().sizeField('attachment_size'), attachment_size: f.text().readOnly() }).toModel()).toThrow('which must be an integer or bigint field')
     expect(() => products({ attachment: f.file().typeField('meta').sizeField('meta'), meta: f.text().readOnly() }).toModel()).toThrow('writes "meta" twice')
+    expect(() => products({ front: f.file().typeField('file_type'), back: f.file().typeField('file_type'), file_type: f.text().readOnly() }).toModel()).toThrow('file fields "front" and "back" both write "file_type"')
   })
 
   it('stores text and refuses anything else', () => {
