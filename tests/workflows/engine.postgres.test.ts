@@ -8,7 +8,7 @@ import { configExports, createAdmin, startJobs, startWorkflow, workflowsMigratio
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { postgresRunStore } from '../../packages/server/src/workflows/store'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 
 // Workers poll and retry on real timers, which a busy machine stretches.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -44,7 +44,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     const { resources, views } = configExports(workflowsModule(workflows))
     folder = await tempDir()
     const files = { providers: { private: localFiles({ dir: folder.dir }) }, secret: 'files-secret-for-the-engine-tests' }
-    admin = createAdmin({ resources, views, db, files, authenticate: (request) => ({ user: { id: request.headers.get('x-user')!, roles: people[request.headers.get('x-user')!]! }, tenant: '1' }), workflows, options: { roles } })
+    admin = createAdmin({ resources, views, db, files, authenticate: (request) => ({ user: { id: request.headers.get('x-user')!, roles: people[request.headers.get('x-user')!]! }, tenant: '1' }), workflows, options: { statementTimeoutMs, roles } })
     receiver = createServer((request, response) => {
       received.push(request.url ?? '')
       response.end('{}')

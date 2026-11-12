@@ -4,7 +4,7 @@ import { deriveKey } from 'altcha-lib/algorithms/web/sha'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles, f, resource, view } from '@protobase/schema'
 import { changesMigration, createAdmin, jobsSchemaMigration, startJobs, type JobsRuntime } from '@protobase/server'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { as, testAuthenticator } from '../../test-support/server'
 
 // Workers poll on real timers, which a busy machine stretches.
@@ -53,7 +53,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('a public form through t
       create table products (id integer generated always as identity primary key, name text not null);
     `)
     await pg.exec((await changesMigration(db, [requests.toModel()]))!)
-    app = createAdmin({ resources: [requests, products], views: [requestsView], db, authenticate: testAuthenticator, history: { days: 30 }, options: { roles }, formsDifficulty: { min: 1, max: 20 } })
+    app = createAdmin({ resources: [requests, products], views: [requestsView], db, authenticate: testAuthenticator, history: { days: 30 }, options: { statementTimeoutMs, roles }, formsDifficulty: { min: 1, max: 20 } })
     runtime = await startJobs({ db, jobs: app.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
   })
   afterAll(async () => {

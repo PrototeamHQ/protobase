@@ -8,7 +8,7 @@ import { defineRoles } from '@protobase/schema'
 import { authSchemaMigration, configExports, createAdmin, createUser, startJobs, workflowsMigration, type AdminAuth, type JobsRuntime, type Session, type WorkflowsOptions } from '@protobase/server'
 import { createAuth, workflowsModule } from '@protobase/server/internal'
 import { gmailPlugin } from '@protobase/workflow-plugins/gmail'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { fakeGmail } from '../../test-support/fake-gmail/fake-gmail'
 import { mail } from '../../test-support/fake-gmail/mail'
 import { fakeOAuthServer } from '../../packages/server/src/better-auth/connections/testing/fake-oauth-server'
@@ -74,7 +74,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('gmail:new_mail on the s
     const authenticate = (): Session => ({ user: { id: ada, roles: ['builder'] }, tenant: 1, organization: { id: 1 }, signIn: { staff: false } })
     vi.spyOn(console, 'log').mockImplementation(() => {})
     const { resources, views } = configExports({ ...workflowsModule(workflows) })
-    app = createAdmin({ resources, views, db, files: trace.files, auth, authenticate, workflows, options: { roles } })
+    app = createAdmin({ resources, views, db, files: trace.files, auth, authenticate, workflows, options: { statementTimeoutMs, roles } })
     runtime = await startJobs({ db, jobs: app.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => { throw error } })
   })
 

@@ -1,12 +1,20 @@
 import { randomBytes } from 'node:crypto'
 import { Kysely, PostgresDialect } from 'kysely'
 import pg from 'pg'
+import { longQueryTimeoutMs } from '@protobase/server'
 import { onTestFinished, TestRunner } from 'vitest'
 import { snapshotTemplates, type SnapshotTemplateKey } from '../scripts/test-db/snapshot-templates'
 import { cloneTemplate, databaseUrl, dropDatabase, templateState } from '../scripts/test-db/templates'
 
 // The real-Postgres tests (`*.postgres.test.ts` and the end-to-end tests): what a recording cannot replay, such as
 // workers that poll and retry on real timers, each on a clone of a test template that `bun run test:db` builds.
+
+/**
+ * The request statement timeout for an admin served from a clone: the most any query of an app may run. The 1 s
+ * default is a production budget, which none of these tests is about; on a CI runner whose cores the other files'
+ * workers and job runtimes share, a plain insert has waited past it.
+ */
+export const statementTimeoutMs = longQueryTimeoutMs
 
 /**
  * Whether the template is there to clone, so a file's tests can skip without a Postgres server, as the integration

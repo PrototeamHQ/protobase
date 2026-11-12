@@ -8,7 +8,7 @@ import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRun
 import { workflowsModule } from '@protobase/server/internal'
 import { workflowRunTracePath } from '@protobase/schema/internal'
 import type { Plugin } from '@protobase/workflows/plugin'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { traceFiles } from './support/run-trace'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -63,7 +63,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("blocks on the app's dat
     db = pg.db
     await pg.exec((await workflowsMigration(db, workflows))!)
     const { resources, views } = configExports(workflowsModule(workflows))
-    admin = createAdmin({ resources, views, db, files: trace.files, authenticate: (request) => ({ user: { id: 'ada', roles: ['builder'] }, tenant: request.headers.get('x-tenant')! }), workflows, options: { roles } })
+    admin = createAdmin({ resources, views, db, files: trace.files, authenticate: (request) => ({ user: { id: 'ada', roles: ['builder'] }, tenant: request.headers.get('x-tenant')! }), workflows, options: { statementTimeoutMs, roles } })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
   })
 

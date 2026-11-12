@@ -7,7 +7,7 @@ import { defineRoles } from '@protobase/schema'
 import { authSchemaMigration, configExports, createAdmin, createUser, startJobs, workflowsMigration, type AdminAuth, type JobsRuntime, type Session, type WorkflowsOptions } from '@protobase/server'
 import { createAuth, workflowsModule } from '@protobase/server/internal'
 import { definePlugin } from '@protobase/workflows/plugin'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { fakeOAuthServer } from '../../packages/server/src/better-auth/connections/testing/fake-oauth-server'
 import { traceFiles } from './support/run-trace'
 
@@ -77,7 +77,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("the step cache of a ste
     }
     vi.spyOn(console, 'log').mockImplementation(() => {})
     const { resources, views } = configExports({ ...workflowsModule(workflows) })
-    app = createAdmin({ resources, views, db, files: trace.files, auth, authenticate, workflows, options: { roles } })
+    app = createAdmin({ resources, views, db, files: trace.files, auth, authenticate, workflows, options: { statementTimeoutMs, roles } })
     runtime = await startJobs({ db, jobs: app.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => { throw error } })
     adas = (await connect('ada@example.com', ada))!
     // The fake provider answers as Grace while she links her own account.

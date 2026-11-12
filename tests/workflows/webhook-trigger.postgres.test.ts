@@ -10,7 +10,7 @@ import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRun
 import { workflowsModule } from '@protobase/server/internal'
 import { definePlugin, webhookInputProperties } from '@protobase/workflows/plugin'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
+import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { traceFiles } from './support/run-trace'
 
 // Workers poll on real timers, which a busy machine stretches.
@@ -102,7 +102,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
         return { user: { id, roles: [people[id]!.role] }, tenant: people[id]!.tenant, organization: { id: people[id]!.tenant } }
       },
       workflows,
-      options: { roles, onUnhandledError: (error, request) => void reported.push({ error, request }) },
+      options: { statementTimeoutMs, roles, onUnhandledError: (error, request) => void reported.push({ error, request }) },
     })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => { throw error } })
   })
@@ -345,7 +345,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     const hook = await hooked()
     const module = workflowsModule(workflows)
     const { resources, views } = configExports({ ...module, workflows: module.workflows.live() })
-    const live = createAdmin({ resources, views, db, files: trace.files, authenticate: () => { throw Object.assign(new Error('no user'), { status: 401 }) }, workflows, options: { roles } })
+    const live = createAdmin({ resources, views, db, files: trace.files, authenticate: () => { throw Object.assign(new Error('no user'), { status: 401 }) }, workflows, options: { statementTimeoutMs, roles } })
     const body = '{"event":"paid"}'
     const id = 'msg_live'
     const at = now()
