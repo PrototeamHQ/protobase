@@ -76,9 +76,9 @@ const focusRing = '[&_.recharts-surface]:rounded-sm [&_.recharts-surface:focus-v
 /**
  * A date field's buckets over time, as bars or a line; a bucket without a value to add up is a gap. The bucket still
  * running is drawn hollow. The chart takes focus: the arrow keys move its tooltip from bucket to bucket and Escape
- * closes it, and a table only a screen reader reads holds the same numbers.
+ * closes it, and a table only a screen reader reads holds the same numbers. A compact chart is lower, for a list's header.
  */
-export const PeriodChart = ({ points, measure, bucket, type, series, resource, view }: { points: Point[]; measure: ChartMeasure; bucket: PeriodBucket; type: 'bar' | 'line'; series?: ChartSeries[]; resource?: string; view?: ViewModel }) => {
+export const PeriodChart = ({ points, measure, bucket, type, series, resource, view, compact }: { points: Point[]; measure: ChartMeasure; bucket: PeriodBucket; type: 'bar' | 'line'; series?: ChartSeries[]; resource?: string; view?: ViewModel; compact?: boolean }) => {
   const wide = useMediaQuery('(min-width: 640px)')
   const [closed, setClosed] = useState(false)
   const now = wallNow()
@@ -99,7 +99,7 @@ export const PeriodChart = ({ points, measure, bucket, type, series, resource, v
   const open = () => setClosed(false)
   const surface = { 'aria-label': text('chartKeys') }
   const chart = (
-    <div className={`h-40 ${focusRing}`} onKeyDown={onKeyDown} onPointerMove={open} onFocus={open}>
+    <div className={`${compact ? 'h-24' : 'h-40'} ${focusRing}`} onKeyDown={onKeyDown} onPointerMove={open} onFocus={open}>
       <ResponsiveContainer width="100%" height="100%">
         {type === 'line' ? (
           <LineChart data={points} margin={{ top: 6, right: 6, bottom: 0, left: 0 }} {...surface}>

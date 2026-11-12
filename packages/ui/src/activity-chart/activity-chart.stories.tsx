@@ -6,7 +6,7 @@ const meta = {
   component: SampleActivityChart,
   parameters: { layout: 'padded' },
   decorators: [(Story) => <div className="w-[1100px]"><Story /></div>],
-  args: { title: 'Orders created', noun: 'orders' },
+  args: { title: 'Orders created' },
 } satisfies Meta<typeof SampleActivityChart>
 
 export default meta

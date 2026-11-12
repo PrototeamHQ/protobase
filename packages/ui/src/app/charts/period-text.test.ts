@@ -33,8 +33,12 @@ describe('periodText', () => {
     expect(periodText(at('2026-01-01T00:00:00'), 'year', now)).toBe('1 Jan to today')
   })
 
-  it('keeps a single date for a day and the start of a shorter bucket', () => {
-    expect(periodText(at('2026-11-12T00:00:00'), 'day', now)).toBe('12 Nov 2026')
+  it('names the running day today', () => {
+    expect(periodText(at('2026-11-12T00:00:00'), 'day', now)).toBe('Today')
+  })
+
+  it('keeps a single date for a past day and the start of a shorter bucket', () => {
+    expect(periodText(at('2026-11-11T00:00:00'), 'day', now)).toBe('11 Nov 2026')
     expect(periodText(at('2026-11-12T14:00:00'), 'hour', now)).toBe('12 Nov, 14:00')
   })
 
@@ -46,10 +50,12 @@ describe('periodText', () => {
 })
 
 describe('isCurrent', () => {
-  it('holds for the week or month that runs at now, and never for a day or shorter', () => {
+  it('holds for the day, week or month that runs at now, and never for a shorter bucket', () => {
     expect(isCurrent(at('2026-11-09T00:00:00'), 'week', now)).toBe(true)
     expect(isCurrent(at('2026-11-02T00:00:00'), 'week', now)).toBe(false)
     expect(isCurrent(at('2026-11-01T00:00:00'), 'month', now)).toBe(true)
-    expect(isCurrent(at('2026-11-12T00:00:00'), 'day', now)).toBe(false)
+    expect(isCurrent(at('2026-11-12T00:00:00'), 'day', now)).toBe(true)
+    expect(isCurrent(at('2026-11-11T00:00:00'), 'day', now)).toBe(false)
+    expect(isCurrent(at('2026-11-12T15:00:00'), 'hour', now)).toBe(false)
   })
 })

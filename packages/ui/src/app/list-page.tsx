@@ -318,7 +318,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
         (isGroupChart(view.chart) ? (
           <ListGroupChart model={model} view={view} chart={view.chart} plural={plural} filter={loadFilter} />
         ) : (
-          <ListChart resource={resource} chart={view.chart} title={text('created', { plural })} noun={plural.toLowerCase()} filter={loadFilter} />
+          <ListChart resource={resource} chart={view.chart} title={text('created', { plural })} filter={loadFilter} />
         ))}
       {!handSorting && (desktop ? desktopToolbar : phoneFilters)}
       {desktop && layout === 'panel' && !handSorting ? (
