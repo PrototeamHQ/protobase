@@ -68,8 +68,10 @@ const typePattern = /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/
 // An extension without its leading dot, which may hold dots of its own: `report.json`.
 const extensionPattern = /^[a-z0-9][a-z0-9_-]*(\.[a-z0-9][a-z0-9_-]*)*$/
 
-// The app's own types, refused when one is malformed or claims a type or extension the built-in table has.
+// The app's own types, refused when one is malformed, claims a type or extension the built-in table has, or shares an
+// extension with another.
 const checkedCustom = (custom: Readonly<Record<string, readonly string[]>>, builtIn: ReadonlyMap<string, string>, builtInTypes: ReadonlySet<string>) => {
+  const claimed = new Map<string, string>()
   for (const [type, extensions] of Object.entries(custom)) {
     if (!typePattern.test(type)) throw new Error(`files.types: "${type}" is not a media type such as application/vnd.example.report+json`)
     if (builtInTypes.has(type)) throw new Error(`files.types: ${type} is built in; leave it out`)
@@ -77,6 +79,9 @@ const checkedCustom = (custom: Readonly<Record<string, readonly string[]>>, buil
     for (const extension of extensions) {
       if (!extensionPattern.test(extension)) throw new Error(`files.types: "${extension}" of ${type} is not a lower-case extension without its leading dot, such as 'report.json'`)
       if (builtIn.has(extension)) throw new Error(`files.types: the extension ${extension} of ${type} is built in as ${builtIn.get(extension)}`)
+      const owner = claimed.get(extension)
+      if (owner !== undefined && owner !== type) throw new Error(`files.types: the extension ${extension} is given to both ${owner} and ${type}`)
+      claimed.set(extension, type)
     }
   }
   return Object.entries(custom).map(([type, extensions]): [string, string[]] => [type, [...extensions]])

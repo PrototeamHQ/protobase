@@ -52,5 +52,8 @@ describe('media types', () => {
     expect(() => mediaTypes({ 'application/vnd.example.report+json': [] })).toThrow('at least one extension')
     expect(() => mediaTypes({ 'application/vnd.example.report+json': ['json'] })).toThrow('is built in as application/json')
     expect(() => mediaTypes({ 'application/vnd.example.report+json': ['.report.json'] })).toThrow('without its leading dot')
+    expect(() => mediaTypes({ 'application/vnd.example.first': ['shared', 'first'], 'application/vnd.example.second': ['shared'] })).toThrow(
+      'the extension shared is given to both application/vnd.example.first and application/vnd.example.second',
+    )
   })
 })
