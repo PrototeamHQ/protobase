@@ -1,8 +1,11 @@
 import { Marked, type Tokens } from 'marked'
+import { nestedHeadingLevel } from './nested-heading-level'
 
 export type MarkdownHtmlOptions = {
   /** The HTML goes inside a link, such as a card: its links become their text and its images their alt text. */
   inLink?: boolean
+  /** The level of the heading the HTML sits under, whose level its own headings go below; 0, the default, keeps them. */
+  headingsUnder?: number
 }
 
 const escapes: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
@@ -55,7 +58,14 @@ const parsers = { inLink: parser({ inLink: true }), page: parser({}) }
 
 /**
  * Markdown as HTML (GitHub's flavour, line breaks kept): raw HTML escaped, links and images only to http(s), mailto and
- * tel addresses or relative ones, and links opening in a new tab. The page sanitises the result again before showing it.
+ * tel addresses or relative ones, links opening in a new tab and headings below `headingsUnder`. The page sanitises the
+ * result again before showing it.
  */
-export const markdownHtml = (source: string, options: MarkdownHtmlOptions = {}) =>
-  (options.inLink ? parsers.inLink : parsers.page).parse(source, { async: false })
+export const markdownHtml = (source: string, { inLink = false, headingsUnder = 0 }: MarkdownHtmlOptions = {}) => {
+  const markdown = inLink ? parsers.inLink : parsers.page
+  const tokens = markdown.lexer(source)
+  markdown.walkTokens(tokens, (token) => {
+    if (token.type === 'heading') token.depth = nestedHeadingLevel(token.depth, headingsUnder)
+  })
+  return markdown.parser(tokens)
+}

@@ -50,4 +50,9 @@ describe('markdownHtml', () => {
   it('escapes code', () => {
     expect(markdownHtml('`<b>` and\n\n```\n<script>\n```')).toBe('<p><code>&lt;b&gt;</code> and</p>\n<pre><code>&lt;script&gt;\n</code></pre>\n')
   })
+
+  it('puts its headings below the heading it sits under, keeping their text', () => {
+    expect(markdownHtml('# Plan\n\n## Where it stands\n\n###### Detail', { headingsUnder: 2 })).toBe('<h3>Plan</h3>\n<h3>Where it stands</h3>\n<h6>Detail</h6>\n')
+    expect(markdownHtml('> ## Quoted', { headingsUnder: 2 })).toBe('<blockquote>\n<h3>Quoted</h3>\n</blockquote>\n')
+  })
 })

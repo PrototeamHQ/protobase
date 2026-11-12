@@ -96,7 +96,8 @@ export const Phone: StoryObj = { ...Notes, name: 'Coordinator notes on a tab, on
 
 /**
  * The review shows its fields under their labels, with View all as there are older ones, and the notes their one field
- * in full, without a label, card title, Show more or View all, each with a link to its record on the heading's line; a change to the notes shows as soon as it is heard, and an
+ * in full, without a label, card title, Show more or View all, each with a link to its record on the heading's line; the
+ * notes' own heading is an h3 under the section's, a change to the notes shows as soon as it is heard, and an
  * objective without notes says so.
  */
 export const Checks: StoryObj = {
@@ -115,7 +116,10 @@ export const Checks: StoryObj = {
     await userEvent.click(within(canvas.getByRole('navigation', { name: 'Tabs' })).getByRole('link', { name: 'Notes' }))
     const section = within((await canvas.findByRole('heading', { name: 'Coordinator notes' })).closest('section')!)
     expect(await section.findByText('The last line of the notes.')).toBeVisible()
-    await section.findByRole('heading', { name: 'Where it stands' })
+    // The note's own heading sits under the section's, smaller than it
+    const noteHeading = await section.findByRole('heading', { name: 'Where it stands', level: 3 })
+    const sectionHeading = canvas.getByRole('heading', { name: 'Coordinator notes', level: 2 })
+    expect(parseFloat(getComputedStyle(noteHeading).fontSize)).toBeLessThan(parseFloat(getComputedStyle(sectionHeading).fontSize))
     expect(section.queryByText('Notes')).toBeNull()
     expect(section.queryByRole('button', { name: 'Show more' })).toBeNull()
     expect(section.queryByRole('link', { name: /View all/ })).toBeNull()

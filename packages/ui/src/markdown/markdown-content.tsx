@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import DOMPurify from 'dompurify'
 import { cn } from '../lib/cn'
+import { useHeadingLevel } from '../lib/heading-level'
 import { markdownHtml } from './markdown-html'
 
 // The parts markdown makes, in the theme's colours; code and tables wrap rather than scroll inside
@@ -29,8 +30,12 @@ export type MarkdownContentProps = {
   className?: string
 }
 
-/** Markdown rendered, sanitised before it reaches the page: raw HTML shows as text, links open in a new tab. */
+/**
+ * Markdown rendered, sanitised before it reaches the page: raw HTML shows as text, links open in a new tab and headings
+ * sit below the heading the markdown is under, such as a record page section's.
+ */
 export const MarkdownContent = ({ source, inLink: insideLink = false, className }: MarkdownContentProps) => {
-  const html = useMemo(() => DOMPurify.sanitize(markdownHtml(source, { inLink: insideLink }), { ADD_ATTR: ['target'] }), [source, insideLink])
+  const headingsUnder = useHeadingLevel()
+  const html = useMemo(() => DOMPurify.sanitize(markdownHtml(source, { inLink: insideLink, headingsUnder }), { ADD_ATTR: ['target'] }), [source, insideLink, headingsUnder])
   return <div className={cn(insideLink ? inLink : page, className)} dangerouslySetInnerHTML={{ __html: html }} />
 }

@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
+import { HeadingLevel } from '../lib/heading-level'
 
 type SectionProps = { title?: string; help?: string; actions?: ReactNode; count?: ReactNode; children: ReactNode }
 
 /**
  * A section's title, `count` after it, its `actions` at the end of the title's line and its help, over its content,
- * with no frame or spacing around them.
+ * with no frame or spacing around them. Headings in the content, such as a markdown value's, go below the title's h2.
  */
 export const SectionContent = ({ title, help, actions, count, children }: SectionProps) => {
   const heading = title ? (
@@ -25,7 +26,7 @@ export const SectionContent = ({ title, help, actions, count, children }: Sectio
         heading
       )}
       {help && <p className="mt-1 max-w-xl leading-6 text-muted-foreground">{help}</p>}
-      {headed ? <div className="mt-5">{children}</div> : children}
+      <HeadingLevel.Provider value={heading ? 2 : 0}>{headed ? <div className="mt-5">{children}</div> : children}</HeadingLevel.Provider>
     </>
   )
 }
