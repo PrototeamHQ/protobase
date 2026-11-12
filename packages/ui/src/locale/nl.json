@@ -698,7 +698,9 @@
     "searchMembers": "Leden zoeken"
   },
   "app/field-types/json": {
-    "notJson": "Dit is nog geen JSON: het veld houdt de laatste waarde die het wel was."
+    "notJson": "Dit is nog geen JSON: het veld houdt de laatste waarde die het wel was.",
+    "showAll": "Alle {count} regels tonen",
+    "showLess": "Minder tonen"
   },
   "app/field-types/workflow": {
     "addStep": "Stap toevoegen",
