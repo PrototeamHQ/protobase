@@ -1,5 +1,5 @@
 import { ArrowLeft, Download } from 'lucide-react'
-import type { ResourceModel } from '@protobase/schema'
+import type { AppAddress, ResourceModel } from '@protobase/schema'
 import { formatSize } from '../../live/file-values'
 import { cn } from '../../lib/cn'
 import { buttonClass } from '../../primitives/button'
@@ -31,10 +31,11 @@ const DownloadLink = ({ file, className }: { file: ViewedFile; className?: strin
 
 type FileViewerPageProps = {
   model: ResourceModel
-  recordKey: string
   /** The record, as its page loaded it. */
   record: Record<string, unknown>
   viewed: ViewedField
+  /** Where the way back leads: the record page the file was opened from. */
+  back: AppAddress
 }
 
 /**
@@ -42,14 +43,14 @@ type FileViewerPageProps = {
  * way back to the record, the file's name and size and its download, then the viewer, with its siblings once read. A
  * viewer that throws leaves the download in its place.
  */
-export const FileViewerPage = ({ model, recordKey, record, viewed }: FileViewerPageProps) => {
+export const FileViewerPage = ({ model, record, viewed, back }: FileViewerPageProps) => {
   const { file, viewer } = viewed
   const { siblings, ready } = useSiblingFiles(model, record, file)
   const Viewer = viewer.component
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-3 md:px-10">
-        <AppLink to={{ kind: 'record', resource: model.name, key: recordKey }} className={cn(buttonClass({ variant: 'ghost', size: 'sm' }), 'gap-1.5')}>
+        <AppLink to={back} className={cn(buttonClass({ variant: 'ghost', size: 'sm' }), 'gap-1.5')}>
           <ArrowLeft className="size-4" aria-hidden="true" />
           {text('backToRecord')}
         </AppLink>

@@ -107,7 +107,10 @@ export const RecordPage = ({ resource, recordKey }: { resource: string; recordKe
   const standard = <LoadedRecord key={record.isPlaceholderData ? 'preview' : 'loaded'} model={model} recordKey={recordKey} stored={record.data} preview={record.isPlaceholderData} />
   // A file the address opens shows in the viewer for its type, once the whole record has its link
   const opened = address?.kind === 'record' && address.file !== undefined && !record.isPlaceholderData ? viewedField(ui, model, record.data.record, address.file) : undefined
-  if (opened) return <FileViewerPage key={opened.file.uri} model={model} recordKey={recordKey} record={record.data.record} viewed={opened} />
+  // Back leads to the page whose file links open viewers: the standard page, also on a view whose record page is another
+  const ownPage = views[resource]?.recordOpens !== undefined || views[resource]?.record !== undefined
+  const back = { kind: 'record' as const, resource, key: recordKey, ...(ownPage && { standard: true as const }) }
+  if (opened) return <FileViewerPage key={opened.file.uri} model={model} record={record.data.record} viewed={opened} back={back} />
   const standardAsked = address?.kind === 'record' && address.standard === true
   const opens = views[resource]?.recordOpens
   if (opens && !standardAsked) return record.isPlaceholderData ? <RecordSkeleton /> : <RecordOpens to={opens} record={record.data.record} />
