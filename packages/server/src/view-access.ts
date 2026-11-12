@@ -1,11 +1,12 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
-import type { RecordPageModel, ActionInputModel, AppAddress, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ThreadSectionModel, ViewModel } from '@protobase/schema'
+import type { RecordPageModel, ActionInputModel, AppAddress, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, RecordTrendModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ThreadSectionModel, ViewModel } from '@protobase/schema'
 import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay, type RefShape } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { threadSectionErrors } from './view-conversation'
 import { recordChartErrors } from './view-record-chart'
+import { recordTrendErrors } from './view-record-trend'
 import { openErrors, relatedButtonErrors, relatedSectionErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
 import { searchesOfFor } from './view-saved-search'
@@ -183,6 +184,8 @@ const layoutShape = (resource: string, model: ResourceModel, models: Record<stri
     group,
     map,
     chart: s.map<RecordChartModel>((item) => pruneRecordChart(item, resource, models)),
+    // A trend goes when the caller cannot read the records, their relation to the record or their date
+    trend: s.map<RecordTrendModel>((item) => (recordTrendErrors(item, resource, models).length === 0 ? item : undefined)),
     gallery: s.map<GalleryModel>((item) => pruneGallery(item, resource, model, models)),
     history: s.object<HistorySectionModel>({ kind: s.data, title: s.data, limit: s.data, when: s.data }),
     comments: s.object<CommentsSectionModel>({ kind: s.data, title: s.data, when: s.data }),

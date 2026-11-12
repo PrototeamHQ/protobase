@@ -336,6 +336,24 @@ describe('pruneView', () => {
     expect(charts(['repairId'])).toEqual([])
   })
 
+  it('keeps a trend for a caller who can read the records, their relation to the record and their date', () => {
+    const samples = resource('repair_samples')
+      .table('repair_samples')
+      .fields({ id: f.integer(), repairId: f.relation('repairs').filterable(), at: f.timestamp().filterable() })
+      .primaryKey((r) => r.id)
+      .toModel()
+    const written = view<typeof repairs>('repairs').layout(() => [l.trend('Per week', { resource: 'repair_samples', field: 'repairId', at: 'at', range: '90d', granularity: 'week' })]).toModel()
+    const trends = (hidden: string[], unreadable: string[] = []) => {
+      const restricted = restrictModel(samples, { readableFields: Object.keys(samples.fields).filter((name) => !hidden.includes(name)), writableFields: { create: [], update: [] } })
+      const models = { ...all, ...(!unreadable.includes('repair_samples') && { repair_samples: restricted }) }
+      return pruneView(written, models.repairs, models).layout
+    }
+    expect(trends([])).toEqual(written.layout)
+    expect(trends(['at'])).toEqual([])
+    expect(trends(['repairId'])).toEqual([])
+    expect(trends([], ['repair_samples'])).toEqual([])
+  })
+
   it("keeps a repair's conversation for a caller who can read its messages, and its box for one who can write them", () => {
     const notes = resource('repair_notes')
       .table('repair_notes')

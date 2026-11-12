@@ -9,6 +9,7 @@ import { chartErrors } from './view-chart'
 import { mapDisplayErrors, mapErrors } from './view-map'
 import { composerSectionErrors, threadSectionErrors } from './view-conversation'
 import { recordChartErrors } from './view-record-chart'
+import { recordTrendErrors } from './view-record-trend'
 import { relatedActionErrors, relatedButtonErrors, relatedSectionErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
 import { editableErrors } from './view-editable'
@@ -256,6 +257,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     const chart = [
       ...(view.chart ? chartErrors(view.chart, model).map((error) => `chart: ${error}`) : []),
       ...layoutItems(view.layout).flatMap((item) => (item.kind === 'chart' ? recordChartErrors(item, view.resource, models).map((error) => `chart "${item.title}": ${error}`) : [])),
+      ...layoutItems(view.layout).flatMap((item) => (item.kind === 'trend' ? recordTrendErrors(item, view.resource, models).map((error) => `trend "${item.title}": ${error}`) : [])),
     ]
     const history = model.history ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'history' ? [`history "${item.title}" needs .history() on resource "${view.resource}"`] : []))
     const conversations = layoutItems(view.layout).flatMap((item) => {

@@ -1314,6 +1314,14 @@
     "noSamples": "No samples in this range.",
     "couldNotLoad": "Could not load the chart."
   },
+  "app/record-trend": {
+    "total_7d": "{count, plural, =0 {None in the last 7 days} other {# in the last 7 days}}",
+    "total_30d": "{count, plural, =0 {None in the last 30 days} other {# in the last 30 days}}",
+    "total_90d": "{count, plural, =0 {None in the last 90 days} other {# in the last 90 days}}",
+    "total_1y": "{count, plural, =0 {None in the last year} other {# in the last year}}",
+    "total_all": "{count, plural, =0 {None yet} other {# in total}}",
+    "couldNotLoad": "The chart could not load."
+  },
   "app/record-row": {
     "couldNotLoad": "Could not load",
     "noneMatch": "No {plural} match.",

@@ -1314,6 +1314,14 @@
     "noSamples": "Geen metingen in deze periode.",
     "couldNotLoad": "Kon de grafiek niet laden."
   },
+  "app/record-trend": {
+    "total_7d": "{count, plural, =0 {Geen in de afgelopen 7 dagen} other {# in de afgelopen 7 dagen}}",
+    "total_30d": "{count, plural, =0 {Geen in de afgelopen 30 dagen} other {# in de afgelopen 30 dagen}}",
+    "total_90d": "{count, plural, =0 {Geen in de afgelopen 90 dagen} other {# in de afgelopen 90 dagen}}",
+    "total_1y": "{count, plural, =0 {Geen in het afgelopen jaar} other {# in het afgelopen jaar}}",
+    "total_all": "{count, plural, =0 {Nog geen} other {# in totaal}}",
+    "couldNotLoad": "De grafiek kon niet laden."
+  },
   "app/record-row": {
     "couldNotLoad": "Kon niet laden",
     "noneMatch": "Geen {plural} gevonden.",

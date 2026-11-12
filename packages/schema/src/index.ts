@@ -61,6 +61,7 @@ export type {
   MapSectionModel,
   RecordChartModel,
   RecordChartRange,
+  RecordTrendModel,
   GalleryModel,
   HistorySectionModel,
   CommentsSectionModel,
