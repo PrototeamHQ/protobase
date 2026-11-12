@@ -66,6 +66,7 @@
     "forms/use-form-address#useFormAddress",
     "invitations/invite-form#InviteForm",
     "invitations/pending-invitation-row#PendingInvitationRow",
+    "lib/heading-level#useHeadingLevel",
     "lib/use-debounced#useDebounced",
     "lib/use-focus-trap#useFocusTrap",
     "lib/use-media-query#useIsDesktop",
