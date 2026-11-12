@@ -52,17 +52,21 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('live views on Postgres'
     const controller = new AbortController()
     const response = await admin.request('/api/live', { signal: controller.signal })
     const seen: string[] = []
-    await new Promise<void>((resolve, reject) => {
-      let first = true
-      void readEventStream(response.body!, (data) => {
-        const event = JSON.parse(data) as Event
-        if (first) write().catch(reject)
-        first = false
-        seen.push(...(event.changes ?? []).map((change) => `${change.resource}:${change.key}`))
-        if (seen.length >= count) resolve()
-      }, controller.signal)
-    })
-    controller.abort()
+    // Hangs up when the write fails too, so no stream outlives the test.
+    try {
+      await new Promise<void>((resolve, reject) => {
+        let first = true
+        void readEventStream(response.body!, (data) => {
+          const event = JSON.parse(data) as Event
+          if (first) write().catch(reject)
+          first = false
+          seen.push(...(event.changes ?? []).map((change) => `${change.resource}:${change.key}`))
+          if (seen.length >= count) resolve()
+        }, controller.signal)
+      })
+    } finally {
+      controller.abort()
+    }
     return seen
   }
 

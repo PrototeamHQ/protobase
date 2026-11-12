@@ -125,6 +125,8 @@ describe('capturePlan', () => {
     expect(plan.create.map(({ model, trigger }) => `${model.name}: ${trigger.name}`)).toEqual(['orders: orders_changes', 'orders: orders_changes_update'])
     expect(uncaptured(plan, [plain, view])).toEqual(['orders', 'order_feed'])
     expect(() => capturePlan('changes', [view], installed())).toThrow('Resource "order_feed" is live from "orders", which is not a resource')
+    const feedOfFeed = resource('feed_digest').table('feed_digest').fields({ id: f.text() }).primaryKey((r) => r.id).live({ reads: ['order_feed'] }).toModel()
+    expect(() => capturePlan('changes', [plain, view, feedOfFeed], installed())).toThrow('Resource "feed_digest" is live from "order_feed", which is live from other resources itself')
   })
 
   it('adds the database role to the outbox of an earlier version', () => {

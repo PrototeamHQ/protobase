@@ -59,7 +59,7 @@ export { changesMigration, checkChanges, migrationCommand } from './changes/capt
 export { checkComputed, computedMigration } from './computed/computed-schema'
 export type { EventsOptions } from './changes/events-options'
 export type { HistoryOptions } from './history/options'
-export { isCaptured } from './changes/capture-sql'
+export { capturedBy, isCaptured } from './changes/capture-sql'
 export { coalesce, type CapturedRow, type CoalescedChange } from './changes/coalesce'
 export { resourceChange, recordOf, type ResourceChange } from './changes/resource-change'
 export { eventMatcher } from './changes/match-events'

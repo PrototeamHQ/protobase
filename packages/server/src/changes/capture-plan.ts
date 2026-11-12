@@ -55,6 +55,9 @@ export const capturePlan = (schema: string, models: readonly ResourceModel[], st
   for (const model of models) {
     const unknown = (model.liveReads ?? []).filter((read) => !models.some((candidate) => candidate.name === read))
     if (unknown.length > 0) throw new Error(`Resource "${model.name}" is live from "${unknown.join('", "')}", which is not a resource`)
+    // A view takes no trigger, so a view's changes come only from the tables it reads: name those instead.
+    const views = (model.liveReads ?? []).filter((read) => models.some((candidate) => candidate.name === read && candidate.liveReads))
+    if (views.length > 0) throw new Error(`Resource "${model.name}" is live from "${views.join('", "')}", which is live from other resources itself: name the resources it reads instead`)
   }
   const captured = models.filter(capturedBy(models))
   const capture = state.capture

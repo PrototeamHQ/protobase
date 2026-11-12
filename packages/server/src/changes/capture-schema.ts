@@ -2,7 +2,7 @@ import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import type { ResourceModel } from '@protobase/schema'
 import { capturePlan, planSql, uncaptured, type CaptureState, type FoundTrigger } from './capture-plan'
-import { capturedBy, isCaptured, quoteIdent, tableSql } from './capture-sql'
+import { capturedBy, quoteIdent, tableSql } from './capture-sql'
 import { changesSchema, type EventsOptions } from './events-options'
 import { hasIndexes } from '../has-indexes'
 import { historyIndexes } from '../history/history-sql'
@@ -73,7 +73,7 @@ export const changesMigration = async (db: Db, models: readonly ResourceModel[],
  * new version serves.
  */
 export const checkChanges = async (db: Db, models: readonly ResourceModel[], options?: EventsOptions) => {
-  if (!models.some(isCaptured)) return
+  if (!models.some(capturedBy(models))) return
   const { plan: found } = await plan(db, models, options)
   const missing = uncaptured(found, models)
   if (missing.length === 0) return

@@ -41,7 +41,7 @@ A resource backed by a database view, such as a chat thread that merges messages
 
 <Code code={thread} lang="ts" title="config/thread.ts" />
 
-Each resource it names is captured like a live one, needs no `.live()` of its own and still needs a resource of its own; `protobase dev` and `protobase serve` do not start when a name is not a resource. The stream sends the view a change with an empty key, `{ resource, key: '', operation: 'update' }`, once for writes that come close together: any of its records may have changed, so the page reads what it shows of the view again. A reader hears of it in the tenant of the record that changed, or in every tenant when that resource has no tenant.
+Each resource it names is captured like a live one, needs no `.live()` of its own and still needs a resource of its own; `protobase dev` and `protobase serve` do not start when a name is not a resource, or is another resource backed by a view: name the tables that view reads instead. The stream sends the view a change with an empty key, `{ resource, key: '', operation: 'update' }`, once for writes that come close together: any of its records may have changed, so the page reads what it shows of the view again. A reader hears of it in the tenant of the record that changed, or in every tenant when that resource has no tenant.
 
 <gap>A view cannot update live from a table without a resource because the capture of plain tables is not implemented.</gap>
 

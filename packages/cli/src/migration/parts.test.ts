@@ -17,6 +17,10 @@ describe('the migration parts', () => {
     const summarised = resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text(), summary: f.text().optional().ai({ prompt: 'Sum up {title}' }) }).primaryKey((r) => r.id)
     expect(names(migrationParts(project([summarised.toModel()])))).toEqual(['jobs', 'changes', 'computed', 'derived'])
   })
+  it('add the jobs schema that dispatches the changes a live view reads', () => {
+    const thread = resource('thread').table('thread').fields({ id: f.text() }).primaryKey((r) => r.id).live({ reads: ['tickets'] })
+    expect(names(migrationParts(project([tickets.toModel(), thread.toModel()])))).toEqual(['jobs', 'changes', 'computed', 'derived'])
+  })
   it("add the query role only with the built-in assistant's read-only queries", () => {
     expect(names(migrationParts(project([tickets.toModel()], true)))).toEqual(['changes', 'computed', 'query', 'derived'])
   })

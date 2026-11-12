@@ -53,7 +53,7 @@ import { goTruePath } from './gotrue/keys'
 import { realtimePath, restPath, storagePath, supabaseFunctionsPath, supabasePath } from './supabase-paths'
 import { goTrueRoutes } from './gotrue/routes'
 import { wakeDispatch } from './changes/actor'
-import { isCaptured } from './changes/capture-sql'
+import { capturedBy } from './changes/capture-sql'
 import type { ResourceChange } from './changes/resource-change'
 import { createDerived } from './derived/derived-values'
 import type { DerivedCompute } from './derived/run-derived'
@@ -349,7 +349,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     sources,
     ...(files && { files }),
     ...(encryption && { encryption }),
-    ...(appModels.some(isCaptured) && { actorSetting: `${changes}.actor` }),
+    ...(appModels.some(capturedBy(appModels)) && { actorSetting: `${changes}.actor` }),
     ...(withHistory && { history: { schema: changes, ...(auth && { actorNames: betterAuthActorNames(auth) }) } }),
     ...(mentions && { comments: { ...(commentUsers && { users: commentUsers }), mentionJob: mentions, appOrigin: appOrigin(auth?.origins ?? []) } }),
     ...(withAi && { ai: { ...(model && { model }), ...(options.onUnhandledError && { report: options.onUnhandledError }) } }),

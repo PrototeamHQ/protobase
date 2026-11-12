@@ -1,6 +1,6 @@
 import type { ResourceModel } from '@protobase/schema'
 import { hasAiFields } from './ai/ai-fields'
-import { isCaptured } from './changes/capture-sql'
+import { capturedBy } from './changes/capture-sql'
 import { changesSchema, type EventsOptions } from './changes/events-options'
 import { commentsResource, commentsView } from './comments/record-comments'
 import { activityResource, activityView } from './history/activity'
@@ -22,7 +22,7 @@ export type BuiltInInput = {
  */
 export const builtInResources = ({ models, jobs, notifications, events }: BuiltInInput) => {
   const withComments = models.some((model) => model.comments)
-  const withJobs = jobs || models.some(isCaptured) || withComments || hasAiFields(models) || notifications
+  const withJobs = jobs || models.some(capturedBy(models)) || withComments || hasAiFields(models) || notifications
   const withHistory = models.some((model) => model.history)
   const resources = [
     ...(withJobs ? [failedJobs] : []),
