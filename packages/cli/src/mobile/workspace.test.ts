@@ -4,6 +4,7 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { protobaseVersion } from '../version/version'
 import { appPluginsCommand } from './app-plugins-hook'
+import { nativeDependencies } from './pinned-packages'
 import { mobileSpec, prepareWorkspace, workspaceDir, workspacePackageJson } from './workspace'
 
 describe('workspaceDir', () => {
@@ -16,6 +17,14 @@ describe('mobileSpec', () => {
   it('is the CLI\'s version, or this repository\'s package from source', () => {
     expect(mobileSpec(false)).toBe(protobaseVersion)
     expect(mobileSpec(true)).toBe(`file:${path.resolve(import.meta.dirname, '../../../mobile')}`)
+  })
+})
+
+describe('workspacePackageJson', () => {
+  it('pins each native package @protobase/mobile pins at the root, at its exact version, with and without plugins', () => {
+    expect(workspacePackageJson({ mobileSpec: '0.14.2' }).dependencies).toEqual({ '@protobase/mobile': '0.14.2', ...nativeDependencies })
+    const withPlugin = workspacePackageJson({ mobileSpec: '0.14.2', plugins: { '@capacitor/geolocation': '8.2.4' } }).dependencies
+    expect(withPlugin).toEqual({ '@protobase/mobile': '0.14.2', ...nativeDependencies, '@capacitor/geolocation': '8.2.4' })
   })
 })
 
@@ -32,7 +41,7 @@ describe('prepareWorkspace', () => {
     dir = mkdtempSync(path.join(tmpdir(), 'protobase-ws-'))
     const calls: string[][] = []
     await prepareWorkspace(dir, packageJson, async (command, args) => void calls.push([command, ...args]))
-    expect(JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8'))).toEqual({ private: true, scripts: { 'capacitor:copy:after': appPluginsCommand, 'capacitor:update:after': appPluginsCommand }, dependencies: { '@protobase/mobile': '0.14.2', '@capacitor/camera': '^8.0.0' } })
+    expect(JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8'))).toEqual({ private: true, scripts: { 'capacitor:copy:after': appPluginsCommand, 'capacitor:update:after': appPluginsCommand }, dependencies: { '@protobase/mobile': '0.14.2', ...nativeDependencies, '@capacitor/camera': '^8.0.0' } })
     expect(readFileSync(path.join(dir, '.gitignore'), 'utf8')).toBe('*\n')
     expect(calls).toEqual([['npm', 'install', '--install-links', '--no-audit', '--no-fund']])
   })
@@ -43,6 +52,7 @@ describe('prepareWorkspace', () => {
     const run = async (command: string, args: string[]) => void calls.push([command, ...args])
     await prepareWorkspace(dir, packageJson, run)
     installed('@protobase/mobile')
+    for (const name of Object.keys(nativeDependencies)) installed(name)
     await prepareWorkspace(dir, packageJson, run)
     expect(calls).toHaveLength(2)
     installed('@capacitor/camera')
