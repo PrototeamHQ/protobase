@@ -40,6 +40,25 @@ export const axProblems = (nodes) => {
   return problems
 }
 
+const cellRoles = new Set(['columnheader', 'rowheader', 'cell', 'gridcell'])
+
+/** The tables a page's tree holds, in reading order: each its rows, each row the names of its cells. */
+export const tables = (nodes) => {
+  const byId = new Map(nodes.map((node) => [node.nodeId, node]))
+  const children = (node) => (node.childIds ?? []).flatMap((id) => byId.get(id) ?? [])
+  const rowsOf = (node) => {
+    if (role(node) !== 'row') return children(node).flatMap(rowsOf)
+    return [children(node).filter((cell) => !cell.ignored && cellRoles.has(role(cell))).map(name)]
+  }
+  return readOrder(nodes).filter((node) => role(node) === 'table').map(rowsOf)
+}
+
+/** A problem when no table among `found`, as `tables` gives them, has `header` as its first row and a row under it. */
+export const missingTable = (found, header) => {
+  if (found.some((rows) => rows.length > 1 && rows[0].join('\n') === header.join('\n'))) return []
+  return [`no table headed ${header.map((cell) => `"${cell}"`).join(', ')} with a row under it`]
+}
+
 /**
  * The text that does not grow with the root text size: `before` and `after` are each element's font size in pixels, by
  * a key and with its text, at a root size and at `factor` times it. A size within half a pixel of `factor` times its old
