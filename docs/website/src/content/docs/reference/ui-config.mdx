@@ -941,6 +941,10 @@ A `time` or `tone` field the caller cannot read is left out of their cards. <gap
 
 #### Counts in headings
 
+:::caution[Experimental]
+Counts in headings may change in any release. A count covers only the records the reader may see, and none shows when its query fails or the server gives no total.
+:::
+
 With `count: true` a related section shows beside its title how many records match, such as **Doing 2**, so the reader sees what is behind each heading without scrolling. A group with `count: true` shows how many records its related tables hold together, while it is closed too, so a closed group still says whether opening it is worth it. A section with no records shows 0. The count is the records the reader may see, as the list API counts them with their access rules, and it follows the page's own changes and, on a [live](/reference/live/) resource, everyone else's. The count is a quiet pill after the title, 0 as an outline, and a screen reader hears it with the records' name, such as "Doing (2 tasks)"; while it loads, a placeholder of its size holds its place, and a count that cannot be read shows no pill rather than 0. `help` puts a line under the heading of either.
 
 ```ts
