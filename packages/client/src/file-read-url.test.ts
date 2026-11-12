@@ -5,6 +5,7 @@ describe('fileReadUrl', () => {
   it('reads a file the API links under its own files through that link', () => {
     expect(fileReadUrl({ uri: 'private:1/a.json?name=a.json', url: '/api/files/private/1/a.json?r=docs&sig=x' }, '/api')).toBe('/api/files/private/1/a.json?r=docs&sig=x&via=app')
     expect(fileReadUrl({ uri: 'private:1/a.json', url: 'https://api.test/api/files/private/1/a.json?sig=x' }, 'https://api.test/api')).toBe('https://api.test/api/files/private/1/a.json?sig=x&via=app')
+    expect(fileReadUrl({ uri: 'private:1/a.json', url: '/api/files/private/1/a.json?r=docs&sig=x' }, 'https://api.test/api')).toBe('https://api.test/api/files/private/1/a.json?r=docs&sig=x&via=app')
   })
 
   it('reads a public file linked at a CDN from the API\'s own files, even when the CDN\'s path looks like them', () => {
