@@ -13,7 +13,7 @@ import { Markdown } from '../../markdown/markdown'
 import { isMarkdown } from '../../markdown/markdown-hint'
 import { ContactLink } from '../../live/contact-link'
 import { contactFormat } from '../../live/contact-links'
-import { linkTextOf } from '../../live/link-text'
+import { linkTextOf, type RelationLabels } from '../../live/link-text'
 import { JsonBlock } from '../field-types/json/json-block'
 import { text as appText } from '../messages'
 import { FileLink } from '../file-viewers/file-link'
@@ -43,6 +43,8 @@ type FieldValueProps = {
   relationLabel?: string
   /** The record the value is of, whose fields a url's link text takes. */
   record?: Record<string, unknown>
+  /** The names of the records the record's relations point at, which a url's link text takes where resolved. */
+  relationLabels?: RelationLabels
 }
 
 // A dash, which a screen reader reads as words
@@ -93,10 +95,10 @@ export const ShownValue = ({ field, value, hints, relationLabel, linkText, model
   return <span title={valueTitle(field, value, undefined, hints)} className={cn(hints.format === 'code' && 'font-mono text-xs', (field.type === 'decimal' || field.type === 'integer') && 'tabular-nums', hints.multiline && 'whitespace-pre-line break-words')}>{text}</span>
 }
 
-const BuiltInValue = ({ model, field, value, format, relationLabel, record }: FieldValueProps) => {
+const BuiltInValue = ({ model, field, value, format, relationLabel, record, relationLabels }: FieldValueProps) => {
   const { views } = useAdminMeta()
   const hints = { ...views[model.name]?.fields[field.name], ...(format && { format }) }
-  const linkText = record && hints.format === 'url' ? linkTextOf(model, views[model.name], field.name, record) : undefined
+  const linkText = record && hints.format === 'url' ? linkTextOf(model, views[model.name], field.name, record, relationLabels) : undefined
   return <ShownValue field={field} value={value} hints={hints} relationLabel={relationLabel} linkText={linkText} model={model} record={record} />
 }
 

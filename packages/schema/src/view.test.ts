@@ -452,6 +452,13 @@ describe('view builder', () => {
     expect(() => view<typeof article>('article').fields((r) => ({ title: r.title.format('url', { text: ' ' }) }))).toThrow(`Field "title": format('url') needs a link text that is not empty`)
   })
 
+  it("keeps a url link's text through a later format('url'), and drops it on another format", () => {
+    const relinked = view<typeof article>('article').fields((r) => ({ title: r.title.format('url', { text: 'Report' }).format('url') })).toModel()
+    expect(relinked.fields).toEqual({ title: { format: 'url', linkText: 'Report' } })
+    const reformatted = view<typeof article>('article').fields((r) => ({ title: r.title.format('url', { text: 'Report' }).format('code') })).toModel()
+    expect(reformatted.fields).toEqual({ title: { format: 'code' } })
+  })
+
   it('carries markdown as a field hint', () => {
     const hinted = view<typeof article>('article').fields((r) => ({ title: r.title.markdown() })).toModel()
     expect(hinted.fields).toEqual({ title: { markdown: true } })

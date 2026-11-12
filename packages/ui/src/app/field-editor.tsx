@@ -45,10 +45,12 @@ export type FieldEditorProps = {
   resource?: string
   /** The stored record the field is of: a file field's file opens on it in the viewer for its media type. */
   record?: Record<string, unknown>
+  /** The text a url field's link shows instead of its address while nobody may change it. */
+  linkText?: string
   onChange: (value: unknown) => void
 }
 
-const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo, relationPicker, invalid, locked, placeholder, reveal, resource, record, onChange }: FieldEditorProps) => {
+const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo, relationPicker, invalid, locked, placeholder, reveal, resource, record, linkText, onChange }: FieldEditorProps) => {
   if (field.type === 'file') return <FileField field={field} hints={hints} resource={resource ?? ''} record={record} value={value} locked={locked || !resource} invalid={invalid} onChange={onChange} />
   if (field.sensitive) return <SensitiveField field={field} hints={hints} value={value} reveal={reveal} locked={locked || field.readOnly} invalid={invalid} placeholder={placeholder} onChange={onChange} />
   if (field.type === 'relation' && relationPicker && !field.readOnly && !locked) {
@@ -69,7 +71,7 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
     return <div className="py-1.5">{relationTo ? <AppLink to={relationTo} className="font-medium text-primary-text hover:underline">{label}</AppLink> : label}</div>
   }
   // A value nobody may change here reads as the record page shows it: at full contrast, in its badge, relative when the view says
-  if ((!isEditable(field) || locked)) return <div className="min-w-0 break-words py-1.5 text-foreground"><ShownValue field={field} value={stored} hints={hints ?? {}} /></div>
+  if ((!isEditable(field) || locked)) return <div className="min-w-0 break-words py-1.5 text-foreground"><ShownValue field={field} value={stored} hints={hints ?? {}} linkText={linkText} /></div>
   if (field.type === 'boolean') return <Switch checked={Boolean(value)} onChange={onChange} label={hints?.label ?? humanize(field.name)} />
   const multiline = Boolean(hints?.multiline) && field.type === 'text'
   if (isMarkdown(field, hints)) return <MarkdownEditor label={hints?.label ?? humanize(field.name)} invalid={invalid} placeholder={placeholder} value={String(value)} onChange={onChange} />
