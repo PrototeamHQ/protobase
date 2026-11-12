@@ -41,9 +41,12 @@ export type Request = {
   cache?: CacheMode
 }
 
+/** Where the system endpoints beside the API live: `/api` for `/api/v1`. */
+export const systemUrlOf = (baseUrl = '/api/v1') => baseUrl.replace(/\/[^/]*$/, '')
+
 export const createTransport = (options: ClientOptions = {}) => {
   const baseUrl = options.baseUrl ?? '/api/v1'
-  const systemUrl = baseUrl.replace(/\/[^/]*$/, '')
+  const systemUrl = systemUrlOf(baseUrl)
   const doFetch = options.fetch ?? ((input, init) => fetch(input, init))
 
   return async ({ method, path, query = '', body, headers, accept = [], system, raw, via, signal, cache }: Request) => {

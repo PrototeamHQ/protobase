@@ -256,6 +256,8 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
   }
 
   const client = {
+    // The stories link files as data: URLs, which are read as they are.
+    fileReadUrl: (_resource: unknown, file: { url: string }) => file.url,
     workflowTypes: async () => structuredClone(workflowTypes),
     workflowRunTrace: async (runId: string, held?: WorkflowTraceHeld): Promise<WorkflowRunTrace> => {
       const { steps } = await workflowRunTrace(runId)

@@ -1,3 +1,4 @@
+import { filePath } from '@protobase/schema/internal'
 import type { Signer } from './signer'
 
 /** Download URLs stay valid one to two hours and repeat within the hour, so browsers can cache them. */
@@ -11,7 +12,7 @@ const parts = (grant: DownloadGrant) => [grant.provider, grant.path, grant.resou
 /** `<base>/<provider>/<path>?r=<resource>&k=<key>&f=<field>&exp=<seconds>&sig=<signature>` */
 export const signedDownloadUrl = async (signer: Signer, base: string, grant: DownloadGrant) => {
   const query = new URLSearchParams({ r: grant.resource, k: grant.key, f: grant.field, exp: String(grant.expires), sig: await signer.sign('download', parts(grant)) })
-  return `${base}/${grant.provider}/${grant.path}?${query}`
+  return `${filePath(base, grant.provider, grant.path)}?${query}`
 }
 
 /** The grant of a download URL whose signature checks out; `expired` once it is past its time. */
