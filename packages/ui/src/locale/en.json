@@ -477,9 +477,15 @@
     "no": "No",
     "nothingYet": "Nothing to chart yet.",
     "couldNotLoad": "Could not load the chart.",
-    "weekOf": "Week of {day}",
     "other": "Other",
-    "records": "{count} records"
+    "records": "{count} records",
+    "toToday": "{start} to today",
+    "period": "Period",
+    "count": "Count",
+    "sum": "Total",
+    "average": "Average",
+    "maximum": "Maximum",
+    "chartKeys": "Chart: use the left and right arrow keys to read each period"
   },
   "app/comments": {
     "couldNotPost": "Could not post the comment",

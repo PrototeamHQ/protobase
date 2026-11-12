@@ -1,6 +1,6 @@
 import type { AggregateGroup } from '@protobase/client'
 import type { RecordChartRange } from '@protobase/schema'
-import type { PeriodBucket } from '../charts/period-chart'
+import type { PeriodBucket } from '../charts/period-types'
 
 /** What each bucket of a record's chart reads of its samples. */
 export type SampleMeasure = 'average' | 'maximum'

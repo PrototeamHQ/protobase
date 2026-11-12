@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { axProblems, fixedText, hiddenFocus, offScreen, outlineShows, outsideBar, ringWidth, textOutsideField } from './ax-problems.mjs'
+import { axProblems, fixedText, hiddenFocus, missingTable, offScreen, outlineShows, outsideBar, ringWidth, tables, textOutsideField } from './ax-problems.mjs'
 
 type Node = { nodeId: string; parentId?: string; childIds?: string[]; ignored?: boolean; role?: { value: string }; name?: { value: string }; properties?: Array<{ name: string; value: { value: unknown } }>; backendDOMNodeId?: number }
 
@@ -28,6 +28,33 @@ describe('axProblems', () => {
 
   it('finds a heading that skips a level, in reading order', () => {
     expect(axProblems(tree(main, heading(1, 'Order 7'), heading(3, 'Summary'), heading(2, 'Lines')))).toEqual(['heading "Summary" at level 3 follows level 1'])
+  })
+})
+
+describe('tables', () => {
+  it('reads each table as its rows of cell names, through the groups between', () => {
+    const nodes: Node[] = [
+      { nodeId: 'root', role: { value: 'RootWebArea' }, childIds: ['t'] },
+      { nodeId: 't', parentId: 'root', role: { value: 'table' }, childIds: ['g'] },
+      { nodeId: 'g', parentId: 't', role: { value: 'rowgroup' }, ignored: true, childIds: ['r1', 'r2'] },
+      { nodeId: 'r1', parentId: 'g', role: { value: 'row' }, childIds: ['h1', 'h2'] },
+      { nodeId: 'h1', parentId: 'r1', role: { value: 'columnheader' }, name: { value: 'Period' } },
+      { nodeId: 'h2', parentId: 'r1', role: { value: 'columnheader' }, name: { value: 'Count' } },
+      { nodeId: 'r2', parentId: 'g', role: { value: 'row' }, childIds: ['c1', 'c2'] },
+      { nodeId: 'c1', parentId: 'r2', role: { value: 'rowheader' }, name: { value: '9 Nov to today' } },
+      { nodeId: 'c2', parentId: 'r2', role: { value: 'cell' }, name: { value: '0' } },
+    ]
+    expect(tables(nodes)).toEqual([[['Period', 'Count'], ['9 Nov to today', '0']]])
+  })
+})
+
+describe('missingTable', () => {
+  it('finds nothing when a table has the header and a row under it', () => {
+    expect(missingTable([[['Name']], [['Period', 'Count'], ['9 Nov to today', '0']]], ['Period', 'Count'])).toEqual([])
+  })
+
+  it('names the header no table has with a row under it', () => {
+    expect(missingTable([[['Period', 'Count']]], ['Period', 'Count'])).toEqual(['no table headed "Period", "Count" with a row under it'])
   })
 })
 

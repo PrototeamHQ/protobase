@@ -1,13 +1,13 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
-import { axProblems, fixedText, hiddenFocus, offScreen, outsideBar, textOutsideField } from './a11y-tree/ax-problems.mjs'
+import { axProblems, fixedText, hiddenFocus, missingTable, offScreen, outsideBar, tables, textOutsideField } from './a11y-tree/ax-problems.mjs'
 import { openStory, settledTree } from './lib/story-layouts.mjs'
 
 /**
  * Checks what a screen reader and a larger text size meet on the main pages in the built Storybook (storybook-static),
  * on desktop and phone: Chromium's accessibility tree has no link or button without a name, one main landmark and no
- * heading that skips a level (a11y-tree/ax-problems.mjs), all text grows when the root text size doubles, the phone's
+ * heading that skips a level (a11y-tree/ax-problems.mjs), a chart's table of its numbers on the page with one, all text grows when the root text size doubles, the phone's
  * page and top bar fit its width at 3.3 times the root text size, the largest accessibility size, its open search stays
  * inside the bar at that size, and its text inside the field, with and without a top safe area, and each link and button
  * shows an outline when focused in forced colors.
@@ -20,8 +20,10 @@ const pages = [
   { story: 'guides-bike-shop--step-3', page: 'list with filters' },
   { story: 'list-page-displays--cards', page: 'list with cards' },
   { story: 'guides-bike-shop--step-5', page: 'record with actions' },
+  // A chart's numbers reach a screen reader as a table of its periods
+  { story: 'record-page-trends-of-related-records--record-trend', page: 'record with a trend', table: ['Period', 'Count'] },
 ]
-const shots = pages.flatMap(({ story, page }) => ['desktop', 'phone'].map((viewport) => ({ name: `${page} (${viewport})`, story, viewport })))
+const shots = pages.flatMap(({ story, page, table }) => ['desktop', 'phone'].map((viewport) => ({ name: `${page} (${viewport})`, story, viewport, table })))
 
 // Each shown element with text of its own, but text hidden from the reader, such as a chart's measuring box, by a key kept on the element, so the sizes after a change pair up with those
 // before; an element drawn anew in between gets no size after.
@@ -110,7 +112,7 @@ for (const shot of shots) {
     await page.evaluate(() => document.documentElement.style.removeProperty('--safe-area-inset-top'))
   }
   await page.emulateMedia({ forcedColors: 'active' })
-  const problems = [...axProblems(nodes), ...fixedText(before, after, 2), ...fits, ...hiddenFocus(await page.evaluate(focusOutlines))]
+  const problems = [...axProblems(nodes), ...(shot.table ? missingTable(tables(nodes), shot.table) : []), ...fixedText(before, after, 2), ...fits, ...hiddenFocus(await page.evaluate(focusOutlines))]
   await page.context().close()
   if (problems.length === 0) {
     console.log(`PASS ${shot.name}`)

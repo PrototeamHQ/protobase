@@ -72,7 +72,7 @@ export const RecordChartsChecks: StoryObj = {
     // A line per series, a legend only where there are several
     await waitFor(() => expect(cpu.querySelectorAll('.recharts-line')).toHaveLength(1))
     await waitFor(() => expect(network.querySelectorAll('.recharts-line')).toHaveLength(2))
-    expect(within(network).getByText('In')).toBeVisible()
+    expect(within(within(network).getByRole('list')).getByText('In')).toBeVisible()
     expect(within(network).getByText('Bytes per second, in and out.')).toBeVisible()
     expect(within(cpu).queryByRole('listitem')).toBeNull()
 
