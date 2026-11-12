@@ -26,9 +26,14 @@ const readCaptureState = async (db: Db, schema: string, models: readonly Resourc
     sql<{ oid: string; source: string; definer: boolean }>`select p.oid::text as oid, p.prosrc as source, p.prosecdef as definer from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = ${schema} and p.proname = 'capture' and p.pronargs = 0`,
   )
   const tables: Record<string, string | null> = {}
+  const views: string[] = []
   for (const model of models) {
-    const [found] = await rowsOf(db, sql<{ oid: string | null }>`select to_regclass(${tableSql(model)})::oid::text as oid`)
+    const [found] = await rowsOf(
+      db,
+      sql<{ oid: string | null; view: boolean | null }>`select c.oid::text as oid, c.relkind in ('v', 'm') as view from (select to_regclass(${tableSql(model)}) as oid) r left join pg_class c on c.oid = r.oid`,
+    )
     tables[model.name] = found?.oid ?? null
+    if (found?.view) views.push(model.name)
   }
   const oids = Object.values(tables).filter((oid) => oid !== null)
   const triggers = await rowsOf(
@@ -48,6 +53,7 @@ const readCaptureState = async (db: Db, schema: string, models: readonly Resourc
     ...(capture && { capture }),
     triggers: triggers.map((trigger) => ({ ...trigger, args: triggerArgs(trigger.args) })),
     tables,
+    views,
   }
 }
 

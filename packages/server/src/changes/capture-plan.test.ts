@@ -19,6 +19,7 @@ const installed = (extra: Partial<CaptureState> = {}): CaptureState => ({
   capture,
   triggers: resourceTriggers(withEvents).map((trigger) => ({ ...trigger, table: '500', tableSql: '"sales"."orders"', function: '900' })),
   tables: { orders: '500' },
+  views: [],
   ...extra,
 })
 
@@ -41,7 +42,7 @@ describe('resourceTriggers', () => {
 
 describe('capturePlan', () => {
   it('sets up the schema and both triggers in an empty database', () => {
-    const plan = capturePlan('changes', [withEvents], { outbox: false, history: false, historyIndexed: false, notices: false, triggers: [], tables: { orders: '500' } })
+    const plan = capturePlan('changes', [withEvents], { outbox: false, history: false, historyIndexed: false, notices: false, triggers: [], views: [], tables: { orders: '500' } })
     expect(plan.setup).toBe(true)
     expect(plan.create.map(({ trigger }) => trigger.name)).toEqual(['orders_changes', 'orders_changes_update'])
     const text = planSql('changes', plan)!
@@ -59,7 +60,7 @@ describe('capturePlan', () => {
 
   it('has nothing to do when the database is current, or without events and triggers', () => {
     expect(planSql('changes', capturePlan('changes', [withEvents], installed()))).toBeUndefined()
-    expect(planSql('changes', capturePlan('changes', [plain], { outbox: false, history: false, historyIndexed: false, notices: false, triggers: [], tables: {} }))).toBeUndefined()
+    expect(planSql('changes', capturePlan('changes', [plain], { outbox: false, history: false, historyIndexed: false, notices: false, triggers: [], views: [], tables: {} }))).toBeUndefined()
   })
 
   it('replaces an out-of-date function, and recreates a trigger whose columns changed', () => {
@@ -88,7 +89,7 @@ describe('capturePlan', () => {
 
   it('captures a resource with history and no events, and adds the history table once', () => {
     const withHistory = orders.history().toModel()
-    const plan = capturePlan('changes', [withHistory], { outbox: false, history: false, historyIndexed: false, notices: false, triggers: [], tables: { orders: '500' } })
+    const plan = capturePlan('changes', [withHistory], { outbox: false, history: false, historyIndexed: false, notices: false, triggers: [], views: [], tables: { orders: '500' } })
     expect([plan.setup, plan.history, plan.create.length]).toEqual([true, true, 2])
     expect(planSql('changes', plan)).toContain('create table if not exists "changes"."history"')
     expect(uncaptured(plan, [withHistory])).toEqual(['orders'])
@@ -109,7 +110,7 @@ describe('capturePlan', () => {
 
   it('captures a live resource with nothing else, and adds the notices table once', () => {
     const live = orders.live().toModel()
-    const plan = capturePlan('changes', [live], { outbox: false, history: false, historyIndexed: false, notices: false, triggers: [], tables: { orders: '500' } })
+    const plan = capturePlan('changes', [live], { outbox: false, history: false, historyIndexed: false, notices: false, triggers: [], views: [], tables: { orders: '500' } })
     expect([plan.setup, plan.history, plan.notices, plan.create.length]).toEqual([true, false, true, 2])
     expect(planSql('changes', plan)).toContain('create table if not exists "changes"."notices"')
     const missingTable = capturePlan('changes', [live], installed())
@@ -120,13 +121,22 @@ describe('capturePlan', () => {
 
   it('captures the resources a view reads for its live updates, and puts no trigger on the view', () => {
     const view = resource('order_feed').table('sales.order_feed').fields({ id: f.text() }).primaryKey((r) => r.id).live({ reads: ['orders'] }).toModel()
-    const plan = capturePlan('changes', [plain, view], { outbox: false, history: false, historyIndexed: false, notices: false, triggers: [], tables: { orders: '500' } })
+    const plan = capturePlan('changes', [plain, view], { outbox: false, history: false, historyIndexed: false, notices: false, triggers: [], views: [], tables: { orders: '500' } })
     expect([plan.setup, plan.notices]).toEqual([true, true])
     expect(plan.create.map(({ model, trigger }) => `${model.name}: ${trigger.name}`)).toEqual(['orders: orders_changes', 'orders: orders_changes_update'])
     expect(uncaptured(plan, [plain, view])).toEqual(['orders', 'order_feed'])
     expect(() => capturePlan('changes', [view], installed())).toThrow('Resource "order_feed" is live from "orders", which is not a resource')
     const feedOfFeed = resource('feed_digest').table('feed_digest').fields({ id: f.text() }).primaryKey((r) => r.id).live({ reads: ['order_feed'] }).toModel()
     expect(() => capturePlan('changes', [plain, view, feedOfFeed], installed())).toThrow('Resource "feed_digest" is live from "order_feed", which is live from other resources itself')
+  })
+
+  it('puts no trigger on a view that another resource reads, or that is live without reads', () => {
+    const feed = resource('order_feed').table('sales.order_feed').fields({ id: f.text() }).primaryKey((r) => r.id).toModel()
+    const digest = resource('feed_digest').table('feed_digest').fields({ id: f.text() }).primaryKey((r) => r.id).live({ reads: ['order_feed'] }).toModel()
+    const state = installed({ tables: { orders: '500', order_feed: '501' }, views: ['order_feed'] })
+    expect(() => capturePlan('changes', [feed, digest], state)).toThrow('Resource "order_feed" is backed by a view, which takes no trigger')
+    const liveFeed = resource('order_feed').table('sales.order_feed').fields({ id: f.text() }).primaryKey((r) => r.id).live().toModel()
+    expect(() => capturePlan('changes', [liveFeed], state)).toThrow('Resource "order_feed" is backed by a view, which takes no trigger')
   })
 
   it('adds the database role to the outbox of an earlier version', () => {

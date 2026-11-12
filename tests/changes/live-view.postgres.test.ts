@@ -75,6 +75,12 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('live views on Postgres'
     expect(await changes(1, () => sql`insert into replies (body) values ('hi')`.execute(db))).toEqual(['thread:'])
   })
 
+  it('refuses to put a trigger on the view when another resource reads it', async () => {
+    const digest = resource('digest').table('digest').fields({ id: f.text() }).primaryKey((r) => r.id).live({ reads: ['thread'] })
+    const models = [resource('thread').table('thread').fields({ id: f.text(), body: f.text() }).primaryKey((r) => r.id), digest].map((model) => model.toModel())
+    await expect(changesMigration(db, models)).rejects.toThrow('Resource "thread" is backed by a view, which takes no trigger')
+  })
+
   it('leaves the view alone when another table changes', async () => {
     expect(await changes(1, () => sql`insert into audit (body) values ('signed in')`.execute(db))).toEqual(['audit:1'])
   })
