@@ -118,6 +118,15 @@ describe('capturePlan', () => {
     expect(planSql('changes', capturePlan('changes', [live], installed({ notices: true })))).toBeUndefined()
   })
 
+  it('captures the resources a view reads for its live updates, and puts no trigger on the view', () => {
+    const view = resource('order_feed').table('sales.order_feed').fields({ id: f.text() }).primaryKey((r) => r.id).live({ reads: ['orders'] }).toModel()
+    const plan = capturePlan('changes', [plain, view], { outbox: false, history: false, historyIndexed: false, notices: false, triggers: [], tables: { orders: '500' } })
+    expect([plan.setup, plan.notices]).toEqual([true, true])
+    expect(plan.create.map(({ model, trigger }) => `${model.name}: ${trigger.name}`)).toEqual(['orders: orders_changes', 'orders: orders_changes_update'])
+    expect(uncaptured(plan, [plain, view])).toEqual(['orders', 'order_feed'])
+    expect(() => capturePlan('changes', [view], installed())).toThrow('Resource "order_feed" is live from "orders", which is not a resource')
+  })
+
   it('adds the database role to the outbox of an earlier version', () => {
     const stale = capturePlan('changes', [withEvents], installed({ capture: { ...capture, source: 'old body' } }))
     expect(planSql('changes', stale)).toContain('alter table "changes"."outbox" add column if not exists "database_role" text')

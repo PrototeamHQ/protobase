@@ -52,6 +52,10 @@ const tableOf = (state: CaptureState, model: ResourceModel) => {
  * missing table, two captured resources on one table, or a trigger of the same name that calls another function.
  */
 export const capturePlan = (schema: string, models: readonly ResourceModel[], state: CaptureState): CapturePlan => {
+  for (const model of models) {
+    const unknown = (model.liveReads ?? []).filter((read) => !models.some((candidate) => candidate.name === read))
+    if (unknown.length > 0) throw new Error(`Resource "${model.name}" is live from "${unknown.join('", "')}", which is not a resource`)
+  }
   const captured = models.filter(capturedBy(models))
   const capture = state.capture
   const current = capture !== undefined && capture.definer && capture.source === captureBody(schema)

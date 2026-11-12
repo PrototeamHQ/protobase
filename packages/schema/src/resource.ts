@@ -281,10 +281,17 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   /**
    * Refreshes the pages open on its records and lists as soon as they change, from the API or elsewhere: the server
    * tells each open app which records changed, never their values, and the app reads them again as its user. See
-   * [Live updates](docs/website/src/content/docs/reference/live.mdx).
+   * [Live updates](docs/website/src/content/docs/reference/live.mdx). `reads` names the resources whose changes
+   * refresh it in place of its own, for one backed by a database view, which takes no trigger: see
+   * [Resources backed by a view](docs/website/src/content/docs/reference/live.mdx#resources-backed-by-a-view).
+   *
+   * @example
+   * ```ts
+   * .live({ reads: ['messages', 'replies'] })
+   * ```
    */
-  live() {
-    return this.next({ live: true })
+  live(spec: { reads?: string[] } = {}) {
+    return this.next({ live: true, ...(spec.reads && { liveReads: [...spec.reads] }) })
   }
 
   /**

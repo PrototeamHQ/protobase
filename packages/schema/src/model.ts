@@ -162,6 +162,11 @@ export type ResourceModel = {
   comments?: true
   /** Whether open pages refresh as soon as its records change (`.live()`). */
   live?: true
+  /**
+   * The resources whose changes refresh its open pages in place of its own (`.live({ reads })`), for one backed by a
+   * database view: its own table is not captured, and a change names no record of it.
+   */
+  liveReads?: string[]
   /** The field whose change makes a record's new ETag (`.etagFrom()`), in place of a `version` or `updated_at` column found by name. */
   etagFrom?: string
   /** Whether role wildcards such as `*.read` leave it out, so only `*` and capabilities naming it grant it (`.explicitGrants()`). */

@@ -24,12 +24,18 @@ export const identifier = (name: string, bytes = 63) => {
 /** The table as SQL names it, qualified when the resource names a schema. */
 export const tableSql = (model: ResourceModel) => qualified(model.table)
 
-/** Whether a resource's own declarations need its changes captured: its events, history, live updates or derived values. */
-export const isCaptured = (model: ResourceModel) => (model.events ?? []).length > 0 || model.history === true || model.live === true || (model.derived ?? []).length > 0
+/**
+ * Whether a resource's own declarations need its changes captured: its events, history, live updates or derived values.
+ * Live updates from the resources it reads (`.live({ reads })`) need theirs instead, as a view takes no trigger.
+ */
+export const isCaptured = (model: ResourceModel) => (model.events ?? []).length > 0 || model.history === true || (model.live === true && !model.liveReads) || (model.derived ?? []).length > 0
 
-/** Whether the triggers capture a resource's changes among `models`: for its own declarations, or as a resource another's derived values read. */
+/**
+ * Whether the triggers capture a resource's changes among `models`: for its own declarations, or as a resource another's
+ * derived values or live updates read.
+ */
 export const capturedBy = (models: readonly ResourceModel[]) => {
-  const read = new Set(models.flatMap((model) => (model.derived ?? []).flatMap((value) => value.reads)))
+  const read = new Set(models.flatMap((model) => [...(model.derived ?? []).flatMap((value) => value.reads), ...(model.liveReads ?? [])]))
   return (model: ResourceModel) => isCaptured(model) || read.has(model.name)
 }
 

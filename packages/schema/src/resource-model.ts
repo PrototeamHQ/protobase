@@ -31,6 +31,7 @@ export type ResourceState = {
   history?: boolean
   comments?: boolean
   live?: boolean
+  liveReads?: string[]
   explicitGrants?: boolean
   etagFrom?: string
   openExisting?: string[]
@@ -112,6 +113,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.history && { history: true as const }),
     ...(state.comments && { comments: true as const }),
     ...(state.live && { live: true as const }),
+    ...(state.live && state.liveReads && { liveReads: [...state.liveReads] }),
     ...(state.explicitGrants && { explicitGrants: true as const }),
     ...(state.etagFrom && { etagFrom: state.etagFrom }),
     ...(state.position && { position: { ...state.position } }),
@@ -247,10 +249,21 @@ const bucketsProblems = (model: ResourceModel) => {
   return Object.entries(writes).flatMap(([option, value]) => (value === undefined ? [] : [`a time rollup cannot have .${option}(), as only the database writes its rows`]))
 }
 
+// A live resource refreshed by others' changes names at least one other resource and each once.
+const liveReadsProblems = (model: ResourceModel) => {
+  if (!model.liveReads) return []
+  const reads = model.liveReads
+  return [
+    ...(reads.length === 0 ? ['names no resource'] : []),
+    ...(reads.includes(model.name) ? ['names the resource itself'] : []),
+    ...(new Set(reads).size !== reads.length ? ['names a resource twice'] : []),
+  ].map((problem) => `live reads ${problem}`)
+}
+
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...bucketsProblems(model), ...derivedProblems(model), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...bucketsProblems(model), ...derivedProblems(model), ...liveReadsProblems(model), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }
