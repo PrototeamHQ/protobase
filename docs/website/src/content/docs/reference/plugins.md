@@ -203,7 +203,7 @@ export default definePlugin({ fileViewers: { 'application/vnd.example.report+jso
 | `file` | The file: `name`, `type`, `size`, `url`, the link that downloads it, and `uri`, its stored value. |
 | `siblings` | The other files of its record and of the records that point at the same records, see [Viewers](/reference/files/#viewers). `fileNamed(siblings, 'shots/before.png')` finds one by the last segment of a relative reference, and gives none for an absolute address. |
 
-`useFileText(file)` reads the file's text once, as a TanStack Query result kept while the file stays the same. The viewer draws on the page below the file's bar, which scrolls as the page does. The file's link is a download link served with a sandboxing CSP, so a viewer reads the file and draws it itself rather than framing it.
+`useFileText(file)` reads the file's text once, as a TanStack Query result kept while the file stays the same. It reads through the API that serves the record, whatever store holds the file and wherever its link points, up to 10 MB. The viewer draws on the page below the file's bar, which scrolls as the page does. The file's link is a download link served with a sandboxing CSP, so a viewer reads the file and draws it itself rather than framing it.
 
 ## Building
 

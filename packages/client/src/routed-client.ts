@@ -37,6 +37,7 @@ export const routedClient = (own: Client, sourceOf: (resource: string) => Client
     map: (resource, params) => to(resource).map(resource, params),
     seek: (resource, params) => to(resource).seek(resource, params),
     meta: (etag, options) => own.meta(etag, options),
+    fileReadUrl: (resource, file) => to(resource).fileReadUrl(resource, file),
     invoke: (name, options) => own.invoke(name, options),
     upload: (resource, field, file, options) => to(resource).upload(resource, field, file, options),
     form: (name) => own.form(name),

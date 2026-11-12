@@ -1,6 +1,7 @@
 import { Validator } from '@seriousme/openapi-schema-validator'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { sql } from 'kysely'
+import { appReadUrl } from '@protobase/schema/internal'
 import { as, json } from '../../../test-support/server'
 import { jpeg, pdf, png } from '../src/files/testing/samples'
 import { createFilesFixture } from './support/files-fixture'
@@ -66,6 +67,15 @@ describe('file fields', () => {
     expect(partial.headers.get('content-range')).toBe(`bytes 0-3/${jpeg.length}`)
     expect(new Uint8Array(await partial.arrayBuffer())).toEqual(jpeg.slice(0, 4))
     expect((await fixture.app.request(created.body.image.url.replace(/sig=[\w-]+/, 'sig=x'))).status).toBe(403)
+  })
+
+  it('serve an app read the same bytes as a download from a store without its own links', async () => {
+    const created = await createProduct({ image: (await upload('products', 'image', jpeg, 'photo.jpg')).body.value })
+    const read = await fixture.app.request(appReadUrl(created.body.image.url))
+    expect(read.status).toBe(200)
+    expect(read.headers.get('content-security-policy')).toBe("sandbox; default-src 'none'")
+    expect(new Uint8Array(await read.arrayBuffer())).toEqual(jpeg)
+    expect((await fixture.app.request(appReadUrl(created.body.image.url.replace(/sig=[\w-]+/, 'sig=x')))).status).toBe(403)
   })
 
   it('refuse a type the field does not take, a file too large, and values that are no ticket for this field and caller', async () => {

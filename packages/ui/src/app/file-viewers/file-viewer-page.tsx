@@ -9,6 +9,7 @@ import type { ProjectUi } from '../pages/project-ui'
 import { AppLink } from '../use-app-address'
 import { viewedFile, viewerFor, type FileViewer, type ViewedFile } from './file-viewer'
 import { useSiblingFiles } from './use-sibling-files'
+import { ViewedResourceContext } from './viewed-resource'
 import { text } from './messages'
 
 /** A record's file field and the viewer registered for its file's type; `undefined` when the field has no such file. */
@@ -62,9 +63,11 @@ export const FileViewerPage = ({ model, record, viewed, back }: FileViewerPagePr
       </div>
       <div className="flex-1">
         {ready ? (
-          <CustomBoundary name={file.type} fallback={<ViewerFailed file={file} />}>
-            <Viewer file={file} siblings={siblings} />
-          </CustomBoundary>
+          <ViewedResourceContext.Provider value={model.name}>
+            <CustomBoundary name={file.type} fallback={<ViewerFailed file={file} />}>
+              <Viewer file={file} siblings={siblings} />
+            </CustomBoundary>
+          </ViewedResourceContext.Provider>
         ) : (
           <div className="space-y-3 px-4 py-6 md:px-10">
             <Skeleton className="h-6 w-2/3" />

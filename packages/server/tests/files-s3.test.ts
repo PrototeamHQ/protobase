@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { appReadMaxBytes, appReadUrl } from '@protobase/schema/internal'
 import { limitedFileStore, s3FileStore, type FileProvider } from '@protobase/server'
 import { as, json } from '../../../test-support/server'
 import { fakeBucket } from '../src/files/testing/fake-bucket'
@@ -50,11 +51,34 @@ describe('file fields in a bucket', () => {
     expect((await fixture.app.request(product.image.url)).status).toBe(404)
   })
 
+  it('serve an app read from the app, never a redirect, up to the read limit, once the row is checked', async () => {
+    const objects = await bucketFixture()
+    const product = await create('/api/v1/products', { name: 'Bike', image: (await upload('products', 'image', jpeg, 'photo.jpg', as(1))).body.value }, as(1))
+    expect((await fixture.app.request(product.image.url)).status).toBe(302)
+
+    const read = await fixture.app.request(appReadUrl(product.image.url))
+    expect(read.status).toBe(200)
+    expect(read.headers.get('content-type')).toBe('image/jpeg')
+    expect(read.headers.get('cache-control')).toMatch(/^private, max-age=\d+$/)
+    expect(new Uint8Array(await read.arrayBuffer())).toEqual(jpeg)
+    expect((await fixture.app.request(appReadUrl(product.image.url.replace(/sig=[\w-]+/, 'sig=x')))).status).toBe(403)
+
+    const key = `app/private/${product.image.uri.slice('private:'.length, product.image.uri.indexOf('?'))}`
+    objects.get(key)!.bytes = new Uint8Array(appReadMaxBytes + 1)
+    const tooLarge = await fixture.app.request(appReadUrl(product.image.url))
+    expect(tooLarge.status).toBe(403)
+    expect(await tooLarge.json()).toMatchObject({ type: 'urn:protobase:problem:too-large-to-read' })
+    expect((await fixture.app.request(product.image.url)).status).toBe(302)
+  })
+
   it('link public files from the bucket\'s own address', async () => {
     const objects = await bucketFixture()
     const avatar = await create('/api/v1/avatars', { name: 'me', picture: (await upload('avatars', 'picture', png, 'me.png', as(undefined))).body.value }, as(undefined))
     expect(avatar.picture.url).toMatch(/^https:\/\/files\.example\.com\/app\/public\/_\/[0-9a-f-]{36}\.png$/)
     expect(objects.get(`app/public/${avatar.picture.url.slice('https://files.example.com/app/public/'.length)}`)?.type).toBe('image/png')
+    const read = await fixture.app.request(appReadUrl(`/api/files/public/${avatar.picture.url.slice('https://files.example.com/app/public/'.length)}`))
+    expect(read.status).toBe(200)
+    expect(new Uint8Array(await read.arrayBuffer())).toEqual(png)
   })
 
   it('answer an upload past the provider\'s limit with 507', async () => {
