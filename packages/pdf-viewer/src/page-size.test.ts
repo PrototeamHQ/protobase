@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { maxCanvasPixels, pageSize } from './page-size'
+import { maxCanvasPixels, maxCanvasSide, pageSize } from './page-size'
 
 describe('a PDF page on screen', () => {
   it('fills the width it is given, at the height its shape needs', () => {
@@ -14,5 +14,13 @@ describe('a PDF page on screen', () => {
     const size = pageSize(14400, 14400, 4000, 3)
     expect(size.canvasWidth * size.canvasHeight).toBeLessThanOrEqual(maxCanvasPixels)
     expect(size).toMatchObject({ canvasWidth: 4096, canvasHeight: 4096, cssHeight: 4000 })
+  })
+
+  it('keeps each side of a canvas within the pixels browsers allow, for a very tall or very wide page', () => {
+    const tall = pageSize(36, 14400, 320, 1)
+    expect(tall.canvasHeight).toBeLessThanOrEqual(maxCanvasSide)
+    expect(tall.cssHeight).toBe(128000)
+    const wide = pageSize(14400, 36, 40000, 1)
+    expect(wide.canvasWidth).toBeLessThanOrEqual(maxCanvasSide)
   })
 })
