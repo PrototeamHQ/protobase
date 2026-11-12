@@ -1069,7 +1069,7 @@ The messages are read with `field = <this record's key>` as the filter, newest f
 #### Message status and a working indicator
 
 :::caution[Experimental]
-Each message shows one status line, and the indicator says only that a reply is being written, not who writes it.
+<gap>A message cannot show more than one status line because combining several status fields is not implemented.</gap> <gap>The working indicator cannot say who is writing because naming the writer is not implemented.</gap>
 :::
 
 A thread can say whether each message arrived and whether a reply is on its way, as a chat with an assistant or a teammate does. `status` names a text or enum field of the messages, such as `delivery`, shown in small type under each message that has a value, with the labels the message resource's view gives its enum values; a message without one shows no line, and a value the view colours `red` with [`.valueColors()`](#value-tones-and-currencies), such as a failed send, shows in red beside an alert icon. `working` is a condition on the record the thread belongs to, written as for [conditional sections](#form-and-read-view), such as `state = 'working'`: while it holds, the thread ends in three pulsing dots and "Writing a reply…", which screen readers announce, and a reader at the end of the thread keeps seeing them.
