@@ -1,5 +1,5 @@
 import { ArrowRight } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import type { AppAddress, ResourceModel, RowButtonModel, ViewModel } from '@protobase/schema'
 import { rowButtonFields } from '@protobase/schema/internal'
 import { DataGrid } from '../../data-grid'
@@ -28,6 +28,7 @@ import { embeddedColumns } from './embedded-columns'
 import { viewAllAddress } from './embedded-display'
 import { cutOffNote } from './cut-off-note'
 import { embeddedRowTargets } from './embedded-row-targets'
+import { useListActions } from '../list-actions/use-list-actions'
 import { useEmbeddedRows } from './use-embedded-rows'
 import { text } from './messages'
 
@@ -56,6 +57,8 @@ export type EmbeddedListProps = {
   opens?: string
   /** A button on each row of the table, as its last column, to an address the row's fields name. */
   button?: RowButtonModel
+  /** The table's rows can be selected, and the view's `bulk` actions run on the selected rows. */
+  bulk?: boolean
 }
 
 /** The switch between the table and the view's displays, for an embedded list's heading; nothing with only a table. */
@@ -70,7 +73,7 @@ const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length:
  * to the whole list with the same filter, order and display, beside a note such as "The first 10 of 37." when there are
  * more. On a phone a cards display is one row that scrolls sideways.
  */
-export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true, opens, button }: EmbeddedListProps) => {
+export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true, opens, button, bulk = false }: EmbeddedListProps) => {
   const { resources, views } = useAdminMeta()
   const canUpdate = can(usePermissions(model.name), 'update')
   const { fields: fieldTypes } = useProjectUi()
@@ -82,6 +85,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   const fields = useMemo(() => loadedFields(model, view, [...specs.map((spec) => spec.id), ...(button ? rowButtonFields(button) : [])]), [model, view, specs, button])
   const gridColumns = useMemo(() => (button ? [...specs, rowButtonColumn(model, view, button)] : specs), [specs, model, view, button])
   const rows = useEmbeddedRows({ model, filter, orderBy, limit, fields })
+  const named = useListActions(model)
   const loaded = rows.data?.rows
   const source = useMemo(() => loaded && { total: loaded.length, rowAt: (index: number) => loaded[index]! }, [loaded])
   const shown = shownDisplay(view, display)
@@ -98,12 +102,14 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
     </AppLink>
   )
 
-  if (rows.isPending) return <Loading />
-  if (rows.error) return <ErrorBanner title={text('couldNotLoad')} error={rows.error} />
+  // The open dialog stays while a refetch loads, fails or leaves no rows, so cancelling it still clears it
+  const withPrompt = (body: ReactNode) => <>{body}{named.prompt}</>
+  if (rows.isPending) return withPrompt(<Loading />)
+  if (rows.error) return withPrompt(<ErrorBanner title={text('couldNotLoad')} error={rows.error} />)
   // A link of its own still leads somewhere when nothing here matches
   if (!source || source.total === 0) {
     const nothing = <p className="text-muted-foreground">{empty ?? text('nothingYet')}</p>
-    return viewAll && link ? <div className="flex flex-col gap-3">{nothing}{allLink}</div> : nothing
+    return withPrompt(viewAll && link ? <div className="flex flex-col gap-3">{nothing}{allLink}</div> : nothing)
   }
 
   const list: ListDisplay = {
@@ -132,7 +138,8 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
           rowLink={(row) => linkTo(targets.address(row))}
           rowActions={targets.actions(linkTo)}
           rowNumbers={false}
-          selectable={false}
+          selectable={bulk}
+          {...(bulk && { bulkActions: named.bulkActions })}
         />
       ) : shown.kind === 'cards' ? (
         <CardsDisplay model={model} view={view} display={shown} list={list} row={row || xs} footer={false} />
@@ -147,6 +154,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
       ) : (
         <CustomDisplay display={shown} list={list} />
       )}
+      {named.prompt}
       {note && link ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">{note}</p>

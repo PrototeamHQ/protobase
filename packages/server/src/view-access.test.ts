@@ -125,6 +125,15 @@ describe('pruneView', () => {
     expect(actions(without({}, ['customers'])).map((action) => action.name)).toEqual(['note'])
   })
 
+  it('leaves out an action whose checklist reads its boxes from a field the caller cannot read', () => {
+    const repairsView = view<typeof repairs>('repairs')
+      .actions((a) => [a.action('approve', { label: 'Approve', bulk: true, inputs: (i) => [i.checklist('checked', { label: 'Checked', from: 'number' })] })])
+      .toModel()
+    const actions = (models: Record<string, ResourceModel>) => pruneView(repairsView, models.repairs!, models).actions
+    expect(actions(all)).toEqual(repairsView.actions)
+    expect(actions(without({ repairs: ['number'] }))).toEqual([])
+  })
+
   it('keeps an update with inputs whole', () => {
     const repairsView = view<typeof repairs>('repairs')
       .actions((a) => [a.update('renumber', { label: 'Renumber', inputs: (i) => [i.text('number', { label: 'Number' })], set: { number: '{number}' } })])

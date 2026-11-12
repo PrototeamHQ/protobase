@@ -1247,7 +1247,8 @@
     "noHandler": "The app has no handler for \"{name}\"",
     "noInputComponent": "The app has no component \"{component}\" for input \"{input}\"",
     "done": "{label}: done",
-    "doneOn": "{label}: done on {done}{skipped, plural, =0 {} other {, skipped # it does not apply to}}{failed, plural, =0 {} other {, failed on #}}",
+    "doneOn": "{label}: done on {done}{skipped, plural, =0 {} other {, skipped # it does not apply to}}{refused, plural, =0 {} other {, refused on #}}{failed, plural, =0 {} other {, failed on #}}",
+    "refusedOn": "Not done on {records}: you may not change {count, plural, one {it} other {them}}.",
     "failed": "{label} failed",
     "noAction": "No action \"{name}\"",
     "couldNotLoad": "Could not load",
@@ -1262,7 +1263,10 @@
     "wholeNumber": "A whole number",
     "number": "A number",
     "dateFormat": "A date as YYYY-MM-DD",
-    "atMost": "At most {max} characters"
+    "atMost": "At most {max} characters",
+    "tickEvery": "{count, plural, one {Tick the last box} other {Tick the # remaining boxes}}",
+    "nothingToTick": "Nothing to tick.",
+    "forRecords": "For {records}."
   },
   "app/rank-after": {
     "dependsOn": "{record} depends on {other}."

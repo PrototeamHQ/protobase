@@ -48,6 +48,21 @@ describe('action inputs', () => {
     expect(() => actions.action('a', { label: 'A', inputs: (i) => [i.text('x', { label: 'X', when: 'x = (' })] })).toThrow('input "x"')
   })
 
+  it('builds a checklist of fixed boxes or of a field of the record, and refuses one with neither, both or no boxes', () => {
+    const { inputs } = actions.update('sign_off', {
+      label: 'Sign off',
+      inputs: (i) => [i.checklist('checked', { label: 'Checked', items: ['Tests pass', 'Docs read'] }), i.checklist('own', { label: 'Own', from: 'checklist' })],
+      set: { checked: '{checked}' },
+    })
+    expect(inputs).toEqual([
+      { name: 'checked', kind: 'checklist', label: 'Checked', required: true, items: ['Tests pass', 'Docs read'] },
+      { name: 'own', kind: 'checklist', label: 'Own', required: true, from: 'checklist' },
+    ])
+    expect(() => actions.action('a', { label: 'A', inputs: (i) => [i.checklist('x', { label: 'X', items: [] })] })).toThrow('input "x": a checklist needs at least one item')
+    expect(() => actions.action('a', { label: 'A', inputs: (i) => [{ ...i.checklist('x', { label: 'X', items: ['A'] }), from: 'list' }] })).toThrow('a checklist takes either "items" or "from"')
+    expect(() => actions.action('a', { label: 'A', inputs: (i) => [i.checklist('x', { label: 'X', items: ['A'], from: 'list' })] })).toThrow('a checklist takes either "items" or "from"')
+  })
+
   it('shows an input while its when holds, reading an input that does not show as empty', () => {
     const { inputs } = actions.action('createApp', {
       label: 'New app',

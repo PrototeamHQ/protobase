@@ -1247,7 +1247,8 @@
     "noHandler": "De app heeft geen handler voor \"{name}\"",
     "noInputComponent": "De app heeft geen component \"{component}\" voor invoer \"{input}\"",
     "done": "{label}: klaar",
-    "doneOn": "{label}: klaar voor {done}{skipped, plural, =0 {} other {, # overgeslagen waarvoor het niet geldt}}{failed, plural, =0 {} other {, mislukt voor #}}",
+    "doneOn": "{label}: klaar voor {done}{skipped, plural, =0 {} other {, # overgeslagen waarvoor het niet geldt}}{refused, plural, =0 {} other {, # geweigerd}}{failed, plural, =0 {} other {, mislukt voor #}}",
+    "refusedOn": "Niet gedaan voor {records}: je mag {count, plural, one {dit record} other {deze records}} niet wijzigen.",
     "failed": "{label} mislukt",
     "noAction": "Geen actie \"{name}\"",
     "couldNotLoad": "Kon niet laden",
@@ -1262,7 +1263,10 @@
     "wholeNumber": "Een geheel getal",
     "number": "Een getal",
     "dateFormat": "Een datum als JJJJ-MM-DD",
-    "atMost": "Hoogstens {max} tekens"
+    "atMost": "Hoogstens {max} tekens",
+    "tickEvery": "{count, plural, one {Vink het laatste vakje aan} other {Vink de # overige vakjes aan}}",
+    "nothingToTick": "Er is niets om aan te vinken.",
+    "forRecords": "Voor {records}."
   },
   "app/rank-after": {
     "dependsOn": "{record} hangt af van {other}."

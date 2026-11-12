@@ -1,5 +1,5 @@
 import { conditionProblems } from '@protobase/layout'
-import { isRecordCondition, type ActionRun, type CardPhotosModel, type GalleryModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { isRecordCondition, type ActionInputModel, type ActionRun, type CardPhotosModel, type GalleryModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { actionInputErrors, addressErrors, builtInFieldTypes, addressPlaceholders, boardErrors, datesErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, layoutItems, linkActionError, promptError, promptFields, textPlaceholders, updateSetErrors, viewOfList } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
@@ -39,7 +39,7 @@ const sensitiveErrors = (view: ViewModel, model: ResourceModel) => {
     ['a map', layoutItems(view.layout).flatMap((item) => (item.kind === 'map' ? [item.latitude, item.longitude] : []))],
     ['a gallery', layoutItems(view.layout).flatMap((item) => (item.kind === 'gallery' && item.image !== undefined ? [item.image] : []))],
     ['the recent records', view.nav?.recent?.status === undefined ? [] : [view.nav.recent.status]],
-    ['an action', view.actions.flatMap((action) => [...actionFields(action.run), ...actionWhenFields(action.when)])],
+    ['an action', view.actions.flatMap((action) => [...actionFields(action.run), ...actionWhenFields(action.when), ...(action.inputs ?? []).flatMap((input) => input.from ?? [])])],
   ]
   return uses.flatMap(([place, names]) => [...new Set(names.filter(sensitive))].map((name) => `sensitive field "${name}" cannot be in ${place}`))
 }
@@ -133,9 +133,17 @@ const aiActionErrors = (view: ViewModel, model: ResourceModel) =>
     return errors.map((error) => `action "${name}": ${error}`)
   })
 
+// A checklist whose boxes come from the record reads them from a JSON field it has.
+const checklistFromError = (input: ActionInputModel, model: ResourceModel) => {
+  if (input.from === undefined) return []
+  const field = model.fields[input.from]
+  if (!field) return [`input "${input.name}" takes its boxes from field "${input.from}", which ${model.name} does not have`]
+  return field.type === 'json' ? [] : [`input "${input.name}" takes its boxes from field "${input.from}", which is no JSON field`]
+}
+
 // Inputs are answers a handler gets or an update writes, checked as the builder checks them for a view written as data; a choice of records
-// picks one of a resource the app has.
-const inputErrors = (view: ViewModel, models: Record<string, ResourceModel>) =>
+// picks one of a resource the app has, and a checklist's boxes come from a field the record has.
+const inputErrors = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>) =>
   view.actions.flatMap(({ name, run, inputs }) => {
     const update = run?.kind === 'update' ? updateSetErrors(run.values, inputs) : []
     if (!inputs) return update.map((error) => `action "${name}": ${error}`)
@@ -144,6 +152,7 @@ const inputErrors = (view: ViewModel, models: Record<string, ResourceModel>) =>
       ...(run && run.kind !== 'update' ? [`inputs need a handler, and a${run.kind === 'ai' ? 'n' : ''} ${run.kind} action has none`] : []),
       ...actionInputErrors(inputs),
       ...inputs.flatMap((input) => (input.resource !== undefined && !models[input.resource] ? [`input "${input.name}" picks from resource "${input.resource}", which the app does not have`] : [])),
+      ...inputs.flatMap((input) => checklistFromError(input, model)),
     ]
     return errors.map((error) => `action "${name}": ${error}`)
   })
@@ -274,7 +283,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
       return []
     })
     const comments = model.comments ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'comments' ? [`comments "${item.title}" needs .comments() on resource "${view.resource}"`] : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...linkTextErrors(view, model), ...notOnCreateErrors(view, model), ...numberHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...conversations, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...opensErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...actionWhenErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...linkTextErrors(view, model), ...notOnCreateErrors(view, model), ...numberHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...conversations, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...opensErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...actionWhenErrors(view, model), ...inputErrors(view, model, models), ...createErrors(view, pageNames)]
   }
   // A named list is checked as a view of its own, without the record page, which the view's own check covers
   const problems = views.flatMap((view) => {

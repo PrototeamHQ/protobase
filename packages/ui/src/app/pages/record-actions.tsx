@@ -52,6 +52,7 @@ export const useRecordActions = ({ model, stored, recordKey, edit, onDelete }: R
       action={asking}
       label={asking.label}
       danger={isDanger(asking)}
+      records={[stored.record]}
       onCancel={() => setAsking(undefined)}
       onConfirm={() => {
         setAsking(undefined)

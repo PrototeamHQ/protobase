@@ -224,9 +224,12 @@ const aiShape = (model: ResourceModel) =>
     return readable ? { kind: 'ai', writes: run.writes } : undefined
   })
 
-// Inputs name no field of the record; an action whose choice picks records of a resource the caller cannot read goes.
-const inputsShape = (models: Record<string, ResourceModel>) =>
-  s.map<ActionInputModel[]>((inputs) => (inputs.every((input) => input.resource === undefined || Object.hasOwn(models, input.resource)) ? inputs : undefined))
+// An action whose choice picks records of a resource the caller cannot read goes, and so does one whose checklist reads its
+// boxes from a field of the record they cannot read.
+const inputsShape = (model: ResourceModel, models: Record<string, ResourceModel>) =>
+  s.map<ActionInputModel[]>((inputs) =>
+    inputs.every((input) => (input.resource === undefined || Object.hasOwn(models, input.resource)) && (input.from === undefined || Object.hasOwn(model.fields, input.from))) ? inputs : undefined,
+  )
 
 // An action whose condition reads a field the caller cannot read goes: the app could not tell where it applies.
 const actionWhenShape = (model: ResourceModel) => s.map<string>((when) => (actionWhenFields(when).every((name) => Object.hasOwn(model.fields, name)) ? when : undefined))
@@ -249,7 +252,7 @@ const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>
         link: linkShape(model, models, createPages),
         ai: aiShape(model),
       }),
-      inputs: inputsShape(models),
+      inputs: inputsShape(model, models),
       mailbox: s.data,
     },
     { requires: ['run', 'inputs', 'when'] },

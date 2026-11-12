@@ -47,4 +47,15 @@ describe('action input answers', () => {
     expect(refusedAnswers(inputs, answeredValues(inputs, pro).values)).toEqual({ vat: 'Required' })
     expect(refusedAnswers(inputs, answeredValues(inputs, { ...pro, plan: 'free' }).values)).toEqual({})
   })
+  it('starts a checklist with nothing ticked, and refuses it until every box it shows is ticked', () => {
+    const checklist: ActionInputModel[] = [{ name: 'checked', kind: 'checklist', label: 'Checked', required: true, from: 'checklist' }]
+    const boxes = { checked: ['Deploy checked', 'Key rotated'] }
+    const answers = (ticked: string[]) => answeredValues(checklist, { checked: ticked }).values
+    expect(answeredValues(checklist, startingAnswers(checklist)).values).toEqual({ checked: [] })
+    expect(refusedAnswers(checklist, answers(['Key rotated']), boxes)).toEqual({ checked: 'Tick the last box' })
+    expect(refusedAnswers(checklist, answers([]), boxes)).toEqual({ checked: 'Tick the 2 remaining boxes' })
+    expect(refusedAnswers(checklist, answers(['Key rotated', 'Deploy checked']), boxes)).toEqual({})
+    // Records that hold no boxes leave nothing to tick
+    expect(refusedAnswers(checklist, answers([]), { checked: [] })).toEqual({})
+  })
 })

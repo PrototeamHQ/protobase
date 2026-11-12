@@ -142,6 +142,18 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [written])).toThrow('action "paid": input "x" is declared twice')
   })
 
+  it('wants a checklist that takes its boxes from the record to read a JSON field it has', () => {
+    const waits = resource('waits').table('waits').fields({ id: f.integer(), checklist: f.json(), checked: f.json(), note: f.text() }).primaryKey((r) => r.id)
+    const waitRegistry = { entries: [{ name: 'waits', model: waits.toModel() }] } as unknown as Registry
+    const signOff = (from: string) =>
+      view<typeof waits>('waits')
+        .actions((a) => [a.update('sign_off', { label: 'Sign off', bulk: true, inputs: (i) => [i.checklist('checked', { label: 'Checked', from })], set: { checked: '{checked}' } })])
+        .toModel()
+    expect(() => checkViews(waitRegistry, [signOff('checklist')])).not.toThrow()
+    expect(() => checkViews(waitRegistry, [signOff('nope')])).toThrow('action "sign_off": input "checked" takes its boxes from field "nope", which waits does not have')
+    expect(() => checkViews(waitRegistry, [signOff('note')])).toThrow('input "checked" takes its boxes from field "note", which is no JSON field')
+  })
+
   it('lets an update ask for inputs, and wants each {input} it sets to be one of them', () => {
     const asked = view<typeof payments>('payments').actions((a) => [a.update('note', { label: 'Note', inputs: (i) => [i.text('note', { label: 'Note' })], set: { id: '{note}' } })]).toModel()
     expect(() => checkViews(registry, [asked])).not.toThrow()

@@ -3,10 +3,10 @@ import type { ActionModel, ResourceModel } from '@protobase/schema'
 import type { BulkAction, GridRow, RowAction } from '../../data-grid'
 import { actionFor } from '../pages/action-href'
 import { actionLink } from '../pages/action-link'
-import { isDanger } from '../pages/action-prompt'
-import { ConfirmAction } from '../pages/confirm-action'
+import { ActionPrompt, isDanger } from '../pages/action-prompt'
 import type { LayoutRecord } from '../pages/record-scope'
-import { useActionRunner } from '../pages/use-run-action'
+import { quoted, useActionRunner } from '../pages/use-run-action'
+import { useRecordTitle } from '../titles/record-titles'
 import { useAdminMeta } from '../meta-gate'
 import { useAppAddress } from '../use-app-address'
 import { text } from '../list-messages'
@@ -16,20 +16,23 @@ import { rowRecord } from './row-record'
 type Run = { action: ActionModel; row: LayoutRecord } | { action: ActionModel; selection: LayoutRecord[]; skipped: number }
 
 /**
- * The named actions of `model`'s view for its list, those without inputs (which ask in a dialog of their own): each
- * in the row menu of the rows it shows for, disabled with its reason where `when` disables it, and in red when it is a
- * delete or a danger action; a link is a link there, and a disabled one a disabled item without one. Updates and handlers marked `bulk` are offered for a selection
- * while one selected row applies, and run on those that do. `prompt` is the question one asks before it runs.
+ * The named actions of `model`'s view for its list: those without inputs each in the row menu of the rows it shows for,
+ * disabled with its reason where `when` disables it, and in red when it is a delete or a danger action; a link is a link
+ * there, and a disabled one a disabled item without one. Updates and handlers marked `bulk` are offered for a selection
+ * while one selected row applies, ask their question or inputs once, and run on those that do, refusing and naming
+ * those the person may not change. `prompt` is the dialog one opens before it runs.
  */
 export const useListActions = (model: ResourceModel) => {
   const { views, resources } = useAdminMeta()
   const runner = useActionRunner(model.name, undefined)
   const app = useAppAddress()
+  const titleOf = useRecordTitle()
   const [asking, setAsking] = useState<Run>()
-  const listed = (views[model.name]?.actions ?? []).filter((action) => !action.inputs?.length)
-  const perform = (run: Run) => ('row' in run ? runner.run(run.action, run.row) : runner.runEach(run.action, run.selection, run.skipped))
+  const named = views[model.name]?.actions ?? []
+  const listed = named.filter((action) => !action.inputs?.length)
+  const perform = (run: Run, values?: Record<string, unknown>) => ('row' in run ? runner.run(run.action, run.row) : runner.runEach(run.action, run.selection, run.skipped, values))
   const start = (run: Run) => {
-    if (run.action.confirm) setAsking(run)
+    if (run.action.confirm || run.action.inputs?.length) setAsking(run)
     else void perform(run)
   }
 
@@ -43,24 +46,30 @@ export const useListActions = (model: ResourceModel) => {
     return { ...base, available, blocked, onSelect: (row) => start({ action, row: rowRecord(model, row) }) }
   })
 
-  const bulkActions = listed
+  const bulkActions = named
     .filter((action) => action.bulk && action.run?.kind !== 'link')
     .map((action): BulkAction => ({
       label: (count) => text('actionCount', { label: action.label, count }),
       destructive: isDanger(action),
-      available: (row) => runner.appliesOn(action, rowRecord(model, row)),
+      available: (row) => runner.verdictOn(action, rowRecord(model, row)) !== 'skip',
       onRun: (rows, skipped) => start({ action, selection: rows.map((row) => rowRecord(model, row)), skipped }),
     }))
 
   const prompt = asking && (
-    <ConfirmAction
+    <ActionPrompt
       action={asking.action}
-      label={asking.action.label}
+      label={'row' in asking ? asking.action.label : text('actionCount', { label: asking.action.label, count: asking.selection.length })}
       danger={isDanger(asking.action)}
+      records={'row' in asking ? [asking.row.record] : asking.selection.map((on) => on.record)}
+      names={'row' in asking ? [] : asking.selection.map((on) => quoted(titleOf(model, views[model.name], on.record, on.key)))}
       onCancel={() => setAsking(undefined)}
       onConfirm={() => {
         setAsking(undefined)
         void perform(asking)
+      }}
+      onSubmit={async (values) => {
+        setAsking(undefined)
+        await perform(asking, values)
       }}
     />
   )

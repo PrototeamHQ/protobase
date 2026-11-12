@@ -1385,7 +1385,7 @@ export type ActionModel = {
  * (`decimal`), a yes or no (`boolean`), a `date`, one of `options` or a record of `resource` (`choice`), or what a
  * project component edits (`custom`).
  */
-export type ActionInputKind = 'text' | 'integer' | 'decimal' | 'boolean' | 'date' | 'choice' | 'custom'
+export type ActionInputKind = 'text' | 'integer' | 'decimal' | 'boolean' | 'date' | 'choice' | 'checklist' | 'custom'
 
 /** One input of a named action's dialog (`inputs: (i) => [...]`); see [Named actions](docs/website/src/content/docs/reference/ui-config.mdx#actions-that-ask-for-input). */
 export type ActionInputModel = {
@@ -1420,6 +1420,10 @@ export type ActionInputModel = {
   component?: string
   /** The plain data a custom input's component gets as `props`. */
   props?: Record<string, JsonValue>
+  /** A checklist's boxes, the same for every record. */
+  items?: string[]
+  /** The JSON field of the record that holds a checklist's boxes, as a list of texts, so each record brings its own. */
+  from?: string
 }
 
 /** The colour of a status dot in the sidebar. */
