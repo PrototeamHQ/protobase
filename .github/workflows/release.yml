@@ -30,6 +30,10 @@ on:
 jobs:
   # The tag this push would cut (scripts/release.mjs --dry-run prints it), or none, so the pack job can start at once.
   # A run by hand without a tag is a release of main's head, so it runs every job a push does, and only from main.
+  # Plan and pack take no concurrency group: a job's group is held only while that job runs, so the same group on plan,
+  # pack and release would still let two runs interleave between them, and a prediction only stamps the run's own
+  # artifact. What two runs must not share is the cut tag, which release reads under its group, packing again when an
+  # older run took the predicted tag meanwhile.
   plan:
     if: ${{ !inputs.tag }}
     runs-on: ubuntu-latest
