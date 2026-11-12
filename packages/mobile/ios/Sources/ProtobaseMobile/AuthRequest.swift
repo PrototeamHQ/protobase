@@ -3,11 +3,12 @@ import Foundation
 
 /**
  * One sign-in request of ProtobaseAuth, checked in the order of Android's ProtobaseAuth.java and sent through
- * Capacitor's own request type, which refuses redirects, with the device's cookie jar. The call's options are never
- * handed to Capacitor code, so page script cannot add params, a file body, timeouts or redirects.
+ * Capacitor's own request type, which refuses redirects, with the session's cookies from SessionStore, which stay on
+ * this device. The call's options are never handed to Capacitor code, so page script cannot add params, a file body,
+ * timeouts or redirects.
  */
 enum AuthRequest {
-    static func send(_ call: CAPPluginCall, config: PluginConfig, capConfig: InstanceConfiguration?) {
+    static func send(_ call: CAPPluginCall, config: PluginConfig) {
         guard let apiOrigin = config.getString("apiOrigin"), let origin = config.getString("origin") else {
             call.reject("ProtobaseAuth has no apiOrigin or origin in its config")
             return
@@ -39,28 +40,23 @@ enum AuthRequest {
         let request = CapacitorUrlRequest(url, method: method)
         request.setRequestHeaders(headers)
         if let body { request.request.httpBody = Data(body.utf8) }
-        // The session holds its delegate, the request that refuses redirects, until it is invalidated.
-        let session = URLSession(configuration: .default, delegate: request, delegateQueue: nil)
-        let task = session.dataTask(with: request.getUrlRequest()) { data, response, error in
-            session.invalidateAndCancel()
-            if let error {
+        // The request refuses redirects as the session's delegate; the cookies come from and go to SessionStore alone.
+        SessionRequest.send(request.getUrlRequest(), store: SessionStore(keychain: DeviceKeychain()), delegate: request) { result in
+            switch result {
+            case .failure(let error as KeychainError):
+                call.reject("ProtobaseAuth cannot reach the session: \(error)")
+            case .failure(let error):
                 call.reject(error.localizedDescription, (error as NSError).domain, error, nil)
-                return
+            case .success(let (data, response)):
+                var output = HttpRequestHandler.buildResponse(data, response, responseType: .text)
+                // Set-Cookie stays native; buildResponse lower-cases the names.
+                if var answerHeaders = output["headers"] as? [String: Any] {
+                    answerHeaders.removeValue(forKey: "set-cookie")
+                    answerHeaders.removeValue(forKey: "set-cookie2")
+                    output["headers"] = answerHeaders
+                }
+                call.resolve(output)
             }
-            guard let response = response as? HTTPURLResponse else {
-                call.reject("ProtobaseAuth got no HTTP answer")
-                return
-            }
-            HttpRequestHandler.setCookiesFromResponse(response, capConfig)
-            var output = HttpRequestHandler.buildResponse(data, response, responseType: .text)
-            // Set-Cookie stays in the jar; buildResponse lower-cases the names.
-            if var answerHeaders = output["headers"] as? [String: Any] {
-                answerHeaders.removeValue(forKey: "set-cookie")
-                answerHeaders.removeValue(forKey: "set-cookie2")
-                output["headers"] = answerHeaders
-            }
-            call.resolve(output)
         }
-        task.resume()
     }
 }

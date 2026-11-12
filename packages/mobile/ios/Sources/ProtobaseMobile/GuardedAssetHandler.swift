@@ -6,7 +6,7 @@ import WebKit
  * Capacitor's asset handler with LocalFileGuard in front. WebKit holds the handler from the WebView's creation, before
  * any plugin loads, so `install` switches the live instance to this class, which adds no stored state; the guard is an
  * associated object. One lock covers the check and the serving, and `setAssetPath`, so the base path cannot change
- * between them.
+ * between them. Every request waits at PageGate while a fresh install's purge runs.
  */
 final class GuardedAssetHandler: WebViewAssetHandler {
     private static var guardKey: UInt8 = 0
@@ -30,6 +30,16 @@ final class GuardedAssetHandler: WebViewAssetHandler {
     }
 
     override func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
+        PageGate.shared.whenOpen(ObjectIdentifier(urlSchemeTask)) { [self] in serve(webView, urlSchemeTask) }
+    }
+
+    // A request WebKit stops while it waits at the gate is never started.
+    override func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {
+        if PageGate.shared.cancel(ObjectIdentifier(urlSchemeTask)) { return }
+        super.webView(webView, stop: urlSchemeTask)
+    }
+
+    private func serve(_ webView: WKWebView, _ urlSchemeTask: WKURLSchemeTask) {
         let fileGuard = fileGuard
         fileGuard.withLock {
             if fileGuard.refuses(path: urlSchemeTask.request.url?.path ?? "") {

@@ -37,6 +37,16 @@ describe('generatePlatform', () => {
     expect(infoPlist()).toBe(plist)
   })
 
+  it('makes every iOS app prepare a fresh install at launch, with push and without', async () => {
+    ws = mkdtempSync(path.join(tmpdir(), 'protobase-generate-'))
+    const delegate = () => readFileSync(path.join(ws, 'ios', 'App', 'App', 'AppDelegate.swift'), 'utf8')
+    await generatePlatform(ws, 'ios', { cleartext: false }, cap([]))
+    expect(delegate()).toContain('ProtobaseFreshInstall.prepare()')
+    await generatePlatform(ws, 'ios', { cleartext: true, apnsEnvironment: 'production' }, cap([]))
+    expect(delegate()).toContain('ProtobaseFreshInstall.prepare()')
+    expect(delegate()).toContain('capacitorDidRegisterForRemoteNotifications')
+  })
+
   it('allows only local networking on iOS for a plain http API', async () => {
     ws = mkdtempSync(path.join(tmpdir(), 'protobase-generate-'))
     await generatePlatform(ws, 'ios', { cleartext: true }, cap([]))

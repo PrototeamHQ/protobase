@@ -268,12 +268,17 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
 
   it('leaves no file of a body over 1 MiB behind when the call starts no run', async () => {
     const hook = await hooked({ body_limit: 2 * 1024 * 1024 }, 'ada', 'fixture:broken')
-    const stored = async () => (await readdir(folder.dir, { recursive: true, withFileTypes: true })).filter((entry) => entry.isFile()).length
-    const before = await stored()
+    // The run folders that hold a file: earlier tests' runs still write their traces in the background, so a count of
+    // every file would race them; a body left behind is a file in the folder of a run that does not exist.
+    const runFolders = async () => {
+      const entries = await readdir(`${folder.dir}/workflows`, { recursive: true, withFileTypes: true })
+      return new Set(entries.filter((entry) => entry.isFile()).map((entry) => entry.parentPath.slice(`${folder.dir}/workflows/`.length).split('/')[0]!))
+    }
     const response = await signed(hook.url, hook.secret, JSON.stringify({ blob: 'z'.repeat(1536 * 1024) }))
     expect(response.status).toBe(500)
     expect(await runsOf(hook.id)).toEqual([])
-    expect(await stored()).toBe(before)
+    const runs = new Set((await sql<{ id: string }>`select id from workflows.runs`.execute(db)).rows.map((row) => row.id))
+    expect([...(await runFolders())].filter((id) => !runs.has(id))).toEqual([])
   })
 
   it('takes a trigger\'s calls a minute, spent only by calls that carry its secret', async () => {
