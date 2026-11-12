@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { addressPlaceholders, appHrefError, fillAddress, hrefField, hrefPlaceholders, leavesApp, linkActionError, resourceField } from './address-template'
+import { addressPlaceholders, appHrefError, bareFilterFields, fillAddress, hrefField, hrefPlaceholders, leavesApp, linkActionError, resourceField } from './address-template'
+import { parseFilter } from './filter'
 
 describe('fillAddress', () => {
   it('fills a record key and a list filter and order from the record', () => {
@@ -13,6 +14,24 @@ describe('fillAddress', () => {
       filter: 'customerId = 7 AND bike = "Gazelle"',
       display: 'cards',
     })
+  })
+
+  it("takes a record page's tab from the record", () => {
+    expect(fillAddress({ kind: 'record', resource: 'tasks', key: '{task_id}', tab: '{tab}' }, { task_id: 7, tab: 'Review' })).toEqual({ kind: 'record', resource: 'tasks', key: '7', tab: 'Review' })
+    expect(addressPlaceholders({ kind: 'record', resource: 'tasks', key: '{task_id}', tab: '{tab}' })).toEqual(['task_id', 'tab'])
+  })
+
+  it('escapes a value quoted in a filter, so any text stays one value', () => {
+    const to = { kind: 'list', resource: 'tasks', filter: `title = "{title}" OR note = '{title}'` } as const
+    expect(fillAddress(to, { title: `say "hi" it's a\\b` })).toEqual({ kind: 'list', resource: 'tasks', filter: `title = "say \\"hi\\" it's a\\\\b" OR note = 'say "hi" it\\'s a\\\\b'` })
+    const filter = fillAddress(to, { title: `say "hi" it's a\\b` }) as { filter: string }
+    const parsed = parseFilter(filter.filter)
+    expect(parsed.ok && JSON.stringify(parsed.ast)).toContain(JSON.stringify(`say "hi" it's a\\b`))
+  })
+
+  it('names the fields a filter takes outside quotes', () => {
+    expect(bareFilterFields({ kind: 'list', resource: 'tasks', filter: `task_id = {task_id} AND title = "{title}" AND n > {task_id} OR x = '{y}'` })).toEqual(['task_id'])
+    expect(bareFilterFields({ kind: 'record', resource: 'tasks', key: '{id}' })).toEqual([])
   })
 
   it("fills a create form's values from the record", () => {

@@ -54,8 +54,8 @@ export type TableProps = DataProps &
     columns?: string[]
     /**
      * A last column with a button on each row to an address its fields name, such as
-     * `{ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: 'Review' } }`; a row with no value
-     * for a field it names shows none.
+     * `{ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: '{tab}' } }`, or to the outside
+     * page a field holds, `{ label: 'Report', href: '{report_url}' }`; a row with no value for a field it names shows none.
      */
     button?: RowButtonModel
     /** How many records it shows, the first in `sort` order; default 10. "View all" opens the rest in the list. */

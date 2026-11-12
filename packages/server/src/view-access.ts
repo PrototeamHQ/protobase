@@ -1,13 +1,13 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
 import type { RecordPageModel, ActionInputModel, AppAddress, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, RecordTrendModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ThreadSectionModel, ViewModel } from '@protobase/schema'
-import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay, type RefShape } from '@protobase/schema/internal'
+import { addressErrors, chartFields, followableRowButton, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay, type RefShape } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { threadSectionErrors } from './view-conversation'
 import { recordChartErrors } from './view-record-chart'
 import { recordTrendErrors } from './view-record-trend'
-import { openErrors, relatedButtonErrors, relatedSectionErrors } from './view-related'
+import { openErrors, relatedSectionErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
 import { searchesOfFor } from './view-saved-search'
 import { actionWhenFields } from './view-action-when'
@@ -15,7 +15,7 @@ import { actionWhenFields } from './view-action-when'
 type Of<U, K extends string> = Extract<U, { kind: K }>
 
 // Columns narrow to what the caller can read; a section whose resources, fields, filter or sort they cannot use goes.
-// An `open` the caller cannot use goes; the rows then open their own records. So does a `button` they cannot follow, and
+// An `open` the caller cannot use goes; the rows then open their own records. So does a `button` choice they cannot follow, and
 // a card's `time` or `tone` field they cannot read.
 const pruneRelated = (item: RelatedModel, resource: string, models: Record<string, ResourceModel>): RelatedModel | undefined => {
   if (isRecordCondition(item.when) && !conditionReadable(item.when, resource, models)) return undefined
@@ -26,7 +26,8 @@ const pruneRelated = (item: RelatedModel, resource: string, models: Record<strin
   const carded: RelatedModel = { ...rest, ...(readable(time) && { time }), ...(readable(tone) && { tone }) }
   const narrowed: RelatedModel = visible && visible.length > 0 ? { ...carded, columns: visible } : carded
   const opened = open !== undefined && openErrors({ ...narrowed, open }, models).length === 0 ? { ...narrowed, open } : narrowed
-  const buttoned = button !== undefined && relatedButtonErrors({ ...opened, button }, models).length === 0 ? { ...opened, button } : opened
+  const followable = button !== undefined && target !== undefined && !item.lines ? followableRowButton(button, target, { models }) : undefined
+  const buttoned = followable === undefined ? opened : { ...opened, button: followable }
   return relatedSectionErrors(buttoned, resource, models).length === 0 ? buttoned : undefined
 }
 

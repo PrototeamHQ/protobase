@@ -147,7 +147,7 @@ The first records of a list, drawn the way the resource's list page draws them: 
 | --- | --- |
 | `resource`, `filter`, `sort` | Which records, in which order. `resource` is required; `sort` defaults to the list's. |
 | `columns` | Field names for the table; default the view's list columns. |
-| `button` | A [button on each row](#row-buttons) to an address the row's fields name. |
+| `button` | A [button on each row](#row-buttons) to an address the row's fields name, or to the outside page a field holds; a list of these gives each row the first whose fields it holds. |
 | `limit` | How many records it shows; default 10. It has no pages: the rest are in the list. Before 0.13 this was `pageSize`, rows per page; rename it. |
 | `display` | The display it opens in, such as `cards`; default the list's. |
 | `title`, `description`, `actions` | The heading. |
@@ -169,6 +169,26 @@ The first records of a list, drawn the way the resource's list page draws them: 
   filter="state = 'open'"
   columns={['reason', 'task_id']}
   button={{ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: 'Review' } }}
+/>
+```
+
+Each row can decide where its button goes:
+
+- **A record's tab from a field**: `tab: '{tab}'` opens the tab the row's `tab` field names; a name the record page has no tab for opens its first tab.
+- **A filtered list**: `{ kind: 'list', resource: 'holds', filter: 'task_id = {task_id} AND state = "{state}"' }` opens the list with a filter built from the row. A text value goes in quotes, escaped so a title with quotes in it stays one value; a value outside quotes must be a number or `true`/`false`, and a row with any other value there shows no button. The filter's fields must be filterable, as in any address.
+- **An outside page**: `{ label: 'Error report', href: '{report_url}' }` opens the page the row's `report_url` field holds, in a new tab without the referrer, and the button carries the outside-link mark, which screen readers hear as "opens in a new tab". The `href` is one field, never a URL put together from parts, and a row whose field holds no `https:` URL shows no button.
+- **A different kind per row**: `button` takes a list of these, and each row shows the first whose fields it holds, so one list can hold items that each need a different act. A row whose first such choice leads nowhere, such as an `href` field without an `https:` URL, shows no button rather than the next choice. A caller who cannot read a choice's fields or follow its address gets the list without it.
+
+```tsx
+<Table
+  title="Needs attention"
+  resource="alerts"
+  columns={['summary']}
+  button={[
+    { label: 'Open the error report', href: '{report_url}' },
+    { label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: '{tab}' } },
+    { label: 'See its failed jobs', to: { kind: 'list', resource: 'failed_jobs', filter: 'alert_id = {id}' } },
+  ]}
 />
 ```
 
