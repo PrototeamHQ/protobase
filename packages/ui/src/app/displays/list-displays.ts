@@ -148,11 +148,15 @@ export const shownFields = (model: ResourceModel, view: ViewModel | undefined, d
   return [image, title, subtitle, ...amount, badge, code, ...meta, ...footer, ...flags].filter((name): name is string => name !== undefined)
 }
 
-/** The fields to label the list's rows for: the table's columns and every display's, so one load serves them all. */
+// The fields the view's actions read from a row: each checklist's `from` field, which holds the row's own boxes.
+const actionFields = (view: ViewModel | undefined) =>
+  (view?.actions ?? []).flatMap((action) => (action.inputs ?? []).flatMap((input) => (input.from === undefined ? [] : [input.from])))
+
+/** The fields to load the list's rows with: the table's columns, every display's and those its actions read, so one load serves them all. */
 export const loadedFields = (model: ResourceModel, view: ViewModel | undefined, columns: string[]) => {
   const rows = phoneRows(model, view)
   const displays = rows ? [...displaysOf(view), rows] : displaysOf(view)
-  return [...new Set([...columns, ...displays.flatMap((display) => shownFields(model, view, display))])]
+  return [...new Set([...columns, ...displays.flatMap((display) => shownFields(model, view, display)), ...actionFields(view)])]
 }
 
 /**

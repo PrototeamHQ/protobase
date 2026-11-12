@@ -138,6 +138,15 @@ describe('loadedFields and sortFields', () => {
     expect(loadedFields(runners.toModel(), cards, ['name'])).toEqual(['name', 'command'])
   })
 
+  it("loads the field a checklist action reads its boxes from, though no column shows it", () => {
+    const steps = resource('steps').table('steps').fields({ id: f.integer(), title: f.text(), checklist: f.json() }).primaryKey((r) => r.id)
+    const signed = view<typeof steps>('steps')
+      .list((r) => ({ columns: [r.title] }))
+      .actions((a) => [a.action('approve', { label: 'Approve', bulk: true, inputs: (i) => [i.checklist('checked', { label: 'Checked', from: 'checklist' })] })])
+      .toModel(steps.toModel())
+    expect(loadedFields(steps.toModel(), signed, ['title'])).toEqual(['title', 'checklist'])
+  })
+
   it('sorts a display by the sortable fields it shows', () => {
     expect(sortFields(model, boardView, shownDisplay(boardView, 'cards')!)).toEqual(['number', 'bookedOn'])
   })
