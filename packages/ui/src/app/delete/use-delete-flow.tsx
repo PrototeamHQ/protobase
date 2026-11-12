@@ -18,7 +18,7 @@ export type DeleteTarget = { key: string; title: string; etag?: string; snapshot
 type Flow =
   | { kind: 'confirm'; target: DeleteTarget }
   | { kind: 'conflict'; target: DeleteTarget; changes: FieldChange[]; fresh: Record<string, unknown> }
-  | { kind: 'bulk-confirm'; targets: DeleteTarget[] }
+  | { kind: 'bulk-confirm'; targets: DeleteTarget[]; settle: (left: DeleteTarget[] | Promise<DeleteTarget[]>) => void }
   | { kind: 'bulk-running'; done: number; total: number }
   | { kind: 'bulk-done'; total: number; failures: BulkFailure[] }
 
@@ -130,15 +130,20 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
     }
   }
 
+  // Resolves to the targets it could not delete
   const runBulk = async (targets: DeleteTarget[]) => {
     const failures: BulkFailure[] = []
+    const left: DeleteTarget[] = []
     let done = 0
     setFlow({ kind: 'bulk-running', done, total: targets.length })
     const queue = [...targets]
     const worker = async () => {
       for (let target = queue.shift(); target; target = queue.shift()) {
         const failure = await deleteQuietly(target)
-        if (failure) failures.push(failure)
+        if (failure) {
+          failures.push(failure)
+          left.push(target)
+        }
         done += 1
         setFlow({ kind: 'bulk-running', done, total: targets.length })
       }
@@ -146,6 +151,7 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
     await Promise.all(Array.from({ length: Math.min(concurrency, targets.length) }, worker))
     refresh()
     setFlow({ kind: 'bulk-done', total: targets.length, failures })
+    return left
   }
 
   const close = () => setFlow(undefined)
@@ -166,7 +172,19 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
           onDeleteAnyway={() => void attempt(flow.target, '*')}
         />
       )}
-      {flow.kind === 'bulk-confirm' && <BulkDeleteDialog stage="confirm" count={flow.targets.length} noun={noun} plural={plural} onCancel={close} onConfirm={() => void runBulk(flow.targets)} />}
+      {flow.kind === 'bulk-confirm' && (
+        <BulkDeleteDialog
+          stage="confirm"
+          count={flow.targets.length}
+          noun={noun}
+          plural={plural}
+          onCancel={() => {
+            close()
+            flow.settle(flow.targets)
+          }}
+          onConfirm={() => flow.settle(runBulk(flow.targets))}
+        />
+      )}
       {flow.kind === 'bulk-running' && <BulkDeleteDialog stage="running" done={flow.done} total={flow.total} />}
       {flow.kind === 'bulk-done' && <BulkDeleteDialog stage="done" total={flow.total} failures={flow.failures} onClose={close} />}
     </>
@@ -176,6 +194,7 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
     dialogs,
     /** Soft-delete resources go straight through; others ask first. */
     start: (target: DeleteTarget) => (model.softDelete ? attempt(target, target.etag) : setFlow({ kind: 'confirm', target })),
-    startBulk: (targets: DeleteTarget[]) => setFlow({ kind: 'bulk-confirm', targets }),
+    /** Asks once, then resolves to the targets left: all of them when cancelled, those that failed once the run ends. */
+    startBulk: (targets: DeleteTarget[]) => new Promise<DeleteTarget[]>((settle) => setFlow({ kind: 'bulk-confirm', targets, settle })),
   }
 }

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, userEvent, within } from 'storybook/test'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { createStaticSession } from '@protobase/client'
 import { App } from '../app'
 import { fakeClient } from '../testing/fake-client'
@@ -30,5 +30,29 @@ export const ExportFromTheList: StoryObj = {
     dialog = within(await within(document.body).findByRole('dialog', { name: 'Export orders' }))
     expect(dialog.getByRole('button', { name: 'Selected (1)' })).toHaveAttribute('aria-pressed', 'true')
     expect(dialog.getByRole('status')).toHaveTextContent('Exports 1 selected row.')
+  },
+}
+
+/** Export and Delete keep the selected rows ticked when their dialog is cancelled. */
+export const CancelKeepsTheSelection: StoryObj = {
+  render: ExportFromTheList.render,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByText('SO-1')
+    const rows = canvas.getAllByRole('checkbox', { name: /Select row/ }).slice(0, 2)
+    for (const row of rows) await userEvent.click(row)
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Export 2' }))
+    const exporting = within(await within(document.body).findByRole('dialog', { name: 'Export orders' }))
+    await userEvent.click(exporting.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull())
+    for (const row of rows) expect(row).toBeChecked()
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Delete 2' }))
+    const deleting = within(await within(document.body).findByRole('dialog', { name: /Delete 2/ }))
+    await userEvent.click(deleting.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull())
+    for (const row of rows) expect(row).toBeChecked()
+    expect(canvas.getByRole('button', { name: 'Delete 2' })).toBeVisible()
   },
 }

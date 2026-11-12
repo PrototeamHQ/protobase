@@ -227,6 +227,11 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
     seedRecord(displayRow(model, row).record)
     go({ kind: 'record', resource, key: recordKey(model, row) })
   }
+  const deleteRows = async (rows: GridRow[]) => {
+    const targets = rows.map(target)
+    const left = await remove.startBulk(targets)
+    return rows.filter((_, index) => left.includes(targets[index]!))
+  }
   const recordLink = (row: GridRow) => ({ href: href({ kind: 'record', resource, key: recordKey(model, row) }), onFollow: () => openRecord(row) })
 
   const table = rows.source ? (
@@ -249,7 +254,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       bulkActions={[
         ...(exportOffered(view) && exportsSelection(model) ? [{ label: (count: number) => text('exportCount', { count }), onRun: (rows: GridRow[]) => exportFlow.open(rows) }] : []),
         ...named.bulkActions,
-        ...(can(permissions, 'delete') ? [{ label: (count: number) => text('deleteCount', { count }), destructive: true, onRun: (rows: GridRow[]) => remove.startBulk(rows.map(target)) }] : []),
+        ...(can(permissions, 'delete') ? [{ label: (count: number) => text('deleteCount', { count }), destructive: true, onRun: (rows: GridRow[]) => deleteRows(rows) }] : []),
       ]}
       rowNumbers={false}
       pinKey={auth.kind === 'signed-in' ? pinnedStorageKey(auth.user.id, navItemId(resource, address.list)) : undefined}

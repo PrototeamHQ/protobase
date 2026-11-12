@@ -6,6 +6,7 @@ import { ApiProvider } from '../../data/api-provider'
 import { MetaContext } from '../../data/meta-context'
 import type { MetaData } from '../../data/meta-data'
 import { Router } from '../router'
+import { useState } from 'react'
 import { Button } from '../../primitives/button'
 import { ToastProvider } from '../../toasts'
 import { useDeleteFlow, type DeleteTarget } from './use-delete-flow'
@@ -43,6 +44,22 @@ const Harness = ({ onDeleted, onReview }: Pick<HarnessProps, 'onDeleted' | 'onRe
   return (
     <div className="p-6">
       <Button onClick={() => void flow.start(target)}>Delete order</Button>
+      {flow.dialogs}
+    </div>
+  )
+}
+
+// Two orders: the first changed since the list loaded, so only the second, deleted whatever its version, goes through
+const bulkTargets: DeleteTarget[] = [target, { key: 'o2', title: 'SO-2026-000002', etag: '*', snapshot: { ...opened, id: 'o2', number: 'SO-2026-000002' } }]
+
+// Shows which orders the bulk delete leaves, as the list keeps them selected
+const BulkHarness = () => {
+  const flow = useDeleteFlow({ model, view })
+  const [left, setLeft] = useState<DeleteTarget[]>()
+  return (
+    <div className="p-6">
+      <Button onClick={() => void flow.startBulk(bulkTargets).then(setLeft)}>Delete 2 orders</Button>
+      {left && <p role="status">Left: {left.map((order) => order.title).join(', ') || 'none'}</p>}
       {flow.dialogs}
     </div>
   )
@@ -141,5 +158,41 @@ export const BlockedDeleteNamesWhatPointsAtIt: Story = {
     expect(await canvas.findByText('Order lines still point at this order.')).toBeInTheDocument()
     expect(canvas.getByText('Could not delete SO-2026-000001')).toBeInTheDocument()
     expect(canvas.getByRole('link', { name: 'Show order lines' })).toHaveAttribute('href', appPath({ kind: 'list', resource: 'order_lines', filter: 'order_id = "o1"' }))
+  },
+}
+
+const renderBulk = ({ remove, get }: HarnessProps) => (
+  <Router initialUrl="/orders">
+    <MetaContext.Provider value={adminMeta}>
+      <ApiProvider client={{ remove: staleVersion(remove), get } as unknown as Client}>
+        <ToastProvider>
+          <BulkHarness />
+        </ToastProvider>
+      </ApiProvider>
+    </MetaContext.Provider>
+  </Router>
+)
+
+export const BulkCancelLeavesEveryOrder: Story = {
+  render: renderBulk,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Delete 2 orders' }))
+    const confirm = await within(document.body).findByRole('dialog')
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }))
+    expect(await canvas.findByRole('status')).toHaveTextContent('Left: SO-2026-000001, SO-2026-000002')
+    expect(args.remove).not.toHaveBeenCalled()
+  },
+}
+
+export const BulkDeleteLeavesTheFailedOrders: Story = {
+  render: renderBulk,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Delete 2 orders' }))
+    const confirm = await within(document.body).findByRole('dialog')
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Delete 2' }))
+    expect(await canvas.findByRole('status')).toHaveTextContent('Left: SO-2026-000001')
+    expect(args.remove).toHaveBeenCalledWith('orders', 'o2', { etag: '*' })
   },
 }
