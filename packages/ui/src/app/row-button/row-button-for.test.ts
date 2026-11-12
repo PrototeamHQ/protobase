@@ -37,6 +37,12 @@ describe('rowButtonFor', () => {
     }
   })
 
+  it('takes the href path for any href the choice has, as the check does, and `to` only without one', () => {
+    const to = { kind: 'record' as const, resource: 'tasks', key: '{task_id}' }
+    expect(rowButtonFor({ label: 'Open', href: '', to } as never, model, holdsView, { id: 1, task_id: 7 })).toBeUndefined()
+    expect(rowButtonFor({ label: 'Open', href: undefined, to } as never, model, holdsView, { id: 1, task_id: 7 })).toEqual({ label: 'Open', to: { kind: 'record', resource: 'tasks', key: '7' } })
+  })
+
   it('drops a value outside quotes in a filter that is not a number or a boolean', () => {
     const same = { label: 'Same', to: { kind: 'list' as const, resource: 'holds', filter: 'task_id = {verb}' } }
     expect(rowButtonFor(same, model, holdsView, { id: 1, verb: '7' })?.label).toBe('Same')

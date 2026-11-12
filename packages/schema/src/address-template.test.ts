@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addressPlaceholders, appHrefError, bareFilterFields, fillAddress, hrefField, hrefPlaceholders, leavesApp, linkActionError, resourceField } from './address-template'
+import { addressPlaceholders, appHrefError, bareFilterFields, embeddedFilterFields, fillAddress, hrefField, hrefPlaceholders, leavesApp, linkActionError, resourceField } from './address-template'
 import { parseFilter } from './filter'
 
 describe('fillAddress', () => {
@@ -32,6 +32,11 @@ describe('fillAddress', () => {
   it('names the fields a filter takes outside quotes', () => {
     expect(bareFilterFields({ kind: 'list', resource: 'tasks', filter: `task_id = {task_id} AND title = "{title}" AND n > {task_id} OR x = '{y}'` })).toEqual(['task_id'])
     expect(bareFilterFields({ kind: 'record', resource: 'tasks', key: '{id}' })).toEqual([])
+  })
+
+  it('names the fields a filter takes inside a longer quoted value', () => {
+    expect(embeddedFilterFields(`a = 'abc{x}' AND b = "{y}" AND c = {z} AND d = "{w} and {v}" AND e = 'it\\'s {u}'`)).toEqual(['x', 'w', 'v', 'u'])
+    expect(embeddedFilterFields(`title = "{title}" OR note = '{title}' AND n = {n}`)).toEqual([])
   })
 
   it("fills a create form's values from the record", () => {

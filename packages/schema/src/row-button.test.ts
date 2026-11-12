@@ -31,6 +31,12 @@ describe('rowButtonErrors', () => {
     expect(rowButtonErrors({ label: 'Same verb', to: { kind: 'list', resource: 'holds', filter: 'verb = "{verb}" AND task_id = {task_id}' } }, holds, { models })).toEqual([])
   })
 
+  it('refuses a field inside a longer quoted value of a filter', () => {
+    expect(rowButtonErrors({ label: 'Same', to: { kind: 'list', resource: 'holds', filter: "verb = 're {verb}'" } }, holds, { models })).toEqual([
+      'to: filter: "{verb}" sits inside a longer quoted value; quote it alone, such as title = "{verb}"',
+    ])
+  })
+
   it('accepts an outside page from a field the rows have', () => {
     expect(rowButtonErrors({ label: 'Report', href: '{report_url}' }, holds, { models })).toEqual([])
     expect(rowButtonErrors({ label: 'Report', href: '{url}' }, holds, { models })).toEqual(['href: "{url}" is not a field of holds'])
