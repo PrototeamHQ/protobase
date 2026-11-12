@@ -929,7 +929,7 @@ With `presentation: 'compact'` each card takes a line or two, for a short list w
 
 With `tone`, each card's left edge takes the colour its value has in the view's `valueColors`, a tone or a hex colour as its badge does, and the value's badge shows first among the card's values, unless `columns` places it elsewhere, so the colour is never all that says it. An action that changes the value changes the edge as the section loads again. `tone` works on `presentation: 'cards'` too.
 
-When an action takes its card out of the section, such as Mark clear under `filter: 'state != "clear"'`, focus moves to the next card's first action, else the previous card's, else the section's heading, and a screen reader hears `Done: Mark clear, <title>. It has left this list.` This holds for `presentation: 'cards'` too.
+When an action takes its card out of the section, such as Mark clear under `filter: 'state != "clear"'`, focus moves to the next card's first action, else the previous card's, else the section's heading, and a screen reader hears `Done: Mark clear, <title>. It has left this list.` This holds for `presentation: 'cards'` too. A section with `hideEmpty: true` goes away with its last card, so then focus has no heading to go to and nothing is announced.
 
 ```ts
 l.related('Holding it up', {
