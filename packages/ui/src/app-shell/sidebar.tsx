@@ -46,14 +46,16 @@ export type SidebarProps = {
   logo?: ComponentType<ShellLogoProps>
   /** Across the bottom, directly above the profile. */
   notice?: ReactNode
+  /** As wide as its container, such as the phone drawer, in place of the mode's width. */
+  fill?: boolean
 }
 
-export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, forceExpanded, profileMenuOpen, groups = [], userMenu, account, onNavigate, onSignOut, signIn, organizations, roles, theme, status, sticky, logo: SidebarLogo = Logo, notice }: SidebarProps) => {
+export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, forceExpanded, profileMenuOpen, groups = [], userMenu, account, onNavigate, onSignOut, signIn, organizations, roles, theme, status, sticky, logo: SidebarLogo = Logo, notice, fill }: SidebarProps) => {
   const expanding = mode === 'icon-expand'
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding
   return (
-    <nav aria-label={text('resources')} className={cn(sticky ? 'sticky top-0 h-dvh self-start' : 'relative', 'z-30 shrink-0', sidebarWidth[mode])}>
+    <nav aria-label={text('resources')} className={cn(sticky ? 'sticky top-0 h-dvh self-start' : 'relative', 'z-30 shrink-0', fill ? 'w-full' : sidebarWidth[mode])}>
       <div
         className={cn(
           'group/side absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r bg-sidebar pb-[var(--pb-safe-bottom)] pt-[var(--pb-safe-top)]',
