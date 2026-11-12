@@ -1,4 +1,4 @@
-import { addressPlaceholders, resourceField } from './address-template'
+import { addressPlaceholders, embeddedFilterFields, resourceField } from './address-template'
 import { checkFilter, checkOrderBy, parseFilter, parseOrderBy } from './filter'
 import type { AppAddress, FilterErrorCode, ResourceModel } from './model'
 
@@ -20,6 +20,8 @@ const nameErrors: readonly FilterErrorCode[] = ['unknown-field', 'not-filterable
 const withSamples = (filter: string) => filter.replace(/(["']?)\{[A-Za-z_][A-Za-z0-9_]*\}\1/g, (_, quote: string) => (quote ? `${quote}x${quote}` : '0'))
 
 const filterErrors = (model: ResourceModel, filter: string) => {
+  const embedded = embeddedFilterFields(filter)
+  if (embedded.length > 0) return embedded.map((name) => `filter: "{${name}}" sits inside a longer quoted value; quote it alone, such as title = "{${name}}"`)
   const parsed = parseFilter(withSamples(filter))
   if (!parsed.ok) return parsed.errors.map((error) => `filter: ${error.message}`)
   if (!parsed.ast) return []
