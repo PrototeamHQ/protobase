@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { FileText, Paperclip, Upload } from 'lucide-react'
-import { useRef, useState, type DragEvent } from 'react'
+import { useContext, useRef, useState, type DragEvent } from 'react'
 import type { FieldModel, FieldViewModel } from '@protobase/schema'
 import { useClient } from '../data/api-provider'
 import { cn } from '../lib/cn'
@@ -11,7 +11,7 @@ import { Button } from '../primitives/button'
 import { ErrorBanner } from './error-banner'
 import { text as appText } from './messages'
 import { FileLink } from './file-viewers/file-link'
-import { useAdminMeta } from './meta-gate'
+import { MetaContext } from '../data/meta-context'
 
 export type FileFieldProps = {
   field: FieldModel
@@ -40,7 +40,8 @@ const Thumbnail = ({ value }: { value: unknown }) => {
 
 /** The file as it is: thumbnail or icon, name (a link while it has a URL), type and size, and what the server corrected. */
 const FileSummary = ({ value, field, resource, record }: { value: unknown; field: string; resource: string; record?: Record<string, unknown> }) => {
-  const { resources } = useAdminMeta()
+  // A public form draws outside MetaGate, with no models: its file then links to its download
+  const model = useContext(MetaContext)?.resources[resource]
   const shown = fileShown(value)
   if (!shown) return <div className="py-1.5 text-muted-foreground">—</div>
   if ('missing' in shown) return <div className="py-1.5 text-danger-text">{appText('fileMissing')}</div>
@@ -51,7 +52,7 @@ const FileSummary = ({ value, field, resource, record }: { value: unknown; field
       <Thumbnail value={value} />
       <div className="min-w-0">
         {url && !url.startsWith('blob:') ? (
-          <FileLink field={field} model={resources[resource]} record={isFileDraft(value) ? undefined : record} name={shown.name} url={url} className="block truncate font-medium text-primary-text hover:underline" />
+          <FileLink field={field} model={model} record={isFileDraft(value) ? undefined : record} name={shown.name} url={url} className="block truncate font-medium text-primary-text hover:underline" />
         ) : (
           <span className="block truncate font-medium">{shown.name}</span>
         )}
