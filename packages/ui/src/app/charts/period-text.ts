@@ -1,5 +1,5 @@
 import { cachedFormat } from '../../format/intl-cache'
-import type { PeriodBucket } from './period-chart'
+import type { PeriodBucket } from './period-types'
 import { text } from './messages'
 
 const dayMs = 86_400_000

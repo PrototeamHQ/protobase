@@ -1,6 +1,5 @@
 import { useState, type KeyboardEvent } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import type { ChartBucket } from '@protobase/layout'
 import { useMediaQuery } from '../../lib/use-media-query'
 import type { ViewModel } from '@protobase/schema'
 import { measureText, type ChartMeasure } from './chart-groups'
@@ -11,11 +10,7 @@ import { viewerZone, zoneOffset } from '../../format/zone'
 import { text } from './messages'
 import { PeriodTable } from './period-table'
 import { isCurrent, periodText } from './period-text'
-
-export type Point = { at: number; value: number | null; count: number } & Record<string, number | null>
-
-/** How long a chart's bucket is: a block's, or the minutes a record's chart of samples reads. */
-export type PeriodBucket = ChartBucket | 'minute' | '5_minutes' | '15_minutes'
+import type { PeriodBucket, Point } from './period-types'
 
 const clock = { hour: '2-digit', minute: '2-digit', hour12: false } as const
 const dayAndClock = { day: 'numeric', month: 'short', ...clock } as const

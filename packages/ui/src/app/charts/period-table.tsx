@@ -1,6 +1,6 @@
 import { measureText, type ChartMeasure } from './chart-groups'
 import { text } from './messages'
-import type { PeriodBucket, Point } from './period-chart'
+import type { PeriodBucket, Point } from './period-types'
 import { periodText } from './period-text'
 import type { ChartSeries } from './split-points'
 
