@@ -160,6 +160,10 @@ The first records of a list, drawn the way the resource's list page draws them: 
 
 #### Row buttons
 
+:::caution[Experimental]
+Row buttons may change in any release. They do not show when a table switches to a list display such as cards, and on a mobile screen they sit at the end of the row, out of view until the table scrolls sideways.
+:::
+
 `button: { label, to }` adds a last column with a button on each row: a link, drawn as a button, to `to`, an [address](/reference/layouts/#addresses) in the app, such as a record on one of its [tabs](/reference/ui-config/#tabs). `{field}` in the address or the label is replaced by the row's value, the label's as the record page shows it (an enum value by its label), so each row can name its own next step. A row with no value for a field the button names shows no button. The button is checked when the config loads, and `/meta` gives it, on the block or the related section, to callers who can read the fields it names and follow its address, and leaves it out for the others. A [related section](/reference/ui-config/#related-records) takes the same `button`, on its table's rows or its cards.
 
 ```tsx
@@ -194,7 +198,7 @@ Each row can decide where its button goes:
 
 <gap>A row button cannot show when the table switches to a list display such as cards because drawing it on a display is not implemented.</gap>
 
-<gap>A row button cannot show beside its row's first cell on a phone, where the table scrolls sideways to reach it, because a phone layout for table rows is not implemented.</gap>
+<gap>A row button cannot show beside its row's first cell on a phone, where the table scrolls sideways to reach it, because a mobile layout for table rows is not implemented.</gap>
 
 ### RecordCard
 
