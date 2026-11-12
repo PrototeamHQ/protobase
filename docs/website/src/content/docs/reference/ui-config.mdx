@@ -649,7 +649,13 @@ view<typeof listings>('listings').recordMode('read')
 
 ### Groups
 
+:::caution[Experimental]
+A group's `help` and `count` options may change in any release. A group's help line takes no `helpWhen`, so it shows on the read view and the form alike, and the create form, which shows a group's sections as plain sections, leaves it out.
+:::
+
 `l.group(title, items, { help?, count?, collapsed?, when? })` puts a heading over sections and related tables, so a long record page shows what matters first and tucks rarely needed parts away. A group holds only `l.section` and `l.related` items, and not another group. With `collapsed: true` it shows only its heading until the person clicks it; clicking again closes it. A closed group draws nothing, so its related tables load nothing until it opens. Without `collapsed` it is a plain heading over its items. `help` is a line under the heading, shown while the group is closed too, and `count: true` shows beside the heading how many records its related tables hold together; see [Counts in headings](#counts-in-headings).
+
+<gap>A group's help line cannot show only while the record is edited because `helpWhen` on `l.group` is not implemented.</gap>
 
 The open groups are in the address, as `?open=<title>` once per group, so a link, a copied URL or a new tab opens the page with the group open. Titles are unique among a view's groups, as the address names a group by its title. The page scrolls as a whole; opening a group adds no scroll box. On the form, a group that holds a field with an error or a conflict opens by itself. The create form shows the sections of a group as plain sections.
 
