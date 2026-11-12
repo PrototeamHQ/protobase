@@ -4,11 +4,12 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { withoutBackup } from '../../src/mobile/android-backup'
 import { buildFileId, fileRefId } from '../../src/mobile/privacy-manifest'
 import { prepareReleaseProject } from '../../src/mobile/release-project'
 
-// The release edits on the templates of the Capacitor CLI @protobase/mobile pins, so a Capacitor update that moves an
-// anchor fails here rather than on a developer's release.
+// The edits on the templates of the Capacitor CLI @protobase/mobile pins, so a Capacitor update that moves an anchor
+// fails here rather than on a developer's run or release.
 const capacitorCli = path.dirname(createRequire(path.join(import.meta.dirname, '../../../mobile/package.json')).resolve('@capacitor/cli/package.json'))
 
 let ws = ''
@@ -24,7 +25,15 @@ afterAll(() => rmSync(ws, { recursive: true, force: true }))
 const version = { version: '1.2.3', build: '7' }
 const read = (...parts: string[]) => readFileSync(path.join(ws, ...parts), 'utf8')
 
-describe('the release edits on Capacitor\'s templates', () => {
+describe('the edits on Capacitor\'s templates', () => {
+  it('opt the Android app out of backup and device transfer', () => {
+    const manifest = withoutBackup(read('android', 'app', 'src', 'main', 'AndroidManifest.xml'))
+    expect(manifest.match(/android:allowBackup="false"/g)).toHaveLength(1)
+    expect(manifest).not.toContain('android:allowBackup="true"')
+    expect(manifest).toContain('xmlns:tools="http://schemas.android.com/tools"')
+    expect(manifest).toContain('        tools:replace="android:allowBackup,android:dataExtractionRules"\n')
+  })
+
   it('sign and version the Android release', async () => {
     await prepareReleaseProject(ws, 'android', version)
     const gradle = read('android', 'app', 'build.gradle')
