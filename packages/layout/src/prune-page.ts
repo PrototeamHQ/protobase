@@ -1,11 +1,11 @@
-import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
-import { addressErrors, pruneByShape, rowButtonErrors, shapes } from '@protobase/schema/internal'
+import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel, type RowButtonModel } from '@protobase/schema'
+import { addressErrors, followableRowButton, pruneByShape, shapes } from '@protobase/schema/internal'
 import { chartFields } from './check-chart'
 import { threadFields } from './check-conversation'
 import { elementResource, linkSource } from './check-page'
 import { countedResource, parseCondition } from './condition'
 import { resolveFieldPath } from './field-path'
-import { dataProps, type LayoutNode } from './node'
+import { dataProps, type LayoutNode, type LayoutValue } from './node'
 import type { PageModel } from './page'
 import { mapTree, type Scope } from './walk'
 
@@ -74,13 +74,14 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
     }
     case 'Progress':
       return [node.props.value, node.props.max].every((name) => typeof name !== 'string' || readable(name)) ? node : null
-    // Columns narrow to what the caller can read; a row button goes when it reads what they cannot or leads where they cannot go.
+    // Columns narrow to what the caller can read; a row button's choice goes when it reads what they cannot or leads where they cannot go.
     case 'Table': {
       if (!model) return node
       const { columns, button, ...props } = node.props
       const visible = (columns as string[] | undefined)?.filter((name) => Object.hasOwn(model.fields, name)) ?? []
-      const followable = button !== undefined && rowButtonErrors(button, model, { models, createPages: access.createPages }).length === 0
-      return { ...node, props: { ...props, ...(visible.length > 0 && { columns: visible }), ...(followable && { button }) } }
+      // The button was checked when the config loaded, so it is a row button's shape
+      const followable = button === undefined ? undefined : followableRowButton(button as RowButtonModel, model, { models, createPages: access.createPages })
+      return { ...node, props: { ...props, ...(visible.length > 0 && { columns: visible }), ...(followable !== undefined && { button: followable as LayoutValue }) } }
     }
     case 'RecordCards': {
       if (!model || own === undefined) return node

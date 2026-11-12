@@ -840,16 +840,33 @@ export type FilterWidgetModel = (
 export type RelatedPresentation = 'cards' | 'compact' | 'record'
 
 /**
- * A button on each row of a table or related section that opens an address in the app named by the row's fields, such as
- * `{ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: 'Review' } }`. A row with no value
- * for a field it names shows no button.
+ * One choice of a row button: a button that opens an address in the app named by the row's fields, such as
+ * `{ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: '{tab}' } }`, or the outside page
+ * a field holds, such as `{ label: 'Error report', href: '{report_url}' }`.
  */
-export type RowButtonModel = {
+export type RowButtonChoice = {
   /** The button's text; `{field}` is replaced by the row's value, an enum value by its label. */
   label: string
-  /** Where it goes; `{field}` in its resource, key, run, panel, filter, order or values is replaced by the row's value. */
-  to: AppAddress
-}
+} & (
+  | {
+      /**
+       * Where it goes; `{field}` in its resource, key, tab, run, panel, filter, order or values is replaced by the row's
+       * value. A filter's text value goes in quotes; one outside quotes is a number or `true`/`false`.
+       */
+      to: AppAddress
+    }
+  | {
+      /** The outside page it opens, in a new tab: one `{field}` whose value is an `https:` URL. */
+      href: string
+    }
+)
+
+/**
+ * A button on each row of a table or related section: one choice, or a list of them of which each row shows the first
+ * whose fields it holds, so rows can open different kinds of places. A row whose choice leads nowhere, such as an
+ * `href` field without an `https:` URL, shows no button.
+ */
+export type RowButtonModel = RowButtonChoice | readonly RowButtonChoice[]
 
 /**
  * Records of another resource on the record page: those whose `field` holds this record's key or, with `through`,

@@ -8,7 +8,8 @@ export const rowButtonColumn = (model: ResourceModel, view: ViewModel | undefine
   id: '_row_button',
   header: '',
   kind: 'text',
-  width: 120,
+  // Room for a short label with the outside-link mark, such as "Error report"
+  width: 152,
   minWidth: 96,
   sortable: false,
   render: (row) => <RowButtonLink button={button} model={model} view={view} record={displayRow(model, row).record} />,

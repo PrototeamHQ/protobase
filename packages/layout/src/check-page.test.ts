@@ -38,7 +38,11 @@ describe('pageProblems', () => {
       '<Page> › <Table resource="invoices">: button: label: "{verb}" is not a field of invoices',
       '<Page> › <Table resource="invoices">: button: to: unknown page "today"',
     ])
-    expect(pageProblems(table('Open'), input)).toEqual(["<Page> › <Table resource=\"invoices\">: button: a row button is { label, to }, such as { label: 'Open', to: { kind: 'record', resource: 'tasks', key: '{id}' } }"])
+    expect(pageProblems(table('Open'), input)[0]).toMatch(/button: a row button is \{ label, to \} or \{ label, href \}/)
+    expect(pageProblems(table({ label: 'Pay', href: '{number}' }), input)).toEqual([])
+    expect(pageProblems(table({ label: 'Pay', href: 'https://pay.example/{number}' }), input)).toEqual([
+      "<Page> › <Table resource=\"invoices\">: button: href: a row button's href is the one field that holds the page's https URL, such as '{report_url}'",
+    ])
   })
 
   it("checks an image's function against the app's functions", () => {

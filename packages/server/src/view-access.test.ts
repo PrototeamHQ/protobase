@@ -316,6 +316,11 @@ describe('pruneView', () => {
     expect(related(all)).toEqual(written.layout)
     expect(related(without({ customer_repairs: ['repairId'] }))).toEqual([{ kind: 'related', title: 'Repairs', resource: 'customer_repairs', field: 'customerId' }])
     expect(related(without({}, ['repairs']))).toEqual([{ kind: 'related', title: 'Repairs', resource: 'customer_repairs', field: 'customerId' }])
+    const choices = view<typeof customers>('customers')
+      .layout(() => [l.related('Repairs', { resource: 'customer_repairs', field: 'customerId', button: [{ label: 'Repair', href: '{repairId}' }, button] })])
+      .toModel()
+    const noRepairs = without({}, ['repairs'])
+    expect(pruneView(choices, noRepairs.customers!, noRepairs).layout).toEqual([{ kind: 'related', title: 'Repairs', resource: 'customer_repairs', field: 'customerId', button: [{ label: 'Repair', href: '{repairId}' }] }])
   })
 
   it("keeps a chart's series the caller can read, and leaves out one they cannot place or draw", () => {

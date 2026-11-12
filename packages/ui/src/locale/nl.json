@@ -306,7 +306,8 @@
     "staffSignedIn": "{staff} is ingelogd als {user} tot {until}. Reden: {reason}",
     "stopStaffSession": "Sessie van medewerker stoppen",
     "open": "Openen",
-    "openLabel": "{label} openen"
+    "openLabel": "{label} openen",
+    "opensNewTab": "(opent in een nieuw tabblad)"
   },
   "app-shell": {
     "navigation": "Navigatie",

@@ -114,6 +114,9 @@ const oneOf = (values: string[]): [test: (value: LayoutValue) => boolean, expect
 
 const isObject = (value: LayoutValue): value is Record<string, LayoutValue> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
+const isRowButtonChoice = (value: LayoutValue | undefined) =>
+  value !== undefined && isObject(value) && !isLayoutNode(value) && typeof value.label === 'string' && ((value.to !== undefined && isObject(value.to) && typeof value.to.kind === 'string') || typeof value.href === 'string')
+
 const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: string]> = {
   text: [(value) => typeof value === 'string', 'text'],
   texts: [(value) => Array.isArray(value) && value.every((item) => typeof item === 'string'), 'a list of names'],
@@ -137,8 +140,8 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
   textAs: oneOf(textTags),
   address: [(value) => isObject(value) && !isLayoutNode(value) && typeof value.kind === 'string', "an address, such as { kind: 'list', resource: 'orders' }"],
   rowButton: [
-    (value) => isObject(value) && !isLayoutNode(value) && typeof value.label === 'string' && value.to !== undefined && isObject(value.to) && typeof value.to.kind === 'string',
-    "a button, such as { label: 'Open', to: { kind: 'record', resource: 'orders', key: '{id}' } }",
+    (value) => (Array.isArray(value) ? value.length > 0 && value.every(isRowButtonChoice) : isRowButtonChoice(value)),
+    "a button, such as { label: 'Open', to: { kind: 'record', resource: 'orders', key: '{id}' } } or { label: 'Report', href: '{report_url}' }, or a list of them",
   ],
 }
 

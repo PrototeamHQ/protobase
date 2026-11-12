@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fieldRef, type FieldRefValue } from '@protobase/schema'
+import { fieldRef, type FieldRefValue, type RowButtonModel } from '@protobase/schema'
 import { Card, Chart, Composer, Image, Link, Page, RecordCard, RecordCards, Show, Tab, Table, Tabs, Thread } from './blocks'
 import { component } from './component'
 import type { LayoutNode } from './node'
@@ -96,6 +96,17 @@ describe('prunePage', () => {
     expect(shown(restricted({ invoices: ['status'] }))).toEqual({ resource: 'invoices' })
     const elsewhere: PageModel = { name: 'p', title: 'p', tree: Page({ title: 'p', children: Table({ resource: 'invoices', button: { label: 'Plan', to: { kind: 'list', resource: 'plans' } } }) }) }
     expect(find(prunePage(elsewhere, [], access({ models: restricted({}, {}, ['plans']) })), 'Table')!.props).toEqual({ resource: 'invoices' })
+  })
+
+  it("drops a table's row button whose tab or outside page comes from a hidden field", () => {
+    const shown = (button: RowButtonModel, models: CallerAccess['models']) => find(prunePage({ name: 'p', title: 'p', tree: Page({ title: 'p', children: Table({ resource: 'invoices', button }) }) }, [], access({ models })), 'Table')!.props
+    const tab: RowButtonModel = { label: 'Open', to: { kind: 'record', resource: 'invoices', key: '{id}', tab: '{status}' } }
+    const outside: RowButtonModel = { label: 'Pay', href: '{number}' }
+    expect(shown(tab, restricted({}))).toEqual({ resource: 'invoices', button: tab })
+    expect(shown(tab, restricted({ invoices: ['status'] }))).toEqual({ resource: 'invoices' })
+    expect(shown(outside, restricted({}))).toEqual({ resource: 'invoices', button: outside })
+    expect(shown(outside, restricted({ invoices: ['number'] }))).toEqual({ resource: 'invoices' })
+    expect(shown([outside, tab], restricted({ invoices: ['number'] }))).toEqual({ resource: 'invoices', button: [tab] })
   })
 
   it('leaves out elements whose filter or sort names a hidden field', () => {

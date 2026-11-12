@@ -50,6 +50,7 @@ export type {
   SectionPresentation,
   RelatedPresentation,
   RelatedModel,
+  RowButtonChoice,
   RowButtonModel,
   SectionModel,
   GroupModel,

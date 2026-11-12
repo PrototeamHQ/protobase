@@ -306,7 +306,8 @@
     "staffSignedIn": "{staff} is signed in as {user} until {until}. Reason: {reason}",
     "stopStaffSession": "Stop staff session",
     "open": "Open",
-    "openLabel": "Open {label}"
+    "openLabel": "Open {label}",
+    "opensNewTab": "(opens in a new tab)"
   },
   "app-shell": {
     "navigation": "Navigation",
