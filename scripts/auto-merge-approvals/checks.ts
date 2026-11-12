@@ -38,7 +38,8 @@ export function checksState(runs: WorkflowRun[], checkRuns: CheckRun[], statuses
       .map((run) => ({ name: run.name, done: run.status === 'completed', conclusion: run.conclusion })),
     ...checkRuns
       .filter((check) => !own.has(check.check_suite.id) && !stale.has(check.check_suite.id))
-      .map((check) => ({ name: check.name, done: check.status === 'completed', conclusion: check.conclusion })),
+      // GitHub can leave a finished check run in_progress while it already holds a conclusion, so either means done.
+      .map((check) => ({ name: check.name, done: check.status === 'completed' || check.conclusion !== null, conclusion: check.conclusion })),
     ...statuses.map((status) => ({ name: status.context, done: status.state !== 'pending', conclusion: status.state })),
   ]
 

@@ -17,10 +17,10 @@ const storybookDir = join(root, 'storybook-static')
 if (!existsSync(join(storybookDir, 'index.json'))) throw new Error('There is no built Storybook in storybook-static; run `bun run build-storybook` first')
 
 const pages = [
-  { story: 'guides-bike-shop--step-3', page: 'list with filters' },
+  // A chart's numbers reach a screen reader as a table of its periods
+  { story: 'guides-bike-shop--step-3', page: 'list with filters', table: ['Period', 'Count'] },
   { story: 'list-page-displays--cards', page: 'list with cards' },
   { story: 'guides-bike-shop--step-5', page: 'record with actions' },
-  // A chart's numbers reach a screen reader as a table of its periods
   { story: 'record-page-trends-of-related-records--record-trend', page: 'record with a trend', table: ['Period', 'Count'] },
 ]
 const shots = pages.flatMap(({ story, page, table }) => ['desktop', 'phone'].map((viewport) => ({ name: `${page} (${viewport})`, story, viewport, table })))

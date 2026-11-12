@@ -46,9 +46,12 @@ const rowsText = (canvas: ReturnType<typeof within>) => canvas.findByText(/^\d+ 
 /** The record page's status dropdown (the search box is a combobox too). */
 const statusSelect = (canvas: ReturnType<typeof within>) => canvas.getAllByRole('combobox').find((element: HTMLElement): element is HTMLSelectElement => element instanceof HTMLSelectElement)!
 
+/** The grid's rows, not those of a chart's table of its numbers. */
+const gridRows = async (canvas: ReturnType<typeof within>) => within(await canvas.findByRole('grid')).getAllByRole('row')
+
 /** The grid's column headings, from its header row. */
 const headings = async (canvas: ReturnType<typeof within>) => {
-  const [header] = await canvas.findAllByRole('row')
+  const [header] = await gridRows(canvas)
   return header!.textContent ?? ''
 }
 
@@ -71,7 +74,7 @@ export const Step2Checks: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     expect(await canvas.findByRole('link', { name: /New repair$/ })).toBeVisible()
-    await waitFor(() => expect(canvas.getAllByRole('row')[1]).toHaveTextContent('R-312'))
+    await waitFor(async () => expect((await gridRows(canvas))[1]).toHaveTextContent('R-312'))
     expect(await headings(canvas)).toMatch(/Booked on/)
     expect(await headings(canvas)).not.toMatch(/Problem/)
   },
@@ -127,7 +130,7 @@ export const Step5WorkshopChecks: StoryObj = {
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await waitFor(() => expect(canvas.getAllByRole('row')[1]).toHaveTextContent('R-313'))
+    await waitFor(async () => expect((await gridRows(canvas))[1]).toHaveTextContent('R-313'))
     expect(await headings(canvas)).toMatch(/Problem/)
     expect(canvas.queryByText('Estimate')).toBeNull()
   },

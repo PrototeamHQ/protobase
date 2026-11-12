@@ -21,9 +21,10 @@ const pointFormats: Partial<Record<PeriodBucket, Intl.DateTimeFormatOptions>> = 
 
 const formatOf = (options: Intl.DateTimeFormatOptions) => cachedFormat(`period:${JSON.stringify(options)}`, (tag) => new Intl.DateTimeFormat(tag, { ...options, timeZone: 'UTC' }))
 
-/** When the bucket starting at `at` ends, the start of the next one; a bucket of a moment or a day has none to name. */
+/** When the bucket starting at `at` ends, the start of the next one; a bucket shorter than a day, a moment, has none. */
 export const periodEnd = (at: number, bucket: PeriodBucket) => {
   const start = new Date(at)
+  if (bucket === 'day') return at + dayMs
   if (bucket === 'week') return at + 7 * dayMs
   if (bucket === 'month') return Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 1)
   if (bucket === 'year') return Date.UTC(start.getUTCFullYear() + 1, 0, 1)
@@ -38,11 +39,12 @@ export const isCurrent = (at: number, bucket: PeriodBucket, now: number) => {
 
 /**
  * What a chart's bucket covers, as its tooltip and table name it: a week or month from its first to its last day, such
- * as "24 – 30 Aug 2026", and the one still running up to today, "9 Nov to today"; a year its number until it runs, and a
- * day or shorter bucket its start. `at` and `now` are wall-clock times written as UTC milliseconds, as the points are.
+ * as "24 – 30 Aug 2026", and the one still running up to today, "9 Nov to today"; a year its number until it runs, a
+ * day its date until it is today, and a shorter bucket its start. `at` and `now` are wall-clock times written as UTC milliseconds, as the points are.
  */
 export const periodText = (at: number, bucket: PeriodBucket, now: number) => {
   if (isCurrent(at, bucket, now)) {
+    if (bucket === 'day') return text('today')
     const sameYear = new Date(at).getUTCFullYear() === new Date(now).getUTCFullYear()
     return text('toToday', { start: formatOf(sameYear ? dayAndMonth : date).format(at) })
   }

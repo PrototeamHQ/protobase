@@ -1,20 +1,15 @@
 import { useState } from 'react'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { formatDayShort } from '../format/date'
 import { formatInt } from '../format/number'
 import { Segmented } from '../primitives/segmented'
 import { cn } from '../lib/cn'
-import { useMediaQuery } from '../lib/use-media-query'
+import { PeriodChart } from '../app/charts/period-chart'
 import { halfOverHalfDelta, totalCount } from './activity-math'
-import { ActivityTooltip } from './activity-tooltip'
 import { text } from './messages'
 
 export type ActivityGranularity = 'day' | 'week'
 
 export type ActivityChartProps = {
   title: string
-  /** Plural noun used in the tooltip. */
-  noun: string
   defaultGranularity?: ActivityGranularity
   /** The counts to draw; an empty series draws an empty chart. */
   data: Array<{ at: number; count: number }>
@@ -26,14 +21,13 @@ export type ActivityChartProps = {
   className?: string
 }
 
-const axisTick = { fontSize: '0.6875rem', fill: 'var(--muted-foreground)' }
-
-export const ActivityChart = ({ title, noun, defaultGranularity = 'day', data, granularity: controlled, onGranularityChange, periodLabel, className }: ActivityChartProps) => {
+/** Counts per day or week under their total and change, drawn as a date chart's bars with its tooltip, keys and table. */
+export const ActivityChart = ({ title, defaultGranularity = 'day', data, granularity: controlled, onGranularityChange, periodLabel, className }: ActivityChartProps) => {
   const [local, setLocal] = useState(defaultGranularity)
   const granularity = controlled ?? local
   const setGranularity = onGranularityChange ?? setLocal
-  const wide = useMediaQuery('(min-width: 640px)')
   const delta = halfOverHalfDelta(data)
+  const points = data.map(({ at, count }) => ({ at, value: count, count }))
 
   return (
     <section className={cn('rounded-lg border bg-background px-4 pb-2 pt-3', className)}>
@@ -53,16 +47,8 @@ export const ActivityChart = ({ title, noun, defaultGranularity = 'day', data, g
           options={[{ value: 'day', label: text('day') }, { value: 'week', label: text('week') }]}
         />
       </header>
-      <div className="mt-2 h-24">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 4, right: 0, bottom: 0, left: 0 }} barCategoryGap={granularity === 'day' ? '22%' : '30%'}>
-            <CartesianGrid vertical={false} stroke="var(--border)" />
-            <XAxis dataKey="at" padding={{ left: 4, right: wide ? 4 : 18 }} tickFormatter={formatDayShort} tick={axisTick} axisLine={false} tickLine={false} interval={granularity === 'day' ? (wide ? 4 : 9) : wide ? 1 : 3} height={18} />
-            <YAxis width={wide ? 36 : 28} tick={axisTick} axisLine={false} tickLine={false} tickCount={3} />
-            <Tooltip cursor={{ fill: 'var(--muted)' }} content={<ActivityTooltip noun={noun} />} isAnimationActive={false} />
-            <Bar dataKey="count" fill="var(--primary)" radius={[2, 2, 0, 0]} isAnimationActive={false} />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="mt-2">
+        <PeriodChart points={points} measure={{ kind: 'count' }} bucket={granularity} type="bar" compact />
       </div>
     </section>
   )
