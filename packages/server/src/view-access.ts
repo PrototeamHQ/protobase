@@ -1,7 +1,7 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
 import type { RecordPageModel, ActionInputModel, AppAddress, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, RecordTrendModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ThreadSectionModel, ViewModel } from '@protobase/schema'
-import { addressErrors, chartFields, followableRowButton, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay, type RefShape } from '@protobase/schema/internal'
+import { addressErrors, chartFields, followableRowButton, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay, textPlaceholders, type RefShape } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { threadSectionErrors } from './view-conversation'
@@ -166,8 +166,12 @@ const sectionFields = (model: ResourceModel, writeOnly: ReadonlySet<string>) =>
     return kept.length > 0 ? kept : undefined
   })
 
+// A link's text goes when it names a field the caller cannot read, so the link shows its address.
+const readableLinkText = (model: ResourceModel, { linkText, ...hints }: FieldViewModel): FieldViewModel =>
+  linkText === undefined || textPlaceholders(linkText).some((name) => !Object.hasOwn(model.fields, name)) ? hints : { ...hints, linkText }
+
 const fieldHints = (model: ResourceModel, writeOnly: ReadonlySet<string>) =>
-  s.map<Record<string, FieldViewModel>>((hints) => Object.fromEntries(Object.entries(hints).filter(([name]) => formFields(model, writeOnly)(name))))
+  s.map<Record<string, FieldViewModel>>((hints) => Object.fromEntries(Object.entries(hints).filter(([name]) => formFields(model, writeOnly)(name)).map(([name, hint]) => [name, readableLinkText(model, hint)])))
 
 // A composer creates its messages, so it needs the caller to create them with both its fields, not only update them.
 // Startup checked its fields against the full models; the caller need not read them, as a write-only text is still sent.

@@ -3,12 +3,14 @@ import { builtInFieldTypes } from '@protobase/schema/internal'
 import { Textarea } from '../../../primitives/textarea'
 import type { FieldWidget, FieldWidgetEditorProps, FieldWidgetProps } from '../field-widget'
 import { JsonBlock } from './json-block'
+import { jsonSummary } from '../../../live/json-summary'
+import { TruncatedText } from '../../../data-grid/truncated-text'
 import { jsonOf, notJson } from './json-text'
 import { text } from './messages'
 
 const JsonDisplay = ({ value }: FieldWidgetProps) => (value === null ? <span className="text-muted-foreground">—</span> : <JsonBlock value={value} />)
 
-const JsonCell = ({ value }: FieldWidgetProps) => <span className="truncate font-mono text-xs">{JSON.stringify(value)}</span>
+const JsonCell = ({ value }: FieldWidgetProps) => <TruncatedText text={jsonSummary(value)} />
 
 // The text stays as typed; the value changes each time it parses, and text that does not says so under the box.
 const JsonEditor = ({ value, onChange, invalid }: FieldWidgetEditorProps) => {

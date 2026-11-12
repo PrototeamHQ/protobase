@@ -1758,7 +1758,8 @@
     "yes": "Ja",
     "no": "Nee",
     "shownIn": "Getoond in {zone}",
-    "fileMissing": "Bestand ontbreekt"
+    "fileMissing": "Bestand ontbreekt",
+    "jsonItems": "{count, plural, one {# item} other {# items}}"
   },
   "mailbox": {
     "missingTitle": "Koppel een mailbox om te versturen",

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { KeyValue, ListDisplayModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { displayValue } from '../../live/display-value'
+import { jsonSummary } from '../../live/json-summary'
 import { recordKey } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
 import { Badge } from '../../primitives/badge'
@@ -68,6 +69,8 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
     if (target && views[target.name]?.titleFrom && value != null) return <RelationTitleText target={target} id={String(value)} />
     // Markdown reads as its text on a card's one-line parts
     if (row.labels[name] === undefined && isMarkdown(field, view?.fields[name]) && typeof value === 'string' && value !== '') return markdownExcerpt(value)
+    // JSON reads as its summary there, as in a table cell
+    if (field.type === 'json' && value != null) return jsonSummary(value)
     return row.labels[name] ?? displayValue(field, value, view?.fields[name])
   }
   // A field the view shows with a field type draws its display

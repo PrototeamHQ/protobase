@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { FieldModel } from '@protobase/schema'
 import type { FieldWidget } from './field-widget'
 import { membersField } from './members/members-field'
-import { shownWidget } from './shown-widget'
+import { isWideField, shownWidget } from './shown-widget'
 
 const field = (type: FieldModel['type'], extra: Partial<FieldModel> = {}) =>
   ({ name: 'score', column: 'score', type, nullable: true, readOnly: false, filterable: false, sortable: false, aliases: [], ...extra }) as FieldModel
@@ -29,5 +29,13 @@ describe('shownWidget', () => {
     expect(shownWidget(undefined, field('text'), { widget: { name: 'members' } })).toBeUndefined()
     const own: FieldWidget = { of: ['json'], display: Stars }
     expect(shownWidget({ members: own }, field('json'), { widget: { name: 'members' } })?.widget).toBe(own)
+  })
+})
+
+describe('isWideField', () => {
+  it('widens JSON without a field type, which shows written out, and follows the field type when it has one', () => {
+    expect(isWideField(undefined, field('json'), {})).toBe(true)
+    expect(isWideField(undefined, field('json'), { widget: { name: 'members' } })).toBe(false)
+    expect(isWideField(undefined, field('text'), {})).toBe(false)
   })
 })

@@ -150,7 +150,7 @@ Each part gets:
 
 ### JSON
 
-`json` is a field type Protobase brings for any JSON field a form should edit, such as a workflow run's `input`: `r.input.widget('json')`. The form edits the value as JSON text, the record page shows it written out on several lines, and a list's table on one. Text that does not parse yet says so under the box and leaves the value as it last parsed; an emptied box is null. It takes the form's whole width. A plugin that registers a field type named `json` replaces it.
+`json` is a field type Protobase brings for any JSON field a form should edit, such as a workflow run's `input`: `r.input.widget('json')`. The form edits the value as JSON text, the record page shows it written out on several lines, and a list's table as a [short summary](/reference/ui-config/#json-fields-and-link-text). Text that does not parse yet says so under the box and leaves the value as it last parsed; an emptied box is null. It takes the form's whole width. A plugin that registers a field type named `json` replaces it.
 
 ### Members
 

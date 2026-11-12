@@ -13,6 +13,8 @@ import { Markdown } from '../../markdown/markdown'
 import { isMarkdown } from '../../markdown/markdown-hint'
 import { ContactLink } from '../../live/contact-link'
 import { contactFormat } from '../../live/contact-links'
+import { linkTextOf } from '../../live/link-text'
+import { JsonBlock } from '../field-types/json/json-block'
 import { text as appText } from '../messages'
 
 // A relation's target named as the record page names it, read unless the page already knows the name
@@ -32,7 +34,15 @@ const RelationValue = ({ field, value, known }: { field: FieldModel; value: unkn
   return <RelationLink target={target} id={String(value)} known={known} />
 }
 
-type FieldValueProps = { model: ResourceModel; field: FieldModel; value: unknown; format?: FieldFormat; relationLabel?: string }
+type FieldValueProps = {
+  model: ResourceModel
+  field: FieldModel
+  value: unknown
+  format?: FieldFormat
+  relationLabel?: string
+  /** The record the value is of, whose fields a url's link text takes. */
+  record?: Record<string, unknown>
+}
 
 // A dash, which a screen reader reads as words
 const EmptyValue = () => (
@@ -42,13 +52,14 @@ const EmptyValue = () => (
   </span>
 )
 
-type ShownValueProps = { field: FieldModel; value: unknown; hints: FieldViewModel; relationLabel?: string }
+type ShownValueProps = { field: FieldModel; value: unknown; hints: FieldViewModel; relationLabel?: string; linkText?: string }
 
 /**
  * A stored value as the view's `hints` show it, with no field type's display: a dash when empty, names for relations,
- * badges in the view's `valueColors` for enums and the `badge` format, and timestamps as the `relative` format says.
+ * badges in the view's `valueColors` for enums and the `badge` format, timestamps as the `relative` format says, JSON
+ * written out whole and an address as a link showing `linkText` when given.
  */
-export const ShownValue = ({ field, value, hints, relationLabel }: ShownValueProps) => {
+export const ShownValue = ({ field, value, hints, relationLabel, linkText }: ShownValueProps) => {
   if (value === null || value === undefined || value === '') return <EmptyValue />
   if (field.type === 'relation') return <RelationValue field={field} value={value} known={relationLabel} />
   const file = field.type === 'file' ? fileShown(value) : undefined
@@ -62,18 +73,20 @@ export const ShownValue = ({ field, value, hints, relationLabel }: ShownValuePro
     )
   }
   if (isMarkdown(field, hints)) return <Markdown source={String(value)} />
+  if (field.type === 'json') return <JsonBlock value={value} />
   const text = displayValue(field, value, hints)
   const contact = field.type === 'text' ? contactFormat(hints) : undefined
-  if (contact) return <ContactLink format={contact} value={text} />
+  if (contact) return <ContactLink format={contact} value={text} label={linkText} />
   if (field.type === 'enum' || hints.format === 'badge') return <ValueBadge value={value} hints={hints}>{text}</ValueBadge>
   if (field.type === 'timestamp' || field.type === 'date') return <time dateTime={String(value)} title={valueTitle(field, value, undefined, hints)}>{text}</time>
   return <span title={valueTitle(field, value, undefined, hints)} className={cn(hints.format === 'code' && 'font-mono text-xs', (field.type === 'decimal' || field.type === 'integer') && 'tabular-nums', hints.multiline && 'whitespace-pre-line break-words')}>{text}</span>
 }
 
-const BuiltInValue = ({ model, field, value, format, relationLabel }: FieldValueProps) => {
+const BuiltInValue = ({ model, field, value, format, relationLabel, record }: FieldValueProps) => {
   const { views } = useAdminMeta()
   const hints = { ...views[model.name]?.fields[field.name], ...(format && { format }) }
-  return <ShownValue field={field} value={value} hints={hints} relationLabel={relationLabel} />
+  const linkText = record && hints.format === 'url' ? linkTextOf(model, views[model.name], field.name, record) : undefined
+  return <ShownValue field={field} value={value} hints={hints} relationLabel={relationLabel} linkText={linkText} />
 }
 
 /**

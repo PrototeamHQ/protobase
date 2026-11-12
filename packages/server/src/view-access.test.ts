@@ -56,6 +56,13 @@ describe('pruneView', () => {
     expect(filters(['paid', 'urgent'])).toEqual([])
   })
 
+  it("drops a url link's text that names a field the caller cannot read, so the link shows its address", () => {
+    const repairsView = view<typeof repairs>('repairs').fields((r) => ({ number: r.number.format('url', { text: 'Costs {costPrice}' }) })).toModel()
+    expect(pruneView(repairsView, all.repairs, all).fields).toEqual({ number: { format: 'url', linkText: 'Costs {costPrice}' } })
+    const hidden = without({ repairs: ['costPrice'] })
+    expect(pruneView(repairsView, hidden.repairs!, hidden).fields).toEqual({ number: { format: 'url' } })
+  })
+
   it('leaves out links that read a hidden field or lead where the caller cannot go', () => {
     const repairsView = view<typeof repairs>('repairs')
       .actions((a) => [

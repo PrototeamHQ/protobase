@@ -8,6 +8,8 @@ import { isMarkdown } from '../markdown/markdown-hint'
 import { recordTitleField } from './model-helpers'
 import { contactFormat } from './contact-links'
 import { valueTone } from './value-color'
+import { jsonSummary } from './json-summary'
+import { linkTextOf } from './link-text'
 
 const widths: Record<ColumnKind, number> = {
   text: 200,
@@ -79,6 +81,7 @@ export const columnsFromModel = (resource: ResourceModel, view: ViewModel | unde
       ...(name === title && { title: true }),
       // The title cell links to the record, so an address there stays text
       ...(kind === 'text' && name !== title && contactFormat(viewField) && { link: contactFormat(viewField) }),
+      ...(kind === 'text' && name !== title && viewField?.linkText !== undefined && { linkText: (row: { [key: string]: unknown }) => linkTextOf(resource, view, name, row) }),
       ...(highlight.includes(name) && { highlight: true }),
       ...(field.type === 'enum' && { tones: Object.fromEntries((field.enumValues ?? []).map((value) => [value, valueTone(viewField?.valueColors, value)])), labels }),
       ...(field.type === 'enum' && viewField?.valueColors && { colors: viewField.valueColors }),
@@ -89,6 +92,7 @@ export const columnsFromModel = (resource: ResourceModel, view: ViewModel | unde
       ...(kind === 'money' && viewField?.decimals !== undefined && { decimals: viewField.decimals }),
       ...(kind === 'money' && viewField?.currency !== undefined && { currency: viewField.currency, value: (row: { [key: string]: unknown }) => (row[name] == null ? null : currencyCents(row[name])) }),
       ...((kind === 'datetime' || kind === 'date') && { value: (row: { [key: string]: unknown }) => (row[name] == null ? null : Date.parse(String(row[name]))) }),
+      ...(field.type === 'json' && { value: (row: { [key: string]: unknown }) => (row[name] == null ? null : jsonSummary(row[name])) }),
       ...(isMarkdown(field, viewField) && { value: (row: { [key: string]: unknown }) => (typeof row[name] === 'string' ? markdownExcerpt(row[name]) : row[name]) }),
       ...((kind === 'percent' || (kind === 'number' && field.type === 'decimal')) && { value: (row: { [key: string]: unknown }) => (row[name] == null ? null : Number(row[name])) }),
     }
