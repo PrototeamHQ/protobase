@@ -23,11 +23,12 @@ struct DeviceKeychain: Keychain {
         [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrSynchronizable as String: kCFBooleanFalse as Any]
     }
 
+    static func attributes(_ data: Data) -> [String: Any] {
+        [kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly, kSecValueData as String: data]
+    }
+
     static func addQuery(_ service: String, _ data: Data) -> [String: Any] {
-        query(service).merging([
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-            kSecValueData as String: data,
-        ]) { $1 }
+        query(service).merging(attributes(data)) { $1 }
     }
 
     func read(_ service: String) throws -> Data? {
@@ -38,11 +39,16 @@ struct DeviceKeychain: Keychain {
         return data
     }
 
-    /** Replaces the item, so its accessibility is always the one `addQuery` gives. */
+    /**
+     * Updates the item in place, its accessibility included, so a failed write keeps the item it had; adds it only when
+     * there is none.
+     */
     func write(_ service: String, _ data: Data) throws {
-        try delete(service)
-        let status = SecItemAdd(Self.addQuery(service, data) as CFDictionary, nil)
-        guard status == errSecSuccess else { throw KeychainError(status: status) }
+        let updated = SecItemUpdate(Self.query(service) as CFDictionary, Self.attributes(data) as CFDictionary)
+        if updated == errSecSuccess { return }
+        guard updated == errSecItemNotFound else { throw KeychainError(status: updated) }
+        let added = SecItemAdd(Self.addQuery(service, data) as CFDictionary, nil)
+        guard added == errSecSuccess else { throw KeychainError(status: added) }
     }
 
     func delete(_ service: String) throws {

@@ -17,6 +17,8 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertEqual(query[kSecAttrAccessible as String] as! CFString, kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
         XCTAssertEqual(query[kSecAttrSynchronizable as String] as? Bool, false)
         XCTAssertEqual(query[kSecClass as String] as! CFString, kSecClassGenericPassword)
+        let update = DeviceKeychain.attributes(Data())
+        XCTAssertEqual(update[kSecAttrAccessible as String] as! CFString, kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
     }
 
     func testKeepsAndLoadsTheCookies() throws {
