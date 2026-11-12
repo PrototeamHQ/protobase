@@ -1,21 +1,31 @@
 import type { ReactNode } from 'react'
-import { HeadingLevel } from '../lib/heading-level'
+import { HeadingLevel, useHeadingLevel } from '../lib/heading-level'
 
-type SectionProps = { title?: string; help?: string; actions?: ReactNode; count?: ReactNode; children: ReactNode }
+type Level = 2 | 3 | 4 | 5 | 6
+type SectionProps = { title?: string; help?: string; actions?: ReactNode; count?: ReactNode; level?: Level; children: ReactNode }
+
+const headingTags = { 2: 'h2', 3: 'h3', 4: 'h4', 5: 'h5', 6: 'h6' } as const
+
+/** One below the heading the section sits under, such as h3 in a group; h2 at the top of a page. */
+const useSectionLevel = () => Math.min(Math.max(useHeadingLevel(), 1) + 1, 6) as Level
 
 /**
  * A section's title, `count` after it, its `actions` at the end of the title's line and its help, over its content,
- * with no frame or spacing around them. Headings in the content, such as a markdown value's, go below the title's h2.
+ * with no frame or spacing around them. The title is an h`level`, by default one below the heading the section sits
+ * under; headings in the content, such as a markdown value's, go below the title.
  */
-export const SectionContent = ({ title, help, actions, count, children }: SectionProps) => {
+export const SectionContent = ({ title, help, actions, count, level, children }: SectionProps) => {
+  const inherited = useSectionLevel()
+  const headingLevel = level ?? inherited
+  const Heading = headingTags[headingLevel]
   const heading = title ? (
-    <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+    <Heading className="flex items-center gap-2 text-base font-semibold text-foreground">
       {title}
       {count}
-    </h2>
+    </Heading>
   ) : null
   const headed = Boolean(heading || actions || help)
-  const content = heading ? <HeadingLevel.Provider value={2}>{children}</HeadingLevel.Provider> : children
+  const content = heading ? <HeadingLevel.Provider value={headingLevel}>{children}</HeadingLevel.Provider> : children
   return (
     <>
       {actions ? (
@@ -33,9 +43,9 @@ export const SectionContent = ({ title, help, actions, count, children }: Sectio
 }
 
 /** A titled part of the record page; `count` sits after the title, `actions` at the end of the title's line. */
-export const Section = ({ title, help, actions, count, children }: SectionProps & { title: string }) => (
+export const Section = ({ title, help, actions, count, level, children }: SectionProps & { title: string }) => (
   <section className="py-8 first:pt-8">
-    <SectionContent title={title} help={help} actions={actions} count={count}>
+    <SectionContent title={title} help={help} actions={actions} count={count} level={level}>
       {children}
     </SectionContent>
   </section>

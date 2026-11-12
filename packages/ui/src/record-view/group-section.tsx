@@ -3,6 +3,7 @@ import { useId, type ReactNode } from 'react'
 import type { AppAddress } from '@protobase/schema'
 import { cn } from '../lib/cn'
 import { AppLink } from '../app/use-app-address'
+import { HeadingLevel } from '../lib/heading-level'
 
 const headingClass = 'text-base font-semibold text-foreground'
 
@@ -11,7 +12,7 @@ type GroupSectionProps = { title: string; help?: string; count?: ReactNode; open
 /**
  * A heading over sections of the record page, `count` after its title and `help` under it. With `toggle`, the address
  * that opens or closes it, the heading is a link, so a copied link opens the page with the group open; the items show
- * only while `open`. Without it the group is always open.
+ * only while `open`. Without it the group is always open. Its heading is an h2 and the sections in it head with h3.
  */
 export const GroupSection = ({ title, help, count, open, toggle, children }: GroupSectionProps) => {
   const id = useId()
@@ -33,7 +34,7 @@ export const GroupSection = ({ title, help, count, open, toggle, children }: Gro
       </div>
       {open && (
         <div id={id} className="divide-y divide-border">
-          {children}
+          <HeadingLevel.Provider value={2}>{children}</HeadingLevel.Provider>
         </div>
       )}
     </div>
