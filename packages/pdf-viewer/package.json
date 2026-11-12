@@ -1,7 +1,7 @@
 {
   "name": "@protobase/pdf-viewer",
   "version": "0.14.2",
-  "description": "A file viewer plugin that opens stored PDF files in the admin app with pdf.js, loaded only when one opens.",
+  "description": "A file viewer plugin that opens stored PDF files in the admin app, loaded only when one opens.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
