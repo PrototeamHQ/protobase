@@ -1111,6 +1111,10 @@ export type ThreadSectionModel = {
   time: string
   /** The message itself: a text field. */
   text: string
+  /** A short line under each message, such as whether it was delivered: a text or enum field, its enum labels shown. */
+  status?: string
+  /** An AIP-160 condition over the saved record, such as `state = 'working'`: while it holds, the thread ends in a working indicator. */
+  working?: string
   /** How many of the latest messages it shows at first; 50 when omitted. */
   limit?: number
   /** What it says while there are no messages. */

@@ -49,6 +49,20 @@ describe('prunePage', () => {
     expect(shown({ models: restricted({}, {}, ['messages']) })).toEqual([])
   })
 
+  it('drops a thread’s status line and working indicator when the caller cannot read what they name', () => {
+    const page: PageModel = {
+      name: 'chat',
+      title: 'Chat',
+      tree: Page({ title: 'Chat', children: RecordCard({ resource: 'subscriptions', children: Thread({ resource: 'messages', sender: 'author', time: 'sentAt', text: 'body', status: 'room', working: "status = 'active'" }) }) }),
+    }
+    const thread = (models: CallerAccess['models']) => {
+      const props = find(prunePage(page, [], access({ models })), 'Thread')?.props
+      return props && { status: props.status, working: props.working }
+    }
+    expect(thread(restricted({}))).toEqual({ status: 'room', working: "status = 'active'" })
+    expect(thread(restricted({ messages: ['room'], subscriptions: ['status'] }))).toEqual({ status: undefined, working: undefined })
+  })
+
   it('leaves out a chart whose grouped or added up field the caller cannot read', () => {
     const page: PageModel = {
       name: 'charts',

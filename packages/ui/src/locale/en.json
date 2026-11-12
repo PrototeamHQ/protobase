@@ -1654,7 +1654,8 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "newMessages": "New messages",
-    "loadEarlier": "Load earlier messages"
+    "loadEarlier": "Load earlier messages",
+    "working": "Writing a reply…"
   },
   "compact-table": {
     "table": "Table",

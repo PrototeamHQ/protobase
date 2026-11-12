@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
 import { Button } from '../primitives/button'
+import { ChatWorking } from './chat-working'
 import { readPlace } from './read-place'
 import { scrollAfterChange, type ThreadPlace } from './thread-scroll'
 import { useReadToEnd } from './use-read-to-end'
@@ -23,6 +24,8 @@ export type ChatThreadProps = {
    * when they scroll to the end, and when the page shows again with them there. Moves a read position, for one.
    */
   onReadToEnd?: () => void
+  /** The other side is writing a reply: the chat ends in a working indicator, which a reader at the end follows. */
+  working?: boolean
 }
 
 // The first "New messages" line of a list, as `ChatDivider tone="new"` draws it.
@@ -34,7 +37,7 @@ const newLineOf = (list: Element) => list.querySelector('[data-chat-divider][dat
  * and earlier messages loaded above keep them on the message they were reading. It scrolls inside itself, not with the
  * page, since a chat keeps its composer in view beneath it.
  */
-export const ChatThread = ({ children, empty, length, onLoadEarlier, loadingEarlier, followKey, onReadToEnd }: ChatThreadProps) => {
+export const ChatThread = ({ children, empty, length, onLoadEarlier, loadingEarlier, followKey, onReadToEnd, working }: ChatThreadProps) => {
   const box = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLDivElement>(null)
   const place = useRef<ThreadPlace<Element>>({ atEnd: true, first: undefined, followKey })
@@ -60,7 +63,7 @@ export const ChatThread = ({ children, empty, length, onLoadEarlier, loadingEarl
     if (next !== undefined) element.scrollTop = next
     remember()
     if (readToEnd()) tellRead()
-  }, [length, followKey])
+  }, [length, followKey, working])
 
   // A chat that shows its end keeps showing it as it or its messages change size, such as a composer growing beneath it
   useEffect(() => {
@@ -86,6 +89,7 @@ export const ChatThread = ({ children, empty, length, onLoadEarlier, loadingEarl
       <div ref={list} role="log" aria-live="polite" className={cn('flex flex-col gap-4', showsEmpty && 'hidden')}>
         {children}
       </div>
+      {working && <ChatWorking />}
     </div>
   )
 }

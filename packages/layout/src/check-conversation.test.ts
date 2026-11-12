@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Composer, Page, Thread } from './blocks'
+import { Composer, Page, RecordCard, Thread } from './blocks'
 import { pageProblems } from './check-page'
 import { structureProblems } from './check-structure'
 import type { LayoutNode } from './node'
@@ -39,6 +39,19 @@ describe('a conversation', () => {
   it('orders the messages by a time the API can sort by', () => {
     expect(problems(Thread({ resource: 'messages', sender: 'author', time: 'body', text: 'body' }))).toEqual([`${thread}: time: "body" is text; a thread orders its messages by a date or timestamp field`])
     expect(problems(Thread({ resource: 'messages', sender: 'author', time: 'sentOn', text: 'body' }))).toEqual([expect.stringMatching(/Thread.*: time: .*sentOn/)])
+  })
+
+  it('shows a text or enum field as each message’s status', () => {
+    expect(problems(Thread({ resource: 'messages', sender: 'author', time: 'sentAt', text: 'body', status: 'room' }))).toEqual([])
+    expect(problems(Thread({ resource: 'messages', sender: 'author', time: 'sentAt', text: 'body', status: 'pinned' }))).toEqual([`${thread}: status: "pinned" is boolean; a message's status is a text or enum field`])
+    expect(problems(Thread({ resource: 'messages', sender: 'author', time: 'sentAt', text: 'body', status: 'state' }))).toEqual([`${thread}: status: unknown field "state" on messages`])
+  })
+
+  it('shows its working indicator by a condition on the record around it', () => {
+    const working = (condition: string) => problems(RecordCard({ resource: 'subscriptions', children: Thread({ resource: 'messages', sender: 'author', time: 'sentAt', text: 'body', working: condition }) }))
+    expect(working("status = 'active'")).toEqual([])
+    expect(working("state = 'busy'")).toEqual([expect.stringMatching(/Thread.*: working: .*state/)])
+    expect(problems(Thread({ resource: 'messages', sender: 'author', time: 'sentAt', text: 'body', working: "status = 'active'" }))).toEqual([expect.stringMatching(/Thread.*: working: .*outside a record/)])
   })
 
   it('writes a message into a text field the sender may set', () => {

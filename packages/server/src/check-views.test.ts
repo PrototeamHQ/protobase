@@ -362,7 +362,7 @@ describe('checkViews', () => {
   })
 
   it("takes a record's conversation over messages that point at it, and names what does not fit", () => {
-    const tasks = resource('tasks').table('tasks').fields({ id: f.integer() }).primaryKey((r) => r.id)
+    const tasks = resource('tasks').table('tasks').fields({ id: f.integer(), state: f.text() }).primaryKey((r) => r.id)
     const notes = resource('task_notes')
       .table('task_notes')
       .fields({ id: f.integer(), task_id: f.relation('tasks').filterable(), payment_id: f.relation('payments').filterable(), author: f.text(), at: f.timestamp().sortable(), body: f.text(), done: f.boolean(), secret: f.text().sensitive() })
@@ -377,6 +377,10 @@ describe('checkViews', () => {
     expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, text: 'done' }))])).toThrow('thread "Notes": text: "done" is boolean; a message is a text field')
     expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, sender: 'id' }))])).toThrow('thread "Notes": sender: "id" is integer; a sender is a relation or a text field')
     expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, sender: 'payment_id' }))])).not.toThrow()
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, status: 'author', working: "state = 'working'" }))])).not.toThrow()
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, status: 'done' }))])).toThrow(`thread "Notes": status: "done" is boolean; a message's status is a text or enum field`)
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, status: 'secret' }))])).toThrow('thread "Notes": "secret" on task_notes is sensitive')
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, working: 'busy = true' }))])).toThrow('thread "Notes": working: ')
     expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, limit: 501 }))])).toThrow('thread "Notes": limit must be a whole number from 1 to 500')
     // A thread loads one page at a time, so its largest limit is the API's largest page
     expect(maxThreadLimit).toBe(maxPageSize)

@@ -543,7 +543,7 @@ Only a caller without a token gets the prompts, in `/api/meta` as `signIn`, for 
 | `l.custom(Component, { title?, props?, sidebar?, when?, fallback? })` | A [custom component](/reference/custom-components/#record-sections) where it is listed: in the main column under `title`, or with `sidebar: true` as a sidebar card. [`fallback`](/reference/custom-components/#record-section-fallbacks) shows in its place where it cannot be drawn. |
 | `l.map(title, { latitude, longitude, zoom?, sidebar?, when? })` | A map with a pin at the record's position, in the main column or with `sidebar: true` as a sidebar card. See [Maps](#maps). |
 | `l.chart(title, { resource, field, at, series, range?, help?, when? })` | Line graphs of numbers of the records that point at this one, such as a machine's samples, over the last hour, day or week. See [Charts of related records](#charts-of-related-records). |
-| `l.thread(title, { resource, field, sender, time, text, limit?, empty?, help?, when? })` | The record's conversation: the latest messages that point at it, oldest first, under each sender's name and time. See [Conversations](#conversations). |
+| `l.thread(title, { resource, field, sender, time, text, status?, working?, limit?, empty?, help?, when? })` | The record's conversation: the latest messages that point at it, oldest first, under each sender's name and time. See [Conversations](#conversations). |
 | `l.composer({ resource, field, text, placeholder?, when? })` | A box that sends a message about the record, which the thread then shows. See [Conversations](#conversations). |
 | `l.gallery(title, { image?, photos?, when? })` | The record's photos as tiles, opening a lightbox. See [Galleries](#galleries). |
 | `l.history(title?, { limit?, when? })` | The record's changes, newest first, with who made each and the fields before and after; needs `.history()` on the resource, and a view without a layout shows it last by itself. See [Record history](/reference/history/#on-the-record-page). |
@@ -1038,6 +1038,8 @@ The thread shows the latest messages oldest first, each under its sender's name 
 | `sender` | Who wrote each message: a relation, named as the record it points at, or a text field. Required. |
 | `time` | When each was sent: a date or timestamp field the API can sort by, which orders them. Required. |
 | `text` | The message, a text field. Required. |
+| `status` | A short line under each message, such as whether it was delivered: a text or enum field. See [Message status and a working indicator](#message-status-and-a-working-indicator). |
+| `working` | A condition on this record, such as `state = 'working'`, while which the thread ends in a working indicator. |
 | `limit` | How many of the latest it shows at first, and how many each **Load earlier messages** adds: 1 to 500, the API's largest page; default 50. |
 | `empty` | Text while there are no messages. |
 | `help`, `when` | A line under the title, and whether it shows on the form, the read view or both. |
@@ -1063,6 +1065,27 @@ view<typeof tasks>('tasks').layout((r) => [
 The messages are read with `field = <this record's key>` as the filter, newest first by `time`, so the user's access applies as on the list. That read needs an index on `(field, time)`, such as `create index on task_messages (task_id, sent_at)`, which [`protobase doctor`](/reference/cli/#doctor) checks. A user who cannot read `field`, `sender`, `time` or `text` gets no thread, and one who may not create a message with `field` and `text` gets no composer. A `field` that is no relation to this resource, a `time` that is no date or timestamp the API can sort by, a `sender` that is no relation or text field, a thread `text` that is no text field, a sensitive field in the thread, or a composer `text` that is no writable text field stops the server at startup. As with a related section, the record page's count of the records that point at it leaves out the messages its thread shows.
 
 <StoryFrame id="record-page-conversation--record-conversation" title="A task's conversation, its messages in markdown" height={760} />
+
+#### Message status and a working indicator
+
+:::caution[Experimental]
+Each message shows one status line, and the indicator says only that a reply is being written, not who writes it.
+:::
+
+A thread can say whether each message arrived and whether a reply is on its way, as a chat with an assistant or a teammate does. `status` names a text or enum field of the messages, such as `delivery`, shown in small type under each message that has a value, with the labels the message resource's view gives its enum values; a message without one shows no line. `working` is a condition on the record the thread belongs to, written as for [conditional sections](#form-and-read-view), such as `state = 'working'`: while it holds, the thread ends in three pulsing dots, which screen readers read as "Writing a reply…", and a reader at the end of the thread keeps seeing them.
+
+```ts
+view<typeof chat_messages>('chat_messages').fields((r) => ({ delivery: r.delivery.valueLabels({ sent: 'Sent', delivered: 'Delivered' }) }))
+
+view<typeof chats>('chats').layout((r) => [
+  l.thread('Conversation', { resource: 'chat_messages', field: 'chat_id', sender: 'sender', time: 'sent_at', text: 'body', status: 'delivery', working: "state = 'working'" }),
+  l.composer({ resource: 'chat_messages', field: 'chat_id', text: 'body' }),
+])
+```
+
+Both change without a reload when their resources are [live](/reference/live/): a status as its message changes, and the indicator as the record does. A user who cannot read the status field sees the thread without the line, and one who cannot read what `working` names sees it without the indicator. A `status` that is no text or enum field, or is sensitive, and a `working` that does not parse or names a field the record does not have, stop the server at startup.
+
+<StoryFrame id="record-page-conversation-status--thread-status" title="A chat whose messages say they arrived, while the assistant writes a reply" height={760} />
 
 ## Actions and views per role
 

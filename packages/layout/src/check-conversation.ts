@@ -5,11 +5,21 @@ const datedTypes = ['date', 'timestamp']
 
 const fieldOf = (model: ResourceModel, name: string) => (Object.hasOwn(model.fields, name) ? model.fields[name] : undefined)
 
-/** The fields a thread reads of each message: who wrote it, when, and the message itself. */
-export type MessageFields = { sender: string; time: string; text: string }
+/** The fields a thread reads of each message: who wrote it, when, the message itself, and a short line under it. */
+export type MessageFields = { sender: string; time: string; text: string; status?: string }
 
-/** The fields a thread reads of each message: its sender, its time and its text. */
+/** The fields a thread needs of each message: its sender, its time and its text; its status line is left out without one. */
 export const threadFields = (node: LayoutNode) => [String(node.props.sender), String(node.props.time), String(node.props.text)]
+
+const statusTypes = ['text', 'enum']
+
+/** Why a thread cannot show the field `status` under each message: it is unknown, or neither a text nor an enum field. */
+export const messageStatusProblems = (status: string | undefined, model: ResourceModel): string[] => {
+  if (status === undefined) return []
+  const field = fieldOf(model, status)
+  if (!field) return [`status: unknown field "${status}" on ${model.name}`]
+  return statusTypes.includes(field.type) ? [] : [`status: "${status}" is ${field.type}; a message's status is a text or enum field`]
+}
 
 /** The order a thread reads its messages in, by its `time` field: the newest first, which it shows oldest first. */
 export const threadSort = (time: string) => `${time} desc`
@@ -32,9 +42,10 @@ export const maxThreadLimit = 500
 export const threadLimitProblems = (limit: unknown): string[] =>
   limit === undefined || (Number.isInteger(limit) && (limit as number) > 0 && (limit as number) <= maxThreadLimit) ? [] : [`limit must be a whole number from 1 to ${maxThreadLimit}`]
 
-/** What a thread names that its message resource does not have, or cannot order the messages by, and a limit it cannot read. */
+/** What a thread names that its message resource does not have, or cannot order the messages by or show as a status, and a limit it cannot read. */
 export const threadProblems = (node: LayoutNode, model: ResourceModel): string[] => [
   ...messageFieldsProblems({ sender: String(node.props.sender), time: String(node.props.time), text: String(node.props.text) }, model),
+  ...messageStatusProblems(typeof node.props.status === 'string' ? node.props.status : undefined, model),
   ...threadLimitProblems(node.props.limit),
 ]
 
