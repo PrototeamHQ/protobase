@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { offeredBulkActions, runBulkAction, type BulkAction } from './bulk-actions'
+import { offeredBulkActions, oneBulkRunAtATime, runBulkAction, type BulkAction } from './bulk-actions'
 
 const rows = [
   { id: '1', status: 'running' },
@@ -37,5 +37,30 @@ describe('runBulkAction', () => {
   it('is done with the rows the run did not leave open, such as refused ones', async () => {
     const approve: BulkAction = { label: (n) => `Approve ${n}`, onRun: async () => [{ id: '3', status: 'running' }] }
     expect(await runBulkAction(approve, rows, 0)).toEqual([rows[0], rows[1]])
+  })
+})
+
+describe('oneBulkRunAtATime', () => {
+  it('starts no second run while one is in flight, and runs again once it ends', async () => {
+    let finish = (_open: typeof rows) => {}
+    let runs = 0
+    const approve: BulkAction = { label: (n) => `Approve ${n}`, onRun: () => { runs += 1; return new Promise((resolve) => (finish = resolve)) } }
+    const run = oneBulkRunAtATime()
+    const first = run(approve, rows, 0)
+    expect(await run(approve, rows, 0)).toBeUndefined()
+    finish([])
+    expect(await first).toEqual(rows)
+    const second = run(approve, rows, 0)
+    finish(rows)
+    expect(await second).toEqual([])
+    expect(runs).toBe(2)
+  })
+
+  it('runs again after a run that failed, even before it returned', async () => {
+    const broken: BulkAction = { label: (n) => `Approve ${n}`, onRun: () => { throw new Error('broken') } }
+    const run = oneBulkRunAtATime()
+    await expect(run(broken, rows, 0)).rejects.toThrow('broken')
+    const exportRows: BulkAction = { label: (n) => `Export ${n}`, onRun: () => undefined }
+    expect(await run(exportRows, rows, 0)).toEqual(rows)
   })
 })

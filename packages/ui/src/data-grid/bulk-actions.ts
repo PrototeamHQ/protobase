@@ -22,3 +22,17 @@ export const runBulkAction = async (action: BulkAction, rows: GridRow[], skipped
   const kept = new Set(open.map((row) => row.id))
   return rows.filter((row) => !kept.has(row.id))
 }
+
+/** A `runBulkAction` that starts no second run while one is in flight: a press meanwhile resolves to nothing. */
+export const oneBulkRunAtATime = () => {
+  let running = false
+  return async (action: BulkAction, rows: GridRow[], skipped: number) => {
+    if (running) return
+    running = true
+    try {
+      return await runBulkAction(action, rows, skipped)
+    } finally {
+      running = false
+    }
+  }
+}
