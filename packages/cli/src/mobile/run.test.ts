@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ChildOptions } from './child-process'
+import { writeAndroidTemplate } from './android-template-fixture'
 import { writeIosTemplate } from './ios-template-fixture'
 import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
 import { nativeDependencies } from './pinned-packages'
@@ -55,6 +56,7 @@ const fakeRun =
     }
     if (command === 'node' && args[1] === 'add') writeTemplateIcon(options.cwd, args[2] === 'ios' ? 'ios' : 'android')
     if (command === 'node' && args[1] === 'add' && args[2] === 'android') {
+      writeAndroidTemplate(options.cwd)
       write(path.join(options.cwd, 'android/app/src/main/assets/capacitor.plugins.json'), JSON.stringify(android))
     }
     if (command === 'node' && args[1] === 'add' && args[2] === 'ios') {
@@ -115,6 +117,17 @@ describe('mobileRun', () => {
       }
     })
   }
+
+  it('opts the Android app out of backup and device transfer, for run and open', async () => {
+    for (const command of [mobileRun, mobileOpen]) {
+      const dir = project("{ appId: 'com.example.shop' }")
+      await command({ projectDir: dir, platform: 'android', api: 'https://api.example.com', extensions: [] }, () => {}, { run: fakeRun([]), build, fetch, capture })
+      const main = path.join(dir, '.protobase', 'mobile', 'android', 'app', 'src', 'main')
+      expect(readFileSync(path.join(main, 'AndroidManifest.xml'), 'utf8')).toContain('android:allowBackup="false"')
+      expect(readFileSync(path.join(main, 'res', 'xml', 'data_extraction_rules.xml'), 'utf8')).toContain('<cloud-backup>')
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 
   describe('with notifications()', () => {
     const withNotifications = (googleServices: boolean) => {

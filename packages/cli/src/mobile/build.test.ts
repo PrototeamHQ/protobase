@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { androidSigningVariables } from './android-signing'
+import { writeAndroidTemplate } from './android-template-fixture'
 import { mobileBuild } from './build'
 import type { ChildOptions } from './child-process'
 import { iosArchiveArgs, iosExportArgs } from './ios-release'
@@ -78,6 +79,7 @@ const fakeRun = (calls: Call[], gradleOutcome: 'bundle' | 'nothing' | 'fail' = '
     writeTemplateIcon(ws, args[2] === 'ios' ? 'ios' : 'android')
     if (args[2] === 'android') {
       write(path.join(ws, 'android/app/build.gradle'), gradle)
+      writeAndroidTemplate(ws)
       write(path.join(ws, 'android/app/src/main/assets/capacitor.plugins.json'), JSON.stringify(protobasePluginClasses.map((classpath) => ({ pkg: '@protobase/mobile', classpath }))))
     } else {
       write(path.join(ws, 'ios/App/App.xcodeproj/project.pbxproj'), pbxproj)
@@ -141,6 +143,8 @@ describe('mobileBuild android', () => {
     // Gradle's environment is exactly the others' plus the four variables, the keystore absolute.
     expect(gradle.env).toEqual({ ...npm.env, ...signing, PROTOBASE_ANDROID_KEYSTORE: path.join(dir, 'keys', 'upload.jks') })
     expect(gradle.cwd).toBe(path.join(ws(dir), 'android'))
+    expect(readFileSync(path.join(ws(dir), 'android/app/src/main/AndroidManifest.xml'), 'utf8')).toContain('android:allowBackup="false"')
+    expect(existsSync(path.join(ws(dir), 'android/app/src/main/res/xml/data_extraction_rules.xml'))).toBe(true)
     expectNoSigningSeen()
     for (const { args } of calls) expect(args.join(' ')).not.toMatch(new RegExp(`${storePassword}|${keyPassword}`))
 

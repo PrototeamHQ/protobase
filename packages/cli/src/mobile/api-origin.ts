@@ -27,8 +27,11 @@ export const apiUrl = (given: string | undefined, issuer: string | undefined, pl
   return url
 }
 
-/** What the app must allow to reach `url`: plain http, and on Android mixed content for a host that is not loopback. */
-export const httpAllowances = (url: URL) => ({ cleartext: url.protocol === 'http:', mixedContent: url.hostname === '10.0.2.2' })
+/**
+ * What the app must allow to reach `url`: plain http, and on Android mixed content for plain http to the emulator's
+ * host, which is not loopback, so the https page could not call it otherwise.
+ */
+export const httpAllowances = (url: URL) => ({ cleartext: url.protocol === 'http:', mixedContent: url.protocol === 'http:' && url.hostname === '10.0.2.2' })
 
 export type HttpAllowances = ReturnType<typeof httpAllowances>
 
