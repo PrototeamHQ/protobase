@@ -1346,7 +1346,8 @@
     "couldNotLoad": "Kon niet laden",
     "nothingYet": "Hier staat nog niets.",
     "open": "{singular} openen",
-    "add": "{singular} toevoegen"
+    "add": "{singular} toevoegen",
+    "left": "Klaar: {action}, {title}. Het staat niet meer in deze lijst."
   },
   "app/related-dots": {
     "none": "Geen {plural}"
