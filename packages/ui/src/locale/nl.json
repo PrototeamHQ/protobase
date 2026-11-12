@@ -477,9 +477,15 @@
     "no": "Nee",
     "nothingYet": "Nog niets om in een grafiek te zetten.",
     "couldNotLoad": "Kon de grafiek niet laden.",
-    "weekOf": "Week van {day}",
     "other": "Overig",
-    "records": "{count} records"
+    "records": "{count} records",
+    "toToday": "{start} tot vandaag",
+    "period": "Periode",
+    "count": "Aantal",
+    "sum": "Totaal",
+    "average": "Gemiddelde",
+    "maximum": "Maximum",
+    "chartKeys": "Grafiek: lees elke periode met de pijltjestoetsen links en rechts"
   },
   "app/comments": {
     "couldNotPost": "Kon de opmerking niet plaatsen",

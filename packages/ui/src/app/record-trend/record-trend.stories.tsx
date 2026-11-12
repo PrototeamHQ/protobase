@@ -1,9 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { expect, waitFor, within } from 'storybook/test'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { createStaticSession } from '@protobase/client'
 import { f, l, resource, view } from '@protobase/schema'
 import { App } from '../app'
+import { zoneOffset, viewerZone } from '../../format/zone'
 import { fakeApi } from '../testing/fake-api'
 
 const meta = { title: 'Record page/Trends of related records', parameters: { layout: 'fullscreen' } } satisfies Meta
@@ -39,12 +40,12 @@ const taskRows = [
   ...Array.from({ length: 5 }, () => [2, '2026-10-13T09:00:00Z']),
 ].map(([objective, at], index) => shipped(objective as number, at as string | null, index))
 
-const Objective = () => {
+const Objective = ({ rows = taskRows }: { rows?: typeof taskRows }) => {
   const [api] = useState(() =>
     fakeApi({
       resources: [objectives.toModel(), tasks.toModel()],
       views: [objectivesView.toModel()],
-      rows: { objectives: [{ id: 1, name: 'Faster checkout' }, { id: 2, name: 'Fewer refunds' }], tasks: taskRows },
+      rows: { objectives: [{ id: 1, name: 'Faster checkout' }, { id: 2, name: 'Fewer refunds' }], tasks: rows },
     }),
   )
   return (
@@ -69,5 +70,41 @@ export const RecordTrendChecks: StoryObj = {
     await waitFor(() => expect(section.querySelectorAll('.recharts-bar-rectangle')).toHaveLength(3))
     const heights = [...section.querySelectorAll('.recharts-bar-rectangle')].map((bar) => bar.getBoundingClientRect().height)
     expect(heights.map((height) => Math.round((height / heights[1]!) * 10) / 10)).toEqual([2, 1, 3])
+  },
+}
+
+// One task shipped eight days ago, in a week gone by, and two this week, written on the viewer's clock as the chart reads it
+const viewerNow = Date.now() + zoneOffset(Date.now(), viewerZone())
+const thisWeekRows = [viewerNow - 8 * 86_400_000, viewerNow, viewerNow].map((at, index) => shipped(1, new Date(at).toISOString().slice(0, 19), index))
+
+export const RunningWeek: StoryObj = { name: 'This week still running', render: () => <Objective rows={thisWeekRows} /> }
+
+export const RunningWeekChecks: StoryObj = {
+  ...RunningWeek,
+  name: 'This week still running (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const section = (await within(canvasElement).findByRole('heading', { name: 'Shipped per week' })).closest('section')!
+    await waitFor(() => expect(section.querySelectorAll('.recharts-bar-rectangle')).toHaveLength(2))
+    // The running week's bar is outlined with a dash, the finished one is not
+    const outlines = [...section.querySelectorAll('.recharts-bar-rectangle path')].map((bar) => bar.getAttribute('stroke-dasharray'))
+    expect(outlines).toEqual([null, '3 2'])
+    // A screen reader reads every week and its count in a table, the running one up to today
+    const rows = within(section).getAllByRole('row').map((row) => row.textContent)
+    expect(rows[0]).toBe('PeriodCount')
+    expect(rows[1]).toMatch(/^\d+( \w+)?( \d{4})?\s*–\s*\d+ \w+ \d{4}1$/)
+    expect(rows[2]).toMatch(/^\d+ \w+( \d{4})? to today2$/)
+    // The chart takes focus and shows the first week's tooltip; the right arrow moves it to this week and Escape closes it
+    const tooltip = () => section.querySelector('.recharts-tooltip-wrapper')?.textContent ?? ''
+    const chart = within(section).getByRole('application', { name: 'Chart: use the left and right arrow keys to read each period' })
+    chart.focus()
+    expect(chart).toHaveStyle({ outlineStyle: 'solid' })
+    await waitFor(() => expect(tooltip()).toBe(rows[1]))
+    await userEvent.keyboard('{ArrowRight}')
+    await waitFor(() => expect(tooltip()).toBe(rows[2]))
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(tooltip()).toBe(''))
+    await userEvent.keyboard('{ArrowLeft}')
+    await waitFor(() => expect(tooltip()).toBe(rows[1]))
   },
 }
