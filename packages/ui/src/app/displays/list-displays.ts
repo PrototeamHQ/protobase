@@ -1,5 +1,5 @@
 import type { FieldModel, FieldViewModel, ListDisplayModel, ResourceModel, ViewModel } from '@protobase/schema'
-import { encodeKey, tableDisplay } from '@protobase/schema/internal'
+import { encodeKey, tableDisplay, textPlaceholders } from '@protobase/schema/internal'
 import { listColumnNames } from '../../live/columns-from-model'
 import { displayValue } from '../../live/display-value'
 import { recordKey, recordTitleField } from '../../live/model-helpers'
@@ -148,11 +148,18 @@ export const shownFields = (model: ResourceModel, view: ViewModel | undefined, d
   return [image, title, subtitle, ...amount, badge, code, ...meta, ...footer, ...flags].filter((name): name is string => name !== undefined)
 }
 
-/** The fields to label the list's rows for: the table's columns and every display's, so one load serves them all. */
+// The fields the link texts of shown fields take from the row, such as a report's title for its url.
+const linkTextFields = (view: ViewModel | undefined, shown: string[]) => shown.flatMap((name) => textPlaceholders(view?.fields[name]?.linkText ?? ''))
+
+/**
+ * The fields to label the list's rows for: the table's columns, every display's and the fields their link texts name,
+ * so one load serves them all.
+ */
 export const loadedFields = (model: ResourceModel, view: ViewModel | undefined, columns: string[]) => {
   const rows = phoneRows(model, view)
   const displays = rows ? [...displaysOf(view), rows] : displaysOf(view)
-  return [...new Set([...columns, ...displays.flatMap((display) => shownFields(model, view, display))])]
+  const shown = [...columns, ...displays.flatMap((display) => shownFields(model, view, display))]
+  return [...new Set([...shown, ...linkTextFields(view, shown)])]
 }
 
 /**

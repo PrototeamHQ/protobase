@@ -44,6 +44,10 @@ describe('ContactLink', () => {
     expect(html('url', 'https://example.nl')).toMatch(/^<a href="https:\/\/example.nl" target="_blank" rel="noreferrer" class="/)
   })
 
+  it('shows its label instead of the address when given', () => {
+    expect(renderToStaticMarkup(createElement(ContactLink, { format: 'url', value: 'https://example.nl/r/1', label: 'Error report' }))).toMatch(/^<a href="https:\/\/example.nl\/r\/1" [^>]*>Error report<\/a>$/)
+  })
+
   it('is text when the value is no address', () => {
     expect(html('url', 'example.nl')).toBe('<span>example.nl</span>')
   })

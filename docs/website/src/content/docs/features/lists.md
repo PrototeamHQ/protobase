@@ -6,6 +6,7 @@ description: The list page of each resource, with its columns, filters, charts, 
 - [Names and columns](/reference/ui-config/#names-and-columns): Each resource gets singular and plural names and a title field, and a list shows the columns you choose, with a starting sort and search.
 - [Field display hints](/reference/ui-config/#names-and-columns): Labels, help lines, badges, codes, percentages, currencies, units, decimals and relative times such as "5 minutes ago".
 - [Email, phone and web links](/reference/ui-config/#names-and-columns): Fields marked as email, phone or URL show as links and are edited with the matching phone keyboard and browser autofill.
+- [JSON fields and link text](/reference/ui-config/#json-fields-and-link-text) (experimental): Tables show JSON fields readably, and links can carry their own text.
 - [Markdown and long text](/reference/ui-config/#names-and-columns): Long text is edited in a box that grows with it. Markdown fields have Write and Preview and show rendered on the record page.
 - [Enum labels and colours](/reference/ui-config/#names-and-columns): Enum values get readable labels and badge colours that show everywhere the value appears, and badges can be drawn as arrows, as on a rating scale.
 - [Value tones and currencies](/reference/ui-config/#value-tones-and-currencies): An enum value's badge takes the tone or colour its view gives it, and a money field shows in the ISO 4217 currency its view names.

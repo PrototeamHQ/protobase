@@ -28,6 +28,11 @@ export const shownWidget = (fields: Readonly<Record<string, FieldWidget>> | unde
 /** `shownWidget` with the field types of the project's UI and its plugins. */
 export const useShownWidget = (field: FieldModel, hints: FieldViewModel | undefined) => shownWidget(useProjectUi().fields, field, hints)
 
-/** Whether a field takes the whole row of a form: a text of several lines, markdown, or a field type that says so. */
-export const isWideField = (fields: Readonly<Record<string, FieldWidget>> | undefined, field: FieldModel, hints: FieldViewModel | undefined) =>
-  Boolean(hints?.multiline || hints?.markdown || shownWidget(fields, field, hints)?.widget.wide)
+/**
+ * Whether a field takes the whole row of a form: a text of several lines, markdown, a field type that says so, or JSON
+ * without one, which shows written out on several lines.
+ */
+export const isWideField = (fields: Readonly<Record<string, FieldWidget>> | undefined, field: FieldModel, hints: FieldViewModel | undefined) => {
+  const shown = shownWidget(fields, field, hints)
+  return Boolean(hints?.multiline || hints?.markdown || (shown ? shown.widget.wide : field.type === 'json'))
+}

@@ -370,6 +370,11 @@ export type FieldViewModel = {
   confirm?: string
   /** How the value is shown. */
   format?: FieldFormat
+  /**
+   * The text a `url` field's link shows instead of the address: fixed, such as `Error report`, or with `{field}`
+   * placeholders filled from the record, such as `{title}`; the address shows when it comes out empty.
+   */
+  linkText?: string
   /** A text that runs over several lines: forms edit it in a box that grows with it, and its line breaks show. */
   multiline?: boolean
   /** Markdown: forms edit its source with a preview, and it shows rendered, raw HTML as text. */

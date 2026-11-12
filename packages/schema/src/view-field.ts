@@ -58,10 +58,14 @@ export class FieldView<N extends string = string, V = unknown> {
   /**
    * How the value shows: `badge` for statuses, `code` in monospace, `percent` with a % sign, `signed` with its sign, green
    * above zero and red below; for a text field, `email`, `phone` and `url` as a mail, call or open link, edited with an
-   * email, phone or address keyboard on a mobile screen.
+   * email, phone or address keyboard on a mobile screen. `text` gives a `url` link the text it shows instead of the
+   * address, fixed or with `{field}` placeholders from the record: `.format('url', { text: '{title}' })`.
    */
-  format(format: FieldFormat) {
-    return this.with({ format })
+  format(format: FieldFormat, o: { text?: string } = {}) {
+    if (o.text === undefined) return this.with({ format })
+    if (format !== 'url') throw new Error(`Field "${this.name}": only format('url') takes a link text`)
+    if (o.text.trim() === '') throw new Error(`Field "${this.name}": format('url') needs a link text that is not empty`)
+    return this.with({ format, linkText: o.text })
   }
 
   /**

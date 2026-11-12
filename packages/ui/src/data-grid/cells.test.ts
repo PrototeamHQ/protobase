@@ -24,3 +24,17 @@ describe('renderCell for a user column', () => {
     expect(render(spec(), 'u1')).toContain('u1')
   })
 })
+
+describe('renderCell for a link column', () => {
+  const report = spec({ id: 'report', kind: 'text', link: 'url', linkText: (row) => (row.title ? String(row.title) : undefined) })
+  const row = (title?: string) => ({ id: '1', report: 'https://example.com/r/1', ...(title && { title }) })
+
+  it("shows the row's link text and links to the address", () => {
+    const html = renderToStaticMarkup(renderCell(report, 'https://example.com/r/1', row('Crash on save')))
+    expect(html).toMatch(/^<a href="https:\/\/example.com\/r\/1" target="_blank" rel="noreferrer" class="[^"]*">Crash on save<\/a>$/)
+  })
+
+  it('shows the address when the row gives no link text', () => {
+    expect(renderToStaticMarkup(renderCell(report, 'https://example.com/r/1', row()))).toContain('>https://example.com/r/1</a>')
+  })
+})

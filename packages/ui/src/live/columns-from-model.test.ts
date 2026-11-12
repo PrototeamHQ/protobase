@@ -101,6 +101,23 @@ describe('columnsFromModel', () => {
     expect(byId.createdAt?.value?.({ id: '1', createdAt: '2026-10-06T09:41:00.000Z' })).toBe(Date.UTC(2026, 9, 6, 9, 41))
   })
 
+  it('shows a JSON field as its summary rather than an object', () => {
+    const calls = { ...model, fields: { ...model.fields, input: field('input', 'json') } } as ResourceModel
+    const [input] = columnsFromModel(calls, { ...view, list: { columns: ['input'] } } as unknown as ViewModel)
+    expect(input).toMatchObject({ kind: 'text' })
+    expect(input?.value?.({ id: '1', input: { command: 'ls', cwd: '/tmp' } })).toBe('command: ls, cwd: /tmp')
+    expect(input?.value?.({ id: '1', input: null })).toBeNull()
+  })
+
+  it("gives a url column with link text each row's text, from the row's fields", () => {
+    const reports = { ...model, fields: { ...model.fields, url: field('url', 'text') } } as ResourceModel
+    const linked = { ...view, fields: { ...view.fields, url: { format: 'url', linkText: 'Report {number}' } }, list: { columns: ['number', 'url'] } } as unknown as ViewModel
+    const [, url] = columnsFromModel(reports, linked)
+    expect(url).toMatchObject({ kind: 'text', link: 'url' })
+    expect(url?.linkText?.({ id: '1', url: 'https://example.com/r/1', number: 'R-1' })).toBe('Report R-1')
+    expect(byId.number).not.toHaveProperty('linkText')
+  })
+
   it('marks the title column: the view\'s title, else the first text column of the list', () => {
     expect(columns.filter((column) => column.title).map((column) => column.id)).toEqual(['number'])
     const titled = columnsFromModel(model, { ...view, title: 'companyId' } as ViewModel)
