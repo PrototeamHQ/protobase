@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { GhServerError } from './gh-api'
-import { recentRuns, releasesMerge, runFilters } from './github'
+import { counts, recentRuns, releasesMerge, runFilters } from './github'
 import type { ApiJob, ApiRun } from './timings'
 
 const run = (id: number, startedAt = '', event = 'push'): ApiRun => ({ id, event, run_started_at: startedAt, updated_at: '', html_url: '' })
@@ -48,7 +48,35 @@ describe('releasesMerge', () => {
   })
 })
 
+describe('counts', () => {
+  const published = { ...release, until: 'npm' as const }
+  const publish = (conclusion: string) => [...planned, job('publish', conclusion)]
+
+  it('takes only the runs that published in a window clocked until npm', () => {
+    expect(counts(published, run(1), publish('success'))).toBe(true)
+    expect(counts(published, run(1), publish('skipped'))).toBe(false)
+    expect(counts(published, run(1, '', 'workflow_dispatch'), [...tagged, job('publish', 'success')])).toBe(false)
+  })
+
+  it('takes a run that published nothing in any other window', () => {
+    expect(counts(release, run(1), publish('skipped'))).toBe(true)
+  })
+})
+
 describe('recentRuns', () => {
+  it('fills a window clocked until npm past the runs that published nothing, from a full page', () => {
+    const paths: string[] = []
+    const get = <T>(path: string) => {
+      paths.push(path)
+      if (path.includes('event=push')) return { workflow_runs: [run(3, '2026-11-02T12:30:00Z'), run(2, '2026-11-02T12:20:00Z'), run(1, '2026-11-02T12:10:00Z')] } as T
+      if (path.startsWith('actions/workflows/')) return { workflow_runs: [] } as T
+      if (path.startsWith('actions/runs/2/')) return { jobs: [job('publish', 'skipped')] } as T
+      return { jobs: [job('publish', 'success')] } as T
+    }
+    expect(recentRuns({ ...release, until: 'npm' }, 2, get).map(({ run }) => run.id)).toEqual([3, 1])
+    expect(paths[0]).toContain('per_page=100')
+  })
+
   it('takes the tagless workflow_dispatch runs on main and fills the window past one given a tag', () => {
     const at = (minute: number) => `2026-11-02T12:${String(minute).padStart(2, '0')}:00Z`
     const get = <T>(path: string) => {

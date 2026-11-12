@@ -19,6 +19,13 @@ export interface ApiJob {
   created_at: string
   started_at: string
   completed_at: string | null
+  steps?: ApiStep[]
+}
+
+export interface ApiStep {
+  name: string
+  conclusion: string | null
+  completed_at: string | null
 }
 
 export interface Timing {
@@ -31,9 +38,11 @@ export interface RunTimings extends Timing {
   id: number
   url: string
   jobs: Map<string, Timing>
+  /** From the first job to the last, for a release run that published (serve-clock.ts). */
+  images?: number
 }
 
-const seconds = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / 1000
+export const seconds = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / 1000
 
 export const jobTiming = (job: ApiJob): Timing => {
   if (!job.completed_at) throw new Error(`job ${job.name} has not completed`)
