@@ -1345,7 +1345,8 @@
     "showLess": "Minder tonen",
     "couldNotLoad": "Kon niet laden",
     "nothingYet": "Hier staat nog niets.",
-    "open": "{singular} openen"
+    "open": "{singular} openen",
+    "add": "{singular} toevoegen"
   },
   "app/related-dots": {
     "none": "Geen {plural}"

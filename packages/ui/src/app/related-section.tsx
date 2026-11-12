@@ -5,6 +5,7 @@ import { Section } from '../record-view'
 import { HeadingCount } from '../record-view/heading-count'
 import { EmbeddedDisplaySwitch, EmbeddedList } from './embedded-list/embedded-list'
 import { useEmbeddedDisplay } from './embedded-list/use-embedded-display'
+import { relatedAdd } from './related-cards/related-add'
 import { RelatedCards } from './related-cards/related-cards'
 import { RelatedRecord } from './related-cards/related-record'
 import { relatedOpens } from './related-opens'
@@ -27,7 +28,7 @@ const Empty = ({ empty }: { empty: string | undefined }) => <p className="text-m
  * hand within this record, **Reorder** shows them all in their order, to be moved by their drag handles.
  */
 export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; value: string | number | boolean | null; owner: string }) => {
-  const { resources, views } = useAdminMeta()
+  const { resources, views, pages } = useAdminMeta()
   const model = resources[item.resource]
   const view = model && views[model.name]
   const match = relatedMatch(item, value, resources)
@@ -59,7 +60,7 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
   if (item.presentation === 'record') {
     if (match === null) return <Section {...heading}><Empty empty={item.empty} /></Section>
     // A new match starts afresh, so the previous record never shows while its query loads
-    return <RelatedRecord key={match} {...heading} model={model} view={view} filter={match} sort={item.sort ?? ''} fields={columns} button={item.button} empty={item.empty} />
+    return <RelatedRecord key={match} {...heading} model={model} view={view} filter={match} sort={item.sort ?? ''} fields={columns} button={item.button} empty={item.empty} add={relatedAdd(item, value, view, pages, permissions)} />
   }
   const handOrder = relatedHandOrder(item, model, permissions)
   const displaySwitch = <EmbeddedDisplaySwitch view={view} value={display} onChange={pick} />

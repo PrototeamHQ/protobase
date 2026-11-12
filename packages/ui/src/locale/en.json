@@ -1345,7 +1345,8 @@
     "showLess": "Show less",
     "couldNotLoad": "Could not load",
     "nothingYet": "Nothing here yet.",
-    "open": "Open {singular}"
+    "open": "Open {singular}",
+    "add": "Add {singular}"
   },
   "app/related-dots": {
     "none": "No {plural}"
