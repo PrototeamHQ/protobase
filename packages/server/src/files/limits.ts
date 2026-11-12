@@ -46,7 +46,7 @@ export const limitedFileStore = (store: FileStore, limits: FileLimits, now = Dat
     return counted
   }
 
-  const countedPut = async (path: string, body: ReadableStream<Uint8Array>) => {
+  const countedPut = async (path: string, body: ReadableStream<Uint8Array>, options?: { type?: string }) => {
     // Puts to one path run one at a time here, so each credits the file it replaces once. The limits hold per writer,
     // with no atomicity across writers: the store has no compare-and-put, and two writers putting the same path at
     // once are off by at most that one file.
@@ -73,7 +73,7 @@ export const limitedFileStore = (store: FileStore, limits: FileLimits, now = Dat
     })
     pending.files += added
     try {
-      const written = await store.put(path, body.pipeThrough(counting))
+      const written = await store.put(path, body.pipeThrough(counting), options)
       if (counted) {
         counted.bytes += written.size - freed
         counted.files += added
@@ -88,10 +88,10 @@ export const limitedFileStore = (store: FileStore, limits: FileLimits, now = Dat
     }
   }
 
-  const put = async (path: string, body: ReadableStream<Uint8Array>) => {
-    if (!isFilePath(path)) return store.put(path, body)
+  const put = async (path: string, body: ReadableStream<Uint8Array>, options?: { type?: string }) => {
+    if (!isFilePath(path)) return store.put(path, body, options)
     const before = writing.get(path) ?? Promise.resolve()
-    const run = () => countedPut(path, body)
+    const run = () => countedPut(path, body, options)
     // Run after the previous put to the path whether it stored or failed: its own caller gets its outcome.
     const queued = before.then(run, run)
     writing.set(path, queued)

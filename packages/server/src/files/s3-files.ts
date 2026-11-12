@@ -66,9 +66,10 @@ export const s3FileStore = (bucket: S3Bucket, prefix = ''): FileStore => {
     }
   }
 
-  // Stored with the type a download is served as, and named by its path, for public files a bucket serves itself.
-  const put = async (path: string, body: ReadableStream<Uint8Array>) => {
-    const type = servedType(path)
+  // Stored with the type the upload was decided to be, else the one its path is served as, and named by its path, for
+  // public files a bucket serves itself.
+  const put = async (path: string, body: ReadableStream<Uint8Array>, options?: { type?: string }) => {
+    const type = options?.type ?? servedType(path)
     const name = path.slice(path.lastIndexOf('/') + 1)
     const size = await bucket.file(keyOf(path)).write(new Response(body), { type, contentDisposition: contentDisposition(name, type) })
     return { size }

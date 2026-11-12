@@ -18,6 +18,8 @@ A file field is a `text` column that holds the file's URI. The bytes live with a
 | `.maxSize('10 MB')` | The largest upload, as bytes or text (`512 KiB`, `1.5 GB`); default 50 MB. |
 | `.public()` | Stored with the `public` provider, whose files anyone with the link may open. |
 | `.storage('archive')` | Stored with another provider; default `private`. |
+| `.typeField('attachment_type')` | Each file's media type in that text field, which responses and downloads read, see [Type and size fields](#type-and-size-fields). |
+| `.sizeField('attachment_size')` | Each file's size in bytes in that integer or bigint field, see [Type and size fields](#type-and-size-fields). |
 | `.derive({ field: processor })` | Values computed from each upload and written to other fields of the row, see [Derived fields](#derived-fields). |
 | `.placeholder('photo_placeholder')` | Each image's ThumbHash in that text field, drawn while the image loads, see [Image variants and placeholders](#image-variants-and-placeholders). |
 | `.variants({ card: { … } }, { original? })` | Resized copies of each image stored beside it, see [Image variants and placeholders](#image-variants-and-placeholders). |
@@ -34,7 +36,7 @@ private:1/2992db9c-776e-4d4e-9e0f-59d485fefaf9.jpg?name=bike+red.png&size=48211
 - The **scheme is the provider's name**, so a provider can move from local disk to a bucket without touching any row. Name the role (`archive`), not the vendor: the name is part of every stored value.
 - The **path** of an upload is `<tenant>/<random id>.<extension>`, with `_` for a resource without a tenant. Nothing in it comes from the row or from what the user typed, so renames and key changes need nothing.
 - The **query** holds the uploader's file name and the size in bytes, and for an image with [variants](#image-variants-and-placeholders) their names and extensions: `&variants=card.webp,thumb.webp`. A plain `{provider}:{path}`, such as `public:images/test.jpg` written by an import, is valid too; its name is its last path segment.
-- The **type is not stored**. It is the path's extension, looked up in one fixed table, which is also what downloads are served as.
+- The **type is not stored** in the value. It is the path's extension, looked up in the built-in table and the app's [own types](#your-own-types), which is also what downloads are served as, unless the field has a [type field](#type-and-size-fields).
 - A field with `.externalUrls()` may hold an **https URL** instead, such as `https://images.example.com/listings/42.jpg`, see [External URLs](#external-urls).
 
 Responses carry each file field as an object, and the stored value stays the URI:
@@ -98,10 +100,10 @@ PROTOBASE_FILES_ARCHIVE=s3://acme-archive?endpoint=https://s3.fr-par.scw.cloud&r
 ```
 
 - **Credentials** never go in the URL. A provider set from the environment reads `PROTOBASE_FILES_<NAME>_ACCESS_KEY_ID` and `PROTOBASE_FILES_<NAME>_SECRET_ACCESS_KEY`, else `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`, else `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, and the server does not start without a pair. In the config, pass `accessKeyId` and `secretAccessKey`, or leave them out for the `S3_` or `AWS_` pair. The key needs to read, write, list and delete objects in the bucket.
-- **Uploads** still go through Protobase's upload route, so types are checked and processors run; the body streams on to the bucket in parts, and an upload that fails stores nothing. Each object is stored with the type and disposition its path is served as. A bucket keeps the parts of an upload that never finished until they are aborted: R2 aborts them after 7 days, on Scaleway and AWS add a lifecycle rule that aborts incomplete multipart uploads after a day.
+- **Uploads** still go through Protobase's upload route, so types are checked and processors run; the body streams on to the bucket in parts, and an upload that fails stores nothing. Each object is stored with the type its upload was decided to be, the app's [own types](#your-own-types) included, and the disposition that type is served with. A bucket keeps the parts of an upload that never finished until they are aborted: R2 aborts them after 7 days, on Scaleway and AWS add a lifecycle rule that aborts incomplete multipart uploads after a day.
 - **Private files** keep their signed `url`. A download checks the link and the row as above, then redirects with `302` to a presigned link to the bucket that lasts as long as the app's link, served with the same type and disposition. The bytes never pass through the app.
 - **Public files** are linked at `publicUrl` followed by the prefix and the path, such as `https://files.acme.com/public/_/2992db9c-….png`: the bucket's own public address, an R2 custom domain or a Scaleway public bucket. Without `publicUrl`, `/api/files/<provider>/<path>` redirects to a presigned link instead.
-- The bucket serves its files itself, so the `nosniff` and sandbox headers of the app's own downloads do not apply. The type always comes from the path's extension, never HTML, and the bucket is on another domain than the app. A page that `fetch`es file URLs, rather than showing them in `<img>` or linking them, needs CORS on the bucket.
+- The bucket serves its files itself, so the `nosniff` and sandbox headers of the app's own downloads do not apply. The type is always the one the upload was decided to be, never HTML, and the bucket is on another domain than the app. A page that `fetch`es file URLs, rather than showing them in `<img>` or linking them, needs CORS on the bucket.
 - It runs on Bun, whose built-in S3 client it uses: `protobase-serve.js`, the `protobase` image, or the CLI started with Bun. On Node the first file operation fails.
 
 ## Uploading
@@ -182,6 +184,29 @@ Each viewer's code is a chunk of the app's build that loads only when such a fil
 
 Each package also exports its viewer component (`ImageViewer`, `PdfViewer`), for an app that registers it for a type of its own in `fileViewers`.
 
+## Type and size fields
+
+`.typeField()` and `.sizeField()` keep each file's media type and size in columns of their own, so a list can show them and SQL can count and sum by them:
+
+```ts
+attachment: f.file().optional().typeField('attachment_type').sizeField('attachment_size'),
+attachment_type: f.text().readOnly().optional(),
+attachment_size: f.bigint().readOnly().optional(),
+```
+
+```sql
+select attachment_type, count(*), sum(attachment_size) from attachments group by attachment_type
+```
+
+- Both fields must be `readOnly()`, as [derived fields](#derived-fields) are: an upload writes them with the file in the same transaction, and clearing the file sets them to `null`. The type field is text; the size field an integer, or a bigint for files past 2 GB.
+- An **upload** writes the type it was [decided](#how-the-type-is-decided) to be and its size in bytes.
+- An **external URL** writes the type its extension names, the app's [own types](#your-own-types) included, and `null` when the table knows no such extension. Its size field stays `null`, since Protobase never fetches it.
+- An **import** that writes rows itself may write both beside the value, such as the type of a file stored under a name with no extension. Leave a field `null` when the source does not say; never guess.
+- **Responses** and [viewers](#viewers) take the file's `type` and `size` from these fields when the row holds them, else from the value.
+- A **private download** is served as the type field's type when that is a type the app's table knows, so a file is never served as HTML; any other value is served by the path's extension. A public file has no row to read, so it is served by its path, and a bucket serves it with the type its upload was decided to be.
+
+Files stored before a field declared them keep `null` until they are uploaded again or an import fills them.
+
 ## Derived fields
 
 `.derive({ field: processor })` computes values from each upload into other fields of the same resource. Those fields must be `readOnly()`, so only the upload sets them.
@@ -242,10 +267,10 @@ curl -X PATCH https://app.example.com/api/v1/products/42 -H "authorization: Bear
 ```
 
 - **What is taken**: an absolute `https://` URL with a host, without a user name or password, written without spaces or other characters a URL escapes. `http:`, `data:` and anything else is refused with `400`, as in a field without the option.
-- **The type** is the URL path's extension, from the same table as stored files, and must pass `.accept()`: an image field takes `…/front.jpg` and refuses `…/front` and `…/scan.pdf`. The name is the path's last segment.
-- **Stored as given**: the column holds the URL itself, and Protobase never fetches, uploads or copies it. It has no size, and responses link it as it is, as `url`, for whoever may read the row.
+- **The type** is the URL path's extension, from the same table as stored files, the app's [own types](#your-own-types) included, and must pass `.accept()`: an image field takes `…/front.jpg` and refuses `…/front` and `…/scan.pdf`. The name is the path's last segment. A [type field](#type-and-size-fields) gets that type, and an import may write a better one there.
+- **Stored as given**: the column holds the URL itself, and Protobase never fetches, uploads or copies it. It has no size unless an import wrote one in the [size field](#type-and-size-fields), and responses link it as it is, as `url`, for whoever may read the row.
 - **No variants**: every place an image is drawn, cards, tables, thumbnails, forms and the record page, uses the URL itself, and `fileUrl(file, 'card')` gives it too. Size the image at its source when it should be small.
-- **No ThumbHash**: a write through the API sets the field's derived fields and placeholder to `null`, since there are no bytes to compute them from; the image frame stays empty until the image loads. An import that writes the rows itself may write a placeholder beside the URL, and the admin app draws that one.
+- **No ThumbHash**: a write through the API sets the field's derived fields, placeholder and size field to `null`, since there are no bytes to compute them from; the image frame stays empty until the image loads. An import that writes the rows itself may write a placeholder beside the URL, and the admin app draws that one.
 - **Nothing to delete**: replacing an upload with a URL schedules the upload's delete as any replacement does; a URL that is replaced or cleared schedules nothing.
 - The other site sees each viewer's IP address when it serves the image, and decides when it changes or disappears. The admin app draws it without a referrer, see [Image referrers](#image-referrers).
 

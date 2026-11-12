@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { templateManifest, writeAndroidTemplate } from './android-template-fixture'
 import { generatePlatform } from './generate'
 import { writeIosTemplate } from './ios-template-fixture'
 import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
@@ -11,16 +12,18 @@ const plist = '<plist version="1.0">\n<dict>\n</dict>\n</plist>\n'
 let ws = ''
 afterEach(() => rmSync(ws, { recursive: true, force: true }))
 
-// A `cap add` that writes the template's icon, and the SPM template's Info.plist for iOS.
-const cap = (calls: string[][]) => async (args: string[]) => {
+// A `cap add` that writes the template's icon, and its AndroidManifest.xml for Android or SPM Info.plist for iOS.
+const cap = (calls: string[][], manifest = templateManifest) => async (args: string[]) => {
   calls.push(args)
   writeProtobaseIcon(ws)
   writeTemplateIcon(ws, args[1] === 'ios' ? 'ios' : 'android')
-  if (args[1] !== 'ios') return
+  if (args[1] !== 'ios') return writeAndroidTemplate(ws, manifest)
   writeIosTemplate(ws)
   writeFileSync(path.join(ws, 'ios', 'App', 'App', 'Info.plist'), plist)
 }
 const infoPlist = () => readFileSync(path.join(ws, 'ios', 'App', 'App', 'Info.plist'), 'utf8')
+const manifest = () => readFileSync(path.join(ws, 'android', 'app', 'src', 'main', 'AndroidManifest.xml'), 'utf8')
+const rules = () => path.join(ws, 'android', 'app', 'src', 'main', 'res', 'xml', 'data_extraction_rules.xml')
 
 describe('generatePlatform', () => {
   it('replaces the native project, leaving iOS transport security alone for an https API', async () => {
@@ -66,10 +69,25 @@ describe('generatePlatform', () => {
     expect(existsSync(path.join(ws, 'android', 'app', 'google-services.json'))).toBe(false)
   })
 
-  it('changes no plist for Android', async () => {
+  it('opts the Android app out of backup and device transfer on every run, and leaves iOS without either', async () => {
     ws = mkdtempSync(path.join(tmpdir(), 'protobase-generate-'))
     const calls: string[][] = []
-    await generatePlatform(ws, 'android', { cleartext: true }, cap(calls))
-    expect(calls).toEqual([['add', 'android']])
+    for (let run = 0; run < 2; run++) {
+      await generatePlatform(ws, 'android', { cleartext: true }, cap(calls))
+      expect(manifest()).toContain('android:allowBackup="false"')
+      expect(manifest()).toContain('tools:replace="android:allowBackup,android:dataExtractionRules"')
+      expect(readFileSync(rules(), 'utf8')).toContain('<device-transfer>')
+    }
+    expect(calls).toEqual([['add', 'android'], ['add', 'android']])
+    await generatePlatform(ws, 'ios', { cleartext: false }, cap([]))
+    expect(existsSync(path.join(ws, 'ios', 'App', 'App', 'res'))).toBe(false)
+    expect(infoPlist()).toBe(plist)
+  })
+
+  it('fails, writing no rules, when cap add writes an Android manifest that is not the template', async () => {
+    ws = mkdtempSync(path.join(tmpdir(), 'protobase-generate-'))
+    await expect(generatePlatform(ws, 'android', { cleartext: false }, cap([], templateManifest.replace('android:allowBackup="true"', 'android:allowBackup="false"'))))
+      .rejects.toThrow('AndroidManifest.xml is not Capacitor\'s template')
+    expect(existsSync(rules())).toBe(false)
   })
 })

@@ -38,6 +38,12 @@ describe('the S3 file store', () => {
     expect(objects.get('_/notes.svg')).toMatchObject({ type: 'image/svg+xml', disposition: expect.stringMatching(/^attachment;/) })
   })
 
+  it("stores an object with the type its upload was decided to be, such as the app's own", async () => {
+    const { bucket, objects } = fakeBucket()
+    await s3FileStore(bucket).put('_/weekly.report.json', streamOf('{}'), { type: 'application/vnd.example.report+json' })
+    expect(objects.get('_/weekly.report.json')).toMatchObject({ type: 'application/vnd.example.report+json', disposition: expect.stringMatching(/^attachment;/) })
+  })
+
   it('stores nothing when a write fails half way', async () => {
     const { bucket, objects } = fakeBucket()
     const failing = new ReadableStream<Uint8Array>({
