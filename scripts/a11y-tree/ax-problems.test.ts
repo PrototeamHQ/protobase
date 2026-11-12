@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { axProblems, fixedText, hiddenFocus, offScreen, outlineShows } from './ax-problems.mjs'
+import { axProblems, fixedText, hiddenFocus, offScreen, outlineShows, outsideBar, ringWidth, textOutsideField } from './ax-problems.mjs'
 
 type Node = { nodeId: string; parentId?: string; childIds?: string[]; ignored?: boolean; role?: { value: string }; name?: { value: string }; properties?: Array<{ name: string; value: { value: unknown } }>; backendDOMNodeId?: number }
 
@@ -62,5 +62,31 @@ describe('offScreen', () => {
       'the page is 420px wide, wider than 360px',
       'the top bar\'s "Record actions" ends at 420px, past 360px',
     ])
+  })
+})
+
+describe('ringWidth', () => {
+  it('takes the largest spread of the shadows, and none without a shadow', () => {
+    expect(ringWidth('rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(37 99 235 / 0.2) 0px 0px 0px 2px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px')).toBe(2)
+    expect(ringWidth('none')).toBe(0)
+  })
+})
+
+describe('outsideBar', () => {
+  const bar = { top: 0, bottom: 50 }
+  it('finds a control or focus ring that runs past the bar', () => {
+    expect(outsideBar({ bar, controls: [{ text: 'Search field', top: 3, bottom: 47, boxShadow: 'rgb(0 0 0) 0px 0px 0px 2px' }, { text: 'Close search', top: 0, bottom: 50, boxShadow: 'none' }] })).toEqual([])
+    expect(outsideBar({ bar, controls: [{ text: 'Search field', top: 1, bottom: 48, boxShadow: 'rgb(0 0 0) 0px 0px 0px 2px' }, { text: 'Close search', top: 2, bottom: 51, boxShadow: 'none' }] })).toEqual([
+      'the top bar\'s "Search field" runs from -1px to 50px, outside the bar\'s 0px to 50px',
+      'the top bar\'s "Close search" runs from 2px to 51px, outside the bar\'s 0px to 50px',
+    ])
+  })
+})
+
+describe('textOutsideField', () => {
+  const field = { top: 10, bottom: 40 }
+  it('finds a text line that runs past its field', () => {
+    expect(textOutsideField({ field, line: { top: 10, bottom: 40 } })).toEqual([])
+    expect(textOutsideField({ field, line: { top: 2, bottom: 41 } })).toEqual(["the search text's line runs from 2px to 41px, outside its field's 10px to 40px"])
   })
 })
