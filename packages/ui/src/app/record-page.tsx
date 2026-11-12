@@ -277,6 +277,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
             reveal={field.sensitive && !field.writeOnly ? () => client.reveal(model.name, recordKey, name) : undefined}
             resource={model.name}
             record={stored.record}
+            linkText={hint(name)?.format === 'url' ? linkTextOf(model, view, name, stored.record, related.labels) : undefined}
             onChange={(next) => pick(name, next)}
           />
         ) : (
@@ -294,7 +295,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     ) : field.sensitive ? (
       <FieldEditor field={field} hints={hint(name)} value="" stored={stored.record[name]} locked reveal={() => client.reveal(model.name, recordKey, name)} resource={model.name} onChange={(next) => editor.change(name, next)} />
     ) : (
-      <FieldValue model={model} field={field} value={stored.record[name]} relationLabel={related.labels[name]} record={stored.record} />
+      <FieldValue model={model} field={field} value={stored.record[name]} relationLabel={related.labels[name]} record={stored.record} relationLabels={related.labels} />
     )
     return { label: hint(name)?.label ?? humanize(name), help: fieldHelp(hint(name), view, editing), wide: isWideField(fieldTypes, field, hint(name)), value }
   }
@@ -314,7 +315,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         const json = field.type === 'json' && value !== null && value !== undefined
         const text = markdown ? markdownExcerpt(value) : json ? jsonSummary(value) : displayValue(field, value, hint(name))
         const contact = field.type === 'text' && typeof value === 'string' && value !== '' ? contactFormat(hint(name)) : undefined
-        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : contact ? <ContactLink format={contact} value={text} label={linkTextOf(model, view, name, stored.record)} /> : <span title={valueTitle(field, value, undefined, hint(name))}>{text}</span>
+        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : contact ? <ContactLink format={contact} value={text} label={linkTextOf(model, view, name, stored.record, related.labels)} /> : <span title={valueTitle(field, value, undefined, hint(name))}>{text}</span>
         const shown = shownWidget(fieldTypes, field, hint(name))
         return [{ label: hint(name)?.label ?? humanize(name), title: text, value: shown ? <WidgetPart shown={shown} part="display" field={field} value={stored.record[name]} fallback={builtIn} /> : builtIn }]
       })}

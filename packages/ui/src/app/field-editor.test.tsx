@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { FieldModel, FieldViewModel } from '@protobase/schema'
+import type { FieldModel, FieldViewModel, ResourceModel, ViewModel } from '@protobase/schema'
+import { linkTextOf } from '../live/link-text'
 import { FieldEditor, showsValue } from './field-editor'
 
 const shown = (field: FieldModel, stored: unknown, hints?: FieldViewModel, locked = false) =>
@@ -47,6 +48,21 @@ describe('a field nobody may change on the form', () => {
     const html = shown(flag, true)
     expect(html).not.toContain('role="switch"')
     expect(html).toContain('Yes')
+  })
+
+  it("shows a locked url field's link text, fixed or from the record, and its address without one", () => {
+    const report: FieldModel = { ...base, name: 'report', type: 'text', readOnly: false }
+    const title: FieldModel = { ...base, name: 'title', type: 'text' }
+    const model = { name: 'errors', fields: { report, title } } as unknown as ResourceModel
+    const record = { report: 'https://example.com/1', title: 'Crash on save' }
+    const locked = (linkText?: string) => {
+      const view = { resource: 'errors', fields: { report: { format: 'url', ...(linkText !== undefined && { linkText }) } } } as unknown as ViewModel
+      const text = linkTextOf(model, view, 'report', record)
+      return renderToStaticMarkup(<FieldEditor field={report} hints={view.fields.report} value="" stored={record.report} locked linkText={text} onChange={() => {}} />)
+    }
+    expect(locked('Error report')).toMatch(/<a href="https:\/\/example.com\/1"[^>]*>Error report<\/a>/)
+    expect(locked('{title}')).toMatch(/>Crash on save<\/a>/)
+    expect(locked()).toMatch(/>https:\/\/example.com\/1<\/a>/)
   })
 })
 
