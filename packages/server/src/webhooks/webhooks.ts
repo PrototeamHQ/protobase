@@ -1,5 +1,5 @@
 import type { Db } from '@protobase/query'
-import { dispatchJobName, isCaptured } from '../changes/capture-sql'
+import { capturedBy, dispatchJobName } from '../changes/capture-sql'
 import { coalesce } from '../changes/coalesce'
 import { EventCodeError } from '../changes/event-code-error'
 import { eventMatcher } from '../changes/match-events'
@@ -10,6 +10,7 @@ import type { ApiFunction } from '../functions/define-function'
 import { callerRecords } from '../functions/records'
 import { writeHistory } from '../history/write-history'
 import { defineJob } from '../jobs/define-job'
+import { liveNotices } from '../live/live-notices'
 import { writeNotices } from '../live/notices-sql'
 import { FatalJobError } from '../jobs/run-job'
 import { attemptDelivery, type AttemptResult } from './attempt'
@@ -112,7 +113,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
   const models = entries.map((entry) => entry.model)
   const problems = subscriptionProblems(subscriptions, models, Object.keys(functions))
   if (problems.length > 0) throw new Error(problems.join('; '))
-  if (!models.some(isCaptured)) return { jobs: [] }
+  if (!models.some(capturedBy(models))) return { jobs: [] }
 
   const matchers = new Map(entries.map((entry) => [entry.name, eventMatcher(entry.model, entry.source.eventMatches?.() ?? {})]))
   const keyColumns = (resource: string) => {
@@ -318,7 +319,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
       await queueOrdered(trx, deliveries)
       for (const { change, subscription } of failures) await dispatchChange.enqueue(trx, { change, ...(subscription !== undefined && { subscription }) })
       await writeHistory(trx, schema, changes.filter((change) => deps.registry.find(change.resource)?.model.history))
-      await writeNotices(trx, schema, changes.filter((change) => deps.registry.find(change.resource)?.model.live))
+      await writeNotices(trx, schema, liveNotices(models, changes))
       await onChanges?.(trx, changes)
       await deleteOutbox(trx, schema, rows.map((row) => row.id))
     })

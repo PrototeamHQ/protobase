@@ -5,6 +5,7 @@ description: Open lists and record pages refresh as soon as a record of a live r
 
 import { Code } from '@astrojs/starlight/components'
 import tasks from '../../../../../../docs-examples/live/tasks.ts?raw'
+import thread from '../../../../../../docs-examples/live/thread.ts?raw'
 
 A resource with [`.live()`](/api/schema/interfaces/resourcebuilder/#live) keeps the pages people have open on its records current: when a record changes, every open list, record page, count and chart of the resource reads it again within a second or two, without a reload. The changes are captured by the same database triggers as [events](/reference/events/), so writes from psql, other services and cron SQL show up too, not only those through the API.
 
@@ -30,6 +31,20 @@ It is live data, not multiplayer editing: two people editing the same record sti
 
 Connecting again with `?after=<cursor>` catches up on what was missed while disconnected. [`client.live({ onChanges, onResync })`](/reference/client/) of `@protobase/client` follows the stream and connects again by itself, as the app does. However many callers of one client follow it, they share one stream, so a page with many live views holds one connection, which matters under HTTP/1.1, where a browser opens at most six to a host.
 
+## Resources backed by a view
+
+:::caution[Experimental]
+A view's change names no record, so the [Realtime socket](/reference/supabase-realtime/) does not send it.
+:::
+
+A resource backed by a database view, such as a chat thread that merges messages and replies, updates live when the tables it reads change. A view takes no trigger, so name the resources it reads with `.live({ reads })`: a change in any of them refreshes the view's open lists, record pages and related lists, and a change in another table does not.
+
+<Code code={thread} lang="ts" title="config/thread.ts" />
+
+Each resource it names is captured like a live one, needs no `.live()` of its own and still needs a resource of its own; `protobase dev` and `protobase serve` do not start when a name is not a resource, or is another resource backed by a view: name the tables that view reads instead. The stream sends the view a change with an empty key, `{ resource, key: '', operation: 'update' }`, once for writes that come close together: any of its records may have changed, so the page reads what it shows of the view again. A reader hears of it in the tenant of the record that changed, or in every tenant when that resource has no tenant.
+
+<gap>A view cannot update live from a table without a resource because the capture of plain tables is not implemented.</gap>
+
 ## Polling, then a socket
 
 `pollThenSocket({ poll, onError, socket, onMessage, pollMs?, switchAfterMs?, socketFirst? })` of `@protobase/client`, in the browser and on Node, keeps up with anything that changes, until the function it returns is called. It calls `poll` at once and again `pollMs` (5 seconds) after each call ends, also after one that rejected, whose error goes to `onError`, and after `switchAfterMs` (30 seconds) opens the WebSocket `socket()` returns, such as `() => new WebSocket(url)`. Once the socket is open, polling stops: `poll` runs once more, for what changed before the socket opened, and `onMessage` gets each message's data. When the socket closes, or never opens, it polls again at once and opens a new socket `switchAfterMs` later. Polling goes on while a socket connects, so nothing waits on it. A short visit thus never opens a socket; `socketFirst: true` opens one at once instead, for a process that stays, and polls only while it is down.
@@ -38,6 +53,6 @@ Who is on a record's page and what they send each other, which no change of a re
 
 ## The table
 
-[`protobase migration`](/reference/cli/#migration) adds the table `changes.notices` to the `changes` schema of the event capture (renamed with `events: { schema }`), and the capture triggers of each live resource; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while the table or a trigger is missing.
+[`protobase migration`](/reference/cli/#migration) adds the table `changes.notices` to the `changes` schema of the event capture (renamed with `events: { schema }`), and the capture triggers of each live resource and of each resource a live view reads; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while the table or a trigger is missing.
 
 A notice is a resource, a record key, the record's tenant and the operation, written by the `changes.dispatch` job in the transaction that removes the change from the outbox; a live resource therefore needs the [`jobs` schema](/reference/jobs/#the-jobs-schema) and the app's workers. Notices are kept for 10 minutes. Each serving process with at least one page open reads the table once a second, however many pages it serves, so live updates work with several serving processes, with `PROTOBASE_JOBS=false` and through a pooler in transaction mode.

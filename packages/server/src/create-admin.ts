@@ -53,7 +53,7 @@ import { goTruePath } from './gotrue/keys'
 import { realtimePath, restPath, storagePath, supabaseFunctionsPath, supabasePath } from './supabase-paths'
 import { goTrueRoutes } from './gotrue/routes'
 import { wakeDispatch } from './changes/actor'
-import { isCaptured } from './changes/capture-sql'
+import { capturedBy } from './changes/capture-sql'
 import type { ResourceChange } from './changes/resource-change'
 import { createDerived } from './derived/derived-values'
 import type { DerivedCompute } from './derived/run-derived'
@@ -101,6 +101,7 @@ import { checkOwnerFields } from './check-owners'
 import { checkRoleLimits } from './check-roles'
 import { checkBuckets } from './check-buckets'
 import { checkParents, parentWarnings } from './check-parents'
+import { checkLiveReads } from './check-live-reads'
 import { checkPositionAfter } from './check-position-after'
 import { checkViews } from './check-views'
 import { liveRoutes } from './live/live-route'
@@ -279,6 +280,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const mcpAuthenticate = mcpAuthenticator(authenticate, auth?.mcp, options.mcp)
   if (options.mcp) checkMcpWrites(registry, declaredRoles(auth, options.roles), options.mcp.writes)
   checkPositionAfter(registry)
+  checkLiveReads(registry.entries.map((entry) => entry.model))
   checkParents(registry)
   for (const warning of parentWarnings(registry)) console.warn(warning)
   const resourceModels = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
@@ -349,7 +351,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     sources,
     ...(files && { files }),
     ...(encryption && { encryption }),
-    ...(appModels.some(isCaptured) && { actorSetting: `${changes}.actor` }),
+    ...(appModels.some(capturedBy(appModels)) && { actorSetting: `${changes}.actor` }),
     ...(withHistory && { history: { schema: changes, ...(auth && { actorNames: betterAuthActorNames(auth) }) } }),
     ...(mentions && { comments: { ...(commentUsers && { users: commentUsers }), mentionJob: mentions, appOrigin: appOrigin(auth?.origins ?? []) } }),
     ...(withAi && { ai: { ...(model && { model }), ...(options.onUnhandledError && { report: options.onUnhandledError }) } }),

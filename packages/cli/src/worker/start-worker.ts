@@ -38,7 +38,7 @@ export const startWorker = async ({ config, databaseUrl, openDb = (url) => openA
     // Events and history are captured, mentions in comments mailed and AI fields filled by Protobase's own jobs.
     const builtIn = configExports(project.config).resources.some((resource) => {
       const model = resource.toModel()
-      return isCaptured(model) || model.comments || Object.values(model.fields).some((field) => field.ai)
+      return isCaptured(model) || model.live || model.comments || Object.values(model.fields).some((field) => field.ai)
     })
     if (project.jobs.length === 0 && !builtIn) throw new Error('The bundle has no jobs: name their module in protobase.config.ts as `jobs`, or give a resource events, history, comments or an AI field')
     const { admin, jobs: definitions } = projectAdmin(project, db)

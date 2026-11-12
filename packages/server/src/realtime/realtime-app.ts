@@ -29,7 +29,8 @@ export type RealtimeAppOptions = {
  * `realtime.send()`.
  */
 export const realtimeApp = ({ deps, feed, upgradeWebSocket, caller, report, hubs }: RealtimeAppOptions) => {
-  const live = deps.registry.entries.filter((entry) => entry.model.live)
+  // A live view's change names no record, so it has no row to send.
+  const live = deps.registry.entries.filter((entry) => entry.model.live && !entry.model.liveReads)
   const check = changeChecker({ db: deps.db, statementTimeoutMs: deps.statementTimeoutMs, report })
   const hub = changeHub({ feed, check, entry: (resource) => live.find((entry) => entry.name === resource), report })
   const checkFilters = filterCheck({ db: deps.db, statementTimeoutMs: deps.statementTimeoutMs })

@@ -3,6 +3,7 @@ import { f, resource, type AccessContext } from '@protobase/schema'
 import type { Deps } from '../deps'
 import { buildRegistry } from '../registry'
 import type { Session } from '../types'
+import { anyRecord } from './live-notices'
 import type { Notice } from './notices-sql'
 import { visibleNotices } from './visible-notices'
 
@@ -25,6 +26,13 @@ describe('visibleNotices', () => {
   it('passes the live resources the caller may read, in their tenant only', async () => {
     expect(await heard({ user: { id: 'u1', roles: ['sales'] }, tenant: 'acme' })).toEqual(['orders:null', 'notes:acme'])
     expect(await heard({ user: { id: 'u2', roles: ['user'] }, tenant: 'acme' })).toEqual(['notes:acme'])
+  })
+
+  it('passes a tenant view\'s change of a source without tenants to every tenant, but no record\'s', async () => {
+    const visible = await visibleNotices(deps, { user: { id: 'u2', roles: ['user'] }, tenant: 'acme' })
+    expect(visible({ ...notice('notes'), key: anyRecord })).toBe(true)
+    expect(visible({ ...notice('notes', 'other'), key: anyRecord })).toBe(false)
+    expect(visible(notice('notes'))).toBe(false)
   })
 
   it('passes nothing of a tenant resource to a caller without a tenant', async () => {
