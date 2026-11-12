@@ -114,7 +114,7 @@ What they color:
 | `--success`, `--warning`, `--danger`, `--violet` and their groups | Statuses and messages: the color itself, a soft background and readable text on it. |
 | `--chart-1` to `--chart-8` | The series of a chart, in this order: a donut's values, and `--chart-1` for bars and lines. The defaults stay apart for colour-blind readers, so a theme that changes them should keep them as distinct. |
 | `--shadow-pop` | The shadow of menus, popovers and the command palette. |
-| `--backdrop` | The dim behind dialogs, sheets and the phone drawer, and the shade at a table's edge while it scrolls sideways; drawn see-through, so give it a solid color. |
+| `--backdrop` | The dim behind dialogs, sheets and the mobile drawer, and the shade at a table's edge while it scrolls sideways; drawn see-through, so give it a solid color. |
 | `--radius` | The corners: `rounded-md` is `--radius`, `rounded-lg` two pixels more, `rounded-sm` two less and `rounded-xl` six more. |
 | `--font`, `--font-code` | The app's text, and identifiers and code. |
 
@@ -126,7 +126,7 @@ The app's text follows the reader's text size: every size is in `rem`, so all of
 
 On a phone the top bar's buttons and icons grow with the text only as far as the screen's width allows, as a native app's bar does, so the menu, back, search and record-menu buttons all fit at the largest accessibility sizes, about three times the default; its text keeps growing and the back button's label shortens with an ellipsis. Its search field grows the same way, so it and its focus ring stay inside the bar.
 
-<gap>A list chart's Day and Week switch cannot fit a phone's width at the largest accessibility text sizes because a phone layout for it is not implemented.</gap>
+<gap>A list chart's Day and Week switch cannot fit a phone's width at the largest accessibility text sizes because a mobile layout for it is not implemented.</gap>
 
 ## Logo and favicon
 
