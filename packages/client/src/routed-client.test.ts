@@ -20,6 +20,13 @@ const apis = () => {
 }
 
 describe('routedClient', () => {
+  it('reads a file from the API that serves its resource, a public file at a CDN too', () => {
+    const { client } = apis()
+    const file = { uri: 'public:_/a.json?name=a.json', url: 'https://cdn.example/_/a.json' }
+    expect(client.fileReadUrl('tickets', file)).toBe('https://desk.example.com/api/files/public/_/a.json?via=app')
+    expect(client.fileReadUrl('orders', file)).toBe('/api/files/public/_/a.json?via=app')
+  })
+
   it("sends a call about a resource to the API that serves it, and meta, functions and forms to the app's own", async () => {
     const { urls, client } = apis()
     await client.list('tickets', { pageSize: 5 })

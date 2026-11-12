@@ -24,7 +24,7 @@ export const useFileText = (file: ViewedFile) => {
     queryKey: ['file-text', resource, file.uri],
     staleTime: Infinity,
     queryFn: async () => {
-      const response = await fetch(client.fileReadUrl(file))
+      const response = await fetch(client.fileReadUrl(resource, file))
       if (!response.ok) throw new FileReadError(response.status)
       return response.text()
     },

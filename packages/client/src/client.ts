@@ -426,8 +426,8 @@ export const createClient = (options: ClientOptions = {}) => {
   /** Whether the calls of the organization the signed-in user works in take guests (see `callGuestsClient`). */
   const callGuests = callGuestsClient(send)
 
-  /** Where a page reads a stored file's bytes with `fetch`, from an API's own origin (see `fileReadUrl`). */
-  const readUrl = (file: { uri: string; url: string }) => fileReadUrl(file, systemUrlOf(options.baseUrl))
+  /** Where a page reads the bytes of a file of `resource` with `fetch`, from this API's own origin (see `fileReadUrl`). */
+  const readUrl = (_resource: ResourceRef, file: { uri: string; url: string }) => fileReadUrl(file, systemUrlOf(options.baseUrl))
 
   return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, bridges, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes, workflowRunTrace, fileReadUrl: readUrl }
 }
