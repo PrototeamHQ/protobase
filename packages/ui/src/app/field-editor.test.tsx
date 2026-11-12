@@ -37,6 +37,11 @@ describe('a field nobody may change on the form', () => {
     expect(shown(note, null)).toContain('<span aria-hidden="true">—</span><span class="sr-only">No value</span>')
   })
 
+  it('shows a relation with no value as the dash a screen reader reads as no value', () => {
+    const owner: FieldModel = { ...base, name: 'owner', type: 'relation' }
+    expect(shown(owner, null)).toContain('<span aria-hidden="true">—</span><span class="sr-only">No value</span>')
+  })
+
   it('shows a boolean as yes or no, not a switch', () => {
     const flag: FieldModel = { ...base, name: 'running', type: 'boolean', nullable: false }
     const html = shown(flag, true)

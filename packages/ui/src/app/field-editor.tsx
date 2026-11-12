@@ -62,7 +62,8 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
     )
   }
   if (field.type === 'relation') {
-    const label = relationLabel ?? String(stored ?? '—')
+    if (stored === null || stored === undefined || stored === '') return <div className="py-1.5"><ShownValue field={field} value={stored} hints={hints ?? {}} /></div>
+    const label = relationLabel ?? String(stored)
     return <div className="py-1.5">{relationTo ? <AppLink to={relationTo} className="font-medium text-primary-text hover:underline">{label}</AppLink> : label}</div>
   }
   // A value nobody may change here reads as the record page shows it: at full contrast, in its badge, relative when the view says
