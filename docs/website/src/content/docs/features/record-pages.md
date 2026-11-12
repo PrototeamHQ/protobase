@@ -29,7 +29,7 @@ description: The page of one record, with its sections, related records, galleri
 - [Compact related cards](/reference/ui-config/#compact-related-cards) (experimental): Related records can show as compact cards, coloured by a field.
 - [Counts in headings](/reference/ui-config/#counts-in-headings) (experimental): Related lists can show their count in the heading.
 - [Group help lines](/reference/ui-config/#groups) (experimental): A group can show a short line under its heading, also while it is closed.
-- [A related record in full](/reference/ui-config/#a-related-record-in-full): A related record can show its fields in full, without a card, for reading tabs such as notes.
+- [A related record in full](/reference/ui-config/#a-related-record-in-full): A related record can show its fields in full, without a card, for reading tabs such as notes, and offers to add it while there is none.
 - [Record lines](/reference/ui-config/#record-lines): The related table a record's view marks as its lines, such as an invoice's, shows all of them on its page, where you edit, add, remove and reorder them, and Save writes the record and its lines together.
 - [Custom section fallbacks](/reference/custom-components/#record-section-fallbacks) (experimental): Where your own component on a record page cannot be drawn, such as on a watch, what you declare shows in its place: any main-column item in the main column, conversations included, and sidebar maps and sidebar custom components in the sidebar.
 - [Conversations](/reference/ui-config/#conversations): A record page holds a chat about the record, such as a task's, with its messages in markdown and a box that sends one, declared in its layout with no component of the app's own.

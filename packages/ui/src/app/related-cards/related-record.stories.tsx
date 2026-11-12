@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
-import { createStaticSession, type LiveHandlers } from '@protobase/client'
-import { f, l, resource, view } from '@protobase/schema'
+import { createStaticSession, type LiveHandlers, type ResourcePermissions } from '@protobase/client'
+import { appPath, f, l, resource, view } from '@protobase/schema'
 import { App } from '../app'
 import { fakeApi } from '../testing/fake-api'
 
@@ -71,9 +71,9 @@ const rows = () => ({
 let stored: Record<string, Array<Record<string, unknown>>> = {}
 const listeners = new Set<LiveHandlers>()
 
-const Objective = ({ path }: { path: string }) => {
+const Objective = ({ path, permissions }: { path: string; permissions?: Record<string, ResourcePermissions> }) => {
   const [client] = useState(() => {
-    const created = fakeApi({ resources: [objectives.toModel(), notes.toModel(), reviews.toModel()], views: [objectivesView.toModel(), notesView.toModel(), reviewsView.toModel()], rows: rows() })
+    const created = fakeApi({ resources: [objectives.toModel(), notes.toModel(), reviews.toModel()], views: [objectivesView.toModel(), notesView.toModel(), reviewsView.toModel()], rows: rows(), permissions })
     stored = created.rows
     return {
       ...created.client,
@@ -132,10 +132,28 @@ export const Checks: StoryObj = {
   },
 }
 
+/** An objective without notes says so and offers to add its note, with the objective filled in, to whoever may write one. */
 export const NoNotes: StoryObj = {
   name: 'An objective without notes (checks)',
   tags: ['play', '!dev'],
   render: () => <Objective path="/objectives/2" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(within(await canvas.findByRole('navigation', { name: 'Tabs' })).getByRole('link', { name: 'Notes' }))
+    const section = within((await canvas.findByRole('heading', { name: 'Coordinator notes' })).closest('section')!)
+    expect(await section.findByText('No notes yet.')).toBeVisible()
+    expect(section.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([appPath({ kind: 'create', resource: 'objective_notes', values: { objective_id: '2' } })])
+    expect(section.getByRole('link', { name: 'Add note' })).toBeVisible()
+  },
+}
+
+const readOnly: ResourcePermissions = { create: false, update: false, delete: false, conditional: [] }
+
+/** A reader who may not write notes sees only that there are none. */
+export const NoNotesReadOnly: StoryObj = {
+  name: 'An objective without notes, to a reader (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Objective path="/objectives/2" permissions={{ objective_notes: readOnly }} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(within(await canvas.findByRole('navigation', { name: 'Tabs' })).getByRole('link', { name: 'Notes' }))
