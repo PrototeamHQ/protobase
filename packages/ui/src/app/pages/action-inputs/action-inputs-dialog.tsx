@@ -36,7 +36,7 @@ const InputEditor = ({ input, held, invalid, onChange, boxes }: InputEditorProps
     if (!Custom) throw new Error(`Input "${input.name}": the app has no component "${input.component}"`)
     return <Custom input={input} value={held ?? null} onChange={onChange} invalid={invalid} props={input.props ?? {}} />
   }
-  if (input.kind === 'checklist') return <ChecklistInput boxes={boxes} ticked={Array.isArray(held) ? (held as string[]) : []} onChange={onChange} />
+  if (input.kind === 'checklist') return <ChecklistInput label={input.label} boxes={boxes} ticked={Array.isArray(held) ? (held as string[]) : []} onChange={onChange} />
   const target = input.resource === undefined ? undefined : resources[input.resource]
   return (
     <FieldEditor
