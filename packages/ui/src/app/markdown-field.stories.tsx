@@ -23,6 +23,13 @@ const tasksView = view<typeof tasks>('tasks')
   .list((r, d) => ({ columns: [r.title, r.notes], displays: [d.cards({ title: r.title, subtitle: r.notes })] }))
   .layout((r) => [l.section('Task', [r.title, r.notes])])
 
+// The same task with its section inside a group
+const groupedView = view<typeof tasks>('tasks')
+  .title((r) => r.title)
+  .names({ singular: 'Task', plural: 'Tasks' })
+  .fields((r) => ({ notes: r.notes.markdown().label('Worker notes') }))
+  .layout((r) => [l.group('Details', [l.section('Task', [r.title, r.notes])])])
+
 const notes = [
   '## Plan',
   '',
@@ -39,10 +46,10 @@ const rows = { tasks: [{ id: 1, title: 'Markdown editor', notes }] }
 /** The rows the fake server holds, so a play can check what a save stored. */
 let stored: Record<string, Array<Record<string, unknown>>> = {}
 
-const Tasks = ({ path, canUpdate = true }: { path: string; canUpdate?: boolean }) => {
+const Tasks = ({ path, canUpdate = true, grouped = false }: { path: string; canUpdate?: boolean; grouped?: boolean }) => {
   const [api] = useState(() => {
     const permissions: Record<string, ResourcePermissions> = { tasks: { read: true, create: true, update: canUpdate, delete: false, conditional: [] } }
-    const created = fakeApi({ resources: [tasks.toModel()], views: [tasksView.toModel()], rows: structuredClone(rows), permissions })
+    const created = fakeApi({ resources: [tasks.toModel()], views: [(grouped ? groupedView : tasksView).toModel()], rows: structuredClone(rows), permissions })
     stored = created.rows
     return created
   })
@@ -127,6 +134,18 @@ export const ReadNotes: StoryObj = {
     await rendersNotes(canvasElement)
     expect(within(canvasElement).getByRole('checkbox')).toBeDisabled()
     expect(canvasElement.querySelector('textarea')).toBeNull()
+  },
+}
+
+export const ReadNotesInGroup: StoryObj = {
+  tags: ['play'],
+  render: () => <Tasks path="/tasks/1" canUpdate={false} grouped />,
+  play: async ({ canvasElement }) => {
+    // The group is an h2, its section an h3 and the notes' own heading an h4
+    const canvas = within(canvasElement)
+    await canvas.findByRole('heading', { name: 'Details', level: 2 })
+    await canvas.findByRole('heading', { name: 'Task', level: 3 })
+    await canvas.findByRole('heading', { name: 'Plan', level: 4 })
   },
 }
 

@@ -53,7 +53,8 @@ export const Phone: StoryObj = { ...Counts, name: 'A group and its related table
 
 /**
  * The closed group shows its help and how many open tasks it holds; opened, each table counts its own, an empty one 0,
- * and a screen reader hears each count with what it counts.
+ * and a screen reader hears each count with what it counts. The tables are headed one level below the group, a section
+ * outside it at the group's level.
  */
 export const Checks: StoryObj = {
   ...Counts,
@@ -61,13 +62,14 @@ export const Checks: StoryObj = {
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole('heading', { name: /^Open tasks \(3 tasks\)$/ })
+    await canvas.findByRole('heading', { level: 2, name: /^Open tasks \(3 tasks\)$/ })
+    await canvas.findByRole('heading', { level: 2, name: 'Objective' })
     canvas.getByText('What is left before the objective is met.')
     expect(canvas.queryByRole('heading', { name: /^To do/ })).toBeNull()
 
     await userEvent.click(canvas.getByRole('link', { name: group }))
-    await canvas.findByRole('heading', { name: /^Blocked \(0 tasks\)$/ })
-    await canvas.findByRole('heading', { name: /^Doing \(1 task\)$/ })
-    await canvas.findByRole('heading', { name: /^To do \(2 tasks\)$/ })
+    await canvas.findByRole('heading', { level: 3, name: /^Blocked \(0 tasks\)$/ })
+    await canvas.findByRole('heading', { level: 3, name: /^Doing \(1 task\)$/ })
+    await canvas.findByRole('heading', { level: 3, name: /^To do \(2 tasks\)$/ })
   },
 }
