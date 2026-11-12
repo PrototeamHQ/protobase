@@ -1,5 +1,5 @@
 import { ArrowRight } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import type { AppAddress, ResourceModel, RowButtonModel, ViewModel } from '@protobase/schema'
 import { rowButtonFields } from '@protobase/schema/internal'
 import { DataGrid } from '../../data-grid'
@@ -102,12 +102,14 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
     </AppLink>
   )
 
-  if (rows.isPending) return <Loading />
-  if (rows.error) return <ErrorBanner title={text('couldNotLoad')} error={rows.error} />
+  // The open dialog stays while a refetch loads, fails or leaves no rows, so cancelling it still clears it
+  const withPrompt = (body: ReactNode) => <>{body}{named.prompt}</>
+  if (rows.isPending) return withPrompt(<Loading />)
+  if (rows.error) return withPrompt(<ErrorBanner title={text('couldNotLoad')} error={rows.error} />)
   // A link of its own still leads somewhere when nothing here matches
   if (!source || source.total === 0) {
     const nothing = <p className="text-muted-foreground">{empty ?? text('nothingYet')}</p>
-    return viewAll && link ? <div className="flex flex-col gap-3">{nothing}{allLink}</div> : nothing
+    return withPrompt(viewAll && link ? <div className="flex flex-col gap-3">{nothing}{allLink}</div> : nothing)
   }
 
   const list: ListDisplay = {
