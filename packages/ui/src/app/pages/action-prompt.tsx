@@ -12,6 +12,10 @@ type ActionPromptProps = {
   action: ActionModel
   label: string
   danger?: boolean
+  /** The records it runs on, whose fields a checklist may take its boxes from. */
+  records?: Array<Record<string, unknown>>
+  /** Their titles, which a dialog for several names. */
+  names?: string[]
   onCancel: () => void
   /** Runs an action without inputs once its question is answered. */
   onConfirm: () => void
@@ -20,8 +24,8 @@ type ActionPromptProps = {
 }
 
 /** The dialog an action that asks first opens: its inputs, or else its question. */
-export const ActionPrompt = ({ action, label, danger, onCancel, onConfirm, onSubmit }: ActionPromptProps) => {
+export const ActionPrompt = ({ action, label, danger, records, names, onCancel, onConfirm, onSubmit }: ActionPromptProps) => {
   const { inputs } = action
-  if (inputs?.length) return <ActionInputsDialog action={{ ...action, inputs }} label={label} danger={danger} onCancel={onCancel} onSubmit={onSubmit} />
+  if (inputs?.length) return <ActionInputsDialog action={{ ...action, inputs }} label={label} danger={danger} records={records} names={names} onCancel={onCancel} onSubmit={onSubmit} />
   return <ConfirmAction action={action} label={label} danger={danger} onCancel={onCancel} onConfirm={onConfirm} />
 }

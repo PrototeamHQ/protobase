@@ -61,7 +61,7 @@ export type DataGridProps = {
   selectable?: boolean
   /** Rows moved by a drag handle in place of the checkbox, every row of `source` loaded; nothing is selected meanwhile. */
   reorder?: RowReorder
-  /** Sized to show every row of `source` without scrolling and without the footer, for a few rows shown whole. */
+  /** Sized to show every row of `source` without scrolling, for a few rows shown whole, without the footer unless it offers `bulkActions` for selected rows. */
   fit?: boolean
   /**
    * What scrolls the rows: `own`, a scroller of the grid's own in the height it is given, or `parent`, the nearest
@@ -72,6 +72,7 @@ export type DataGridProps = {
 }
 
 const headerHeight = 32
+const footerHeight = 36
 
 export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowLink, rowActions, cellEditor, rowPatches, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable: selecting = true, reorder, fit = false, scroll = 'own', className }: DataGridProps) => {
   const selectable = selecting && !reorder
@@ -175,6 +176,8 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
 
   const minWidth = gridMinWidth(sized, gutter, trailing, minScale)
   const own = scroll === 'own'
+  // A grid sized to its rows has no footer, unless its rows can be selected for bulk actions, which it offers
+  const footer = !fit || (selectable && Boolean(bulkActions?.length))
   const header = (
     <div ref={headerRef} className={cn('sticky z-20 shrink-0 overflow-hidden', own ? 'top-0' : 'top-[var(--pb-sticky-top,0px)]')}>
       <div style={{ minWidth }}>
@@ -223,7 +226,7 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
       aria-rowcount={total}
       onKeyDown={cellEditing?.onKeyDown}
       className={cn('flex flex-col rounded-lg border bg-background', own ? 'min-h-0 overflow-hidden' : 'overflow-clip', className)}
-      style={fit && own ? { height: headerHeight + total * rowHeight + 2 } : undefined}
+      style={fit && own ? { height: headerHeight + total * rowHeight + (footer ? footerHeight : 0) + 2 } : undefined}
     >
       <div className={cn('relative', own && 'flex min-h-0 flex-1 flex-col')}>
         {own ? (
@@ -239,7 +242,7 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
         )}
         {horizontal.more && <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-20 w-8 bg-gradient-to-l from-backdrop/15 to-transparent" />}
       </div>
-      {!fit && (
+      {footer && (
         <GridFooter
           total={total}
           className={own ? undefined : 'sticky bottom-[var(--pb-sticky-bottom,0px)] z-20'}

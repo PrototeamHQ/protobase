@@ -30,6 +30,7 @@ export const ActionButton = ({ name, resource, label, variant, className }: Acti
           action={action.action}
           label={text}
           danger={shown === 'danger'}
+          records={action.record ? [action.record] : []}
           onCancel={() => setAsking(false)}
           onConfirm={() => {
             setAsking(false)

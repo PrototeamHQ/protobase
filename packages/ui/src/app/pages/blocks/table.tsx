@@ -9,7 +9,7 @@ import { CardFrame } from './card-frame'
 
 type LoadedProps = Omit<TableProps, 'resource' | 'actions'> & { model: ResourceModel; view: ViewModel | undefined; actions: BlockProps['slots'][string]; className?: string }
 
-const LoadedTable = ({ model, view, filter = '', sort = '', columns, button, limit = 10, display: preferred, title, description, empty, actions, className }: LoadedProps) => {
+const LoadedTable = ({ model, view, filter = '', sort = '', columns, button, bulk, limit = 10, display: preferred, title, description, empty, actions, className }: LoadedProps) => {
   const [display, pick] = useEmbeddedDisplay(view, `page:${model.name}:${title ?? ''}:${filter}`, preferred)
   return (
     <CardFrame
@@ -23,12 +23,15 @@ const LoadedTable = ({ model, view, filter = '', sort = '', columns, button, lim
       }
       className={cn('h-full', className)}
     >
-      <EmbeddedList model={model} view={view} filter={filter} sort={sort} columns={columns} button={button} limit={limit} display={display} empty={empty} />
+      <EmbeddedList model={model} view={view} filter={filter} sort={sort} columns={columns} button={button} bulk={bulk} limit={limit} display={display} empty={empty} />
     </CardFrame>
   )
 }
 
-/** The first `limit` records in `sort` order, in the list page's table, with its row button, or display, with a link to the whole list. */
+/**
+ * The first `limit` records in `sort` order, in the list page's table, with its row button and, with `bulk`, the view's
+ * bulk actions for the rows selected, or display, with a link to the whole list.
+ */
 export const TableBlock = ({ node, slots, className }: BlockProps) => {
   const { className: _className, ...props } = propsOf<TableProps & Styled>(node)
   const { resources, views } = useAdminMeta()

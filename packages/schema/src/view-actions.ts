@@ -58,7 +58,7 @@ export const actions = {
   /**
    * An action the app implements: it runs the handler registered under `name`. With `inputs`, such as
    * `(i) => [i.text('reason', { label: 'Reason' })]`, the button first asks for them in a dialog, and the handler gets the
-   * answers as `values`. With `bulk` and no `inputs`, the list offers it for the selected rows too, and runs the handler on each it applies to.
+   * answers as `values`. With `bulk`, the list offers it for the selected rows too, asks its inputs once, and runs the handler on each it applies to.
    * With `mailbox: true`, it sends from the person's own mailbox, and its dialog offers to connect one while none is linked.
    */
   action: (name: string, o: ActionOptions & InputsOption & MailboxOption & { bulk?: boolean }): ActionModel => ({
@@ -71,7 +71,7 @@ export const actions = {
    * record that holds these values already. With `inputs`, the button first asks for them in a dialog, and a `set` value
    * that is exactly `'{name}'` is written as that input's answer, with no handler code:
    * `a.update('answer', { label: 'Answer', inputs: (i) => [i.text('answer', { label: 'Answer', multiline: true })], set: { answer: '{answer}' } })`.
-   * With `bulk` and no `inputs`, the list offers it for the selected rows too, and updates each it applies to.
+   * With `bulk`, the list offers it for the selected rows too, asks its inputs once, and updates each it applies to.
    */
   update: (name: string, o: ActionOptions & InputsOption & { set: Record<string, unknown>; bulk?: boolean }): ActionModel => {
     const built = builtInputs(name, o.inputs)

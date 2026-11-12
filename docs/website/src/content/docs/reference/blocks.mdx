@@ -4,6 +4,7 @@ description: Every built-in layout block, its props and what it does, with examp
 ---
 
 import { Code } from '@astrojs/starlight/components'
+import StoryFrame from '../../../components/StoryFrame.astro'
 import erpPage from '../../../../../../tests/apps/erp/config/overview/page.tsx?raw'
 
 Blocks are imported from `@protobase/layout`. Every block also takes [`className`](/reference/layouts/#tailwind-classes), Tailwind classes for its outer element. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. The ERP example's sales overview uses `Page`, `Grid`, `Card`, `Stat`, `Table`, `RecordCard`, `CardRow`, `Field`, `Chart`, `Action`, `ModalForm` and `Show`; of the others, the property portal's home uses `RecordRow`, and the [Users page](/reference/auth/#users-page) `Users`:
@@ -148,6 +149,7 @@ The first records of a list, drawn the way the resource's list page draws them: 
 | `resource`, `filter`, `sort` | Which records, in which order. `resource` is required; `sort` defaults to the list's. |
 | `columns` | Field names for the table; default the view's list columns. |
 | `button` | A [button on each row](#row-buttons) to an address the row's fields name, or to the outside page a field holds; a list of these gives each row the first whose fields it holds. |
+| `bulk` | `true`: rows can be selected, and the view's `bulk` actions run on the selected rows, as on the list page; see [signing several records off](#signing-several-records-off). |
 | `limit` | How many records it shows; default 10. It has no pages: the rest are in the list. Before 0.13 this was `pageSize`, rows per page; rename it. |
 | `display` | The display it opens in, such as `cards`; default the list's. |
 | `title`, `description`, `actions` | The heading. |
@@ -195,6 +197,39 @@ Each row can decide where its button goes:
 <gap>A row button cannot show when the table switches to a list display such as cards because drawing it on a display is not implemented.</gap>
 
 <gap>A row button cannot show beside its row's first cell on a phone, where the table scrolls sideways to reach it, because a phone layout for table rows is not implemented.</gap>
+
+#### Signing several records off
+
+:::caution[Experimental]
+It may change in any release. On a phone the list page offers no selection, so there the records are signed off from a `Table` with `bulk`.
+:::
+
+Records that wait on the same act, such as several steps one approval unlocks, are signed off together: select them in the list, or in a `Table` with `bulk`, and press the action, such as **Approve (3)**. Its dialog names the records and shows a checklist, and the action runs only once every box is ticked. The checklist is an [input](/reference/ui-config/#actions-that-ask-for-input), `i.checklist`, of an action with `bulk`:
+
+```ts
+.actions((a) => [
+  a.update('approve', {
+    label: 'Approve',
+    bulk: true,
+    when: "state = 'waiting'",
+    confirm: 'Tick each detail you confirm.',
+    inputs: (i) => [i.checklist('checked', { label: 'What you checked', from: 'checklist' })],
+    set: { checked: '{checked}', state: 'approved' },
+  }),
+])
+```
+
+```tsx
+<Table title="Waiting on you" resource="approvals" filter="state = 'waiting'" bulk />
+```
+
+With `from`, each record brings its own boxes from that JSON field, a list of texts, and the dialog shows each box once, however many of the records hold it. Each record then gets the boxes it holds as its answer, so `'{checked}'` writes what was signed off for that record; a record that holds no boxes needs none ticked. With `items`, every record shows and gets the same boxes. The record page's button for the action opens the same dialog with that record's boxes.
+
+Access is checked per record: a record the person may not change, by its permissions or by the API's answer, is refused while the others are signed off, and the toast names it, such as **Approve: done on 2, refused on 1** with "Not done on “Rotate the signing key”: you may not change it.". `protobase build` refuses a `from` that is no JSON field of the resource, and `/api/meta` leaves the action out for someone who cannot read that field.
+
+<gap>A sign-off cannot show its progress or each record's result in its dialog because a result step for bulk actions is not implemented; the toast reports them.</gap>
+
+<StoryFrame id="actions-sign-off-several--on-a-page" title="Approving three steps from a Table, one of them refused" height={560} />
 
 ### RecordCard
 

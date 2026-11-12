@@ -41,6 +41,13 @@ export const inputs = {
   choice: (name: string, o: InputOptions<string> & ({ options: Array<{ value: string; label: string }> } | { resource: string })) =>
     input(name, 'choice', o, 'options' in o ? { options: o.options.map(({ value, label }) => ({ value, label })) } : { resource: o.resource }),
   /**
+   * Boxes the person ticks, every one, before the action runs: `items`, the same for every record, or `from`, the JSON
+   * field that holds each record's own as a list of texts. For several records the dialog shows each box once; each
+   * record gets the boxes it holds, ticked, as a list of texts.
+   */
+  checklist: (name: string, o: { label: string; help?: string; when?: string } & ({ items: string[] } | { from: string })) =>
+    input(name, 'checklist', o, 'items' in o ? { items: [...o.items] } : { from: o.from }),
+  /**
    * What a project component edits, registered in `defineUi({ components })` under `component`: it gets the answer as
    * `value`, `onChange`, whether the answer is refused (`invalid`) and `props`.
    */
@@ -48,7 +55,7 @@ export const inputs = {
     input(name, 'custom', o, { component: o.component, ...(o.props !== undefined && { props: o.props }) }),
 }
 
-const filterTypes: Record<ActionInputKind, FieldType> = { text: 'text', integer: 'integer', decimal: 'decimal', boolean: 'boolean', date: 'date', choice: 'text', custom: 'json' }
+const filterTypes: Record<ActionInputKind, FieldType> = { text: 'text', integer: 'integer', decimal: 'decimal', boolean: 'boolean', date: 'date', choice: 'text', checklist: 'json', custom: 'json' }
 
 const inputField = (entry: ActionInputModel): FieldModel => ({
   name: entry.name,
@@ -56,7 +63,7 @@ const inputField = (entry: ActionInputModel): FieldModel => ({
   type: entry.options ? 'enum' : filterTypes[entry.kind],
   nullable: true,
   readOnly: false,
-  filterable: entry.kind !== 'custom',
+  filterable: entry.kind !== 'custom' && entry.kind !== 'checklist',
   sortable: false,
   aliases: [],
   ...(entry.options && { enumValues: entry.options.map((option) => option.value) }),
@@ -80,7 +87,15 @@ const checkedWhen = (entries: ActionInputModel[], index: number): CheckedFilter 
   return checked.ok ? checked.filter : checked.errors.map((error) => error.message).join('; ')
 }
 
-/** What is wrong with an action's inputs: a name given twice, a default that is no option, a `when` over no input before it. */
+// A checklist has its boxes in `items`, at least one, or in a field of the record, never both.
+const checklistErrors = (entry: ActionInputModel) => {
+  if (entry.kind !== 'checklist') return []
+  if ((entry.items === undefined) === (entry.from === undefined)) return [`input "${entry.name}": a checklist takes either "items" or "from"`]
+  if (entry.items && entry.items.length === 0) return [`input "${entry.name}": a checklist needs at least one item`]
+  return []
+}
+
+/** What is wrong with an action's inputs: a name given twice, a default that is no option, a `when` over no input before it, a checklist without boxes. */
 export const actionInputErrors = (entries: ActionInputModel[]) =>
   entries.flatMap((entry, index) => {
     const errors: string[] = []
@@ -88,7 +103,7 @@ export const actionInputErrors = (entries: ActionInputModel[]) =>
     if (entry.options && entry.default !== undefined && !entry.options.some((option) => option.value === entry.default)) errors.push(`input "${entry.name}": default "${String(entry.default)}" is not one of its options`)
     const when = checkedWhen(entries, index)
     if (typeof when === 'string') errors.push(`input "${entry.name}": "when" is not a valid condition over the inputs before it: ${when}`)
-    return errors
+    return [...errors, ...checklistErrors(entry)]
   })
 
 /**

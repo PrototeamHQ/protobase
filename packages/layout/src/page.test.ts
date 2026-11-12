@@ -43,7 +43,7 @@ describe('page', () => {
   it('names unknown, missing and mistyped props', () => {
     const tree: LayoutNode = { type: 'Page', props: { title: 'x' }, children: [{ type: 'Table', props: { colums: ['a'], limit: 0 }, children: [] }] }
     expect(problems(tree)).toEqual([
-      '<Page> › <Table>: unknown prop "colums"; it takes resource, filter, sort, title, description, actions, columns, button, limit, display, empty, span, className',
+      '<Page> › <Table>: unknown prop "colums"; it takes resource, filter, sort, title, description, actions, columns, button, bulk, limit, display, empty, span, className',
       '<Page> › <Table>: "resource" is required',
       '<Page> › <Table>: "limit" must be a positive whole number',
     ])
@@ -69,8 +69,10 @@ describe('page', () => {
     const table = (props: Record<string, unknown>): LayoutNode => ({ type: 'Page', props: { title: 'x' }, children: [{ type: 'Table', props: { resource: 'listings', ...props }, children: [] }] })
     expect(problems(table({ limit: 8, display: 'cards' }))).toEqual([])
     expect(problems(table({ display: 3 }))).toEqual(['<Page> › <Table resource="listings">: "display" must be text'])
+    expect(problems(table({ bulk: true }))).toEqual([])
+    expect(problems(table({ bulk: 'yes' }))).toEqual(['<Page> › <Table resource="listings">: "bulk" must be true or false'])
     expect(problems(table({ pageSize: 8 }))).toEqual([
-      '<Page> › <Table resource="listings">: unknown prop "pageSize"; it takes resource, filter, sort, title, description, actions, columns, button, limit, display, empty, span, className',
+      '<Page> › <Table resource="listings">: unknown prop "pageSize"; it takes resource, filter, sort, title, description, actions, columns, button, bulk, limit, display, empty, span, className',
     ])
   })
 

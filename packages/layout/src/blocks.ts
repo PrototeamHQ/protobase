@@ -58,6 +58,8 @@ export type TableProps = DataProps &
      * page a field holds, `{ label: 'Report', href: '{report_url}' }`; a row with no value for a field it names shows none.
      */
     button?: RowButtonModel
+    /** Rows can be selected, and the view's `bulk` actions run on the selected rows, as on the list page. */
+    bulk?: boolean
     /** How many records it shows, the first in `sort` order; default 10. "View all" opens the rest in the list. */
     limit?: number
     /** The display of the resource's list it opens in, such as `cards`; the list's default when omitted. */
