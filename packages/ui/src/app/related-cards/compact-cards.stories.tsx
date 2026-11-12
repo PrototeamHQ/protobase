@@ -115,6 +115,10 @@ export const Checks: StoryObj = {
 
     const third = (await section.findByRole('link', { name: 'Lists lose their place on the way back' })).closest('li')!
     const action = card.getByRole('button', { name: 'Mark clear: Related cards push the first action below the fold' })
+    // Each card's action names its record after its label, so a screen reader tells them apart
+    for (const title of ['Card colours cannot follow a status', 'Lists lose their place on the way back']) {
+      expect(within((await section.findByRole('link', { name: title })).closest('li')!).getByRole('button', { name: `Mark clear: ${title}` })).toBeVisible()
+    }
     expect(third.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight)
     expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight)
 
