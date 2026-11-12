@@ -568,7 +568,7 @@ view<typeof objectives>('objectives').recordWidth('full')
 ### Read-only values and a title badge
 
 :::caution[Experimental]
-How read-only values and the title badge look may change in any release.
+How read-only values and the title badge look may change in any release. A relative time does not yet refresh on a timer while the page stays open.
 :::
 
 On the form, a field nobody may change there, such as a `.readOnly()` field or one the user may only read, shows as its value rather than a greyed input, as the read view shows it: at full text contrast, an enum or a field with `.format('badge')` as a badge in the view's `valueLabels` and `valueColors`, a timestamp with `.format('relative')` as "3 hours ago" with the exact time on hover, and a missing value as a dash that screen readers read as "No value". Its label is text rather than a form label, since there is no control for it to name.
