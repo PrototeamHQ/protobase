@@ -160,6 +160,30 @@ A plugin, or the app's own `protobase.ui.tsx`, registers a viewer for a media ty
 
 The viewer gets the file and its **siblings**: the record's other files, and the files of the records of the same resource that point at the same records through filterable relations, read in one list call of at most 100 records. For attachments that each point at a task, the siblings of one are the other attachments of that task, so a report can show the images it names by file name.
 
+### Image and PDF viewers
+
+Protobase brings no viewer of its own. Two plugins, each a package of its own, open images and PDFs in the app; an app that wants them installs them and extends its `protobase.ui.tsx` with them:
+
+```sh
+npm install @protobase/image-viewer @protobase/pdf-viewer
+```
+
+```tsx
+// protobase.ui.tsx
+import { defineUi } from '@protobase/ui'
+import imageViewer from '@protobase/image-viewer'
+import pdfViewer from '@protobase/pdf-viewer'
+
+export default defineUi({ extends: [imageViewer, pdfViewer] })
+```
+
+Each viewer's code is a chunk of the app's build that loads only when such a file opens, so an app that extends them loads nothing more until then. On a phone both are as wide as the screen. A file a viewer cannot draw shows the Download button in its place.
+
+- `@protobase/image-viewer` opens PNG, JPEG, GIF, WebP, AVIF and BMP, the images downloads serve inline: fitted to the page, with its size in pixels and an **Actual size** button that shows it pixel for pixel, scrolling in its own box when it is wider than the page. SVG stays a download.
+- `@protobase/pdf-viewer` opens PDF files with an open-source PDF renderer that runs in a web worker: the pages one under the other, as wide as the page up to 60rem, each drawn when it comes within a screen of being shown and let go again once it is further away, so a long PDF holds only the pages around the screen. Scanned pages in JPEG 2000 or JBIG2 are drawn with the renderer's decoders, which the viewer brings. The renderer reads the file with `fetch`, so a PDF served from another origin than the app's, from a [bucket](#s3-compatible-buckets) or an [external URL](#external-urls)'s host, opens only when that host allows the app's origin with CORS; otherwise the viewer shows the Download button. <gap>The PDF viewer cannot select or search a page's text because a text layer is not implemented, so the page is an image and its text is read in the download.</gap> <gap>The PDF viewer cannot draw text that uses one of the renderer's predefined CMaps, as many Chinese, Japanese and Korean PDFs do whether or not they embed the font, because bringing those CMaps is not implemented, so such text is read in the download.</gap>
+
+Each package also exports its viewer component (`ImageViewer`, `PdfViewer`), for an app that registers it for a type of its own in `fileViewers`.
+
 ## Type and size fields
 
 `.typeField()` and `.sizeField()` keep each file's media type and size in columns of their own, so a list can show them and SQL can count and sum by them:
