@@ -12,6 +12,12 @@ const refusal = async (promise: Promise<unknown>) => {
 }
 
 describe('file limits', () => {
+  it('pass the type a put names on to the store', async () => {
+    const { bucket, objects } = fakeBucket()
+    await limitedFileStore(s3FileStore(bucket), { maxFiles: 5 }).put('a/report.bin', bytes(1), { type: 'application/vnd.example.report+json' })
+    expect(objects.get('a/report.bin')?.type).toBe('application/vnd.example.report+json')
+  })
+
   it('refuse a file past maxFiles with 507, counting files only', async () => {
     const { bucket, objects } = fakeBucket()
     const store = limitedFileStore(s3FileStore(bucket), { maxFiles: 2 })

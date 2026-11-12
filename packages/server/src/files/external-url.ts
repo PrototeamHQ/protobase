@@ -1,4 +1,4 @@
-import { typeOfExtension } from './media-types'
+import { builtInTypes, type MediaTypes } from './media-types'
 
 // Printable ASCII without spaces: a URL as written, which the URL parser would otherwise trim or escape on its own.
 const urlText = /^[\x21-\x7e]+$/
@@ -28,8 +28,11 @@ const decoded = (segment: string) => {
   }
 }
 
-/** An external file's name and type: its path's last segment, else its host, and the type of that segment's extension. */
-export const externalFile = (url: URL) => {
+/**
+ * An external file's name and type: its path's last segment, else its host, and the type of that segment's extension in
+ * the app's table (`files.types` included); no type for an extension the table does not know.
+ */
+export const externalFile = (url: URL, types: MediaTypes = builtInTypes) => {
   const segment = decoded(lastSegment(url.pathname))
-  return { name: segment || url.hostname, type: typeOfExtension(segment) }
+  return { name: segment || url.hostname, type: types.typeOfExtension(segment) }
 }

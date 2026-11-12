@@ -103,7 +103,7 @@ export const uploadFile = async (deps: Deps, entry: Entry, session: Session, req
   ])
   let size: number
   try {
-    size = (await provider.store.put(uploaded, limitedStream(head, reader, maxSize))).size
+    size = (await provider.store.put(uploaded, limitedStream(head, reader, maxSize), { type: decision.type })).size
   } catch (error) {
     if (error instanceof FileTooLarge) throw tooLarge(maxSize)
     throw error
@@ -119,10 +119,13 @@ export const uploadFile = async (deps: Deps, entry: Entry, session: Session, req
     placeholder = image.placeholder
   }
 
-  const target = field.file!.placeholder
+  const { placeholder: target, typeField, sizeField } = field.file!
   const derived = {
     ...(await deriveValues(entry, field, { name, ...stored, store: provider.store, path })),
     ...(target !== undefined && { [target]: placeholder ?? null }),
+    ...(typeField !== undefined && { [typeField]: stored.type }),
+    // A bigint field holds its value as text, as the API reads and writes it.
+    ...(sizeField !== undefined && { [sizeField]: access.full.fields[sizeField]?.type === 'bigint' ? String(stored.size) : stored.size }),
   }
   const ref = { provider: providerName, path, name, size: stored.size, ...(variantList.length > 0 && { variants }) }
   const value = await issueTicket(files.signer, ref, derived, ticketScope(access, field.name), expires)

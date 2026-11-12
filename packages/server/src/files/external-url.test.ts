@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { externalFile, parseExternalUrl } from './external-url'
+import { mediaTypes } from './media-types'
 import { parseUri } from './uri'
 
 describe('parseExternalUrl', () => {
@@ -36,5 +37,12 @@ describe('externalFile', () => {
     expect(externalFile(new URL('https://images.example.com/photo'))).toEqual({ name: 'photo', type: undefined })
     expect(externalFile(new URL('https://images.example.com/'))).toEqual({ name: 'images.example.com', type: undefined })
     expect(externalFile(new URL('https://images.example.com/%E0%A4%A.png'))).toEqual({ name: '%E0%A4%A.png', type: 'image/png' })
+  })
+
+  it("types it by the app's own types when given them", () => {
+    const types = mediaTypes({ 'application/vnd.example.report+json': ['report.json'] })
+    const url = new URL('https://reports.example.com/weekly.report.json')
+    expect(externalFile(url, types)).toEqual({ name: 'weekly.report.json', type: 'application/vnd.example.report+json' })
+    expect(externalFile(url)).toEqual({ name: 'weekly.report.json', type: 'application/json' })
   })
 })
