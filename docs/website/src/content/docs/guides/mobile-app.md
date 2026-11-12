@@ -112,7 +112,7 @@ makes a signed release binary: an `.aab` to upload to Google Play, an `.ipa` to 
 - A release calls its server over https, at `--api` or the app's `url`: plain http, `localhost` and `10.0.2.2` are refused.
 - `--app-version` is the version the stores show, one to three numbers such as `1.2.3`. `--build-number` is a whole number that must rise with every upload, such as your CI's run number.
 - Extra plugins run at build time with access to your signing key, so add only plugins you trust.
-- Android apps built by `protobase mobile run` and `protobase mobile build` opt out of Android's backup and device-to-device transfer, so no working session sits in a cloud backup or on another phone. On a new phone, or after restoring a backup, the app starts as a fresh install: your users sign in again, and unsent drafts are gone.
+- Android apps built by `protobase mobile run` and `protobase mobile build` opt out of Android's backup and device-to-device transfer, so no working session sits in a cloud backup or on another phone. On a new phone, or after restoring a backup, the app starts as a fresh install: your users sign in again, and unsent drafts are gone. <gap>An iOS app restored from a backup or moved to a new iPhone cannot start as a fresh install because opting the iOS app out of backup is not implemented.</gap>
 
 **Android.** Make an upload key once, outside the project, and never commit it:
 
