@@ -143,9 +143,9 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
   return { actions, blocked, blockedOn, appliesOn, verdictOn, running, run, submit, runEach: runOnEach }
 }
 
-/** One named action of `resource`'s view, for a button. */
-export const useRunAction = (resource: string, name: string, scope: LayoutRecord | undefined) => {
-  const runner = useActionRunner(resource, scope)
+/** One named action of `resource`'s view, for a button; `afterRun` hears when it succeeded. */
+export const useRunAction = (resource: string, name: string, scope: LayoutRecord | undefined, afterRun?: (action: ActionModel) => void) => {
+  const runner = useActionRunner(resource, scope, afterRun)
   const action = runner.actions.find((entry) => entry.name === name)
   return {
     action,

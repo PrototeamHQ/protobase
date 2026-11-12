@@ -1346,7 +1346,8 @@
     "couldNotLoad": "Could not load",
     "nothingYet": "Nothing here yet.",
     "open": "Open {singular}",
-    "add": "Add {singular}"
+    "add": "Add {singular}",
+    "left": "Done: {action}, {title}. It has left this list."
   },
   "app/related-dots": {
     "none": "No {plural}"

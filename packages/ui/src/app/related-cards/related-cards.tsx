@@ -1,4 +1,5 @@
 import { ArrowRight } from 'lucide-react'
+import { useMemo } from 'react'
 import type { ResourceModel, RowButtonModel, ViewModel } from '@protobase/schema'
 import { useIsXs } from '../../lib/use-media-query'
 import { humanize } from '../../live/naming'
@@ -15,6 +16,7 @@ import { AppLink } from '../use-app-address'
 import { CompactCard } from './compact-card'
 import { RelatedCard } from './related-card'
 import { text } from './messages'
+import { useLeavingFocus } from './use-leaving-focus'
 
 type RelatedCardsProps = {
   model: ResourceModel
@@ -59,30 +61,41 @@ export const RelatedCards = ({ model, view, filter, sort, fields, actions, butto
   const orderBy = sort || defaultOrderBy(model, view)
   const page = useListPage(model, { filter, sort: orderBy, pageSize: limit })
   const count = useCount(model, filter)
-  if (page.isPending) return <CardsSkeleton compact={Boolean(compact)} limit={limit} />
-  if (page.error) return <ErrorBanner title={text('couldNotLoad')} error={page.error} />
-  const rows = page.data.items
-  if (rows.length === 0) return <p className="text-muted-foreground">{empty ?? text('nothingYet')}</p>
-  const cards = rows.map((row) => {
-    const scope = scopeOf(model, row)
-    if (compact) return <CompactCard key={scope.key} scope={scope} view={view} fields={fields} time={compact.time} tone={tone} actions={actions} button={button} />
-    return <RelatedCard key={scope.key} scope={scope} view={view} fields={fields} tone={tone} actions={actions} button={button} />
-  })
-  const note = count.data === undefined ? undefined : cutOffNote(rows.length, count.data, false)
-  return (
-    <div className="flex flex-col gap-3">
-      {carousel === undefined ? <ul className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>{cards}</ul> : (
-        <SnapRow scroll={scroll} label={plural} share={carousel}>
-          {cards}
-        </SnapRow>
-      )}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">{note}</p>
-        <AppLink to={viewAllAddress(model, view, xs, { filter, orderBy, display: embeddedDisplay(view, xs, { preferred: display }) })} className="flex items-center gap-1 font-medium text-primary-text hover:underline">
-          {listText('viewAll')} <span className="sr-only">{plural.toLowerCase()}</span>
-          <ArrowRight className="size-3.5" aria-hidden />
-        </AppLink>
+  const scopes = useMemo(() => (page.data?.items ?? []).map((row) => scopeOf(model, row)), [model, page.data])
+  const keys = useMemo(() => scopes.map((scope) => scope.key), [scopes])
+  const leaving = useLeavingFocus(keys)
+  const content = () => {
+    if (page.isPending) return <CardsSkeleton compact={Boolean(compact)} limit={limit} />
+    if (page.error) return <ErrorBanner title={text('couldNotLoad')} error={page.error} />
+    if (scopes.length === 0) return <p className="text-muted-foreground">{empty ?? text('nothingYet')}</p>
+    const cards = scopes.map((scope) => {
+      const acted = (action: string, title: string) => leaving.acted(scope.key, action, title)
+      if (compact) return <CompactCard key={scope.key} scope={scope} view={view} fields={fields} time={compact.time} tone={tone} actions={actions} button={button} onActed={acted} />
+      return <RelatedCard key={scope.key} scope={scope} view={view} fields={fields} tone={tone} actions={actions} button={button} onActed={acted} />
+    })
+    const note = count.data === undefined ? undefined : cutOffNote(scopes.length, count.data, false)
+    return (
+      <div className="flex flex-col gap-3">
+        {carousel === undefined ? <ul className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>{cards}</ul> : (
+          <SnapRow scroll={scroll} label={plural} share={carousel}>
+            {cards}
+          </SnapRow>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">{note}</p>
+          <AppLink to={viewAllAddress(model, view, xs, { filter, orderBy, display: embeddedDisplay(view, xs, { preferred: display }) })} className="flex items-center gap-1 font-medium text-primary-text hover:underline">
+            {listText('viewAll')} <span className="sr-only">{plural.toLowerCase()}</span>
+            <ArrowRight className="size-3.5" aria-hidden />
+          </AppLink>
+        </div>
       </div>
+    )
+  }
+  // The toast says an action is done; only the cards know when it took its card out of the list
+  return (
+    <div ref={leaving.root}>
+      {content()}
+      <p role="status" className="sr-only">{leaving.announcement}</p>
     </div>
   )
 }
