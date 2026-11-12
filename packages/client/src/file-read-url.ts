@@ -1,9 +1,11 @@
 import { appReadUrl, filePath, filesPath, storedFileRef } from '@protobase/schema/internal'
 
-// A path link on the origin of an absolute `systemUrl`, as the client makes a record's file links; any other as it is.
-const onApiOrigin = (url: string, systemUrl: string) => {
-  const isPath = url.startsWith('/') && !url.startsWith('//')
-  return isPath && URL.canParse(systemUrl) ? `${new URL(systemUrl).origin}${url}` : url
+// With an absolute `systemUrl`, both in the form `URL` writes them, such as without a default port, a path link put on
+// that API's origin as the client does for a record's file links; with a path, both as they are.
+const canonical = (url: string, systemUrl: string) => {
+  if (!URL.canParse(systemUrl)) return { link: url, api: systemUrl }
+  const api = new URL(systemUrl)
+  return { link: new URL(url, api).href, api: `${api.origin}${api.pathname.replace(/\/$/, '')}` }
 }
 
 /**
@@ -16,8 +18,8 @@ export const fileReadUrl = (file: { uri: string; url: string }, systemUrl: strin
   if (!file.url.startsWith('/') && !/^https?:\/\//i.test(file.url)) return file.url
   const ref = storedFileRef(file.uri)
   if (!ref) return file.url
-  const files = filesPath(systemUrl)
-  const link = onApiOrigin(file.url, systemUrl)
+  const { link, api } = canonical(file.url, systemUrl)
+  const files = filesPath(api)
   if (link.startsWith(`${files}/`)) return appReadUrl(link)
   return appReadUrl(filePath(files, ref.provider, ref.path))
 }
