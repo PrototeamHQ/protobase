@@ -26,7 +26,7 @@ on:
 # instead of cancelling all but the newest, so no run that cut a tag misses its publish. A run's job waits only once
 # the same run's previous job ended, and that job ran after the older run's, so every stage keeps the order of the
 # tags: a newer run reads the tags after the older run pushed its own, and npm and the registry get the releases
-# oldest first.
+# oldest first. A run whose plan predicted a tag an older run took meanwhile packs again in its release job.
 jobs:
   # The tag this push would cut (scripts/release.mjs --dry-run prints it), or none, so the pack job can start at once.
   # A run by hand without a tag is a release of main's head, so it runs every job a push does, and only from main.
@@ -179,6 +179,32 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           tag=$(bun run release --notes "$RUNNER_TEMP/notes.md" --features-release-rule)
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      # Plan and pack run outside this job's group, so an older run can push a tag between this run's plan and its cut,
+      # and the cut then differs from the version pack stamped. The packages are packed again at the cut tag, before the
+      # tag is pushed, and replace pack's, so publish never refuses the tarballs of a tag this job pushed.
+      - name: Check that the cut tag is the one pack stamped
+        id: stale
+        if: steps.cut.outputs.tag != '' && steps.cut.outputs.tag != needs.plan.outputs.tag
+        run: echo "repack=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        if: steps.stale.outputs.repack == 'true'
+        with:
+          node-version: 24.22.1
+      - name: Pack the packages again at the cut tag
+        if: steps.stale.outputs.repack == 'true'
+        env:
+          TAG: ${{ steps.cut.outputs.tag }}
+        run: |
+          bun scripts/stamp-version.mjs "$TAG"
+          node scripts/publish.mjs --pack --out "$RUNNER_TEMP/packages"
+      - uses: actions/upload-artifact@v4
+        if: steps.stale.outputs.repack == 'true'
+        with:
+          name: packages
+          path: ${{ runner.temp }}/packages
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: true
       - name: Push the tag and publish the GitHub release
         id: push
         if: steps.cut.outputs.tag != ''
