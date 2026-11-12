@@ -71,3 +71,18 @@ export const offScreen = ({ width, page, bar }) => [
   ...(page > width ? [`the page is ${page}px wide, wider than ${width}px`] : []),
   ...bar.filter(({ right }) => right > width).map(({ text, right }) => `the top bar's "${text}" ends at ${right}px, past ${width}px`),
 ]
+
+// How far a computed `box-shadow`, such as a focus ring's, reaches past its box: the largest spread, the fourth length,
+// of its shadows, in pixels.
+export const ringWidth = (boxShadow) => Math.max(0, ...boxShadow.split(/,(?![^(]*\))/).map((shadow) => Number.parseFloat(shadow.match(/-?[\d.]+px/g)?.[3] ?? '0')))
+
+/**
+ * The field and buttons over the top bar that run past its top or bottom, a focus ring included: `bar` is the bar's top
+ * and bottom, and `controls` each one's text, top and bottom in pixels and computed `box-shadow`.
+ */
+export const outsideBar = ({ bar, controls }) =>
+  controls.flatMap(({ text, top, bottom, boxShadow }) => {
+    const ring = ringWidth(boxShadow)
+    if (top - ring >= bar.top && bottom + ring <= bar.bottom) return []
+    return [`the top bar's "${text}" runs from ${top - ring}px to ${bottom + ring}px, outside the bar's ${bar.top}px to ${bar.bottom}px`]
+  })

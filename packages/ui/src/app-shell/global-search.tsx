@@ -38,13 +38,13 @@ export const moveActive = (active: number, count: number, delta: 1 | -1) => {
 /** A click the browser should handle itself: a new tab or window, or a download. */
 const opensElsewhere = (event: MouseEvent) => event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0
 
-type GlobalSearchProps = { search: GlobalSearchModel; className?: string; autoFocus?: boolean; showShortcut?: boolean; ref?: Ref<HTMLInputElement> }
+type GlobalSearchProps = { search: GlobalSearchModel; className?: string; fieldClassName?: string; autoFocus?: boolean; showShortcut?: boolean; ref?: Ref<HTMLInputElement> }
 
 /**
  * A search box with grouped results under it, each a link: arrows move through them, Enter or a click opens one and
  * closes the list, keeping the text, so focusing the box again shows the same results. Escape clears, then leaves.
  */
-export const GlobalSearch = ({ search, className = 'w-96', autoFocus, showShortcut = true, ref }: GlobalSearchProps) => {
+export const GlobalSearch = ({ search, className = 'w-96', fieldClassName, autoFocus, showShortcut = true, ref }: GlobalSearchProps) => {
   const listId = useId()
   const input = useRef<HTMLInputElement | null>(null)
   const [focused, setFocused] = useState(false)
@@ -97,7 +97,7 @@ export const GlobalSearch = ({ search, className = 'w-96', autoFocus, showShortc
     <div ref={root} className={cn('relative', className)}>
       <Input
         ref={setInput}
-        wrapperClassName="w-full bg-surface shadow-none"
+        wrapperClassName={cn('w-full bg-surface shadow-none', fieldClassName)}
         leading={search.loading ? <Spinner className="size-4" /> : <Search className="size-4" />}
         trailing={
           search.text ? (

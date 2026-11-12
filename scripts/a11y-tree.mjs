@@ -1,15 +1,16 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
-import { axProblems, fixedText, hiddenFocus, offScreen } from './a11y-tree/ax-problems.mjs'
+import { axProblems, fixedText, hiddenFocus, offScreen, outsideBar } from './a11y-tree/ax-problems.mjs'
 import { openStory, settledTree } from './lib/story-layouts.mjs'
 
 /**
  * Checks what a screen reader and a larger text size meet on the main pages in the built Storybook (storybook-static),
  * on desktop and phone: Chromium's accessibility tree has no link or button without a name, one main landmark and no
  * heading that skips a level (a11y-tree/ax-problems.mjs), all text grows when the root text size doubles, the phone's
- * page and top bar fit its width at 3.3 times the root text size, the largest accessibility size, and each link and
- * button shows an outline when focused in forced colors.
+ * page and top bar fit its width at 3.3 times the root text size, the largest accessibility size, its open search stays
+ * inside the bar at that size, with and without a top safe area, and each link and button shows an outline when focused
+ * in forced colors.
  */
 const root = join(import.meta.dirname, '..')
 const storybookDir = join(root, 'storybook-static')
@@ -46,6 +47,23 @@ const widths = () => ({
   }),
 })
 
+// The top bar's top and bottom, and the text, top, bottom and shadow of the field and each button over it while its search
+// is open, to a tenth of a pixel
+const searchBounds = () => {
+  const tenth = (value) => Math.round(value * 10) / 10
+  const header = document.querySelector('header:has(> nav)')
+  const bar = header.getBoundingClientRect()
+  const input = [...header.querySelectorAll('[role="combobox"]')].find((element) => element.getClientRects().length > 0)
+  const controls = [[input.parentElement, 'Search field'], ...[...input.closest('.absolute').querySelectorAll('button')].map((button) => [button, button.getAttribute('aria-label')])]
+  return {
+    bar: { top: tenth(bar.top), bottom: tenth(bar.bottom) },
+    controls: controls.map(([element, text]) => {
+      const box = element.getBoundingClientRect()
+      return { text, top: tenth(box.top), bottom: tenth(box.bottom), boxShadow: getComputedStyle(element).boxShadow }
+    }),
+  }
+}
+
 // Each shown link and button's outline style and width while focused from the keyboard, as `:focus-visible` matches it
 const focusOutlines = () =>
   [...document.querySelectorAll('a[href], button')].flatMap((element) => {
@@ -76,6 +94,14 @@ for (const shot of shots) {
     })
     await settledTree(page)
     fits.push(...offScreen(await page.evaluate(widths)))
+    await page.getByRole('button', { name: 'Search', exact: true }).click()
+    for (const safeTop of ['0px', '47px']) {
+      await page.evaluate((safeTop) => document.documentElement.style.setProperty('--safe-area-inset-top', safeTop), safeTop)
+      await settledTree(page)
+      fits.push(...outsideBar(await page.evaluate(searchBounds)).map((problem) => `${problem}, with a ${safeTop} safe area`))
+    }
+    await page.getByRole('button', { name: 'Close search' }).click()
+    await page.evaluate(() => document.documentElement.style.removeProperty('--safe-area-inset-top'))
   }
   await page.emulateMedia({ forcedColors: 'active' })
   const problems = [...axProblems(nodes), ...fixedText(before, after, 2), ...fits, ...hiddenFocus(await page.evaluate(focusOutlines))]

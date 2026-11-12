@@ -36,6 +36,13 @@ export type TopBarProps = {
  */
 export const topBarButton = 'inline-flex size-[min(2.75rem,max(44px,13vw))] shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden [&_svg]:size-[min(1.25rem,max(20px,6vw))]'
 
+/**
+ * The search field that covers the bar on a mobile screen: like the buttons, it and its icons grow with the text only up
+ * to the bar's control height, less its 2px focus ring, so the field and its ring stay inside the bar at the largest text
+ * sizes; its text keeps growing.
+ */
+const mobileSearchField = 'max-h-[max(40px,calc(13vw-4px))] [&>svg]:size-[min(1rem,max(16px,6vw))] [&>button]:size-[min(1.5rem,max(24px,9vw))] [&>button>svg]:size-[min(0.875rem,max(14px,5vw))]'
+
 /** The back button that shows the page it goes to, as the trail on a phone leaves that crumb to it: one link, one target. */
 const backWithLabel = 'inline-flex min-h-[min(2.75rem,max(44px,13vw))] min-w-0 items-center gap-[4px] rounded-md pr-[8px] pl-[12px] text-muted-foreground hover:bg-muted hover:text-foreground md:hidden [&_svg]:size-[min(1.25rem,max(20px,6vw))]'
 
@@ -98,8 +105,8 @@ export const TopBar = ({ breadcrumb, onNavigate, onBack, actions, onMenu, menuOp
         <div ref={slotRef} className="contents md:hidden" />
       </div>
       {search && searchOpen && (
-        <div className="absolute inset-0 z-20 flex items-center gap-1 bg-background px-3 pt-[var(--pb-safe-top)] md:hidden">
-          <GlobalSearch className="min-w-0 flex-1" autoFocus showShortcut={false} search={{ ...search, onSelect: (href) => { search.onSelect(href); setSearchOpen(false) } }} />
+        <div className="absolute inset-0 z-20 flex items-center gap-[4px] bg-background px-[12px] pt-[var(--pb-safe-top)] md:hidden">
+          <GlobalSearch className="min-w-0 flex-1" fieldClassName={mobileSearchField} autoFocus showShortcut={false} search={{ ...search, onSelect: (href) => { search.onSelect(href); setSearchOpen(false) } }} />
           <button type="button" aria-label={text('closeSearch')} onClick={() => setSearchOpen(false)} className={topBarButton}>
             <X />
           </button>
