@@ -84,6 +84,12 @@ describe('checkLocalPins', () => {
     expect(() => checkLocalPins([pin('my-plugin', 'a', '^1.0.0')])).toThrow('holds none at its root')
   })
 
+  it('refuses a plugin whose peer range excludes the pinned version the root holds', () => {
+    const ws = setup({ peerDependencies: { '@capacitor/core': '^9.0.0' } })
+    root(ws, '@capacitor/core', '8.5.3')
+    expect(() => checkLocalPins(localPins(ws, { 'my-plugin': '../plugin' }))).toThrow('@capacitor/core is pinned at ^9.0.0 by my-plugin, but .protobase/mobile holds 8.5.3 at its root, where Capacitor reads it: make the pins agree')
+  })
+
   it('passes held pins, and skips pins it cannot check, never quoting them', () => {
     expect(() => checkLocalPins([pin('my-plugin', 'a', '^1.0.0', '1.2.0'), pin('my-plugin', 'b', 'git+https://user:secret@host/b.git', '1.0.0')])).not.toThrow()
   })

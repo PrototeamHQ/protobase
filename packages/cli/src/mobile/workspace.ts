@@ -8,6 +8,7 @@ import { protobaseVersion } from '../version/version'
 import { checkLocalPins, isUnmet, localPins } from './local-pins'
 import { isLocalSpec } from './local-spec'
 import { packageNameProblem } from './package-name'
+import { nativeDependencies } from './pinned-packages'
 
 /** Where the mobile build lives in a project: npm's install of @protobase/mobile, the app's files and native projects. */
 export const workspaceDir = (projectDir: string) => path.join(projectDir, protobaseFolder, 'mobile')
@@ -18,11 +19,15 @@ const fromSource = path.extname(import.meta.url) === '.ts'
 /** The @protobase/mobile to install: the CLI's own version, or this repository's package when the CLI runs from source. */
 export const mobileSpec = (source = fromSource) => (source ? `file:${fileURLToPath(new URL('../../../mobile', import.meta.url))}` : protobaseVersion)
 
-/** The workspace's package.json: @protobase/mobile, the project's extra plugins and the hooks that keep the app's UI plugins. */
+/**
+ * The workspace's package.json: @protobase/mobile, the project's extra plugins and the hooks that keep the app's UI
+ * plugins. The native packages @protobase/mobile pins are listed at the root at their pinned versions too, so a
+ * plugin's open peer range, such as `@capacitor/core: >=8.0.0`, resolves to the pin rather than npm's newest.
+ */
 export const workspacePackageJson = ({ mobileSpec, plugins = {} }: { mobileSpec: string; plugins?: Record<string, string> }) => ({
   private: true,
   scripts: Object.fromEntries(appPluginsHooks.map((hook) => [hook, appPluginsCommand])),
-  dependencies: { '@protobase/mobile': mobileSpec, ...plugins },
+  dependencies: { '@protobase/mobile': mobileSpec, ...nativeDependencies, ...plugins },
 })
 
 // The copy of the package `name` in the workspace `dir`, which never leaves its node_modules, whatever the name.
