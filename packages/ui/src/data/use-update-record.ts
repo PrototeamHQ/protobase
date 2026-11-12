@@ -24,6 +24,7 @@ export const useUpdateRecord = (resource: string, key: KeyValue | readonly KeyVa
       void queryClient.invalidateQueries({ queryKey: ['list', resource] })
       void queryClient.invalidateQueries({ queryKey: ['map', resource] })
       void queryClient.invalidateQueries({ queryKey: ['count', resource] })
+      void queryClient.invalidateQueries({ queryKey: ['aggregate', resource] })
     },
   })
 }
