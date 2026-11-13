@@ -36,6 +36,11 @@ describe('threadMarkdown', () => {
     expect(threadMarkdown([{ kind: 'call', name: 'list_tasks', status: 'Running', input: { state: 'open' }, result: null, error: '' }], words)).toBe('`list_tasks` · Running\n\nInput:\n\n```json\n{\n  "state": "open"\n}\n```')
   })
 
+  it('escapes plain message text and keeps Markdown text as written', () => {
+    const plain = { kind: 'message', sender: 'Ann_B', text: '*not bold*' } as const
+    expect(threadMarkdown([plain, { ...plain, markdown: true }], words)).toBe('**Ann\\_B**\n\n\\*not bold\\*\n\n---\n\n**Ann\\_B**\n\n*not bold*')
+  })
+
   it('fences text holding backticks so it cannot close its block', () => {
     expect(threadMarkdown([{ kind: 'call', name: 'run`it', error: 'bad ``` fence' }], words)).toBe('`` run`it ``\n\nError:\n\n````\nbad ``` fence\n````')
   })

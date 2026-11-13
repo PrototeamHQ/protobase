@@ -4,6 +4,7 @@ import { blocks, escapeMarkdown, link } from './markdown'
 import { addressHref } from './record-value'
 import { tableMarkdown } from './table-text'
 import type { TextContext, TextForm } from './text-form'
+import { threadRule } from './thread-forms'
 
 // Text forms of the blocks that show records: their heading links to where the records are, and what they hold follows.
 
@@ -33,6 +34,9 @@ const RecordCard: TextForm = (context) => {
   return headed(context, 3, link(title, addressHref({ kind: 'record', resource: String(resource), key: recordKey }, context.options)), context.children)
 }
 
+// A thread's items, as `threadItemNodes` gives them, hold apart by a rule under its heading
+const Thread: TextForm = (context) => headed(context, 3, listHeading(context), [blocks(context.children, threadRule)])
+
 const Settings: TextForm = (context) => headed(context, 3, titleOf(context))
 
 export const dataForms: Record<string, TextForm> = {
@@ -42,6 +46,6 @@ export const dataForms: Record<string, TextForm> = {
   RecordRow: listBlock,
   RecordCards: listBlock,
   Chart: listBlock,
-  Thread: listBlock,
+  Thread,
   Settings,
 }
