@@ -20,7 +20,8 @@
     "android/src/main/",
     "android/src/liveupdate/",
     "android/build.gradle",
-    "icon"
+    "icon",
+    "splash"
   ],
   "nativeContract": 13,
   "capacitor": {

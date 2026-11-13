@@ -9,6 +9,7 @@ import type { ChildOptions } from './child-process'
 import { iosArchiveArgs, iosExportArgs } from './ios-release'
 import { templateAppDelegate } from './ios-template-fixture'
 import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
+import { writeProtobaseSplash, writeTemplateSplash } from './native-splash-fixture'
 import { nativeDependencies } from './pinned-packages'
 import { protobaseIosPluginClasses, protobasePluginClasses } from './protobase-plugin'
 import { fakeWebBuild } from './web-build-fixture'
@@ -75,9 +76,11 @@ const fakeRun = (calls: Call[], gradleOutcome: 'bundle' | 'nothing' | 'fail' = '
     for (const [name, version] of Object.entries(nativeDependencies)) write(path.join(ws, 'node_modules', name, 'package.json'), JSON.stringify({ name, version }))
     write(path.join(ws, 'node_modules/@capacitor/cli/package.json'), JSON.stringify({ name: '@capacitor/cli', version: nativeDependencies['@capacitor/cli'], bin: { cap: './bin/capacitor' } }))
     writeProtobaseIcon(ws)
+    writeProtobaseSplash(ws)
   }
   if (command === 'node' && args[1] === 'add') {
     writeTemplateIcon(ws, args[2] === 'ios' ? 'ios' : 'android')
+    writeTemplateSplash(ws, args[2] === 'ios' ? 'ios' : 'android')
     if (args[2] === 'android') {
       write(path.join(ws, 'android/app/build.gradle'), gradle)
       writeAndroidTemplate(ws)

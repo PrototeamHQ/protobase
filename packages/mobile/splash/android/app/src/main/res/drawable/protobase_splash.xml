@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The splash Android 12 and the core-splashscreen library draw at launch: the launcher icon at 240dp on its background,
+     masked to a 160dp circle, on the app's background. Shown again while the app reloads into a live update. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:gravity="fill">
+        <color android:color="@color/protobase_splash_background" />
+    </item>
+    <item
+        android:width="240dp"
+        android:height="240dp"
+        android:gravity="center">
+        <shape android:shape="oval">
+            <solid android:color="@color/ic_launcher_background" />
+        </shape>
+    </item>
+    <item
+        android:width="240dp"
+        android:height="240dp"
+        android:drawable="@mipmap/ic_launcher"
+        android:gravity="center" />
+    <item
+        android:width="342dp"
+        android:height="342dp"
+        android:gravity="center">
+        <shape android:shape="oval">
+            <solid android:color="@android:color/transparent" />
+            <stroke
+                android:width="92dp"
+                android:color="@color/protobase_splash_background" />
+        </shape>
+    </item>
+</layer-list>

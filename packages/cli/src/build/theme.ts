@@ -7,18 +7,22 @@ import { uiEntry } from '../project/admin-app'
 /** The project's theme, at its root, and where a bundle's `public` folder has it: the app links it at `/protobase.theme.css`. */
 export const themeFile = 'protobase.theme.css'
 
-// The app's tokens, the CSS variables its components read, beside its stylesheet in @protobase/ui's src and dist alike.
-const tokensFile = path.join(path.dirname(uiEntry), 'tokens.css')
+/** The app's tokens, the CSS variables its components read, beside its stylesheet in @protobase/ui's src and dist alike. */
+export const tokensFile = path.join(path.dirname(uiEntry), 'tokens.css')
 
 /** The names of the tokens the installed @protobase/ui reads, such as `--primary` and `--radius`. */
 export const themeTokens = async (file = tokensFile) => new Set([...(await readFile(file, 'utf8')).matchAll(/(--[\w-]+)\s*:/g)].map(([, name]) => name!))
 
-// A selector of the theme: the light values on :root, the dark ones on [data-theme="dark"].
-const isThemeSelector = (selector: unknown[]) => {
-  if (selector.length !== 1) return false
+/** Which values a theme selector sets: the light ones on :root, the dark ones on [data-theme="dark"]; none for another. */
+export const themeScheme = (selector: unknown[]): 'light' | 'dark' | undefined => {
+  if (selector.length !== 1) return
   const [part] = selector as Array<{ type: string; kind?: string; name?: string; operation?: { value: string } }>
-  return (part!.type === 'pseudo-class' && part!.kind === 'root') || (part!.type === 'attribute' && part!.name === 'data-theme' && part!.operation?.value === 'dark')
+  if (part!.type === 'pseudo-class' && part!.kind === 'root') return 'light'
+  if (part!.type === 'attribute' && part!.name === 'data-theme' && part!.operation?.value === 'dark') return 'dark'
+  return
 }
+
+const isThemeSelector = (selector: unknown[]) => themeScheme(selector) !== undefined
 
 const where = (file: string, line: number) => `${file}:${line + 1}`
 

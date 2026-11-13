@@ -21,6 +21,7 @@ import { signForDevelopment } from './development-signing'
 import { checkInstalledPlugins, checkPinnedNative, pinnedNative } from './pinned-packages'
 import type { Platform } from './platform'
 import { checkIosPlugins, checkProtobasePlugin, guardIosLiveUpdate, guardLiveUpdate } from './protobase-plugin'
+import { splashColors } from './splash-colors'
 import { buildWebPart, placeholderWebPart, type WebPartInput } from './web-part'
 import { mobileSpec, prepareWorkspace, workspaceDir, workspacePackageJson } from './workspace'
 
@@ -52,6 +53,8 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   if (live !== undefined && api !== undefined) throw new Error('--live opens protobase dev, which serves the API itself: leave out --api')
   const project = await loadMobileProject(projectDir, extensions)
   const mobile = checkMobileConfig(project.mobile)
+  // Read before anything is installed, so a theme the splash screen cannot take stops at once.
+  const splash = await splashColors(projectDir)
   const url = live === undefined ? apiUrl(api, project.auth?.issuer, platform) : new URL(`http://localhost:${live}`)
   if (release) checkReleaseUrl(url)
   const allowances = httpAllowances(url)
@@ -77,7 +80,7 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   const config = { appId: mobile.appId, appName, fingerprint, shellVersion: protobaseVersion, plugins, allowances, apiOrigin: url.origin, platform, ...(release && { release }), ...(push && { push }), ...(apnsEnvironment && { apnsEnvironment }) }
   await writeCapacitorConfig(ws, capacitorConfig({ ...config, ...(liveUpdate.settings && { liveUpdate: liveUpdate.settings }) }))
   const cap = capacitorRunner(ws, env, run)
-  await generatePlatform(ws, platform, { ...allowances, ...(push && platform === 'android' && { googleServicesFrom: projectDir }), ...(apnsEnvironment && { apnsEnvironment }) }, cap)
+  await generatePlatform(ws, platform, { ...allowances, splash, ...(push && platform === 'android' && { googleServicesFrom: projectDir }), ...(apnsEnvironment && { apnsEnvironment }) }, cap)
   if (platform === 'android') {
     await guardLiveUpdate(ws)
     await checkProtobasePlugin(ws)
