@@ -3,7 +3,7 @@ title: Start a project
 description: Start a new app, or an admin over an existing Postgres database, and keep the config in step with it.
 ---
 
-- [Project starter](/getting-started/#start-an-app): `npm create protobase` (also `bun create` and `pnpm create`) starts a new app from the scratch, ERP, property portal or real estate preset, with its own Postgres in Docker for development, and prints the next steps. Each preset has an `AGENTS.md` with rules for coding agents.
+- [Project starter](/getting-started/#start-an-app): `npm create protobase` (also `bun create` and `pnpm create`) starts a new app from the scratch, automations (workflows on), ERP, property portal or real estate preset, with its own Postgres in Docker for development, and prints the next steps. Each preset has an `AGENTS.md` with rules for coding agents.
 - [Start on an existing database](/getting-started/#on-an-existing-database): `npm create protobase <database-url>` makes a project on a Postgres database you already have and asks which of its tables become resources, only reading the database.
 - [Example apps](/getting-started/#run-the-erp-example): Seeded example apps on Postgres: an ERP, real estate property management and a public property portal.
 - [One config](/reference/config/): The whole app is one object of data in `protobase.config.ts`, typed with `defineConfig`, with a sensible default for every key.

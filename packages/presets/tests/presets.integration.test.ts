@@ -40,6 +40,9 @@ const drop = async (name: string) => {
   await admin.end()
 }
 
+// The presets that start without resources or data: scratch and automations.
+const startsEmpty = (name: string) => name === 'scratch' || name === 'automations'
+
 describe.skipIf(!(await serverReachable())).each(presets)('the $name preset', (preset) => {
   const dir = mkdtempSync(path.join(tmpdir(), `protobase-preset-${preset.name}-`))
   const database = `preset_${preset.name.replace('-', '_')}_${randomBytes(4).toString('hex')}`
@@ -73,7 +76,7 @@ describe.skipIf(!(await serverReachable())).each(presets)('the $name preset', (p
     expect(auth!.tables).toBeGreaterThan(0)
   })
 
-  it.skipIf(preset.name === 'scratch')('seeds its base data, with organization 1 named after the app', async () => {
+  it.skipIf(startsEmpty(preset.name))('seeds its base data, with organization 1 named after the app', async () => {
     run('bun', 'run', 'db:seed:base', '--name', 'Acme Holding')
     const sql = postgres(env.DATABASE_URL!, { max: 1 })
     const [organization] = await sql`select id, name from core.organizations`
@@ -82,7 +85,7 @@ describe.skipIf(!(await serverReachable())).each(presets)('the $name preset', (p
   })
 
   // What an app that opts into sample data gets at creation: foreign keys checked, its own triggers switched off and on.
-  it.skipIf(preset.name === 'scratch')('loads its sample data as the tenant role', async () => {
+  it.skipIf(startsEmpty(preset.name))('loads its sample data as the tenant role', async () => {
     run('bun', 'run', 'db:seed', '--scale', 'small')
     const sql = postgres(env.DATABASE_URL!, { max: 1 })
     const [organizations] = await sql`select count(*)::int as count from core.organizations`
@@ -96,8 +99,8 @@ describe.skipIf(!(await serverReachable())).each(presets)('the $name preset', (p
     run('bun', 'run', 'test')
   })
 
-  // From scratch has no resources yet, which doctor refuses.
-  it.skipIf(preset.name === 'scratch')('matches its database according to protobase doctor', () => {
+  // A preset without resources yet is refused by doctor.
+  it.skipIf(startsEmpty(preset.name))('matches its database according to protobase doctor', () => {
     const result = spawnSync('bun', ['run', 'protobase', 'doctor', '--env', 'DATABASE_URL'], { cwd: dir, env, encoding: 'utf8' })
     expect(result.stdout, result.stderr).toContain('Checked ')
     const errors = result.stdout.split('\n').filter((line) => line.startsWith('  error')).map((line) => line.replace(/^ +error +/, ''))
