@@ -10,7 +10,7 @@ import { iosArchiveArgs, iosExportArgs } from './ios-release'
 import { templateAppDelegate } from './ios-template-fixture'
 import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
 import { writeProtobaseSplash, writeTemplateSplash } from './native-splash-fixture'
-import { nativeDependencies } from './pinned-packages'
+import { mobileDependencies, nativeDependencies } from './pinned-packages'
 import { protobaseIosPluginClasses, protobasePluginClasses } from './protobase-plugin'
 import { fakeWebBuild } from './web-build-fixture'
 
@@ -73,7 +73,7 @@ const fakeRun = (calls: Call[], gradleOutcome: 'bundle' | 'nothing' | 'fail' = '
   const ws = options.cwd
   if (command === 'npm') {
     write(path.join(ws, 'node_modules/@protobase/mobile/package.json'), JSON.stringify({ name: '@protobase/mobile', version: '0.14.2' }))
-    for (const [name, version] of Object.entries(nativeDependencies)) write(path.join(ws, 'node_modules', name, 'package.json'), JSON.stringify({ name, version }))
+    for (const [name, version] of Object.entries(mobileDependencies)) write(path.join(ws, 'node_modules', name, 'package.json'), JSON.stringify({ name, version }))
     write(path.join(ws, 'node_modules/@capacitor/cli/package.json'), JSON.stringify({ name: '@capacitor/cli', version: nativeDependencies['@capacitor/cli'], bin: { cap: './bin/capacitor' } }))
     writeProtobaseIcon(ws)
     writeProtobaseSplash(ws)

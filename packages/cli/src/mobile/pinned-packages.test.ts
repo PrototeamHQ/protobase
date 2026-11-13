@@ -35,6 +35,7 @@ describe('pinnedNative', () => {
     expect(pinnedNative).toMatchObject({ '@capacitor/core': expect.stringMatching(/^\d+\.\d+\.\d+$/), '@capawesome/capacitor-live-update': expect.any(String) })
     expect(pinnedNative['@protobase/mobile']).toBe(`native-${mobilePackage.nativeContract}`)
     expect(Object.keys(pinnedNative).filter((name) => name.startsWith('@protobase/'))).toEqual(['@protobase/mobile'])
+    expect(pinnedNative).not.toHaveProperty('sharp')
   })
 
   it('names the native sources @protobase/mobile publishes by its native contract', () => {

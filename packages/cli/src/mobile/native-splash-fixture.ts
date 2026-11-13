@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { androidSplashFiles, templateSplashImages } from './android-splash'
+import { iosSplashImages } from './ios-app-icon'
 import { iosSplashFiles } from './ios-splash'
 import { protobaseSplashDir } from './native-splash'
 import type { Platform } from './platform'
@@ -10,8 +11,11 @@ const write = (file: string, content: string) => {
   writeFileSync(file, content)
 }
 
-// A file, or for the image set a folder with its Contents.json, holding `content`.
-const writeSplash = (at: string, content: string) => write(at.endsWith('.imageset') ? path.join(at, 'Contents.json') : at, content)
+// A file, or for the image set a folder with its Contents.json and images, holding `content`.
+const writeSplash = (at: string, content: string) => {
+  if (!at.endsWith('.imageset')) return write(at, content)
+  for (const name of ['Contents.json', ...iosSplashImages.map(([file]) => path.basename(file))]) write(path.join(at, name), content)
+}
 
 /** For tests: Capacitor 8.5.3's android styles.xml, as `cap add android` writes it. */
 export const templateStyles = `<?xml version="1.0" encoding="utf-8"?>

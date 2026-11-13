@@ -11,8 +11,10 @@ import { childEnv, envFileKeys, projectEnvFiles } from './child-env'
 import { runChild, type RunChild } from './child-process'
 import { deviceAppName } from './device-app-name'
 import { protobaseVersion } from '../version/version'
+import { appIcon } from './app-icon'
 import { generatePlatform } from './generate'
 import { hasGoogleServices, missingGoogleServices } from './google-services'
+import { iconBackground } from './icon-background'
 import type { ApnsEnvironment } from './ios-push'
 import { liveUpdateSettings } from './live-update-settings'
 import { loadMobileProject } from './load-project'
@@ -55,6 +57,7 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   const mobile = checkMobileConfig(project.mobile)
   // Read before anything is installed, so a theme the splash screen cannot take stops at once.
   const splash = await splashColors(projectDir)
+  const ownIcon = mobile.icon === undefined ? undefined : { file: mobile.icon, background: iconBackground(project.backgroundColor, splash) }
   const url = live === undefined ? apiUrl(api, project.auth?.issuer, platform) : new URL(`http://localhost:${live}`)
   if (release) checkReleaseUrl(url)
   const allowances = httpAllowances(url)
@@ -67,6 +70,8 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   await prepareWorkspace(ws, workspacePackageJson({ mobileSpec: mobileSpec(), ...(mobile.plugins && { plugins: mobile.plugins }) }), (command, args) => run(command, args, { cwd: ws, env }))
   checkInstalledPlugins(ws, plugins)
   checkPinnedNative(ws)
+  // Drawn before the app's files are built, so an icon the platforms cannot take stops early.
+  const icon = ownIcon && (await appIcon({ ws, projectDir, platform, ...ownIcon }))
 
   const { builtInOrder } = live === undefined ? await buildWebPart({ projectDir, ws, extensions, apiOrigin: url.origin, ...(build && { build }), onWarning }) : await placeholderWebPart(ws)
   const fingerprint = nativeFingerprint(pinnedNative, mobile.plugins, { push: project.notifications })
@@ -80,7 +85,7 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   const config = { appId: mobile.appId, appName, fingerprint, shellVersion: protobaseVersion, plugins, allowances, apiOrigin: url.origin, platform, ...(release && { release }), ...(push && { push }), ...(apnsEnvironment && { apnsEnvironment }) }
   await writeCapacitorConfig(ws, capacitorConfig({ ...config, ...(liveUpdate.settings && { liveUpdate: liveUpdate.settings }) }))
   const cap = capacitorRunner(ws, env, run)
-  await generatePlatform(ws, platform, { ...allowances, splash, ...(push && platform === 'android' && { googleServicesFrom: projectDir }), ...(apnsEnvironment && { apnsEnvironment }) }, cap)
+  await generatePlatform(ws, platform, { ...allowances, splash, ...(icon && { icon }), ...(push && platform === 'android' && { googleServicesFrom: projectDir }), ...(apnsEnvironment && { apnsEnvironment }) }, cap)
   if (platform === 'android') {
     await guardLiveUpdate(ws)
     await checkProtobasePlugin(ws)

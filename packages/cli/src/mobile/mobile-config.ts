@@ -15,10 +15,11 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 export const checkMobileConfig = (value: unknown): MobileConfig => {
   if (value === undefined) throw new Error(noMobileSection)
   if (!isRecord(value)) throw new Error('mobile in protobase.config.ts must be an object such as { appId: \'com.example.app\' }')
-  const { appId, plugins, publicKey } = value
+  const { appId, plugins, publicKey, icon } = value
   if (!isAppId(appId)) throw new Error(appIdProblem(appId))
   if (publicKey !== undefined) updaterPublicKey(publicKey)
-  const key = publicKey === undefined ? {} : { publicKey: publicKey as string }
+  if (icon !== undefined && (typeof icon !== 'string' || icon === '')) throw new Error("mobile.icon must be the path of the app's icon from the project's folder, such as 'icon.png'")
+  const key = { ...(publicKey !== undefined && { publicKey: publicKey as string }), ...(icon !== undefined && { icon }) }
   if (plugins === undefined) return { appId, ...key }
   if (!isRecord(plugins) || Object.values(plugins).some((spec) => typeof spec !== 'string')) {
     throw new Error("mobile.plugins must map each plugin's npm name to a version range, such as { '@capacitor/camera': '^8.0.0' }")

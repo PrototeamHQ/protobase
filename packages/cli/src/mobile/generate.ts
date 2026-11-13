@@ -2,13 +2,15 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { dataExtractionRules, dataExtractionRulesPath, withoutBackup } from './android-backup'
 import { withAndroidSplash } from './android-splash'
+import type { AppIconFiles } from './app-icon'
 import type { RunCapacitor } from './capacitor'
 import { copyGoogleServices } from './google-services'
 import { withLocalNetworking } from './info-plist'
 import { withFreshInstall } from './ios-fresh-install'
 import { type ApnsEnvironment, setUpIosPush } from './ios-push'
+import { iosSplashImages } from './ios-app-icon'
 import { withIosSplash } from './ios-splash'
-import { withProtobaseIcon } from './native-icon'
+import { withAppIcon, withProtobaseIcon, writeNativeFiles } from './native-icon'
 import type { Platform } from './platform'
 import type { SplashColors } from './splash-colors'
 
@@ -23,8 +25,8 @@ const androidManifest = (ws: string) => path.join(ws, 'android', 'app', 'src', '
 
 /**
  * Generates the platform's native project in the workspace from its capacitor.config.json and app files, replacing
- * the last one: it is never edited by hand. Its home-screen icon is Protobase's, and its splash screen that icon on the
- * app's background in `splash`, light and dark, in place of Capacitor's logo. An Android app with push gets the
+ * the last one: it is never edited by hand. Its home-screen icon is the app's own in `icon`, or Protobase's without
+ * one, and its splash screen that icon on the app's background in `splash`, light and dark, in place of Capacitor's logo. An Android app with push gets the
  * project's google-services.json from `googleServicesFrom`, an iOS app with push its entitlement in `apnsEnvironment` and
  * the token forwarding, and an iOS app calling the API over plain http may reach local addresses. Android apps opt out
  * of backup and device transfer, and iOS apps start as a fresh install after a restore or a move, so nothing carries
@@ -33,12 +35,13 @@ const androidManifest = (ws: string) => path.join(ws, 'android', 'app', 'src', '
 export const generatePlatform = async (
   ws: string,
   platform: Platform,
-  { cleartext, splash, googleServicesFrom, apnsEnvironment }: { cleartext: boolean; splash: SplashColors; googleServicesFrom?: string; apnsEnvironment?: ApnsEnvironment },
+  { cleartext, splash, icon, googleServicesFrom, apnsEnvironment }: { cleartext: boolean; splash: SplashColors; icon?: AppIconFiles; googleServicesFrom?: string; apnsEnvironment?: ApnsEnvironment },
   cap: RunCapacitor,
 ) => {
   await rm(path.join(ws, platform), { recursive: true, force: true })
   await cap(['add', platform])
-  await withProtobaseIcon(ws, platform)
+  if (icon) await withAppIcon(ws, platform, icon.icon)
+  else await withProtobaseIcon(ws, platform)
   if (platform === 'android') {
     await withAndroidSplash(ws, splash)
     if (googleServicesFrom !== undefined) await copyGoogleServices(googleServicesFrom, ws)
@@ -49,6 +52,8 @@ export const generatePlatform = async (
     return
   }
   await withIosSplash(ws, splash)
+  // Android's splash draws the launcher icon itself; iOS's draws an image of it, which the app's own icon replaces.
+  if (icon) await writeNativeFiles(ws, 'ios', icon.splash, iosSplashImages.map(([file]) => file))
   await writeFile(appDelegate(ws), withFreshInstall(await readFile(appDelegate(ws), 'utf8')))
   if (apnsEnvironment !== undefined) await setUpIosPush(ws, apnsEnvironment)
   if (!cleartext) return

@@ -8,8 +8,14 @@ import { installedPackage } from './installed-package'
  */
 export const pinnedPackages = new Set([mobilePackage.name, ...Object.keys(mobilePackage.dependencies)])
 
+/** The packages @protobase/mobile holds for `protobase mobile` itself, which run on the developer's machine, never in the app. */
+export const buildTools = new Set(['sharp'])
+
+/** Every package @protobase/mobile pins, name → version. */
+export const mobileDependencies: Record<string, string> = mobilePackage.dependencies
+
 /** The native packages @protobase/mobile pins, name → version. */
-export const nativeDependencies: Record<string, string> = Object.fromEntries(Object.entries(mobilePackage.dependencies).filter(([name]) => !name.startsWith('@protobase/')))
+export const nativeDependencies: Record<string, string> = Object.fromEntries(Object.entries(mobileDependencies).filter(([name]) => !name.startsWith('@protobase/') && !buildTools.has(name)))
 
 /**
  * The native code an app's binary carries from @protobase/mobile, name → version, which a native fingerprint names:

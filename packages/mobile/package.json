@@ -1,7 +1,7 @@
 {
   "name": "@protobase/mobile",
   "version": "0.14.2",
-  "description": "The Capacitor that protobase mobile builds a Protobase app's iOS and Android projects with, at fixed versions, and the native plugins that keep page script away from the session and give the iOS app its bounce; installed by the CLI on first use.",
+  "description": "The Capacitor that protobase mobile builds a Protobase app's iOS and Android projects with, at fixed versions, and the native plugins that keep page script away from the session and give the iOS app its bounce; installed by the CLI on first use, with the image library that draws an app's own icon.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -44,6 +44,7 @@
     "@capacitor/keyboard": "8.0.6",
     "@capacitor/push-notifications": "8.1.3",
     "@capacitor/splash-screen": "8.0.2",
-    "@capawesome/capacitor-live-update": "8.7.1"
+    "@capawesome/capacitor-live-update": "8.7.1",
+    "sharp": "0.35.5"
   }
 }

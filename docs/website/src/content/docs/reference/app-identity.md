@@ -8,9 +8,9 @@ An app looks like its own everywhere from three things in its project: its name,
 | What | Where | Used by |
 | --- | --- | --- |
 | Name | `name` in `protobase.config.ts` ([config](/reference/config/)), overridden at run time by `PROTOBASE_APP_NAME` | the sidebar's logo, the sign-in page's title ("Sign in to Acme Admin"), the end of every tab title, the title of the [API docs](/reference/api/), the installed app's name, the [mobile app](/guides/mobile-app/)'s name on the phone, passkey and authenticator prompts, auth mail and its sender's name |
-| Icon | `protobase.favicon.svg` at the project's root | the browser tab, `/favicon.ico`, the sidebar's logo, the sign-in page, the installed app's icon, the [MCP endpoint](/reference/mcp/#the-apps-icon)'s icon in AI clients; the [mobile app](/guides/mobile-app/) shows Protobase's icon instead |
+| Icon | `protobase.favicon.svg` at the project's root | the browser tab, `/favicon.ico`, the sidebar's logo, the sign-in page, the installed app's icon, the [MCP endpoint](/reference/mcp/#the-apps-icon)'s icon in AI clients; the [mobile app](/guides/mobile-app/#the-icon) shows the image `mobile.icon` names instead, or Protobase's icon |
 | Raster icons | optional PNGs beside the SVG, below | the iPhone home screen and Android launchers, which take no SVG |
-| Colours | `themeColor` and `backgroundColor` in `protobase.config.ts` | the installed app's title bar and its start screen |
+| Colours | `themeColor` and `backgroundColor` in `protobase.config.ts` | the installed app's title bar and its start screen; `backgroundColor` is also the background of the mobile app's own icon |
 
 ```ts
 // protobase.config.ts
@@ -51,7 +51,7 @@ Each is optional, and none is made from the SVG: without the touch icon an iPhon
 Each takes any CSS colour, and the web manifest carries the ones set:
 
 - `themeColor`: the installed app's title bar and the browser's toolbar around it (`theme_color`).
-- `backgroundColor`: the screen the installed app shows while it starts (`background_color`).
+- `backgroundColor`: the screen the installed app shows while it starts (`background_color`), and the background of the [mobile app's own icon](/guides/mobile-app/#the-icon).
 
 The app's own colours, its buttons and surfaces, are the [theme](/reference/theme/)'s.
 

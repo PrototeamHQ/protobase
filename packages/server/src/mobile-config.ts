@@ -11,6 +11,12 @@ export type MobileConfig = {
    * prints: with it the Android and iOS app update themselves, taking only releases signed with that key.
    */
   publicKey?: string
+  /**
+   * The app's own home-screen icon, a path from the project's folder to a square PNG of at least 1024 pixels or a square
+   * SVG, such as `'icon.png'`: `protobase mobile` makes every iOS and Android icon from it. Without it the app shows
+   * Protobase's icon.
+   */
+  icon?: string
 }
 
 /** The origins Capacitor's WebView serves the app's files on: `capacitor://localhost` on iOS, `https://localhost` on Android. */

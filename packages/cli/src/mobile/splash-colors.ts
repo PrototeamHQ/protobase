@@ -37,10 +37,10 @@ const backgrounds = (code: string, file: string): Backgrounds => {
   return { light: important.light ?? normal.light, dark: important.dark ?? normal.dark }
 }
 
-// A colour name such as `white`, which a custom property keeps as a word, as the colour `color` reads it.
-const namedColor = (name: string) => {
+/** A CSS colour, such as `white` or `#0d9488`, as the property `color` reads it; `undefined` when it is none. */
+export const cssColor = (text: string) => {
   let color: CssColor | undefined
-  transform({ filename: 'name.css', code: Buffer.from(`a{color:${name}}`), visitor: { Declaration: { color: (declaration) => void (declaration.property === 'color' && (color = declaration.value)) } } })
+  transform({ filename: 'name.css', code: Buffer.from(`a{color:${text}}`), visitor: { Declaration: { color: (declaration) => void (declaration.property === 'color' && (color = declaration.value)) } } })
   return color
 }
 
@@ -49,7 +49,7 @@ const parsedColor = (value: TokenOrValue[]) => {
   const [only] = value
   if (value.length !== 1 || !only) return
   if (only.type === 'color') return only.value
-  if (only.type === 'token' && only.value.type === 'ident') return namedColor(only.value.value)
+  if (only.type === 'token' && only.value.type === 'ident') return cssColor(only.value.value)
   return
 }
 
@@ -57,11 +57,17 @@ const isRgb = (color: CssColor | undefined): color is RGBColor => typeof color =
 
 const hex = (value: number) => value.toString(16).padStart(2, '0')
 
+/** The colour as `#rrggbb`, the way native colours take it; `undefined` for one that is not an opaque sRGB colour. */
+export const opaqueHex = (color: CssColor | undefined) => {
+  if (!isRgb(color) || color.alpha !== 1) return
+  return `#${hex(color.r)}${hex(color.g)}${hex(color.b)}`
+}
+
 // The value as `#rrggbb`: native colours take an opaque sRGB colour, such as `#f4f3ee`, `rgb()`, `hsl()` or `white`.
 const nativeColor = (value: TokenOrValue[], where: string) => {
-  const color = parsedColor(value)
-  if (!isRgb(color) || color.alpha !== 1) throw new Error(`${where}: the native splash screen needs --background as an opaque sRGB colour, such as #f4f3ee, rgb() or hsl()`)
-  return `#${hex(color.r)}${hex(color.g)}${hex(color.b)}`
+  const color = opaqueHex(parsedColor(value))
+  if (!color) throw new Error(`${where}: the native splash screen needs --background as an opaque sRGB colour, such as #f4f3ee, rgb() or hsl()`)
+  return color
 }
 
 /**
