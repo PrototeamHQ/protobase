@@ -58,6 +58,26 @@ describe('resourceTriggers', () => {
     expect(resourceTriggers(lines)[1]!.columns).toEqual(['id', 'tenant_id', 'order_id'])
   })
 
+  it('captures the key columns of a relation, each once, apart from the sensitive ones', () => {
+    const lines = resource('lines')
+      .table('lines')
+      .fields({
+        id: f.integer(),
+        tenant_id: f.integer(),
+        order: f.relation('orders').columns(['order_id', 'tenant_id']),
+        customer: f.relation('customers'),
+        account: f.relation('accounts').columns(['account_id', 'tenant_id']).sensitive(),
+        note: f.text(),
+      })
+      .primaryKey((r) => r.id)
+      .events((e) => e.crud())
+      .toModel()
+    const [write, update] = resourceTriggers(lines)
+    const args = ['lines', '{"id","tenant_id","order_id","customer","note"}', '{"account_id","tenant_id"}']
+    expect(write!.args).toEqual(args)
+    expect(update!.args).toEqual(args)
+  })
+
   it('recreates the triggers once history ignores a field', () => {
     const ignoring = orders.events((e) => e.crud()).history({ ignore: ['status'] }).toModel()
     const plan = capturePlan('changes', [ignoring], installed())

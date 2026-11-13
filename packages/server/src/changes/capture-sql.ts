@@ -130,19 +130,23 @@ export const captureFunctionSql = (schema: string) =>
  */
 export type TriggerSpec = { name: string; type: number; args: string[]; columns?: string[] }
 
+type Field = ResourceModel['fields'][string]
+
+/** The columns that hold fields, each once: a relation's are the ones holding the other record's key. */
+const columnsOf = (fields: Field[]) => [...new Set(fields.flatMap((field) => field.relation?.columns ?? [field.column]))]
+
 /**
  * The two triggers of a resource whose changes are captured: inserts and deletes, and updates that change the row. The
- * fields history ignores are left out of both, and an update fires only when it changes another's columns: a relation's
- * are the ones holding the other record's key.
+ * fields history ignores are left out of both, and an update fires only when it changes another's columns.
  */
 export const resourceTriggers = (model: ResourceModel): TriggerSpec[] => {
   const ignored = model.historyIgnore ?? []
   const fields = Object.values(model.fields).filter((field) => !ignored.includes(field.name))
-  const args = [model.name, textArray(fields.filter((field) => !field.sensitive).map((field) => field.column)), textArray(fields.filter((field) => field.sensitive).map((field) => field.column))]
+  const args = [model.name, textArray(columnsOf(fields.filter((field) => !field.sensitive))), textArray(columnsOf(fields.filter((field) => field.sensitive)))]
   const update = { name: identifier(`${model.table.name}_changes_update`), type: 1 | 16, args }
   return [
     { name: identifier(`${model.table.name}_changes`), type: 1 | 4 | 8, args },
-    ignored.length > 0 ? { ...update, columns: [...new Set(fields.flatMap((field) => field.relation?.columns ?? [field.column]))] } : update,
+    ignored.length > 0 ? { ...update, columns: columnsOf(fields) } : update,
   ]
 }
 
