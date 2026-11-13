@@ -1,3 +1,5 @@
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { devModuleUrl } from './dev-module-url'
 
@@ -11,7 +13,8 @@ describe('devModuleUrl', () => {
   })
 
   it('loads a package file by its file URL, whichever the separator', () => {
-    expect(devModuleUrl('/home/me/app/node_modules/pkg/index.js')).toBe('file:///home/me/app/node_modules/pkg/index.js')
+    const file = path.resolve('app', 'node_modules', 'pkg', 'index.js')
+    expect(devModuleUrl(file)).toBe(pathToFileURL(file).href)
     expect(devModuleUrl('C:\\app\\node_modules\\pkg\\index.js')).toMatch(/^file:\/\//)
   })
 })
