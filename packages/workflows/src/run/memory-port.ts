@@ -1,19 +1,21 @@
 import type { Definition } from '../definition/types'
-import type { StepCacheStore } from './cache/cache-port'
+import type { CacheIdentity, StepCacheStore } from './cache/cache-port'
+import { canonicalJson } from './cache/canonical'
 import { createRunner } from './runner'
 import { findBlock } from '../definition/inner'
 import type { BlockRun, BlockRunStore, Checkpoint, LoadedRun, RunStore, StepRecord, TaskHandlers, TraceMode, TraceSink } from './port'
 import { rerunCheckpoint, rerunProblem } from './rerun'
 import { rerunFrom } from './rerun-from'
 
-type MemoryOptions = { budgetMs?: number; secrets?: Record<string, string>; maxSteps?: number; traceMode?: TraceMode; cache?: StepCacheStore }
+type MemoryOptions = { budgetMs?: number; secrets?: Record<string, string>; maxSteps?: number; traceMode?: TraceMode; cache?: StepCacheStore; whoOf?: (runId: string, identity: CacheIdentity) => unknown }
 
 /**
  * The runner over a port kept in memory, with a clock tests move: for the package's unit tests. `drain` runs a run's
  * segments as the queue would, moving the clock to each wait's end, until nothing is queued. `checkpoints` is what the
  * database would hold (a failed run keeps them), `writes` the checkpoints each save took, and `steps` every step the runs' kept traces hold.
+ * `whoOf` says who a run's call acts as, as the step cache's does, so a block's run is shared only by runs of one identity.
  */
-export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps, traceMode, cache }: MemoryOptions = {}) => {
+export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps, traceMode, cache, whoOf = () => ({}) }: MemoryOptions = {}) => {
   let clock = new Date('2026-11-04T12:00:00Z')
   const runs = new Map<string, LoadedRun & Record<string, unknown>>()
   const checkpoints: (Checkpoint & { runId: string })[] = []
@@ -58,23 +60,36 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
     for (let index = queued.length - 1; index >= 0; index--) if (queued[index]!.runId === runId) queued.splice(index, 1)
     queued.push({ runId })
   }
-  // A block's run is a run of its parent's definition and trace setting, found again by the parent and its try's visit.
+  // A block's run is a run of its parent's definition and trace setting, found again by the parent and its try's visit,
+  // or, for a visit that joined it, by that visit's waiter.
   const blockRun = (run: LoadedRun & Record<string, unknown>): BlockRun => ({ id: run.id, status: run.status, output: run.output, error: run.error as string | undefined, cause: run.cause as string | undefined, finishedAt: run.finishedAt as Date | undefined, blanked: run.blanked as boolean | undefined })
+  const waiters: { run: string; parent: string; visit: string }[] = []
+  const own = (parent: string, visit: string) => [...runs.values()].find((run) => run.blockOf === parent && run.blockVisit === visit)
   const blocks: BlockRunStore<null> = {
     find: async (_, parent, visit) => {
-      const found = [...runs.values()].find((run) => run.blockOf === parent && run.blockVisit === visit)
-      return found && blockRun(found)
+      const found = own(parent, visit)
+      if (found) return blockRun(found)
+      const waiter = waiters.find((one) => one.parent === parent && one.visit === visit)
+      return waiter && { ...blockRun(runs.get(waiter.run)!), joined: true }
     },
-    start: async (db, { parent, visit, state, input }) => {
-      const found = await blocks.find(db, parent, visit)
-      if (found) return found
+    start: async (_, { parent, visit, state, input, share, joinOnly }) => {
+      const found = own(parent, visit)
+      if (found) return blockRun(found)
       const of = runs.get(parent)!
       if (!findBlock(of.definition.stateMachine, state)) return
+      const who = share && canonicalJson(whoOf(parent, share.identity) ?? null)
+      const under = share && [...runs.values()].find((run) => run.blockKey === share.key && run.blockWho === who && !(run.status === 'succeeded' || run.status === 'failed'))
+      if (under) {
+        if (!waiters.some((one) => one.parent === parent && one.visit === visit)) waiters.push({ run: under.id, parent, visit })
+        return { ...blockRun(under), joined: true }
+      }
+      if (joinOnly) return
       const id = `${parent}~${visit}`
-      runs.set(id, { id, definition: of.definition, input: structuredClone(input), status: 'queued', startedAt: clock, blockOf: parent, blockState: state, blockVisit: visit, ...(of.trace && { trace: of.trace }) })
+      runs.set(id, { id, definition: of.definition, input: structuredClone(input), status: 'queued', startedAt: clock, blockOf: parent, blockState: state, blockVisit: visit, ...(of.trace && { trace: of.trace }), ...(share && { blockKey: share.key, blockWho: who }) })
       await schedule(null, id)
       return blockRun(runs.get(id)!)
     },
+    waiters: async (_, run) => waiters.filter((one) => one.run === run).map((one) => one.parent),
     count: async (_, parent) => [...runs.values()].filter((run) => run.blockOf === parent).length,
   }
   const runner = createRunner({ store, queue: { schedule, wake }, blocks, tasks, trace, now: () => clock, ...(traceMode && { traceMode }), ...(budgetMs !== undefined && { budgetMs }), ...(secrets && { secrets }), ...(maxSteps !== undefined && { maxSteps }), ...(cache && { cache }) })

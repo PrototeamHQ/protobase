@@ -1,4 +1,4 @@
-import type { BlockRun, Checkpoint, StepLog, StepRecord, TaskHandlers } from './port'
+import type { BlockRun, BlockShare, Checkpoint, StepLog, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
 import type { StepCacheStore } from './cache/cache-port'
 import type { SecretNamer } from './cache/secret-names'
@@ -58,9 +58,10 @@ export type StateResult =
       recorded?: boolean
       /** When a recorded Task's result was fetched. */
       fetchedAt?: Date
-      /** A Block's: the block's run that gave its result, and whether that result was an earlier one the cache kept. */
+      /** A Block's: the block's run that gave its result, whether that result was an earlier one the cache kept, and whether another run started that run. */
       run?: string
       reused?: true
+      joined?: true
     }
   | Paused
 
@@ -73,6 +74,6 @@ export type ScopeOutcome = { kind: 'ended'; output: unknown } | { kind: 'failed'
 /** A run's blocks' runs, as its segment reaches them. */
 export type SegmentBlocks = {
   find: (visit: string) => Promise<BlockRun | undefined>
-  start: (run: { visit: string; state: string; input: unknown }) => Promise<BlockRun | undefined>
+  start: (run: { visit: string; state: string; input: unknown; share?: BlockShare; joinOnly?: true }) => Promise<BlockRun | undefined>
   count: () => Promise<number>
 }

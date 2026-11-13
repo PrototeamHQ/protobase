@@ -18,13 +18,29 @@ const secretValue = 'block-secret-value-1234'
 // The roles the workflows' last editor holds now, which a test changes.
 let saverHolds = ['builder']
 
-// A fetch of a link that counts its calls, and a step that returns nothing.
+// A fetch of a link that counts its calls, a slow one that waits for the test to let it go on, and a step that returns nothing.
 const fetched: unknown[] = []
+let gate = Promise.resolve()
+let release = () => {}
+const hold = () => {
+  gate = new Promise((resolve) => (release = resolve))
+}
 const plugin: Plugin = {
   name: 'acme',
   label: 'Acme',
   steps: {
     fetch: { label: 'Fetch', description: 'Fetches a link.', input: { type: 'object' }, run: async ({ input }) => (fetched.push(input), { body: `body of ${String(input.url)}`, n: fetched.length }) },
+    slow: {
+      label: 'Slow fetch',
+      description: 'Fetches a link once let go.',
+      input: { type: 'object' },
+      run: async ({ input }) => {
+        await gate
+        fetched.push(input)
+        if (input.fail) throw new Error('The link expired')
+        return { body: `body of ${String(input.url)}` }
+      },
+    },
     nothing: { label: 'Nothing', description: 'Returns nothing.', input: { type: 'object' }, run: async () => (fetched.push('nothing'), undefined) },
   },
 }
@@ -150,6 +166,76 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("blocks on the app's dat
       expect(row.text).not.toContain(secretValue)
     }
     expect(rows.map((row) => row.key).join()).not.toContain('sig=readable')
+  })
+
+  describe('reached by two runs at the same moment', () => {
+    const waiters = async (parent: string) => (await sql<{ run_id: string }>`select run_id from workflows.block_waiters where parent = ${parent}`.execute(db)).rows.map((row) => row.run_id)
+    // Starts a run and waits until its Block has started or joined a run, which the held fetch keeps under way.
+    const reaching = async (tenant: string, workflow: string, input: unknown) => {
+      const id = await create(tenant, '/workflow_runs', { workflow_id: workflow, input })
+      await vi.waitFor(async () => expect((await blockRuns(id)).length + (await waiters(id)).length).toBe(1), { timeout: 20_000, interval: 50 })
+      return id
+    }
+    const together = async (runs: [tenant: string, workflow: string][], input: unknown) => {
+      hold()
+      const ids: string[] = []
+      for (const [tenant, workflow] of runs) ids.push(await reaching(tenant, workflow, input))
+      release()
+      return Promise.all(ids.map(async (id) => ({ id, ...(await ended(id)) })))
+    }
+
+    it('runs the block once, and the run that joined it takes its result and links to it', async () => {
+      const workflow = await create('1', '/workflows', { name: 'Fetch together', definition: blockOf('acme:slow') })
+      const before = fetched.length
+      const [first, second] = await together([['1', workflow], ['1', workflow]], { url: 'https://files.test/together?sig=1' })
+      expect(fetched.length - before).toBe(1)
+      expect(first).toMatchObject({ status: 'succeeded', output: { body: 'body of https://files.test/together?sig=1' } })
+      expect(second!.output).toEqual(first!.output)
+      const [child] = await blockRuns(first!.id)
+      expect(await blockRuns(second!.id)).toEqual([])
+      expect(await waiters(second!.id)).toEqual([child!.id])
+      const blockStep = (await trace.steps(db, second!.id)).find((step) => step.state === 'Keep') as { run?: string; joined?: true }
+      expect(blockStep).toMatchObject({ run: child!.id, joined: true })
+      // It keeps digests only, which the API neither shows nor takes.
+      const { rows } = await sql<{ block_key: string; block_who: string }>`select block_key, block_who from workflows.runs where id = ${child!.id}`.execute(db)
+      expect(rows[0]!.block_key).toMatch(/^[0-9a-f]{64}$/)
+      expect(rows[0]!.block_who).toMatch(/^[0-9a-f]{64}$/)
+      const shown = await (await request('1', 'GET', `/workflow_runs/${child!.id}`)).json()
+      expect(Object.keys(shown)).not.toContain('block_key')
+      expect(Object.keys(shown)).not.toContain('block_who')
+      for (const field of [{ block_key: rows[0]!.block_key }, { block_who: rows[0]!.block_who }]) expect((await request('1', 'POST', '/workflow_runs', { workflow_id: workflow, input: {}, ...field })).status).toBe(400)
+    })
+
+    it("never joins another tenant's run of it, nor one while the saver holds no role", async () => {
+      const ours = await create('1', '/workflows', { name: 'Ours', definition: blockOf('acme:slow') })
+      const theirs = await create('2', '/workflows', { name: 'Theirs', definition: blockOf('acme:slow') })
+      const before = fetched.length
+      const [first, second] = await together([['1', ours], ['2', theirs]], { url: 'https://files.test/tenants' })
+      expect(fetched.length - before).toBe(2)
+      expect(await waiters(second!.id)).toEqual([])
+      expect((await blockRuns(second!.id))[0]).toMatchObject({ tenant_id: '2' })
+      expect(first!.status).toBe('succeeded')
+      saverHolds = []
+      const [third, fourth] = await together([['1', ours], ['1', ours]], { url: 'https://files.test/no-role' })
+      saverHolds = ['builder']
+      expect(fetched.length - before).toBe(4)
+      expect(await waiters(fourth!.id)).toEqual([])
+      expect(await waiters(third!.id)).toEqual([])
+    })
+
+    it('fails the run that joined a run that failed, with its error, and keeps nothing', async () => {
+      const workflow = await create('1', '/workflows', { name: 'Expired', definition: blockOf('acme:slow', { fail: true }) })
+      const before = fetched.length
+      const [first, second] = await together([['1', workflow], ['1', workflow]], { url: 'https://files.test/expired' })
+      expect(fetched.length - before).toBe(1)
+      const [child] = await blockRuns(first!.id)
+      const childEnd = await ended(child!.id)
+      expect(childEnd.status).toBe('failed')
+      expect(first).toMatchObject({ status: 'failed', error: childEnd.error })
+      expect(second).toMatchObject({ status: 'failed', error: childEnd.error })
+      await run('1', workflow, { url: 'https://files.test/expired' })
+      expect(fetched.length - before).toBe(2)
+    })
   })
 
   it("refuses the block fields on a run's create, and another tenant cannot read or replay a block's run", async () => {

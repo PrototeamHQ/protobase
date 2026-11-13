@@ -1,7 +1,7 @@
 import { limits } from '../limits'
 import type { StepCacheStore } from './cache/cache-port'
 import { blockDefinition } from '../definition/inner'
-import type { BlockRunStore, LoadedRun, RunStore, SegmentQueue, StepRecord, TaskHandlers, TraceMode, TraceSink } from './port'
+import type { BlockRunStore, BlockShare, LoadedRun, RunStore, SegmentQueue, StepRecord, TaskHandlers, TraceMode, TraceSink } from './port'
 import { blankedMark, secretRedactor } from './redact'
 import { runSegment } from './segment'
 
@@ -59,8 +59,12 @@ export const createRunner = <Db>({ store, queue, tasks, cache, blocks, secrets =
     segment: async (db: Db, runId: string, signal: AbortSignal) => {
       const run = await store.load(db, runId)
       if (!run) return
-      // A block's run wakes the run that waits for it as it ends; again on a later try, should it have stopped before.
-      const wake = async () => void (run.blockOf && (await queue.wake(db, run.blockOf)))
+      // A block's run wakes the run that started it and those that joined it as it ends; again on a later try, should it
+      // have stopped before. It reads them after it ended, so a run joining it meanwhile finds it ended instead.
+      const wake = async () => {
+        if (run.blockOf) await queue.wake(db, run.blockOf)
+        for (const parent of (await blocks?.waiters(db, runId)) ?? []) await queue.wake(db, parent)
+      }
       if (ended.has(run.status)) return wake()
       await store.update(db, runId, { status: 'running' })
       const definition = runDefinition(run)
@@ -70,7 +74,7 @@ export const createRunner = <Db>({ store, queue, tasks, cache, blocks, secrets =
       }
       // One per segment, so the tokens its steps were given are blanked from all it records, and kept no longer.
       const redactor = secretRedactor(Object.values(secrets))
-      const blockRuns = blocks && { find: (visit: string) => blocks.find(db, runId, visit), start: (block: { visit: string; state: string; input: unknown }) => blocks.start(db, { parent: runId, ...block }), count: () => blocks.count(db, runId) }
+      const blockRuns = blocks && { find: (visit: string) => blocks.find(db, runId, visit), start: (block: { visit: string; state: string; input: unknown; share?: BlockShare; joinOnly?: true }) => blocks.start(db, { parent: runId, ...block }), count: () => blocks.count(db, runId) }
       const segment = { runId, definition, input: run.input, startedAt: run.startedAt, secrets, redactor, tasks, ...(cache && { cache }), ...(blockRuns && { blocks: blockRuns }), signal, now, budgetMs, maxSteps }
       // A replay takes the steps of the run it replays from that run's trace: none when the run or its trace is gone.
       const replayed = run.replayOf === undefined ? undefined : { definition: runDefinition(run, run.replayOf?.definition) ?? definition, steps: run.replayOf ? ((await trace?.read(run.replayOf.id)) ?? []) : [] }

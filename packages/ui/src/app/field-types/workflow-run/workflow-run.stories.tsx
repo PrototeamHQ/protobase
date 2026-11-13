@@ -524,6 +524,36 @@ export const BlockRunChecks: StoryObj = {
   },
 }
 
+export const BlockRunTogether: StoryObj = {
+  name: 'Two runs that reached a block together',
+  render: () => (
+    <Workspace
+      start={appPath({ kind: 'record', resource: 'workflow_runs', key: 'run-2' })}
+      runs={[
+        { workflow_id: 7, input: { url: 'https://files.example.com/report?sig=1' } },
+        { workflow_id: 7, input: { url: 'https://files.example.com/report?sig=1' } },
+      ]}
+    />
+  ),
+}
+
+/** Two runs that reach a block with the same key together share its one run: the second's Block step opens the first's block run. */
+export const BlockRunTogetherChecks: StoryObj = {
+  ...BlockRunTogether,
+  name: "Two runs that reach a block together share its run (checks)",
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    await markOf(canvasElement, 'Mail', 'Succeeded')
+    await userEvent.click(await nodeOf(canvasElement, 'Keep file'))
+    const open = await sidePanel(canvasElement).findByRole('link', { name: "Open the block's run" })
+    await expect(open).toHaveAttribute('href', appPath({ kind: 'record', resource: 'workflow_runs', key: 'run-3' }))
+    await expect(sidePanel(canvasElement).getByText('Joined')).toBeVisible()
+    await expect(sidePanel(canvasElement).getByText(/Another run reached this block with the same key/)).toBeVisible()
+    await expect(calls.fetch).toBe(1)
+    await expect(calls.store).toBe(1)
+  },
+}
+
 /** A run on a version with a block still leads from a step inside it to the block's run once a later version took the block out. */
 export const BlockRunOfOlderVersionChecks: StoryObj = {
   name: "A step inside a block a later version took out still opens the block's run (checks)",

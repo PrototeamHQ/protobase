@@ -9,7 +9,7 @@ import { tolerant } from './cache/tolerant'
 import { StepError } from './errors'
 import { evaluateKept, evaluateTemplate } from './evaluate'
 import { jsonBytes } from './json-bytes'
-import type { BlockRun, TaskContext } from './port'
+import type { BlockRun, BlockShare, TaskContext } from './port'
 import { redacted } from './redact'
 import type { Ran } from './ran'
 import type { StateCall } from './step-input'
@@ -55,19 +55,23 @@ const hit = (entry: CacheEntry, input: unknown, call: StateCall): Ran => {
 }
 
 // A block's run that ended: its result, kept for later visits unless it held a secret, or its failure.
+// A run another visit started with the same key, which this one joined instead of starting its own, says so in the logs.
 const ended = async (run: BlockRun, input: unknown, call: StateCall, keep: (kept: Kept) => Promise<unknown>): Promise<Ran> => {
-  if (run.status === 'failed') return { failure: { Error: run.error ?? 'States.Runtime', Cause: run.cause ?? '' }, input, recorded: true, run: run.id }
+  const joined = run.joined ? { joined: true as const } : {}
+  if (run.joined) call.logs.push({ at: call.context.now().toISOString(), message: "This step joined the block's run that another visit had started with the same key, instead of starting another" })
+  if (run.status === 'failed') return { failure: { Error: run.error ?? 'States.Runtime', Cause: run.cause ?? '' }, input, recorded: true, run: run.id, ...joined }
   if (run.blanked) call.logs.push({ at: call.context.now().toISOString(), message: "The result was not cached: its run's output held a secret" })
   else await keep({ ...(run.output !== undefined && run.output !== null && { value: run.output }), run: run.id })
   const fetchedAt = run.finishedAt ?? call.context.now()
   call.logs.push({ at: call.context.now().toISOString(), message: `The block's run fetched its result at ${fetchedAt.toISOString()}` })
-  return { result: run.output ?? null, input, recorded: true, fetchedAt, run: run.id }
+  return { result: run.output ?? null, input, recorded: true, fetchedAt, run: run.id, ...joined }
 }
 
 /**
- * One try of a Block: the result of an earlier run of it with the same key and identity while that entry serves, else a
- * run of its own on its Arguments, which this run waits for. Each try starts at most one run, which a later segment of
- * the try finds again; a result, an empty one too, is kept for `Cache.Ttl`, and a failure is not.
+ * One try of a Block: the result of an earlier run of it with the same key and identity while that entry serves, else
+ * the run of it with that key and identity under way, which this run joins, else a run of its own on its Arguments.
+ * This run waits for either. Each try starts or joins at most one run, which a later segment of the try finds again; a
+ * result, an empty one too, is kept for `Cache.Ttl`, and a failure is not.
  */
 export const runBlock = async (state: BlockState, call: StateCall): Promise<Ran> => {
   const input = await blockInput(state, call)
@@ -86,14 +90,33 @@ export const runBlock = async (state: BlockState, call: StateCall): Promise<Ran>
     if (!cache || !key || seconds === undefined) return
     await tolerant(task, 'be written', () => cache.store.write({ runId: call.context.runId, type: key.type, identity, key: key.key, shape: { custom: true }, output: kept, seconds, secrets: key.secrets }))
   }
+  // A run that ended gives its outcome; one another run started gives its result only while this run's accounts can
+  // still be used, as a cache hit does, and otherwise this run starts its own.
+  const take = async (run: BlockRun): Promise<Ran> => {
+    if (run.status !== 'succeeded' && run.status !== 'failed') return waiting
+    if (run.joined && run.status === 'succeeded' && !(await connected(state, call))) return begin()
+    return ended(run, recordedInput, call, keep)
+  }
+  // Starts a run of the block, or with `share` joins one of the same key and identity under way, which may have ended
+  // by the time it is joined. A join starts no run, so a run that started the most it may still joins one. The count
+  // and the start need no lock: a run's segments run one at a time, so it never starts two block runs at once.
+  const begin = async (share?: BlockShare): Promise<Ran> => {
+    const count = await blocks.count()
+    const full = count >= limits.blockRuns
+    const limit = () => new StepError('States.DataLimitExceeded', `The run started ${count} runs of blocks, the most one run may start (${limits.blockRuns})`)
+    if (full && !share) throw limit()
+    const run = await blocks.start({ visit, state: call.name, input, ...(share && { share }), ...(full && { joinOnly: true as const }) })
+    if (!run && full) throw limit()
+    if (!run) throw new StepError('States.Runtime', `"${call.name}" is not a Block of the version this run runs`)
+    return take(run)
+  }
   const started = await blocks.find(visit)
-  if (started) return started.status === 'succeeded' || started.status === 'failed' ? ended(started, recordedInput, call, keep) : waiting
+  if (started) return take(started)
   const entry = cache && key ? await tolerant(task, 'be read', () => cache.store.lookup({ runId: call.context.runId, type: key.type, identity, keys: [key.key] })) : undefined
   // A secret the result depends on that changed since makes it one to fetch again.
   if (entry && entry.secretsChanged.length === 0 && (await connected(state, call))) return hit(entry, recordedInput, call)
-  const count = await blocks.count()
-  if (count >= limits.blockRuns) throw new StepError('States.DataLimitExceeded', `The run started ${count} runs of blocks, the most one run may start (${limits.blockRuns})`)
-  const run = await blocks.start({ visit, state: call.name, input })
-  if (!run) throw new StepError('States.Runtime', `"${call.name}" is not a Block of the version this run runs`)
-  return waiting
+  // Only a block whose result is kept shares its run: one that keeps none runs on each visit. Nor does one that reads a
+  // secret, since a run under way may have read a value changed since, which a cache entry's fingerprints tell and a
+  // shared run cannot.
+  return begin(key && key.secrets.length === 0 && cacheSeconds(state.Cache.Ttl) !== undefined ? { key: key.key, identity } : undefined)
 }

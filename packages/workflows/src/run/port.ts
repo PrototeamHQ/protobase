@@ -1,5 +1,5 @@
 import type { Definition } from '../definition/types'
-import type { TaskCache } from './cache/cache-port'
+import type { CacheIdentity, TaskCache } from './cache/cache-port'
 
 /**
  * How a step ended: `succeeded`, `retrying` (it failed and a retrier tries it again), `caught` (it failed and a
@@ -38,6 +38,8 @@ export type StepRecord = {
   run?: string
   /** A Block's step whose result was an earlier one the cache kept, so its steps did not run. */
   reused?: true
+  /** A Block's step that joined a run of the block another visit had started with the same key, instead of starting one. */
+  joined?: true
 }
 
 /** What a replay takes of a step of the run it replays, as that run's trace keeps it. */
@@ -168,17 +170,27 @@ export type RunStore<Db> = {
  */
 export type SegmentQueue<Db> = { schedule(db: Db, runId: string, at?: Date): Promise<void>; wake(db: Db, runId: string): Promise<void> }
 
-/** A block's run as the run that started it sees it. */
-export type BlockRun = { id: string; status: RunStatus; output?: unknown; error?: string | null; cause?: string | null; finishedAt?: Date | null; blanked?: boolean | null }
+/** A block's run as a run that started or joined it sees it; `joined` when another run started it. */
+export type BlockRun = { id: string; status: RunStatus; output?: unknown; error?: string | null; cause?: string | null; finishedAt?: Date | null; blanked?: boolean | null; joined?: boolean }
+
+/** What a block's run that may be shared is shared by: its cache key, and the identity its entry is kept under. */
+export type BlockShare = { key: string; identity: CacheIdentity }
 
 /**
  * Where blocks' runs are kept: each is a run of its own, started by a run (`parent`) on one try of one of its Blocks
  * (`visit`), whose tenant, workflow, version and trace setting it takes from that run.
  */
 export type BlockRunStore<Db> = {
+  /** The run this visit started, else the one it joined. */
   find(db: Db, parent: string, visit: string): Promise<BlockRun | undefined>
-  /** Starts it and queues its first segment, or the one of this visit started already; undefined when `state` is no Block of the run's version. */
-  start(db: Db, run: { parent: string; visit: string; state: string; input: unknown }): Promise<BlockRun | undefined>
+  /**
+   * Starts it and queues its first segment, or the one of this visit started already; undefined when `state` is no Block
+   * of the run's version. With `share`, a run of the same key and identity under way is joined instead of started: it
+   * wakes this run too as it ends. With `joinOnly` too, it only joins: undefined when no such run is under way.
+   */
+  start(db: Db, run: { parent: string; visit: string; state: string; input: unknown; share?: BlockShare; joinOnly?: true }): Promise<BlockRun | undefined>
+  /** The runs that joined `run`, to wake as it ends. */
+  waiters(db: Db, run: string): Promise<string[]>
   /** The block runs `parent` started. */
   count(db: Db, parent: string): Promise<number>
 }

@@ -15,7 +15,7 @@ import { emptyTask, heldBack, heldBackLog, replayedOutcome } from './replay'
 import { runTask } from './task'
 
 /** What a state goes on with: a held-back step's is what the replayed run's step gave. */
-type Outcome = ({ result: unknown } | { failure: Failure }) & { input: unknown; held?: true; recorded?: boolean; fetchedAt?: Date; run?: string; reused?: true }
+type Outcome = ({ result: unknown } | { failure: Failure }) & { input: unknown; held?: true; recorded?: boolean; fetchedAt?: Date; run?: string; reused?: true; joined?: true }
 type ResultState = TaskState | MapState | BlockState
 
 const task = async (state: TaskState, call: StateCall): Promise<Ran> => {
@@ -92,7 +92,7 @@ export const runResultState = async (state: ResultState, call: StateCall): Promi
   const now = call.context.now()
   // A Block's result may be older than its step: its `$now` is when it was fetched, while the scope's clock goes on from now.
   const fetchedAt = ('fetchedAt' in ran && ran.fetchedAt) || now
-  const recorded = { ...(ran.recorded && { recorded: true, fetchedAt: now }), ...('run' in ran && ran.run !== undefined && { run: ran.run }), ...('reused' in ran && ran.reused && { reused: true as const }) }
+  const recorded = { ...(ran.recorded && { recorded: true, fetchedAt: now }), ...('run' in ran && ran.run !== undefined && { run: ran.run }), ...('reused' in ran && ran.reused && { reused: true as const }), ...('joined' in ran && ran.joined && { joined: true as const }) }
   // A held-back step's error is the one its visit ended with after its retries, so only a catcher takes it.
   const recoverable = 'held' in ran ? { ...(state.Catch && { Catch: state.Catch }) } : state
   if ('failure' in ran) return { ...(await recover(recoverable, call.position, ran.failure, call.bindings, now, call.logs)), ...(ran.input !== undefined && { input: ran.input }), ...recorded } as StateResult

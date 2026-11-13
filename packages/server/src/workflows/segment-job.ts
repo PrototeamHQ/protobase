@@ -5,6 +5,7 @@ import type { JobContext, JobDefinition } from '../jobs/job-types'
 import { postgresRunStore } from './store'
 import { postgresBlockRuns } from './block-runs'
 import { failAfterLastTry } from './last-try'
+import type { SaverRoles } from './plugin-records'
 
 /** The job that runs one segment of a workflow run. */
 export const segmentJobName = 'workflows.segment'
@@ -19,6 +20,8 @@ export type WorkflowsRunnerInput = {
   trace: TraceSink
   /** The trace a run keeps when neither it nor its workflow says. */
   traceMode: TraceMode
+  /** The roles a saver holds now, which a run of a block is shared under as the step cache keeps its result. */
+  roles: SaverRoles
 }
 
 /**
@@ -26,7 +29,7 @@ export type WorkflowsRunnerInput = {
  * timeout is above a segment's time plus the longest step's, so a job that times out is a worker that died, and its
  * next try takes the run up from its last saved step.
  */
-export const workflowsRunner = ({ schema, tasks, secrets, cache, trace, traceMode }: WorkflowsRunnerInput) => {
+export const workflowsRunner = ({ schema, tasks, secrets, cache, trace, traceMode, roles }: WorkflowsRunnerInput) => {
   let job: JobDefinition<{ run: string }> | undefined
   const store = postgresRunStore(schema)
   const queue: SegmentQueue<Db> = {
@@ -34,7 +37,7 @@ export const workflowsRunner = ({ schema, tasks, secrets, cache, trace, traceMod
     // A run waiting for a later time, such as for its block's run, goes on now.
     wake: async (db, run) => void (await job!.enqueue(db, { run }, { key: run, mode: 'replace', runAt: new Date() })),
   }
-  const blocks = postgresBlockRuns(schema, () => job)
+  const blocks = postgresBlockRuns(schema, () => job, roles)
   const runner = createRunner({ store, queue, tasks: {}, secrets, trace, traceMode })
   job = defineJob<{ run: string }>({
     name: segmentJobName,
