@@ -255,10 +255,12 @@ describe('a Block', () => {
       expect(calls).toEqual({ fetch: 1, store: 1 })
       expect(port.run('a')).toMatchObject({ status: 'succeeded', output: { file: 'files/n' } })
       expect(port.run('b')).toMatchObject({ status: 'succeeded', output: { file: 'files/n' } })
-      expect(port.steps.filter((step) => step.state === 'Keep').map((step) => [step.runId, step.run])).toEqual([
-        ['a', 'a~|0'],
-        ['b', 'a~|0'],
+      const blockSteps = port.steps.filter((step) => step.state === 'Keep')
+      expect(blockSteps.map((step) => [step.runId, step.run, step.joined])).toEqual([
+        ['a', 'a~|0', undefined],
+        ['b', 'a~|0', true],
       ])
+      expect(blockSteps[1]!.logs.map((line) => line.message)).toEqual([expect.stringMatching(/^This step joined the block's run that another visit had started/), expect.stringMatching(/^The block's run fetched its result at /)])
     })
 
     it('runs once for the items of a For each that reach it together', async () => {
@@ -288,6 +290,7 @@ describe('a Block', () => {
       expect(calls.fetch).toBe(1)
       expect(port.run('a')).toMatchObject({ status: 'failed', error: 'Fetch.Expired', cause: 'The link expired' })
       expect(port.run('b')).toMatchObject({ status: 'failed', error: 'Fetch.Expired', cause: 'The link expired' })
+      expect(port.steps.find((step) => step.runId === 'b' && step.state === 'Keep')).toMatchObject({ status: 'failed', joined: true, run: 'a~|0' })
       fail = false
       await together(port, { c: { url: 'u1', name: 'n' } })
       expect(calls.fetch).toBe(2)

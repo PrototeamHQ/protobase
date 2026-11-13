@@ -38,6 +38,8 @@ export type StepRecord = {
   run?: string
   /** A Block's step whose result was an earlier one the cache kept, so its steps did not run. */
   reused?: true
+  /** A Block's step that joined a run of the block another visit had started with the same key, instead of starting one. */
+  joined?: true
 }
 
 /** What a replay takes of a step of the run it replays, as that run's trace keeps it. */

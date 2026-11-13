@@ -55,13 +55,16 @@ const hit = (entry: CacheEntry, input: unknown, call: StateCall): Ran => {
 }
 
 // A block's run that ended: its result, kept for later visits unless it held a secret, or its failure.
+// A run another visit started with the same key, which this one joined instead of starting its own, says so in the logs.
 const ended = async (run: BlockRun, input: unknown, call: StateCall, keep: (kept: Kept) => Promise<unknown>): Promise<Ran> => {
-  if (run.status === 'failed') return { failure: { Error: run.error ?? 'States.Runtime', Cause: run.cause ?? '' }, input, recorded: true, run: run.id }
+  const joined = run.joined ? { joined: true as const } : {}
+  if (run.joined) call.logs.push({ at: call.context.now().toISOString(), message: "This step joined the block's run that another visit had started with the same key, instead of starting another" })
+  if (run.status === 'failed') return { failure: { Error: run.error ?? 'States.Runtime', Cause: run.cause ?? '' }, input, recorded: true, run: run.id, ...joined }
   if (run.blanked) call.logs.push({ at: call.context.now().toISOString(), message: "The result was not cached: its run's output held a secret" })
   else await keep({ ...(run.output !== undefined && run.output !== null && { value: run.output }), run: run.id })
   const fetchedAt = run.finishedAt ?? call.context.now()
   call.logs.push({ at: call.context.now().toISOString(), message: `The block's run fetched its result at ${fetchedAt.toISOString()}` })
-  return { result: run.output ?? null, input, recorded: true, fetchedAt, run: run.id }
+  return { result: run.output ?? null, input, recorded: true, fetchedAt, run: run.id, ...joined }
 }
 
 /**

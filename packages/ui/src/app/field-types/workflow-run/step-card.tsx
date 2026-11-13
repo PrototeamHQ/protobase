@@ -60,6 +60,7 @@ export const StepCard = ({ step, valueActions }: { step: StepRow; valueActions?:
         <Badge tone={nodeTones[step.status]}>{nodeStatusLabel(step.status)}</Badge>
         {heldBack && <Badge tone="violet">{text('notSent')}</Badge>}
         {step.reused === true && <Badge tone="blue">{text('reused')}</Badge>}
+        {step.joined === true && <Badge tone="blue">{text('joined')}</Badge>}
         <time dateTime={step.started_at} className="text-muted-foreground">{formatDateTime(Date.parse(step.started_at))}</time>
         <span className="tabular-nums text-muted-foreground">{text('duration', { ms: Number(step.duration_ms ?? 0) })}</span>
       </header>
@@ -74,6 +75,7 @@ export const StepCard = ({ step, valueActions }: { step: StepRow; valueActions?:
       {typeof step.run === 'string' && (
         <div className="grid gap-1">
           {step.reused === true && <p className="text-body text-muted-foreground">{text('reusedResult')}</p>}
+          {step.joined === true && <p className="text-body text-muted-foreground">{text('joinedResult')}</p>}
           <AppLink to={{ kind: 'record', resource: 'workflow_runs', key: step.run }} className={cn(buttonClass({ size: 'sm' }), 'justify-self-start')}>
             {step.reused === true ? text('openEarlierBlockRun') : text('openBlockRun')}
           </AppLink>

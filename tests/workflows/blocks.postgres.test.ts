@@ -194,8 +194,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("blocks on the app's dat
       const [child] = await blockRuns(first!.id)
       expect(await blockRuns(second!.id)).toEqual([])
       expect(await waiters(second!.id)).toEqual([child!.id])
-      const blockStep = (await trace.steps(db, second!.id)).find((step) => step.state === 'Keep') as { run?: string }
-      expect(blockStep.run).toBe(child!.id)
+      const blockStep = (await trace.steps(db, second!.id)).find((step) => step.state === 'Keep') as { run?: string; joined?: true }
+      expect(blockStep).toMatchObject({ run: child!.id, joined: true })
       // It keeps digests only, which the API neither shows nor takes.
       const { rows } = await sql<{ block_key: string; block_who: string }>`select block_key, block_who from workflows.runs where id = ${child!.id}`.execute(db)
       expect(rows[0]!.block_key).toMatch(/^[0-9a-f]{64}$/)
