@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
-import { guarded } from '../../lib/guarded'
 import { useRouter } from '../router'
-import { forgetPage, keepPage } from './kept-page'
+import { sessionPageKeeper } from './kept-page'
 import { useLiveUpdater } from './live-update-context'
 import { createResumeUpdate } from './resume-update'
 
@@ -15,12 +14,7 @@ export const LiveUpdateResume = () => {
 
   useEffect(() => {
     if (!updater) return
-    const storage = guarded(() => window.sessionStorage, undefined)
-    const page = storage && {
-      keep: () => keepPage(storage, window.location, window.history),
-      forget: () => forgetPage(storage),
-    }
-    const resume = createResumeUpdate({ updater, holdsChanges, page })
+    const resume = createResumeUpdate({ updater, holdsChanges, page: sessionPageKeeper() })
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') return resume.leave()
       void resume.back()

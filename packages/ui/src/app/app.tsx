@@ -77,8 +77,11 @@ import { useAppAddress, type CurrentAddress } from './use-app-address'
 import { userMenuFromMeta } from './user-menu-from-meta'
 import { text as appText } from './messages'
 import type { NativeBridge } from './native-auth-fetch'
-import { LiveUpdateGate } from './live-update/live-update-gate'
-import { LiveUpdateOnVersionChange } from './live-update/live-update-on-version-change'
+import { appLiveUpdater } from './live-update/app-live-updater'
+import { sessionPageKeeper } from './live-update/kept-page'
+import { LiveUpdateProvider } from './live-update/live-update-provider'
+import { updateAfterSignIn } from './live-update/sign-in-update'
+import { LiveUpdateCheck } from './live-update/live-update-check'
 import { LiveUpdateResume } from './live-update/live-update-resume'
 import { useStatusMenu } from '../status/use-status-menu'
 import { useStatuses } from '../status/use-statuses'
@@ -304,7 +307,7 @@ const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, a
       <MetaGate>
         <ToastProvider>
           {!sidebarBanner && <NewVersionToast />}
-          <LiveUpdateOnVersionChange />
+          <LiveUpdateCheck />
           {/* The connect page stands alone, without the shell or the plugins that draw in it */}
           {path === connectRoute ? (
             <ConnectRoute />
@@ -355,11 +358,13 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, local
   // Before `/meta` names the app's language, and when it names none, the screens are in this one
   setFallbackLocale(locale ?? 'en')
   const apiOrigin = rest.baseUrl && new URL(rest.baseUrl, window.location.href).origin
+  const updater = useMemo(() => appLiveUpdater({ bridge: nativeBridge, apiOrigin, userAgent: navigator.userAgent, fetch: window.fetch.bind(window) }), [nativeBridge, apiOrigin])
+  const afterSignIn = useMemo(() => updater && (() => updateAfterSignIn(updater, sessionPageKeeper())), [updater])
   return (
     <StartCacheProvider value={startCache}>
       <ThemeProvider>
-        <LiveUpdateGate nativeBridge={nativeBridge} apiOrigin={apiOrigin}>
-          <AuthProvider session={auth} {...(apiOrigin && { origin: apiOrigin })} {...(nativeBridge && { nativeBridge })}>
+        <LiveUpdateProvider updater={updater}>
+          <AuthProvider session={auth} {...(apiOrigin && { origin: apiOrigin })} {...(nativeBridge && { nativeBridge })} {...(afterSignIn && { afterSignIn })}>
             <Router basePath={basePath} initialUrl={initialUrl}>
               <LiveUpdateResume />
               {nativeBridge && apiOrigin && <NativePushTap nativeBridge={nativeBridge} apiOrigin={apiOrigin} />}
@@ -376,7 +381,7 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, local
               </PluginSourceProvider>
             </Router>
           </AuthProvider>
-        </LiveUpdateGate>
+        </LiveUpdateProvider>
       </ThemeProvider>
     </StartCacheProvider>
   )

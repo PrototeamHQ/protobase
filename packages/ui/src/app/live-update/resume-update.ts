@@ -1,3 +1,4 @@
+import { applyOnPage, type PageKeeper } from './apply-on-page'
 import { applyAfterAwayMs, createAwayClock } from './away-clock'
 import type { LiveUpdater } from './live-update-context'
 
@@ -5,8 +6,8 @@ export type ResumeUpdateInput = {
   updater: Pick<LiveUpdater, 'applyNext' | 'check'>
   /** Whether a guard holds unsaved changes, which a reload would lose. */
   holdsChanges: () => boolean
-  /** Keeps the page the app shows for the release to return to, and forgets it again; none without storage. */
-  page: { keep: () => void; forget: () => void } | undefined
+  /** Keeps the page the app shows for the release to return to; none without storage. */
+  page: PageKeeper | undefined
   now?: () => number
 }
 
@@ -21,16 +22,8 @@ export const createResumeUpdate = ({ updater, holdsChanges, page, now }: ResumeU
     leave: clock.leave,
     back: async () => {
       const away = clock.back()
-      if (page && away >= applyAfterAwayMs && !holdsChanges()) {
-        let kept = false
-        const keep = () => {
-          page.keep()
-          kept = true
-        }
-        if (await updater.applyNext(keep)) return
-        if (kept) page.forget()
-      }
-      await updater.check(false)
+      if (page && away >= applyAfterAwayMs && !holdsChanges() && (await applyOnPage(updater, page))) return
+      await updater.check()
     },
   }
 }

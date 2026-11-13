@@ -12,7 +12,7 @@ const nativeBridge = (plugins: string[]) => {
 }
 
 const userAgent = 'Mozilla/5.0 (Linux; Android 16) ProtobaseNative/0123456789abcdef'
-const input = { apiOrigin: 'https://shop.example.com', userAgent, onHold: () => {} }
+const input = { apiOrigin: 'https://shop.example.com', userAgent }
 
 describe('appLiveUpdater', () => {
   it('is none in a browser, and in a binary without the live updater, such as the iOS app', () => {
@@ -23,7 +23,7 @@ describe('appLiveUpdater', () => {
 
   it("asks the API the page names for this binary's release, with the shell's own version", async () => {
     const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({ bundleId: null, url: null, required: false }))
-    await appLiveUpdater({ ...input, bridge: nativeBridge(['LiveUpdate']).bridge, fetch })!.check(true)
+    await appLiveUpdater({ ...input, bridge: nativeBridge(['LiveUpdate']).bridge, fetch })!.check()
     expect(fetch.mock.calls[0]![0]).toBe(`https://shop.example.com/api/mobile/release?fingerprint=0123456789abcdef&shell_version=${protobaseVersion}`)
   })
 
@@ -32,7 +32,7 @@ describe('appLiveUpdater', () => {
     const { bridge, nativePromise } = nativeBridge(['LiveUpdate'])
     for (const updater of [appLiveUpdater({ ...input, userAgent: 'Mozilla/5.0', bridge, fetch }), appLiveUpdater({ ...input, apiOrigin: undefined, bridge, fetch })]) {
       await updater!.ready()
-      await updater!.check(true)
+      await updater!.check()
     }
     expect(fetch).not.toHaveBeenCalled()
     expect(nativePromise.mock.calls.map(([, method]) => method).filter((method) => !method.startsWith('get'))).toEqual(['ready', 'ready'])

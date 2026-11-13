@@ -17,7 +17,7 @@ export type MobileReleaseAppInput = {
 
 /**
  * The live updater's routes. `GET /api/mobile/release` tells a device the release it should run: the server's own,
- * when it runs on the device's binary, and whether the update is required. `GET /api/mobile/releases/<bundle id>?href=`
+ * when it runs on the device's binary and the device's shell works with the server, and whether the update is required. `GET /api/mobile/releases/<bundle id>?href=`
  * serves the release's manifest and files, each with its sha256 in `X-Checksum` and, signed, its `X-Signature`, which
  * the updater checks each file against: it never checks a file against the manifest.
  */
@@ -29,11 +29,13 @@ export const mobileReleaseApp = ({ release, serverVersion }: MobileReleaseAppInp
       const shellVersion = c.req.query(mobileReleaseParams.shellVersion)
       if (!fingerprint) return problem(badRequest('invalid-fingerprint', `${mobileReleaseParams.fingerprint} must name the native fingerprint of the app`))
       if (!shellVersion || !isShellVersion(shellVersion)) return problem(badRequest('invalid-shell-version', `${mobileReleaseParams.shellVersion} must be the x.y.z Protobase version of the shell the app runs`))
-      const offered = release?.fingerprint === fingerprint ? release : undefined
+      const required = shellUpdateRequired(shellVersion, serverVersion)
+      // A release is built for the server's own shell version, which a binary of a shell that must update refuses.
+      const offered = release?.fingerprint === fingerprint && !required ? release : undefined
       const answer: MobileReleaseAnswer = {
         bundleId: offered?.bundleId ?? null,
         url: offered ? `${offered.origin}${mobileReleaseBasePath(offered.bundleId)}` : null,
-        required: shellUpdateRequired(shellVersion, serverVersion),
+        required,
       }
       // Public, and read by the app's page on its own origin.
       return c.json(answer, 200, { 'cache-control': 'no-store', 'access-control-allow-origin': '*' })

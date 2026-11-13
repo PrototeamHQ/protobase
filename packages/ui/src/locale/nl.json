@@ -1226,10 +1226,6 @@
     "changedBySomeoneElse": "Gewijzigd door iemand anders",
     "couldNotSave": "Kon niet bewaren"
   },
-  "app/live-update": {
-    "holdTitle": "De app wordt bijgewerkt",
-    "holdLine": "De nieuwe versie wordt gedownload. De app opent die zo."
-  },
   "app/map": {
     "mapLayer": "Kaartlaag",
     "map": "Kaart"

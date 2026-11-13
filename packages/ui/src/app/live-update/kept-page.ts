@@ -1,3 +1,6 @@
+import { guarded } from '../../lib/guarded'
+import type { PageKeeper } from './apply-on-page'
+
 // The live updater's reload loads the release at its start page; this key holds the page it left until it is back.
 const keptPageKey = 'protobase.liveUpdate.page'
 
@@ -39,4 +42,10 @@ export const restorePage = (storage: PageStorage, history: PageHistory) => {
   const { url, entry } = page as { url?: unknown; entry?: unknown }
   if (!isOwnPath(url)) return
   history.replaceState(typeof entry === 'string' ? { protobaseEntry: entry } : null, '', url)
+}
+
+/** Keeps the page in this tab's session storage, which a reload keeps; `undefined` where the storage cannot be read. */
+export const sessionPageKeeper = (): PageKeeper | undefined => {
+  const storage = guarded(() => window.sessionStorage, undefined)
+  return storage && { keep: () => keepPage(storage, window.location, window.history), forget: () => forgetPage(storage) }
 }
