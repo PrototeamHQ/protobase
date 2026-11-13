@@ -21,7 +21,7 @@ on:
         default: ''
 
 # Plan, pack and the checks of every run start at once. From the tag onward each job has a concurrency group of its
-# own, so one run at a time cuts a tag, publishes, builds an image or bumps, while another run's earlier jobs go on
+# own, so one run at a time cuts a tag, publishes or builds an image, while another run's earlier jobs go on
 # beside it. GitHub starts a group's jobs in the order they began to wait, and queue: max keeps every one waiting
 # instead of cancelling all but the newest, so no run that cut a tag misses its publish. A run's job waits only once
 # the same run's previous job ended, and that job ran after the older run's, so every stage keeps the order of the
@@ -285,46 +285,12 @@ jobs:
       image: protobase-dev
       tag: ${{ inputs.tag || needs.release.outputs.tag }}
 
-  # Our own repositories, listed in the PROTOBASE_BUMP_REPOS secret, each get a pull request that moves them to the
-  # release: their protobase-bump workflow is started at its version once npm serves it, and the pull request merges
-  # itself once its CI is green and stays open for a fix when it is red. No other job needs this one, so a bump that
-  # cannot start never holds up the packages or the images.
-  bump:
-    needs: [release, publish]
-    if: ${{ !cancelled() && needs.publish.result == 'success' }}
-    concurrency:
-      group: release-bump
-      queue: max
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: refs/tags/${{ inputs.tag || needs.release.outputs.tag }}
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.4
-      - run: bun install --frozen-lockfile
-      - name: Stamp the tag's version into the packages
-        env:
-          TAG: ${{ inputs.tag || needs.release.outputs.tag }}
-        run: bun scripts/stamp-version.mjs "$TAG"
-      - name: Wait for npm to serve the @protobase packages
-        run: bun scripts/wait-for-npm.mjs
-      - name: Start the bump of each repository
-        env:
-          GH_TOKEN: ${{ secrets.PROTOBASE_BUMP_TOKEN }}
-          PROTOBASE_BUMP_REPOS: ${{ secrets.PROTOBASE_BUMP_REPOS }}
-          TAG: ${{ inputs.tag || needs.release.outputs.tag }}
-        run: bun scripts/bump-repos/main.ts
-
   # Starts the release-speed report once every other job has ended, whatever their outcome: a run dispatched with
   # GITHUB_TOKEN, as the AI review's are, fires no workflow_run, so the report cannot wait for the release's completion
   # itself. It runs for releases of main only, a failed dispatch neither fails nor holds up the release, and the report
   # measures a release up to its last job before this one (scripts/release-speed/timings.ts).
   release-speed:
-    needs: [plan, pack, check, commits, release, publish, image, image-dev, bump]
+    needs: [plan, pack, check, commits, release, publish, image, image-dev]
     if: ${{ always() && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     continue-on-error: true

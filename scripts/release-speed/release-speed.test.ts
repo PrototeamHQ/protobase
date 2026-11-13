@@ -68,7 +68,7 @@ describe('runTimings of a release run that starts the report', () => {
   const run: ApiRun = { id: 1, event: 'workflow_dispatch', run_started_at: at(0), updated_at: at(780), html_url: '' }
 
   it('ends at its last other job, whatever that job concluded, and leaves the report job out', () => {
-    const timings = runTimings(run, [job('plan', 0, 60), job('bump', 60, 540, 'skipped'), job('publish', 60, 480), job('release-speed', 600, 780)])
+    const timings = runTimings(run, [job('plan', 0, 60), job('pack', 60, 540, 'skipped'), job('publish', 60, 480), job('release-speed', 600, 780)])
     expect(timings).toMatchObject({ wall: 540, queue: 0, run: 540 })
     expect([...timings.jobs.keys()]).toEqual(['plan', 'publish'])
   })
