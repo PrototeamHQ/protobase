@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
-import { cp, rm } from 'node:fs/promises'
+import { cp, mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import type { NativeFile } from './native-file'
 import type { Platform } from './platform'
 
 /** Where @protobase/mobile, installed in the workspace `ws`, has the platform's splash files, by their native project paths. */
@@ -21,4 +22,13 @@ export const removeTemplateSplash = async (ws: string, platform: Platform, file:
   const at = path.join(ws, platform, file)
   if (!existsSync(at)) throw new Error(`The generated ${platform} project has no ${file}, the splash screen Protobase's replaces`)
   await rm(at, { recursive: true })
+}
+
+/** Writes the app's own splash `files` into the platform's native project in the workspace, over Protobase's. */
+export const writeSplashFiles = async (ws: string, platform: Platform, files: NativeFile[]) => {
+  for (const { file, content } of files) {
+    const to = path.join(ws, platform, file)
+    await mkdir(path.dirname(to), { recursive: true })
+    await writeFile(to, content)
+  }
 }

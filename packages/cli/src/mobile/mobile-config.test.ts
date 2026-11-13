@@ -22,6 +22,11 @@ describe('checkMobileConfig', () => {
     }
   })
 
+  it('takes the splash section, checked', () => {
+    expect(checkMobileConfig({ appId: 'com.example.shop', splash: { image: 'splash.png' } })).toEqual({ appId: 'com.example.shop', splash: { image: 'splash.png' } })
+    expect(() => checkMobileConfig({ appId: 'com.example.shop', splash: { background: 7 } })).toThrow('mobile.splash.background must be a colour')
+  })
+
   it('refuses plugins that are not a record of strings', () => {
     for (const plugins of [['@capacitor/camera'], { '@capacitor/camera': 8 }, 'camera']) {
       expect(() => checkMobileConfig({ appId: 'com.example.shop', plugins })).toThrow("mobile.plugins must map each plugin's npm name")

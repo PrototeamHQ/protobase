@@ -22,6 +22,14 @@ describe('withLaunchTheme', () => {
     expect(styles.replace(/ {4}<style name="AppTheme.NoActionBarLaunch"[\s\S]*?<\/style>/, '')).toBe(templateStyles.replace(/ {4}<style name="AppTheme.NoActionBarLaunch"[\s\S]*?<\/style>/, ''))
   })
 
+  it("gives the launch theme the app's own splash image, without an icon background", () => {
+    const styles = withLaunchTheme(templateStyles, true)
+    expect(styles).toContain('<style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">')
+    expect(styles).toContain('<item name="windowSplashScreenBackground">@color/protobase_splash_background</item>')
+    expect(styles).toContain('<item name="windowSplashScreenAnimatedIcon">@drawable/protobase_splash_image</item>')
+    expect(styles).not.toContain('windowSplashScreenIconBackgroundColor')
+  })
+
   it('fails on a styles.xml that is not the template', () => {
     expect(() => withLaunchTheme(templateStyles.replace('@drawable/splash', '@drawable/own_splash'))).toThrow("styles.xml is not Capacitor's template")
   })
@@ -38,6 +46,17 @@ describe('withAndroidSplash', () => {
     expect(readFileSync(res(ws, 'values-night/protobase_splash.xml'), 'utf8')).toBe(splashBackgroundResource('#0f0f11'))
     for (const image of templateSplashImages) expect(existsSync(path.join(ws, 'android', image)), image).toBe(false)
     for (const file of androidSplashFiles) expect(readFileSync(path.join(ws, 'android', file), 'utf8')).toBe('protobase')
+  })
+
+  it("writes the app's own splash image over Protobase's, on the light and dark background", async () => {
+    ws = mkdtempSync(path.join(tmpdir(), 'protobase-android-splash-'))
+    writeProtobaseSplash(ws)
+    writeTemplateSplash(ws, 'android')
+    const image = [{ file: androidSplashFiles[0]!, content: 'own' }, { file: 'app/src/main/res/drawable-night-xhdpi/protobase_splash_image.png', content: 'own dark' }]
+    await withAndroidSplash(ws, colors, image)
+    expect(readFileSync(res(ws, 'values/styles.xml'), 'utf8')).toBe(withLaunchTheme(templateStyles, true))
+    for (const { file, content } of image) expect(readFileSync(path.join(ws, 'android', file), 'utf8')).toBe(content)
+    expect(readFileSync(res(ws, 'values-night/protobase_splash.xml'), 'utf8')).toBe(splashBackgroundResource('#0f0f11'))
   })
 
   it('fails on a template without one of the splash images', async () => {

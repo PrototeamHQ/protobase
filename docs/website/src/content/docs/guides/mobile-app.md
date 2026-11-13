@@ -38,7 +38,7 @@ export default defineConfig({
 
 The app is installed under the name it shows in its upper left, on iOS and Android alike: `protobase mobile` reads it from the server the app calls (its web manifest), so a `PROTOBASE_APP_NAME` the server runs with names the app on the phone too. When that server cannot be reached, `run` and `open` warn and take the project's own name, the config's `name` or `PROTOBASE_APP_NAME` in its environment, and `build` stops.
 
-On the home screen the app shows [its own icon](#the-icon), or Protobase's without one, on iOS and Android alike. While it starts, its splash screen shows that icon in the middle of the app's background: the `--background` [token](/reference/theme/) of its `protobase.theme.css`, or the default without one, light or dark as the phone is. `protobase mobile` takes it as a colour such as `#f4f3ee`, `rgb()`, `hsl()` or `white`, and stops on one a phone's splash screen cannot show, such as `oklch()` or `var()`.
+On the home screen the app shows [its own icon](#the-icon), or Protobase's without one, on iOS and Android alike. While it starts, its [splash screen](#the-splash-screen) shows that icon in the middle of the app's background, unless you set one of its own: the `--background` [token](/reference/theme/) of its `protobase.theme.css`, or the default without one, light or dark as the phone is. `protobase mobile` takes it as a colour such as `#f4f3ee`, `rgb()`, `hsl()` or `white`, and stops on one a phone's splash screen cannot show, such as `oklch()` or `var()`.
 
 With a mobile section, the API answers the app's origins, `capacitor://localhost` on iOS and `https://localhost` on Android, through [CORS](/reference/api/#cors). Apps without one get no new dependency, and `protobase build` and `protobase dev` work as before.
 
@@ -66,6 +66,24 @@ mobile: { appId: 'com.example.shop', icon: 'icon.png' },
 - The splash screen shows the app's icon too, on iOS with its corners rounded.
 
 Changing the icon takes a new store release: a [live update](#7-live-updates) does not change it.
+
+### The splash screen
+
+Set a splash image and background colour in the mobile section, with dark-mode values if you like, and the app opens on that image in the middle of that colour, on iOS and Android alike. Without them it opens on its icon over its theme background.
+
+```ts
+mobile: {
+  appId: 'com.example.shop',
+  splash: { image: 'splash.png', background: '#0d9488', dark: { image: 'splash-dark.png', background: '#042f2e' } },
+},
+```
+
+- `image` is a path from the project's folder to a square PNG of at least 1152 × 1152 pixels, or a square SVG. Android shows it at 288 dp and only its middle circle, two thirds of its side across, so keep everything you want seen within that circle; iOS shows the same circle. `protobase mobile` stops on a missing file, any other format, an image that is not square or a smaller PNG, naming the setting.
+- `background` is an opaque colour such as `#0d9488`, `rgb()` or `hsl()`; `protobase mobile` stops on any other, naming the setting.
+- `dark` holds the image and background for dark mode. One left out there takes the light one, so a single image and colour serve both. A dark image needs a light one.
+- Each is optional: an image without a background sits on the theme background, and a background without an image shows the icon on it.
+
+The splash image is a centred image, not full-screen artwork, as that is all Android's splash screen shows. Changing it takes a new store release: a [live update](#7-live-updates) does not change it.
 
 ## 3. Run it
 

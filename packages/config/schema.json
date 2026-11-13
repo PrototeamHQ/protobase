@@ -4140,11 +4140,88 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "splash": {
+          "description": "The app's own splash screen, in place of its icon on its theme background.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MobileSplash"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
         }
       },
       "required": [
         "appId"
       ],
+      "additionalProperties": false
+    },
+    "MobileSplash": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "description": "A path from the project's folder to a square PNG of at least 1152 pixels or a square SVG, such as `'splash.png'`:\nAndroid shows its middle circle of two thirds its side, so its content stays within it.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "background": {
+          "description": "The background, an opaque colour such as `'#0d9488'`, `rgb()` or `hsl()`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "dark": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MobileSplashLook"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MobileSplashLook": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "description": "A path from the project's folder to a square PNG of at least 1152 pixels or a square SVG, such as `'splash.png'`:\nAndroid shows its middle circle of two thirds its side, so its content stays within it.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "background": {
+          "description": "The background, an opaque colour such as `'#0d9488'`, `rgb()` or `hsl()`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
       "additionalProperties": false
     }
   }
