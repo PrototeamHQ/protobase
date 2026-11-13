@@ -5,6 +5,7 @@ import { conditionProblems } from './check-condition'
 import { composerProblems, threadProblems } from './check-conversation'
 import { resolveFieldPath } from './field-path'
 import { settingsProblems } from './settings'
+import { columnName, type TableColumn } from './table-columns'
 import { dataProps, type LayoutNode } from './node'
 import type { PageModel } from './page'
 import { walkTree, type Scope } from './walk'
@@ -77,7 +78,7 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, 
       for (const name of [node.props.value, node.props.max]) if (typeof name === 'string') path(name)
       break
     case 'Table':
-      for (const column of (node.props.columns as string[] | undefined) ?? []) {
+      for (const column of ((node.props.columns as TableColumn[] | undefined) ?? []).map(columnName)) {
         if (model && !Object.hasOwn(model.fields, column)) problems.push(`unknown column "${column}" on ${model.name}`)
       }
       if (model && node.props.button !== undefined) problems.push(...rowButtonErrors(node.props.button, model, { models, pages, createPages }).map((error) => `button: ${error}`))

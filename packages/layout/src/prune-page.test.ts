@@ -112,6 +112,11 @@ describe('prunePage', () => {
     expect(find(prunePage(page, [], access({ models: restricted({ invoices: ['total'] }) })), 'Table')!.props).toEqual({ resource: 'invoices' })
   })
 
+  it('narrows table columns with a priority by their name, keeping the priority', () => {
+    const page: PageModel = { name: 'p', title: 'p', tree: Page({ title: 'p', children: Table({ resource: 'invoices', columns: [{ name: 'total', priority: 1 }, { name: 'status', priority: 2 }] }) }) }
+    expect(find(prunePage(page, [], access({ models: restricted({ invoices: ['total'] }) })), 'Table')!.props.columns).toEqual([{ name: 'status', priority: 2 }])
+  })
+
   it("drops a table's row button that reads a hidden field or leads where the caller cannot go", () => {
     const button = { label: '{status}', to: { kind: 'record' as const, resource: 'invoices', key: '{id}', tab: 'Payments' } }
     const page: PageModel = { name: 'p', title: 'p', tree: Page({ title: 'p', children: Table({ resource: 'invoices', button }) }) }

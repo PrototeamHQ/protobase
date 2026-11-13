@@ -147,7 +147,7 @@ The first records of a list, drawn the way the resource's list page draws them: 
 | Prop | |
 | --- | --- |
 | `resource`, `filter`, `sort` | Which records, in which order. `resource` is required; `sort` defaults to the list's. |
-| `columns` | Field names for the table; default the view's list columns. |
+| `columns` | Field names for the table, or `{ name, priority }` for a column that matters on a phone, 1 the most important; default the view's list columns. See [Columns on a phone](#columns-on-a-phone). |
 | `button` | A [button on each row](#row-buttons) to an address the row's fields name, or to the outside page a field holds; a list of these gives each row the first whose fields it holds. |
 | `bulk` | `true`: rows can be selected, and the view's `bulk` actions run on the selected rows, as on the list page; see [signing several records off](#signing-several-records-off). |
 | `limit` | How many records it shows; default 10. It has no pages: the rest are in the list. Before 0.13 this was `pageSize`, rows per page; rename it. |
@@ -159,6 +159,16 @@ The first records of a list, drawn the way the resource's list page draws them: 
 ```tsx
 <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} limit={5} empty="Nothing is overdue." />
 ```
+
+#### Columns on a phone
+
+At mobile width, below the `sm` breakpoint (640px), a table shows at most three of its columns, so the ones that matter fit on screen without scrolling sideways; at wider widths it shows them all. Give a column a `priority` to choose it: when any column has one, a phone shows only the columns with a priority, the three lowest numbers. Without priorities, the default comes from the columns themselves: the record's title first, then badge columns such as enums, then the others in the table's order. The columns keep their order in the table.
+
+```tsx
+<Table title="Objectives" resource="objectives" columns={['rank', { name: 'title', priority: 2 }, 'points', { name: 'verdict', priority: 1 }]} />
+```
+
+On a phone this table shows Title and Verdict; on a wider screen Rank, Title, Points and Verdict. Its [text form](/reference/layouts/#text-form) is a Markdown table with its columns in the same order of importance.
 
 #### Row buttons
 

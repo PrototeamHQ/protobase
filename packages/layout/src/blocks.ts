@@ -1,5 +1,6 @@
 import type { AppAddress, FieldFormat, PageWidth, RowButtonModel, ToolCallFields } from '@protobase/schema'
 import { defineBlock } from './create-node'
+import type { TableColumn } from './table-columns'
 import type { LayoutChildren, LayoutNode, LayoutValue } from './node'
 
 /** One element or several, for slots such as a card's header `actions`. */
@@ -51,7 +52,11 @@ export type RecordCardProps = DataProps & Heading & { recordKey?: string; empty?
 export type FieldProps = { name: string; label?: string | false; format?: FieldFormat }
 export type TableProps = DataProps &
   Heading & {
-    columns?: string[]
+    /**
+     * Field names, or `{ name, priority }` with 1 the most important. At mobile width the table shows at most three
+     * columns: those with a priority when it gives any, else the title, then badge columns such as enums, then the rest.
+     */
+    columns?: TableColumn[]
     /**
      * A last column with a button on each row to an address its fields name, such as
      * `{ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: '{tab}' } }`, or to the outside

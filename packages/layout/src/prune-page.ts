@@ -9,6 +9,7 @@ import { countedResource, parseCondition } from './condition'
 import { resolveFieldPath } from './field-path'
 import { dataProps, type LayoutNode, type LayoutValue } from './node'
 import type { PageModel } from './page'
+import { columnName, type TableColumn } from './table-columns'
 import { mapTree, type Scope } from './walk'
 
 export type CallerAccess = {
@@ -87,10 +88,10 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
     case 'Table': {
       if (!model) return node
       const { columns, button, ...props } = node.props
-      const visible = (columns as string[] | undefined)?.filter((name) => Object.hasOwn(model.fields, name)) ?? []
+      const visible = (columns as TableColumn[] | undefined)?.filter((column) => Object.hasOwn(model.fields, columnName(column))) ?? []
       // The button was checked when the config loaded, so it is a row button's shape
       const followable = button === undefined ? undefined : followableRowButton(button as RowButtonModel, model, { models, createPages: access.createPages })
-      return { ...node, props: { ...props, ...(visible.length > 0 && { columns: visible }), ...(followable !== undefined && { button: followable as LayoutValue }) } }
+      return { ...node, props: { ...props, ...(visible.length > 0 && { columns: visible as LayoutValue }), ...(followable !== undefined && { button: followable as LayoutValue }) } }
     }
     case 'RecordCards': {
       if (!model || own === undefined) return node

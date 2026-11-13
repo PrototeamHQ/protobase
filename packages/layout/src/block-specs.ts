@@ -4,7 +4,7 @@ import { isLayoutNode } from './node'
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
 // blocks.ts say the same for the compiler.
 
-type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls'
+type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls' | 'tableColumns'
 
 type PropSpec = { kind: Kind; required?: true }
 
@@ -26,7 +26,7 @@ const specs: Record<string, BlockSpec> = {
   },
   RecordCard: { children: true, props: { ...data, ...heading, recordKey: optional('text'), empty: optional('text'), span: optional('span') } },
   Field: { children: false, props: { name: required('text'), label: optional('label'), format: optional('format') } },
-  Table: { children: false, props: { ...data, ...heading, columns: optional('texts'), button: optional('rowButton'), bulk: optional('boolean'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
+  Table: { children: false, props: { ...data, ...heading, columns: optional('tableColumns'), button: optional('rowButton'), bulk: optional('boolean'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
   CardRow: { children: true, props: { ...data, ...heading, limit: optional('integer'), empty: optional('text'), span: optional('span') } },
   RecordRow: { children: false, props: { ...data, ...heading, limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
   RecordCards: {
@@ -124,6 +124,10 @@ const isToolCalls = (value: LayoutValue) =>
   ['filter', 'input', 'result', 'error'].every((name) => value[name] === undefined || typeof value[name] === 'string') &&
   Object.keys(value).every((name) => ['resource', 'filter', 'name', 'time', 'status', 'input', 'result', 'error'].includes(name))
 
+const isTableColumn = (value: LayoutValue) =>
+  typeof value === 'string' ||
+  (isObject(value) && !isLayoutNode(value) && typeof value.name === 'string' && typeof value.priority === 'number' && Number.isInteger(value.priority) && value.priority > 0 && Object.keys(value).every((name) => name === 'name' || name === 'priority'))
+
 const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: string]> = {
   text: [(value) => typeof value === 'string', 'text'],
   boolean: [(value) => typeof value === 'boolean', 'true or false'],
@@ -148,6 +152,7 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
   textAs: oneOf(textTags),
   address: [(value) => isObject(value) && !isLayoutNode(value) && typeof value.kind === 'string', "an address, such as { kind: 'list', resource: 'orders' }"],
   toolCalls: [isToolCalls, "tool calls, such as { resource: 'tool_calls', name: 'tool', time: 'called_at', status: 'status' }, also taking filter, input, result and error"],
+  tableColumns: [(value) => Array.isArray(value) && value.every(isTableColumn), "a list of field names or { name, priority }, such as ['title', { name: 'status', priority: 1 }]"],
   rowButton: [
     (value) => (Array.isArray(value) ? value.length > 0 && value.every(isRowButtonChoice) : isRowButtonChoice(value)),
     "a button, such as { label: 'Open', to: { kind: 'record', resource: 'orders', key: '{id}' } } or { label: 'Report', href: '{report_url}' }, or a list of them",
