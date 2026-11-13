@@ -7,12 +7,11 @@ import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { type AppBundle, markApp, unpackApp } from './app-bundle'
 import { freePort } from './free-port'
-import { isLauncherProcess } from './launcher-process'
 import { databaseUrl, installPostgres, postgresIn, startPostgres, stopPostgres } from './postgres'
 import { runRuntime, serveRuntime, waitUntilServing } from './runtime'
 import { addSampleWorkflow } from './sample'
 import { homeDir, readOpenBrowser, readSettings, writeSettings, type Settings } from './settings'
-import { holdHome } from './single-launch'
+import { holdHome, homePipe } from './single-launch'
 
 const createAdmin = (home: string, settings: Settings, appDir: string, env: Record<string, string>) => {
   const admin = { email: 'admin@example.com', password: randomBytes(12).toString('base64url') }
@@ -29,7 +28,7 @@ export const launch = async (bundle: AppBundle) => {
   const openBrowser = readOpenBrowser(process.env)
   const started = performance.now()
   const home = homeDir(process.env)
-  const release = holdHome(home, isLauncherProcess)
+  const release = await holdHome(homePipe(home), home)
   const settings = readSettings(home)
   const pg = postgresIn(home, settings.dbPassword, settings.dbPort)
   let server: ChildProcess | undefined

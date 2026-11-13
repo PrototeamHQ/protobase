@@ -1,29 +1,24 @@
 // One launcher per home folder: a second one would share the first one's download, database and app, and stop them when
-// it exits. The launcher holds <home>/launcher.pid from before it reads its settings until it has stopped everything. A
-// file whose process is no launcher, such as one killed, or after a restart that gave its id to another program, is
-// taken over.
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import path from 'node:path'
+// it exits. The launcher owns a named pipe named after the folder, from before it reads its settings until it has
+// stopped everything. Only one process can own a pipe name, and Windows frees it when that process ends, however it
+// ends, so a killed launcher leaves nothing to clean up.
+import { createHash } from 'node:crypto'
+import { createServer } from 'node:net'
 
-const take = (file: string) => {
-  try {
-    writeFileSync(file, String(process.pid), { flag: 'wx' })
-    return true
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return false
-    throw error
-  }
-}
+/** The pipe that stands for `home`: the same folder, however its letters are cased, gives the same pipe. */
+export const homePipe = (home: string) => `\\\\.\\pipe\\protobase-try-${createHash('sha256').update(home.toLowerCase()).digest('hex').slice(0, 24)}`
 
-/** Takes the home folder for this process, or fails when the launcher `isLauncher` confirms holds it; returns the release. */
-export const holdHome = (home: string, isLauncher: (pid: number) => boolean) => {
-  mkdirSync(home, { recursive: true })
-  const file = path.join(home, 'launcher.pid')
-  if (!take(file)) {
-    const pid = Number(readFileSync(file, 'utf8'))
-    if (Number.isInteger(pid) && pid > 0 && pid !== process.pid && isLauncher(pid)) throw new Error(`Protobase already runs from ${home} (process ${pid}): use its window, or stop it first`)
-    rmSync(file, { force: true })
-    if (!take(file)) throw new Error(`another launcher took ${home} at the same time`)
-  }
-  return () => rmSync(file, { force: true })
-}
+/** Takes `address` for this process, or fails when another launcher owns it; resolves to the release. */
+export const holdHome = (address: string, home: string) =>
+  new Promise<() => void>((resolve, reject) => {
+    // Nothing talks to the pipe: a connection is closed at once.
+    const server = createServer((socket) => socket.destroy())
+    server.once('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'EADDRINUSE') reject(new Error(`Protobase already runs from ${home}: use its window, or stop it first`))
+      else reject(error)
+    })
+    server.listen(address, () => {
+      server.unref()
+      resolve(() => server.close())
+    })
+  })

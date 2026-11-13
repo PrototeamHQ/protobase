@@ -1,34 +1,31 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { holdHome } from './single-launch'
+import { holdHome, homePipe } from './single-launch'
 
+describe('homePipe', () => {
+  it('names one pipe per folder, whatever its case', () => {
+    expect(homePipe('C:\\Users\\Ada\\AppData\\Local\\Protobase\\automations')).toBe(homePipe('c:\\users\\ada\\appdata\\local\\protobase\\automations'))
+    expect(homePipe('C:\\one')).not.toBe(homePipe('C:\\two'))
+    expect(homePipe('C:\\one')).toMatch(/^\\\\\.\\pipe\\protobase-try-[0-9a-f]{24}$/)
+  })
+})
+
+// A Unix socket stands in for the pipe where the tests run on macOS or Linux.
 describe('holdHome', () => {
   let dir = ''
-  let home = ''
   beforeEach(() => {
     dir = mkdtempSync(path.join(tmpdir(), 'protobase-try-'))
-    home = path.join(dir, 'home')
   })
   afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
-  it('creates the folder and holds it until released', () => {
-    const release = holdHome(home, () => true)
-    expect(existsSync(path.join(home, 'launcher.pid'))).toBe(true)
+  it('refuses a second launcher until the first releases the folder', async () => {
+    const address = process.platform === 'win32' ? homePipe(dir) : path.join(dir, 'lock.sock')
+    const release = await holdHome(address, 'home')
+    await expect(holdHome(address, 'home')).rejects.toThrow('Protobase already runs from home: use its window, or stop it first')
     release()
-    expect(existsSync(path.join(home, 'launcher.pid'))).toBe(false)
-  })
-
-  it('refuses while another launcher holds it', () => {
-    holdHome(home, () => true)
-    writeFileSync(path.join(home, 'launcher.pid'), '4242')
-    expect(() => holdHome(home, (pid) => pid === 4242)).toThrow(`Protobase already runs from ${home} (process 4242)`)
-  })
-
-  it('takes over a file whose process is no launcher', () => {
-    holdHome(home, () => true)
-    writeFileSync(path.join(home, 'launcher.pid'), '4242')
-    holdHome(home, () => false)()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    ;(await holdHome(address, 'home'))()
   })
 })
