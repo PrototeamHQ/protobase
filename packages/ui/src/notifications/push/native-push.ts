@@ -81,10 +81,10 @@ export const nativePush = ({ bridge, device, records, choices, permissionAsked, 
     await call('unregister')
   }
 
-  // Push stays off after the push service refused the app: nothing of it is kept, and the refusal is reported once.
+  // Push stays off after the push service refused the app: the refusal is reported once, before a cleanup that may fail, and nothing of it is kept.
   const refused = async (error: PushRegistrationError) => {
-    await drop()
     report(error)
+    await drop()
   }
 
   const register = async (signedIn: PushUser) => {

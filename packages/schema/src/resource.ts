@@ -263,10 +263,16 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   /**
    * Keeps every change of its records, from the API or elsewhere: the fields before and after, and who made it. The
    * record page shows it as History, and admins list every change as Activity. See
-   * [Record history](docs/website/src/content/docs/reference/history.mdx).
+   * [Record history](docs/website/src/content/docs/reference/history.mdx). `ignore` names fields whose changes are not
+   * captured at all, such as counts the database keeps: an update of only those keeps nothing, and no change holds them.
+   *
+   * @example
+   * ```ts
+   * .history({ ignore: ['tasks_done', 'progress'] })
+   * ```
    */
-  history() {
-    return this.next({ history: true })
+  history(options: { ignore?: readonly (keyof FieldRefs<F> & string)[] } = {}) {
+    return this.next({ history: true, ...(options.ignore && { historyIgnore: [...options.ignore] }) })
   }
 
   /**

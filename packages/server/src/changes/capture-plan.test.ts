@@ -34,6 +34,56 @@ describe('resourceTriggers', () => {
     )
   })
 
+  it('leaves the fields history ignores out, and fires an update only when another field changes', () => {
+    const counted = resource('objectives')
+      .table('objectives')
+      .fields({ id: f.integer(), title: f.text(), tasks_done: f.integer().readOnly(), iban: f.text().optional().sensitive() })
+      .primaryKey((r) => r.id)
+      .history({ ignore: ['tasks_done'] })
+      .toModel()
+    const [write, update] = resourceTriggers(counted)
+    expect(write).toEqual({ name: 'objectives_changes', type: 13, args: ['objectives', '{"id","title"}', '{"iban"}'] })
+    expect(createTriggerSql('changes', update!, '"objectives"')).toBe(
+      `create trigger "objectives_changes_update" after update on "objectives" for each row when ((old."id", old."title", old."iban") is distinct from (new."id", new."title", new."iban")) execute function "changes"."capture"('objectives', '{"id","title"}', '{"iban"}')`,
+    )
+  })
+
+  it('compares the key columns of a relation of several columns', () => {
+    const lines = resource('lines')
+      .table('lines')
+      .fields({ id: f.integer(), tenant_id: f.integer(), order: f.relation('orders').columns(['order_id', 'tenant_id']), note: f.text() })
+      .primaryKey((r) => r.id)
+      .history({ ignore: ['note'] })
+      .toModel()
+    expect(resourceTriggers(lines)[1]!.columns).toEqual(['id', 'tenant_id', 'order_id'])
+  })
+
+  it('captures the key columns of a relation, each once, apart from the sensitive ones', () => {
+    const lines = resource('lines')
+      .table('lines')
+      .fields({
+        id: f.integer(),
+        tenant_id: f.integer(),
+        order: f.relation('orders').columns(['order_id', 'tenant_id']),
+        customer: f.relation('customers'),
+        account: f.relation('accounts').columns(['account_id', 'tenant_id']).sensitive(),
+        note: f.text(),
+      })
+      .primaryKey((r) => r.id)
+      .events((e) => e.crud())
+      .toModel()
+    const [write, update] = resourceTriggers(lines)
+    const args = ['lines', '{"id","tenant_id","order_id","customer","note"}', '{"account_id","tenant_id"}']
+    expect(write!.args).toEqual(args)
+    expect(update!.args).toEqual(args)
+  })
+
+  it('recreates the triggers once history ignores a field', () => {
+    const ignoring = orders.events((e) => e.crud()).history({ ignore: ['status'] }).toModel()
+    const plan = capturePlan('changes', [ignoring], installed())
+    expect(plan.create.map(({ trigger }) => trigger.name)).toEqual(['orders_changes', 'orders_changes_update'])
+  })
+
   it('keeps trigger names within the 63 bytes Postgres keeps', () => {
     const long = resource('long').table('t'.repeat(60)).fields({ id: f.integer() }).primaryKey((r) => r.id).toModel()
     expect(resourceTriggers(long).map((trigger) => trigger.name.length)).toEqual([63, 63])

@@ -10,4 +10,8 @@ describe('workflowsSql', () => {
   it('leaves the base tables out of a schema that has them', () => {
     expect(workflowsSql('workflows', { tables: true, storage: false })).not.toContain('create table if not exists "workflows"."runs"')
   })
+
+  it('drops the steps table runs no longer keep', () => {
+    expect(workflowsSql('workflows', { tables: true, storage: false })).toContain('drop table if exists "workflows"."steps"')
+  })
 })
