@@ -71,6 +71,29 @@ export const Empty: StoryObj = {
   render: panel({ items: [], footer: <PushControl state="blocked" onTurnOn={() => undefined} onTurnOff={() => undefined} /> }),
 }
 
+/** Push being turned on: the button spins and cannot be pressed again. */
+export const PushTurningOn: StoryObj = {
+  tags: ['play'],
+  render: panel({ items: [], footer: <PushControl state="off" busy onTurnOn={() => undefined} onTurnOff={() => undefined} /> }),
+  play: async ({ canvasElement }) => {
+    expect(within(canvasElement).getByRole('button', { name: 'Turn on' })).toBeDisabled()
+  },
+}
+
+/** Turning push on failed: why, from iOS here, with a way to try again. */
+export const PushFailed: StoryObj = {
+  tags: ['play'],
+  render: panel({
+    items: [],
+    footer: <PushControl state="off" failure={{ kind: 'registration', reason: 'no valid "aps-environment" entitlement string found for application' }} onTurnOn={() => undefined} onTurnOff={() => undefined} />,
+  }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByRole('alert')).toHaveTextContent('aps-environment')
+    expect(canvas.getByRole('button', { name: 'Try again' })).toBeEnabled()
+  },
+}
+
 /** The history could not be read. */
 export const Failed: StoryObj = {
   render: panel({ items: [], failed: true }),

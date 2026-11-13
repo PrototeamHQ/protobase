@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { ApiError, type DevicesClient, type FcmDeviceRegistration } from '@protobase/client'
 import type { NativeBridge } from '../../app/native-auth-fetch'
 import { nativePush } from './native-push'
+import { PushRegistrationError, PushTokenTimeout } from './push-failure'
+import { storagePushKeptOff } from './push-kept-off'
 import type { PushRecord } from './push-records'
 import type { PushUser } from './web-push'
 
@@ -15,7 +17,12 @@ type Options = {
   record?: PushRecord
   /** FCM answers `register` with an error instead of a token. */
   tokenError?: boolean
+  /** The push service never answers `register`. */
+  silent?: boolean
+  platform?: 'ios' | 'android'
   register?: (device: FcmDeviceRegistration, attempt: number) => Promise<{ id: string }>
+  /** Users who turned push off here themselves. */
+  keptOff?: string[]
 }
 
 // The push plugin, which hands out a new token after `unregister`, its record and the server, writing every call that leaves the page, in order, to `log`.
@@ -27,13 +34,16 @@ const setup = (options: Options = {}) => {
   let generation = 1
   let attempts = 0
   let signedIn: PushUser | undefined = alice
+  const stored = new Map<string, string>()
+  const keptOff = storagePushKeptOff(() => ({ getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => void stored.set(key, value) }))
+  for (const id of options.keptOff ?? []) keptOff.add(id)
   const listeners = new Map<string, Set<(data: unknown) => void>>()
   const emit = (event: string, data: unknown) => {
     for (const listener of listeners.get(event) ?? []) listener(data)
   }
   const bridge: NativeBridge = {
     isNativePlatform: () => true,
-    getPlatform: () => 'android',
+    getPlatform: () => options.platform ?? 'android',
     isPluginAvailable: () => true,
     nativePromise: async (plugin, method) => {
       expect(plugin).toBe('PushNotifications')
@@ -43,7 +53,7 @@ const setup = (options: Options = {}) => {
         permission = options.answer ?? 'granted'
         return { receive: permission }
       }
-      if (method === 'register') queueMicrotask(() => (options.tokenError ? emit('registrationError', { error: 'SERVICE_NOT_AVAILABLE' }) : emit('registration', { value: `token-${generation}` })))
+      if (method === 'register' && !options.silent) queueMicrotask(() => (options.tokenError ? emit('registrationError', { error: 'SERVICE_NOT_AVAILABLE' }) : emit('registration', { value: `token-${generation}` })))
       if (method === 'unregister') generation += 1
       return undefined
     },
@@ -58,6 +68,7 @@ const setup = (options: Options = {}) => {
     bridge,
     userAgent: 'Android',
     user: () => signedIn,
+    keptOff,
     records: {
       read: async () => record,
       write: async (next) => void ((record = next), log.push(`record ${next.userId} ${next.endpoint}`)),
@@ -76,7 +87,7 @@ const setup = (options: Options = {}) => {
     device: async (token) => ({ kind: 'fcm', token }),
     tokenMs: 50,
   })
-  return { push, log, sent, listeners, record: () => record, signIn: (user: PushUser | undefined) => (signedIn = user) }
+  return { push, log, sent, listeners, keptOff, record: () => record, signIn: (user: PushUser | undefined) => (signedIn = user) }
 }
 
 describe('nativePush', () => {
@@ -130,16 +141,30 @@ describe('nativePush', () => {
     expect(await once.push.turnOn()).toBe('on')
     expect(once.sent.map(({ token }) => token)).toEqual(['token-1', 'token-2'])
     const always = setup({ register: async () => Promise.reject(conflict('device-held')) })
-    expect(await always.push.turnOn()).toBe('off')
+    await expect(always.push.turnOn()).rejects.toEqual(conflict('device-held'))
     expect(always.sent).toHaveLength(2)
     expect(always.record()).toBeUndefined()
   })
 
-  it('fails when the push service gives no token, leaving nothing registered', async () => {
+  it('fails with the server\'s refusal of the device, leaving nothing registered', async () => {
+    const { push, record } = setup({ register: async () => Promise.reject(conflict('other-user')) })
+    await expect(push.turnOn()).rejects.toEqual(conflict('other-user'))
+    expect(record()).toBeUndefined()
+  })
+
+  it('fails at once with the reason the push service gave no token, leaving nothing registered', async () => {
     const { push, sent, record } = setup({ tokenError: true })
-    await expect(push.turnOn()).rejects.toThrow('The push service gave the app no push token')
+    await expect(push.turnOn()).rejects.toEqual(new PushRegistrationError('SERVICE_NOT_AVAILABLE'))
     expect(sent).toEqual([])
     expect(record()).toBeUndefined()
+  })
+
+  it('fails naming the push service when it gives no token in time', async () => {
+    const { push, sent } = setup({ silent: true, platform: 'ios' })
+    const failure = await push.turnOn().catch((error: unknown) => error)
+    expect(failure).toBeInstanceOf(PushTokenTimeout)
+    expect(failure).toMatchObject({ service: 'apns', message: 'The push service gave the app no push token within 50 ms' })
+    expect(sent).toEqual([])
   })
 
   it('on sign-out forgets push here, deletes the token and removes the device', async () => {
@@ -154,10 +179,49 @@ describe('nativePush', () => {
     await push.turnOff()
     signIn(bob)
     await push.adopt(bob)
-    expect(await push.state()).toBe('off')
-    expect(await push.turnOn()).toBe('on')
+    expect(await push.state()).toBe('on')
     expect(sent.map(({ userId, token }) => `${userId} ${token}`)).toEqual(['alice token-1', 'bob token-2'])
     expect(log).toContain('remove device-token-1')
+  })
+
+  it('registers by itself on launch when notifications were allowed before, without asking', async () => {
+    const { push, log } = setup()
+    await push.adopt(alice)
+    expect(log).toEqual(['register', 'device alice token-1', 'record alice token-1'])
+    expect(await push.state()).toBe('on')
+  })
+
+  it('registers nothing by itself while the permission is not given, never asking for it', async () => {
+    for (const permission of ['prompt', 'denied'] as const) {
+      const { push, log } = setup({ permission })
+      await push.adopt(alice)
+      expect(log).toEqual([])
+    }
+  })
+
+  it('registers nothing by itself for staff signed in as the user', async () => {
+    const { push, log } = setup()
+    await push.adopt({ id: 'alice', own: false })
+    expect(log).toEqual([])
+  })
+
+  it('keeps push off for a user who turned it off here, until they turn it on again', async () => {
+    const { push, log, keptOff } = setup()
+    expect(await push.turnOn()).toBe('on')
+    await push.turnOff({ chosen: true })
+    log.length = 0
+    await push.adopt(alice)
+    expect(log).toEqual([])
+    expect(await push.turnOn()).toBe('on')
+    expect(keptOff.has('alice')).toBe(false)
+  })
+
+  it('registers again by itself after signing out, which is not turning push off', async () => {
+    const { push, sent } = setup()
+    expect(await push.turnOn()).toBe('on')
+    await push.turnOff()
+    await push.adopt(alice)
+    expect(sent.map(({ token }) => token)).toEqual(['token-1', 'token-2'])
   })
 
   it('drops a registration of another user it finds on sign-in', async () => {
