@@ -1,4 +1,5 @@
 import type { AssistantPart } from '@protobase/schema'
+import { isReadOnly } from '../error-handler'
 import type { Session } from '../types'
 import { requestApproval } from './approval'
 import { withCacheBreakpoints } from './cache-breakpoints'
@@ -20,7 +21,7 @@ export type TurnOptions = {
   resources?: () => Promise<ReadableResources>
   /** Model calls in one turn before it stops. Default 8. */
   maxSteps?: number
-  /** Gets errors other than the model endpoint's refusals, which the user only sees as a failure. */
+  /** Gets errors other than the model endpoint's refusals and a read-only database's, which the user only sees as a failure. */
   report?: (error: unknown) => void
   /** Text the model reads before the user's message, such as the page they are on; the transcript keeps it with the message. */
   context?: string
@@ -47,7 +48,8 @@ const toolResult = async (call: ToolCall, tools: AssistantTool[], context: ToolC
 const failure = (error: unknown, report?: (error: unknown) => void) => {
   if (error instanceof ModelError) return error.message
   if (error instanceof SyntaxError) return 'The model answered with JSON that could not be read.'
-  report?.(error)
+  // A write during a deploy's write freeze fails as expected: nothing to report.
+  if (!isReadOnly(error)) report?.(error)
   return 'The server failed to answer.'
 }
 
