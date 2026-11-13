@@ -5,12 +5,13 @@ import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { type AppBundle, unpackApp } from './app-bundle'
+import { type AppBundle, markApp, unpackApp } from './app-bundle'
 import { freePort } from './free-port'
-import { databaseUrl, installPostgres, postgresIn, startPostgres, stopPostgres } from './postgres'
+import { databaseUrl, installPostgres, isRunning, postgresIn, startPostgres, stopPostgres } from './postgres'
 import { runRuntime, serveRuntime, waitUntilServing } from './runtime'
 import { addSampleWorkflow } from './sample'
 import { homeDir, readOpenBrowser, readSettings, writeSettings, type Settings } from './settings'
+import { holdHome } from './single-launch'
 
 const createAdmin = (home: string, settings: Settings, appDir: string, env: Record<string, string>) => {
   const admin = { email: 'admin@example.com', password: randomBytes(12).toString('base64url') }
@@ -29,6 +30,7 @@ export const launch = async (bundle: AppBundle) => {
   const home = homeDir(process.env)
   const settings = readSettings(home)
   const pg = postgresIn(home, settings.dbPassword, settings.dbPort)
+  const release = holdHome(home, () => isRunning(pg))
   await installPostgres(home, pg)
   startPostgres(pg)
   const app = unpackApp(home, bundle)
@@ -37,7 +39,10 @@ export const launch = async (bundle: AppBundle) => {
   // the app listens.
   const base = `http://localhost:${appPort}`
   const env = { DATABASE_URL: databaseUrl(pg), PROTOBASE_SECRET: settings.secret, PROTOBASE_URL: base, PROTOBASE_HOST: '127.0.0.1', PORT: String(appPort) }
-  if (app.updated) runRuntime(home, ['migrate', app.dir], env)
+  if (app.updated) {
+    runRuntime(home, ['migrate', app.dir], env)
+    markApp(app.dir, bundle)
+  }
   const firstRun = !settings.admin
   const admin = settings.admin ?? createAdmin(home, settings, app.dir, env)
 
@@ -45,12 +50,14 @@ export const launch = async (bundle: AppBundle) => {
   const stop = () => {
     server.kill()
     stopPostgres(pg)
+    release()
     console.log('Stopped.')
     process.exit(0)
   }
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) process.on(signal, stop)
   server.on('exit', (code) => {
     stopPostgres(pg)
+    release()
     console.log(`The app stopped (exit ${code}).`)
     process.exit(code ?? 1)
   })

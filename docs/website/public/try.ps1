@@ -33,7 +33,8 @@
     }
     $env:PROTOBASE_HOME = $dir
     & $exe
-    if ($LASTEXITCODE) { throw "Protobase stopped with exit code $LASTEXITCODE" }
+    # The exe printed why it stopped.
+    if ($LASTEXITCODE) { Read-Host 'Press Enter to close' }
   } catch {
     Write-Host "Protobase stopped: $_" -ForegroundColor Red
     Read-Host 'Press Enter to close'
