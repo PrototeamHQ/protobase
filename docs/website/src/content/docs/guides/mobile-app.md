@@ -38,7 +38,7 @@ export default defineConfig({
 
 The app is installed under the name it shows in its upper left, on iOS and Android alike: `protobase mobile` reads it from the server the app calls (its web manifest), so a `PROTOBASE_APP_NAME` the server runs with names the app on the phone too. When that server cannot be reached, `run` and `open` warn and take the project's own name, the config's `name` or `PROTOBASE_APP_NAME` in its environment, and `build` stops.
 
-On the home screen the app shows Protobase's icon, on iOS and Android alike. <gap>An app cannot show its own icon on the phone because setting the mobile app's icon is not implemented.</gap>
+On the home screen the app shows Protobase's icon, on iOS and Android alike. While it starts, its splash screen shows that icon in the middle of the app's background: the `--background` [token](/reference/theme/) of its `protobase.theme.css`, or the default without one, light or dark as the phone is. `protobase mobile` takes it as a colour such as `#f4f3ee`, `rgb()`, `hsl()` or `white`, and stops on one a phone's splash screen cannot show, such as `oklch()` or `var()`. <gap>An app cannot show its own icon on the phone, on the home screen or its splash screen, because setting the mobile app's icon is not implemented.</gap>
 
 With a mobile section, the API answers the app's origins, `capacitor://localhost` on iOS and `https://localhost` on Android, through [CORS](/reference/api/#cors). Apps without one get no new dependency, and `protobase build` and `protobase dev` work as before.
 

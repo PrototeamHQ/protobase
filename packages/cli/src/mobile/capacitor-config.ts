@@ -2,6 +2,7 @@ import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { capacitorOrigin } from '@protobase/schema/internal'
 import type { HttpAllowances } from './api-origin'
+import { androidSplashLayout } from './android-splash'
 import type { ApnsEnvironment } from './ios-push'
 import type { LiveUpdateSettings } from './live-update-settings'
 import { pushPlugin } from './pinned-packages'
@@ -42,6 +43,7 @@ const liveUpdatePlugin = '@capawesome/capacitor-live-update'
 
 // Capacitor's splash screen plugin, which keeps the launch screen up until the shell has drawn and hides it, so no blank
 // page shows in between. Only a page of this native contract or later hides it, which the native fingerprint ensures.
+// On Android it shows Protobase's splash layout again while the app reloads into a live update; iOS shows the launch screen.
 const splashPlugin = '@capacitor/splash-screen'
 
 // What the push plugin does with a push that arrives while the app is open: shows it, as the phone does otherwise.
@@ -76,7 +78,7 @@ export const capacitorConfig = ({ appId, appName, fingerprint, shellVersion, plu
   plugins: {
     ProtobaseAuth: { apiOrigin, origin: capacitorOrigin[platform] },
     Keyboard: { autoBackdropColor: 'dom' },
-    SplashScreen: { launchAutoHide: false },
+    SplashScreen: { launchAutoHide: false, layoutName: androidSplashLayout },
     ...(push && { PushNotifications: { presentationOptions: pushPresentation } }),
     ...(apnsEnvironment && { ProtobasePush: { environment: apnsEnvironment } }),
     ...(liveUpdate && {

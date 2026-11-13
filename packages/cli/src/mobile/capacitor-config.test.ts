@@ -23,7 +23,7 @@ describe('capacitorConfig', () => {
       webDir: 'web',
       appendUserAgent: 'ProtobaseNative/0123456789abcdef',
       includePlugins: ['@capacitor/keyboard', '@capacitor/splash-screen', '@protobase/mobile'],
-      plugins: { ProtobaseAuth: { apiOrigin: 'https://shop.example.com', origin: 'https://localhost' }, Keyboard: { autoBackdropColor: 'dom' }, SplashScreen: { launchAutoHide: false } },
+      plugins: { ProtobaseAuth: { apiOrigin: 'https://shop.example.com', origin: 'https://localhost' }, Keyboard: { autoBackdropColor: 'dom' }, SplashScreen: { launchAutoHide: false, layoutName: 'protobase_splash' } },
       android: { resolveServiceWorkerRequests: false },
     })
   })
