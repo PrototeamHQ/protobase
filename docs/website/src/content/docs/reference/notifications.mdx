@@ -203,12 +203,20 @@ export const PushButton = () => {
   const push = usePushNotifications()
   if (push.state === 'loading' || push.state === 'unsupported') return null
   if (push.state === 'blocked') return <p>Notifications are blocked in this browser's settings.</p>
-  if (push.state === 'on') return <Button onClick={() => void push.turnOff()}>Turn off notifications</Button>
-  return <Button onClick={() => void push.turnOn()}>Turn on notifications</Button>
+  const failed = push.failure && <p role="alert">Notifications could not be changed ({push.failure.kind}).</p>
+  if (push.state === 'on') return <Button loading={push.busy} onClick={() => void push.turnOff()}>Turn off notifications</Button>
+  return (
+    <>
+      {failed}
+      <Button loading={push.busy} onClick={() => void push.turnOn()}>Turn on notifications</Button>
+    </>
+  )
 }
 ```
 
 - Call `turnOn` straight from a click. The browser asks for permission then, and only then: without a click nothing happens, and push is never turned on when a page loads. Once the user said no, `turnOn` does not ask again and answers `blocked`. `state` is read again on a return to the page and when the browser says the permission changed, so it turns from `blocked` to `off` once the user allows notifications.
+- `busy` is true while push is being turned on or off. When turning it on or off fails, `failure` says why until the next try, and the error goes to the console: the reason iOS or Android gave for not registering (`registration`), no push token from Apple's or Google's push service within 15 seconds (`no-token`), the server refusing the device (`refused`), a turn-off the device could not store, which may not outlast the app closing (`off-not-stored`), or anything else (`other`). The bell shows it, with a way to try again after a failed turn-on.
+- In the iOS and Android app, a user who allowed notifications when the phone asked gets push on by itself when the app opens or they sign in. The app never asks on its own. Android before 13 grants the permission without asking, so there this happens only for a user who turned push on in the app on that phone before. Turning push off with `turnOff` keeps it off on that phone until they turn it on again; signing out does not. Releases from before the app turned push on by itself did not store a turn-off, so a user who turned push off in one of them, and allowed notifications when the phone asked, gets push on again once after the update; turning it off again keeps it off. `refresh` reads `state` again, as the bell does when it opens.
 - Only someone signed in as themselves can turn push on: a visitor's click and staff signed in as the user do nothing.
 - On iPhone and iPad, push works in the app added to the Home Screen; a browser tab answers `unsupported`.
 - Signing out turns push off in this browser, and so does someone else signing in on it: what the browser showed is closed, the app's badge cleared, and the device removed. Signing in again as the same user keeps it on. Each push names the user its device is registered for, and the browser shows nothing of a push for another user than the one it holds push for.
@@ -234,7 +242,7 @@ Without them APNs is off and iOS devices are skipped. One or two of them set, a 
 
 The topic of every notification is the mobile app's `appId`. Each device goes to the environment it was registered with: development builds to the APNs sandbox, App Store and TestFlight builds to production. A device whose token is not lowercase hex, whose environment is neither `sandbox` nor `production`, or that was registered for another app id is `refused`.
 
-When iOS refuses to register the app for push, such as for a build without the push entitlement, push stays off and the app's [error reporting](/reference/config/api/#errorreporting) receives the reason iOS gave. <gap>A push token that never arrives cannot leave push off and be reported because handling the token wait's timeout as a refusal is not implemented.</gap>
+When iOS refuses to register the app for push, such as for a build without the push entitlement, push stays off and the app's [error reporting](/reference/config/api/#errorreporting) receives the reason iOS gave. When the user pressed Turn on, the bell also shows the reason; registering by itself on launch or sign-in shows nothing in the bell. A push token that never arrives after Turn on also leaves push off, and the bell says so. <gap>That timeout is not sent to error reporting, because handling the token wait's timeout as a refusal is not implemented.</gap>
 
 The notification's title and body are its alert, with its `badge` and `sound`; the JSON also holds `url`, `data` and `user`, the id of the user the device is registered for. `urgency` sets the priority (`very-low` and `low` wait until the device saves power less), `ttl` how long APNs keeps it for a device that is offline, 28 days without one, and `tag` the collapse id. A message's `platform.apns` is merged into the JSON, such as `{ aps: { 'thread-id': 'chat' } }`, never into the request's headers; a `url` in it is checked as the message's is, and the JSON holds at most 4096 bytes. APNs answering that the device is unregistered, or that its token is bad, removes the device; any other refusal, such as a wrong topic or key, is retried and then fails the send, so a mistake in the configuration removes no device.
 
