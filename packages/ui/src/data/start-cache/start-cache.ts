@@ -1,14 +1,13 @@
 import { createContext, useContext } from 'react'
 import type { DehydratedState } from '@tanstack/react-query'
 import type { AuthUser, SetupStatus } from '@protobase/client'
-import type { SeenPage } from './seen-pages'
 import type { StartCacheStore } from './start-cache-store'
 
 /** Who was signed in, as themselves, and the server's setup status then: what the auth state starts from next time. */
 export type CachedSession = { user: AuthUser; status: SetupStatus }
 
-/** The queries last saved for one cache owner (see `cacheOwner`), with the pages they were seen on. */
-export type CachedQueries = { owner: string; pages: SeenPage[]; state: DehydratedState }
+/** The queries last saved for one cache owner (see `cacheOwner`), with when each was last used, by query hash. */
+export type CachedQueries = { owner: string; used: Record<string, number>; state: DehydratedState }
 
 /**
  * What the app starts from before the network answers, kept from sign-in on with no time limit: the signed-in

@@ -287,9 +287,6 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   )
 }
 
-// The address a query is seen on: the one the router has moved to before the page it opens draws.
-const pageAddress = () => `${window.location.pathname}${window.location.search}`
-
 const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, assistant, runtime }: Omit<AppProps, 'auth' | 'basePath' | 'initialUrl' | 'pluginLoader' | 'startCache'>) => {
   const { state, session, markSignedOut } = useAuth()
   // A full-width sidebar says the app was updated in a banner, so the toast does not cover the page there
@@ -299,7 +296,7 @@ const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, a
   const owner = cacheOwner(state)
   const own = keepsStartCache(state)
   const startCache = useStartCache()
-  const persistence = useMemo(() => (startCache && own ? createQueryPersistence({ cache: startCache, owner, address: pageAddress }) : undefined), [startCache, own, owner])
+  const persistence = useMemo(() => (startCache && own ? createQueryPersistence({ cache: startCache, owner }) : undefined), [startCache, own, owner])
   // A visitor has no token to ask the session for: their requests go without one, as the anonymous role. Another caller
   // starts with a cache of their own, so a picture or a record fetched for the previous one never shows.
   return (

@@ -13,7 +13,7 @@ const memoryStore = (records: Record<string, unknown> = {}): StartCacheStore & {
 const status = { needsAdmin: false, signInMethods: ['password'], passwordReset: false, socialProviders: [], samlProviders: [] } satisfies SetupStatus
 const ada: CachedSession = { user: { id: 'u1', email: 'ada@example.com', name: 'Ada' } as AuthUser, status }
 const bob: CachedSession = { user: { id: 'u2', email: 'bob@example.com', name: 'Bob' } as AuthUser, status }
-const adasQueries: CachedQueries = { owner: 'user:u1', pages: [{ address: '/today', queries: ['["meta"]'] }], state: { mutations: [], queries: [] } }
+const adasQueries: CachedQueries = { owner: 'user:u1', used: { '["meta"]': 1 }, state: { mutations: [], queries: [] } }
 
 const saved = async (buster: string) => {
   const store = memoryStore()
