@@ -10,6 +10,9 @@ const stateOf = (value: string | undefined) => (toolCallStates as readonly strin
 
 const textOf = (value: unknown) => (value == null || value === '' ? undefined : String(value))
 
+/** A call's React key from its record key; JSON keeps composite keys such as `['a,b']` and `['a', 'b']` apart. */
+export const callKey = (key: unknown) => `call:${JSON.stringify(key)}`
+
 /** A record of a thread's tool call resource as the call it draws, by the fields the thread reads of it. */
 export const toolCallOf = (row: Row, key: string, fields: ToolCallFields): ToolCall => {
   const status = textOf(row[fields.status])

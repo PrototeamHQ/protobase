@@ -3,7 +3,7 @@ import type { ResourceModel, ToolCallFields } from '@protobase/schema'
 import { useList } from '../../data/use-list'
 import { recordKey } from '../../live/model-helpers'
 import { useAdminMeta } from '../meta-gate'
-import { toolCallOf } from './tool-calls'
+import { callKey, toolCallOf } from './tool-calls'
 
 /** The latest `limit` tool calls of a thread, newest first, with earlier ones on request; none without `calls`. */
 export const useToolCalls = (calls: { model: ResourceModel; filter?: string; fields: ToolCallFields } | undefined, limit: number) => {
@@ -12,7 +12,7 @@ export const useToolCalls = (calls: { model: ResourceModel; filter?: string; fie
   const list = useList(name, { filter: calls?.filter, orderBy: calls && threadSort(calls.fields.time), pageSize: limit, enabled: calls !== undefined })
   if (!calls) return { calls: [], hasNextPage: false, isFetchingNextPage: false, list, statusHints: undefined }
   return {
-    calls: list.items.map((row) => toolCallOf(row, `call:${String(recordKey(calls.model, row))}`, calls.fields)),
+    calls: list.items.map((row) => toolCallOf(row, callKey(recordKey(calls.model, row)), calls.fields)),
     hasNextPage: list.hasNextPage,
     isFetchingNextPage: list.isFetchingNextPage,
     list,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toolCallOf } from './tool-calls'
+import { callKey, toolCallOf } from './tool-calls'
 
 const fields = { name: 'tool', time: 'at', status: 'state', input: 'args', result: 'output', error: 'failure' }
 
@@ -16,5 +16,12 @@ describe('toolCallOf', () => {
 
   it('reads nothing of an input, result or error the thread does not name', () => {
     expect(toolCallOf({ tool: 'x', at: null, state: 'done', args: 1 }, 'call:1', { name: 'tool', time: 'at', status: 'state' })).toEqual({ kind: 'call', key: 'call:1', name: 'x', time: undefined, status: 'done', state: 'done' })
+  })
+})
+
+describe('callKey', () => {
+  it('keeps composite keys apart that read the same joined by commas', () => {
+    expect(callKey(['a,b'])).not.toBe(callKey(['a', 'b']))
+    expect(callKey(1)).not.toBe(callKey('1'))
   })
 })

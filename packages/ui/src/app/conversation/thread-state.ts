@@ -11,6 +11,9 @@ export const threadState = (list: ThreadList) => {
   return 'messages'
 }
 
+/** What an empty thread says: its loading line while its calls still load, so it never says empty before they arrive. */
+export const emptyLine = (calls: { isLoading: boolean }, lines: { loading: string; empty: string }) => (calls.isLoading ? lines.loading : lines.empty)
+
 /** Whether a failed refetch or **Load earlier messages** shows its error above the messages that stay loaded. */
 export const showsErrorAbove = (list: ThreadList) => list.items.length > 0 && Boolean(list.error)
 
