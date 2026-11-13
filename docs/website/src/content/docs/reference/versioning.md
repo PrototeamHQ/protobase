@@ -3,7 +3,7 @@ title: Versioning
 description: How Protobase is versioned and released, the commit convention behind it, bundled and locked projects, and which bundles a serve runtime runs.
 ---
 
-Protobase follows [semantic versioning](https://semver.org). Every push to `main` that holds a fix, a feature or a breaking change is released: the pushed commit is tagged `v<version>`, and a [GitHub release](https://github.com/PrototeamHQ/protobase/releases) of that tag holds the release's changes. Every `@protobase` package is then published to npm at that version. A release adds no commit to `main`: a release's version is its tag, not a `package.json` field, so the version in the repository's `package.json` files is not bumped. `CHANGELOG.md` lists only the releases from before releases stopped committing.
+Protobase follows [semantic versioning](https://semver.org). Every push to `main` that holds a fix, a feature or a breaking change is released: the pushed commit is tagged `v<version>`, and a [GitHub release](https://github.com/PrototeamHQ/protobase/releases) of that tag holds the release's changes, and `protobase-try.zip` with `protobase-try.version`, the Windows program behind [Try it on Windows](/getting-started/#try-it-on-windows). Every `@protobase` package is then published to npm at that version. A release adds no commit to `main`: a release's version is its tag, not a `package.json` field, so the version in the repository's `package.json` files is not bumped. `CHANGELOG.md` lists only the releases from before releases stopped committing.
 
 ## Versions below 1.0
 

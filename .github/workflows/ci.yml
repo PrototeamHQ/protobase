@@ -247,6 +247,22 @@ jobs:
       - if: steps.site.outputs.run == 'true'
         run: bun run docs:check
 
+  # protobase-try.exe (packages/try), which every release builds and attaches, built on every change, so one that breaks
+  # it fails here rather than holding up a release.
+  try:
+    if: github.event_name != 'schedule'
+    concurrency:
+      group: try-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
+      cancel-in-progress: true
+    runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - run: bun run --cwd packages/try build
+
   # The real-Postgres tests beyond what every push needs (`bun run test:postgres`): the ERP at medium scale and the
   # planner's statistics on it, and the jobs and event delivery through PgBouncer. A push runs it when its committed
   # snapshot recordings differ from those at CHECK_BASE (scripts/affected-recordings.mjs), or when it changes what

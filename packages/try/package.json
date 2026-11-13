@@ -1,0 +1,10 @@
+{
+  "name": "@protobase/try",
+  "private": true,
+  "description": "protobase-try.exe: a local Protobase with workflows on for Windows, in one file, behind the one-line try.ps1.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "bun scripts/build.ts"
+  }
+}
