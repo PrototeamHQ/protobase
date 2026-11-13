@@ -5,6 +5,7 @@ import { nativeAuthFetch, type NativeBridge } from '../app/native-auth-fetch'
 import { pushNotifications, type PushNotifications } from '../notifications/push/push-notifications'
 import type { PushUser } from '../notifications/push/web-push'
 import { useStartCache } from '../data/start-cache/start-cache'
+import { enterAfterUpdate } from './enter-after-update'
 import { providerName, withoutSignInLink } from './provider-link'
 import type { AuthState } from './auth-state'
 import { startCacheStep } from './start-session'
@@ -215,8 +216,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
   const signIn = useCallback(
     async (user: AuthUser) => {
       const asked = generation.current
-      if (await afterSignInRef.current?.()) return
-      await enter(user, asked)
+      await enterAfterUpdate(afterSignInRef.current, () => enter(user, asked))
     },
     [enter],
   )
