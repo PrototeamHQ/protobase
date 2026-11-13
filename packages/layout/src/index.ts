@@ -91,6 +91,8 @@ export { parseCondition, evaluateCondition, countedResource } from './condition'
 export { resolveFieldPath, type PathStep } from './field-path'
 export { mapTree, walkTree, type Location } from './walk'
 export { renderText } from './text/render-text'
+export { tableMarkdown, type TableText, type TableTextColumn } from './text/table-text'
+export { columnName, columnsByPriority, phoneColumnCount, phoneColumns, type ColumnTraits, type TableColumn } from './table-columns'
 export { textForms } from './text/forms'
 export { childrenText, type TextContext, type TextField, type TextForm, type TextOptions } from './text/text-form'
 /** The Markdown primitives the blocks' text forms are made of, for forms of one's own. */

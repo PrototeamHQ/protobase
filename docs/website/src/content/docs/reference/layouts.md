@@ -72,10 +72,11 @@ renderText(<Page title="Order"><Field name="status" /></Page>, {
 | --- | --- |
 | `record` | The record around the tree. `Field`, `Stat field`, `Progress`, `Show` conditions and the `{field}`s of addresses read it, through relations as nested objects (`plan.name`); a count a condition names, such as `billing_profiles.count`, is a key of its own. Without it, a field reads as its label alone, a `Show` reads as all it holds, and addresses keep their `{field}`s. |
 | `fields` | Per field path, its `label` and the `valueLabels` its enum values read as; a field without a label reads under its path. |
+| `tables` | Per `Table` element, the records it shows and its columns (`{ columns: [{ name, label, title?, badge?, valueLabels? }], rows }`), which you loaded; the table then reads as its heading and a Markdown table. Without it, a table reads as its heading. |
 | `basePath` | What links start with, such as `https://example.com/admin`. |
 | `forms` | Text forms by block type, over the built-in ones. |
 
-A heading reads at its level: a `Page` title as `#`, a `Tab` label as `##`, and the title of a `Card` and of a data block as `###`, the data block's linked to its records' list as it filters them. A field's value reads as its enum label, a list as its items, and JSON as a code block.
+A heading reads at its level: a `Page` title as `#`, a `Tab` label as `##`, and the title of a `Card` and of a data block as `###`, the data block's linked to its records' list as it filters them. A field's value reads as its enum label, a list as its items, and JSON as a code block. A table's records read as a Markdown table: a header row of labels, a separator row and a row per record, its columns most important first by the same rule a [phone](/reference/blocks/#columns-on-a-phone) uses, each cell on one line with its pipes escaped. `tableMarkdown` gives the same table for records you hold yourself.
 
 A text form of your own is a function from its element and its children's text to Markdown. It can use the default as it is (`childrenText`), wrap a built-in form from `textForms`, or rework the children's text, such as a horizontal line between them:
 
@@ -90,7 +91,7 @@ renderText(tree, { forms: { Grid: ruled, Card: noted, SeatChart: childrenText } 
 
 A custom component reads as its [fallback](/reference/custom-components/#fallbacks) when it declares one, and otherwise as what it holds, unless `forms` names it.
 
-<gap>A data block's text form cannot list its records, such as a table's rows, because reading records for the text form is not implemented.</gap> <gap>A field's text form cannot apply its `format`, such as a relative time, because formatting in the text form is not implemented.</gap> <gap>MCP clients cannot read a page's text form because a tool that serves it is not implemented.</gap>
+<gap>A data block's text form cannot read its records itself, such as a table's rows, because reading records for the text form is not implemented.</gap> <gap>A data block other than a `Table` cannot list records you pass because its text form for records is not implemented.</gap> <gap>A field's text form cannot apply its `format`, such as a relative time, because formatting in the text form is not implemented.</gap> <gap>MCP clients cannot read a page's text form because a tool that serves it is not implemented.</gap>
 
 ## What a layout may hold
 

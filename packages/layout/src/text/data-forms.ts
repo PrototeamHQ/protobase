@@ -1,6 +1,8 @@
 import { headed, titleOf } from './headed'
-import { escapeMarkdown, link } from './markdown'
+import type { TableColumn } from '../table-columns'
+import { blocks, escapeMarkdown, link } from './markdown'
 import { addressHref } from './record-value'
+import { tableMarkdown } from './table-text'
 import type { TextContext, TextForm } from './text-form'
 
 // Text forms of the blocks that show records: their heading links to where the records are, and what they hold follows.
@@ -16,6 +18,13 @@ const listHeading = (context: TextContext) => {
 
 const listBlock: TextForm = (context) => headed(context, 3, listHeading(context), context.children)
 
+// A table the caller loaded reads as a Markdown table under its heading
+const Table: TextForm = (context) => {
+  const shown = context.options.tables?.(context.node)
+  if (!shown) return listBlock(context)
+  return blocks([listBlock(context), tableMarkdown(shown, (context.node.props.columns as TableColumn[] | undefined) ?? [])])
+}
+
 // A record card with a key links to that record, and otherwise to the list its filter finds it in
 const RecordCard: TextForm = (context) => {
   const { resource, recordKey } = context.node.props
@@ -29,7 +38,7 @@ const Settings: TextForm = (context) => headed(context, 3, titleOf(context))
 export const dataForms: Record<string, TextForm> = {
   RecordCard,
   CardRow: listBlock,
-  Table: listBlock,
+  Table,
   RecordRow: listBlock,
   RecordCards: listBlock,
   Chart: listBlock,

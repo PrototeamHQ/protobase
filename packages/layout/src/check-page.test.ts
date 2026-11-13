@@ -56,7 +56,7 @@ describe('pageProblems', () => {
       title: 'x',
       children: [
         Table({ resource: 'nope' }),
-        Table({ resource: 'invoices', filter: "stauts = 'open'", sort: 'totl desc', columns: ['number', 'amount'] }),
+        Table({ resource: 'invoices', filter: "stauts = 'open'", sort: 'totl desc', columns: ['number', { name: 'amount', priority: 1 }] }),
         RecordCard({ resource: 'subscriptions', children: [Field({ name: 'plan.title' }), Stat({ label: 'a', field: 'seats' })] }),
       ],
     })

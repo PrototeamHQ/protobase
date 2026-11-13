@@ -2,7 +2,7 @@ import { ArrowRight } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import type { AppAddress, ResourceModel, RowButtonModel, ViewModel } from '@protobase/schema'
 import { rowButtonFields } from '@protobase/schema/internal'
-import { DataGrid } from '../../data-grid'
+import { DataGrid, type ColumnSpec } from '../../data-grid'
 import { useIsDesktop, useIsXs } from '../../lib/use-media-query'
 import { listColumnNames } from '../../live/columns-from-model'
 import { humanize } from '../../live/naming'
@@ -59,6 +59,8 @@ export type EmbeddedListProps = {
   button?: RowButtonModel
   /** The table's rows can be selected, and the view's `bulk` actions run on the selected rows. */
   bulk?: boolean
+  /** Picks the table's columns a phone shows; every column when omitted. */
+  phoneColumns?: (specs: ColumnSpec[]) => ColumnSpec[]
 }
 
 /** The switch between the table and the view's displays, for an embedded list's heading; nothing with only a table. */
@@ -73,7 +75,7 @@ const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length:
  * to the whole list with the same filter, order and display, beside a note such as "The first 10 of 37." when there are
  * more. On a phone a cards display is one row that scrolls sideways.
  */
-export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true, opens, button, bulk = false }: EmbeddedListProps) => {
+export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true, opens, button, bulk = false, phoneColumns }: EmbeddedListProps) => {
   const { resources, views } = useAdminMeta()
   const canUpdate = can(usePermissions(model.name), 'update')
   const { fields: fieldTypes } = useProjectUi()
@@ -82,7 +84,8 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   const narrow = !useIsDesktop()
   const [orderBy, setOrderBy] = useState(sort || defaultOrderBy(model, view))
   const names = columns ?? listColumnNames(model, view)
-  const specs = useMemo(() => embeddedColumns(model, view, names, { resources, views, fieldTypes }), [model, view, names.join(','), resources, views, fieldTypes])
+  const all = useMemo(() => embeddedColumns(model, view, names, { resources, views, fieldTypes }), [model, view, names.join(','), resources, views, fieldTypes])
+  const specs = useMemo(() => (xs && phoneColumns ? phoneColumns(all) : all), [xs, phoneColumns, all])
   const fields = useMemo(() => loadedFields(model, view, [...specs.map((spec) => spec.id), ...(button ? rowButtonFields(button) : [])]), [model, view, specs, button])
   const gridColumns = useMemo(() => (button ? withRowButton(specs, model, view, button, narrow) : specs), [specs, model, view, button, narrow])
   const rows = useEmbeddedRows({ model, filter, orderBy, limit, fields })

@@ -76,6 +76,14 @@ describe('page', () => {
     ])
   })
 
+  it('takes Table columns as names or names with a priority', () => {
+    const table = (columns: unknown): LayoutNode => ({ type: 'Page', props: { title: 'x' }, children: [{ type: 'Table', props: { resource: 'listings', columns: columns as never }, children: [] }] })
+    expect(problems(table(['title', { name: 'status', priority: 1 }]))).toEqual([])
+    for (const wrong of [[{ name: 'status' }], [{ name: 'status', priority: 0 }], [{ name: 'status', priority: 1, width: 2 }], 'title']) {
+      expect(problems(table(wrong))).toEqual([`<Page> › <Table resource="listings">: "columns" must be a list of field names or { name, priority }, such as ['title', { name: 'status', priority: 1 }]`])
+    }
+  })
+
   it('takes a row button on a Table as a label and an address or href, or a list of them', () => {
     const table = (button: unknown): LayoutNode => ({ type: 'Page', props: { title: 'x' }, children: [{ type: 'Table', props: { resource: 'tasks', button: button as never }, children: [] }] })
     const open = { label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{id}' } }
