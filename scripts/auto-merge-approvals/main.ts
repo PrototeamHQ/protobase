@@ -3,12 +3,11 @@
 //
 //   GITHUB_REPOSITORY=owner/name GITHUB_EVENT_NAME=status GITHUB_EVENT_PATH=event.json GITHUB_RUN_ID=1 GITHUB_TOKEN=... bun scripts/auto-merge-approvals/main.ts
 import { readFileSync } from 'node:fs'
-import { afterMerge } from './after-merge'
 import { checksState, reviewBotFinished } from './checks'
 import { approvedLogins, pullRefusal, refusal, workflowRefusal } from './decision'
 import { cleanFollowUpAt } from './follow-up'
 import { gitHub } from './github'
-import { merge } from './merge'
+import { land } from './land'
 import { eventTarget, pullsOfCommit } from './target'
 import { noticed, workflowNotice } from './workflow-notice'
 
@@ -67,12 +66,5 @@ for (const number of await pullNumbers()) {
     continue
   }
 
-  const merged = await merge(github, number, pull.head.sha)
-  if ('reason' in merged) {
-    console.log(`Not merging #${number}: GitHub refused, as ${merged.reason}.`)
-    continue
-  }
-  const { mergeCommit } = merged
-  console.log(`Merged #${number} as ${mergeCommit.slice(0, 7)}.`)
-  await afterMerge(github, { number, base: pull.base.ref, head: pull.head.ref })
+  await land(github, pull)
 }
