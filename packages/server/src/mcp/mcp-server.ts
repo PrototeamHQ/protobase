@@ -1,6 +1,7 @@
 import { CLIENT_CAPABILITIES_META_KEY, McpServer, type CallToolResult, type ClientCapabilities, type Icon, type InputRequiredResult, type ServerContext } from '@modelcontextprotocol/server'
 import { checkedTools } from '../assistant/checked-tools'
 import { refusalOf } from '../assistant/record-tool-args'
+import { isReadOnly } from '../error-handler'
 import type { AssistantTool, BaseToolContext, ToolContext } from '../assistant/tools'
 import { ApprovalNeeded, approvalAsked, approvedUnasked, mcpApproval, writesUnasked } from './mcp-approval'
 import type { McpApprovals } from './mcp-approval-store'
@@ -47,7 +48,8 @@ const stopped = (tool: string): CallToolResult => ({
 /**
  * An MCP server offering `tools` as MCP tools, each with its JSON Schema, its hints, its `title` and `_meta`, and the
  * text it returns. A tool that throws an `HttpProblem` below 500, or a query error the REST API would answer below 500,
- * refuses the call with `{ error, message }`, unreported; anything else it throws is reported and fails the call, a query
+ * refuses the call with `{ error, message }`, unreported; a write the database refused as read-only during a deploy fails
+ * the call, unreported; anything else it throws is reported and fails the call, a query
  * the database stopped at its statement timeout with `{ error: 'statement-timeout', message }`. A tool
  * that asks for approval makes the call ask the client's user, and runs again from the start with their answer, which
  * counts only for the call it was asked for, once, while it lasts; for a user holding one of `rolesWithoutApproval` it
@@ -90,6 +92,8 @@ export const mcpServer = <Context extends BaseToolContext = ToolContext>({ info,
       } catch (error) {
         const refusing = refusalOf(error)
         if (refusing !== undefined) return refusal(refusing)
+        // A write during a deploy's write freeze fails as expected, and the client sends it again: nothing to report.
+        if (isReadOnly(error)) return failed
         // Whatever else a tool throws stays on the server: the client gets no raw message, but one that names a stopped query.
         report(error)
         return isStatementTimeout(error) ? stopped(tool.name) : failed

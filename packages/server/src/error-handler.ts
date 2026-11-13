@@ -32,10 +32,13 @@ export const isDatabaseError = (error: unknown): error is DatabaseError =>
 export const takenProblem = (key?: string) =>
   new HttpProblem(409, 'conflict', 'Conflict', 'A record with the same unique value already exists', key === undefined ? {} : { existing: { key } })
 
+/** The slug of the 503 a write gets while the database is read-only, as during a deploy's write freeze. */
+export const readOnlySlug = 'read-only'
+
 // Constraint and column names are left out: they can name a column the caller may not see.
 const databaseProblem = (error: DatabaseError): HttpProblem | undefined => {
   // SQLSTATE 25006: the database is read-only, as during a deploy's write freeze; the write can be sent again shortly.
-  if (error.code === '25006') return new HttpProblem(503, 'read-only', 'Service Unavailable', 'The app is read-only while it is being updated', {}, { 'Retry-After': '5' })
+  if (error.code === '25006') return new HttpProblem(503, readOnlySlug, 'Service Unavailable', 'The app is read-only while it is being updated', {}, { 'Retry-After': '5' })
   // SQLSTATE 57014: Postgres stopped a query at its statement timeout; the error handler names the request that ran it.
   if (error.code === '57014') return new HttpProblem(504, statementTimeoutSlug, 'Gateway Timeout', 'A query ran longer than its statement timeout, so the database stopped it')
   if (error.code === '23505') return takenProblem()
@@ -57,6 +60,9 @@ export const problemOf = (error: unknown): HttpProblem | undefined =>
   : isDatabaseError(error) ? databaseProblem(error)
   : error instanceof ConnectionsBusy ? connectionsBusyProblem(error, 'The query')
   : undefined
+
+/** Whether `error` is the read-only 503 of a deploy's write freeze: an expected condition, not a fault to report. */
+export const isReadOnly = (error: unknown) => problemOf(error)?.slug === readOnlySlug
 
 // A stopped query's 504 names the request that ran it and the limit it ran into, unless it already names what ran.
 const namedTimeout = (problem: HttpProblem, c: Context, statementTimeoutMs?: number) =>
