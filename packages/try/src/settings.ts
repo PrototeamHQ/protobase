@@ -1,7 +1,7 @@
 // The launcher's home folder and what it keeps there between runs: the secret, the database password and ports, and the
 // admin's sign-in, written once on the first run.
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 export type Settings = { secret: string; dbPassword: string; dbPort: number; appPort: number; admin?: { email: string; password: string } }
@@ -18,8 +18,12 @@ const file = (home: string) => path.join(home, 'settings.json')
 // Written beside and then renamed over the old file, so a failed write never leaves the database password half written.
 export const writeSettings = (home: string, settings: Settings) => {
   const next = `${file(home)}.next`
-  writeFileSync(next, `${JSON.stringify(settings, null, 2)}\n`)
-  renameSync(next, file(home))
+  try {
+    writeFileSync(next, `${JSON.stringify(settings, null, 2)}\n`)
+    renameSync(next, file(home))
+  } finally {
+    rmSync(next, { force: true })
+  }
 }
 
 /** The settings of earlier runs, or new ones, written at once. */
