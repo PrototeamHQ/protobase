@@ -64,6 +64,20 @@ const redirectToStore = async (store: FileStore, path: string, type: string, nam
   return new Response(null, { status: 302, headers: { location, 'cache-control': `private, max-age=${seconds}` } })
 }
 
+// The bytes of an app read, failing the stream past `appReadMaxBytes`: the read is limited by what it streams, not by the
+// size the store reported.
+const appReadBody = (body: ReadableStream<Uint8Array>) => {
+  let read = 0
+  const limited = new TransformStream<Uint8Array, Uint8Array>({
+    transform: (chunk, controller) => {
+      read += chunk.length
+      if (read > appReadMaxBytes) throw new Error(`The file is larger than the ${appReadMaxBytes} bytes an app read takes`)
+      controller.enqueue(chunk)
+    },
+  })
+  return body.pipeThrough(limited)
+}
+
 /**
  * `GET <systemPath>/files/<provider>/<path>`: a public provider's file for anyone; a private one's only through a signed
  * URL whose row still holds it. The Content-Type comes from the row's type field when the field has one and it holds a
@@ -71,7 +85,7 @@ const redirectToStore = async (store: FileStore, path: string, type: string, nam
  * nothing renders: `nosniff`, a sandboxing CSP, and `inline` only for images, PDF, audio and video. A store with its own
  * download links gets a redirect to one instead, with the same type and disposition, except for an app read (`appReadUrl`):
  * a page reading the file with `fetch` gets the bytes from the app's origin, up to `appReadMaxBytes`, since a bucket
- * sends no CORS headers.
+ * sends no CORS headers. A whole app read goes without Content-Length and fails past the limit as it streams.
  */
 export const serveFile = async (deps: Deps, request: Request, provider: string, path: string) => {
   const files = deps.files
@@ -100,6 +114,7 @@ export const serveFile = async (deps: Deps, request: Request, provider: string, 
   if (range === false) throw new HttpProblem(416, 'range-not-satisfiable', 'Range Not Satisfiable', 'The requested range is outside the file', {}, { 'content-range': `bytes */${object.size}` })
   const body = await configured.store.read(path, range)
   if (!body) throw gone()
-  if (!range) return new Response(body, { status: 200, headers: { ...headers, 'content-length': String(object.size) } })
-  return new Response(body, { status: 206, headers: { ...headers, 'content-length': String(range.end - range.start + 1), 'content-range': `bytes ${range.start}-${range.end}/${object.size}` } })
+  if (range) return new Response(body, { status: 206, headers: { ...headers, 'content-length': String(range.end - range.start + 1), 'content-range': `bytes ${range.start}-${range.end}/${object.size}` } })
+  if (appRead) return new Response(appReadBody(body), { status: 200, headers })
+  return new Response(body, { status: 200, headers: { ...headers, 'content-length': String(object.size) } })
 }
