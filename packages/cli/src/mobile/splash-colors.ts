@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { transform, type CssColor, type RGBColor, type Rule, type TokenOrValue } from 'lightningcss'
+import { transform, type CssColor, type Declaration, type RGBColor, type Rule, type TokenOrValue } from 'lightningcss'
 import { themeFile, themeScheme, tokensFile } from '../build/theme'
 
 /** The native splash screen's background in light and dark mode, each a `#rrggbb` colour. */
@@ -9,24 +9,32 @@ export type SplashColors = { light: string; dark: string }
 
 type Backgrounds = { light?: TokenOrValue[]; dark?: TokenOrValue[] }
 
-// The `--background` values a stylesheet sets on :root and [data-theme="dark"], also inside `@layer`; the last one wins.
-const backgrounds = (code: string, file: string) => {
-  const found: Backgrounds = {}
+// Records each `--background` of `declarations` in `found`, by the scheme of the rule's selectors; a later one wins.
+const record = (found: Backgrounds, selectors: unknown[][], declarations: Declaration[]) => {
+  for (const declaration of declarations) {
+    if (declaration.property !== 'custom' || declaration.value.name !== '--background') continue
+    for (const selector of selectors) {
+      const scheme = themeScheme(selector)
+      if (scheme) found[scheme] = declaration.value.value
+    }
+  }
+}
+
+// The `--background` values a stylesheet sets on :root and [data-theme="dark"], also inside `@layer`: the last one
+// wins, and an `!important` one wins over every other.
+const backgrounds = (code: string, file: string): Backgrounds => {
+  const normal: Backgrounds = {}
+  const important: Backgrounds = {}
   const visit = (rules: Rule[]) => {
     for (const rule of rules) {
       if (rule.type === 'layer-block') visit(rule.value.rules)
       if (rule.type !== 'style') continue
-      for (const declaration of rule.value.declarations?.declarations ?? []) {
-        if (declaration.property !== 'custom' || declaration.value.name !== '--background') continue
-        for (const selector of rule.value.selectors) {
-          const scheme = themeScheme(selector)
-          if (scheme) found[scheme] = declaration.value.value
-        }
-      }
+      record(normal, rule.value.selectors, rule.value.declarations?.declarations ?? [])
+      record(important, rule.value.selectors, rule.value.declarations?.importantDeclarations ?? [])
     }
   }
   transform({ filename: file, code: Buffer.from(code), visitor: { StyleSheet: (sheet) => void visit(sheet.rules) } })
-  return found
+  return { light: important.light ?? normal.light, dark: important.dark ?? normal.dark }
 }
 
 // A colour name such as `white`, which a custom property keeps as a word, as the colour `color` reads it.

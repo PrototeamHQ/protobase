@@ -52,6 +52,6 @@ describe("Capacitor's template", () => {
 
   it('has the Android splash images Protobase removes, and the styles.xml it edits', () => {
     expect(templateFiles('android')).toEqual(expect.arrayContaining(templateSplashImages))
-    expect(execFileSync('tar', ['-xzOf', template('android'), './app/src/main/res/values/styles.xml'], { encoding: 'utf8' })).toBe(templateStyles)
+    expect(execFileSync('tar', ['-xzOf', template('android'), 'app/src/main/res/values/styles.xml'], { encoding: 'utf8' })).toBe(templateStyles)
   })
 })

@@ -33,6 +33,11 @@ describe('splashColors', () => {
     expect(await splashColors(dir)).toEqual({ light: '#f4f3ee', dark: '#f4f3ee' })
   })
 
+  it('lets an !important background win over a later one', async () => {
+    theme(':root { --background: #123456 !important }\n:root { --background: #ffffff }\n[data-theme="dark"] { --background: #111216 }')
+    expect(await splashColors(dir)).toEqual({ light: '#123456', dark: '#111216' })
+  })
+
   it('keeps the UI\'s light background when the theme sets only dark', async () => {
     theme('[data-theme="dark"] { --background: #111216 }')
     expect(await splashColors(dir)).toEqual({ light: '#ffffff', dark: '#111216' })
