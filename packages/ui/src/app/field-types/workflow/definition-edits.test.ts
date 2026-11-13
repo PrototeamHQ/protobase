@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { checkDefinition } from '@protobase/workflows'
 import { ticketsWorkflow } from '../../testing/workflow-fixtures'
 import { emptyDefinition } from './definition'
-import { addState, addStateAfter, addStateFirst, connect, disconnect, freeName, removeState, renameState, startAt } from './definition-edits'
+import { addState, addStateAfter, addStateFirst, connect, disconnect, freeName, placeAfter, removeState, renameState, startAt } from './definition-edits'
 
 describe('workflow edits', () => {
   it('adds a first state, which the workflow starts at, and later ones not yet connected', () => {
@@ -37,6 +37,15 @@ describe('workflow edits', () => {
       End: true,
     })
     expect(checkDefinition(inside, { resources: ['app:http'], triggers: {} })).toEqual([])
+  })
+
+  it('places a state added with a Block or Map chosen after its last step, and one added with a step chosen after that step', () => {
+    const block = addStateAfter(addState(emptyDefinition(), [], { type: 'Block' }, 'Keep', 'Step'), ['Keep'], { type: 'Pass' }, 'Fetch', 'Step', 'Step 1')
+    expect(placeAfter(block, ['Keep'], 'Keep')).toBe('Fetch')
+    expect(placeAfter(block, ['Keep'], 'Keep/Step 1')).toBe('Step 1')
+    const map = addState(emptyDefinition(), [], { type: 'Map' }, 'Each', 'Item')
+    expect(placeAfter(map, ['Each'], 'Each')).toBe('Item 1')
+    expect(placeAfter(map, [], 'Each')).toBe('Each')
   })
 
   it('adds a Map with a state of its own, and a state inside a Map', () => {
