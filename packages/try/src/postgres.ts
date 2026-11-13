@@ -57,7 +57,7 @@ export const installPostgres = async (home: string, pg: Postgres) => {
 }
 
 /** Whether a server runs in the data folder: pg_ctl status exits 3 when none does, and fails before the install. */
-export const isRunning = (pg: Postgres) => {
+const isRunning = (pg: Postgres) => {
   if (!existsSync(path.join(pg.bin, 'pg_ctl.exe'))) return false
   try {
     run(pg, 'pg_ctl', ['status', '-D', pg.data])

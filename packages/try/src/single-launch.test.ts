@@ -5,27 +5,30 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { holdHome } from './single-launch'
 
 describe('holdHome', () => {
+  let dir = ''
   let home = ''
   beforeEach(() => {
-    home = mkdtempSync(path.join(tmpdir(), 'protobase-try-'))
+    dir = mkdtempSync(path.join(tmpdir(), 'protobase-try-'))
+    home = path.join(dir, 'home')
   })
-  afterEach(() => rmSync(home, { recursive: true, force: true }))
+  afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
-  it('holds the folder until released', () => {
+  it('creates the folder and holds it until released', () => {
     const release = holdHome(home, () => true)
-    expect(() => holdHome(home, () => true)).toThrow(`Protobase already runs from ${home} (process ${process.pid})`)
+    expect(existsSync(path.join(home, 'launcher.pid'))).toBe(true)
     release()
     expect(existsSync(path.join(home, 'launcher.pid'))).toBe(false)
-    holdHome(home, () => true)()
   })
 
-  it('takes over from a launcher that was killed', () => {
-    writeFileSync(path.join(home, 'launcher.pid'), '2147483646')
-    holdHome(home, () => true)()
+  it('refuses while another launcher holds it', () => {
+    holdHome(home, () => true)
+    writeFileSync(path.join(home, 'launcher.pid'), '4242')
+    expect(() => holdHome(home, (pid) => pid === 4242)).toThrow(`Protobase already runs from ${home} (process 4242)`)
   })
 
-  it('takes over when the process id lives on but the database does not run', () => {
-    writeFileSync(path.join(home, 'launcher.pid'), String(process.pid))
+  it('takes over a file whose process is no launcher', () => {
+    holdHome(home, () => true)
+    writeFileSync(path.join(home, 'launcher.pid'), '4242')
     holdHome(home, () => false)()
   })
 })

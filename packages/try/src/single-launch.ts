@@ -1,20 +1,9 @@
-// One launcher per home folder: a second one would share the first one's database and stop it when it exits. The
-// launcher holds <home>/launcher.pid while it runs. A file whose process is gone, or whose database is not running, such
-// as after a restart of the computer that gave its process id to another program, is from a launcher that was killed.
-import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+// One launcher per home folder: a second one would share the first one's download, database and app, and stop them when
+// it exits. The launcher holds <home>/launcher.pid from before it reads its settings until it has stopped everything. A
+// file whose process is no launcher, such as one killed, or after a restart that gave its id to another program, is
+// taken over.
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-
-const isAlive = (pid: number) => {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    // EPERM: the process exists but belongs to someone else.
-    if ((error as NodeJS.ErrnoException).code === 'ESRCH') return false
-    if ((error as NodeJS.ErrnoException).code === 'EPERM') return true
-    throw error
-  }
-}
 
 const take = (file: string) => {
   try {
@@ -26,15 +15,13 @@ const take = (file: string) => {
   }
 }
 
-/**
- * Takes the home folder for this process, or fails when another launcher runs from it, which `databaseRuns` confirms;
- * returns the release.
- */
-export const holdHome = (home: string, databaseRuns: () => boolean) => {
+/** Takes the home folder for this process, or fails when the launcher `isLauncher` confirms holds it; returns the release. */
+export const holdHome = (home: string, isLauncher: (pid: number) => boolean) => {
+  mkdirSync(home, { recursive: true })
   const file = path.join(home, 'launcher.pid')
   if (!take(file)) {
     const pid = Number(readFileSync(file, 'utf8'))
-    if (Number.isInteger(pid) && pid > 0 && isAlive(pid) && databaseRuns()) throw new Error(`Protobase already runs from ${home} (process ${pid}): use its window, or stop it first`)
+    if (Number.isInteger(pid) && pid > 0 && pid !== process.pid && isLauncher(pid)) throw new Error(`Protobase already runs from ${home} (process ${pid}): use its window, or stop it first`)
     rmSync(file, { force: true })
     if (!take(file)) throw new Error(`another launcher took ${home} at the same time`)
   }
