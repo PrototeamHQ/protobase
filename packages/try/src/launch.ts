@@ -32,12 +32,21 @@ export const launch = async (bundle: AppBundle) => {
   const settings = readSettings(home)
   const pg = postgresIn(home, settings.dbPassword, settings.dbPort)
   let server: ChildProcess | undefined
-  const shutdown = () => {
-    server?.removeAllListeners('exit')
-    server?.kill()
-    stopPostgres(pg)
-    release()
-  }
+  // Waits for the app server to exit, unless it has or cannot be stopped, before the database stops and the folder is
+  // freed, so a next start never meets the old server.
+  const stopServer = () =>
+    new Promise<void>((resolve) => {
+      if (!server || server.exitCode !== null || server.signalCode !== null) return resolve()
+      server.removeAllListeners('exit')
+      server.once('exit', () => resolve())
+      if (!server.kill()) resolve()
+    })
+  let stopping: Promise<void> | undefined
+  const shutdown = () =>
+    (stopping ??= stopServer().then(() => {
+      stopPostgres(pg)
+      release()
+    }))
 
   const serve = async () => {
     await installPostgres(home, pg)
@@ -55,8 +64,8 @@ export const launch = async (bundle: AppBundle) => {
     const firstRun = !settings.admin
     const admin = settings.admin ?? createAdmin(home, settings, app.dir, env)
     server = serveRuntime(home, app.dir, env)
-    server.on('exit', (code) => {
-      shutdown()
+    server.on('exit', async (code) => {
+      await shutdown()
       console.log(`The app stopped (exit ${code}).`)
       process.exit(code ?? 1)
     })
@@ -66,13 +75,13 @@ export const launch = async (bundle: AppBundle) => {
   }
 
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const)
-    process.on(signal, () => {
-      shutdown()
+    process.on(signal, async () => {
+      await shutdown()
       console.log('Stopped.')
       process.exit(0)
     })
-  const { base, admin } = await serve().catch((error: unknown) => {
-    shutdown()
+  const { base, admin } = await serve().catch(async (error: unknown) => {
+    await shutdown()
     throw error
   })
 
