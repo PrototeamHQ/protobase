@@ -3,7 +3,7 @@ import { ApiError, type DevicesClient, type FcmDeviceRegistration } from '@proto
 import type { NativeBridge } from '../../app/native-auth-fetch'
 import { nativePush } from './native-push'
 import { PushRegistrationError, PushTokenTimeout } from './push-failure'
-import { storagePushKeptOff } from './push-kept-off'
+import { storagePushChoices, type PushChoice } from './push-choices'
 import type { PushRecord } from './push-records'
 import type { PushUser } from './web-push'
 
@@ -21,8 +21,10 @@ type Options = {
   silent?: boolean
   platform?: 'ios' | 'android'
   register?: (device: FcmDeviceRegistration, attempt: number) => Promise<{ id: string }>
-  /** Users who turned push off here themselves. */
-  keptOff?: string[]
+  /** What users chose for push here themselves. */
+  choices?: Record<string, PushChoice>
+  /** The phone asked for the permission, as iOS and Android from 13 on do; true unless given. */
+  permissionAsked?: boolean
 }
 
 // The push plugin, which hands out a new token after `unregister`, its record and the server, writing every call that leaves the page, in order, to `log`.
@@ -35,8 +37,8 @@ const setup = (options: Options = {}) => {
   let attempts = 0
   let signedIn: PushUser | undefined = alice
   const stored = new Map<string, string>()
-  const keptOff = storagePushKeptOff(() => ({ getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => void stored.set(key, value) }))
-  for (const id of options.keptOff ?? []) keptOff.add(id)
+  const choices = storagePushChoices(() => ({ getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => void stored.set(key, value) }))
+  for (const [id, choice] of Object.entries(options.choices ?? {})) choices.set(id, choice)
   const listeners = new Map<string, Set<(data: unknown) => void>>()
   const emit = (event: string, data: unknown) => {
     for (const listener of listeners.get(event) ?? []) listener(data)
@@ -68,7 +70,8 @@ const setup = (options: Options = {}) => {
     bridge,
     userAgent: 'Android',
     user: () => signedIn,
-    keptOff,
+    choices,
+    permissionAsked: options.permissionAsked ?? true,
     records: {
       read: async () => record,
       write: async (next) => void ((record = next), log.push(`record ${next.userId} ${next.endpoint}`)),
@@ -87,7 +90,7 @@ const setup = (options: Options = {}) => {
     device: async (token) => ({ kind: 'fcm', token }),
     tokenMs: 50,
   })
-  return { push, log, sent, listeners, keptOff, record: () => record, signIn: (user: PushUser | undefined) => (signedIn = user) }
+  return { push, log, sent, listeners, choices, record: () => record, signIn: (user: PushUser | undefined) => (signedIn = user) }
 }
 
 describe('nativePush', () => {
@@ -206,14 +209,23 @@ describe('nativePush', () => {
   })
 
   it('keeps push off for a user who turned it off here, until they turn it on again', async () => {
-    const { push, log, keptOff } = setup()
+    const { push, log, choices } = setup()
     expect(await push.turnOn()).toBe('on')
     await push.turnOff({ chosen: true })
     log.length = 0
     await push.adopt(alice)
     expect(log).toEqual([])
     expect(await push.turnOn()).toBe('on')
-    expect(keptOff.has('alice')).toBe(false)
+    expect(choices.of('alice')).toBe('on')
+  })
+
+  it('registers by itself before Android 13, which grants the permission unasked, only for a user who turned push on here before', async () => {
+    const unasked = setup({ permissionAsked: false })
+    await unasked.push.adopt(alice)
+    expect(unasked.log).toEqual([])
+    const chose = setup({ permissionAsked: false, choices: { alice: 'on' } })
+    await chose.push.adopt(alice)
+    expect(chose.log).toEqual(['register', 'device alice token-1', 'record alice token-1'])
   })
 
   it('registers again by itself after signing out, which is not turning push off', async () => {

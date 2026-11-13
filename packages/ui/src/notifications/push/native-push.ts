@@ -1,7 +1,7 @@
 import { ApiError, type ApnsDeviceRegistration, type DevicesClient, type FcmDeviceRegistration } from '@protobase/client'
 import type { NativeBridge } from '../../app/native-auth-fetch'
 import { PushRegistrationError, PushTokenTimeout } from './push-failure'
-import type { PushKeptOff } from './push-kept-off'
+import type { PushChoices } from './push-choices'
 import type { PushRecords } from './push-records'
 import type { PushState, PushUser } from './web-push'
 
@@ -16,8 +16,10 @@ export type NativePushOptions = {
   /** The device a token from the push plugin registers as: an `fcm` one on Android, an `apns` one on iOS. */
   device: (token: string) => Promise<NativeDevice>
   records: PushRecords
-  /** Who turned push off here themselves, so the app does not register them again by itself. */
-  keptOff: PushKeptOff
+  /** What each user chose for push here themselves, which the app goes by before registering them by itself. */
+  choices: PushChoices
+  /** Whether the phone asked the person for the permission, so a granted one is their own answer: not before Android 13. */
+  permissionAsked: boolean
   devices: Pick<DevicesClient, 'register' | 'remove'>
   /** Who is signed in now, read again after every step that waits. */
   user: () => PushUser | undefined
@@ -44,7 +46,7 @@ const isRefusal = (error: unknown, slug: 'device-held' | 'other-user') => error 
  * turned it on, and kept for that same user alone. Signing out, or someone else signing in, forgets it here and deletes the token, so the next user gets a new
  * one. The token is never written anywhere but to the server and the local record.
  */
-export const nativePush = ({ bridge, device, records, keptOff, devices, user, userAgent, waitMs = 3000, tokenMs = 15_000 }: NativePushOptions) => {
+export const nativePush = ({ bridge, device, records, choices, permissionAsked, devices, user, userAgent, waitMs = 3000, tokenMs = 15_000 }: NativePushOptions) => {
   const call = (method: string, options: object = {}) => bridge.nativePromise(pushPluginName, method, options)
   const permission = async () => ((await call('checkPermissions')) as Permission).receive
 
@@ -102,7 +104,7 @@ export const nativePush = ({ bridge, device, records, keptOff, devices, user, us
     let allowed = await permission()
     if (allowed === 'prompt' || allowed === 'prompt-with-rationale') allowed = ((await call('requestPermissions')) as Permission).receive
     if (allowed !== 'granted') return state()
-    keptOff.remove(signedIn.id)
+    choices.set(signedIn.id, 'on')
     const attempt = async () => {
       const { device, token: current } = await register(signedIn)
       await records.write({ userId: signedIn.id, endpoint: current, deviceId: device.id })
@@ -130,7 +132,7 @@ export const nativePush = ({ bridge, device, records, keptOff, devices, user, us
    */
   const turnOff = async ({ chosen = false }: { chosen?: boolean } = {}) => {
     const signedIn = user()
-    if (chosen && signedIn?.own) keptOff.add(signedIn.id)
+    if (chosen && signedIn?.own) choices.set(signedIn.id, 'off')
     const record = await records.read()
     await records.clear()
     await within(waitMs, Promise.allSettled([call('removeAllDeliveredNotifications'), call('unregister'), record?.deviceId ? devices.remove(record.deviceId) : Promise.resolve()]))
@@ -142,17 +144,23 @@ export const nativePush = ({ bridge, device, records, keptOff, devices, user, us
     await within(waitMs, Promise.allSettled([call('removeAllDeliveredNotifications'), call('unregister')]))
   }
 
+  // Whether a granted permission lets the app register the user by itself: their own choice here, or else the phone's question.
+  const registersItself = (userId: string) => {
+    const choice = choices.of(userId)
+    return choice === undefined ? permissionAsked : choice === 'on'
+  }
+
   /**
    * Takes the signed-in user in, on every load and sign-in: a registration here for anyone else is forgotten and its
    * token deleted; the user's own, when they signed in as themselves and the permission stands, is registered again
    * with the app's current token, which the push service may have renewed, and the device of an older token removed.
-   * Without one, a user who allowed notifications on the phone before, and did not turn push off here, is registered
-   * by itself; the permission is never asked for.
+   * Without one, a user who allowed notifications when the phone asked, or turned push on here before where it did
+   * not ask, is registered by itself, unless they turned it off here last; the permission is never asked for.
    */
   const adopt = async (signedIn: PushUser) => {
     const record = await records.read()
     if (record && record.userId !== signedIn.id) return drop()
-    if (!signedIn.own || (!record && keptOff.has(signedIn.id))) return
+    if (!signedIn.own || (!record && !registersItself(signedIn.id))) return
     if ((await permission()) !== 'granted') return record && drop()
     try {
       const { device, token: current } = await register(signedIn)

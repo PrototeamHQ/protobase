@@ -2,7 +2,8 @@ import type { NativeBridge } from '../../app/native-auth-fetch'
 import { nativeDevice } from './native-device'
 import { nativePush } from './native-push'
 import { deviceUserAgent, windowPushBrowser } from './push-browser'
-import { storagePushKeptOff } from './push-kept-off'
+import { permissionAsked } from './permission-asked'
+import { storagePushChoices } from './push-choices'
 import { indexedDbPushRecords } from './push-records'
 import { webPush, type WebPush, type WebPushOptions } from './web-push'
 
@@ -32,7 +33,7 @@ export const pushNotifications = ({ nativeBridge, ...options }: Omit<WebPushOpti
     const device = nativeDevice(nativeBridge)
     if (!device) return noPush
     const { devices, user, waitMs } = options
-    return nativePush({ bridge: nativeBridge, device, records: indexedDbPushRecords(), keptOff: storagePushKeptOff(() => localStorage), devices, user, userAgent: deviceUserAgent(navigator.userAgent), ...(waitMs !== undefined && { waitMs }) })
+    return nativePush({ bridge: nativeBridge, device, records: indexedDbPushRecords(), choices: storagePushChoices(() => localStorage), permissionAsked: permissionAsked(nativeBridge.getPlatform(), navigator.userAgent), devices, user, userAgent: deviceUserAgent(navigator.userAgent), ...(waitMs !== undefined && { waitMs }) })
   }
   const browser = windowPushBrowser()
   if (!browser.supported) return noPush
