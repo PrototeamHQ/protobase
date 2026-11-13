@@ -124,24 +124,38 @@ end
 export const captureFunctionSql = (schema: string) =>
   `create or replace function ${quoteIdent(schema)}."capture"() returns trigger language plpgsql security definer set search_path = pg_catalog, pg_temp as $capture$${captureBody(schema)}$capture$`
 
-/** A trigger as the database should have it: tgtype bits are row (1), insert (4), delete (8) and update (16). */
-export type TriggerSpec = { name: string; type: number; args: string[] }
+/**
+ * A trigger as the database should have it: tgtype bits are row (1), insert (4), delete (8) and update (16). `columns`
+ * are the ones an update must change to fire it; without them, any column.
+ */
+export type TriggerSpec = { name: string; type: number; args: string[]; columns?: string[] }
 
-/** The two triggers of a resource whose changes are captured: inserts and deletes, and updates that change the row. */
+/**
+ * The two triggers of a resource whose changes are captured: inserts and deletes, and updates that change the row. The
+ * fields history ignores are left out of both, and an update fires only when it changes another.
+ */
 export const resourceTriggers = (model: ResourceModel): TriggerSpec[] => {
-  const fields = Object.values(model.fields)
+  const ignored = model.historyIgnore ?? []
+  const fields = Object.values(model.fields).filter((field) => !ignored.includes(field.name))
   const args = [model.name, textArray(fields.filter((field) => !field.sensitive).map((field) => field.column)), textArray(fields.filter((field) => field.sensitive).map((field) => field.column))]
+  const update = { name: identifier(`${model.table.name}_changes_update`), type: 1 | 16, args }
   return [
     { name: identifier(`${model.table.name}_changes`), type: 1 | 4 | 8, args },
-    { name: identifier(`${model.table.name}_changes_update`), type: 1 | 16, args },
+    ignored.length > 0 ? { ...update, columns: fields.map((field) => field.column) } : update,
   ]
 }
 
 export const dropTriggerSql = (name: string, table: string) => `drop trigger if exists ${quoteIdent(name)} on ${table}`
 
+const rowsDiffer = (columns?: string[]) => {
+  if (!columns) return 'old.* is distinct from new.*'
+  const row = (side: string) => `(${columns.map((column) => `${side}.${quoteIdent(column)}`).join(', ')})`
+  return `${row('old')} is distinct from ${row('new')}`
+}
+
 export const createTriggerSql = (schema: string, trigger: TriggerSpec, table: string) => {
   const timing = trigger.type & 16 ? 'after update' : 'after insert or delete'
-  const when = trigger.type & 16 ? ' when (old.* is distinct from new.*)' : ''
+  const when = trigger.type & 16 ? ` when (${rowsDiffer(trigger.columns)})` : ''
   const args = trigger.args.map(quoteLiteral).join(', ')
   return `create trigger ${quoteIdent(trigger.name)} ${timing} on ${table} for each row${when} execute function ${quoteIdent(schema)}."capture"(${args})`
 }

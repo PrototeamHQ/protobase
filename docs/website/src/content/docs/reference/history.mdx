@@ -25,6 +25,16 @@ A change is what an event sees: one per record and transaction, with the record 
 | Who | For a write through the API, the caller's id and roles. For a write from elsewhere, none; the database role that wrote is kept either way: the one `set role` chose, else the session's. |
 | `at` | When the writing transaction started. |
 
+## Ignoring fields
+
+`.history({ ignore: [...] })` names fields whose changes are not captured at all, such as counts or timestamps the database keeps up to date itself. An update that changes only those fields keeps nothing, and queues no work; an update that changes others too keeps the change without them. The fields are left out of every change of the resource, so [events](/reference/events/), [derived values](/reference/derived/) and [live updates](/reference/live/) do not see them either. The key, tenant and soft delete fields cannot be ignored, and an unknown field stops startup.
+
+```ts
+.history({ ignore: ['tasks_done', 'progress'] })
+```
+
+`protobase migration` recreates the resource's triggers when the ignored fields change.
+
 ## On the record page
 
 [`l.history(title?, { limit, when })`](/api/schema/variables/l/#history) shows the record's changes newest first: who made each, how long ago, and each changed field before and after, formatted and labelled as the view shows the field. `limit` changes show at first (default 10), and Show more loads the next ones. A view without a layout shows History last by itself. A view that names `l.history()` for a resource without `.history()` stops startup.

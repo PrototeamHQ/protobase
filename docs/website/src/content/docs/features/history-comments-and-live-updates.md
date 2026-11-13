@@ -4,6 +4,7 @@ description: The changes of each record, comments on it, and pages that refresh 
 ---
 
 - [Record history](/reference/history/#on-the-record-page): Every change to a record is kept with who made it and when, including changes made outside the API.
+- [Ignored fields](/reference/history/#ignoring-fields): Fields the database keeps up to date itself, such as counts, can be left out of a record's history, so their changes add no entries.
 - [Activity](/reference/history/#activity): Admins see all changes across resources in one list.
 - [History retention](/reference/history/#keeping-it): Changes older than a set number of days are removed by a daily job.
 - [Comments](/reference/comments/#on-the-record-page): Anyone who can read a record can read and add comments on it.
