@@ -7,6 +7,7 @@ import { folder, type Settings } from './settings'
 export const configFile = path.join(folder, 'pgbouncer.ini')
 const userFile = path.join(folder, 'userlist.txt')
 const pidFile = path.join(folder, 'pgbouncer.pid')
+const daemonArgs = (config: string) => ['--daemon', config]
 
 /**
  * The pgbouncer.ini docker-compose.yml's PgBouncer image writes from its variables, pointed at the local server:
@@ -49,13 +50,16 @@ const runningPid = () => {
 }
 
 /**
- * Whether the process `pid` runs as this PgBouncer: its executable is pgbouncer and its arguments name this config file.
- * ps prints nothing for a process that is gone.
+ * Whether the process `pid` runs as this PgBouncer: its command line is the one startPgbouncer runs, a pgbouncer
+ * executable then `--daemon` and this config file, matched whole so paths with spaces work. ps prints nothing for a
+ * process that is gone.
  */
-export const isThisPgbouncer = (pid: number, command = capture('ps', ['-p', String(pid), '-o', 'args=']).stdout) => {
+export const isThisPgbouncer = (pid: number, command = capture('ps', ['-p', String(pid), '-o', 'args=']).stdout, config = configFile) => {
   if (!Number.isInteger(pid) || pid <= 0) return false
-  const [executable = '', ...args] = command.trim().split(/\s+/)
-  return path.basename(executable) === 'pgbouncer' && args.includes(configFile)
+  const line = command.trim()
+  const ending = ` ${daemonArgs(config).join(' ')}`
+  if (!line.endsWith(ending)) return false
+  return path.basename(line.slice(0, -ending.length)) === 'pgbouncer'
 }
 
 /**
@@ -72,7 +76,7 @@ export const startPgbouncer = (settings: Settings) => {
   mkdirSync(folder, { recursive: true })
   writeFileSync(configFile, pgbouncerConfig(settings))
   writeFileSync(userFile, userList(settings), { mode: 0o600 })
-  run(pgbouncer, ['--daemon', configFile])
+  run(pgbouncer, daemonArgs(configFile))
 }
 
 /** Stops PgBouncer when it runs: SIGINT lets it finish the transactions in flight, then waits for it to exit. */

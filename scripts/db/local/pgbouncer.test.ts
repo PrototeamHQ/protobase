@@ -35,6 +35,11 @@ describe('isThisPgbouncer', () => {
     expect(isThisPgbouncer(42, `/opt/homebrew/bin/pgbouncer --daemon ${configFile}\n`)).toBe(true)
   })
 
+  it('accepts it when the paths hold spaces', () => {
+    const config = '/Users/me/My Projects/protobase/.protobase/postgres/pgbouncer.ini'
+    expect(isThisPgbouncer(42, `/opt/my tools/pgbouncer --daemon ${config}\n`, config)).toBe(true)
+  })
+
   it('rejects a reused pid running something else, another PgBouncer, or none', () => {
     expect(isThisPgbouncer(42, '/usr/bin/vim notes.txt\n')).toBe(false)
     expect(isThisPgbouncer(42, `/usr/bin/vim ${configFile}\n`)).toBe(false)
