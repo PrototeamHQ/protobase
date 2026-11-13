@@ -255,7 +255,7 @@ Every error is `application/problem+json` (RFC 9457) with `type` (`urn:protobase
 | 404 | `not-found` |
 | 409 | `conflict`: a unique key, a record other records point at, or a deadlock with another write, which may be sent again |
 | 412 / 428 | `precondition-failed` / `precondition-required` |
-| 503 | `read-only`: the database refuses writes, as during a deploy's write freeze; send the write again after `Retry-After`. `connections-busy`: every database connection stayed busy for 2 seconds (see [Safety](#safety)) |
+| 503 | `read-only`: the database refuses writes, as during a deploy's write freeze; send the write again after `Retry-After`. `database-restarting`: the database or its connection pooler is shutting down or starting up; send the request again after `Retry-After`. `connections-busy`: every database connection stayed busy for 2 seconds (see [Safety](#safety)) |
 | 504 | `statement-timeout`: a query ran past its limit (see [Safety](#safety)) |
 
 ### Error reporting

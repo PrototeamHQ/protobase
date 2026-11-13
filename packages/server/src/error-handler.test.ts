@@ -39,6 +39,32 @@ describe('the error handler while the database is read-only', () => {
   })
 })
 
+describe('the error handler while the database or its pooler restarts', () => {
+  it.each([
+    ['57P01', 'terminating connection due to administrator command'],
+    ['57P03', 'the database system is starting up'],
+    ['08P01', 'server shutting down'],
+  ])('answers SQLSTATE %s with 503 and Retry-After, and reports nothing', async (code, message) => {
+    const { response, body, reported } = await answer(databaseError(message, code))
+    expect(response.status).toBe(503)
+    expect(response.headers.get('retry-after')).toBe('5')
+    expect(body).toMatchObject({ type: 'urn:protobase:problem:database-restarting', title: 'Service Unavailable', status: 503 })
+    expect(reported).not.toHaveBeenCalled()
+  })
+
+  it('keeps any other SQLSTATE 08P01, such as a login refusal, a reported 500', async () => {
+    const { response, reported } = await answer(databaseError('no such user: app', '08P01'))
+    expect(response.status).toBe(500)
+    expect(reported).toHaveBeenCalledOnce()
+  })
+
+  it('keeps a crash restart, SQLSTATE 57P02, a reported 500', async () => {
+    const { response, reported } = await answer(databaseError('terminating connection because of crash of another server process', '57P02'))
+    expect(response.status).toBe(500)
+    expect(reported).toHaveBeenCalledOnce()
+  })
+})
+
 describe('the error handler on a deadlock', () => {
   it('answers SQLSTATE 40P01 with 409 conflict, names nothing from the database, and reports nothing', async () => {
     const { response, body, reported } = await answer(databaseError('deadlock detected on relation "vms"', '40P01'))
