@@ -94,6 +94,34 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # protobase-try.exe for Windows, zipped, with the version file try.ps1 compares (docs/website/public/try.ps1), built at
+  # the version plan predicts beside the checks, as pack is; release attaches both to the GitHub release, so every
+  # release, and so the latest-release download URL, has them. Bun cross-compiles the exe on Linux.
+  try:
+    needs: plan
+    if: ${{ !cancelled() && needs.plan.outputs.tag != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - name: Stamp the version into the packages
+        env:
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: bun scripts/stamp-version.mjs "$TAG"
+      - name: Build protobase-try.exe
+        run: bun run --cwd packages/try build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: try
+          path: packages/try/out
+          if-no-files-found: error
+          retention-days: 1
+
   # The checks start at once, without plan's answer, so they run the Postgres suite in full, as the last fail-safe, on
   # every push, whether or not it cuts a release.
   check:
@@ -150,7 +178,7 @@ jobs:
   # It waits for pack too, though only publish uses the packages, so a slow pack cannot let a newer run publish first.
   # A run that packs nothing, as plan found nothing to release, still runs it, which then tags nothing.
   release:
-    needs: [plan, pack, check, commits]
+    needs: [plan, pack, try, check, commits]
     if: ${{ !cancelled() && !failure() && !inputs.tag }}
     concurrency:
       group: release-tag
@@ -201,6 +229,9 @@ jobs:
         run: |
           bun scripts/stamp-version.mjs "$TAG"
           node scripts/publish.mjs --pack --out "$RUNNER_TEMP/packages"
+      - name: Build protobase-try.exe again at the cut tag
+        if: steps.stale.outputs.repack == 'true'
+        run: bun run --cwd packages/try build
       - uses: actions/upload-artifact@v4
         if: steps.stale.outputs.repack == 'true'
         with:
@@ -209,6 +240,12 @@ jobs:
           if-no-files-found: error
           retention-days: 1
           overwrite: true
+      # Try's files, unless they were just built again at the cut tag.
+      - uses: actions/download-artifact@v4
+        if: steps.cut.outputs.tag != '' && steps.stale.outputs.repack != 'true'
+        with:
+          name: try
+          path: packages/try/out
       - name: Push the tag and publish the GitHub release
         id: push
         if: steps.cut.outputs.tag != ''
@@ -217,7 +254,7 @@ jobs:
           TAG: ${{ steps.cut.outputs.tag }}
         run: |
           git push origin "refs/tags/$TAG"
-          gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" packages/try/out/protobase-try.zip packages/try/out/protobase-try.version
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   # Trusted publishing: npm trusts this workflow file of this repository for every @protobase package, so there is no
@@ -290,7 +327,7 @@ jobs:
   # itself. It runs for releases of main only, a failed dispatch neither fails nor holds up the release, and the report
   # measures a release up to its last job before this one (scripts/release-speed/timings.ts).
   release-speed:
-    needs: [plan, pack, check, commits, release, publish, image, image-dev]
+    needs: [plan, pack, try, check, commits, release, publish, image, image-dev]
     if: ${{ always() && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     continue-on-error: true

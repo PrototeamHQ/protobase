@@ -7,6 +7,16 @@ Protobase is a config-driven admin panel framework for existing Postgres databas
 
 An app's own React code, its components, field types and actions, is a [plugin](/reference/plugins/): built on its own against a plugin API that Protobase's releases keep, and loaded by the admin app when it starts. Protobase maintains the admin app, the API and the server, and a plugin keeps working as the app moves to newer releases, with their fixes and features, without changes of its own. Below 1.0 a new minor version may still change the config, and the bundle is built again for it; the plugins' code stays as it is (see [Who maintains what](/reference/plugins/#who-maintains-what)).
 
+## Try it on Windows
+
+To see whether Protobase is of use before setting anything up, paste this line into the Run box (Win+R), a Command Prompt or PowerShell:
+
+```
+powershell -c "irm https://docs.protobase.net/try.ps1|iex"
+```
+
+It downloads `protobase-try.exe` from the latest release, about 45 MB, and PostgreSQL 18, about 40 MB, once, and starts the [automations](#start-an-app) preset with [workflows](/reference/workflows/) on, on this computer alone. It prints the address, `http://localhost:3000` unless that port is taken, and an admin's email and password, adds a sample workflow, "Say hello", and opens the browser. Nothing is installed and nothing needs Git, Node or Bun: the program, the database and the app's files stay in `%LOCALAPPDATA%\Protobase\automations`, with the password in `sign-in.txt` there. Ctrl+C or closing the window stops it; the line starts it again, and takes the newer program when a release is out. To remove everything, stop it and delete that folder. It is a trial of a finished app, not a project to change: [Start an app](#start-an-app) makes one.
+
 ## Start an app
 
 `npm create protobase my-app` asks which preset to start from, scratch (the default), automations (scratch with [workflows](/reference/workflows/) on), the ERP, the property portal or real estate, writes the project into `my-app`, with the `@protobase` packages in `devDependencies` at the caret range of the latest release, so it is [bundled](/reference/versioning/#bundled-and-locked-projects): dev, the build and its scripts run the CLI's own copies, and a newer CLI in that range updates it with no change to its files. It prints the next steps. Without a folder it asks for one too. `--preset <name>` picks the preset without asking; without a terminal it takes scratch. `bun create protobase` and `pnpm create protobase` do the same, and take `--preset` without the `--` that npm needs. It needs Node 22.12 or later. Each preset has an `AGENTS.md` with the rules for a coding agent that changes the app, such as a new migration file for every schema change.
@@ -154,4 +164,4 @@ bun run --cwd tests/apps/property-portal dev              # http://localhost:517
 | `bun run release --dry-run` | the next version and its changelog, from the commits since the last release (see [Versioning](/reference/versioning/)) |
 | `bun run docs:check` | opens every page of the built site in Chromium and fails on console errors and failed requests; `BASE=https://docs.protobase.net` checks the live site |
 
-Each public import is a package in `packages/` (`@protobase/schema`, `layout`, `query`, `client`, `ui`, `server`, `config` for `protobase.config.ts`, `mobile` for `protobase mobile`, and `cli` for the `protobase` command); `packages/presets` writes the projects a new app starts from and is not published; `packages/create-protobase` is `npm create protobase`, with every preset. See [Architecture](/reference/architecture/) for the layout and import rules.
+Each public import is a package in `packages/` (`@protobase/schema`, `layout`, `query`, `client`, `ui`, `server`, `config` for `protobase.config.ts`, `mobile` for `protobase mobile`, and `cli` for the `protobase` command); `packages/presets` writes the projects a new app starts from and is not published; `packages/try` builds `protobase-try.exe` for [Try it on Windows](#try-it-on-windows) and is not published either; `packages/create-protobase` is `npm create protobase`, with every preset. See [Architecture](/reference/architecture/) for the layout and import rules.

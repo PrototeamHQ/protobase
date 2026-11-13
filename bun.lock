@@ -293,6 +293,9 @@
         "sharp",
       ],
     },
+    "packages/try": {
+      "name": "@protobase/try",
+    },
     "packages/ui": {
       "name": "@protobase/ui",
       "version": "0.14.2",
@@ -1084,6 +1087,8 @@
     "@protobase/schema": ["@protobase/schema@workspace:packages/schema"],
 
     "@protobase/server": ["@protobase/server@workspace:packages/server"],
+
+    "@protobase/try": ["@protobase/try@workspace:packages/try"],
 
     "@protobase/ui": ["@protobase/ui@workspace:packages/ui"],
 

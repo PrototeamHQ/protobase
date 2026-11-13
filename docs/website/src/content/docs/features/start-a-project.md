@@ -3,6 +3,7 @@ title: Start a project
 description: Start a new app, or an admin over an existing Postgres database, and keep the config in step with it.
 ---
 
+- [Try it on Windows](/getting-started/#try-it-on-windows): One line in the Run box or a terminal starts a local Protobase with workflows on and a sample workflow, with nothing installed, and one folder to delete afterwards.
 - [Project starter](/getting-started/#start-an-app): `npm create protobase` (also `bun create` and `pnpm create`) starts a new app from the scratch, automations (workflows on), ERP, property portal or real estate preset, with its own Postgres in Docker for development, and prints the next steps. Each preset has an `AGENTS.md` with rules for coding agents.
 - [Start on an existing database](/getting-started/#on-an-existing-database): `npm create protobase <database-url>` makes a project on a Postgres database you already have and asks which of its tables become resources, only reading the database.
 - [Example apps](/getting-started/#run-the-erp-example): Seeded example apps on Postgres: an ERP, real estate property management and a public property portal.
