@@ -57,4 +57,9 @@ bun run docs:dev     # the documentation site on port 4321
 
 The other commands are listed in [Getting started](https://docs.protobase.net/getting-started/#commands).
 
+`bun run db:up` starts the development databases in Docker. With `POSTGRES_RUNNER=local` in `.env`, it runs this
+machine's Postgres 18 and PgBouncer as plain processes instead, with their data in `.protobase/postgres`, on the same
+ports; `POSTGRES_BIN` names the folder of `initdb` and `pg_ctl` when they are not on PATH. Supabase's Postgres, which
+`bun run test:record` needs for the Supabase import's recordings, runs only in Docker.
+
 Commit messages follow Conventional Commits, from which every push to `main` is released; see [CONTRIBUTING.md](CONTRIBUTING.md).
