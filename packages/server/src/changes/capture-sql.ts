@@ -132,7 +132,8 @@ export type TriggerSpec = { name: string; type: number; args: string[]; columns?
 
 /**
  * The two triggers of a resource whose changes are captured: inserts and deletes, and updates that change the row. The
- * fields history ignores are left out of both, and an update fires only when it changes another.
+ * fields history ignores are left out of both, and an update fires only when it changes another's columns: a relation's
+ * are the ones holding the other record's key.
  */
 export const resourceTriggers = (model: ResourceModel): TriggerSpec[] => {
   const ignored = model.historyIgnore ?? []
@@ -141,7 +142,7 @@ export const resourceTriggers = (model: ResourceModel): TriggerSpec[] => {
   const update = { name: identifier(`${model.table.name}_changes_update`), type: 1 | 16, args }
   return [
     { name: identifier(`${model.table.name}_changes`), type: 1 | 4 | 8, args },
-    ignored.length > 0 ? { ...update, columns: fields.map((field) => field.column) } : update,
+    ignored.length > 0 ? { ...update, columns: [...new Set(fields.flatMap((field) => field.relation?.columns ?? [field.column]))] } : update,
   ]
 }
 

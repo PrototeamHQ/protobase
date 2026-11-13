@@ -48,6 +48,16 @@ describe('resourceTriggers', () => {
     )
   })
 
+  it('compares the key columns of a relation of several columns', () => {
+    const lines = resource('lines')
+      .table('lines')
+      .fields({ id: f.integer(), tenant_id: f.integer(), order: f.relation('orders').columns(['order_id', 'tenant_id']), note: f.text() })
+      .primaryKey((r) => r.id)
+      .history({ ignore: ['note'] })
+      .toModel()
+    expect(resourceTriggers(lines)[1]!.columns).toEqual(['id', 'tenant_id', 'order_id'])
+  })
+
   it('recreates the triggers once history ignores a field', () => {
     const ignoring = orders.events((e) => e.crud()).history({ ignore: ['status'] }).toModel()
     const plan = capturePlan('changes', [ignoring], installed())
