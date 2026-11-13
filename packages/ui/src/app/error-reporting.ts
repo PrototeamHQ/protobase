@@ -31,3 +31,6 @@ export const startErrorReporting = ({ dsn, environment }: NonNullable<Meta['erro
 
 /** Reports an error a boundary caught while drawing, with the components it was drawn in; nothing before error reporting started. */
 export const reportRenderError = (error: unknown, componentStack?: string | null) => capture?.(error, componentStack ?? undefined)
+
+/** Reports an error the app handled but someone has to fix, such as the push service refusing the app; nothing before error reporting started. */
+export const reportError = (error: unknown) => capture?.(error)
