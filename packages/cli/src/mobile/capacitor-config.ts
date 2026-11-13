@@ -40,6 +40,10 @@ const keyboardPlugin = '@capacitor/keyboard'
 
 const liveUpdatePlugin = '@capawesome/capacitor-live-update'
 
+// Capacitor's splash screen plugin, which keeps the launch screen up until the shell has drawn and hides it, so no blank
+// page shows in between. Only a page of this native contract or later hides it, which the native fingerprint ensures.
+const splashPlugin = '@capacitor/splash-screen'
+
 // What the push plugin does with a push that arrives while the app is open: shows it, as the phone does otherwise.
 const pushPresentation = ['badge', 'sound', 'alert']
 
@@ -51,9 +55,9 @@ const readyTimeout = 30_000
  * The app's `capacitor.config.json`, every key it sets named here. It never sets `server.url`, the hostname or the
  * schemes (the API's CORS list names Capacitor's default origins). WebView debugging is off in an iOS release by name:
  * Capacitor's prebuilt simulator framework is a Debug build, so its default lists a Release app in Safari's Develop menu.
- * `plugins` configures ProtobaseAuth, the keyboard plugin and, with the live updater, what its guard needs: the key
- * releases are signed with, where they come from, the binary's fingerprint, shell version and the order of its own
- * files, background updates off, a rolled-back bundle blocked and `readyTimeout`, within which the shell must call
+ * `plugins` configures ProtobaseAuth, the keyboard plugin, the splash screen, which stays up until the shell hides it,
+ * and, with the live updater, what its guard needs: the key releases are signed with, where they come from, the
+ * binary's fingerprint, shell version and the order of its own files, background updates off, a rolled-back bundle blocked and `readyTimeout`, within which the shell must call
  * ready() or the app goes back to its own files. CapacitorHttp and CapacitorCookies stay off; the keyboard plugin
  * resizes natively, its default, and fills the space beside the keyboard's rounded corners with the page's background
  * instead of black. With `push`, Capacitor's push plugin is compiled in and shows a push while the app is open, and on
@@ -68,10 +72,11 @@ export const capacitorConfig = ({ appId, appName, fingerprint, shellVersion, plu
   appName,
   webDir: webPartDir,
   appendUserAgent: `ProtobaseNative/${fingerprint}`,
-  includePlugins: [...plugins, ...(liveUpdate ? [liveUpdatePlugin] : []), ...(push ? [pushPlugin] : []), keyboardPlugin, protobasePlugin],
+  includePlugins: [...plugins, ...(liveUpdate ? [liveUpdatePlugin] : []), ...(push ? [pushPlugin] : []), keyboardPlugin, splashPlugin, protobasePlugin],
   plugins: {
     ProtobaseAuth: { apiOrigin, origin: capacitorOrigin[platform] },
     Keyboard: { autoBackdropColor: 'dom' },
+    SplashScreen: { launchAutoHide: false },
     ...(push && { PushNotifications: { presentationOptions: pushPresentation } }),
     ...(apnsEnvironment && { ProtobasePush: { environment: apnsEnvironment } }),
     ...(liveUpdate && {

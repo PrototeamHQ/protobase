@@ -5,6 +5,7 @@ import { nativeAuthFetch, type NativeBridge } from '../app/native-auth-fetch'
 import { pushNotifications, type PushNotifications } from '../notifications/push/push-notifications'
 import type { PushUser } from '../notifications/push/web-push'
 import { useStartCache } from '../data/start-cache/start-cache'
+import { enterAfterUpdate } from './enter-after-update'
 import { providerName, withoutSignInLink } from './provider-link'
 import type { AuthState } from './auth-state'
 import { startCacheStep } from './start-session'
@@ -115,13 +116,23 @@ export const useAuth = () => {
 /** The auth state and steps inside `AuthProvider`, `null` outside it, for a part that also works without one. */
 export const useOptionalAuth = () => useContext(AuthContext)
 
+type AuthProviderProps = {
+  session?: AuthSession
+  origin?: string
+  nativeBridge?: NativeBridge
+  /** Runs after someone signs in on this page, before the app opens; true when it reloaded the page, which then opens it. */
+  afterSignIn?: () => Promise<boolean>
+  children: ReactNode
+}
+
 /**
  * Finds out whether the server has a login and who is signed in, and keeps that state for the app. Without a `session`,
  * it makes one on `origin`, the page's own by default; in the iOS or Android app, with its `nativeBridge`, the session
  * signs in through native HTTP, and "Forgot password?" is not offered, as a reset link cannot come back to the app.
  * Below a `StartCacheProvider`, someone who was signed in starts signed in, and the check runs behind the app.
+ * Someone already signed in when the page starts is no sign-in: `afterSignIn` runs only for one made on the page.
  */
-export const AuthProvider = ({ session: given, origin, nativeBridge, children }: { session?: AuthSession; origin?: string; nativeBridge?: NativeBridge; children: ReactNode }) => {
+export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn, children }: AuthProviderProps) => {
   // Someone signed in when the app last ran starts signed in, from the start cache, while the session is checked behind it
   const startCache = useStartCache()
   const [cached] = useState(() => startCache?.session())
@@ -185,6 +196,9 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
 
   forgetPush.current = push.forget
 
+  const afterSignInRef = useRef(afterSignIn)
+  afterSignInRef.current = afterSignIn
+
   // Signed in: the app opens unless the policy requires something the account lacks, which it never does for staff.
   // Signing out later shows the sign-in page again. Push in this browser is kept only for this same user.
   const enter = useCallback(
@@ -197,7 +211,17 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
     [session, push],
   )
 
-  const finish = useCallback(async (result: SignInResult) => (result.kind === 'two-factor' ? setState({ kind: 'two-factor', methods: result.methods }) : enter(result.user)), [enter])
+  // A sign-in made on this page first lets `afterSignIn` run, which may reload the page into the app instead; a sign-out
+  // meanwhile still wins.
+  const signIn = useCallback(
+    async (user: AuthUser) => {
+      const asked = generation.current
+      await enterAfterUpdate(afterSignInRef.current, () => enter(user, asked))
+    },
+    [enter],
+  )
+
+  const finish = useCallback(async (result: SignInResult) => (result.kind === 'two-factor' ? setState({ kind: 'two-factor', methods: result.methods }) : signIn(result.user)), [signIn])
 
   // Someone signed in stays in the app while it checks: a server that cannot be reached leaves them with what is cached,
   // whose refresh then shows that it failed.
@@ -252,7 +276,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       adoptSession: async () => {
         const user = await session.session()
         if (!user) return false
-        await enter(user)
+        await signIn(user)
         return true
       },
       ...(anonymous && {
@@ -265,9 +289,9 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       signInWithCode: async (email, code) => finish(await session.signInWithCode(email, code)),
       sendSignUpCode: (email) => session.sendSignUpCode(email),
       verifySignUpCode: (email, code) => session.verifySignUpCode(email, code),
-      signUp: async (input) => enter(await session.signUp(input)),
-      signInWithPasskey: async (domain) => enter(await session.signInWithPasskey(domain)),
-      verifyTwoFactor: async (input) => enter(await session.verifyTwoFactor(input)),
+      signUp: async (input) => signIn(await session.signUp(input)),
+      signInWithPasskey: async (domain) => signIn(await session.signInWithPasskey(domain)),
+      verifyTwoFactor: async (input) => signIn(await session.verifyTwoFactor(input)),
       // The provider comes back to this page without a link's marker, so it does not start again.
       signInSocial: async (provider) => {
         const callbackURL = new URL(withoutSignInLink(window.location.href), window.location.href).href
@@ -306,7 +330,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       },
       push,
     }),
-    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, personalAccessTokens, canSignUp, passkeyDomains, socialProviders, platformSignIn, personalMail, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, identity, signedOutState, markSignedOut, recheck, finish, enter],
+    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, personalAccessTokens, canSignUp, passkeyDomains, socialProviders, platformSignIn, personalMail, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, identity, signedOutState, markSignedOut, recheck, finish, signIn],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

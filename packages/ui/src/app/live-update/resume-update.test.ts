@@ -35,7 +35,6 @@ const setup = ({
     bridge,
     check: async () => given,
     releasesUrl: 'https://shop.example.com/api/mobile/releases',
-    onHold: () => {},
   })
   const page = {
     keep: () => void pages.push('kept'),

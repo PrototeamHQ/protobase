@@ -22,15 +22,15 @@ describe('capacitorConfig', () => {
       appName: 'Shop',
       webDir: 'web',
       appendUserAgent: 'ProtobaseNative/0123456789abcdef',
-      includePlugins: ['@capacitor/keyboard', '@protobase/mobile'],
-      plugins: { ProtobaseAuth: { apiOrigin: 'https://shop.example.com', origin: 'https://localhost' }, Keyboard: { autoBackdropColor: 'dom' } },
+      includePlugins: ['@capacitor/keyboard', '@capacitor/splash-screen', '@protobase/mobile'],
+      plugins: { ProtobaseAuth: { apiOrigin: 'https://shop.example.com', origin: 'https://localhost' }, Keyboard: { autoBackdropColor: 'dom' }, SplashScreen: { launchAutoHide: false } },
       android: { resolveServiceWorkerRequests: false },
     })
   })
 
   it('compiles in the push plugin with push alone, showing a push while the app is open', () => {
     const config = capacitorConfig({ ...base, push: true })
-    expect(config.includePlugins).toEqual(['@capacitor/push-notifications', '@capacitor/keyboard', '@protobase/mobile'])
+    expect(config.includePlugins).toEqual(['@capacitor/push-notifications', '@capacitor/keyboard', '@capacitor/splash-screen', '@protobase/mobile'])
     expect(config.plugins).toMatchObject({ PushNotifications: { presentationOptions: ['badge', 'sound', 'alert'] } })
     expect(capacitorConfig(base).includePlugins).not.toContain('@capacitor/push-notifications')
     expect(capacitorConfig(base).plugins).not.toHaveProperty('PushNotifications')
@@ -55,14 +55,14 @@ describe('capacitorConfig', () => {
   })
 
   it('compiles in the configured plugins, and Protobase\'s after them', () => {
-    expect(capacitorConfig({ ...base, plugins: ['@capacitor/camera', 'x'] }).includePlugins).toEqual(['@capacitor/camera', 'x', '@capacitor/keyboard', '@protobase/mobile'])
+    expect(capacitorConfig({ ...base, plugins: ['@capacitor/camera', 'x'] }).includePlugins).toEqual(['@capacitor/camera', 'x', '@capacitor/keyboard', '@capacitor/splash-screen', '@protobase/mobile'])
   })
 
   const liveUpdate = { publicKey: 'MIIBIjANBg', builtInOrder: '1800000000000,0', releasesUrl: 'https://shop.example.com/api/mobile/releases' }
 
   it('compiles in the live updater with everything its guard needs: a key, a rollback timer and the order of the built-in files', () => {
     const config = capacitorConfig({ ...base, plugins: ['@capacitor/camera'], liveUpdate })
-    expect(config.includePlugins).toEqual(['@capacitor/camera', '@capawesome/capacitor-live-update', '@capacitor/keyboard', '@protobase/mobile'])
+    expect(config.includePlugins).toEqual(['@capacitor/camera', '@capawesome/capacitor-live-update', '@capacitor/keyboard', '@capacitor/splash-screen', '@protobase/mobile'])
     expect(config.plugins.LiveUpdate).toEqual({
       ...liveUpdate,
       readyTimeout: 30_000,

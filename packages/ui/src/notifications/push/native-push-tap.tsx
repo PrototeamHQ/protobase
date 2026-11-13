@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
+import { pageKept } from '../../app/live-update/kept-page'
 import type { NativeBridge } from '../../app/native-auth-fetch'
 import { useRouter } from '../../app/router'
 import { useAuth } from '../../auth/auth-provider'
+import { guarded } from '../../lib/guarded'
 import { pushPluginName } from './native-push'
 import { nativeTapGate } from './native-tap-gate'
 import { nativeTapTarget, type NativeTapTarget } from './native-tap'
+import { reloadTap } from './reload-tap'
 
 /** Protobase's native plugin that opens a url in the app the phone opens links with, never in the WebView. */
 const externalPlugin = 'ProtobaseExternal'
@@ -26,7 +29,8 @@ const tapData = (action: unknown) => (typeof action === 'object' && action !== n
 
 /**
  * Listens for taps on a push in the iOS and Android app, warm or from a cold start, which the plugin keeps for this first
- * listener, and opens each once the sign-in is known, for the user signed in then (`nativeTapTarget`). Renders nothing.
+ * listener, and opens each once the sign-in is known, for the user signed in then (`nativeTapTarget`). A tap that
+ * arrives while the app reloads into a live update is opened by the page it reloads into (`reloadTap`). Renders nothing.
  */
 export const NativePushTap = ({ nativeBridge, apiOrigin }: { nativeBridge: NativeBridge; apiOrigin: string }) => {
   const { state } = useAuth()
@@ -38,14 +42,19 @@ export const NativePushTap = ({ nativeBridge, apiOrigin }: { nativeBridge: Nativ
     if (target) void openNativeTap(target, { bridge: nativeBridge, navigate })
   }
   const [gate] = useState(() => nativeTapGate((data) => open.current(data)))
+  const [carry] = useState(() => {
+    const storage = guarded(() => window.sessionStorage, undefined)
+    return storage && reloadTap({ storage, reloading: () => pageKept(storage) })
+  })
 
   useEffect(() => gate.settle(state.kind !== 'loading'), [gate, state.kind, userId])
 
   useEffect(() => {
     if (!nativeBridge.isPluginAvailable(pushPluginName)) return
-    const listener = nativeBridge.addListener(pushPluginName, 'pushNotificationActionPerformed', (action) => gate.tap(tapData(action)))
+    const listener = nativeBridge.addListener(pushPluginName, 'pushNotificationActionPerformed', (action) => (carry ? carry.receive(tapData(action), gate.tap) : gate.tap(tapData(action))))
+    carry?.resume(gate.tap)
     return () => void listener.remove()
-  }, [nativeBridge, gate])
+  }, [nativeBridge, gate, carry])
 
   return null
 }

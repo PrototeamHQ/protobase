@@ -11,12 +11,16 @@ const ask = (fingerprint: string, shellVersion: string, server = app) => server.
 const fileOf = (bundleId: string, href: string) => app.request(`${mobileReleaseBasePath(bundleId)}?href=${encodeURIComponent(href)}`)
 
 describe('mobileReleaseApp', () => {
-  it('offers the release to a binary of its fingerprint, required once the shell no longer works with the server', async () => {
+  it('offers the release to a binary of its fingerprint whose shell works with the server', async () => {
     const url = `https://shop.example.com/api/mobile/releases/${release.bundleId}`
     const same = await ask('f1', '0.14.0')
     expect(same.headers.get('cache-control')).toBe('no-store')
     expect(await same.json()).toEqual({ bundleId: release.bundleId, url, required: false })
-    expect(await (await ask('f1', '0.13.5')).json()).toEqual({ bundleId: release.bundleId, url, required: true })
+  })
+
+  it('offers no release once the shell no longer works with the server, as its binary refuses one of another shell version', async () => {
+    expect(await (await ask('f1', '0.13.5')).json()).toEqual({ bundleId: null, url: null, required: true })
+    expect(await (await ask('f1', '1.14.2')).json()).toEqual({ bundleId: null, url: null, required: true })
   })
 
   it('offers no release to another binary, or without one', async () => {

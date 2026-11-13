@@ -1226,10 +1226,6 @@
     "changedBySomeoneElse": "Changed by someone else",
     "couldNotSave": "Could not save"
   },
-  "app/live-update": {
-    "holdTitle": "Updating the app",
-    "holdLine": "The new version is downloading. The app opens it in a moment."
-  },
   "app/map": {
     "mapLayer": "Map layer",
     "map": "Map"
