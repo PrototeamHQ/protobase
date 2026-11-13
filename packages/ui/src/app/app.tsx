@@ -73,6 +73,8 @@ import { userMenuFromMeta } from './user-menu-from-meta'
 import { text as appText } from './messages'
 import type { NativeBridge } from './native-auth-fetch'
 import { LiveUpdateGate } from './live-update/live-update-gate'
+import { LiveUpdateOnVersionChange } from './live-update/live-update-on-version-change'
+import { LiveUpdateResume } from './live-update/live-update-resume'
 import { useStatusMenu } from '../status/use-status-menu'
 import { useStatuses } from '../status/use-statuses'
 
@@ -286,6 +288,7 @@ const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, a
       <MetaGate>
         <ToastProvider>
           {!sidebarBanner && <NewVersionToast />}
+          <LiveUpdateOnVersionChange />
           {/* The connect page stands alone, without the shell or the plugins that draw in it */}
           {path === connectRoute ? (
             <ConnectRoute />
@@ -341,6 +344,7 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, local
       <LiveUpdateGate nativeBridge={nativeBridge} apiOrigin={apiOrigin}>
         <AuthProvider session={auth} {...(apiOrigin && { origin: apiOrigin })} {...(nativeBridge && { nativeBridge })}>
           <Router basePath={basePath} initialUrl={initialUrl}>
+            <LiveUpdateResume />
             {nativeBridge && apiOrigin && <NativePushTap nativeBridge={nativeBridge} apiOrigin={apiOrigin} />}
             <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
               <AuthLocale>

@@ -1,17 +1,20 @@
 import { RotateCw } from 'lucide-react'
 import { useAdminMeta } from '../meta-gate'
+import { useLiveUpdater } from '../live-update/live-update-context'
 import { useRouter } from '../router'
 import { text } from './messages'
 
 /**
  * Across the bottom of a full-width sidebar, from the moment the page keeps its `/meta` for a new version until it
  * reloads: the app's name, that it was updated, and a click that reloads, asking first while a guard holds unsaved
- * changes. It stands in for `NewVersionToast` and `NewVersionButton`, which float over the page.
+ * changes. It stands in for `NewVersionToast` and `NewVersionButton`, which float over the page. None in an app
+ * with live updates, which reloads into the new release itself (see `LiveUpdateResume`).
  */
 export const NewVersionBanner = () => {
   const { versionChange, appName } = useAdminMeta()
   const { reload } = useRouter()
-  if (!versionChange) return null
+  const liveUpdater = useLiveUpdater()
+  if (!versionChange || liveUpdater) return null
   return (
     <button
       type="button"
