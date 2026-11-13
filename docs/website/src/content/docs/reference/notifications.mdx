@@ -234,6 +234,8 @@ Without them APNs is off and iOS devices are skipped. One or two of them set, a 
 
 The topic of every notification is the mobile app's `appId`. Each device goes to the environment it was registered with: development builds to the APNs sandbox, App Store and TestFlight builds to production. A device whose token is not lowercase hex, whose environment is neither `sandbox` nor `production`, or that was registered for another app id is `refused`.
 
+When iOS refuses to register the app for push, such as for a build without the push entitlement, push stays off and the app's [error reporting](/reference/config/api/#errorreporting) receives the reason iOS gave. <gap>A push token that never arrives cannot leave push off and be reported because handling the token wait's timeout as a refusal is not implemented.</gap>
+
 The notification's title and body are its alert, with its `badge` and `sound`; the JSON also holds `url`, `data` and `user`, the id of the user the device is registered for. `urgency` sets the priority (`very-low` and `low` wait until the device saves power less), `ttl` how long APNs keeps it for a device that is offline, 28 days without one, and `tag` the collapse id. A message's `platform.apns` is merged into the JSON, such as `{ aps: { 'thread-id': 'chat' } }`, never into the request's headers; a `url` in it is checked as the message's is, and the JSON holds at most 4096 bytes. APNs answering that the device is unregistered, or that its token is bad, removes the device; any other refusal, such as a wrong topic or key, is retried and then fails the send, so a mistake in the configuration removes no device.
 
 ## Android
