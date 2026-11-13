@@ -34,7 +34,8 @@ export const postgresBlockRuns = (schema: string, job: () => JobDefinition<{ run
     return rows[0] && blockRun(rows[0])
   }
   // The identity a run shares under, as the step cache keeps a block's entry; undefined while the saver holds no role.
-  // A failing roles lookup fails the step rather than sharing or starting under an identity it could not tell.
+  // A failing roles lookup fails the segment, which its job tries again, as the step cache's lookup does: it is not
+  // caught, so the error is never hidden, and the block never shares or starts under an identity it could not tell.
   const sharedWho = async (db: Db, parent: string, share: BlockShare) => {
     const held = share.identity.saver ? await runSaverRoles(db, schema, roles, parent) : []
     if (share.identity.saver && held.length === 0) return

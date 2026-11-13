@@ -337,6 +337,15 @@ describe('a Block', () => {
       ])
     })
 
+    it('runs on each visit when it reads a secret, which a run under way may have read before it changed', async () => {
+      const { port, calls } = setup({}, { secrets: { TOKEN: 'secret-token-value-1' } })
+      const block = fetchAndStore()
+      ;(block as { Processor: { States: Record<string, State> } }).Processor.States.Fetch = { Type: 'Task', Resource: 'fetch', Arguments: { url: '{% $states.context.Execution.Input.url %}', token: '{% $states.context.Secrets.TOKEN %}' }, Assign: { body: '{% $states.result %}' }, Next: 'Store' } as State
+      await together(port, { a: { url: 'u1', name: 'n' }, b: { url: 'u1', name: 'n' } }, block)
+      expect(calls.fetch).toBe(2)
+      expect(await port.blocks.waiters(null, 'a~|0')).toEqual([])
+    })
+
     it('runs on each visit when it keeps no result', async () => {
       const { port, calls } = setup()
       await together(port, { a: { url: 'u1', name: 'n' }, b: { url: 'u1', name: 'n' } }, fetchAndStore({ Cache: {} } as Partial<State>))

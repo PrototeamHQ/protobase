@@ -115,8 +115,8 @@ export const runBlock = async (state: BlockState, call: StateCall): Promise<Ran>
   const entry = cache && key ? await tolerant(task, 'be read', () => cache.store.lookup({ runId: call.context.runId, type: key.type, identity, keys: [key.key] })) : undefined
   // A secret the result depends on that changed since makes it one to fetch again.
   if (entry && entry.secretsChanged.length === 0 && (await connected(state, call))) return hit(entry, recordedInput, call)
-  // Only a block whose result is kept shares its run: one that keeps none runs on each visit. A block that reads secrets
-  // shares too, as its cache entry is reused: the identity holds the tenant, and the runs of one app read the same
-  // secrets, which the shared run reads as it runs.
-  return begin(key && cacheSeconds(state.Cache.Ttl) !== undefined ? { key: key.key, identity } : undefined)
+  // Only a block whose result is kept shares its run: one that keeps none runs on each visit. Nor does one that reads a
+  // secret, since a run under way may have read a value changed since, which a cache entry's fingerprints tell and a
+  // shared run cannot.
+  return begin(key && key.secrets.length === 0 && cacheSeconds(state.Cache.Ttl) !== undefined ? { key: key.key, identity } : undefined)
 }
