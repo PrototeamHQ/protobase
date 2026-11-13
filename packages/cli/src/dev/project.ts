@@ -1,14 +1,11 @@
-import { pathToFileURL } from 'node:url'
 import { loadSourceConfig } from '../config/source-config'
 import type { ImportModules } from '../config/read-config'
 import type { Extension } from '../project/extensions'
 import { sharedDb } from './create-db'
+import { devModuleUrl } from './dev-module-url'
 import { serverPackage } from './server-package'
 
-// Vite serves absolute files under /@fs, which keeps them in the module graph (and so hot reloadable); a package's own
-// file loads as it is.
-const load = (file: string): Promise<Record<string, unknown>> =>
-  file.split('/').includes('node_modules') ? import(/* @vite-ignore */ pathToFileURL(file).href) : import(/* @vite-ignore */ `/@fs${file}`)
+const load = (file: string): Promise<Record<string, unknown>> => import(/* @vite-ignore */ devModuleUrl(file))
 
 const importModules: ImportModules = async (files) => {
   const modules = []
