@@ -9,7 +9,7 @@ import { tolerant } from './cache/tolerant'
 import { StepError } from './errors'
 import { evaluateKept, evaluateTemplate } from './evaluate'
 import { jsonBytes } from './json-bytes'
-import type { BlockRun, TaskContext } from './port'
+import type { BlockRun, BlockShare, TaskContext } from './port'
 import { redacted } from './redact'
 import type { Ran } from './ran'
 import type { StateCall } from './step-input'
@@ -65,9 +65,10 @@ const ended = async (run: BlockRun, input: unknown, call: StateCall, keep: (kept
 }
 
 /**
- * One try of a Block: the result of an earlier run of it with the same key and identity while that entry serves, else a
- * run of its own on its Arguments, which this run waits for. Each try starts at most one run, which a later segment of
- * the try finds again; a result, an empty one too, is kept for `Cache.Ttl`, and a failure is not.
+ * One try of a Block: the result of an earlier run of it with the same key and identity while that entry serves, else
+ * the run of it with that key and identity under way, which this run joins, else a run of its own on its Arguments.
+ * This run waits for either. Each try starts or joins at most one run, which a later segment of the try finds again; a
+ * result, an empty one too, is kept for `Cache.Ttl`, and a failure is not.
  */
 export const runBlock = async (state: BlockState, call: StateCall): Promise<Ran> => {
   const input = await blockInput(state, call)
@@ -86,14 +87,27 @@ export const runBlock = async (state: BlockState, call: StateCall): Promise<Ran>
     if (!cache || !key || seconds === undefined) return
     await tolerant(task, 'be written', () => cache.store.write({ runId: call.context.runId, type: key.type, identity, key: key.key, shape: { custom: true }, output: kept, seconds, secrets: key.secrets }))
   }
+  // A run that ended gives its outcome; one another run started gives its result only while this run's accounts can
+  // still be used, as a cache hit does, and otherwise this run starts its own.
+  const take = async (run: BlockRun): Promise<Ran> => {
+    if (run.status !== 'succeeded' && run.status !== 'failed') return waiting
+    if (run.joined && run.status === 'succeeded' && !(await connected(state, call))) return begin()
+    return ended(run, recordedInput, call, keep)
+  }
+  // Starts a run of the block, or with `share` joins one of the same key and identity under way, which may have ended
+  // by the time it is joined.
+  const begin = async (share?: BlockShare): Promise<Ran> => {
+    const count = await blocks.count()
+    if (count >= limits.blockRuns) throw new StepError('States.DataLimitExceeded', `The run started ${count} runs of blocks, the most one run may start (${limits.blockRuns})`)
+    const run = await blocks.start({ visit, state: call.name, input, ...(share && { share }) })
+    if (!run) throw new StepError('States.Runtime', `"${call.name}" is not a Block of the version this run runs`)
+    return take(run)
+  }
   const started = await blocks.find(visit)
-  if (started) return started.status === 'succeeded' || started.status === 'failed' ? ended(started, recordedInput, call, keep) : waiting
+  if (started) return take(started)
   const entry = cache && key ? await tolerant(task, 'be read', () => cache.store.lookup({ runId: call.context.runId, type: key.type, identity, keys: [key.key] })) : undefined
   // A secret the result depends on that changed since makes it one to fetch again.
   if (entry && entry.secretsChanged.length === 0 && (await connected(state, call))) return hit(entry, recordedInput, call)
-  const count = await blocks.count()
-  if (count >= limits.blockRuns) throw new StepError('States.DataLimitExceeded', `The run started ${count} runs of blocks, the most one run may start (${limits.blockRuns})`)
-  const run = await blocks.start({ visit, state: call.name, input })
-  if (!run) throw new StepError('States.Runtime', `"${call.name}" is not a Block of the version this run runs`)
-  return waiting
+  // Only a block whose result is kept shares its run: one that keeps none runs on each visit.
+  return begin(key && cacheSeconds(state.Cache.Ttl) !== undefined ? { key: key.key, identity } : undefined)
 }

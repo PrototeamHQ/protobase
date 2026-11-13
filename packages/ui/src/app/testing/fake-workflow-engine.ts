@@ -62,21 +62,36 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
   }
   const segment = (id: string) => void runner.segment(null, id, new AbortController().signal)
   const blockRun = (row: Row): BlockRun => ({ id: String(row.id), status: row.status as BlockRun['status'], output: row.output, error: row.error as string | null, cause: row.cause as string | null, finishedAt: row.finished_at ? new Date(String(row.finished_at)) : null, blanked: row.output_blanked as boolean | null })
+  // A run another may join is kept by its key and tenant, beside the table as the database keeps it out of the API; one
+  // person here, so the tenant is the whole identity. A try that joined one finds it by its waiter.
+  const shared = new Map<string, string>()
+  const waiters: { run: string; parent: string; visit: string }[] = []
+  const own = (parent: string, visit: string) => table('workflow_runs').find((row) => same(row.block_of, parent) && row.block_visit === visit)
   const blocks: BlockRunStore<null> = {
     find: async (_, parent, visit) => {
-      const found = table('workflow_runs').find((row) => same(row.block_of, parent) && row.block_visit === visit)
-      return found && blockRun(found)
+      const found = own(parent, visit)
+      if (found) return blockRun(found)
+      const waiter = waiters.find((one) => one.parent === parent && one.visit === visit)
+      return waiter && { ...blockRun(runOf(waiter.run)), joined: true }
     },
-    start: async (db, { parent, visit, state, input }) => {
-      const found = await blocks.find(db, parent, visit)
-      if (found) return found
+    start: async (_, { parent, visit, state, input, share }) => {
+      const found = own(parent, visit)
+      if (found) return blockRun(found)
       const of = runOf(parent)
       if (!findBlock(definitionOf(of).stateMachine, state)) return
-      const row: Row = { id: `run-${++runs}`, workflow_id: of.workflow_id, version: of.version, input: structuredClone(input), status: 'queued', created_at: new Date().toISOString(), started_by: `run:${parent}`, block_of: parent, block_state: state, block_visit: visit, trace: of.trace ?? null }
+      const key = share && JSON.stringify([share.key, of.tenant_id ?? null])
+      const under = key && table('workflow_runs').find((row) => shared.get(String(row.id)) === key && (row.status === 'queued' || row.status === 'running' || row.status === 'waiting'))
+      if (under) {
+        if (!waiters.some((one) => one.parent === parent && one.visit === visit)) waiters.push({ run: String(under.id), parent, visit })
+        return { ...blockRun(under), joined: true }
+      }
+      const row: Row = { id: `run-${++runs}`, workflow_id: of.workflow_id, version: of.version, input: structuredClone(input), status: 'queued', created_at: new Date().toISOString(), started_by: `run:${parent}`, block_of: parent, block_state: state, block_visit: visit, trace: of.trace ?? null, ...(of.tenant_id !== undefined && { tenant_id: of.tenant_id }) }
       table('workflow_runs').push(row)
+      if (key) shared.set(String(row.id), key)
       setTimeout(() => segment(String(row.id)), 50)
       return blockRun(row)
     },
+    waiters: async (_, run) => waiters.filter((one) => one.run === run).map((one) => one.parent),
     count: async (_, parent) => table('workflow_runs').filter((row) => same(row.block_of, parent)).length,
   }
   // One tenant and one person here, so an entry is kept by its type and key alone, until it expires.

@@ -4,6 +4,7 @@ import { limits } from '../limits'
 import { memoryCache } from './cache/memory-cache'
 import { StepError } from './errors'
 import { memoryRunner } from './memory-port'
+import type { CacheIdentity } from './cache/cache-port'
 import type { TaskHandler, TaskHandlers } from './port'
 
 const definition = (states: Record<string, State>, startAt = Object.keys(states)[0]!): Definition => ({ trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: startAt, States: states } })
@@ -28,17 +29,18 @@ const fetchAndStore = (extra: Partial<State> = {}): State =>
 
 const flow = (block: State = fetchAndStore()) => definition({ Keep: block, Use: { Type: 'Succeed', Output: '{% $file %}' } })
 
-const setup = (tasks: TaskHandlers = {}, { secrets, tenant = () => 't1' }: { secrets?: Record<string, string>; tenant?: (runId: string) => string } = {}) => {
+const setup = (tasks: TaskHandlers = {}, { secrets, tenant = () => 't1', saver = () => 'u1' }: { secrets?: Record<string, string>; tenant?: (runId: string) => string; saver?: (runId: string) => string } = {}) => {
   const calls = { fetch: 0, store: 0 }
   let now = () => new Date()
-  const cache = memoryCache({ whoOf: (runId, identity) => ({ tenant: tenant(runId), identity }), secrets: () => secrets ?? {}, now: () => now() })
+  const whoOf = (runId: string, identity: CacheIdentity) => ({ tenant: tenant(runId), saver: saver(runId), identity })
+  const cache = memoryCache({ whoOf, secrets: () => secrets ?? {}, now: () => now() })
   const port = memoryRunner(
     {
       fetch: async (args) => (calls.fetch++, `body of ${(args as { url: string }).url}`),
       store: async (args) => (calls.store++, { file: `files/${(args as { name: string }).name}` }),
       ...tasks,
     },
-    { cache: cache.store, ...(secrets && { secrets }) },
+    { cache: cache.store, whoOf, ...(secrets && { secrets }) },
   )
   now = port.now
   return { port, cache, calls }
@@ -239,6 +241,106 @@ describe('a Block', () => {
     await port.drain()
     expect(port.run('a')).toMatchObject({ status: 'failed', error: 'States.DataLimitExceeded' })
     expect((port.run('a') as { cause?: string }).cause).toContain('(1)')
+  })
+
+  describe('reached by two runs at the same moment', () => {
+    const together = async (port: ReturnType<typeof setup>['port'], runs: Record<string, { url: string; name: string }>, block = fetchAndStore()) => {
+      for (const [id, input] of Object.entries(runs)) await port.start(id, flow(block), input)
+      await port.drain()
+    }
+
+    it('runs once, and both runs take its result, each step linking to the one run', async () => {
+      const { port, calls } = setup()
+      await together(port, { a: { url: 'u1', name: 'n' }, b: { url: 'u1', name: 'n' } })
+      expect(calls).toEqual({ fetch: 1, store: 1 })
+      expect(port.run('a')).toMatchObject({ status: 'succeeded', output: { file: 'files/n' } })
+      expect(port.run('b')).toMatchObject({ status: 'succeeded', output: { file: 'files/n' } })
+      expect(port.steps.filter((step) => step.state === 'Keep').map((step) => [step.runId, step.run])).toEqual([
+        ['a', 'a~|0'],
+        ['b', 'a~|0'],
+      ])
+    })
+
+    it('runs once for the items of a For each that reach it together', async () => {
+      const { port, calls } = setup()
+      const item = { StartAt: 'Keep', States: { Keep: fetchAndStore({ Next: undefined, End: true, Assign: undefined } as Partial<State>) } }
+      await port.start('a', definition({ Each: { Type: 'Map', Items: '{% [1, 2, 3] %}', ItemProcessor: item, End: true } } as Record<string, State>), { url: 'u1', name: 'n' })
+      await port.drain()
+      expect(port.run('a')).toMatchObject({ status: 'succeeded', output: [{ file: 'files/n' }, { file: 'files/n' }, { file: 'files/n' }] })
+      expect(calls.fetch).toBe(1)
+      expect(await port.blocks.count(null, 'a')).toBe(1)
+      expect((await port.blocks.waiters(null, port.steps.find((step) => step.state === 'Keep')!.run!)).length).toBe(2)
+    })
+
+    it("never joins another tenant's run, nor one of another saver", async () => {
+      const tenants: Record<string, string> = { b: 't2' }
+      const savers: Record<string, string> = { c: 'u2' }
+      const { port, calls } = setup({}, { tenant: (runId) => tenants[runId] ?? 't1', saver: (runId) => savers[runId] ?? 'u1' })
+      await together(port, { a: { url: 'u1', name: 'n' }, b: { url: 'u1', name: 'n' }, c: { url: 'u1', name: 'n' } })
+      expect(calls.fetch).toBe(3)
+      expect(port.steps.filter((step) => step.state === 'Keep').map((step) => step.run)).toEqual(['a~|0', 'b~|0', 'c~|0'])
+    })
+
+    it('fails every run that joined a run that failed, and keeps nothing', async () => {
+      let fail = true
+      const { port, calls } = setup({ fetch: async () => (calls.fetch++, fail ? Promise.reject(new StepError('Fetch.Expired', 'The link expired')) : 'body') })
+      await together(port, { a: { url: 'u1', name: 'n' }, b: { url: 'u1', name: 'n' } })
+      expect(calls.fetch).toBe(1)
+      expect(port.run('a')).toMatchObject({ status: 'failed', error: 'Fetch.Expired', cause: 'The link expired' })
+      expect(port.run('b')).toMatchObject({ status: 'failed', error: 'Fetch.Expired', cause: 'The link expired' })
+      fail = false
+      await together(port, { c: { url: 'u1', name: 'n' } })
+      expect(calls.fetch).toBe(2)
+      expect(port.run('c')).toMatchObject({ status: 'succeeded' })
+    })
+
+    it('wakes only the runs that joined the run that ended', async () => {
+      const { port, calls } = setup()
+      await together(port, { a: { url: 'u1', name: 'n1' }, b: { url: 'u1', name: 'n1' }, c: { url: 'u2', name: 'n2' }, d: { url: 'u2', name: 'n2' } })
+      expect(calls.fetch).toBe(2)
+      expect([port.run('a').output, port.run('b').output, port.run('c').output, port.run('d').output]).toEqual([{ file: 'files/n1' }, { file: 'files/n1' }, { file: 'files/n2' }, { file: 'files/n2' }])
+      expect(await port.blocks.waiters(null, 'a~|0')).toEqual(['b'])
+      expect(await port.blocks.waiters(null, 'c~|0')).toEqual(['d'])
+    })
+
+    it('runs on each visit when it keeps no result', async () => {
+      const { port, calls } = setup()
+      await together(port, { a: { url: 'u1', name: 'n' }, b: { url: 'u1', name: 'n' } }, fetchAndStore({ Cache: {} } as Partial<State>))
+      expect(calls.fetch).toBe(2)
+    })
+
+    it('takes the result of a run that ended as it joined it, without waiting to be woken', async () => {
+      const { port } = setup()
+      const start = port.blocks.start
+      port.blocks.start = async (db, run) => {
+        const got = await start(db, run)
+        if (!got?.joined) return got
+        await port.store.update(null, got.id, { status: 'succeeded', output: { file: 'files/early' }, blanked: false })
+        return port.blocks.find(null, run.parent, run.visit)
+      }
+      await port.start('a', flow(), { url: 'u1', name: 'n' })
+      await port.start('b', flow(), { url: 'u1', name: 'n' })
+      await port.step()
+      await port.step()
+      expect(port.run('b')).toMatchObject({ status: 'succeeded', output: { file: 'files/early' } })
+    })
+
+    it('starts its own run when an account its steps sign in with can no longer be used by the time the joined run ends', async () => {
+      let usable = true
+      let fetched = 0
+      const fetch: TaskHandler = Object.assign(async () => (fetched++, 'body'), { connected: async () => usable })
+      const { port } = setup({ fetch })
+      await port.start('a', flow(), { url: 'u1', name: 'n' })
+      await port.start('b', flow(), { url: 'u1', name: 'n' })
+      for (const _ of ['a', 'b', 'a~|0']) await port.step()
+      usable = false
+      await port.drain()
+      expect(fetched).toBe(2)
+      expect(port.steps.filter((step) => step.state === 'Keep').map((step) => [step.runId, step.run])).toEqual([
+        ['a', 'a~|0'],
+        ['b', 'b~|0'],
+      ])
+    })
   })
 
   it("is held back in a replay, giving what the replayed run's block gave; its own run replays by itself", async () => {
