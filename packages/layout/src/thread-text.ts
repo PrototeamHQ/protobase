@@ -1,4 +1,4 @@
-import type { LayoutNode, LayoutValue } from './node'
+import type { LayoutNode } from './node'
 import { blocks } from './text/markdown'
 import { renderText } from './text/render-text'
 import { threadRule } from './text/thread-forms'
@@ -38,8 +38,9 @@ const call = (item: Extract<ThreadTextItem, { kind: 'call' }>, words: ToolCallWo
     labels: words,
     ...(item.time !== undefined && { time: item.time }),
     ...(item.status !== undefined && { status: item.status }),
-    ...(item.input != null && { input: item.input as LayoutValue }),
-    ...(item.result != null && { result: item.result as LayoutValue }),
+    // As JSON text, so a payload shaped like an element is never read as one
+    ...(item.input != null && { input: JSON.stringify(item.input, null, 2) }),
+    ...(item.result != null && { result: JSON.stringify(item.result, null, 2) }),
     ...(item.error != null && { error: item.error }),
   },
   children: [],

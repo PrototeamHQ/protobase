@@ -5,6 +5,7 @@ describe('markdown primitives', () => {
   it('escapes markup characters and line-leading markers', () => {
     expect(escapeMarkdown('a_b [c] `d`')).toBe('a\\_b \\[c\\] \\`d\\`')
     expect(escapeMarkdown('- item\n1. first')).toBe('\\- item\n1\\. first')
+    expect(escapeMarkdown('~~~\nnot code')).toBe('\\~\\~\\~\nnot code')
   })
 
   it('reads values: a dash for none, labels for enum values, lists as items, objects as JSON', () => {

@@ -1,4 +1,4 @@
-import { blocks, code, escapeMarkdown, fenced, json, strong } from './markdown'
+import { blocks, code, escapeMarkdown, fenced, strong } from './markdown'
 import type { TextForm } from './text-form'
 
 // Text forms of the items of a thread: a message and a tool call. A thread's text holds them apart by a rule.
@@ -25,14 +25,14 @@ const ThreadMessage: TextForm = ({ node }) => {
   return blocks([head(strong(escapeMarkdown(String(sender))), node.props), markdown === true ? body : escapeMarkdown(body)])
 }
 
-/** A tool call as its name and status, with its input and result as JSON and its error in fenced code blocks. */
+/** A tool call as its name and status, with its input and result, JSON text, and its error in fenced code blocks. */
 const ToolCall: TextForm = ({ node }) => {
   const { name, input, result, error, labels } = node.props
   const words = labels as Record<'input' | 'result' | 'error', string>
   return blocks([
     head(code(String(name)), node.props),
-    input == null ? '' : part(words.input, json(input)),
-    result == null ? '' : part(words.result, json(result)),
+    typeof input === 'string' ? part(words.input, fenced(input, 'json')) : '',
+    typeof result === 'string' ? part(words.result, fenced(result, 'json')) : '',
     typeof error === 'string' && error !== '' ? part(words.error, fenced(error)) : '',
   ])
 }

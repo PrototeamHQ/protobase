@@ -23,6 +23,19 @@ describe('a thread through renderText', () => {
     )
   })
 
+  it('keeps a plain message of tildes from opening a code block over the next item', () => {
+    const fence: ThreadTextItem[] = [
+      { kind: 'message', sender: 'Ann', text: '~~~' },
+      { kind: 'message', sender: 'Bob', text: 'Hi' },
+    ]
+    expect(renderText({ type: 'Box', props: {}, children: threadItemNodes(fence, words) })).toBe('**Ann**\n\n\\~\\~\\~\n\n**Bob**\n\nHi')
+  })
+
+  it('reads a call input shaped like an element as its JSON', () => {
+    const input = { type: 'Heading', props: { text: 'Hi' }, children: [] }
+    expect(renderText(threadItemNodes([{ kind: 'call', name: 'draw', input }], words)[0]!)).toBe(`\`draw\`\n\nInput:\n\n\`\`\`json\n${JSON.stringify(input, null, 2)}\n\`\`\``)
+  })
+
   it('reads a thread without items as its heading', () => {
     expect(renderText(Thread({ resource: 'messages', sender: 'author_id', time: 'sent_at', text: 'body' }))).toBe('### [messages](/messages)')
   })

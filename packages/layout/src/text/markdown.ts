@@ -5,7 +5,7 @@ import { enumLabel } from '@protobase/schema'
 /** Plain text as Markdown that reads the same: the characters Markdown would take as markup are escaped. */
 export const escapeMarkdown = (text: string) =>
   text
-    .replace(/[\\`*_[\]<>]/g, '\\$&')
+    .replace(/[\\`*_~[\]<>]/g, '\\$&')
     .replace(/^(\s*)([#>+-])(?=\s|$)/gm, '$1\\$2')
     .replace(/^(\s*\d+)\.(?=\s|$)/gm, '$1\\.')
 
