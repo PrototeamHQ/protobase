@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import { firstControl } from './first-control'
 import { nextFocus } from './next-focus'
 import { text } from './messages'
 
 type Acted = { key: string; action: string; title: string }
-
-// A card's first action, else its title's link
-const firstControl = (card: Element) => card.querySelector<HTMLElement>('button') ?? card.querySelector<HTMLElement>('a')
 
 // The heading of the section the cards are in, focusable by script
 const headingOf = (root: HTMLElement) => {
@@ -16,8 +14,8 @@ const headingOf = (root: HTMLElement) => {
 
 /**
  * Where focus goes when an action takes its card out of the list, the cards' `keys` in their order: to the next card's
- * first action, else the previous card's, else the section's heading, while the focus fell to the page with the card;
- * `announcement` then says it left. Cards carry their key in `data-card`, inside `root`; each tells `acted` once one of
+ * first enabled action, else the previous card's, else the section's heading, while the focus fell to the page with the
+ * card; `announcement` then says it left. Cards carry their key in `data-card`, inside `root`; each tells `acted` once one of
  * its actions ran. A card that stays keeps the focus where it is. `keys` is a new list only when the cards reload.
  */
 export const useLeavingFocus = (keys: string[]) => {
@@ -34,7 +32,7 @@ export const useLeavingFocus = (keys: string[]) => {
     if (document.activeElement && document.activeElement !== document.body) return
     const key = nextFocus(before, after, acted.key)
     const card = key === undefined ? undefined : root.current.querySelector(`[data-card="${CSS.escape(key)}"]`)
-    const target = card ? firstControl(card) : headingOf(root.current)
+    const target = card ? firstControl<HTMLElement>(card) : headingOf(root.current)
     target?.focus()
   }
 
