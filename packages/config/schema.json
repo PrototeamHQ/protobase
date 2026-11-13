@@ -4129,6 +4129,17 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "icon": {
+          "description": "The app's own home-screen icon, a path from the project's folder to a square PNG of at least 1024 pixels or a square\nSVG, such as `'icon.png'`: `protobase mobile` makes every iOS and Android icon from it. Without it the app shows\nProtobase's icon.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
         }
       },
       "required": [

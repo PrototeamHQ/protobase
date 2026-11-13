@@ -4,7 +4,9 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { templateManifest, writeAndroidTemplate } from './android-template-fixture'
 import { generatePlatform } from './generate'
+import { iosSplashImages } from './ios-app-icon'
 import { writeIosTemplate } from './ios-template-fixture'
+import { nativeIconFiles, protobaseIconDir } from './native-icon'
 import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
 import { writeProtobaseSplash, writeTemplateSplash } from './native-splash-fixture'
 
@@ -31,6 +33,24 @@ const manifest = () => readFileSync(path.join(ws, 'android', 'app', 'src', 'main
 const rules = () => path.join(ws, 'android', 'app', 'src', 'main', 'res', 'xml', 'data_extraction_rules.xml')
 
 describe('generatePlatform', () => {
+  it("gives an app with its own icon that icon, and on iOS the launch screen's image of it, in place of Protobase's", async () => {
+    ws = mkdtempSync(path.join(tmpdir(), 'protobase-generate-'))
+    const appIconFile = (file: string) => ({ file, content: `app ${file}` })
+    const icon = { ios: { icon: [appIconFile(nativeIconFiles.ios[0]!)], splash: iosSplashImages.map(([file]) => appIconFile(file)) }, android: { icon: nativeIconFiles.android.map(appIconFile), splash: [] } }
+    for (const platform of ['ios', 'android'] as const) {
+      await generatePlatform(ws, platform, { ...options, cleartext: false, icon: icon[platform] }, cap([]))
+      for (const { file, content } of [...icon[platform].icon, ...icon[platform].splash]) expect(readFileSync(path.join(ws, platform, file), 'utf8')).toBe(content)
+    }
+  })
+
+  it("gives an app without its own icon Protobase's, byte for byte", async () => {
+    ws = mkdtempSync(path.join(tmpdir(), 'protobase-generate-'))
+    for (const platform of ['ios', 'android'] as const) {
+      await generatePlatform(ws, platform, { ...options, cleartext: false }, cap([]))
+      for (const file of nativeIconFiles[platform]) expect(readFileSync(path.join(ws, platform, file)), file).toEqual(readFileSync(path.join(protobaseIconDir(ws, platform), file)))
+    }
+  })
+
   it('replaces the native project, leaving iOS transport security alone for an https API', async () => {
     ws = mkdtempSync(path.join(tmpdir(), 'protobase-generate-'))
     mkdirSync(path.join(ws, 'ios'))

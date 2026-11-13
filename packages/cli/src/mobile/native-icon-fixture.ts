@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { nativeIconFiles, protobaseIconDir } from './native-icon'
+import { nativeIconFiles, protobaseIconDir, templateIconFiles } from './native-icon'
 import type { Platform } from './platform'
 
 const write = (file: string, content: string) => {
@@ -17,5 +17,5 @@ export const writeProtobaseIcon = (ws: string) => {
 
 /** For tests: the icon files `cap add` writes in the platform's native project, each holding `capacitor`. */
 export const writeTemplateIcon = (ws: string, platform: Platform) => {
-  for (const file of nativeIconFiles[platform]) write(path.join(ws, platform, file), 'capacitor')
+  for (const file of templateIconFiles[platform]) write(path.join(ws, platform, file), 'capacitor')
 }

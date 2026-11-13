@@ -1,6 +1,9 @@
 import { existsSync } from 'node:fs'
-import { copyFile } from 'node:fs/promises'
+import { copyFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { adaptiveIconFiles } from './android-app-icon'
+import { iosIconContents } from './ios-app-icon'
+import type { NativeFile } from './native-file'
 import type { Platform } from './platform'
 
 const densities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']
@@ -34,3 +37,24 @@ export const withProtobaseIcon = async (ws: string, platform: Platform) => {
     await copyFile(from, to)
   }
 }
+
+/** The template's files the app's own icon may replace: Protobase's, the AppIcon set's Contents.json and Android's adaptive icons. */
+export const templateIconFiles: Record<Platform, string[]> = {
+  ios: [...nativeIconFiles.ios, iosIconContents],
+  android: [...nativeIconFiles.android, ...adaptiveIconFiles],
+}
+
+/**
+ * Writes `files` into the platform's native project in the workspace, where each of `replaced` must already be, so a
+ * template that moves one fails here rather than leaving an icon of another on the phone.
+ */
+export const writeNativeFiles = async (ws: string, platform: Platform, files: NativeFile[], replaced: string[]) => {
+  for (const { file, content } of files) {
+    const to = path.join(ws, platform, file)
+    if (replaced.includes(file) && !existsSync(to)) throw new Error(`The generated ${platform} project has no ${file}, which the app's icon replaces`)
+    await writeFile(to, content)
+  }
+}
+
+/** Gives the platform's native project in the workspace the app's own icon, its `files`, in place of Capacitor's. */
+export const withAppIcon = (ws: string, platform: Platform, files: NativeFile[]) => writeNativeFiles(ws, platform, files, templateIconFiles[platform])

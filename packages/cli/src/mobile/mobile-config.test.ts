@@ -15,6 +15,13 @@ describe('checkMobileConfig', () => {
     }
   })
 
+  it("takes the path of the app's icon, and refuses one that is no path", () => {
+    expect(checkMobileConfig({ appId: 'com.example.shop', icon: 'icon.png' })).toEqual({ appId: 'com.example.shop', icon: 'icon.png' })
+    for (const icon of ['', 7, { file: 'icon.png' }]) {
+      expect(() => checkMobileConfig({ appId: 'com.example.shop', icon }), String(icon)).toThrow("mobile.icon must be the path of the app's icon from the project's folder")
+    }
+  })
+
   it('refuses plugins that are not a record of strings', () => {
     for (const plugins of [['@capacitor/camera'], { '@capacitor/camera': 8 }, 'camera']) {
       expect(() => checkMobileConfig({ appId: 'com.example.shop', plugins })).toThrow("mobile.plugins must map each plugin's npm name")

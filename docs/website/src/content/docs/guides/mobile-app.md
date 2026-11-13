@@ -38,7 +38,7 @@ export default defineConfig({
 
 The app is installed under the name it shows in its upper left, on iOS and Android alike: `protobase mobile` reads it from the server the app calls (its web manifest), so a `PROTOBASE_APP_NAME` the server runs with names the app on the phone too. When that server cannot be reached, `run` and `open` warn and take the project's own name, the config's `name` or `PROTOBASE_APP_NAME` in its environment, and `build` stops.
 
-On the home screen the app shows Protobase's icon, on iOS and Android alike. While it starts, its splash screen shows that icon in the middle of the app's background: the `--background` [token](/reference/theme/) of its `protobase.theme.css`, or the default without one, light or dark as the phone is. `protobase mobile` takes it as a colour such as `#f4f3ee`, `rgb()`, `hsl()` or `white`, and stops on one a phone's splash screen cannot show, such as `oklch()` or `var()`. <gap>An app cannot show its own icon on the phone, on the home screen or its splash screen, because setting the mobile app's icon is not implemented.</gap>
+On the home screen the app shows [its own icon](#the-icon), or Protobase's without one, on iOS and Android alike. While it starts, its splash screen shows that icon in the middle of the app's background: the `--background` [token](/reference/theme/) of its `protobase.theme.css`, or the default without one, light or dark as the phone is. `protobase mobile` takes it as a colour such as `#f4f3ee`, `rgb()`, `hsl()` or `white`, and stops on one a phone's splash screen cannot show, such as `oklch()` or `var()`.
 
 With a mobile section, the API answers the app's origins, `capacitor://localhost` on iOS and `https://localhost` on Android, through [CORS](/reference/api/#cors). Apps without one get no new dependency, and `protobase build` and `protobase dev` work as before.
 
@@ -50,6 +50,22 @@ Signing in works in the app as on the web, with nothing more to set up:
 - <gap>"Forgot password?" is not offered in the app, as the emailed link cannot lead back into it.</gap>
 - Page script cannot reach the session cookie, on iOS and Android alike: Capacitor's `CapacitorHttp`, `CapacitorCookies` and `WebView` plugins are refused to it, and so are the app's local file routes. A plugin that reads files for its JavaScript, such as `@capacitor/filesystem`, could still hand the cookie over.
 - While you develop over plain `http://localhost` with a mobile section, a page served on `https://localhost` in the same browser can send sign-in requests that carry your dev session, as some browsers treat the two as the same site. Do not open untrusted pages on `https://localhost` while you develop.
+
+### The icon
+
+Name one square image in the mobile section, and every icon size for iOS and Android is made for you: the App Store icon with iOS's dark and tinted icons, and Android's launcher, round, adaptive and themed icons. Without one, the app shows the Protobase icon.
+
+```ts
+mobile: { appId: 'com.example.shop', icon: 'icon.png' },
+```
+
+- `icon` is a path from the project's folder to a square PNG of at least 1024 × 1024 pixels, or a square SVG. `protobase mobile` stops on a missing file, any other format, an image that is not square or a smaller PNG, naming `mobile.icon`.
+- The icon sits on the app's [`backgroundColor`](/reference/app-identity/#the-colours), or on the splash screen's light background without one: iOS's App Store icon is filled with it, as the App Store takes no transparency, and it is the background of Android's adaptive icon. With an icon, `backgroundColor` must be an opaque colour such as `#ffffff`, `rgb()` or `hsl()`.
+- Android's adaptive icon draws the whole image within the middle 66 of its 108 dp, the safe zone no launcher's mask cuts into.
+- An image on a transparent background also gives iOS's dark icon, its mark on the dark background iOS draws, and its tinted icon, the mark in greyscale, and Android's themed icon, in the mark's shape. An image without transparency gives none of these: iOS makes its dark and tinted icons from the App Store icon, and Android shows the icon as it is. A mark on a transparent background suits every platform best.
+- The splash screen shows the app's icon too, on iOS with its corners rounded.
+
+Changing the icon takes a new store release: a [live update](#7-live-updates) does not change it.
 
 ## 3. Run it
 
