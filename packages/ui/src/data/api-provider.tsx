@@ -4,6 +4,8 @@ import { createClient, type Client, type ClientOptions, type SourceRef } from '@
 import { createFocusRefresh, FocusRefreshContext, listenToWindowFocus } from './focus-refresh'
 import type { MetaData } from './meta-data'
 import { keys } from './query-keys'
+import type { QueryPersistence } from './start-cache/query-persistence'
+import { ClientStartContext } from './start-cache/restored-state'
 
 const ApiContext = createContext<Client | null>(null)
 const SourceClientsContext = createContext<((source: SourceRef) => Client) | null>(null)
@@ -59,6 +61,8 @@ export type ApiProviderProps = {
   /** The bearer token source, and what to do when the session is over; see `createAuthSession`. */
   token?: ClientOptions['token']
   onUnauthenticated?: () => void
+  /** Keeps the cache's queries between starts, for someone signed in as themselves; see `createQueryPersistence`. */
+  persistence?: QueryPersistence
   children: ReactNode
 }
 
@@ -66,13 +70,18 @@ export type ApiProviderProps = {
  * Owns the query cache and the API client; refetches `/meta` whenever `X-Meta-Version` changes. The version is
  * compared only with the last one seen: it hashes the models and roles, while the `/meta` ETag hashes the whole
  * per-caller body, so the two never match. The data on screen refetches whenever the window regains focus, unless a
- * form holds unsaved changes (`usePauseFocusRefresh`).
+ * form holds unsaved changes (`usePauseFocusRefresh`). With `persistence`, it starts from the queries cached for its
+ * owner, which refetch as they are used.
  */
-export const ApiProvider = ({ baseUrl, client: given, sources, fetch, queryClient: givenQueryClient, token, onUnauthenticated, children }: ApiProviderProps) => {
+export const ApiProvider = ({ baseUrl, client: given, sources, fetch, queryClient: givenQueryClient, token, onUnauthenticated, persistence, children }: ApiProviderProps) => {
   const [focusRefresh] = useState(createFocusRefresh)
-  const [queryClient] = useState(
-    () => givenQueryClient ?? new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: false, refetchOnWindowFocus: focusRefresh.refetchOnWindowFocus } } }),
-  )
+  // The cached queries are in the client before anything below draws, so the first render shows them.
+  const [{ queryClient, startedAt }] = useState(() => {
+    const queryClient = givenQueryClient ?? new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: false, refetchOnWindowFocus: focusRefresh.refetchOnWindowFocus } } })
+    persistence?.restore(queryClient)
+    return { queryClient, startedAt: Date.now() }
+  })
+  useEffect(() => persistence?.subscribe(queryClient), [persistence, queryClient])
   useEffect(() => focusManager.setEventListener(listenToWindowFocus), [])
   const metaVersion = useRef<string | undefined>(undefined)
   const client = useMemo(
@@ -122,7 +131,9 @@ export const ApiProvider = ({ baseUrl, client: given, sources, fetch, queryClien
     <QueryClientProvider client={queryClient}>
       <ApiContext.Provider value={client}>
         <SourceClientsContext.Provider value={sourceClient}>
-          <FocusRefreshContext.Provider value={focusRefresh}>{children}</FocusRefreshContext.Provider>
+          <FocusRefreshContext.Provider value={focusRefresh}>
+            <ClientStartContext.Provider value={startedAt}>{children}</ClientStartContext.Provider>
+          </FocusRefreshContext.Provider>
         </SourceClientsContext.Provider>
       </ApiContext.Provider>
     </QueryClientProvider>

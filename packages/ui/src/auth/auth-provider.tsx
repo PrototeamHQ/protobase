@@ -1,26 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { createAuthSession, createClient, type AuthSession, type AuthUser, type PersonalMailLink, type PlatformSignIn, type PluginRef, type SamlSignIn, type RequiredSetup, type SetupStatus, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod, type WorkflowConnection } from '@protobase/client'
+import { createAuthSession, createClient, type AuthSession, type AuthUser, type PersonalMailLink, type PluginRef, type SamlSignIn, type SetupStatus, type SignInMethod, type SignInResult, type TwoFactorMethod, type WorkflowConnection } from '@protobase/client'
 import type { Locale } from '@protobase/schema/internal'
 import { nativeAuthFetch, type NativeBridge } from '../app/native-auth-fetch'
 import { pushNotifications, type PushNotifications } from '../notifications/push/push-notifications'
 import type { PushUser } from '../notifications/push/web-push'
+import { useStartCache } from '../data/start-cache/start-cache'
 import { providerName, withoutSignInLink } from './provider-link'
+import type { AuthState } from './auth-state'
+import { startCacheStep } from './start-session'
 import { text } from './messages'
 
-export type AuthState =
-  | { kind: 'loading' }
-  /** `firstAdminUrl`: the platform's page where the first user is added, when it names one. */
-  | { kind: 'needs-admin'; firstAdminUrl?: string }
-  | { kind: 'signed-out' }
-  /** Not signed in, browsing what the project's anonymous role reads; the sign-in route signs them in. */
-  | { kind: 'visitor' }
-  /** The password or emailed code was right; the account's second step is next. */
-  | { kind: 'two-factor'; methods: TwoFactorMethod[] }
-  /** Signed in, but the sign-in policy requires something the account has not set up; no API token until it has. */
-  | { kind: 'setup-required'; user: AuthUser; missing: RequiredSetup[] }
-  /** `staff`: staff of the operator signed in as `user`, for support; the app shows a banner to stop it. */
-  | { kind: 'signed-in'; user: AuthUser; staff?: StaffSignIn }
-  | { kind: 'error'; message: string }
+export type { AuthState } from './auth-state'
 
 export type AuthApi = {
   state: AuthState
@@ -109,6 +99,13 @@ export type SignInProvider = { id: string; name: string }
 
 const AuthContext = createContext<AuthApi | null>(null)
 
+// What the setup status gives before it has been read, each one value for every render.
+const defaultSignInMethods: SignInMethod[] = ['password']
+const none: string[] = []
+const noMail: PersonalMailLink[] = []
+const noSaml: SamlSignIn[] = []
+const noPlugins: PluginRef[] = []
+
 export const useAuth = () => {
   const api = useContext(AuthContext)
   if (!api) throw new Error('useAuth must be used inside AuthProvider')
@@ -122,29 +119,34 @@ export const useOptionalAuth = () => useContext(AuthContext)
  * Finds out whether the server has a login and who is signed in, and keeps that state for the app. Without a `session`,
  * it makes one on `origin`, the page's own by default; in the iOS or Android app, with its `nativeBridge`, the session
  * signs in through native HTTP, and "Forgot password?" is not offered, as a reset link cannot come back to the app.
+ * Below a `StartCacheProvider`, someone who was signed in starts signed in, and the check runs behind the app.
  */
 export const AuthProvider = ({ session: given, origin, nativeBridge, children }: { session?: AuthSession; origin?: string; nativeBridge?: NativeBridge; children: ReactNode }) => {
-  const [state, setState] = useState<AuthState>({ kind: 'loading' })
-  const [signInMethods, setSignInMethods] = useState<SignInMethod[]>(['password'])
-  const [signInFirst, setSignInFirst] = useState<'password' | 'emailCode'>('password')
-  const [passwordReset, setPasswordReset] = useState(false)
-  const [changeEmail, setChangeEmail] = useState(false)
-  const [accountDeletion, setAccountDeletion] = useState(false)
-  const [mcp, setMcp] = useState<{ url: string }>()
-  const [personalAccessTokens, setPersonalAccessTokens] = useState(false)
-  const [canSignUp, setCanSignUp] = useState(false)
-  const [passkeyDomains, setPasskeyDomains] = useState<string[]>([])
-  const [socialProviders, setSocialProviders] = useState<string[]>([])
-  const [platformSignIn, setPlatformSignIn] = useState<PlatformSignIn>()
-  const [personalMail, setPersonalMail] = useState<PersonalMailLink[]>([])
-  const [samlProviders, setSamlProviders] = useState<SamlSignIn[]>([])
-  const [staffSignIn, setStaffSignIn] = useState<string>()
-  const [organizations, setOrganizations] = useState<SetupStatus['organizations']>()
+  // Someone signed in when the app last ran starts signed in, from the start cache, while the session is checked behind it
+  const startCache = useStartCache()
+  const [cached] = useState(() => startCache?.session())
+  const [state, setState] = useState<AuthState>(() => (cached ? { kind: 'signed-in', user: cached.user } : { kind: 'loading' }))
+  const [status, setStatus] = useState<SetupStatus | undefined>(cached?.status)
+  const signInMethods = status?.signInMethods ?? defaultSignInMethods
+  const signInFirst = status?.signInFirst ?? 'password'
+  const passwordReset = Boolean(status?.passwordReset) && !nativeBridge
+  const changeEmail = Boolean(status?.changeEmail)
+  const accountDeletion = Boolean(status?.accountDeletion)
+  const mcp = status?.mcp
+  const personalAccessTokens = Boolean(status?.personalAccessTokens)
+  const canSignUp = Boolean(status?.signUp)
+  const passkeyDomains = status?.passkeyDomains ?? none
+  const socialProviders = status?.socialProviders ?? none
+  const platformSignIn = status?.platformSignIn
+  const personalMail = status?.personalMail ?? noMail
+  const samlProviders = status?.samlProviders ?? noSaml
+  const staffSignIn = status?.staffSignIn
+  const organizations = status?.organizations
   // Whether visitors may browse without signing in; signing out then goes back to browsing.
-  const [anonymous, setAnonymous] = useState(false)
-  const [beforeSignIn, setBeforeSignIn] = useState<PluginRef[]>([])
-  const [locale, setLocale] = useState<Locale>()
-  const [identity, setIdentity] = useState<AuthIdentity>({ runsOnNote: false })
+  const anonymous = Boolean(status?.anonymous)
+  const beforeSignIn = status?.plugins ?? noPlugins
+  const locale = status?.locale
+  const identity = useMemo<AuthIdentity>(() => ({ ...(status?.appName && { appName: status.appName }), ...(status?.appIcon && { appIcon: status.appIcon }), runsOnNote: Boolean(status?.runsOnNote) }), [status])
   const signedOutState = useCallback((): AuthState => (anonymous ? { kind: 'visitor' } : { kind: 'signed-out' }), [anonymous])
   // The session is over: push here is forgotten, with no server left to ask.
   const forgetPush = useRef<() => Promise<void>>(async () => {})
@@ -193,35 +195,27 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
 
   const finish = useCallback(async (result: SignInResult) => (result.kind === 'two-factor' ? setState({ kind: 'two-factor', methods: result.methods }) : enter(result.user)), [enter])
 
+  // Someone signed in stays in the app while it checks: a server that cannot be reached leaves them with what is cached,
+  // whose refresh then shows that it failed.
   const recheck = useCallback(() => {
-    setState({ kind: 'loading' })
+    setState((current) => (current.kind === 'signed-in' ? current : { kind: 'loading' }))
     void session.status().then(async (status) => {
-      setSignInMethods(status.signInMethods)
-      setSignInFirst(status.signInFirst ?? 'password')
-      setPasswordReset(status.passwordReset && !nativeBridge)
-      setChangeEmail(Boolean(status.changeEmail))
-      setAccountDeletion(Boolean(status.accountDeletion))
-      setMcp(status.mcp)
-      setPersonalAccessTokens(Boolean(status.personalAccessTokens))
-      setCanSignUp(Boolean(status.signUp))
-      setPasskeyDomains(status.passkeyDomains ?? [])
-      setSocialProviders(status.socialProviders)
-      setPlatformSignIn(status.platformSignIn)
-      setPersonalMail(status.personalMail ?? [])
-      setSamlProviders(status.samlProviders)
-      setStaffSignIn(status.staffSignIn)
-      setOrganizations(status.organizations)
-      setAnonymous(Boolean(status.anonymous))
-      setBeforeSignIn(status.plugins ?? [])
-      setLocale(status.locale)
-      setIdentity({ ...(status.appName && { appName: status.appName }), ...(status.appIcon && { appIcon: status.appIcon }), runsOnNote: Boolean(status.runsOnNote) })
+      setStatus(status)
       if (status.needsAdmin) return setState({ kind: 'needs-admin', ...(status.firstAdminUrl && { firstAdminUrl: status.firstAdminUrl }) })
       const user = await session.session()
       return user ? enter(user) : setState({ kind: status.anonymous ? 'visitor' : 'signed-out' })
-    }).catch((error: unknown) => setState({ kind: 'error', message: error instanceof Error ? error.message : text('noAnswer') }))
-  }, [session, enter, nativeBridge])
+    }).catch((error: unknown) => setState((current) => (current.kind === 'signed-in' ? current : { kind: 'error', message: error instanceof Error ? error.message : text('noAnswer') })))
+  }, [session, enter])
 
   useEffect(recheck, [recheck])
+
+  // The start cache keeps someone signed in as themselves, from the moment they are; signing out forgets it all.
+  useEffect(() => {
+    if (!startCache) return
+    const step = startCacheStep(state, status)
+    if (step === 'clear') void startCache.clear()
+    else if (step !== 'leave') void startCache.saveSession(step.save)
+  }, [startCache, state, status])
 
   const api = useMemo<AuthApi>(
     () => ({

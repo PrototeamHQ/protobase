@@ -4,18 +4,21 @@ import { useClient } from './api-provider'
 import { MetaContext } from './meta-context'
 import type { MetaData } from './meta-data'
 import { keys } from './query-keys'
+import { isRestored, ClientStartContext } from './start-cache/restored-state'
 import { keepOnVersionChange } from './version-freeze'
 
 /**
  * The resource and view models. Refetches on window focus with `If-None-Match`, so an unchanged
  * `/meta` costs a 304, and the cached object keeps its identity. Once the server runs another Protobase version than
  * the page started with, it keeps the `/meta` it has and stops reading it (see `keepOnVersionChange`). Below the app's
- * `MetaGate`, `data` holds the resources of its sources too, as every page of the app reads them.
+ * `MetaGate`, `data` holds the resources of its sources too, as every page of the app reads them. A `/meta` from the start
+ * cache is replaced by the first one read, whatever its version.
  */
 export const useMeta = (): UseQueryResult<MetaData> => {
   const client = useClient()
   const queryClient = useQueryClient()
   const merged = useContext(MetaContext)
+  const startedAt = useContext(ClientStartContext)
   const query = useQuery({
     queryKey: keys.meta,
     staleTime: 0,
@@ -28,7 +31,9 @@ export const useMeta = (): UseQueryResult<MetaData> => {
         if (!previous) throw new Error('The server answered 304 to a request without If-None-Match')
         return previous
       }
-      return keepOnVersionChange(previous, {
+      // A cached `/meta` is from an earlier start, so the version this page started with is the first one it reads
+      const state = queryClient.getQueryState(keys.meta)
+      return keepOnVersionChange(state && isRestored(state, startedAt) ? undefined : previous, {
         etag: result.etag,
         appName: result.meta.appName,
         ...(result.meta.protobaseVersion && { protobaseVersion: result.meta.protobaseVersion }),
