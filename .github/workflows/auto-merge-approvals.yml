@@ -43,6 +43,12 @@ jobs:
       ((github.event_name == 'pull_request_review' || github.event_name == 'pull_request_target') &&
         github.event.pull_request.head.repo.full_name == github.repository &&
         contains(github.event.pull_request.labels.*.name, 'auto-merge-approvals'))
+    # GitHub answers two merges of one head at the same moment with the same merge commit, so two runs that both found
+    # it open would both start the release. Runs for one head take turns, and a later one finds it merged and stops.
+    # Every run waits its turn instead of replacing a waiting one.
+    concurrency:
+      group: auto-merge-approvals-${{ github.event.workflow_run.head_sha || github.event.check_suite.head_sha || github.event.pull_request.head.sha || github.event.sha }}
+      queue: max
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
