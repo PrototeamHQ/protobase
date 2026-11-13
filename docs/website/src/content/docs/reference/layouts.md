@@ -91,7 +91,7 @@ renderText(tree, { forms: { Grid: ruled, Card: noted, SeatChart: childrenText } 
 
 A custom component reads as its [fallback](/reference/custom-components/#fallbacks) when it declares one, and otherwise as what it holds, unless `forms` names it.
 
-<gap>A data block's text form cannot read its records itself, such as a table's rows, because reading records for the text form is not implemented.</gap> <gap>A data block other than a `Table` cannot list records you pass because its text form for records is not implemented.</gap> <gap>A field's text form cannot apply its `format`, such as a relative time, because formatting in the text form is not implemented.</gap> <gap>MCP clients cannot read a page's text form because a tool that serves it is not implemented.</gap>
+<gap>A data block's text form cannot read its records itself, such as a table's rows, because reading records for the text form is not implemented.</gap> A `Thread` holding the elements of [`threadItemNodes`](/reference/blocks/#tool-calls) reads as its messages and calls. <gap>A data block other than a `Table` or a `Thread` cannot list records you pass because its text form for records is not implemented.</gap> <gap>A field's text form cannot apply its `format`, such as a relative time, because formatting in the text form is not implemented.</gap> <gap>MCP clients cannot read a page's text form because a tool that serves it is not implemented.</gap>
 
 ## What a layout may hold
 
