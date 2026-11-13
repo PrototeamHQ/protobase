@@ -143,6 +143,15 @@ describe('resource builder', () => {
     expect(notes.history().comments().toModel()).toMatchObject({ history: true, comments: true })
   })
 
+  it('keeps the fields history ignores, and refuses an unknown one or the key', () => {
+    const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text(), views: f.integer() }).primaryKey((r) => r.id)
+    expect(notes.history().toModel()).not.toHaveProperty('historyIgnore')
+    expect(notes.history({ ignore: ['views'] }).toModel().historyIgnore).toEqual(['views'])
+    // @ts-expect-error only the resource's fields
+    expect(() => notes.history({ ignore: ['missing'] }).toModel()).toThrow('history ignores the unknown field "missing"')
+    expect(() => notes.history({ ignore: ['id'] }).toModel()).toThrow('history cannot ignore the key, tenant or soft delete field "id"')
+  })
+
   it('refreshes open pages only when asked', () => {
     const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id)
     expect(notes.toModel()).not.toHaveProperty('live')
