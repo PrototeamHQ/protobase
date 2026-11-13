@@ -49,6 +49,8 @@ export type WorkflowTraceStep = {
   run?: string
   /** A Block's step whose result an earlier run of it gave, kept in the cache. */
   reused?: true
+  /** A Block's step that took the result of a run of it another visit had started with the same key. */
+  joined?: true
 }
 
 /**

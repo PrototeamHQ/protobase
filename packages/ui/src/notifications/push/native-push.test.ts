@@ -2,21 +2,22 @@ import { describe, expect, it } from 'vitest'
 import { ApiError, type DevicesClient, type FcmDeviceRegistration } from '@protobase/client'
 import type { NativeBridge } from '../../app/native-auth-fetch'
 import { nativePush } from './native-push'
-import { PushChoiceNotStored, PushRegistrationError, PushTokenTimeout } from './push-failure'
 import { storagePushChoices, type PushChoice } from './push-choices'
+import { PushChoiceNotStored, PushRegistrationError, PushTokenTimeout } from './push-failure'
 import type { PushRecord } from './push-records'
 import type { PushUser } from './web-push'
 
 const alice: PushUser = { id: 'alice', own: true }
 const bob: PushUser = { id: 'bob', own: true }
+const entitlement = 'no valid aps-environment entitlement string found for application'
 const conflict = (slug: string) => new ApiError({ type: `urn:protobase:problem:${slug}`, title: 'Conflict', status: 409 })
 
 type Options = {
   permission?: 'prompt' | 'granted' | 'denied'
   answer?: 'granted' | 'denied'
   record?: PushRecord
-  /** FCM answers `register` with an error instead of a token. */
-  tokenError?: boolean
+  /** The push service answers `register` with this error instead of a token. */
+  tokenError?: string
   /** The push service never answers `register`. */
   silent?: boolean
   platform?: 'ios' | 'android'
@@ -33,6 +34,7 @@ type Options = {
 const setup = (options: Options = {}) => {
   const log: string[] = []
   const sent: FcmDeviceRegistration[] = []
+  const reported: Error[] = []
   let permission = options.permission ?? 'granted'
   let record = options.record
   let generation = 1
@@ -60,7 +62,7 @@ const setup = (options: Options = {}) => {
         permission = options.answer ?? 'granted'
         return { receive: permission }
       }
-      if (method === 'register' && !options.silent) queueMicrotask(() => (options.tokenError ? emit('registrationError', { error: 'SERVICE_NOT_AVAILABLE' }) : emit('registration', { value: `token-${generation}` })))
+      if (method === 'register' && !options.silent) queueMicrotask(() => (options.tokenError ? emit('registrationError', { error: options.tokenError }) : emit('registration', { value: `token-${generation}` })))
       if (method === 'unregister') generation += 1
       return undefined
     },
@@ -94,8 +96,9 @@ const setup = (options: Options = {}) => {
     },
     device: async (token) => ({ kind: 'fcm', token }),
     tokenMs: 50,
+    report: (error) => void reported.push(error),
   })
-  return { push, log, sent, listeners, choices, record: () => record, signIn: (user: PushUser | undefined) => (signedIn = user) }
+  return { push, log, sent, reported, listeners, choices, record: () => record, signIn: (user: PushUser | undefined) => (signedIn = user) }
 }
 
 describe('nativePush', () => {
@@ -160,11 +163,32 @@ describe('nativePush', () => {
     expect(record()).toBeUndefined()
   })
 
-  it('fails at once with the reason the push service gave no token, leaving nothing registered', async () => {
-    const { push, sent, record } = setup({ tokenError: true })
-    await expect(push.turnOn()).rejects.toEqual(new PushRegistrationError('SERVICE_NOT_AVAILABLE'))
+  it('fails with the reason the push service refused the app, reporting it once and leaving nothing registered', async () => {
+    const { push, sent, log, record, reported } = setup({ tokenError: entitlement })
+    await expect(push.turnOn()).rejects.toEqual(new PushRegistrationError(entitlement))
     expect(sent).toEqual([])
     expect(record()).toBeUndefined()
+    expect(log).toEqual(['register', 'forget', 'removeAllDeliveredNotifications', 'unregister'])
+    expect(reported).toHaveLength(1)
+    expect(reported[0]).toBeInstanceOf(PushRegistrationError)
+    expect(reported[0]?.message).toBe(`The push service gave the app no push token: ${entitlement}`)
+  })
+
+  it('drops the registration on sign-in when the push service refuses the app, reporting its reason once', async () => {
+    const { push, sent, record, reported } = setup({ tokenError: entitlement, record: { userId: 'alice', endpoint: 'token-1', deviceId: 'device-1' } })
+    await push.adopt(alice)
+    expect(sent).toEqual([])
+    expect(record()).toBeUndefined()
+    expect(reported.map(({ message }) => message)).toEqual([`The push service gave the app no push token: ${entitlement}`])
+  })
+
+  it('still fails on any other error, such as the server refusing the device', async () => {
+    const register = async () => Promise.reject(new Error('down'))
+    const turning = setup({ register })
+    await expect(turning.push.turnOn()).rejects.toThrow('down')
+    const adopting = setup({ register, record: { userId: 'alice', endpoint: 'token-1', deviceId: 'device-1' } })
+    await expect(adopting.push.adopt(alice)).rejects.toThrow('down')
+    expect([...turning.reported, ...adopting.reported]).toEqual([])
   })
 
   it('fails naming the push service when it gives no token in time', async () => {

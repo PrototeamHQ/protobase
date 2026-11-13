@@ -114,12 +114,13 @@ describe('mcpServer', () => {
     expect(compiled.calls).toBe(tools.length)
   })
 
-  it('names the tool whose query the database stopped, and reports it', async () => {
+  it('answers a query the database stopped with the statement-timeout slug and the tool it names, and reports it', async () => {
     const report = vi.fn()
     const result = await call(report, 'tools/call', { name: 'slow', arguments: {} })
-    expect(result).toEqual({
-      content: [{ type: 'text', text: 'slow ran a query longer than its statement timeout, so the database stopped it. Ask for less, such as with a narrower filter or fewer fields.' }],
-      isError: true,
+    expect(result).toMatchObject({ isError: true })
+    expect(JSON.parse(result.content[0].text)).toEqual({
+      error: 'statement-timeout',
+      message: 'slow ran a query longer than its statement timeout, so the database stopped it. Ask for less, such as with a narrower filter or fewer fields.',
     })
     expect(report).toHaveBeenCalledWith(stopped)
   })

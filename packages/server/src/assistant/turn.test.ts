@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { ConversationRecord } from './conversation-store'
 import { createConversations } from './conversations'
 import { defineTool } from './tools'
@@ -81,5 +81,17 @@ describe('runTurn', () => {
 
     await turn('Again?')
     expect(model.bodies[2].messages.slice(1)).toEqual([{ role: 'user', content: 'How many orders?' }, { role: 'user', content: 'Again?' }])
+  })
+
+  it.each([
+    ['reports a tool\'s unexpected error', new Error('boom'), 1],
+    ['does not report a write the database refused as read-only during a deploy', Object.assign(new Error('cannot execute UPDATE in a read-only transaction'), { code: '25006' }), 0],
+  ])('fails the turn and %s', async (_name, thrown, reports) => {
+    const failing = defineTool({ name: 'count', description: 'Counts orders', parameters: { type: 'object' }, run: async () => { throw thrown } })
+    const report = vi.fn()
+    const { conversation, turn } = await setup([calls('count', {})], { tools: [failing], report })
+    await turn('How many orders?')
+    expect(conversation.state().messages.at(-1)?.parts.at(-1)).toMatchObject({ type: 'card', tone: 'danger', body: 'The server failed to answer.' })
+    expect(report).toHaveBeenCalledTimes(reports)
   })
 })

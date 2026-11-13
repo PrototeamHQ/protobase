@@ -844,6 +844,8 @@
     "reused": "Hergebruikt",
     "reusedResult": "De stappen erin draaiden niet: het resultaat van een eerdere run van het blok is bewaard en hergebruikt; de logs zeggen wanneer het gemaakt is.",
     "openEarlierBlockRun": "Run openen die dit resultaat maakte",
+    "joined": "Aangesloten",
+    "joinedResult": "Een andere run bereikte dit blok met dezelfde sleutel terwijl de run ervan nog bezig was, dus wachtte deze stap op die run in plaats van de stappen erin opnieuw te draaien.",
     "duration": "{ms, number} ms",
     "error": "Fout",
     "input": "Invoer",

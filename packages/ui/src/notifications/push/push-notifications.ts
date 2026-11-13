@@ -1,3 +1,4 @@
+import { reportError } from '../../app/error-reporting'
 import type { NativeBridge } from '../../app/native-auth-fetch'
 import { nativeDevice } from './native-device'
 import { nativePush } from './native-push'
@@ -33,7 +34,7 @@ export const pushNotifications = ({ nativeBridge, ...options }: Omit<WebPushOpti
     const device = nativeDevice(nativeBridge)
     if (!device) return noPush
     const { devices, user, waitMs } = options
-    return nativePush({ bridge: nativeBridge, device, records: indexedDbPushRecords(), choices: storagePushChoices(() => localStorage), permissionAsked: permissionAsked(nativeBridge.getPlatform(), navigator.userAgent), devices, user, userAgent: deviceUserAgent(navigator.userAgent), ...(waitMs !== undefined && { waitMs }) })
+    return nativePush({ bridge: nativeBridge, device, records: indexedDbPushRecords(), choices: storagePushChoices(() => localStorage), permissionAsked: permissionAsked(nativeBridge.getPlatform(), navigator.userAgent), devices, user, userAgent: deviceUserAgent(navigator.userAgent), report: reportError, ...(waitMs !== undefined && { waitMs }) })
   }
   const browser = windowPushBrowser()
   if (!browser.supported) return noPush

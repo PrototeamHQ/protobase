@@ -1,9 +1,11 @@
 import { ApiError, type ApnsDeviceRegistration, type DevicesClient, type FcmDeviceRegistration } from '@protobase/client'
 import type { NativeBridge } from '../../app/native-auth-fetch'
-import { PushChoiceNotStored, PushRegistrationError, PushTokenTimeout } from './push-failure'
 import type { PushChoices } from './push-choices'
+import { PushChoiceNotStored, PushRegistrationError, PushTokenTimeout } from './push-failure'
 import type { PushRecords } from './push-records'
 import type { PushState, PushUser } from './web-push'
+
+export { PushRegistrationError } from './push-failure'
 
 /** Capacitor's push plugin, by the name its native side registers; the app has it only when the build compiled it in. */
 export const pushPluginName = 'PushNotifications'
@@ -28,6 +30,8 @@ export type NativePushOptions = {
   waitMs?: number
   /** How long turning push on waits for the app's push token. */
   tokenMs?: number
+  /** Sends a registration the push service refused to the app's error reporting. */
+  report: (error: PushRegistrationError) => void
 }
 
 type Permission = { receive: 'prompt' | 'prompt-with-rationale' | 'granted' | 'denied' }
@@ -38,6 +42,7 @@ const within = (ms: number, promise: Promise<unknown>) => Promise.race([promise,
 /** Someone else signed in while push was being turned on. */
 class SignedInChanged extends Error {}
 
+
 const isRefusal = (error: unknown, slug: 'device-held' | 'other-user') => error instanceof ApiError && error.status === 409 && error.slug === slug
 
 /**
@@ -46,7 +51,7 @@ const isRefusal = (error: unknown, slug: 'device-held' | 'other-user') => error 
  * turned it on, and kept for that same user alone. Signing out, or someone else signing in, forgets it here and deletes the token, so the next user gets a new
  * one. The token is never written anywhere but to the server and the local record.
  */
-export const nativePush = ({ bridge, device, records, choices, permissionAsked, devices, user, userAgent, waitMs = 3000, tokenMs = 15_000 }: NativePushOptions) => {
+export const nativePush = ({ bridge, device, records, choices, permissionAsked, devices, user, userAgent, waitMs = 3000, tokenMs = 15_000, report }: NativePushOptions) => {
   const call = (method: string, options: object = {}) => bridge.nativePromise(pushPluginName, method, options)
   const permission = async () => ((await call('checkPermissions')) as Permission).receive
 
@@ -76,6 +81,12 @@ export const nativePush = ({ bridge, device, records, choices, permissionAsked, 
     await call('unregister')
   }
 
+  // Push stays off after the push service refused the app: nothing of it is kept, and the refusal is reported once.
+  const refused = async (error: PushRegistrationError) => {
+    await drop()
+    report(error)
+  }
+
   const register = async (signedIn: PushUser) => {
     const same = () => user()?.id === signedIn.id && user()?.own === true
     const current = await token()
@@ -96,7 +107,8 @@ export const nativePush = ({ bridge, device, records, choices, permissionAsked, 
    * Turns push on for the signed-in user: asks for the permission, on Android from 13 on, when the user has not
    * answered, registers with the push service and the token as the user's device. Does nothing for staff signed in as the user or a visitor;
    * a refused permission or someone else signing in meanwhile leaves push off. A token another user holds is deleted and one fresh
-   * token tried, as a browser subscribes afresh. Anything else that keeps push off, the server refusing the device included, throws, for the bell to say.
+   * token tried, as a browser subscribes afresh. Anything else that keeps push off throws, for the bell to say: the push service
+   * refusing the app, reported as well, and the server refusing the device included.
    */
   const turnOn = async (): Promise<PushState> => {
     const signedIn = user()
@@ -112,12 +124,20 @@ export const nativePush = ({ bridge, device, records, choices, permissionAsked, 
     try {
       await attempt()
     } catch (error) {
+      if (error instanceof PushRegistrationError) {
+        await refused(error)
+        throw error
+      }
       await drop()
       if (error instanceof SignedInChanged) return 'off'
       if (!isRefusal(error, 'device-held')) throw error
       try {
         await attempt()
       } catch (retried) {
+        if (retried instanceof PushRegistrationError) {
+          await refused(retried)
+          throw retried
+        }
         await drop()
         if (retried instanceof SignedInChanged) return 'off'
         throw retried
@@ -159,6 +179,7 @@ export const nativePush = ({ bridge, device, records, choices, permissionAsked, 
    * with the app's current token, which the push service may have renewed, and the device of an older token removed.
    * Without one, a user who allowed notifications when the phone asked, or turned push on here before where it did
    * not ask, is registered by itself, unless they turned it off here last; the permission is never asked for.
+   * The push service refusing the app drops the registration, reported.
    */
   const adopt = async (signedIn: PushUser) => {
     const record = await records.read()
@@ -171,6 +192,7 @@ export const nativePush = ({ bridge, device, records, choices, permissionAsked, 
       if (record?.deviceId && record.deviceId !== device.id) await devices.remove(record.deviceId)
     } catch (error) {
       if (error instanceof SignedInChanged) return
+      if (error instanceof PushRegistrationError) return refused(error)
       if (!isRefusal(error, 'device-held') && !isRefusal(error, 'other-user')) throw error
       await drop()
     }

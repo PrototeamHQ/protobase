@@ -59,6 +59,18 @@ describe('mcpServer, for a tool that throws', () => {
     expect(await thrownBy(thrown, report)).toEqual({ content: [{ type: 'text', text: 'The server failed to answer.' }], isError: true })
     expect(report).toHaveBeenCalledTimes(1)
   })
+
+  // As `runBatch` names the operation a problem came from.
+  const readOnly = new HttpProblem(503, 'read-only', 'Service Unavailable', 'The app is read-only while it is being updated', { operation: 0, op: 'update', resource: 'tasks' }, { 'Retry-After': '5' })
+
+  it.each([
+    ['the database\'s read-only error', () => Object.assign(new Error('cannot execute UPDATE in a read-only transaction'), { code: '25006' })],
+    ['a batch operation\'s read-only problem', () => readOnly],
+  ])('answers %s during a deploy as a failure, without reporting it', async (_name, thrown) => {
+    const report = vi.fn()
+    expect(await thrownBy(thrown, report)).toEqual({ content: [{ type: 'text', text: 'The server failed to answer.' }], isError: true })
+    expect(report).not.toHaveBeenCalled()
+  })
 })
 
 describe('mcpServer, for a host\'s tool without app records', () => {

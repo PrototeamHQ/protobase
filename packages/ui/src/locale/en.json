@@ -844,6 +844,8 @@
     "reused": "Reused",
     "reusedResult": "The steps inside did not run: the result an earlier run of the block made was kept and reused; its logs say when it was made.",
     "openEarlierBlockRun": "Open the run that made this result",
+    "joined": "Joined",
+    "joinedResult": "Another run reached this block with the same key while its run was under way, so this step waited for that run instead of running the steps inside again.",
     "duration": "{ms, number} ms",
     "error": "Error",
     "input": "Input",

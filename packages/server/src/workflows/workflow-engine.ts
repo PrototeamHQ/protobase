@@ -50,7 +50,7 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   const cache = postgresStepCache(() => deps().db, schema, secretFingerprints(secrets, env.PROTOBASE_SECRET), roles)
   const files = () => deps().files
   const trace = traceSink({ files, joining: traceJoining(() => deps().db, schema), report: (error) => deps().report(error) })
-  const { runner, job } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail, connections.step, connections.mailbox), secrets, cache, trace, traceMode: workflowsTraceMode(options) })
+  const { runner, job } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail, connections.step, connections.mailbox), secrets, cache, trace, traceMode: workflowsTraceMode(options), roles })
   const redactor = secretRedactor(Object.values(secrets))
   // Only the types a save takes: a trigger of a type no longer available, as after an app update, does nothing.
   const usable = <T>(found: Map<string, T>) => (type: string) => (types.check.triggers[type] ? found.get(type) : undefined)

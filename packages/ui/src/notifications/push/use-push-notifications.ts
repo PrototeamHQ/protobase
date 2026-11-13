@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../auth/auth-provider'
-import { pushFailure, type PushFailure } from './push-failure'
+import type { PushFailure } from './push-failure'
+import { pushSwitch } from './push-switch'
 import type { PushState } from './web-push'
 import { watchNotificationPermission } from './watch-permission'
 
@@ -36,31 +37,15 @@ export const usePushNotifications = () => {
   }, [push, userId, reads])
   const refresh = useCallback(() => setReads((count) => count + 1), [])
 
-  const turnOn = useCallback(async () => {
-    setFailure(undefined)
-    setBusy(true)
-    try {
-      setState(await push.turnOn())
-    } catch (error) {
-      console.error('Notifications could not be turned on:', error)
-      setFailure(pushFailure(error))
-    } finally {
-      setBusy(false)
-    }
-  }, [push])
-  const turnOff = useCallback(async () => {
-    setFailure(undefined)
-    setBusy(true)
-    try {
-      await push.turnOff({ chosen: true })
-    } catch (error) {
-      console.error('Notifications could not be turned off for good:', error)
-      setFailure(pushFailure(error))
-    } finally {
-      setState(await push.state())
-      setBusy(false)
-    }
-  }, [push])
+  const { turnOn, turnOff } = useMemo(
+    () =>
+      pushSwitch(push, (change) => {
+        if (change.state) setState(change.state)
+        if ('failure' in change) setFailure(change.failure)
+        if (change.busy !== undefined) setBusy(change.busy)
+      }),
+    [push],
+  )
 
   return { state, busy, failure, turnOn, turnOff, refresh }
 }

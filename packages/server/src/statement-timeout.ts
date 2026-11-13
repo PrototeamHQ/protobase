@@ -9,6 +9,9 @@ export const defaultStatementTimeoutMs = 1_000
  */
 export const longQueryTimeoutMs = 30_000
 
+/** The slug of a query the database stopped at its statement timeout, as the REST API's 504 and an MCP tool's answer name it. */
+export const statementTimeoutSlug = 'statement-timeout'
+
 /** SQLSTATE 57014: Postgres stopped a statement at its `statement_timeout`. */
 export const isStatementTimeout = (error: unknown) =>
   error instanceof Error && (error as unknown as { code?: unknown }).code === '57014'
@@ -34,7 +37,7 @@ export const statementTimeoutDetail = (subject: string, limit: QueryLimit) => {
 /** The 504 of a query Postgres stopped, whose detail already names what ran too long. */
 export class StatementTimeout extends HttpProblem {
   constructor(subject: string, limit: QueryLimit, extras: Record<string, unknown> = {}) {
-    super(504, 'statement-timeout', 'Gateway Timeout', statementTimeoutDetail(subject, limit), extras)
+    super(504, statementTimeoutSlug, 'Gateway Timeout', statementTimeoutDetail(subject, limit), extras)
   }
 }
 

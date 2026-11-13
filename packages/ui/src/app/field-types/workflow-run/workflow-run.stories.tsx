@@ -68,10 +68,17 @@ const keepFile: Definition = {
   },
 }
 
-/** The signed-file workflow as a later, unpublished version left it, its block taken out. */
+/**
+ * The signed-file workflow as a later, unpublished version left it, its block taken out and the link kept as it waits
+ * instead: its Mail stays as the run of version 1 ran it.
+ */
 const keepFileUnwrapped: Definition = {
   ...keepFile,
-  stateMachine: { ...keepFile.stateMachine, StartAt: 'Later', States: { Later: keepFile.stateMachine.States.Later!, Mail: keepFile.stateMachine.States.Mail! } },
+  stateMachine: {
+    ...keepFile.stateMachine,
+    StartAt: 'Later',
+    States: { Later: { Type: 'Wait', Seconds: 1, Assign: { saved: '{% $states.context.Execution.Input.url %}' }, Next: 'Mail' }, Mail: keepFile.stateMachine.States.Mail! },
+  },
 }
 
 /** Waits for the gate the story opens, then echoes the run's input. */
@@ -520,6 +527,36 @@ export const BlockRunChecks: StoryObj = {
     await userEvent.click(open)
     await markOf(canvasElement, 'Keep file/Download', 'Succeeded')
     await markOf(canvasElement, 'Keep file/Save', 'Succeeded')
+    await expect(calls.store).toBe(1)
+  },
+}
+
+export const BlockRunTogether: StoryObj = {
+  name: 'Two runs that reached a block together',
+  render: () => (
+    <Workspace
+      start={appPath({ kind: 'record', resource: 'workflow_runs', key: 'run-2' })}
+      runs={[
+        { workflow_id: 7, input: { url: 'https://files.example.com/report?sig=1' } },
+        { workflow_id: 7, input: { url: 'https://files.example.com/report?sig=1' } },
+      ]}
+    />
+  ),
+}
+
+/** Two runs that reach a block with the same key together share its one run: the second's Block step opens the first's block run. */
+export const BlockRunTogetherChecks: StoryObj = {
+  ...BlockRunTogether,
+  name: "Two runs that reach a block together share its run (checks)",
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    await markOf(canvasElement, 'Mail', 'Succeeded')
+    await userEvent.click(await nodeOf(canvasElement, 'Keep file'))
+    const open = await sidePanel(canvasElement).findByRole('link', { name: "Open the block's run" })
+    await expect(open).toHaveAttribute('href', appPath({ kind: 'record', resource: 'workflow_runs', key: 'run-3' }))
+    await expect(sidePanel(canvasElement).getByText('Joined')).toBeVisible()
+    await expect(sidePanel(canvasElement).getByText(/Another run reached this block with the same key/)).toBeVisible()
+    await expect(calls.fetch).toBe(1)
     await expect(calls.store).toBe(1)
   },
 }

@@ -3,10 +3,11 @@ import { ApiError } from '@protobase/client'
 /** The push service of the app's phone: Apple's on iOS, Google's on Android. */
 export type PushService = 'apns' | 'fcm'
 
-/** iOS or Android could not register the app with its push service, and said why. */
+/** The push service refused to register the app, for `reason`, the native failure, such as a missing push entitlement. */
 export class PushRegistrationError extends Error {
   constructor(readonly reason: string) {
-    super(`The push service could not register the app: ${reason}`)
+    super(`The push service gave the app no push token: ${reason}`)
+    this.name = 'PushRegistrationError'
   }
 }
 

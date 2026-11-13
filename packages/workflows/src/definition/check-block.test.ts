@@ -42,16 +42,16 @@ describe('a Block in checkDefinition', () => {
 })
 
 describe('blockReads', () => {
-  it('reads the paths of its input its steps read and the secrets they read by name, not those of a block inside it', () => {
+  it("reads the paths of its input its steps read and the secrets they read by name, and of a block inside it only the secrets", () => {
     const processor = {
       StartAt: 'A',
       States: {
         A: { Type: 'Task', Resource: 'http', Arguments: { url: '{% $states.context.Execution.Input.link.url %}', token: '{% $states.context.Secrets.API_TOKEN %}' }, Next: 'B' },
         B: { Type: 'Pass', Output: '{% $states.context.Execution.Input.link %}', Next: 'C' },
-        C: { ...block({ Arguments: { name: '{% $states.context.Execution.Input.name %}' }, Processor: { StartAt: 'D', States: { D: { Type: 'Pass', Output: '{% $states.context.Execution.Input.inner %}', End: true } } } }), Assign: undefined, Next: undefined, End: true },
+        C: { ...block({ Arguments: { name: '{% $states.context.Execution.Input.name %}' }, Processor: { StartAt: 'D', States: { D: { Type: 'Pass', Output: { inner: '{% $states.context.Execution.Input.inner %}', token: '{% $states.context.Secrets.INNER_TOKEN %}' }, End: true } } } }), Assign: undefined, Next: undefined, End: true },
       },
     } as unknown as Machine
-    expect(blockReads(processor)).toEqual({ input: [['link'], ['name']], secrets: ['API_TOKEN'] })
+    expect(blockReads(processor)).toEqual({ input: [['link'], ['name']], secrets: ['API_TOKEN', 'INNER_TOKEN'] })
   })
 })
 
