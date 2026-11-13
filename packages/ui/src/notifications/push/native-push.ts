@@ -2,7 +2,7 @@ import { ApiError, type ApnsDeviceRegistration, type DevicesClient, type FcmDevi
 import type { NativeBridge } from '../../app/native-auth-fetch'
 import type { PushChoices } from './push-choices'
 import { PushChoiceNotStored, PushRegistrationError, PushTokenTimeout } from './push-failure'
-import type { PushRecords } from './push-records'
+import type { PushRecord, PushRecords } from './push-records'
 import type { PushState, PushUser } from './web-push'
 
 export { PushRegistrationError } from './push-failure'
@@ -155,10 +155,14 @@ export const nativePush = ({ bridge, device, records, choices, permissionAsked, 
   const turnOff = async ({ chosen = false }: { chosen?: boolean } = {}) => {
     const signedIn = user()
     const stored = !chosen || !signedIn?.own || choices.set(signedIn.id, 'off')
-    const record = await records.read()
+    await removeHere(await records.read())
+    if (!stored) throw new PushChoiceNotStored()
+  }
+
+  // Nothing of the registration `record` stays: the record, what the phone shows, the token and the server's device.
+  const removeHere = async (record: PushRecord | undefined) => {
     await records.clear()
     await within(waitMs, Promise.allSettled([call('removeAllDeliveredNotifications'), call('unregister'), record?.deviceId ? devices.remove(record.deviceId) : Promise.resolve()]))
-    if (!stored) throw new PushChoiceNotStored()
   }
 
   /** As `turnOff`, for a session already over, whose device the server can no longer be asked to remove. */
@@ -167,7 +171,8 @@ export const nativePush = ({ bridge, device, records, choices, permissionAsked, 
     await within(waitMs, Promise.allSettled([call('removeAllDeliveredNotifications'), call('unregister')]))
   }
 
-  // Whether a granted permission lets the app register the user by itself: their own choice here, or else the phone's question.
+  // Whether a granted permission lets the app register the user by itself: their own choice here, or else the phone's
+  // question; a choice that cannot be read lets it register no one.
   const registersItself = (userId: string) => {
     const choice = choices.of(userId)
     return choice === undefined ? permissionAsked : choice === 'on'
@@ -178,13 +183,16 @@ export const nativePush = ({ bridge, device, records, choices, permissionAsked, 
    * token deleted; the user's own, when they signed in as themselves and the permission stands, is registered again
    * with the app's current token, which the push service may have renewed, and the device of an older token removed.
    * Without one, a user who allowed notifications when the phone asked, or turned push on here before where it did
-   * not ask, is registered by itself, unless they turned it off here last; the permission is never asked for.
-   * The push service refusing the app drops the registration, reported.
+   * not ask, is registered by itself, unless they turned it off here last; the permission is never asked for. A
+   * registration left behind for a user whose last choice was off, such as by a turn-off that could not clear the
+   * record, is removed, its device on the server too. The push service refusing the app drops the registration, reported.
    */
   const adopt = async (signedIn: PushUser) => {
     const record = await records.read()
     if (record && record.userId !== signedIn.id) return drop()
-    if (!signedIn.own || (!record && !registersItself(signedIn.id))) return
+    if (!signedIn.own) return
+    if (record && choices.of(signedIn.id) === 'off') return removeHere(record)
+    if (!record && !registersItself(signedIn.id)) return
     if ((await permission()) !== 'granted') return record && drop()
     try {
       const { device, token: current } = await register(signedIn)

@@ -31,10 +31,12 @@ export const Button = ({ variant = 'secondary', size = 'md', loading, className,
   <button
     type="button"
     disabled={disabled || loading}
+    aria-busy={loading || undefined}
     className={cn(buttonClass({ variant, size }), className)}
     {...rest}
   >
-    {loading && <Spinner className="size-3.5" />}
+    {/* The button keeps its own name while busy, which aria-busy says */}
+    {loading && <Spinner hidden className="size-3.5" />}
     {children}
   </button>
 )

@@ -26,6 +26,8 @@ type Options = {
   choices?: Record<string, PushChoice>
   /** The device cannot write what users chose. */
   unwritable?: boolean
+  /** The device cannot read what users chose. */
+  unreadable?: boolean
   /** The phone asked for the permission, as iOS and Android from 13 on do; true unless given. */
   permissionAsked?: boolean
 }
@@ -41,10 +43,16 @@ const setup = (options: Options = {}) => {
   let attempts = 0
   let signedIn: PushUser | undefined = alice
   const stored = new Map<string, string>()
-  const choices = storagePushChoices(() => ({ getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => {
+  const choices = storagePushChoices(() => ({
+    getItem: (key) => {
+      if (options.unreadable) throw new Error('The storage is blocked')
+      return stored.get(key) ?? null
+    },
+    setItem: (key, value) => {
       if (options.unwritable) throw new Error('The quota is used up')
       stored.set(key, value)
-    } }))
+    },
+  }))
   for (const [id, choice] of Object.entries(options.choices ?? {})) choices.set(id, choice)
   const listeners = new Map<string, Set<(data: unknown) => void>>()
   const emit = (event: string, data: unknown) => {
@@ -257,6 +265,22 @@ describe('nativePush', () => {
     log.length = 0
     await push.adopt(alice)
     expect(log).toEqual([])
+  })
+
+  it('removes a registration left behind after the user turned push off, its device on the server too', async () => {
+    const { push, log } = setup({ choices: { alice: 'off' }, record: { userId: 'alice', endpoint: 'token-1', deviceId: 'device-1' } })
+    await push.adopt(alice)
+    expect(log).toEqual(['forget', 'removeAllDeliveredNotifications', 'unregister', 'remove device-1'])
+    expect(await push.state()).toBe('off')
+  })
+
+  it('keeps a registration, and registers no one by itself, while what users chose cannot be read', async () => {
+    const kept = setup({ unreadable: true, record: { userId: 'alice', endpoint: 'token-0', deviceId: 'device-0' } })
+    await kept.push.adopt(alice)
+    expect(kept.log).toEqual(['register', 'device alice token-1', 'record alice token-1', 'remove device-0'])
+    const none = setup({ unreadable: true })
+    await none.push.adopt(alice)
+    expect(none.log).toEqual([])
   })
 
   it('registers by itself before Android 13, which grants the permission unasked, only for a user who turned push on here before', async () => {

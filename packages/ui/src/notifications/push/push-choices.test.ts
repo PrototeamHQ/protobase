@@ -28,13 +28,13 @@ describe('storagePushChoices', () => {
     expect(choices.of('alice')).toBe('off')
   })
 
-  it('answers off for everyone when its storage cannot be read', () => {
+  it('answers unknown for everyone when its storage cannot be read', () => {
     const broken = memory('{')
-    expect(storagePushChoices(() => broken).of('alice')).toBe('off')
+    expect(storagePushChoices(() => broken).of('alice')).toBe('unknown')
     const missing = storagePushChoices(() => {
       throw new ReferenceError('localStorage is not defined')
     })
-    expect(missing.of('alice')).toBe('off')
+    expect(missing.of('alice')).toBe('unknown')
     expect(missing.set('alice', 'on')).toBe(false)
     expect(missing.of('alice')).toBe('on')
   })

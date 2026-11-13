@@ -76,7 +76,9 @@ export const PushTurningOn: StoryObj = {
   tags: ['play'],
   render: panel({ items: [], footer: <PushControl state="off" busy onTurnOn={() => undefined} onTurnOff={() => undefined} /> }),
   play: async ({ canvasElement }) => {
-    expect(within(canvasElement).getByRole('button', { name: 'Turn on' })).toBeDisabled()
+    const button = within(canvasElement).getByRole('button', { name: 'Turn on' })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-busy', 'true')
   },
 }
 
