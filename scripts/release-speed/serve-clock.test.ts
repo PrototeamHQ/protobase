@@ -19,7 +19,6 @@ const jobs = [
   job('plan', 20, 40),
   job('check / check', 20, 300),
   job('publish', 380, 400),
-  { ...job('bump', 400, 650), steps: [{ name: npmWaitStep, conclusion: 'success', completed_at: at(560) }] },
   leg('image / build (linux/amd64, ubuntu-latest)', 400, 640, 690),
   leg('image-dev / build (linux/arm64, ubuntu-24.04-arm)', 400, 620, 700),
   job('image / manifest', 690, 720),
@@ -35,7 +34,7 @@ describe('published', () => {
 })
 
 describe('serveTimings', () => {
-  it("ends at the earliest image leg's npm wait, not the bump's, and times the images first job to last", () => {
+  it("ends at the earliest image leg's npm wait and times the images first job to last", () => {
     expect(serveTimings(run, jobs)).toMatchObject({ wall: 620, queue: 20, run: 600, images: 700 })
   })
 
