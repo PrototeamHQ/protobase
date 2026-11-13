@@ -150,7 +150,10 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
   const signedOutState = useCallback((): AuthState => (anonymous ? { kind: 'visitor' } : { kind: 'signed-out' }), [anonymous])
   // The session is over: push here is forgotten, with no server left to ask.
   const forgetPush = useRef<() => Promise<void>>(async () => {})
+  // Each sign-out starts a new generation, so a check or sign-in step that answers after it changes nothing
+  const generation = useRef(0)
   const markSignedOut = useCallback(() => {
+    generation.current += 1
     void forgetPush.current()
     setState((current) => (current.kind === 'signed-in' ? { kind: 'signed-out' } : current))
   }, [])
@@ -185,8 +188,9 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
   // Signed in: the app opens unless the policy requires something the account lacks, which it never does for staff.
   // Signing out later shows the sign-in page again. Push in this browser is kept only for this same user.
   const enter = useCallback(
-    async (user: AuthUser) => {
+    async (user: AuthUser, asked = generation.current) => {
       const [{ missing }, staff] = await Promise.all([session.account.signInMethods(), session.staff.current()])
+      if (generation.current !== asked) return
       setState(missing.length > 0 ? { kind: 'setup-required', user, missing } : { kind: 'signed-in', user, ...(staff && { staff }) })
       if (missing.length === 0) void push.adopt({ id: user.id, own: !staff })
     },
@@ -198,13 +202,19 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
   // Someone signed in stays in the app while it checks: a server that cannot be reached leaves them with what is cached,
   // whose refresh then shows that it failed.
   const recheck = useCallback(() => {
+    const asked = generation.current
     setState((current) => (current.kind === 'signed-in' ? current : { kind: 'loading' }))
     void session.status().then(async (status) => {
       setStatus(status)
+      if (generation.current !== asked) return
       if (status.needsAdmin) return setState({ kind: 'needs-admin', ...(status.firstAdminUrl && { firstAdminUrl: status.firstAdminUrl }) })
       const user = await session.session()
-      return user ? enter(user) : setState({ kind: status.anonymous ? 'visitor' : 'signed-out' })
-    }).catch((error: unknown) => setState((current) => (current.kind === 'signed-in' ? current : { kind: 'error', message: error instanceof Error ? error.message : text('noAnswer') })))
+      if (generation.current !== asked) return
+      return user ? enter(user, asked) : setState({ kind: status.anonymous ? 'visitor' : 'signed-out' })
+    }).catch((error: unknown) => {
+      if (generation.current !== asked) return
+      setState((current) => (current.kind === 'signed-in' ? current : { kind: 'error', message: error instanceof Error ? error.message : text('noAnswer') }))
+    })
   }, [session, enter])
 
   useEffect(recheck, [recheck])
@@ -275,12 +285,14 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
         window.location.assign(await session.account.connectAccount(connection, new URL(withoutSignInLink(window.location.href), window.location.href).href))
       },
       stopStaffSession: async () => {
+        generation.current += 1
         await push.forget()
         await session.staff.stop()
         setState(signedOutState())
       },
       // Push goes first, while the token can still remove the device; it waits only briefly, then the session ends.
       signOut: async () => {
+        generation.current += 1
         await push.turnOff()
         await session.signOut()
         setState(signedOutState())
@@ -288,6 +300,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, children }:
       // The server removed the account's devices with it, so push is only forgotten here.
       deleteAccount: async (password) => {
         await session.deleteAccount(password)
+        generation.current += 1
         await push.forget()
         setState(signedOutState())
       },

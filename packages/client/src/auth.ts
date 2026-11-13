@@ -119,8 +119,10 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
     },
 
     /** The signed-in user from the session cookie, or `undefined`. */
+    // No session is an answer; a session endpoint that failed is not, so a caller does not take it for signed out
     session: async (): Promise<AuthUser | undefined> => {
-      const { data } = await client.getSession()
+      const { data, error } = await client.getSession()
+      if (error && error.status !== 401) throw authError(error, 'Could not read your session')
       return data?.user as AuthUser | undefined
     },
 

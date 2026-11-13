@@ -27,9 +27,9 @@ export const indexedDbStartCacheStore = (factory: IDBFactory = indexedDB): Start
     return new Promise<T | undefined>((resolve, reject) => {
       const transaction = db.transaction(storeName, mode)
       const request = act(transaction.objectStore(storeName))
+      // A failed request aborts its transaction, which then holds the error; the error event comes before it has it
       transaction.oncomplete = () => resolve(request?.result)
-      transaction.onerror = () => reject(transaction.error)
-      transaction.onabort = () => reject(transaction.error)
+      transaction.onabort = () => reject(transaction.error ?? new DOMException('The start cache transaction was aborted', 'AbortError'))
     })
   }
   return {

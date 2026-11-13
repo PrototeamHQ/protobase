@@ -45,7 +45,7 @@ Each build of the app has its own worker, which replaces the previous one and dr
 
 ## Starting from the last pages seen
 
-The app keeps what someone signed in last saw, from the moment they sign in, and opens on it the next time, in the browser tab, the installed app and the iOS and Android app alike. The first screen draws at once from this start cache, and everything on it is fetched again behind it:
+The app keeps what someone signed in last saw, from the moment they sign in, and opens on it the next time, in the browser tab, the installed app and the iOS and Android app alike. The first screen draws from this start cache as soon as the app's plugins have loaded, which the browser usually has cached, and everything on it is fetched again behind it:
 
 - While the page shows cached data, its content is muted and pulses as a skeleton does, so it never passes for up to date, and a small spinner sits beside the page's title.
 - When the fresh data lands it replaces the cached data in place, and nothing moves.

@@ -31,7 +31,7 @@ export type Uses = Record<string, number>
  * network still shows what was last seen. Past `limit` bytes the least recently used are evicted (see `withinLimit`),
  * never `/meta`; a query never seen on screen counts as used when its answer came. `sizeOf` measures an answer.
  */
-export const keptQueries = (client: QueryClient, saved: DehydratedState['queries'], used: Uses, sizeOf: (data: unknown) => number, limit = softLimitBytes) => {
+export const keptQueries = (client: QueryClient, saved: DehydratedState['queries'], used: Uses, sizeOf: (data: unknown) => number, limit = softLimitBytes): { queries: DehydratedState['queries']; used: Uses } => {
   const fresh = dehydrate(client, { shouldDehydrateQuery: savable }).queries
   const freshHashes = new Set(fresh.map((query) => query.queryHash))
   const all = [...fresh, ...saved.filter((query) => !freshHashes.has(query.queryHash))]
