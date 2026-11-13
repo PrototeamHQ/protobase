@@ -7,8 +7,8 @@
   },
   "scripts": {
     "prepare": "bun scripts/install-git-hooks.mjs && bun scripts/protobase-skill.ts",
-    "db:up": "test -f .env || cp .env.example .env; docker compose up -d --wait && bun scripts/local-databases.mjs",
-    "db:down": "docker compose down",
+    "db:up": "test -f .env || cp .env.example .env; bun scripts/db/up.ts && bun scripts/local-databases.mjs",
+    "db:down": "bun scripts/db/down.ts",
     "test": "vitest run --project 'unit*' --project 'snapshot*'",
     "record:google": "bun scripts/google-recording/record.ts",
     "record:apns": "bun scripts/apns-recording/record.ts",
