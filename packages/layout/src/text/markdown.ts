@@ -22,8 +22,23 @@ export const image = (alt: string, src: string) => `![${alt}](${src.replace(/[ (
 /** A bullet list, one item per line. */
 export const list = (items: string[]) => items.map((item) => `- ${item}`).join('\n')
 
+// Backticks longer than any run of them in the text, so the text cannot close its code
+const ticksAround = (text: string, least: number) => '`'.repeat(Math.max(least, Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length)) + 1))
+
+/** Text as inline code, as it reads, whatever backticks it holds. */
+export const code = (text: string) => {
+  const ticks = ticksAround(text, 1)
+  return ticks.length > 1 ? `${ticks} ${text} ${ticks}` : `${ticks}${text}${ticks}`
+}
+
+/** Text as a fenced code block in `language`, its fence longer than any run of backticks in the text. */
+export const fenced = (text: string, language = '') => {
+  const fence = ticksAround(text, 3)
+  return `${fence}${language}\n${text}\n${fence}`
+}
+
 /** A value as a fenced JSON block. */
-export const json = (value: unknown) => `\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``
+export const json = (value: unknown) => fenced(JSON.stringify(value, null, 2), 'json')
 
 /** A label and its value on one line; a value made of lines goes under the label. */
 export const labelled = (label: string, value: string) => {
