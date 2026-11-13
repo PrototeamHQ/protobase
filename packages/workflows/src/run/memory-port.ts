@@ -72,7 +72,7 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
       const waiter = waiters.find((one) => one.parent === parent && one.visit === visit)
       return waiter && { ...blockRun(runs.get(waiter.run)!), joined: true }
     },
-    start: async (_, { parent, visit, state, input, share }) => {
+    start: async (_, { parent, visit, state, input, share, joinOnly }) => {
       const found = own(parent, visit)
       if (found) return blockRun(found)
       const of = runs.get(parent)!
@@ -83,6 +83,7 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
         if (!waiters.some((one) => one.parent === parent && one.visit === visit)) waiters.push({ run: under.id, parent, visit })
         return { ...blockRun(under), joined: true }
       }
+      if (joinOnly) return
       const id = `${parent}~${visit}`
       runs.set(id, { id, definition: of.definition, input: structuredClone(input), status: 'queued', startedAt: clock, blockOf: parent, blockState: state, blockVisit: visit, ...(of.trace && { trace: of.trace }), ...(share && { blockKey: share.key, blockWho: who }) })
       await schedule(null, id)

@@ -98,11 +98,15 @@ export const runBlock = async (state: BlockState, call: StateCall): Promise<Ran>
     return ended(run, recordedInput, call, keep)
   }
   // Starts a run of the block, or with `share` joins one of the same key and identity under way, which may have ended
-  // by the time it is joined.
+  // by the time it is joined. A join starts no run, so a run that started the most it may still joins one. The count
+  // and the start need no lock: a run's segments run one at a time, so it never starts two block runs at once.
   const begin = async (share?: BlockShare): Promise<Ran> => {
     const count = await blocks.count()
-    if (count >= limits.blockRuns) throw new StepError('States.DataLimitExceeded', `The run started ${count} runs of blocks, the most one run may start (${limits.blockRuns})`)
-    const run = await blocks.start({ visit, state: call.name, input, ...(share && { share }) })
+    const full = count >= limits.blockRuns
+    const limit = () => new StepError('States.DataLimitExceeded', `The run started ${count} runs of blocks, the most one run may start (${limits.blockRuns})`)
+    if (full && !share) throw limit()
+    const run = await blocks.start({ visit, state: call.name, input, ...(share && { share }), ...(full && { joinOnly: true as const }) })
+    if (!run && full) throw limit()
     if (!run) throw new StepError('States.Runtime', `"${call.name}" is not a Block of the version this run runs`)
     return take(run)
   }
@@ -111,6 +115,8 @@ export const runBlock = async (state: BlockState, call: StateCall): Promise<Ran>
   const entry = cache && key ? await tolerant(task, 'be read', () => cache.store.lookup({ runId: call.context.runId, type: key.type, identity, keys: [key.key] })) : undefined
   // A secret the result depends on that changed since makes it one to fetch again.
   if (entry && entry.secretsChanged.length === 0 && (await connected(state, call))) return hit(entry, recordedInput, call)
-  // Only a block whose result is kept shares its run: one that keeps none runs on each visit.
+  // Only a block whose result is kept shares its run: one that keeps none runs on each visit. A block that reads secrets
+  // shares too, as its cache entry is reused: the identity holds the tenant, and the runs of one app read the same
+  // secrets, which the shared run reads as it runs.
   return begin(key && cacheSeconds(state.Cache.Ttl) !== undefined ? { key: key.key, identity } : undefined)
 }

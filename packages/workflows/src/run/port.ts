@@ -186,9 +186,9 @@ export type BlockRunStore<Db> = {
   /**
    * Starts it and queues its first segment, or the one of this visit started already; undefined when `state` is no Block
    * of the run's version. With `share`, a run of the same key and identity under way is joined instead of started: it
-   * wakes this run too as it ends.
+   * wakes this run too as it ends. With `joinOnly` too, it only joins: undefined when no such run is under way.
    */
-  start(db: Db, run: { parent: string; visit: string; state: string; input: unknown; share?: BlockShare }): Promise<BlockRun | undefined>
+  start(db: Db, run: { parent: string; visit: string; state: string; input: unknown; share?: BlockShare; joinOnly?: true }): Promise<BlockRun | undefined>
   /** The runs that joined `run`, to wake as it ends. */
   waiters(db: Db, run: string): Promise<string[]>
   /** The block runs `parent` started. */

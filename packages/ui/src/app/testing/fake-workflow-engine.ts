@@ -74,7 +74,7 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
       const waiter = waiters.find((one) => one.parent === parent && one.visit === visit)
       return waiter && { ...blockRun(runOf(waiter.run)), joined: true }
     },
-    start: async (_, { parent, visit, state, input, share }) => {
+    start: async (_, { parent, visit, state, input, share, joinOnly }) => {
       const found = own(parent, visit)
       if (found) return blockRun(found)
       const of = runOf(parent)
@@ -85,6 +85,7 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
         if (!waiters.some((one) => one.parent === parent && one.visit === visit)) waiters.push({ run: String(under.id), parent, visit })
         return { ...blockRun(under), joined: true }
       }
+      if (joinOnly) return
       const row: Row = { id: `run-${++runs}`, workflow_id: of.workflow_id, version: of.version, input: structuredClone(input), status: 'queued', created_at: new Date().toISOString(), started_by: `run:${parent}`, block_of: parent, block_state: state, block_visit: visit, trace: of.trace ?? null, ...(of.tenant_id !== undefined && { tenant_id: of.tenant_id }) }
       table('workflow_runs').push(row)
       if (key) shared.set(String(row.id), key)

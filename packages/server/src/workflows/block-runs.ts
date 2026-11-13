@@ -34,6 +34,7 @@ export const postgresBlockRuns = (schema: string, job: () => JobDefinition<{ run
     return rows[0] && blockRun(rows[0])
   }
   // The identity a run shares under, as the step cache keeps a block's entry; undefined while the saver holds no role.
+  // A failing roles lookup fails the step rather than sharing or starting under an identity it could not tell.
   const sharedWho = async (db: Db, parent: string, share: BlockShare) => {
     const held = share.identity.saver ? await runSaverRoles(db, schema, roles, parent) : []
     if (share.identity.saver && held.length === 0) return
@@ -74,10 +75,11 @@ export const postgresBlockRuns = (schema: string, job: () => JobDefinition<{ run
   }
   return {
     find,
-    start: async (db, { parent, visit, state, input, share }) => {
+    start: async (db, { parent, visit, state, input, share, joinOnly }) => {
       const started = await own(db, parent, visit)
       if (started) return started
       const who = share && (await sharedWho(db, parent, share))
+      if (joinOnly) return who && share ? join(db, parent, visit, share.key, who) : undefined
       // A run of the key under way is joined; one that ended between the insert and the join leaves its place free, so
       // the insert is tried once more, and a second miss is an error rather than a try without a run.
       for (let attempt = 0; attempt < 2; attempt++) {

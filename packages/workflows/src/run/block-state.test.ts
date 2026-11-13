@@ -306,6 +306,37 @@ describe('a Block', () => {
       expect(await port.blocks.waiters(null, 'c~|0')).toEqual(['d'])
     })
 
+    it('is joined by a run that started the most runs of blocks it may, as a join starts none', async () => {
+      ;(limits as { blockRuns: number }).blockRuns = 1
+      let release = () => {}
+      const held = new Promise<void>((resolve) => (release = resolve))
+      let fetched = 0
+      // The fetch of u1 waits until the test lets it go, so a's run of the block stays under way.
+      const { port } = setup({ fetch: async (args) => ((args as { url: string }).url === 'u1' && (await held), fetched++, 'body') })
+      await port.start('a', flow(), { url: 'u1', name: 'n' })
+      await port.start('b', definition({
+        Start: { Type: 'Pass', Assign: { round: 0, urls: ['u2', 'u1'] }, Next: 'Keep' },
+        Keep: fetchAndStore({ Arguments: { url: '{% $urls[$round] %}', name: 'n' }, Assign: { round: '{% $round + 1 %}' }, Next: 'Again' } as Partial<State>),
+        Again: { Type: 'Choice', Choices: [{ Condition: '{% $round < 2 %}', Next: 'Keep' }], Default: 'Done' },
+        Done: { Type: 'Succeed' },
+      }), {})
+      // a starts its block run, b starts one for u2; a's block run then waits on the fetch while b's ends and b goes on to u1.
+      await port.step()
+      await port.step()
+      const shared = port.step()
+      for (const _ of ['a', 'b~|1', 'a', 'b']) await port.step()
+      expect(await port.blocks.waiters(null, 'a~|0')).toEqual(['b'])
+      release()
+      await shared
+      await port.drain()
+      expect(port.run('b')).toMatchObject({ status: 'succeeded' })
+      expect(fetched).toBe(2)
+      expect(port.steps.filter((step) => step.runId === 'b' && step.state === 'Keep').map((step) => [step.run, step.joined])).toEqual([
+        ['b~|1', undefined],
+        ['a~|0', true],
+      ])
+    })
+
     it('runs on each visit when it keeps no result', async () => {
       const { port, calls } = setup()
       await together(port, { a: { url: 'u1', name: 'n' }, b: { url: 'u1', name: 'n' } }, fetchAndStore({ Cache: {} } as Partial<State>))

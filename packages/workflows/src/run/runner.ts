@@ -74,7 +74,7 @@ export const createRunner = <Db>({ store, queue, tasks, cache, blocks, secrets =
       }
       // One per segment, so the tokens its steps were given are blanked from all it records, and kept no longer.
       const redactor = secretRedactor(Object.values(secrets))
-      const blockRuns = blocks && { find: (visit: string) => blocks.find(db, runId, visit), start: (block: { visit: string; state: string; input: unknown; share?: BlockShare }) => blocks.start(db, { parent: runId, ...block }), count: () => blocks.count(db, runId) }
+      const blockRuns = blocks && { find: (visit: string) => blocks.find(db, runId, visit), start: (block: { visit: string; state: string; input: unknown; share?: BlockShare; joinOnly?: true }) => blocks.start(db, { parent: runId, ...block }), count: () => blocks.count(db, runId) }
       const segment = { runId, definition, input: run.input, startedAt: run.startedAt, secrets, redactor, tasks, ...(cache && { cache }), ...(blockRuns && { blocks: blockRuns }), signal, now, budgetMs, maxSteps }
       // A replay takes the steps of the run it replays from that run's trace: none when the run or its trace is gone.
       const replayed = run.replayOf === undefined ? undefined : { definition: runDefinition(run, run.replayOf?.definition) ?? definition, steps: run.replayOf ? ((await trace?.read(run.replayOf.id)) ?? []) : [] }
