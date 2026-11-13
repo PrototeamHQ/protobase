@@ -24,6 +24,8 @@ type RouterValue = {
   reload: () => void
   /** Whether the person chose to reload despite unsaved changes, so the page leaves without asking again. */
   reloadConfirmed: () => boolean
+  /** Whether a guard holds unsaved changes, so leaving the page would ask first. */
+  holdsChanges: () => boolean
 }
 
 /**
@@ -183,6 +185,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   }, [])
 
   const reloadConfirmed = useCallback(() => reloading.current, [])
+  const holdsChanges = useCallback(() => guards.current.size > 0, [])
 
   const leave = () => {
     if (!pending) return
@@ -210,8 +213,9 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
       registerGuard,
       reload,
       reloadConfirmed,
+      holdsChanges,
     }
-  }, [page, basePath, navigate, back, registerGuard, reload, reloadConfirmed])
+  }, [page, basePath, navigate, back, registerGuard, reload, reloadConfirmed, holdsChanges])
 
   return (
     <RouterContext.Provider value={value}>

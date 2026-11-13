@@ -27,8 +27,8 @@ const bundleIdOf = (result: unknown) => {
 /**
  * The app's side of the live updater, through Protobase's guarded LiveUpdate plugin, which checks every release
  * itself. `ready()` tells the plugin the files the app runs started; `check(launch)` asks the server and takes a new
- * release for the next cold start, one check at a time. A release the guard refuses, or a call that fails, leaves the
- * app on the files it runs.
+ * release for the next cold start, one check at a time; `applyNext(beforeReload)` reloads into a release already taken,
+ * telling whether it did. A release the guard refuses, or a call that fails, leaves the app on the files it runs.
  */
 export const createLiveUpdater = ({ bridge, check, releasesUrl, onHold }: LiveUpdaterInput) => {
   const call = (method: string, options: object = {}) => bridge.nativePromise('LiveUpdate', method, options)
@@ -70,9 +70,25 @@ export const createLiveUpdater = ({ bridge, check, releasesUrl, onHold }: LiveUp
     }
   }
 
+  // The plugin's reload runs the next bundle under the same rollback as a cold start: the release must call ready().
+  const applyNext = async (beforeReload: () => void) => {
+    const [current, next] = await Promise.all([call('getCurrentBundle'), call('getNextBundle')])
+    const nextId = bundleIdOf(next)
+    if (nextId === null || nextId === bundleIdOf(current)) return false
+    beforeReload()
+    try {
+      await call('reload')
+    } catch (error) {
+      if (!refused(error)) throw error
+      return false
+    }
+    return true
+  }
+
   let running: Promise<void> | undefined
   return {
     ready: () => call('ready'),
+    applyNext,
     check: (launch: boolean) => {
       running ??= run(launch).finally(() => {
         running = undefined

@@ -2,9 +2,11 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import * as projectUi from 'virtual:protobase-project-ui'
 import '../styles.css'
+import { guarded } from '../lib/guarded'
 import { listenForPresses } from '../lib/press-feedback'
 import { browserLocale } from '../locale/active-locale'
 import { App } from './app'
+import { restorePage } from './live-update/kept-page'
 import { nativeBridgeOf, type NativeBridge } from './native-auth-fetch'
 import { showKeyboardAccessoryBar } from './native-keyboard'
 import { applyNativeTextSize } from './native-text-size'
@@ -22,6 +24,9 @@ if (nativeBridge) {
   applyNativeViewport(document)
   applyNativeTextSize(document.documentElement, nativeBridge.getPlatform())
   void showKeyboardAccessoryBar(nativeBridge)
+  // Back on the page the app showed before a live update reloaded it
+  const storage = guarded(() => window.sessionStorage, undefined)
+  if (storage) restorePage(storage, window.history)
 }
 
 createRoot(root).render(

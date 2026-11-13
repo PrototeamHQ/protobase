@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useToast } from '../../toasts'
 import { useAdminMeta } from '../meta-gate'
+import { useLiveUpdater } from '../live-update/live-update-context'
 import { useRouter } from '../router'
 import { text } from './messages'
 import { useModalOpen } from './use-modal-open'
@@ -9,7 +10,8 @@ import { useModalOpen } from './use-modal-open'
  * Once the server runs another Protobase version than the page started with, a toast that says so and reloads the
  * page, asking first while a guard holds unsaved changes. It stays until Reload or ×, and after × it does not come
  * back; the top bar's `NewVersionButton` stays. It steps aside while a modal is open, whose buttons it could cover on a
- * phone. The page keeps the `/meta` it has meanwhile (see `keepOnVersionChange`).
+ * phone. The page keeps the `/meta` it has meanwhile (see `keepOnVersionChange`). None in an app with live updates, which
+ * reloads into the new release itself (see `LiveUpdateResume`).
  */
 export const NewVersionToast = () => {
   const changed = Boolean(useAdminMeta().versionChange)
@@ -17,7 +19,8 @@ export const NewVersionToast = () => {
   const [closed, setClosed] = useState(false)
   const toast = useToast()
   const { reload } = useRouter()
-  const shown = changed && !closed && !modalOpen
+  const liveUpdater = useLiveUpdater()
+  const shown = changed && !closed && !modalOpen && !liveUpdater
   useEffect(() => {
     if (!shown) return
     const id = toast.show({ state: 'info', sticky: true, title: text('title'), description: text('description'), action: { label: text('reload'), onClick: reload }, onClose: () => setClosed(true) })

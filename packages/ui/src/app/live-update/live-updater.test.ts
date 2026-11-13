@@ -138,4 +138,39 @@ describe('createLiveUpdater', () => {
     for (const given of [answer(null), answer(null, true), undefined]) await updater(fake, given).check(true)
     expect(fake.calls.filter(([method]) => ['setNextBundle', 'reset'].includes(method))).toEqual([])
   })
+
+  it('reloads into the release set next after beforeReload, and leaves telling the plugin it started to that release', async () => {
+    const fake = bridge({ getCurrentBundle: () => ({ bundleId: 'a' }), getNextBundle: () => ({ bundleId: 'b' }) })
+    const order: string[] = []
+    expect(await updater(fake, undefined).applyNext(() => void order.push('beforeReload'))).toBe(true)
+    expect(order).toEqual(['beforeReload'])
+    expect(fake.methods().filter((method) => !method.startsWith('get'))).toEqual(['reload'])
+  })
+
+  it("applies nothing when the release set next runs already or is the app's own files", async () => {
+    for (const next of ['a', null]) {
+      const fake = bridge({ getCurrentBundle: () => ({ bundleId: 'a' }), getNextBundle: () => ({ bundleId: next }) })
+      let kept = false
+      expect(await updater(fake, undefined).applyNext(() => (kept = true))).toBe(false)
+      expect(kept).toBe(false)
+      expect(fake.methods()).not.toContain('reload')
+    }
+  })
+
+  it('applies nothing when the guard refuses the reload, and throws what is no refusal', async () => {
+    const refusing = bridge({
+      getNextBundle: () => ({ bundleId: 'b' }),
+      reload: () => {
+        throw new Refused('LiveUpdate.reload refused')
+      },
+    })
+    expect(await updater(refusing, undefined).applyNext(() => {})).toBe(false)
+    const broken = bridge({
+      getNextBundle: () => ({ bundleId: 'b' }),
+      reload: () => {
+        throw new RangeError('bug')
+      },
+    })
+    await expect(updater(broken, undefined).applyNext(() => {})).rejects.toThrow('bug')
+  })
 })
