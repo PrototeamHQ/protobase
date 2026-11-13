@@ -1,6 +1,7 @@
 import { conditionProblems, conditionReadable, messageFieldsProblems, messageStatusProblems, messageTextProblems, threadLimitProblems } from '@protobase/layout'
 import type { ComposerSectionModel, ResourceModel, ThreadSectionModel } from '@protobase/schema'
 import { matchErrors } from './view-related'
+import { pruneRecordToolCalls, toolCallsErrors } from './view-tool-calls'
 
 // The conversation hangs off one record by its key, so the record page's resource needs a key of one column
 const ownerErrors = (item: { resource: string }, resource: string, models: Record<string, ResourceModel>) => {
@@ -38,19 +39,21 @@ export const threadSectionErrors = (item: ThreadSectionModel, resource: string, 
     ...(fields.length === 0 ? [...typeErrors(item, target), ...sensitiveErrors(item, target)] : []),
     ...threadLimitProblems(item.limit),
     ...(item.working === undefined ? [] : conditionProblems(item.working, resource, models).map((error) => `working: ${error}`)),
+    ...(item.calls === undefined ? [] : toolCallsErrors(item.calls, resource, models).map((error) => `calls: ${error}`)),
   ]
 }
 
 /**
  * A record's conversation as a caller may see it: gone when they cannot read the messages or a field each one needs,
- * without its status line or working indicator when they cannot read what those name.
+ * without its status line, working indicator or tool calls when they cannot read what those name.
  */
 export const pruneThreadSection = (item: ThreadSectionModel, resource: string, models: Record<string, ResourceModel>): ThreadSectionModel | undefined => {
-  const { status, working, ...core } = item
+  const { status, working, calls, ...core } = item
   if (threadSectionErrors(core, resource, models).length > 0) return
   const keepsStatus = status !== undefined && messageStatusProblems(status, models[item.resource]!).length === 0
   const keepsWorking = working !== undefined && conditionReadable(working, resource, models)
-  return { ...core, ...(keepsStatus && { status }), ...(keepsWorking && { working }) }
+  const keptCalls = calls === undefined ? undefined : pruneRecordToolCalls(calls, resource, models)
+  return { ...core, ...(keepsStatus && { status }), ...(keepsWorking && { working }), ...(keptCalls && { calls: keptCalls }) }
 }
 
 // Each message gets the record's key in a relation to it the sender may set

@@ -1,4 +1,4 @@
-import type { AppAddress, FieldFormat, PageWidth, RowButtonModel } from '@protobase/schema'
+import type { AppAddress, FieldFormat, PageWidth, RowButtonModel, ToolCallFields } from '@protobase/schema'
 import { defineBlock } from './create-node'
 import type { LayoutChildren, LayoutNode, LayoutValue } from './node'
 
@@ -176,7 +176,9 @@ export type ThreadProps = Heading & {
   status?: string
   /** A condition on the record around it, as `<Show when>` takes, such as `state = 'working'`: while it holds, the thread ends in a working indicator. */
   working?: string
-  /** How many of the latest messages it shows at first; default 50. Earlier ones load on request. */
+  /** Tool calls drawn between the messages in time order, each with its status mark and its input, result and error on request. */
+  calls?: ToolCallFields & { resource: string; filter?: string }
+  /** How many of the latest messages it shows at first, and of the latest tool calls; default 50. Earlier ones load on request. */
   limit?: number
   empty?: string
   span?: GridSpan

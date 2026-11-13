@@ -176,7 +176,8 @@ export const layout = {
   /**
    * The record's conversation: the latest messages of `resource` whose relation `field` points at the record, oldest
    * first, each `text` under its `sender` and `time`, `limit` at first (default 50) and earlier ones on request. The text
-   * shows as markdown when the message resource's view marks it `.markdown()`. Pair it with `l.composer` to write one.
+   * shows as markdown when the message resource's view marks it `.markdown()`. With `calls`, the tool calls of another
+   * resource pointing at the record show between the messages in time order. Pair it with `l.composer` to write one.
    * Throws on a `limit` that is not a positive whole number. See
    * [Conversations](docs/website/src/content/docs/reference/ui-config.mdx#conversations).
    */

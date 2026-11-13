@@ -1100,6 +1100,26 @@ export type CommentsSectionModel = {
 }
 
 /**
+ * The fields a thread reads of each tool call it draws between its messages: the tool's `name`, when it was called
+ * (`time`), its `status`, whose values `done`, `error` and `running` give its mark, and what opens under it: its
+ * `input` and `result`, shown as pretty JSON, and its `error`.
+ */
+export type ToolCallFields = {
+  /** The tool's name: a text field. */
+  name: string
+  /** When it was called: a date or timestamp field the API can sort by. */
+  time: string
+  /** Its status: a text or enum field whose values `done`, `error` and `running` give its mark. */
+  status: string
+  /** What it was called with, shown as pretty JSON. */
+  input?: string
+  /** What it gave back, shown as pretty JSON. */
+  result?: string
+  /** Why it failed: a text field. */
+  error?: string
+}
+
+/**
  * The conversation of a record: the latest `limit` records of the message resource `resource` whose relation `field`
  * holds the record's key, oldest first, each `text` under its `sender` and `time`, with earlier ones on request. The text
  * shows as markdown when the message resource's view marks it `.markdown()`. See
@@ -1126,6 +1146,16 @@ export type ThreadSectionModel = {
   status?: string
   /** An AIP-160 condition over the saved record, such as `state = 'working'`: while it holds, the thread ends in a working indicator. */
   working?: string
+  /**
+   * The tool calls drawn between the messages in time order: the records of `calls.resource` whose filterable relation
+   * `calls.field` holds this record's key, read by the fields it names.
+   */
+  calls?: ToolCallFields & {
+    /** The tool call resource. */
+    resource: string
+    /** The filterable relation of `resource` that holds this record's key. */
+    field: string
+  }
   /** How many of the latest messages it shows at first; 50 when omitted. */
   limit?: number
   /** What it says while there are no messages. */

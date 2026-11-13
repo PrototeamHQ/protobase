@@ -1,4 +1,4 @@
-import { threadSort, walkTree, type LayoutNode, type PageModel } from '@protobase/layout'
+import { threadSort, walkTree, type LayoutNode, type PageModel, type ToolCallSource } from '@protobase/layout'
 import type { ResourceModel, ViewModel } from '@protobase/schema'
 import type { ReadShape } from './read-shape'
 import { configFilter, configSort, sortText } from './shape-filters'
@@ -36,7 +36,19 @@ const chartShapes = (page: PageModel, node: LayoutNode, model: ResourceModel): R
   ]
 }
 
-/** The reads of a composed page: each block that lists records, with its filter and sort, and each chart's grouping. */
+// A thread's tool calls are the latest of their own resource matching their own filter, newest first
+const callShapes = (page: PageModel, node: LayoutNode, models: Record<string, ResourceModel>): ReadShape[] => {
+  const calls = node.props.calls as unknown as ToolCallSource
+  const model = models[calls.resource]
+  if (!model) return []
+  const filter = configFilter(model, calls.filter)
+  const sort = configSort(model, threadSort(calls.time))
+  const params = [...(calls.filter?.trim() ? [`filter=${calls.filter}`] : []), ...(sort ? [`order_by=${sortText(sort)}`] : [])]
+  const named = title(node)
+  return [{ resource: model.name, request: `GET /${model.name}${params.length > 0 ? `?${params.join('&')}` : ''}`, from: `page "${page.name}", <Thread${named ? ` "${named}"` : ''}> calls`, query: { ...(filter && { filter }), ...(sort && { sort }) } }]
+}
+
+/** The reads of a composed page: each block that lists records, with its filter and sort, a thread's tool calls, and each chart's grouping. */
 export const pageShapes = (page: PageModel, models: Record<string, ResourceModel>, views: ViewModel[]): ReadShape[] => {
   const shapes: ReadShape[] = []
   walkTree(page.tree, (node) => {
@@ -57,6 +69,7 @@ export const pageShapes = (page: PageModel, models: Record<string, ResourceModel
       from: `page "${page.name}", <${node.type}${named ? ` "${named}"` : ''}>`,
       query: { ...(filter && { filter }), ...(sort && { sort }) },
     })
+    if (node.type === 'Thread' && node.props.calls !== undefined) shapes.push(...callShapes(page, node, models))
   })
   return shapes
 }

@@ -1054,6 +1054,7 @@ The thread shows the latest messages oldest first, each under its sender's name 
 | `text` | The message, a text field. Required. |
 | `status` | A short line under each message, such as whether it was delivered: a text or enum field. See [Message status and a working indicator](#message-status-and-a-working-indicator). |
 | `working` | A condition on this record, such as `state = 'working'`, while which the thread ends in a working indicator. |
+| `calls` | Tool calls shown between the messages in time order: the `resource` that holds them, the filterable relation `field` of it that holds this record's key, and the fields the [Thread block's `calls`](/reference/blocks/#tool-calls) names, `name`, `time`, `status`, `input`, `result` and `error`. A `field` that is no relation to this resource, a field the calls do not have or of the wrong type, or a sensitive one stops the server at startup. |
 | `limit` | How many of the latest it shows at first, and how many each **Load earlier messages** adds: 1 to 500, the API's largest page; default 50. |
 | `empty` | Text while there are no messages. |
 | `help`, `when` | A line under the title, and whether it shows on the form, the read view or both. |
@@ -1076,7 +1077,7 @@ view<typeof tasks>('tasks').layout((r) => [
 ])
 ```
 
-The messages are read with `field = <this record's key>` as the filter, newest first by `time`, so the user's access applies as on the list. That read needs an index on `(field, time)`, such as `create index on task_messages (task_id, sent_at)`, which [`protobase doctor`](/reference/cli/#doctor) checks. A user who cannot read `field`, `sender`, `time` or `text` gets no thread, and one who may not create a message with `field` and `text` gets no composer. A `field` that is no relation to this resource, a `time` that is no date or timestamp the API can sort by, a `sender` that is no relation or text field, a thread `text` that is no text field, a sensitive field in the thread, or a composer `text` that is no writable text field stops the server at startup. As with a related section, the record page's count of the records that point at it leaves out the messages its thread shows.
+The messages are read with `field = <this record's key>` as the filter, newest first by `time`, so the user's access applies as on the list. That read needs an index on `(field, time)`, such as `create index on task_messages (task_id, sent_at)`, which [`protobase doctor`](/reference/cli/#doctor) checks. Tool calls are read the same way, by their own `field` and `time`. A user who cannot read `field`, `sender`, `time` or `text` gets no thread, and one who may not create a message with `field` and `text` gets no composer. A `field` that is no relation to this resource, a `time` that is no date or timestamp the API can sort by, a `sender` that is no relation or text field, a thread `text` that is no text field, a sensitive field in the thread, or a composer `text` that is no writable text field stops the server at startup. As with a related section, the record page's count of the records that point at it leaves out the messages and tool calls its thread shows.
 
 <StoryFrame id="record-page-conversation--record-conversation" title="A task's conversation, its messages in markdown" height={760} />
 

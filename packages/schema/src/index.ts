@@ -67,6 +67,7 @@ export type {
   HistorySectionModel,
   CommentsSectionModel,
   ThreadSectionModel,
+  ToolCallFields,
   ComposerSectionModel,
   ChartRange,
   ChartGranularity,

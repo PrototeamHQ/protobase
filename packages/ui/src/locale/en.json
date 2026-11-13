@@ -516,7 +516,11 @@
     "couldNotLoad": "Could not load the messages",
     "notSent": "Not sent",
     "noMessages": "No messages yet.",
-    "loadingMessages": "Loading messages…"
+    "loadingMessages": "Loading messages…",
+    "callInput": "Input",
+    "callResult": "Result",
+    "callError": "Error",
+    "couldNotLoadCalls": "Could not load the tool calls"
   },
   "app/create": {
     "title": "New <lower>{noun}</lower>",

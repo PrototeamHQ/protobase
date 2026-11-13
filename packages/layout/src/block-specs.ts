@@ -4,7 +4,7 @@ import { isLayoutNode } from './node'
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
 // blocks.ts say the same for the compiler.
 
-type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean'
+type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls'
 
 type PropSpec = { kind: Kind; required?: true }
 
@@ -69,7 +69,7 @@ const specs: Record<string, BlockSpec> = {
   },
   Thread: {
     children: false,
-    props: { ...heading, resource: required('text'), filter: optional('text'), sender: required('text'), time: required('text'), text: required('text'), status: optional('text'), working: optional('text'), limit: optional('integer'), empty: optional('text'), span: optional('span') },
+    props: { ...heading, resource: required('text'), filter: optional('text'), sender: required('text'), time: required('text'), text: required('text'), status: optional('text'), working: optional('text'), calls: optional('toolCalls'), limit: optional('integer'), empty: optional('text'), span: optional('span') },
   },
   Composer: { children: false, props: { resource: required('text'), field: required('text'), values: optional('values'), placeholder: optional('text'), span: optional('span') } },
   Image: { children: false, props: { function: optional('text'), src: optional('text'), alt: optional('text'), width: optional('integer'), height: optional('integer'), refresh: optional('integer') } },
@@ -117,6 +117,13 @@ const isObject = (value: LayoutValue): value is Record<string, LayoutValue> => t
 const isRowButtonChoice = (value: LayoutValue | undefined) =>
   value !== undefined && isObject(value) && !isLayoutNode(value) && typeof value.label === 'string' && ((value.to !== undefined && isObject(value.to) && typeof value.to.kind === 'string') || typeof value.href === 'string')
 
+const isToolCalls = (value: LayoutValue) =>
+  isObject(value) &&
+  !isLayoutNode(value) &&
+  ['resource', 'name', 'time', 'status'].every((name) => typeof value[name] === 'string') &&
+  ['filter', 'input', 'result', 'error'].every((name) => value[name] === undefined || typeof value[name] === 'string') &&
+  Object.keys(value).every((name) => ['resource', 'filter', 'name', 'time', 'status', 'input', 'result', 'error'].includes(name))
+
 const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: string]> = {
   text: [(value) => typeof value === 'string', 'text'],
   boolean: [(value) => typeof value === 'boolean', 'true or false'],
@@ -140,6 +147,7 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
   pageWidth: oneOf(pageWidths),
   textAs: oneOf(textTags),
   address: [(value) => isObject(value) && !isLayoutNode(value) && typeof value.kind === 'string', "an address, such as { kind: 'list', resource: 'orders' }"],
+  toolCalls: [isToolCalls, "tool calls, such as { resource: 'tool_calls', name: 'tool', time: 'called_at', status: 'status' }, also taking filter, input, result and error"],
   rowButton: [
     (value) => (Array.isArray(value) ? value.length > 0 && value.every(isRowButtonChoice) : isRowButtonChoice(value)),
     "a button, such as { label: 'Open', to: { kind: 'record', resource: 'orders', key: '{id}' } } or { label: 'Report', href: '{report_url}' }, or a list of them",

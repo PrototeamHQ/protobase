@@ -19,6 +19,7 @@ description: Pages of your own, built from blocks in a JSX layout.
 - [Image block](/reference/blocks/#image): A picture one of the app's API functions draws for the reader, such as a system map, at the size and theme the client asks, refreshed on a timer; a client that draws no images shows its alt text, or nothing.
 - [Chart block](/reference/blocks/#chart): Counts, sums or averages by value or by date, as bars, lines or a donut, and over time split by a second field.
 - [Conversations](/reference/blocks/#conversation): A chat declared in the layout: a thread of a resource's messages under each sender's name and time, following new ones as they arrive, and a box that sends one as the signed-in user.
+- [Tool calls in threads](/reference/blocks/#tool-calls): Conversation threads show tool calls in time order, with a status and an expandable input and result.
 - [Buttons and forms](/reference/blocks/#behaviour): Buttons for named actions, and create or edit forms in a dialog.
 - [Settings block](/reference/blocks/#settings): Each person's own settings from a resource with one record per person, saved as they change, with defaults until the first save.
 - [Users block](/reference/blocks/#users): User management on any page: find users, set roles, block them and invite by email.

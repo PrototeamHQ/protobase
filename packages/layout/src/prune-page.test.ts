@@ -63,6 +63,16 @@ describe('prunePage', () => {
     expect(thread(restricted({ messages: ['room'], subscriptions: ['status'] }))).toEqual({ status: undefined, working: undefined })
   })
 
+  it('drops a thread’s tool calls, or what of each the caller cannot read', () => {
+    const calls = { resource: 'toolCalls', name: 'tool', time: 'calledAt', status: 'state', input: 'input', result: 'output', error: 'failure' }
+    const page: PageModel = { name: 'chat', title: 'Chat', tree: Page({ title: 'Chat', children: Thread({ resource: 'messages', sender: 'author', time: 'sentAt', text: 'body', calls }) }) }
+    const kept = (models: CallerAccess['models']) => find(prunePage(page, [], access({ models })), 'Thread')?.props.calls
+    expect(kept(restricted({}))).toEqual(calls)
+    expect(kept(restricted({ toolCalls: ['input', 'failure'] }))).toEqual({ resource: 'toolCalls', name: 'tool', time: 'calledAt', status: 'state', result: 'output' })
+    expect(kept(restricted({ toolCalls: ['state'] }))).toBeUndefined()
+    expect(kept(restricted({}, {}, ['toolCalls']))).toBeUndefined()
+  })
+
   it('leaves out a chart whose grouped or added up field the caller cannot read', () => {
     const page: PageModel = {
       name: 'charts',

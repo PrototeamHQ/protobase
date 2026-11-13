@@ -51,6 +51,12 @@ describe('incomingRelations', () => {
     expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toEqual(['people.company_id', 'orders.supplier_id', 'order_lines.company_id'])
   })
 
+  it('leaves out the tool calls a thread of the record shows', () => {
+    const layout = [l.thread('Notes', { resource: 'orders', field: 'customer_id', sender: 'id', time: 'id', text: 'note', calls: { resource: 'order_lines', field: 'company_id', name: 'id', time: 'id', status: 'id' } })]
+    const found = incomingRelations(company, resources, views, layout, none)
+    expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toEqual(['people.company_id', 'orders.supplier_id'])
+  })
+
   it("keeps what a custom component's fallback lists while the app draws the component instead", () => {
     const layout = [l.custom(ContactBoard, { fallback: [l.related('Contacts', { resource: 'people', field: 'company_id' })] })]
     const found = incomingRelations(company, resources, views, layout, (component) => component === 'ContactBoard')

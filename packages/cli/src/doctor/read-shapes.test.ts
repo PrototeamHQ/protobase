@@ -41,13 +41,13 @@ const placesView = view<typeof places>('places')
     l.gallery('Agency photos', { photos: { resource: 'agencies', field: 'place_id', image: 'name', sort: 'opened_at desc' } }),
     // The agencies stand in for samples: the shape reads only the relation and the time
     l.chart('Openings', { resource: 'agencies', field: 'place_id', at: 'opened_at', series: ['id'] }),
-    // The agencies stand in for messages: the shape reads only the relation and the time
-    l.thread('News', { resource: 'agencies', field: 'place_id', sender: 'owner_id', time: 'opened_at', text: 'name' }),
+    // The agencies stand in for messages and tool calls: the shape reads only the relation and the time
+    l.thread('News', { resource: 'agencies', field: 'place_id', sender: 'owner_id', time: 'opened_at', text: 'name', calls: { resource: 'agencies', field: 'place_id', name: 'name', time: 'opened_at', status: 'name' } }),
   ])
 
 const home = page(
   'home',
-  Page({ title: 'Home', children: [RecordRow({ title: 'Big places', resource: 'places', filter: 'population > 100000' }), RecordCards({ title: 'Coast', resource: 'places', filter: 'coastal = true', layout: 'carousel' }), Stat({ label: 'Agencies', resource: 'agencies', filter: 'place_id = 1' }), Thread({ title: 'Openings', resource: 'agencies', filter: 'place_id = 1', sender: 'owner_id', time: 'opened_at', text: 'name' }), Chart({ title: 'By country', resource: 'places', groupBy: 'country', filter: 'coastal = true' }), Chart({ title: 'Founded by country', resource: 'places', groupBy: 'founded_on', splitBy: 'country' })] }),
+  Page({ title: 'Home', children: [RecordRow({ title: 'Big places', resource: 'places', filter: 'population > 100000' }), RecordCards({ title: 'Coast', resource: 'places', filter: 'coastal = true', layout: 'carousel' }), Stat({ label: 'Agencies', resource: 'agencies', filter: 'place_id = 1' }), Thread({ title: 'Openings', resource: 'agencies', filter: 'place_id = 1', sender: 'owner_id', time: 'opened_at', text: 'name', calls: { resource: 'agencies', filter: 'place_id = 2', name: 'name', time: 'opened_at', status: 'name' } }), Chart({ title: 'By country', resource: 'places', groupBy: 'country', filter: 'coastal = true' }), Chart({ title: 'Founded by country', resource: 'places', groupBy: 'founded_on', splitBy: 'country' })] }),
 )
 
 const shapes = readShapes({ models: [places.toModel(), agencies.toModel()], views: [placesView.toModel()], pages: [home.toModel()] })
@@ -167,10 +167,13 @@ describe('readShapes', () => {
     expect(chart?.query.filter).toMatchObject({ kind: 'compare', field: { name: 'place_id' } })
   })
 
-  it("reads a thread's latest messages of this record, newest first", () => {
-    const thread = shapes.find((shape) => shape.from === 'thread "News" on the places record page')
-    expect(thread).toMatchObject({ resource: 'agencies', request: 'GET /agencies?filter=place_id = …&order_by=opened_at desc', query: { sort: [['opened_at', 'desc']] } })
-    expect(thread?.query.filter).toMatchObject({ kind: 'compare', field: { name: 'place_id' } })
+  it("reads a thread's latest messages and tool calls of this record, newest first", () => {
+    const thread = shapes.filter((shape) => shape.from === 'thread "News" on the places record page')
+    expect(thread).toHaveLength(2)
+    for (const read of thread) {
+      expect(read).toMatchObject({ resource: 'agencies', request: 'GET /agencies?filter=place_id = …&order_by=opened_at desc', query: { sort: [['opened_at', 'desc']] } })
+      expect(read.query.filter).toMatchObject({ kind: 'compare', field: { name: 'place_id' } })
+    }
   })
 
   it("reads a related section's records by this record's key, with its filter and sort", () => {
@@ -184,6 +187,7 @@ describe('readShapes', () => {
     expect(requests('places')).toContain('GET /places?filter=coastal = true&order_by=name asc (page "home", <RecordCards "Coast">)')
     expect(requests('agencies')).toContain('GET /agencies?filter=place_id = 1 (page "home", <Stat "Agencies">)')
     expect(requests('agencies')).toContain('GET /agencies?filter=place_id = 1&order_by=opened_at desc (page "home", <Thread "Openings">)')
+    expect(requests('agencies')).toContain('GET /agencies?filter=place_id = 2&order_by=opened_at desc (page "home", <Thread "Openings"> calls)')
     expect(shapes.find((shape) => shape.from === 'page "home", <Chart "By country">')).toMatchObject({ request: 'GET /places:aggregate?group_by=country&filter=coastal = true', query: { groupBy: 'country' } })
   })
 

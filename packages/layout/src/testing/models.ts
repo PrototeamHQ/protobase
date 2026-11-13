@@ -20,7 +20,7 @@ const model = (name: string, fields: FieldModel[], extra: Partial<ResourceModel>
   ...extra,
 })
 
-/** A small billing domain for layout tests: subscriptions point at plans, payment methods and invoices stand alone, and messages are a conversation between people. */
+/** A small billing domain for layout tests: subscriptions point at plans, payment methods and invoices stand alone, messages are a conversation between people, and tool calls are what an assistant in it called. */
 export const models: Record<string, ResourceModel> = {
   plans: model('plans', [field('id', 'integer', { readOnly: true }), field('name', 'text'), field('seats', 'integer')]),
   subscriptions: model('subscriptions', [
@@ -42,6 +42,16 @@ export const models: Record<string, ResourceModel> = {
     field('pinned', 'boolean'),
     field('organizationId', 'integer'),
   ], { author: 'author', tenant: 'organizationId' }),
+  toolCalls: model('toolCalls', [
+    field('id', 'integer', { readOnly: true }),
+    field('tool', 'text'),
+    field('calledAt', 'timestamp'),
+    field('state', 'enum', { enumValues: ['done', 'error', 'running'] }),
+    field('input', 'json'),
+    field('output', 'json'),
+    field('failure', 'text'),
+    field('room', 'text'),
+  ]),
   invoices: model('invoices', [field('id', 'integer', { readOnly: true }), field('number', 'text'), field('status', 'enum', { enumValues: ['open', 'paid'] }), field('total', 'decimal', { readOnly: true }), field('issuedOn', 'date'), field('memo', 'text', { filterable: false })]),
 }
 
