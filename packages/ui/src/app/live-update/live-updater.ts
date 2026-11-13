@@ -33,39 +33,49 @@ export const createLiveUpdater = ({ bridge, check, releasesUrl, splash }: LiveUp
   const call = (method: string, options: object = {}) => bridge.nativePromise('LiveUpdate', method, options)
   const refused = (error: unknown) => error instanceof bridge.Exception
 
+  // A call the guard refuses changed nothing, such as every call when the guard refuses to load: the updater then does
+  // nothing either and gives `onRefusal`. Anything else is thrown.
+  const unlessRefused = async <T>(action: () => Promise<T>, onRefusal: T) => {
+    try {
+      return await action()
+    } catch (error) {
+      if (!refused(error)) throw error
+      return onRefusal
+    }
+  }
+
   const take = async (bundleId: string) => {
     await call('downloadBundle', { bundleId, url: `${releasesUrl}/${bundleId}`, artifactType: 'manifest' })
     await call('setNextBundle', { bundleId })
   }
 
-  const run = async () => {
-    const [answer, current, next] = await Promise.all([check(), call('getCurrentBundle'), call('getNextBundle')])
-    const swap = swapDecision({ answer, current: bundleIdOf(current), next: bundleIdOf(next) })
-    if (swap.kind === 'none') return
-    try {
+  const run = () =>
+    unlessRefused(async () => {
+      const [answer, current, next] = await Promise.all([check(), call('getCurrentBundle'), call('getNextBundle')])
+      const swap = swapDecision({ answer, current: bundleIdOf(current), next: bundleIdOf(next) })
+      if (swap.kind === 'none') return
       await take(swap.bundleId)
-    } catch (error) {
-      if (!refused(error)) throw error
-    }
-  }
+    }, undefined)
 
   // The plugin's reload runs the next bundle under the same rollback as a cold start: the release must call ready().
-  // The splash covers the page from just before the reload until the release has drawn and hides it.
-  const applyNext = async (beforeReload: () => void) => {
-    const [current, next] = await Promise.all([call('getCurrentBundle'), call('getNextBundle')])
-    const nextId = bundleIdOf(next)
-    if (nextId === null || nextId === bundleIdOf(current)) return false
-    beforeReload()
-    await splash?.show()
-    try {
-      await call('reload')
-    } catch (error) {
-      await splash?.hide()
-      if (!refused(error)) throw error
-      return false
-    }
-    return true
-  }
+  // The splash covers the page from just before the reload until the release has drawn and hides it; a reload that
+  // does not happen hides it again.
+  const applyNext = (beforeReload: () => void) =>
+    unlessRefused(async () => {
+      const [current, next] = await Promise.all([call('getCurrentBundle'), call('getNextBundle')])
+      const nextId = bundleIdOf(next)
+      if (nextId === null || nextId === bundleIdOf(current)) return false
+      beforeReload()
+      let reloaded = false
+      try {
+        await splash?.show()
+        await call('reload')
+        reloaded = true
+      } finally {
+        if (!reloaded) await splash?.hide()
+      }
+      return true
+    }, false)
 
   let running: Promise<void> | undefined
   return {

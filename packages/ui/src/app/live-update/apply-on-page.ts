@@ -5,14 +5,19 @@ export type PageKeeper = { keep: () => void; forget: () => void }
 
 /**
  * Reloads into the release set next, keeping the page the app shows just before, so the release opens on it. False
- * when nothing is set next or the guard refuses the reload, and the page kept for it is then forgotten again.
+ * when nothing is set next or the guard refuses the reload; the page kept for a reload that did not happen, refused or
+ * failed, is forgotten again.
  */
 export const applyOnPage = async (updater: Pick<LiveUpdater, 'applyNext'>, page: PageKeeper) => {
   let kept = false
-  const applied = await updater.applyNext(() => {
-    page.keep()
-    kept = true
-  })
-  if (!applied && kept) page.forget()
+  let applied = false
+  try {
+    applied = await updater.applyNext(() => {
+      page.keep()
+      kept = true
+    })
+  } finally {
+    if (!applied && kept) page.forget()
+  }
   return applied
 }

@@ -64,6 +64,15 @@ describe('createLiveUpdater', () => {
     expect(fake.methods()).not.toContain('setNextBundle')
   })
 
+  it('does nothing when the guard refuses every call, as when it refuses to load', async () => {
+    const refuse = () => {
+      throw new Refused('LiveUpdate refused to load')
+    }
+    const fake = bridge({ getCurrentBundle: refuse, getNextBundle: refuse, reload: refuse })
+    await expect(updater(fake, answer('b')).check()).resolves.toBeUndefined()
+    expect(await updater(fake, undefined).applyNext(() => {})).toBe(false)
+  })
+
   it('throws what is no refusal', async () => {
     const fake = bridge({
       downloadBundle: () => {
@@ -96,6 +105,23 @@ describe('createLiveUpdater', () => {
     const fake = bridge({ getCurrentBundle: () => ({ bundleId: 'a' }), getNextBundle: () => ({ bundleId: 'a' }) })
     for (const given of [answer(null), answer(null, true), undefined]) await updater(fake, given).check()
     expect(fake.calls.filter(([method]) => ['setNextBundle', 'reset'].includes(method))).toEqual([])
+  })
+
+  it('shows the splash before the reload, and hides it again when the reload does not happen', async () => {
+    const steps: string[] = []
+    const splash = { show: async () => void steps.push('show'), hide: async () => void steps.push('hide') }
+    const reloading = bridge({ getCurrentBundle: () => ({ bundleId: 'a' }), getNextBundle: () => ({ bundleId: 'b' }), reload: () => void steps.push('reload') })
+    expect(await createLiveUpdater({ bridge: reloading.bridge, check: async () => undefined, releasesUrl, splash }).applyNext(() => {})).toBe(true)
+    expect(steps).toEqual(['show', 'reload'])
+    steps.length = 0
+    const refusing = bridge({
+      getNextBundle: () => ({ bundleId: 'b' }),
+      reload: () => {
+        throw new Refused('LiveUpdate.reload refused')
+      },
+    })
+    expect(await createLiveUpdater({ bridge: refusing.bridge, check: async () => undefined, releasesUrl, splash }).applyNext(() => {})).toBe(false)
+    expect(steps).toEqual(['show', 'hide'])
   })
 
   it('reloads into the release set next after beforeReload, and leaves telling the plugin it started to that release', async () => {

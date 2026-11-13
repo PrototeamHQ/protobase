@@ -51,8 +51,8 @@ export const NativePushTap = ({ nativeBridge, apiOrigin }: { nativeBridge: Nativ
 
   useEffect(() => {
     if (!nativeBridge.isPluginAvailable(pushPluginName)) return
-    carry?.resume(gate.tap)
     const listener = nativeBridge.addListener(pushPluginName, 'pushNotificationActionPerformed', (action) => (carry ? carry.receive(tapData(action), gate.tap) : gate.tap(tapData(action))))
+    carry?.resume(gate.tap)
     return () => void listener.remove()
   }, [nativeBridge, gate, carry])
 
