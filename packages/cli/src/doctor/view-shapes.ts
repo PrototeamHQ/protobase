@@ -100,13 +100,17 @@ const recordChartShapes = (item: RecordChartModel | RecordTrendModel, owner: str
   return [{ resource: target.name, request: `GET /${target.name}:aggregate?group_by=${item.at}&filter=${field.name} = …`, from: `${item.kind} "${item.title}" on the ${owner} record page`, query: { filter: compare(field), groupBy: item.at } }]
 }
 
-// A record's conversation reads the latest messages of the one record on the page, newest first.
+// A record's conversation reads the latest messages of the one record on the page, newest first, and as many of its tool calls.
 const threadShapes = (item: ThreadSectionModel, owner: string, models: Models): ReadShape[] => {
-  const target = models[item.resource]
-  const field = target?.fields[item.field]
-  if (!target || !field || !target.fields[item.time]) return []
-  const sort = configSort(target, threadSort(item.time))
-  return [{ resource: target.name, request: request(target.name, `${field.name} = …`, sort), from: `thread "${item.title}" on the ${owner} record page`, query: { filter: compare(field), ...(sort && { sort }) } }]
+  const from = `thread "${item.title}" on the ${owner} record page`
+  const latest = (source: { resource: string; field: string; time: string }): ReadShape[] => {
+    const target = models[source.resource]
+    const field = target?.fields[source.field]
+    if (!target || !field || !target.fields[source.time]) return []
+    const sort = configSort(target, threadSort(source.time))
+    return [{ resource: target.name, request: request(target.name, `${field.name} = …`, sort), from, query: { filter: compare(field), ...(sort && { sort }) } }]
+  }
+  return [...latest(item), ...(item.calls ? latest(item.calls) : [])]
 }
 
 const displayShapes = (model: ResourceModel, view: ViewModel, models: Models): ReadShape[] =>

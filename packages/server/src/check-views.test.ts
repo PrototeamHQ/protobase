@@ -397,6 +397,12 @@ describe('checkViews', () => {
     // A thread loads one page at a time, so its largest limit is the API's largest page
     expect(maxThreadLimit).toBe(maxPageSize)
     expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, resource: 'nope' }))])).toThrow('thread "Notes": unknown resource "nope"')
+    const calls = { resource: 'task_notes', field: 'task_id', name: 'body', time: 'at', status: 'author', input: 'body', error: 'body' }
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, calls }))])).not.toThrow()
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, calls: { ...calls, field: 'payment_id' } }))])).toThrow('thread "Notes": calls: field: "payment_id" on task_notes is not a relation to tasks')
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, calls: { ...calls, status: 'done' } }))])).toThrow(`thread "Notes": calls: status: "done" is boolean; a tool call's status is a text or enum field`)
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, calls: { ...calls, result: 'secret' } }))])).toThrow('thread "Notes": calls: "secret" on task_notes is sensitive')
+    expect(() => checkViews(conversation, [tasksView(l.thread('Notes', { ...thread, calls: { ...calls, time: 'nope' } }))])).toThrow('thread "Notes": calls: time: unknown field "nope" on task_notes')
     expect(() => checkViews(conversation, [tasksView(l.composer({ resource: 'task_notes', field: 'payment_id', text: 'done' }))])).toThrow(
       'composer of task_notes: field: "payment_id" on task_notes is not a relation to tasks',
     )

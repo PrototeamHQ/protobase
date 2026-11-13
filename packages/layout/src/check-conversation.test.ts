@@ -47,6 +47,28 @@ describe('a conversation', () => {
     expect(problems(Thread({ resource: 'messages', sender: 'author', time: 'sentAt', text: 'body', status: 'state' }))).toEqual([`${thread}: status: unknown field "state" on messages`])
   })
 
+  it('draws tool calls between the messages by the fields each call has', () => {
+    const calls = { resource: 'toolCalls', filter: "room = 'general'", name: 'tool', time: 'calledAt', status: 'state', input: 'input', result: 'output', error: 'failure' }
+    const withCalls = (changes: Record<string, string>) => problems(Thread({ resource: 'messages', sender: 'author', time: 'sentAt', text: 'body', calls: { ...calls, ...changes } }))
+    expect(withCalls({})).toEqual([])
+    expect(withCalls({ resource: 'nope' })).toEqual([`${thread}: calls: unknown resource "nope"`])
+    expect(withCalls({ name: 'nope', result: 'gone' })).toEqual([`${thread}: calls: name: unknown field "nope" on toolCalls`, `${thread}: calls: result: unknown field "gone" on toolCalls`])
+    expect(withCalls({ time: 'tool' })).toEqual([`${thread}: calls: time: "tool" is text; a thread orders its tool calls by a date or timestamp field`])
+    expect(withCalls({ name: 'input', status: 'output', error: 'calledAt' })).toEqual([
+      `${thread}: calls: name: "input" is json; a tool call's name is a text field`,
+      `${thread}: calls: status: "output" is json; a tool call's status is a text or enum field`,
+      `${thread}: calls: error: "calledAt" is timestamp; a tool call's error is a text field`,
+    ])
+    expect(withCalls({ filter: 'nope = 1' })).toEqual([expect.stringMatching(/Thread.*: calls: filter: .*nope/)])
+  })
+
+  it('takes tool calls only as an object naming their resource, name, time and status', () => {
+    const tree = (calls: unknown) => structureProblems(Page({ title: 'Chat', children: [Thread({ resource: 'messages', sender: 'author', time: 'sentAt', text: 'body', calls } as never)] }))
+    expect(tree({ resource: 'toolCalls', name: 'tool', time: 'calledAt', status: 'state' })).toEqual([])
+    expect(tree({ resource: 'toolCalls', name: 'tool', time: 'calledAt' })).toEqual([expect.stringMatching(/"calls" must be tool calls/)])
+    expect(tree({ resource: 'toolCalls', name: 'tool', time: 'calledAt', status: 'state', output: 'output' })).toEqual([expect.stringMatching(/"calls" must be tool calls/)])
+  })
+
   it('shows its working indicator by a condition on the record around it', () => {
     const working = (condition: string) => problems(RecordCard({ resource: 'subscriptions', children: Thread({ resource: 'messages', sender: 'author', time: 'sentAt', text: 'body', working: condition }) }))
     expect(working("status = 'active'")).toEqual([])

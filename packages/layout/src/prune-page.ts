@@ -3,6 +3,7 @@ import { addressErrors, followableRowButton, pruneByShape, shapes } from '@proto
 import { chartFields } from './check-chart'
 import { threadFields } from './check-conversation'
 import { conditionReadable } from './check-condition'
+import { pruneToolCalls, type ToolCallSource } from './check-tool-calls'
 import { elementResource, linkSource } from './check-page'
 import { countedResource, parseCondition } from './condition'
 import { resolveFieldPath } from './field-path'
@@ -65,14 +66,15 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
       return text(node.props.field) === undefined || readable(String(node.props.field)) ? node : null
     case 'Chart':
       return model && chartFields(node).every((name) => Object.hasOwn(model.fields, name)) ? node : null
-    // A thread needs every field of its messages, and drops a status line or working indicator the caller cannot read;
-    // a composer needs to create one with its text and values.
+    // A thread needs every field of its messages, and drops a status line, working indicator or tool calls the caller
+    // cannot read; a composer needs to create one with its text and values.
     case 'Thread': {
       if (!model || !threadFields(node).every((name) => Object.hasOwn(model.fields, name))) return null
-      const { status, working, ...props } = node.props
+      const { status, working, calls, ...props } = node.props
       const keepsStatus = typeof status === 'string' && Object.hasOwn(model.fields, status)
       const keepsWorking = typeof working === 'string' && conditionReadable(working, scope.record ? scope.resource : undefined, models)
-      return { ...node, props: { ...props, ...(keepsStatus && { status }), ...(keepsWorking && { working }) } }
+      const keptCalls = calls === undefined ? undefined : pruneToolCalls(calls as unknown as ToolCallSource, models)
+      return { ...node, props: { ...props, ...(keepsStatus && { status }), ...(keepsWorking && { working }), ...(keptCalls && { calls: keptCalls }) } }
     }
     case 'Composer': {
       if (!model || resource === undefined || !access.permissions[resource]?.create) return null

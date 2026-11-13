@@ -516,7 +516,11 @@
     "couldNotLoad": "Kon de berichten niet laden",
     "notSent": "Niet verzonden",
     "noMessages": "Nog geen berichten.",
-    "loadingMessages": "Berichten laden…"
+    "loadingMessages": "Berichten laden…",
+    "callInput": "Invoer",
+    "callResult": "Resultaat",
+    "callError": "Fout",
+    "couldNotLoadCalls": "De toolaanroepen konden niet worden geladen"
   },
   "app/create": {
     "title": "{noun} toevoegen",

@@ -1,7 +1,7 @@
-import { checkOrderBy, parseOrderBy, type ResourceModel } from '@protobase/schema'
+import type { ResourceModel } from '@protobase/schema'
+import { timeProblems } from './check-time'
+import { toolCallsProblems, type ToolCallSource } from './check-tool-calls'
 import type { LayoutNode } from './node'
-
-const datedTypes = ['date', 'timestamp']
 
 const fieldOf = (model: ResourceModel, name: string) => (Object.hasOwn(model.fields, name) ? model.fields[name] : undefined)
 
@@ -21,18 +21,11 @@ export const messageStatusProblems = (status: string | undefined, model: Resourc
   return statusTypes.includes(field.type) ? [] : [`status: "${status}" is ${field.type}; a message's status is a text or enum field`]
 }
 
-/** The order a thread reads its messages in, by its `time` field: the newest first, which it shows oldest first. */
-export const threadSort = (time: string) => `${time} desc`
-
 /** What a thread's message fields name that the message resource does not have, or cannot order the messages by. */
 export const messageFieldsProblems = (fields: MessageFields, model: ResourceModel): string[] => {
   const unknown = (['sender', 'time', 'text'] as const).flatMap((prop) => (fieldOf(model, fields[prop]) ? [] : [`${prop}: unknown field "${fields[prop]}" on ${model.name}`]))
   if (unknown.length > 0) return unknown
-  const time = fieldOf(model, fields.time)!
-  if (!datedTypes.includes(time.type)) return [`time: "${time.name}" is ${time.type}; a thread orders its messages by a date or timestamp field`]
-  const parsed = parseOrderBy(threadSort(time.name))
-  const sorted = parsed.ok ? checkOrderBy(model, parsed.items) : parsed
-  return sorted.ok ? [] : [`time: ${sorted.errors.map((error) => error.message).join('; ')}`]
+  return timeProblems(fields.time, model)
 }
 
 /** The most messages a thread reads at once: each load is one page of the API, whose largest page is 500 records. */
@@ -42,11 +35,15 @@ export const maxThreadLimit = 500
 export const threadLimitProblems = (limit: unknown): string[] =>
   limit === undefined || (Number.isInteger(limit) && (limit as number) > 0 && (limit as number) <= maxThreadLimit) ? [] : [`limit must be a whole number from 1 to ${maxThreadLimit}`]
 
-/** What a thread names that its message resource does not have, or cannot order the messages by or show as a status, and a limit it cannot read. */
-export const threadProblems = (node: LayoutNode, model: ResourceModel): string[] => [
+/**
+ * What a thread names that its message resource does not have, or cannot order the messages by or show as a status, a
+ * limit it cannot read, and what its tool calls name that their resource does not have.
+ */
+export const threadProblems = (node: LayoutNode, models: Record<string, ResourceModel>, model: ResourceModel): string[] => [
   ...messageFieldsProblems({ sender: String(node.props.sender), time: String(node.props.time), text: String(node.props.text) }, model),
   ...messageStatusProblems(typeof node.props.status === 'string' ? node.props.status : undefined, model),
   ...threadLimitProblems(node.props.limit),
+  ...(node.props.calls === undefined ? [] : toolCallsProblems(node.props.calls as unknown as ToolCallSource, models).map((problem) => `calls: ${problem}`)),
 ]
 
 /** Whether a message may set the field `name`: not one the server sets, such as its tenant or author. */

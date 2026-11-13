@@ -418,6 +418,32 @@ describe('pruneView', () => {
     expect(thread({ repair_notes: ['state'], repairs: ['number'] })).toEqual({ status: undefined, working: undefined })
   })
 
+  it("drops a conversation's tool calls for a caller who cannot read them, and what of each they cannot read", () => {
+    const notes = resource('repair_notes')
+      .table('repair_notes')
+      .fields({ id: f.integer(), repairId: f.relation('repairs').filterable(), author: f.text(), at: f.timestamp().sortable(), body: f.text() })
+      .primaryKey((r) => r.id)
+      .toModel()
+    const toolCalls = resource('repair_calls')
+      .table('repair_calls')
+      .fields({ id: f.integer(), repairId: f.relation('repairs').filterable(), tool: f.text(), at: f.timestamp().sortable(), state: f.enum(['done', 'error', 'running']), input: f.json(), output: f.json(), failure: f.text() })
+      .primaryKey((r) => r.id)
+      .toModel()
+    const calls = { resource: 'repair_calls', field: 'repairId', name: 'tool', time: 'at', status: 'state', input: 'input', result: 'output', error: 'failure' }
+    const written = view<typeof repairs>('repairs').layout(() => [l.thread('Notes', { resource: 'repair_notes', field: 'repairId', sender: 'author', time: 'at', text: 'body', calls })]).toModel()
+    const kept = (hidden: string[], unreadable = false) => {
+      const readableFields = Object.keys(toolCalls.fields).filter((name) => !hidden.includes(name))
+      const models: Record<string, ResourceModel> = { ...all, repair_notes: notes, ...(!unreadable && { repair_calls: restrictModel(toolCalls, { readableFields, writableFields: { create: [], update: [] } }) }) }
+      const [item] = pruneView(written, models.repairs!, models).layout
+      return item?.kind === 'thread' ? item.calls : item
+    }
+    expect(kept([])).toEqual(calls)
+    expect(kept(['input', 'failure'])).toEqual({ resource: 'repair_calls', field: 'repairId', name: 'tool', time: 'at', status: 'state', result: 'output' })
+    expect(kept(['state'])).toBeUndefined()
+    expect(kept(['repairId'])).toBeUndefined()
+    expect(kept([], true)).toBeUndefined()
+  })
+
   it("prunes a conversation in a custom section's fallback as one outside it", () => {
     const Chat = Object.assign(() => null, { blockName: 'Chat', custom: true })
     const notes = resource('repair_notes')

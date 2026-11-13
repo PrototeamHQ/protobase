@@ -425,10 +425,39 @@ The latest messages that match `filter`, oldest first, each under its sender's n
 | `text` | The message; shown rendered when the message resource's view marks it [`.markdown()`](/reference/ui-config/#names-and-columns). Required. |
 | `status` | A short line under each message, such as whether it was delivered: a text or enum field, shown with its view's value labels, in red for a value it colours `red`; a message without a value shows none. Left out for a user who cannot read it. Experimental, see [Message status and a working indicator](/reference/ui-config/#message-status-and-a-working-indicator). |
 | `working` | A condition on the record around the thread, as [`Show`](#show) takes, such as `state = 'working'`: while it holds, the thread ends in a working indicator. Left out for a user who cannot read what it names. Experimental. |
-| `limit` | How many of the latest it shows at first, and how many each **Load earlier messages** adds: 1 to 500, the API's largest page; default 50. |
+| `calls` | Tool calls shown between the messages in time order, from a resource of their own; see [Tool calls](#tool-calls). Left out for a user who cannot read their name, time or status. |
+| `limit` | How many of the latest messages it shows at first, and of the latest tool calls, and how many each **Load earlier messages** adds: 1 to 500, the API's largest page; default 50. |
 | `title`, `description`, `actions` | The heading; no card is drawn around the thread, so it can sit in a `Card` with its composer. |
 | `empty` | Text while there are no messages. |
 | `span` | Width in a grid. |
+
+#### Tool calls
+
+A thread with an assistant in it can show what the assistant did between its messages: each tool call it made, in time order, with the tool's name and its status, which opens to what the tool was called with, what it gave back and why it failed. `calls` names the resource that holds the calls and the fields the thread reads of each:
+
+```tsx
+<Thread
+  resource="messages"
+  filter="chat_id = 1"
+  sender="author_id"
+  time="sent_at"
+  text="body"
+  calls={{ resource: 'tool_calls', filter: 'chat_id = 1', name: 'tool', time: 'called_at', status: 'state', input: 'input', result: 'output', error: 'failure' }}
+/>
+```
+
+| `calls` key | |
+| --- | --- |
+| `resource`, `filter` | Which calls. `resource` is required. |
+| `name` | The tool's name: a text field. Required. |
+| `time` | When it was called: a date or timestamp field the API can sort by, which places it among the messages. A call at the same time as a message shows after it. Required. |
+| `status` | A text or enum field: `done` shows a check, `running` a spinner and `error` an alert icon in red, each beside the value's label from the view; any other value shows its label without a mark, and a call without a value shows none. Required. |
+| `input`, `result` | What the tool was called with and what it gave back, shown as indented JSON; a text that holds JSON shows as the value it holds. |
+| `error` | Why the call failed: a text field. |
+
+Each call is a line under the messages before it, closed at first; a call with an input, result or error opens and closes with a click on its line. The thread reads the latest calls as it reads the latest messages, `limit` at a time, newest first by `time`, so that read needs an index on the filter's field and `time`, which [`protobase doctor`](/reference/cli/#doctor) checks, and **Load earlier messages** loads the earlier calls with the earlier messages, keeping them in time order. A user who cannot read the calls' `name`, `time` or `status` gets the thread without its calls, and one who cannot read `input`, `result` or `error` gets the calls without that part.
+
+Clients that cannot draw the calls get their simpler forms from `@protobase/layout`: `threadLines(items)` gives one short line per item, a message as its sender and first line and a call as its name and status, and `threadMarkdown(items, words)` gives the thread as Markdown, for clients that read text, such as an MCP client or a language model: each message under its sender in bold, each call as its name and status with its input and result as JSON and its error in fenced code blocks. <gap>A watch cannot show a thread's tool calls as lines because drawing a thread on a watch is not implemented.</gap>
 
 ### Composer
 

@@ -22,7 +22,12 @@ export const incomingRelations = (
   registered: (component: string) => boolean,
 ): IncomingRelation[] => {
   if (model.primaryKey.length !== 1) return []
-  const listed = new Set(drawnItems(layout, registered).flatMap((item) => ((item.kind === 'related' && !item.through && !item.from) || item.kind === 'thread' ? [`${item.resource}.${item.field}`] : [])))
+  const listed = new Set(
+    drawnItems(layout, registered).flatMap((item) => {
+      if (item.kind === 'thread') return [`${item.resource}.${item.field}`, ...(item.calls ? [`${item.calls.resource}.${item.calls.field}`] : [])]
+      return item.kind === 'related' && !item.through && !item.from ? [`${item.resource}.${item.field}`] : []
+    }),
+  )
   const found = Object.values(resources).flatMap((source) =>
     Object.values(source.fields)
       .filter((field) => field.type === 'relation' && field.relation?.resource === model.name && field.relation.columns.length === 1 && field.filterable)
