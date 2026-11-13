@@ -23,6 +23,13 @@ export type AppShellProps = {
   activeItem: string
   /** Crumbs with an `href` are links, followed with `onNavigate`. */
   breadcrumb: Crumb[]
+  /** Beside the page's title in the top bar, such as a spinner while the page refreshes. */
+  titleStatus?: ReactNode
+  /**
+   * The page shows data that may be out of date, such as from the start cache: muted and pulsing while it is
+   * `refreshing`, muted once that `failed`. Only its look changes, so nothing moves when fresh data replaces it.
+   */
+  staleContent?: 'refreshing' | 'failed'
   /** The signed-in person, with their profile menu; without one the sidebar links to `signIn` instead. */
   user?: ShellUser
   workspace?: string
@@ -72,7 +79,14 @@ export type AppShellProps = {
 
 const drawerId = 'app-drawer'
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, account, bottomBar, onNavigate, onBack, onSignOut, signIn, organizations, roles, theme, status, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
+// Real content that cannot pass for up to date: a skeleton's pulse over muted content while it refreshes, muted alone
+// once refreshing failed or when less motion is asked for
+const staleLook = {
+  refreshing: '[animation:pb-stale_1.4s_ease-in-out_infinite] motion-reduce:[animation:none] motion-reduce:opacity-60',
+  failed: 'opacity-60',
+}
+
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, staleContent, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, account, bottomBar, onNavigate, onBack, onSignOut, signIn, organizations, roles, theme, status, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const noticeShown = useSidebarNoticeShown(sidebarMode)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -102,9 +116,9 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
         )}
         {/* Without the bottom bar, the page keeps clear of the home indicator itself */}
         <div className={cn('flex min-w-0 flex-1 flex-col', !tabs && 'pb-[var(--pb-safe-bottom)]')}>
-          <TopBar ref={topBarRef} slotRef={setTopBarSlot} sticky={pageScroll} breadcrumb={breadcrumb} onNavigate={onNavigate} onBack={onBack} actions={actions} onMenu={desktop || tabs ? undefined : () => setDrawerOpen(true)} menuOpen={drawerOpen} menuControls={drawerId} search={search} />
+          <TopBar ref={topBarRef} slotRef={setTopBarSlot} sticky={pageScroll} breadcrumb={breadcrumb} titleStatus={titleStatus} onNavigate={onNavigate} onBack={onBack} actions={actions} onMenu={desktop || tabs ? undefined : () => setDrawerOpen(true)} menuOpen={drawerOpen} menuControls={drawerId} search={search} />
           {banner}
-          <main className={pageScroll ? 'flex flex-1 flex-col' : 'flex min-h-0 flex-1 flex-col'}>
+          <main className={cn(pageScroll ? 'flex flex-1 flex-col' : 'flex min-h-0 flex-1 flex-col', staleContent && staleLook[staleContent])} aria-busy={staleContent === 'refreshing' || undefined}>
             <TopBarSlotContext.Provider value={topBarSlot}>{children}</TopBarSlotContext.Provider>
           </main>
           {tabs && <BottomBar ref={bottomBarRef} sticky={pageScroll} tabs={tabs} onNavigate={onNavigate} onMore={() => setDrawerOpen(true)} moreOpen={drawerOpen} moreControls={drawerId} />}

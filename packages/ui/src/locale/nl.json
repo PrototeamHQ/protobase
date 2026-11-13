@@ -283,6 +283,8 @@
     "couldNotLoadOptions": "Kon de keuzes niet laden",
     "noMatches": "Niets gevonden",
     "loading": "Laden",
+    "refreshing": "Vernieuwen",
+    "refreshFailed": "Kon niet vernieuwen. Dit is wat de app het laatst laadde.",
     "leaveTitle": "Weggaan zonder te bewaren?",
     "leaveDescription": "Je hebt niet-bewaarde wijzigingen op deze pagina. Ze blijven in deze browser, en komen terug als je het record weer opent.",
     "leaveInputLost": "Je hebt niet-bewaarde wijzigingen op deze pagina. Ze gaan verloren als je weggaat.",

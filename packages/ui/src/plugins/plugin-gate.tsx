@@ -1,6 +1,8 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { useAdminMeta } from '../app/meta-gate'
 import { ProjectUiContext, type ProjectUi } from '../app/pages/project-ui'
+import { cn } from '../lib/cn'
+import { revealLate } from '../primitives/skeleton'
 import { Spinner } from '../primitives/spinner'
 import { mergePlugins, type PluginOff } from './merge-plugins'
 import { usePluginSource } from './plugin-source'
@@ -21,7 +23,8 @@ export type PluginGateProps = {
 /**
  * Loads the plugins `/meta` names, from the app's plugin source, and provides the project's UI config with theirs
  * merged in. It draws its children once they have loaded, or failed, or after a wait (see `usePluginLoads`); a plugin
- * that fails is left out, and its components draw what any missing component draws.
+ * that fails is left out, and its components draw what any missing component draws. Its loading notice stays blank for
+ * the first 180 ms, as a start from the cache usually has them from the browser's cache by then.
  */
 export const PluginGate = ({ ui, children }: PluginGateProps) => {
   const { plugins = [] } = useAdminMeta()
@@ -29,7 +32,7 @@ export const PluginGate = ({ ui, children }: PluginGateProps) => {
   const merged = useMemo(() => mergePlugins(ui, loads), [ui, loads])
   if (!settled) {
     return (
-      <div className="flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground">
+      <div className={cn('flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground', revealLate)}>
         <Spinner /> {text('loading')}
       </div>
     )

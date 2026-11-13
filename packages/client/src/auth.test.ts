@@ -20,6 +20,25 @@ describe('tokenExpiry', () => {
   })
 })
 
+describe('reading the session', () => {
+  const sessionAnswering = (response: () => Response) =>
+    createAuthSession({ origin: 'http://localhost', fetch: (async () => response()) as typeof globalThis.fetch, onSignedOut: vi.fn() })
+
+  it('gives the signed-in user', async () => {
+    const session = sessionAnswering(() => json({ user: { id: 'u1', email: 'ada@example.com' }, session: { id: 's1' } }))
+    expect(await session.session()).toMatchObject({ id: 'u1' })
+  })
+
+  it('gives nothing when there is no session', async () => {
+    expect(await sessionAnswering(() => json(null)).session()).toBeUndefined()
+    expect(await sessionAnswering(() => json({ message: 'Unauthorized' }, { status: 401 })).session()).toBeUndefined()
+  })
+
+  it('fails when the server could not answer, so a caller does not take it for signed out', async () => {
+    await expect(sessionAnswering(() => json({ message: 'Down' }, { status: 503 })).session()).rejects.toBeInstanceOf(AuthError)
+  })
+})
+
 describe('auth session tokens', () => {
   const setup = (respond: (path: string) => Response) => {
     const calls: string[] = []

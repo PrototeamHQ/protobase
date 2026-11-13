@@ -32,7 +32,7 @@ export const LiveApp = ({ baseUrl, start, sidebarMode }: { baseUrl: string; star
       const first = page.items[0]
       if (!first) return done({ state: 'down', reason: `${start.firstOf} has no rows` })
       done({ state: 'ready', path: `${appPath({ kind: 'record', resource: start.firstOf, key: first.id as string })}${start.suffix ?? ''}` })
-    }, down)
+    }).catch(down)
     return () => {
       current = false
     }

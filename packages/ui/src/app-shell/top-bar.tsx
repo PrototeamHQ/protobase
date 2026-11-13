@@ -8,6 +8,8 @@ import { text } from './messages'
 
 export type TopBarProps = {
   breadcrumb: Crumb[]
+  /** Beside the page's title, such as a spinner while the page refreshes. */
+  titleStatus?: ReactNode
   /** Follows a breadcrumb link in the app. */
   onNavigate?: (href: string) => void
   /** Follows the back button; without it `onNavigate`. */
@@ -49,7 +51,7 @@ const mobileSearchField = 'max-h-[max(40px,calc(13vw-4px),calc(1.25em+2px))] tex
 /** The back button that shows the page it goes to, as the trail on a phone leaves that crumb to it: one link, one target. */
 const backWithLabel = 'inline-flex min-h-[min(2.75rem,max(44px,13vw))] min-w-0 items-center gap-[4px] rounded-md pr-[8px] pl-[12px] text-muted-foreground hover:bg-muted hover:text-foreground md:hidden [&_svg]:size-[min(1.25rem,max(20px,6vw))]'
 
-export const TopBar = ({ breadcrumb, onNavigate, onBack, actions, onMenu, menuOpen, menuControls, search, sticky, slotRef, ref }: TopBarProps) => {
+export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, onMenu, menuOpen, menuControls, search, sticky, slotRef, ref }: TopBarProps) => {
   const [searchOpen, setSearchOpen] = useState(false)
   const back = backTarget(breadcrumb)
   const desktopSearch = useRef<HTMLInputElement>(null)
@@ -93,6 +95,7 @@ export const TopBar = ({ breadcrumb, onNavigate, onBack, actions, onMenu, menuOp
           </a>
         )}
         <Breadcrumb parts={breadcrumb} onNavigate={onNavigate} />
+        {titleStatus && <span className="flex shrink-0 items-center">{titleStatus}</span>}
         <div className="ml-auto flex items-center gap-[4px] md:gap-3">
           {search && (
             <>

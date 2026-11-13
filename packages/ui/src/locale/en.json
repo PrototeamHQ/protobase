@@ -283,6 +283,8 @@
     "couldNotLoadOptions": "Could not load the options",
     "noMatches": "No matches",
     "loading": "Loading",
+    "refreshing": "Refreshing",
+    "refreshFailed": "Could not refresh. This is what the app last loaded.",
     "leaveTitle": "Leave without saving?",
     "leaveDescription": "You have unsaved changes on this page. They stay in this browser, and come back when you open the record again.",
     "leaveInputLost": "You have unsaved changes on this page. They are lost when you leave.",

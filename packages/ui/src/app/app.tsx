@@ -8,9 +8,13 @@ import { ConnectRoute } from '../connect/connect-route'
 import { SignInPolicyPage } from '../account/sign-in-policy-page'
 import { AppShell, type SidebarMode } from '../app-shell'
 import { ApiProvider } from '../data/api-provider'
+import { createQueryPersistence } from '../data/start-cache/query-persistence'
+import { useRestoredState } from '../data/start-cache/restored-state'
+import { StartCacheProvider, useStartCache, type StartCache } from '../data/start-cache/start-cache'
 import { AuthGate, AuthProvider, isAdmin, userToShell, useAuth } from '../auth'
 import { AuthLocale } from '../auth/auth-locale'
 import { cacheOwner } from '../auth/cache-owner'
+import { keepsStartCache } from '../auth/start-session'
 import { useSignInAddress } from '../auth/use-sign-in-address'
 import { useLiveUpdates } from '../data/use-live-updates'
 import { useOpenedRecord } from '../data/use-record'
@@ -56,6 +60,7 @@ import { PluginGate, usePluginsOff } from '../plugins/plugin-gate'
 import { PluginSourceProvider } from '../plugins/plugin-source'
 import { PluginNotice } from '../plugins/plugin-notice'
 import { RecordPage } from './record-page'
+import { RefreshMark } from './refresh-mark'
 import { RecordTitles, useRecordTitle } from './titles/record-titles'
 import { SourceNotice } from './source-notice'
 import { sourceStatusOf } from '../data/with-sources'
@@ -105,6 +110,8 @@ export type AppProps = {
   locale?: Locale
   /** The native bridge of the iOS or Android app (`nativeBridgeOf`): sign-in goes through native HTTP. */
   nativeBridge?: NativeBridge
+  /** What the app starts from before the network answers (`loadStartCache`); without it nothing is kept between starts. */
+  startCache?: StartCache
 }
 
 // The resource or page an address is about, which the sidebar marks; a record's key, which its recent records mark.
@@ -130,6 +137,8 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const search = useGlobalSearch()
   const theme = useTheme()
   const recent = useNavRecent(meta, basePath, { resource: shown?.resource, key: shown?.key })
+  // Data from the start cache shows muted, with a spinner by the title, until it is fetched again
+  const restored = useRestoredState()
   useLiveUpdates(meta)
   const groups = navFromMeta(meta, basePath, recent)
   const start = useMemo(() => startAddress(meta), [meta])
@@ -240,6 +249,8 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       sidebarMode={sidebarMode ?? 'text-small'}
       activeItem={place ?? ''}
       breadcrumb={breadcrumb}
+      titleStatus={restored !== 'fresh' && <RefreshMark failed={restored === 'failed'} />}
+      staleContent={restored === 'fresh' ? undefined : restored === 'failed' ? 'failed' : 'refreshing'}
       user={acting && userToShell(acting)}
       onSignOut={user && (() => void signOut())}
       signIn={user ? undefined : signIn.link()}
@@ -276,15 +287,20 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   )
 }
 
-const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, assistant, runtime }: Omit<AppProps, 'auth' | 'basePath' | 'initialUrl' | 'pluginLoader'>) => {
+const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, assistant, runtime }: Omit<AppProps, 'auth' | 'basePath' | 'initialUrl' | 'pluginLoader' | 'startCache'>) => {
   const { state, session, markSignedOut } = useAuth()
   // A full-width sidebar says the app was updated in a banner, so the toast does not cover the page there
   const sidebarBanner = useSidebarNoticeShown(sidebarMode ?? 'text-small')
   const { path } = useRouter()
+  // Someone signed in as themselves keeps their queries between starts; a visitor and staff signed in as someone do not.
+  const owner = cacheOwner(state)
+  const own = keepsStartCache(state)
+  const startCache = useStartCache()
+  const persistence = useMemo(() => (startCache && own ? createQueryPersistence({ cache: startCache, owner }) : undefined), [startCache, own, owner])
   // A visitor has no token to ask the session for: their requests go without one, as the anonymous role. Another caller
   // starts with a cache of their own, so a picture or a record fetched for the previous one never shows.
   return (
-    <ApiProvider key={cacheOwner(state)} baseUrl={baseUrl} client={client} sources={sources} token={state.kind === 'visitor' ? undefined : session.token} onUnauthenticated={markSignedOut}>
+    <ApiProvider key={owner} baseUrl={baseUrl} client={client} sources={sources} token={state.kind === 'visitor' ? undefined : session.token} onUnauthenticated={markSignedOut} persistence={persistence}>
       <MetaGate>
         <ToastProvider>
           {!sidebarBanner && <NewVersionToast />}
@@ -335,31 +351,33 @@ const GuestCallGate = ({ baseUrl, children }: { baseUrl?: string; children: Reac
  * visitor when the project's anonymous role reads, then a sidebar from `/meta`, `/:page` composed pages, `/:resource`
  * lists and `/:resource/:key` records. Fills its parent, in the theme this browser chose, light, dark or the system's.
  */
-export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, locale, nativeBridge, ...rest }: AppProps) => {
+export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, locale, nativeBridge, startCache, ...rest }: AppProps) => {
   // Before `/meta` names the app's language, and when it names none, the screens are in this one
   setFallbackLocale(locale ?? 'en')
   const apiOrigin = rest.baseUrl && new URL(rest.baseUrl, window.location.href).origin
   return (
-    <ThemeProvider>
-      <LiveUpdateGate nativeBridge={nativeBridge} apiOrigin={apiOrigin}>
-        <AuthProvider session={auth} {...(apiOrigin && { origin: apiOrigin })} {...(nativeBridge && { nativeBridge })}>
-          <Router basePath={basePath} initialUrl={initialUrl}>
-            <LiveUpdateResume />
-            {nativeBridge && apiOrigin && <NativePushTap nativeBridge={nativeBridge} apiOrigin={apiOrigin} />}
-            <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
-              <AuthLocale>
-                <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>
-                  <GuestCallGate {...(rest.baseUrl && { baseUrl: rest.baseUrl })}>
-                    <AuthGate workspace={workspace}>
-                      <Authenticated workspace={workspace} {...rest} />
-                    </AuthGate>
-                  </GuestCallGate>
-                </PublicFormGate>
-              </AuthLocale>
-            </PluginSourceProvider>
-          </Router>
-        </AuthProvider>
-      </LiveUpdateGate>
-    </ThemeProvider>
+    <StartCacheProvider value={startCache}>
+      <ThemeProvider>
+        <LiveUpdateGate nativeBridge={nativeBridge} apiOrigin={apiOrigin}>
+          <AuthProvider session={auth} {...(apiOrigin && { origin: apiOrigin })} {...(nativeBridge && { nativeBridge })}>
+            <Router basePath={basePath} initialUrl={initialUrl}>
+              <LiveUpdateResume />
+              {nativeBridge && apiOrigin && <NativePushTap nativeBridge={nativeBridge} apiOrigin={apiOrigin} />}
+              <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
+                <AuthLocale>
+                  <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>
+                    <GuestCallGate {...(rest.baseUrl && { baseUrl: rest.baseUrl })}>
+                      <AuthGate workspace={workspace}>
+                        <Authenticated workspace={workspace} {...rest} />
+                      </AuthGate>
+                    </GuestCallGate>
+                  </PublicFormGate>
+                </AuthLocale>
+              </PluginSourceProvider>
+            </Router>
+          </AuthProvider>
+        </LiveUpdateGate>
+      </ThemeProvider>
+    </StartCacheProvider>
   )
 }

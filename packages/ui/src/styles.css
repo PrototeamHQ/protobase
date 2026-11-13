@@ -64,6 +64,13 @@
   100% { opacity: 1; }
 }
 
+/* Content that may be out of date, muted, with a skeleton's pulse while it refreshes. */
+@keyframes pb-stale {
+  0% { opacity: 0.6; }
+  50% { opacity: 0.35; }
+  100% { opacity: 0.6; }
+}
+
 /* Blank while it waits: a skeleton's delay before it shows. */
 @keyframes pb-reveal {
   from { visibility: hidden; }
