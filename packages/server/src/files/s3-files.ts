@@ -7,7 +7,7 @@ import type { FileProvider, FileStore, StoredObject } from './store'
 /** The part of Bun's `S3Client` the store uses, so tests can pass their own. */
 export type S3Bucket = {
   file(key: string): S3Object
-  list(input: { prefix: string; continuationToken?: string }): Promise<S3ListPage>
+  list(input: { prefix: string; maxKeys?: number; continuationToken?: string }): Promise<S3ListPage>
 }
 
 export type S3Object = {
@@ -56,10 +56,25 @@ export const s3FileStore = (bucket: S3Bucket, prefix = ''): FileStore => {
   const root = trimmed === '' ? '' : `${trimmed}/`
   const keyOf = (path: string) => `${root}${path}`
 
+  // The size a listing holds for exactly `key`, or `undefined` when it is gone: a key sorts before every longer key it
+  // starts.
+  const listedSize = async (key: string) => {
+    const item = (await bucket.list({ prefix: key, maxKeys: 1 })).contents?.[0]
+    if (item?.key !== key) return
+    if (item.size === undefined) throw new Error(`Listing "${key}" gave no size`)
+    return item.size
+  }
+
+  // Bun's `stat` takes the size from the HEAD's Content-Length and gives 0 when it has none, as a compressing front
+  // answers a compressible type for a client that accepts gzip, which Bun always does. So a size of 0 is checked against
+  // the listing, which holds the stored size.
   const head = async (path: string): Promise<StoredObject | undefined> => {
+    const key = keyOf(path)
     try {
-      const stat = await bucket.file(keyOf(path)).stat()
-      return { path, size: stat.size, modified: stat.lastModified }
+      const stat = await bucket.file(key).stat()
+      const size = stat.size > 0 ? stat.size : await listedSize(key)
+      if (size === undefined) return
+      return { path, size, modified: stat.lastModified }
     } catch (error) {
       if (codeOf(error) === 'NoSuchKey' || codeOf(error) === 'NotFound') return undefined
       throw error

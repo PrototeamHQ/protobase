@@ -4,7 +4,7 @@ type FakeObject = { bytes: Uint8Array<ArrayBuffer>; type: string; disposition: s
 
 /**
  * An in-memory bucket behaving as Bun's S3 client does against a real one: a write that fails stores nothing, `stat` of a
- * missing key throws `NoSuchKey`, `slice` excludes its end, and `list` pages `pageSize` keys at a time.
+ * missing key throws `NoSuchKey`, `slice` excludes its end, and `list` pages `maxKeys` keys at a time, default `pageSize`.
  */
 export const fakeBucket = (pageSize = 2) => {
   const objects = new Map<string, FakeObject>()
@@ -36,15 +36,15 @@ export const fakeBucket = (pageSize = 2) => {
         return `https://bucket.example.com/${key}?${query}`
       },
     }),
-    list: async ({ prefix, continuationToken }) => {
+    list: async ({ prefix, maxKeys = pageSize, continuationToken }) => {
       const keys = [...objects.keys()].filter((key) => key.startsWith(prefix)).sort()
       const start = continuationToken === undefined ? 0 : Number(continuationToken)
-      const page = keys.slice(start, start + pageSize)
-      const isTruncated = start + pageSize < keys.length
+      const page = keys.slice(start, start + maxKeys)
+      const isTruncated = start + maxKeys < keys.length
       return {
         contents: page.map((key) => ({ key, size: objects.get(key)!.bytes.length, lastModified: objects.get(key)!.modified.toISOString() })),
         isTruncated,
-        ...(isTruncated && { nextContinuationToken: String(start + pageSize) }),
+        ...(isTruncated && { nextContinuationToken: String(start + maxKeys) }),
       }
     },
   }
