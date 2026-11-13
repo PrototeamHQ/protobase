@@ -3,8 +3,9 @@ import { defaultPort, readServeEnv } from './env'
 
 describe('readServeEnv', () => {
   it('reads the variables the platform passes', () => {
-    expect(readServeEnv({ PORT: '3000', DATABASE_URL: 'postgres://db/app', REQUEST_LOG: 'true', PROTOBASE_FILES_CLEANUP_MINUTES: '0', PROTOBASE_JOBS: 'false', PROTOBASE_STARTUP_CHECKS: 'false', PROTOBASE_JOBS_DRAIN_TOKEN: 's3cret', PROTOBASE_DB_CONNECTIONS: '3', PROTOBASE_TRUSTED_PROXIES: '10.0.0.0/8, ::1' })).toEqual({
+    expect(readServeEnv({ PORT: '3000', PROTOBASE_HOST: '127.0.0.1', DATABASE_URL: 'postgres://db/app', REQUEST_LOG: 'true', PROTOBASE_FILES_CLEANUP_MINUTES: '0', PROTOBASE_JOBS: 'false', PROTOBASE_STARTUP_CHECKS: 'false', PROTOBASE_JOBS_DRAIN_TOKEN: 's3cret', PROTOBASE_DB_CONNECTIONS: '3', PROTOBASE_TRUSTED_PROXIES: '10.0.0.0/8, ::1' })).toEqual({
       port: 3000,
+      host: '127.0.0.1',
       databaseUrl: 'postgres://db/app',
       dbConnections: 3,
       requestLog: true,
@@ -23,6 +24,7 @@ describe('readServeEnv', () => {
   it('refuses a PORT that is not a port number', () => {
     expect(() => readServeEnv({ PORT: 'http' })).toThrow('PORT must be a port number, not "http"')
     expect(() => readServeEnv({ PORT: '70000' })).toThrow('PORT must be a port number')
+    expect(() => readServeEnv({ PROTOBASE_HOST: 'localhost' })).toThrow('PROTOBASE_HOST must be an IP address, such as 127.0.0.1, not "localhost"')
     expect(() => readServeEnv({ PROTOBASE_FILES_CLEANUP_MINUTES: 'hourly' })).toThrow('PROTOBASE_FILES_CLEANUP_MINUTES must be a whole number of minutes, not "hourly"')
     expect(() => readServeEnv({ PROTOBASE_DB_CONNECTIONS: '0' })).toThrow('PROTOBASE_DB_CONNECTIONS must be a whole number of connections, at least 1, not "0"')
     expect(() => readServeEnv({ PROTOBASE_JOBS: 'off' })).toThrow('PROTOBASE_JOBS must be true or false, not "off"')

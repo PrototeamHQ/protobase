@@ -33,10 +33,11 @@ export type ServeOptions = {
 
 export type RunningServer = { port: number; close: () => Promise<void> }
 
-const listen = (server: Server, port: number) =>
+// Without a host, Node listens on every interface.
+const listen = (server: Server, port: number, host?: string) =>
   new Promise<void>((resolve, reject) => {
     server.once('error', reject)
-    server.listen(port, () => {
+    server.listen(port, host, () => {
       server.off('error', reject)
       resolve()
     })
@@ -87,7 +88,7 @@ export const startServe = async ({ config, env, openDb = (url) => openAppDatabas
     // its client in X-Forwarded-For.
     const sockets = apiWebSocketServer()
     const server = createAdaptorServer({ fetch: withClientAddress(app.fetch, env.trustedProxies), overrideGlobalObjects: false, websocket: { server: sockets } }) as Server
-    await listen(server, env.port).catch(async (error: Error) => {
+    await listen(server, env.port, env.host).catch(async (error: Error) => {
       await jobs?.stop()
       throw error
     })
