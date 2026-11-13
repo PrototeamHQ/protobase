@@ -1,0 +1,51 @@
+import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from '../node'
+import { childScope, pageScope, propScope } from '../walk'
+import { textForms } from './forms'
+import { escapeMarkdown } from './markdown'
+import { childrenText, type TextForm, type TextOptions } from './text-form'
+
+// Text, links and `Text as="span"` run on in one line, as the web draws them; other elements stand alone.
+const isInline = (child: LayoutChild) => typeof child === 'string' || (!child.custom && (child.type === 'Link' || (child.type === 'Text' && child.props.as === 'span')))
+
+// A `Text` and a `Link` are one line: everything they hold runs on.
+const holdsOneLine = (node: LayoutNode) => !node.custom && (node.type === 'Text' || node.type === 'Link')
+
+const isElements = (value: LayoutValue): value is LayoutNode | LayoutNode[] => isLayoutNode(value) || (Array.isArray(value) && value.length > 0 && value.every(isLayoutNode))
+
+// What sits inside a record card holds a record of its own, which the text does not have, so it reads no record
+const scoped = (options: TextOptions, inRecord: boolean): TextOptions => (inRecord ? { ...options, record: undefined, fields: undefined } : options)
+
+// A custom component reads as its fallback where it declares one, else as what it holds
+const customForm: TextForm = (context) => childrenText(context.fallback ? { ...context, children: context.fallback } : context)
+
+const formOf = (node: LayoutNode, options: TextOptions): TextForm => options.forms?.[node.type] ?? (node.custom ? customForm : textForms[node.type]) ?? childrenText
+
+/** The text of each child, a run of inline children joined into one part. */
+const partsOf = (children: LayoutChild[], options: TextOptions, oneLine: boolean): string[] => {
+  const parts: string[] = []
+  let runOn = false
+  for (const child of children) {
+    const text = typeof child === 'string' ? escapeMarkdown(child) : renderText(child, options)
+    const inline = oneLine || isInline(child)
+    if (inline && runOn) parts[parts.length - 1] += text
+    else parts.push(text)
+    runOn = inline
+  }
+  return parts
+}
+
+/**
+ * The Markdown text of a layout tree, for clients that draw no blocks and for MCP clients and LLMs. One pass, children
+ * first: each element's text form gets its children's text already rendered, so a container needs no form of its own.
+ * `options.forms` adds or replaces forms by block type.
+ */
+export const renderText = (node: LayoutNode, options: TextOptions = {}): string => {
+  const inner = scoped(options, childScope(node, pageScope).record)
+  const slotOptions = scoped(options, propScope(node, pageScope).record)
+  const slots = Object.fromEntries(
+    Object.entries(node.props).flatMap(([name, value]) => (isElements(value) ? [[name, (Array.isArray(value) ? value : [value]).map((element) => renderText(element, slotOptions))]] : [])),
+  )
+  const fallback = node.fallback && partsOf(node.fallback, options, false)
+  const children = partsOf(node.children, inner, holdsOneLine(node))
+  return formOf(node, options)({ node, children, slots, ...(fallback && { fallback }), options }).trim()
+}
