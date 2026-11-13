@@ -52,6 +52,46 @@ A custom component declared with a [fallback](/reference/custom-components/#fall
 
 A client that cannot draw the component, such as one without React, draws the fallback instead, and the checks read it like the rest of the tree.
 
+## Text form
+
+Every layout block renders to Markdown text through one shared function, `renderText`, built up from its children. It is the last-resort form of a page, for a client that draws no blocks and for MCP clients and LLMs. Each element's text is made from its children's text, already rendered: a container such as `Grid`, `Box` or `Tabs` reads as its children in order with a blank line between them, and text and links run on in one line as they do on the web.
+
+```tsx
+import { Field, Page, renderText } from '@protobase/layout'
+
+renderText(<Page title="Order"><Field name="status" /></Page>, {
+  record: { status: 'in_progress' },
+  fields: { status: { label: 'Status', valueLabels: { in_progress: 'In progress' } } },
+})
+// # Order
+//
+// **Status**: In progress
+```
+
+| Option | |
+| --- | --- |
+| `record` | The record around the tree. `Field`, `Stat field`, `Progress`, `Show` conditions and the `{field}`s of addresses read it, through relations as nested objects (`plan.name`); a count a condition names, such as `billing_profiles.count`, is a key of its own. Without it, a field reads as its label alone, a `Show` reads as all it holds, and addresses keep their `{field}`s. |
+| `fields` | Per field path, its `label` and the `valueLabels` its enum values read as; a field without a label reads under its path. |
+| `basePath` | What links start with, such as `https://example.com/admin`. |
+| `forms` | Text forms by block type, over the built-in ones. |
+
+A heading reads at its level: a `Page` title as `#`, a `Tab` label as `##`, and the title of a `Card` and of a data block as `###`, the data block's linked to its records' list as it filters them. A field's value reads as its enum label, a list as its items, and JSON as a code block.
+
+A text form of your own is a function from its element and its children's text to Markdown. It can use the default as it is (`childrenText`), wrap a built-in form from `textForms`, or rework the children's text, such as a horizontal line between them:
+
+```ts
+import { childrenText, markdown, renderText, textForms, type TextForm } from '@protobase/layout'
+
+const ruled: TextForm = ({ children }) => markdown.blocks(children, '\n\n---\n\n')
+const noted: TextForm = (context) => `${textForms.Card!(context)}\n\nUpdated hourly.`
+
+renderText(tree, { forms: { Grid: ruled, Card: noted, SeatChart: childrenText } })
+```
+
+A custom component reads as its [fallback](/reference/custom-components/#fallbacks) when it declares one, and otherwise as what it holds, unless `forms` names it.
+
+<gap>A data block's text form cannot list its records, such as a table's rows, because reading records for the text form is not implemented.</gap> <gap>A field's text form cannot apply its `format`, such as a relative time, because formatting in the text form is not implemented.</gap> <gap>MCP clients cannot read a page's text form because a tool that serves it is not implemented.</gap>
+
 ## What a layout may hold
 
 A prop is a string, a finite number, a boolean, `null`, or an array or plain object of those (elements included). It is JSON in the end, so the rules are checked twice:

@@ -8,6 +8,7 @@ description: Pages of your own, built from blocks in a JSX layout.
 - [Conditions](/reference/layouts/#conditions): Part of a page shows only while a condition on a record or a count holds.
 - [App addresses](/reference/layouts/#addresses): Links to lists, records, create forms and pages are typed addresses that can carry filters and prefilled values.
 - [Component fallbacks](/reference/custom-components/#fallbacks): A custom component declares what a client that cannot draw it shows instead, or nothing, and the web shows it too when the component is missing or throws.
+- [Text form](/reference/layouts/#text-form): Every layout block renders to Markdown text through one shared function, built up from its children, as the last-resort fallback and for MCP clients and LLMs.
 - [Per-user pages](/reference/layouts/#access): Each user gets the page without the parts, fields and actions they cannot use.
 - [Layout blocks](/reference/blocks/#layout): Pages, responsive grids, cards and links.
 - [Tailwind classes](/reference/layouts/#tailwind-classes) (experimental): Layouts can carry Tailwind classes, on plain elements and on blocks, for pages too custom for blocks.

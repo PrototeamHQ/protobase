@@ -87,6 +87,11 @@ export { prunePage } from './prune-page'
 export { parseCondition, evaluateCondition, countedResource } from './condition'
 export { resolveFieldPath, type PathStep } from './field-path'
 export { mapTree, walkTree, type Location } from './walk'
+export { renderText } from './text/render-text'
+export { textForms } from './text/forms'
+export { childrenText, type TextContext, type TextField, type TextForm, type TextOptions } from './text/text-form'
+/** The Markdown primitives the blocks' text forms are made of, for forms of one's own. */
+export * as markdown from './text/markdown'
 
 /** What `@protobase/layout/jsx-runtime` exports, for runtimes that supply it as a module. */
 export * as jsxRuntime from './jsx-runtime'
