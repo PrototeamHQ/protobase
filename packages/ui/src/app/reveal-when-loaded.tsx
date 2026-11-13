@@ -7,8 +7,9 @@ import { text } from './messages'
 /** How long a page waits at most for its first data before it shows what it has. */
 export const revealWaitMs = 2000
 
-// A query that already holds an answer, such as one from the start cache, draws it while it is fetched again
-const firstLoad = { predicate: (query: Query) => query.state.data === undefined }
+// A query on screen that already holds an answer, such as one from the start cache, draws it while it is fetched again;
+// what such a refetch asks for in turn without showing it is not waited for either
+const firstLoad = { type: 'active' as const, predicate: (query: Query) => query.state.data === undefined }
 
 /**
  * Draws a page out of sight until the data it asks for when it opens has come, with a skeleton over it meanwhile, so its

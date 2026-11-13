@@ -5,7 +5,7 @@ import { createFocusRefresh, FocusRefreshContext, listenToWindowFocus } from './
 import type { MetaData } from './meta-data'
 import { keys } from './query-keys'
 import type { QueryPersistence } from './start-cache/query-persistence'
-import { ClientStartContext } from './start-cache/restored-state'
+import { ClientStartContext, keepCachedOnFailure } from './start-cache/restored-state'
 
 const ApiContext = createContext<Client | null>(null)
 const SourceClientsContext = createContext<((source: SourceRef) => Client) | null>(null)
@@ -82,6 +82,7 @@ export const ApiProvider = ({ baseUrl, client: given, sources, fetch, queryClien
     return { queryClient, startedAt: Date.now() }
   })
   useEffect(() => persistence?.subscribe(queryClient), [persistence, queryClient])
+  useEffect(() => (persistence ? keepCachedOnFailure(queryClient, startedAt) : undefined), [persistence, queryClient, startedAt])
   useEffect(() => focusManager.setEventListener(listenToWindowFocus), [])
   const metaVersion = useRef<string | undefined>(undefined)
   const client = useMemo(

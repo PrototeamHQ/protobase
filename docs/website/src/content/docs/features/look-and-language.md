@@ -11,6 +11,7 @@ description: The app's colours, name, icon, language and installation.
 - [Named icons](/reference/layouts/#named-actions): Actions, key facts and card meta show an icon picked by name from a set, such as `play`, `bed` or `cpu`.
 - [English and Dutch](/reference/languages/): The built-in screens come in English and Dutch, with numbers and dates written to match.
 - [Installable app](/reference/installable-app/): The admin installs as an app on phones and computers, and says when the server cannot be reached.
+- [Start from the last pages seen](/reference/installable-app/#starting-from-the-last-pages-seen): Someone signed in opens the app on what it showed last time, muted with a spinner by the title until it is refreshed in the background.
 
 ## Accessibility
 

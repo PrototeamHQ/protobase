@@ -34,11 +34,21 @@ The colours and each PNG are there only when the project has them.
 
 ## Without a network
 
-The data stays online: the installed app reads and writes through the API as the browser tab does, and nothing works offline. The page registers a service worker, `/protobase.sw.js` in the bundle's `public/`, which keeps only the app itself, so the app still opens without a network and says it cannot reach the server.
+The data stays online: the installed app reads and writes through the API as the browser tab does, and nothing can be changed offline. Someone signed in sees the pages they opened last, from the [start cache](#starting-from-the-last-pages-seen), with a warning beside the title that they could not be refreshed. The page registers a service worker, `/protobase.sw.js` in the bundle's `public/`, which keeps only the app itself, so the app still opens without a network and says it cannot reach the server.
 
 - A page always comes from the server while it answers, and from the cache only when the network fails.
 - The files under `/assets`, named by their content, come from the cache once loaded. The page and what it loads first are cached when the worker installs.
 - The theme and the favicon come from the server, with the cached copy used when the network fails.
-- Nothing else is cached: the API, the plugins and other sites go to the network as without the worker.
+- Nothing else is cached by the worker: the API, the plugins and other sites go to the network as without the worker.
 
 Each build of the app has its own worker, which replaces the previous one and drops its cache on the next visit. `protobase dev` registers no worker, so the dev server's changes always show.
+
+## Starting from the last pages seen
+
+The app keeps what someone signed in last saw, from the moment they sign in, and opens on it the next time, in the browser tab, the installed app and the iOS and Android app alike. The first screen draws at once from this start cache, and everything on it is fetched again behind it:
+
+- While the page shows cached data, its content is muted and pulses as a skeleton does, so it never passes for up to date, and a small spinner sits beside the page's title.
+- When the fresh data lands it replaces the cached data in place, and nothing moves.
+- When the refresh fails, such as without a network, the cached data stays muted and a warning replaces the spinner.
+
+The start cache holds who is signed in, the app's `/meta` and the latest answer of each query on the screen and on the last 5 pages opened. It has no time limit. It lives in the browser's IndexedDB for the app's origin, or in the app's own storage on a phone. It is emptied when someone signs out, when the session ends and the API answers 401, and when a new Protobase version of the app opens. Visitors and staff signed in as someone keep nothing.

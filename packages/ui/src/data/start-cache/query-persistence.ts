@@ -17,8 +17,10 @@ export type QueryPersistence = {
 
 const metaHash = JSON.stringify(keys.meta)
 
-// A `/meta` frozen at another Protobase version (see `keepOnVersionChange`) is not saved: the one before it is kept.
-const savable = (query: Query) => query.state.status === 'success' && !(query.queryHash === metaHash && (query.state.data as MetaData | undefined)?.versionChange)
+// A `/meta` frozen at another Protobase version (see `keepOnVersionChange`), and a cached answer whose refetch failed
+// (see `keepCachedOnFailure`), are not saved: the answer saved before is kept.
+const savable = (query: Query) =>
+  query.state.status === 'success' && query.state.fetchFailureCount === 0 && !(query.queryHash === metaHash && (query.state.data as MetaData | undefined)?.versionChange)
 
 /**
  * The queries to save: the latest answer of each query on screen now or on one of the last seen pages. A query whose
