@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pgbouncerConfig, userList } from './pgbouncer'
+import { configFile, isThisPgbouncer, pgbouncerConfig, userList } from './pgbouncer'
 
 describe('pgbouncerConfig', () => {
   const config = pgbouncerConfig({ user: 'protobase', port: 55432, poolerPort: 55442 })
@@ -21,5 +21,24 @@ describe('pgbouncerConfig', () => {
 describe('userList', () => {
   it('lists the user with the password scram-sha-256 needs', () => {
     expect(userList({ user: 'protobase', password: 'secret' })).toBe('"protobase" "secret"\n')
+  })
+})
+
+describe('userList quoting', () => {
+  it('doubles double quotes inside a field', () => {
+    expect(userList({ user: 'pro"base', password: 'sec"ret' })).toBe('"pro""base" "sec""ret"\n')
+  })
+})
+
+describe('isThisPgbouncer', () => {
+  it('accepts PgBouncer started with this config file', () => {
+    expect(isThisPgbouncer(42, `/opt/homebrew/bin/pgbouncer --daemon ${configFile}\n`)).toBe(true)
+  })
+
+  it('rejects a reused pid running something else, another PgBouncer, or none', () => {
+    expect(isThisPgbouncer(42, '/usr/bin/vim notes.txt\n')).toBe(false)
+    expect(isThisPgbouncer(42, '/opt/homebrew/bin/pgbouncer /etc/pgbouncer.ini\n')).toBe(false)
+    expect(isThisPgbouncer(42, '')).toBe(false)
+    expect(isThisPgbouncer(Number.NaN, `pgbouncer ${configFile}`)).toBe(false)
   })
 })

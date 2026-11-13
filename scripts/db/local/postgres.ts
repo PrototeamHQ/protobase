@@ -34,13 +34,23 @@ const executable = (name: string, settings: Settings) => {
 
 const isRunning = (pgCtl: string) => capture(pgCtl, ['status', '-D', dataFolder]).status === 0
 
+/** The postgres image's locale, which the server's sort order follows; initdb needs the operating system to have it. */
+const locale = 'en_US.UTF-8'
+
+/** Whether `locale -a` lists the locale, in either of its spellings (`en_US.UTF-8` on macOS, `en_US.utf8` on glibc). */
+export const hasLocale = (installed: string, name = locale) => {
+  const normalise = (value: string) => value.trim().toLowerCase().replace('utf-8', 'utf8')
+  return installed.split('\n').some((line) => normalise(line) === normalise(name))
+}
+
 /** Creates the data folder as the postgres image does: the superuser with its password, UTF-8, scram-sha-256 over TCP. */
 const initialise = (settings: Settings) => {
+  if (!hasLocale(capture('locale', ['-a']).stdout)) throw new Error(`The locale ${locale}, which the postgres image uses, is not installed: install it, then run db:up again`)
   mkdirSync(folder, { recursive: true })
   const passwordFile = path.join(folder, 'password')
   writeFileSync(passwordFile, settings.password, { mode: 0o600 })
   try {
-    const args = ['-D', dataFolder, '-U', settings.user, `--pwfile=${passwordFile}`, '-E', 'UTF8', '--locale=en_US.UTF-8', '--auth-local=trust', '--auth-host=scram-sha-256']
+    const args = ['-D', dataFolder, '-U', settings.user, `--pwfile=${passwordFile}`, '-E', 'UTF8', `--locale=${locale}`, '--auth-local=trust', '--auth-host=scram-sha-256']
     run(executable('initdb', settings), args)
   } finally {
     rmSync(passwordFile)
@@ -60,7 +70,7 @@ const checkVersion = (settings: Settings) => {
 const createDatabase = async (settings: Settings) => {
   const sql = postgres({ host: '127.0.0.1', port: settings.port, user: settings.user, password: settings.password, database: 'postgres', max: 1, onnotice: () => {} })
   const [existing] = await sql`select 1 from pg_database where datname = ${settings.database}`
-  if (!existing) await sql.unsafe(`create database "${settings.database}"`)
+  if (!existing) await sql`create database ${sql(settings.database)}`
   await sql.end()
 }
 

@@ -1,10 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { findExecutable, run } from './executables'
+import { capture, findExecutable, run } from './executables'
 import { folder, type Settings } from './settings'
 
-const configFile = path.join(folder, 'pgbouncer.ini')
+export const configFile = path.join(folder, 'pgbouncer.ini')
 const userFile = path.join(folder, 'userlist.txt')
 const pidFile = path.join(folder, 'pgbouncer.pid')
 
@@ -33,23 +33,24 @@ logfile = ${path.join(folder, 'pgbouncer.log')}
 `
 
 /** The auth file with the superuser's password in plain text, which scram-sha-256 needs to log in to the server too. */
-export const userList = (settings: Pick<Settings, 'user' | 'password'>) => `"${settings.user}" "${settings.password}"\n`
+export const userList = (settings: Pick<Settings, 'user' | 'password'>) => `${quote(settings.user)} ${quote(settings.password)}\n`
 
+/** A field of the auth file: in double quotes, with each double quote inside doubled. */
+const quote = (value: string) => `"${value.replaceAll('"', '""')}"`
+
+/**
+ * The pid in the pid file when it is this PgBouncer's, started with this folder's config file. A pid file left by a
+ * PgBouncer that was killed may name another process by now, which is never signalled.
+ */
 const runningPid = () => {
   if (!existsSync(pidFile)) return
   const pid = Number(readFileSync(pidFile, 'utf8').trim())
-  return isAlive(pid) ? pid : undefined
+  return isThisPgbouncer(pid) ? pid : undefined
 }
 
-const isAlive = (pid: number) => {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    if ((error as { code?: string }).code === 'ESRCH') return false
-    throw error
-  }
-}
+/** Whether the process `pid` runs, as this PgBouncer: ps answers 1 and prints nothing for a process that is gone. */
+export const isThisPgbouncer = (pid: number, command = capture('ps', ['-p', String(pid), '-o', 'args=']).stdout) =>
+  Number.isInteger(pid) && pid > 0 && /\bpgbouncer\b/.test(command) && command.includes(configFile)
 
 /**
  * Starts PgBouncer in front of the local server, when this machine has it on PATH. Without it, the tests that run
@@ -74,7 +75,7 @@ export const stopPgbouncer = async () => {
   if (!pid) return
   process.kill(pid, 'SIGINT')
   for (let wait = 0; wait < 100; wait++) {
-    if (!isAlive(pid)) {
+    if (!isThisPgbouncer(pid)) {
       rmSync(pidFile, { force: true })
       return
     }
