@@ -146,6 +146,25 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(await workflowsMigration(db, workflows)).toBeUndefined()
   })
 
+  it('drops the steps table and its indexes from a schema of the version before, keeping its checkpoints', async () => {
+    await pg.exec(`create table workflows.steps ("run_id" uuid, "tenant_id" text, "status" text, "state" text);
+      create index "steps_tenant" on workflows.steps ("tenant_id");
+      create index "steps_status" on workflows.steps ("status");
+      create index "steps_state" on workflows.steps ("state");
+      insert into workflows.steps values (gen_random_uuid(), '1', 'succeeded', 'Echo');
+      comment on function workflows.run_version() is 'Protobase workflows 21'`)
+    const before = await sql<{ count: number }>`select count(*)::int as count from workflows.checkpoints`.execute(db)
+    const upgrade = await workflowsMigration(db, workflows)
+    expect(upgrade).toContain('drop table if exists "workflows"."steps"')
+    await pg.exec(upgrade!)
+    const { rows } = await sql<{ name: string }>`select relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'workflows' and relname in ('steps', 'steps_tenant', 'steps_status', 'steps_state')`.execute(db)
+    expect(rows).toEqual([])
+    expect((await sql<{ count: number }>`select count(*)::int as count from workflows.checkpoints`.execute(db)).rows).toEqual(before.rows)
+    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+    await pg.exec(upgrade!)
+  })
+
   it('adds the storage configurations table once storage is turned on, and not before', async () => {
     const { rows } = await sql<{ found: boolean }>`select to_regclass('workflows.storage_configurations') is not null as found`.execute(db)
     expect(rows[0]!.found).toBe(false)

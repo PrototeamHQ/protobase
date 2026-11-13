@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 21
+export const workflowsVersion = 22
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -93,6 +93,9 @@ export const checkpointsSql = (schema: string) => {
 alter table ${s}."runs" add column if not exists "trace" text check ("trace" in ('all', 'failed', 'none'));
 alter table ${s}."runs" add column if not exists "trace_file" text`
 }
+
+/** The per-step table runs kept before checkpoints and the trace, which nothing reads or writes; its indexes go with it. */
+export const droppedSql = (schema: string) => `drop table if exists ${quoteIdent(schema)}."steps"`
 
 /** The most bytes a trigger's cursor or store holds as JSON, so a plugin cannot grow them without limit. */
 export const triggerStateBytes = 64 * 1024
