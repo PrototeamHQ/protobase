@@ -9,7 +9,7 @@ export type PushControlProps = {
   state: PushState | 'loading'
   /** Turning push on or off is under way: the button spins and cannot be pressed again. */
   busy?: boolean
-  /** Why turning push on last failed, said in place of the offer, with a way to try again. */
+  /** Why turning push on or off last failed, said in place of the offer, with a way to try turning it on again. */
   failure?: PushFailure | undefined
   /** Called straight from the button's click, as turning push on must be. */
   onTurnOn: () => void
@@ -44,7 +44,7 @@ export const PushControl = ({ state, busy = false, failure, onTurnOn, onTurnOff 
         <span className="min-w-0 flex-1">{text(on ? 'pushOn' : 'pushOff')}</span>
       )}
       <Button size="sm" variant={on ? 'secondary' : 'primary'} loading={busy} onClick={on ? onTurnOff : onTurnOn}>
-        {text(on ? 'turnOff' : failed ? 'tryAgain' : 'turnOn')}
+        {text(on ? 'turnOff' : failed && failed.kind !== 'off-not-stored' ? 'tryAgain' : 'turnOn')}
       </Button>
     </div>
   )

@@ -20,17 +20,26 @@ export class PushTokenTimeout extends Error {
   }
 }
 
-/** Why turning push on failed, for the bell to say. */
+/** Push was turned off, but the device could not store that the user chose it, so it holds only until the app closes. */
+export class PushChoiceNotStored extends Error {
+  constructor() {
+    super('Push is off, but this device could not store that the user turned it off')
+  }
+}
+
+/** Why turning push on or off failed, for the bell to say. */
 export type PushFailure =
   | { kind: 'registration'; reason: string }
   | { kind: 'no-token'; service: PushService }
   | { kind: 'refused'; reason: string }
+  | { kind: 'off-not-stored' }
   | { kind: 'other'; reason: string }
 
-/** The failure `error`, thrown by turning push on, stands for. */
+/** The failure `error`, thrown by turning push on or off, stands for. */
 export const pushFailure = (error: unknown): PushFailure => {
   if (error instanceof PushRegistrationError) return { kind: 'registration', reason: error.reason }
   if (error instanceof PushTokenTimeout) return { kind: 'no-token', service: error.service }
+  if (error instanceof PushChoiceNotStored) return { kind: 'off-not-stored' }
   if (error instanceof ApiError) return { kind: 'refused', reason: error.message }
   return { kind: 'other', reason: error instanceof Error ? error.message : String(error) }
 }

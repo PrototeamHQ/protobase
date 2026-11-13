@@ -5,6 +5,7 @@ import { text } from './messages'
 export const pushFailureText = (failure: PushFailure) => {
   if (failure.kind === 'registration') return text('pushRegistrationFailed', { reason: failure.reason })
   if (failure.kind === 'no-token') return text(failure.service === 'apns' ? 'pushNoTokenApns' : 'pushNoTokenFcm')
+  if (failure.kind === 'off-not-stored') return text('pushOffNotStored')
   if (failure.kind === 'refused') return text('pushRefused', { reason: failure.reason })
   return text('pushFailed', { reason: failure.reason })
 }

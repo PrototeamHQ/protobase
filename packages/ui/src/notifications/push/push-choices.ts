@@ -4,36 +4,44 @@ export type PushChoice = 'on' | 'off'
 /** Each user's own choice for push on this device, which the app goes by before registering them by itself. */
 export type PushChoices = {
   of: (userId: string) => PushChoice | undefined
-  set: (userId: string, choice: PushChoice) => void
+  /** Keeps the choice, and answers whether it lasts beyond this session: false when the storage could not be written. */
+  set: (userId: string, choice: PushChoice) => boolean
 }
 
 const key = 'protobase:push-choices'
 
 /**
- * The users' choices, in the `storage` it reads when asked, under one key. Storage that cannot be read knows no
- * choice, and one that cannot be written forgets it: the app then registers by itself only where the phone asked the
- * person for the permission.
+ * The users' choices, in the `storage` it reads when asked, under one key, and for this session in memory as well, so
+ * a choice holds until the app closes even when the storage could not be written. Storage that cannot be read
+ * answers `off` for everyone, so the app never registers anyone by itself on a choice it may have lost.
  */
 export const storagePushChoices = (storage: () => Pick<Storage, 'getItem' | 'setItem'>): PushChoices => {
-  const read = (): Record<string, unknown> => {
+  const session = new Map<string, PushChoice>()
+  // What the storage holds, or `undefined` when it cannot be read.
+  const read = (): Record<string, unknown> | undefined => {
     try {
       const choices: unknown = JSON.parse(storage().getItem(key) ?? '{}')
-      return typeof choices === 'object' && choices !== null && !Array.isArray(choices) ? (choices as Record<string, unknown>) : {}
+      return typeof choices === 'object' && choices !== null && !Array.isArray(choices) ? (choices as Record<string, unknown>) : undefined
     } catch {
-      return {}
+      return
     }
   }
   return {
     of: (userId) => {
+      const kept = session.get(userId)
+      if (kept) return kept
       const stored = read()
+      if (!stored) return 'off'
       const choice = Object.hasOwn(stored, userId) ? stored[userId] : undefined
       return choice === 'on' || choice === 'off' ? choice : undefined
     },
     set: (userId, choice) => {
+      session.set(userId, choice)
       try {
         storage().setItem(key, JSON.stringify({ ...read(), [userId]: choice }))
+        return true
       } catch {
-        return
+        return false
       }
     },
   }

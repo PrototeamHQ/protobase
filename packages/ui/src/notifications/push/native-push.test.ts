@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ApiError, type DevicesClient, type FcmDeviceRegistration } from '@protobase/client'
 import type { NativeBridge } from '../../app/native-auth-fetch'
 import { nativePush } from './native-push'
-import { PushRegistrationError, PushTokenTimeout } from './push-failure'
+import { PushChoiceNotStored, PushRegistrationError, PushTokenTimeout } from './push-failure'
 import { storagePushChoices, type PushChoice } from './push-choices'
 import type { PushRecord } from './push-records'
 import type { PushUser } from './web-push'
@@ -23,6 +23,8 @@ type Options = {
   register?: (device: FcmDeviceRegistration, attempt: number) => Promise<{ id: string }>
   /** What users chose for push here themselves. */
   choices?: Record<string, PushChoice>
+  /** The device cannot write what users chose. */
+  unwritable?: boolean
   /** The phone asked for the permission, as iOS and Android from 13 on do; true unless given. */
   permissionAsked?: boolean
 }
@@ -37,7 +39,10 @@ const setup = (options: Options = {}) => {
   let attempts = 0
   let signedIn: PushUser | undefined = alice
   const stored = new Map<string, string>()
-  const choices = storagePushChoices(() => ({ getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => void stored.set(key, value) }))
+  const choices = storagePushChoices(() => ({ getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => {
+      if (options.unwritable) throw new Error('The quota is used up')
+      stored.set(key, value)
+    } }))
   for (const [id, choice] of Object.entries(options.choices ?? {})) choices.set(id, choice)
   const listeners = new Map<string, Set<(data: unknown) => void>>()
   const emit = (event: string, data: unknown) => {
@@ -217,6 +222,17 @@ describe('nativePush', () => {
     expect(log).toEqual([])
     expect(await push.turnOn()).toBe('on')
     expect(choices.of('alice')).toBe('on')
+  })
+
+  it('still turns push off when the device cannot store the choice, keeping it off this session and saying so', async () => {
+    const { push, log } = setup({ unwritable: true })
+    expect(await push.turnOn()).toBe('on')
+    await expect(push.turnOff({ chosen: true })).rejects.toBeInstanceOf(PushChoiceNotStored)
+    expect(log).toContain('remove device-token-1')
+    expect(await push.state()).toBe('off')
+    log.length = 0
+    await push.adopt(alice)
+    expect(log).toEqual([])
   })
 
   it('registers by itself before Android 13, which grants the permission unasked, only for a user who turned push on here before', async () => {

@@ -6,25 +6,41 @@ const memory = (initial?: string) => {
   return { getItem: (key: string) => items.get(key) ?? null, setItem: (key: string, value: string) => void items.set(key, value) }
 }
 
+const unwritable = () => ({
+  getItem: () => null,
+  setItem: () => {
+    throw new Error('The quota is used up')
+  },
+})
+
 describe('storagePushChoices', () => {
-  it('keeps each user\'s last choice', () => {
+  it('keeps each user\'s last choice, for later sessions too', () => {
     const storage = memory()
     const choices = storagePushChoices(() => storage)
-    choices.set('alice', 'on')
-    choices.set('bob', 'off')
-    choices.set('alice', 'off')
-    expect([choices.of('alice'), choices.of('bob'), choices.of('carol')]).toEqual(['off', 'off', undefined])
+    expect([choices.set('alice', 'on'), choices.set('bob', 'off'), choices.set('alice', 'off')]).toEqual([true, true, true])
+    const later = storagePushChoices(() => storage)
+    expect([later.of('alice'), later.of('bob'), later.of('carol')]).toEqual(['off', 'off', undefined])
   })
 
-  it('knows no choice when its storage cannot be read or written', () => {
+  it('says a choice it could not store, and keeps it for this session', () => {
+    const choices = storagePushChoices(unwritable)
+    expect(choices.set('alice', 'off')).toBe(false)
+    expect(choices.of('alice')).toBe('off')
+  })
+
+  it('answers off for everyone when its storage cannot be read', () => {
     const broken = memory('{')
-    expect(storagePushChoices(() => broken).of('alice')).toBeUndefined()
-    const odd = memory('{"alice":"maybe","__proto__":"on"}')
-    expect([storagePushChoices(() => odd).of('alice'), storagePushChoices(() => odd).of('toString')]).toEqual([undefined, undefined])
+    expect(storagePushChoices(() => broken).of('alice')).toBe('off')
     const missing = storagePushChoices(() => {
       throw new ReferenceError('localStorage is not defined')
     })
-    expect(() => missing.set('alice', 'on')).not.toThrow()
-    expect(missing.of('alice')).toBeUndefined()
+    expect(missing.of('alice')).toBe('off')
+    expect(missing.set('alice', 'on')).toBe(false)
+    expect(missing.of('alice')).toBe('on')
+  })
+
+  it('ignores what is not a choice', () => {
+    const odd = memory('{"alice":"maybe"}')
+    expect([storagePushChoices(() => odd).of('alice'), storagePushChoices(() => odd).of('toString')]).toEqual([undefined, undefined])
   })
 })

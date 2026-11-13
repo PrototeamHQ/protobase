@@ -10,8 +10,8 @@ import { watchNotificationPermission } from './watch-permission'
  * app has no VAPID key, or the Android app was built without google-services.json),
  * `off`, `on` or `blocked` (the user refused notifications in the browser's settings). Call `turnOn` straight from a
  * click: the browser asks for permission only then, and without a click by someone signed in as themselves nothing
- * happens. `busy` is true while either is under way, and `failure` says why the last `turnOn` failed, which also goes
- * to the console, until the next one. `turnOff` unsubscribes this browser and removes its device, and the app does not
+ * happens. `busy` is true while either is under way, and `failure` says why the last `turnOn` or `turnOff` failed,
+ * which also goes to the console, until the next one. `turnOff` unsubscribes this browser and removes its device, and the app does not
  * turn push on again by itself. `state` is read again on a return to the page, when the browser says the permission
  * changed, and on `refresh`, such as when the bell opens after the app registered push by itself.
  */
@@ -49,11 +49,15 @@ export const usePushNotifications = () => {
     }
   }, [push])
   const turnOff = useCallback(async () => {
+    setFailure(undefined)
     setBusy(true)
     try {
       await push.turnOff({ chosen: true })
-      setState(await push.state())
+    } catch (error) {
+      console.error('Notifications could not be turned off for good:', error)
+      setFailure(pushFailure(error))
     } finally {
+      setState(await push.state())
       setBusy(false)
     }
   }, [push])

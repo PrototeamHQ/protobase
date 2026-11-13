@@ -1820,7 +1820,8 @@
     "pushNoTokenApns": "Notifications could not be turned on: the phone got no answer from Apple's push service. Check that it is online; if it is, this app's build may lack push in its signing.",
     "pushNoTokenFcm": "Notifications could not be turned on: the phone got no answer from Google's push service. Check that it is online; if it is, this app's build may lack push in its signing.",
     "pushRefused": "Notifications could not be turned on: the server did not accept this device ({reason}).",
-    "pushFailed": "Notifications could not be turned on: {reason}"
+    "pushFailed": "Notifications could not be turned on: {reason}",
+    "pushOffNotStored": "Notifications are off, but this device could not remember that: they may turn on again the next time the app opens."
   },
   "organizations": {
     "organizations": "Organizations",

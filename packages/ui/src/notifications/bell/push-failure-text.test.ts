@@ -19,6 +19,10 @@ describe('the push failure text', () => {
     expect(pushFailureText({ kind: 'refused', reason: 'This device is registered to someone else' })).toBe('Notifications could not be turned on: the server did not accept this device (This device is registered to someone else).')
   })
 
+  it('says a turn-off may not last', () => {
+    expect(pushFailureText({ kind: 'off-not-stored' })).toBe('Notifications are off, but this device could not remember that: they may turn on again the next time the app opens.')
+  })
+
   it('says any other failure as it came', () => {
     expect(pushFailureText({ kind: 'other', reason: 'The plugin is gone' })).toBe('Notifications could not be turned on: The plugin is gone')
   })

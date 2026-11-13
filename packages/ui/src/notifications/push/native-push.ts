@@ -1,6 +1,6 @@
 import { ApiError, type ApnsDeviceRegistration, type DevicesClient, type FcmDeviceRegistration } from '@protobase/client'
 import type { NativeBridge } from '../../app/native-auth-fetch'
-import { PushRegistrationError, PushTokenTimeout } from './push-failure'
+import { PushChoiceNotStored, PushRegistrationError, PushTokenTimeout } from './push-failure'
 import type { PushChoices } from './push-choices'
 import type { PushRecords } from './push-records'
 import type { PushState, PushUser } from './web-push'
@@ -128,14 +128,17 @@ export const nativePush = ({ bridge, device, records, choices, permissionAsked, 
 
   /**
    * Turns push off here: forgets it, deletes the token and removes the device, waiting at most `waitMs` on the push
-   * service and the server. When the user `chose` it, rather than signing out, the app no longer registers them by itself.
+   * service and the server. When the user `chose` it, rather than signing out, the app no longer registers them by
+   * itself; when the device cannot store that choice, push is still turned off and holds off until the app closes, and
+   * this throws `PushChoiceNotStored`, for the bell to say.
    */
   const turnOff = async ({ chosen = false }: { chosen?: boolean } = {}) => {
     const signedIn = user()
-    if (chosen && signedIn?.own) choices.set(signedIn.id, 'off')
+    const stored = !chosen || !signedIn?.own || choices.set(signedIn.id, 'off')
     const record = await records.read()
     await records.clear()
     await within(waitMs, Promise.allSettled([call('removeAllDeliveredNotifications'), call('unregister'), record?.deviceId ? devices.remove(record.deviceId) : Promise.resolve()]))
+    if (!stored) throw new PushChoiceNotStored()
   }
 
   /** As `turnOff`, for a session already over, whose device the server can no longer be asked to remove. */
