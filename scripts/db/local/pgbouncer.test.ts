@@ -37,6 +37,7 @@ describe('isThisPgbouncer', () => {
 
   it('rejects a reused pid running something else, another PgBouncer, or none', () => {
     expect(isThisPgbouncer(42, '/usr/bin/vim notes.txt\n')).toBe(false)
+    expect(isThisPgbouncer(42, `/usr/bin/vim ${configFile}\n`)).toBe(false)
     expect(isThisPgbouncer(42, '/opt/homebrew/bin/pgbouncer /etc/pgbouncer.ini\n')).toBe(false)
     expect(isThisPgbouncer(42, '')).toBe(false)
     expect(isThisPgbouncer(Number.NaN, `pgbouncer ${configFile}`)).toBe(false)

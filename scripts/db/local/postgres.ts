@@ -66,11 +66,14 @@ const checkVersion = (settings: Settings) => {
   throw new Error(`${dataFolder} holds Postgres ${dataVersion} data, but the server is ${output.trim()}: point POSTGRES_BIN at Postgres ${dataVersion} or remove ${folder}`)
 }
 
+/** A name as one SQL identifier, dots included, with each double quote inside doubled. */
+export const quoteIdentifier = (name: string) => `"${name.replaceAll('"', '""')}"`
+
 /** Creates POSTGRES_DB, which the postgres image creates on its first start. */
 const createDatabase = async (settings: Settings) => {
   const sql = postgres({ host: '127.0.0.1', port: settings.port, user: settings.user, password: settings.password, database: 'postgres', max: 1, onnotice: () => {} })
   const [existing] = await sql`select 1 from pg_database where datname = ${settings.database}`
-  if (!existing) await sql`create database ${sql(settings.database)}`
+  if (!existing) await sql.unsafe(`create database ${quoteIdentifier(settings.database)}`)
   await sql.end()
 }
 

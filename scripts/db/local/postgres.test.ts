@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasLocale } from './postgres'
+import { hasLocale, quoteIdentifier } from './postgres'
 
 describe('hasLocale', () => {
   it('finds the locale in either spelling', () => {
@@ -9,5 +9,15 @@ describe('hasLocale', () => {
 
   it('reports a missing locale', () => {
     expect(hasLocale('C\nPOSIX\nC.utf8\n')).toBe(false)
+  })
+})
+
+describe('quoteIdentifier', () => {
+  it('quotes a dotted name as one identifier', () => {
+    expect(quoteIdentifier('team.dev')).toBe('"team.dev"')
+  })
+
+  it('doubles double quotes inside the name', () => {
+    expect(quoteIdentifier('team"dev')).toBe('"team""dev"')
   })
 })

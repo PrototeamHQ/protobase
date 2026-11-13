@@ -48,9 +48,15 @@ const runningPid = () => {
   return isThisPgbouncer(pid) ? pid : undefined
 }
 
-/** Whether the process `pid` runs, as this PgBouncer: ps answers 1 and prints nothing for a process that is gone. */
-export const isThisPgbouncer = (pid: number, command = capture('ps', ['-p', String(pid), '-o', 'args=']).stdout) =>
-  Number.isInteger(pid) && pid > 0 && /\bpgbouncer\b/.test(command) && command.includes(configFile)
+/**
+ * Whether the process `pid` runs as this PgBouncer: its executable is pgbouncer and its arguments name this config file.
+ * ps prints nothing for a process that is gone.
+ */
+export const isThisPgbouncer = (pid: number, command = capture('ps', ['-p', String(pid), '-o', 'args=']).stdout) => {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  const [executable = '', ...args] = command.trim().split(/\s+/)
+  return path.basename(executable) === 'pgbouncer' && args.includes(configFile)
+}
 
 /**
  * Starts PgBouncer in front of the local server, when this machine has it on PATH. Without it, the tests that run

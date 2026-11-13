@@ -1,6 +1,6 @@
 # Contributing
 
-Setup and commands are in the [README](README.md) and [Getting started](https://docs.protobase.net/getting-started/#commands). CI is in [docs/ci.md](docs/ci.md) and the snapshot tests in [docs/snapshot-tests.md](docs/snapshot-tests.md). The rules are here and in `AGENTS.md`. The development databases run in Docker, or as local processes with `POSTGRES_RUNNER=local` in `.env` (see the README's Setup).
+Setup and commands are in the [README](README.md) and [Getting started](https://docs.protobase.net/getting-started/#commands). CI is in [docs/ci.md](docs/ci.md) and the snapshot tests in [docs/snapshot-tests.md](docs/snapshot-tests.md). The rules are here and in `AGENTS.md`.
 
 ## Commit messages
 
