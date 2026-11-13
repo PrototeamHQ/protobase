@@ -68,10 +68,17 @@ const keepFile: Definition = {
   },
 }
 
-/** The signed-file workflow as a later, unpublished version left it, its block taken out. */
+/** The signed-file workflow as a later, unpublished version left it, its block taken out and the link mailed instead. */
 const keepFileUnwrapped: Definition = {
   ...keepFile,
-  stateMachine: { ...keepFile.stateMachine, StartAt: 'Later', States: { Later: keepFile.stateMachine.States.Later!, Mail: keepFile.stateMachine.States.Mail! } },
+  stateMachine: {
+    ...keepFile.stateMachine,
+    StartAt: 'Later',
+    States: {
+      Later: keepFile.stateMachine.States.Later!,
+      Mail: { Type: 'Task', Resource: 'app:mail.send', Arguments: { to: 'ops@example.com', subject: 'Saved', text: '{% $states.context.Execution.Input.url %}' }, End: true },
+    },
+  },
 }
 
 /** Waits for the gate the story opens, then echoes the run's input. */
