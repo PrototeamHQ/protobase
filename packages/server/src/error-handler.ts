@@ -42,11 +42,14 @@ const POOLER_SHUTDOWN_MESSAGE = 'server shutting down'
 const isRestarting = (error: DatabaseError) =>
   error.code === '57P01' || error.code === '57P03' || (error.code === '08P01' && error.message === POOLER_SHUTDOWN_MESSAGE)
 
+// The 503 of a database that is briefly unavailable: the request can be sent again shortly.
+const retryShortly = (slug: string, detail: string) => new HttpProblem(503, slug, 'Service Unavailable', detail, {}, { 'Retry-After': '5' })
+
 // Constraint and column names are left out: they can name a column the caller may not see.
 const databaseProblem = (error: DatabaseError): HttpProblem | undefined => {
   // SQLSTATE 25006: the database is read-only, as during a deploy's write freeze; the write can be sent again shortly.
-  if (error.code === '25006') return new HttpProblem(503, readOnlySlug, 'Service Unavailable', 'The app is read-only while it is being updated', {}, { 'Retry-After': '5' })
-  if (isRestarting(error)) return new HttpProblem(503, 'database-restarting', 'Service Unavailable', 'The database is restarting', {}, { 'Retry-After': '5' })
+  if (error.code === '25006') return retryShortly(readOnlySlug, 'The app is read-only while it is being updated')
+  if (isRestarting(error)) return retryShortly('database-restarting', 'The database is restarting')
   // SQLSTATE 57014: Postgres stopped a query at its statement timeout; the error handler names the request that ran it.
   if (error.code === '57014') return new HttpProblem(504, statementTimeoutSlug, 'Gateway Timeout', 'A query ran longer than its statement timeout, so the database stopped it')
   if (error.code === '23505') return takenProblem()
