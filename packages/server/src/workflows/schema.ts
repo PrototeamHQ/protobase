@@ -7,7 +7,7 @@ import { revocationsSql } from './connections/revocations-sql'
 import { stepCacheSql } from './cache/step-cache-sql'
 import { storageSql } from './storage/storage-sql'
 import { workflowsSchema, workflowsStorageOn, type WorkflowsOptions } from './options'
-import { checkpointsSql, commentVersion, functionsSql, indexesSql, tablesSql, triggersSql, effectsSql, workflowsTriggers, workflowsVersion } from './schema-sql'
+import { checkpointsSql, commentVersion, droppedSql, functionsSql, indexesSql, tablesSql, triggersSql, effectsSql, workflowsTriggers, workflowsVersion } from './schema-sql'
 import { statusSql, statusTriggers } from './status-sql'
 import { blockRunsSql } from './block-runs-sql'
 
@@ -33,8 +33,8 @@ const readWorkflowsSchema = async (db: Db, schema: string, storage: boolean) => 
 
 /**
  * The SQL that brings the `workflows` schema to what `workflows` needs: its tables, indexes and the triggers that number a
- * workflow's versions and pin a run's; `undefined` when current. Tables are never dropped: a schema made before keeps
- * its `steps` table, which nothing reads or writes any more. The storage configurations table is added only with `storage`.
+ * workflow's versions and pin a run's; `undefined` when current. A schema made before loses its `steps` table, which
+ * runs no longer keep. The storage configurations table is added only with `storage`.
  */
 export const workflowsMigration = async (db: Db, options: Pick<WorkflowsOptions, 'schema' | 'storage'> = {}) => {
   const schema = workflowsSchema(options)
@@ -46,7 +46,7 @@ export const workflowsMigration = async (db: Db, options: Pick<WorkflowsOptions,
 
 /** The statements of a migration of the `workflows` schema: its tables only when missing, storage only when on. */
 export const workflowsSql = (schema: string, { tables, storage }: { tables: boolean; storage: boolean }) => {
-  const statements = [`create schema if not exists ${quoteIdent(schema)}`, ...(tables ? [] : [tablesSql(schema)]), checkpointsSql(schema), triggersSql(schema), effectsSql(schema), revocationsSql(schema), hooksSql(schema), stepCacheSql(schema), indexesSql(schema), blockRunsSql(schema), ...(storage ? [storageSql(schema)] : []), functionsSql(schema), statusSql(schema)]
+  const statements = [`create schema if not exists ${quoteIdent(schema)}`, ...(tables ? [] : [tablesSql(schema)]), checkpointsSql(schema), droppedSql(schema), triggersSql(schema), effectsSql(schema), revocationsSql(schema), hooksSql(schema), stepCacheSql(schema), indexesSql(schema), blockRunsSql(schema), ...(storage ? [storageSql(schema)] : []), functionsSql(schema), statusSql(schema)]
   return `${statements.join(';\n\n')};`
 }
 

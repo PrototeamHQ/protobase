@@ -29,6 +29,7 @@ export type ResourceState = {
   links?: readonly [string, string]
   events?: EventSpec[]
   history?: boolean
+  historyIgnore?: string[]
   comments?: boolean
   live?: boolean
   liveReads?: string[]
@@ -116,6 +117,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.owner && { owner: state.owner }),
     ...(state.author && { author: state.author }),
     ...(state.history && { history: true as const }),
+    ...(state.history && state.historyIgnore && { historyIgnore: [...state.historyIgnore] }),
     ...(state.comments && { comments: true as const }),
     ...(state.live && { live: true as const }),
     ...(state.live && state.liveReads && { liveReads: [...state.liveReads] }),
@@ -275,6 +277,14 @@ const bucketsProblems = (model: ResourceModel) => {
 }
 
 // A live resource refreshed by others' changes names at least one other resource and each once.
+// The capture reads the key, tenant and soft delete fields of every change, so none of them can be left out of it.
+const historyIgnoreProblems = (model: ResourceModel) =>
+  (model.historyIgnore ?? []).flatMap((name) => {
+    if (!model.fields[name]) return [`history ignores the unknown field "${name}"`]
+    if ([...model.primaryKey, model.tenant, model.softDelete].includes(name)) return [`history cannot ignore the key, tenant or soft delete field "${name}"`]
+    return []
+  })
+
 const liveReadsProblems = (model: ResourceModel) => {
   if (!model.liveReads) return []
   const reads = model.liveReads
@@ -288,7 +298,7 @@ const liveReadsProblems = (model: ResourceModel) => {
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...sharedTargetProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...bucketsProblems(model), ...derivedProblems(model), ...liveReadsProblems(model), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...sharedTargetProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...bucketsProblems(model), ...derivedProblems(model), ...liveReadsProblems(model), ...historyIgnoreProblems(model), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }

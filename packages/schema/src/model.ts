@@ -162,6 +162,8 @@ export type ResourceModel = {
   events?: EventModel[]
   /** Whether every change of its records is kept, with who made it (`.history()`). */
   history?: true
+  /** The fields whose changes are not captured (`.history({ ignore })`): an update of only those keeps nothing. */
+  historyIgnore?: string[]
   /** Whether people who may read its records comment on them (`.comments()`). */
   comments?: true
   /** Whether open pages refresh as soon as its records change (`.live()`). */

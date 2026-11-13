@@ -1817,7 +1817,13 @@
     "turnOn": "Inschakelen",
     "pushOn": "Meldingen staan op dit apparaat aan.",
     "turnOff": "Uitschakelen",
-    "pushBlocked": "Meldingen zijn op dit apparaat geblokkeerd. Je kunt ze voor deze site toestaan in de instellingen van je browser of apparaat."
+    "pushBlocked": "Meldingen zijn op dit apparaat geblokkeerd. Je kunt ze voor deze site toestaan in de instellingen van je browser of apparaat.",
+    "pushRegistrationFailed": "Meldingen konden niet worden ingeschakeld: het apparaat kon zich niet aanmelden bij zijn pushdienst ({reason}).",
+    "pushNoTokenApns": "Meldingen konden niet worden ingeschakeld: de telefoon kreeg geen antwoord van de pushdienst van Apple. Controleer of hij online is; zo ja, dan mist de build van deze app mogelijk push in zijn ondertekening.",
+    "pushNoTokenFcm": "Meldingen konden niet worden ingeschakeld: de telefoon kreeg geen antwoord van de pushdienst van Google. Controleer of hij online is; zo ja, dan mist de build van deze app mogelijk push in zijn ondertekening.",
+    "pushRefused": "Meldingen konden niet worden ingeschakeld: de server accepteerde dit apparaat niet ({reason}).",
+    "pushFailed": "Meldingen konden niet worden ingeschakeld: {reason}",
+    "pushOffNotStored": "Meldingen staan uit, maar dit apparaat kon dat niet onthouden: ze gaan mogelijk weer aan als de app opnieuw opent."
   },
   "organizations": {
     "organizations": "Organisaties",

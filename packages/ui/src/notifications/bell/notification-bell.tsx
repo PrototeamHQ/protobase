@@ -30,11 +30,12 @@ export const NotificationBell = () => {
   if (historyRefused(unread.error)) return null
 
   const toggle = () => {
-    // Opening reads the count and the newest notifications again, and tells how long ago they came from now
+    // Opening reads the count, the newest notifications and push again, and tells how long ago they came from now
     if (!open) {
       setNow(Date.now())
       void unread.refetch()
       if (inbox.data) void inbox.refetch()
+      if (!push.busy) push.refresh()
     }
     setOpen(!open)
   }
@@ -64,7 +65,7 @@ export const NotificationBell = () => {
                 markRead(item)
                 setOpen(false)
               }}
-              footer={<PushControl state={push.state} onTurnOn={() => void push.turnOn()} onTurnOff={() => void push.turnOff()} />}
+              footer={<PushControl state={push.state} busy={push.busy} failure={push.failure} onTurnOn={() => void push.turnOn()} onTurnOff={() => void push.turnOff()} />}
               now={now}
             />
           </div>,

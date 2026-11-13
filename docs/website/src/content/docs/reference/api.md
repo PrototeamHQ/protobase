@@ -255,7 +255,7 @@ Every error is `application/problem+json` (RFC 9457) with `type` (`urn:protobase
 | 404 | `not-found` |
 | 409 | `conflict`: a unique key, a record other records point at, or a deadlock with another write, which may be sent again |
 | 412 / 428 | `precondition-failed` / `precondition-required` |
-| 503 | `read-only`: the database refuses writes, as during a deploy's write freeze; send the write again after `Retry-After`. `connections-busy`: every database connection stayed busy for 2 seconds (see [Safety](#safety)) |
+| 503 | `read-only`: the database refuses writes, as during a deploy's write freeze; send the write again after `Retry-After`. `database-restarting`: the database or its connection pooler is shutting down or starting up; send the request again after `Retry-After`. `connections-busy`: every database connection stayed busy for 2 seconds (see [Safety](#safety)) |
 | 504 | `statement-timeout`: a query ran past its limit (see [Safety](#safety)) |
 
 ### Error reporting
@@ -272,7 +272,7 @@ export default defineConfig({
 })
 ```
 
-- **Server:** every `500` with the request it failed, and every `504 statement-timeout` and `503 connections-busy` with the request it names, under `dev`, `serve` and the runtime, besides the default export of `hooks/error.ts` or the console. Under `serve`, the runtime and `worker`, an uncaught exception or unhandled rejection too, which then still ends the process with exit code 1.
+- **Server:** every `500` with the request it failed, and every `504 statement-timeout` and `503 connections-busy` with the request it names, under `dev`, `serve` and the runtime, besides the default export of `hooks/error.ts` or the console. Under `serve`, the runtime and `worker`, an uncaught exception or unhandled rejection too, which then still ends the process with exit code 1. <gap>The assistant and MCP tool calls cannot leave a database restart's `503` unreported because their reporting check knows only the write freeze's `read-only`.</gap>
 - **Admin app:** uncaught errors and the errors of components that fail to draw. `/api/meta` names the DSN to every signed-in caller, as a browser app always shows its own. Only the app's own errors are sent: `build`, `build-shell` and `build-plugin` mark every script they write as the app's, and an error none of whose stack frames is in a marked script, such as one raised by a browser extension or a script the browser injects, is dropped. Under `dev`, whose scripts are not built, every error is sent.
 - Errors only, with no performance tracing. Before an event leaves, the values of authorization headers, cookies, passwords, tokens and other credentials, in fields and in URLs, are replaced by `[Filtered]`.
 - `environment` names the deployment in the tracker; without it the tracker's default, `production`. `errorReporting: false` turns reporting off whatever the environment says. A DSN that is no `http(s)` URL with a key and a project id stops startup.

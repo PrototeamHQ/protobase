@@ -20,14 +20,20 @@ on:
         required: false
         default: ''
 
-# One release at a time; a run waiting behind another is replaced by the run of a newer push.
-concurrency:
-  group: release
-  cancel-in-progress: false
-
+# Plan, pack and the checks of every run start at once. From the tag onward each job has a concurrency group of its
+# own, so one run at a time cuts a tag, publishes or builds an image, while another run's earlier jobs go on
+# beside it. GitHub starts a group's jobs in the order they began to wait, and queue: max keeps every one waiting
+# instead of cancelling all but the newest, so no run that cut a tag misses its publish. A run's job waits only once
+# the same run's previous job ended, and that job ran after the older run's, so every stage keeps the order of the
+# tags: a newer run reads the tags after the older run pushed its own, and npm and the registry get the releases
+# oldest first. A run whose plan predicted a tag an older run took meanwhile packs again in its release job.
 jobs:
   # The tag this push would cut (scripts/release.mjs --dry-run prints it), or none, so the pack job can start at once.
   # A run by hand without a tag is a release of main's head, so it runs every job a push does, and only from main.
+  # Plan and pack take no concurrency group: a job's group is held only while that job runs, so the same group on plan,
+  # pack and release would still let two runs interleave between them, and a prediction only stamps the run's own
+  # artifact. What two runs must not share is the cut tag, which release reads under its group, packing again when an
+  # older run took the predicted tag meanwhile.
   plan:
     if: ${{ !inputs.tag }}
     runs-on: ubuntu-latest
@@ -141,8 +147,14 @@ jobs:
             done
           fi
 
+  # It waits for pack too, though only publish uses the packages, so a slow pack cannot let a newer run publish first.
+  # A run that packs nothing, as plan found nothing to release, still runs it, which then tags nothing.
   release:
-    needs: [plan, check, commits]
+    needs: [plan, pack, check, commits]
+    if: ${{ !cancelled() && !failure() && !inputs.tag }}
+    concurrency:
+      group: release-tag
+      queue: max
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -171,6 +183,32 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           tag=$(bun run release --notes "$RUNNER_TEMP/notes.md" --features-release-rule)
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      # Plan and pack run outside this job's group, so an older run can push a tag between this run's plan and its cut,
+      # and the cut then differs from the version pack stamped. The packages are packed again at the cut tag, before the
+      # tag is pushed, and replace pack's, so publish never refuses the tarballs of a tag this job pushed.
+      - name: Check that the cut tag is the one pack stamped
+        id: stale
+        if: steps.cut.outputs.tag != '' && steps.cut.outputs.tag != needs.plan.outputs.tag
+        run: echo "repack=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        if: steps.stale.outputs.repack == 'true'
+        with:
+          node-version: 24.22.1
+      - name: Pack the packages again at the cut tag
+        if: steps.stale.outputs.repack == 'true'
+        env:
+          TAG: ${{ steps.cut.outputs.tag }}
+        run: |
+          bun scripts/stamp-version.mjs "$TAG"
+          node scripts/publish.mjs --pack --out "$RUNNER_TEMP/packages"
+      - uses: actions/upload-artifact@v4
+        if: steps.stale.outputs.repack == 'true'
+        with:
+          name: packages
+          path: ${{ runner.temp }}/packages
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: true
       - name: Push the tag and publish the GitHub release
         id: push
         if: steps.cut.outputs.tag != ''
@@ -189,6 +227,9 @@ jobs:
   publish:
     needs: [release, pack]
     if: ${{ !cancelled() && needs.pack.result == 'success' && (inputs.tag || needs.release.outputs.tag != '') }}
+    concurrency:
+      group: release-publish
+      queue: max
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -219,6 +260,9 @@ jobs:
   image:
     needs: [release, publish]
     if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    concurrency:
+      group: release-image
+      queue: max
     permissions:
       contents: read
       packages: write
@@ -230,6 +274,9 @@ jobs:
   image-dev:
     needs: [release, publish]
     if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    concurrency:
+      group: release-image-dev
+      queue: max
     permissions:
       contents: read
       packages: write
