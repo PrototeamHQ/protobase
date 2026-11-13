@@ -83,12 +83,13 @@ const follow = (machine: Machine, after: string, name: string) => {
 }
 
 /**
- * Where a new state goes in the machine at `scope`: after the state chosen, or the last one with nothing after it; with
- * the trigger chosen, first; `undefined` when it stays unconnected, after a state that goes on by its rules or ends.
+ * Where a new state goes in the machine at `scope`: after the state chosen, or the last one with nothing after it, as
+ * when the Map or Block chosen is the one at `scope`; with the trigger chosen, first; `undefined` when it stays
+ * unconnected, after a state that goes on by its rules or ends.
  */
 export const placeAfter = (definition: Definition, scope: readonly string[], chosen: string | undefined): string | undefined => {
   const machine = machineOf(definition, scope)
-  if (chosen !== undefined) {
+  if (chosen !== undefined && chosen !== scope.join('/')) {
     const { name } = splitPath(chosen)
     return flowing.has(machine.States[name]?.Type as State['Type']) ? name : undefined
   }
