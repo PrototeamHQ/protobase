@@ -15,7 +15,7 @@ import { MessageStatus } from './message-status'
 import { ToolCallItem } from './tool-call-item'
 import { messageRows, threadItems } from './thread-items'
 import { useToolCalls } from './use-tool-calls'
-import { retryOf, showsErrorAbove, threadState } from './thread-state'
+import { emptyLine, retryOf, showsErrorAbove, threadState } from './thread-state'
 import { text } from './messages'
 
 // Each list with earlier items left loads its next page
@@ -68,7 +68,7 @@ export const MessageThread = ({ model, filter, sender, time, text: body, status,
         length={newestFirst.length}
         followKey={own?.key}
         working={working}
-        empty={empty ?? text('noMessages')}
+        empty={emptyLine(callList.list, { loading: text('loadingMessages'), empty: empty ?? text('noMessages') })}
         onLoadEarlier={list.hasNextPage || callList.hasNextPage ? () => loadEarlier([list, callList.list]) : undefined}
         loadingEarlier={list.isFetchingNextPage || callList.isFetchingNextPage}
       >

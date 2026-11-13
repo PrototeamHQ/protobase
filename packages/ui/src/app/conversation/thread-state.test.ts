@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { retryOf, showsErrorAbove, threadState } from './thread-state'
+import { emptyLine, retryOf, showsErrorAbove, threadState } from './thread-state'
 
 describe('threadState', () => {
   it('shows the error in place of the thread while no message has loaded', () => {
@@ -40,5 +40,14 @@ describe('retryOf', () => {
     retryOf(list)()
     expect(list.refetch).toHaveBeenCalledOnce()
     expect(list.fetchNextPage).not.toHaveBeenCalled()
+  })
+})
+
+describe('emptyLine', () => {
+  const lines = { loading: 'Loading messages…', empty: 'No messages yet.' }
+
+  it('says the thread is loading while its calls still load, and empty once they have', () => {
+    expect(emptyLine({ isLoading: true }, lines)).toBe(lines.loading)
+    expect(emptyLine({ isLoading: false }, lines)).toBe(lines.empty)
   })
 })
