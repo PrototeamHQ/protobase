@@ -1,4 +1,5 @@
 import type { KeyObject } from 'node:crypto'
+import { isIP } from 'node:net'
 import { readDbConnections } from '@protobase/server'
 import { readSigningKey } from '@protobase/server/mobile-release'
 import { readTrustedProxies } from './client-address'
@@ -6,6 +7,8 @@ import { readTrustedProxies } from './client-address'
 // The environment the platform provides. The app's own settings (PROTOBASE_URL, PROTOBASE_SECRET, ...) are its config's.
 export type ServeEnv = {
   port: number
+  // The address the server listens on (PROTOBASE_HOST), such as 127.0.0.1 for this computer alone. Unset, every interface.
+  host?: string
   // DATABASE_URL.
   databaseUrl?: string
   // How many connections the pool opens to DATABASE_URL (PROTOBASE_DB_CONNECTIONS), such as the plan's limit, which the
@@ -41,12 +44,15 @@ const readBoolean = (env: Record<string, string | undefined>, name: string, fall
 export const readServeEnv = (env: Record<string, string | undefined>): ServeEnv => {
   const port = env.PORT ? Number(env.PORT) : defaultPort
   if (!Number.isInteger(port) || port < 0 || port > 65_535) throw new Error(`PORT must be a port number, not "${env.PORT}"`)
+  const host = env.PROTOBASE_HOST || undefined
+  if (host && isIP(host) === 0) throw new Error(`PROTOBASE_HOST must be an IP address, such as 127.0.0.1, not "${host}"`)
   const minutes = env.PROTOBASE_FILES_CLEANUP_MINUTES ? Number(env.PROTOBASE_FILES_CLEANUP_MINUTES) : 60
   if (!Number.isInteger(minutes) || minutes < 0) throw new Error(`PROTOBASE_FILES_CLEANUP_MINUTES must be a whole number of minutes, not "${env.PROTOBASE_FILES_CLEANUP_MINUTES}"`)
   const mobileSigningKey = readSigningKey(env)
   const connections = env.PROTOBASE_DB_CONNECTIONS ? readDbConnections(env) : undefined
   return {
     port,
+    ...(host && { host }),
     databaseUrl: env.DATABASE_URL || undefined,
     ...(connections && { dbConnections: connections }),
     requestLog: readBoolean(env, 'REQUEST_LOG', false),
