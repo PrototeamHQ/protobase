@@ -1,6 +1,7 @@
 import { useCallback, useMemo, type ReactNode } from 'react'
 import { CustomBoundary } from '../app/pages/custom-boundary'
 import { useRouter } from '../app/router'
+import { HoldSplash } from '../app/splash-hold'
 import { useAuth } from '../auth/auth-provider'
 import { Spinner } from '../primitives/spinner'
 import { mergePlugins } from './merge-plugins'
@@ -32,6 +33,7 @@ export const BeforeSignIn = ({ children }: { children: ReactNode }) => {
   if (!settled) {
     return (
       <div className="flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground">
+        <HoldSplash />
         <Spinner /> {text('loading')}
       </div>
     )

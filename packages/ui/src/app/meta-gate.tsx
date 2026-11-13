@@ -11,6 +11,7 @@ import { cn } from '../lib/cn'
 import { revealLate } from '../primitives/skeleton'
 import { Spinner } from '../primitives/spinner'
 import { withTranslatedViews } from './built-in-views/translated-views'
+import { HoldSplash } from './splash-hold'
 import { text } from './meta-gate-messages'
 
 export const useAdminMeta = () => {
@@ -73,6 +74,7 @@ export const MetaGate = ({ children }: { children: ReactNode }) => {
   if (meta.isPending) {
     return (
       <div className={cn('flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground', revealLate)}>
+        <HoldSplash />
         <Spinner /> {text('loading')}
       </div>
     )

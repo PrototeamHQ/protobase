@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { useAdminMeta } from '../app/meta-gate'
 import { ProjectUiContext, type ProjectUi } from '../app/pages/project-ui'
+import { HoldSplash } from '../app/splash-hold'
 import { cn } from '../lib/cn'
 import { revealLate } from '../primitives/skeleton'
 import { Spinner } from '../primitives/spinner'
@@ -33,6 +34,7 @@ export const PluginGate = ({ ui, children }: PluginGateProps) => {
   if (!settled) {
     return (
       <div className={cn('flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground', revealLate)}>
+        <HoldSplash />
         <Spinner /> {text('loading')}
       </div>
     )
