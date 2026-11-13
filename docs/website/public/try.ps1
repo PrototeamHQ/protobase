@@ -24,7 +24,7 @@
       $latest = $have
     }
     if ($latest -ne $have) {
-      Write-Host 'Downloading Protobase (about 45 MB)...'
+      Write-Host 'Downloading Protobase (about 60 MB)...'
       $zip = Join-Path $dir 'protobase-try.zip'
       Invoke-WebRequest -UseBasicParsing "$release/protobase-try.zip" -OutFile $zip
       Expand-Archive -Force $zip $dir
