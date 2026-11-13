@@ -151,7 +151,7 @@ mobile: {
 },
 ```
 
-Build the binary again. Each deploy of the app then reaches it: it downloads the files that changed in the background and runs them at its next start, or when it comes back to the foreground after 5 minutes or more away, on the page it showed and still signed in. It never switches while in use, within 5 minutes of leaving it, or over unsaved changes on the page, and it asks nobody to reload. A release that fails to start goes back to the files the binary carries. Releases come from a server of the same Protobase minor as the binary (below 1.0); a newer minor needs a store release. See [the live updater](/reference/cli/#the-live-updater).
+Build the binary again. Each deploy of the app then reaches it: it downloads the files that changed in the background and runs them at its next start, or when it comes back to the foreground after 5 minutes or more away, on the page it showed and still signed in, behind its splash screen. Right after someone signs in, it switches before the app opens. It never switches while in use, within 5 minutes of leaving it, or over unsaved changes on the page, and it asks nobody to reload. A release that fails to start goes back to the files the binary carries. Releases come from a server of the same Protobase minor as the binary (below 1.0) and the same native code; a newer minor, or a Protobase release that changes the native code, needs a store release. See [the live updater](/reference/cli/#the-live-updater).
 
 ## 8. What the stores accept
 

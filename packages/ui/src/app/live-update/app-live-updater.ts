@@ -1,6 +1,7 @@
 import { mobileReleasesPath } from '@protobase/schema/internal'
 import { protobaseVersion } from '../../plugins/plugin-api'
 import type { NativeBridge } from '../native-auth-fetch'
+import { nativeSplash } from '../native-splash'
 import { createLiveUpdater } from './live-updater'
 import { nativeFingerprintOf } from './native-fingerprint'
 import { checkRelease } from './release-check'
@@ -22,5 +23,5 @@ export const appLiveUpdater = ({ bridge, apiOrigin, userAgent, fetch }: AppLiveU
   if (!bridge?.Exception || !bridge.isPluginAvailable('LiveUpdate')) return
   const fingerprint = nativeFingerprintOf(userAgent)
   const check = async () => (fingerprint && apiOrigin ? checkRelease(fetch, { apiOrigin, fingerprint, shellVersion: protobaseVersion }) : undefined)
-  return createLiveUpdater({ bridge: { nativePromise: bridge.nativePromise.bind(bridge), Exception: bridge.Exception }, check, releasesUrl: `${apiOrigin}${mobileReleasesPath}` })
+  return createLiveUpdater({ bridge: { nativePromise: bridge.nativePromise.bind(bridge), Exception: bridge.Exception }, check, releasesUrl: `${apiOrigin}${mobileReleasesPath}`, splash: nativeSplash(bridge) })
 }

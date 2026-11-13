@@ -26,6 +26,9 @@ export const keepPage = (storage: PageStorage, location: PageLocation, history: 
 
 export const forgetPage = (storage: PageStorage) => storage.removeItem(keptPageKey)
 
+/** Whether a page is kept, which is so from just before a reload into a release until the release draws. */
+export const pageKept = (storage: Pick<Storage, 'getItem'>) => storage.getItem(keptPageKey) !== null
+
 /** Before the app draws, returns to the page `keepPage` kept, once; anything else in its place is dropped. */
 export const restorePage = (storage: PageStorage, history: PageHistory) => {
   const kept = storage.getItem(keptPageKey)

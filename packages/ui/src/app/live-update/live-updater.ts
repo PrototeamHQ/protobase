@@ -1,5 +1,6 @@
 import type { MobileReleaseAnswer } from '@protobase/schema/internal'
 import type { NativeBridge } from '../native-auth-fetch'
+import type { NativeSplash } from '../native-splash'
 import { swapDecision } from './swap-decision'
 
 /** The native bridge the live updater calls, with the error type a plugin rejects with (`window.Capacitor.Exception`). */
@@ -11,6 +12,8 @@ export type LiveUpdaterInput = {
   check: () => Promise<MobileReleaseAnswer | undefined>
   /** `<api origin>/api/mobile/releases`, which the guard takes a release from only. */
   releasesUrl: string
+  /** The native splash, shown over the page while it reloads into a release; none in a binary without it. */
+  splash?: NativeSplash
 }
 
 // The id a getCurrentBundle or getNextBundle answer names, null for the app's own files.
@@ -26,7 +29,7 @@ const bundleIdOf = (result: unknown) => {
  * whether it did. None of it shows anything: a release the guard refuses, or a call that fails, leaves the app on the
  * files it runs.
  */
-export const createLiveUpdater = ({ bridge, check, releasesUrl }: LiveUpdaterInput) => {
+export const createLiveUpdater = ({ bridge, check, releasesUrl, splash }: LiveUpdaterInput) => {
   const call = (method: string, options: object = {}) => bridge.nativePromise('LiveUpdate', method, options)
   const refused = (error: unknown) => error instanceof bridge.Exception
 
@@ -47,14 +50,17 @@ export const createLiveUpdater = ({ bridge, check, releasesUrl }: LiveUpdaterInp
   }
 
   // The plugin's reload runs the next bundle under the same rollback as a cold start: the release must call ready().
+  // The splash covers the page from just before the reload until the release has drawn and hides it.
   const applyNext = async (beforeReload: () => void) => {
     const [current, next] = await Promise.all([call('getCurrentBundle'), call('getNextBundle')])
     const nextId = bundleIdOf(next)
     if (nextId === null || nextId === bundleIdOf(current)) return false
     beforeReload()
+    await splash?.show()
     try {
       await call('reload')
     } catch (error) {
+      await splash?.hide()
       if (!refused(error)) throw error
       return false
     }

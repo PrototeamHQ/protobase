@@ -81,6 +81,7 @@ import { appLiveUpdater } from './live-update/app-live-updater'
 import { sessionPageKeeper } from './live-update/kept-page'
 import { LiveUpdateProvider } from './live-update/live-update-provider'
 import { updateAfterSignIn } from './live-update/sign-in-update'
+import { nativeSplash } from './native-splash'
 import { LiveUpdateCheck } from './live-update/live-update-check'
 import { LiveUpdateResume } from './live-update/live-update-resume'
 import { useStatusMenu } from '../status/use-status-menu'
@@ -360,6 +361,10 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, local
   const apiOrigin = rest.baseUrl && new URL(rest.baseUrl, window.location.href).origin
   const updater = useMemo(() => appLiveUpdater({ bridge: nativeBridge, apiOrigin, userAgent: navigator.userAgent, fetch: window.fetch.bind(window) }), [nativeBridge, apiOrigin])
   const afterSignIn = useMemo(() => updater && (() => updateAfterSignIn(updater, sessionPageKeeper())), [updater])
+  // The splash covers the app from launch, or from a reload into a release, until the shell has drawn
+  useEffect(() => {
+    void nativeSplash(nativeBridge)?.hide()
+  }, [nativeBridge])
   return (
     <StartCacheProvider value={startCache}>
       <ThemeProvider>
