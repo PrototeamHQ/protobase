@@ -160,12 +160,16 @@ describe('nativePush', () => {
     expect(reported.map(({ message }) => message)).toEqual([`The push service gave the app no push token: ${entitlement}`])
   })
 
-  it('reports the push service refusing the app even when deleting the token fails, and still fails on that', async () => {
-    const turning = setup({ tokenError: entitlement, unregisterError: 'gone' })
-    await expect(turning.push.turnOn()).rejects.toThrow('gone')
-    const adopting = setup({ tokenError: entitlement, unregisterError: 'gone', record: { userId: 'alice', endpoint: 'token-1', deviceId: 'device-1' } })
-    await expect(adopting.push.adopt(alice)).rejects.toThrow('gone')
-    for (const { reported } of [turning, adopting]) expect(reported.map(({ message }) => message)).toEqual([`The push service gave the app no push token: ${entitlement}`])
+  it('reports the push service refusing the app on turning push on even when deleting the token fails, and still fails on that', async () => {
+    const { push, reported } = setup({ tokenError: entitlement, unregisterError: 'gone' })
+    await expect(push.turnOn()).rejects.toThrow('gone')
+    expect(reported.map(({ message }) => message)).toEqual([`The push service gave the app no push token: ${entitlement}`])
+  })
+
+  it('reports the push service refusing the app on sign-in even when deleting the token fails, and still fails on that', async () => {
+    const { push, reported } = setup({ tokenError: entitlement, unregisterError: 'gone', record: { userId: 'alice', endpoint: 'token-1', deviceId: 'device-1' } })
+    await expect(push.adopt(alice)).rejects.toThrow('gone')
+    expect(reported.map(({ message }) => message)).toEqual([`The push service gave the app no push token: ${entitlement}`])
   })
 
   it('still fails on any other error, such as the server refusing the device', async () => {
