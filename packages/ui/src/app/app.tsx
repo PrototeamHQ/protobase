@@ -82,6 +82,7 @@ import { sessionPageKeeper } from './live-update/kept-page'
 import { LiveUpdateProvider } from './live-update/live-update-provider'
 import { updateAfterSignIn } from './live-update/sign-in-update'
 import { nativeSplash } from './native-splash'
+import { createSplashHold, SplashHoldProvider } from './splash-hold'
 import { LiveUpdateCheck } from './live-update/live-update-check'
 import { LiveUpdateResume } from './live-update/live-update-resume'
 import { useStatusMenu } from '../status/use-status-menu'
@@ -361,33 +362,35 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, local
   const apiOrigin = rest.baseUrl && new URL(rest.baseUrl, window.location.href).origin
   const updater = useMemo(() => appLiveUpdater({ bridge: nativeBridge, apiOrigin, userAgent: navigator.userAgent, fetch: window.fetch.bind(window) }), [nativeBridge, apiOrigin])
   const afterSignIn = useMemo(() => updater && (() => updateAfterSignIn(updater, sessionPageKeeper())), [updater])
-  // The splash covers the app from launch, or from a reload into a release, until the shell has drawn
-  useEffect(() => {
-    void nativeSplash(nativeBridge)?.hide()
-  }, [nativeBridge])
+  // The splash covers the app from launch, or from a reload into a release, until it draws past its loading screens:
+  // the auth check, `/meta` and the plugins, so the first thing seen is the page, from the start cache when it has one
+  const splash = useMemo(() => createSplashHold(() => void nativeSplash(nativeBridge)?.hide()), [nativeBridge])
+  useEffect(() => splash.start(), [splash])
   return (
-    <StartCacheProvider value={startCache}>
-      <ThemeProvider>
-        <LiveUpdateProvider updater={updater}>
-          <AuthProvider session={auth} {...(apiOrigin && { origin: apiOrigin })} {...(nativeBridge && { nativeBridge })} {...(afterSignIn && { afterSignIn })}>
-            <Router basePath={basePath} initialUrl={initialUrl}>
-              <LiveUpdateResume />
-              {nativeBridge && apiOrigin && <NativePushTap nativeBridge={nativeBridge} apiOrigin={apiOrigin} />}
-              <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
-                <AuthLocale>
-                  <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>
-                    <GuestCallGate {...(rest.baseUrl && { baseUrl: rest.baseUrl })}>
-                      <AuthGate workspace={workspace}>
-                        <Authenticated workspace={workspace} {...rest} />
-                      </AuthGate>
-                    </GuestCallGate>
-                  </PublicFormGate>
-                </AuthLocale>
-              </PluginSourceProvider>
-            </Router>
-          </AuthProvider>
-        </LiveUpdateProvider>
-      </ThemeProvider>
-    </StartCacheProvider>
+    <SplashHoldProvider value={splash}>
+      <StartCacheProvider value={startCache}>
+        <ThemeProvider>
+          <LiveUpdateProvider updater={updater}>
+            <AuthProvider session={auth} {...(apiOrigin && { origin: apiOrigin })} {...(nativeBridge && { nativeBridge })} {...(afterSignIn && { afterSignIn })}>
+              <Router basePath={basePath} initialUrl={initialUrl}>
+                <LiveUpdateResume />
+                {nativeBridge && apiOrigin && <NativePushTap nativeBridge={nativeBridge} apiOrigin={apiOrigin} />}
+                <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
+                  <AuthLocale>
+                    <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>
+                      <GuestCallGate {...(rest.baseUrl && { baseUrl: rest.baseUrl })}>
+                        <AuthGate workspace={workspace}>
+                          <Authenticated workspace={workspace} {...rest} />
+                        </AuthGate>
+                      </GuestCallGate>
+                    </PublicFormGate>
+                  </AuthLocale>
+                </PluginSourceProvider>
+              </Router>
+            </AuthProvider>
+          </LiveUpdateProvider>
+        </ThemeProvider>
+      </StartCacheProvider>
+    </SplashHoldProvider>
   )
 }

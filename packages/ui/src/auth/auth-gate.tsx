@@ -23,6 +23,7 @@ import { TwoFactorPage } from './two-factor-page'
 import { useSignInAddress } from './use-sign-in-address'
 import { readInvitationLink, withoutInvitationLink } from '../organizations/invitation-link'
 import { InvitationPage } from '../organizations/invitation-page'
+import { HoldSplash } from '../app/splash-hold'
 import { BeforeSignIn } from '../plugins/before-sign-in'
 import { text } from './messages'
 
@@ -133,6 +134,7 @@ const useAuthPage = (workspace: string | undefined, children: ReactNode): ReactN
     case 'loading':
       return (
         <div className={cn('flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground', revealLate)}>
+          <HoldSplash />
           <Spinner /> {text('loading')}
         </div>
       )

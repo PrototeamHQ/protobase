@@ -1,5 +1,6 @@
 {
   "unstable": {
+    "app/splash-hold#HoldSplash": "the shell's loading screens hold the launch splash with it; an app gets that by running in the shell",
     "data/start-cache/restored-state#useRestoredState": "the shell draws a page from the start cache muted until it is refreshed; an app's pages get that by running in the shell",
     "data/start-cache/start-cache#useStartCache": "the shell's sign-in and query cache read it; an app gets the start cache from the shell",
     "mailbox/use-action-mailbox#useActionMailbox": "the framework's action dialogs and toasts use it; an app gets the mailbox offer by marking an action mailbox: true",

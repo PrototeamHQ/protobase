@@ -9,26 +9,35 @@ import { listPhotos, withPhotos } from '../../live/row-photos'
 import { seedTitleRows } from '../../live/title-rows'
 import { useAdminMeta } from '../meta-gate'
 
-type Request = { model: ResourceModel; filter: string; orderBy: string; limit: number; fields: string[] }
+type Request = {
+  model: ResourceModel
+  filter: string
+  orderBy: string
+  limit: number
+  /** The fields its relations are labelled and its relations' titles read for. */
+  fields: string[]
+  /** The fields each record is read with, from `embeddedReadFields`; `undefined` reads whole records. */
+  read: string[] | undefined
+}
 
 /**
- * The first `limit` records in `orderBy` order, as the list page's table and displays get them: relations among
+ * The first `limit` records in `orderBy` order, with the fields `read` names, as the list page's table and displays get them: relations among
  * `fields` as `{ id, name }`, named in the same call, with the photos of its cards, and how many records match in all,
  * counted in the same call: `estimated` when more than the server counts exactly match; the fields the derived titles
  * of the records its relations point at read, in one more call per resource. A filter through a join
  * resource may hold hundreds of keys, so it goes in a JSON body.
  */
-export const useEmbeddedRows = ({ model, filter, orderBy, limit, fields }: Request) => {
+export const useEmbeddedRows = ({ model, filter, orderBy, limit, fields, read }: Request) => {
   const client = useClient()
   const queryClient = useQueryClient()
   const { resources, views } = useAdminMeta()
   return useQuery({
-    queryKey: [...keys.list(model.name, filter, orderBy, limit, 'embedded'), fields.join(',')],
+    queryKey: [...keys.list(model.name, filter, orderBy, limit, 'embedded'), fields.join(','), read?.join(',') ?? '*'],
     placeholderData: keepPreviousData,
     queryFn: async (): Promise<{ rows: GridRow[]; total: number; estimated: boolean }> => {
       const labels = listLabels(resources, views, model, fields)
       const photos = listPhotos(views[model.name])
-      const page = await client.search(model.name, { filter: filter || undefined, orderBy: orderBy || undefined, pageSize: limit, count: 'exact', labels, photos })
+      const page = await client.search(model.name, { filter: filter || undefined, orderBy: orderBy || undefined, pageSize: limit, count: 'exact', labels, photos, fields: read })
       await seedTitleRows(queryClient, client, resources, views, model, fields, page.items)
       const labelled = withLabels(resources, model, fields, withPhotos(model, page.items, page.photos), page.labels)
       const rows = labelled.map((row, index) => ({ ...row, id: recordId(model, page.items[index]!) }))

@@ -27,6 +27,7 @@ import { AppLink, useAppAddress } from '../use-app-address'
 import { embeddedColumns } from './embedded-columns'
 import { viewAllAddress } from './embedded-display'
 import { cutOffNote } from './cut-off-note'
+import { embeddedReadFields } from './embedded-read-fields'
 import { embeddedRowTargets } from './embedded-row-targets'
 import { useListActions } from '../list-actions/use-list-actions'
 import { useEmbeddedRows } from './use-embedded-rows'
@@ -88,7 +89,8 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   const specs = useMemo(() => (xs && phoneColumns ? phoneColumns(all) : all), [xs, phoneColumns, all])
   const fields = useMemo(() => loadedFields(model, view, [...specs.map((spec) => spec.id), ...(button ? rowButtonFields(button) : [])]), [model, view, specs, button])
   const gridColumns = useMemo(() => (button ? withRowButton(specs, model, view, button, narrow) : specs), [specs, model, view, button, narrow])
-  const rows = useEmbeddedRows({ model, filter, orderBy, limit, fields })
+  const read = useMemo(() => embeddedReadFields(model, view, { shown: fields, opens, bulk }), [model, view, fields, opens, bulk])
+  const rows = useEmbeddedRows({ model, filter, orderBy, limit, fields, read })
   const named = useListActions(model)
   const loaded = rows.data?.rows
   const source = useMemo(() => loaded && { total: loaded.length, rowAt: (index: number) => loaded[index]! }, [loaded])

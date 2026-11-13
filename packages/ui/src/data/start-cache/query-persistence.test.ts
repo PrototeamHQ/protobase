@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MetaData } from '../meta-data'
 import { keys } from '../query-keys'
 import { createQueryPersistence, keptQueries, saveDelayMs } from './query-persistence'
-import { byteSize } from './size-limit'
+import { byteSize, softLimitBytes } from './size-limit'
 import type { CachedQueries, StartCache } from './start-cache'
 
 const fakeCache = (stored?: CachedQueries) => {
@@ -88,9 +88,36 @@ describe('the queries kept between starts', () => {
     client.setQueryData(['list', 'newest'], rows(100), { updatedAt: 30 })
     const one = byteSize(rows(100)) + '["list","oldest"]'.length
     const used = { '["list","older"]': 40 }
-    const kept = keptQueries(client, [], used, byteSize, 2 * one + 30)
+    const kept = keptQueries(client, [], used, byteSize, new Set(), 2 * one + 30)
     expect(kept.queries.map((query) => query.queryHash).sort()).toEqual(['["list","newest"]', '["list","older"]', '["meta"]'])
     expect(kept.used).toEqual({ '["meta"]': 1, '["list","older"]': 40, '["list","newest"]': 30 })
+  })
+
+  it('never evicts a query on screen, so the total passes the limit by the page shown', () => {
+    const client = newClient()
+    const rows = (count: number) => ({ rows: Array.from({ length: count }, (_, index) => index) })
+    client.setQueryData(['list', 'elsewhere'], rows(100), { updatedAt: 10 })
+    client.setQueryData(['list', 'shown-first'], rows(100), { updatedAt: 20 })
+    client.setQueryData(['list', 'shown-last'], rows(100), { updatedAt: 20 })
+    const one = byteSize(rows(100)) + '["list","elsewhere"]'.length
+    const onScreen = new Set(['["list","shown-first"]', '["list","shown-last"]'])
+    const kept = keptQueries(client, [], {}, byteSize, onScreen, one)
+    expect(kept.queries.map((query) => query.queryHash).sort()).toEqual(['["list","shown-first"]', '["list","shown-last"]'])
+  })
+
+  it('saves the whole page on screen when its answers together pass the soft limit', async () => {
+    const { cache, saves } = fakeCache()
+    const client = newClient()
+    const stop = createQueryPersistence({ cache, owner: 'user:u1' }).subscribe(client)
+    const earlier = observe(client, ['list', 'earlier'], async () => ({ text: 'x'.repeat(1024) }))
+    await vi.advanceTimersByTimeAsync(saveDelayMs)
+    earlier.stop()
+    await vi.advanceTimersByTimeAsync(1)
+    const page = ['a', 'b', 'c'].map((part) => observe(client, ['list', part], async () => ({ text: part.repeat(softLimitBytes / 2) })))
+    await vi.advanceTimersByTimeAsync(saveDelayMs)
+    expect(hashes(saves.at(-1))?.sort()).toEqual(['["list","a"]', '["list","b"]', '["list","c"]'])
+    for (const shown of page) shown.stop()
+    stop()
   })
 
   it('weighs and evicts earlier saved answers the client no longer holds with the rest', () => {
@@ -99,8 +126,8 @@ describe('the queries kept between starts', () => {
     const saved = earlier.getQueryCache().getAll().map((query) => ({ queryKey: query.queryKey, queryHash: query.queryHash, state: query.state, dehydratedAt: 0 }))
     const client = newClient()
     client.setQueryData(['list', 'now'], { rows: [1, 2, 3] }, { updatedAt: 50 })
-    expect(keptQueries(client, saved, {}, byteSize, 1_000_000).queries.map((query) => query.queryHash)).toEqual(['["list","now"]', '["list","gone"]'])
-    expect(keptQueries(client, saved, {}, byteSize, 40).queries.map((query) => query.queryHash)).toEqual(['["list","now"]'])
+    expect(keptQueries(client, saved, {}, byteSize, new Set(), 1_000_000).queries.map((query) => query.queryHash)).toEqual(['["list","now"]', '["list","gone"]'])
+    expect(keptQueries(client, saved, {}, byteSize, new Set(), 40).queries.map((query) => query.queryHash)).toEqual(['["list","now"]'])
   })
 
   it('keeps the earlier answer of a query whose refetch failed', async () => {

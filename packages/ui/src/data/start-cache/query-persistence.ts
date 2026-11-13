@@ -29,14 +29,22 @@ export type Uses = Record<string, number>
  * The queries to save, with when each was last used: the latest answer of every query the client holds, and the earlier
  * saved ones it no longer holds. A query whose last refetch failed keeps the answer saved before, so starting without a
  * network still shows what was last seen. Past `limit` bytes the least recently used are evicted (see `withinLimit`),
- * never `/meta`; a query never seen on screen counts as used when its answer came. `sizeOf` measures an answer.
+ * never `/meta` nor a query in `onScreen`, so the next start draws the page on screen whole: the total stays within
+ * `limit` plus that page. A query never seen on screen counts as used when its answer came. `sizeOf` measures an answer.
  */
-export const keptQueries = (client: QueryClient, saved: DehydratedState['queries'], used: Uses, sizeOf: (data: unknown) => number, limit = softLimitBytes): { queries: DehydratedState['queries']; used: Uses } => {
+export const keptQueries = (
+  client: QueryClient,
+  saved: DehydratedState['queries'],
+  used: Uses,
+  sizeOf: (data: unknown) => number,
+  onScreen: ReadonlySet<string>,
+  limit = softLimitBytes,
+): { queries: DehydratedState['queries']; used: Uses } => {
   const fresh = dehydrate(client, { shouldDehydrateQuery: savable }).queries
   const freshHashes = new Set(fresh.map((query) => query.queryHash))
   const all = [...fresh, ...saved.filter((query) => !freshHashes.has(query.queryHash))]
   const lastUsed = (query: (typeof all)[number]) => used[query.queryHash] ?? query.state.dataUpdatedAt
-  const kept = withinLimit(all.map((query) => ({ hash: query.queryHash, bytes: query.queryHash.length + sizeOf(query.state.data), lastUsed: lastUsed(query), pinned: query.queryHash === metaHash })), limit)
+  const kept = withinLimit(all.map((query) => ({ hash: query.queryHash, bytes: query.queryHash.length + sizeOf(query.state.data), lastUsed: lastUsed(query), pinned: query.queryHash === metaHash || onScreen.has(query.queryHash) })), limit)
   const queries = all.filter((query) => kept.has(query.queryHash))
   return { queries, used: Object.fromEntries(queries.map((query) => [query.queryHash, lastUsed(query)])) }
 }
@@ -70,8 +78,9 @@ export const createQueryPersistence = ({ cache, owner }: { cache: StartCache; ow
       const save = () => {
         timer = undefined
         const now = Date.now()
-        for (const query of client.getQueryCache().findAll({ type: 'active' })) used[query.queryHash] = now
-        const next = keptQueries(client, saved, used, sizeOf)
+        const onScreen = new Set(client.getQueryCache().findAll({ type: 'active' }).map((query) => query.queryHash))
+        for (const hash of onScreen) used[hash] = now
+        const next = keptQueries(client, saved, used, sizeOf, onScreen)
         saved = next.queries
         used = next.used
         void cache.saveQueries({ owner, used, state: { mutations: [], queries: saved } })
