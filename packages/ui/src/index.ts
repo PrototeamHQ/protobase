@@ -6,6 +6,8 @@ export { useList } from './data/use-list'
 export { useRecord } from './data/use-record'
 export { useFacets, useSeries, useHistogram } from './data/use-aggregates'
 export { useUpdateRecord, isConflict } from './data/use-update-record'
+// The app's query hooks, on the app's own client, so a plugin's queries are kept between starts with the app's.
+export { useQuery, useQueryClient } from '@tanstack/react-query'
 export { defineUi, definePlugin, type ProjectUi, type ActionHandler, type ActionContext, type BeforeSignInProps } from './app/pages/project-ui'
 export type { Drop, DropRule } from './app/hand-order/drop-rule'
 export type { TitleReader, TitleRule } from './app/titles/title-rule'

@@ -101,6 +101,8 @@
     "usePlugin",
     "usePresence",
     "usePushNotifications",
+    "useQuery",
+    "useQueryClient",
     "useRecord",
     "useRecordCallAddress",
     "useRecordCalls",

@@ -38,7 +38,7 @@ Nothing in it has to change: its named component exports, `defineUi({ actions, s
 
 - **Modules of the shared packages.** `react`, `react/jsx-runtime`, `react-dom` and `@protobase/ui` come from the app, by those names. An import of another module of theirs, such as `react-dom/client` or a file inside `@protobase/ui`, fails the build: import from the package's main entry instead.
 - **Browser work at the top level.** The build loads `protobase.ui.tsx` once in Node to read its field types. Code that touches `window`, `document` or `localStorage` when a module loads fails the build; move it into a component, a hook or a handler.
-- **A data library of its own.** A component that used `@tanstack/react-query` directly found the app's query client while it was built into the app; as a plugin it carries its own copy, which does not. Read through `@protobase/ui`'s hooks (`useList`, `useRecord`, `useClient`), which share the app's cache and session.
+- **A data library of its own.** A component that used `@tanstack/react-query` directly found the app's query client while it was built into the app; as a plugin it carries its own copy, which does not. Read through `@protobase/ui`'s hooks (`useList`, `useRecord`, `useClient`), which share the app's cache and session, or import `useQuery` and `useQueryClient` from `@protobase/ui` instead of `@tanstack/react-query`: they run on the app's client.
 
 ## 3. Check its styles
 
