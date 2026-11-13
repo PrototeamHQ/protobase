@@ -23,7 +23,9 @@ import { signForDevelopment } from './development-signing'
 import { checkInstalledPlugins, checkPinnedNative, pinnedNative } from './pinned-packages'
 import type { Platform } from './platform'
 import { checkIosPlugins, checkProtobasePlugin, guardIosLiveUpdate, guardLiveUpdate } from './protobase-plugin'
+import { splashBackgrounds } from './splash-backgrounds'
 import { splashColors } from './splash-colors'
+import { splashImage } from './splash-image'
 import { buildWebPart, placeholderWebPart, type WebPartInput } from './web-part'
 import { mobileSpec, prepareWorkspace, workspaceDir, workspacePackageJson } from './workspace'
 
@@ -56,8 +58,9 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   const project = await loadMobileProject(projectDir, extensions)
   const mobile = checkMobileConfig(project.mobile)
   // Read before anything is installed, so a theme the splash screen cannot take stops at once.
-  const splash = await splashColors(projectDir)
-  const ownIcon = mobile.icon === undefined ? undefined : { file: mobile.icon, background: iconBackground(project.backgroundColor, splash) }
+  const theme = await splashColors(projectDir)
+  const splash = splashBackgrounds(mobile.splash, theme)
+  const ownIcon = mobile.icon === undefined ? undefined : { file: mobile.icon, background: iconBackground(project.backgroundColor, theme) }
   const url = live === undefined ? apiUrl(api, project.auth?.issuer, platform) : new URL(`http://localhost:${live}`)
   if (release) checkReleaseUrl(url)
   const allowances = httpAllowances(url)
@@ -70,8 +73,9 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   await prepareWorkspace(ws, workspacePackageJson({ mobileSpec: mobileSpec(), ...(mobile.plugins && { plugins: mobile.plugins }) }), (command, args) => run(command, args, { cwd: ws, env }))
   checkInstalledPlugins(ws, plugins)
   checkPinnedNative(ws)
-  // Drawn before the app's files are built, so an icon the platforms cannot take stops early.
+  // Drawn before the app's files are built, so an icon or splash image the platforms cannot take stops early.
   const icon = ownIcon && (await appIcon({ ws, projectDir, platform, ...ownIcon }))
+  const ownSplash = await splashImage({ ws, projectDir, splash: mobile.splash, platform })
 
   const { builtInOrder } = live === undefined ? await buildWebPart({ projectDir, ws, extensions, apiOrigin: url.origin, ...(build && { build }), onWarning }) : await placeholderWebPart(ws)
   const fingerprint = nativeFingerprint(pinnedNative, mobile.plugins, { push: project.notifications })
@@ -85,7 +89,7 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   const config = { appId: mobile.appId, appName, fingerprint, shellVersion: protobaseVersion, plugins, allowances, apiOrigin: url.origin, platform, ...(release && { release }), ...(push && { push }), ...(apnsEnvironment && { apnsEnvironment }) }
   await writeCapacitorConfig(ws, capacitorConfig({ ...config, ...(liveUpdate.settings && { liveUpdate: liveUpdate.settings }) }))
   const cap = capacitorRunner(ws, env, run)
-  await generatePlatform(ws, platform, { ...allowances, splash, ...(icon && { icon }), ...(push && platform === 'android' && { googleServicesFrom: projectDir }), ...(apnsEnvironment && { apnsEnvironment }) }, cap)
+  await generatePlatform(ws, platform, { ...allowances, splash, ...(ownSplash && { splashImage: ownSplash }), ...(icon && { icon }), ...(push && platform === 'android' && { googleServicesFrom: projectDir }), ...(apnsEnvironment && { apnsEnvironment }) }, cap)
   if (platform === 'android') {
     await guardLiveUpdate(ws)
     await checkProtobasePlugin(ws)

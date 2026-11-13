@@ -7,6 +7,7 @@ type Image = {
   metadata(): Promise<{ format?: string; width?: number; height?: number }>
   stats(): Promise<{ isOpaque: boolean }>
   resize(width: number, height: number): Image
+  extract(region: { left: number; top: number; width: number; height: number }): Image
   extend(options: { top: number; bottom: number; left: number; right: number; background: { r: number; g: number; b: number; alpha: number } }): Image
   flatten(options: { background: string }): Image
   greyscale(): Image

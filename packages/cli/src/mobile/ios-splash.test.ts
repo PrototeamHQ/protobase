@@ -1,11 +1,16 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { iosSplashFiles, splashBackgroundContents, splashBackgroundSet, withIosSplash } from './ios-splash'
+import { fileURLToPath } from 'node:url'
+import { iosSplashFiles, splashBackgroundContents, splashBackgroundSet, withIosSplash, withSplashImageSize } from './ios-splash'
+import { protobaseSplashDir } from './native-splash'
 import { writeProtobaseSplash, writeTemplateSplash } from './native-splash-fixture'
 
 const colors = { light: '#f4f3ee', dark: '#0f0f11' }
+
+// @protobase/mobile's launch storyboard, as this repository has it.
+const storyboard = fileURLToPath(new URL(`../../../mobile/splash/ios/${iosSplashFiles[0]}`, import.meta.url))
 
 let ws = ''
 afterEach(() => rmSync(ws, { recursive: true, force: true }))
@@ -35,6 +40,19 @@ describe('withIosSplash', () => {
     expect(readFileSync(at(path.join(splashBackgroundSet, 'Contents.json')), 'utf8')).toBe(splashBackgroundContents(colors))
   })
 
+  it("draws the app's own splash image at 192 points, its files over Protobase's", async () => {
+    ws = mkdtempSync(path.join(tmpdir(), 'protobase-ios-splash-'))
+    writeProtobaseSplash(ws)
+    copyFileSync(storyboard, path.join(protobaseSplashDir(ws, 'ios'), iosSplashFiles[0]!))
+    writeTemplateSplash(ws, 'ios')
+    const image = [{ file: `${iosSplashFiles[1]}/Contents.json`, content: 'own' }, { file: `${iosSplashFiles[1]}/splash-dark.png`, content: 'own dark' }]
+    await withIosSplash(ws, colors, image)
+    const at = (file: string) => readFileSync(path.join(ws, 'ios', file), 'utf8')
+    for (const { file, content } of image) expect(at(file)).toBe(content)
+    expect(at(iosSplashFiles[0]!)).toBe(withSplashImageSize(readFileSync(storyboard, 'utf8'), 192))
+    expect(at(path.join(splashBackgroundSet, 'Contents.json'))).toBe(splashBackgroundContents(colors))
+  })
+
   it('fails on a template without the launch screen', async () => {
     ws = mkdtempSync(path.join(tmpdir(), 'protobase-ios-splash-'))
     writeProtobaseSplash(ws)
@@ -47,5 +65,19 @@ describe('withIosSplash', () => {
     ws = mkdtempSync(path.join(tmpdir(), 'protobase-ios-splash-'))
     writeTemplateSplash(ws, 'ios')
     await expect(withIosSplash(ws, colors)).rejects.toThrow(`@protobase/mobile has no ios/${iosSplashFiles[0]} of Protobase's splash screen`)
+  })
+})
+
+describe('withSplashImageSize', () => {
+  it("draws the storyboard's Splash image at the size, centred as before", () => {
+    const sized = withSplashImageSize(readFileSync(storyboard, 'utf8'), 192)
+    expect(sized).not.toContain('"128"')
+    expect(sized.match(/constant="192"/g)).toHaveLength(2)
+    expect(sized).toContain('<image name="Splash" width="192" height="192"/>')
+    expect(sized).toContain('secondAttribute="centerY"')
+  })
+
+  it('fails on a storyboard that does not draw the image at 128 points', () => {
+    expect(() => withSplashImageSize('<document/>', 192)).toThrow('does not draw the Splash image at 128 points')
   })
 })

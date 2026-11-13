@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { templateManifest, writeAndroidTemplate } from './android-template-fixture'
 import { generatePlatform } from './generate'
@@ -8,6 +9,8 @@ import { iosSplashImages } from './ios-app-icon'
 import { writeIosTemplate } from './ios-template-fixture'
 import { nativeIconFiles, protobaseIconDir } from './native-icon'
 import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
+import { iosSplashFiles } from './ios-splash'
+import { protobaseSplashDir } from './native-splash'
 import { writeProtobaseSplash, writeTemplateSplash } from './native-splash-fixture'
 
 const options = { splash: { light: '#ffffff', dark: '#0f0f11' } }
@@ -41,6 +44,23 @@ describe('generatePlatform', () => {
       await generatePlatform(ws, platform, { ...options, cleartext: false, icon: icon[platform] }, cap([]))
       for (const { file, content } of [...icon[platform].icon, ...icon[platform].splash]) expect(readFileSync(path.join(ws, platform, file), 'utf8')).toBe(content)
     }
+  })
+
+  it("gives an app with its own splash image that image in place of its icon's", async () => {
+    ws = mkdtempSync(path.join(tmpdir(), 'protobase-generate-'))
+    const storyboard = fileURLToPath(new URL(`../../../mobile/splash/ios/${iosSplashFiles[0]}`, import.meta.url))
+    const withStoryboard = (calls: string[][]) => async (args: string[]) => {
+      await cap(calls)(args)
+      copyFileSync(storyboard, path.join(protobaseSplashDir(ws, 'ios'), iosSplashFiles[0]!))
+    }
+    const ownFile = (file: string) => ({ file, content: `own ${file}` })
+    const icon = { icon: [ownFile(nativeIconFiles.ios[0]!)], splash: iosSplashImages.map(([file]) => ({ file, content: 'icon' })) }
+    const splashImage = { ios: iosSplashImages.map(([file]) => ownFile(file)), android: [ownFile('app/src/main/res/drawable-night-mdpi/protobase_splash_image.png')] }
+    for (const platform of ['ios', 'android'] as const) {
+      await generatePlatform(ws, platform, { ...options, cleartext: false, splashImage: splashImage[platform], ...(platform === 'ios' && { icon }) }, withStoryboard([]))
+      for (const { file, content } of splashImage[platform]) expect(readFileSync(path.join(ws, platform, file), 'utf8')).toBe(content)
+    }
+    expect(readFileSync(path.join(ws, 'ios', iosSplashFiles[0]!), 'utf8')).toContain('<image name="Splash" width="192" height="192"/>')
   })
 
   it("gives an app without its own icon Protobase's, byte for byte", async () => {

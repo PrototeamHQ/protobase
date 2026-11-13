@@ -1,6 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { copySplashFile, removeTemplateSplash } from './native-splash'
+import { androidSplashImageName } from './android-splash-image'
+import type { NativeFile } from './native-file'
+import { copySplashFile, removeTemplateSplash, writeSplashFiles } from './native-splash'
 import type { SplashColors } from './splash-colors'
 
 const res = 'app/src/main/res'
@@ -36,10 +38,19 @@ const launchTheme = `    <style name="AppTheme.NoActionBarLaunch" parent="Theme.
         <item name="windowSplashScreenIconBackgroundColor">@color/ic_launcher_background</item>
     </style>`
 
-/** The template's styles.xml with Protobase's launch theme; it fails on any other, which may set its own splash. */
-export const withLaunchTheme = (styles: string) => {
+// The same with the app's own splash image in place of the launcher icon, with no background of its own.
+const imageLaunchTheme = `    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/protobase_splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/${androidSplashImageName}</item>
+    </style>`
+
+/**
+ * The template's styles.xml with Protobase's launch theme, showing the app's own splash image with `ownImage`; it fails
+ * on any other, which may set its own splash.
+ */
+export const withLaunchTheme = (styles: string, ownImage = false) => {
   if (!styles.includes(templateLaunchTheme)) throw new Error("The generated android project's styles.xml is not Capacitor's template: its launch theme is not the one Protobase replaces")
-  return styles.replace(templateLaunchTheme, launchTheme)
+  return styles.replace(templateLaunchTheme, ownImage ? imageLaunchTheme : launchTheme)
 }
 
 /** The `protobase_splash_background` colour resource, in values for light mode and values-night for dark. */
@@ -49,10 +60,13 @@ export const splashBackgroundResource = (color: string) => `<?xml version="1.0" 
 </resources>
 `
 
-/** Gives the Android project in the workspace Protobase's splash screen on the app's background in place of Capacitor's. */
-export const withAndroidSplash = async (ws: string, { light, dark }: SplashColors) => {
+/**
+ * Gives the Android project in the workspace Protobase's splash screen on its background, `colors`, in place of
+ * Capacitor's: the launcher icon, or the app's own splash image, its `image` files, with them.
+ */
+export const withAndroidSplash = async (ws: string, { light, dark }: SplashColors, image?: NativeFile[]) => {
   const styles = path.join(ws, 'android', stylesPath)
-  await writeFile(styles, withLaunchTheme(await readFile(styles, 'utf8')))
+  await writeFile(styles, withLaunchTheme(await readFile(styles, 'utf8'), image !== undefined))
   for (const [values, color] of [['values', light], ['values-night', dark]] as const) {
     const dir = path.join(ws, 'android', res, values)
     await mkdir(dir, { recursive: true })
@@ -60,4 +74,5 @@ export const withAndroidSplash = async (ws: string, { light, dark }: SplashColor
   }
   for (const image of templateSplashImages) await removeTemplateSplash(ws, 'android', image)
   for (const file of androidSplashFiles) await copySplashFile(ws, 'android', file)
+  if (image) await writeSplashFiles(ws, 'android', image)
 }
