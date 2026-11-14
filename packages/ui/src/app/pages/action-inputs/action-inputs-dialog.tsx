@@ -11,6 +11,8 @@ import { useActionMailbox } from '../../../mailbox/use-action-mailbox'
 import { useProjectUi } from '../project-ui'
 import { checklistBoxes } from './checklist-boxes'
 import { ChecklistInput } from './checklist-input'
+import { SecretInput } from './secret-input'
+import { maskedFailure, maskedMessages, secretAnswers } from './secret-mask'
 import { answeredValues, inputField, inputHints, refusedAnswers, startingAnswers } from './input-answers'
 import { inputErrors } from './input-errors'
 import { text } from '../messages'
@@ -37,6 +39,7 @@ const InputEditor = ({ input, held, invalid, onChange, boxes }: InputEditorProps
     return <Custom input={input} value={held ?? null} onChange={onChange} invalid={invalid} props={input.props ?? {}} />
   }
   if (input.kind === 'checklist') return <ChecklistInput label={input.label} boxes={boxes} ticked={Array.isArray(held) ? (held as string[]) : []} onChange={onChange} />
+  if (input.kind === 'secret') return <SecretInput name={input.name} value={typeof held === 'string' ? held : ''} invalid={invalid} onChange={onChange} />
   const target = input.resource === undefined ? undefined : resources[input.resource]
   return (
     <FieldEditor
@@ -82,9 +85,11 @@ export const ActionInputsDialog = ({ action, label, danger, records = [], names 
     setFailure(undefined)
     if (Object.keys(refused).length > 0 || mailbox.blocked) return
     setRunning(true)
+    // A handler that echoes a secret answer in its failure has it masked before the dialog draws it.
+    const secrets = secretAnswers(action.inputs, values)
     await onSubmit(values).catch((error: unknown) => {
-      setErrors(inputErrors(error, action.inputs))
-      setFailure(error)
+      setErrors(maskedMessages(inputErrors(error, action.inputs), secrets))
+      setFailure(maskedFailure(error, secrets))
     })
     setRunning(false)
   }

@@ -5,6 +5,7 @@ description: Buttons that change records, ask for input or run your own code, pe
 
 - [Record actions](/reference/ui-config/#actions-and-views-per-role): Buttons that update fields, delete, open a link, run an AI action or call your own code.
 - [Actions that ask for input](/reference/ui-config/#actions-that-ask-for-input): An action opens a dialog for text, numbers, dates, choices or records before it runs.
+- [Secret inputs](/reference/ui-config/#secret-inputs) (beta): An action can take a secret value, such as an API key, in a masked input that browsers and password managers do not offer to save, and the value is never sent back.
 - [Actions that send from someone's mailbox](/reference/ui-config/#actions-that-send-from-someones-mailbox) (beta): An action that sends from the person's own mailbox offers to connect it right in its dialog while none is linked or its link expired.
 - [Conditional and bulk actions](/reference/ui-config/#where-an-action-applies): Actions show, or show disabled with a reason, only where a condition holds, and run on several selected rows at once.
 - [Signing several records off](/reference/blocks/#signing-several-records-off) (experimental): An action can sign several records off at once, after a checklist.

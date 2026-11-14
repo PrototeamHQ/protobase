@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { shownInputs } from './action-inputs'
+import { actionInputErrors, shownInputs } from './action-inputs'
 import { actions } from './view-actions'
 
 const starts = [
@@ -46,6 +46,15 @@ describe('action inputs', () => {
     expect(() => actions.action('a', { label: 'A', inputs: (i) => [i.text('x', { label: 'X', when: "y = 'a'" }), i.text('y', { label: 'Y' })] })).toThrow('input "x": "when" is not a valid condition')
     expect(() => actions.action('a', { label: 'A', inputs: (i) => [i.choice('x', { label: 'X', options: starts }), i.text('y', { label: 'Y', when: "x = 'svn'" })] })).toThrow('input "y"')
     expect(() => actions.action('a', { label: 'A', inputs: (i) => [i.text('x', { label: 'X', when: 'x = (' })] })).toThrow('input "x"')
+  })
+
+  it('builds a secret with no default, which no when reads and no update writes', () => {
+    const built = actions.action('connect', { label: 'Connect', inputs: (i) => [i.secret('api_key', { label: 'API key', help: 'From the settings page.' })] })
+    expect(built.inputs).toEqual([{ name: 'api_key', kind: 'secret', label: 'API key', required: true, help: 'From the settings page.' }])
+    expect(() => actions.action('a', { label: 'A', inputs: (i) => [i.secret('key', { label: 'Key' }), i.text('y', { label: 'Y', when: "key = 'x'" })] })).toThrow('input "y": "when" is not a valid condition')
+    expect(actionInputErrors([{ name: 'key', kind: 'secret', label: 'Key', required: true, default: 'sk-1' }])).toEqual(['input "key": a secret takes no default'])
+    expect(actionInputErrors([{ name: 'key', kind: 'secret', label: 'Key', required: true, default: 'sk-1', options: [{ value: 'a', label: 'A' }] }]).join()).not.toContain('sk-1')
+    expect(() => actions.update('a', { label: 'A', inputs: (i) => [i.secret('key', { label: 'Key' })], set: { token: '{{key}}' } })).toThrow('set "token" names secret input "key", which an update never writes')
   })
 
   it('builds a checklist of fixed boxes or of a field of the record, and refuses one with neither, both or no boxes', () => {

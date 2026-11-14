@@ -35,6 +35,11 @@ export const inputs = {
   decimal: (name: string, o: InputOptions<string>) => input(name, 'decimal', o),
   /** A switch; the handler gets `true` or `false`, so it is never required. */
   boolean: (name: string, o: { label: string; help?: string; when?: string; default?: boolean }) => input(name, 'boolean', o),
+  /**
+   * A secret, such as an API key, in a masked field that browsers and password managers do not offer to save or fill.
+   * It takes no default and no `when` reads it; the handler gets its text, and no update writes it.
+   */
+  secret: (name: string, o: { label: string; help?: string; optional?: boolean; when?: string }) => input(name, 'secret', o),
   /** A date as `YYYY-MM-DD`. */
   date: (name: string, o: InputOptions<string>) => input(name, 'date', o),
   /** One of `options`, each a value with its label, or a record of `resource`, whose key the handler gets. */
@@ -55,7 +60,7 @@ export const inputs = {
     input(name, 'custom', o, { component: o.component, ...(o.props !== undefined && { props: o.props }) }),
 }
 
-const filterTypes: Record<ActionInputKind, FieldType> = { text: 'text', integer: 'integer', decimal: 'decimal', boolean: 'boolean', date: 'date', choice: 'text', checklist: 'json', custom: 'json' }
+const filterTypes: Record<ActionInputKind, FieldType> = { text: 'text', integer: 'integer', decimal: 'decimal', boolean: 'boolean', date: 'date', choice: 'text', secret: 'text', checklist: 'json', custom: 'json' }
 
 const inputField = (entry: ActionInputModel): FieldModel => ({
   name: entry.name,
@@ -63,7 +68,7 @@ const inputField = (entry: ActionInputModel): FieldModel => ({
   type: entry.options ? 'enum' : filterTypes[entry.kind],
   nullable: true,
   readOnly: false,
-  filterable: entry.kind !== 'custom' && entry.kind !== 'checklist',
+  filterable: entry.kind !== 'custom' && entry.kind !== 'checklist' && entry.kind !== 'secret',
   sortable: false,
   aliases: [],
   ...(entry.options && { enumValues: entry.options.map((option) => option.value) }),
@@ -95,12 +100,14 @@ const checklistErrors = (entry: ActionInputModel) => {
   return []
 }
 
-/** What is wrong with an action's inputs: a name given twice, a default that is no option, a `when` over no input before it, a checklist without boxes. */
+/** What is wrong with an action's inputs: a name given twice, a default that is no option or on a secret, a `when` over no input before it, a checklist without boxes. */
 export const actionInputErrors = (entries: ActionInputModel[]) =>
   entries.flatMap((entry, index) => {
     const errors: string[] = []
     if (entries.findIndex((other) => other.name === entry.name) !== index) errors.push(`input "${entry.name}" is declared twice`)
-    if (entry.options && entry.default !== undefined && !entry.options.some((option) => option.value === entry.default)) errors.push(`input "${entry.name}": default "${String(entry.default)}" is not one of its options`)
+    if (entry.kind === 'secret' && entry.default !== undefined) errors.push(`input "${entry.name}": a secret takes no default`)
+    // A secret's default is refused above without naming it, so its value never lands in an error.
+    if (entry.kind !== 'secret' && entry.options && entry.default !== undefined && !entry.options.some((option) => option.value === entry.default)) errors.push(`input "${entry.name}": default "${String(entry.default)}" is not one of its options`)
     const when = checkedWhen(entries, index)
     if (typeof when === 'string') errors.push(`input "${entry.name}": "when" is not a valid condition over the inputs before it: ${when}`)
     return [...errors, ...checklistErrors(entry)]
