@@ -1,10 +1,11 @@
 import { ArrowRight } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import type { AppAddress, ResourceModel, RowButtonModel, ViewModel } from '@protobase/schema'
-import { rowButtonFields } from '@protobase/schema/internal'
-import { DataGrid, type ColumnSpec } from '../../data-grid'
+import { encodeKey, rowButtonFields } from '@protobase/schema/internal'
+import { DataGrid, type ColumnSpec, type GridRow } from '../../data-grid'
 import { useIsDesktop, useIsXs } from '../../lib/use-media-query'
 import { listColumnNames } from '../../live/columns-from-model'
+import { recordKey } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
 import type { RouteTarget } from '../../primitives/route-link'
 import { Skeleton } from '../../primitives/skeleton'
@@ -62,6 +63,8 @@ export type EmbeddedListProps = {
   bulk?: boolean
   /** Picks the table's columns a phone shows; every column when omitted. */
   phoneColumns?: (specs: ColumnSpec[]) => ColumnSpec[]
+  /** Where a table row leads instead of its record, by the row's key as text, such as the page with that row chosen; its menu still opens the record. */
+  rowTo?: (key: string) => RouteTarget
 }
 
 /** The switch between the table and the view's displays, for an embedded list's heading; nothing with only a table. */
@@ -76,7 +79,7 @@ const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length:
  * to the whole list with the same filter, order and display, beside a note such as "The first 10 of 37." when there are
  * more. On a phone a cards display is one row that scrolls sideways.
  */
-export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true, opens, button, bulk = false, phoneColumns }: EmbeddedListProps) => {
+export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true, opens, button, bulk = false, phoneColumns, rowTo }: EmbeddedListProps) => {
   const { resources, views } = useAdminMeta()
   const canUpdate = can(usePermissions(model.name), 'update')
   const { fields: fieldTypes } = useProjectUi()
@@ -129,6 +132,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   }
   const targets = embeddedRowTargets({ model, view, opens, resources, views, canUpdate })
   const linkTo = (to: AppAddress): RouteTarget => ({ href: href(to), onFollow: () => go(to) })
+  const rowTarget = (row: GridRow) => (rowTo ? rowTo(encodeKey(recordKey(model, row))) : linkTo(targets.address(row)))
   const note = cutOffNote(source.total, rows.data.total, rows.data.estimated)
   return (
     <div className="flex flex-col gap-3">
@@ -140,8 +144,8 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
           latencyMs={0}
           sort={parseSort(orderBy)}
           onSortChange={(next) => setOrderBy(sortToOrderBy(next))}
-          onOpenRow={(row) => go(targets.address(row))}
-          rowLink={(row) => linkTo(targets.address(row))}
+          onOpenRow={(row) => rowTarget(row).onFollow?.()}
+          rowLink={rowTarget}
           rowActions={targets.actions(linkTo)}
           rowNumbers={false}
           selectable={bulk}

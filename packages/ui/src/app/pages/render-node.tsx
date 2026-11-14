@@ -29,6 +29,7 @@ import { ThreadBlock } from './blocks/thread'
 import { BoxBlock, ColumnBlock, RowBlock, TextBlock } from './blocks/plain'
 import { ArrayFieldBlock } from './blocks/array-field'
 import { RecordsIteratorBlock } from './blocks/records-iterator'
+import { SelectInputBlock } from './blocks/select-input'
 import { ReferenceArrayFieldBlock } from './blocks/reference-array-field'
 import { ReferenceFieldBlock } from './blocks/reference-field'
 import { ReferenceManyFieldBlock } from './blocks/reference-many-field'
@@ -47,6 +48,7 @@ import { TwoFactorBlock } from '../../account/blocks/two-factor-block'
 import { CustomOrFallback } from './custom-or-fallback'
 import { Problem } from './problem'
 import { useProjectUi } from './project-ui'
+import { usePageParamValues } from './page-params'
 import { useScopeStack, valueScopeOf } from './record-scope'
 import { text } from './messages'
 
@@ -96,6 +98,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   ArrayField: ArrayFieldBlock,
   RecordsIterator: RecordsIteratorBlock,
   ReferenceField: ReferenceFieldBlock,
+  SelectInput: SelectInputBlock,
   Details: DetailsBlock,
   Summary: SummaryBlock,
   TextField: TextFieldBlock,
@@ -107,7 +110,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
 }
 
 // The blocks that put their classes on an element of their own; the others draw none, or several, and get a <div> for them.
-const ownClasses = new Set(['Page', 'Grid', 'Card', 'Stat', 'RecordCard', 'Field', 'Table', 'CardRow', 'RecordRow', 'RecordCards', 'Chart', 'Progress', 'Image', 'Thread', 'Link', 'Tabs', 'Settings', 'Show', 'Switch', 'Action', 'Box', 'Row', 'Column', 'Text', 'ReferenceField', 'Details', 'Summary', 'TextField', 'NumberField', 'DateField', 'BooleanField', 'UrlField', 'ChipField'])
+const ownClasses = new Set(['Page', 'Grid', 'Card', 'Stat', 'RecordCard', 'Field', 'Table', 'CardRow', 'RecordRow', 'RecordCards', 'Chart', 'Progress', 'Image', 'Thread', 'Link', 'Tabs', 'Settings', 'Show', 'Switch', 'Action', 'Box', 'Row', 'Column', 'Text', 'ReferenceField', 'SelectInput', 'Details', 'Summary', 'TextField', 'NumberField', 'DateField', 'BooleanField', 'UrlField', 'ChipField'])
 
 /** Text and links as they run in one line. */
 const renderInline = (run: LayoutChild[]) => run.map((child, position) => (typeof child === 'string' ? <Fragment key={position}>{child}</Fragment> : <RenderNode key={position} node={child} />))
@@ -139,12 +142,13 @@ const renderSlots = (node: LayoutNode) =>
 
 /**
  * One element of a composed page: a built-in block, or the project's component registered under its name. A block's
- * `{{path}}`s are filled from the records around it before it draws.
+ * `{{path}}`s are filled from the records around it and the page's parameters before it draws.
  */
 export const RenderNode = ({ node: written }: { node: LayoutNode }) => {
   const { components } = useProjectUi()
   const stack = useScopeStack()
-  const node = useMemo(() => fillProps(written, valueScopeOf(stack)), [written, stack])
+  const params = usePageParamValues()
+  const node = useMemo(() => fillProps(written, { ...valueScopeOf(stack), params }), [written, stack, params])
   if (node.custom) {
     const Custom = components?.[node.type]
     // Field references reach the component as the names they reference

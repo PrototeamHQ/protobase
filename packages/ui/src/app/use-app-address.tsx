@@ -3,7 +3,7 @@ import { appPath, readAppPath, type AppAddress } from '@protobase/schema'
 import { useIsXs } from '../lib/use-media-query'
 import { changedList, currentAddress, listDefaults, listedResource, type ListChange } from './current-address'
 import { useAdminMeta } from './meta-gate'
-import { Link, useRouter } from './router'
+import { Link, useRouter, type NavigateOptions } from './router'
 
 export type { CurrentAddress, ListAddress, ListChange } from './current-address'
 
@@ -29,7 +29,7 @@ export const useAppAddress = () => {
   )
   const address = useMemo(() => currentAddress(read, defaults), [read, defaults])
 
-  const go = useCallback((to: AppAddress, options?: { replace?: boolean }) => navigate(appPath(to), options), [navigate])
+  const go = useCallback((to: AppAddress, options?: NavigateOptions) => navigate(appPath(to), options), [navigate])
 
   const listTo = useCallback(
     (change: ListChange) => {

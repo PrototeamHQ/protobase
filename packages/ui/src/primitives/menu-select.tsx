@@ -3,19 +3,21 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { cn } from '../lib/cn'
 import { useMenuRight, useMenuTop } from './menu-edge'
 import { menuKeyTarget } from './menu-keys'
+import { RouteLink, type RouteTarget } from './route-link'
 import type { SegmentedOption } from './segmented'
 
-export type MenuSelectProps<T extends string> = { value: T; options: Array<SegmentedOption<T>>; onChange: (value: T) => void; label: string }
+/** `onChange` takes the option chosen; with `link` instead, each option is a link to where choosing it leads. */
+export type MenuSelectProps<T extends string> = { value: T; options: Array<SegmentedOption<T>>; label: string } & ({ onChange: (value: T) => void; link?: never } | { link: (value: T) => RouteTarget; onChange?: never })
 
 /**
  * The choices of a Segmented switch in a menu, for a row without room for every option: a button with the chosen
  * option's icon and label, opening the options under its right edge, or above it near the bottom of the screen.
  */
-export const MenuSelect = <T extends string>({ value, options, onChange, label }: MenuSelectProps<T>) => {
+export const MenuSelect = <T extends string>({ value, options, onChange, link, label }: MenuSelectProps<T>) => {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
-  const items = useRef<Array<HTMLButtonElement | null>>([])
+  const items = useRef<Array<HTMLElement | null>>([])
   const menu = useRef<HTMLUListElement>(null)
   const right = useMenuRight(open, root, menu)
   const top = useMenuTop(open, root, menu, right?.right)
@@ -40,7 +42,7 @@ export const MenuSelect = <T extends string>({ value, options, onChange, label }
   const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
     if (event.key === 'Escape') return closeToTrigger()
     if (event.key === 'Tab') return setOpen(false)
-    const target = menuKeyTarget(event.key, items.current.indexOf(document.activeElement as HTMLButtonElement), options.length)
+    const target = menuKeyTarget(event.key, items.current.indexOf(document.activeElement as HTMLElement), options.length)
     if (target === undefined) return
     event.preventDefault()
     items.current[target]?.focus()
@@ -63,27 +65,43 @@ export const MenuSelect = <T extends string>({ value, options, onChange, label }
       </button>
       {open && (
         <ul ref={menu} role="menu" aria-label={label} onKeyDown={onKeyDown} style={{ ...right, ...top }} className="absolute right-0 top-full z-30 mt-1 w-max min-w-40 rounded-md border bg-background py-1 text-body shadow-pop">
-          {options.map((option, index) => (
-            <li key={option.value} role="none">
-              <button
-                ref={(element) => {
-                  items.current[index] = element
-                }}
-                type="button"
-                role="menuitemradio"
-                aria-checked={option.value === value}
-                onClick={() => {
-                  closeToTrigger()
-                  if (option.value !== value) onChange(option.value)
-                }}
-                className={cn('flex min-h-9 w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-muted focus:bg-muted focus:outline-none pointer-coarse:min-h-11', option.value === value && 'font-medium')}
-              >
+          {options.map((option, index) => {
+            const item = {
+              ref: (element: HTMLElement | null) => {
+                items.current[index] = element
+              },
+              role: 'menuitemradio',
+              'aria-checked': option.value === value,
+              className: cn('flex min-h-9 w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-muted focus:bg-muted focus:outline-none pointer-coarse:min-h-11', option.value === value && 'font-medium'),
+            }
+            const content = (
+              <>
                 {option.icon ? <option.icon className="size-3.5" /> : <span className="size-3.5" />}
                 <span className="flex-1">{option.label}</span>
                 {option.value === value && <Check className="size-3.5 text-primary-text" />}
-              </button>
-            </li>
-          ))}
+              </>
+            )
+            return (
+              <li key={option.value} role="none">
+                {link ? (
+                  <RouteLink {...item} to={link(option.value)} onClick={closeToTrigger}>
+                    {content}
+                  </RouteLink>
+                ) : (
+                  <button
+                    {...item}
+                    type="button"
+                    onClick={() => {
+                      closeToTrigger()
+                      if (option.value !== value) onChange(option.value)
+                    }}
+                  >
+                    {content}
+                  </button>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>
