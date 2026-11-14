@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { f, resource } from '@protobase/schema'
+import { f, resource, type CheckedFilter } from '@protobase/schema'
 import { uncoveredColumns } from './index-coverage'
 import type { TableIndexes } from './table-indexes'
 
@@ -54,5 +54,13 @@ describe('uncoveredColumns of a read that keeps the first rows per value', () =>
     expect(uncoveredColumns(posts, table(btree('tenant_id', 'channel_id', 'created_at')), sorted, { tenantValue: 1 })).toEqual([])
     expect(uncoveredColumns(posts, table(btree('id')), { per: 'channel_id' }, { tenantValue: 1 })[0]).toMatchObject({ field: 'channel_id', use: 'per', suggestion: 'create index on "posts" ("channel_id")' })
     expect(uncoveredColumns(posts, table(btree('channel_id')), { per: 'channel_id' }, { tenantValue: 1 })).toEqual([])
+  })
+
+  it('suggests the index with the sort under it when the field is also filtered on', () => {
+    const span = { start: 0, end: 0 }
+    const filter: CheckedFilter = { kind: 'in', field: posts.fields.channel_id!, values: [{ kind: 'number', value: 1, raw: '1', span }], span }
+    expect(uncoveredColumns(posts, table(btree('id')), { ...sorted, filter }, { tenantValue: 1 })).toEqual([
+      { field: 'channel_id', column: 'channel_id', use: 'per', need: 'btree', suggestion: 'create index on "posts" ("channel_id", "created_at")' },
+    ])
   })
 })

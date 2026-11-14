@@ -7,6 +7,7 @@ import type { Db } from './db'
 import { QueryError } from './errors'
 import type { Scope } from './scope'
 import { assertFilterRequirements } from './filter-requirements'
+import { rankAlias } from './internal-aliases'
 import { orderTerm } from './order'
 import { seekCondition } from './seek'
 import { effectiveSort, flip, type SortKey } from './sort'
@@ -49,7 +50,7 @@ export type ListPlan = {
 export const extraSelections = (model: ResourceModel, extras: ExtraColumn[] = []) =>
   extras.map(({ field, as, alias }) => {
     if (as !== 'text') throw new QueryError('invalid_option', 'extraColumns only supports as: "text"')
-    if (Object.hasOwn(model.fields, alias) || alias.startsWith('__pb_key')) {
+    if (Object.hasOwn(model.fields, alias) || alias.startsWith('__pb_key') || alias === rankAlias) {
       throw new QueryError('invalid_option', `extra column alias "${alias}" collides with a field or internal column`)
     }
     return sql`${columnRef(findField(model, field))}::text`.as(alias)
