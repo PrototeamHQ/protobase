@@ -138,6 +138,8 @@ const walk = (ctx: Context, node: CheckedFilter, pinned: Set<string>, negated: b
   }
 }
 
+// The first entry of a column and need stays, so a stronger one goes first: the per field's index with the sort
+// under it also serves the field's filter, parent and related() reads
 const unique = (columns: UncoveredColumn[]) =>
   columns.filter((column, i) => columns.findIndex((other) => other.column === column.column && other.need === column.need) === i)
 
@@ -169,12 +171,12 @@ export const uncoveredColumns = (model: ResourceModel, table: TableIndexes, quer
   const groupField = query.groupBy !== undefined ? model.fields[query.groupBy] : undefined
   const perField = query.per !== undefined ? model.fields[query.per] : undefined
   return unique([
+    ...(perField ? perNeed(ctx('per'), perField, sortField, pinned) : []),
     ...(scope?.rowFilter ? walk(ctx('access', full), scope.rowFilter, pinned, false) : []),
     ...(scope?.parents ?? []).flatMap((read) => need(ctx(read.related ? 'related' : 'parent', full), read.field, 'btree', pinned)),
     ...(query.filter ? walk(ctx('filter'), query.filter, pinned, false) : []),
     ...(scope?.within ? walk(ctx('filter', full), scope.within, pinned, false) : []),
     ...(query.selects ? need(ctx('related', full), query.selects, 'btree', pinned) : []),
-    ...(perField ? perNeed(ctx('per'), perField, sortField, pinned) : []),
     ...(sortField && !perField ? need(ctx('sort'), sortField, 'btree', pinned) : []),
     ...(groupField ? need(ctx('facet'), groupField, 'btree', pinned) : []),
   ])
