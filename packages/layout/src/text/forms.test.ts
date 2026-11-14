@@ -27,6 +27,8 @@ const samples: Record<string, LayoutNode> = {
   Image: built.Image({ function: 'map', alt: 'The system map' }),
   Action: built.Action({ name: 'approve', label: 'Approve' }),
   Show: built.Show({ when: "state = 'open'", children: text }),
+  Switch: built.Switch({ children: built.Match({ when: "state = 'open'", children: text }) }),
+  Match: built.Match({ when: "state = 'open'", children: text }),
   Link: built.Link({ href: 'https://example.com', children: 'Example' }),
   Tabs: built.Tabs({ children: built.Tab({ name: 'one', label: 'One', children: text }) }),
   Tab: built.Tab({ name: 'one', label: 'One', children: text }),

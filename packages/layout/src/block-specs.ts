@@ -4,7 +4,7 @@ import { isLayoutNode } from './node'
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
 // blocks.ts say the same for the compiler.
 
-type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls' | 'tableColumns'
+type Kind = 'text' | 'content' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls' | 'tableColumns'
 
 type PropSpec = { kind: Kind; required?: true }
 
@@ -74,7 +74,9 @@ const specs: Record<string, BlockSpec> = {
   Composer: { children: false, props: { resource: required('text'), field: required('text'), values: optional('values'), placeholder: optional('text'), span: optional('span') } },
   Image: { children: false, props: { function: optional('text'), src: optional('text'), alt: optional('text'), width: optional('integer'), height: optional('integer'), refresh: optional('integer') } },
   Action: { children: false, props: { name: required('text'), resource: optional('text'), label: optional('text'), variant: optional('variant') } },
-  Show: { children: true, props: { when: required('text') } },
+  Show: { children: true, props: { when: required('text'), fallback: optional('content') } },
+  Switch: { children: true, props: { fallback: optional('content') } },
+  Match: { children: true, props: { when: required('text') } },
   Link: { children: true, props: { href: optional('text'), to: optional('address'), variant: optional('variant') } },
   Tabs: { children: true, props: {} },
   Tab: { children: true, props: { name: required('text'), label: required('text') } },
@@ -130,6 +132,7 @@ const isTableColumn = (value: LayoutValue) =>
 
 const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: string]> = {
   text: [(value) => typeof value === 'string', 'text'],
+  content: [(value) => typeof value === 'string' || isLayoutNode(value) || (Array.isArray(value) && value.every(isLayoutNode)), 'text, an element or a list of elements'],
   boolean: [(value) => typeof value === 'boolean', 'true or false'],
   texts: [(value) => Array.isArray(value) && value.every((item) => typeof item === 'string'), 'a list of names'],
   integer: [(value) => typeof value === 'number' && Number.isInteger(value) && value > 0, 'a positive whole number'],

@@ -1,14 +1,17 @@
 import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
 import { addressErrors, fieldRefsIn, rowButtonErrors } from '@protobase/schema/internal'
 import { chartProblems } from './check-chart'
-import { conditionProblems } from './check-condition'
+import { conditionFindings } from './check-condition'
 import { composerProblems, threadProblems } from './check-conversation'
+import { pathFindings } from './check-paths'
 import { resolveFieldPath } from './field-path'
+import { sampleSlots } from './filter-slots'
+import { resolveScopePath } from './scope-lookup'
 import { settingsProblems } from './settings'
 import { columnName, type TableColumn } from './table-columns'
 import { dataProps, type LayoutNode } from './node'
 import type { PageModel } from './page'
-import { walkTree, type Scope } from './walk'
+import { innermost, walkTree, type Scope } from './walk'
 
 export type PageCheckInput = {
   models: Record<string, ResourceModel>
@@ -20,14 +23,22 @@ export type PageCheckInput = {
   createPages?: ReadonlySet<string>
   /** The app's API functions, which an `Image` draws; its function goes unchecked without them. */
   functions?: ReadonlySet<string>
+  /** Whether a name a nearer record shadows fails the check, as `protobase build --strict` makes it, instead of warning. */
+  strict?: boolean
 }
 
+// Errors about names, not values: a slot's value is only known when the page draws.
+const nameErrors = ['unknown-field', 'not-filterable', 'not-sortable', 'unsupported-traversal', 'invalid-traversal']
+
+// A filter with `{{path}}` slots is checked with a stand-in for each, for its names only.
 const filterProblem = (model: ResourceModel, source: string) => {
-  const parsed = parseFilter(source)
+  const { text, slots } = sampleSlots(source)
+  const parsed = parseFilter(text)
   if (!parsed.ok) return parsed.errors.map((error) => error.message).join('; ')
   if (!parsed.ast) return undefined
   const checked = checkFilter(model, parsed.ast)
-  return checked.ok ? undefined : checked.errors.map((error) => error.message).join('; ')
+  const errors = checked.ok ? [] : checked.errors.filter((error) => slots.length === 0 || nameErrors.includes(error.code))
+  return errors.length === 0 ? undefined : errors.map((error) => error.message).join('; ')
 }
 
 const sortProblem = (model: ResourceModel, source: string) => {
@@ -39,22 +50,47 @@ const sortProblem = (model: ResourceModel, source: string) => {
 
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
 
-/** The resource an element reads or writes: its own `resource` prop, or the record around it. */
-export const elementResource = (node: LayoutNode, scope: Scope) => text(node.props.resource) ?? (scope.record ? scope.resource : undefined)
+/** The resource an element reads or writes: its own `resource` prop, or the record nearest around it. */
+export const elementResource = (node: LayoutNode, scope: Scope) => text(node.props.resource) ?? innermost(scope)?.resource
 
-/** The record a link's `{{field}}` placeholders read: the one around it, when there is one. */
-export const linkSource = (models: Record<string, ResourceModel>, scope: Scope) => (scope.record && scope.resource !== undefined ? models[scope.resource] : undefined)
+/** Why a link's `{{path}}` cannot be filled where it sits, through the records around it; `undefined` when it can. */
+export const linkPlaceholderError = (models: Record<string, ResourceModel>, scope: Scope, params: ReadonlySet<string>) => (path: string) => {
+  const resolved = resolveScopePath(path, { models, scope, params, mode: 'stored' })
+  return resolved.ok ? undefined : resolved.message
+}
 
-const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, createPages, functions }: PageCheckInput): string[] => {
+/** The page parameters the page's `SelectInput`s declare, which `@params.<name>` reads. */
+export const pageParams = (tree: LayoutNode) => {
+  const params = new Set<string>()
+  walkTree(tree, (node) => {
+    if (!node.custom && node.type === 'SelectInput' && typeof node.props.source === 'string') params.add(node.props.source)
+  })
+  return params
+}
+
+type NodeInput = PageCheckInput & { params: ReadonlySet<string>; warn: (warning: string) => void }
+
+const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[] => {
+  const { models, actions, pages, createPages, functions, params, warn } = input
   const problems: string[] = []
   const resource = elementResource(node, scope)
   const own = text(node.props.resource)
   if (own !== undefined && !models[own]) return [`unknown resource "${own}"`]
   const model = resource === undefined ? undefined : models[resource]
-  const path = (name: string, from = scope.resource) => {
-    if (from === undefined) return
-    const resolved = resolveFieldPath(models, from, name)
+  const placed = pathFindings(node, scope, { models, params })
+  problems.push(...placed.problems)
+  placed.warnings.forEach(warn)
+  // A field a block shows is found through the records around it, as a bare name in Mustache is
+  const path = (name: string) => {
+    if (innermost(scope) === undefined) return
+    const resolved = resolveScopePath(name, { models, scope, params, mode: 'relations' })
     if (!resolved.ok) problems.push(resolved.message)
+    else if (resolved.kind === 'field' && resolved.shadows) warn(resolved.shadows)
+  }
+  const condition = (when: string, prefix = '') => {
+    const found = conditionFindings(when, { models, scope, params })
+    problems.push(...found.problems.map((problem) => `${prefix}${problem}`))
+    found.warnings.forEach((warning) => warn(`${prefix}${warning}`))
   }
   if (own !== undefined && model) {
     const filter = text(node.props.filter)
@@ -85,7 +121,10 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, 
       break
     case 'RecordCards':
       if (node.props.cardWidth !== undefined && node.props.layout !== 'carousel') problems.push(`"cardWidth" sizes the cards of a carousel; set layout to 'carousel' or leave it out`)
-      for (const name of (node.props.fields as string[] | undefined) ?? []) path(name, own)
+      for (const name of (node.props.fields as string[] | undefined) ?? []) {
+        const resolved = own === undefined ? undefined : resolveFieldPath(models, own, name)
+        if (resolved && !resolved.ok) problems.push(resolved.message)
+      }
       for (const name of (node.props.cardActions as string[] | undefined) ?? []) {
         if (own !== undefined && !actions(own).has(name)) problems.push(`no action "${name}" on ${own}; declare it with view('${own}').actions(...)`)
       }
@@ -103,7 +142,7 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, 
       break
     case 'Thread':
       if (model) problems.push(...threadProblems(node, models, model))
-      if (node.props.working !== undefined) problems.push(...conditionProblems(String(node.props.working), scope.record ? scope.resource : undefined, models).map((problem) => `working: ${problem}`))
+      if (node.props.working !== undefined) condition(String(node.props.working), 'working: ')
       break
     case 'Composer':
       if (model) problems.push(...composerProblems(node, model))
@@ -120,10 +159,11 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, 
       if (functions && node.props.function !== undefined && !functions.has(String(node.props.function))) problems.push(`no function "${node.props.function}"; add functions/${node.props.function}.ts`)
       break
     case 'Link':
-      if (node.props.to !== undefined) problems.push(...addressErrors(node.props.to as AppAddress, { models, pages, source: linkSource(models, scope), createPages }).map((error) => `to: ${error}`))
+      if (node.props.to !== undefined) problems.push(...addressErrors(node.props.to as AppAddress, { models, pages, placeholderError: linkPlaceholderError(models, scope, params), createPages }).map((error) => `to: ${error}`))
       break
     case 'Show':
-      problems.push(...conditionProblems(String(node.props.when), scope.record ? scope.resource : undefined, models))
+    case 'Match':
+      condition(String(node.props.when))
       break
   }
   return problems
@@ -141,26 +181,42 @@ const customProblems = (node: LayoutNode, scope: Scope, { models }: PageCheckInp
   })
 }
 
-/** Everything a page names that the models do not have: resources, fields, filters, sorts, actions and conditions. */
-export const pageProblems = (page: PageModel, input: PageCheckInput): string[] => {
+/**
+ * Everything a page names that the models do not have: resources, fields, filters, sorts, actions, conditions and
+ * placeholders; and the warnings of bare names a nearer record shadows.
+ */
+export const pageFindings = (page: PageModel, input: PageCheckInput): { problems: string[]; warnings: string[] } => {
   const problems: string[] = []
+  const warnings: string[] = []
+  const params = pageParams(page.tree)
   walkTree(page.tree, (node, { path, scope }) => {
-    const found = node.custom ? customProblems(node, scope, input) : nodeProblems(node, scope, input)
+    const warn = (warning: string) => warnings.push(`${path}: ${warning}`)
+    const found = node.custom ? customProblems(node, scope, input) : nodeProblems(node, scope, { ...input, params, warn })
     for (const problem of found) problems.push(`${path}: ${problem}`)
   })
-  return problems
+  return { problems, warnings }
 }
 
-/** Throws one error listing every problem of every page, including names that collide with each other or a resource. */
-export const checkPages = (pages: PageModel[], input: PageCheckInput) => {
+/** The problems of a page, as `pageFindings` gives them. */
+export const pageProblems = (page: PageModel, input: PageCheckInput): string[] => pageFindings(page, input).problems
+
+/**
+ * Throws one error listing every problem of every page, including names that collide with each other or a resource,
+ * and with `strict` every shadowed name too. Returns the warnings of shadowed names otherwise.
+ */
+export const checkPages = (pages: PageModel[], input: PageCheckInput): string[] => {
   const problems: string[] = []
+  const warnings: string[] = []
   const seen = new Set<string>()
   const named = { ...input, pages: input.pages ?? new Set(pages.map((page) => page.name)) }
   for (const page of pages) {
     if (seen.has(page.name)) problems.push(`Page "${page.name}" is defined twice`)
     if (input.models[page.name]) problems.push(`Page "${page.name}" has the name of a resource; both would be at /${page.name}`)
     seen.add(page.name)
-    for (const problem of pageProblems(page, named)) problems.push(`Page "${page.name}": ${problem}`)
+    const found = pageFindings(page, named)
+    for (const problem of found.problems) problems.push(`Page "${page.name}": ${problem}`)
+    for (const warning of found.warnings) (input.strict ? problems : warnings).push(`Page "${page.name}": ${warning}`)
   }
   if (problems.length > 0) throw new Error(`The pages do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
+  return warnings
 }

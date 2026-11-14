@@ -1,13 +1,14 @@
 import { appHrefError } from '@protobase/schema/internal'
 import { blockSpecs, propProblems } from './block-specs'
 import { parseCondition } from './condition'
+import { sampleSlots } from './filter-slots'
 import type { LayoutChild, LayoutNode } from './node'
 import { tabsProblems } from './check-tabs'
-import { label, pageScope, walkTree, type Scope } from './walk'
+import { innermost, label, pageScope, walkTree, type Scope } from './walk'
 
 /** Problems that need a record around the element, which only a `RecordCard` or a `CardRow` card provides. */
 const recordProblems = (node: LayoutNode, scope: Scope): string[] => {
-  if (scope.record) return []
+  if (innermost(scope)) return []
   const { props } = node
   const outside = 'needs a record: put it inside a RecordCard or a CardRow'
   switch (node.type) {
@@ -73,6 +74,14 @@ const isInline = (child: LayoutChild) => typeof child === 'string' || (!child.cu
 const textProblems = ({ children }: LayoutNode): string[] =>
   children.every(isInline) ? [] : ['holds text, <Link>s and <Text as="span">s only; put other elements beside it in a <Row> or <Column>']
 
+const isMatch = (child: LayoutChild) => typeof child !== 'string' && !child.custom && child.type === 'Match'
+
+// A `Switch` holds `Match`es only, as SolidJS's does, and a `Match` sits in a `Switch` only.
+const switchProblems = ({ type, children }: LayoutNode): string[] => {
+  if (type === 'Switch') return children.every((child) => isMatch(child) || (typeof child === 'string' && child.trim() === '')) ? [] : ['holds <Match>es only']
+  return children.some(isMatch) ? ['holds a <Match>, which only a <Switch> takes'] : []
+}
+
 /**
  * Checks a page's tree without the models: the root is one `Page`, every built-in element has known props of the right
  * kind, elements that show a record's fields sit inside one, tabs are placed as their address needs, and conditions
@@ -94,8 +103,10 @@ export const structureProblems = (tree: LayoutNode): string[] => {
     if (node.type === 'Link') linkProblems(node).forEach(report)
     if (node.type === 'Image') imageProblems(node).forEach(report)
     if (node.type === 'Text') textProblems(node).forEach(report)
-    if (node.type === 'Show' && typeof node.props.when === 'string') {
-      const parsed = parseCondition(node.props.when)
+    switchProblems(node).forEach(report)
+    if ((node.type === 'Show' || node.type === 'Match') && typeof node.props.when === 'string') {
+      // Its `{{path}}` slots stand in for values, which the page fills before it evaluates the condition
+      const parsed = parseCondition(sampleSlots(node.props.when).text)
       if (!parsed.ok) report(`"when" is not a valid condition: ${parsed.message}`)
     }
   })

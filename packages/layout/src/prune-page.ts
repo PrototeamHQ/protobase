@@ -2,15 +2,16 @@ import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, 
 import { addressErrors, followableRowButton, pruneByShape, shapes } from '@protobase/schema/internal'
 import { chartFields } from './check-chart'
 import { threadFields } from './check-conversation'
-import { conditionReadable } from './check-condition'
+import { scopedConditionReadable } from './check-condition'
 import { pruneToolCalls, type ToolCallSource } from './check-tool-calls'
-import { elementResource, linkSource } from './check-page'
-import { countedResource, parseCondition } from './condition'
+import { elementResource, linkPlaceholderError, pageParams } from './check-page'
 import { resolveFieldPath } from './field-path'
+import { sampleSlots } from './filter-slots'
+import { resolveScopePath } from './scope-lookup'
 import { dataProps, type LayoutNode, type LayoutValue } from './node'
 import type { PageModel } from './page'
 import { columnName, type TableColumn } from './table-columns'
-import { mapTree, type Scope } from './walk'
+import { innermost, mapTree, type Scope } from './walk'
 
 export type CallerAccess = {
   /** The resources the caller can do anything with, as restricted models: hidden fields absent, `readOnly` unless writable. */
@@ -26,9 +27,10 @@ export type CallerAccess = {
 
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
 
+// A filter's `{{path}}` slots stand in for values, which the page fills in, so its names are what the caller must read.
 const filterFits = (model: ResourceModel, source: string | undefined) => {
   if (source === undefined) return true
-  const parsed = parseFilter(source)
+  const parsed = parseFilter(sampleSlots(source).text)
   return parsed.ok && (parsed.ast === undefined || checkFilter(model, parsed.ast).ok)
 }
 
@@ -50,7 +52,7 @@ const pruneCustom = (node: LayoutNode, scope: Scope, { models }: CallerAccess): 
   return pruneByShape(dataProps(node), shapes.refs, readable) === undefined ? null : node
 }
 
-const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode | null => {
+const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: ReadonlySet<string>): LayoutNode | null => {
   if (node.custom) return pruneCustom(node, scope, access)
   const { models } = access
   const own = text(node.props.resource)
@@ -58,7 +60,8 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
   const resource = elementResource(node, scope)
   const model = resource === undefined ? undefined : models[resource]
   if (own !== undefined && model && (!filterFits(model, text(node.props.filter)) || !sortFits(model, text(node.props.sort)))) return null
-  const readable = (name: string) => scope.resource !== undefined && resolveFieldPath(models, scope.resource, name).ok
+  const readable = (name: string) => innermost(scope) !== undefined && resolveScopePath(name, { models, scope, params, mode: 'relations' }).ok
+  const conditionFits = (when: unknown) => typeof when === 'string' && scopedConditionReadable(when, { models, scope, params })
 
   switch (node.type) {
     case 'Field':
@@ -73,7 +76,7 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
       if (!model || !threadFields(node).every((name) => Object.hasOwn(model.fields, name))) return null
       const { status, working, calls, ...props } = node.props
       const keepsStatus = typeof status === 'string' && Object.hasOwn(model.fields, status)
-      const keepsWorking = typeof working === 'string' && conditionReadable(working, scope.record ? scope.resource : undefined, models)
+      const keepsWorking = conditionFits(working)
       const keptCalls = calls === undefined ? undefined : pruneToolCalls(calls as unknown as ToolCallSource, models)
       return { ...node, props: { ...props, ...(keepsStatus && { status }), ...(keepsWorking && { working }), ...(keptCalls && { calls: keptCalls }) } }
     }
@@ -124,17 +127,12 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
     case 'Image':
       return node.props.function === undefined || access.functions?.(String(node.props.function)) ? node : null
     case 'Link':
-      return node.props.to === undefined || addressErrors(node.props.to as AppAddress, { models, source: linkSource(models, scope), createPages: access.createPages }).length === 0 ? node : null
-    case 'Show': {
-      const parsed = parseCondition(String(node.props.when))
-      if (!parsed.ok) return null
-      const record = scope.record && scope.resource !== undefined ? models[scope.resource] : undefined
-      const known = parsed.paths.every((name) => {
-        const counted = countedResource(name, (first) => Boolean(record && Object.hasOwn(record.fields, first)))
-        return counted !== undefined ? Boolean(models[counted]) : readable(name)
-      })
-      return known ? node : null
-    }
+      return node.props.to === undefined || addressErrors(node.props.to as AppAddress, { models, placeholderError: linkPlaceholderError(models, scope, params), createPages: access.createPages }).length === 0 ? node : null
+    // A condition the caller cannot read leaves out what it decides; a Switch goes whole, so no later branch stands in
+    case 'Show':
+      return conditionFits(node.props.when) ? node : null
+    case 'Switch':
+      return node.children.every((child) => typeof child === 'string' || conditionFits(child.props.when)) ? node : null
     // A tab whose every element is left out has nothing to show, and tabs without one are left out too.
     case 'Tab':
     case 'Tabs':
@@ -153,6 +151,7 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
  */
 export const prunePage = (page: PageModel, roles: readonly string[], access: CallerAccess): PageModel | undefined => {
   if (page.roles && !page.roles.some((role) => roles.includes(role))) return undefined
-  const tree = mapTree(page.tree, (node, { scope }) => prune(node, scope, access))
+  const params = pageParams(page.tree)
+  const tree = mapTree(page.tree, (node, { scope }) => prune(node, scope, access, params))
   return tree ? { ...page, tree } : undefined
 }

@@ -29,6 +29,8 @@ export {
   RecordRow,
   Settings,
   Show,
+  Switch,
+  Match,
   Stat,
   Tab,
   Table,
@@ -63,6 +65,8 @@ export type {
   RecordRowProps,
   SettingsProps,
   ShowProps,
+  SwitchProps,
+  MatchProps,
   GridSpan,
   Styled,
   StatProps,
@@ -85,6 +89,7 @@ export { threadSort } from './check-time'
 export { threadItemNodes, threadLines, threadMarkdown, type ThreadTextItem, type ToolCallWords } from './thread-text'
 export { pruneToolCalls, toolCallsProblems, toolCallStates, type ToolCallSource, type ToolCallState } from './check-tool-calls'
 export { checkPages } from './check-page'
+export { fillProps, scopeLookup, scopeValue, type ValueFrame, type ValueScope } from './scope-values'
 export { conditionProblems, conditionReadable } from './check-condition'
 export { prunePage } from './prune-page'
 export { parseCondition, evaluateCondition, countedResource } from './condition'

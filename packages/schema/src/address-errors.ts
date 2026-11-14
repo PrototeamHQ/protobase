@@ -9,6 +9,8 @@ export type AddressCheck = {
   pages?: ReadonlySet<string>
   /** The resource of the record the link sits on, whose fields its `{{field}}` placeholders name. */
   source?: ResourceModel
+  /** Why a placeholder's path cannot be filled, in place of `source`'s fields, such as a layout's lookup through the records around a link. */
+  placeholderError?: (path: string) => string | undefined
   /** The resources whose view opens a create page of the app's own, which reads a create address's values whatever their names. */
   createPages?: ReadonlySet<string>
 }
@@ -43,8 +45,12 @@ const orderErrors = (model: ResourceModel, orderBy: string) => {
  * on does not have, a filter or order naming fields the resource does not have, or create values for fields it does not
  * have, unless its view opens a create page, which reads them. Empty when it can be followed.
  */
-export const addressErrors = (to: AppAddress, { models, pages, source, createPages }: AddressCheck): string[] => {
+export const addressErrors = (to: AppAddress, { models, pages, source, placeholderError, createPages }: AddressCheck): string[] => {
   const placeholders = addressPlaceholders(to).flatMap((name) => {
+    if (placeholderError) {
+      const error = placeholderError(name)
+      return error === undefined ? [] : [error]
+    }
     if (!source) return [`"{{${name}}}" takes a value from the record, but the link sits on none`]
     return Object.hasOwn(source.fields, name) ? [] : [`"{{${name}}}" is not a field of ${source.name}`]
   })

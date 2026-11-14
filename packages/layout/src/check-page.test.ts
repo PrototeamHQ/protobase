@@ -67,7 +67,7 @@ describe('pageProblems', () => {
     expect(found.slice(3)).toEqual([
       '<Page> › <Table resource="invoices">: unknown column "amount" on invoices',
       '<Page> › <RecordCard resource="subscriptions"> › <Field name="plan.title">: unknown field "plan.title" on plans',
-      '<Page> › <RecordCard resource="subscriptions"> › <Stat>: unknown field "seats" on subscriptions',
+      '<Page> › <RecordCard resource="subscriptions"> › <Stat>: "seats" is no field of subscriptions; did you mean status?',
     ])
   })
 
@@ -124,7 +124,7 @@ describe('pageProblems', () => {
     expect(pageProblems(model(tree), input)).toEqual([
       '<Page> › <Show>: "when" counts "things", which is not a resource',
       '<Page> › <Show>: "when" names "status", but outside a record it can only count records, as "<resource>.count"',
-      '<Page> › <RecordCard resource="subscriptions"> › <Show>: unknown field "plan.color" on plans',
+      '<Page> › <RecordCard resource="subscriptions"> › <Show>: "when": unknown field "plan.color" on plans',
     ])
   })
 })
@@ -143,7 +143,7 @@ describe('links', () => {
     expect(pageProblems(model(tree), { ...input, pages: new Set(['billing']) })).toEqual([
       '<Page> › <Link>: to: unknown resource "invoice"',
       '<Page> › <Link>: to: unknown page "help"',
-      '<Page> › <RecordCard resource="subscriptions"> › <Link>: to: "{{reference}}" is not a field of subscriptions',
+      '<Page> › <RecordCard resource="subscriptions"> › <Link>: to: "reference" is no field of subscriptions',
     ])
   })
 })

@@ -226,7 +226,15 @@ export type ImageProps = (
   refresh?: number
 }
 export type ActionProps = { name: string; resource?: string; label?: string; variant?: ButtonVariant }
-export type ShowProps = { when: string; children?: LayoutChildren }
+/**
+ * Its children while `when` holds, else `fallback`, as SolidJS's `<Show when fallback>`; `when` is an AIP-160 condition
+ * on the records around it, such as `status = 'done'`.
+ */
+export type ShowProps = { when: string; fallback?: string | Elements; children?: LayoutChildren }
+/** The first of its `Match`es whose `when` holds, else `fallback`, as SolidJS's `<Switch fallback>`. */
+export type SwitchProps = { fallback?: string | Elements; children?: LayoutChildren }
+/** One branch of a `Switch`, drawn when it is the first whose `when` holds. */
+export type MatchProps = { when: string; children?: LayoutChildren }
 /**
  * A link: `to` an address in the app, `{{field}}` in it filled from the record around it, or an `href` that leaves the
  * app (`https:`, `mailto:`). One of the two.
@@ -278,6 +286,8 @@ export const Composer = builtIn<ComposerProps>('Composer')
 export const Image = builtIn<ImageProps>('Image')
 export const Action = builtIn<ActionProps>('Action')
 export const Show = builtIn<ShowProps>('Show')
+export const Switch = builtIn<SwitchProps>('Switch')
+export const Match = builtIn<MatchProps>('Match')
 export const Link = builtIn<LinkProps>('Link')
 export const Tabs = builtIn<TabsProps>('Tabs')
 export const Tab = builtIn<TabProps>('Tab')
