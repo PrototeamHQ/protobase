@@ -16,9 +16,14 @@ export type TextOptions = {
   tables?: (node: LayoutNode) => TableText | undefined
   /**
    * The records a `ReferenceManyField`, `ReferenceArrayField` or `ReferenceField` holds for `record`, the record around
-   * it, which the caller read; such a block reads as a link to its records without them.
+   * it, or the row a block's `select` chose, which the caller read; such a block reads as a link to its records without them.
    */
   records?: (node: LayoutNode, record: Record<string, unknown> | undefined) => unknown[] | undefined
+  /**
+   * The page's parameters as its address gives them, such as `{ window: '30d' }`, which `@params` and its
+   * `SelectInput`s read; a block's `select` children read the row `records` gives for that block.
+   */
+  params?: Readonly<Record<string, string>>
   /** The reader's locale, such as `nl-NL`, in which field components without `locales` format numbers and dates; the runtime's default when omitted. */
   locale?: string
   /** What the app's paths start with, such as `https://example.com/admin`; none when omitted. */

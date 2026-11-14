@@ -8,7 +8,7 @@ import type { Scope } from './walk'
 // Inside one task of a CardRow of tasks
 const inTask: Scope = { stack: [{ resource: 'tasks', repeated: true, block: '<CardRow resource="tasks">' }] }
 
-const findings = (node: ReturnType<typeof Table>, scope = inTask, params: string[] = []) => pathFindings(node, scope, { models, params: new Set(params) })
+const findings = (node: ReturnType<typeof Table>, scope = inTask, params: string[] = [], chosen = params) => pathFindings(node, scope, { models, params: new Set(params), chosen: new Set(chosen) })
 const claimsWhere = (filter: string) => Table({ resource: 'task_claims', filter })
 
 describe('pathFindings', () => {
@@ -31,6 +31,10 @@ describe('pathFindings', () => {
 
   it('takes a page parameter anywhere in a filter, and refuses @index and this, which no read stores', () => {
     expect(findings(claimsWhere('claimed_at >= {{@params.since}}'), inTask, ['since']).problems).toEqual([])
+    expect(findings(claimsWhere('claimed_at >= {{@params.since}}'), inTask, ['since'], []).problems).toEqual([
+      'filter: "{{@params.since}}" comes from a SelectInput without choices, so any text in the address would reach the read; give it choices',
+    ])
+    expect(findings(Table({ resource: 'task_claims', title: 'Since {{@params.since}}' }), inTask, ['since'], []).problems).toEqual([])
     expect(findings(claimsWhere('task_id = {{@index}}')).problems).toEqual(['filter: "{{@index}}" is no stored field of a record, so a read cannot take it'])
     expect(findings(claimsWhere('task_id = {{this}}')).problems).toEqual(['filter: "{{this}}" is no stored field of a record, so a read cannot take it'])
   })
@@ -61,7 +65,7 @@ describe('pathFindings', () => {
 describe('slots inside a longer quoted value', () => {
   it('refuses them in a filter and a condition, which would fill them unescaped', () => {
     expect(findings(claimsWhere(`status = 'is {{status}}'`)).problems).toContain(`filter: "{{status}}" sits inside a longer quoted value; quote it alone, such as title = '{{status}}'`)
-    expect(pathFindings(Show({ when: `status = 'is {{title}}'`, children: 'x' }), inTask, { models, params: new Set() }).problems).toEqual([`when: "{{title}}" sits inside a longer quoted value; quote it alone, such as title = '{{title}}'`])
+    expect(pathFindings(Show({ when: `status = 'is {{title}}'`, children: 'x' }), inTask, { models, params: new Set(), chosen: new Set() }).problems).toEqual([`when: "{{title}}" sits inside a longer quoted value; quote it alone, such as title = '{{title}}'`])
   })
 
   it("refuses a relation path in a link's address, which a placeholder cannot read", () => {

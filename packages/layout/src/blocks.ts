@@ -77,6 +77,12 @@ export type TableProps = Omit<DataProps, 'resource'> &
     display?: string
     empty?: string
     span?: GridSpan
+    /**
+     * The page parameter a row's choice writes its key into, such as `task` for `?task=42`: each row links to the page
+     * with it, and the children draw inside the chosen row's record, or nothing while none is chosen.
+     */
+    select?: string
+    children?: LayoutChildren
   }
 export type CardRowProps = DataProps & Heading & { limit?: number; empty?: string; span?: GridSpan; children?: LayoutChildren }
 /**

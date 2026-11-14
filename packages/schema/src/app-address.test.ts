@@ -11,6 +11,7 @@ describe('appPath', () => {
     expect(appPath({ kind: 'create', resource: 'repairs' })).toBe('/repairs/new')
     expect(appPath({ kind: 'page', page: 'overview' }, '/admin')).toBe('/admin/overview')
     expect(appPath({ kind: 'page', page: 'overview', tab: 'this-week' }, '/admin')).toBe('/admin/overview/this-week')
+    expect(appPath({ kind: 'page', page: 'overview', params: { window: '30d', empty: '' } }, '/admin')).toBe('/admin/overview?window=30d')
   })
 
   it("writes a record's form as edit=true, and the record alone without it", () => {
@@ -69,6 +70,8 @@ describe('readAppPath', () => {
       { kind: 'create', resource: 'notes', values: { listing_id: '42', body: 'Big garden & a shed' } },
       { kind: 'page', page: 'overview' },
       { kind: 'page', page: 'overview', tab: 'this-week' },
+      { kind: 'page', page: 'overview', params: { window: '30d', task: 'a&b' } },
+      { kind: 'page', page: 'overview', tab: 'this-week', params: { window: '7d' } },
     ]
     for (const address of addresses) expect(readAppPath(appPath(address), pages)).toEqual(address)
   })

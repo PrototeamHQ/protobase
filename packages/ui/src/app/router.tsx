@@ -14,8 +14,11 @@ type RouterValue = {
   basePath: string
   /** The id of this page's entry in the tab's history: Back and Forward return to the same id, a reload keeps it. */
   entry: string
-  /** Moves to a path below the base path, as `appPath` writes it. */
-  navigate: (to: string, options?: { replace?: boolean }) => void
+  /**
+   * Moves to a path below the base path, as `appPath` writes it. `keepScroll` starts the new entry where the page is
+   * scrolled now, for a change within the page, such as a choice its address holds, instead of at the top.
+   */
+  navigate: (to: string, options?: NavigateOptions) => void
   /** Goes back to a path below the base path: as the browser's Back when the page before is that path, else as `navigate`. */
   back: (to: string) => void
   /** Asks to be told before the page changes; returns how to stop asking. Used by `useNavigationGuard`. */
@@ -33,6 +36,8 @@ type RouterValue = {
  * `input-lost` when it is gone.
  */
 export type GuardKind = 'draft-kept' | 'input-lost'
+
+export type NavigateOptions = { replace?: boolean; keepScroll?: boolean }
 
 const RouterContext = createContext<RouterValue | null>(null)
 
@@ -142,7 +147,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   }, [memory, rememberScroll, places])
 
   const go = useCallback(
-    (full: string, replace: boolean) => {
+    (full: string, replace: boolean, keepScroll = false) => {
       const entry = replace ? current.current.entry : newEntry()
       if (!memory) {
         position.current += replace ? 0 : 1
@@ -150,16 +155,17 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
         window.history[replace ? 'replaceState' : 'pushState']({ protobaseIndex: position.current, protobaseEntry: entry, protobasePrevious: previous }, '', full)
       }
       rememberScroll()
+      if (keepScroll) places.save(entry, window.scrollY)
       setPage({ url: full, entry })
     },
-    [memory, rememberScroll],
+    [memory, rememberScroll, places],
   )
 
   const navigate = useCallback(
-    (to: string, { replace = false }: { replace?: boolean } = {}) => {
+    (to: string, { replace = false, keepScroll = false }: NavigateOptions = {}) => {
       const full = `${basePath}${to}`
       if (pathOf(full) !== pathOf(current.current.url) && guards.current.size > 0) return setPending({ kind: 'link', full, replace, inputLost: losesInput() })
-      go(full, replace)
+      go(full, replace, keepScroll)
     },
     [basePath, go],
   )

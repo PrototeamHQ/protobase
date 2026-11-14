@@ -20,5 +20,5 @@ export const listOf = (node: LayoutNode, options: TextOptions): unknown[] | unde
 /** The record an item is read as: an object as it is, any other value as `this`, as Handlebars reads it. */
 export const itemRecord = (item: unknown): Record<string, unknown> => (isRecord(item) ? item : { this: item })
 
-/** The record a `ReferenceField` points at, when the caller read it. */
+/** The record a `ReferenceField` points at, or a block's `select` chose, when the caller read it. */
 export const referencedRecord = (node: LayoutNode, options: TextOptions) => options.records?.(node, options.record)?.find(isRecord)

@@ -43,7 +43,7 @@ describe('page', () => {
   it('names unknown, missing and mistyped props', () => {
     const tree: LayoutNode = { type: 'Page', props: { title: 'x' }, children: [{ type: 'Table', props: { colums: ['a'], limit: 0 }, children: [] }] }
     expect(problems(tree)).toEqual([
-      '<Page> › <Table>: unknown prop "colums"; it takes resource, filter, sort, title, description, actions, columns, button, bulk, limit, display, empty, span, className',
+      '<Page> › <Table>: unknown prop "colums"; it takes resource, filter, sort, title, description, actions, columns, button, bulk, limit, display, empty, span, select, className',
       '<Page> › <Table>: "limit" must be a positive whole number',
       '<Page> › <Table>: "resource" is required, or put it inside a ReferenceManyField, ReferenceArrayField or ArrayField to draw that list',
     ])
@@ -72,7 +72,7 @@ describe('page', () => {
     expect(problems(table({ bulk: true }))).toEqual([])
     expect(problems(table({ bulk: 'yes' }))).toEqual(['<Page> › <Table resource="listings">: "bulk" must be true or false'])
     expect(problems(table({ pageSize: 8 }))).toEqual([
-      '<Page> › <Table resource="listings">: unknown prop "pageSize"; it takes resource, filter, sort, title, description, actions, columns, button, bulk, limit, display, empty, span, className',
+      '<Page> › <Table resource="listings">: unknown prop "pageSize"; it takes resource, filter, sort, title, description, actions, columns, button, bulk, limit, display, empty, span, select, className',
     ])
   })
 

@@ -1,6 +1,8 @@
 import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from '../node'
 import { isInlineChild } from '../inline-fields'
+import { pageParamValues } from '../page-params'
 import { fillProps } from '../scope-values'
+import { selectBlocks } from '../select-blocks'
 import { childScope, pageScope, propScope } from '../walk'
 import { textForms } from './forms'
 import { itemRecord, listOf, referencedRecord } from './list-records'
@@ -42,9 +44,9 @@ const iterate = (node: LayoutNode, options: TextOptions, list: unknown[] | undef
   return blocks(list.map((item) => blocks(partsOf(node.children, { ...options, record: itemRecord(item), fields: undefined }, false))))
 }
 
-// The record the children of a ReferenceField read, when the caller read it; none otherwise, as in a record card
+// The record the children of a ReferenceField or a block's `select` read, when the caller read it; none otherwise, as in a record card
 const childOptions = (node: LayoutNode, options: TextOptions): TextOptions => {
-  if (!node.custom && node.type === 'ReferenceField') {
+  if (!node.custom && (node.type === 'ReferenceField' || (selectBlocks.has(node.type) && typeof node.props.select === 'string'))) {
     const record = referencedRecord(node, options)
     return { ...options, record, fields: undefined }
   }
@@ -52,26 +54,29 @@ const childOptions = (node: LayoutNode, options: TextOptions): TextOptions => {
 }
 
 const render = (unfilled: LayoutNode, options: TextOptions, around: unknown[] | undefined): string => {
-  // Its `{{path}}`s read the record around the tree, the only one the text has; others read as empty
-  const node = fillProps(unfilled, { stack: options.record ? [{ record: options.record }] : [] })
+  // Its `{{path}}`s read the record around the tree, the only one the text has, and the page's parameters; others read as empty
+  const node = fillProps(unfilled, { stack: options.record ? [{ record: options.record }] : [], ...(options.params && { params: options.params }) })
   if (!node.custom && node.type === 'RecordsIterator') return iterate(node, options, around).trim()
   // A list context puts its list around its children; other elements pass on the one around them
   const list = listOf(node, options) ?? (childScope(node, pageScope).stack.length > 0 ? undefined : around)
   const inner = childOptions(node, options)
   const slotOptions = scoped(options, propScope(node, pageScope).stack.length > 0)
   const slots = Object.fromEntries(
-    Object.entries(node.props).flatMap(([name, value]) => (isElements(value) ? [[name, (Array.isArray(value) ? value : [value]).map((element) => renderText(element, slotOptions))]] : [])),
+    Object.entries(node.props).flatMap(([name, value]) => (isElements(value) ? [[name, (Array.isArray(value) ? value : [value]).map((element) => render(element, slotOptions, undefined))]] : [])),
   )
   const fallback = node.fallback && partsOf(node.fallback, options, false)
   // A Switch's children are Matches, one part each, so its text form finds the one it draws by its place
   const own = !node.custom && node.type === 'Switch' ? node.children.filter((child) => typeof child !== 'string') : node.children
-  const children = partsOf(own, inner, holdsOneLine(node), list)
+  // A block's `select` children draw nothing while no row is chosen, or the text does not have it
+  const drawn = selectBlocks.has(node.type) && typeof node.props.select === 'string' && !inner.record ? [] : own
+  const children = partsOf(drawn, inner, holdsOneLine(node), list)
   return formOf(node, options)({ node, children, slots, ...(fallback && { fallback }), options }).trim()
 }
 
 /**
  * The Markdown text of a layout tree, for clients that draw no blocks and for MCP clients and LLMs. One pass, children
  * first: each element's text form gets its children's text already rendered, so a container needs no form of its own.
- * `options.forms` adds or replaces forms by block type.
+ * `options.forms` adds or replaces forms by block type; `options.params` are the parameters the page's address gives,
+ * which its `SelectInput`s hold to their choices.
  */
-export const renderText = (node: LayoutNode, options: TextOptions = {}): string => render(node, options, undefined)
+export const renderText = (node: LayoutNode, options: TextOptions = {}): string => render(node, { ...options, params: pageParamValues(node, options.params) }, undefined)

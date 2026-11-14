@@ -7,6 +7,7 @@ import { listModelProblems } from './check-list-models'
 import { pathFindings } from './check-paths'
 import { pruneToolCalls, type ToolCallSource } from './check-tool-calls'
 import { elementResource, linkPlaceholderError, pageParams } from './check-page'
+import { chosenParams } from './page-params'
 import { resolveFieldPath } from './field-path'
 import { inlineFieldTypes } from './inline-fields'
 import { sampledFilterErrors } from './sampled-filter'
@@ -51,7 +52,7 @@ const pruneCustom = (node: LayoutNode, scope: Scope, { models }: CallerAccess): 
   return pruneByShape(dataProps(node), shapes.refs, readable) === undefined ? null : node
 }
 
-const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: ReadonlySet<string>): LayoutNode | null => {
+const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: ReadonlySet<string>, chosen: ReadonlySet<string>): LayoutNode | null => {
   if (node.custom) return pruneCustom(node, scope, access)
   const { models } = access
   const own = text(node.props.resource)
@@ -60,7 +61,7 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: Rea
   const model = resource === undefined ? undefined : models[resource]
   if (own !== undefined && model && (!filterFits(model, text(node.props.filter)) || !sortFits(model, text(node.props.sort)))) return null
   // A `{{path}}` the caller cannot read leaves the element out, as a field they cannot read does
-  if (pathFindings(node, scope, { models, params }).problems.length > 0) return null
+  if (pathFindings(node, scope, { models, params, chosen }).problems.length > 0) return null
   const readable = (name: string) => innermost(scope) !== undefined && resolveScopePath(name, { models, scope, params, mode: 'relations' }).ok
   const conditionFits = (when: unknown) => typeof when === 'string' && scopedConditionReadable(when, { models, scope, params })
 
@@ -160,6 +161,7 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: Rea
 export const prunePage = (page: PageModel, roles: readonly string[], access: CallerAccess): PageModel | undefined => {
   if (page.roles && !page.roles.some((role) => roles.includes(role))) return undefined
   const params = pageParams(page.tree)
-  const tree = mapTree(page.tree, (node, { scope }) => prune(node, scope, access, params))
+  const chosen = chosenParams(page.tree)
+  const tree = mapTree(page.tree, (node, { scope }) => prune(node, scope, access, params, chosen))
   return tree ? { ...page, tree } : undefined
 }

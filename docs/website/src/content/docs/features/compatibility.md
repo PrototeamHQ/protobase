@@ -15,7 +15,7 @@ description: Apps written for other systems that keep working on Protobase, and 
 
 ## Template paths
 
-- [Paths and scopes](/reference/layouts/#paths-and-scopes) (beta): Layout paths follow Mustache's context-stack lookup and Handlebars' path grammar: `../`, `this`, `./`, `@root`, `@index`, `@first` and `@last`, though `@root` cannot be read yet. Protobase differs in three ways: a placeholder is escaped for the string it lands in, such as a filter's quoted value, rather than for HTML; `@params` names a page parameter, which the build accepts but a path cannot read yet; and a name no record around it has fails the build instead of drawing empty.
+- [Paths and scopes](/reference/layouts/#paths-and-scopes) (beta): Layout paths follow Mustache's context-stack lookup and Handlebars' path grammar: `../`, `this`, `./`, `@root`, `@index`, `@first` and `@last`, though `@root` cannot be read yet. Protobase differs in three ways: a placeholder is escaped for the string it lands in, such as a filter's quoted value, rather than for HTML; `@params` names a [page parameter](/reference/layouts/#page-parameters), which a `SelectInput` sets; and a name no record around it has fails the build instead of drawing empty.
 
 ## react-admin
 
@@ -24,4 +24,5 @@ description: Apps written for other systems that keep working on Protobase, and 
 - [Page size of related records](/reference/layouts/#related-records) (beta): A list reads at most 500 records, the API's largest page, which is also a `ReferenceArrayField`'s `perPage` where react-admin's is 1000.
 - [Items of an ArrayField](/reference/layouts/#related-records) (beta): A text item of an `ArrayField` is read as `this`. An `ArrayField` takes no `filter`, `sort` or `perPage` yet.
 - [RecordsIterator without functions](/reference/layouts/#related-records) (beta): `RecordsIterator` takes no `render`, `data`, `total` or `isPending`, as a layout holds no functions and the list around it gives the rest.
+- [SelectInput in the address](/reference/layouts/#page-parameters) (beta): `SelectInput` takes react-admin's `source`, `choices` as `{ id, name }`, `label` and `defaultValue`, and writes its choice into the page's address as `?<source>=<id>`, read as `@params.<source>`, instead of into a form.
 - [Links of a ReferenceField](/reference/layouts/#related-records) (beta): A `ReferenceField` links to the record's page for both `edit` and `show`, as a record has one page.

@@ -72,7 +72,8 @@ renderText(<Page title="Order"><Field source="status" /></Page>, {
 | --- | --- |
 | `record` | The record around the tree. `Field`, the [field components](#field-values), `Stat field`, `Progress`, `Show` conditions and the `{{field}}`s of addresses read it, through relations as nested objects (`plan.name`); a count a condition names, such as `billing_profiles.count`, is a key of its own. The `{{path}}`s of props read it too. Without it, a field reads as its label alone, a condition as holding (a `Show` reads as its children, a `Switch` as its first `Match`), a prop's `{{path}}`s as empty, and addresses keep their `{{field}}`s. |
 | `fields` | Per field path, its `label` and the `valueLabels` its enum values read as; a field without a label reads under its path. |
-| `records` | Per `ReferenceManyField`, `ReferenceArrayField` or `ReferenceField` element and the record around it, the records it holds, which you loaded; its `RecordsIterator` then reads as its children once per record, in that record, and an empty list as its `empty`. Without it, the block reads as a link to its records. An `ArrayField` reads its items from the record around it. |
+| `records` | Per `ReferenceManyField`, `ReferenceArrayField` or `ReferenceField` element and the record around it, the records it holds, which you loaded; its `RecordsIterator` then reads as its children once per record, in that record, and an empty list as its `empty`. Without it, the block reads as a link to its records. An `ArrayField` reads its items from the record around it. For a `Table` with `select`, the row chosen, whose record its children read; without it they read as nothing. |
+| `params` | The [page parameters](#page-parameters) the page's address holds, such as `{ window: '30d' }`, which `@params` and the `SelectInput`s read, each held to its choices. |
 | `tables` | Per `Table` element, the records it shows and its columns (`{ columns: [{ name, label, title?, badge?, valueLabels? }], rows }`), which you loaded; the table then reads as its heading and a Markdown table. Without it, a table reads as its heading. |
 | `locale` | The reader's locale, such as `nl-NL`, in which [field components](#field-values) without `locales` format numbers and dates; the runtime's default when omitted. |
 | `basePath` | What links start with, such as `https://example.com/admin`. |
@@ -184,7 +185,7 @@ In the [text form](#text-form) each one reads as its formatted value, a `UrlFiel
 ## Paths and scopes
 
 :::caution[Beta]
-A path cannot read `@root` or `@params` yet, and a block inside a card or under a condition reads its records only once it draws, as the marked limits below say.
+A path cannot read `@root` yet, and a block inside a card or under a condition reads its records only once it draws, as the marked limits below say.
 :::
 
 A `RecordCard`, a `ReferenceField`, each card of a `CardRow` and each entry of a [`RecordsIterator`](#related-records) put their record on a stack of records: an element inside both a task's `RecordCard` and a `CardRow` of its claims sits in a claim, inside the task. A bare name is looked up in the innermost record, then in each record further out, then in the page's own record; the [compatibility page](/features/compatibility/#template-paths) says which template syntax this follows:
@@ -197,7 +198,7 @@ A `RecordCard`, a `ReferenceField`, each card of a `CardRow` and each entry of a
 | `this.id`, `./id` | The nearest record only. |
 | `@index`, `@first`, `@last` | The card's place among a `CardRow`'s cards, or the entry's among a `RecordsIterator`'s, from 0, and whether it is the first or the last. |
 | `@root.id` | The page's own record. <gap>A path cannot read `@root` because pages with a record of their own are not implemented.</gap> |
-| `@params.window` | The page parameter `window`. <gap>A path cannot read `@params` because the input that sets a page parameter is not implemented.</gap> |
+| `@params.window` | The [page parameter](#page-parameters) `window`, which a `SelectInput source="window"` on the page sets. |
 
 `Field source`, a field component's `source`, `Stat field`, `Progress`, and the names in a [condition](#conditions) take a path. A string prop takes `{{path}}` placeholders in double braces, filled with the path's value where the element draws, and empty when it has none:
 
@@ -211,11 +212,37 @@ A placeholder quoted on its own in a filter or condition, `title = '{{title}}'`,
 The build checks every path where it sits:
 
 - **Typos.** A name no record around it has fails, naming every record searched and the closest field: `"claimd_at" is no field of task_claims, tasks; did you mean claimed_at?`. A name the build accepts that has no value in a record draws empty.
-- **Bad roots.** `../` past the outermost record, `@root` on a page without a record, `@index` outside a `CardRow` or `RecordsIterator`, and `@params.x` without an input setting `x` fail.
+- **Bad roots.** `../` past the outermost record, `@root` on a page without a record, `@index` outside a `CardRow` or `RecordsIterator`, and `@params.x` without a `SelectInput source="x"` on the page fail.
 - **Reads that would wait.** A per-row value in a filter in any other place than a top-level `AND` equality (with `>=`, inside `OR` or `NOT`, a second one), `@index`, `@first`, `@last` or `this` in a filter, key or values, and any placeholder in `resource`, `sort`, `columns` or `limit` fail with "this would wait for the parent's rows": each block's records are one read of their own, and none may wait for another's rows.
 - **Shadowing.** A bare name that more than one record around it has reads the nearest, and the build warns which it read and how to write the others: `"id" resolves to task_claims; write ../id for the one of tasks`. `protobase build --strict` fails on it instead. `this.`, `./`, `../` and `@` paths never warn.
 
 <gap>A block inside a `CardRow` or `RecordCard` cannot read its records at page load, beside the records around it, because planning a page's reads is not implemented; it reads once the card around it draws.</gap> <gap>A block under a `Show` or `Match` cannot read its records before its condition holds because planning a page's reads is not implemented.</gap>
+
+## Page parameters
+
+:::caution[Beta]
+A page parameter holds one value, from a fixed list of choices.
+:::
+
+A page holds a choice in its own address: `SelectInput` draws a select whose choices each link to the page with that choice in the query, `/claims?window=30d`, and the layout reads the choice as `@params.window`. Reloading or sharing the address keeps it, and the browser's Back goes to the choice before. It takes the props of [react-admin's `SelectInput`](https://marmelab.com/react-admin/SelectInput.html): `source` names the parameter, `choices` lists `{ id, name }` objects, `label` is shown beside it, and `defaultValue` holds while the address names none of the choices. It writes into the page's address, not into a form.
+
+```tsx
+<Page title="Claims">
+  <SelectInput source="window" label="Window" defaultValue="7d" choices={[{ id: '7d', name: 'Last 7 days' }, { id: '30d', name: 'Last 30 days' }]} />
+  <Table resource="task_claims" title="Claims of the last {{@params.window}}" filter="claimed_at >= now() - {{@params.window}}" select="claim">
+    <Field source="status" />
+    <ReferenceField source="worker_id" reference="workers" />
+  </Table>
+</Page>
+```
+
+A value in the address that is none of the choices reads as `defaultValue`, and as empty without one. A filter that reads `@params` is checked once for each choice, and for the empty value when there is no `defaultValue`, so a choice that makes the filter invalid fails the build: `filter with window = "soon": …`. A `SelectInput` without `choices` shows the value its address gives as text; a `filter`, `recordKey` or `values` cannot read it, which fails the build, as any text in the address would reach the read.
+
+A `Table` with `select` chooses one of its rows: each row links to the page with its key in the parameter `select` names, `?claim=11`, and the table's children draw under it inside that row's record, as inside a `RecordCard`. While no row is chosen they draw nothing, and Back clears the choice. A table with `select` shows its rows as a table, never in another display. Each parameter name is used once on a page, by one `SelectInput` or one `select`.
+
+In the [text form](#text-form), a `SelectInput` reads as its label and its choice's name, `**Window**: Last 30 days`, from the `params` you pass, and a `select` table's children as the row `records` gives for it.
+
+<gap>A block reads a page parameter only once it draws, not at page load, because planning a page's reads is not implemented.</gap> <gap>A data block other than a `Table`, or a list display such as a map, cannot take `select` because choosing a row there is not implemented.</gap>
 
 ## Conditions
 
@@ -303,7 +330,7 @@ Every place in the app has an address, and the app writes and reads them in one 
 | `{ kind: 'list', resource, filter?, orderBy?, display? }` | A resource's list, with the filter, order and [display](/reference/ui-config/#list-displays) the list page would show. |
 | `{ kind: 'record', resource, key, edit?, open?, tab?, standard?, version?, run?, panel?, file? }` | One record; `key` is its value, or its parts for a composite key. `edit: true` is its form (`?edit=true`), on a view whose record page opens as a [read view or locked](/reference/ui-config/#read-view-and-edit). `open` lists the titles of the record page's collapsed [groups](/reference/ui-config/#groups) that are open (`?open=<title>`, once per group), and `tab` the title of the [tab](/reference/ui-config/#tabs) it shows (`?tab=<title>`). `standard: true` is its standard page (`?standard=true`), on a view whose record page is a [component of the app's own](/reference/ui-config/#full-area-record-pages) or [opens another](/reference/ui-config/#a-record-page-that-opens-another). On a workflow, `version` is the saved version its graph shows, read-only (`?version=<number>`), and `run` the run shown on it (`?run=<id>`); see [The workflow's page](/reference/workflows/#the-workflows-page). `panel` is the panel a [focus page](/reference/ui-config/#focus-pages) opens with, by a name its surface knows (`?panel=<name>`). `file` names a file field whose file opens in the [viewer](/reference/files/#viewers) for its type (`?file=<field>`). |
 | `{ kind: 'create', resource, values? }` | The form for a new record, with `values` filled in by field name, as text: `{ kind: 'create', resource: 'notes', values: { listing_id: '{{id}}' } }` on a listing's page starts a note about that listing. A relation shows the name of the record it points at. The values are a start the person can change, not a rule: what they may write is still up to the access rules. A view with a [create page](/reference/ui-config/#create-pages) shows that page here instead, with the values in the address. |
-| `{ kind: 'page', page, tab? }` | A composed page; `tab` the name of one of its [tabs](/reference/blocks/#tabs-and-tab) (`/<page>/<tab>`), the first when omitted. |
+| `{ kind: 'page', page, tab?, params? }` | A composed page; `tab` the name of one of its [tabs](/reference/blocks/#tabs-and-tab) (`/<page>/<tab>`), the first when omitted, and `params` its [page parameters](#page-parameters) by name (`?window=30d`). |
 
 The resources, pages and fields an address names are checked when the server starts, like every other name.
 
