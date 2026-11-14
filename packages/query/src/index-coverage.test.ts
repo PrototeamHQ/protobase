@@ -34,11 +34,4 @@ describe('uncoveredColumns of a related() term', () => {
     expect(uncoveredColumns(messages, table(btree('id')), { selects })[0]).toMatchObject({ field: 'channel_id', use: 'related' })
     expect(uncoveredColumns(messages, table(btree('channel_id')), { selects })).toEqual([])
   })
-
-  it('needs a JSON list of keys it selects served as any key', () => {
-    const tasks = resource('tasks').table('tasks').fields({ id: f.integer(), waits: f.json().optional() }).primaryKey((r) => r.id).toModel()
-    const selects = tasks.fields.waits!
-    expect(uncoveredColumns(tasks, table(btree('id')), { selects })).toEqual([{ field: 'waits', column: 'waits', use: 'related', need: 'btree', suggestion: 'create index on "tasks" ("waits")' }])
-    expect(uncoveredColumns(tasks, table(btree('waits')), { selects })).toEqual([])
-  })
 })

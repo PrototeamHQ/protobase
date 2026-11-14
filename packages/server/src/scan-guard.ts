@@ -48,13 +48,14 @@ export const createScanGuard = (db: Db, options: { mode?: ScanGuardMode } = {}) 
 
   // The parents a read keeps to are read by their own scope, their columns judged against their own table's indexes; a
   // `related()` term's resource is read as the caller sees it, with its subfilter and sort as a list of it is, for the key
-  // it selects, a JSON list of keys as any other.
+  // it selects. A JSON list of keys needs no index: it is only read from the rows the indexed subfilter and sort chose,
+  // never filtered or sorted on, and a btree index on a whole list caps its size (json has no btree class at all).
   const parentColumns = async (scope: Scope): Promise<UncoveredColumn[]> => {
     const columns = await Promise.all((scope.parents ?? []).map(async ({ parent, related }) => {
       if (!parent) return []
       const { model, key, scope: own } = parent
       const sort = related?.page?.sort
-      const query = related ? { ...(related.filter && { filter: related.filter }), ...(sort && { sort }), selects: key } : {}
+      const query = related ? { ...(related.filter && { filter: related.filter }), ...(sort && { sort }), ...(!parent.items && { selects: key }) } : {}
       return [
         ...uncoveredColumns(related?.model ?? model, await indexesOfModel(model), query, own).map((column) => ({ ...column, field: `${model.name}.${column.field}` })),
         ...(await parentColumns(own)),
