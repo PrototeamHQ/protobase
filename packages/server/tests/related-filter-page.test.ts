@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
 import { createAdmin } from '@protobase/server'
-import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 import { signTestToken, testAuthenticator } from '../../../test-support/server'
 
-// `related()` with its resource's order, limit and page token, and with a JSON list of keys on that side, on real
-// Postgres: the children are those of exactly the records a list of the resource shows the caller on that page.
+// `related()` with its resource's order, limit and page token, and with a JSON list of keys on that side, replayed
+// from real Postgres: the children are those of exactly the records a list of the resource shows the caller on that page.
 
 const organizations = resource('organizations').table('organizations').fields({ id: f.integer().readOnly().filterable() }).primaryKey((r) => r.id)
 
@@ -43,12 +43,12 @@ const as = (org: number, role: string) => ({ authorization: `Bearer ${signTestTo
 const admin = as(1, 'admin')
 const member = as(1, 'member')
 
-describe.skipIf(!(await postgresTemplateReady('empty')))("related() on a page of its resource's records", () => {
-  let database: PostgresDatabase
+describe("related() on a page of its resource's records", () => {
+  let database: SnapshotDb
   let app: ReturnType<typeof createAdmin>
 
   beforeAll(async () => {
-    database = await openPostgresDatabase('empty')
+    database = await openSnapshotDb('empty')
     await database.exec(`
       create table organizations (id integer primary key);
       create table tasks (id integer primary key, org integer not null references organizations, state text not null, created_at timestamptz not null, rank integer not null, waits jsonb);
