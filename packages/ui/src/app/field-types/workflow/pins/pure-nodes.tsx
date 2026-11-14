@@ -1,15 +1,11 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { cn } from '../../../../lib/cn'
-import type { FlowNode } from '../flow-elements'
+import type { FlowNode, PureData } from '../flow-elements'
 import { text } from '../messages'
 import type { PureNode } from './data-graph'
-import type { InputPin } from './node-pins'
 import { FoldRow, InputRow, OutputRow } from './pin-rows'
 import { pinColour, typeLabel } from './pin-text'
 import { breakIn, makeOut } from './pure-ids'
-
-/** What a Break's or a Make's node draws from: the node, which of its inputs it shows, and whether the canvas is editable. */
-export type PureData = { pure: PureNode; shownInputs: InputPin[]; folded: number; open: boolean }
 
 const Title = ({ pure }: { pure: PureNode }) => (
   <div className="truncate border-b px-3 py-1.5 text-xs font-medium text-foreground">{pure.kind === 'break' ? text('breakTitle', { type: typeLabel(pure.type) }) : text('makeTitle', { type: typeLabel(pure.type) })}</div>

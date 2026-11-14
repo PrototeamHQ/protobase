@@ -8,12 +8,11 @@ import type { NodeTrace } from './node-trace'
 import type { NodeProblem } from './problems'
 import { stateLabel, triggerLabel } from './labels'
 import { text } from './messages'
-import type { DataGraph } from './pins/data-graph'
+import type { DataGraph, PureNode } from './pins/data-graph'
 import type { InputPin, OutputPin } from './pins/node-pins'
 import { shownInputs } from './pins/pin-layout'
 import { pinColour } from './pins/pin-text'
 import { pureInputs } from './pins/node-sizes'
-import type { PureData } from './pins/pure-nodes'
 import { isPureId } from './pins/pure-ids'
 import { pureParent } from './pins/pure-parents'
 
@@ -23,6 +22,9 @@ import { pureParent } from './pins/pure-parents'
  * advice.
  */
 /** `dataOrder`: the workflow runs in data order, so the node has no execution handles to draw edges from by hand. */
+/** What a Break's or a Make's node draws from: the node, which of its inputs it shows, and whether the canvas is editable. */
+export type PureData = { pure: PureNode; shownInputs: InputPin[]; folded: number; open: boolean }
+
 export type NodeData = { node: GraphNode; kind: string; problems: NodeProblem[]; warnings?: NodeProblem[]; trace?: NodeTrace; cacheWarning?: boolean; pins?: NodePins; pureData?: PureData; dataOrder?: boolean }
 
 /** The pins a node shows: the inputs it shows, its outputs, how many inputs it folds away and whether it is open. */
