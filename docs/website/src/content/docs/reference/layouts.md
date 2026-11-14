@@ -242,7 +242,7 @@ A `Table` with `select` chooses one of its rows: each row links to the page with
 
 In the [text form](#text-form), a `SelectInput` reads as its label and its choice's name, `**Window**: Last 30 days`, from the `params` you pass, and a `select` table's children as the row `records` gives for it.
 
-<gap>A block reads a page parameter only once it draws, not at page load, because planning a page's reads is not implemented.</gap>
+<gap>A block reads a page parameter only once it draws, not at page load, because planning a page's reads is not implemented.</gap> <gap>A data block other than a `Table`, or a list display such as a map, cannot take `select` because choosing a row there is not implemented.</gap>
 
 ## Conditions
 
