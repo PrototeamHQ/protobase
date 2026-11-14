@@ -7,7 +7,7 @@ import { Code } from '@astrojs/starlight/components'
 import StoryFrame from '../../../components/StoryFrame.astro'
 import erpPage from '../../../../../../tests/apps/erp/config/overview/page.tsx?raw'
 
-Blocks are imported from `@protobase/layout`. Every block also takes [`className`](/reference/layouts/#tailwind-classes), Tailwind classes for its outer element. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. The ERP example's sales overview uses `Page`, `Grid`, `Card`, `Stat`, `Table`, `RecordCard`, `CardRow`, `Field`, `Chart`, `Action`, `ModalForm` and `Show`; of the others, the property portal's home uses `RecordRow`, and the [Users page](/reference/auth/#users-page) `Users`:
+Blocks are imported from `@protobase/layout`. Every block also takes [`className`](/reference/layouts/#tailwind-classes), Tailwind classes for its outer element. "Record" below means the record of the `RecordCard`, `CardRow` card or `RecordsIterator` entry around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. The ERP example's sales overview uses `Page`, `Grid`, `Card`, `Stat`, `Table`, `RecordCard`, `CardRow`, `Field`, `Chart`, `Action`, `ModalForm` and `Show`; of the others, the property portal's home uses `RecordRow`, and the [Users page](/reference/auth/#users-page) `Users`:
 
 <Code code={erpPage} lang="tsx" title="tests/apps/erp/config/overview/page.tsx" />
 
@@ -146,7 +146,7 @@ The first records of a list, drawn the way the resource's list page draws them: 
 
 | Prop | |
 | --- | --- |
-| `resource`, `filter`, `sort` | Which records, in which order. `resource` is required; `sort` defaults to the list's. |
+| `resource`, `filter`, `sort` | Which records, in which order; `sort` defaults to the list's. Without `resource`, inside a [`ReferenceManyField`](#referencemanyfield) or `ReferenceArrayField`, it draws that list's records and reads none of its own, so it takes no `filter`, `sort`, `limit`, `display` or `bulk`. |
 | `columns` | Field names for the table, or `{ name, priority }` for a column that matters on a phone, 1 the most important; default the view's list columns. See [Columns on a phone](#columns-on-a-phone). |
 | `button` | A [button on each row](#row-buttons) to an address the row's fields name, or to the outside page a field holds; a list of these gives each row the first whose fields it holds. |
 | `bulk` | `true`: rows can be selected, and the view's `bulk` actions run on the selected rows, as on the list page; see [signing several records off](#signing-several-records-off). |
@@ -409,6 +409,76 @@ Counts, sums or averages of the records that match `filter`, per value of a fiel
 ```
 
 Each value takes its colour from the view's `valueColors`, else an enum value's place among its values, from the [chart tokens](/reference/theme/#tokens). A chart whose field the user cannot read is left out of their page, and a field it cannot group or add up stops the server at startup.
+
+## Related records
+
+The blocks that repeat over a record's related records, as [related records](/reference/layouts/#related-records) explains, with the names, props and defaults of react-admin's components. `ReferenceManyField`, `ReferenceArrayField` and `ArrayField` hold a list and draw nothing of their own; a `RecordsIterator` or a `Table` without `resource` inside one draws it. Each sits inside a record, whose field it reads.
+
+### ReferenceManyField
+
+The records of `reference` whose `target` holds the record's `source`, as [react-admin's ReferenceManyField](https://marmelab.com/react-admin/ReferenceManyField.html).
+
+| Prop | |
+| --- | --- |
+| `reference` | The resource it reads. Required. |
+| `target` | The field of `reference` that points at the record. Required. |
+| `source` | The field of the record it matches; default `id`, of the nearest record. A [path](/reference/layouts/#paths-and-scopes), such as `../id`. |
+| `filter` | More conditions, as AIP-160 text or react-admin's `{ field: value }`, its fields ANDed. |
+| `sort` | AIP-132 text, or react-admin's `{ field, order: 'ASC' \| 'DESC' }`; default the key, descending. |
+| `perPage` | How many records it reads, at most 500; default 25. |
+| `pagination` | `more`: a **Load more** button reads the next `perPage` records into the same list. |
+| `empty` | Text instead of the children when no record matches. |
+
+```tsx
+<ReferenceManyField reference="task_claims" target="task_id" filter={{ status: 'open' }} sort={{ field: 'claimed_at', order: 'DESC' }} pagination="more">
+  <Table title="Open claims" columns={['worker_id', 'claimed_at']} />
+</ReferenceManyField>
+```
+
+### ReferenceArrayField
+
+The records of `reference` whose keys the record's `source`, a JSON list of keys, holds, as [react-admin's ReferenceArrayField](https://marmelab.com/react-admin/ReferenceArrayField.html).
+
+| Prop | |
+| --- | --- |
+| `source` | A JSON field of the record holding the keys. Required. |
+| `reference` | The resource the keys belong to. Required. |
+| `filter`, `sort` | As `ReferenceManyField`'s. |
+| `perPage` | How many records it reads; default and at most 500, the API's largest page. |
+| `empty` | Text instead of the children when no record matches. |
+
+### ArrayField
+
+The items of the record's `source`, a JSON list, as [react-admin's ArrayField](https://marmelab.com/react-admin/ArrayField.html). An object item is read by its keys, and a text item as `this`: `<Field name="this" />`.
+
+| Prop | |
+| --- | --- |
+| `source` | A JSON field of the record. Required. |
+
+<gap>An `ArrayField` cannot filter, sort or page its items because react-admin's `filter`, `sort` and `perPage` on it are not implemented.</gap>
+
+### RecordsIterator
+
+Its children once per entry of the list around it, each inside that record or item, with nothing drawn around them, as [react-admin's RecordsIterator](https://marmelab.com/react-admin/RecordsIterator.html). It takes no props.
+
+```tsx
+<ArrayField source="labels">
+  <RecordsIterator>
+    <Field name="this" label={false} />
+  </RecordsIterator>
+</ArrayField>
+```
+
+### ReferenceField
+
+The record of `reference` the record's `source` points at, as [react-admin's ReferenceField](https://marmelab.com/react-admin/ReferenceField.html): its children inside that record, or without children its title, as a link to the record's page.
+
+| Prop | |
+| --- | --- |
+| `source` | The field holding the key, such as a relation. Required. |
+| `reference` | The resource it points at. Required. |
+| `link` | `edit` (default) or `show` links to the record's page, `false` does not. |
+| `empty` | Text when the field holds no key. |
 
 ## Conversation
 

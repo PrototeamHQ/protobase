@@ -72,6 +72,7 @@ renderText(<Page title="Order"><Field name="status" /></Page>, {
 | --- | --- |
 | `record` | The record around the tree. `Field`, `Stat field`, `Progress`, `Show` conditions and the `{{field}}`s of addresses read it, through relations as nested objects (`plan.name`); a count a condition names, such as `billing_profiles.count`, is a key of its own. The `{{path}}`s of props read it too. Without it, a field reads as its label alone, a condition as holding (a `Show` reads as its children, a `Switch` as its first `Match`), a prop's `{{path}}`s as empty, and addresses keep their `{{field}}`s. |
 | `fields` | Per field path, its `label` and the `valueLabels` its enum values read as; a field without a label reads under its path. |
+| `records` | Per `ReferenceManyField`, `ReferenceArrayField` or `ReferenceField` element and the record around it, the records it holds, which you loaded; its `RecordsIterator` then reads as its children once per record, in that record, and an empty list as its `empty`. Without it, the block reads as a link to its records. An `ArrayField` reads its items from the record around it. |
 | `tables` | Per `Table` element, the records it shows and its columns (`{ columns: [{ name, label, title?, badge?, valueLabels? }], rows }`), which you loaded; the table then reads as its heading and a Markdown table. Without it, a table reads as its heading. |
 | `basePath` | What links start with, such as `https://example.com/admin`. |
 | `forms` | Text forms by block type, over the built-in ones. |
@@ -91,7 +92,7 @@ renderText(tree, { forms: { Grid: ruled, Card: noted, SeatChart: childrenText } 
 
 A custom component reads as its [fallback](/reference/custom-components/#fallbacks) when it declares one, and otherwise as what it holds, unless `forms` names it.
 
-<gap>A data block's text form cannot read its records itself, such as a table's rows, because reading records for the text form is not implemented.</gap> A `Thread` holding the elements of [`threadItemNodes`](/reference/blocks/#tool-calls) reads as its messages and calls. <gap>A data block other than a `Table` or a `Thread` cannot list records you pass because its text form for records is not implemented.</gap> <gap>A field's text form cannot apply its `format`, such as a relative time, because formatting in the text form is not implemented.</gap> <gap>MCP clients cannot read a page's text form because a tool that serves it is not implemented.</gap>
+<gap>A data block's text form cannot read its records itself, such as a table's rows, because reading records for the text form is not implemented.</gap> A `Thread` holding the elements of [`threadItemNodes`](/reference/blocks/#tool-calls) reads as its messages and calls. <gap>A data block other than a `Table`, a `Thread` or a list block cannot list records you pass because its text form for records is not implemented.</gap> <gap>A field's text form cannot apply its `format`, such as a relative time, because formatting in the text form is not implemented.</gap> <gap>MCP clients cannot read a page's text form because a tool that serves it is not implemented.</gap>
 
 ## What a layout may hold
 
@@ -104,9 +105,39 @@ Behaviour comes from [named actions](#named-actions); React code from [custom co
 
 ## Data
 
-`Stat`, `RecordCard`, `Table`, `CardRow`, `RecordRow`, `RecordCards` and `Thread` read records of a `resource`. `filter` is AIP-160 and `sort` AIP-132, exactly as the list API's `filter` and `order_by`, so a filter that works in the list's URL works here. `Thread` takes no `sort`: it orders its messages by its `time` field, newest first.
+`Stat`, `RecordCard`, `Table`, `CardRow`, `RecordRow`, `RecordCards` and `Thread` read records of a `resource`. `filter` is AIP-160 and `sort` AIP-132, exactly as the list API's `filter` and `order_by`, so a filter that works in the list's URL works here. `Thread` takes no `sort`: it orders its messages by its `time` field, newest first. `ReferenceManyField`, `ReferenceArrayField` and `ReferenceField` read records of their `reference` that the record around them points to or is pointed at by: see [related records](#related-records).
 
-A `RecordCard` (its first match) and each card of a `CardRow` hold a **record**. Inside one, `Field`, `Progress`, `Stat field`, `Show`, `Action` and `ModalForm mode="edit"` work on that record, and a `RecordCard`'s header `actions` do too. A field name may follow relations: `company_id.city` is the city of the record's company, fetched like the record page fetches it and cached.
+A `RecordCard` (its first match), a `ReferenceField`, each card of a `CardRow` and each entry of a `RecordsIterator` hold a **record**. Inside one, `Field`, `Progress`, `Stat field`, `Show`, `Action` and `ModalForm mode="edit"` work on that record, and a `RecordCard`'s header `actions` do too. A field name may follow relations: `company_id.city` is the city of the record's company, fetched like the record page fetches it and cached.
+
+## Related records
+
+:::caution[Beta]
+Each list block reads its records once the record around it has drawn, rather than at page load.
+:::
+
+A record's related records repeat under it as a list: a `ReferenceManyField` holds the records of another resource that point at it, a `ReferenceArrayField` the records whose keys a JSON field of it lists, and an `ArrayField` the items of a JSON list it holds. A `RecordsIterator` inside one draws its children once for each entry, with nothing around them, and a `Table` without `resource` draws the list as a table. A `ReferenceField` draws the one record a field points at. They take the names, props and defaults of the [react-admin](/features/compatibility/#react-admin) components of the same names.
+
+```tsx
+<RecordCard resource="tasks" recordKey="7">
+  <ArrayField source="labels">
+    <RecordsIterator><Field name="this" label={false} /></RecordsIterator>
+  </ArrayField>
+  <ReferenceManyField reference="task_claims" target="task_id" sort={{ field: 'claimed_at', order: 'DESC' }}>
+    <RecordsIterator>
+      <Card title="Claim {{@index}}">
+        <ReferenceField source="worker_id" reference="workers" />
+        <ReferenceManyField reference="claim_steps" target="claim_id" empty="No steps yet">
+          <RecordsIterator><Field name="name" /></RecordsIterator>
+        </ReferenceManyField>
+      </Card>
+    </RecordsIterator>
+  </ReferenceManyField>
+</RecordCard>
+```
+
+Each entry is a record of the stack while its children draw, so `Field`, `Show`, `{{path}}` placeholders and nested lists inside it read it, and `@index`, `@first` and `@last` count its place in the list. A text item of an `ArrayField`, such as a label, is read as `this`; an object item by its keys, which no model describes, so the build does not check them, and it warns when an item's key could shadow a field of a record further out. A list ties itself to the record around it by a field of that record: `source`, `id` of the nearest record by default. `filter` and `sort` take AIP-160 and AIP-132 text, or the objects react-admin writes: `{ status: 'open' }` is `status = "open"`, its fields ANDed, and `{ field: 'claimed_at', order: 'DESC' }` is `claimed_at desc`. Without `sort`, a list is in its key's order, descending, as react-admin's is. `pagination="more"` adds a button that reads the next `perPage` records into the same list. The [blocks reference](/reference/blocks/#related-records) lists every prop.
+
+<gap>A list block cannot read its records at page load, beside the records around it, because planning a page's reads is not implemented; each reads once the record around it has drawn.</gap> <gap>A `ReferenceArrayField` cannot read its records through a `related()` filter because array fields in `related()` are not implemented; it reads them by their keys with `in()`.</gap>
 
 ## Paths and scopes
 
@@ -114,7 +145,7 @@ A `RecordCard` (its first match) and each card of a `CardRow` hold a **record**.
 A path cannot read `@root` or `@params` yet, and a block inside a card or under a condition reads its records only once it draws, as the marked limits below say.
 :::
 
-A `RecordCard` and each card of a `CardRow` put their record on a stack of records: an element inside both a task's `RecordCard` and a `CardRow` of its claims sits in a claim, inside the task. A bare name is looked up in the innermost record, then in each record further out, then in the page's own record; the [compatibility page](/features/compatibility/#template-paths) says which template syntax this follows:
+A `RecordCard`, a `ReferenceField`, each card of a `CardRow` and each entry of a [`RecordsIterator`](#related-records) put their record on a stack of records: an element inside both a task's `RecordCard` and a `CardRow` of its claims sits in a claim, inside the task. A bare name is looked up in the innermost record, then in each record further out, then in the page's own record; the [compatibility page](/features/compatibility/#template-paths) says which template syntax this follows:
 
 | Path | Reads |
 | --- | --- |
@@ -122,7 +153,7 @@ A `RecordCard` and each card of a `CardRow` put their record on a stack of recor
 | `meta.size` | `meta` as above, then `size` from that value only: when it has none, the path is empty, and no record further out is tried. |
 | `../id`, `../../id` | The record one, or two, out from the nearest. |
 | `this.id`, `./id` | The nearest record only. |
-| `@index`, `@first`, `@last` | The card's place among a `CardRow`'s cards, from 0, and whether it is the first or the last. |
+| `@index`, `@first`, `@last` | The card's place among a `CardRow`'s cards, or the entry's among a `RecordsIterator`'s, from 0, and whether it is the first or the last. |
 | `@root.id` | The page's own record. <gap>A path cannot read `@root` because pages with a record of their own are not implemented.</gap> |
 | `@params.window` | The page parameter `window`. <gap>A path cannot read `@params` because the input that sets a page parameter is not implemented.</gap> |
 
@@ -138,7 +169,7 @@ A placeholder quoted on its own in a filter or condition, `title = '{{title}}'`,
 The build checks every path where it sits:
 
 - **Typos.** A name no record around it has fails, naming every record searched and the closest field: `"claimd_at" is no field of task_claims, tasks; did you mean claimed_at?`. A name the build accepts that has no value in a record draws empty.
-- **Bad roots.** `../` past the outermost record, `@root` on a page without a record, `@index` outside a `CardRow`, and `@params.x` without an input setting `x` fail.
+- **Bad roots.** `../` past the outermost record, `@root` on a page without a record, `@index` outside a `CardRow` or `RecordsIterator`, and `@params.x` without an input setting `x` fail.
 - **Reads that would wait.** A per-row value in a filter in any other place than a top-level `AND` equality (with `>=`, inside `OR` or `NOT`, a second one), `@index`, `@first`, `@last` or `this` in a filter, key or values, and any placeholder in `resource`, `sort`, `columns` or `limit` fail with "this would wait for the parent's rows": each block's records are one read of their own, and none may wait for another's rows.
 - **Shadowing.** A bare name that more than one record around it has reads the nearest, and the build warns which it read and how to write the others: `"id" resolves to task_claims; write ../id for the one of tasks`. `protobase build --strict` fails on it instead. `this.`, `./`, `../` and `@` paths never warn.
 

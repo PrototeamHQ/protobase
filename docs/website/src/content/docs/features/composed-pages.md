@@ -15,6 +15,7 @@ description: Pages of your own, built from blocks in a JSX layout.
 - [Tailwind classes](/reference/layouts/#tailwind-classes) (experimental): Layouts can carry Tailwind classes, on plain elements and on blocks, for pages too custom for blocks.
 - [Full-width pages](/reference/blocks/#page): A page fills the whole area beside the sidebar instead of a centred column, for a dashboard with many blocks.
 - [Data blocks](/reference/blocks/#data): Counts, tables, single records, rows of cards, field values and progress bars.
+- [Related records](/reference/layouts/#related-records) (beta): Layouts repeat over a record's related records, the records a JSON list of keys points at and the items of a JSON list with `ReferenceManyField`, `ReferenceArrayField`, `ArrayField`, `RecordsIterator` and `ReferenceField`, nested as deep as needed, and a table draws such a list.
 - [Table columns on a phone](/reference/blocks/#columns-on-a-phone): Table blocks choose which columns show at mobile width by priority, with a sensible default, and fall back to a Markdown table.
 - [Row buttons](/reference/blocks/#row-buttons) (experimental): A table's rows carry a button labelled by a field of the row, such as its next step; the row decides where it goes: a record tab a field names, a list with a filter built from its fields, or an outside https link a field holds. On mobile width the button sits under the row's first cell.
 - [Record rows](/reference/blocks/#recordrow): A sideways row of cards for a filter, favorites or saved searches, with a count and new-record marks.
