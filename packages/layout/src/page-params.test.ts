@@ -35,6 +35,11 @@ describe('page parameter checks', () => {
       '<Page> › <SelectInput source="window">: the page parameter "window" is set twice on the page; give each SelectInput and select a name of its own',
     ])
     expect(structureProblems(page(SelectInput({ source: 'a-b' })))).toEqual(['<Page> › <SelectInput source="a-b">: "source" names a page parameter, such as window, and "a-b" is none'])
+    expect(structureProblems(page(SelectInput({ source: '__proto__' })))).toEqual(['<Page> › <SelectInput source="__proto__">: "source" names a page parameter, such as window, and "__proto__" is none'])
+  })
+
+  it('refuses a choice with an empty id', () => {
+    expect(structureProblems(page(SelectInput({ source: 'window', choices: [{ id: '', name: 'Any' }, { id: '7d', name: 'Last 7 days' }] })))).toEqual(['<Page> › <SelectInput source="window">: "choices" holds an empty id; give each choice an id the address can hold'])
   })
 
   it('takes children of a Table only with select, which needs a resource of its own', () => {

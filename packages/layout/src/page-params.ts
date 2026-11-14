@@ -19,8 +19,11 @@ export type SelectInputProps = { source: string; choices?: Choice[]; label?: str
 
 export const SelectInput = defineBlock<SelectInputProps & Styled>('SelectInput', false)
 
-/** What a page parameter may be named: a name `@params.<name>` reads, and plain in a query. */
-export const paramNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/
+/**
+ * What a page parameter may be named: a name `@params.<name>` reads, and plain in a query; never `__proto__`, which as
+ * a key of the values sets an object's prototype instead.
+ */
+export const paramNamePattern = /^(?!__proto__$)[A-Za-z_][A-Za-z0-9_]*$/
 
 /** The `SelectInput`s of a page by `source`, the first one where two share it. */
 export const pageInputs = (tree: LayoutNode) => {

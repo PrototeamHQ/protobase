@@ -24,7 +24,8 @@ export const scopeValue = (scope: ValueScope, path: string): unknown => {
   if (!parsed) return
   if (parsed.kind === 'data') {
     if (parsed.variable === 'root') return scope.root === undefined ? undefined : readRest(scope.root, parsed.names)
-    if (parsed.variable === 'params') return scope.params?.[parsed.names[0]!]
+    // Its own values only, so a parameter named `constructor` with no value reads none, not the object's
+    if (parsed.variable === 'params') return scope.params && Object.hasOwn(scope.params, parsed.names[0]!) ? scope.params[parsed.names[0]!] : undefined
     const row = scope.stack.findLast((frame) => frame.row !== undefined)?.row
     if (!row) return
     return parsed.variable === 'index' ? row.index : parsed.variable === 'first' ? row.index === 0 : row.index === row.count - 1
