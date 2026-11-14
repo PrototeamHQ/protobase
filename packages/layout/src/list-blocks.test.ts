@@ -30,7 +30,7 @@ describe('list blocks', () => {
   })
 
   it('check a two-level nested list through every record around it', () => {
-    const steps = ReferenceManyField({ reference: 'claim_steps', target: 'claim_id', children: RecordsIterator({ children: [Field({ source: 'name' }), Field({ source: '../claimed_at' }), Field({ source: 'title' })] }) })
+    const steps = ReferenceManyField({ reference: 'claim_steps', target: 'claim_id', perPage: 10, children: RecordsIterator({ children: [Field({ source: 'name' }), Field({ source: '../claimed_at' }), Field({ source: 'title' })] }) })
     expect(findings(claims(RecordsIterator({ children: [Field({ source: 'claimed_at' }), steps] })))).toEqual({ problems: [], warnings: [] })
   })
 

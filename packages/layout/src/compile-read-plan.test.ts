@@ -109,6 +109,25 @@ describe('compileReadPlan', () => {
     })
   })
 
+  it("takes no chosen row from a custom component's own select prop", () => {
+    const Board = component<{ resource: string; select: string }>('Board', { reads: { resource: 'resource' } })
+    expect(reads(Page({ title: 'Home', children: [Board({ resource: 'tasks', select: 'compact' })] })).map((read) => read.part)).toEqual([undefined])
+  })
+
+  it('warns when the records around a nested list times its page are more than one read holds', () => {
+    const steps = ReferenceManyField({ reference: 'claim_steps', target: 'claim_id', children: RecordsIterator({ children: Field({ source: 'name' }) }) })
+    const tree = Page({ title: 'Tasks', children: [openTasks(ReferenceManyField({ reference: 'task_claims', target: 'task_id', perPage: 5, children: RecordsIterator({ children: steps }) }))] })
+    const { plan: planned, warnings } = plan(tree)
+    expect(planned.reads[2]).toMatchObject({ pageSize: 500, limitPer: { field: 'claim_id', count: 25 } })
+    expect(warnings).toEqual(['<ReferenceManyField reference="claim_steps">: 50 records around it × 25 each is more than the 500 records one read holds, so some may show fewer; lower its limit or the one around it'])
+    expect(plan(Page({ title: 'Tasks', children: [openTasks(Field({ source: 'title' }))] })).warnings).toEqual([])
+  })
+
+  it('keeps a page parameter inside a longer key a slot', () => {
+    const tree = Page({ title: 'Tasks', children: [RecordCard({ resource: 'workers', recordKey: 'w-{{@params.worker}}' })] })
+    expect(reads(tree)[0]!.filter).toBe('id = "w-{{@params.worker}}"')
+  })
+
   it("reads a RecordCard's one record by its key, and the record a Table's select chose by the address", () => {
     const tree = Page({ title: 'Tasks', children: [RecordCard({ resource: 'tasks', recordKey: '7', children: Field({ source: 'title' }) }), Table({ resource: 'workers', select: 'worker', children: Field({ source: 'name' }) })] })
     const [card, , chosen] = reads(tree)

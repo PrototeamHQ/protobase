@@ -39,8 +39,10 @@ export const parseSlotted = (source: string | undefined, slots: Slots): FilterEx
 
 /** Printed filter text with each sentinel put back as its `{{path}}`. */
 export const restoreSlots = (text: string, slots: Slots) =>
-  text.replace(/"(__pb_slot_\d+__)"|\b(98765\d+0d)\b/g, (whole, name: string | undefined, duration: string | undefined) => {
-    const slot = slots.paths.get(name ?? duration!)
+  // A sentinel inside a longer text value, such as a key `k-{{@params.x}}`, stands there alone
+  text.replace(/"(__pb_slot_\d+__)"|(__pb_slot_\d+__)|\b(98765\d+0d)\b/g, (whole, quoted: string | undefined, inner: string | undefined, duration: string | undefined) => {
+    const slot = slots.paths.get(quoted ?? inner ?? duration!)
+    if (slot && inner) return `{{${slot.path}}}`
     if (!slot) return whole
     return slot.quoted ? `"{{${slot.path}}}"` : `{{${slot.path}}}`
   })

@@ -40,11 +40,11 @@ const drawList = (node: LayoutNode, list: Draft | undefined) => {
 
 /**
  * The read plan of a page's or a record view's tree: one read per data block, none waiting for another, with the
- * problems that keep a block from being planned. A `{{path}}` of a record around a block becomes a `related()` term
+ * problems that keep a block from being planned and the warnings of reads that may hold fewer records than drawn. A `{{path}}` of a record around a block becomes a `related()` term
  * carrying the read of that record; the fields each read asks for are those drawn in its scope.
  */
-export const compileReadPlan = (tree: LayoutNode, { models, root }: ReadPlanInput): { plan: ReadPlan; problems: string[] } => {
-  const context: PlanContext = { models, params: new Set(pageInputs(tree).keys()), slots: newSlots(), problems: [] }
+export const compileReadPlan = (tree: LayoutNode, { models, root }: ReadPlanInput): { plan: ReadPlan; problems: string[]; warnings: string[] } => {
+  const context: PlanContext = { models, params: new Set(pageInputs(tree).keys()), slots: newSlots(), problems: [], warnings: [] }
   const drafts: Array<{ draft: Draft; at: string }> = []
   const counts = new Map<string, Draft>()
   const outside: UnplannedBlock[] = []
@@ -90,5 +90,5 @@ export const compileReadPlan = (tree: LayoutNode, { models, root }: ReadPlanInpu
 
   visit(tree, { stack: [], ...(root !== undefined && { root }) }, [], undefined, '', label(tree))
   const planned = [...drafts.map(({ draft, at }) => finalRead(draft, context, at)), ...[...counts.values()].map((draft) => finalRead(draft, context, label(tree)))]
-  return { plan: { reads: planned, outside }, problems: context.problems }
+  return { plan: { reads: planned, outside }, problems: context.problems, warnings: context.warnings }
 }

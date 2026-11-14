@@ -8,6 +8,7 @@ import type { LayoutNode, LayoutValue } from './node'
 import type { Draft, PlanContext, Rows } from './plan-draft'
 import { keyEquality, splitFilter, type ImpliedSplit } from './plan-split'
 import { columnName, type TableColumn } from './table-columns'
+import { selectBlocks } from './select-blocks'
 import { label, type Scope } from './walk'
 
 // The read a data block makes, from the props its spec's `reads` names and the defaults its web block reads with: a
@@ -129,6 +130,8 @@ const shapeOf = (node: LayoutNode, n: number | undefined, parent: Draft | undefi
     context.problems.push(`${label(node)}: inside a repeated record it needs a limit, so each record's page can be read at once`)
     return { kind: 'list' }
   }
+  // One read holds at most the API's largest page, so the records around it may get fewer than `n` each
+  if (parents * n > maxPerPage) context.warnings.push(`${label(node)}: ${parents} records around it × ${n} each is more than the ${maxPerPage} records one read holds, so some may show fewer; lower its limit or the one around it`)
   const total = Math.min(maxPerPage, parents * n)
   // A list of keys can point at the same record from several records, so it is not one page per record
   if (node.type === 'ReferenceArrayField') return { kind: 'list', pageSize: total }
@@ -144,7 +147,8 @@ export const readsOf = (node: LayoutNode): BlockReads | undefined => (node.custo
 // The record a `select` chose is read by its key, which the page's address holds
 const chosenOf = (node: LayoutNode, block: string, model: ResourceModel, context: PlanContext): Draft | undefined => {
   const select = text(node.props.select)
-  if (select === undefined) return
+  // A custom component's `select` is its own prop, which names no page parameter
+  if (select === undefined || node.custom || !selectBlocks.has(node.type)) return
   return { block, part: 'chosen', kind: 'list', resource: model.name, filter: keyEquality(model, `@params.${select}`, context), pageSize: 1, fields: new Set([keyOf(model)]), etag: false }
 }
 

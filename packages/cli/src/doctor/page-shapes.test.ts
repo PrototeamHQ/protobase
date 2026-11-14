@@ -60,6 +60,17 @@ describe('pageShapes', () => {
     expect(indexIssues(models.tasks, none, shapes)[0]!.message).toContain('page "board", <ReferenceManyField> related tasks.id')
   })
 
+  it('judges a filter whose page parameter fills an enum, number or timestamp field by a value that field takes', () => {
+    const typed = resource('typed')
+      .table('typed')
+      .fields({ id: f.integer().readOnly().filterable().sortable(), state: f.enum(['open', 'done']).filterable(), at: f.timestamp().filterable() })
+      .primaryKey((r) => r.id)
+      .toModel()
+    const tree = Page({ title: 'Typed', children: [CardRow({ resource: 'typed', filter: "state = '{{@params.state}}' AND id = {{@params.id}} AND at >= '{{@params.since}}'" })] })
+    const shapes = pageShapes({ name: 'typed', title: 'Typed', tree }, { typed }, [])
+    expect(shapes[0]!.query.filter).toMatchObject({ kind: 'and' })
+  })
+
   it('lists a custom component without reads as outside the plan', () => {
     expect(unplannedBlocks(board, models)).toEqual(['page "board", <Clock>'])
   })

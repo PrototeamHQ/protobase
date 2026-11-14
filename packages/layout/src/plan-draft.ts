@@ -6,12 +6,13 @@ import { restoreSlots, type Slots } from './plan-slots'
 /** A read while the page is walked: its filter as a syntax tree, and the fields its scope reads, `undefined` for all. */
 export type Draft = Omit<PlanRead, 'filter' | 'fields'> & { filter?: FilterExpr; fields: Set<string> | undefined }
 
-/** What compiling one page shares: the models, its page parameters, its slots and the problems found. */
+/** What compiling one page shares: the models, its page parameters, its slots, and the problems and warnings found. */
 export type PlanContext = {
   models: Record<string, ResourceModel>
   params: ReadonlySet<string>
   slots: Slots
   problems: string[]
+  warnings: string[]
 }
 
 /** The read of each record of the stack, by its place in it; `undefined` for an `ArrayField` item, which no read holds. */

@@ -1,8 +1,9 @@
 import { compileReadPlan, elementAt, type PageModel, type PlanRead } from '@protobase/layout'
-import { parseFilter, printFilter, type FilterExpr, type RelatedFilter, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { printFilter, type FilterExpr, type RelatedFilter, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { splitRelated } from '@protobase/schema/internal'
 import type { ReadShape } from './read-shape'
 import { all, anyOf, configFilter, configSort, sortText } from './shape-filters'
+import { fitSlots, parseSampled } from './slot-samples'
 import { listSort } from './view-shapes'
 
 // A composed page's reads are its read plan's: each block's read, and for each `related()` term in it the read of the
@@ -10,23 +11,12 @@ import { listSort } from './view-shapes'
 
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
 
-// A plan's `{{path}}` slots are the address's values, which the index rule reads only as values
-const sampled = (filter: string) =>
-  filter.replace(/"\{\{[^{}]*\}\}"/g, '"x"').replace(/([-+]\s*)\{\{[^{}]*\}\}/g, '$11d').replace(/\{\{[^{}]*\}\}/g, '0')
-
-const parsed = (filter: string | undefined): FilterExpr | undefined => {
-  if (filter === undefined) return
-  const result = parseFilter(sampled(filter))
-  if (!result.ok) throw new Error(`The planned filter "${filter}" does not parse: ${result.errors[0]!.message}`)
-  return result.ast
-}
-
 /** A filter's terms ANDed at the top, `related()` ones apart: the rest as the index rule reads it, the related field as `in()`. */
 const judged = (model: ResourceModel, ast: FilterExpr | undefined) => {
   if (!ast) return { terms: [] as RelatedFilter[] }
   const { terms, rest } = splitRelated(ast)
   const fields = terms.flatMap((term) => (model.fields[term.field.path[0]!] ? [anyOf(model.fields[term.field.path[0]!]!)] : []))
-  return { terms, filter: all([rest && configFilter(model, printFilter(rest)), ...fields]) }
+  return { terms, filter: all([rest && configFilter(model, printFilter(fitSlots(rest, model))), ...fields]) }
 }
 
 // The records a `related()` term reads, as a list of them, which selects its key, and the terms nested in it
@@ -61,7 +51,7 @@ const readShapes = (page: PageModel, read: PlanRead, models: Record<string, Reso
   const model = models[read.resource]
   if (!model) return []
   const from = title(page, read)
-  const { terms, filter } = judged(model, parsed(read.filter))
+  const { terms, filter } = judged(model, parseSampled(read.filter))
   const filterParam = read.filter?.trim() ? [`filter=${read.filter}`] : []
   const related = terms.flatMap((term) => relatedShapes(term, models, from))
   if (read.kind === 'aggregate') {

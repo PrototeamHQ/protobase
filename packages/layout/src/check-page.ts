@@ -208,7 +208,11 @@ export const pageFindings = (page: PageModel, input: PageCheckInput): { problems
     for (const problem of found) problems.push(`${path}: ${problem}`)
   })
   // The plan reads a tree the checks above accept
-  if (problems.length === 0) problems.push(...compileReadPlan(page.tree, { models: input.models }).problems)
+  if (problems.length === 0) {
+    const planned = compileReadPlan(page.tree, { models: input.models })
+    problems.push(...planned.problems)
+    warnings.push(...planned.warnings)
+  }
   return { problems, warnings }
 }
 

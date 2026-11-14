@@ -58,7 +58,7 @@ The admin app draws the fallback too when the component is missing or throws whi
 
 ### Reads
 
-A component that reads records says which of its props name what it reads, so the page's [read plan](/reference/layouts/#how-a-page-reads-its-data) reads it with the other blocks at page load, and `protobase doctor` checks the indexes of that read:
+A component that reads records says which of its props name what it reads, so its read is in the page's [read plan](/reference/layouts/#how-a-page-reads-its-data) with the other blocks' and `protobase doctor` checks the indexes of that read. The plan describes the read; it does not make it, so the component still fetches its own data, through the hooks above:
 
 ```tsx
 export const TaskBoard = component<{ resource: string; filter?: string; limit?: number }>('TaskBoard', {
@@ -66,7 +66,7 @@ export const TaskBoard = component<{ resource: string; filter?: string; limit?: 
 })
 ```
 
-`reads` takes `resource`, the one prop it needs, and `filter`, `sort`, `fields` (a prop holding a list of field names) and `limit`. A component without `reads` is outside the plan: whatever it fetches, it fetches by itself once it draws, after the page's planned reads have started.
+`reads` takes `resource`, the one prop it needs, and `filter`, `sort`, `fields` (a prop holding a list of field names) and `limit`. A component without `reads` is outside the plan, which lists it as such (`page.reads.outside`), and doctor does not check its reads.
 
 ### Fields and resources in props
 
