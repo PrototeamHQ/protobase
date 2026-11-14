@@ -3,21 +3,25 @@ import { useMemo } from 'react'
 import { countedResource, evaluateCondition, parseCondition } from '@protobase/layout'
 import { useClient } from '../../data/api-provider'
 import { useAdminMeta } from '../meta-gate'
-import type { LayoutRecord } from './record-scope'
+import { frameFor, type LayoutRecord } from './record-scope'
 import { countQuery } from './use-layout-data'
 import { usePathValues } from './use-path-value'
 
+/** Whether each condition holds for the record around it (`scope`), as `useStackConditions` says. */
+export const useConditions = (whens: string[], scope: LayoutRecord | undefined): Array<boolean | undefined> => useStackConditions(whens, scope ? [scope] : [])
+
 /**
- * Whether each condition holds for the record around it (`scope`): `undefined` while a value it reads loads, `false`
- * when it does not parse. Fields come from the stored record, followed through relations; `<resource>.count` counts
- * records. All conditions share one set of queries, so the hook count never changes with the conditions.
+ * Whether each condition holds for the records around it (`stack`, outermost first): `undefined` while a value it reads
+ * loads, `false` when it does not parse. A name reads from the nearest record that has that field, followed through
+ * relations; `<resource>.count` counts records. All conditions share one set of queries, so the hook count never
+ * changes with the conditions.
  */
-export const useConditions = (whens: string[], scope: LayoutRecord | undefined): Array<boolean | undefined> => {
+export const useStackConditions = (whens: string[], stack: readonly LayoutRecord[]): Array<boolean | undefined> => {
   const { resources } = useAdminMeta()
   const client = useClient()
   const key = JSON.stringify(whens)
   const parsed = useMemo(() => (JSON.parse(key) as string[]).map(parseCondition), [key])
-  const isField = (name: string) => Boolean(scope && Object.hasOwn(scope.model.fields, name))
+  const isField = (name: string) => stack.some((frame) => Object.hasOwn(frame.model.fields, name))
   const paths = [...new Set(parsed.flatMap((condition) => (condition.ok ? condition.paths : [])))]
   const counted = new Map(paths.flatMap((path) => {
     const resource = countedResource(path, isField)
@@ -25,7 +29,10 @@ export const useConditions = (whens: string[], scope: LayoutRecord | undefined):
   }))
   const fieldPaths = paths.filter((path) => !counted.has(path))
   const countedModels = [...new Set(counted.values())].flatMap((resource) => (resources[resource] ? [resources[resource]!] : []))
-  const fields = usePathValues(scope, fieldPaths)
+  const fields = usePathValues(fieldPaths.map((path) => {
+    const at = frameFor(stack, path)
+    return { scope: at?.frame, path: at?.path ?? path }
+  }))
   const counts = useQueries({ queries: countedModels.map((model) => countQuery(client, model)) })
 
   return parsed.map((condition) => {

@@ -6,7 +6,7 @@ import { useClient } from '../../data/api-provider'
 import { keys } from '../../data/query-keys'
 import type { LiveRecord } from '../../data/use-record'
 import { useAdminMeta } from '../meta-gate'
-import type { LayoutRecord } from './record-scope'
+import { frameFor, useScopeStack, type LayoutRecord } from './record-scope'
 
 export type PathValue =
   | { state: 'ready'; value: unknown; field: FieldModel; model: ResourceModel }
@@ -53,12 +53,18 @@ export const usePathValue = (scope: LayoutRecord | undefined, path: string): Pat
   return valueOf(scope, steps, query)
 }
 
-/** Several paths at once, for conditions. */
-export const usePathValues = (scope: LayoutRecord | undefined, paths: string[]): PathValue[] => {
+/** The value at `path` from the records around it, its first name read from the nearest record that has that field. */
+export const useScopedPathValue = (path: string): PathValue => {
+  const at = frameFor(useScopeStack(), path)
+  return usePathValue(at?.frame, at?.path ?? path)
+}
+
+/** Several paths at once, each from its own record, for conditions. */
+export const usePathValues = (entries: Array<{ scope: LayoutRecord | undefined; path: string }>): PathValue[] => {
   const { resources } = useAdminMeta()
   const client = useClient()
   const queryClient = useQueryClient()
-  const steps = paths.map((path) => stepsOf(resources, scope, path))
-  const queries = useQueries({ queries: paths.map((path, index) => pathQuery(client, queryClient, scope, path, steps[index]!)) })
-  return paths.map((_, index) => valueOf(scope, steps[index]!, queries[index]!))
+  const steps = entries.map(({ scope, path }) => stepsOf(resources, scope, path))
+  const queries = useQueries({ queries: entries.map(({ scope, path }, index) => pathQuery(client, queryClient, scope, path, steps[index]!)) })
+  return entries.map(({ scope }, index) => valueOf(scope, steps[index]!, queries[index]!))
 }

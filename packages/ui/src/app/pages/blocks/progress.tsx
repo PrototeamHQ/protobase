@@ -1,15 +1,16 @@
 import type { ProgressProps } from '@protobase/layout'
 import { Skeleton } from '../../../primitives/skeleton'
-import { useLayoutRecord } from '../record-scope'
+import { frameFor, useScopeStack } from '../record-scope'
 import { usePathValue } from '../use-path-value'
 import { cn } from '../../../lib/cn'
 import { propsOf, type BlockProps } from './block-props'
 import { formatTag } from '../../../locale/active-locale'
 
-/** A number as given, or the number in a field of the record around it. */
+/** A number as given, or the number in a field of the records around it. */
 const useAmount = (amount: number | string | undefined, fallback: number) => {
-  const scope = useLayoutRecord()
-  const value = usePathValue(typeof amount === 'string' ? scope : undefined, typeof amount === 'string' ? amount : '')
+  const stack = useScopeStack()
+  const at = typeof amount === 'string' ? frameFor(stack, amount) : undefined
+  const value = usePathValue(at?.frame, at?.path ?? '')
   if (typeof amount === 'number') return amount
   if (amount === undefined) return fallback
   if (value.state === 'ready') return Number(value.value)
