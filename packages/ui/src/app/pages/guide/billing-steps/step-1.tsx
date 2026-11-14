@@ -12,9 +12,9 @@ export const billing = page(
       actions={[<Action name="cancel" variant="danger" />, <Action name="upgrade" variant="primary" />]}
     >
       <Grid columns={3}>
-        <Field name="plan.name" label="Plan" />
-        <Field name="plan.price" label="Per month" />
-        <Field name="renews_at" />
+        <Field source="plan.name" label="Plan" />
+        <Field source="plan.price" label="Per month" />
+        <Field source="renews_at" />
       </Grid>
       <Progress label="Seats" value="seats_used" max="plan.seats" />
     </RecordCard>

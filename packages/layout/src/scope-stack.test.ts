@@ -16,13 +16,13 @@ const claimCards = (...children: LayoutNode[]) =>
 
 describe('the scope stack', () => {
   it('checks the names of fields, conditions and steps through every record around them', () => {
-    const tree = claimCards(Field({ name: 'title' }), Show({ when: "claimed_at:* AND title = 'x'", children: 'Claimed' }), Table({ resource: 'claim_steps', filter: 'claim_id = {{this.id}}' }))
+    const tree = claimCards(Field({ source: 'title' }), Show({ when: "claimed_at:* AND title = 'x'", children: 'Claimed' }), Table({ resource: 'claim_steps', filter: 'claim_id = {{this.id}}' }))
     expect(pageFindings(page(tree), input)).toEqual({ problems: [], warnings: [] })
   })
 
   it('names every record a typo searched and the closest field', () => {
-    expect(pageFindings(page(claimCards(Field({ name: 'claimd_at' }))), input).problems).toEqual([
-      '<Page title="Board"> › <RecordCard resource="tasks"> › <CardRow resource="task_claims"> › <Field name="claimd_at">: "claimd_at" is no field of task_claims, tasks; did you mean claimed_at?',
+    expect(pageFindings(page(claimCards(Field({ source: 'claimd_at' }))), input).problems).toEqual([
+      '<Page title="Board"> › <RecordCard resource="tasks"> › <CardRow resource="task_claims"> › <Field source="claimd_at">: "claimd_at" is no field of task_claims, tasks; did you mean claimed_at?',
     ].map((line) => line.replace('<Page title="Board">', '<Page>')))
   })
 

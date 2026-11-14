@@ -31,7 +31,7 @@ export const propScope = (node: LayoutNode, scope: Scope): Scope => (!node.custo
 
 export type Location = { path: string; scope: Scope }
 
-export const label = (node: LayoutNode) => `<${node.type}${typeof node.props.resource === 'string' ? ` resource="${node.props.resource}"` : ''}${typeof node.props.name === 'string' ? ` name="${node.props.name}"` : ''}>`
+export const label = (node: LayoutNode) => `<${node.type}${typeof node.props.resource === 'string' ? ` resource="${node.props.resource}"` : ''}${typeof node.props.name === 'string' ? ` name="${node.props.name}"` : ''}${typeof node.props.source === 'string' ? ` source="${node.props.source}"` : ''}>`
 
 const isElements = (value: LayoutValue): value is LayoutNode | LayoutNode[] => isLayoutNode(value) || (Array.isArray(value) && value.length > 0 && value.every(isLayoutNode))
 

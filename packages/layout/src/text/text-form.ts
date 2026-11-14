@@ -3,7 +3,7 @@ import { blocks } from './markdown'
 import type { TableText } from './table-text'
 
 /** How a field of the record around a tree reads: its label, and the labels of its enum values. */
-export type TextField = { label?: string; valueLabels?: Record<string, string> }
+export type TextFieldLabels = { label?: string; valueLabels?: Record<string, string> }
 
 export type TextOptions = {
   /** Text forms by block type, over the built-in ones: a custom component's, or a built-in block's used, wrapped or replaced. */
@@ -11,9 +11,11 @@ export type TextOptions = {
   /** The record around the tree, whose values fields, stats, progress bars, conditions and addresses read. */
   record?: Record<string, unknown>
   /** The record's fields by path (`plan.name`); a field without a label reads under its path. */
-  fields?: Record<string, TextField>
+  fields?: Record<string, TextFieldLabels>
   /** What a `Table` shows, which the caller loaded, so it reads as a Markdown table; a table without it reads as its heading. */
   tables?: (node: LayoutNode) => TableText | undefined
+  /** The reader's locale, such as `nl-NL`, in which field components without `locales` format numbers and dates; the runtime's default when omitted. */
+  locale?: string
   /** What the app's paths start with, such as `https://example.com/admin`; none when omitted. */
   basePath?: string
 }

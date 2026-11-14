@@ -125,18 +125,18 @@ describe('page', () => {
     const tree = Page({
       title: 'x',
       children: [
-        Field({ name: 'a' }),
+        Field({ source: 'a' }),
         Stat({ label: 's', field: 'a' }),
         Progress({ value: 'used' }),
         ModalForm({ mode: 'edit', label: 'Edit', fields: ['a'] }),
         Action({ name: 'go' }),
-        RecordCard({ resource: 'plans', children: [Field({ name: 'name' }), ModalForm({ mode: 'edit', label: 'Edit', fields: ['name'] })] }),
+        RecordCard({ resource: 'plans', children: [Field({ source: 'name' }), ModalForm({ mode: 'edit', label: 'Edit', fields: ['name'] })] }),
         Progress({ value: 3, max: 10 }),
         Action({ name: 'go', resource: 'plans' }),
       ],
     })
     expect(problems(tree)).toEqual([
-      '<Page> › <Field name="a">: needs a record: put it inside a RecordCard or a CardRow',
+      '<Page> › <Field source="a">: needs a record: put it inside a RecordCard or a CardRow',
       '<Page> › <Stat>: with "field" needs a record: put it inside a RecordCard or a CardRow',
       '<Page> › <Progress>: with a field name needs a record: put it inside a RecordCard or a CardRow',
       '<Page> › <ModalForm>: in edit mode needs a record: put it inside a RecordCard or a CardRow, or name "resource" and "recordKey"',
@@ -200,8 +200,8 @@ describe('page', () => {
   })
 
   it('reports every problem at once, under the page name', () => {
-    expect(() => page('broken', Page({ title: 'x', children: [Field({ name: 'a' }), Table({ resource: 'r', limit: 1.5 })] }))).toThrow(
-      'Page "broken" is not a valid layout:\n  - <Page> › <Field name="a">: needs a record: put it inside a RecordCard or a CardRow\n  - <Page> › <Table resource="r">: "limit" must be a positive whole number',
+    expect(() => page('broken', Page({ title: 'x', children: [Field({ source: 'a' }), Table({ resource: 'r', limit: 1.5 })] }))).toThrow(
+      'Page "broken" is not a valid layout:\n  - <Page> › <Field source="a">: needs a record: put it inside a RecordCard or a CardRow\n  - <Page> › <Table resource="r">: "limit" must be a positive whole number',
     )
   })
 })

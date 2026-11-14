@@ -64,7 +64,7 @@ A box with a heading. Text and `Link`s inside it run together as paragraphs.
 
 ### Link
 
-A link in text: `to` an address in the app, or an `href` that leaves it (`https:` opens in a new tab, `mailto:` in the mail app). It shows its children inline, text and `Text as="span"`s, or without them where it leads. It cannot hold another `Link`. With [`className`](/reference/layouts/#tailwind-classes) it drops its own look for those classes.
+A link in text: `to` an address in the app, or an `href` that leaves it (`https:` opens in a new tab, `mailto:` in the mail app). It shows its children inline, text, `Text as="span"`s and [field components](#field-components), or without them where it leads. It cannot hold another `Link` or a `UrlField`. With [`className`](/reference/layouts/#tailwind-classes) it drops its own look for those classes.
 
 ```tsx
 <Link to={{ kind: 'list', resource: 'invoices', filter: "status = 'overdue'" }}>Overdue invoices</Link>
@@ -87,7 +87,7 @@ Plain elements for a page too custom for the blocks, drawn by their [Tailwind cl
 | `Box` | An element of its own, such as a panel or a banner. No look of its own. |
 | `Row` | Its children side by side: `flex`. |
 | `Column` | Its children one under another: `flex flex-col`. |
-| `Text` | Text, `Link`s and `Text as="span"`s in it, nothing else, run as one line. `as` makes it `p` (the default), `span`, or a heading `h1` to `h4`. |
+| `Text` | Text, `Link`s, `Text as="span"`s and [field components](#field-components) in it, nothing else, run as one line. `as` makes it `p` (the default), `span`, or a heading `h1` to `h4`. |
 
 ```tsx
 <Row className="items-center gap-3">
@@ -95,6 +95,21 @@ Plain elements for a page too custom for the blocks, drawn by their [Tailwind cl
   <Text as="span" className="font-medium">All systems running</Text>
 </Row>
 ```
+
+### Details and Summary
+
+A line that opens to show the rest and closes again, drawn as HTML's [`<details>` and `<summary>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/details), so the browser opens and closes it with no script. A `Details` takes one `Summary`, as its first child; the `Summary` is one line, holding what a `Text` holds. See [Field values](/reference/layouts/#field-values).
+
+```tsx
+<Details>
+  <Summary>Brakes, <ChipField source="state" /></Summary>
+  <Text>Pads and cables replaced.</Text>
+</Details>
+```
+
+| Prop | |
+| --- | --- |
+| `open` | `Details` only: starts open. |
 
 ### Tabs and Tab
 
@@ -257,8 +272,8 @@ One record and what is inside it: the one `recordKey` names (the key as the reco
 
 ```tsx
 <RecordCard title="Biggest unpaid delivery" resource="orders" filter="status = 'delivered' AND paid = false" sort="total desc" actions={<Action name="markPaid" variant="primary" />}>
-  <Field name="number" />
-  <Field name="company_id.city" label="City" />
+  <Field source="number" />
+  <Field source="company_id.city" label="City" />
 </RecordCard>
 ```
 
@@ -323,9 +338,17 @@ A label over a value of the record, formatted as on the record page: statuses as
 
 | Prop | |
 | --- | --- |
-| `name` | A field, through relations (`company_id.city`). Required. |
-| `label` | Default: the view's label, else the name in words. `false` shows the value alone. |
+| `source` | A field, through relations (`company_id.city`), named as react-admin's fields name it. Required. |
+| `label` | Default: the view's label, else the path in words. `false` shows the value alone. |
 | `format` | Instead of the view's [format](/reference/ui-config/#names-and-columns). |
+
+### Field components
+
+`TextField`, `NumberField`, `DateField`, `BooleanField`, `UrlField` and `ChipField` show one value of the record inline, in a `Text`, a `Link` or a `Summary`, as [react-admin's field components](https://marmelab.com/react-admin/Fields.html) do. Each takes `source` and `emptyText`; see [Field values](/reference/layouts/#field-values) for their props and where they differ from react-admin's.
+
+```tsx
+<Text>Due <DateField source="due_at" format="relative" />, quoted at <NumberField source="quote" options={{ style: 'currency', currency: 'EUR' }} /></Text>
+```
 
 ### Progress
 

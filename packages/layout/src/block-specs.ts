@@ -4,7 +4,7 @@ import { isLayoutNode } from './node'
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
 // blocks.ts say the same for the compiler.
 
-type Kind = 'text' | 'content' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls' | 'tableColumns'
+type Kind = 'text' | 'content' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls' | 'tableColumns' | 'locales' | 'intlOptions' | 'dateFormat'
 
 type PropSpec = { kind: Kind; required?: true }
 
@@ -15,6 +15,8 @@ const required = (kind: Kind): PropSpec => ({ kind, required: true })
 
 const heading = { title: optional('text'), description: optional('text'), actions: optional('elements') }
 const data = { resource: required('text'), filter: optional('text'), sort: optional('text') }
+const inlineField = { source: required('text'), emptyText: optional('text') }
+const intl = { locales: optional('locales'), options: optional('intlOptions') }
 
 const specs: Record<string, BlockSpec> = {
   Page: { children: true, props: { title: required('text'), description: optional('text'), actions: optional('elements'), width: optional('pageWidth') } },
@@ -25,7 +27,7 @@ const specs: Record<string, BlockSpec> = {
     props: { label: required('text'), value: optional('scalar'), resource: optional('text'), filter: optional('text'), field: optional('text'), format: optional('format'), description: optional('text'), span: optional('span') },
   },
   RecordCard: { children: true, props: { ...data, ...heading, recordKey: optional('text'), empty: optional('text'), span: optional('span') } },
-  Field: { children: false, props: { name: required('text'), label: optional('label'), format: optional('format') } },
+  Field: { children: false, props: { source: required('text'), label: optional('label'), format: optional('format') } },
   Table: { children: false, props: { ...data, ...heading, columns: optional('tableColumns'), button: optional('rowButton'), bulk: optional('boolean'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
   CardRow: { children: true, props: { ...data, ...heading, limit: optional('integer'), empty: optional('text'), span: optional('span') } },
   RecordRow: { children: false, props: { ...data, ...heading, limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
@@ -97,6 +99,14 @@ const specs: Record<string, BlockSpec> = {
   Row: { children: true, props: {} },
   Column: { children: true, props: {} },
   Text: { children: true, props: { as: optional('textAs') } },
+  Details: { children: true, props: { open: optional('boolean') } },
+  Summary: { children: true, props: {} },
+  TextField: { children: false, props: inlineField },
+  NumberField: { children: false, props: { ...inlineField, ...intl } },
+  DateField: { children: false, props: { ...inlineField, ...intl, showDate: optional('boolean'), showTime: optional('boolean'), format: optional('dateFormat') } },
+  BooleanField: { children: false, props: { ...inlineField, valueLabelTrue: optional('text'), valueLabelFalse: optional('text') } },
+  UrlField: { children: false, props: { ...inlineField, content: optional('text') } },
+  ChipField: { children: false, props: inlineField },
 }
 
 // Every built-in element takes Tailwind classes for its outer element.
@@ -155,6 +165,12 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
   textAs: oneOf(textTags),
   address: [(value) => isObject(value) && !isLayoutNode(value) && typeof value.kind === 'string', "an address, such as { kind: 'list', resource: 'orders' }"],
   toolCalls: [isToolCalls, "tool calls, such as { resource: 'tool_calls', name: 'tool', time: 'called_at', status: 'status' }, also taking filter, input, result and error"],
+  locales: [(value) => typeof value === 'string' || (Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === 'string')), "a locale or a list of them, such as 'nl-NL'"],
+  intlOptions: [
+    (value) => isObject(value) && !isLayoutNode(value) && Object.values(value).every((item) => typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean'),
+    "Intl options, such as { style: 'currency', currency: 'EUR' }",
+  ],
+  dateFormat: oneOf(['relative']),
   tableColumns: [(value) => Array.isArray(value) && value.every(isTableColumn), "a list of field names or { name, priority }, such as ['title', { name: 'status', priority: 1 }]"],
   rowButton: [
     (value) => (Array.isArray(value) ? value.length > 0 && value.every(isRowButtonChoice) : isRowButtonChoice(value)),

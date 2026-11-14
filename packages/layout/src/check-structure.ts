@@ -4,6 +4,9 @@ import { parseCondition } from './condition'
 import { sampleSlots } from './filter-slots'
 import type { LayoutChild, LayoutNode } from './node'
 import { tabsProblems } from './check-tabs'
+import { detailsProblems } from './check-details'
+import { inlineFieldProblems } from './check-inline-fields'
+import { inlineFieldTypes, isInlineChild } from './inline-fields'
 import { innermost, label, pageScope, walkTree, type Scope } from './walk'
 
 /** Problems that need a record around the element, which only a `RecordCard` or a `CardRow` card provides. */
@@ -11,6 +14,7 @@ const recordProblems = (node: LayoutNode, scope: Scope): string[] => {
   if (innermost(scope)) return []
   const { props } = node
   const outside = 'needs a record: put it inside a RecordCard or a CardRow'
+  if (inlineFieldTypes.has(node.type)) return [outside]
   switch (node.type) {
     case 'Field':
       return [outside]
@@ -41,7 +45,7 @@ const nestedLinkProblems = ({ children }: LayoutNode): string[] => {
   for (const child of children) {
     if (typeof child === 'string') continue
     walkTree(child, (inner, { path }) => {
-      if (!inner.custom && inner.type === 'Link') problems.push(`holds another link at ${path}; a link cannot contain a link`)
+      if (!inner.custom && (inner.type === 'Link' || inner.type === 'UrlField')) problems.push(`holds another link at ${path}; a link cannot contain a link`)
     }, { path: label(child), scope: pageScope })
   }
   return problems
@@ -67,12 +71,9 @@ const imageProblems = ({ props }: LayoutNode): string[] => {
   ]
 }
 
-// What sits in a line of text: text, links, and a Text that is a piece of the line.
-const isInline = (child: LayoutChild) => typeof child === 'string' || (!child.custom && (child.type === 'Link' || (child.type === 'Text' && child.props.as === 'span')))
-
 // A `Text` is one line of text: what sits in it runs inline.
 const textProblems = ({ children }: LayoutNode): string[] =>
-  children.every(isInline) ? [] : ['holds text, <Link>s and <Text as="span">s only; put other elements beside it in a <Row> or <Column>']
+  children.every(isInlineChild) ? [] : ['holds text, <Link>s, <Text as="span">s and field components such as <TextField> only; put other elements beside it in a <Row> or <Column>']
 
 const stringsIn = (value: unknown): string[] => {
   if (typeof value === 'string') return [value]
@@ -119,6 +120,8 @@ export const structureProblems = (tree: LayoutNode): string[] => {
     if (node.type === 'Link') linkProblems(node).forEach(report)
     if (node.type === 'Image') imageProblems(node).forEach(report)
     if (node.type === 'Text') textProblems(node).forEach(report)
+    detailsProblems(node).forEach(report)
+    inlineFieldProblems(node).forEach(report)
     switchProblems(node).forEach(report)
     placeholderProblems(node).forEach(report)
     if ((node.type === 'Show' || node.type === 'Match') && typeof node.props.when === 'string') {

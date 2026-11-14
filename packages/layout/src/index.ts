@@ -77,6 +77,26 @@ export type {
   UsersProps,
 } from './blocks'
 export { Box, Column, Row, Text, type BoxProps, type ColumnProps, type RowProps, type TextAs, type TextProps } from './elements'
+export { Details, Summary, type DetailsProps, type SummaryProps } from './details'
+export {
+  BooleanField,
+  ChipField,
+  DateField,
+  NumberField,
+  TextField,
+  UrlField,
+  inlineFieldTypes,
+  isInlineChild,
+  type BooleanFieldProps,
+  type ChipFieldProps,
+  type DateFieldProps,
+  type InlineFieldProps,
+  type IntlOptions,
+  type NumberFieldProps,
+  type TextFieldProps,
+  type UrlFieldProps,
+} from './inline-fields'
+export { booleanFieldText, dateFieldText, isEmptyFieldValue, numberFieldText, safeFieldUrl, textFieldText, type DateTextInput } from './field-format'
 export { component, type ComponentOptions } from './component'
 export { accountBlocks, accountPageName } from './check-account'
 export { settingsFields, settingsResources, withSettingsFields } from './settings'
@@ -99,7 +119,7 @@ export { renderText } from './text/render-text'
 export { tableMarkdown, type TableText, type TableTextColumn } from './text/table-text'
 export { columnName, columnsByPriority, phoneColumnCount, phoneColumns, type ColumnTraits, type TableColumn } from './table-columns'
 export { textForms } from './text/forms'
-export { childrenText, type TextContext, type TextField, type TextForm, type TextOptions } from './text/text-form'
+export { childrenText, type TextContext, type TextFieldLabels, type TextForm, type TextOptions } from './text/text-form'
 /** The Markdown primitives the blocks' text forms are made of, for forms of one's own. */
 export * as markdown from './text/markdown'
 

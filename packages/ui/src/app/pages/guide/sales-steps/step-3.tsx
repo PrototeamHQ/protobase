@@ -19,10 +19,10 @@ export const overview = page(
       actions={<Action name="markPaid" variant="primary" />}
     >
       <Grid columns={4}>
-        <Field name="number" />
-        <Field name="total" />
-        <Field name="company_id" label="Customer" />
-        <Field name="company_id.city" label="City" />
+        <Field source="number" />
+        <Field source="total" />
+        <Field source="company_id" label="Customer" />
+        <Field source="company_id.city" label="City" />
       </Grid>
       <Show when="company_id.status = 'dormant'">The customer has gone quiet: call before sending a reminder.</Show>
     </RecordCard>

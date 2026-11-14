@@ -9,6 +9,7 @@ import { sampledFilterErrors } from './sampled-filter'
 import { resolveScopePath } from './scope-lookup'
 import { settingsProblems } from './settings'
 import { columnName, type TableColumn } from './table-columns'
+import { inlineFieldTypes } from './inline-fields'
 import { dataProps, type LayoutNode } from './node'
 import type { PageModel } from './page'
 import { innermost, walkTree, type Scope } from './walk'
@@ -92,9 +93,10 @@ const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[
     if (filterError) problems.push(`filter: ${filterError}`)
     if (sortError) problems.push(`sort: ${sortError}`)
   }
+  if (inlineFieldTypes.has(node.type)) path(String(node.props.source))
   switch (node.type) {
     case 'Field':
-      path(String(node.props.name))
+      path(String(node.props.source))
       break
     case 'Stat':
       if (text(node.props.field) !== undefined) path(String(node.props.field))

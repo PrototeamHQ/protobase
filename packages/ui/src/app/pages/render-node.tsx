@@ -1,5 +1,5 @@
 import { Fragment, useMemo, type ComponentType } from 'react'
-import { fillProps, isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from '@protobase/layout'
+import { fillProps, isInlineChild, isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from '@protobase/layout'
 import { unmarkFieldRefs } from '@protobase/schema/internal'
 import { ActionBlock } from './blocks/action'
 import type { BlockProps } from './blocks/block-props'
@@ -7,9 +7,11 @@ import { CardBlock } from './blocks/card'
 import { CardRowBlock } from './blocks/card-row'
 import { ChartBlock } from './blocks/chart'
 import { ComposerBlock } from './blocks/composer'
+import { DetailsBlock, SummaryBlock } from './blocks/details'
 import { FieldBlock } from './blocks/field'
 import { GridBlock } from './blocks/grid'
 import { ImageBlock } from './blocks/image'
+import { BooleanFieldBlock, ChipFieldBlock, DateFieldBlock, NumberFieldBlock, TextFieldBlock, UrlFieldBlock } from './blocks/inline-field'
 import { LinkBlock } from './blocks/link'
 import { ModalFormBlock } from './blocks/modal-form'
 import { PageBlock } from './blocks/page-block'
@@ -84,27 +86,33 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Row: RowBlock,
   Column: ColumnBlock,
   Text: TextBlock,
+  Details: DetailsBlock,
+  Summary: SummaryBlock,
+  TextField: TextFieldBlock,
+  NumberField: NumberFieldBlock,
+  DateField: DateFieldBlock,
+  BooleanField: BooleanFieldBlock,
+  UrlField: UrlFieldBlock,
+  ChipField: ChipFieldBlock,
 }
 
 // The blocks that put their classes on an element of their own; the others draw none, or several, and get a <div> for them.
-const ownClasses = new Set(['Page', 'Grid', 'Card', 'Stat', 'RecordCard', 'Field', 'Table', 'CardRow', 'RecordRow', 'RecordCards', 'Chart', 'Progress', 'Image', 'Thread', 'Link', 'Tabs', 'Settings', 'Show', 'Switch', 'Action', 'Box', 'Row', 'Column', 'Text'])
-
-const isInline = (child: LayoutChild) => typeof child === 'string' || (!child.custom && (child.type === 'Link' || (child.type === 'Text' && child.props.as === 'span')))
+const ownClasses = new Set(['Page', 'Grid', 'Card', 'Stat', 'RecordCard', 'Field', 'Table', 'CardRow', 'RecordRow', 'RecordCards', 'Chart', 'Progress', 'Image', 'Thread', 'Link', 'Tabs', 'Settings', 'Show', 'Switch', 'Action', 'Box', 'Row', 'Column', 'Text', 'Details', 'Summary', 'TextField', 'NumberField', 'DateField', 'BooleanField', 'UrlField', 'ChipField'])
 
 /** Text and links as they run in one line. */
 const renderInline = (run: LayoutChild[]) => run.map((child, position) => (typeof child === 'string' ? <Fragment key={position}>{child}</Fragment> : <RenderNode key={position} node={child} />))
 
-/** Text and links run together as one paragraph, like a sentence with a link in it; other elements stand alone. */
+/** Text, links and field components run together as one paragraph, like a sentence with a link in it; other elements stand alone. */
 const renderChildren = (children: LayoutChild[]) => {
   const runs: LayoutChild[][] = []
   for (const child of children) {
     const last = runs.at(-1)
-    if (isInline(child) && last && isInline(last[0]!)) last.push(child)
+    if (isInlineChild(child) && last && isInlineChild(last[0]!)) last.push(child)
     else runs.push([child])
   }
   return runs.map((run, index) => {
     const [first] = run
-    if (!isInline(first!)) return <RenderNode key={index} node={first as LayoutNode} />
+    if (!isInlineChild(first!)) return <RenderNode key={index} node={first as LayoutNode} />
     return (
       <p key={index} className="leading-6">
         {renderInline(run)}
@@ -139,10 +147,10 @@ export const RenderNode = ({ node: written }: { node: LayoutNode }) => {
   const Block = blocks[node.type]
   if (!Block) return <Problem>{text.rich('unknownBlock', { type: node.type })}</Problem>
   const className = typeof node.props.className === 'string' ? node.props.className : undefined
-  // A Text is one line, and a Link a piece of one: what they hold runs inline, in no paragraph of its own
+  // A Text and a Summary are one line, and a Link a piece of one: what they hold runs inline, in no paragraph of its own
   const block = (
     <Block node={node} slots={renderSlots(node)} className={className}>
-      {node.type === 'Text' || node.type === 'Link' ? renderInline(node.children) : renderChildren(node.type === 'Switch' ? node.children.filter((child) => typeof child !== 'string') : node.children)}
+      {node.type === 'Text' || node.type === 'Link' || node.type === 'Summary' ? renderInline(node.children) : renderChildren(node.type === 'Switch' ? node.children.filter((child) => typeof child !== 'string') : node.children)}
     </Block>
   )
   return className === undefined || ownClasses.has(node.type) ? block : <div className={className}>{block}</div>

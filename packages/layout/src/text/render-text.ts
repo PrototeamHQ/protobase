@@ -1,15 +1,13 @@
 import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from '../node'
+import { isInlineChild } from '../inline-fields'
 import { fillProps } from '../scope-values'
 import { childScope, pageScope, propScope } from '../walk'
 import { textForms } from './forms'
 import { escapeMarkdown } from './markdown'
 import { childrenText, type TextForm, type TextOptions } from './text-form'
 
-// Text, links and `Text as="span"` run on in one line, as the web draws them; other elements stand alone.
-const isInline = (child: LayoutChild) => typeof child === 'string' || (!child.custom && (child.type === 'Link' || (child.type === 'Text' && child.props.as === 'span')))
-
-// A `Text` and a `Link` are one line: everything they hold runs on.
-const holdsOneLine = (node: LayoutNode) => !node.custom && (node.type === 'Text' || node.type === 'Link')
+// A `Text`, a `Link` and a `Summary` are one line: everything they hold runs on.
+const holdsOneLine = (node: LayoutNode) => !node.custom && (node.type === 'Text' || node.type === 'Link' || node.type === 'Summary')
 
 const isElements = (value: LayoutValue): value is LayoutNode | LayoutNode[] => isLayoutNode(value) || (Array.isArray(value) && value.length > 0 && value.every(isLayoutNode))
 
@@ -27,7 +25,8 @@ const partsOf = (children: LayoutChild[], options: TextOptions, oneLine: boolean
   let runOn = false
   for (const child of children) {
     const text = typeof child === 'string' ? escapeMarkdown(child) : renderText(child, options)
-    const inline = oneLine || isInline(child)
+    // Text, links, `Text as="span"` and field components run on in one line, as the web draws them; other elements stand alone
+    const inline = oneLine || isInlineChild(child)
     if (inline && runOn) parts[parts.length - 1] += text
     else parts.push(text)
     runOn = inline

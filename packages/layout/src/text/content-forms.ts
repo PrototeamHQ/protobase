@@ -20,7 +20,7 @@ const fieldText = (name: string, label: string, options: TextOptions) => {
 const fieldLabel = (name: string, options: TextOptions) => escapeMarkdown(options.fields?.[name]?.label ?? name)
 
 const Field: TextForm = ({ node, options }) => {
-  const { name, label } = node.props as { name: string; label?: string | false }
+  const { source: name, label } = node.props as { source: string; label?: string | false }
   if (label === false) return options.record ? fieldText(name, '', options) : ''
   return fieldText(name, typeof label === 'string' ? escapeMarkdown(label) : fieldLabel(name, options), options)
 }

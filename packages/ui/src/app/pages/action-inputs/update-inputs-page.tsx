@@ -5,7 +5,7 @@ export const overview = page(
   'overview',
   <Page title="Overview">
     <RecordCard title="Biggest unpaid delivery" resource="orders" filter="status = 'delivered' AND paid = false" sort="total desc" actions={<Action name="renumber" />}>
-      <Field name="number" />
+      <Field source="number" />
     </RecordCard>
   </Page>,
 )

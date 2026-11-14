@@ -1,6 +1,7 @@
-import { Check, Paperclip } from 'lucide-react'
+import { Paperclip } from 'lucide-react'
 import { Avatar } from '../primitives/avatar'
 import { Badge } from '../primitives/badge'
+import { TrueMark } from '../primitives/true-mark'
 import { cn } from '../lib/cn'
 import { FileImage } from '../live/file-image'
 import { fileShown, shownImage } from '../live/file-values'
@@ -46,7 +47,7 @@ export const renderCell = (spec: ColumnSpec, value: unknown, row?: GridRow) => {
       return <TruncatedText text={text} className="font-medium text-primary-text hover:underline" />
     case 'boolean':
       return value ? (
-        <span className="inline-flex size-4 items-center justify-center rounded-full bg-success-soft text-success-text"><Check className="size-3" strokeWidth={3} /></span>
+        <TrueMark />
       ) : (
         muted(message('no'))
       )

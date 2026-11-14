@@ -49,7 +49,8 @@ export type StatProps = {
   span?: GridSpan
 }
 export type RecordCardProps = DataProps & Heading & { recordKey?: string; empty?: string; span?: GridSpan; children?: LayoutChildren }
-export type FieldProps = { name: string; label?: string | false; format?: FieldFormat }
+/** A field of the record around it under its label; `source` is its path, as react-admin's fields name it. */
+export type FieldProps = { source: string; label?: string | false; format?: FieldFormat }
 export type TableProps = DataProps &
   Heading & {
     /**
