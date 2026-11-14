@@ -6,11 +6,12 @@ import type { PipelineHook } from '../types'
 import type { TriggerJobs } from './triggers/trigger-jobs'
 import { syncTrigger } from './triggers/trigger-sync'
 import { saveConsent, type ConnectionConsent } from './connections/connection-consent'
+import { definitionColumns, definitionOfRow } from './definition-columns'
 
 // The definition of a saved version, or nothing when the workflow has no such version.
 const savedDefinition = async (trx: Db, schema: string, workflow: string, version: number) => {
-  const { rows } = await sql<{ definition: Definition }>`select definition from ${sql.id(schema, 'versions')} where workflow_id = ${workflow} and version = ${version}`.execute(trx)
-  return rows[0]?.definition
+  const { rows } = await sql<Record<string, unknown>>`select ${definitionColumns('v')} from ${sql.id(schema, 'versions')} v where v.workflow_id = ${workflow} and v.version = ${version}`.execute(trx)
+  return rows[0] && definitionOfRow(rows[0])
 }
 
 /**

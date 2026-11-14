@@ -11,9 +11,9 @@ export const whoOf = (schema: string, runId: string, { saver, enabler, connectio
   const parts = [sql`jsonb_build_object('tenant', r.tenant_id)`]
   if (saver) parts.push(sql`jsonb_build_object('saver', v.saved_by, 'roles', ${JSON.stringify(roles)}::jsonb)`)
   if (enabler || connection || bindings) parts.push(sql`jsonb_build_object('enabler', v.enabled_by)`)
-  if (connection) parts.push(sql`jsonb_build_object('connection', v.definition -> 'connections' ->> ${connection})`)
+  if (connection) parts.push(sql`jsonb_build_object('connection', v.connections ->> ${connection})`)
   // Account ids only: a binding names the account, never its tokens.
-  if (bindings) parts.push(sql`jsonb_build_object('connections', coalesce(v.definition -> 'connections', '{}'::jsonb))`)
+  if (bindings) parts.push(sql`jsonb_build_object('connections', coalesce(v.connections, '{}'::jsonb))`)
   return sql`select ${sql.join(parts, sql` || `)} as who, r.tenant_id from ${sql.id(schema, 'runs')} r
     join ${sql.id(schema, 'versions')} v on v.workflow_id = r.workflow_id and v.version = r.version where r.id = ${runId}`
 }

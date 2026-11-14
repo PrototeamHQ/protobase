@@ -1,6 +1,6 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
-import { blockDefinition, rerunFrom, rerunProblem, type Definition, type EarlierCheckpoint, type Runner, type TraceMode } from '@protobase/workflows'
+import { blockDefinition, rerunFrom, rerunProblem, type EarlierCheckpoint, type Runner, type TraceMode } from '@protobase/workflows'
 import type { Deps } from '../deps'
 import { fetchReadable } from '../fetch-readable'
 import { deletedRows } from '../params'
@@ -9,6 +9,7 @@ import { requestAccess } from '../request-access'
 import type { WriteEvent } from '../types'
 import { postgresRunStore } from './store'
 import { readsTrace } from './trace-access'
+import { definitionColumns, definitionOfRow } from './definition-columns'
 
 const notRerun = () => notFound('No run of this workflow to re-run with this key')
 
@@ -35,9 +36,10 @@ export const keepEarlierCheckpoints = async (trx: Db, deps: Deps, runner: Runner
   const refused = (problem: string) => badRequest('rerun-refused', `The run cannot be re-run on the workflow as it is now: ${problem}`)
   // A block's run, and a re-run of one, runs its Block's steps: the definition its steps are of.
   const version = async (id: string) => {
-    const { rows } = await sql<{ definition: Definition; block_state: string | null }>`select v.definition, r.block_state from ${sql.id(schema, 'runs')} r
+    const { rows } = await sql<{ block_state: string | null } & Record<string, unknown>>`select ${definitionColumns('v')}, r.block_state from ${sql.id(schema, 'runs')} r
       join ${sql.id(schema, 'versions')} v on v.workflow_id = r.workflow_id and v.version = r.version where r.id = ${id}`.execute(trx)
-    const { definition, block_state } = rows[0]!
+    const definition = definitionOfRow(rows[0]!)!
+    const { block_state } = rows[0]!
     if (block_state === null) return definition
     const block = blockDefinition(definition, block_state)
     if (!block) throw refused(`the Block "${block_state}" is not in this version`)

@@ -19,7 +19,7 @@ export const connectionUses = ({ deps, schema, roles }: ConnectionUsesInput) => 
   const { rows } = await sql<Use>`select w.id, w.name, v.tenant_id, c.value as account
     from ${sql.id(schema, 'workflows')} w
     join ${sql.id(schema, 'versions')} v on v.workflow_id = w.id and v.version = w.enabled_version
-    cross join lateral jsonb_each_text(coalesce(v.definition -> 'connections', '{}'::jsonb)) c
+    cross join lateral jsonb_each_text(coalesce(v.connections, '{}'::jsonb)) c
     where v.enabled_by = ${userId} and c.value in (${sql.join(accountIds)})
     order by w.name, w.id`.execute(db)
   for (const row of rows) {
