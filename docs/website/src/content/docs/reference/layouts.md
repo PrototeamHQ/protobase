@@ -144,6 +144,8 @@ The field components show one value of the record around them inside a line of t
 - `TextField` and `ChipField` show an enum value by its label from the view, where react-admin shows the stored value.
 - Props that take code in react-admin, such as `transform`, `render` or icons, are not taken: a layout holds data only.
 
+<gap>A layout cannot show a related record's value inline with react-admin's `ReferenceField` because `ReferenceField` is not implemented.</gap>
+
 In the [text form](#text-form) each one reads as its formatted value, a `UrlField` as a Markdown link, and a `BooleanField` as Yes or No.
 
 `Details` and `Summary` are HTML's [`<details>` and `<summary>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/details): a line that opens to show the rest and closes again, by the browser alone, with no script. A `Details` takes one `Summary`, as its first child, and `open` to start open; a `Summary` holds one line, as a `Text` does, and sits in a `Details` only. In the text form a `Details` reads as its summary, then the rest.
