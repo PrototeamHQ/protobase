@@ -1,4 +1,4 @@
-import { isLayoutNode, type Block, type LayoutChild, type LayoutNode, type LayoutValue } from './node'
+import { isLayoutNode, type Block, type BlockReads, type LayoutChild, type LayoutNode, type LayoutValue } from './node'
 
 const advice = 'Layouts are static data, sent to the browser as JSON: use <Action name="..."> for behaviour, or register a custom component for React code.'
 
@@ -54,11 +54,15 @@ export const createNode = (type: unknown, props: Record<string, unknown>): Layou
   }
   if (type.custom) node.custom = true
   if (type.fallback) node.fallback = type.fallback
+  if (type.reads) node.reads = type.reads
   return node
 }
 
-/** Declares a block named `name`; `custom` marks a component the app implements in React, drawn as `fallback` where it cannot be. */
-export const defineBlock = <P>(name: string, custom: boolean, fallback?: LayoutChild[]): Block<P> => {
-  const block: Block<P> = Object.assign((props: P) => createNode(block, props as Record<string, unknown>), { blockName: name, custom, ...(fallback && { fallback }) })
+/**
+ * Declares a block named `name`; `custom` marks a component the app implements in React, drawn as `fallback` where it
+ * cannot be, and reading what `reads` names.
+ */
+export const defineBlock = <P>(name: string, custom: boolean, fallback?: LayoutChild[], reads?: BlockReads): Block<P> => {
+  const block: Block<P> = Object.assign((props: P) => createNode(block, props as Record<string, unknown>), { blockName: name, custom, ...(fallback && { fallback }), ...(reads && { reads }) })
   return block
 }

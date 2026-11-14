@@ -52,7 +52,8 @@ const metaFor = async (roles: string) => (await app().request('/api/meta', { hea
 describe('pages in /meta', () => {
   it('serves the pages to a caller who may see everything', async () => {
     const body = await metaFor('admin')
-    expect(body.pages).toEqual([overview.toModel(), adminOnly.toModel()])
+    expect(body.pages.map(({ reads: _, ...entry }: { reads: unknown }) => entry)).toEqual([overview.toModel(), adminOnly.toModel()])
+    expect(body.pages[0].reads.reads.map((read: { block: string; fields?: string[] }) => [read.block, read.fields])).toEqual([['/children/0', ['id']], ['/children/1', ['id', 'secret', 'title']], ['/children/2', undefined]])
   })
 
   it('leaves out pages for other roles and what names hidden fields, as the views do', async () => {
@@ -60,6 +61,7 @@ describe('pages in /meta', () => {
     expect(body.pages.map((entry: { name: string }) => entry.name)).toEqual(['overview'])
     const [, table, card] = body.pages[0].tree.children
     expect(table.props.columns).toEqual(['title'])
+    expect(body.pages[0].reads.reads[1].fields).toEqual(['id', 'title'])
     expect(card.children.map((node: { props: { source?: string; name?: string } }) => node.props.source ?? node.props.name)).toEqual(['title', 'lock'])
     expect(body.views[0].actions.map((action: { name: string }) => action.name)).toEqual(['lock'])
   })

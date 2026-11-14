@@ -2,6 +2,7 @@ import type { NavModel } from '@protobase/schema'
 import { accountBlockProblems } from './check-account'
 import { structureProblems } from './check-structure'
 import type { LayoutNode } from './node'
+import type { ReadPlan } from './read-plan'
 
 /** A composed page as `/api/meta` serves it. */
 export type PageModel = {
@@ -14,6 +15,8 @@ export type PageModel = {
   /** Shown only to users with one of these roles; a page without roles is for everyone who can sign in. */
   roles?: string[]
   tree: LayoutNode
+  /** The reads that draw `tree`, as the build plans them; `/api/meta` sends each caller the plan of their own page. */
+  reads?: ReadPlan
 }
 
 export type PageOptions = Pick<PageModel, 'icon' | 'nav' | 'roles'>

@@ -1,4 +1,4 @@
-import type { LayoutValue } from './node'
+import type { BlockReads, LayoutValue } from './node'
 import { isLayoutNode } from './node'
 
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
@@ -8,11 +8,7 @@ type Kind = 'choices' | 'sort' | 'filter' | 'pagination' | 'referenceLink' | 'te
 
 type PropSpec = { kind: Kind; required?: true }
 
-/**
- * Which props of a block that reads records name what it reads: the resource, its filter and its sort, so a page's reads
- * can be planned from the tree. A block without one reads nothing of its own.
- */
-export type BlockReads = { resource: string; filter?: string; sort?: string; fields?: string }
+export type { BlockReads }
 
 export type BlockSpec = { props: Record<string, PropSpec>; children: boolean; reads?: BlockReads }
 

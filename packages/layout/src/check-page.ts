@@ -1,6 +1,7 @@
 import { checkOrderBy, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
 import { addressErrors, fieldRefsIn, rowButtonErrors } from '@protobase/schema/internal'
 import { chartProblems } from './check-chart'
+import { compileReadPlan } from './compile-read-plan'
 import { conditionFindings } from './check-condition'
 import { listModelProblems } from './check-list-models'
 import { composerProblems, threadProblems } from './check-conversation'
@@ -193,7 +194,7 @@ const customProblems = (node: LayoutNode, scope: Scope, { models }: PageCheckInp
 
 /**
  * Everything a page names that the models do not have: resources, fields, filters, sorts, actions, conditions and
- * placeholders; and the warnings of bare names a nearer record shadows.
+ * placeholders, and what keeps its reads from being planned; and the warnings of bare names a nearer record shadows.
  */
 export const pageFindings = (page: PageModel, input: PageCheckInput): { problems: string[]; warnings: string[] } => {
   const problems: string[] = []
@@ -206,6 +207,8 @@ export const pageFindings = (page: PageModel, input: PageCheckInput): { problems
     const found = node.custom ? customProblems(node, scope, input) : nodeProblems(node, scope, { ...input, params, inputs, chosen, warn })
     for (const problem of found) problems.push(`${path}: ${problem}`)
   })
+  // The plan reads a tree the checks above accept
+  if (problems.length === 0) problems.push(...compileReadPlan(page.tree, { models: input.models }).problems)
   return { problems, warnings }
 }
 
