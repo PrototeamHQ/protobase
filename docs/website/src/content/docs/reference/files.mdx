@@ -128,10 +128,10 @@ An upload carries three hints: what the **content** is (C, from its magic bytes)
 | Content | Type used | When the hints disagree |
 | --- | --- | --- |
 | Recognized: images, PDF, archives, Office files, audio, video, executables, ... | C | C wins and the answer reports `corrected: { from, to }`: a JPEG sent as `photo.png` is `image/jpeg`, and an executable named `invoice.pdf` is refused by `accept: ['application/pdf']`. |
-| Not recognized, and text (UTF-8 without NUL bytes) | E when it is a text type (`csv`, `tsv`, `txt`, `md`, `json`); H when there is no extension; else `text/plain` | E wins over H: HTML named `.csv` is stored as `text/csv`. HTML and SVG are never taken as images. |
+| Not recognized, and text (UTF-8 without NUL bytes) | E when it is a text type (`csv`, `tsv`, `txt`, `md`, `html`, `json`); H when there is no extension; else `text/plain` | E wins over H: HTML named `.csv` is stored as `text/csv`. HTML and SVG are never taken as images. |
 | Not recognized, and binary | E, only when `accept` lists that type exactly and H does not disagree; else `application/octet-stream` | Any disagreement gives `application/octet-stream`, which passes only an `accept` that names it. |
 
-The decided type picks the stored extension, and downloads are served by that extension, so nothing posing as a PDF is ever served as something else, and nothing is served as HTML.
+The decided type picks the stored extension, and downloads are served by that extension, so nothing posing as a PDF is ever served as something else. An HTML file is stored as `text/html` but always downloads as an attachment that never renders on the app's origin; the admin app opens it in its [HTML viewer](#html-files).
 
 ### Your own types
 
@@ -157,13 +157,53 @@ Such files download as attachments. A [viewer](#viewers) opens them in the admin
 
 ## Viewers
 
-A plugin, or the app's own `protobase.ui.tsx`, registers a viewer for a media type (see [File viewers](/reference/plugins/#file-viewers)). A file field's link to a file of that type, on the record page and its form, then opens the viewer on the record's address with `?file=<field>`, such as `/attachments/7?file=file`, in place of a download: a bar with the way back to the record, the file's name and size and a Download button, and the viewer below it. A file without a viewer links to its download as before.
+A plugin, or the app's own `protobase.ui.tsx`, registers a viewer for a media type (see [File viewers](/reference/plugins/#file-viewers)). A file field's link to a file of that type, on the record page and its form, then opens the viewer on the record's address with `?file=<field>`, such as `/attachments/7?file=file`, in place of a download: a bar with the way back to the record, the file's name and size and a Download button, and the viewer below it. A file without a viewer links to its download as before; its own address with `?file=<field>`, such as a page's link to it, shows the bar and says there is no preview.
 
 The viewer gets the file and its **siblings**: the record's other files, and the files of the records of the same resource that point at the same records through filterable relations, read in one list call of at most 100 records. For attachments that each point at a task, the siblings of one are the other attachments of that task, so a report can show the images it names by file name.
 
+### HTML files
+
+:::caution[Beta]
+Scripts in uploaded HTML files do not run.
+:::
+
+HTML files open in a sandboxed frame that cannot reach your app. Relative images, videos and links resolve to the record's other files. Your own viewer can draw the HTML it generates in the same frame and use the same link resolution.
+
+Protobase brings this viewer itself, for `text/html`, the type an upload named `.html` or `.htm` is stored as; an app or plugin that registers its own `text/html` viewer replaces it. The page shows below the file's bar, as tall as its content, so the app's page scrolls:
+
+- The frame has an opaque origin: the page cannot read the app's cookies or storage, call its API as the signed-in user, or navigate the app's window. It loads nothing from the network, so an image or stylesheet from another site stays blank, and it submits no forms.
+- A relative `src`, `poster`, `srcset` candidate, `<link href>` or CSS `url()` in a `style` attribute or `<style>` element that names a sibling by its file name, such as `shots/before.png` or `./clip.webm`, shows that sibling. The admin app reads each such sibling once, with the signed-in user's rights, and hands it to the page as its bytes. A name with escapes, such as `my%20chart.png`, matches `my chart.png`. A reference to no sibling, a path from the root or one that climbs out with `..` stays as written, so it shows nothing, and such a link becomes plain text.
+- A link to a sibling opens it on its record's address with `?file=<field>`, the address the link shows: in its viewer, such as another HTML page, or beside its Download button when it has none. A middle or modified click opens it in a new tab. A link to an `http` or `https` address opens it in a new tab that cannot reach back to the app. A link to a place on the page, such as `#results`, scrolls the app's page to it and moves the focus there. Any other link, such as `javascript:`, does nothing.
+
+<gap>An HTML file's siblings over 10 MB, such as a long video, cannot show in its page because reading larger files in the app is not implemented.</gap> <gap>A `url()` inside a linked stylesheet cannot name a sibling because rewriting stylesheet files is not implemented.</gap>
+
+Your own viewer draws a page in the same frame with `HtmlFrame`, and resolves its references with `useSiblingPage`, such as for a page it builds from a template and a JSON file:
+
+```tsx
+import { HtmlFrame, useFileText, useSiblingPage, type FileViewerProps } from '@protobase/ui'
+
+// renderReport is your own template: the report's JSON in, a page out.
+const ReportViewer = ({ file, siblings }: FileViewerProps) => {
+  const read = useFileText(file)
+  const page = useSiblingPage(read.data && renderReport(JSON.parse(read.data)), siblings)
+  if (!page) return null
+  return <HtmlFrame html={page.html} title={file.name} links={page.links} onLink={(link) => link.kind === 'external' && window.open(link.url, '_blank', 'noopener,noreferrer')} />
+}
+```
+
+| `HtmlFrame` props | |
+| --- | --- |
+| `html` | The page, a whole document or a fragment. |
+| `title` | The frame's accessible name, such as the file's name. |
+| `links` | The targets of the page's links, as `useSiblingPage` gives them: `{ kind: 'file', file }` for a sibling, `{ kind: 'external', url }` for an `http` or `https` address. |
+| `onLink` | `(link, { newTab })`, called when the page's link to `link` is clicked; `newTab` for a middle or modified click. Nothing else in the page navigates. |
+| `scripts` | `'bridge'` (the default) runs none of the page's scripts. `'trusted-page'` runs its inline scripts, for a page your viewer generates itself; the frame keeps its opaque origin and still loads nothing from the network. |
+
+`useSiblingPage(html, siblings, address?)` gives `{ html, links }` once `html` is there and the siblings it names are read, and `undefined` until then. `address(link)` gives the address each link shows, for the browser's link preview and copy link, such as the sibling's own viewer address; without one a link keeps the address its page gave it. `siblingPage(html, siblings, contents, address?)` does the same rewriting without reading, with each sibling's `data:` URL in `contents` by its `uri`.
+
 ### Image and PDF viewers
 
-Protobase brings no viewer of its own. Two plugins, each a package of its own, open images and PDFs in the app; an app that wants them installs them and extends its `protobase.ui.tsx` with them:
+Beside its HTML viewer, Protobase brings no viewer of its own. Two plugins, each a package of its own, open images and PDFs in the app; an app that wants them installs them and extends its `protobase.ui.tsx` with them:
 
 ```sh
 npm install @protobase/image-viewer @protobase/pdf-viewer
@@ -204,7 +244,7 @@ select attachment_type, count(*), sum(attachment_size) from attachments group by
 - An **external URL** writes the type its extension names, the app's [own types](#your-own-types) included, and `null` when the table knows no such extension. Its size field stays `null`, since Protobase never fetches it.
 - An **import** that writes rows itself may write both beside the value, such as the type of a file stored under a name with no extension. Leave a field `null` when the source does not say; never guess.
 - **Responses** and [viewers](#viewers) take the file's `type` and `size` from these fields when the row holds them, else from the value.
-- A **private download** is served as the type field's type when that is a type the app's table knows, so a file is never served as HTML; any other value is served by the path's extension. A public file has no row to read, so it is served by its path, and a bucket serves it with the type its upload was decided to be.
+- A **private download** is served as the type field's type when that is a type the app's table knows, and HTML only ever as an attachment; any other value is served by the path's extension. A public file has no row to read, so it is served by its path, and a bucket serves it with the type its upload was decided to be.
 
 Files stored before a field declared them keep `null` until they are uploaded again or an import fills them.
 

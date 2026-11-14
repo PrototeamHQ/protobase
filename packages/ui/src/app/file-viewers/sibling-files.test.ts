@@ -35,5 +35,6 @@ describe('sibling files', () => {
       { id: 1, file: shown, preview: stored('cover.png') },
     ]
     expect(siblingFiles(attachments, records, shown).map((file) => file.name)).toEqual(['cover.png', 'before.png'])
+    expect(siblingFiles(attachments, records, shown).map(({ key, field }) => `${key}?file=${field}`)).toEqual(['1?file=preview', '2?file=file'])
   })
 })

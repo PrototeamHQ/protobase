@@ -27,6 +27,16 @@ const playIn = async (context, story, progress) => {
   const base = await routeFiles(context, storybookDir)
   const page = await context.newPage()
   if (story.tags.includes('touch')) await exposeTouchInput(page)
+  // A "mouse" story clicks with the real mouse, which reaches into frames of other origins as a person's click does.
+  if (story.tags.includes('mouse')) await page.exposeFunction('pbClick', ({ x, y, button }) => page.mouse.click(x, y, { button }))
+  // A "sealed-frames" story fails when a frame inside the page sends a request out: one its Content-Security-Policy
+  // stopped (`csp`) never left, and a `data:` URL is none.
+  const frameRequests = []
+  const leftFrame = (request, failure) => request.frame() !== page.mainFrame() && !request.url().startsWith('data:') && failure !== 'csp' && frameRequests.push(request.url())
+  if (story.tags.includes('sealed-frames')) {
+    page.on('requestfinished', (request) => leftFrame(request))
+    page.on('requestfailed', (request) => leftFrame(request, request.failure()?.errorText))
+  }
   // Storybook installs its channel by assigning this global; an accessor attaches the listeners in that same assignment,
   // so no event is sent before they are, and each channel installed after the first gets them too. The last render phase
   // says where a story that sends no event stopped, such as "playing" for a play function that never ends.
@@ -67,6 +77,7 @@ const playIn = async (context, story, progress) => {
   }
   const events = await page.evaluate(() => window.__sbEvents.map((event) => ({ name: event.name, message: String(event.payload?.message ?? event.payload?.description ?? '') })))
   const error = events.find((event) => event.name !== 'storyRendered')
+  if (!error && frameRequests.length > 0) return { name: 'frameRequested', message: `a frame requested ${frameRequests.join(', ')}` }
   if (!error) return undefined
   return { ...error, message: error.message || logged.join('\n  ') }
 }

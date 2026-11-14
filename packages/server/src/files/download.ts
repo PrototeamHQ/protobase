@@ -30,7 +30,7 @@ const heldFile = (value: unknown, provider: string, path: string) => {
 }
 
 // The type the row's type field holds for the file itself, not a variant, when it is a type the app's table knows, so a
-// download is never served as a type outside it, such as HTML.
+// download is never served as a type outside it.
 const heldType = (deps: Deps, row: Record<string, unknown>, field: FieldModel, held: FileRef, path: string) => {
   const type = field.file!.typeField === undefined || held.path !== path ? undefined : row[field.file!.typeField]
   return typeof type === 'string' && deps.files!.types.isKnownType(type) ? type : undefined

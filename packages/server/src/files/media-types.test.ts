@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { accepts, canonicalExtension, downloadName, isInline, mediaTypes, servedType } from './media-types'
+import { accepts, canonicalExtension, contentDisposition, downloadName, isInline, mediaTypes, servedType } from './media-types'
 
 describe('media types', () => {
   it('serve every path by its extension, unknown ones as octet streams', () => {
     expect(servedType('acme/x.jpg')).toBe('image/jpeg')
     expect(servedType('acme/x.JPEG')).toBe('image/jpeg')
-    expect(servedType('acme/x.html')).toBe('application/octet-stream')
+    expect(servedType('acme/x.html')).toBe('text/html')
     expect(servedType('acme/x')).toBe('application/octet-stream')
     expect(canonicalExtension('image/jpeg')).toBe('jpg')
   })
@@ -16,6 +16,8 @@ describe('media types', () => {
     expect(isInline('video/mp4')).toBe(true)
     expect(isInline('image/svg+xml')).toBe(false)
     expect(isInline('text/csv')).toBe(false)
+    expect(isInline('text/html')).toBe(false)
+    expect(contentDisposition('report.html', 'text/html')).toMatch(/^attachment;/)
   })
 
   it('match allowed lists with wildcards, and anything when the list is empty', () => {

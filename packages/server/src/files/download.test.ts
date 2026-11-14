@@ -67,3 +67,18 @@ describe('an app read', () => {
     await expect(read.arrayBuffer()).rejects.toThrow(`larger than the ${appReadMaxBytes} bytes`)
   })
 })
+
+describe('an HTML file', () => {
+  it('reaches a page that reads it in the app as an attachment that never renders', async () => {
+    const store: FileStore = {
+      ...s3FileStore(fakeBucket().bucket),
+      head: async (path) => ({ path, size: 8, modified: new Date(0) }),
+      read: async () => new Blob(['<p>x</p>']).stream(),
+    }
+    const read = await serve(depsWith({ store, public: true }), '_/report.html')
+    expect(read.headers.get('content-type')).toBe('text/html')
+    expect(read.headers.get('content-disposition')).toMatch(/^attachment;/)
+    expect(read.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(read.headers.get('content-security-policy')).toBe("sandbox; default-src 'none'")
+  })
+})

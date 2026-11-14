@@ -56,7 +56,10 @@ describe('the type and size fields of a file field', () => {
     await sql`update products set image_type = 'text/html' where id = ${created.body.id}`.execute(fixture.db)
     const html = await call(`/api/v1/products/${created.body.id}`, { headers: as(1) })
     expect(html.body.image.type).toBe('text/html')
-    expect((await fixture.app.request(html.body.image.url)).headers.get('content-type')).toBe('text/plain')
+    const served = (await fixture.app.request(html.body.image.url)).headers
+    expect(served.get('content-type')).toBe('text/html')
+    expect(served.get('content-disposition')).toMatch(/^attachment;/)
+    expect(served.get('content-security-policy')).toBe("sandbox; default-src 'none'")
   })
 
   it("type an external URL by the app's own types, and leave its size unknown", async () => {

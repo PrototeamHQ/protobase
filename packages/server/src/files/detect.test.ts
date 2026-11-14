@@ -31,6 +31,8 @@ describe('deciding an upload type', () => {
     expect(await decide(html, 'page.csv', 'text/html', [])).toMatchObject({ type: 'text/csv', corrected: { from: 'text/html', to: 'text/csv' } })
     expect((await decide(csv, 'prices', 'text/csv', [])).type).toBe('text/csv')
     expect((await decide(csv, 'prices.dat', 'text/csv', [])).type).toBe('text/plain')
+    expect((await decide(html, 'report.html', 'text/html', [])).type).toBe('text/html')
+    expect((await decide(html, 'report.htm', undefined, [])).type).toBe('text/html')
   })
 
   it('take an unknown binary by its extension only when the field lists that type exactly', async () => {

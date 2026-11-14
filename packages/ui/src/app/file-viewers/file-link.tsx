@@ -22,7 +22,7 @@ type FileLinkProps = {
 export const FileLink = ({ field, model, record, name, url, className }: FileLinkProps) => {
   const ui = useProjectUi()
   const viewed = field && model && record && model.primaryKey.every((part) => record[part] != null) ? viewedField(ui, model, record, field) : undefined
-  if (viewed && model && record) {
+  if (viewed?.viewer && model && record) {
     return (
       <AppLink to={{ kind: 'record', resource: model.name, key: recordKey(model, record), file: viewed.field }} className={className}>
         {name}

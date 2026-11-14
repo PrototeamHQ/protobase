@@ -45,6 +45,7 @@ const table: Array<[type: string, extensions: string[]]> = [
   ['text/tab-separated-values', ['tsv']],
   ['text/plain', ['txt']],
   ['text/markdown', ['md']],
+  ['text/html', ['html', 'htm']],
   ['application/json', ['json']],
   ['application/octet-stream', ['bin']],
 ]
@@ -52,7 +53,7 @@ const table: Array<[type: string, extensions: string[]]> = [
 export const octetStream = 'application/octet-stream'
 
 /** Text formats a name's extension may give text content, which magic bytes cannot tell apart. */
-export const textTypes = new Set(['text/csv', 'text/tab-separated-values', 'text/plain', 'text/markdown', 'application/json'])
+export const textTypes = new Set(['text/csv', 'text/tab-separated-values', 'text/plain', 'text/markdown', 'text/html', 'application/json'])
 
 // Shown in the browser, never run: raster images, PDF, audio and video. SVG can carry scripts, so it is an attachment.
 const inlineTypes = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/bmp', 'application/pdf'])

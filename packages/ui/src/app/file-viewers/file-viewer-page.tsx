@@ -1,34 +1,30 @@
-import { ArrowLeft, Download } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import type { AppAddress, ResourceModel } from '@protobase/schema'
 import { formatSize } from '../../live/file-values'
 import { cn } from '../../lib/cn'
 import { buttonClass } from '../../primitives/button'
-import { Skeleton } from '../../primitives/skeleton'
 import { CustomBoundary } from '../pages/custom-boundary'
 import type { ProjectUi } from '../pages/project-ui'
 import { AppLink } from '../use-app-address'
-import { viewedFile, viewerFor, type FileViewer, type ViewedFile } from './file-viewer'
+import { fileViewerFor } from './built-in-viewers'
+import { PageSkeleton } from './page-skeleton'
+import { DownloadLink } from './download-link'
+import { viewedFile, type FileViewer, type ViewedFile } from './file-viewer'
 import { useSiblingFiles } from './use-sibling-files'
 import { ViewedResourceContext } from './viewed-resource'
 import { text } from './messages'
 
-/** A record's file field and the viewer registered for its file's type; `undefined` when the field has no such file. */
-export type ViewedField = { field: string; file: ViewedFile; viewer: FileViewer }
+/** A record's file field with its file, and the viewer for its file's type when there is one. */
+export type ViewedField = { field: string; file: ViewedFile; viewer?: FileViewer }
 
-/** The file of `record`'s field `field` with the viewer `ui` registers for its media type, when it has one. */
+/** The file of `record`'s field `field`, with the viewer for its media type (`fileViewerFor`) when it has one. */
 export const viewedField = (ui: ProjectUi, model: ResourceModel, record: Record<string, unknown>, field: string): ViewedField | undefined => {
   if (model.fields[field]?.type !== 'file') return
   const file = viewedFile(record[field])
-  const viewer = file && viewerFor(ui.fileViewers, file.type)
-  return file && viewer ? { field, file, viewer } : undefined
+  if (!file) return
+  const viewer = fileViewerFor(ui, file.type)
+  return viewer ? { field, file, viewer } : { field, file }
 }
-
-const DownloadLink = ({ file, className }: { file: ViewedFile; className?: string }) => (
-  <a href={file.url} download={file.name} className={cn(buttonClass({ size: 'sm' }), 'gap-1.5', className)}>
-    <Download className="size-4" aria-hidden="true" />
-    {text('download')}
-  </a>
-)
 
 type FileViewerPageProps = {
   model: ResourceModel
@@ -40,14 +36,12 @@ type FileViewerPageProps = {
 }
 
 /**
- * A record's file opened in the viewer for its media type, on the record's address with `?file=<field>`: a bar with the
- * way back to the record, the file's name and size and its download, then the viewer, with its siblings once read. A
- * viewer that throws leaves the download in its place.
+ * A record's file on the record's address with `?file=<field>`: a bar with the way back to the record, the file's name
+ * and size and its download, then the viewer for its media type, with its siblings once read. A file with no viewer,
+ * such as one a page links to, says so beside its download; a viewer that throws leaves the download in its place.
  */
 export const FileViewerPage = ({ model, record, viewed, back }: FileViewerPageProps) => {
   const { file, viewer } = viewed
-  const { siblings, ready } = useSiblingFiles(model, record, file)
-  const Viewer = viewer.component
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-3 md:px-10">
@@ -61,23 +55,30 @@ export const FileViewerPage = ({ model, record, viewed, back }: FileViewerPagePr
         </h1>
         <DownloadLink file={file} />
       </div>
-      <div className="flex-1">
-        {ready ? (
-          <ViewedResourceContext.Provider value={model.name}>
-            <CustomBoundary name={file.type} fallback={<ViewerFailed file={file} />}>
-              <Viewer file={file} siblings={siblings} />
-            </CustomBoundary>
-          </ViewedResourceContext.Provider>
-        ) : (
-          <div className="space-y-3 px-4 py-6 md:px-10">
-            <Skeleton className="h-6 w-2/3" />
-            <Skeleton className="h-40" />
-          </div>
-        )}
-      </div>
+      <div className="flex-1">{viewer ? <ViewerWithSiblings model={model} record={record} file={file} viewer={viewer} /> : <NoPreview file={file} />}</div>
     </div>
   )
 }
+
+const ViewerWithSiblings = ({ model, record, file, viewer }: { model: ResourceModel; record: Record<string, unknown>; file: ViewedFile; viewer: FileViewer }) => {
+  const { siblings, ready } = useSiblingFiles(model, record, file)
+  if (!ready) return <PageSkeleton name={file.name} />
+  const Viewer = viewer.component
+  return (
+    <ViewedResourceContext.Provider value={model.name}>
+      <CustomBoundary name={file.type} fallback={<ViewerFailed file={file} />}>
+        <Viewer file={file} siblings={siblings} />
+      </CustomBoundary>
+    </ViewedResourceContext.Provider>
+  )
+}
+
+const NoPreview = ({ file }: { file: ViewedFile }) => (
+  <div className="flex flex-col items-start gap-3 px-4 py-6 md:px-10" role="status">
+    <p>{text('noPreview', { name: file.name })}</p>
+    <DownloadLink file={file} />
+  </div>
+)
 
 const ViewerFailed = ({ file }: { file: ViewedFile }) => (
   <div className="flex flex-col items-start gap-3 px-4 py-6 md:px-10" role="alert">
