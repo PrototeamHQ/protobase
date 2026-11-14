@@ -40,6 +40,16 @@ describe('the scope stack', () => {
   })
 })
 
+describe('placeholder syntax', () => {
+  it('refuses a {{…}} that holds no path, and triple braces, before the models are known', () => {
+    expect(structureProblems(Page({ title: 'T', children: Table({ resource: 'tasks', title: '{{lookup a b}} {{{raw}}}' }) }))).toEqual([
+      '<Page> › <Table resource="tasks">: "title": {{{…}}} is not taken; write {{path}}',
+      '<Page> › <Table resource="tasks">: "title": "{{lookup a b}}" holds no path; write a field\'s name, ../name, this.name, @root.name, @params.name, @index, @first or @last',
+    ])
+    expect(structureProblems(Page({ title: 'T', children: Table({ resource: 'tasks', title: '{{../title}} {{@index}}' }) }))).toEqual([])
+  })
+})
+
 describe('Switch and Match', () => {
   const tree = (when: string[], fallback?: string) => Page({ title: 'T', children: Switch({ fallback, children: when.map((w, index) => Match({ when: w, children: Text({ children: `Branch ${index}` }) })) }) })
 

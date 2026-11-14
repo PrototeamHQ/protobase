@@ -1,4 +1,4 @@
-import { appHrefError } from '@protobase/schema/internal'
+import { appHrefError, parseTemplatePath, templatePlaceholders } from '@protobase/schema/internal'
 import { blockSpecs, propProblems } from './block-specs'
 import { parseCondition } from './condition'
 import { sampleSlots } from './filter-slots'
@@ -74,6 +74,22 @@ const isInline = (child: LayoutChild) => typeof child === 'string' || (!child.cu
 const textProblems = ({ children }: LayoutNode): string[] =>
   children.every(isInline) ? [] : ['holds text, <Link>s and <Text as="span">s only; put other elements beside it in a <Row> or <Column>']
 
+const stringsIn = (value: unknown): string[] => {
+  if (typeof value === 'string') return [value]
+  if (Array.isArray(value)) return value.flatMap(stringsIn)
+  if (typeof value === 'object' && value !== null && !('children' in value && 'type' in value)) return Object.values(value).flatMap(stringsIn)
+  return []
+}
+
+// Every `{{…}}` in a prop holds a Handlebars path and nothing else: no helpers, literals or triple braces.
+const placeholderProblems = ({ props }: LayoutNode): string[] =>
+  Object.entries(props).flatMap(([name, value]) =>
+    stringsIn(value).flatMap((text) => [
+      ...(text.includes('{{{') ? [`"${name}": {{{…}}} is not taken; write {{path}}`] : []),
+      ...templatePlaceholders(text).filter((path) => !parseTemplatePath(path)).map((path) => `"${name}": "{{${path}}}" holds no path; write a field's name, ../name, this.name, @root.name, @params.name, @index, @first or @last`),
+    ]),
+  )
+
 const isMatch = (child: LayoutChild) => typeof child !== 'string' && !child.custom && child.type === 'Match'
 
 // A `Switch` holds `Match`es only, as SolidJS's does, and a `Match` sits in a `Switch` only.
@@ -104,6 +120,7 @@ export const structureProblems = (tree: LayoutNode): string[] => {
     if (node.type === 'Image') imageProblems(node).forEach(report)
     if (node.type === 'Text') textProblems(node).forEach(report)
     switchProblems(node).forEach(report)
+    placeholderProblems(node).forEach(report)
     if ((node.type === 'Show' || node.type === 'Match') && typeof node.props.when === 'string') {
       // Its `{{path}}` slots stand in for values, which the page fills before it evaluates the condition
       const parsed = parseCondition(sampleSlots(node.props.when).text)
