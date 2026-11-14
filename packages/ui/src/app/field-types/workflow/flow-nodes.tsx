@@ -1,8 +1,11 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import { CircleAlert } from 'lucide-react'
+import { useContext, type KeyboardEvent, type MouseEvent } from 'react'
 import type { State } from '@protobase/workflows'
 import { cn } from '../../../lib/cn'
 import { Badge } from '../../../primitives/badge'
+import { AddAtContext } from './add-at-context'
+import type { AddAt } from './definition-edits'
 import type { EdgeKind } from './definition-graph'
 import type { FlowNode } from './flow-elements'
 import { nodeStatusLabel } from './labels'
@@ -26,12 +29,37 @@ const sourcesOf = (state: State): Source[] => {
   return [...next, ...caught]
 }
 
-const Sources = ({ state, editable }: { state: State; editable: boolean }) =>
-  sourcesOf(state).map((source) => (
-    <Handle key={source.kind} id={source.kind} type="source" position={source.position} isConnectable={editable} style={source.left ? { left: source.left } : undefined} className={cn(`pb-workflow-handle-${source.kind}`)}>
-      {source.label && <span className="pb-workflow-handle-label">{source.label}</span>}
-    </Handle>
-  ))
+// A click on a handle, rather than a drag from it, adds a step there; the node itself is not chosen by it
+const useAddAt = (at: AddAt, editable: boolean, handle?: string) => {
+  const addAt = useContext(AddAtContext)
+  if (!addAt || !editable) return {}
+  const open = (event: MouseEvent | KeyboardEvent) => {
+    event.stopPropagation()
+    addAt(at)
+  }
+  const label = handle ? text('addStepAtNamedHandle', { handle }) : text('addStepAtHandle')
+  return {
+    role: 'button',
+    tabIndex: 0,
+    'aria-label': label,
+    title: label,
+    onClick: open,
+    onKeyDown: (event: KeyboardEvent) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        open(event)
+      }
+    },
+  }
+}
+
+const SourceHandle = ({ source, path, editable }: { source: Source; path: string; editable: boolean }) => (
+  <Handle id={source.kind} type="source" position={source.position} isConnectable={editable} style={source.left ? { left: source.left } : undefined} className={cn(`pb-workflow-handle-${source.kind}`)} {...useAddAt({ kind: source.kind, source: path }, editable, source.label)}>
+    {source.label && <span className="pb-workflow-handle-label">{source.label}</span>}
+  </Handle>
+)
+
+const Sources = ({ state, path, editable }: { state: State; path: string; editable: boolean }) => sourcesOf(state).map((source) => <SourceHandle key={source.kind} source={source} path={path} editable={editable} />)
 
 const ProblemCount = ({ count }: { count: number }) =>
   count > 0 && (
@@ -86,7 +114,7 @@ export const StateNode = ({ data, selected, isConnectable }: NodeProps<FlowNode>
     <div className={cn(boxClass(selected, problems.length, trace), 'h-full px-3 py-2', holdsSteps(node.state) && 'bg-muted/40')}>
       <Handle id="in" type="target" position={Position.Top} isConnectable={isConnectable} />
       <Title name={node.name} kind={kind} problems={problems.length} first={node.first && node.parent !== undefined} trace={trace} warnings={[...(cacheWarning ? [text('cacheForcedAgainst')] : []), ...warnings.map((warning) => warning.message)]} />
-      <Sources state={node.state} editable={isConnectable} />
+      <Sources state={node.state} path={node.id} editable={isConnectable} />
     </div>
   )
 }
@@ -98,7 +126,7 @@ export const TriggerNode = ({ data, selected, isConnectable }: NodeProps<FlowNod
   return (
     <div className={cn(boxClass(selected, problems.length), 'h-full border-dashed px-3 py-2')}>
       <Title name={kind} kind={text('trigger')} problems={problems.length} />
-      <Handle id="start" type="source" position={Position.Bottom} isConnectable={isConnectable} />
+      <Handle id="start" type="source" position={Position.Bottom} isConnectable={isConnectable} {...useAddAt({ kind: 'start', source: node.id }, isConnectable)} />
     </div>
   )
 }

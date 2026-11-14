@@ -27,6 +27,30 @@
   height: 10px;
   border-width: 2px;
 }
+/* A handle a click adds a step at grows into a plus under the pointer or the keyboard's focus */
+.pb-workflow .react-flow__handle[role='button'] {
+  cursor: pointer;
+}
+.pb-workflow .react-flow__handle[role='button']:hover,
+.pb-workflow .react-flow__handle[role='button']:focus-visible {
+  width: 18px;
+  height: 18px;
+  background: var(--xy-handle-border-color);
+  outline: none;
+}
+.pb-workflow .react-flow__handle[role='button']:hover::before,
+.pb-workflow .react-flow__handle[role='button']:focus-visible::before {
+  content: '+';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--color-background);
+  pointer-events: none;
+}
 .pb-workflow .pb-workflow-handle-catch {
   --xy-handle-border-color: var(--color-danger);
 }

@@ -6,7 +6,7 @@ import { Button } from '../../../primitives/button'
 import { SearchPicker } from '../../../search-picker'
 import { pickedState, stepGroups } from '../workflow-page/step-catalog'
 import { definitionOf, holdsSteps, pathOf, stateAt, triggerId } from './definition'
-import { addState, freeName, type NewState } from './definition-edits'
+import { addState, addStateAt, freeName, scopeAt, type AddAt, type NewState } from './definition-edits'
 import { GraphFrame, PanelHint } from './graph-frame'
 import { NodePanel } from './node-panel'
 import { ProblemList } from './problem-list'
@@ -44,26 +44,26 @@ export const WorkflowGraphEditor = ({ value, types, onChange, notice }: Workflow
   const checked = useMemo(() => problemsByNode(definitionProblems(definition, types)), [definition, types])
   const warned = useMemo(() => warningsByNode(definition), [definition])
   const [chosen, setChosen] = useState<string>()
-  // The step picker has the side panel
-  const [adding, setAdding] = useState(false)
+  // The step picker has the side panel, for a step at the handle clicked or, from Add step, in the scope chosen
+  const [adding, setAdding] = useState<{ at?: AddAt }>()
   const groups = useMemo(() => stepGroups(types), [types])
   // A node the definition no longer has is no longer chosen
   const selected = chosen === triggerId || (chosen !== undefined && stateAt(definition, chosen)) ? chosen : undefined
   const scope = scopeFor(definition, selected)
 
-  const add = (kind: NewState) => {
+  const add = (kind: NewState, at?: AddAt) => {
     if (!onChange) return
     const name = freeName(definition, text('newStep'))
-    onChange(addState(definition, scope, kind, name, text('newStep')))
-    setChosen(pathOf(scope, name))
-    setAdding(false)
+    onChange(at ? addStateAt(definition, kind, name, text('newStep'), at) : addState(definition, scope, kind, name, text('newStep')))
+    setChosen(pathOf(at ? scopeAt(at) : scope, name))
+    setAdding(undefined)
   }
 
   return (
     <div className="flex flex-col gap-3">
       {onChange && (
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={() => setAdding(!adding)} aria-expanded={adding}>
+          <Button onClick={() => setAdding(adding ? undefined : {})} aria-expanded={Boolean(adding)}>
             <Plus className="size-3.5" aria-hidden />
             {scope.length > 0 ? text('addStepInside', { map: scope.join('/') }) : text('addStep')}
           </Button>
@@ -72,12 +72,12 @@ export const WorkflowGraphEditor = ({ value, types, onChange, notice }: Workflow
       )}
       <ProblemList problems={checked.whole} />
       <GraphFrame
-        canvas={<WorkflowCanvas definition={definition} problems={checked.byNode} warnings={warned} selected={selected} onSelect={setChosen} onChange={onChange} types={types} />}
+        canvas={<WorkflowCanvas definition={definition} problems={checked.byNode} warnings={warned} selected={selected} onSelect={setChosen} onChange={onChange} onAddAt={(at) => setAdding({ at })} types={types} />}
         panel={
           <>
             {notice}
             {adding ? (
-              <SearchPicker autoFocus groups={groups} onPick={(item) => add(pickedState(item.id))} />
+              <SearchPicker autoFocus groups={groups} onPick={(item) => add(pickedState(item.id), adding.at)} />
             ) : selected === undefined ? (
               <PanelHint>{text('pickNode')}</PanelHint>
             ) : (

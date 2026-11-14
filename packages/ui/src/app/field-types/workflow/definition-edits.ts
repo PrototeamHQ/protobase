@@ -1,4 +1,4 @@
-import type { Definition, Machine, State, Trigger } from '@protobase/workflows'
+import type { Catcher, Definition, Machine, State, Trigger } from '@protobase/workflows'
 import { allNames, machineAt, splitPath, type StatePath } from './definition'
 import type { EdgeKind, GraphEdge } from './definition-graph'
 
@@ -94,6 +94,59 @@ export const placeAfter = (definition: Definition, scope: readonly string[], cho
     return flowing.has(machine.States[name]?.Type as State['Type']) ? name : undefined
   }
   return Object.keys(machine.States).reverse().find((name) => (machine.States[name] as { End?: boolean }).End === true)
+}
+
+/** A handle of the canvas a new state is added at: the trigger's `start`, or the handle `kind` of the state at `source`. */
+export type AddAt = { kind: EdgeKind; source: StatePath }
+
+/** The machine a state added at `at` goes into: its source's, or the workflow's for the trigger's handle. */
+export const scopeAt = (at: AddAt) => (at.kind === 'start' ? [] : splitPath(at.source).scope)
+
+const isCatchAll = (catcher: Catcher) => catcher.ErrorEquals.length === 1 && catcher.ErrorEquals[0] === 'States.ALL'
+
+/**
+ * The state a handle leads to now, which a state added at it goes on to: the state's Next, a Choice's Default, the
+ * catcher of every error's Next, or the first state for the trigger's. A rule's handle adds a rule, so leads nowhere yet.
+ */
+export const ledTo = (definition: Definition, at: AddAt): string | undefined => {
+  if (at.kind === 'start') return definition.stateMachine.StartAt || undefined
+  const { scope, name } = splitPath(at.source)
+  const state = machineAt(definition, scope)?.States[name]
+  if (!state) return
+  if (at.kind === 'next') return (state as { Next?: string }).Next
+  if (at.kind === 'default') return state.Type === 'Choice' ? state.Default : undefined
+  if (at.kind === 'catch') return 'Catch' in state ? state.Catch?.find(isCatchAll)?.Next : undefined
+  return
+}
+
+/**
+ * Adds a state as `addState` does, connected from the handle `at`: as the first state for the trigger's, after the
+ * state for its Next, as a Choice's Default or new rule, or on the path of every error. Where the handle led to a
+ * state already, the new one goes in between and goes on to it; one that ends the run then stays unconnected, so it
+ * never cuts off the states after it.
+ */
+export const addStateAt = (definition: Definition, kind: NewState, name: string, base: string, at: AddAt) => {
+  if (at.kind === 'start') return addStateFirst(definition, kind, name, base)
+  const { scope, name: from } = splitPath(at.source)
+  if (at.kind === 'next') return addStateAfter(definition, scope, kind, name, base, from)
+  const next = ledTo(definition, at)
+  const added = addState(definition, scope, kind, name, base)
+  return edited(added, (copy) => {
+    const machine = machineOf(copy, scope)
+    const source = machine.States[from]
+    const state = machine.States[name]!
+    if (!source || (next !== undefined && !goesOn(state))) return
+    if (at.kind === 'rule' && source.Type === 'Choice') source.Choices = [...(source.Choices ?? []), { Condition: '', Next: name }]
+    if (at.kind === 'default' && source.Type === 'Choice') source.Default = name
+    if (at.kind === 'catch' && (source.Type === 'Task' || source.Type === 'Map' || source.Type === 'Block')) {
+      const catchAll = source.Catch?.find(isCatchAll)
+      if (catchAll) catchAll.Next = name
+      else source.Catch = [...(source.Catch ?? []), { ErrorEquals: ['States.ALL'], Next: name }]
+    }
+    if (next === undefined) return
+    if (state.Type === 'Choice') state.Default = next
+    else if (flowing.has(state.Type)) withNext(state, next)
+  })
 }
 
 /** Adds a state as `addState` does, and connects it after the state named `after` in its machine. */

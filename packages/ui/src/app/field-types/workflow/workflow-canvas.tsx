@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { WorkflowTypeList } from '@protobase/client'
 import type { Definition } from '@protobase/workflows'
 import { triggerId } from './definition'
-import { connect, disconnect, removeState } from './definition-edits'
+import { AddAtContext } from './add-at-context'
+import { connect, disconnect, removeState, type AddAt } from './definition-edits'
 import { definitionGraph, type EdgeKind, type GraphNode } from './definition-graph'
 import { flowEdges, flowNodes, graphId, type FlowNode } from './flow-elements'
 import { StateNode, TriggerNode } from './flow-nodes'
@@ -24,6 +25,8 @@ export type WorkflowCanvasProps = {
   onSelect: (id: string | undefined) => void
   /** Without it, the graph is only shown. */
   onChange?: (definition: Definition) => void
+  /** A click on a source handle, rather than a drag from it: a step is to be added there. */
+  onAddAt?: (at: AddAt) => void
   /** How each state did in a run, by its path, marked on its node. */
   traces?: ReadonlyMap<string, NodeTrace>
   /** What the check warns of, by node, which a save goes through with. */
@@ -72,7 +75,7 @@ const MeasureOnLayout = ({ laidOut, ids }: { laidOut: unknown; ids: string[] }) 
   return null
 }
 
-const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, traces, types, fills = false }: WorkflowCanvasProps) => {
+const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, onAddAt, traces, types, fills = false }: WorkflowCanvasProps) => {
   const graph = useMemo(() => definitionGraph(definition), [definition])
   const boxes = useLayout(graph)
   const nodes = useMemo(() => flowNodes(graph, boxes, problems, selected, traces, types, warnings), [graph, boxes, problems, selected, traces, types, warnings])
@@ -119,44 +122,49 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
   }
 
   return (
-    <ReactFlow
-      className="pb-workflow"
-      nodes={nodes}
-      edges={edges}
-      nodeTypes={nodeTypes}
-      nodesDraggable={false}
-      nodesConnectable={editable}
-      edgesFocusable={editable}
-      elementsSelectable
-      deleteKeyCode={editable ? ['Backspace', 'Delete'] : null}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      isValidConnection={isValidConnection}
-      onConnect={onConnect}
-      onDelete={onDelete}
-      onNodeClick={(_, node) => onSelect(graphId(node.id))}
-      onPaneClick={() => onSelect(undefined)}
-      // Where the page scrolls under the wheel and a finger, the canvas zooms by its buttons and by pinching
-      zoomOnScroll={false}
-      panOnScroll={fills}
-      preventScrolling={fills}
-      minZoom={0.2}
-      maxZoom={1.5}
-      aria-label={text('canvas')}
-    >
-      <Background gap={16} />
-      <Controls showInteractive={false} />
-      <FitOnLayout laidOut={boxes} />
-      {fills && <KeepCentre />}
-      <MeasureOnLayout laidOut={boxes} ids={nodes.map((node) => node.id)} />
-    </ReactFlow>
+    <AddAtContext.Provider value={onChange ? onAddAt : undefined}>
+      <ReactFlow
+        className="pb-workflow"
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        nodesDraggable={false}
+        nodesConnectable={editable}
+        // A click on a handle adds a step there; a connection is drawn by dragging, from a few pixels on
+        connectOnClick={false}
+        connectionDragThreshold={4}
+        edgesFocusable={editable}
+        elementsSelectable
+        deleteKeyCode={editable ? ['Backspace', 'Delete'] : null}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        isValidConnection={isValidConnection}
+        onConnect={onConnect}
+        onDelete={onDelete}
+        onNodeClick={(_, node) => onSelect(graphId(node.id))}
+        onPaneClick={() => onSelect(undefined)}
+        // Where the page scrolls under the wheel and a finger, the canvas zooms by its buttons and by pinching
+        zoomOnScroll={false}
+        panOnScroll={fills}
+        preventScrolling={fills}
+        minZoom={0.2}
+        maxZoom={1.5}
+        aria-label={text('canvas')}
+      >
+        <Background gap={16} />
+        <Controls showInteractive={false} />
+        <FitOnLayout laidOut={boxes} />
+        {fills && <KeepCentre />}
+        <MeasureOnLayout laidOut={boxes} ids={nodes.map((node) => node.id)} />
+      </ReactFlow>
+    </AddAtContext.Provider>
   )
 }
 
 /**
  * The workflow's graph on a canvas, laid out by ELK each time it changes: the trigger, a node per state, a Map's states
- * inside it, and an edge per state it leads to. With `onChange`, handles connect states, Delete removes the chosen
- * state or edge, and each change is the definition edited.
+ * inside it, and an edge per state it leads to. With `onChange`, dragging from a handle connects states, a click on
+ * one asks `onAddAt` for a step there, Delete removes the chosen state or edge, and each change is the definition edited.
  */
 export const WorkflowCanvas = (props: WorkflowCanvasProps) => (
   <ReactFlowProvider>

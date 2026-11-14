@@ -11,7 +11,7 @@ import { useFocusRecord } from '../../focus/focus-record'
 import { useAppAddress } from '../../use-app-address'
 import { nodeTraces } from '../workflow-run/run-trace'
 import { definitionOf, holdsSteps, pathOf, splitPath, stateAt, triggerId, allNames } from '../workflow/definition'
-import { addStateAfter, addStateFirst, freeName, placeAfter, type NewState } from '../workflow/definition-edits'
+import { addStateAfter, addStateAt, addStateFirst, freeName, ledTo, placeAfter, scopeAt, type AddAt, type NewState } from '../workflow/definition-edits'
 import { NodePanel } from '../workflow/node-panel'
 import { ProblemList } from '../workflow/problem-list'
 import { definitionProblems, isMissing, problemsByNode, warningsByNode, withoutMissing } from '../workflow/problems'
@@ -48,7 +48,7 @@ export type WorkflowWorkbenchProps = {
 }
 
 /** What the end panel shows by a button of the bar; with none, it shows the step chosen. */
-type Panel = { kind: 'add' } | { kind: 'test'; seed?: TestSeed } | { kind: 'runs' } | { kind: 'publish' } | { kind: 'off' } | { kind: 'problems' } | { kind: 'rerun'; step: string } | { kind: 'replay' }
+type Panel = { kind: 'add'; at?: AddAt } | { kind: 'test'; seed?: TestSeed } | { kind: 'runs' } | { kind: 'publish' } | { kind: 'off' } | { kind: 'problems' } | { kind: 'rerun'; step: string } | { kind: 'replay' }
 
 const noProblems = new Map()
 
@@ -131,18 +131,30 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
   if (!definition) return <Skeleton className="h-full w-full" />
   const close = () => setPanel(undefined)
   const scope = scopeFor(definition, selected)
+  // Where a step added at a handle lands, in words
+  const placementAt = (at: AddAt) => {
+    const next = ledTo(definition, at)
+    if (at.kind === 'start') return next === undefined ? text('addsFirst') : text('addsBetween', { step: graphText('trigger'), next })
+    const step = splitPath(at.source).name
+    if (next !== undefined) return text('addsBetween', { step, next })
+    if (at.kind === 'rule') return text('addsRule', { step })
+    if (at.kind === 'default') return text('addsOtherwise', { step })
+    if (at.kind === 'catch') return text('addsOnError', { step })
+    return text('addsAfter', { step })
+  }
   const placement = () => {
     if (selected === triggerId || allNames(definition.stateMachine).length === 0) return text('addsFirst')
     if (scope.length > 0 && selected === scope.join('/')) return text('addsInside', { map: splitPath(selected).name })
     const after = placeAfter(definition, scope, selected)
     return after === undefined ? text('addsUnconnected') : text('addsAfter', { step: after })
   }
-  const add = (kind: NewState) => {
+  const add = (kind: NewState, at?: AddAt) => {
     if (!change) return
     const name = freeName(definition, graphText('newStep'))
-    const next = selected === triggerId ? addStateFirst(definition, kind, name, graphText('newStep')) : addStateAfter(definition, scope, kind, name, graphText('newStep'), placeAfter(definition, scope, selected))
+    const base = graphText('newStep')
+    const next = at ? addStateAt(definition, kind, name, base, at) : selected === triggerId ? addStateFirst(definition, kind, name, base) : addStateAfter(definition, scope, kind, name, base, placeAfter(definition, scope, selected))
     change(next)
-    setChosen(pathOf(scope, name))
+    setChosen(pathOf(at ? scopeAt(at) : scope, name))
     setTab('settings')
     close()
   }
@@ -282,7 +294,7 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
       />
       <RunNotice view={view} page={page} failed={failed && splitPath(failed).name} changed={focus.dirty} gone={gone} {...(failed !== undefined && failed !== selected && { onOpenFailed: () => setChosen(failed) })} />
       <div className="h-full">
-        <WorkflowCanvas fills definition={definition} problems={run || empty ? noProblems : shownProblems} warnings={run || empty ? noProblems : warned} selected={selected} onSelect={(id) => setChosen(id ?? null)} {...(change && !focus.readOnly && { onChange: change })} {...(traces && run && { traces })} types={types} />
+        <WorkflowCanvas fills definition={definition} problems={run || empty ? noProblems : shownProblems} warnings={run || empty ? noProblems : warned} selected={selected} onSelect={(id) => setChosen(id ?? null)} {...(change && !focus.readOnly && { onChange: change, onAddAt: (at) => setPanel({ kind: 'add', at }) })} {...(traces && run && { traces })} types={types} />
       </div>
       {empty && panel === undefined && (
         <div className="pointer-events-none absolute inset-x-0 top-[60%] flex justify-center">
@@ -299,7 +311,7 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
           </div>
         </div>
       )}
-      {panel?.kind === 'add' && <AddStepPanel types={types} placement={placement()} onAdd={add} onClose={close} />}
+      {panel?.kind === 'add' && <AddStepPanel types={types} placement={panel.at ? placementAt(panel.at) : placement()} onAdd={(kind) => add(kind, panel.at)} onClose={close} />}
       {panel?.kind === 'test' && <TestRunPanel view={view} page={page} definition={definition} types={types} seed={panel.seed} onClose={close} />}
       {panel?.kind === 'runs' && <RunsPanel view={view} page={page} onTestRun={() => setPanel({ kind: 'test' })} onClose={close} />}
       {panel?.kind === 'publish' && <PublishPanel view={view} page={page} definition={definition} types={types} onClose={close} />}
