@@ -114,10 +114,13 @@ export const disconnectData = (definition: Definition, graph: DataGraph, edge: P
   return pure ? removePure(definition, graph, pure) : definition
 }
 
-/** Removes a Break, and every input that reads through it; or a Make, and the argument it builds. */
+/**
+ * Removes a Break, and every input that reads through it by name alone; or a Make, and the argument it builds. An
+ * expression that reads through it among other values stays, and so does the Break it draws.
+ */
 export const removePure = (definition: Definition, graph: DataGraph, node: PureNode): Definition => {
   if (node.kind === 'make') return setArgument(definition, node.target, [node.key], undefined)
-  return graph.edges.filter((edge) => edge.source === node.id).reduce((next, edge) => {
+  return graph.edges.filter((edge) => edge.source === node.id && !edge.expression).reduce((next, edge) => {
     const after = pureOf(graph, edge.target)
     if (after?.kind === 'break') return removePure(next, graph, after)
     return disconnectData(next, graph, edge)

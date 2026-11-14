@@ -32,7 +32,8 @@ export const inputState = (value: unknown): InputState => {
   if (value === undefined || value === '') return 'empty'
   if (parseReference(value)) return 'wired'
   if (expressionSource(value) !== undefined) return 'expression'
-  if (isObject(value) && Object.values(value).some((field) => parseReference(field))) return 'made'
+  // An object whose fields read values, by name alone or in an expression, is built by a Make node
+  if (isObject(value) && Object.values(value).some((field) => expressionSource(field) !== undefined)) return 'made'
   return 'literal'
 }
 

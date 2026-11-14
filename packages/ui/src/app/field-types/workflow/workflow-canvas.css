@@ -147,3 +147,6 @@
 .pb-workflow .pb-workflow-status .react-flow__edge-path {
   stroke-dasharray: 5 4;
 }
+.pb-workflow .pb-wire-expression .react-flow__edge-path {
+  stroke-dasharray: 2 3;
+}

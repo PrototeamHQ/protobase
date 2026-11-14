@@ -146,7 +146,8 @@ export const dataFlowEdges = (data: DataGraph): Edge[] =>
     sourceHandle: edge.sourceHandle,
     target: flowId(edge.target),
     targetHandle: edge.targetHandle,
-    deletable: true,
+    // A read inside an expression goes only as the expression changes
+    deletable: !edge.expression,
     data: { kind: 'data', wire: edge },
-    className: `pb-wire pb-wire-${pinColour(edge.type)}`,
+    className: `pb-wire pb-wire-${pinColour(edge.type)}${edge.expression ? ' pb-wire-expression' : ''}`,
   }))

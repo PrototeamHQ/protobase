@@ -3,7 +3,7 @@ import { checkDefinition } from '../check-definition'
 import type { Definition } from '../types'
 import { pinProblems } from './check-pins'
 import { fits, pinType, pinTypeText } from './pin-type'
-import { parseReference, readText, referenceValue } from './references'
+import { expressionReferences, parseReference, readText, referenceValue } from './references'
 import { resolveSchema, schemaAt, type RecordSchemas } from './resolve-schema'
 import type { PinSchemas } from './pin-sources'
 
@@ -85,5 +85,21 @@ describe('pins', () => {
     expect(checkDefinition(definition, { ...options, pins: schemas }).filter((problem) => problem.field === 'Arguments.url')).toEqual([
       { state: 'Fetch', field: 'Arguments.url', message: 'reads $states.context.Execution.Input.record.age, a whole number, where url takes text' },
     ])
+  })
+})
+
+describe('the reads of an expression', () => {
+  it('finds every read by name, however the expression combines them, and no name it binds itself', () => {
+    expect(expressionReferences("{% $ip.body.ip & ' / ' & $uuid.body.uuid & $string($count($ip.headers)) %}")).toEqual([
+      { base: { variable: 'ip' }, path: ['body', 'ip'] },
+      { base: { variable: 'uuid' }, path: ['body', 'uuid'] },
+      { base: { variable: 'ip' }, path: ['headers'] },
+    ])
+    expect(expressionReferences("{% $states.context.Steps.Save.Status = 'SUCCEEDED' and $states.context.Execution.Input.ok %}")).toEqual([
+      { base: { step: 'Save' }, path: ['Status'] },
+      { base: { input: true }, path: ['ok'] },
+    ])
+    expect(expressionReferences('{% ($n := 2; $n * $total) %}')).toEqual([{ base: { variable: 'total' }, path: [] }])
+    expect(expressionReferences('plain text')).toEqual([])
   })
 })

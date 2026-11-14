@@ -1,4 +1,4 @@
-import { allStates, inputSchema, orderOf, parseReference, pinType, resultRead, schemaAt, type Definition, type PinSchemas, type PinType, type State } from '@protobase/workflows'
+import { allStates, expressionReferences, inputSchema, orderOf, parseReference, pinType, resultRead, schemaAt, type Definition, type PinSchemas, type PinType, type Reference, type State } from '@protobase/workflows'
 import { pathOfName, triggerId } from '../definition'
 import { conditionPin, fieldsOf, givenSchema, inputPin, inputPins, statusKey, statusPin, stepOutputs, triggerOutputs, type InputPin, type OutputPin } from './node-pins'
 import { breakId, breakIn, inHandle, makeId, makeOut, outHandle } from './pure-ids'
@@ -11,8 +11,11 @@ export type MakeNode = { kind: 'make'; id: string; target: string; key: string; 
 
 export type PureNode = BreakNode | MakeNode
 
-/** A wire from an output pin to an input pin, of the type of the value it carries. */
-export type DataEdge = { id: string; source: string; sourceHandle: string; target: string; targetHandle: string; type: PinType }
+/**
+ * A wire from an output pin to an input pin, of the type of the value it carries. `expression`: the input is an
+ * expression that reads the value among others, so the wire shows the read, and only changing the expression removes it.
+ */
+export type DataEdge = { id: string; source: string; sourceHandle: string; target: string; targetHandle: string; type: PinType; expression?: true }
 
 /** A Break or Make made on the canvas, which the document holds nothing for until a wire runs through it. */
 export type LocalPure = { kind: 'break'; source: string; path: string[] } | { kind: 'make'; target: string; key: string }
@@ -54,9 +57,10 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
   const edges = new Map<string, DataEdge>()
   const variables = resultVariables(definition)
 
-  const wire = (from: { node: string; handle: string; type: PinType }, target: string, targetHandle: string) => {
+  const wire = (from: { node: string; handle: string; type: PinType }, target: string, targetHandle: string, expression = false) => {
     const id = `data:${from.node}|${from.handle}->${target}|${targetHandle}`
-    edges.set(id, { id, source: from.node, sourceHandle: from.handle, target, targetHandle, type: from.type })
+    if (expression && edges.has(id)) return
+    edges.set(id, { id, source: from.node, sourceHandle: from.handle, target, targetHandle, type: from.type, ...(expression && { expression: true as const }) })
   }
   const pinOf = (pins: OutputPin[], path: string[]) => {
     let pin = pins.find((each) => samePath(each.path, path))
@@ -89,9 +93,20 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
     wire(from(source, path), id, breakIn)
     return made
   }
+  // The wires of a value: one for a read by name alone, else one for each read of its expression
+  const wireValue = (value: unknown, target: string, targetHandle: string) => {
+    const one = sourceOf(value)
+    if (one) return wire(one, target, targetHandle)
+    for (const reference of expressionReferences(value)) {
+      const source = sourceOfReference(reference)
+      if (source) wire(source, target, targetHandle, true)
+    }
+  }
   const sourceOf = (value: unknown) => {
     const reference = parseReference(value)
-    if (!reference) return
+    return reference && sourceOfReference(reference)
+  }
+  const sourceOfReference = (reference: Reference) => {
     if ('step' in reference.base) {
       const node = pathOfState(reference.base.step)
       return node === undefined || !outputs.has(node) ? undefined : from(node, [statusKey, ...reference.path])
@@ -112,19 +127,14 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
     const made: MakeNode = { kind: 'make', id, target, key, type: pin?.type ?? pinType(schema), inputs: [...declared, ...extra] }
     makes.set(id, made)
     wire({ node: id, handle: makeOut, type: made.type }, target, inHandle(key))
-    for (const field of made.inputs) {
-      const source = sourceOf(field.value)
-      if (source) wire(source, id, inHandle(field.key))
-    }
+    for (const field of made.inputs) wireValue(field.value, id, inHandle(field.key))
     return made
   }
 
   for (const [target, pins] of inputs) {
     for (const pin of pins) {
       if (pin.state === 'made') makeOf(target, pin.key)
-      if (pin.state !== 'wired') continue
-      const source = sourceOf(pin.value)
-      if (source) wire(source, target, inHandle(pin.key))
+      if (pin.state === 'wired' || pin.state === 'expression') wireValue(pin.value, target, inHandle(pin.key))
     }
   }
   for (const each of local) {

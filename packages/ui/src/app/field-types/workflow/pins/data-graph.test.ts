@@ -77,4 +77,18 @@ describe('the data graph', () => {
     const broken = graph.pure.find((node) => node.id === breakId('Fetch', ['body']))!
     expect(removePure(definition, graph, broken).stateMachine.States.Save).toEqual({ Type: 'Task', Resource: 'app:records.update', Arguments: { resource: 'contacts', data: {} }, End: true })
   })
+
+  it('wires each read inside an expression, through a Make for an object whose fields compute, as a wire only the expression removes', () => {
+    const definition = workflow({}, { key: "{% $states.context.Execution.Input.record.id & '' %}", data: { name: '{% $fetch.body.ip & " at " & $fetch.status %}' } })
+    const graph = dataGraph(definition, schemas)
+    expect(graph.pure.map((node) => node.id)).toEqual([breakId('', ['record']), breakId('Fetch', ['body']), makeId('Save', 'data')])
+    const expression = graph.edges.filter((edge) => edge.expression).map((edge) => `${edge.source}${edge.sourceHandle} > ${edge.target}${edge.targetHandle}`).sort()
+    expect(expression).toEqual([
+      `${breakId('', ['record'])}${outHandle(['id'])} > Save${inHandle('key')}`,
+      `${breakId('Fetch', ['body'])}${outHandle(['ip'])} > ${makeId('Save', 'data')}${inHandle('name')}`,
+      `Fetch${outHandle(['status'])} > ${makeId('Save', 'data')}${inHandle('name')}`,
+    ].sort())
+    const broken = graph.pure.find((node) => node.id === breakId('Fetch', ['body']))!
+    expect(removePure(definition, graph, broken)).toEqual(definition)
+  })
 })
