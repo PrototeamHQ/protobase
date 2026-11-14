@@ -112,7 +112,7 @@ A `RecordCard` (its first match), a `ReferenceField`, each card of a `CardRow` a
 ## Related records
 
 :::caution[Beta]
-Each list block reads its records once the record around it has drawn, rather than at page load.
+Each list block reads its records once the record around it has drawn. Coming soon: reads planned at build, so every list's read starts at page load.
 :::
 
 A record's related records repeat under it as a list: a `ReferenceManyField` holds the records of another resource that point at it, a `ReferenceArrayField` the records whose keys a JSON field of it lists, and an `ArrayField` the items of a JSON list it holds. A `RecordsIterator` inside one draws its children once for each entry, with nothing around them, and a `Table` without `resource` draws the list as a table. A `ReferenceField` draws the one record a field points at. They take the names, props and defaults of the [react-admin](/features/compatibility/#react-admin) components of the same names.
