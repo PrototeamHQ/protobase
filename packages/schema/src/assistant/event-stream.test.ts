@@ -36,3 +36,52 @@ it('stops at an abort, handing on only the events read so far', async () => {
   await reading
   expect(data).toEqual(['first'])
 })
+
+// Collects unhandled rejections in place of the test runner's own handler, which fails the run on one
+const catchUnhandled = async (run: () => Promise<void>) => {
+  const runners = process.listeners('unhandledRejection')
+  const caught: unknown[] = []
+  const collect = (reason: unknown) => void caught.push(reason)
+  process.removeAllListeners('unhandledRejection')
+  process.on('unhandledRejection', collect)
+  try {
+    await run()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  } finally {
+    process.off('unhandledRejection', collect)
+    for (const runner of runners) process.on('unhandledRejection', runner)
+  }
+  return caught
+}
+
+it('rejects with the AbortError of a body its fetch already aborted, leaving no unhandled rejection', async () => {
+  const abort = new AbortController()
+  const body = new ReadableStream<Uint8Array>({
+    start: (controller) => {
+      // Registered before readEventStream's listener, as fetch registers its own abort first
+      abort.signal.addEventListener('abort', () => controller.error(new DOMException('aborted', 'AbortError')), { once: true })
+    },
+  })
+  const caught = await catchUnhandled(async () => {
+    const reading = readEventStream(body, () => {}, abort.signal)
+    abort.abort()
+    await expect(reading).rejects.toMatchObject({ name: 'AbortError' })
+  })
+  expect(caught).toEqual([])
+})
+
+it('still surfaces a cancel that fails with another error', async () => {
+  const abort = new AbortController()
+  const failure = new Error('cancel failed')
+  const body = new ReadableStream<Uint8Array>({
+    cancel: () => {
+      throw failure
+    },
+  })
+  const caught = await catchUnhandled(async () => {
+    const reading = readEventStream(body, () => {}, abort.signal)
+    abort.abort()
+    await reading
+  })
+  expect(caught).toEqual([failure])
+})
