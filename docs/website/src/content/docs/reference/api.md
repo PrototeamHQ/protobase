@@ -161,7 +161,7 @@ It works in the `filter` of a list, `:search`, `:seek`, `:facets`, `:aggregate`,
 - It is a term ANDed at the top of the filter or of a subfilter. `NOT` and `OR` refuse it, as does anything else that takes a filter: access rules, role filters, a view's opening filter, events, subscriptions, workflow conditions and page conditions.
 - A filter holds at most 3 terms, those in subfilters included, and nests at most 2 levels.
 - It may do only what the caller could do in two steps, listing `resource` with the subfilter and then filtering with `in(field, ...)`: the [access](/reference/access/#related-records-in-filters) rules apply to both sides, and a resource the caller cannot list answers as one that does not exist.
-- The [scan guard](#safety) judges both tables. Besides `field` and the subfilter's columns, `key` needs a btree index under what the subfilter pins, unless it is a JSON list, and the first field of `order_by` needs one as in a list of `resource`.
+- The [scan guard](#safety) judges both tables. Besides `field` and the subfilter's columns, `key` needs a btree index under what the subfilter pins, a JSON list as any other, and the first field of `order_by` needs one as in a list of `resource`.
 - A [list across organizations](/reference/access/#lists-across-organizations) with a term reads the session's own organization alone, and so does the term.
 
 After the subfilter it can take the `order_by`, `limit` and `page_token` of a list of `resource`, each needing the one before it, so a child read keeps to the children of exactly the records one page of that list shows:

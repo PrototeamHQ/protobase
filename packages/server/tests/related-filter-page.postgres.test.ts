@@ -24,7 +24,7 @@ const tasks = resource('tasks')
 
 const claims = resource('claims')
   .table('claims')
-  .fields({ id: f.integer().readOnly().filterable().sortable(), org: f.relation('organizations').filterable(), task_id: f.relation('tasks').filterable(), claimed_at: f.timestamp().sortable() })
+  .fields({ id: f.integer().readOnly().filterable().sortable(), org: f.relation('organizations').filterable(), task_id: f.relation('tasks').filterable(), claimed_at: f.timestamp().sortable(), blocks: f.json().optional().filterable() })
   .primaryKey((r) => r.id)
   .tenant((r) => r.org)
 
@@ -54,7 +54,8 @@ describe.skipIf(!(await postgresTemplateReady('empty')))("related() on a page of
       create table tasks (id integer primary key, org integer not null references organizations, state text not null, created_at timestamptz not null, rank integer not null, waits jsonb);
       create index on tasks (org, created_at);
       create index on tasks (state);
-      create table claims (id integer primary key, org integer not null references organizations, task_id integer not null references tasks, claimed_at timestamptz not null);
+      create index on tasks (waits);
+      create table claims (id integer primary key, org integer not null references organizations, task_id integer not null references tasks, claimed_at timestamptz not null, blocks jsonb);
       create index on claims (task_id);
       create index on claims (org, claimed_at);
       create table steps (id integer primary key, org integer not null references organizations, claim_id integer not null references claims);
@@ -122,6 +123,14 @@ describe.skipIf(!(await postgresTemplateReady('empty')))("related() on a page of
     expect(await ids('tasks', 'related(id, tasks.waits, (id = 3))', admin)).toEqual([1])
     expect(await ids('tasks', 'related(id, tasks.waits, (id = 3))', member)).toEqual([])
     expect(await ids('tasks', 'related(id, tasks.waits, (id = 6))', admin)).toEqual([])
+  })
+
+  it('refuses a JSON list of keys no index serves, naming the index, as any key', async () => {
+    const response = await list('tasks', 'related(id, claims.blocks, (id = 1))', member)
+    expect(response.status).toBe(400)
+    const body = await response.json()
+    expect(body.type).toBe('urn:protobase:problem:expensive-query')
+    expect(body.suggestion).toBe('create index on "claims" ("blocks")')
   })
 
   it('refuses a key that is neither a JSON list nor a relation to the resource the field points at', async () => {
