@@ -30,16 +30,18 @@ type CardsDisplayModel = Extract<ListDisplayModel, { kind: 'cards' }>
 
 export const displaysOf = (view: ViewModel | undefined): ListDisplayModel[] => view?.list?.displays ?? []
 
+/** The display a list is set to open in: `preferred`, such as a block's `display`, else the view's `default`, else none. */
+const configuredDisplay = (view: ViewModel | undefined, preferred?: string) => preferred ?? view?.list?.default
+
 /**
- * The display a list opens in when its address names none. Below the `sm` breakpoint a list with a cards display opens
- * in one: `preferred` or the view's default when that is a cards display, else the first. Otherwise `preferred`, the
- * view's default, or the table.
+ * The display a list opens in when its address names none: the one it is set to open in (`configuredDisplay`) on any
+ * screen; with none set, the table, or below the `sm` breakpoint the list's first cards display when it has one.
  */
 export const defaultDisplay = (view: ViewModel | undefined, xs: boolean, preferred?: string): string => {
-  const fallback = preferred ?? view?.list?.default ?? tableDisplay
-  if (!xs) return fallback
-  const cards = displaysOf(view).filter((display) => display.kind === 'cards')
-  return cards.find((display) => display.name === fallback)?.name ?? cards[0]?.name ?? fallback
+  const configured = configuredDisplay(view, preferred)
+  if (configured !== undefined) return configured
+  if (!xs) return tableDisplay
+  return displaysOf(view).find((display) => display.kind === 'cards')?.name ?? tableDisplay
 }
 
 /** The name of the list a phone shows for a list without a cards display. */
@@ -63,11 +65,11 @@ const isPhoneRows = (view: ViewModel | undefined, display: ListDisplayModel) => 
 
 /**
  * The display a list page opens in when its address names none: `defaultDisplay`, but below the `sm` breakpoint the
- * phone's rows (`phoneRows`) in place of the table.
+ * phone's rows (`phoneRows`) in place of a table the view is not set to open in.
  */
 export const listDefaultDisplay = (model: ResourceModel, view: ViewModel | undefined, xs: boolean) => {
   const display = defaultDisplay(view, xs)
-  return xs && display === tableDisplay && phoneRows(model, view) ? rowsDisplay : display
+  return xs && configuredDisplay(view) === undefined && display === tableDisplay && phoneRows(model, view) ? rowsDisplay : display
 }
 
 /** The display a list page shows for the address's `name`: `shownDisplay`, or the phone's rows when it names them, on any screen. */

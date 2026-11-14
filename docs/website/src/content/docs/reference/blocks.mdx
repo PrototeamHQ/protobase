@@ -142,7 +142,7 @@ One number or value with a label. Exactly one of `value`, `resource` and `field`
 
 ### Table
 
-The first records of a list, drawn the way the resource's list page draws them: its table, or one of the view's [list displays](/reference/ui-config/#list-displays) such as cards, with the same switch between them when the view has several. A row or card opens the record, and **View all** opens the list with the same filter and order. On a phone a view with a cards display opens in it, as one row of cards that scrolls sideways; a display the viewer picks is kept for them in the browser.
+The first records of a list, drawn the way the resource's list page draws them: its table, or one of the view's [list displays](/reference/ui-config/#list-displays) such as cards, with the same switch between them when the view has several. A row or card opens the record, and **View all** opens the list with the same filter and order. It opens in the display the viewer picked, which is kept for them in the browser, else in its `display`, else in the view's `default`, on a phone too, a table there showing the [phone's columns](#columns-on-a-phone); with none of them, a phone opens a view with a cards display in it. On a phone cards sit in one row that scrolls sideways.
 
 | Prop | |
 | --- | --- |

@@ -18,11 +18,11 @@ const memory = () => {
 }
 
 describe('embeddedDisplay', () => {
-  it('opens the view default on a desktop, the display the page names instead of it, and cards on a phone', () => {
+  it('opens the display the page names on any screen, else the view default on a desktop and cards on a phone', () => {
     expect(embeddedDisplay(withCards, false, {})).toBe('table')
     expect(embeddedDisplay(withCards, false, { preferred: 'cards' })).toBe('cards')
     expect(embeddedDisplay(withCards, true, {})).toBe('cards')
-    expect(embeddedDisplay(withCards, true, { preferred: 'table' })).toBe('cards')
+    expect(embeddedDisplay(withCards, true, { preferred: 'table' })).toBe('table')
   })
 
   it('keeps the table for a view without cards, and skips names the view does not have', () => {
@@ -34,6 +34,7 @@ describe('embeddedDisplay', () => {
   it("opens the viewer's pick over every default, on any screen", () => {
     expect(embeddedDisplay(withCards, true, { picked: 'table' })).toBe('table')
     expect(embeddedDisplay(withCards, false, { picked: 'cards', preferred: 'table' })).toBe('cards')
+    expect(embeddedDisplay(withCards, true, { picked: 'cards', preferred: 'table' })).toBe('cards')
   })
 })
 
