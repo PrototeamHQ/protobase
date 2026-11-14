@@ -1,3 +1,4 @@
+import type { ResourceModel } from '@protobase/schema'
 import { describe, expect, it } from 'vitest'
 import { Field, Page, RecordCard, Table } from './blocks'
 import { blockSpecs } from './block-specs'
@@ -9,7 +10,7 @@ import { prunePage } from './prune-page'
 import { field, model, nested } from './testing/models'
 
 // A task with its claims, each claim with its steps; a task lists its labels and the workers it is for as JSON.
-const models = {
+const models: Record<string, ResourceModel> = {
   ...nested,
   tasks: model('tasks', [...Object.values(nested.tasks!.fields), field('labels', 'json'), field('worker_ids', 'json')]),
 }
