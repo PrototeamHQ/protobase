@@ -10,8 +10,9 @@ export const secretAnswers = (inputs: ActionInputModel[], values: Record<string,
     return input.kind === 'secret' && typeof value === 'string' && value !== '' ? [value] : []
   })
 
-/** `text` with each of `secrets` in it replaced by discs. */
-export const maskSecrets = (text: string, secrets: string[]) => secrets.reduce((masked, secret) => masked.replaceAll(secret, mask), text)
+/** `text` with each of `secrets` in it replaced by discs, the longest first, so a shorter one inside it leaves none of it showing. */
+export const maskSecrets = (text: string, secrets: string[]) =>
+  [...secrets].sort((a, b) => b.length - a.length).reduce((masked, secret) => masked.replaceAll(secret, mask), text)
 
 /**
  * A failure as the dialog may show it: one whose message or problem holds a secret answer comes back with each masked,

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ApiError } from '@protobase/client'
 import type { ActionInputModel } from '@protobase/schema'
 import { ActionInputError, inputErrors } from './input-errors'
-import { maskedFailure, maskedMessages, secretAnswers } from './secret-mask'
+import { maskSecrets, maskedFailure, maskedMessages, secretAnswers } from './secret-mask'
 
 const inputs: ActionInputModel[] = [
   { name: 'label', kind: 'text', label: 'Label', required: true },
@@ -25,6 +25,10 @@ describe('secret masking', () => {
     const api = maskedFailure(new ApiError({ type: 'urn:protobase:problem:invalid', title: 'Invalid', status: 400, detail: 'Bad key sk-"live"-42' }), secrets)
     expect(api).toBeInstanceOf(ApiError)
     expect((api as ApiError).message).toBe('Bad key ••••••')
+  })
+
+  it('masks a longer secret whole when a shorter one is part of it', () => {
+    expect(maskSecrets('x=abcdef1234', ['abc', 'abcdef1234'])).toBe('x=••••••')
   })
 
   it('leaves a failure as it is when no secret was answered', () => {
