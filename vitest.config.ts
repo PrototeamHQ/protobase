@@ -83,6 +83,7 @@ const snapshotIsolated = [
   'packages/server/tests/admin-users.test.ts',
   'packages/server/tests/app-tokens.test.ts',
   'packages/server/tests/auth-existing-users.test.ts',
+  'packages/server/tests/auth-rate-limit.test.ts',
   'packages/server/tests/auth-store-hidden.test.ts',
   'packages/server/tests/better-auth.test.ts',
   'packages/server/tests/confirmation-code.test.ts',

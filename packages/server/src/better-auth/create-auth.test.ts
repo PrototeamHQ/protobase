@@ -34,6 +34,12 @@ describe('betterAuthOptions', () => {
     expect(betterAuthOptions(base, resolved).rateLimit.customRules['/account/set-password']).toEqual({ window: 60, max: 5 })
   })
 
+  it('leaves the reads of every page load out of the rate limit, and limits sign-in', () => {
+    const { customRules } = betterAuthOptions(base, resolved).rateLimit
+    expect([customRules['/get-session'], customRules['/role/current'], customRules['/token']]).toEqual([false, false, false])
+    expect(customRules['/sign-in/email']).toEqual({ window: 60, max: 5 })
+  })
+
   it('passes the social providers through and leaves everything else as it was', () => {
     const { socialProviders, ...rest } = betterAuthOptions({ ...base, socialProviders: github }, resolved)
     expect(socialProviders).toBe(github)
