@@ -128,10 +128,10 @@ An upload carries three hints: what the **content** is (C, from its magic bytes)
 | Content | Type used | When the hints disagree |
 | --- | --- | --- |
 | Recognized: images, PDF, archives, Office files, audio, video, executables, ... | C | C wins and the answer reports `corrected: { from, to }`: a JPEG sent as `photo.png` is `image/jpeg`, and an executable named `invoice.pdf` is refused by `accept: ['application/pdf']`. |
-| Not recognized, and text (UTF-8 without NUL bytes) | E when it is a text type (`csv`, `tsv`, `txt`, `md`, `json`); H when there is no extension; else `text/plain` | E wins over H: HTML named `.csv` is stored as `text/csv`. HTML and SVG are never taken as images. |
+| Not recognized, and text (UTF-8 without NUL bytes) | E when it is a text type (`csv`, `tsv`, `txt`, `md`, `html`, `json`); H when there is no extension; else `text/plain` | E wins over H: HTML named `.csv` is stored as `text/csv`. HTML and SVG are never taken as images. |
 | Not recognized, and binary | E, only when `accept` lists that type exactly and H does not disagree; else `application/octet-stream` | Any disagreement gives `application/octet-stream`, which passes only an `accept` that names it. |
 
-The decided type picks the stored extension, and downloads are served by that extension, so nothing posing as a PDF is ever served as something else, and nothing is served as HTML.
+The decided type picks the stored extension, and downloads are served by that extension, so nothing posing as a PDF is ever served as something else. An HTML file is stored as `text/html` but always downloads as an attachment that never renders on the app's origin; the admin app opens it in its [HTML viewer](#html-files).
 
 ### Your own types
 
@@ -204,7 +204,7 @@ select attachment_type, count(*), sum(attachment_size) from attachments group by
 - An **external URL** writes the type its extension names, the app's [own types](#your-own-types) included, and `null` when the table knows no such extension. Its size field stays `null`, since Protobase never fetches it.
 - An **import** that writes rows itself may write both beside the value, such as the type of a file stored under a name with no extension. Leave a field `null` when the source does not say; never guess.
 - **Responses** and [viewers](#viewers) take the file's `type` and `size` from these fields when the row holds them, else from the value.
-- A **private download** is served as the type field's type when that is a type the app's table knows, so a file is never served as HTML; any other value is served by the path's extension. A public file has no row to read, so it is served by its path, and a bucket serves it with the type its upload was decided to be.
+- A **private download** is served as the type field's type when that is a type the app's table knows, and HTML only ever as an attachment; any other value is served by the path's extension. A public file has no row to read, so it is served by its path, and a bucket serves it with the type its upload was decided to be.
 
 Files stored before a field declared them keep `null` until they are uploaded again or an import fills them.
 
