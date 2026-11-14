@@ -8,6 +8,7 @@ import { pathFindings } from './check-paths'
 import { pruneToolCalls, type ToolCallSource } from './check-tool-calls'
 import { elementResource, linkPlaceholderError, pageParams } from './check-page'
 import { resolveFieldPath } from './field-path'
+import { inlineFieldTypes } from './inline-fields'
 import { sampledFilterErrors } from './sampled-filter'
 import { resolveScopePath } from './scope-lookup'
 import { dataProps, type LayoutNode, type LayoutValue } from './node'
@@ -63,6 +64,7 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: Rea
   const readable = (name: string) => innermost(scope) !== undefined && resolveScopePath(name, { models, scope, params, mode: 'relations' }).ok
   const conditionFits = (when: unknown) => typeof when === 'string' && scopedConditionReadable(when, { models, scope, params })
 
+  if (inlineFieldTypes.has(node.type)) return readable(String(node.props.source)) ? node : null
   switch (node.type) {
     // A list or record the caller cannot read by its target, source, filter or sort is left out, with what it holds
     case 'ReferenceManyField':
@@ -71,7 +73,7 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: Rea
     case 'ReferenceField':
       return listModelProblems(node, scope, { models, params }).length > 0 ? null : node
     case 'Field':
-      return readable(String(node.props.name)) ? node : null
+      return readable(String(node.props.source)) ? node : null
     case 'Stat':
       return text(node.props.field) === undefined || readable(String(node.props.field)) ? node : null
     case 'Chart':

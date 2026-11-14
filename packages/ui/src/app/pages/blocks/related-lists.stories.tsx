@@ -52,7 +52,7 @@ const board = page(
       resource: 'tasks',
       recordKey: '1',
       children: [
-        ArrayField({ source: 'labels', children: RecordsIterator({ children: Field({ name: 'this', label: false }) }) }),
+        ArrayField({ source: 'labels', children: RecordsIterator({ children: Field({ source: 'this', label: false }) }) }),
         ReferenceManyField({
           reference: 'task_claims',
           target: 'task_id',
@@ -62,7 +62,7 @@ const board = page(
               title: 'Claim {{@index}}',
               children: [
                 ReferenceField({ source: 'worker_id', reference: 'workers' }),
-                ReferenceManyField({ reference: 'claim_steps', target: 'claim_id', empty: 'No steps yet', children: RecordsIterator({ children: Field({ name: 'name', label: false }) }) }),
+                ReferenceManyField({ reference: 'claim_steps', target: 'claim_id', empty: 'No steps yet', children: RecordsIterator({ children: Field({ source: 'name', label: false }) }) }),
               ],
             }),
           }),

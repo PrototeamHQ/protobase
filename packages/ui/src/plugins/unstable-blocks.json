@@ -5,7 +5,8 @@
     "data/start-cache/start-cache#useStartCache": "the shell's sign-in and query cache read it; an app gets the start cache from the shell",
     "mailbox/use-action-mailbox#useActionMailbox": "the framework's action dialogs and toasts use it; an app gets the mailbox offer by marking an action mailbox: true",
     "mailbox/use-mailbox-toast-action#useMailboxToastAction": "the framework's action dialogs and toasts use it; an app gets the mailbox offer by marking an action mailbox: true",
-    "notifications/push/native-push-tap#NativePushTap": "the shell mounts it in the Android app; an app gets push taps opened by turning notifications() on"
+    "notifications/push/native-push-tap#NativePushTap": "the shell mounts it in the Android app; an app gets push taps opened by turning notifications() on",
+    "primitives/true-mark#TrueMark": "table cells and BooleanField draw a true boolean with it; a layout gets it from BooleanField"
   },
   "pending": [
     "account/account-page#AccountPage",

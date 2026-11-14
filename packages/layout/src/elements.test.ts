@@ -45,7 +45,7 @@ describe('plain elements', () => {
 
   it('let a Text hold a piece of its line as a Text span, and a Link look like a button', () => {
     expect(problems(Page({ title: 'x', children: [Text({ children: ['Hi ', Text({ as: 'span', className: 'font-semibold', children: 'Sam' })] }), Link({ href: 'https://example.com', variant: 'primary', children: 'Go' })] }))).toEqual([])
-    expect(problems(Page({ title: 'x', children: Text({ children: Text({ children: 'a' }) }) }))).toEqual(['<Page> › <Text>: holds text, <Link>s and <Text as="span">s only; put other elements beside it in a <Row> or <Column>'])
+    expect(problems(Page({ title: 'x', children: Text({ children: Text({ children: 'a' }) }) }))).toEqual(['<Page> › <Text>: holds text, <Link>s, <Text as="span">s and field components such as <TextField> only; put other elements beside it in a <Row> or <Column>'])
   })
 
   it('refuse a link inside a link, through a Text span too, naming where the inner one is', () => {
@@ -76,7 +76,7 @@ describe('plain elements', () => {
   it('keep a Text to text and links, and its as to a paragraph, a span or a heading', () => {
     const tree = Page({ title: 'x', children: [Text({ children: [Box({})] }), { type: 'Text', props: { as: 'div' }, children: ['a'] }] })
     expect(problems(tree)).toEqual([
-      '<Page> › <Text>: holds text, <Link>s and <Text as="span">s only; put other elements beside it in a <Row> or <Column>',
+      '<Page> › <Text>: holds text, <Link>s, <Text as="span">s and field components such as <TextField> only; put other elements beside it in a <Row> or <Column>',
       '<Page> › <Text>: "as" must be p, span, h1, h2, h3, h4',
     ])
   })

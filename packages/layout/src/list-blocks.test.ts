@@ -30,8 +30,8 @@ describe('list blocks', () => {
   })
 
   it('check a two-level nested list through every record around it', () => {
-    const steps = ReferenceManyField({ reference: 'claim_steps', target: 'claim_id', children: RecordsIterator({ children: [Field({ name: 'name' }), Field({ name: '../claimed_at' }), Field({ name: 'title' })] }) })
-    expect(findings(claims(RecordsIterator({ children: [Field({ name: 'claimed_at' }), steps] })))).toEqual({ problems: [], warnings: [] })
+    const steps = ReferenceManyField({ reference: 'claim_steps', target: 'claim_id', children: RecordsIterator({ children: [Field({ source: 'name' }), Field({ source: '../claimed_at' }), Field({ source: 'title' })] }) })
+    expect(findings(claims(RecordsIterator({ children: [Field({ source: 'claimed_at' }), steps] })))).toEqual({ problems: [], warnings: [] })
   })
 
   it('take react-admin sort and filter objects, and AIP text', () => {
@@ -83,10 +83,10 @@ describe('list blocks', () => {
   })
 
   it('read an ArrayField’s text items as this, and its object items by key', () => {
-    const tree = ArrayField({ source: 'labels', children: RecordsIterator({ children: [Field({ name: 'this' }), Field({ name: 'colour' }), Field({ name: 'title' })] }) })
+    const tree = ArrayField({ source: 'labels', children: RecordsIterator({ children: [Field({ source: 'this' }), Field({ source: 'colour' }), Field({ source: 'title' })] }) })
     expect(findings(tree)).toEqual({
       problems: [],
-      warnings: ['<Page> › <RecordCard resource="tasks"> › <ArrayField source="labels"> › <RecordsIterator> › <Field name="title">: "title" resolves to tasks; write this.title for an item\'s, if it has one'],
+      warnings: ['<Page> › <RecordCard resource="tasks"> › <ArrayField source="labels"> › <RecordsIterator> › <Field source="title">: "title" resolves to tasks; write this.title for an item\'s, if it has one'],
     })
     expect(findings(ArrayField({ source: 'title' })).problems).toEqual(['<Page> › <RecordCard resource="tasks"> › <ArrayField source="title">: source: "title" is a text field; it must be a JSON list'])
   })
@@ -105,7 +105,7 @@ describe('list blocks', () => {
 
   it('check a ReferenceField’s relation, and the names inside it against its record', () => {
     const claim = (...children: LayoutNode[]) => claims(RecordsIterator({ children }))
-    expect(findings(claim(ReferenceField({ source: 'worker', reference: 'workers', children: Field({ name: 'name' }) }))).problems).toEqual([])
+    expect(findings(claim(ReferenceField({ source: 'worker', reference: 'workers', children: Field({ source: 'name' }) }))).problems).toEqual([])
     expect(findings(claim(ReferenceField({ source: 'worker', reference: 'tasks' }))).problems).toEqual([
       '<Page> › <RecordCard resource="tasks"> › <ReferenceManyField reference="task_claims"> › <RecordsIterator> › <ReferenceField reference="tasks" source="worker">: source: "worker" points at workers, not tasks',
     ])
@@ -117,7 +117,7 @@ describe('list blocks', () => {
       permissions: {},
       actions: () => new Set<string>(),
     })
-    const tree = page(claims(RecordsIterator({ children: Field({ name: 'claimed_at' }) })), Field({ name: 'title' }))
+    const tree = page(claims(RecordsIterator({ children: Field({ source: 'claimed_at' }) })), Field({ source: 'title' }))
     expect(JSON.stringify(prunePage(tree, [], access([]))?.tree)).toContain('ReferenceManyField')
     expect(JSON.stringify(prunePage(tree, [], access(['task_claims']))?.tree)).not.toContain('ReferenceManyField')
   })

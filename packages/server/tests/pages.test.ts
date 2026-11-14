@@ -32,7 +32,7 @@ const overview = page(
     children: [
       Stat({ label: 'Open', resource: 'ledger', filter: "status = 'open'" }),
       Table({ resource: 'ledger', columns: ['title', 'secret'] }),
-      RecordCard({ resource: 'ledger', children: [Field({ name: 'title' }), Field({ name: 'secret' }), Action({ name: 'lock' }), Action({ name: 'rotate' })] }),
+      RecordCard({ resource: 'ledger', children: [Field({ source: 'title' }), Field({ source: 'secret' }), Action({ name: 'lock' }), Action({ name: 'rotate' })] }),
     ],
   }),
   { nav: { group: 'Books' } },
@@ -60,7 +60,7 @@ describe('pages in /meta', () => {
     expect(body.pages.map((entry: { name: string }) => entry.name)).toEqual(['overview'])
     const [, table, card] = body.pages[0].tree.children
     expect(table.props.columns).toEqual(['title'])
-    expect(card.children.map((node: { props: { name: string } }) => node.props.name)).toEqual(['title', 'lock'])
+    expect(card.children.map((node: { props: { source?: string; name?: string } }) => node.props.source ?? node.props.name)).toEqual(['title', 'lock'])
     expect(body.views[0].actions.map((action: { name: string }) => action.name)).toEqual(['lock'])
   })
 
@@ -104,7 +104,7 @@ describe('a conversation in /meta', () => {
 })
 
 // A component a client may not have, which falls back to the record's fields.
-const LedgerChart = component('LedgerChart', { fallback: [Field({ name: 'title' }), Field({ name: 'secret' })] })
+const LedgerChart = component('LedgerChart', { fallback: [Field({ source: 'title' }), Field({ source: 'secret' })] })
 const charted = page('charted', Page({ title: 'Charted', children: RecordCard({ resource: 'ledger', children: LedgerChart({}) }) }))
 
 describe('a custom component in /meta', () => {
@@ -114,8 +114,8 @@ describe('a custom component in /meta', () => {
   }
 
   it('carries its fallback, without what the caller cannot read', async () => {
-    expect(await chartFor('admin')).toEqual({ type: 'LedgerChart', props: {}, children: [], custom: true, fallback: [{ type: 'Field', props: { name: 'title' }, children: [] }, { type: 'Field', props: { name: 'secret' }, children: [] }] })
-    expect((await chartFor('viewer')).fallback).toEqual([{ type: 'Field', props: { name: 'title' }, children: [] }])
+    expect(await chartFor('admin')).toEqual({ type: 'LedgerChart', props: {}, children: [], custom: true, fallback: [{ type: 'Field', props: { source: 'title' }, children: [] }, { type: 'Field', props: { source: 'secret' }, children: [] }] })
+    expect((await chartFor('viewer')).fallback).toEqual([{ type: 'Field', props: { source: 'title' }, children: [] }])
   })
 })
 

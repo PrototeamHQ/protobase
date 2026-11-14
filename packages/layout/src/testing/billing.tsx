@@ -9,7 +9,7 @@ export const billing = page(
   <Page title="Billing" description="Plan, payment methods and invoices">
     <Grid columns={2}>
       <RecordCard resource="subscriptions" filter="status = 'active'" title="Current plan" actions={<Action name="cancel" variant="danger" />}>
-        <Field name="plan.name" label="Plan" />
+        <Field source="plan.name" label="Plan" />
         <Progress label="Seats" value="seatsUsed" max="plan.seats" />
         <Show when="paymentMethods.count > 1">
           <Action name="upgrade" variant="primary" />
@@ -21,8 +21,8 @@ export const billing = page(
       </Card>
     </Grid>
     <CardRow resource="paymentMethods" sort="isDefault desc" title="Payment methods" actions={<ModalForm mode="create" label="Add card" fields={['brand', 'last4']} resource="paymentMethods" />}>
-      <Field name="brand" label={false} />
-      <Field name="last4" />
+      <Field source="brand" label={false} />
+      <Field source="last4" />
       <Action name="makeDefault" />
     </CardRow>
     <Table resource="invoices" sort="number desc" columns={['number', 'status', 'total']} limit={10} title="Invoices" />

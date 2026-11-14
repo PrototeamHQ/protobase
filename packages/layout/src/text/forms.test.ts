@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import * as built from '../blocks'
 import * as lists from '../list-blocks'
 import { blockSpecs } from '../block-specs'
+import { Details, Summary } from '../details'
 import { Box, Column, Row, Text } from '../elements'
+import * as fields from '../inline-fields'
 import type { LayoutNode } from '../node'
 import { renderText } from './render-text'
 
@@ -15,7 +17,7 @@ const samples: Record<string, LayoutNode> = {
   Card: built.Card({ title: 'Totals', children: text }),
   Stat: built.Stat({ label: 'Open', resource: 'tasks', filter: "state = 'open'" }),
   RecordCard: built.RecordCard({ resource: 'tasks', recordKey: '1', children: text }),
-  Field: built.Field({ name: 'title' }),
+  Field: built.Field({ source: 'title' }),
   Table: built.Table({ resource: 'tasks', title: 'Tasks' }),
   CardRow: built.CardRow({ resource: 'tasks', children: text }),
   RecordRow: built.RecordRow({ resource: 'tasks', filter: "state = 'open'" }),
@@ -55,7 +57,18 @@ const samples: Record<string, LayoutNode> = {
   ArrayField: lists.ArrayField({ source: 'labels', children: lists.RecordsIterator({ children: text }) }),
   RecordsIterator: lists.RecordsIterator({ children: text }),
   ReferenceField: lists.ReferenceField({ source: 'worker_id', reference: 'workers', empty: 'Nobody' }),
+  Details: Details({ children: [Summary({ children: 'More' }), text] }),
+  Summary: Summary({ children: 'More' }),
+  TextField: fields.TextField({ source: 'title' }),
+  NumberField: fields.NumberField({ source: 'hours' }),
+  DateField: fields.DateField({ source: 'due_on' }),
+  BooleanField: fields.BooleanField({ source: 'done' }),
+  UrlField: fields.UrlField({ source: 'website' }),
+  ChipField: fields.ChipField({ source: 'state' }),
 }
+
+// The record field components and an ArrayField read, which the text has where the tree sits in one
+const record = { title: 'Fix the brakes', hours: 3, due_on: '2026-02-15', done: true, website: 'https://example.com', state: 'open', labels: ['urgent'] }
 
 describe('text forms', () => {
   it('has a sample of every registered block', () => {
@@ -63,7 +76,7 @@ describe('text forms', () => {
   })
 
   it.each(Object.entries(samples))('renders %s to Markdown', (_, node) => {
-    expect(renderText(node)).not.toBe('')
+    expect(renderText(node, { record })).not.toBe('')
   })
 
   it('links a data block to the list its filter finds', () => {

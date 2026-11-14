@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { fieldRef, type FieldRefValue, type RowButtonModel } from '@protobase/schema'
 import { Card, Chart, Composer, Image, Link, Page, RecordCard, RecordCards, Show, Tab, Table, Tabs, Thread } from './blocks'
 import { component } from './component'
+import { Text } from './elements'
+import { NumberField, TextField } from './inline-fields'
 import type { LayoutNode } from './node'
 import type { PageModel } from './page'
 import { prunePage, type CallerAccess } from './prune-page'
@@ -20,7 +22,7 @@ const access = (overrides: Partial<CallerAccess> = {}): CallerAccess => ({
 
 const types = (page: PageModel | undefined) => {
   const found: string[] = []
-  if (page) walkTree(page.tree, (node) => found.push(node.type + (typeof node.props.name === 'string' ? `:${node.props.name}` : '')))
+  if (page) walkTree(page.tree, (node) => found.push(node.type + (typeof (node.props.source ?? node.props.name) === 'string' ? `:${node.props.source ?? node.props.name}` : '')))
   return found
 }
 
@@ -103,6 +105,12 @@ describe('prunePage', () => {
     const pruned = prunePage(billing.toModel(), [], access({ models: restricted({ plans: ['name'], paymentMethods: ['last4'] }) }))
     expect(types(pruned).filter((type) => type.startsWith('Field'))).toEqual(['Field:brand'])
     expect(types(pruned)).toContain('Progress')
+  })
+
+  it('leaves out a field component the caller cannot read, and keeps the rest of its line', () => {
+    const tree = Page({ title: 'x', children: RecordCard({ resource: 'invoices', recordKey: '1', children: Text({ children: ['Invoice ', TextField({ source: 'number' }), NumberField({ source: 'total' })] }) }) })
+    const pruned = prunePage({ name: 'x', title: 'x', tree }, [], access({ models: restricted({ invoices: ['total'] }) }))
+    expect(types(pruned)).toEqual(['Page', 'RecordCard', 'Text', 'TextField:number'])
   })
 
   it('narrows table columns, and drops the list when none is left', () => {

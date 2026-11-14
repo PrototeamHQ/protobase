@@ -57,7 +57,7 @@ describe('pageProblems', () => {
       children: [
         Table({ resource: 'nope' }),
         Table({ resource: 'invoices', filter: "stauts = 'open'", sort: 'totl desc', columns: ['number', { name: 'amount', priority: 1 }] }),
-        RecordCard({ resource: 'subscriptions', children: [Field({ name: 'plan.title' }), Stat({ label: 'a', field: 'seats' })] }),
+        RecordCard({ resource: 'subscriptions', children: [Field({ source: 'plan.title' }), Stat({ label: 'a', field: 'seats' })] }),
       ],
     })
     const found = pageProblems(model(tree), input)
@@ -66,7 +66,7 @@ describe('pageProblems', () => {
     expect(found[2]).toMatch(/^<Page> › <Table resource="invoices">: sort: .*totl/)
     expect(found.slice(3)).toEqual([
       '<Page> › <Table resource="invoices">: unknown column "amount" on invoices',
-      '<Page> › <RecordCard resource="subscriptions"> › <Field name="plan.title">: unknown field "plan.title" on plans',
+      '<Page> › <RecordCard resource="subscriptions"> › <Field source="plan.title">: unknown field "plan.title" on plans',
       '<Page> › <RecordCard resource="subscriptions"> › <Stat>: "seats" is no field of subscriptions; did you mean status?',
     ])
   })

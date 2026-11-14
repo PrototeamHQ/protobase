@@ -49,7 +49,8 @@ export type StatProps = {
   span?: GridSpan
 }
 export type RecordCardProps = DataProps & Heading & { recordKey?: string; empty?: string; span?: GridSpan; children?: LayoutChildren }
-export type FieldProps = { name: string; label?: string | false; format?: FieldFormat }
+/** A field of the record around it under its label; `source` is its path, as react-admin's fields name it. */
+export type FieldProps = { source: string; label?: string | false; format?: FieldFormat }
 /**
  * A table of `resource`'s records; without `resource`, inside a `ReferenceManyField`, `ReferenceArrayField` or
  * `ArrayField`, of that list's records, which it reads nothing of its own for, as react-admin's `DataTable` does.

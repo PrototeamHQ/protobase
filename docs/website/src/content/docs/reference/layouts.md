@@ -59,7 +59,7 @@ Every layout block renders to Markdown text through one shared function, `render
 ```tsx
 import { Field, Page, renderText } from '@protobase/layout'
 
-renderText(<Page title="Order"><Field name="status" /></Page>, {
+renderText(<Page title="Order"><Field source="status" /></Page>, {
   record: { status: 'in_progress' },
   fields: { status: { label: 'Status', valueLabels: { in_progress: 'In progress' } } },
 })
@@ -70,10 +70,11 @@ renderText(<Page title="Order"><Field name="status" /></Page>, {
 
 | Option | |
 | --- | --- |
-| `record` | The record around the tree. `Field`, `Stat field`, `Progress`, `Show` conditions and the `{{field}}`s of addresses read it, through relations as nested objects (`plan.name`); a count a condition names, such as `billing_profiles.count`, is a key of its own. The `{{path}}`s of props read it too. Without it, a field reads as its label alone, a condition as holding (a `Show` reads as its children, a `Switch` as its first `Match`), a prop's `{{path}}`s as empty, and addresses keep their `{{field}}`s. |
+| `record` | The record around the tree. `Field`, the [field components](#field-values), `Stat field`, `Progress`, `Show` conditions and the `{{field}}`s of addresses read it, through relations as nested objects (`plan.name`); a count a condition names, such as `billing_profiles.count`, is a key of its own. The `{{path}}`s of props read it too. Without it, a field reads as its label alone, a condition as holding (a `Show` reads as its children, a `Switch` as its first `Match`), a prop's `{{path}}`s as empty, and addresses keep their `{{field}}`s. |
 | `fields` | Per field path, its `label` and the `valueLabels` its enum values read as; a field without a label reads under its path. |
 | `records` | Per `ReferenceManyField`, `ReferenceArrayField` or `ReferenceField` element and the record around it, the records it holds, which you loaded; its `RecordsIterator` then reads as its children once per record, in that record, and an empty list as its `empty`. Without it, the block reads as a link to its records. An `ArrayField` reads its items from the record around it. |
 | `tables` | Per `Table` element, the records it shows and its columns (`{ columns: [{ name, label, title?, badge?, valueLabels? }], rows }`), which you loaded; the table then reads as its heading and a Markdown table. Without it, a table reads as its heading. |
+| `locale` | The reader's locale, such as `nl-NL`, in which [field components](#field-values) without `locales` format numbers and dates; the runtime's default when omitted. |
 | `basePath` | What links start with, such as `https://example.com/admin`. |
 | `forms` | Text forms by block type, over the built-in ones. |
 
@@ -120,14 +121,14 @@ A record's related records repeat under it as a list: a `ReferenceManyField` hol
 ```tsx
 <RecordCard resource="tasks" recordKey="7">
   <ArrayField source="labels">
-    <RecordsIterator><Field name="this" label={false} /></RecordsIterator>
+    <RecordsIterator><Field source="this" label={false} /></RecordsIterator>
   </ArrayField>
   <ReferenceManyField reference="task_claims" target="task_id" sort={{ field: 'claimed_at', order: 'DESC' }}>
     <RecordsIterator>
       <Card title="Claim {{@index}}">
         <ReferenceField source="worker_id" reference="workers" />
         <ReferenceManyField reference="claim_steps" target="claim_id" empty="No steps yet">
-          <RecordsIterator><Field name="name" /></RecordsIterator>
+          <RecordsIterator><Field source="name" /></RecordsIterator>
         </ReferenceManyField>
       </Card>
     </RecordsIterator>
@@ -138,6 +139,47 @@ A record's related records repeat under it as a list: a `ReferenceManyField` hol
 Each entry is a record of the stack while its children draw, so `Field`, `Show`, `{{path}}` placeholders and nested lists inside it read it, and `@index`, `@first` and `@last` count its place in the list. A text item of an `ArrayField`, such as a label, is read as `this`; an object item by its keys, which no model describes, so the build does not check them, and it warns when an item's key could shadow a field of a record further out. A list ties itself to the record around it by a field of that record: `source`, `id` of the nearest record by default. `filter` and `sort` take AIP-160 and AIP-132 text, or the objects react-admin writes: `{ status: 'open' }` is `status = "open"`, its fields ANDed, and `{ field: 'claimed_at', order: 'DESC' }` is `claimed_at desc`. Without `sort`, a list is in its key's order, descending, as react-admin's is. `pagination="more"` adds a button that reads the next `perPage` records into the same list. The [blocks reference](/reference/blocks/#related-records) lists every prop.
 
 <gap>A list block cannot read its records at page load, beside the records around it, because planning a page's reads is not implemented; each reads once the record around it has drawn.</gap> <gap>A `ReferenceArrayField` cannot read its records through a `related()` filter because array fields in `related()` are not implemented; it reads them by their keys with `in()`.</gap>
+
+## Field values
+
+:::caution[Beta]
+A [`ReferenceField`](#related-records), a related record, cannot sit in a line of text yet, and these components may still change.
+:::
+
+The field components show one value of the record around them inside a line of text: in a `Text`, a `Link` or a `Summary`, beside words and links. They are [react-admin's field components](https://marmelab.com/react-admin/Fields.html), with the same names, props and defaults, so a layout reads as a react-admin page does. `source` is a [path](#paths-and-scopes), and a `source` no record around it has fails the build with the closest field, as any path does.
+
+```tsx
+<RecordCard resource="repairs" recordKey="42">
+  <Details>
+    <Summary><TextField source="bike" /> <ChipField source="state" /></Summary>
+    <Text>Due <DateField source="due_at" format="relative" />, quoted at <NumberField source="quote" options={{ style: 'currency', currency: 'EUR' }} />.</Text>
+    <Text>Paid: <BooleanField source="paid" />. Manual: <UrlField source="manual_url" content="Workshop manual" /></Text>
+  </Details>
+</RecordCard>
+```
+
+| Component | Shows | Props besides `source` and `emptyText` |
+| --- | --- | --- |
+| [`TextField`](https://marmelab.com/react-admin/TextField.html) | The value as text; an enum value as its label. | |
+| [`NumberField`](https://marmelab.com/react-admin/NumberField.html) | A number, a numeric string read as one, formatted by `Intl.NumberFormat`. | `locales`, `options` |
+| [`DateField`](https://marmelab.com/react-admin/DateField.html) | A date, by default without its time; a date-only value such as `2026-02-15` on its own day in every time zone. | `showDate` (default `true`), `showTime` (default `false`), `locales`, `options`, `format` |
+| [`BooleanField`](https://marmelab.com/react-admin/BooleanField.html) | A check mark for true and the word for false. | `valueLabelTrue`, `valueLabelFalse` |
+| [`UrlField`](https://marmelab.com/react-admin/UrlField.html) | A link to the address the value holds. | `content`, the link's text instead of the address |
+| [`ChipField`](https://marmelab.com/react-admin/ChipField.html) | The value as a badge, in the view's value colours. | |
+
+`emptyText` is shown when the value is empty, and nothing is shown without it. `locales` is a locale or a list of them, such as `nl-NL`, and is the reader's language when omitted; `options` are the `Intl` options, such as `{ style: 'currency', currency: 'EUR' }` or `{ dateStyle: 'long' }`, and locales or options `Intl` does not take fail the build. Where Protobase differs from react-admin:
+
+- `DateField format="relative"`, which react-admin does not have, shows how long ago or ahead the moment is, such as "3 hours ago", as the lists show relative times. It takes no `showDate`, `showTime`, `locales` or `options`.
+- A `DateField` with `showDate` and `showTime` both false, which react-admin refuses as it draws, fails the build.
+- `UrlField` links only to an `http:`, `https:`, `mailto:` or `tel:` address or a path on the app's own origin; any other address, such as a `javascript:` one, shows as text. It cannot sit in a `Link`, as a link cannot hold a link.
+- `TextField` and `ChipField` show an enum value by its label from the view, where react-admin shows the stored value.
+- Props that take code in react-admin, such as `transform`, `render` or icons, are not taken: a layout holds data only.
+
+<gap>A layout cannot show a related record's value inside a line of text with a `ReferenceField` because drawing a `ReferenceField` inline is not implemented; it stands on its own, as [related records](#related-records) show.</gap>
+
+In the [text form](#text-form) each one reads as its formatted value, a `UrlField` as a Markdown link, and a `BooleanField` as Yes or No.
+
+`Details` and `Summary` are HTML's [`<details>` and `<summary>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/details): a line that opens to show the rest and closes again, by the browser alone, with no script. A `Details` takes one `Summary`, as its first child, and `open` to start open; a `Summary` holds one line, as a `Text` does, and sits in a `Details` only. In the text form a `Details` reads as its summary, then the rest.
 
 ## Paths and scopes
 
@@ -157,9 +199,9 @@ A `RecordCard`, a `ReferenceField`, each card of a `CardRow` and each entry of a
 | `@root.id` | The page's own record. <gap>A path cannot read `@root` because pages with a record of their own are not implemented.</gap> |
 | `@params.window` | The page parameter `window`. <gap>A path cannot read `@params` because the input that sets a page parameter is not implemented.</gap> |
 
-`Field name`, `Stat field`, `Progress`, and the names in a [condition](#conditions) take a path. A string prop takes `{{path}}` placeholders in double braces, filled with the path's value where the element draws, and empty when it has none:
+`Field source`, a field component's `source`, `Stat field`, `Progress`, and the names in a [condition](#conditions) take a path. A string prop takes `{{path}}` placeholders in double braces, filled with the path's value where the element draws, and empty when it has none:
 
-- `title`, `description`, `empty` and `label` read any path: `<Table resource="claim_steps" title="Steps of {{title}}" />`.
+- `title`, `description`, `empty`, `label`, and a field component's `emptyText`, `content`, `valueLabelTrue` and `valueLabelFalse` read any path: `<Table resource="claim_steps" title="Steps of {{title}}" />`.
 - `filter`, `recordKey` and `values` read a field of a record around them. A filter takes one only as a top-level `AND` equality, `claim_id = {{id}} AND done = false`, the shape a read can take for every row at once with a [`related()`](/reference/api/#filtering-through-related-records) filter. A filter takes a page parameter anywhere.
 - `when` takes them where a name cannot go, such as `this.status = '{{../status}}'`, since a name in AIP-160 cannot start with `../` or `@`.
 - A [link's address](#addresses) takes them in its resource, key, tab, filter, order and values.

@@ -27,10 +27,10 @@ export const salesOverview = page(
         actions={<Action name="markPaid" variant="primary" />}
       >
         <Grid columns={2}>
-          <Field name="number" />
-          <Field name="total" />
-          <Field name="company_id" label="Customer" />
-          <Field name="company_id.city" label="City" />
+          <Field source="number" />
+          <Field source="total" />
+          <Field source="company_id" label="Customer" />
+          <Field source="company_id.city" label="City" />
         </Grid>
         <Show when="company_id.status = 'dormant'">The customer has gone quiet: call before sending a reminder.</Show>
       </RecordCard>
@@ -43,10 +43,10 @@ export const salesOverview = page(
         actions={[<Action name="send" label="Send reminder" />, <Action name="recordPayment" variant="primary" />]}
       >
         <Grid columns={2}>
-          <Field name="number" />
-          <Field name="total" />
-          <Field name="company_id" label="Customer" />
-          <Field name="due_at" label="Due" />
+          <Field source="number" />
+          <Field source="total" />
+          <Field source="company_id" label="Customer" />
+          <Field source="due_at" label="Due" />
         </Grid>
       </RecordCard>
       <Card title="Orders per day" description="The last 30 days.">
@@ -70,9 +70,9 @@ export const salesOverview = page(
       limit={8}
       actions={<ModalForm mode="create" label="Add lead" resource="companies" fields={['name', 'city', 'country_code', 'email']} values={{ status: 'lead' }} />}
     >
-      <Field name="name" label={false} />
-      <Field name="city" />
-      <Field name="email" />
+      <Field source="name" label={false} />
+      <Field source="city" />
+      <Field source="email" />
       <ModalForm mode="edit" label="Edit" fields={['name', 'city', 'email', 'phone', 'status']} />
     </CardRow>
   </Page>,

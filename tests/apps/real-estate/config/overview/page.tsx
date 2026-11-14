@@ -23,12 +23,12 @@ export const portfolioOverview = page(
         actions={<Action name="remind" label="Send reminder" variant="primary" />}
       >
         <Grid columns={2}>
-          <Field name="lease_id" label="Lease" />
-          <Field name="balance" label="Outstanding" />
-          <Field name="open_charges" label="Open months" />
-          <Field name="oldest_due_on" label="Oldest due" />
+          <Field source="lease_id" label="Lease" />
+          <Field source="balance" label="Outstanding" />
+          <Field source="open_charges" label="Open months" />
+          <Field source="oldest_due_on" label="Oldest due" />
         </Grid>
-        <Field name="lease_id.unit_id" label="Unit" />
+        <Field source="lease_id.unit_id" label="Unit" />
       </RecordCard>
       <RecordCard
         title="Oldest urgent ticket"
@@ -39,12 +39,12 @@ export const portfolioOverview = page(
         actions={<Action name="complete" variant="primary" />}
       >
         <Grid columns={2}>
-          <Field name="number" />
-          <Field name="status" />
-          <Field name="property_id" label="Property" />
-          <Field name="reported_at" label="Reported" />
+          <Field source="number" />
+          <Field source="status" />
+          <Field source="property_id" label="Property" />
+          <Field source="reported_at" label="Reported" />
         </Grid>
-        <Field name="title" />
+        <Field source="title" />
       </RecordCard>
     </Grid>
     <Grid columns={2}>

@@ -21,8 +21,8 @@ const nestedList = ReferenceManyField({
   target: 'task_id',
   children: RecordsIterator({
     children: [
-      Field({ name: 'worker' }),
-      ReferenceManyField({ reference: 'claim_steps', target: 'claim_id', empty: 'No steps yet', children: RecordsIterator({ children: Field({ name: 'name', label: false }) }) }),
+      Field({ source: 'worker' }),
+      ReferenceManyField({ reference: 'claim_steps', target: 'claim_id', empty: 'No steps yet', children: RecordsIterator({ children: Field({ source: 'name', label: false }) }) }),
     ],
   }),
 })
@@ -38,15 +38,15 @@ describe('text forms of lists', () => {
   })
 
   it('reads an ArrayField’s text items as this, and its object items by key', () => {
-    expect(renderText(ArrayField({ source: 'labels', children: RecordsIterator({ children: Field({ name: 'this', label: false }) }) }), { record: task })).toBe('urgent\n\nsmall')
-    expect(renderText(ArrayField({ source: 'checks', children: RecordsIterator({ children: Field({ name: 'name', label: false }) }) }), { record: task })).toBe('lint\n\ntypes')
+    expect(renderText(ArrayField({ source: 'labels', children: RecordsIterator({ children: Field({ source: 'this', label: false }) }) }), { record: task })).toBe('urgent\n\nsmall')
+    expect(renderText(ArrayField({ source: 'checks', children: RecordsIterator({ children: Field({ source: 'name', label: false }) }) }), { record: task })).toBe('lint\n\ntypes')
   })
 
   it('reads a ReferenceField as a link to its record, its children in that record', () => {
     const claim = { id: 1, worker_id: 3 }
     expect(renderText(ReferenceField({ source: 'worker_id', reference: 'workers' }), { record: claim })).toBe('[3](/workers/3)')
     expect(renderText(ReferenceField({ source: 'worker_id', reference: 'workers', children: Text({ children: 'By' }) }), { record: claim })).toBe('[By](/workers/3)')
-    expect(renderText(ReferenceField({ source: 'worker_id', reference: 'workers', link: false, children: Field({ name: 'name', label: false }) }), { record: claim, records })).toBe('Ann')
+    expect(renderText(ReferenceField({ source: 'worker_id', reference: 'workers', link: false, children: Field({ source: 'name', label: false }) }), { record: claim, records })).toBe('Ann')
     expect(renderText(ReferenceField({ source: 'worker_id', reference: 'workers', empty: 'Nobody' }), { record: { id: 2 } })).toBe('Nobody')
   })
 })
