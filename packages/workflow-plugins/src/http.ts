@@ -25,7 +25,7 @@ const checked = (input: Record<string, unknown>) => {
   if (!methods.includes(method)) throw invalid(`method must be one of ${methods.join(', ')}`)
   const url = new URL(input.url)
   for (const [name, value] of Object.entries((input.query ?? {}) as Record<string, string>)) url.searchParams.append(name, value)
-  return { url, method, headers: new Headers(input.headers as Record<string, string> | undefined), reading: (input.response ?? 'json') as string, store: storeOf(input) }
+  return { url, method, headers: new Headers(input.headers as Record<string, string> | undefined), reading: input.response as Reading | undefined, store: storeOf(input) }
 }
 
 const requestBody = async (given: unknown, method: string, headers: Headers, { files }: StepContext) => {
@@ -51,9 +51,26 @@ const fileName = (url: URL) => {
   }
 }
 
-// The answer's body as `response` says: parsed JSON (null when empty), text, or a file the run keeps.
-const answerBody = async (bytes: Uint8Array, reading: string, url: URL, type: string | null, { files }: StepContext) => {
-  if (reading === 'file') return files.keep(bytes, fileName(url), type?.split(';')[0]?.trim() || 'application/octet-stream')
+type Reading = 'json' | 'text' | 'file'
+
+// Types whose body is text though they are not text/*.
+const textualTypes = new Set(['application/xml', 'application/javascript', 'application/ecmascript', 'application/x-www-form-urlencoded', 'application/yaml', 'application/x-yaml', 'application/toml', 'application/x-ndjson'])
+
+/** How an answer of this Content-Type is read without a `response`: JSON, text, or a file for any other type or none. */
+const readingOf = (type: string | undefined): Reading => {
+  if (type === undefined) return 'file'
+  if (type === 'application/json' || type.endsWith('+json')) return 'json'
+  if (type.startsWith('text/') || type.endsWith('+xml') || type.endsWith('+yaml') || textualTypes.has(type)) return 'text'
+  return 'file'
+}
+
+// The answer's body as `response` says, else by its Content-Type (see readingOf) with an empty body null: parsed
+// JSON (null when empty), text, or a file the run keeps.
+const answerBody = async (bytes: Uint8Array, given: Reading | undefined, url: URL, header: string | null, { files }: StepContext) => {
+  const type = header?.split(';')[0]?.trim().toLowerCase() || undefined
+  if (given === undefined && bytes.length === 0) return null
+  const reading = given ?? readingOf(type)
+  if (reading === 'file') return files.keep(bytes, fileName(url), type ?? 'application/octet-stream')
   const text = new TextDecoder().decode(bytes)
   if (reading === 'text') return text
   if (text.trim() === '') return null
@@ -61,7 +78,8 @@ const answerBody = async (bytes: Uint8Array, reading: string, url: URL, type: st
     return JSON.parse(text) as unknown
   } catch (error) {
     if (!(error instanceof SyntaxError)) throw error
-    throw new StepError('Http.InvalidBody', `${url.host} answered with a body that is not JSON; read it with "response": "text"`)
+    const said = given === undefined ? ` ${type}` : ''
+    throw new StepError('Http.InvalidBody', `${url.host} answered${said} with a body that is not JSON; read it with "response": "text"`)
   }
 }
 
@@ -137,7 +155,10 @@ export const httpSteps: Record<string, StepType> = {
         headers: { ...textRecord, description: 'an object of text values' },
         query: { ...textRecord, description: "an object of text values, added to the URL's query" },
         body: { description: 'text sent as it is, a file value sent as its bytes, any other value sent as JSON; a GET sends none' },
-        response: { enum: ['json', 'text', 'file'], description: "how the answer's body is read: json (default; empty is null), text, or file (kept as a file value of the run)" },
+        response: {
+          enum: ['json', 'text', 'file'],
+          description: "how the answer's body is read: by default by its Content-Type, JSON for application/json and +json, text for text/* and other textual types, a file for any other or none, and null when empty; json (empty is null), text, or file (kept as a file value of the run) reads every answer so",
+        },
         store: {
           type: 'object',
           required: ['configuration'],
@@ -151,7 +172,7 @@ export const httpSteps: Record<string, StepType> = {
       Status: 'a status outside 2xx; the cause names it with the start of the body',
       Network: 'no answer',
       InvalidArguments: 'an argument has the wrong type, named in the cause',
-      InvalidBody: 'response json, and the body is not JSON',
+      InvalidBody: 'read as JSON, by response json or a JSON Content-Type, and the body is not JSON',
       AddressRefused: 'the host is not a public address',
       ResponseTooLarge: 'a body over 10 MiB, unless stored',
     },
