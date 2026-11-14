@@ -7,15 +7,27 @@ import { QueryError } from './errors'
 import { assertFilterRequirements } from './filter-requirements'
 import { measureSql, measureValue, type Measure } from './measure'
 import { toNumber } from './numbers'
+import { checkPerLimit, firstPerValue, ownerAlias, rankAlias } from './related-rows'
 import type { Scope } from './scope'
 import { withStatementTimeout } from './with-statement-timeout'
 
 const defaultLimit = 100
 const maxLimit = 1000
 
-export type GroupTotalsOptions = { statementTimeoutMs: number; filter?: CheckedFilter; measure?: Measure; limit?: number; scope?: Scope }
-/** One value of the grouped field: how many rows have it and, with a measure, their sum or average. */
-export type GroupTotal = { value: unknown; count: number; sum?: number | null; average?: number | null; maximum?: number | null }
+export type GroupTotalsOptions = {
+  statementTimeoutMs: number
+  filter?: CheckedFilter
+  measure?: Measure
+  limit?: number
+  scope?: Scope
+  /** Groups by `field` too and keeps, per value of it, the first `limit` groups. */
+  per?: { field: string; limit: number }
+}
+/**
+ * One value of the grouped field: how many rows have it and, with a measure, their sum or average; with `per`, the
+ * value of the per field it is a group of.
+ */
+export type GroupTotal = { per?: unknown; value: unknown; count: number; sum?: number | null; average?: number | null; maximum?: number | null }
 
 /**
  * Rows per value of `field` under the whole filter, largest first: by the measure when there is one, else by count.
@@ -32,17 +44,25 @@ export const groupTotals = async (db: Db, model: ResourceModel, field: string, o
   const amount = measure ? measureSql(model, measure) : undefined
   const column = columnRef(target)
   await assertFilterRequirements(db, options.filter, options.scope)
+  const order = amount ? sql`${amount} desc nulls last, ${column} asc` : sql`count(*) desc, ${column} asc`
+  const groups = (trx: Db) => baseQuery(trx, model, options.filter, options.scope)
+    .select([sql`${column}`.as('value'), sql`count(*)::text`.as('n'), ...(amount ? [sql`${amount}::text`.as('m')] : [])])
+    .groupBy(column)
+    .orderBy(order)
+  const { per } = options
+  if (per) checkPerLimit(per.limit)
   return withStatementTimeout(db, options.statementTimeoutMs, async trx => {
-    const rows = await baseQuery(trx, model, options.filter, options.scope)
-      .select([sql`${column}`.as('value'), sql`count(*)::text`.as('n'), ...(amount ? [sql`${amount}::text`.as('m')] : [])])
-      .groupBy(column)
-      .orderBy(amount ? sql`${amount} desc nulls last` : sql`count(*) desc`)
-      .orderBy(column, 'asc')
-      .limit(limit)
-      .execute()
-    return rows.map(row => {
-      const total = { value: row.value, count: toNumber(row.n) }
-      return measure ? { ...total, [measure.kind]: measureValue((row as { m?: unknown }).m) } : total
+    const rows = per
+      ? await firstPerValue(trx, model, { field: per.field, ...(options.filter && { filter: options.filter }) }, options.scope, sameValue =>
+          groups(trx).select(sql`row_number() over (order by ${order})`.as(rankAlias)).where(sameValue).limit(per.limit))
+          .select(sql.ref(`k.${ownerAlias}`).as('per'))
+          .selectAll('r')
+          .limit(limit)
+          .execute()
+      : await groups(trx).limit(limit).execute()
+    return (rows as Array<Record<string, unknown>>).map(row => {
+      const total = { ...(per && { per: row.per }), value: row.value, count: toNumber(row.n) }
+      return measure ? { ...total, [measure.kind]: measureValue(row.m) } : total
     })
   })
 }

@@ -1,5 +1,6 @@
 export { compileFilter, type CompileOptions } from './compile-filter'
-export { relatedRows, buildRelatedRows, type RelatedRowsQuery } from './related-rows'
+export { relatedRows, buildRelatedRows, type PerValue, type RelatedRowsQuery } from './related-rows'
+export { listPerValue, type LimitPer } from './list-per-value'
 export { listQuery, buildListQuery, maxLimit, type ListResult, type ListPlan, type ListOptions, type ExtraColumn } from './list-query'
 export { estimateCount } from './estimate-count'
 export { exactCount } from './exact-count'

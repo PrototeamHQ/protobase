@@ -11,10 +11,8 @@
       ["listing_photos_listing_id_position_key","btree","f","position","\"position\"","int4_ops"],
       ["listing_photos_pkey","btree","f","id","id","int4_ops"]
     ]}},
-    {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1, $2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $4) as \"r\" on true order by \"r\".\"__pb_rank\"","params":["1","2","3","10"],"result":{"command":"SELECT","rowCount":12,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
+    {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1, $2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $4) as \"r\" on true order by \"k\".\"__pb_owner\", \"r\".\"__pb_rank\"","params":["1","2","3","10"],"result":{"command":"SELECT","rowCount":12,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
       ["1","100","public:photos/a1.jpg?name=a.jpg","hash1","1"],
-      ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"1"],
-      ["2","202","public:photos/b2.jpg?name=b2.jpg",null,"2"],
       ["1","105","public:photos/a2.jpg?name=a.jpg","hash2","2"],
       ["1","110","public:photos/a3.jpg?name=a.jpg","hash3","3"],
       ["1","103","public:photos/a4.jpg?name=a.jpg","hash4","4"],
@@ -23,11 +21,12 @@
       ["1","106","public:photos/a7.jpg?name=a.jpg","hash7","7"],
       ["1","111","public:photos/a8.jpg?name=a.jpg","hash8","8"],
       ["1","104","public:photos/a9.jpg?name=a.jpg","hash9","9"],
-      ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","10"]
+      ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","10"],
+      ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"1"],
+      ["2","202","public:photos/b2.jpg?name=b2.jpg",null,"2"]
     ]}},
-    {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"hidden\" = $1 and \"t\".\"listing_id\" in ($2, $3, $4)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"hidden\" = $5 and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $6) as \"r\" on true order by \"r\".\"__pb_rank\"","params":["false","1","2","3","false","10"],"result":{"command":"SELECT","rowCount":11,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
+    {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"hidden\" = $1 and \"t\".\"listing_id\" in ($2, $3, $4)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"hidden\" = $5 and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $6) as \"r\" on true order by \"k\".\"__pb_owner\", \"r\".\"__pb_rank\"","params":["false","1","2","3","false","10"],"result":{"command":"SELECT","rowCount":11,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
       ["1","100","public:photos/a1.jpg?name=a.jpg","hash1","1"],
-      ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"1"],
       ["1","105","public:photos/a2.jpg?name=a.jpg","hash2","2"],
       ["1","110","public:photos/a3.jpg?name=a.jpg","hash3","3"],
       ["1","103","public:photos/a4.jpg?name=a.jpg","hash4","4"],
@@ -36,7 +35,8 @@
       ["1","106","public:photos/a7.jpg?name=a.jpg","hash7","7"],
       ["1","111","public:photos/a8.jpg?name=a.jpg","hash8","8"],
       ["1","104","public:photos/a9.jpg?name=a.jpg","hash9","9"],
-      ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","10"]
+      ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","10"],
+      ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"1"]
     ]}}
   ],
   "(hooks)": {
@@ -82,10 +82,8 @@
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1, $2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" desc, \"t\".\"id\" desc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" desc, \"t\".\"id\" desc limit $4) as \"r\" on true order by \"r\".\"__pb_rank\"","params":["1","2","3","10"],"result":{"command":"SELECT","rowCount":12,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
+      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1, $2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" desc, \"t\".\"id\" desc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" desc, \"t\".\"id\" desc limit $4) as \"r\" on true order by \"k\".\"__pb_owner\", \"r\".\"__pb_rank\"","params":["1","2","3","10"],"result":{"command":"SELECT","rowCount":12,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
         ["1","107","public:photos/a12.jpg?name=a.jpg","hash12","1"],
-        ["2","202","public:photos/b2.jpg?name=b2.jpg",null,"1"],
-        ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"2"],
         ["1","102","public:photos/a11.jpg?name=a.jpg","hash11","2"],
         ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","3"],
         ["1","104","public:photos/a9.jpg?name=a.jpg","hash9","4"],
@@ -94,7 +92,9 @@
         ["1","101","public:photos/a6.jpg?name=a.jpg","hash6","7"],
         ["1","108","public:photos/a5.jpg?name=a.jpg","hash5","8"],
         ["1","103","public:photos/a4.jpg?name=a.jpg","hash4","9"],
-        ["1","110","public:photos/a3.jpg?name=a.jpg","hash3","10"]
+        ["1","110","public:photos/a3.jpg?name=a.jpg","hash3","10"],
+        ["2","202","public:photos/b2.jpg?name=b2.jpg",null,"1"],
+        ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"2"]
       ]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
@@ -110,10 +110,8 @@
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1, $2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"id\" asc limit $4) as \"r\" on true order by \"r\".\"__pb_rank\"","params":["1","2","3","10"],"result":{"command":"SELECT","rowCount":12,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
+      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1, $2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"id\" asc limit $4) as \"r\" on true order by \"k\".\"__pb_owner\", \"r\".\"__pb_rank\"","params":["1","2","3","10"],"result":{"command":"SELECT","rowCount":12,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
         ["1","100","public:photos/a1.jpg?name=a.jpg","hash1","1"],
-        ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"1"],
-        ["2","202","public:photos/b2.jpg?name=b2.jpg",null,"2"],
         ["1","101","public:photos/a6.jpg?name=a.jpg","hash6","2"],
         ["1","102","public:photos/a11.jpg?name=a.jpg","hash11","3"],
         ["1","103","public:photos/a4.jpg?name=a.jpg","hash4","4"],
@@ -122,7 +120,9 @@
         ["1","106","public:photos/a7.jpg?name=a.jpg","hash7","7"],
         ["1","107","public:photos/a12.jpg?name=a.jpg","hash12","8"],
         ["1","108","public:photos/a5.jpg?name=a.jpg","hash5","9"],
-        ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","10"]
+        ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","10"],
+        ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"1"],
+        ["2","202","public:photos/b2.jpg?name=b2.jpg",null,"2"]
       ]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
@@ -160,7 +160,7 @@
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $2) as \"r\" on true order by \"r\".\"__pb_rank\"","params":["1","10"],"result":{"command":"SELECT","rowCount":10,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
+      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $2) as \"r\" on true order by \"k\".\"__pb_owner\", \"r\".\"__pb_rank\"","params":["1","10"],"result":{"command":"SELECT","rowCount":10,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
         ["1","100","public:photos/a1.jpg?name=a.jpg","hash1","1"],
         ["1","105","public:photos/a2.jpg?name=a.jpg","hash2","2"],
         ["1","110","public:photos/a3.jpg?name=a.jpg","hash3","3"],
@@ -266,10 +266,8 @@
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1, $2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $4) as \"r\" on true order by \"r\".\"__pb_rank\"","params":["1","2","3","10"],"result":{"command":"SELECT","rowCount":12,"columns":[["listing_id",23],["id",23],["photo",25],["__pb_rank",20]],"rows":[
+      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1, $2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $4) as \"r\" on true order by \"k\".\"__pb_owner\", \"r\".\"__pb_rank\"","params":["1","2","3","10"],"result":{"command":"SELECT","rowCount":12,"columns":[["listing_id",23],["id",23],["photo",25],["__pb_rank",20]],"rows":[
         ["1","100","public:photos/a1.jpg?name=a.jpg","1"],
-        ["2","201","public:photos/b1.jpg?name=b1.jpg","1"],
-        ["2","202","public:photos/b2.jpg?name=b2.jpg","2"],
         ["1","105","public:photos/a2.jpg?name=a.jpg","2"],
         ["1","110","public:photos/a3.jpg?name=a.jpg","3"],
         ["1","103","public:photos/a4.jpg?name=a.jpg","4"],
@@ -278,7 +276,9 @@
         ["1","106","public:photos/a7.jpg?name=a.jpg","7"],
         ["1","111","public:photos/a8.jpg?name=a.jpg","8"],
         ["1","104","public:photos/a9.jpg?name=a.jpg","9"],
-        ["1","109","public:photos/a10.jpg?name=a.jpg","10"]
+        ["1","109","public:photos/a10.jpg?name=a.jpg","10"],
+        ["2","201","public:photos/b1.jpg?name=b1.jpg","1"],
+        ["2","202","public:photos/b2.jpg?name=b2.jpg","2"]
       ]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
@@ -351,9 +351,8 @@
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"hidden\" = $1 and \"t\".\"listing_id\" in ($2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"hidden\" = $4 and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $5) as \"r\" on true order by \"r\".\"__pb_rank\"","params":["false","1","2","false","10"],"result":{"command":"SELECT","rowCount":11,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
+      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"hidden\" = $1 and \"t\".\"listing_id\" in ($2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"hidden\" = $4 and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $5) as \"r\" on true order by \"k\".\"__pb_owner\", \"r\".\"__pb_rank\"","params":["false","1","2","false","10"],"result":{"command":"SELECT","rowCount":11,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
         ["1","100","public:photos/a1.jpg?name=a.jpg","hash1","1"],
-        ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"1"],
         ["1","105","public:photos/a2.jpg?name=a.jpg","hash2","2"],
         ["1","110","public:photos/a3.jpg?name=a.jpg","hash3","3"],
         ["1","103","public:photos/a4.jpg?name=a.jpg","hash4","4"],
@@ -362,7 +361,8 @@
         ["1","106","public:photos/a7.jpg?name=a.jpg","hash7","7"],
         ["1","111","public:photos/a8.jpg?name=a.jpg","hash8","8"],
         ["1","104","public:photos/a9.jpg?name=a.jpg","hash9","9"],
-        ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","10"]
+        ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","10"],
+        ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"1"]
       ]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]

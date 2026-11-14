@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { groupTotals } from '../src/group-totals'
+import { listPerValue } from '../src/list-per-value'
 import { buildRelatedRows, relatedRows } from '../src/related-rows'
 import { check, createTestDb, field, model } from '../../../test-support/query'
 
@@ -65,5 +67,22 @@ describe('relatedRows', () => {
     await ctx.pg.exec('reset enable_seqscan')
     const text = plan.rows.map(row => row['QUERY PLAN']).join('\n')
     expect(text).toMatch(/Index Scan on photos_listing_id_position_idx[^\n]*\n\s*Index Cond: \(listing_id = t\.listing_id\)/)
+  })
+
+  it('reads every value the filter keeps when no values are given, by value', async () => {
+    const rows = await relatedRows(ctx.db, photos, { field: 'listing_id', filter: check(photos, 'position <= 2'), columns: ['photo'], sort: [['position', 'desc']], limit: 1 }, scope)
+    expect(rows.map(row => [Number(row.listing_id), row.photo])).toEqual([[10, 'b'], [20, 'x']])
+    expect((await relatedRows(ctx.db, photos, { field: 'listing_id', columns: ['photo'], sort: [['position', 'asc']], limit: 2, total: 3 }, scope)).map(row => row.photo)).toEqual(['a', 'b', 'x'])
+  })
+
+  it('lists the first rows per value with no further page, and refuses a cursor', async () => {
+    const page = await listPerValue(ctx.db, photos, { columns: ['id', 'photo'], sort: [['position', 'asc']], limit: 50 }, { field: 'listing_id', limit: 1 }, scope)
+    expect(page).toEqual({ rows: [{ id: '2', listing_id: '10', photo: 'a' }, { id: '5', listing_id: '20', photo: 'x' }], nextCursor: null, prevCursor: null })
+    await expect(listPerValue(ctx.db, photos, { limit: 50, cursor: 'x' }, { field: 'listing_id', limit: 1 }, scope)).rejects.toMatchObject({ code: 'invalid_cursor' })
+  })
+
+  it('keeps the first groups per value, largest first', async () => {
+    const groups = await groupTotals(ctx.db, photos, 'position', { statementTimeoutMs: 1000, per: { field: 'listing_id', limit: 2 }, scope })
+    expect(groups.map(group => [Number(group.per), group.value, group.count])).toEqual([[10, 1, 1], [10, 2, 1], [20, 1, 1], [20, 4, 1]])
   })
 })

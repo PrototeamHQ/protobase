@@ -35,3 +35,24 @@ describe('uncoveredColumns of a related() term', () => {
     expect(uncoveredColumns(messages, table(btree('channel_id')), { selects })).toEqual([])
   })
 })
+
+describe('uncoveredColumns of a read that keeps the first rows per value', () => {
+  const posts = resource('posts').table('posts')
+    .fields({ id: f.integer(), channel_id: f.relation('channels'), created_at: f.timestamp(), tenant_id: f.integer() })
+    .primaryKey((r) => r.id).tenant((r) => r.tenant_id).toModel()
+  const sorted = { per: 'channel_id', sort: [['created_at', 'desc']] as Array<[string, 'asc' | 'desc']> }
+
+  it('needs one index on the field with the sort under it, and names it', () => {
+    expect(uncoveredColumns(posts, table(btree('channel_id'), btree('created_at')), sorted, { tenantValue: 1 })).toEqual([
+      { field: 'channel_id', column: 'channel_id', use: 'per', need: 'btree', suggestion: 'create index on "posts" ("channel_id", "created_at")' },
+    ])
+    expect(uncoveredColumns(posts, table(btree('created_at', 'channel_id')), sorted, { tenantValue: 1 })[0]).toMatchObject({ use: 'per' })
+  })
+
+  it('takes it under the pinned tenant, and the field alone without a sort', () => {
+    expect(uncoveredColumns(posts, table(btree('channel_id', 'created_at')), sorted, { tenantValue: 1 })).toEqual([])
+    expect(uncoveredColumns(posts, table(btree('tenant_id', 'channel_id', 'created_at')), sorted, { tenantValue: 1 })).toEqual([])
+    expect(uncoveredColumns(posts, table(btree('id')), { per: 'channel_id' }, { tenantValue: 1 })[0]).toMatchObject({ field: 'channel_id', use: 'per', suggestion: 'create index on "posts" ("channel_id")' })
+    expect(uncoveredColumns(posts, table(btree('channel_id')), { per: 'channel_id' }, { tenantValue: 1 })).toEqual([])
+  })
+})

@@ -23,6 +23,7 @@ export const listParams = z.object({
   labels: z.union([z.string(), z.array(z.string())]).optional(),
   photos: z.string().optional(),
   photos_order_by: z.string().optional(),
+  limit_per: z.string().optional(),
   show_deleted: z.union([z.boolean(), z.enum(['true', 'false']).transform((value) => value === 'true')]).optional(),
 })
 

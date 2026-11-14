@@ -67,6 +67,7 @@ export const parameters = {
     schema: { type: 'string' },
   },
   photosOrderBy: { name: 'photos_order_by', in: 'query', description: 'The order of each record\'s `photos`, as `order_by` on their resource: `position`. Their primary key breaks ties.', schema: { type: 'string' } },
+  limitPer: { name: 'limit_per', in: 'query', description: '`<field>:<n>`, such as `task_id:3`: the first n records (1 to 500) per value of a filterable field, in `order_by` within each value, by value, `page_size` capping them all. No further page, so not with `page_token`. An index must serve the field with the sort\'s first field under it.', schema: { type: 'string' } },
   key: {
     name: 'key',
     in: 'path',
@@ -93,6 +94,7 @@ export const searchBody = {
     labels: { type: 'array', items: { type: 'string' }, description: parameters.labels.description },
     photos: { type: 'string', description: parameters.photos.description },
     photos_order_by: { type: 'string', description: parameters.photosOrderBy.description },
+    limit_per: { type: 'string', description: parameters.limitPer.description },
     show_deleted: { type: 'boolean', description: 'Soft-delete resources only' },
   },
 }
