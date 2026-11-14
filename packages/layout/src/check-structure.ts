@@ -3,14 +3,15 @@ import { blockSpecs, propProblems } from './block-specs'
 import { parseCondition } from './condition'
 import { sampleSlots } from './filter-slots'
 import type { LayoutChild, LayoutNode } from './node'
+import { listProblems } from './check-lists'
 import { tabsProblems } from './check-tabs'
 import { innermost, label, pageScope, walkTree, type Scope } from './walk'
 
-/** Problems that need a record around the element, which only a `RecordCard` or a `CardRow` card provides. */
+/** Problems that need a record around the element, which a `RecordCard`, a `CardRow` card or a `RecordsIterator` row provides. */
 const recordProblems = (node: LayoutNode, scope: Scope): string[] => {
   if (innermost(scope)) return []
   const { props } = node
-  const outside = 'needs a record: put it inside a RecordCard or a CardRow'
+  const outside = 'needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator'
   switch (node.type) {
     case 'Field':
       return [outside]
@@ -117,6 +118,8 @@ export const structureProblems = (tree: LayoutNode): string[] => {
     if (node.type === 'Stat') statProblems(node).forEach(report)
     if (node.type === 'Chart') chartStructureProblems(node).forEach(report)
     if (node.type === 'Link') linkProblems(node).forEach(report)
+    if (node.type === 'ReferenceField' && node.props.link !== false) nestedLinkProblems(node).forEach(report)
+    listProblems(node, scope).forEach(report)
     if (node.type === 'Image') imageProblems(node).forEach(report)
     if (node.type === 'Text') textProblems(node).forEach(report)
     switchProblems(node).forEach(report)

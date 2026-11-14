@@ -1,6 +1,7 @@
 import type { ResourceModel } from '@protobase/schema'
 import { embeddedFilterFields, templatePlaceholders, wholePlaceholder } from '@protobase/schema/internal'
 import { equalitySlots } from './filter-slots'
+import { defaultSource } from './list-blocks'
 import type { LayoutNode, LayoutValue } from './node'
 import { resolveScopePath, type ScopeResolution } from './scope-lookup'
 import type { Scope } from './walk'
@@ -22,7 +23,7 @@ export type PathFindings = { problems: string[]; warnings: string[] }
 const shapeProps = ['resource', 'reference', 'target', 'source', 'sort', 'order', 'columns', 'perPage', 'limit', 'pagination', 'fields']
 
 /** Props drawn as text, which read any path. */
-const displayProps = ['title', 'description', 'empty', 'label']
+const displayProps = ['title', 'description', 'empty', 'emptyText', 'label']
 
 const waits = 'this would wait for the parent\'s rows'
 
@@ -79,6 +80,8 @@ export const pathFindings = (node: LayoutNode, scope: Scope, { models, params }:
     perRow += 1
     if (perRow > 1) problems.push(`${prop}: "{{${path}}}" is a second per-row condition, and a read splits by one; ${waits}`)
   }
+  // A reference block's `source` is the implicit equality `target = {{source}}`, or `id in {{source}}`
+  if (['ReferenceManyField', 'ReferenceArrayField', 'ReferenceField'].includes(node.type)) dataSlot('source', typeof node.props.source === 'string' ? node.props.source : defaultSource, true)
   const filter = node.props.filter
   if (typeof filter === 'string') {
     // A filter that does not parse is reported by the filter check

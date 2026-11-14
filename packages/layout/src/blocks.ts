@@ -50,8 +50,13 @@ export type StatProps = {
 }
 export type RecordCardProps = DataProps & Heading & { recordKey?: string; empty?: string; span?: GridSpan; children?: LayoutChildren }
 export type FieldProps = { name: string; label?: string | false; format?: FieldFormat }
-export type TableProps = DataProps &
+/**
+ * A table of `resource`'s records; without `resource`, inside a `ReferenceManyField`, `ReferenceArrayField` or
+ * `ArrayField`, of that list's records, which it reads nothing of its own for, as react-admin's `DataTable` does.
+ */
+export type TableProps = Omit<DataProps, 'resource'> &
   Heading & {
+    resource?: string
     /**
      * Field names, or `{ name, priority }` with 1 the most important. At mobile width the table shows at most three
      * columns: those with a priority when it gives any, else the title, then badge columns such as enums, then the rest.

@@ -22,6 +22,8 @@ const listBlock: TextForm = (context) => headed(context, 3, listHeading(context)
 // A table the caller loaded reads as a Markdown table under its heading
 const Table: TextForm = (context) => {
   const shown = context.options.tables?.(context.node)
+  // One without a resource draws the list around it, which holds its heading
+  if (context.node.props.resource === undefined) return shown ? tableMarkdown(shown, (context.node.props.columns as TableColumn[] | undefined) ?? []) : ''
   if (!shown) return listBlock(context)
   return blocks([listBlock(context), tableMarkdown(shown, (context.node.props.columns as TableColumn[] | undefined) ?? [])])
 }

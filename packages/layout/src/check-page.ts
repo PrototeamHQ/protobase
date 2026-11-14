@@ -2,6 +2,7 @@ import { checkOrderBy, parseOrderBy, type AppAddress, type ResourceModel } from 
 import { addressErrors, fieldRefsIn, rowButtonErrors } from '@protobase/schema/internal'
 import { chartProblems } from './check-chart'
 import { conditionFindings } from './check-condition'
+import { listModelProblems } from './check-list-models'
 import { composerProblems, threadProblems } from './check-conversation'
 import { pathFindings } from './check-paths'
 import { resolveFieldPath } from './field-path'
@@ -42,8 +43,12 @@ const sortProblem = (model: ResourceModel, source: string) => {
 
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
 
-/** The resource an element reads or writes: its own `resource` prop, or the record nearest around it. */
-export const elementResource = (node: LayoutNode, scope: Scope) => text(node.props.resource) ?? innermost(scope)?.resource
+/**
+ * The resource an element reads or writes: its own `resource` prop, the list around a `Table` without one, or the
+ * record nearest around it.
+ */
+export const elementResource = (node: LayoutNode, scope: Scope) =>
+  text(node.props.resource) ?? (!node.custom && node.type === 'Table' ? scope.list?.resource : innermost(scope)?.resource)
 
 /** Why a link's `{{path}}` cannot be filled where it sits, through the records around it; `undefined` when it can. */
 export const linkPlaceholderError = (models: Record<string, ResourceModel>, scope: Scope, params: ReadonlySet<string>) => (path: string) => {
@@ -156,6 +161,12 @@ const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[
     case 'Show':
     case 'Match':
       condition(String(node.props.when))
+      break
+    case 'ReferenceManyField':
+    case 'ReferenceArrayField':
+    case 'ArrayField':
+    case 'ReferenceField':
+      problems.push(...listModelProblems(node, scope, { models, params }))
       break
   }
   return problems

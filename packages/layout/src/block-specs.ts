@@ -4,17 +4,25 @@ import { isLayoutNode } from './node'
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
 // blocks.ts say the same for the compiler.
 
-type Kind = 'text' | 'content' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls' | 'tableColumns'
+type Kind = 'sort' | 'filter' | 'pagination' | 'referenceLink' | 'text' | 'content' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls' | 'tableColumns'
 
 type PropSpec = { kind: Kind; required?: true }
 
-export type BlockSpec = { props: Record<string, PropSpec>; children: boolean }
+/**
+ * Which props of a block that reads records name what it reads: the resource, its filter and its sort, so a page's reads
+ * can be planned from the tree. A block without one reads nothing of its own.
+ */
+export type BlockReads = { resource: string; filter?: string; sort?: string; fields?: string }
+
+export type BlockSpec = { props: Record<string, PropSpec>; children: boolean; reads?: BlockReads }
 
 const optional = (kind: Kind): PropSpec => ({ kind })
 const required = (kind: Kind): PropSpec => ({ kind, required: true })
 
 const heading = { title: optional('text'), description: optional('text'), actions: optional('elements') }
 const data = { resource: required('text'), filter: optional('text'), sort: optional('text') }
+const reads: BlockReads = { resource: 'resource', filter: 'filter', sort: 'sort' }
+const listShape = { sort: optional('sort'), filter: optional('filter'), perPage: optional('integer') }
 
 const specs: Record<string, BlockSpec> = {
   Page: { children: true, props: { title: required('text'), description: optional('text'), actions: optional('elements'), width: optional('pageWidth') } },
@@ -23,14 +31,17 @@ const specs: Record<string, BlockSpec> = {
   Stat: {
     children: false,
     props: { label: required('text'), value: optional('scalar'), resource: optional('text'), filter: optional('text'), field: optional('text'), format: optional('format'), description: optional('text'), span: optional('span') },
+    reads: { resource: 'resource', filter: 'filter' },
   },
-  RecordCard: { children: true, props: { ...data, ...heading, recordKey: optional('text'), empty: optional('text'), span: optional('span') } },
+  RecordCard: { children: true, props: { ...data, ...heading, recordKey: optional('text'), empty: optional('text'), span: optional('span') }, reads },
   Field: { children: false, props: { name: required('text'), label: optional('label'), format: optional('format') } },
-  Table: { children: false, props: { ...data, ...heading, columns: optional('tableColumns'), button: optional('rowButton'), bulk: optional('boolean'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
-  CardRow: { children: true, props: { ...data, ...heading, limit: optional('integer'), empty: optional('text'), span: optional('span') } },
-  RecordRow: { children: false, props: { ...data, ...heading, limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
+  // Without `resource`, it draws the list around it and reads nothing
+  Table: { children: false, reads, props: { ...data, resource: optional('text'), ...heading, columns: optional('tableColumns'), button: optional('rowButton'), bulk: optional('boolean'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
+  CardRow: { children: true, props: { ...data, ...heading, limit: optional('integer'), empty: optional('text'), span: optional('span') }, reads },
+  RecordRow: { children: false, props: { ...data, ...heading, limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') }, reads },
   RecordCards: {
     children: false,
+    reads: { ...reads, fields: 'fields' },
     props: {
       ...data,
       ...heading,
@@ -46,6 +57,7 @@ const specs: Record<string, BlockSpec> = {
   },
   Chart: {
     children: false,
+    reads: { resource: 'resource', filter: 'filter' },
     props: {
       ...heading,
       resource: required('text'),
@@ -69,11 +81,21 @@ const specs: Record<string, BlockSpec> = {
   },
   Thread: {
     children: false,
+    reads: { resource: 'resource', filter: 'filter' },
     props: { ...heading, resource: required('text'), filter: optional('text'), sender: required('text'), time: required('text'), text: required('text'), status: optional('text'), working: optional('text'), calls: optional('toolCalls'), limit: optional('integer'), empty: optional('text'), span: optional('span') },
   },
   Composer: { children: false, props: { resource: required('text'), field: required('text'), values: optional('values'), placeholder: optional('text'), span: optional('span') } },
   Image: { children: false, props: { function: optional('text'), src: optional('text'), alt: optional('text'), width: optional('integer'), height: optional('integer'), refresh: optional('integer') } },
   Action: { children: false, props: { name: required('text'), resource: optional('text'), label: optional('text'), variant: optional('variant') } },
+  ReferenceManyField: {
+    children: true,
+    reads: { resource: 'reference', filter: 'filter', sort: 'sort' },
+    props: { reference: required('text'), target: required('text'), source: optional('text'), ...listShape, empty: optional('text'), pagination: optional('pagination') },
+  },
+  ReferenceArrayField: { children: true, reads: { resource: 'reference', filter: 'filter', sort: 'sort' }, props: { source: required('text'), reference: required('text'), ...listShape } },
+  ArrayField: { children: true, props: { source: required('text') } },
+  RecordsIterator: { children: true, props: {} },
+  ReferenceField: { children: true, reads: { resource: 'reference' }, props: { source: required('text'), reference: required('text'), link: optional('referenceLink'), emptyText: optional('text') } },
   Show: { children: true, props: { when: required('text'), fallback: optional('content') } },
   Switch: { children: true, props: { fallback: optional('content') } },
   Match: { children: true, props: { when: required('text') } },
@@ -130,7 +152,18 @@ const isTableColumn = (value: LayoutValue) =>
   typeof value === 'string' ||
   (isObject(value) && !isLayoutNode(value) && typeof value.name === 'string' && typeof value.priority === 'number' && Number.isInteger(value.priority) && value.priority > 0 && Object.keys(value).every((name) => name === 'name' || name === 'priority'))
 
+// react-admin's `{ field, order }`, or AIP-132 text
+const isSort = (value: LayoutValue) =>
+  typeof value === 'string' || (isObject(value) && typeof value.field === 'string' && (value.order === 'ASC' || value.order === 'DESC') && Object.keys(value).length === 2)
+
+// react-admin's object of equalities, each a scalar value, or AIP-160 text
+const isFilter = (value: LayoutValue) => typeof value === 'string' || (isObject(value) && !isLayoutNode(value) && Object.values(value).every((item) => item === null || ['string', 'number', 'boolean'].includes(typeof item)))
+
 const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: string]> = {
+  sort: [isSort, "an AIP-132 order such as 'created_at desc', or { field, order: 'ASC' | 'DESC' }"],
+  filter: [isFilter, "an AIP-160 filter such as 'status = \"open\"', or an object of field values such as { status: 'open' }"],
+  pagination: [(value) => value === 'more', "'more'"],
+  referenceLink: [(value) => value === 'edit' || value === 'show' || value === false, "'edit', 'show' or false"],
   text: [(value) => typeof value === 'string', 'text'],
   content: [(value) => typeof value === 'string' || isLayoutNode(value) || (Array.isArray(value) && value.every(isLayoutNode)), 'text, an element or a list of elements'],
   boolean: [(value) => typeof value === 'boolean', 'true or false'],
