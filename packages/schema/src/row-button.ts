@@ -4,7 +4,7 @@ import type { AppAddress, ResourceModel, RowButtonChoice, RowButtonModel } from 
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
-const shape = "a row button is { label, to } or { label, href }, such as { label: 'Open', to: { kind: 'record', resource: 'tasks', key: '{id}' } } or { label: 'Report', href: '{report_url}' }, or a list of them"
+const shape = "a row button is { label, to } or { label, href }, such as { label: 'Open', to: { kind: 'record', resource: 'tasks', key: '{{id}}' } } or { label: 'Report', href: '{{report_url}}' }, or a list of them"
 
 /** A row button's choices, in order: the one it is, or each of its list. */
 export const rowButtonChoices = (button: RowButtonModel): readonly RowButtonChoice[] => (Array.isArray(button) ? button : [button as RowButtonChoice])
@@ -24,7 +24,7 @@ export const rowButtonChoiceFields = (choice: RowButtonChoice) => {
 /** The fields of the row any of a button's choices reads, to load with the rows. */
 export const rowButtonFields = (button: RowButtonModel) => [...new Set(rowButtonChoices(button).flatMap(rowButtonChoiceFields))]
 
-const missing = (names: string[], source: ResourceModel, part: string) => names.flatMap((name) => (Object.hasOwn(source.fields, name) ? [] : [`${part}: "{${name}}" is not a field of ${source.name}`]))
+const missing = (names: string[], source: ResourceModel, part: string) => names.flatMap((name) => (Object.hasOwn(source.fields, name) ? [] : [`${part}: "{{${name}}}" is not a field of ${source.name}`]))
 
 const choiceErrors = (choice: unknown, source: ResourceModel, check: Omit<AddressCheck, 'source'>): string[] => {
   if (!isObject(choice)) return [shape]
@@ -33,16 +33,16 @@ const choiceErrors = (choice: unknown, source: ResourceModel, check: Omit<Addres
   const label = missing(textPlaceholders(choice.label), source, 'label')
   if (choice.href !== undefined) {
     const field = typeof choice.href === 'string' ? hrefField(choice.href) : undefined
-    if (field === undefined) return [...label, "href: a row button's href is the one field that holds the page's https URL, such as '{report_url}'"]
+    if (field === undefined) return [...label, "href: a row button's href is the one field that holds the page's https URL, such as '{{report_url}}'"]
     return [...label, ...missing([field], source, 'href')]
   }
-  if (!isObject(choice.to) || typeof choice.to.kind !== 'string') return ["a row button needs an address in `to`, such as { kind: 'record', resource: 'tasks', key: '{id}' }, or an outside page in `href`"]
+  if (!isObject(choice.to) || typeof choice.to.kind !== 'string') return ["a row button needs an address in `to`, such as { kind: 'record', resource: 'tasks', key: '{{id}}' }, or an outside page in `href`"]
   return [...label, ...addressErrors(choice.to as AppAddress, { ...check, source }).map((error) => `to: ${error}`)]
 }
 
 /**
  * What is wrong with a row button on the rows of `source`: per choice, a missing label or target, both an address and an
- * href, an href that is not one `{field}`, a `{field}` the rows do not have, or an address that cannot be followed,
+ * href, an href that is not one `{{field}}`, a `{{field}}` the rows do not have, or an address that cannot be followed,
  * against `check`'s models; or a list without choices. Empty when every row can show it.
  */
 export const rowButtonErrors = (button: unknown, source: ResourceModel, check: Omit<AddressCheck, 'source'>): string[] => {

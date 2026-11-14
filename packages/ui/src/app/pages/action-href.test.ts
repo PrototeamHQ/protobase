@@ -4,34 +4,34 @@ import { actionFor, fillHref, linkTarget, openLink } from './action-href'
 
 describe('fillHref', () => {
   it('fills fields from the record, percent-encoded', () => {
-    expect(fillHref('https://maps.example/{orderId}?from={city}', { orderId: 42, city: 'Den Haag' })).toBe('https://maps.example/42?from=Den%20Haag')
+    expect(fillHref('https://maps.example/{{orderId}}?from={{city}}', { orderId: 42, city: 'Den Haag' })).toBe('https://maps.example/42?from=Den%20Haag')
   })
 
   it('leaves missing values empty and other braces alone', () => {
-    expect(fillHref('https://pay.example/{plan}/{ nope }', { plan: null })).toBe('https://pay.example//{ nope }')
+    expect(fillHref('https://pay.example/{{plan}}/{ nope }', { plan: null })).toBe('https://pay.example//{ nope }')
   })
 })
 
 describe('linkTarget', () => {
   it("opens the URL a field holds as it is, without encoding it, when it is an https: or http: URL", () => {
-    expect(linkTarget('{website}', { website: 'https://www.homes.example/rent/a-b?ref=x&y=1' })).toBe('https://www.homes.example/rent/a-b?ref=x&y=1')
-    expect(linkTarget('{website}', { website: 'http://homes.example/' })).toBe('http://homes.example/')
+    expect(linkTarget('{{website}}', { website: 'https://www.homes.example/rent/a-b?ref=x&y=1' })).toBe('https://www.homes.example/rent/a-b?ref=x&y=1')
+    expect(linkTarget('{{website}}', { website: 'http://homes.example/' })).toBe('http://homes.example/')
   })
 
   it('has no target for a field that holds no web URL', () => {
-    expect(['', null, undefined, 42, 'homes.example/rent', '/rent/1', 'javascript:alert(1)', 'mailto:a@homes.example', 'data:text/html,x'].map((website) => linkTarget('{website}', { website }))).toEqual(
+    expect(['', null, undefined, 42, 'homes.example/rent', '/rent/1', 'javascript:alert(1)', 'mailto:a@homes.example', 'data:text/html,x'].map((website) => linkTarget('{{website}}', { website }))).toEqual(
       Array(9).fill(undefined),
     )
-    expect(linkTarget('{website}')).toBeUndefined()
+    expect(linkTarget('{{website}}')).toBeUndefined()
   })
 
   it('fills any other href, percent-encoded', () => {
-    expect(linkTarget('https://maps.example/{city}', { city: 'Den Haag' })).toBe('https://maps.example/Den%20Haag')
+    expect(linkTarget('https://maps.example/{{city}}', { city: 'Den Haag' })).toBe('https://maps.example/Den%20Haag')
   })
 })
 
 describe('actionFor', () => {
-  const source: ActionModel = { name: 'source', label: 'View on {host}', bulk: false, run: { kind: 'link', href: '{website}' } }
+  const source: ActionModel = { name: 'source', label: 'View on {{host}}', bulk: false, run: { kind: 'link', href: '{{website}}' } }
 
   it("shows a link to a record's URL only while the record holds one, its label naming the host without www.", () => {
     expect(actionFor(source, { website: 'https://www.homes.example/rent/1' })).toEqual({ ...source, label: 'View on homes.example' })
@@ -41,7 +41,7 @@ describe('actionFor', () => {
   })
 
   it('shows a link to a resource the record names only once the app has that resource', () => {
-    const open: ActionModel = { name: 'open', label: 'Open table', bulk: false, run: { kind: 'link', to: { kind: 'list', resource: '{name}' } } }
+    const open: ActionModel = { name: 'open', label: 'Open table', bulk: false, run: { kind: 'link', to: { kind: 'list', resource: '{{name}}' } } }
     expect(actionFor(open, { name: 'notes' }, { notes: {} })).toBe(open)
     expect(actionFor(open, { name: 'notes' }, { tasks: {} })).toBeUndefined()
     expect(actionFor(open, { name: null }, { notes: {} })).toBeUndefined()
@@ -74,8 +74,8 @@ describe('actionFor', () => {
   })
 
   it('leaves every other action as it is', () => {
-    const update: ActionModel = { name: 'ship', label: 'Ship to {host}', bulk: false, run: { kind: 'update', values: { status: 'shipped' } } }
-    const mail: ActionModel = { name: 'mail', label: 'Mail', bulk: false, run: { kind: 'link', href: 'mailto:{email}' } }
+    const update: ActionModel = { name: 'ship', label: 'Ship to {{host}}', bulk: false, run: { kind: 'update', values: { status: 'shipped' } } }
+    const mail: ActionModel = { name: 'mail', label: 'Mail', bulk: false, run: { kind: 'link', href: 'mailto:{{email}}' } }
     expect(actionFor(update, undefined)).toBe(update)
     expect(actionFor(mail, {})).toBe(mail)
   })

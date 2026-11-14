@@ -22,7 +22,7 @@ const ticketsView = view<typeof tickets>('tickets')
   .recordMode('read')
   .fields((r) => ({ priority: r.priority.valueLabels({ low: 'Low', high: 'High' }) }))
   .layout((r) => [l.section('Ticket', [r.title, r.description, r.priority])])
-  .actions((a) => [a.ai('triage', { label: 'Suggest priority', icon: 'tag', prompt: 'How urgent is this?\n\n{title}\n{description}', writes: 'priority' })])
+  .actions((a) => [a.ai('triage', { label: 'Suggest priority', icon: 'tag', prompt: 'How urgent is this?\n\n{{title}}\n{{description}}', writes: 'priority' })])
 
 const rows = { tickets: [{ id: 1, title: 'Printer on fire', description: 'Smoke on the second floor', priority: null }] }
 const permissions: Record<string, ResourcePermissions> = { tickets: { read: true, create: true, update: true, delete: false, conditional: [] } }

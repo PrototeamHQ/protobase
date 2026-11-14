@@ -36,9 +36,9 @@ describe('renderText', () => {
   })
 
   it('fills a link to an address from the record, and keeps it as written without one', () => {
-    const toRecord = Link({ to: { kind: 'record', resource: 'tasks', key: '{title}' }, children: 'Open' })
+    const toRecord = Link({ to: { kind: 'record', resource: 'tasks', key: '{{title}}' }, children: 'Open' })
     expect(renderText(toRecord, { record, basePath: '/admin' })).toBe('[Open](/admin/tasks/Fix%20the%20roof)')
-    expect(renderText(toRecord)).toBe('[Open](/tasks/%7Btitle%7D)')
+    expect(renderText(toRecord)).toBe('[Open](/tasks/%7B%7Btitle%7D%7D)')
   })
 
   it('reads a field as its label alone without a record', () => {

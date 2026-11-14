@@ -52,7 +52,7 @@ describe('action inputs', () => {
     const { inputs } = actions.update('sign_off', {
       label: 'Sign off',
       inputs: (i) => [i.checklist('checked', { label: 'Checked', items: ['Tests pass', 'Docs read'] }), i.checklist('own', { label: 'Own', from: 'checklist' })],
-      set: { checked: '{checked}' },
+      set: { checked: '{{checked}}' },
     })
     expect(inputs).toEqual([
       { name: 'checked', kind: 'checklist', label: 'Checked', required: true, items: ['Tests pass', 'Docs read'] },

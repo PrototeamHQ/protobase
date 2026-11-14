@@ -121,13 +121,13 @@ describe('view builder', () => {
 
   it('lets an update ask for inputs and write the answers, and refuses a placeholder naming none', () => {
     const [answer] = view<typeof article>('article')
-      .actions((a) => [a.update('answer', { label: 'Answer', inputs: (i) => [i.text('answer', { label: 'Answer', multiline: true })], set: { status: 'answered', title: '{answer}' } })])
+      .actions((a) => [a.update('answer', { label: 'Answer', inputs: (i) => [i.text('answer', { label: 'Answer', multiline: true })], set: { status: 'answered', title: '{{answer}}' } })])
       .toModel().actions
     expect(answer!.inputs).toHaveLength(1)
-    expect(answer!.run).toEqual({ kind: 'update', values: { status: 'answered', title: '{answer}' } })
+    expect(answer!.run).toEqual({ kind: 'update', values: { status: 'answered', title: '{{answer}}' } })
     const build = (set: Record<string, unknown>, twice = false) => () => view<typeof article>('article').actions((a) => [a.update('answer', { label: 'Answer', inputs: (i) => [i.text('answer', { label: 'Answer' }), ...(twice ? [i.text('answer', { label: 'Answer' })] : [])], set })])
-    expect(build({ title: '{answer}' }, true)).toThrow('Action "answer": ')
-    expect(build({ title: '{nope}' })).toThrow('Action "answer": set "title" names input "nope", which it does not ask for')
+    expect(build({ title: '{{answer}}' }, true)).toThrow('Action "answer": ')
+    expect(build({ title: '{{nope}}' })).toThrow('Action "answer": set "title" names input "nope", which it does not ask for')
   })
 
   it('describes what update, remove and link actions do', () => {
@@ -135,14 +135,14 @@ describe('view builder', () => {
       .actions((a) => [
         a.update('publish', { label: 'Publish', set: { status: 'published' }, confirm: 'Publish now?' }),
         a.remove('discard', { label: 'Discard', icon: 'trash' }),
-        a.link('preview', { label: 'Preview', href: 'https://example.com/a/{id}' }),
+        a.link('preview', { label: 'Preview', href: 'https://example.com/a/{{id}}' }),
         a.link('drafts', { label: 'Drafts', to: { kind: 'list', resource: 'article', filter: 'status = "draft"' } }),
       ])
       .toModel()
     expect(model.actions).toEqual([
       { name: 'publish', label: 'Publish', bulk: false, confirm: 'Publish now?', run: { kind: 'update', values: { status: 'published' } } },
       { name: 'discard', label: 'Discard', bulk: false, icon: 'trash', run: { kind: 'delete' } },
-      { name: 'preview', label: 'Preview', bulk: false, run: { kind: 'link', href: 'https://example.com/a/{id}' } },
+      { name: 'preview', label: 'Preview', bulk: false, run: { kind: 'link', href: 'https://example.com/a/{{id}}' } },
       { name: 'drafts', label: 'Drafts', bulk: false, run: { kind: 'link', to: { kind: 'list', resource: 'article', filter: 'status = "draft"' } } },
     ])
   })
@@ -245,9 +245,9 @@ describe('view builder', () => {
   })
 
   it("opens another address in place of a record's page, naming only the record's fields", () => {
-    const to = { kind: 'record' as const, resource: 'issues', key: '{title}', run: '{id}' }
+    const to = { kind: 'record' as const, resource: 'issues', key: '{{title}}', run: '{{id}}' }
     expect(view<typeof article>('article').recordOpens(to).toModel(article.toModel()).recordOpens).toEqual(to)
-    expect(() => view<typeof article>('article').recordOpens({ kind: 'record', resource: 'issues', key: '{issue_id}' }).toModel(article.toModel())).toThrow('recordOpens names field "issue_id", which the resource does not have')
+    expect(() => view<typeof article>('article').recordOpens({ kind: 'record', resource: 'issues', key: '{{issue_id}}' }).toModel(article.toModel())).toThrow('recordOpens names field "issue_id", which the resource does not have')
   })
 
   it("names where a card's further photos come from, as data the caller's photos cannot change", () => {
@@ -446,8 +446,8 @@ describe('view builder', () => {
   })
 
   it("carries a url link's text, and refuses one on another format or an empty one", () => {
-    const linked = view<typeof article>('article').fields((r) => ({ title: r.title.format('url', { text: 'Report of {status}' }) })).toModel()
-    expect(linked.fields).toEqual({ title: { format: 'url', linkText: 'Report of {status}' } })
+    const linked = view<typeof article>('article').fields((r) => ({ title: r.title.format('url', { text: 'Report of {{status}}' }) })).toModel()
+    expect(linked.fields).toEqual({ title: { format: 'url', linkText: 'Report of {{status}}' } })
     expect(() => view<typeof article>('article').fields((r) => ({ title: r.title.format('email', { text: 'Mail' }) }))).toThrow(`Field "title": only format('url') takes a link text`)
     expect(() => view<typeof article>('article').fields((r) => ({ title: r.title.format('url', { text: ' ' }) }))).toThrow(`Field "title": format('url') needs a link text that is not empty`)
   })
@@ -656,15 +656,15 @@ describe('view builder', () => {
 
   it('describes an AI action and refuses one without a field to read or write', () => {
     const model = view<typeof article>('article')
-      .actions((a) => [a.ai('summarise', { label: 'Summarise', icon: 'file-text', prompt: 'Sum up {title}', writes: 'title', confirm: 'Replace it?' })])
+      .actions((a) => [a.ai('summarise', { label: 'Summarise', icon: 'file-text', prompt: 'Sum up {{title}}', writes: 'title', confirm: 'Replace it?' })])
       .toModel()
     expect(model.actions).toEqual([
-      { name: 'summarise', label: 'Summarise', bulk: false, icon: 'file-text', confirm: 'Replace it?', run: { kind: 'ai', prompt: 'Sum up {title}', writes: 'title' } },
+      { name: 'summarise', label: 'Summarise', bulk: false, icon: 'file-text', confirm: 'Replace it?', run: { kind: 'ai', prompt: 'Sum up {{title}}', writes: 'title' } },
     ])
     expect(() => view<typeof article>('article').actions((a) => [a.ai('x', { label: 'X', prompt: 'Sum up', writes: 'title' })])).toThrow(
-      'Action "x": its prompt must name at least one {field} of the record',
+      'Action "x": its prompt must name at least one {{field}} of the record',
     )
-    expect(() => view<typeof article>('article').actions((a) => [a.ai('x', { label: 'X', prompt: '{title}', writes: '' })])).toThrow('Action "x": it writes no field')
+    expect(() => view<typeof article>('article').actions((a) => [a.ai('x', { label: 'X', prompt: '{{title}}', writes: '' })])).toThrow('Action "x": it writes no field')
   })
 
   it('refuses a path in the app as a link href, pointing at to', () => {
@@ -674,10 +674,10 @@ describe('view builder', () => {
   })
 
   it("opens the URL a field holds from an href that is only the field, and names its host in the label", () => {
-    const linked = view<typeof article>('article').actions((a) => [a.link('source', { label: 'View on {host}', icon: 'external-link', href: '{title}' })]).toModel()
-    expect(linked.actions).toEqual([{ name: 'source', label: 'View on {host}', icon: 'external-link', bulk: false, run: { kind: 'link', href: '{title}' } }])
-    expect(() => view<typeof article>('article').actions((a) => [a.link('mine', { label: 'Mine on {host}', to: { kind: 'list', resource: 'article' } })])).toThrow(
-      'Action "mine": the label names {host}, which only a link with an href has',
+    const linked = view<typeof article>('article').actions((a) => [a.link('source', { label: 'View on {{host}}', icon: 'external-link', href: '{{title}}' })]).toModel()
+    expect(linked.actions).toEqual([{ name: 'source', label: 'View on {{host}}', icon: 'external-link', bulk: false, run: { kind: 'link', href: '{{title}}' } }])
+    expect(() => view<typeof article>('article').actions((a) => [a.link('mine', { label: 'Mine on {{host}}', to: { kind: 'list', resource: 'article' } })])).toThrow(
+      'Action "mine": the label names {{host}}, which only a link with an href has',
     )
   })
 

@@ -7,7 +7,7 @@ export type AddressCheck = {
   models: Record<string, ResourceModel>
   /** The composed pages; without them a page's name is not checked. */
   pages?: ReadonlySet<string>
-  /** The resource of the record the link sits on, whose fields its `{field}` placeholders name. */
+  /** The resource of the record the link sits on, whose fields its `{{field}}` placeholders name. */
   source?: ResourceModel
   /** The resources whose view opens a create page of the app's own, which reads a create address's values whatever their names. */
   createPages?: ReadonlySet<string>
@@ -17,11 +17,11 @@ export type AddressCheck = {
 const nameErrors: readonly FilterErrorCode[] = ['unknown-field', 'not-filterable', 'not-sortable', 'unsupported-traversal', 'invalid-traversal']
 
 // A quoted placeholder stands in for a word and any other for a number, so the filter parses and its names can be checked.
-const withSamples = (filter: string) => filter.replace(/(["']?)\{[A-Za-z_][A-Za-z0-9_]*\}\1/g, (_, quote: string) => (quote ? `${quote}x${quote}` : '0'))
+const withSamples = (filter: string) => filter.replace(/(["']?)\{\{\s*[^{}]*?\s*\}\}\1/g, (_, quote: string) => (quote ? `${quote}x${quote}` : '0'))
 
 const filterErrors = (model: ResourceModel, filter: string) => {
   const embedded = embeddedFilterFields(filter)
-  if (embedded.length > 0) return embedded.map((name) => `filter: "{${name}}" sits inside a longer quoted value; quote it alone, such as title = "{${name}}"`)
+  if (embedded.length > 0) return embedded.map((name) => `filter: "{{${name}}}" sits inside a longer quoted value; quote it alone, such as title = "{{${name}}}"`)
   const parsed = parseFilter(withSamples(filter))
   if (!parsed.ok) return parsed.errors.map((error) => `filter: ${error.message}`)
   if (!parsed.ast) return []
@@ -39,14 +39,14 @@ const orderErrors = (model: ResourceModel, orderBy: string) => {
 
 /**
  * What is wrong with a link's address against these models: an unknown resource or page, a filter, order or values
- * beside a resource taken from the record (`'{field}'`), a `{field}` the record it sits
+ * beside a resource taken from the record (`'{{field}}'`), a `{{field}}` the record it sits
  * on does not have, a filter or order naming fields the resource does not have, or create values for fields it does not
  * have, unless its view opens a create page, which reads them. Empty when it can be followed.
  */
 export const addressErrors = (to: AppAddress, { models, pages, source, createPages }: AddressCheck): string[] => {
   const placeholders = addressPlaceholders(to).flatMap((name) => {
-    if (!source) return [`"{${name}}" takes a value from the record, but the link sits on none`]
-    return Object.hasOwn(source.fields, name) ? [] : [`"{${name}}" is not a field of ${source.name}`]
+    if (!source) return [`"{{${name}}}" takes a value from the record, but the link sits on none`]
+    return Object.hasOwn(source.fields, name) ? [] : [`"{{${name}}}" is not a field of ${source.name}`]
   })
   // A resource taken from the record is known only when the link is followed, so the address names none of its fields.
   if (to.kind !== 'page' && resourceField(to) !== undefined) {

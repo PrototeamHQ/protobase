@@ -67,7 +67,7 @@ export type FieldModel = {
   file?: FileFieldModel
   /** A job fills it from the prompt after a create or an update of a field the prompt names (`.ai()`). */
   ai?: {
-    /** The prompt, with `{field}` placeholders. */
+    /** The prompt, with `{{field}}` placeholders. */
     prompt: string
   }
   /** The database keeps it from the records of another resource (`.rollup()`). */
@@ -330,7 +330,7 @@ export type AppAddress =
        * workflow's graph: the record page shows it read-only, as its read view.
        */
       version?: number
-      /** The run a workflow's page shows on its graph, by its key, on the version it ran on; `{field}` takes it from a record. */
+      /** The run a workflow's page shows on its graph, by its key, on the version it ran on; `{{field}}` takes it from a record. */
       run?: string
       /** The panel a focus page opens with, by a name its surface knows (`?panel=`). */
       panel?: string
@@ -382,8 +382,8 @@ export type FieldViewModel = {
   /** How the value is shown. */
   format?: FieldFormat
   /**
-   * The text a `url` field's link shows instead of the address: fixed, such as `Error report`, or with `{field}`
-   * placeholders filled from the record, such as `{title}`; the address shows when it comes out empty.
+   * The text a `url` field's link shows instead of the address: fixed, such as `Error report`, or with `{{field}}`
+   * placeholders filled from the record, such as `{{title}}`; the address shows when it comes out empty.
    */
   linkText?: string
   /** A text that runs over several lines: forms edit it in a box that grows with it, and its line breaks show. */
@@ -862,22 +862,22 @@ export type RelatedPresentation = 'cards' | 'compact' | 'record'
 
 /**
  * One choice of a row button: a button that opens an address in the app named by the row's fields, such as
- * `{ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: '{tab}' } }`, or the outside page
- * a field holds, such as `{ label: 'Error report', href: '{report_url}' }`.
+ * `{ label: '{{verb}}', to: { kind: 'record', resource: 'tasks', key: '{{task_id}}', tab: '{{tab}}' } }`, or the outside page
+ * a field holds, such as `{ label: 'Error report', href: '{{report_url}}' }`.
  */
 export type RowButtonChoice = {
-  /** The button's text; `{field}` is replaced by the row's value, an enum value by its label. */
+  /** The button's text; `{{field}}` is replaced by the row's value, an enum value by its label. */
   label: string
 } & (
   | {
       /**
-       * Where it goes; `{field}` in its resource, key, tab, run, panel, filter, order or values is replaced by the row's
+       * Where it goes; `{{field}}` in its resource, key, tab, run, panel, filter, order or values is replaced by the row's
        * value. A filter's text value goes in quotes; one outside quotes is a number or `true`/`false`.
        */
       to: AppAddress
     }
   | {
-      /** The outside page it opens, in a new tab: one `{field}` whose value is an `https:` URL. */
+      /** The outside page it opens, in a new tab: one `{{field}}` whose value is an `https:` URL. */
       href: string
     }
 )
@@ -1344,14 +1344,14 @@ export type PageWidth = 'column' | 'full'
 
 /**
  * What a named action does in the app: set fields of the record (`update`), delete it (`delete`), go to an address in
- * the app (`link` with `to`), open a link that leaves it (`link` with `href`), `{field}` replaced by the record's
+ * the app (`link` with `to`), open a link that leaves it (`link` with `href`), `{{field}}` replaced by the record's
  * values, or have the model write a field (`ai`). Without it the app runs a handler it registered by name.
  */
 export type ActionRun =
   | {
       /** Updates the record. */
       kind: 'update'
-      /** The fields it sets, by name; a value that is exactly `{input}` is that input's answer. */
+      /** The fields it sets, by name; a value that is exactly `{{input}}` is that input's answer. */
       values: Record<string, unknown>
     }
   | {
@@ -1361,22 +1361,22 @@ export type ActionRun =
   | {
       /** Goes to an address in the app. */
       kind: 'link'
-      /** The address, with `{field}` replaced by the record's values. */
+      /** The address, with `{{field}}` replaced by the record's values. */
       to: AppAddress
     }
   | {
       /** Opens a link that leaves the app, an `https:` or `http:` one in a new tab without the referrer. */
       kind: 'link'
       /**
-       * The link (`https:`, `mailto:`), with `{field}` replaced by the record's values, percent-encoded; or only `{field}`,
+       * The link (`https:`, `mailto:`), with `{{field}}` replaced by the record's values, percent-encoded; or only `{{field}}`,
        * the `https:` or `http:` URL the record holds, without which the action does not show.
        */
       href: string
     }
   | {
-      /** Has the model write one field of the record from `prompt`, `{field}` replaced by the record's values, as the user. */
+      /** Has the model write one field of the record from `prompt`, `{{field}}` replaced by the record's values, as the user. */
       kind: 'ai'
-      /** The prompt, with `{field}` placeholders; `/meta` leaves it out. */
+      /** The prompt, with `{{field}}` placeholders; `/meta` leaves it out. */
       prompt?: string
       /** The field it writes. */
       writes: string
@@ -1700,7 +1700,7 @@ export type ViewModel = {
   create?: CreateModel
   /** The component of the app's own that is the whole record page, in place of the standard one. */
   record?: RecordPageModel
-  /** The address a record's page opens in its place, `{field}` replaced by the record's values. */
+  /** The address a record's page opens in its place, `{{field}}` replaced by the record's values. */
   recordOpens?: AppAddress
   /** Its create address opens this in place of the form (`.createOpens(...)`). */
   createOpens?: AppAddress

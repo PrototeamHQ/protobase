@@ -16,7 +16,7 @@ const shownText = (model: ResourceModel, view: ViewModel | undefined, name: stri
 export type RelationLabels = Readonly<Record<string, string | undefined>>
 
 /**
- * The text a url field's link shows on `record` instead of its address, from the view's link text with each `{field}`
+ * The text a url field's link shows on `record` instead of its address, from the view's link text with each `{{field}}`
  * as the record page shows it, a relation by its name in `labels` when resolved there; nothing without link text or when a field it names is empty, so the address shows
  * rather than a text with a gap, such as `Crash on save ()`.
  */

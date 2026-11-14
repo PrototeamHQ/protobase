@@ -10,7 +10,7 @@ import { propsOf, type BlockProps } from './block-props'
 const linkStyle = 'font-medium text-primary-text hover:underline'
 
 /**
- * `to` an address in the app, through the router, its `{field}`s filled from the record around it; an `href` (`mailto:`,
+ * `to` an address in the app, through the router, its `{{field}}`s filled from the record around it; an `href` (`mailto:`,
  * `https:`) is an ordinary anchor. It shows its children, text and spans inline, else where it leads.
  */
 export const LinkBlock = ({ node, children, className }: BlockProps) => {

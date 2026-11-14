@@ -22,7 +22,7 @@ const record = { title: 'Printer on fire', description: null }
 describe('generateValue', () => {
   it('sends the same instruction and the prompt filled from the record, low reasoning on OpenRouter, and trims the answer', async () => {
     const model = fakeModel('  Fire in the printer. \n')
-    expect(await generateValue(model.settings, { prompt: 'Sum up: {title}\n{description}', record, field: text })).toBe('Fire in the printer.')
+    expect(await generateValue(model.settings, { prompt: 'Sum up: {{title}}\n{{description}}', record, field: text })).toBe('Fire in the printer.')
     expect(model.bodies[0]).toMatchObject({
       messages: [
         { role: 'system', content: expect.stringContaining('Answer with the value only') },
@@ -34,15 +34,15 @@ describe('generateValue', () => {
 
   it("lists an enum's values, and asks for no reasoning on another endpoint", async () => {
     const model = fakeModel('high', 'http://localhost:11434/v1')
-    expect(await generateValue(model.settings, { prompt: 'How urgent? {title}', record, field: priority })).toBe('high')
+    expect(await generateValue(model.settings, { prompt: 'How urgent? {{title}}', record, field: priority })).toBe('high')
     expect(model.bodies[0]!.messages[1]!.content).toBe('How urgent? Printer on fire\n\nAnswer with exactly one of: low, high')
     expect(model.bodies[0]).not.toHaveProperty('reasoning')
   })
 
   it('is null for an empty answer, and without a request when every field the prompt reads is empty', async () => {
-    expect(await generateValue(fakeModel(' ').settings, { prompt: '{title}', record, field: text })).toBeNull()
+    expect(await generateValue(fakeModel(' ').settings, { prompt: '{{title}}', record, field: text })).toBeNull()
     const model = fakeModel('invented')
-    expect(await generateValue(model.settings, { prompt: '{description} {title}', record: { title: ' ', description: null }, field: text })).toBeNull()
+    expect(await generateValue(model.settings, { prompt: '{{description}} {{title}}', record: { title: ' ', description: null }, field: text })).toBeNull()
     expect(model.bodies).toEqual([])
   })
 })

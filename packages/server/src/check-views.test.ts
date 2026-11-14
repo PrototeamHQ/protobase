@@ -79,9 +79,9 @@ describe('checkViews', () => {
   })
 
   it("takes a link text on a url format only, naming the resource's fields", () => {
-    const linked = view<typeof payments>('payments').fields((r) => ({ reference: r.reference.format('url', { text: 'Paid by {method}' }) }))
+    const linked = view<typeof payments>('payments').fields((r) => ({ reference: r.reference.format('url', { text: 'Paid by {{method}}' }) }))
     expect(() => checkViews(registry, [linked.toModel()])).not.toThrow()
-    const unknown = view<typeof payments>('payments').fields((r) => ({ reference: r.reference.format('url', { text: '{payer}' }) }))
+    const unknown = view<typeof payments>('payments').fields((r) => ({ reference: r.reference.format('url', { text: '{{payer}}' }) }))
     expect(() => checkViews(registry, [unknown.toModel()])).toThrow(`View "payments": link text of "reference" names field "payer", which payments does not have`)
     const written = view<typeof payments>('payments').toModel()
     written.fields = { reference: { format: 'email', linkText: 'Mail' } }
@@ -115,20 +115,20 @@ describe('checkViews', () => {
 
   it('wants links to go to addresses the app has, or out of it', () => {
     const linked = (to: AppAddress) => view<typeof payments>('payments').actions((a) => [a.link('go', { label: 'Go', to })]).toModel()
-    expect(() => checkViews(registry, [linked({ kind: 'list', resource: 'payments', filter: 'method = "{method}"' })])).not.toThrow()
+    expect(() => checkViews(registry, [linked({ kind: 'list', resource: 'payments', filter: 'method = "{{method}}"' })])).not.toThrow()
     expect(() => checkViews(registry, [linked({ kind: 'page', page: 'overview' })], ['overview'])).not.toThrow()
     expect(() => checkViews(registry, [linked({ kind: 'list', resource: 'refunds' })])).toThrow('View "payments": action "go": unknown resource "refunds"')
     expect(() => checkViews(registry, [linked({ kind: 'page', page: 'overview' })])).toThrow('action "go": unknown page "overview"')
-    expect(() => checkViews(registry, [linked({ kind: 'record', resource: 'payments', key: '{iban}' })])).toThrow('sensitive field "iban" cannot be in an action')
+    expect(() => checkViews(registry, [linked({ kind: 'record', resource: 'payments', key: '{{iban}}' })])).toThrow('sensitive field "iban" cannot be in an action')
     const written = view<typeof payments>('payments').toModel()
-    written.actions = [{ name: 'old', label: 'Old', bulk: false, run: { kind: 'link', href: '/payments/{id}' } }]
-    expect(() => checkViews(registry, [written])).toThrow('action "old": href "/payments/{id}" points inside the app; give the link `to` instead')
+    written.actions = [{ name: 'old', label: 'Old', bulk: false, run: { kind: 'link', href: '/payments/{{id}}' } }]
+    expect(() => checkViews(registry, [written])).toThrow('action "old": href "/payments/{{id}}" points inside the app; give the link `to` instead')
   })
 
   it("wants a record's page to open an address the app has", () => {
     const opens = (to: AppAddress) => view<typeof payments>('payments').recordOpens(to).toModel()
-    expect(() => checkViews(registry, [opens({ kind: 'record', resource: 'payments', key: '{reference}', run: '{id}' })])).not.toThrow()
-    expect(() => checkViews(registry, [opens({ kind: 'record', resource: 'refunds', key: '{id}' })])).toThrow('View "payments": recordOpens: unknown resource "refunds"')
+    expect(() => checkViews(registry, [opens({ kind: 'record', resource: 'payments', key: '{{reference}}', run: '{{id}}' })])).not.toThrow()
+    expect(() => checkViews(registry, [opens({ kind: 'record', resource: 'refunds', key: '{{id}}' })])).toThrow('View "payments": recordOpens: unknown resource "refunds"')
   })
 
   it('wants action inputs to fit: a handler to get them, and a choice of records to pick from a resource the app has', () => {
@@ -147,18 +147,18 @@ describe('checkViews', () => {
     const waitRegistry = { entries: [{ name: 'waits', model: waits.toModel() }] } as unknown as Registry
     const signOff = (from: string) =>
       view<typeof waits>('waits')
-        .actions((a) => [a.update('sign_off', { label: 'Sign off', bulk: true, inputs: (i) => [i.checklist('checked', { label: 'Checked', from })], set: { checked: '{checked}' } })])
+        .actions((a) => [a.update('sign_off', { label: 'Sign off', bulk: true, inputs: (i) => [i.checklist('checked', { label: 'Checked', from })], set: { checked: '{{checked}}' } })])
         .toModel()
     expect(() => checkViews(waitRegistry, [signOff('checklist')])).not.toThrow()
     expect(() => checkViews(waitRegistry, [signOff('nope')])).toThrow('action "sign_off": input "checked" takes its boxes from field "nope", which waits does not have')
     expect(() => checkViews(waitRegistry, [signOff('note')])).toThrow('input "checked" takes its boxes from field "note", which is no JSON field')
   })
 
-  it('lets an update ask for inputs, and wants each {input} it sets to be one of them', () => {
-    const asked = view<typeof payments>('payments').actions((a) => [a.update('note', { label: 'Note', inputs: (i) => [i.text('note', { label: 'Note' })], set: { id: '{note}' } })]).toModel()
+  it('lets an update ask for inputs, and wants each {{input}} it sets to be one of them', () => {
+    const asked = view<typeof payments>('payments').actions((a) => [a.update('note', { label: 'Note', inputs: (i) => [i.text('note', { label: 'Note' })], set: { id: '{{note}}' } })]).toModel()
     expect(() => checkViews(registry, [asked])).not.toThrow()
     const written = structuredClone(asked)
-    written.actions = [{ name: 'note', label: 'Note', bulk: false, run: { kind: 'update', values: { id: '{nope}' } } }]
+    written.actions = [{ name: 'note', label: 'Note', bulk: false, run: { kind: 'update', values: { id: '{{nope}}' } } }]
     expect(() => checkViews(registry, [written])).toThrow('action "note": set "id" names input "nope", which it does not ask for')
   })
 
@@ -170,15 +170,15 @@ describe('checkViews', () => {
       written.actions = [{ name: 'triage', label: 'Triage', bulk: false, run: { kind: 'ai', prompt, writes } }]
       return () => checkViews(ticketRegistry, [written])
     }
-    expect(ai('How urgent is {title}?', 'priority')).not.toThrow()
-    expect(ai('Translate {title}', 'title')).not.toThrow()
-    expect(ai('How urgent?', 'priority')).toThrow('View "tickets": action "triage": its prompt must name at least one {field} of the record')
-    expect(ai('{body}', 'priority')).toThrow('action "triage": its prompt names field "body", which tickets does not have')
-    expect(ai('{title}', 'summary')).toThrow('action "triage": it writes field "summary", which tickets does not have')
-    expect(ai('{title}', 'id')).toThrow('action "triage": it writes "id", which is integer, not text or an enum')
-    expect(ai('{title}', 'id')).toThrow('action "triage": it writes "id", which is readOnly()')
-    expect(ai('{secret}', 'title')).toThrow('sensitive field "secret" cannot be in an action')
-    expect(ai('{title}', 'secret')).toThrow('sensitive field "secret" cannot be in an action')
+    expect(ai('How urgent is {{title}}?', 'priority')).not.toThrow()
+    expect(ai('Translate {{title}}', 'title')).not.toThrow()
+    expect(ai('How urgent?', 'priority')).toThrow('View "tickets": action "triage": its prompt must name at least one {{field}} of the record')
+    expect(ai('{{body}}', 'priority')).toThrow('action "triage": its prompt names field "body", which tickets does not have')
+    expect(ai('{{title}}', 'summary')).toThrow('action "triage": it writes field "summary", which tickets does not have')
+    expect(ai('{{title}}', 'id')).toThrow('action "triage": it writes "id", which is integer, not text or an enum')
+    expect(ai('{{title}}', 'id')).toThrow('action "triage": it writes "id", which is readOnly()')
+    expect(ai('{{secret}}', 'title')).toThrow('sensitive field "secret" cannot be in an action')
+    expect(ai('{{title}}', 'secret')).toThrow('sensitive field "secret" cannot be in an action')
   })
 
   it('wants a create page to be a page of the app', () => {
@@ -188,21 +188,21 @@ describe('checkViews', () => {
   })
 
   it('lets a create link give values beyond the fields to a resource whose view opens a create page', () => {
-    const linked = view<typeof payments>('payments').actions((a) => [a.link('again', { label: 'Again', to: { kind: 'create', resource: 'payments', values: { invoice_id: '{id}' } } })])
+    const linked = view<typeof payments>('payments').actions((a) => [a.link('again', { label: 'Again', to: { kind: 'create', resource: 'payments', values: { invoice_id: '{{id}}' } } })])
     expect(() => checkViews(registry, [linked.toModel()])).toThrow('action "again": values: unknown field "invoice_id" on payments')
     expect(() => checkViews(registry, [linked.create({ page: 'new-payment' }).toModel()], ['new-payment'])).not.toThrow()
   })
 
-  it("wants a link to a record's URL to name a field the resource has, and {host} only in the label of an href", () => {
+  it("wants a link to a record's URL to name a field the resource has, and {{host}} only in the label of an href", () => {
     const written = view<typeof payments>('payments').toModel()
-    written.actions = [{ name: 'bank', label: 'View on {host}', bulk: false, run: { kind: 'link', href: '{reference}' } }]
+    written.actions = [{ name: 'bank', label: 'View on {{host}}', bulk: false, run: { kind: 'link', href: '{{reference}}' } }]
     expect(() => checkViews(registry, [written])).not.toThrow()
-    written.actions = [{ name: 'bank', label: 'View on {host}', bulk: false, run: { kind: 'link', href: '{website}' } }]
+    written.actions = [{ name: 'bank', label: 'View on {{host}}', bulk: false, run: { kind: 'link', href: '{{website}}' } }]
     expect(() => checkViews(registry, [written])).toThrow('View "payments": action "bank": href names field "website", which payments does not have')
-    written.actions = [{ name: 'iban', label: 'Bank', bulk: false, run: { kind: 'link', href: '{iban}' } }]
+    written.actions = [{ name: 'iban', label: 'Bank', bulk: false, run: { kind: 'link', href: '{{iban}}' } }]
     expect(() => checkViews(registry, [written])).toThrow('sensitive field "iban" cannot be in an action')
-    written.actions = [{ name: 'list', label: 'All on {host}', bulk: false, run: { kind: 'link', to: { kind: 'list', resource: 'payments' } } }]
-    expect(() => checkViews(registry, [written])).toThrow('View "payments": action "list": the label names {host}, which only a link with an href has')
+    written.actions = [{ name: 'list', label: 'All on {{host}}', bulk: false, run: { kind: 'link', to: { kind: 'list', resource: 'payments' } } }]
+    expect(() => checkViews(registry, [written])).toThrow('View "payments": action "list": the label names {{host}}, which only a link with an href has')
   })
 
   it("checks a named list's displays like the view's, naming the list", () => {
@@ -292,8 +292,8 @@ describe('checkViews', () => {
     const refunds = resource('refunds').table('refunds').fields({ id: f.integer(), payment_id: f.relation('payments').filterable(), verb: f.text() }).primaryKey((r) => r.id)
     const withRefunds = { entries: [...registry.entries, { name: 'refunds', model: refunds.toModel() }] } as unknown as Registry
     const buttoned = (button: { label: string; to: AppAddress }) => view<typeof payments>('payments').layout(() => [l.related('Refunds', { resource: 'refunds', field: 'payment_id', button })]).toModel()
-    expect(() => checkViews(withRefunds, [buttoned({ label: '{verb}', to: { kind: 'record', resource: 'payments', key: '{payment_id}', tab: 'Refunds' } })])).not.toThrow()
-    expect(() => checkViews(withRefunds, [buttoned({ label: '{action}', to: { kind: 'record', resource: 'refunds', key: '{id}' } })])).toThrow('View "payments": related "Refunds": button: label: "{action}" is not a field of refunds')
+    expect(() => checkViews(withRefunds, [buttoned({ label: '{{verb}}', to: { kind: 'record', resource: 'payments', key: '{{payment_id}}', tab: 'Refunds' } })])).not.toThrow()
+    expect(() => checkViews(withRefunds, [buttoned({ label: '{{action}}', to: { kind: 'record', resource: 'refunds', key: '{{id}}' } })])).toThrow('View "payments": related "Refunds": button: label: "{{action}}" is not a field of refunds')
     expect(() => checkViews(withRefunds, [buttoned({ label: 'Today', to: { kind: 'page', page: 'today' } })])).toThrow('View "payments": related "Refunds": button: to: unknown page "today"')
     expect(() => checkViews(withRefunds, [buttoned({ label: 'Today', to: { kind: 'page', page: 'today' } })], ['today'])).not.toThrow()
   })

@@ -10,7 +10,7 @@ const holds = resource('holds')
   .fields({ id: f.integer(), reason: f.text(), report_url: f.text() })
   .primaryKey((r) => r.id)
 const model = holds.toModel()
-const report = { label: 'Error report', href: '{report_url}' }
+const report = { label: 'Error report', href: '{{report_url}}' }
 const specs: ColumnSpec[] = [
   { id: 'reason', header: 'Reason', kind: 'text', width: 200, title: true },
   { id: 'id', header: 'Id', kind: 'id', width: 80 },
@@ -39,7 +39,7 @@ describe('withRowButton', () => {
   })
 
   it('grows the button column to its longest label, up to the widest a button grows', () => {
-    const answer = { label: '{reason}', to: { kind: 'record' as const, resource: 'holds', key: '{id}' } }
+    const answer = { label: '{{reason}}', to: { kind: 'record' as const, resource: 'holds', key: '{{id}}' } }
     const widthFor = (...reasons: string[]) => {
       const columns = withRowButton(specs, model, undefined, answer, false)
       const fitted = fitColumns(columns, reasons.map((reason, index) => ({ id: String(index), reason })))

@@ -42,7 +42,7 @@ const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
 /** The resource an element reads or writes: its own `resource` prop, or the record around it. */
 export const elementResource = (node: LayoutNode, scope: Scope) => text(node.props.resource) ?? (scope.record ? scope.resource : undefined)
 
-/** The record a link's `{field}` placeholders read: the one around it, when there is one. */
+/** The record a link's `{{field}}` placeholders read: the one around it, when there is one. */
 export const linkSource = (models: Record<string, ResourceModel>, scope: Scope) => (scope.record && scope.resource !== undefined ? models[scope.resource] : undefined)
 
 const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, createPages, functions }: PageCheckInput): string[] => {

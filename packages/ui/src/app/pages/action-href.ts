@@ -1,10 +1,9 @@
 import type { ActionModel } from '@protobase/schema'
-import { fillAddress, hrefField, resourceField } from '@protobase/schema/internal'
+import { fillAddress, fillText, hostPlaceholder, hrefField, recordValueAt, resourceField, valueText } from '@protobase/schema/internal'
 import { actionApplies } from './action-when'
 
-/** `href` with every `{field}` replaced by the record's value, percent-encoded; a missing value becomes empty. */
-export const fillHref = (href: string, record: Record<string, unknown> = {}) =>
-  href.replace(/\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_, name: string) => encodeURIComponent(record[name] === null || record[name] === undefined ? '' : String(record[name])))
+/** `href` with every `{{path}}` replaced by the record's value, percent-encoded; a missing value becomes empty. */
+export const fillHref = (href: string, record: Record<string, unknown> = {}) => fillText(href, (path) => encodeURIComponent(valueText(recordValueAt(record, path))))
 
 const webUrl = (value: unknown) => {
   if (typeof value !== 'string' || !URL.canParse(value)) return undefined
@@ -18,7 +17,7 @@ const webUrl = (value: unknown) => {
  */
 export const linkTarget = (href: string, record: Record<string, unknown> = {}) => {
   const field = hrefField(href)
-  return field === undefined ? fillHref(href, record) : webUrl(record[field])
+  return field === undefined ? fillHref(href, record) : webUrl(recordValueAt(record, field))
 }
 
 /**
@@ -39,7 +38,7 @@ const holdsAll = (record: Record<string, unknown>, values: Record<string, unknow
 /**
  * `action` as it shows for `record`: one whose `when` does not hold there is left out, or shown as it is when it
  * disables instead; an update that would change nothing there, a link whose `href` has no target there, and a link
- * whose resource the record names but `resources` (the caller's, from `/meta`) lacks, are left out, and `{host}` in a
+ * whose resource the record names but `resources` (the caller's, from `/meta`) lacks, are left out, and `{{host}}` in a
  * link's label becomes the host its target opens, without `www.`.
  */
 export const actionFor = (action: ActionModel, record: Record<string, unknown> | undefined, resources: Readonly<Record<string, unknown>> = {}): ActionModel | undefined => {
@@ -53,5 +52,5 @@ export const actionFor = (action: ActionModel, record: Record<string, unknown> |
   if (run?.kind !== 'link' || !('href' in run)) return action
   const target = linkTarget(run.href, record)
   if (target === undefined) return undefined
-  return action.label.includes('{host}') ? { ...action, label: action.label.replaceAll('{host}', hostOf(target)) } : action
+  return action.label.includes(hostPlaceholder) ? { ...action, label: action.label.replaceAll(hostPlaceholder, hostOf(target)) } : action
 }

@@ -155,7 +155,7 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
   tableColumns: [(value) => Array.isArray(value) && value.every(isTableColumn), "a list of field names or { name, priority }, such as ['title', { name: 'status', priority: 1 }]"],
   rowButton: [
     (value) => (Array.isArray(value) ? value.length > 0 && value.every(isRowButtonChoice) : isRowButtonChoice(value)),
-    "a button, such as { label: 'Open', to: { kind: 'record', resource: 'orders', key: '{id}' } } or { label: 'Report', href: '{report_url}' }, or a list of them",
+    "a button, such as { label: 'Open', to: { kind: 'record', resource: 'orders', key: '{{id}}' } } or { label: 'Report', href: '{{report_url}}' }, or a list of them",
   ],
 }
 

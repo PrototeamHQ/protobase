@@ -89,7 +89,7 @@ export const repairsView = view<typeof repairs>('repairs')
   .create({ page: 'book-repair' })
 ```
 
-**New** on the repairs list now opens the page at `/repairs/new`, and so does every link to a new repair, such as one on a customer's page with `values: { customer_id: '{id}' }`. Someone the page leaves out gets no **New**, and `/repairs/new` tells them they cannot create repairs; the plain create form no longer shows. The server refuses a page name it does not know when it starts.
+**New** on the repairs list now opens the page at `/repairs/new`, and so does every link to a new repair, such as one on a customer's page with `values: { customer_id: '{{id}}' }`. Someone the page leaves out gets no **New**, and `/repairs/new` tells them they cannot create repairs; the plain create form no longer shows. The server refuses a page name it does not know when it starts.
 
 ## 4. Create through a function
 

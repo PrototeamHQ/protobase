@@ -69,8 +69,8 @@ export const actions = {
   /**
    * Sets fields of the record, as one update with its ETag, for example `{ status: 'paid' }`. It is not offered on a
    * record that holds these values already. With `inputs`, the button first asks for them in a dialog, and a `set` value
-   * that is exactly `'{name}'` is written as that input's answer, with no handler code:
-   * `a.update('answer', { label: 'Answer', inputs: (i) => [i.text('answer', { label: 'Answer', multiline: true })], set: { answer: '{answer}' } })`.
+   * that is exactly `'{{name}}'` is written as that input's answer, with no handler code:
+   * `a.update('answer', { label: 'Answer', inputs: (i) => [i.text('answer', { label: 'Answer', multiline: true })], set: { answer: '{{answer}}' } })`.
    * With `bulk`, the list offers it for the selected rows too, asks its inputs once, and updates each it applies to.
    */
   update: (name: string, o: ActionOptions & InputsOption & { set: Record<string, unknown>; bulk?: boolean }): ActionModel => {
@@ -82,11 +82,11 @@ export const actions = {
   /** Deletes the record (soft delete when the resource has one). */
   remove: (name: string, o: ActionOptions): ActionModel => ({ ...named(name, o), run: { kind: 'delete' } }),
   /**
-   * Goes `to` an address in the app, such as `{ kind: 'record', resource: 'orders', key: '{order_id}' }`, or opens an
-   * `href` that leaves it (`https:`, `mailto:`); `{field}` is replaced by the record's value. An `https:` or `http:` link
-   * opens in a new tab without the referrer. An href that is only `{field}`, such as `'{website}'`, opens the URL the
-   * record holds, and the button shows only when it is an `https:` or `http:` URL; `{host}` in the label becomes its host,
-   * as in `'View on {host}'`. A path in the app is refused as an `href`, so every address in the app is written one way.
+   * Goes `to` an address in the app, such as `{ kind: 'record', resource: 'orders', key: '{{order_id}}' }`, or opens an
+   * `href` that leaves it (`https:`, `mailto:`); `{{field}}` is replaced by the record's value. An `https:` or `http:` link
+   * opens in a new tab without the referrer. An href that is only `{{field}}`, such as `'{{website}}'`, opens the URL the
+   * record holds, and the button shows only when it is an `https:` or `http:` URL; `{{host}}` in the label becomes its host,
+   * as in `'View on {{host}}'`. A path in the app is refused as an `href`, so every address in the app is written one way.
    */
   link: (name: string, o: Omit<ActionOptions, 'confirm'> & ({ to: AppAddress } | { href: string })): ActionModel => {
     const error = linkActionError(o.label, o)
@@ -95,7 +95,7 @@ export const actions = {
     return { ...named(name, o), run: { kind: 'link', href: o.href } }
   },
   /**
-   * Has the model write the `writes` field of the record from `prompt`, `{field}` replaced by the record's values, as the
+   * Has the model write the `writes` field of the record from `prompt`, `{{field}}` replaced by the record's values, as the
    * user who clicks; see [AI fields and actions](docs/website/src/content/docs/reference/ai.mdx). The prompt may name the
    * field it writes, to rewrite or translate it in place.
    */

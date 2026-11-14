@@ -96,7 +96,7 @@ export const memberListingsView = listingsView
   .actions((a) => [
     a.action('save_favorite', { label: 'Save to favorites' }),
     a.action('remove_favorite', { label: 'Remove from favorites' }),
-    a.link('add_note', { label: 'Add a note', icon: 'file-text', to: { kind: 'create', resource: 'notes', values: { listing_id: '{id}' } } }),
+    a.link('add_note', { label: 'Add a note', icon: 'file-text', to: { kind: 'create', resource: 'notes', values: { listing_id: '{{id}}' } } }),
   ])
   .forRoles(['member'])
 

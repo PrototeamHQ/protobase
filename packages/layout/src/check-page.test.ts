@@ -33,15 +33,15 @@ describe('pageProblems', () => {
 
   it("checks a table's row button against its rows and the pages", () => {
     const table = (button: unknown) => model(Page({ title: 'x', children: Table({ resource: 'invoices', button: button as never }) }))
-    expect(pageProblems(table({ label: '{status}', to: { kind: 'record', resource: 'invoices', key: '{id}', tab: 'Payments' } }), input)).toEqual([])
-    expect(pageProblems(table({ label: '{verb}', to: { kind: 'page', page: 'today' } }), { ...input, pages: new Set() })).toEqual([
-      '<Page> › <Table resource="invoices">: button: label: "{verb}" is not a field of invoices',
+    expect(pageProblems(table({ label: '{{status}}', to: { kind: 'record', resource: 'invoices', key: '{{id}}', tab: 'Payments' } }), input)).toEqual([])
+    expect(pageProblems(table({ label: '{{verb}}', to: { kind: 'page', page: 'today' } }), { ...input, pages: new Set() })).toEqual([
+      '<Page> › <Table resource="invoices">: button: label: "{{verb}}" is not a field of invoices',
       '<Page> › <Table resource="invoices">: button: to: unknown page "today"',
     ])
     expect(pageProblems(table('Open'), input)[0]).toMatch(/button: a row button is \{ label, to \} or \{ label, href \}/)
-    expect(pageProblems(table({ label: 'Pay', href: '{number}' }), input)).toEqual([])
-    expect(pageProblems(table({ label: 'Pay', href: 'https://pay.example/{number}' }), input)).toEqual([
-      "<Page> › <Table resource=\"invoices\">: button: href: a row button's href is the one field that holds the page's https URL, such as '{report_url}'",
+    expect(pageProblems(table({ label: 'Pay', href: '{{number}}' }), input)).toEqual([])
+    expect(pageProblems(table({ label: 'Pay', href: 'https://pay.example/{{number}}' }), input)).toEqual([
+      "<Page> › <Table resource=\"invoices\">: button: href: a row button's href is the one field that holds the page's https URL, such as '{{report_url}}'",
     ])
   })
 
@@ -137,13 +137,13 @@ describe('links', () => {
         Link({ to: { kind: 'list', resource: 'invoice' } }),
         Link({ to: { kind: 'page', page: 'billing' } }),
         Link({ to: { kind: 'page', page: 'help' } }),
-        RecordCard({ resource: 'subscriptions', children: [Link({ to: { kind: 'record', resource: 'plans', key: '{plan}' } }), Link({ to: { kind: 'list', resource: 'invoices', filter: 'number = "{reference}"' } })] }),
+        RecordCard({ resource: 'subscriptions', children: [Link({ to: { kind: 'record', resource: 'plans', key: '{{plan}}' } }), Link({ to: { kind: 'list', resource: 'invoices', filter: 'number = "{{reference}}"' } })] }),
       ],
     })
     expect(pageProblems(model(tree), { ...input, pages: new Set(['billing']) })).toEqual([
       '<Page> › <Link>: to: unknown resource "invoice"',
       '<Page> › <Link>: to: unknown page "help"',
-      '<Page> › <RecordCard resource="subscriptions"> › <Link>: to: "{reference}" is not a field of subscriptions',
+      '<Page> › <RecordCard resource="subscriptions"> › <Link>: to: "{{reference}}" is not a field of subscriptions',
     ])
   })
 })

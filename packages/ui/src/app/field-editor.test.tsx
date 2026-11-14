@@ -61,7 +61,7 @@ describe('a field nobody may change on the form', () => {
       return renderToStaticMarkup(<FieldEditor field={report} hints={view.fields.report} value="" stored={record.report} locked linkText={text} onChange={() => {}} />)
     }
     expect(locked('Error report')).toMatch(/<a href="https:\/\/example.com\/1"[^>]*>Error report<\/a>/)
-    expect(locked('{title}')).toMatch(/>Crash on save<\/a>/)
+    expect(locked('{{title}}')).toMatch(/>Crash on save<\/a>/)
     expect(locked()).toMatch(/>https:\/\/example.com\/1<\/a>/)
   })
 })

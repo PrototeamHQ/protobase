@@ -136,9 +136,9 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   .nav({ hidden: true })
   .title((r) => r.created_at)
   // A run is shown on its workflow's graph, on the version it ran on
-  .recordOpens({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' })
+  .recordOpens({ kind: 'record', resource: 'workflows', key: '{{workflow_id}}', run: '{{id}}' })
   // A test run starts in place, on the workflow's page
-  .createOpens({ kind: 'record', resource: 'workflows', key: '{workflow_id}', panel: 'test_run' })
+  .createOpens({ kind: 'record', resource: 'workflows', key: '{{workflow_id}}', panel: 'test_run' })
   .help('A run of a workflow with its input. It takes up where it stands after a restart; its trace lists each step with what it read, gave and logged.')
   .fields((r) => ({
     id: r.id.label('Steps').widget('workflow_run'),
@@ -164,8 +164,8 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   }))
   .list((r) => ({ columns: [r.created_at, r.workflow_id, r.status, r.started_by, r.duration_ms, r.error], sort: [[r.created_at, 'desc']] }))
   .actions((a) => [
-    a.link('replay', { label: 'Replay without writing', icon: 'history', to: { kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}', panel: 'replay' }, when: 'status = "succeeded" OR status = "failed"' }),
-    a.link('rerun', { label: 'Re-run from a step', icon: 'restart', to: { kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' }, when: 'status = "succeeded" OR status = "failed"' }),
+    a.link('replay', { label: 'Replay without writing', icon: 'history', to: { kind: 'record', resource: 'workflows', key: '{{workflow_id}}', run: '{{id}}', panel: 'replay' }, when: 'status = "succeeded" OR status = "failed"' }),
+    a.link('rerun', { label: 'Re-run from a step', icon: 'restart', to: { kind: 'record', resource: 'workflows', key: '{{workflow_id}}', run: '{{id}}' }, when: 'status = "succeeded" OR status = "failed"' }),
   ])
   .layout((r) => [
     l.section('Trace', [r.id]),

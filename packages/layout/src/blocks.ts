@@ -59,8 +59,8 @@ export type TableProps = DataProps &
     columns?: TableColumn[]
     /**
      * A last column with a button on each row to an address its fields name, such as
-     * `{ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: '{tab}' } }`, or to the outside
-     * page a field holds, `{ label: 'Report', href: '{report_url}' }`; a row with no value for a field it names shows none.
+     * `{ label: '{{verb}}', to: { kind: 'record', resource: 'tasks', key: '{{task_id}}', tab: '{{tab}}' } }`, or to the outside
+     * page a field holds, `{ label: 'Report', href: '{{report_url}}' }`; a row with no value for a field it names shows none.
      */
     button?: RowButtonModel
     /** Rows can be selected, and the view's `bulk` actions run on the selected rows, as on the list page. */
@@ -228,7 +228,7 @@ export type ImageProps = (
 export type ActionProps = { name: string; resource?: string; label?: string; variant?: ButtonVariant }
 export type ShowProps = { when: string; children?: LayoutChildren }
 /**
- * A link: `to` an address in the app, `{field}` in it filled from the record around it, or an `href` that leaves the
+ * A link: `to` an address in the app, `{{field}}` in it filled from the record around it, or an `href` that leaves the
  * app (`https:`, `mailto:`). One of the two.
  */
 export type LinkProps = ({ to: AppAddress; href?: never } | { href: string; to?: never }) & {

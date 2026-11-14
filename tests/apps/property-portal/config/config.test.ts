@@ -47,7 +47,7 @@ describe('the portal config', () => {
       ],
     })
     expect(everyone!.actions).toEqual([])
-    expect(members!.actions.find((action) => action.name === 'add_note')?.run).toEqual({ kind: 'link', to: { kind: 'create', resource: 'notes', values: { listing_id: '{id}' } } })
+    expect(members!.actions.find((action) => action.name === 'add_note')?.run).toEqual({ kind: 'link', to: { kind: 'create', resource: 'notes', values: { listing_id: '{{id}}' } } })
   })
 
   it('saves a listing from its card to favorites, whose page lists the saved listings, and asks a visitor to sign in for both', async () => {
