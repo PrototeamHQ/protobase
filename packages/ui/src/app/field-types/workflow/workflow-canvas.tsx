@@ -43,7 +43,7 @@ export type WorkflowCanvasProps = {
   types?: WorkflowTypeList
   /** The schemas pins are typed by: with them, every step shows its inputs and outputs as pins, wired by the reads its arguments make. */
   schemas?: PinSchemas
-  /** The canvas is the window, on a page that does not scroll, so the wheel pans it as on any canvas. */
+  /** The canvas is the window, on a page that does not scroll: as a panel opens beside it, what was in its middle stays there. */
   fills?: boolean
 }
 
@@ -176,10 +176,17 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
               onDelete={onDelete}
               onNodeClick={(_, node) => onSelect(graphId(node.id))}
               onPaneClick={() => onSelect(undefined)}
-              // Where the page scrolls under the wheel and a finger, the canvas zooms by its buttons and by pinching
-              zoomOnScroll={false}
-              panOnScroll={fills}
-              preventScrolling={fills}
+              // As in Blueprints: the wheel zooms towards the pointer, as does a pinch, and dragging the empty canvas with
+              // the left, middle or right button pans it; Shift-drag selects a box. A trackpad's two-finger scroll is a
+              // wheel too, so it zooms: telling it from a mouse's wheel would be a guess. Over the canvas the page does
+              // not scroll; elsewhere it does.
+              zoomOnScroll
+              panOnScroll={false}
+              panOnDrag={[0, 1, 2]}
+              selectionOnDrag={false}
+              selectionKeyCode="Shift"
+              preventScrolling
+              onPaneContextMenu={(event) => event.preventDefault()}
               minZoom={0.2}
               maxZoom={1.5}
               aria-label={text('canvas')}
