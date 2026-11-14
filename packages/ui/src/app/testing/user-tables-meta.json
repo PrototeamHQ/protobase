@@ -314,7 +314,7 @@
             "kind": "link",
             "to": {
               "kind": "list",
-              "resource": "{table_name}"
+              "resource": "{{table_name}}"
             }
           }
         },
@@ -329,7 +329,7 @@
               "kind": "create",
               "resource": "user_table_fields",
               "values": {
-                "table_id": "{id}"
+                "table_id": "{{id}}"
               }
             }
           }
