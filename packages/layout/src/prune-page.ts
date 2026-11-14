@@ -1,12 +1,13 @@
-import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel, type RowButtonModel } from '@protobase/schema'
+import { checkOrderBy, parseOrderBy, type AppAddress, type ResourceModel, type RowButtonModel } from '@protobase/schema'
 import { addressErrors, followableRowButton, pruneByShape, shapes } from '@protobase/schema/internal'
 import { chartFields } from './check-chart'
 import { threadFields } from './check-conversation'
 import { scopedConditionReadable } from './check-condition'
+import { pathFindings } from './check-paths'
 import { pruneToolCalls, type ToolCallSource } from './check-tool-calls'
 import { elementResource, linkPlaceholderError, pageParams } from './check-page'
 import { resolveFieldPath } from './field-path'
-import { sampleSlots } from './filter-slots'
+import { sampledFilterErrors } from './sampled-filter'
 import { resolveScopePath } from './scope-lookup'
 import { dataProps, type LayoutNode, type LayoutValue } from './node'
 import type { PageModel } from './page'
@@ -28,11 +29,7 @@ export type CallerAccess = {
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
 
 // A filter's `{{path}}` slots stand in for values, which the page fills in, so its names are what the caller must read.
-const filterFits = (model: ResourceModel, source: string | undefined) => {
-  if (source === undefined) return true
-  const parsed = parseFilter(sampleSlots(source).text)
-  return parsed.ok && (parsed.ast === undefined || checkFilter(model, parsed.ast).ok)
-}
+const filterFits = (model: ResourceModel, source: string | undefined) => source === undefined || sampledFilterErrors(model, source).length === 0
 
 const sortFits = (model: ResourceModel, source: string | undefined) => {
   if (source === undefined) return true
@@ -60,6 +57,8 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: Rea
   const resource = elementResource(node, scope)
   const model = resource === undefined ? undefined : models[resource]
   if (own !== undefined && model && (!filterFits(model, text(node.props.filter)) || !sortFits(model, text(node.props.sort)))) return null
+  // A `{{path}}` the caller cannot read leaves the element out, as a field they cannot read does
+  if (pathFindings(node, scope, { models, params }).problems.length > 0) return null
   const readable = (name: string) => innermost(scope) !== undefined && resolveScopePath(name, { models, scope, params, mode: 'relations' }).ok
   const conditionFits = (when: unknown) => typeof when === 'string' && scopedConditionReadable(when, { models, scope, params })
 

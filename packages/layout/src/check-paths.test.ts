@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Link, ModalForm, RecordCard, Table } from './blocks'
+import { Link, ModalForm, RecordCard, Show, Table } from './blocks'
+import { linkPlaceholderError } from './check-page'
 import { pathFindings } from './check-paths'
 import { nested as models } from './testing/models'
 import type { Scope } from './walk'
@@ -54,5 +55,19 @@ describe('pathFindings', () => {
     expect(findings(Table({ resource: 'claim_steps', title: '{{status}}' }), inClaim).warnings).toEqual(['title: "status" resolves to task_claims; write ../status for the one of tasks'])
     expect(findings(Table({ resource: 'claim_steps', title: '{{this.status}} {{../status}}' }), inClaim).warnings).toEqual([])
     expect(findings(ModalForm({ mode: 'create', label: 'Add', resource: 'claim_steps', fields: ['name'], values: { claim_id: '{{id}}' } }), inClaim).problems).toEqual([])
+  })
+})
+
+describe('slots inside a longer quoted value', () => {
+  it('refuses them in a filter and a condition, which would fill them unescaped', () => {
+    expect(findings(claimsWhere(`status = 'is {{status}}'`)).problems).toContain(`filter: "{{status}}" sits inside a longer quoted value; quote it alone, such as title = '{{status}}'`)
+    expect(pathFindings(Show({ when: `status = 'is {{title}}'`, children: 'x' }), inTask, { models, params: new Set() }).problems).toEqual([`when: "{{title}}" sits inside a longer quoted value; quote it alone, such as title = '{{title}}'`])
+  })
+
+  it("refuses a relation path in a link's address, which a placeholder cannot read", () => {
+    const inClaim: Scope = { stack: [{ resource: 'task_claims', repeated: false, block: '<RecordCard>' }] }
+    const message = linkPlaceholderError(models, inClaim, new Set())('worker.name')
+    expect(message).toBe("\"worker.name\" goes through the relation worker, but a placeholder reads the record's stored values; write worker for its key")
+    expect(linkPlaceholderError(models, inClaim, new Set())('worker')).toBeUndefined()
   })
 })

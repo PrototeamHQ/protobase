@@ -251,3 +251,15 @@ describe('prunePage', () => {
     expect(types(prunePage(billingOnly, [], access({ models: restricted({}, {}, ['invoices']) })))).toEqual(['Page'])
   })
 })
+
+describe('placeholders', () => {
+  const invoicesOf = (filter: string): PageModel => ({ name: 'p', title: 'P', tree: Page({ title: 'P', children: RecordCard({ resource: 'subscriptions', children: Table({ resource: 'invoices', filter }) }) }) })
+
+  it('keeps a filter whose slot stands in for a value its field type would refuse', () => {
+    expect(types(prunePage(invoicesOf(`status = '{{status}}'`), [], access()))).toContain('Table')
+  })
+
+  it('leaves out an element whose slot reads a field the caller cannot read', () => {
+    expect(types(prunePage(invoicesOf(`status = '{{status}}'`), [], access({ models: restricted({ subscriptions: ['status'] }) })))).not.toContain('Table')
+  })
+})

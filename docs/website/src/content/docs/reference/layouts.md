@@ -129,7 +129,7 @@ A `RecordCard` and each card of a `CardRow` put their record on a stack of recor
 - `when` takes them where a name cannot go, such as `this.status = '{{../status}}'`, since a name in AIP-160 cannot start with `../` or `@`.
 - A [link's address](#addresses) takes them in its resource, key, tab, filter, order and values.
 
-A placeholder quoted on its own in a filter or condition, `title = '{{title}}'`, is filled with its quotes and backslashes escaped, so any text stays one value; Handlebars escapes for HTML instead. Paths are all a placeholder holds: no helpers, subexpressions, literals, `@key` or `{{{triple braces}}}`. A `{{…}}` that holds anything else fails as soon as the layout loads, before its names are checked.
+A placeholder quoted on its own in a filter or condition, `title = '{{title}}'`, is filled with its quotes and backslashes escaped, so any text stays one value; Handlebars escapes for HTML instead. One inside a longer quoted value, `title = 'about {{title}}'`, fails the build, as it would be filled unescaped. Paths are all a placeholder holds: no helpers, subexpressions, literals, `@key` or `{{{triple braces}}}`. A `{{…}}` that holds anything else fails as soon as the layout loads, before its names are checked.
 
 The build checks every path where it sits:
 

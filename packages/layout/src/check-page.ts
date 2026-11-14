@@ -1,11 +1,11 @@
-import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
+import { checkOrderBy, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
 import { addressErrors, fieldRefsIn, rowButtonErrors } from '@protobase/schema/internal'
 import { chartProblems } from './check-chart'
 import { conditionFindings } from './check-condition'
 import { composerProblems, threadProblems } from './check-conversation'
 import { pathFindings } from './check-paths'
 import { resolveFieldPath } from './field-path'
-import { sampleSlots } from './filter-slots'
+import { sampledFilterErrors } from './sampled-filter'
 import { resolveScopePath } from './scope-lookup'
 import { settingsProblems } from './settings'
 import { columnName, type TableColumn } from './table-columns'
@@ -27,18 +27,10 @@ export type PageCheckInput = {
   strict?: boolean
 }
 
-// Errors about names, not values: a slot's value is only known when the page draws.
-const nameErrors = ['unknown-field', 'not-filterable', 'not-sortable', 'unsupported-traversal', 'invalid-traversal']
-
-// A filter with `{{path}}` slots is checked with a stand-in for each, for its names only.
+// A filter with `{{path}}` slots is checked with a stand-in for each.
 const filterProblem = (model: ResourceModel, source: string) => {
-  const { text, slots } = sampleSlots(source)
-  const parsed = parseFilter(text)
-  if (!parsed.ok) return parsed.errors.map((error) => error.message).join('; ')
-  if (!parsed.ast) return undefined
-  const checked = checkFilter(model, parsed.ast)
-  const errors = checked.ok ? [] : checked.errors.filter((error) => slots.length === 0 || nameErrors.includes(error.code))
-  return errors.length === 0 ? undefined : errors.map((error) => error.message).join('; ')
+  const errors = sampledFilterErrors(model, source)
+  return errors.length === 0 ? undefined : errors.join('; ')
 }
 
 const sortProblem = (model: ResourceModel, source: string) => {

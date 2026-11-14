@@ -1,5 +1,5 @@
 import type { ResourceModel } from '@protobase/schema'
-import { templatePlaceholders, wholePlaceholder } from '@protobase/schema/internal'
+import { embeddedFilterFields, templatePlaceholders, wholePlaceholder } from '@protobase/schema/internal'
 import { equalitySlots } from './filter-slots'
 import type { LayoutNode, LayoutValue } from './node'
 import { resolveScopePath, type ScopeResolution } from './scope-lookup'
@@ -57,6 +57,12 @@ export const pathFindings = (node: LayoutNode, scope: Scope, { models, params }:
 
   for (const prop of shapeProps) {
     if (strings(node.props[prop]).some((text) => templatePlaceholders(text).length > 0)) problems.push(`"${prop}" shapes the read and takes no {{…}}; ${waits}`)
+  }
+  // A slot inside a longer quoted value would be filled unescaped, so only one quoted alone is taken, as in a link's filter
+  for (const prop of ['filter', 'when', 'working']) {
+    const value = node.props[prop]
+    if (typeof value !== 'string') continue
+    for (const path of embeddedFilterFields(value)) problems.push(`${prop}: "{{${path}}}" sits inside a longer quoted value; quote it alone, such as title = '{{${path}}}'`)
   }
   for (const prop of displayProps) {
     const value = node.props[prop]
