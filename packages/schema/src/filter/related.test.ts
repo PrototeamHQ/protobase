@@ -69,6 +69,12 @@ describe('parsing related()', () => {
     expect(printFilter(where.related('task_id', 'links', 'task_id', where.eq('objective_id', 40)))).toBe('related(task_id, links.task_id, (objective_id = 40))')
     expect(printFilter(where.related('task_id', 'links', 'task_id'))).toBe('related(task_id, links.task_id)')
   })
+
+  it('where.related takes a page token only with a limit', () => {
+    // @ts-expect-error a token names no page without the limit it was read with
+    where.related('task_id', 'links', 'task_id', undefined, { orderBy: 'a', pageToken: 'abc' })
+    expect(printFilter(where.related('task_id', 'links', 'task_id', undefined, { orderBy: 'a' }))).toBe('related(task_id, links.task_id, "a")')
+  })
 })
 
 describe('checkFilter', () => {
