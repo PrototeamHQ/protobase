@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { cn } from '../../lib/cn'
 import { useDocumentState } from './document-state'
 import type { ViewedFile } from './file-viewer'
 import { frameDocument } from './frame-document'
+import { frameBox, nextFrameHeight, type FrameHeight } from './frame-height'
 import { frameMessage } from './frame-messages'
 import { frameNonce, frameSandbox, type FrameScripts } from './frame-policy'
 import type { FrameLink } from './sibling-page'
@@ -35,15 +36,16 @@ type HtmlFrameProps<File extends ViewedFile> = {
 /**
  * A whole HTML page drawn in a sandboxed frame with an opaque origin: it cannot read the app's cookies, storage or DOM,
  * call its API as the user, load anything from the network or navigate the app's window. Its links reach the app only
- * as the index of one of `links`, which `onLink` follows. The frame is as tall as its page, so the app's page scrolls.
+ * as the index of one of `links`, which `onLink` follows. The frame is as tall as its page, so the app's page scrolls,
+ * unless the page is sized by the frame (`FrameHeight`).
  */
 export const HtmlFrame = <File extends ViewedFile>({ html, title, links = noLinks, onLink, scripts = 'bridge', className }: HtmlFrameProps<File>) => {
   const frame = useRef<HTMLIFrameElement>(null)
-  const [height, setHeight] = useState<number>()
   const shown = useMemo(() => {
     const nonce = frameNonce()
     return { nonce, srcDoc: frameDocument(html, scripts, nonce) }
   }, [html, scripts])
+  const [height, setHeight] = useDocumentState<FrameHeight | undefined>(shown.nonce, undefined)
   // A page that navigated its frame anyway is shown again once; doing so again leaves the frame empty, until another
   // document is shown.
   const [shownAgain, setShownAgain] = useDocumentState(shown.nonce, 0)
@@ -54,13 +56,14 @@ export const HtmlFrame = <File extends ViewedFile>({ html, title, links = noLink
   useEffect(() => {
     const receive = (event: MessageEvent) => {
       const message = frameMessage(event, frame.current?.contentWindow, links.length)
-      if (message?.kind === 'height') setHeight(message.height)
+      const viewport = frame.current?.clientHeight
+      if (message?.kind === 'height' && viewport !== undefined) setHeight((size) => nextFrameHeight(size, message.height, viewport))
       if (message?.kind === 'link') onLink?.(links[message.index]!, { newTab: message.newTab })
       if (message?.kind === 'scroll' && frame.current) scrollToPlace(frame.current, message.top)
     }
     window.addEventListener('message', receive)
     return () => window.removeEventListener('message', receive)
-  }, [links, onLink])
+  }, [links, onLink, setHeight])
 
   const loaded = () => {
     if (loads.current.key !== key) loads.current = { key, count: 0 }
@@ -68,6 +71,7 @@ export const HtmlFrame = <File extends ViewedFile>({ html, title, links = noLink
     if (loads.current.count > 1) setShownAgain((times) => times + 1)
   }
 
+  const box = frameBox(height)
   return (
     <iframe
       key={key}
@@ -79,8 +83,8 @@ export const HtmlFrame = <File extends ViewedFile>({ html, title, links = noLink
       allow={scripts === 'bridge' ? 'fullscreen' : undefined}
       srcDoc={shownAgain > 1 ? '' : shown.srcDoc}
       onLoad={loaded}
-      className={cn('block w-full border-0 bg-white', height === undefined && 'min-h-[60vh]', className)}
-      style={height === undefined ? undefined : { height }}
+      className={cn('block w-full border-0 bg-white', box.className, className)}
+      style={box.style}
     />
   )
 }
