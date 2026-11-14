@@ -100,11 +100,12 @@ const checklistErrors = (entry: ActionInputModel) => {
   return []
 }
 
-/** What is wrong with an action's inputs: a name given twice, a default that is no option, a `when` over no input before it, a checklist without boxes. */
+/** What is wrong with an action's inputs: a name given twice, a default that is no option or on a secret, a `when` over no input before it, a checklist without boxes. */
 export const actionInputErrors = (entries: ActionInputModel[]) =>
   entries.flatMap((entry, index) => {
     const errors: string[] = []
     if (entries.findIndex((other) => other.name === entry.name) !== index) errors.push(`input "${entry.name}" is declared twice`)
+    if (entry.kind === 'secret' && entry.default !== undefined) errors.push(`input "${entry.name}": a secret takes no default`)
     if (entry.options && entry.default !== undefined && !entry.options.some((option) => option.value === entry.default)) errors.push(`input "${entry.name}": default "${String(entry.default)}" is not one of its options`)
     const when = checkedWhen(entries, index)
     if (typeof when === 'string') errors.push(`input "${entry.name}": "when" is not a valid condition over the inputs before it: ${when}`)
