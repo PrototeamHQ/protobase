@@ -46,6 +46,10 @@ describe('field components and Details', () => {
     expect(structureProblems(inInvoice(NumberField({ source: 'total', options: { style: 'currency' } })))).toEqual([
       `${card} › <NumberField source="total">: "locales" or "options" holds a locale or an option Intl does not take, or a value it does not take for one`,
     ])
+    const optionProblem = `${card} › <DateField source="issuedOn">: "locales" or "options" holds a locale or an option Intl does not take, or a value it does not take for one`
+    expect(structureProblems(inInvoice(DateField({ source: 'issuedOn', options: { timeStyle: 'short' } })))).toEqual([optionProblem])
+    expect(structureProblems(inInvoice(DateField({ source: 'issuedOn', showDate: false, showTime: true, options: { dateStyle: 'full' } })))).toEqual([optionProblem])
+    expect(structureProblems(inInvoice(DateField({ source: 'issuedOn', showTime: true, options: { dateStyle: 'full', timeStyle: 'short' } })))).toEqual([])
     expect(structureProblems(inInvoice(DateField({ source: 'issuedOn', format: 'relative', showTime: true })))[0]).toMatch(/format="relative" takes no showDate/)
   })
 

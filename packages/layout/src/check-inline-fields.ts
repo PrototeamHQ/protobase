@@ -1,3 +1,5 @@
+import { dateFieldText } from './field-format'
+import type { DateFieldProps } from './inline-fields'
 import type { LayoutNode, LayoutValue } from './node'
 
 // Props of the field components that react-admin checks as they draw, checked here as the layout loads instead.
@@ -20,5 +22,6 @@ export const inlineFieldProblems = ({ type, props }: LayoutNode): string[] => {
   if (type !== 'DateField') return []
   if (props.showDate === false && props.showTime !== true) return ['cannot have showTime and showDate false at the same time']
   if (props.format === 'relative' && ['showDate', 'showTime', 'locales', 'options'].some((name) => props[name] !== undefined)) return ['format="relative" takes no showDate, showTime, locales or options: it reads in the reader\'s own words']
-  return intlProblem((locales, options) => new Intl.DateTimeFormat(locales, options as Intl.DateTimeFormatOptions), props)
+  // Through the formatter the component draws with: a date-only one refuses timeStyle, a time-only one dateStyle
+  return intlProblem(() => dateFieldText(0, props as DateFieldProps, { now: 0, relative: String }), props)
 }
