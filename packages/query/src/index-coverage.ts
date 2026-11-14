@@ -11,13 +11,17 @@ import type { TableIndex, TableIndexes } from './table-indexes'
 export type IndexNeed = 'btree' | 'trigram' | 'digits' | 'gin'
 /**
  * Where a column is read: the caller's filter, the access rule's row filter, the relation to a parent the caller must
- * read (`.parent(fk, 'read')`), a `related()` term, the sort, or a facet's grouping.
+ * read (`.parent(fk, 'read')`), a `related()` term, the sort, a facet's grouping, or the field a read keeps the first
+ * rows per value of (`limit_per`).
  */
-export type ColumnUse = 'filter' | 'access' | 'parent' | 'related' | 'sort' | 'facet'
+export type ColumnUse = 'filter' | 'access' | 'parent' | 'related' | 'sort' | 'facet' | 'per'
 /** A column read without an index that serves it, and a statement that adds one. */
 export type UncoveredColumn = { field: string; column: string; use: ColumnUse; need: IndexNeed; suggestion: string }
-/** What a read does with the table: the filter it keeps rows by, the order it walks them in, a field it groups by, the field a `related()` term selects. */
-export type CoverageQuery = { filter?: CheckedFilter; sort?: SortSpec; groupBy?: string; selects?: FieldModel }
+/**
+ * What a read does with the table: the filter it keeps rows by, the order it walks them in, a field it groups by, the
+ * field a `related()` term selects, and the field it keeps the first rows per value of.
+ */
+export type CoverageQuery = { filter?: CheckedFilter; sort?: SortSpec; groupBy?: string; selects?: FieldModel; per?: string }
 
 type Context = { model: ResourceModel; indexes: TableIndex[]; use: ColumnUse }
 
@@ -30,8 +34,9 @@ const tableName = (model: ResourceModel) => {
   return schema ? `${quoted(schema)}.${quoted(name)}` : quoted(name)
 }
 
-const suggestion = (model: ResourceModel, column: string, need: IndexNeed) => {
+const suggestion = (model: ResourceModel, column: string, need: IndexNeed, under?: string) => {
   const table = tableName(model)
+  if (under !== undefined) return `create index on ${table} (${quoted(column)}, ${quoted(under)})`
   if (need === 'trigram') return `create index on ${table} using gin (${quoted(column)} gin_trgm_ops)`
   if (need === 'digits') return `create index on ${table} using gin ((regexp_replace(${quoted(column)}, '[^0-9]', '', 'g')) gin_trgm_ops)`
   if (need === 'gin') return `create index on ${table} using gin (${quoted(column)})`
@@ -82,6 +87,19 @@ const need = (ctx: Context, field: FieldModel, kind: IndexNeed, pinned: Set<stri
     ? []
     : [{ field: field.name, column: field.column, use: ctx.use, need: kind, suggestion: suggestion(ctx.model, field.column, kind) }]
 
+// The rows of each value of `per` are read by `per = value` and walked in the sort's order, so one btree index needs
+// `per` and under it the sort's first field, every other key before them pinned. Without a sort, `per` alone.
+const perNeed = (ctx: Context, per: FieldModel, sort: FieldModel | undefined, pinned: Set<string>): UncoveredColumn[] => {
+  if (!sort || sort.column === per.column) return need(ctx, per, 'btree', pinned)
+  const under = new Set([...pinned, per.column])
+  const serves = (index: TableIndex) => {
+    const position = index.keys.findIndex((key) => key.column === sort.column)
+    return btreeServes(index, per.column, pinned) && btreeServes(index, sort.column, under) && index.keys.slice(0, position).some((key) => key.column === per.column)
+  }
+  if (ctx.indexes.some(serves)) return []
+  return [{ field: per.name, column: per.column, use: ctx.use, need: 'btree', suggestion: suggestion(ctx.model, per.column, 'btree', sort.column) }]
+}
+
 const compareNeed = (ctx: Context, node: Extract<CheckedFilter, { kind: 'compare' }>, pinned: Set<string>) => {
   if (isPatternCompare(node)) return need(ctx, node.field, 'trigram', pinned)
   return need(ctx, node.field, 'btree', pinned, node.op === '=' && node.field.type === 'text' ? 'trigram' : undefined)
@@ -129,7 +147,9 @@ const unique = (columns: UncoveredColumn[]) =>
  * field, a grouped field and each relation to a parent the caller must read a btree index; the parent's own reads are
  * judged against its table by a call of their own. Tenant, soft delete and `=` terms pin columns, so a later key of a
  * btree index serves under them. A `related()` term is judged as a parent is and pins its relation as `in()` does, and
- * the read of its resource also needs a btree index on the key it selects. A plain view or a foreign table has no
+ * the read of its resource also needs a btree index on the key it selects. A read that keeps the first rows per value
+ * of a field needs a btree index on that field with the sort's first field under it, which serves the sort too.
+ * A plain view or a foreign table has no
  * indexes of its own and is not judged.
  */
 export const uncoveredColumns = (model: ResourceModel, table: TableIndexes, query: CoverageQuery, scope?: Scope): UncoveredColumn[] => {
@@ -147,13 +167,15 @@ export const uncoveredColumns = (model: ResourceModel, table: TableIndexes, quer
   const ctx = (use: ColumnUse, of = model): Context => ({ model: of, indexes: table.indexes, use })
   const sortField = query.sort?.[0] && model.fields[query.sort[0][0]]
   const groupField = query.groupBy !== undefined ? model.fields[query.groupBy] : undefined
+  const perField = query.per !== undefined ? model.fields[query.per] : undefined
   return unique([
     ...(scope?.rowFilter ? walk(ctx('access', full), scope.rowFilter, pinned, false) : []),
     ...(scope?.parents ?? []).flatMap((read) => need(ctx(read.related ? 'related' : 'parent', full), read.field, 'btree', pinned)),
     ...(query.filter ? walk(ctx('filter'), query.filter, pinned, false) : []),
     ...(scope?.within ? walk(ctx('filter', full), scope.within, pinned, false) : []),
     ...(query.selects ? need(ctx('related', full), query.selects, 'btree', pinned) : []),
-    ...(sortField ? need(ctx('sort'), sortField, 'btree', pinned) : []),
+    ...(perField ? perNeed(ctx('per'), perField, sortField, pinned) : []),
+    ...(sortField && !perField ? need(ctx('sort'), sortField, 'btree', pinned) : []),
     ...(groupField ? need(ctx('facet'), groupField, 'btree', pinned) : []),
   ])
 }

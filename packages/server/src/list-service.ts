@@ -1,8 +1,10 @@
-import { countUpTo, estimateCount, listQuery, seekToPosition } from '@protobase/query'
+import { countUpTo, estimateCount, listPerValue, listQuery, seekToPosition } from '@protobase/query'
 import type { FilterExpr } from '@protobase/schema'
 import { checkedSort } from './filter-input'
 import type { Deps } from './deps'
 import { deletedRows, listParams, pageSizeOf, parseParams, seekParams, selectedFields } from './params'
+import { limitPerOf } from './limit-per'
+import { badRequest } from './problem'
 import { readFilter } from './related-filter'
 import { requestAccess, requireOperation } from './request-access'
 import type { Entry } from './registry'
@@ -25,7 +27,8 @@ export const exactCountLimit = 10_000
  * Everything the caller names (filter, order_by, fields, search) is checked against the model as this caller sees it,
  * so a hidden field is refused exactly like an unknown one; the access row filter is applied by the query layer.
  * `labels` names the records the returned relations point at, each read under the related resource's own access, and
- * `photos` brings each record's first photos, read under the photos' resource's own access.
+ * `photos` brings each record's first photos, read under the photos' resource's own access. `limit_per` keeps the first
+ * rows per value of a field, by value and in the list's order within each, with no further page.
  */
 export const listRecords = async (deps: Deps, entry: Entry, session: Session, input: unknown, maxFilterLength?: number, jump = false, within?: FilterExpr) => {
   const params = jump ? parseParams(seekParams, input) : parseParams(listParams, input)
@@ -40,6 +43,11 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
   const labels = await labelRequests(deps, session, model, columns, params.labels)
   const photos = await photosRequest(deps, session, model, params.photos, params.photos_order_by)
   const limit = pageSizeOf(params.page_size)
+  const per = limitPerOf(model, params.limit_per)
+  if (per && (jump || params.page_token)) {
+    const other = jump ? ':seek' : 'page_token'
+    throw badRequest('invalid-parameter', `limit_per cannot be combined with ${other}: a list that keeps the first rows per value has no further page`, { errors: [{ parameter: 'limit_per', message: `Not with ${other}` }] })
+  }
 
   // A version ETag reads a column the caller may not see; the model handed to the query gets it, the column list does not.
   const etagField = entry.etag && !model.fields[entry.etag.field.name] ? full.fields[entry.etag.field.name] : undefined
@@ -53,14 +61,17 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
   const read = entry.etag && withKey ? [...new Set([...withKey, ...across])] : Object.keys(model.fields)
 
   const shape = { ...(filter && { filter }), ...(sort && { sort }), limit }
-  const warning = await deps.guard(entry, shape, { model: queryModel, scope })
+  const warning = await deps.guard(entry, { ...shape, ...(per && { per: per.field }) }, { model: queryModel, scope })
   // `:seek` resolves a row position to a page on the server, so no anchor value ever reaches the caller
   const position = jump ? (params as { position: number }).position : undefined
   const result = await readTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
     const extraColumns = entry.etag ? [{ field: entry.etag.field.name, as: 'text' as const, alias: etagAlias }] : []
-    const page = position === undefined
-      ? await listQuery(trx, queryModel, { ...shape, columns: read, ...(params.page_token && { cursor: params.page_token }) }, scope, { extraColumns })
-      : await seekToPosition(trx, queryModel, { position, orderBy: sort ?? [[entry.model.primaryKey[0]!, 'asc']], ...(filter && { filter }), columns: read, limit }, scope, { extraColumns })
+    const readPage = () => {
+      if (per) return listPerValue(trx, queryModel, { ...shape, columns: read }, per, scope, { extraColumns })
+      if (position === undefined) return listQuery(trx, queryModel, { ...shape, columns: read, ...(params.page_token && { cursor: params.page_token }) }, scope, { extraColumns })
+      return seekToPosition(trx, queryModel, { position, orderBy: sort ?? [[entry.model.primaryKey[0]!, 'asc']], ...(filter && { filter }), columns: read, limit }, scope, { extraColumns })
+    }
+    const page = await readPage()
     const rows = page.rows.map((row) => exposeRow(model, row))
     return {
       page,

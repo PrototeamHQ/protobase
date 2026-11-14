@@ -21,6 +21,8 @@ const reading = (column: UncoveredColumn) => {
       return `Sorting by "${column.field}"`
     case 'facet':
       return `Counting the values of "${column.field}"`
+    case 'per':
+      return `Keeping the first rows per value of "${column.field}"`
   }
 }
 

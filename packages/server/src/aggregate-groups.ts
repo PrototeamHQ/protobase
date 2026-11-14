@@ -4,6 +4,7 @@ import type { FilterExpr, ResourceModel } from '@protobase/schema'
 import { splitGroups } from './aggregate-splits'
 import { scoped, seriesRange } from './aggregate-service'
 import type { Deps } from './deps'
+import { limitPerOf } from './limit-per'
 import { badRequest } from './problem'
 import { parseParams } from './params'
 import { labelRequests, relatedLabels } from './related-labels'
@@ -29,6 +30,7 @@ const aggregateParams = z.object({
   split_by: name.optional(),
   split_limit: z.coerce.number().int().optional(),
   split_label: name.optional(),
+  limit_per: z.string().optional(),
 })
 
 type AggregateParams = z.output<typeof aggregateParams>
@@ -46,7 +48,7 @@ const measureOf = (params: AggregateParams): Measure | undefined => {
 const optionErrors = (params: AggregateParams, dated: boolean) => {
   const given = (names: Array<keyof AggregateParams>) => names.filter((option) => params[option] !== undefined)
   if (dated) {
-    const errors = given(['limit', 'label']).map((option) => invalid(option, `Not for a date or timestamp group_by`))
+    const errors = given(['limit', 'label', 'limit_per']).map((option) => invalid(option, `Not for a date or timestamp group_by`))
     if (params.split_by === undefined && given(['split_limit', 'split_label']).length > 0) {
       errors.push(invalid('split_by', 'split_limit and split_label need split_by'))
     }
@@ -64,6 +66,7 @@ const isDated = (model: ResourceModel, field: string) => {
  * Records per value of a field, or per hour, day, week, month or year of a date field with the empty ones included,
  * each with how many there are and, with `sum`, `average` or `maximum`, that of a numeric field. Read as a list is: the caller's
  * filter on the model as they see it, inside their tenant and row filter; the scan guard judges the grouped field.
+ * `limit_per` groups by a second field of values too and keeps the first groups per value of it, each group's `per`.
  */
 export const aggregate = async (deps: Deps, entry: Entry, session: Session, input: unknown, within?: FilterExpr) => {
   const params = parseParams(aggregateParams, input)
@@ -76,7 +79,8 @@ export const aggregate = async (deps: Deps, entry: Entry, session: Session, inpu
   if (problem) throw problem
   // A hidden field is refused exactly like an unknown one
   if (params.split_by !== undefined && !Object.hasOwn(model.fields, params.split_by)) throw invalid('split_by', `Unknown field "${params.split_by}"`)
-  const warning = await deps.guard(entry, { ...(filter && { filter }), groupBy: params.group_by }, { model, scope })
+  const per = limitPerOf(model, params.limit_per)
+  const warning = await deps.guard(entry, { ...(filter && { filter }), groupBy: params.group_by, ...(per && { per: per.field }) }, { model, scope })
   const splitWarning = params.split_by === undefined ? undefined : await deps.guard(entry, { ...(filter && { filter }), groupBy: params.split_by }, { model, scope })
 
   if (dated) {
@@ -105,6 +109,7 @@ export const aggregate = async (deps: Deps, entry: Entry, session: Session, inpu
       ...(filter && { filter }),
       ...(measure && { measure }),
       ...(params.limit !== undefined && { limit: params.limit }),
+      ...(per && { per }),
       scope,
     })
     const names = (await relatedLabels(trx, labels, totals.map((group) => ({ [params.group_by]: group.value }))))[params.group_by] ?? {}

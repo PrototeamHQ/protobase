@@ -11,7 +11,7 @@ const json = (schema: object) => ({ 'application/json': { schema } })
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` })
 
 export const listParameters = (entry: Entry) =>
-  ['filter', 'orderBy', 'pageSize', 'pageToken', 'fields', 'labels', 'photos', 'photosOrderBy', 'count', ...(entry.model.softDelete ? ['showDeleted'] : [])].map(param)
+  ['filter', 'orderBy', 'pageSize', 'pageToken', 'fields', 'labels', 'photos', 'photosOrderBy', 'count', 'limitPer', ...(entry.model.softDelete ? ['showDeleted'] : [])].map(param)
 
 const field = (description: string) => ({ name: 'field', in: 'query', required: true, description, schema: { type: 'string' } })
 
@@ -310,6 +310,7 @@ export const resourcePaths = (access: RequestAccess) => {
           query('split_by', 'For a date group_by: a filterable field of values that splits each bucket into parts; an index must serve it'),
           query('split_limit', 'For a date group_by: how many values of `split_by` to keep, the largest over the range (by the sum, else by count), default 8, at most 100', { type: 'integer' }),
           query('split_label', 'For a date group_by with a relation `split_by`: the field of the related resource whose value each split carries as `label`'),
+          query('limit_per', 'For a values group_by: `<field>:<n>`, such as `task_id:3`, groups by that field too and keeps the first n groups (1 to 500) per value of it, each carrying the value as `per`, by `per`; `limit` caps them all. An index must serve the field.'),
         ],
         responses: {
           200: {
@@ -322,7 +323,7 @@ export const resourcePaths = (access: RequestAccess) => {
                 time_zone: { type: 'string' },
                 split_by: { type: 'string', description: 'Only with `split_by`' },
                 splits: { type: 'array', description: 'Only with `split_by`: the kept values, largest first', items: { type: 'object', properties: { value: {}, label: { type: 'string' } } } },
-                groups: { type: 'array', items: { type: 'object', properties: { value: {}, label: { type: 'string' }, count: { type: 'integer' }, sum: { type: ['number', 'null'] }, average: { type: ['number', 'null'] }, maximum: { type: ['number', 'null'] }, splits: { type: 'array', description: 'Only with `split_by`: the kept values that have rows in the group, in rank order', items: { type: 'object', properties: { value: {}, count: { type: 'integer' }, sum: { type: ['number', 'null'] }, average: { type: ['number', 'null'] }, maximum: { type: ['number', 'null'] } } } } } } },
+                groups: { type: 'array', items: { type: 'object', properties: { per: { description: 'Only with `limit_per`: the value of its field the group belongs to' }, value: {}, label: { type: 'string' }, count: { type: 'integer' }, sum: { type: ['number', 'null'] }, average: { type: ['number', 'null'] }, maximum: { type: ['number', 'null'] }, splits: { type: 'array', description: 'Only with `split_by`: the kept values that have rows in the group, in rank order', items: { type: 'object', properties: { value: {}, count: { type: 'integer' }, sum: { type: ['number', 'null'] }, average: { type: ['number', 'null'] }, maximum: { type: ['number', 'null'] } } } } } } },
               },
             }),
           },

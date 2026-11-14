@@ -28,7 +28,7 @@ export type ListOptions = {
 
 const keyAlias = (index: number) => `__pb_key${index}`
 
-const clampLimit = (limit: number) => {
+export const clampLimit = (limit: number) => {
   if (!Number.isInteger(limit) || limit < 1) throw new QueryError('invalid_limit', 'limit must be a positive integer')
   return Math.min(limit, maxLimit)
 }
@@ -45,7 +45,8 @@ export type ListPlan = {
   hasCursor: boolean
 }
 
-const extraSelections = (model: ResourceModel, extras: ExtraColumn[] = []) =>
+/** The selections of `extraColumns`, refusing an alias that collides with a field or an internal column. */
+export const extraSelections = (model: ResourceModel, extras: ExtraColumn[] = []) =>
   extras.map(({ field, as, alias }) => {
     if (as !== 'text') throw new QueryError('invalid_option', 'extraColumns only supports as: "text"')
     if (Object.hasOwn(model.fields, alias) || alias.startsWith('__pb_key')) {
