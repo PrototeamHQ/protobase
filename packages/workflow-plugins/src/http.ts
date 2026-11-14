@@ -1,4 +1,4 @@
-import { AddressRefusedError, fetchMaxBytes, isFileValue, ResponseTooLargeError, StepError, type StepContext, type StepType, type StorageTarget } from '@protobase/workflows/plugin'
+import { AddressRefusedError, fetchMaxBytes, isFileValue, ResponseTooLargeError, StepError, valueProblems, type JsonSchema, type StepContext, type StepType, type StorageTarget } from '@protobase/workflows/plugin'
 import { stepPath } from './storage'
 
 /** How much of a failing answer's body its error keeps, after secrets are blanked out of it. */
@@ -6,6 +6,14 @@ const causeBodyLength = 200
 
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
 const textRecord = { type: 'object', additionalProperties: { type: 'string' } }
+
+// A body that does not fit the schema the step declared for it fails the step, so the fields it was typed by hold.
+const checkedBody = (body: unknown, schema: unknown, url: URL) => {
+  if (typeof schema !== 'object' || schema === null) return body
+  const problems = valueProblems(schema as JsonSchema, body, 'body')
+  if (problems.length > 0) throw new StepError('Http.InvalidBody', `${url.host} answered with a body that does not fit body_schema: ${problems.slice(0, 3).join('; ')}`)
+  return body
+}
 
 const invalid = (reason: string) => new StepError('Http.InvalidArguments', reason)
 
@@ -133,7 +141,8 @@ const send = async (context: StepContext) => {
   }
   // Cookies the receiver sets are sessions of its own, not data for later steps.
   const kept = Object.fromEntries([...answer.headers].filter(([name]) => name !== 'set-cookie'))
-  return { status: answer.status, headers: kept, body: await answerBody(bytes, reading, url, answer.headers.get('content-type'), context) }
+  const read = await answerBody(bytes, reading, url, answer.headers.get('content-type'), context)
+  return { status: answer.status, headers: kept, body: checkedBody(read, input.body_schema, url) }
 }
 
 /**
@@ -152,13 +161,14 @@ export const httpSteps: Record<string, StepType> = {
       properties: {
         url: { type: 'string', description: 'an http or https URL' },
         method: { type: 'string', description: 'GET (default), POST, PUT, PATCH or DELETE' },
-        headers: { ...textRecord, description: 'an object of text values' },
-        query: { ...textRecord, description: "an object of text values, added to the URL's query" },
+        headers: { ...textRecord, title: 'Headers', description: 'an object of text values' },
+        query: { ...textRecord, title: 'Query', description: "an object of text values, added to the URL's query" },
         body: { description: 'text sent as it is, a file value sent as its bytes, any other value sent as JSON; a GET sends none' },
         response: {
           enum: ['json', 'text', 'file'],
           description: "how the answer's body is read: by default by its Content-Type, JSON for application/json and +json, text for text/* and other textual types, a file for any other or none, and null when empty; json (empty is null), text, or file (kept as a file value of the run) reads every answer so",
         },
+        body_schema: { type: 'object', description: "the JSON Schema of the answer's body as it is read, such as { type: 'object', properties: { ip: { type: 'string' } } }: the step fails with InvalidBody on a body that does not fit it, and the editor offers the body's fields by it" },
         store: {
           type: 'object',
           required: ['configuration'],
@@ -167,12 +177,16 @@ export const httpSteps: Record<string, StepType> = {
         },
       },
     },
-    output: { type: 'object', description: '{ status, headers, body }', properties: { status: { type: 'integer' }, headers: { type: 'object' }, body: {} } },
+    output: {
+      type: 'object',
+      description: '{ status, headers, body }',
+      properties: { status: { type: 'integer' }, headers: { ...textRecord, title: 'Headers' }, body: { title: 'Body', 'x-schema-of': 'body_schema' } },
+    },
     errors: {
       Status: 'a status outside 2xx; the cause names it with the start of the body',
       Network: 'no answer',
       InvalidArguments: 'an argument has the wrong type, named in the cause',
-      InvalidBody: 'read as JSON, by response json or a JSON Content-Type, and the body is not JSON',
+      InvalidBody: 'read as JSON, by response json or a JSON Content-Type, and the body is not JSON; or the body does not fit body_schema',
       AddressRefused: 'the host is not a public address',
       ResponseTooLarge: 'a body over 10 MiB, unless stored',
     },

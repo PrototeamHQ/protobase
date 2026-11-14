@@ -12,20 +12,24 @@ import { nodeStatusLabel } from './labels'
 import { nodeTones, type NodeTrace } from './node-trace'
 import { holdsSteps } from './definition'
 import { text } from './messages'
+import { PinColumns } from './pins/pin-rows'
 
-type Source = { kind: EdgeKind; position: Position; left?: string; label?: string }
+type Source = { kind: EdgeKind; top: number; label?: string }
 
-// The handles an edge leaves a state from, by its type: on to the next state at the bottom, a Choice's rules and its
-// Default side by side there, and the error path of a Task, Map or Block on the right.
+// Where the execution handles sit on a node's right edge, in its header, as Blueprints draw them
+const execTops = [18, 38]
+
+// The handles an edge leaves a state from, by its type, down the header's right edge: on to the next state, or a
+// Choice's rules and then its Default, and below it the error path of a Task, Map or Block.
 const sourcesOf = (state: State): Source[] => {
   if (state.Type === 'Choice') {
     return [
-      { kind: 'rule', position: Position.Bottom, left: '30%', label: text('when') },
-      { kind: 'default', position: Position.Bottom, left: '70%', label: text('otherwise') },
+      { kind: 'rule', top: execTops[0]!, label: text('when') },
+      { kind: 'default', top: execTops[1]!, label: text('otherwise') },
     ]
   }
-  const next: Source[] = ['Task', 'Pass', 'Wait', 'Map', 'Block'].includes(state.Type) ? [{ kind: 'next', position: Position.Bottom }] : []
-  const caught: Source[] = state.Type === 'Task' || state.Type === 'Map' || state.Type === 'Block' ? [{ kind: 'catch', position: Position.Right, label: text('onErrorHandle') }] : []
+  const next: Source[] = ['Task', 'Pass', 'Wait', 'Map', 'Block'].includes(state.Type) ? [{ kind: 'next', top: execTops[0]! }] : []
+  const caught: Source[] = state.Type === 'Task' || state.Type === 'Map' || state.Type === 'Block' ? [{ kind: 'catch', top: execTops[next.length]!, label: text('onErrorHandle') }] : []
   return [...next, ...caught]
 }
 
@@ -54,7 +58,7 @@ const useAddAt = (at: AddAt, editable: boolean, handle?: string) => {
 }
 
 const SourceHandle = ({ source, path, editable }: { source: Source; path: string; editable: boolean }) => (
-  <Handle id={source.kind} type="source" position={source.position} isConnectable={editable} style={source.left ? { left: source.left } : undefined} className={cn(`pb-workflow-handle-${source.kind}`)} {...useAddAt({ kind: source.kind, source: path }, editable, source.label)}>
+  <Handle id={source.kind} type="source" position={Position.Right} isConnectable={editable} style={{ top: source.top }} className={cn('pb-workflow-exec', `pb-workflow-handle-${source.kind}`)} {...useAddAt({ kind: source.kind, source: path }, editable, source.label)}>
     {source.label && <span className="pb-workflow-handle-label">{source.label}</span>}
   </Handle>
 )
@@ -108,25 +112,31 @@ const Title = ({ name, kind, problems, first, trace, warnings = [] }: { name: st
 
 /** A state: a box with its name, what it is and the handles its edges leave from; a Map's or Block's holds the states inside it. */
 export const StateNode = ({ data, selected, isConnectable }: NodeProps<FlowNode>) => {
-  const { node, kind, problems, trace, cacheWarning, warnings = [] } = data
+  const { node, kind, problems, trace, cacheWarning, warnings = [], pins } = data
   if (node.kind !== 'state') return null
   return (
-    <div className={cn(boxClass(selected, problems.length, trace), 'h-full px-3 py-2', holdsSteps(node.state) && 'bg-muted/40')}>
-      <Handle id="in" type="target" position={Position.Top} isConnectable={isConnectable} />
-      <Title name={node.name} kind={kind} problems={problems.length} first={node.first && node.parent !== undefined} trace={trace} warnings={[...(cacheWarning ? [text('cacheForcedAgainst')] : []), ...warnings.map((warning) => warning.message)]} />
-      <Sources state={node.state} path={node.id} editable={isConnectable} />
+    <div className={cn(boxClass(selected, problems.length, trace), 'h-full', holdsSteps(node.state) && 'bg-muted/40')}>
+      <div className="relative h-[52px] py-2 pr-6 pl-4">
+        <Handle id="in" type="target" position={Position.Left} isConnectable={isConnectable} className="pb-workflow-exec" style={{ top: execTops[0] }} />
+        <Title name={node.name} kind={kind} problems={problems.length} first={node.first && node.parent !== undefined} trace={trace} warnings={[...(cacheWarning ? [text('cacheForcedAgainst')] : []), ...warnings.map((warning) => warning.message)]} />
+        <Sources state={node.state} path={node.id} editable={isConnectable} />
+      </div>
+      {pins && !holdsSteps(node.state) && <PinColumns node={node.id} inputs={pins.inputs} outputs={pins.outputs} folded={pins.folded} open={pins.open} editable={isConnectable} />}
     </div>
   )
 }
 
 /** The trigger: what starts a run, leading to the first state. */
 export const TriggerNode = ({ data, selected, isConnectable }: NodeProps<FlowNode>) => {
-  const { node, kind, problems } = data
+  const { node, kind, problems, pins } = data
   if (node.kind !== 'trigger') return null
   return (
-    <div className={cn(boxClass(selected, problems.length), 'h-full border-dashed px-3 py-2')}>
-      <Title name={kind} kind={text('trigger')} problems={problems.length} />
-      <Handle id="start" type="source" position={Position.Bottom} isConnectable={isConnectable} {...useAddAt({ kind: 'start', source: node.id }, isConnectable)} />
+    <div className={cn(boxClass(selected, problems.length), 'h-full border-dashed')}>
+      <div className="relative h-[52px] py-2 pr-6 pl-4">
+        <Title name={kind} kind={text('trigger')} problems={problems.length} />
+        <Handle id="start" type="source" position={Position.Right} isConnectable={isConnectable} className="pb-workflow-exec" style={{ top: execTops[0] }} {...useAddAt({ kind: 'start', source: node.id }, isConnectable)} />
+      </div>
+      {pins && <PinColumns node={node.id} inputs={[]} outputs={pins.outputs} folded={0} open={false} editable={isConnectable} trigger />}
     </div>
   )
 }

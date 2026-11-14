@@ -14,12 +14,16 @@ import { blockProblems } from './check-block'
 import { allStates } from './inner'
 import { limits } from '../limits'
 import { nestingDepth } from '../nesting'
+import { pinProblems } from './pins/check-pins'
+import type { PinSchemas } from './pins/pin-sources'
 
 /**
  * What a definition is checked against beside the language: the step types (Task resources) the app has, the
  * arguments each needs (`required`, by step type), its trigger types, each with the check of its input, and why the
  * app cannot run a type it knows (`unavailable`, by step or trigger type), and the connection `<plugin>:<connection>`
  * each type that signs in uses (`connections`, by step or trigger type); without it the bindings are not checked.
+ * With `pins`, the types' input and output schemas and the app's records, an argument that reads a value by name is
+ * checked to take that value's type.
  */
 export type CheckOptions = {
   resources: readonly string[]
@@ -27,6 +31,7 @@ export type CheckOptions = {
   triggers: Readonly<Record<string, TriggerCheck>>
   unavailable?: Readonly<Record<string, string>>
   connections?: Readonly<Record<string, string>>
+  pins?: PinSchemas
 }
 
 // `blocks`: how many Blocks the machine is inside.
@@ -104,5 +109,5 @@ export const checkDefinition = (definition: unknown, options: CheckOptions): Pro
   const shape = schemaProblems(definition)
   if (shape.length > 0) return shape
   const document = definition as Definition
-  return [...triggerProblems(document.trigger, options.triggers, options.unavailable), ...(options.connections ? connectionProblems(document, options.connections) : []), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false, blocks: 0 }, options)]
+  return [...triggerProblems(document.trigger, options.triggers, options.unavailable), ...(options.connections ? connectionProblems(document, options.connections) : []), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false, blocks: 0 }, options), ...(options.pins ? pinProblems(document, options.pins) : [])]
 }

@@ -93,6 +93,12 @@ describe('the app:http step, run through the plugin interface', () => {
     expect(await failure(local()({ url: `${base}/not-json` }, context()))).toEqual(['Http.InvalidBody', `127.0.0.1:${(server.address() as AddressInfo).port} answered application/json with a body that is not JSON; read it with "response": "text"`])
   })
 
+  it('checks the body against the schema the step declares for it, failing one that does not fit', async () => {
+    const schema = { type: 'object', properties: { ok: { type: 'boolean' } } }
+    expect(await local()({ url: `${base}/items`, body_schema: schema }, context())).toMatchObject({ body: { ok: true } })
+    expect(await failure(local()({ url: `${base}/items`, body_schema: { type: 'object', properties: { ok: { type: 'string' } } } }, context()))).toEqual(['Http.InvalidBody', `127.0.0.1:${(server.address() as AddressInfo).port} answered with a body that does not fit body_schema: body.ok must be string`])
+  })
+
   it('fails on a status outside 2xx, with the start of the body blanked of secrets before it is cut, and on arguments that make no request', async () => {
     expect(await failure(local()({ url: `${base}/gone` }, context()))).toEqual(['Http.Status', `127.0.0.1:${(server.address() as AddressInfo).port} answered 410`])
     const [name, cause] = (await failure(local()({ url: `${base}/echo?token=${secret}`, headers: { Authorization: `Bearer ${secret}` } }, context()))) as string[]

@@ -16,6 +16,7 @@ import { NodePanel } from '../workflow/node-panel'
 import { ProblemList } from '../workflow/problem-list'
 import { definitionProblems, isMissing, problemsByNode, warningsByNode, withoutMissing } from '../workflow/problems'
 import { WorkflowCanvas } from '../workflow/workflow-canvas'
+import { usePinSchemas } from '../workflow/pins/pin-schemas'
 import { text as graphText } from '../workflow/messages'
 import { usePermissions } from '../../meta-gate'
 import { can } from '../../permissions'
@@ -86,7 +87,8 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
           if (!assign) setAdded(undefined)
           onChange(assign ? assign(next) : next)
         }
-  const checked = useMemo(() => problemsByNode(definition ? definitionProblems(definition, types) : []), [definition, types])
+  const schemas = usePinSchemas(types)
+  const checked = useMemo(() => problemsByNode(definition ? definitionProblems(definition, types, schemas) : []), [definition, types, schemas])
   const warned = useMemo(() => (definition ? warningsByNode(definition) : noProblems), [definition])
   const { address } = useAppAddress()
   const opened = address?.kind === 'record' ? address.panel : undefined
@@ -294,7 +296,7 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
       />
       <RunNotice view={view} page={page} failed={failed && splitPath(failed).name} changed={focus.dirty} gone={gone} {...(failed !== undefined && failed !== selected && { onOpenFailed: () => setChosen(failed) })} />
       <div className="h-full">
-        <WorkflowCanvas fills definition={definition} problems={run || empty ? noProblems : shownProblems} warnings={run || empty ? noProblems : warned} selected={selected} onSelect={(id) => setChosen(id ?? null)} {...(change && !focus.readOnly && { onChange: change, onAddAt: (at) => setPanel({ kind: 'add', at }) })} {...(traces && run && { traces })} types={types} />
+        <WorkflowCanvas fills definition={definition} problems={run || empty ? noProblems : shownProblems} warnings={run || empty ? noProblems : warned} selected={selected} onSelect={(id) => setChosen(id ?? null)} {...(change && !focus.readOnly && { onChange: change, onAddAt: (at) => setPanel({ kind: 'add', at }) })} {...(traces && run && { traces })} types={types} schemas={schemas} />
       </div>
       {empty && panel === undefined && (
         <div className="pointer-events-none absolute inset-x-0 top-[60%] flex justify-center">

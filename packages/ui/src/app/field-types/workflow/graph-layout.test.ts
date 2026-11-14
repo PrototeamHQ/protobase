@@ -7,7 +7,7 @@ import { layoutGraph, type Box } from './graph-layout'
 const overlap = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
 
 describe('layoutGraph', () => {
-  it('places every node, no two of the same machine overlapping, each Map around its own and edges going down', async () => {
+  it('places every node, no two of the same machine overlapping, each Map around its own and edges going right', async () => {
     const graph = definitionGraph(ticketsWorkflow)
     const boxes = await layoutGraph(new ELK(), graph)
     expect([...boxes.keys()].sort()).toEqual(graph.nodes.map((node) => node.id).sort())
@@ -18,7 +18,7 @@ describe('layoutGraph', () => {
     // Inside the Map, each box is placed within it
     const each = boxes.get('Each')!
     for (const inside of siblings('Each')) expect(inside.x + inside.width <= each.width && inside.y + inside.height <= each.height).toBe(true)
-    expect(boxes.get('')!.y).toBeLessThan(boxes.get('Fetch')!.y)
-    expect(boxes.get('Fetch')!.y).toBeLessThan(boxes.get('Any')!.y)
+    expect(boxes.get('')!.x).toBeLessThan(boxes.get('Fetch')!.x)
+    expect(boxes.get('Fetch')!.x).toBeLessThan(boxes.get('Any')!.x)
   })
 })

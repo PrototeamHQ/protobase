@@ -12,6 +12,7 @@ import { NodePanel } from './node-panel'
 import { ProblemList } from './problem-list'
 import { definitionProblems, problemsByNode, warningsByNode } from './problems'
 import { WorkflowCanvas } from './workflow-canvas'
+import { usePinSchemas } from './pins/pin-schemas'
 import { text } from './messages'
 
 export type WorkflowGraphEditorProps = {
@@ -41,7 +42,8 @@ export const WorkflowGraphEditor = ({ value, types, onChange, notice }: Workflow
   // The form hands the value over anew on each render: the definition changes only when its JSON does
   const json = JSON.stringify(value ?? null)
   const definition = useMemo(() => definitionOf(JSON.parse(json)), [json])
-  const checked = useMemo(() => problemsByNode(definitionProblems(definition, types)), [definition, types])
+  const schemas = usePinSchemas(types)
+  const checked = useMemo(() => problemsByNode(definitionProblems(definition, types, schemas)), [definition, types, schemas])
   const warned = useMemo(() => warningsByNode(definition), [definition])
   const [chosen, setChosen] = useState<string>()
   // The step picker has the side panel, for a step at the handle clicked or, from Add step, in the scope chosen
@@ -72,7 +74,7 @@ export const WorkflowGraphEditor = ({ value, types, onChange, notice }: Workflow
       )}
       <ProblemList problems={checked.whole} />
       <GraphFrame
-        canvas={<WorkflowCanvas definition={definition} problems={checked.byNode} warnings={warned} selected={selected} onSelect={setChosen} onChange={onChange} onAddAt={(at) => setAdding({ at })} types={types} />}
+        canvas={<WorkflowCanvas definition={definition} problems={checked.byNode} warnings={warned} selected={selected} onSelect={setChosen} onChange={onChange} onAddAt={(at) => setAdding({ at })} types={types} schemas={schemas} />}
         panel={
           <>
             {notice}

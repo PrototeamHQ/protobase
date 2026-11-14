@@ -22,7 +22,11 @@ export const recordTriggers: Record<string, ReadyTrigger> = {
         key: { type: 'array', items: name, description: 'fields whose new value makes a record ready again, such as due_at' },
       },
     },
-    output: { type: 'object', description: '{ resource, key, record }: the record as the workflow\'s last editor reads it' },
+    output: {
+      type: 'object',
+      description: '{ resource, key, record }: the record as the workflow\'s last editor reads it',
+      properties: { resource: { type: 'string' }, key: {}, record: { 'x-record-of': 'resource' } },
+    },
     ready: (input) => ({ resource: input.resource as string, ...(input.when !== undefined && { when: input.when as string }), ...(input.key !== undefined && { key: input.key as string[] }) }),
   },
 }

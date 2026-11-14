@@ -80,3 +80,62 @@
     height: 18px;
   }
 }
+/* Pins coloured by their type, as Blueprints colour them: a wire takes the colour of what it carries. */
+.pb-workflow {
+  --pin-string: #d946ef;
+  --pin-integer: #14b8a6;
+  --pin-number: #84cc16;
+  --pin-boolean: #ef4444;
+  --pin-object: #3b82f6;
+  --pin-array: #f59e0b;
+  --pin-null: #9ca3af;
+  --pin-any: #9ca3af;
+}
+.pb-workflow .react-flow__handle.pb-pin {
+  width: 10px;
+  height: 10px;
+  border-color: var(--pin, var(--pin-any));
+  background: var(--color-background);
+}
+.pb-workflow .react-flow__handle.pb-pin:hover,
+.pb-workflow .react-flow__handle.pb-pin.connectingfrom,
+.pb-workflow .react-flow__handle.pb-pin.connectingto {
+  background: var(--pin, var(--pin-any));
+}
+.pb-workflow .pb-pin-string { --pin: var(--pin-string); }
+.pb-workflow .pb-pin-integer { --pin: var(--pin-integer); }
+.pb-workflow .pb-pin-number { --pin: var(--pin-number); }
+.pb-workflow .pb-pin-boolean { --pin: var(--pin-boolean); }
+.pb-workflow .pb-pin-object { --pin: var(--pin-object); }
+.pb-workflow .pb-pin-array { --pin: var(--pin-array); }
+.pb-workflow .pb-pin-null { --pin: var(--pin-null); }
+.pb-workflow .pb-wire .react-flow__edge-path {
+  stroke: var(--pin, var(--pin-any));
+  stroke-width: 1.75;
+}
+.pb-workflow .pb-wire-string { --pin: var(--pin-string); }
+.pb-workflow .pb-wire-integer { --pin: var(--pin-integer); }
+.pb-workflow .pb-wire-number { --pin: var(--pin-number); }
+.pb-workflow .pb-wire-boolean { --pin: var(--pin-boolean); }
+.pb-workflow .pb-wire-object { --pin: var(--pin-object); }
+.pb-workflow .pb-wire-array { --pin: var(--pin-array); }
+.pb-workflow .pb-wire.selected .react-flow__edge-path {
+  stroke-width: 3;
+}
+/* Execution runs along square handles and thicker edges, apart from the data's round pins and wires */
+.pb-workflow .react-flow__handle.pb-workflow-exec {
+  border-radius: 2px;
+  background: var(--color-background);
+}
+.pb-workflow .react-flow__edge:not(.pb-wire) .react-flow__edge-path {
+  stroke-width: 2.25;
+}
+.pb-workflow .pb-wire-refused .react-flow__connection-path {
+  stroke: var(--color-danger);
+}
+@media (pointer: coarse) {
+  .pb-workflow .react-flow__handle.pb-pin {
+    width: 16px;
+    height: 16px;
+  }
+}

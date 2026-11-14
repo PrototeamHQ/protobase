@@ -66,6 +66,7 @@ const inputLabels: Record<string, () => string> = {
   connection: () => text('inputConnection'),
   props: () => text('inputProps'),
   when: () => text('inputWhen'),
+  body_schema: () => text('inputBodySchema'),
 }
 
 export const inputLabel = (name: string, title?: string) => inputLabels[name]?.() ?? title ?? name

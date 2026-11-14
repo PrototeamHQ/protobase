@@ -3,19 +3,25 @@ import '@xyflow/react/dist/style.css'
 import './workflow-canvas.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { WorkflowTypeList } from '@protobase/client'
-import type { Definition } from '@protobase/workflows'
+import type { Definition, PinSchemas } from '@protobase/workflows'
 import { triggerId } from './definition'
-import { AddAtContext } from './add-at-context'
 import { connect, disconnect, removeState, type AddAt } from './definition-edits'
 import { definitionGraph, type EdgeKind, type GraphNode } from './definition-graph'
-import { flowEdges, flowNodes, graphId, type FlowNode } from './flow-elements'
+import { dataFlowEdges, flowEdges, flowNodes, graphId, pureFlowNodes, type FlowNode } from './flow-elements'
+import { AddAtContext } from './add-at-context'
 import { StateNode, TriggerNode } from './flow-nodes'
+import { PinActionsContext } from './pins/pin-actions'
+import { PureNodeView } from './pins/pure-nodes'
+import { PureOfferMenu } from './pins/pure-offer'
+import { isPureId } from './pins/pure-ids'
+import { isPinHandle, usePins } from './pins/use-pins'
+import { WireCheckContext, WireLine } from './pins/wire-line'
 import type { NodeTrace } from './node-trace'
 import type { NodeProblem } from './problems'
 import { useLayout } from './use-layout'
 import { text } from './messages'
 
-const nodeTypes = { state: StateNode, trigger: TriggerNode }
+const nodeTypes = { state: StateNode, trigger: TriggerNode, pure: PureNodeView }
 
 export type WorkflowCanvasProps = {
   definition: Definition
@@ -33,6 +39,8 @@ export type WorkflowCanvasProps = {
   warnings?: ReadonlyMap<string, NodeProblem[]>
   /** The app's types, whose labels name the nodes and whose cache advice marks them. */
   types?: WorkflowTypeList
+  /** The schemas pins are typed by: with them, every step shows its inputs and outputs as pins, wired by the reads its arguments make. */
+  schemas?: PinSchemas
   /** The canvas is the window, on a page that does not scroll, so the wheel pans it as on any canvas. */
   fills?: boolean
 }
@@ -75,18 +83,26 @@ const MeasureOnLayout = ({ laidOut, ids }: { laidOut: unknown; ids: string[] }) 
   return null
 }
 
-const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, onAddAt, traces, types, fills = false }: WorkflowCanvasProps) => {
+const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, onAddAt, traces, types, schemas, fills = false }: WorkflowCanvasProps) => {
   const graph = useMemo(() => definitionGraph(definition), [definition])
-  const boxes = useLayout(graph)
-  const nodes = useMemo(() => flowNodes(graph, boxes, problems, selected, traces, types, warnings), [graph, boxes, problems, selected, traces, types, warnings])
+  const frame = useRef<HTMLDivElement>(null)
+  const pins = usePins(definition, graph, schemas, onChange, frame)
+  const boxes = useLayout(graph, pins.layout)
+  const nodes = useMemo(
+    () => [...flowNodes(graph, boxes, problems, selected, traces, types, warnings, pins.data && { data: pins.data, open: pins.open }), ...(pins.data ? pureFlowNodes(graph, pins.data, boxes, pins.open) : [])],
+    [graph, boxes, problems, selected, traces, types, warnings, pins.data, pins.open],
+  )
   // The edge chosen, which Delete removes
   const [chosenEdge, setChosenEdge] = useState<string>()
-  const edges = useMemo(() => flowEdges(graph).map((edge) => ({ ...edge, selected: edge.id === chosenEdge })), [graph, chosenEdge])
+  const edges = useMemo(() => [...flowEdges(graph), ...(pins.data ? dataFlowEdges(pins.data) : [])].map((edge) => ({ ...edge, selected: edge.id === chosenEdge })), [graph, pins.data, chosenEdge])
   const byId = useMemo(() => new Map(graph.nodes.map((node) => [node.id, node])), [graph])
   const editable = Boolean(onChange)
 
   // A state leads only to a state of its own machine: the trigger to one of the workflow's, a Map's to its own.
   const isValidConnection: IsValidConnection = (connection) => {
+    // A wire joins pins, as their types allow; execution runs along the other handles
+    if (isPinHandle(connection.sourceHandle) || isPinHandle(connection.targetHandle)) return isPinHandle(connection.sourceHandle) && isPinHandle(connection.targetHandle) && pins.isValid(connection)
+    if (connection.targetHandle !== 'in') return false
     const target = byId.get(graphId(connection.target))
     const source = byId.get(graphId(connection.source))
     return target?.kind === 'state' && scopeOf(source) === scopeOf(target)
@@ -105,15 +121,17 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
   }
   const onConnect = (connection: Connection) => {
     if (!onChange || !connection.sourceHandle) return
+    if (isPinHandle(connection.sourceHandle)) return pins.connect(connection)
     onChange(connect(definition, connection.sourceHandle as EdgeKind, graphId(connection.source), graphId(connection.target)))
   }
   // Deleting a state takes the edges to it along: its own removal does that, so they are left alone here.
   const onDelete = ({ nodes: gone, edges: cut }: { nodes: { id: string }[]; edges: Edge[] }) => {
     if (!onChange) return
-    const removed = gone.map((node) => graphId(node.id)).filter((id) => id !== triggerId)
-    let next = definition
+    const removed = gone.map((node) => graphId(node.id)).filter((id) => id !== triggerId && !isPureId(id))
+    let next = pins.remove(definition, gone, cut)
     for (const edge of cut) {
       const data = edge.data as { kind: EdgeKind; field: string; source: string }
+      if ((data.kind as string) === 'data') continue
       if (!removed.includes(data.source) && !removed.includes(graphId(edge.target))) next = disconnect(next, data)
     }
     // A Map's states go with it
@@ -123,40 +141,49 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
 
   return (
     <AddAtContext.Provider value={onChange ? onAddAt : undefined}>
-      <ReactFlow
-        className="pb-workflow"
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        nodesDraggable={false}
-        nodesConnectable={editable}
-        // A click on a handle adds a step there; a connection is drawn by dragging, from a few pixels on
-        connectOnClick={false}
-        connectionDragThreshold={4}
-        edgesFocusable={editable}
-        elementsSelectable
-        deleteKeyCode={editable ? ['Backspace', 'Delete'] : null}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        isValidConnection={isValidConnection}
-        onConnect={onConnect}
-        onDelete={onDelete}
-        onNodeClick={(_, node) => onSelect(graphId(node.id))}
-        onPaneClick={() => onSelect(undefined)}
-        // Where the page scrolls under the wheel and a finger, the canvas zooms by its buttons and by pinching
-        zoomOnScroll={false}
-        panOnScroll={fills}
-        preventScrolling={fills}
-        minZoom={0.2}
-        maxZoom={1.5}
-        aria-label={text('canvas')}
-      >
-        <Background gap={16} />
-        <Controls showInteractive={false} />
-        <FitOnLayout laidOut={boxes} />
-        {fills && <KeepCentre />}
-        <MeasureOnLayout laidOut={boxes} ids={nodes.map((node) => node.id)} />
-      </ReactFlow>
+      <PinActionsContext.Provider value={pins.actions}>
+        <WireCheckContext.Provider value={pins.check}>
+          <div ref={frame} className="relative h-full w-full">
+            <ReactFlow
+              className="pb-workflow"
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              nodesDraggable={false}
+              nodesConnectable={editable}
+              // A click on a handle adds a step there; a connection is drawn by dragging, from a few pixels on
+              connectOnClick={false}
+              connectionDragThreshold={4}
+              edgesFocusable={editable}
+              elementsSelectable
+              deleteKeyCode={editable ? ['Backspace', 'Delete'] : null}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              isValidConnection={isValidConnection}
+              onConnect={onConnect}
+              onConnectEnd={pins.connectEnd}
+              connectionLineComponent={WireLine}
+              onDelete={onDelete}
+              onNodeClick={(_, node) => onSelect(graphId(node.id))}
+              onPaneClick={() => onSelect(undefined)}
+              // Where the page scrolls under the wheel and a finger, the canvas zooms by its buttons and by pinching
+              zoomOnScroll={false}
+              panOnScroll={fills}
+              preventScrolling={fills}
+              minZoom={0.2}
+              maxZoom={1.5}
+              aria-label={text('canvas')}
+            >
+              <Background gap={16} />
+              <Controls showInteractive={false} />
+              <FitOnLayout laidOut={boxes} />
+              {fills && <KeepCentre />}
+              <MeasureOnLayout laidOut={boxes} ids={nodes.map((node) => node.id)} />
+            </ReactFlow>
+            {pins.offer && <PureOfferMenu offer={pins.offer} onClose={pins.closeOffer} />}
+          </div>
+        </WireCheckContext.Provider>
+      </PinActionsContext.Provider>
     </AddAtContext.Provider>
   )
 }

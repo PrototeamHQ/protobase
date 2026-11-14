@@ -3,16 +3,19 @@ import { StepError, type StepContext, type StepType } from '@protobase/workflows
 const resource = { type: 'string', minLength: 1, description: "the resource's name, as list_resources gives it" }
 const key = { description: "the record's key", anyOf: [{ type: 'string' }, { type: 'number' }, { type: 'array', items: { type: ['string', 'number'] } }] }
 const fieldValues = { type: 'object', description: 'an object of field values' }
+// A record of the resource the `resource` argument names, which the editor and the save check type by that resource's fields.
+const record = { 'x-record-of': 'resource' }
+const written = { ...fieldValues, ...record, 'x-record-use': 'write' }
 const errors = { Refused: 'the API refused it, its status and message in the cause', InvalidArguments: 'an argument has the wrong type, named in the cause' }
 
 type Key = string | number | (string | number)[]
 
-const step = (label: string, description: string, input: Record<string, unknown>, output: string, writes: boolean, run: (context: StepContext) => Promise<unknown>): StepType => ({
+const step = (label: string, description: string, input: Record<string, unknown>, output: Record<string, unknown>, writes: boolean, run: (context: StepContext) => Promise<unknown>): StepType => ({
   label,
   description,
   errorPrefix: 'Records',
   input: { type: 'object', ...input },
-  output: { description: output },
+  output,
   errors,
   writes,
   run,
@@ -34,8 +37,8 @@ export const recordsSteps: Record<string, StepType> = {
   'records.create': step(
     'Create records',
     "Creates records of the app's resources, as the workflow's last editor.",
-    { required: ['resource', 'data'], properties: { resource, data: { description: 'an object of field values, or a list of them, created in one batch: all or none', anyOf: [fieldValues, { type: 'array', items: fieldValues }] } } },
-    'the created record, or the list of them',
+    { required: ['resource', 'data'], properties: { resource, data: { description: 'an object of field values, or a list of them, created in one batch: all or none', anyOf: [written, { type: 'array', items: written }] } } },
+    { description: 'the created record, or the list of them', anyOf: [record, { type: 'array', items: record }] },
     true,
     async ({ input, records }) => {
       const many = listOf(input.data)
@@ -47,8 +50,8 @@ export const recordsSteps: Record<string, StepType> = {
   'records.update': step(
     'Update a record',
     "Updates one record, as the workflow's last editor.",
-    { required: ['resource', 'key', 'data'], properties: { resource, key, data: { ...fieldValues, description: 'an object of the field values to change' } } },
-    'the updated record',
+    { required: ['resource', 'key', 'data'], properties: { resource, key, data: { ...written, description: 'an object of the field values to change' } } },
+    { ...record, description: 'the updated record' },
     true,
     async ({ input, records }) => records.update(input.resource as string, input.key as Key, input.data as Record<string, unknown>),
   ),
@@ -56,7 +59,7 @@ export const recordsSteps: Record<string, StepType> = {
     'Get a record',
     "Reads one record, as the workflow's last editor.",
     { required: ['resource', 'key'], properties: { resource, key } },
-    'the record',
+    { ...record, description: 'the record' },
     false,
     async ({ input, records }) => records.get(input.resource as string, input.key as Key),
   ),
@@ -72,7 +75,7 @@ export const recordsSteps: Record<string, StepType> = {
         limit: { type: 'integer', minimum: 1, description: 'how many at most' },
       },
     },
-    '{ records }',
+    { type: 'object', description: '{ records }', properties: { records: { type: 'array', items: record } } },
     false,
     async ({ input, records }) => ({
       records: await records.list(input.resource as string, {

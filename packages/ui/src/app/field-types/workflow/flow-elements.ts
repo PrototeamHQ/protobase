@@ -8,27 +8,45 @@ import type { NodeTrace } from './node-trace'
 import type { NodeProblem } from './problems'
 import { stateLabel, triggerLabel } from './labels'
 import { text } from './messages'
+import type { DataGraph } from './pins/data-graph'
+import type { InputPin, OutputPin } from './pins/node-pins'
+import { shownInputs } from './pins/pin-layout'
+import { pinColour } from './pins/pin-text'
+import { pureInputs } from './pins/node-sizes'
+import type { PureData } from './pins/pure-nodes'
+import { isPureId } from './pins/pure-ids'
+import { pureParent } from './pins/pure-parents'
 
 /**
  * What a node of the canvas draws from: its node of the graph, what it is (`kind`, its type's label), the problems the
  * check found with it and what it warns of, how it did in a run, and whether its cache was forced on against its type's
  * advice.
  */
-export type NodeData = { node: GraphNode; kind: string; problems: NodeProblem[]; warnings?: NodeProblem[]; trace?: NodeTrace; cacheWarning?: boolean }
+export type NodeData = { node: GraphNode; kind: string; problems: NodeProblem[]; warnings?: NodeProblem[]; trace?: NodeTrace; cacheWarning?: boolean; pins?: NodePins; pureData?: PureData }
 
-export type FlowNode = Node<NodeData, 'trigger' | 'state'>
+/** The pins a node shows: the inputs it shows, its outputs, how many inputs it folds away and whether it is open. */
+export type NodePins = { inputs: InputPin[]; outputs: OutputPin[]; folded: number; open: boolean }
+
+export type FlowNode = Node<NodeData, 'trigger' | 'state' | 'pure'>
 
 // React Flow's ids: no state is named by an empty path, but React Flow wants every id to say something.
 const triggerFlowId = 'trigger'
-export const flowId = (id: string) => (id === triggerId ? triggerFlowId : `state:${id}`)
-export const graphId = (id: string) => (id === triggerFlowId ? triggerId : id.slice('state:'.length))
+// A Break's or a Make's id is its own, as no state has it.
+export const flowId = (id: string) => (id === triggerId ? triggerFlowId : isPureId(id) ? id : `state:${id}`)
+export const graphId = (id: string) => (id === triggerFlowId ? triggerId : isPureId(id) ? id : id.slice('state:'.length))
+
+/** The pins of a node, as the data graph gives them and its optional inputs are open or folded. */
+export const nodePins = (data: DataGraph, id: string, open: boolean): NodePins => {
+  const { shown, folded } = shownInputs(data.inputs.get(id) ?? [], open)
+  return { inputs: shown, outputs: data.outputs.get(id) ?? [], folded, open }
+}
 
 
 /**
  * The canvas's nodes, at the boxes the layout gave them: a Map holds the nodes inside it, which come after it, and a
  * node not laid out yet waits at the top left. Nodes are not dragged: the layout places them.
  */
-export const flowNodes = (graph: Graph, boxes: ReadonlyMap<string, Box> | undefined, problems: ReadonlyMap<string, NodeProblem[]>, selected: string | undefined, traces?: ReadonlyMap<string, NodeTrace>, types?: WorkflowTypeList, warnings?: ReadonlyMap<string, NodeProblem[]>): FlowNode[] =>
+export const flowNodes = (graph: Graph, boxes: ReadonlyMap<string, Box> | undefined, problems: ReadonlyMap<string, NodeProblem[]>, selected: string | undefined, traces?: ReadonlyMap<string, NodeTrace>, types?: WorkflowTypeList, warnings?: ReadonlyMap<string, NodeProblem[]>, pins?: { data: DataGraph; open: ReadonlySet<string> }): FlowNode[] =>
   graph.nodes.map((node) => {
     const box = boxes?.get(node.id) ?? { x: 0, y: 0, ...nodeSize }
     const parent = node.kind === 'state' ? node.parent : undefined
@@ -47,7 +65,7 @@ export const flowNodes = (graph: Graph, boxes: ReadonlyMap<string, Box> | undefi
       // The node is drawn at its box's size, so React Flow knows it from the first render: a node handed over without
       // one loses its handles' places, and its edges vanish until its size changes
       measured: { width: box.width, height: box.height },
-      data: { node, kind, problems: problems.get(node.id) ?? [], ...(traces?.has(node.id) && { trace: traces.get(node.id) }), ...(cacheWarning && { cacheWarning }), ...(warned.length > 0 && { warnings: warned }) },
+      data: { node, kind, problems: problems.get(node.id) ?? [], ...(traces?.has(node.id) && { trace: traces.get(node.id) }), ...(cacheWarning && { cacheWarning }), ...(warned.length > 0 && { warnings: warned }), ...(pins && { pins: nodePins(pins.data, node.id, pins.open.has(node.id)) }) },
       draggable: false,
       deletable: node.kind === 'state',
       selected: node.id === selected,
@@ -83,3 +101,38 @@ export const flowEdges = (graph: Graph): Edge[] =>
       ...(edge.kind === 'catch' && { className: 'pb-workflow-catch' }),
     }
   })
+
+/** The Break and Make nodes, at their boxes, inside the Map or Block of what they break or make. */
+export const pureFlowNodes = (graph: Graph, data: DataGraph, boxes: ReadonlyMap<string, Box> | undefined, open: ReadonlySet<string>): FlowNode[] =>
+  data.pure.map((pure) => {
+    const box = boxes?.get(pure.id) ?? { x: 0, y: 0, ...nodeSize }
+    const parent = pureParent(graph, pure)
+    const { shown, folded } = pureInputs(pure, open.has(pure.id))
+    // The graph node it stands beside, which names nothing a panel opens
+    const near = graph.nodes.find((node) => node.id === (pure.kind === 'break' ? pure.source : pure.target))!
+    return {
+      id: pure.id,
+      type: 'pure' as const,
+      position: { x: box.x, y: box.y },
+      width: box.width,
+      height: box.height,
+      measured: { width: box.width, height: box.height },
+      data: { node: near, kind: pure.kind, problems: [], pureData: { pure, shownInputs: shown, folded, open: open.has(pure.id) } },
+      draggable: false,
+      deletable: true,
+      ...(parent !== undefined && { parentId: flowId(parent), extent: 'parent' as const }),
+    }
+  })
+
+/** The wires between pins, each coloured by the type of what it carries. */
+export const dataFlowEdges = (data: DataGraph): Edge[] =>
+  data.edges.map((edge) => ({
+    id: edge.id,
+    source: flowId(edge.source),
+    sourceHandle: edge.sourceHandle,
+    target: flowId(edge.target),
+    targetHandle: edge.targetHandle,
+    deletable: true,
+    data: { kind: 'data', wire: edge },
+    className: `pb-wire pb-wire-${pinColour(edge.type)}`,
+  }))
