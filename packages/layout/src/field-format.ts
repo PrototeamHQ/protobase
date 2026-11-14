@@ -31,7 +31,8 @@ export type DateTextInput = {
 /** A date as `DateField` shows it: a date-only value such as `2026-02-15` in UTC, so no time zone moves its day. */
 export const dateFieldText = (value: unknown, props: Pick<DateFieldProps, 'showDate' | 'showTime' | 'locales' | 'options' | 'format'>, input: DateTextInput) => {
   const date = value instanceof Date ? value : typeof value === 'string' || typeof value === 'number' ? new Date(value) : undefined
-  if (!date) return ''
+  // An unparseable value, such as `'soon'`, gives an invalid date, which no formatter takes
+  if (!date || Number.isNaN(date.getTime())) return ''
   if (props.format === 'relative') return input.relative(Math.round((input.now - date.getTime()) / 1000))
   const { showDate = true, showTime = false, options } = props
   const locales = props.locales ?? input.locale

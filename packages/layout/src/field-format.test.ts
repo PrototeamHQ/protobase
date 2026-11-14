@@ -24,6 +24,12 @@ describe('field values as react-admin formats them', () => {
     expect(date('2026-11-14T11:00:00Z', { format: 'relative' })).toBe('3600s')
   })
 
+  it('shows nothing for a value that is no date', () => {
+    expect(date('soon', { format: 'relative' })).toBe('')
+    expect(date('soon')).toBe('')
+    expect(date(Number.NaN, { format: 'relative' })).toBe('')
+  })
+
   it('formats a number with currency options, a numeric string as its number', () => {
     expect(numberFieldText(1200.5, { options: { style: 'currency', currency: 'EUR' } }, 'en-US')).toBe('€1,200.50')
     expect(numberFieldText('1200.5', { locales: 'nl-NL' })).toBe('1.200,5')
