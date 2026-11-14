@@ -27,8 +27,10 @@ describe('secret masking', () => {
     expect((api as ApiError).message).toBe('Bad key ••••••')
   })
 
-  it('masks a longer secret whole when a shorter one is part of it', () => {
+  it('masks a longer secret whole when a shorter one is part of it, and two that overlap together', () => {
     expect(maskSecrets('x=abcdef1234', ['abc', 'abcdef1234'])).toBe('x=••••••')
+    expect(maskSecrets('x=abcXdef y', ['abcX', 'Xdef'])).toBe('x=•••••• y')
+    expect(maskSecrets('a sk b sk', ['sk'])).toBe('a •••••• b ••••••')
   })
 
   it('leaves a failure as it is when no secret was answered', () => {

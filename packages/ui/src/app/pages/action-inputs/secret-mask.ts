@@ -10,9 +10,25 @@ export const secretAnswers = (inputs: ActionInputModel[], values: Record<string,
     return input.kind === 'secret' && typeof value === 'string' && value !== '' ? [value] : []
   })
 
-/** `text` with each of `secrets` in it replaced by discs, the longest first, so a shorter one inside it leaves none of it showing. */
-export const maskSecrets = (text: string, secrets: string[]) =>
-  [...secrets].sort((a, b) => b.length - a.length).reduce((masked, secret) => masked.replaceAll(secret, mask), text)
+// Which characters of `text` belong to an occurrence of a secret, every occurrence found in the text as it is, overlaps included.
+const covered = (text: string, secrets: string[]) => {
+  const hidden = new Array<boolean>(text.length).fill(false)
+  for (const secret of secrets) {
+    for (let at = text.indexOf(secret); at !== -1; at = text.indexOf(secret, at + 1)) hidden.fill(true, at, at + secret.length)
+  }
+  return hidden
+}
+
+/** `text` with each run of characters that belongs to one of `secrets` replaced by discs, so overlapping secrets leave none of either showing. */
+export const maskSecrets = (text: string, secrets: string[]) => {
+  const hidden = covered(text, secrets.filter((secret) => secret !== ''))
+  let masked = ''
+  for (let index = 0; index < text.length; index++) {
+    if (!hidden[index]) masked += text[index]
+    else if (index === 0 || !hidden[index - 1]) masked += mask
+  }
+  return masked
+}
 
 /**
  * A failure as the dialog may show it: one whose message or problem holds a secret answer comes back with each masked,
