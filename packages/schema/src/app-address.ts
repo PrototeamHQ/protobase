@@ -113,7 +113,7 @@ const recordQuery = (address: Extract<AppAddress, { kind: 'record' }>) => {
 export const appPath = (address: AppAddress, basePath = ''): string => {
   switch (address.kind) {
     case 'page':
-      return `${basePath}/${encodeURIComponent(address.page)}${address.tab ? `/${encodeURIComponent(address.tab)}` : ''}`
+      return `${basePath}/${encodeURIComponent(address.page)}${address.tab ? `/${encodeURIComponent(address.tab)}` : ''}${valuesQuery(address.params)}`
     case 'create':
       return `${basePath}/${encodeURIComponent(address.resource)}/${addressWords.create}${valuesQuery(address.values)}`
     case 'record':
@@ -132,7 +132,7 @@ const decodeSegments = (pathname: string) => {
   }
 }
 
-// A create form's values, by field name, as the query.
+// A create form's values, by field name, or a page's parameters, as the query.
 const valuesQuery = (values: Readonly<Record<string, string>> = {}) => {
   const text = new URLSearchParams(Object.entries(values).filter(([, value]) => value !== '')).toString()
   return text ? `?${text}` : ''
@@ -154,7 +154,11 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
   if (!segments || segments.length === 0 || segments.length > 2) return undefined
   const [first, second] = segments as [string, string | undefined]
   if (first === '-') return undefined
-  if (pages.has(first)) return { kind: 'page', page: first, ...(second !== undefined && { tab: second }) }
+  if (pages.has(first)) {
+    // A page's query is its parameters alone, whatever their names, as its own SelectInputs name them
+    const params = Object.fromEntries([...url.searchParams].filter(([, value]) => value !== ''))
+    return { kind: 'page', page: first, ...(second !== undefined && { tab: second }), ...(Object.keys(params).length > 0 && { params }) }
+  }
   if (second === addressWords.create) {
     const values = Object.fromEntries([...url.searchParams].filter(([, value]) => value !== ''))
     return { kind: 'create', resource: first, ...(Object.keys(values).length > 0 && { values }) }

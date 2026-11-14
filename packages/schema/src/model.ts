@@ -355,6 +355,8 @@ export type AppAddress =
       page: string
       /** The name of the page's tab shown (`<Tab name>`); the first tab when omitted. */
       tab?: string
+      /** The page's parameters by name, as its `SelectInput`s and a block's `select` write them into the query: `?window=7d`. */
+      params?: Readonly<Record<string, string>>
     }
 
 /**
