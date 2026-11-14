@@ -35,8 +35,20 @@ describe('defaultDisplay', () => {
     expect(defaultDisplay(undefined, false)).toBe('table')
   })
 
-  it('opens a cards display below sm: the default when it is one, else the first, never a custom display', () => {
-    expect(defaultDisplay(boardView, true)).toBe('cards')
+  it('opens the default on any screen, the board included', () => {
+    expect(defaultDisplay(boardView, true)).toBe('board')
+    const tableDefault = view<typeof repairs>('repairs')
+      .list((r, d) => ({ columns: [r.number], displays: [d.cards({})], default: 'table' }))
+      .toModel()
+    expect(defaultDisplay(tableDefault, true)).toBe('table')
+  })
+
+  it('opens the first cards display below sm when nothing is set, never a custom display', () => {
+    const cardsUnset = view<typeof repairs>('repairs')
+      .list((r, d) => ({ columns: [r.number], displays: [d.cards({}), d.cards({ meta: [r.bookedOn] }, { name: 'compact' })] }))
+      .toModel()
+    expect(defaultDisplay(cardsUnset, true)).toBe('cards')
+    expect(defaultDisplay(cardsUnset, false)).toBe('table')
     const twoCards = view<typeof repairs>('repairs')
       .list((r, d) => ({ columns: [r.number], displays: [d.cards({}), d.cards({ meta: [r.bookedOn] }, { name: 'compact' })], default: 'compact' }))
       .toModel()
@@ -48,9 +60,9 @@ describe('defaultDisplay', () => {
     expect(defaultDisplay(undefined, true)).toBe('table')
   })
 
-  it('opens the display the caller prefers instead of the default, a cards display still below sm', () => {
+  it('opens the display the caller prefers instead of the default, the table too below sm', () => {
     expect(defaultDisplay(boardView, false, 'table')).toBe('table')
-    expect(defaultDisplay(boardView, true, 'table')).toBe('cards')
+    expect(defaultDisplay(boardView, true, 'table')).toBe('table')
     expect(defaultDisplay(undefined, false, 'table')).toBe('table')
   })
 })
@@ -86,8 +98,10 @@ describe('listDefaultDisplay and shownListDisplay', () => {
     expect(listDefaultDisplay(tasksModel, tableOnly, false)).toBe('table')
   })
 
-  it('keeps a cards display below sm, and a default other than the table', () => {
-    expect(listDefaultDisplay(model, boardView, true)).toBe('cards')
+  it('keeps the default below sm, the table included, in place of cards or rows', () => {
+    expect(listDefaultDisplay(model, boardView, true)).toBe('board')
+    const tableDefault = view<typeof tasks>('tasks').list((r) => ({ columns: [r.title, r.state], default: 'table' })).toModel()
+    expect(listDefaultDisplay(tasksModel, tableDefault, true)).toBe('table')
     const mapped = resource('tasks').table('tasks').fields({ id: f.integer(), title: f.text(), lat: f.decimal({ precision: 8, scale: 6 }).filterable(), lng: f.decimal({ precision: 9, scale: 6 }).filterable() }).primaryKey((r) => r.id)
     const mapView = view<typeof mapped>('tasks').list((r, d) => ({ columns: [r.title], displays: [d.map({ latitude: r.lat, longitude: r.lng })], default: 'map' })).toModel(mapped.toModel())
     expect(listDefaultDisplay(mapped.toModel(), mapView, true)).toBe('map')

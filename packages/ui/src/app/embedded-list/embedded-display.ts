@@ -14,8 +14,8 @@ export const writePickedDisplay = (storage: Pick<Storage, 'setItem'>, key: strin
 
 /**
  * The display an embedded list shows: the viewer's pick while the view still has it, else what the list opens in for
- * the screen, with the display the page names in place of the view's default (below `sm`, a cards display when the
- * view has one).
+ * the screen, with the display the page names in place of the view's default (with neither, below `sm`, a cards
+ * display when the view has one).
  */
 export const embeddedDisplay = (view: ViewModel | undefined, xs: boolean, { picked, preferred }: { picked?: string; preferred?: string }) => {
   const names = displayChoices(view).map((choice) => choice.name)
