@@ -36,13 +36,16 @@ export const referencedSiblings = <File extends ViewedFile>(html: string, siblin
   return [...found]
 }
 
+/** The address a page's link shows for where it leads, for the browser's link preview and copy link; `undefined` keeps its own. */
+export type LinkAddress<File extends ViewedFile = ViewedFile> = (link: FrameLink<File>) => string | undefined
+
 /**
  * `html` with each relative reference to a sibling resolved: one that loads a file to the `data:` URL `contents` holds
- * by its stored `uri`, a link to a sibling or to an outside `http`/`https` address to an entry of `links`. A reference
- * to no sibling, or to one `contents` lacks, stays as written; a link to anywhere else, such as `javascript:`, loses its
- * address. A link to a place on the page (`#top`) stays.
+ * by its stored `uri`, a link to a sibling or to an outside `http`/`https` address to an entry of `links`, showing the
+ * address `address` gives it. A reference to no sibling, or to one `contents` lacks, stays as written; a link to
+ * anywhere else, such as `javascript:`, loses its address. A link to a place on the page (`#top`) stays.
  */
-export const siblingPage = <File extends ViewedFile>(html: string, siblings: readonly File[], contents: ReadonlyMap<string, string>): SiblingPage<File> => {
+export const siblingPage = <File extends ViewedFile>(html: string, siblings: readonly File[], contents: ReadonlyMap<string, string>, address?: LinkAddress<File>): SiblingPage<File> => {
   const page = parse(html)
   for (const element of page.querySelectorAll(`[${linkAttribute}]`)) element.removeAttribute(linkAttribute)
   rewriteResources(page, (reference) => {
@@ -61,8 +64,11 @@ export const siblingPage = <File extends ViewedFile>(html: string, siblings: rea
       link.removeAttribute('href')
       continue
     }
+    const target: FrameLink<File> = sibling ? { kind: 'file', file: sibling } : { kind: 'external', url: url! }
+    const shown = address?.(target)
+    if (shown !== undefined) link.setAttribute('href', shown)
     link.setAttribute(linkAttribute, String(links.length))
-    links.push(sibling ? { kind: 'file', file: sibling } : { kind: 'external', url: url! })
+    links.push(target)
   }
   return { html: `<!doctype html>${page.documentElement.outerHTML}`, links }
 }

@@ -3,7 +3,7 @@ import type { ViewedFile } from './file-viewer'
 import { externalUrl, rewriteCssUrls, rewriteSrcset, siblingReference } from './sibling-references'
 
 const file = (name: string): ViewedFile => ({ uri: `private://${name}`, name, type: 'image/png', url: `/files/${name}` })
-const siblings = [file('a.png'), file('x.png'), file('clip.mp4'), file('other.html'), file('secret.png')]
+const siblings = [file('a.png'), file('x.png'), file('clip.mp4'), file('other.html'), file('secret.png'), file('my chart.png')]
 const resolve = (reference: string) => siblingReference(siblings, reference) && `data:${reference}`
 
 describe('sibling references', () => {
@@ -12,12 +12,15 @@ describe('sibling references', () => {
     expect(siblingReference(siblings, './sub/x.png')).toBe(siblings[1])
     expect(siblingReference(siblings, ' clip.mp4 ')).toBe(siblings[2])
     expect(siblingReference(siblings, 'other.html#top')).toBe(siblings[3])
+    expect(siblingReference(siblings, 'shots/my%20chart.png')).toBe(siblings[5])
+    expect(siblingReference(siblings, 'my%2.png')).toBeUndefined()
   })
 
   it('name nothing for an unknown name, a climb out, a path from the root or another host', () => {
     expect(siblingReference(siblings, 'b.png')).toBeUndefined()
     expect(siblingReference(siblings, '../other_record/secret.png')).toBeUndefined()
     expect(siblingReference(siblings, 'sub/../secret.png')).toBeUndefined()
+    expect(siblingReference(siblings, '%2E%2E/secret.png')).toBeUndefined()
     expect(siblingReference(siblings, '/abs/secret.png')).toBeUndefined()
     expect(siblingReference(siblings, '//evil.test/secret.png')).toBeUndefined()
     expect(siblingReference(siblings, 'https://evil.test/secret.png')).toBeUndefined()

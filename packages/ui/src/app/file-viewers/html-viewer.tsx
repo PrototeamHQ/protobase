@@ -2,7 +2,7 @@ import { PageSkeleton } from './page-skeleton'
 import type { FileViewerProps } from './file-viewer'
 import { HtmlFrame } from './html-frame'
 import { useFileText } from './use-file-text'
-import { useFollowFrameLink } from './use-follow-frame-link'
+import { useFrameLinks } from './use-frame-links'
 import { useSiblingPage } from './use-sibling-page'
 
 /**
@@ -11,9 +11,9 @@ import { useSiblingPage } from './use-sibling-page'
  */
 export const HtmlViewer = ({ file, siblings }: FileViewerProps) => {
   const read = useFileText(file)
-  const page = useSiblingPage(read.data, siblings)
-  const follow = useFollowFrameLink()
+  const { address, follow } = useFrameLinks()
+  const page = useSiblingPage(read.data, siblings, address)
   if (read.error) throw read.error
-  if (!page) return <PageSkeleton />
+  if (!page) return <PageSkeleton name={file.name} />
   return <HtmlFrame html={page.html} title={file.name} links={page.links} onLink={follow} />
 }

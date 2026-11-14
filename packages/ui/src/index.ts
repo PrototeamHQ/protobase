@@ -21,7 +21,7 @@ export type { FieldWidget, FieldWidgetProps, FieldWidgetEditorProps } from './ap
 export { fileNamed, type FileViewer, type FileViewerProps, type SiblingFile, type ViewedFile } from './app/file-viewers/file-viewer'
 export { HtmlFrame } from './app/file-viewers/html-frame'
 export type { FrameScripts } from './app/file-viewers/frame-policy'
-export { siblingPage, type FrameLink, type SiblingPage } from './app/file-viewers/sibling-page'
+export { siblingPage, type FrameLink, type LinkAddress, type SiblingPage } from './app/file-viewers/sibling-page'
 export { useSiblingPage } from './app/file-viewers/use-sibling-page'
 export { useFileText, FileReadError } from './app/file-viewers/use-file-text'
 export { usePlugin, type PluginInfo } from './plugins/plugin-context'

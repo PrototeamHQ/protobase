@@ -1038,7 +1038,9 @@
   "app/file-viewers": {
     "download": "Downloaden",
     "backToRecord": "Terug naar het record",
-    "couldNotShow": "{name} kan hier niet worden getoond. Download het om het te openen."
+    "couldNotShow": "{name} kan hier niet worden getoond. Download het om het te openen.",
+    "noPreview": "Er is hier geen voorbeeld van {name}.",
+    "loading": "{name} wordt geladen"
   },
   "app/gallery": {
     "couldNotLoad": "Kon de foto’s niet laden",

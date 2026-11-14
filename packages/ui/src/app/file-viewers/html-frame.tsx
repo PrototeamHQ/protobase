@@ -8,6 +8,12 @@ import type { FrameLink } from './sibling-page'
 
 const noLinks: readonly never[] = []
 
+// Scrolls the app's page to the place `top` pixels down the page in `frame`, below the bars that stay at the top.
+const scrollToPlace = (frame: HTMLIFrameElement, top: number) => {
+  const bars = Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0
+  window.scrollTo({ top: frame.getBoundingClientRect().top + window.scrollY + top - bars })
+}
+
 type HtmlFrameProps<File extends ViewedFile> = {
   /** The page, a whole HTML document or a fragment. */
   html: string
@@ -48,6 +54,7 @@ export const HtmlFrame = <File extends ViewedFile>({ html, title, links = noLink
       const message = frameMessage(event, frame.current?.contentWindow, links.length)
       if (message?.kind === 'height') setHeight(message.height)
       if (message?.kind === 'link') onLink?.(links[message.index]!, { newTab: message.newTab })
+      if (message?.kind === 'scroll' && frame.current) scrollToPlace(frame.current, message.top)
     }
     window.addEventListener('message', receive)
     return () => window.removeEventListener('message', receive)
@@ -66,6 +73,8 @@ export const HtmlFrame = <File extends ViewedFile>({ html, title, links = noLink
       title={title}
       sandbox={frameSandbox}
       referrerPolicy="no-referrer"
+      // A video's own fullscreen control; a page that does not run its scripts can ask for nothing else.
+      allow={scripts === 'bridge' ? 'fullscreen' : undefined}
       srcDoc={shownAgain > 1 ? '' : shown.srcDoc}
       onLoad={loaded}
       className={cn('block w-full border-0 bg-white', height === undefined && 'min-h-[60vh]', className)}

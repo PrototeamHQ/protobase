@@ -11,6 +11,8 @@ describe('frame messages', () => {
     expect(frameMessage(from(frame, { protobase: 'html-frame', link: 0, newTab: true }), frame, 2)).toEqual({ kind: 'link', index: 0, newTab: true })
     expect(frameMessage(from(frame, { protobase: 'html-frame', height: 412.5 }), frame, 0)).toEqual({ kind: 'height', height: 413 })
     expect(frameMessage(from(frame, { protobase: 'html-frame', height: 1e12 }), frame, 0)).toEqual({ kind: 'height', height: 100_000 })
+    expect(frameMessage(from(frame, { protobase: 'html-frame', scroll: 640.4 }), frame, 0)).toEqual({ kind: 'scroll', top: 640 })
+    expect(frameMessage(from(frame, { protobase: 'html-frame', scroll: -5 }), frame, 0)).toEqual({ kind: 'scroll', top: 0 })
   })
 
   it('ignore another window, an address, a path or an index the frame has no link for', () => {
@@ -25,6 +27,8 @@ describe('frame messages', () => {
       { protobase: 'html-frame', link: '/admin/users' },
       { protobase: 'html-frame', navigate: '/admin/users' },
       { protobase: 'html-frame', height: Number.POSITIVE_INFINITY },
+      { protobase: 'html-frame', scroll: Number.NaN },
+      { protobase: 'html-frame', scroll: '#top' },
       { link: 0 },
       '/admin/users',
       null,

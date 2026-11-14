@@ -7,7 +7,7 @@ import { PageSkeleton } from './page-skeleton'
 const HtmlViewer = lazy(() => import('./html-viewer').then((module) => ({ default: module.HtmlViewer })))
 
 const LazyHtmlViewer = (props: FileViewerProps) => (
-  <Suspense fallback={<PageSkeleton />}>
+  <Suspense fallback={<PageSkeleton name={props.file.name} />}>
     <HtmlViewer {...props} />
   </Suspense>
 )

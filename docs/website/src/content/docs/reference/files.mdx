@@ -157,7 +157,7 @@ Such files download as attachments. A [viewer](#viewers) opens them in the admin
 
 ## Viewers
 
-A plugin, or the app's own `protobase.ui.tsx`, registers a viewer for a media type (see [File viewers](/reference/plugins/#file-viewers)). A file field's link to a file of that type, on the record page and its form, then opens the viewer on the record's address with `?file=<field>`, such as `/attachments/7?file=file`, in place of a download: a bar with the way back to the record, the file's name and size and a Download button, and the viewer below it. A file without a viewer links to its download as before.
+A plugin, or the app's own `protobase.ui.tsx`, registers a viewer for a media type (see [File viewers](/reference/plugins/#file-viewers)). A file field's link to a file of that type, on the record page and its form, then opens the viewer on the record's address with `?file=<field>`, such as `/attachments/7?file=file`, in place of a download: a bar with the way back to the record, the file's name and size and a Download button, and the viewer below it. A file without a viewer links to its download as before; its own address with `?file=<field>`, such as a page's link to it, shows the bar and says there is no preview.
 
 The viewer gets the file and its **siblings**: the record's other files, and the files of the records of the same resource that point at the same records through filterable relations, read in one list call of at most 100 records. For attachments that each point at a task, the siblings of one are the other attachments of that task, so a report can show the images it names by file name.
 
@@ -172,8 +172,8 @@ HTML files open in a sandboxed frame that cannot reach your app. Relative images
 Protobase brings this viewer itself, for `text/html`, the type an upload named `.html` or `.htm` is stored as; an app or plugin that registers its own `text/html` viewer replaces it. The page shows below the file's bar, as tall as its content, so the app's page scrolls:
 
 - The frame has an opaque origin: the page cannot read the app's cookies or storage, call its API as the signed-in user, or navigate the app's window. It loads nothing from the network, so an image or stylesheet from another site stays blank, and it submits no forms.
-- A relative `src`, `poster`, `srcset` candidate, `<link href>` or CSS `url()` in a `style` attribute or `<style>` element that names a sibling by its file name, such as `shots/before.png` or `./clip.webm`, shows that sibling. The admin app reads each such sibling once, with the signed-in user's rights, and hands it to the page as its bytes. A reference to no sibling, a path from the root or one that climbs out with `..` stays as written, so it shows nothing.
-- A link to a sibling opens it on its record's address with `?file=<field>` when it has a viewer, such as another HTML page, and downloads it in a new tab otherwise; a middle or modified click opens it in a new tab. A link to an `http` or `https` address opens it in a new tab that cannot reach back to the app. Any other link, such as `javascript:`, does nothing.
+- A relative `src`, `poster`, `srcset` candidate, `<link href>` or CSS `url()` in a `style` attribute or `<style>` element that names a sibling by its file name, such as `shots/before.png` or `./clip.webm`, shows that sibling. The admin app reads each such sibling once, with the signed-in user's rights, and hands it to the page as its bytes. A name with escapes, such as `my%20chart.png`, matches `my chart.png`. A reference to no sibling, a path from the root or one that climbs out with `..` stays as written, so it shows nothing, and such a link becomes plain text.
+- A link to a sibling opens it on its record's address with `?file=<field>`, the address the link shows: in its viewer, such as another HTML page, or beside its Download button when it has none. A middle or modified click opens it in a new tab. A link to an `http` or `https` address opens it in a new tab that cannot reach back to the app. A link to a place on the page, such as `#results`, scrolls the app's page to it and moves the focus there. Any other link, such as `javascript:`, does nothing.
 
 <gap>An HTML file's siblings over 10 MB, such as a long video, cannot show in its page because reading larger files in the app is not implemented.</gap> <gap>A `url()` inside a linked stylesheet cannot name a sibling because rewriting stylesheet files is not implemented.</gap>
 
@@ -199,7 +199,7 @@ const ReportViewer = ({ file, siblings }: FileViewerProps) => {
 | `onLink` | `(link, { newTab })`, called when the page's link to `link` is clicked; `newTab` for a middle or modified click. Nothing else in the page navigates. |
 | `scripts` | `'bridge'` (the default) runs none of the page's scripts. `'trusted-page'` runs its inline scripts, for a page your viewer generates itself; the frame keeps its opaque origin and still loads nothing from the network. |
 
-`useSiblingPage(html, siblings)` gives `{ html, links }` once `html` is there and the siblings it names are read, and `undefined` until then. `siblingPage(html, siblings, contents)` does the same rewriting without reading, with each sibling's `data:` URL in `contents` by its `uri`.
+`useSiblingPage(html, siblings, address?)` gives `{ html, links }` once `html` is there and the siblings it names are read, and `undefined` until then. `address(link)` gives the address each link shows, for the browser's link preview and copy link, such as the sibling's own viewer address; without one a link keeps the address its page gave it. `siblingPage(html, siblings, contents, address?)` does the same rewriting without reading, with each sibling's `data:` URL in `contents` by its `uri`.
 
 ### Image and PDF viewers
 

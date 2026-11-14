@@ -42,14 +42,16 @@ const tasksView = view<typeof tasks>('tasks').title((r) => r.title).names({ sing
 // Each link of a page sits in a 40 px slot from its top, where a story clicks it.
 const slots = `<style>body { margin: 0; font: 16px sans-serif } .slot { display: block; height: 40px } img, video { display: block }</style>`
 
-// Its links, then a 300 px image and a 400 px video: 860 px tall once both are drawn, 310 px when neither is.
+// Its links, then a 300 px image and a 400 px video: 900 px tall once both are drawn, 350 px when neither is.
 const report = `<!doctype html><html><head>${slots}</head><body>
 <a class="slot" href="other.html">Other page</a>
 <a class="slot" href="other.html">Other page in a new tab</a>
 <a class="slot" href="notes.txt">Notes</a>
 <a class="slot" href="https://site.test/page" target="_blank">Site</a>
+<a class="slot" href="#end">To the end</a>
 <img src="shots/a.png" alt="">
 <video src="./clip.webm" preload="auto" muted></video>
+<span id="end"></span>
 </body></html>`
 
 const other = `<!doctype html><html><head>${slots}</head><body><script>parent.postMessage('ran: the other page', '*')</script><img src="a.png" alt=""></body></html>`
@@ -161,7 +163,12 @@ export const DrawsItsFilesAndFollowsALink: StoryObj = {
     const frame = await frameOf(canvasElement, 'report.html')
     expect(frame).toHaveAttribute('sandbox', 'allow-scripts')
     expect(frame).not.toHaveAttribute('src')
-    await tallerThan(frame, 850)
+    await tallerThan(frame, 890)
+
+    // The app's page scrolls to a place on the frame's page, as the frame itself does not.
+    await clickSlot(frame, 4)
+    await waitFor(() => expect(window.scrollY).toBeGreaterThan(0))
+    window.scrollTo({ top: 0 })
 
     await clickSlot(frame, 0)
     expect(await canvas.findByRole('heading', { name: /^other\.html/ })).toBeTruthy()
@@ -170,7 +177,7 @@ export const DrawsItsFilesAndFollowsALink: StoryObj = {
   },
 }
 
-/** A middle click opens a sibling's page in a new tab; a file with no viewer and an outside page open in new tabs that cannot reach the app. */
+/** A middle click opens a sibling's page in a new tab, and an outside page opens in a new tab that cannot reach the app. */
 export const OpensOtherLinksInNewTabs: StoryObj = {
   tags: ['play', 'mouse', 'sealed-frames'],
   render: () => <Files path="/attachments/1?file=file" />,
@@ -184,20 +191,33 @@ export const OpensOtherLinksInNewTabs: StoryObj = {
     }
     try {
       const frame = await frameOf(canvasElement, 'report.html')
-      await tallerThan(frame, 850)
+      await tallerThan(frame, 890)
       await clickSlot(frame, 1, 'middle')
-      await clickSlot(frame, 2)
       await clickSlot(frame, 3)
-      await waitFor(() => expect(opened).toHaveLength(3))
+      await waitFor(() => expect(opened).toHaveLength(2))
       expect(opened).toEqual([
         [expect.stringMatching(/\/attachments\/2\?file=file$/), '_blank', 'noopener,noreferrer'],
-        ['data:text/plain,notes', '_blank', 'noopener,noreferrer'],
         ['https://site.test/page', '_blank', 'noopener,noreferrer'],
       ])
       expect(canvas.getByRole('heading', { name: /^report\.html/ })).toBeTruthy()
     } finally {
       window.open = open
     }
+  },
+}
+
+/** A link to a sibling no viewer shows opens its file page, which says so beside its download. */
+export const OpensASiblingWithoutAViewer: StoryObj = {
+  tags: ['play', 'mouse', 'sealed-frames'],
+  render: () => <Files path="/attachments/1?file=file" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const frame = await frameOf(canvasElement, 'report.html')
+    await tallerThan(frame, 890)
+    await clickSlot(frame, 2)
+    expect(await canvas.findByRole('heading', { name: /^notes\.txt/ })).toBeTruthy()
+    expect(canvas.getByText('There is no preview for notes.txt here.')).toBeTruthy()
+    for (const download of canvas.getAllByRole('link', { name: 'Download' })) expect(download).toHaveAttribute('href', 'data:text/plain,notes')
   },
 }
 

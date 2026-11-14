@@ -1038,7 +1038,9 @@
   "app/file-viewers": {
     "download": "Download",
     "backToRecord": "Back to the record",
-    "couldNotShow": "{name} could not be shown here. Download it to open it."
+    "couldNotShow": "{name} could not be shown here. Download it to open it.",
+    "noPreview": "There is no preview for {name} here.",
+    "loading": "Loading {name}"
   },
   "app/gallery": {
     "couldNotLoad": "Could not load the photos",
