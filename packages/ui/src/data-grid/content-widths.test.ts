@@ -57,6 +57,13 @@ describe('fitColumns', () => {
     expect(fitColumns([drawn], rows)[0]).toBe(drawn)
   })
 
+  it('fixes a drawn column with a fit at its widest row, within its minimum and maximum', () => {
+    const drawn = spec('city', 'text', { render: () => null, minWidth: 50, maxWidth: 300, fit: (row) => String(row.name).length })
+    expect(fitColumns([drawn], [rows[1]!])[0]).toMatchObject({ fixed: true, width: 50 })
+    expect(fitColumns([drawn], [{ id: '3', name: 'x'.repeat(120) }, rows[1]!])[0]).toMatchObject({ fixed: true, width: 120 })
+    expect(fitColumns([drawn], rows.map((row) => ({ ...row, name: 'x'.repeat(400) })))[0]).toMatchObject({ fixed: true, width: 300 })
+  })
+
   it("lets an id column's minimum fit its longest code, up to a cap", () => {
     expect(fitted.code?.minWidth).toBe(Math.max(contentWidth(columns[4]!, rows), headerWidth('code', false)))
     const long = byId(fitColumns([spec('code', 'id')], [{ id: '1', code: 'X'.repeat(80) }]))

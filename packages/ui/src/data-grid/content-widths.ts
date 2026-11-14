@@ -12,7 +12,7 @@ export const badgeWidth = (labels: string[]) => Math.ceil(Math.max(0, ...labels.
 /** Pixels per character: body text, the small monospace of identifiers, and tabular numbers. */
 const charWidth = { body: 7.5, mono: 7.2, numeric: 8 }
 
-const cellPadding = 24
+export const cellPadding = 24
 
 // Room for the avatar of a user or the icon of a file before its name
 const iconRoom = 24
@@ -52,14 +52,21 @@ const fitted = (spec: ColumnSpec, content: number): ColumnSpec => {
   return { ...weighted, minWidth: Math.max(headerWidth(spec.header, spec.sortable ?? false), Math.min(content, maxIdWidth)) }
 }
 
+/** A column drawn by its own `render` and sized by its `fit`: its widest row's width, within its minimum and maximum. */
+const fittedRender = (spec: ColumnSpec, rows: GridRow[]): ColumnSpec => {
+  if (!spec.fit) return spec
+  const widest = Math.max(0, ...rows.map(spec.fit))
+  return { ...spec, fixed: true, width: clamp(widest, spec.minWidth ?? 0, spec.maxWidth ?? Infinity) }
+}
+
 /**
  * Columns sized by the values in `rows`: values that must stay whole get their widest value's width, text a share of the
  * leftover space as large as its widest value, and the title column the largest share. Columns drawn by their own
- * `render` keep their width, as their content cannot be estimated.
+ * `render` keep their width, as their content cannot be estimated, unless their `fit` says what each row needs.
  */
 export const fitColumns = (specs: ColumnSpec[], rows: GridRow[]): ColumnSpec[] => {
   if (rows.length === 0) return specs
-  const sized = specs.map((spec) => (spec.render ? spec : fitted(spec, contentWidth(spec, rows))))
+  const sized = specs.map((spec) => (spec.render ? fittedRender(spec, rows) : fitted(spec, contentWidth(spec, rows))))
   const shares = sized.filter((spec, index) => !spec.fixed && !spec.title && !specs[index]!.render).map((spec) => spec.width)
   const largest = Math.max(0, ...shares)
   return sized.map((spec, index) => (spec.title && !specs[index]!.render ? { ...spec, width: Math.max(spec.width, largest) } : spec))

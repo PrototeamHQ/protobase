@@ -58,10 +58,15 @@ const lever = [
 
 const attention = page('attention', Page({ title: 'Attention', children: Table({ title: 'Keep an eye on', resource: 'holds', columns: ['reason'], button: lever }) }))
 
+// A label the column fits whole, and one past the widest a button grows
+const shortLabel = 'Answer on its page'
+const longLabel = 'Read the whole conversation about the wording before answering it'
+
 const rows = () => ({
   tasks: [
     { id: 1, title: 'Ship the row buttons' },
     { id: 2, title: 'Settle the label' },
+    { id: 3, title: 'Word the buttons' },
   ],
   holds: [
     { id: 1, task_id: 1, reason: 'Label wording', verb: 'Answer', blocker_id: 2 },
@@ -69,6 +74,8 @@ const rows = () => ({
     { id: 3, task_id: 2, reason: 'The build broke', verb: null, blocker_id: null, report_url: 'https://errors.example/e/42' },
     { id: 4, task_id: 2, reason: 'Read the run', verb: 'Read its chat', blocker_id: 1, tab: 'Chat' },
     { id: 5, task_id: 2, reason: 'Report at a plain address', verb: null, blocker_id: null, report_url: 'http://errors.example/e/43' },
+    { id: 6, task_id: 3, reason: 'Pick the wording', verb: shortLabel, blocker_id: 1, tab: 'Review' },
+    { id: 7, task_id: 3, reason: 'Hear everyone out', verb: longLabel, blocker_id: 1, tab: 'Review' },
   ],
 })
 
@@ -168,3 +175,36 @@ export const PerRowOnPhoneChecks: StoryObj = {
   },
 }
 
+
+const isCut = (link: HTMLElement) => {
+  const label = link.querySelector<HTMLElement>('[title]')!
+  return label.scrollWidth > label.clientWidth
+}
+
+/** A label that fits shows whole; a longer one shortens, and its link still names it whole, on hover too. */
+const checkLabels = async (canvasElement: HTMLElement) => {
+  const canvas = within(canvasElement)
+  const short = await canvas.findByRole('link', { name: shortLabel })
+  expect(isCut(short)).toBe(false)
+  const long = canvas.getByRole('link', { name: longLabel })
+  expect(isCut(long)).toBe(true)
+  expect(long.querySelector('[title]')!.getAttribute('title')).toBe(longLabel)
+  for (const link of [short, long]) expect(link.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth)
+  await canvas.findAllByText('Hear everyone out')
+}
+
+/** On a wide screen the button column grows to its labels, up to a limit. */
+export const LabelsChecks: StoryObj = {
+  ...OnPage,
+  name: 'Holds in a Table on a page, with short and long labels (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => checkLabels(canvasElement),
+}
+
+/** On a phone the buttons under each row's text do the same, beside the table's columns. */
+export const LabelsOnPhoneChecks: StoryObj = {
+  ...OnPage,
+  name: 'Holds in a Table on a page, with short and long labels, on a phone (checks)',
+  tags: ['play', 'touch', '!dev'],
+  play: async ({ canvasElement }) => checkLabels(canvasElement),
+}

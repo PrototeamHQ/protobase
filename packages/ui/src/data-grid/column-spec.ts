@@ -19,6 +19,10 @@ export type ColumnSpec = {
   width: number
   /** Pixels the column never shrinks below, for values that must stay whole such as identifiers. */
   minWidth?: number
+  /** Pixels the column never grows past when it is sized by `fit`. */
+  maxWidth?: number
+  /** For a column drawn by its own `render`: the pixels a row's cell needs, so the column takes its widest row's width. */
+  fit?: (row: GridRow) => number
   /** A fixed pixel width instead of a share of the leftover space, for values of known length such as timestamps. */
   fixed?: boolean
   sortable?: boolean
