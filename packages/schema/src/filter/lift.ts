@@ -15,6 +15,15 @@ const call = (name: string, args: Operand[], span: Node['span']): Generic => ({ 
 
 const text = (value: string, span: Node['span']): Operand => ({ kind: 'string', value, span })
 
+// The parent page's arguments, each written only with the ones before it, as `related()` reads them
+const relatedPage = ({ orderBy, limit, pageToken, span }: RelatedFilter): Operand[] => {
+  if (orderBy === undefined && limit === undefined) return []
+  const order = text(orderBy ?? '', span)
+  if (limit === undefined) return [order]
+  const count: Operand = { kind: 'number', value: limit, raw: String(limit), span }
+  return pageToken === undefined ? [order, count] : [order, count, text(pageToken, span)]
+}
+
 const value = (node: FilterValue): Operand => {
   if (node.kind !== 'now') return node
   const now: Operand = { kind: 'call', name: 'now', args: [], span: node.span }
@@ -58,7 +67,7 @@ export const lift = (node: Node, options: LiftOptions = {}): Generic => {
       if (options.expand) return { kind: 'not', arg: { kind: 'present', left: member(node.field, node.span), span: node.span }, span: node.span }
       return call('isNull', [member(node.field, node.span)], node.span)
     case 'related':
-      return { kind: 'call', name: 'related', args: [member(node.field, node.span), { kind: 'member', path: [node.resource, node.key], span: node.span }, ...(node.filter ? [next(node.filter)] : [])], span: node.span }
+      return { kind: 'call', name: 'related', args: [member(node.field, node.span), { kind: 'member', path: [node.resource, node.key], span: node.span }, ...(node.filter ? [next(node.filter)] : []), ...relatedPage(node)], span: node.span }
   }
 }
 

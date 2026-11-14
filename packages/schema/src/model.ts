@@ -1984,8 +1984,10 @@ export type FilterOf<F, Extra = never> =
   | Extra
 
 /**
- * `related(field, resource.key, (filter))`: the field holds the `key` of a record of `resource` the caller may list that
- * meets the filter. A list-style read of the API resolves it, so a parsed filter may hold it and a checked one never does.
+ * `related(field, resource.key, (filter), "order_by", limit, "page_token")`: the field holds the `key` of a record of
+ * `resource` the caller may list that meets the filter, among the page of them the order, limit and token select; a
+ * JSON `key` holds a list of such keys. A list-style read of the API resolves it, so a parsed filter may hold it and a
+ * checked one never does.
  */
 export type RelatedFilter = {
   /** Which filter this is. */
@@ -1998,6 +2000,12 @@ export type RelatedFilter = {
   key: string
   /** What its records must meet; every record the caller may list without one. */
   filter?: FilterExpr
+  /** The order its records are read in, as a list's `order_by`; empty for the list's default. */
+  orderBy?: string
+  /** How many of them are read in that order, as a list's `page_size`; all without one. */
+  limit?: number
+  /** The page of them to read, a `next_page_token` of the list of `resource` with the same filter and order. */
+  pageToken?: string
   /** Where it stands in the filter text. */
   span: Span
 }

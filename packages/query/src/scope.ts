@@ -1,7 +1,8 @@
 import { sql, type Expression, type SqlBool } from 'kysely'
-import type { CheckedFilter, FieldModel, ResourceModel } from '@protobase/schema'
+import type { CheckedFilter, FieldModel, ResourceModel, SortSpec } from '@protobase/schema'
 import { columnRef } from './columns'
 import { QueryError } from './errors'
+import type { SortKey } from './sort'
 
 /**
  * Who is asking, and which rows they may see.
@@ -22,10 +23,24 @@ export type Scope = { tenantValue?: string | number; tenantValues?: readonly (st
 /**
  * A relation whose parent the caller must read for a row to be seen: `field` of the full model, and the parent's full
  * model, key and the caller's scope on it; without `parent` the caller reads no parent, so only a null `field` is seen.
- * With `related` it is a `related()` term of the caller's filter instead: a null `field` is not seen, and `filter`,
- * checked against `model`, the resource as the caller sees it, narrows what is read.
+ * With `related` it is a `related()` term of the caller's filter instead: a null `field` is not seen, `filter`, checked
+ * against `model`, the resource as the caller sees it, narrows what is read, and `page` keeps to one page of it. A
+ * parent's `items` says its `key` is a JSON list of keys, read as that Postgres type.
  */
-export type ParentRead = { field: FieldModel; parent?: { model: ResourceModel; key: FieldModel; scope: Scope }; related?: { model: ResourceModel; filter?: CheckedFilter } }
+export type ParentRead = {
+  field: FieldModel
+  parent?: { model: ResourceModel; key: FieldModel; items?: KeyItemType; scope: Scope }
+  related?: { model: ResourceModel; filter?: CheckedFilter; page?: RelatedPage }
+}
+
+/** The Postgres types a JSON list's keys are read as. */
+export type KeyItemType = 'integer' | 'bigint' | 'uuid' | 'text'
+
+/**
+ * One page of a `related()` term's records, as a list reads it: `sort` as the caller asked for it, `keys` that sort with
+ * the primary key breaking ties, at most `limit` rows, after the row whose sort values are `after` when there is one.
+ */
+export type RelatedPage = { sort?: SortSpec; keys: SortKey[]; limit?: number; after?: Array<string | null> }
 
 export const fullModelOf = (model: ResourceModel, scope?: Scope) => scope?.fullModel ?? model
 
