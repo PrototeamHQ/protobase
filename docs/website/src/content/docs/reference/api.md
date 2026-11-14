@@ -143,7 +143,7 @@ The queue is an `AuditQueue`, `{ publish(event): Promise<void> }`, the default e
 
 ## Filters
 
-`filter` and `order_by` are AIP-160 and AIP-132 text, checked against the model (filterable and sortable fields only). Functions: `in(field, v, ...)`, `search("text")` and bare words (every word, ignoring case, anywhere inside one of the resource's search fields, so `port` finds "Portfolio"; `%`, `_` and `\` are literal; a [`digitsEnd`](/reference/data-config/#resource) field matches only the end of its digits), `similar(field, "text")`, `regex(field, "pattern")`, `isNull(field)`, `now()` with offsets such as `now() - 7d`, and [`related(field, resource.key, (filter))`](#filtering-through-related-records). A filter is capped at 10,000 characters in a query string and 200,000 in a `:search` body. A proxy in front of the API can refuse a long URL sooner with a `431`, counting the headers too: Protobase Cloud refused about 8,000 characters. So send a long filter to `:search`, as `client.list` does when its query string passes 4,000 characters.
+`filter` and `order_by` are AIP-160 and AIP-132 text, checked against the model (filterable and sortable fields only). Functions: `in(field, v, ...)`, `search("text")` and bare words (every word, ignoring case, anywhere inside one of the resource's search fields, so `port` finds "Portfolio"; `%`, `_` and `\` are literal; a [`digitsEnd`](/reference/data-config/#resource) field matches only the end of its digits), `similar(field, "text")`, `regex(field, "pattern")`, `isNull(field)`, `now()` with offsets such as `now() - 7d`, and [`related(field, resource.key, (filter), "order_by", limit, "page_token")`](#filtering-through-related-records). A filter is capped at 10,000 characters in a query string and 200,000 in a `:search` body. A proxy in front of the API can refuse a long URL sooner with a `431`, counting the headers too: Protobase Cloud refused about 8,000 characters. So send a long filter to `:search`, as `client.list` does when its query string passes 4,000 characters.
 
 ### Filtering through related records
 
@@ -157,12 +157,24 @@ preconditions related(task_id, tasks.id, (state != "done" AND related(id, object
 
 It works in the `filter` of a list, `:search`, `:seek`, `:facets`, `:aggregate`, `:series`, `:histogram` and `:map`, in `/api/v1` and in MCP's `list_records` and `count_records`, and `where.related('task_id', 'objective_tasks', 'task_id', where.eq('objective_id', 40))` builds it in code.
 
-- `field` is a filterable field of the resource read, and `key` one of `resource`. Both point at one resource: each is a relation to it, or its own single key. A null `field` does not match.
+- `field` is a filterable field of the resource read, and `key` one of `resource`. Both point at one resource: each is a relation to it, or its own single key, or `key` is a JSON list of its keys. A null `field` does not match.
 - It is a term ANDed at the top of the filter or of a subfilter. `NOT` and `OR` refuse it, as does anything else that takes a filter: access rules, role filters, a view's opening filter, events, subscriptions, workflow conditions and page conditions.
 - A filter holds at most 3 terms, those in subfilters included, and nests at most 2 levels.
 - It may do only what the caller could do in two steps, listing `resource` with the subfilter and then filtering with `in(field, ...)`: the [access](/reference/access/#related-records-in-filters) rules apply to both sides, and a resource the caller cannot list answers as one that does not exist.
-- The [scan guard](#safety) judges both tables. Besides `field` and the subfilter's columns, `key` needs a btree index under what the subfilter pins.
+- The [scan guard](#safety) judges both tables. Besides `field` and the subfilter's columns, `key` needs a btree index under what the subfilter pins, unless it is a JSON list, and the first field of `order_by` needs one as in a list of `resource`.
 - A [list across organizations](/reference/access/#lists-across-organizations) with a term reads the session's own organization alone, and so does the term.
+
+After the subfilter it can take the `order_by`, `limit` and `page_token` of a list of `resource`, each needing the one before it, so a child read keeps to the children of exactly the records one page of that list shows:
+
+```text
+task_claims   related(task_id, tasks.id, (state != "done"), "created_at desc", 20)
+task_claims   related(task_id, tasks.id, (state != "done"), "created_at desc", 20, "<next_page_token>")
+tasks         related(id, tasks.waits, (state != "done"), "created_at desc", 20)
+```
+
+- `order_by` is the list's AIP-132 text, `""` for its default order; `limit` is its `page_size`, a whole number from 1, capped at 500 as a page is; `page_token` is a `next_page_token` of the list of `resource` with the same subfilter and order, and with any other it is a `400` `invalid-cursor`. The subfilter is optional here too: `related(task_id, tasks.id, "created_at desc", 20)`.
+- `where.related(..., filter, { orderBy: 'created_at desc', limit: 20, pageToken })` builds it in code.
+- A JSON `key`, such as a task's `waits`, lists keys of the resource `field` points at: a record matches when its `field` is in the list of any record the term reads. A null, empty or non-list value adds no keys, and neither does an item that is no valid key, such as `"x"` among integer keys. It needs Postgres 16 or later, which tells a valid key from one that is not (`pg_input_is_valid`).
 
 ### Lists under a record
 

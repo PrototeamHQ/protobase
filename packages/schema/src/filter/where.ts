@@ -22,6 +22,21 @@ type Anything = {
   readonly $fields: Record<string, Field<any>>
 }
 
+/** @inline */
+type RelatedPage =
+  | {
+      /** The order the related records are read in, as a list's `order_by`; `''` for the list's default. */
+      orderBy: string
+    }
+  | {
+      /** The order the related records are read in, as a list's `order_by`; `''` for the list's default. */
+      orderBy: string
+      /** How many of them, in that order. */
+      limit: number
+      /** Which page of them, a `next_page_token` of their list. */
+      pageToken?: string
+    }
+
 const span: Span = { start: 0, end: 0 }
 const field = (name: string): FieldPath => ({ kind: 'field', path: name.split('.'), span })
 
@@ -98,10 +113,11 @@ export const createWhere = <R extends Source = Anything>() => {
       ({ kind: 'regex', field: field(name), pattern, span }) as FilterExpr,
     /**
      * The field holds the `key` of a record of `resource` the caller may list that meets `filter`, in a list-style read
-     * of the API: `related(task_id, objective_tasks.task_id, (objective_id = 40))`.
+     * of the API: `related(task_id, objective_tasks.task_id, (objective_id = 40))`. `page` keeps to one page of those
+     * records, as a list of `resource` reads it: `{ orderBy: 'created_at desc', limit: 10, pageToken }`.
      */
-    related: <K extends Fields<R>>(name: K, resource: string, key: string, filter?: FilterExpr): FilterExpr =>
-      ({ kind: 'related', field: field(name), resource, key, ...(filter && { filter }), span }),
+    related: <K extends Fields<R>>(name: K, resource: string, key: string, filter?: FilterExpr, page?: RelatedPage): FilterExpr =>
+      ({ kind: 'related', field: field(name), resource, key, ...(filter && { filter }), ...page, span }),
     /** Every filter holds; one filter is returned as it is, none throws. */
     and: (...args: FilterExpr[]) => group('and', args),
     /** At least one filter holds; one filter is returned as it is, none throws. */

@@ -18,6 +18,12 @@ describe('parsing related()', () => {
     'related(task_id, links.task_id)',
     'related(task_id, links.task_id, (objective_id = 40 AND state != "done")) AND note = "x"',
     'related(id, deps.depends_on_id, (type = "blocked-by" AND related(task_id, links.task_id, (objective_id = 40))))',
+    'related(task_id, links.task_id, (objective_id = 40), "created_at desc")',
+    'related(task_id, links.task_id, (objective_id = 40), "created_at desc", 2)',
+    'related(task_id, links.task_id, (objective_id = 40), "created_at desc", 2, "abc")',
+    'related(task_id, links.task_id, "", 10)',
+    'related(id, tasks.waits, (state = "open"), "rank", 5)',
+    'related(id, a.b, related(c, d.e, (x = 1), "x desc", 3), "y", 2, "t")',
   ])('prints %s back unchanged', (text) => {
     expect(printFilter(parsed(text))).toBe(text)
     expect(printFilter(parsed(printFilter(parsed(text))))).toBe(text)
@@ -29,8 +35,14 @@ describe('parsing related()', () => {
     'related(task_id, a.b.c)',
     'related("task_id", links.task_id)',
     'related(task_id, links.task_id, 5)',
-    'related(task_id, links.task_id, "x")',
     'related(task_id, links.task_id, (x = 1), (y = 2))',
+    'related(task_id, links.task_id, (x = 1), 5)',
+    'related(task_id, links.task_id, (x = 1), "x", "2")',
+    'related(task_id, links.task_id, (x = 1), "x", 0)',
+    'related(task_id, links.task_id, (x = 1), "x", -1)',
+    'related(task_id, links.task_id, (x = 1), "x", 1.5)',
+    'related(task_id, links.task_id, (x = 1), "x", 2, 3)',
+    'related(task_id, links.task_id, (x = 1), "x", 2, "t", "u")',
   ])('refuses %s, and never reads it as no filter', (text) => {
     const result = parseFilter(text)
     expect(result.ok).toBe(false)
@@ -41,7 +53,19 @@ describe('parsing related()', () => {
     expect(parseFilter('nope(x)').errors[0]!.hint).toContain('related')
   })
 
+  it("reads the parent's order, limit and page token", () => {
+    expect(parsed('related(task_id, links.task_id, (objective_id = 40), "created_at desc", 2, "abc")')).toMatchObject({ kind: 'related', orderBy: 'created_at desc', limit: 2, pageToken: 'abc' })
+    expect(parsed('related(task_id, links.task_id, "rank")')).toMatchObject({ kind: 'related', orderBy: 'rank' })
+    expect(parsed('related(task_id, links.task_id, "rank")')).not.toHaveProperty('filter')
+  })
+
+  it('keeps a token with its quotes and backslashes', () => {
+    const term = where.related('task_id', 'links', 'task_id', undefined, { orderBy: 'a', limit: 1, pageToken: 'x"y\\z' })
+    expect(parsed(printFilter(term))).toMatchObject({ pageToken: 'x"y\\z' })
+  })
+
   it('where.related prints the same filter', () => {
+    expect(printFilter(where.related('task_id', 'links', 'task_id', where.eq('objective_id', 40), { orderBy: 'created_at desc', limit: 2, pageToken: 'abc' }))).toBe('related(task_id, links.task_id, (objective_id = 40), "created_at desc", 2, "abc")')
     expect(printFilter(where.related('task_id', 'links', 'task_id', where.eq('objective_id', 40)))).toBe('related(task_id, links.task_id, (objective_id = 40))')
     expect(printFilter(where.related('task_id', 'links', 'task_id'))).toBe('related(task_id, links.task_id)')
   })

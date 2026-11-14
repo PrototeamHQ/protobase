@@ -4,9 +4,10 @@ import { relatedErrors, relatedTarget, splitRelated } from '@protobase/schema/in
 import { filterProblem } from './filter-input'
 import { HttpProblem } from './problem'
 import { readScope } from './read-scope'
+import { keyItemType, termPage } from './related-term-page'
 import { ownScope, requestAccess, type RequestAccess } from './request-access'
 
-const usage = 'Use related(field, resource.field, (filter)), with relations to one resource on both sides'
+const usage = 'Use related(field, resource.field, (filter)), with relations to one resource on both sides, or a JSON list of its keys as the second'
 
 // The same answer whether the resource does not exist or is hidden, whether its key is or the two fields do not meet,
 // and for each the same as a field of the filter that does not exist: a refusal tells nothing of what is there.
@@ -34,7 +35,8 @@ export const listAccess = async (access: RequestAccess, resource: string) => {
   return via?.resolved.operations.list ? via : undefined
 }
 
-// A term as one more read of the scope: the caller's list of the resource, in their own organization, and nothing else.
+// A term as one more read of the scope: the caller's list of the resource, in their own organization, on the page it
+// names, and nothing else. A JSON `key` lists keys of the resource `field` points at, so only `field` names it.
 const relatedRead = async (access: RequestAccess, model: ResourceModel, term: RelatedFilter): Promise<ParentRead> => {
   const via = await listAccess(access, term.resource)
   if (!via) throw unknownTarget(term)
@@ -43,13 +45,17 @@ const relatedRead = async (access: RequestAccess, model: ResourceModel, term: Re
   const key = checkedField(via.model, { kind: 'field', path: [term.key], span: term.span }, term.span)
   if (key.errors) throw unknownTarget(term)
   const target = relatedTarget(model, field.field)
-  if (target === undefined || target !== relatedTarget(via.model, key.field)) throw unknownTarget(term)
+  const list = key.field.type === 'json'
+  const items = list && target !== undefined ? keyItemType(access.deps.registry.find(target)) : undefined
+  if (target === undefined || (list ? !items : target !== relatedTarget(via.model, key.field))) throw unknownTarget(term)
   const { filter, parents } = await checkedTerms(via, via.model, term.filter)
   const own = ownScope(via)
+  const scope = { ...own, parents: [...(own.parents ?? []), ...parents] }
+  const page = termPage(via.model, term, filter, scope)
   return {
     field: access.full.fields[field.field.name]!,
-    parent: { model: via.full, key: via.full.fields[key.field.name]!, scope: { ...own, parents: [...(own.parents ?? []), ...parents] } },
-    related: { model: via.model, ...(filter && { filter }) },
+    parent: { model: via.full, key: via.full.fields[key.field.name]!, ...(items && { items }), scope },
+    related: { model: via.model, ...(filter && { filter }), ...(page && { page }) },
   }
 }
 
