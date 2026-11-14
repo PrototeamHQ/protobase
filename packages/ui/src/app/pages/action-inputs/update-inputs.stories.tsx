@@ -13,7 +13,7 @@ export default meta
 
 const session = createStaticSession('story-token', { id: 'story', email: 'sam@veldhuis.example', name: 'Sam Veldhuis', role: 'admin' })
 
-const renumber: ActionModel = { name: 'renumber', label: 'Renumber', bulk: false, inputs: [{ name: 'number', kind: 'text', label: 'Number', required: true }], run: { kind: 'update', values: { number: '{number}' } } }
+const renumber: ActionModel = { name: 'renumber', label: 'Renumber', bulk: false, inputs: [{ name: 'number', kind: 'text', label: 'Number', required: true }], run: { kind: 'update', values: { number: '{{number}}' } } }
 
 const views: ViewModel[] = salesViews.map((view) => (view.resource === 'orders' ? { ...view, actions: [...view.actions, renumber] } : view))
 
