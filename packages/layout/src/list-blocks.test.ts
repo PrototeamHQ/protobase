@@ -1,6 +1,6 @@
 import type { ResourceModel } from '@protobase/schema'
 import { describe, expect, it } from 'vitest'
-import { Field, Page, RecordCard, Table } from './blocks'
+import { Field, Link, Page, RecordCard, Table } from './blocks'
 import { blockSpecs } from './block-specs'
 import { pageFindings } from './check-page'
 import { structureProblems } from './check-structure'
@@ -109,6 +109,12 @@ describe('list blocks', () => {
     expect(findings(claim(ReferenceField({ source: 'worker', reference: 'tasks' }))).problems).toEqual([
       '<Page> › <RecordCard resource="tasks"> › <ReferenceManyField reference="task_claims"> › <RecordsIterator> › <ReferenceField reference="tasks" source="worker">: source: "worker" points at workers, not tasks',
     ])
+  })
+
+  it('count a ReferenceField as a link in a Link, unless its link is false', () => {
+    const inLink = (link?: false) => page(Link({ to: { kind: 'record', resource: 'tasks', key: '{{id}}' }, children: ReferenceField({ source: 'worker', reference: 'workers', link }) })).tree
+    expect(structureProblems(inLink())).toEqual(['<Page> › <RecordCard resource="tasks"> › <Link>: holds another link at <ReferenceField reference="workers" source="worker">; a link cannot contain a link'])
+    expect(structureProblems(inLink(false))).toEqual([])
   })
 
   it('leave out a list the caller cannot read, with what it holds', () => {

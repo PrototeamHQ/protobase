@@ -40,13 +40,16 @@ const statProblems = ({ props }: LayoutNode): string[] => {
 
 const chartStructureProblems = ({ props }: LayoutNode): string[] => (props.sum !== undefined && props.average !== undefined ? ['takes "sum" or "average", not both'] : [])
 
+// A `ReferenceField` links to its record unless `link` is false, as react-admin's does.
+const isLink = (node: LayoutNode) => !node.custom && (node.type === 'Link' || node.type === 'UrlField' || (node.type === 'ReferenceField' && node.props.link !== false))
+
 // A link inside a link is no valid HTML: browsers split them apart.
 const nestedLinkProblems = ({ children }: LayoutNode): string[] => {
   const problems: string[] = []
   for (const child of children) {
     if (typeof child === 'string') continue
     walkTree(child, (inner, { path }) => {
-      if (!inner.custom && (inner.type === 'Link' || inner.type === 'UrlField')) problems.push(`holds another link at ${path}; a link cannot contain a link`)
+      if (isLink(inner)) problems.push(`holds another link at ${path}; a link cannot contain a link`)
     }, { path: label(child), scope: pageScope })
   }
   return problems
@@ -119,7 +122,7 @@ export const structureProblems = (tree: LayoutNode): string[] => {
     if (node.type === 'Stat') statProblems(node).forEach(report)
     if (node.type === 'Chart') chartStructureProblems(node).forEach(report)
     if (node.type === 'Link') linkProblems(node).forEach(report)
-    if (node.type === 'ReferenceField' && node.props.link !== false) nestedLinkProblems(node).forEach(report)
+    if (node.type === 'ReferenceField' && isLink(node)) nestedLinkProblems(node).forEach(report)
     listProblems(node, scope).forEach(report)
     if (node.type === 'Image') imageProblems(node).forEach(report)
     if (node.type === 'Text') textProblems(node).forEach(report)
