@@ -85,7 +85,7 @@ ${slots}<style>.bg { background: url(https://evil.test/bg.png) }</style></head><
 <img src="missing.png" alt="">
 </body></html>`
 
-const broken = `<!doctype html><html><head>${slots}</head><body><img src="gone.png" alt=""></body></html>`
+const broken = `<!doctype html><html><head>${slots}</head><body><p>The chart:</p><img src="gone.png" alt=""></body></html>`
 
 const html = (text: string) => `data:text/html;base64,${btoa(text)}`
 const stored = (id: number, name: string, type: string, url: string) => ({ id, task_id: 7, file: { uri: `private:1/${id}?name=${name}`, name, type, size: 100, url } })
