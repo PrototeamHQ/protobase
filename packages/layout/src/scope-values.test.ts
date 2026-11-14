@@ -27,6 +27,11 @@ describe('scopeValue', () => {
     expect(scopeValue({ ...scope, root: { id: 1 } }, '@root.id')).toBe(1)
     expect(scopeValue(scope, '../../id')).toBeUndefined()
   })
+
+  it('reads only the values the page parameters hold, none an object inherits', () => {
+    expect(scopeValue(scope, '@params.constructor')).toBeUndefined()
+    expect(scopeValue(scope, '@params.toString')).toBeUndefined()
+  })
 })
 
 describe('fillProps', () => {

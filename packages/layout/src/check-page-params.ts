@@ -15,6 +15,8 @@ const inputProblems = ({ props }: LayoutNode): string[] => {
   const ids = choices.map((choice) => String(choice.id))
   const twice = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))]
   problems.push(...twice.map((id) => `"choices" holds the id "${id}" twice`))
+  // An empty id is no value the address can hold, so the choice could never be told apart from none
+  if (ids.includes('')) problems.push('"choices" holds an empty id; give each choice an id the address can hold')
   if (choices.length === 0) problems.push('"choices" holds no choice')
   if (props.defaultValue !== undefined && !ids.includes(String(props.defaultValue))) problems.push(`"defaultValue" "${props.defaultValue}" is none of the choices' ids: ${ids.join(', ')}`)
   return problems

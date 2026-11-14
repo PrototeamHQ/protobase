@@ -72,7 +72,7 @@ A link in text: `to` an address in the app, or an `href` that leaves it (`https:
 
 | Prop | |
 | --- | --- |
-| `to` | An [address](/reference/layouts/#addresses). `{{path}}` in it is the value of that [path](/reference/layouts/#paths-and-scopes) through the records around the link. |
+| `to` | An [address](/reference/layouts/#addresses). `{{path}}` in it is the value of that [path](/reference/layouts/#paths-and-scopes) through the records around the link, and `{{@params.window}}` a [page parameter](/reference/layouts/#page-parameters), so `{ kind: 'page', page: 'payouts', params: { window: '{{@params.window}}' } }` carries the choice to another page. |
 | `href` | A link that leaves the app. A path in the app is refused when the config loads: give it as `to`. |
 | `variant` | `primary`, `secondary`, `danger` or `ghost`: drawn as a button of that variant, still a link. `className` adds to it, such as `w-full`. |
 

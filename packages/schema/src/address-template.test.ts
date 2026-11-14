@@ -61,12 +61,17 @@ describe('fillAddress', () => {
     expect(fillAddress({ kind: 'record', resource: 'orders', key: '{{orderId}}' }, { orderId: null })).toEqual({ kind: 'record', resource: 'orders', key: '' })
     expect(fillAddress({ kind: 'page', page: 'overview' }, {})).toEqual({ kind: 'page', page: 'overview' })
   })
+
+  it("fills a page's tab and parameters from the record", () => {
+    expect(fillAddress({ kind: 'page', page: 'claims', tab: '{{tab}}', params: { window: '{{window}}', task: '7' } }, { tab: 'Open', window: '30d' })).toEqual({ kind: 'page', page: 'claims', tab: 'Open', params: { window: '30d', task: '7' } })
+  })
 })
 
 describe('addressPlaceholders', () => {
   it('names each field a link takes from the record once', () => {
     expect(addressPlaceholders({ kind: 'list', resource: 'repairs', filter: 'customerId = {{customerId}} OR referredBy = {{customerId}}', orderBy: '{{sort}}' })).toEqual(['customerId', 'sort'])
     expect(addressPlaceholders({ kind: 'record', resource: 'lines', key: ['{{orderId}}', 3] })).toEqual(['orderId'])
+    expect(addressPlaceholders({ kind: 'page', page: 'claims', tab: '{{tab}}', params: { window: '{{window}}' } })).toEqual(['tab', 'window'])
     expect(hrefPlaceholders('https://maps.example/?q={{street}}+{{city}}')).toEqual(['street', 'city'])
   })
 })
