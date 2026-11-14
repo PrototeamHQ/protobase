@@ -41,6 +41,14 @@ describe('list blocks', () => {
     expect(findings(block({ filter: { colour: 'red' } })).problems[0]).toContain('filter:')
   })
 
+  it('read at most the API’s largest page, and sort by a key that sorts unless told otherwise', () => {
+    expect(findings(ReferenceManyField({ reference: 'task_claims', target: 'task_id', perPage: 600 })).problems[0]).toContain('perPage: at most 500')
+    const unsorted = { ...models, task_claims: { ...models.task_claims!, fields: { ...models.task_claims!.fields, id: { ...models.task_claims!.fields.id!, sortable: false } } } }
+    const tree = page(ReferenceManyField({ reference: 'task_claims', target: 'task_id' }))
+    expect(pageFindings(tree, { ...input, models: unsorted }).problems[0]).toContain('sort:')
+    expect(pageFindings(page(ReferenceManyField({ reference: 'task_claims', target: 'task_id', sort: 'claimed_at' })), { ...input, models: unsorted }).problems).toEqual([])
+  })
+
   it('name a target that is no field of the resource it reads', () => {
     expect(findings(ReferenceManyField({ reference: 'task_claims', target: 'task' })).problems).toEqual([
       '<Page> › <RecordCard resource="tasks"> › <ReferenceManyField reference="task_claims">: target: "task" is no field of task_claims',

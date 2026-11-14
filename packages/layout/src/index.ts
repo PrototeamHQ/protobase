@@ -76,9 +76,9 @@ export type {
   ThreadProps,
   UsersProps,
 } from './blocks'
-export { ArrayField, RecordsIterator, ReferenceArrayField, ReferenceField, ReferenceManyField, defaultPerPage, defaultSource } from './list-blocks'
+export { ArrayField, RecordsIterator, ReferenceArrayField, ReferenceField, ReferenceManyField, defaultPerPage, defaultSort, defaultSource, maxPerPage } from './list-blocks'
 export type { ArrayFieldProps, FilterObject, RecordsIteratorProps, ReferenceArrayFieldProps, ReferenceFieldProps, ReferenceManyFieldProps, SortObject } from './list-blocks'
-export { allOf, filterLiteral, filterText, referenceArrayFilter, referenceManyFilter, sortText } from './list-query'
+export { allOf, filterLiteral, filterText, referenceArrayFilter, referenceArrayRead, referenceManyFilter, referenceManyRead, sortText, type ListRead } from './list-query'
 export { blockSpecs, type BlockReads, type BlockSpec } from './block-specs'
 export { Box, Column, Row, Text, type BoxProps, type ColumnProps, type RowProps, type TextAs, type TextProps } from './elements'
 export { component, type ComponentOptions } from './component'

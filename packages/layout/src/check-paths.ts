@@ -23,7 +23,7 @@ export type PathFindings = { problems: string[]; warnings: string[] }
 const shapeProps = ['resource', 'reference', 'target', 'source', 'sort', 'order', 'columns', 'perPage', 'limit', 'pagination', 'fields']
 
 /** Props drawn as text, which read any path. */
-const displayProps = ['title', 'description', 'empty', 'emptyText', 'label']
+const displayProps = ['title', 'description', 'empty', 'label']
 
 const waits = 'this would wait for the parent\'s rows'
 

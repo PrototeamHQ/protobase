@@ -1,3 +1,4 @@
+import { defaultPerPage, defaultSort, defaultSource, maxPerPage, type ReferenceArrayFieldProps, type ReferenceManyFieldProps } from './list-blocks'
 import type { LayoutValue } from './node'
 
 // A list context's read as the list API takes it: react-admin's sort and filter objects written as the AIP-132 order
@@ -44,3 +45,23 @@ export const referenceArrayFilter = (key: string, ids: unknown, filter: LayoutVa
   const keys = Array.isArray(ids) ? ids.filter((id) => typeof id === 'string' || typeof id === 'number') : []
   return keys.length === 0 ? undefined : allOf(`in(${key}, ${keys.map(filterLiteral).join(', ')})`, filterText(filter))
 }
+
+/** What a list block reads: its filter, `undefined` when no record can match, its order and its page size. */
+export type ListRead = { filter: string | undefined; sort: string; perPage: number }
+
+/**
+ * A `ReferenceManyField`'s read, react-admin's defaults filled in: `source` the nearest record's `id`, its `key`
+ * descending, 25 records. `value` reads a path of the records around it.
+ */
+export const referenceManyRead = (props: ReferenceManyFieldProps, key: string, value: (path: string) => unknown): ListRead => ({
+  filter: referenceManyFilter(props.target, value(props.source ?? defaultSource), props.filter as LayoutValue | undefined),
+  sort: sortText(props.sort as LayoutValue | undefined) ?? defaultSort(key),
+  perPage: props.perPage ?? defaultPerPage,
+})
+
+/** A `ReferenceArrayField`'s read: its keys with `in()`, its `key` descending, the API's largest page. */
+export const referenceArrayRead = (props: ReferenceArrayFieldProps, key: string, value: (path: string) => unknown): ListRead => ({
+  filter: referenceArrayFilter(key, value(props.source), props.filter as LayoutValue | undefined),
+  sort: sortText(props.sort as LayoutValue | undefined) ?? defaultSort(key),
+  perPage: props.perPage ?? maxPerPage,
+})

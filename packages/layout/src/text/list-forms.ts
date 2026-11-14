@@ -36,7 +36,7 @@ const ReferenceArrayField: TextForm = (context) => listBlock(context, () => unde
 const ReferenceField: TextForm = (context) => {
   const { node, options, children } = context
   const key = sourceValue(context)
-  if (key === undefined || key === null || key === '') return escapeMarkdown(text(node.props.emptyText) ?? '')
+  if (key === undefined || key === null || key === '') return escapeMarkdown(text(node.props.empty) ?? '')
   const shown = node.children.length > 0 ? blocks(children) : escapeMarkdown(valueText(key))
   if (node.props.link === false || shown.includes('\n')) return shown
   return link(shown, addressHref({ kind: 'record', resource: String(node.props.reference), key: String(key) }, options))

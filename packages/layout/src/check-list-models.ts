@@ -1,5 +1,5 @@
 import { checkOrderBy, parseOrderBy, type ResourceModel } from '@protobase/schema'
-import { defaultSource } from './list-blocks'
+import { defaultSort, defaultSource, maxPerPage } from './list-blocks'
 import { filterText, sortText } from './list-query'
 import type { LayoutNode } from './node'
 import { sampledFilterErrors } from './sampled-filter'
@@ -15,9 +15,11 @@ export type ListCheckInput = { models: Models; params: ReadonlySet<string> }
 
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
 
+// Without a sort, a list reads in react-admin's order, its key descending, which the resource must sort by
 const sortProblems = (model: ResourceModel, sort: unknown): string[] => {
-  const source = sortText(sort as never)
-  if (source === undefined) return []
+  const key = model.primaryKey.length === 1 ? model.primaryKey[0]! : undefined
+  if (sort === undefined && key === undefined) return [`sort: ${model.name} has a key of several fields, so name a sort`]
+  const source = sortText(sort as never) ?? defaultSort(key!)
   const parsed = parseOrderBy(source)
   if (!parsed.ok) return parsed.errors.map((error) => `sort: ${error.message}`)
   const checked = checkOrderBy(model, parsed.items)
@@ -55,13 +57,14 @@ export const listModelProblems = (node: LayoutNode, scope: Scope, input: ListChe
   // implicit equality; an ArrayField's reads nothing, so it is reported here
   const found = sourceField(node, scope, input)
   const field = 'field' in found && !found.deep ? found.field : undefined
+  const perPage = typeof node.props.perPage === 'number' && node.props.perPage > maxPerPage ? [`perPage: at most ${maxPerPage}, the API's largest page`] : []
   switch (node.type) {
     case 'ReferenceManyField':
-      return [...targetProblems(model!, String(node.props.target)), ...filterProblems(model!, node.props.filter), ...sortProblems(model!, node.props.sort)]
+      return [...perPage, ...targetProblems(model!, String(node.props.target)), ...filterProblems(model!, node.props.filter), ...sortProblems(model!, node.props.sort)]
     case 'ReferenceArrayField': {
       const kind = field && field.type !== 'json' ? [`source: "${node.props.source}" is a ${field.type} field; it must be a JSON list of ${reference}'s keys`] : []
       const key = model!.primaryKey.length === 1 ? [] : [`${reference} has a key of several fields, which a list of keys cannot hold`]
-      return [...kind, ...key, ...filterProblems(model!, node.props.filter), ...sortProblems(model!, node.props.sort)]
+      return [...perPage, ...kind, ...key, ...filterProblems(model!, node.props.filter), ...sortProblems(model!, node.props.sort)]
     }
     case 'ReferenceField': {
       const kind = field?.type === 'relation' && field.relation?.resource !== reference ? [`source: "${node.props.source}" points at ${field.relation?.resource}, not ${reference}`] : []

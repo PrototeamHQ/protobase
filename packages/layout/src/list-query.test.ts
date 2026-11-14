@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { filterText, referenceArrayFilter, referenceManyFilter, sortText } from './list-query'
+import { filterText, referenceArrayFilter, referenceArrayRead, referenceManyFilter, referenceManyRead, sortText } from './list-query'
 
 describe('list queries', () => {
   it('reads react-admin’s sort object as the AIP-132 order it means', () => {
@@ -26,5 +26,25 @@ describe('list queries', () => {
     expect(referenceArrayFilter('id', [3, 'a'], { active: true })).toBe('(in(id, 3, "a")) AND (active = true)')
     expect(referenceArrayFilter('id', [], undefined)).toBeUndefined()
     expect(referenceArrayFilter('id', 'not a list', undefined)).toBeUndefined()
+  })
+})
+
+describe('list reads', () => {
+  const task = (path: string) => ({ 'this.id': 7, worker_ids: [3, 4] })[path]
+  const claims = { reference: 'task_claims', target: 'task_id' }
+
+  it('fill react-admin’s defaults: the nearest record’s id, the key descending, 25 records', () => {
+    expect(referenceManyRead(claims, 'id', task)).toEqual({ filter: 'task_id = 7', sort: 'id desc', perPage: 25 })
+  })
+
+  it('read the same for a sort object as for its AIP text, and AND a filter object’s equalities', () => {
+    const object = referenceManyRead({ ...claims, sort: { field: 'claimed_at', order: 'DESC' }, filter: { status: 'open', done: false } }, 'id', task)
+    const text = referenceManyRead({ ...claims, sort: 'claimed_at desc', filter: 'status = "open" AND done = false' }, 'id', task)
+    expect(object).toEqual({ filter: '(task_id = 7) AND (status = "open" AND done = false)', sort: 'claimed_at desc', perPage: 25 })
+    expect(text).toEqual(object)
+  })
+
+  it('read a key list’s records with in(), the API’s largest page by default', () => {
+    expect(referenceArrayRead({ source: 'worker_ids', reference: 'workers' }, 'id', task)).toEqual({ filter: 'in(id, 3, 4)', sort: 'id desc', perPage: 500 })
   })
 })

@@ -47,6 +47,6 @@ describe('text forms of lists', () => {
     expect(renderText(ReferenceField({ source: 'worker_id', reference: 'workers' }), { record: claim })).toBe('[3](/workers/3)')
     expect(renderText(ReferenceField({ source: 'worker_id', reference: 'workers', children: Text({ children: 'By' }) }), { record: claim })).toBe('[By](/workers/3)')
     expect(renderText(ReferenceField({ source: 'worker_id', reference: 'workers', link: false, children: Field({ name: 'name', label: false }) }), { record: claim, records })).toBe('Ann')
-    expect(renderText(ReferenceField({ source: 'worker_id', reference: 'workers', emptyText: 'Nobody' }), { record: { id: 2 } })).toBe('Nobody')
+    expect(renderText(ReferenceField({ source: 'worker_id', reference: 'workers', empty: 'Nobody' }), { record: { id: 2 } })).toBe('Nobody')
   })
 })

@@ -54,7 +54,7 @@ const samples: Record<string, LayoutNode> = {
   ReferenceArrayField: lists.ReferenceArrayField({ source: 'tag_ids', reference: 'tags', children: lists.RecordsIterator({ children: text }) }),
   ArrayField: lists.ArrayField({ source: 'labels', children: lists.RecordsIterator({ children: text }) }),
   RecordsIterator: lists.RecordsIterator({ children: text }),
-  ReferenceField: lists.ReferenceField({ source: 'worker_id', reference: 'workers', emptyText: 'Nobody' }),
+  ReferenceField: lists.ReferenceField({ source: 'worker_id', reference: 'workers', empty: 'Nobody' }),
 }
 
 describe('text forms', () => {
