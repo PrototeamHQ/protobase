@@ -3,11 +3,12 @@ import type { AppAddress, ResourceModel } from '@protobase/schema'
 import { formatSize } from '../../live/file-values'
 import { cn } from '../../lib/cn'
 import { buttonClass } from '../../primitives/button'
-import { Skeleton } from '../../primitives/skeleton'
 import { CustomBoundary } from '../pages/custom-boundary'
 import type { ProjectUi } from '../pages/project-ui'
 import { AppLink } from '../use-app-address'
-import { viewedFile, viewerFor, type FileViewer, type ViewedFile } from './file-viewer'
+import { fileViewerFor } from './built-in-viewers'
+import { PageSkeleton } from './page-skeleton'
+import { viewedFile, type FileViewer, type ViewedFile } from './file-viewer'
 import { useSiblingFiles } from './use-sibling-files'
 import { ViewedResourceContext } from './viewed-resource'
 import { text } from './messages'
@@ -19,7 +20,7 @@ export type ViewedField = { field: string; file: ViewedFile; viewer: FileViewer 
 export const viewedField = (ui: ProjectUi, model: ResourceModel, record: Record<string, unknown>, field: string): ViewedField | undefined => {
   if (model.fields[field]?.type !== 'file') return
   const file = viewedFile(record[field])
-  const viewer = file && viewerFor(ui.fileViewers, file.type)
+  const viewer = file && fileViewerFor(ui, file.type)
   return file && viewer ? { field, file, viewer } : undefined
 }
 
@@ -69,10 +70,7 @@ export const FileViewerPage = ({ model, record, viewed, back }: FileViewerPagePr
             </CustomBoundary>
           </ViewedResourceContext.Provider>
         ) : (
-          <div className="space-y-3 px-4 py-6 md:px-10">
-            <Skeleton className="h-6 w-2/3" />
-            <Skeleton className="h-40" />
-          </div>
+          <PageSkeleton />
         )}
       </div>
     </div>

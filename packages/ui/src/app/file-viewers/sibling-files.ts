@@ -1,5 +1,6 @@
 import type { ResourceModel } from '@protobase/schema'
-import { viewedFile, type ViewedFile } from './file-viewer'
+import { recordKey } from '../../live/model-helpers'
+import { viewedFile, type SiblingFile, type ViewedFile } from './file-viewer'
 
 // The relation fields a list can filter by, which the record points at a record with; the tenant is the same anyway.
 const sharedRelations = (model: ResourceModel, record: Record<string, unknown>) =>
@@ -18,14 +19,17 @@ export const siblingFilter = (model: ResourceModel, record: Record<string, unkno
   return shared.map((field) => `${field.name} = ${JSON.stringify(relationValue(record[field.name]))}`).join(' AND ')
 }
 
-/** The files of `records`, every file field of each, but `file` itself, each once by its stored `uri`. */
+/**
+ * The files of `records`, every file field of each, but `file` itself, each once by its stored `uri`, with the key of
+ * its record and its field.
+ */
 export const siblingFiles = (model: ResourceModel, records: readonly Record<string, unknown>[], file: ViewedFile) => {
   const fileFields = Object.values(model.fields).filter((field) => field.type === 'file')
-  const found = new Map<string, ViewedFile>()
+  const found = new Map<string, SiblingFile>()
   for (const record of records) {
     for (const field of fileFields) {
       const sibling = viewedFile(record[field.name])
-      if (sibling && sibling.uri !== file.uri && !found.has(sibling.uri)) found.set(sibling.uri, sibling)
+      if (sibling && sibling.uri !== file.uri && !found.has(sibling.uri)) found.set(sibling.uri, { ...sibling, key: recordKey(model, record), field: field.name })
     }
   }
   return [...found.values()]
