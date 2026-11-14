@@ -167,6 +167,7 @@ The first records of a list, drawn the way the resource's list page draws them: 
 | `bulk` | `true`: rows can be selected, and the view's `bulk` actions run on the selected rows, as on the list page; see [signing several records off](#signing-several-records-off). |
 | `limit` | How many records it shows; default 10. It has no pages: the rest are in the list. Before 0.13 this was `pageSize`, rows per page; rename it. |
 | `display` | The display it opens in, such as `cards`; default the list's. |
+| `select` | The [page parameter](/reference/layouts/#page-parameters) a row's choice sets, such as `claim`: each row links to the page with its key there (`?claim=11`) instead of to its record, whose page its menu still opens, and the table's children draw under it inside the chosen row, or nothing while none is chosen. With it, the table shows no other display. |
 | `title`, `description`, `actions` | The heading. |
 | `empty` | Text when nothing matches; default "Nothing here yet.". |
 | `span` | Width in a grid. |
@@ -605,6 +606,23 @@ A button that opens a form in a dialog. `create` makes a record of `resource`; `
 ```tsx
 <ModalForm mode="create" label="Add lead" resource="companies" fields={['name', 'city', 'country_code', 'email']} values={{ status: 'lead' }} />
 ```
+
+### SelectInput
+
+A choice of a [page parameter](/reference/layouts/#page-parameters), as react-admin's [`SelectInput`](https://marmelab.com/react-admin/SelectInput.html) takes it, written into the page's address instead of a form: a select whose choices are each a link to the page with that choice, `?<source>=<id>`, the default leaving it out. The layout reads it as `@params.<source>`.
+
+| Prop | |
+| --- | --- |
+| `source` | The parameter's name, such as `window`. Required. |
+| `choices` | `{ id, name }` objects: `id` the value the address holds, text or a number, `name` what the select shows. Without them, it shows the address's value as text, which no read may take. |
+| `label` | Shown beside the select; default the `source`. |
+| `defaultValue` | The choice's `id` while the address names none of the choices. |
+
+```tsx
+<SelectInput source="window" label="Window" defaultValue="7d" choices={[{ id: '7d', name: 'Last 7 days' }, { id: '30d', name: 'Last 30 days' }]} />
+```
+
+<StoryFrame id="composed-pages-page-parameters--desktop" title="A window of 7 or 30 days, and a chosen claim's details" height={560} />
 
 ### Show
 
