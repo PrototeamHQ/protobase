@@ -1,5 +1,11 @@
 import { createParser } from 'eventsource-parser'
 
+// A body from a fetch given the same signal is already errored with an AbortError when the listener cancels it
+const ignoreAbort = (error: unknown) => {
+  if (error instanceof DOMException && error.name === 'AbortError') return
+  throw error
+}
+
 /**
  * Reads a `text/event-stream` body and calls `onData` with the data of every event, its `data:` lines joined by
  * newlines. Comments, event names and ids are skipped: the assistant protocol and chat completions only use data.
@@ -9,7 +15,7 @@ export const readEventStream = async (body: ReadableStream<Uint8Array>, onData: 
   const parser = createParser({ onEvent: (event) => onData(event.data) })
   const decoder = new TextDecoder()
   const reader = body.getReader()
-  signal?.addEventListener('abort', () => void reader.cancel(), { once: true })
+  signal?.addEventListener('abort', () => void reader.cancel().catch(ignoreAbort), { once: true })
   for (;;) {
     const { done, value } = await reader.read()
     if (done) break
