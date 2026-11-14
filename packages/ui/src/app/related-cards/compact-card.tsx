@@ -1,5 +1,6 @@
 import type { RowButtonModel, ViewModel } from '@protobase/schema'
 import { recordKey } from '../../live/model-helpers'
+import { cn } from '../../lib/cn'
 import { ActionButton } from '../pages/blocks/action'
 import { RecordScope, type LayoutRecord } from '../pages/record-scope'
 import { useRecordTitle } from '../titles/record-titles'
@@ -31,10 +32,12 @@ type CompactCardProps = {
 export const CompactCard = ({ scope, view, fields, time, tone, actions, button, onActed }: CompactCardProps) => {
   const titleOf = useRecordTitle()
   const title = titleOf(scope.model, view, scope.record, scope.key)
+  const buttons = actions.length > 0 || button !== undefined
+  // Without buttons the card is one column: a second, auto-sized one would take the values beside the title and squeeze it
   return (
-    <li data-card={scope.key} className="relative grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 rounded-lg border border-border bg-surface px-4 py-2.5">
+    <li data-card={scope.key} className={cn('relative grid min-w-0 items-center gap-x-4 gap-y-1 rounded-lg border border-border bg-surface px-4 py-2.5', buttons ? 'grid-cols-[minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)]')}>
       {tone && <ToneEdge view={view} field={tone} record={scope.record} />}
-      <div className="col-span-2 flex min-w-0 items-baseline gap-2 sm:col-span-1">
+      <div className={cn('flex min-w-0 items-baseline gap-2', buttons && 'col-span-2 sm:col-span-1')}>
         <AppLink to={{ kind: 'record', resource: scope.model.name, key: recordKey(scope.model, scope.record) }} className="line-clamp-2 min-w-0 font-medium [overflow-wrap:anywhere] text-primary-text hover:underline">
           {title}
         </AppLink>
@@ -53,7 +56,7 @@ export const CompactCard = ({ scope, view, fields, time, tone, actions, button, 
           ))}
         </div>
       )}
-      {(actions.length > 0 || button) && (
+      {buttons && (
         <RecordScope value={scope}>
           <div className="col-start-2 flex flex-wrap items-center justify-end gap-2 sm:row-span-2 sm:row-start-1">
             {button && <RowButtonLink button={button} model={scope.model} view={view} record={scope.record} />}
