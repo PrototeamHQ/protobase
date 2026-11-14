@@ -1,4 +1,4 @@
-import { CircleAlert, History, Play, Plus, Power, Upload } from 'lucide-react'
+import { CircleAlert, History, Play, Plus, Power, Shuffle, Upload } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FocusActions, FocusSlot, useFocusPage, type FocusAction } from '../../../focus-page'
 import { useIsDesktop } from '../../../lib/use-media-query'
@@ -13,6 +13,7 @@ import { versionLabel } from './picker-labels'
 import type { WorkflowPage } from './use-workflow-page'
 import { versionAddress, type WorkflowView } from './workflow-view'
 import { text } from './messages'
+import { text as graphText } from '../workflow/messages'
 
 export type WorkbenchBarProps = {
   view: WorkflowView
@@ -33,6 +34,8 @@ export type WorkbenchBarProps = {
   onTurnOff: () => void
   /** What the run shown offers. */
   runActions?: FocusAction[] | undefined
+  /** The switch to the other execution order: which order it goes to, why it cannot when it cannot, and the switch. */
+  orderSwitch?: { to: 'sequence' | 'data'; refused?: string; onRun: () => void }
 }
 
 // How the work stands, in words of the workflow: which version a save made, or that there is more to save
@@ -69,7 +72,7 @@ const savedShownMs = 4000
  * Test run, and Publish as the primary, with Save beside it from the framework. A mobile screen keeps what checks a
  * failure and acts on it, and the graph's structure stays on wider ones.
  */
-export const WorkbenchBar = ({ view, page, editable, empty, problems, missing, onAddStep, onProblems, onRuns, onTestRun, onPublish, onTurnOff, runActions }: WorkbenchBarProps) => {
+export const WorkbenchBar = ({ view, page, editable, empty, problems, missing, onAddStep, onProblems, onRuns, onTestRun, onPublish, onTurnOff, runActions, orderSwitch }: WorkbenchBarProps) => {
   const focus = useFocusRecord()!
   const { go } = useAppAddress()
   const size = useFocusPage()?.size
@@ -88,6 +91,7 @@ export const WorkbenchBar = ({ view, page, editable, empty, problems, missing, o
     ...(compact && focus.mayUpdate ? [publish] : []),
     ...(runActions ?? []),
     ...(enabled !== undefined && focus.mayUpdate ? [{ name: text('turnOff'), icon: Power, onRun: onTurnOff }] : []),
+    ...(editable && orderSwitch ? [{ name: graphText('orderSwitchTitle', { order: orderSwitch.to }), icon: Shuffle, onRun: orderSwitch.onRun, ...(orderSwitch.refused !== undefined && { blocked: graphText('orderSwitchRefused', { reason: orderSwitch.refused }) }) }] : []),
   ]
   return (
     <>

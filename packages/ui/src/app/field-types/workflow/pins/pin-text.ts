@@ -1,6 +1,7 @@
 import type { PinKind, PinType } from '@protobase/workflows'
 import { inputLabel } from '../labels'
 import { text } from '../messages'
+import { conditionKey, statusKey } from './node-pins'
 
 const kindLabels: Record<PinKind | 'any', () => string> = {
   string: () => text('typeString'),
@@ -40,9 +41,10 @@ const outputLabels: Record<string, () => string> = {
  */
 export const outputLabel = (path: readonly string[], trigger = false, field = false) => {
   if (path.length === 0) return trigger ? text('pinRunInput') : text('pinResult')
+  if (path.length === 1 && path[0] === statusKey) return text('statusPin')
   const name = path.at(-1)!
   return field ? name : (outputLabels[name]?.() ?? name)
 }
 
 /** An input pin's name: a built-in argument by its label, else its name. */
-export const inputPinLabel = (key: string) => inputLabel(key)
+export const inputPinLabel = (key: string) => (key === conditionKey ? text('onlyWhen') : inputLabel(key))

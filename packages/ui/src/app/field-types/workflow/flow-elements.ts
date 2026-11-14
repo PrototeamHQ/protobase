@@ -22,7 +22,8 @@ import { pureParent } from './pins/pure-parents'
  * check found with it and what it warns of, how it did in a run, and whether its cache was forced on against its type's
  * advice.
  */
-export type NodeData = { node: GraphNode; kind: string; problems: NodeProblem[]; warnings?: NodeProblem[]; trace?: NodeTrace; cacheWarning?: boolean; pins?: NodePins; pureData?: PureData }
+/** `dataOrder`: the workflow runs in data order, so the node has no execution handles to draw edges from by hand. */
+export type NodeData = { node: GraphNode; kind: string; problems: NodeProblem[]; warnings?: NodeProblem[]; trace?: NodeTrace; cacheWarning?: boolean; pins?: NodePins; pureData?: PureData; dataOrder?: boolean }
 
 /** The pins a node shows: the inputs it shows, its outputs, how many inputs it folds away and whether it is open. */
 export type NodePins = { inputs: InputPin[]; outputs: OutputPin[]; folded: number; open: boolean }
@@ -46,7 +47,7 @@ export const nodePins = (data: DataGraph, id: string, open: boolean): NodePins =
  * The canvas's nodes, at the boxes the layout gave them: a Map holds the nodes inside it, which come after it, and a
  * node not laid out yet waits at the top left. Nodes are not dragged: the layout places them.
  */
-export const flowNodes = (graph: Graph, boxes: ReadonlyMap<string, Box> | undefined, problems: ReadonlyMap<string, NodeProblem[]>, selected: string | undefined, traces?: ReadonlyMap<string, NodeTrace>, types?: WorkflowTypeList, warnings?: ReadonlyMap<string, NodeProblem[]>, pins?: { data: DataGraph; open: ReadonlySet<string> }): FlowNode[] =>
+export const flowNodes = (graph: Graph, boxes: ReadonlyMap<string, Box> | undefined, problems: ReadonlyMap<string, NodeProblem[]>, selected: string | undefined, traces?: ReadonlyMap<string, NodeTrace>, types?: WorkflowTypeList, warnings?: ReadonlyMap<string, NodeProblem[]>, pins?: { data: DataGraph; open: ReadonlySet<string> }, dataOrder = false): FlowNode[] =>
   graph.nodes.map((node) => {
     const box = boxes?.get(node.id) ?? { x: 0, y: 0, ...nodeSize }
     const parent = node.kind === 'state' ? node.parent : undefined
@@ -65,7 +66,7 @@ export const flowNodes = (graph: Graph, boxes: ReadonlyMap<string, Box> | undefi
       // The node is drawn at its box's size, so React Flow knows it from the first render: a node handed over without
       // one loses its handles' places, and its edges vanish until its size changes
       measured: { width: box.width, height: box.height },
-      data: { node, kind, problems: problems.get(node.id) ?? [], ...(traces?.has(node.id) && { trace: traces.get(node.id) }), ...(cacheWarning && { cacheWarning }), ...(warned.length > 0 && { warnings: warned }), ...(pins && { pins: nodePins(pins.data, node.id, pins.open.has(node.id)) }) },
+      data: { node, kind, problems: problems.get(node.id) ?? [], ...(traces?.has(node.id) && { trace: traces.get(node.id) }), ...(cacheWarning && { cacheWarning }), ...(warned.length > 0 && { warnings: warned }), ...(pins && { pins: nodePins(pins.data, node.id, pins.open.has(node.id)) }), ...(dataOrder && { dataOrder }) },
       draggable: false,
       deletable: node.kind === 'state',
       selected: node.id === selected,
@@ -85,9 +86,22 @@ const edgeLabel = (edge: Graph['edges'][number]) => {
   return
 }
 
+// In data order an edge is what a state reads, drawn between each node's sides, which only changing what it reads changes
+const dataOrderEdge = (edge: Graph['edges'][number]): Edge => ({
+  id: edge.id,
+  source: flowId(edge.source),
+  sourceHandle: 'out',
+  target: flowId(edge.target),
+  targetHandle: 'in',
+  deletable: false,
+  data: { kind: edge.kind, field: edge.field, source: edge.source },
+  ...(edge.kind === 'status' && { className: 'pb-workflow-status' }),
+})
+
 /** The canvas's edges, each from the handle of its kind; the trigger's cannot be deleted, only drawn elsewhere. */
-export const flowEdges = (graph: Graph): Edge[] =>
+export const flowEdges = (graph: Graph, dataOrder = false): Edge[] =>
   graph.edges.map((edge) => {
+    if (dataOrder) return dataOrderEdge(edge)
     const label = edgeLabel(edge)
     return {
       id: edge.id,

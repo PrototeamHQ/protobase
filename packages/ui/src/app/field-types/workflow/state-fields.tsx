@@ -17,6 +17,8 @@ export type StateFieldsProps = {
   names: readonly string[]
   problems: readonly NodeProblem[]
   disabled?: boolean
+  /** The workflow runs in data order: a state runs once what it reads from has ended, under its Condition, and names no Next. */
+  data?: boolean
   onChange: (state: State) => void
 }
 
@@ -26,8 +28,15 @@ const withField = <S extends object>(state: S, name: string, value: unknown): S 
   return (value === undefined ? rest : { ...rest, [name]: value }) as S
 }
 
+// In data order, the Condition a state runs under, which takes the place of where it goes on to
+const ConditionField = ({ state, problems, disabled, onChange }: StateFieldsProps) => (
+  <ValueField label={text('onlyWhen')} kind="text" help={text('onlyWhenHelp')} value={state.Condition} error={errorAt(problems, 'Condition')} disabled={disabled} onChange={(next) => onChange(withField(state, 'Condition', next) as State)} />
+)
+
 // Where a Task, Pass, Wait, Map or Block goes on to: its Next, or the end of the run or of its Map item or Block
-const NextField = ({ state, names, problems, disabled, onChange }: StateFieldsProps) => {
+const NextField = (props: StateFieldsProps) => {
+  const { state, names, problems, disabled, onChange } = props
+  if (props.data) return <ConditionField {...props} />
   const flow = state as { Next?: string; End?: boolean }
   const set = (name: string | undefined) => {
     const { Next: _, End: __, ...rest } = flow
@@ -47,7 +56,7 @@ export const StateFields = (props: StateFieldsProps) => {
       <>
         <TaskFields state={state} types={types} problems={problems} disabled={disabled} onChange={onChange} />
         <NextField {...props} />
-        <CatchFields {...props} state={state} />
+        {!props.data && <CatchFields {...props} state={state} />}
       </>
     )
   }
@@ -58,7 +67,7 @@ export const StateFields = (props: StateFieldsProps) => {
         {value('Items', text('items'), 'json', text('itemsHelp'))}
         {value('MaxConcurrency', text('maxConcurrency'), 'json')}
         <NextField {...props} />
-        <CatchFields {...props} state={state} />
+        {!props.data && <CatchFields {...props} state={state} />}
       </>
     )
   }
@@ -72,7 +81,7 @@ export const StateFields = (props: StateFieldsProps) => {
         {cache('Ttl', text('blockTtl'), 'text', text('blockTtlHelp'))}
         {cache('Key', text('blockKey'), 'json', text('blockKeyHelp'))}
         <NextField {...props} />
-        <CatchFields {...props} state={state} />
+        {!props.data && <CatchFields {...props} state={state} />}
       </>
     )
   }
@@ -96,6 +105,7 @@ export const StateFields = (props: StateFieldsProps) => {
   if (state.Type === 'Fail') {
     return (
       <>
+        {props.data && <ConditionField {...props} />}
         {value('Error', text('error'), 'text')}
         {value('Cause', text('cause'), 'text')}
       </>

@@ -1,4 +1,4 @@
-import type { Catcher, Definition, Machine, State, Trigger } from '@protobase/workflows'
+import { orderOf, type Catcher, type Definition, type Machine, type State, type Trigger } from '@protobase/workflows'
 import { allNames, machineAt, splitPath, type StatePath } from './definition'
 import type { EdgeKind, GraphEdge } from './definition-graph'
 
@@ -55,12 +55,15 @@ const freshState = (kind: NewState): State => {
 export const addState = (definition: Definition, scope: readonly string[], kind: NewState, name: string, base: string) =>
   edited(definition, (copy) => {
     const machine = machineOf(copy, scope)
+    // In data order a state names no Next or End, and a machine has no start: it runs once what it reads has ended
+    const data = orderOf(copy) === 'data'
     const state = freshState(kind)
+    if (data) delete (state as { End?: boolean }).End
     machine.States[name] = state
-    if (!Object.hasOwn(machine.States, machine.StartAt)) machine.StartAt = name
+    if (!data && !Object.hasOwn(machine.States, machine.StartAt)) machine.StartAt = name
     if (state.Type !== 'Map' && state.Type !== 'Block') return
     const first = freeName(copy, base)
-    const inner: Machine = { StartAt: first, States: { [first]: { Type: 'Pass', End: true } } }
+    const inner = (data ? { States: { [first]: { Type: 'Pass' } } } : { StartAt: first, States: { [first]: { Type: 'Pass', End: true } } }) as Machine
     if (state.Type === 'Map') state.ItemProcessor = inner
     else state.Processor = inner
   })
@@ -152,7 +155,7 @@ export const addStateAt = (definition: Definition, kind: NewState, name: string,
 /** Adds a state as `addState` does, and connects it after the state named `after` in its machine. */
 export const addStateAfter = (definition: Definition, scope: readonly string[], kind: NewState, name: string, base: string, after: string | undefined) => {
   const added = addState(definition, scope, kind, name, base)
-  if (after === undefined) return added
+  if (after === undefined || orderOf(definition) === 'data') return added
   return edited(added, (copy) => follow(machineOf(copy, scope), after, name))
 }
 
@@ -163,6 +166,7 @@ export const addStateAfter = (definition: Definition, scope: readonly string[], 
 export const addStateFirst = (definition: Definition, kind: NewState, name: string, base: string) => {
   const first = definition.stateMachine.StartAt
   const added = addState(definition, [], kind, name, base)
+  if (orderOf(definition) === 'data') return added
   return edited(added, (copy) => {
     const state = copy.stateMachine.States[name]!
     if (first !== '' && !goesOn(state)) return

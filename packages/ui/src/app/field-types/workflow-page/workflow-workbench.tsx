@@ -36,6 +36,8 @@ import { TestRunPanel, type TestSeed } from './test-run-panel'
 import { useWorkflowPage } from './use-workflow-page'
 import { variableFor } from './value-insert'
 import { WorkbenchBar } from './workbench-bar'
+import { switchedOrder } from '../workflow/order-switch'
+import { orderOf } from '@protobase/workflows'
 import type { WorkflowView } from './workflow-view'
 import { text } from './messages'
 
@@ -52,6 +54,13 @@ export type WorkflowWorkbenchProps = {
 type Panel = { kind: 'add'; at?: AddAt } | { kind: 'test'; seed?: TestSeed } | { kind: 'runs' } | { kind: 'publish' } | { kind: 'off' } | { kind: 'problems' } | { kind: 'rerun'; step: string } | { kind: 'replay' }
 
 const noProblems = new Map()
+
+// The switch of a definition to the other execution order, as a converting edit of the draft, or why it cannot be
+const orderSwitchOf = (definition: Definition, change: (next: Definition) => void) => {
+  const switched = switchedOrder(definition)
+  const to = orderOf(definition) === 'data' ? ('sequence' as const) : ('data' as const)
+  return 'refused' in switched ? { to, refused: switched.refused, onRun: () => {} } : { to, onRun: () => change(switched.definition) }
+}
 
 // A new state goes into the Map or Block chosen, or the one the chosen state is in, else into the workflow itself.
 const scopeFor = (definition: Definition, selected: string | undefined): string[] => {
@@ -277,6 +286,7 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
         onTestRun={() => { if (!stopAtMissing()) setPanel({ kind: 'test' }) }}
         onPublish={() => { if (!stopAtMissing()) setPanel({ kind: 'publish' }) }}
         onTurnOff={() => setPanel({ kind: 'off' })}
+        {...(change && !focus.readOnly && { orderSwitch: orderSwitchOf(definition, change) })}
         runActions={
           run && [
             ...(selected !== undefined || runPanelClosed

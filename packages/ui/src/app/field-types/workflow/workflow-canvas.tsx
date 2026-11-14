@@ -3,7 +3,7 @@ import '@xyflow/react/dist/style.css'
 import './workflow-canvas.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { WorkflowTypeList } from '@protobase/client'
-import type { Definition, PinSchemas } from '@protobase/workflows'
+import { orderOf, type Definition, type PinSchemas } from '@protobase/workflows'
 import { triggerId } from './definition'
 import { connect, disconnect, removeState, type AddAt } from './definition-edits'
 import { definitionGraph, type EdgeKind, type GraphNode } from './definition-graph'
@@ -93,13 +93,18 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
   const [view, setView] = useGraphView()
   const pins = usePins(definition, graph, view === 'pins' ? schemas : undefined, onChange, frame)
   const boxes = useLayout(graph, pins.layout)
+  const dataOrder = orderOf(definition) === 'data'
   const nodes = useMemo(
-    () => [...flowNodes(graph, boxes, problems, selected, traces, types, warnings, pins.data && { data: pins.data, open: pins.open }), ...(pins.data ? pureFlowNodes(graph, pins.data, boxes, pins.open) : [])],
-    [graph, boxes, problems, selected, traces, types, warnings, pins.data, pins.open],
+    () => [...flowNodes(graph, boxes, problems, selected, traces, types, warnings, pins.data && { data: pins.data, open: pins.open }, dataOrder), ...(pins.data ? pureFlowNodes(graph, pins.data, boxes, pins.open) : [])],
+    [graph, boxes, problems, selected, traces, types, warnings, pins.data, pins.open, dataOrder],
   )
   // The edge chosen, which Delete removes
   const [chosenEdge, setChosenEdge] = useState<string>()
-  const edges = useMemo(() => [...flowEdges(graph), ...(pins.data ? dataFlowEdges(pins.data) : [])].map((edge) => ({ ...edge, selected: edge.id === chosenEdge })), [graph, pins.data, chosenEdge])
+  // In data order with pins, the wires are what the states read, which order them: no other line between them is drawn
+  const edges = useMemo(
+    () => [...(dataOrder && pins.data ? [] : flowEdges(graph, dataOrder)), ...(pins.data ? dataFlowEdges(pins.data) : [])].map((edge) => ({ ...edge, selected: edge.id === chosenEdge })),
+    [graph, pins.data, chosenEdge, dataOrder],
+  )
   const byId = useMemo(() => new Map(graph.nodes.map((node) => [node.id, node])), [graph])
   const editable = Boolean(onChange)
 

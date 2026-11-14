@@ -1,4 +1,4 @@
-import { expressionSource, inputSchema, parseReference, pinType, resultSchema, triggerSchema, type Definition, type PinSchemas, type PinType, type State } from '@protobase/workflows'
+import { expressionSource, inputSchema, parseReference, pinType, resultSchema, schemaAt, stepStatusSchema, triggerSchema, type Definition, type PinSchemas, type PinType, type State } from '@protobase/workflows'
 
 type JsonSchema = Record<string, unknown>
 
@@ -72,5 +72,18 @@ export const stepOutputs = (state: State, schemas: PinSchemas): OutputPin[] => {
 /** What the trigger gives as the run's input: its fields by its type, or the whole input of a manual workflow. */
 export const triggerOutputs = (definition: Definition, schemas: PinSchemas): OutputPin[] => outputsOf(triggerSchema(definition, schemas))
 
-/** The schema of what a node gives, for its Break nodes: a Task's result, or the run's input. */
-export const givenSchema = (definition: Definition, state: State | undefined, schemas: PinSchemas) => (state ? resultSchema(state, schemas) : triggerSchema(definition, schemas))
+/** In data order, the pin a state's status comes out of, and the one its Condition takes, which other values' pins never are. */
+export const statusKey = '#status'
+export const conditionKey = '#condition'
+
+/** A state's status pin, in data order: `$states.context.Steps.<name>`. */
+export const statusPin: OutputPin = { path: [statusKey], type: pinType(stepStatusSchema) }
+
+/** A state's Only when pin, in data order: its Condition, true or false. */
+export const conditionPin = (state: State): InputPin => ({ key: conditionKey, type: { kinds: ['boolean'] }, required: false, value: state.Condition, state: inputState(state.Condition) })
+
+/** The schema of the value at `path` of what a node gives, for its Break nodes: a Task's result, the run's input, or a state's status. */
+export const givenSchema = (definition: Definition, state: State | undefined, schemas: PinSchemas, path: readonly string[]) => {
+  if (path[0] === statusKey) return schemaAt(stepStatusSchema, path.slice(1))
+  return schemaAt(state ? resultSchema(state, schemas) : triggerSchema(definition, schemas), path)
+}

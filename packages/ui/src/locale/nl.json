@@ -875,7 +875,17 @@
     "inputValue": "Waarde van {label}",
     "graphView": "Grafiekweergave",
     "viewPins": "Pinnen",
-    "viewSimple": "Eenvoudig"
+    "viewSimple": "Eenvoudig",
+    "onlyWhen": "Alleen als",
+    "onlyWhenHelp": "Een expressie: de stap draait alleen als die waar is, anders wordt hij overgeslagen. Een stap waarvan een afhankelijkheid niet slaagde, wordt ook overgeslagen, tenzij dit de status van die stap leest, zoals $states.context.Steps.Save.Status = \"SUCCEEDED\".",
+    "onlyWhenBadge": "alleen als …",
+    "statusPin": "Status",
+    "stepStatusType": "Stapstatus",
+    "executionOrder": "Uitvoervolgorde",
+    "orderSequence": "Op volgorde",
+    "orderData": "Uit de gegevens",
+    "orderSwitchTitle": "Stappen {order, select, data {uit de gegevens} other {op volgorde}} uitvoeren",
+    "orderSwitchRefused": "Kan niet wisselen: {reason}"
   },
   "app/field-types/workflow-run": {
     "chosenStep": "Gekozen stap",

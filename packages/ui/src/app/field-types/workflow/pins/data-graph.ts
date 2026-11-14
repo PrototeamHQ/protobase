@@ -1,6 +1,6 @@
-import { allStates, inputSchema, parseReference, pinType, resultRead, schemaAt, type Definition, type PinSchemas, type PinType, type State } from '@protobase/workflows'
+import { allStates, inputSchema, orderOf, parseReference, pinType, resultRead, schemaAt, type Definition, type PinSchemas, type PinType, type State } from '@protobase/workflows'
 import { pathOfName, triggerId } from '../definition'
-import { fieldsOf, givenSchema, inputPin, inputPins, stepOutputs, triggerOutputs, type InputPin, type OutputPin } from './node-pins'
+import { conditionPin, fieldsOf, givenSchema, inputPin, inputPins, statusKey, statusPin, stepOutputs, triggerOutputs, type InputPin, type OutputPin } from './node-pins'
 import { breakId, breakIn, inHandle, makeId, makeOut, outHandle } from './pure-ids'
 
 /** A Break node: the fields of the object a node gives at `path`, each a pin of its own. */
@@ -44,8 +44,11 @@ const resultVariables = (definition: Definition) => {
  */
 export const dataGraph = (definition: Definition, schemas: PinSchemas, local: readonly LocalPure[] = []): DataGraph => {
   const states = new Map<string, State>(allStates(definition.stateMachine).map(([name, state]) => [pathOfName(definition.stateMachine, name)!.join('/'), state]))
-  const outputs = new Map<string, OutputPin[]>([[triggerId, triggerOutputs(definition, schemas)], ...[...states].map(([path, state]): [string, OutputPin[]] => [path, stepOutputs(state, schemas)])])
-  const inputs = new Map([...states].filter(([, state]) => state.Type === 'Task').map(([path, state]) => [path, inputPins(state, schemas)]))
+  // In data order every state has an Only when pin first and a status pin last
+  const data = orderOf(definition) === 'data'
+  const outputs = new Map<string, OutputPin[]>([[triggerId, triggerOutputs(definition, schemas)], ...[...states].map(([path, state]): [string, OutputPin[]] => [path, [...stepOutputs(state, schemas), ...(data ? [statusPin] : [])]])])
+  const inputs = new Map([...states].filter(([, state]) => data || state.Type === 'Task').map(([path, state]) => [path, [...(data ? [conditionPin(state)] : []), ...inputPins(state, schemas)]]))
+  const pathOfState = (name: string) => [...states.keys()].find((path) => path.split('/').at(-1) === name)
   const breaks = new Map<string, BreakNode>()
   const makes = new Map<string, MakeNode>()
   const edges = new Map<string, DataEdge>()
@@ -80,7 +83,7 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
     const id = breakId(source, path)
     const known = breaks.get(id)
     if (known) return known
-    const schema = schemaAt(givenSchema(definition, states.get(source), schemas), path)
+    const schema = givenSchema(definition, states.get(source), schemas, path)
     const made: BreakNode = { kind: 'break', id, source, path, type: pinType(schema), outputs: fieldsOf(schema).map(([key, field]) => ({ path: [key], type: pinType(field) })) }
     breaks.set(id, made)
     wire(from(source, path), id, breakIn)
@@ -89,8 +92,10 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
   const sourceOf = (value: unknown) => {
     const reference = parseReference(value)
     if (!reference) return
-    // A read of a state's status draws no wire here
-    if ('step' in reference.base) return
+    if ('step' in reference.base) {
+      const node = pathOfState(reference.base.step)
+      return node === undefined || !outputs.has(node) ? undefined : from(node, [statusKey, ...reference.path])
+    }
     const node = 'input' in reference.base ? triggerId : variables.get(reference.base.variable)
     return node === undefined || node === null || !outputs.has(node) ? undefined : from(node, reference.path)
   }

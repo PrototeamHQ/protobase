@@ -1,9 +1,9 @@
-import { fits, referenceValue, type Definition, type Reference } from '@protobase/workflows'
-import { splitPath, stateAt, triggerId } from '../definition'
+import { dependsOn, fits, machineDependencies, orderOf, referenceValue, type Definition, type Reference } from '@protobase/workflows'
+import { machineAt, splitPath, stateAt, triggerId } from '../definition'
 import { earlierSteps, shapesItsOutput, variableFor } from '../../workflow-page/value-insert'
 import { setArgument } from './argument-edits'
 import type { DataEdge, DataGraph, PureNode } from './data-graph'
-import type { OutputPin } from './node-pins'
+import { statusKey, type OutputPin } from './node-pins'
 import { inKey, outPath } from './pure-ids'
 
 /** One end of a wire: a node and its handle. */
@@ -47,12 +47,33 @@ const pinType = (graph: DataGraph, end: PinEnd, side: 'out' | 'in') => {
 // A step inside a Block reads only the Block's own input, never the run's
 const inBlock = (definition: Definition, step: string) => splitPath(step).scope.some((_, index, scope) => stateAt(definition, scope.slice(0, index + 1).join('/'))?.Type === 'Block')
 
+// In data order, whether `from` already runs after `to`, so a read of it by `to` would make them wait on each other
+const runsAfter = (definition: Definition, from: string, to: string) => {
+  const { scope, name } = splitPath(from)
+  if (splitPath(to).scope.join('/') !== scope.join('/')) return false
+  const dependencies = machineDependencies(machineAt(definition, scope)!)
+  const seen = new Set<string>()
+  const stack = [name]
+  while (stack.length > 0) {
+    const next = stack.pop()!
+    if (next === splitPath(to).name) return true
+    if (seen.has(next)) continue
+    seen.add(next)
+    stack.push(...dependsOn(dependencies.get(next) ?? { data: new Set(), status: new Set(), handled: new Set() }))
+  }
+  return false
+}
+
 /** Why a wire from `from` to `to` cannot be drawn, or undefined when it can. */
 export const wireRefusal = (definition: Definition, graph: DataGraph, from: PinEnd, to: PinEnd): WireRefusal | undefined => {
   const source = origin(graph, from)
   const target = destination(graph, to)
   if (!source || !target) return { reason: 'notPins' }
-  if (source.node === triggerId) {
+  if (orderOf(definition) === 'data' && source.node !== triggerId) {
+    // In data order a read is what orders the states: any state may read another that does not run after it
+    if (runsAfter(definition, source.node, target.step)) return { reason: 'notBefore', step: splitPath(source.node).name }
+    if (source.path[0] !== statusKey && shapesItsOutput(definition, source.node)) return { reason: 'shapesOutput', step: splitPath(source.node).name }
+  } else if (source.node === triggerId) {
     if (inBlock(definition, target.step)) return { reason: 'notBefore', step: splitPath(target.step).name }
   } else {
     if (!earlierSteps(definition, target.step).includes(source.node)) return { reason: 'notBefore', step: splitPath(source.node).name }
@@ -76,6 +97,7 @@ export const connectData = (definition: Definition, graph: DataGraph, from: PinE
   let next = definition
   let reference: Reference
   if (source.node === triggerId) reference = { base: { input: true }, path: source.path }
+  else if (source.path[0] === statusKey) reference = { base: { step: splitPath(source.node).name }, path: source.path.slice(1) }
   else {
     const kept = variableFor(definition, source.node)
     next = kept.definition

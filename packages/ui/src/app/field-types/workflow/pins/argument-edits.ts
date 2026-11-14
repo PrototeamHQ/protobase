@@ -1,5 +1,6 @@
 import type { Definition } from '@protobase/workflows'
 import { machineAt, splitPath, type StatePath } from '../definition'
+import { conditionKey } from './node-pins'
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -11,7 +12,13 @@ const isObject = (value: unknown): value is Record<string, unknown> => typeof va
 export const setArgument = (definition: Definition, path: StatePath, keys: readonly string[], value: unknown): Definition => {
   const copy = structuredClone(definition)
   const { scope, name } = splitPath(path)
-  const state = machineAt(copy, scope)?.States[name] as { Type: string; Arguments?: unknown } | undefined
+  const state = machineAt(copy, scope)?.States[name] as { Type: string; Arguments?: unknown; Condition?: unknown } | undefined
+  // In data order, the Only when pin sets the state's Condition, whatever its type
+  if (state && keys[0] === conditionKey) {
+    if (value === undefined) delete state.Condition
+    else state.Condition = value
+    return copy
+  }
   if (!state || state.Type !== 'Task') return definition
   if (!isObject(state.Arguments)) state.Arguments = {}
   let holder = state.Arguments as Record<string, unknown>

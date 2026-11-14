@@ -2,7 +2,7 @@ import { Checkbox } from '../../../../primitives/checkbox'
 import { Input } from '../../../../primitives/input'
 import { Select } from '../../../../primitives/select'
 import { text } from '../messages'
-import type { InputPin } from './node-pins'
+import { conditionKey, type InputPin } from './node-pins'
 
 // The one kind an inline editor writes, for a pin that takes text, a number or true and false
 const inlineKind = (pin: InputPin) => {
@@ -22,6 +22,8 @@ const numberOf = (typed: string) => (typed.trim() === '' ? undefined : Number.is
  */
 export const PinValue = ({ pin, label, onChange }: { pin: InputPin; label: string; onChange?: (value: unknown) => void }) => {
   if (pin.state === 'wired' || pin.state === 'made') return null
+  // A Condition is an expression, which the step's form edits; wired, it reads a yes or no
+  if (pin.key === conditionKey && pin.state !== 'expression') return null
   if (pin.state === 'expression') {
     return (
       <span className="ml-auto shrink-0 rounded bg-muted px-1 font-mono text-xs text-muted-foreground" title={text('pinExpression', { expression: String(pin.value) })}>

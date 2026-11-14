@@ -139,3 +139,11 @@
     height: 16px;
   }
 }
+/* In data order a node's sides are where the lines of what it reads meet, not handles to draw from */
+.pb-workflow .react-flow__handle.pb-workflow-side {
+  opacity: 0;
+  pointer-events: none;
+}
+.pb-workflow .pb-workflow-status .react-flow__edge-path {
+  stroke-dasharray: 5 4;
+}

@@ -111,15 +111,33 @@ const Title = ({ name, kind, problems, first, trace, warnings = [] }: { name: st
 )
 
 /** A state: a box with its name, what it is and the handles its edges leave from; a Map's or Block's holds the states inside it. */
+// In data order a node has no execution handles: the edges drawn between nodes, in the simple view, are what they read,
+// from one's side to the other's
+const DataSides = () => (
+  <>
+    <Handle id="in" type="target" position={Position.Left} isConnectable={false} className="pb-workflow-side" style={{ top: execTops[0] }} />
+    <Handle id="out" type="source" position={Position.Right} isConnectable={false} className="pb-workflow-side" style={{ top: execTops[0] }} />
+  </>
+)
+
+// The Condition a state runs under in data order, shortly, whole on hover
+const OnlyWhen = ({ condition }: { condition: string | undefined }) =>
+  condition !== undefined && (
+    <span className="absolute top-1 right-6 max-w-[45%] truncate rounded bg-muted px-1 text-[0.625rem] text-muted-foreground" title={condition}>
+      {text('onlyWhenBadge')}
+    </span>
+  )
+
 export const StateNode = ({ data, selected, isConnectable }: NodeProps<FlowNode>) => {
-  const { node, kind, problems, trace, cacheWarning, warnings = [], pins } = data
+  const { node, kind, problems, trace, cacheWarning, warnings = [], pins, dataOrder } = data
   if (node.kind !== 'state') return null
   return (
     <div className={cn(boxClass(selected, problems.length, trace), 'h-full', holdsSteps(node.state) && 'bg-muted/40')}>
       <div className="relative h-[52px] py-2 pr-6 pl-4">
-        <Handle id="in" type="target" position={Position.Left} isConnectable={isConnectable} className="pb-workflow-exec" style={{ top: execTops[0] }} />
+        {dataOrder ? <DataSides /> : <Handle id="in" type="target" position={Position.Left} isConnectable={isConnectable} className="pb-workflow-exec" style={{ top: execTops[0] }} />}
+        {dataOrder && <OnlyWhen condition={node.state.Condition} />}
         <Title name={node.name} kind={kind} problems={problems.length} first={node.first && node.parent !== undefined} trace={trace} warnings={[...(cacheWarning ? [text('cacheForcedAgainst')] : []), ...warnings.map((warning) => warning.message)]} />
-        <Sources state={node.state} path={node.id} editable={isConnectable} />
+        {!dataOrder && <Sources state={node.state} path={node.id} editable={isConnectable} />}
       </div>
       {pins && !holdsSteps(node.state) && <PinColumns node={node.id} inputs={pins.inputs} outputs={pins.outputs} folded={pins.folded} open={pins.open} editable={isConnectable} />}
     </div>
@@ -128,13 +146,19 @@ export const StateNode = ({ data, selected, isConnectable }: NodeProps<FlowNode>
 
 /** The trigger: what starts a run, leading to the first state. */
 export const TriggerNode = ({ data, selected, isConnectable }: NodeProps<FlowNode>) => {
-  const { node, kind, problems, pins } = data
+  const { node, kind, problems, pins, dataOrder } = data
+  // In data order no state is first, so the trigger's handle adds no step
+  const addAt = useAddAt({ kind: 'start', source: node.id }, isConnectable && !dataOrder)
   if (node.kind !== 'trigger') return null
   return (
     <div className={cn(boxClass(selected, problems.length), 'h-full border-dashed')}>
       <div className="relative h-[52px] py-2 pr-6 pl-4">
         <Title name={kind} kind={text('trigger')} problems={problems.length} />
-        <Handle id="start" type="source" position={Position.Right} isConnectable={isConnectable} className="pb-workflow-exec" style={{ top: execTops[0] }} {...useAddAt({ kind: 'start', source: node.id }, isConnectable)} />
+        {dataOrder ? (
+          <Handle id="out" type="source" position={Position.Right} isConnectable={false} className="pb-workflow-side" style={{ top: execTops[0] }} />
+        ) : (
+          <Handle id="start" type="source" position={Position.Right} isConnectable={isConnectable} className="pb-workflow-exec" style={{ top: execTops[0] }} {...addAt} />
+        )}
       </div>
       {pins && <PinColumns node={node.id} inputs={[]} outputs={pins.outputs} folded={0} open={false} editable={isConnectable} trigger />}
     </div>
