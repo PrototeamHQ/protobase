@@ -19,13 +19,13 @@ const listHeading = (context: TextContext) => {
 
 const listBlock: TextForm = (context) => headed(context, 3, listHeading(context), context.children)
 
-// A table the caller loaded reads as a Markdown table under its heading
+// A table the caller loaded reads as a Markdown table under its heading, and the row its `select` chose after it
 const Table: TextForm = (context) => {
   const shown = context.options.tables?.(context.node)
+  const rows = shown ? tableMarkdown(shown, (context.node.props.columns as TableColumn[] | undefined) ?? []) : ''
   // One without a resource draws the list around it, which holds its heading
-  if (context.node.props.resource === undefined) return shown ? tableMarkdown(shown, (context.node.props.columns as TableColumn[] | undefined) ?? []) : ''
-  if (!shown) return listBlock(context)
-  return blocks([listBlock(context), tableMarkdown(shown, (context.node.props.columns as TableColumn[] | undefined) ?? [])])
+  if (context.node.props.resource === undefined) return rows
+  return blocks([headed(context, 3, listHeading(context)), rows, ...context.children])
 }
 
 // A record card with a key links to that record, and otherwise to the list its filter finds it in

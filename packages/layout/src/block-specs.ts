@@ -4,7 +4,7 @@ import { isLayoutNode } from './node'
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
 // blocks.ts say the same for the compiler.
 
-type Kind = 'sort' | 'filter' | 'pagination' | 'referenceLink' | 'text' | 'content' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls' | 'tableColumns' | 'locales' | 'intlOptions' | 'dateFormat'
+type Kind = 'choices' | 'sort' | 'filter' | 'pagination' | 'referenceLink' | 'text' | 'content' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls' | 'tableColumns' | 'locales' | 'intlOptions' | 'dateFormat'
 
 type PropSpec = { kind: Kind; required?: true }
 
@@ -37,8 +37,9 @@ const specs: Record<string, BlockSpec> = {
   },
   RecordCard: { children: true, props: { ...data, ...heading, recordKey: optional('text'), empty: optional('text'), span: optional('span') }, reads },
   Field: { children: false, props: { source: required('text'), label: optional('label'), format: optional('format') } },
-  // Without `resource`, it draws the list around it and reads nothing
-  Table: { children: false, reads, props: { ...data, resource: optional('text'), ...heading, columns: optional('tableColumns'), button: optional('rowButton'), bulk: optional('boolean'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
+  // Without `resource`, it draws the list around it and reads nothing; its children draw the row `select` chose
+  Table: { children: true, reads, props: { ...data, resource: optional('text'), ...heading, columns: optional('tableColumns'), button: optional('rowButton'), bulk: optional('boolean'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span'), select: optional('text') } },
+  SelectInput: { children: false, props: { source: required('text'), choices: optional('choices'), label: optional('text'), defaultValue: optional('scalar') } },
   CardRow: { children: true, props: { ...data, ...heading, limit: optional('integer'), empty: optional('text'), span: optional('span') }, reads },
   RecordRow: { children: false, props: { ...data, ...heading, limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') }, reads },
   RecordCards: {
@@ -162,6 +163,9 @@ const isTableColumn = (value: LayoutValue) =>
   typeof value === 'string' ||
   (isObject(value) && !isLayoutNode(value) && typeof value.name === 'string' && typeof value.priority === 'number' && Number.isInteger(value.priority) && value.priority > 0 && Object.keys(value).every((name) => name === 'name' || name === 'priority'))
 
+// react-admin's choice, `{ id, name }`
+const isChoice = (value: LayoutValue) => isObject(value) && !isLayoutNode(value) && (typeof value.id === 'string' || typeof value.id === 'number') && typeof value.name === 'string' && Object.keys(value).length === 2
+
 // react-admin's `{ field, order }`, or AIP-132 text
 const isSort = (value: LayoutValue) =>
   typeof value === 'string' || (isObject(value) && typeof value.field === 'string' && (value.order === 'ASC' || value.order === 'DESC') && Object.keys(value).length === 2)
@@ -170,6 +174,7 @@ const isSort = (value: LayoutValue) =>
 const isFilter = (value: LayoutValue) => typeof value === 'string' || (isObject(value) && !isLayoutNode(value) && Object.values(value).every((item) => item === null || ['string', 'number', 'boolean'].includes(typeof item)))
 
 const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: string]> = {
+  choices: [(value) => Array.isArray(value) && value.every(isChoice), "a list of choices, such as [{ id: '7d', name: 'Last 7 days' }]"],
   sort: [isSort, "an AIP-132 order such as 'created_at desc', or { field, order: 'ASC' | 'DESC' }"],
   filter: [isFilter, "an AIP-160 filter such as 'status = \"open\"', or an object of field values such as { status: 'open' }"],
   pagination: [(value) => value === 'more', "'more'"],

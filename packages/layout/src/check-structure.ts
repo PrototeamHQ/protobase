@@ -4,6 +4,7 @@ import { parseCondition } from './condition'
 import { sampleSlots } from './filter-slots'
 import type { LayoutChild, LayoutNode } from './node'
 import { listProblems } from './check-lists'
+import { pageParamProblems } from './check-page-params'
 import { tabsProblems } from './check-tabs'
 import { detailsProblems } from './check-details'
 import { inlineFieldProblems } from './check-inline-fields'
@@ -136,5 +137,5 @@ export const structureProblems = (tree: LayoutNode): string[] => {
       if (!parsed.ok) report(`"when" is not a valid condition: ${parsed.message}`)
     }
   })
-  return [...problems, ...tabsProblems(tree)]
+  return [...problems, ...tabsProblems(tree), ...pageParamProblems(tree)]
 }

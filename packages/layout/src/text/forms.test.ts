@@ -4,6 +4,7 @@ import * as lists from '../list-blocks'
 import { blockSpecs } from '../block-specs'
 import { Details, Summary } from '../details'
 import { Box, Column, Row, Text } from '../elements'
+import { SelectInput } from '../page-params'
 import * as fields from '../inline-fields'
 import type { LayoutNode } from '../node'
 import { renderText } from './render-text'
@@ -36,6 +37,7 @@ const samples: Record<string, LayoutNode> = {
   Tabs: built.Tabs({ children: built.Tab({ name: 'one', label: 'One', children: text }) }),
   Tab: built.Tab({ name: 'one', label: 'One', children: text }),
   Settings: built.Settings({ resource: 'preferences', title: 'Preferences' }),
+  SelectInput: SelectInput({ source: 'window', label: 'Window', choices: [{ id: '7d', name: 'Last 7 days' }], defaultValue: '7d' }),
   Users: built.Users({}),
   Profile: built.Profile({}),
   Password: built.Password({}),

@@ -15,6 +15,8 @@ export type PathCheckInput = {
   models: Record<string, ResourceModel>
   /** The page parameters the page's `SelectInput`s declare. */
   params: ReadonlySet<string>
+  /** Those of them whose `SelectInput` gives choices, the only ones a read may take: any other value is the address's text. */
+  chosen: ReadonlySet<string>
 }
 
 export type PathFindings = { problems: string[]; warnings: string[] }
@@ -42,7 +44,7 @@ const isAddressValue = (resolved: Resolved, models: PathCheckInput['models']) =>
   (resolved.kind === 'field' && resolved.context.at === 'root' && resolved.names.length === 1 && Boolean(models[resolved.context.resource]?.primaryKey.includes(resolved.names[0]!)))
 
 /** Problems and warnings of the placeholders in an element's props, where it sits in `scope`. */
-export const pathFindings = (node: LayoutNode, scope: Scope, { models, params }: PathCheckInput): PathFindings => {
+export const pathFindings = (node: LayoutNode, scope: Scope, { models, params, chosen }: PathCheckInput): PathFindings => {
   const problems: string[] = []
   const warnings: string[] = []
   if (node.custom) return { problems, warnings }
@@ -74,6 +76,9 @@ export const pathFindings = (node: LayoutNode, scope: Scope, { models, params }:
   let perRow = 0
   const dataSlot = (prop: string, path: string, splits: boolean) => {
     const resolved = resolve(prop, path)
+    if (resolved?.kind === 'data' && resolved.variable === 'params' && !chosen.has(resolved.names[0]!)) {
+      return problems.push(`${prop}: "{{${path}}}" comes from a SelectInput without choices, so any text in the address would reach the read; give it choices`)
+    }
     if (!resolved || isAddressValue(resolved, models)) return
     if (resolved.kind !== 'field' || resolved.names.length > 1) return problems.push(`${prop}: "{{${path}}}" is no stored field of a record, so a read cannot take it`)
     if (!splits) return problems.push(`${prop}: "{{${path}}}" sits where a read cannot split it per row; only field = {{${path}}} as a top-level AND condition can, and ${waits}`)

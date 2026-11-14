@@ -5,6 +5,8 @@ import { conditionFindings } from './check-condition'
 import { listModelProblems } from './check-list-models'
 import { composerProblems, threadProblems } from './check-conversation'
 import { pathFindings } from './check-paths'
+import { choiceFilterProblems } from './check-param-filters'
+import { chosenParams, pageInputs, type SelectInputProps } from './page-params'
 import { resolveFieldPath } from './field-path'
 import { sampledFilterErrors } from './sampled-filter'
 import { resolveScopePath } from './scope-lookup'
@@ -66,16 +68,16 @@ export const pageParams = (tree: LayoutNode) => {
   return params
 }
 
-type NodeInput = PageCheckInput & { params: ReadonlySet<string>; warn: (warning: string) => void }
+type NodeInput = PageCheckInput & { params: ReadonlySet<string>; inputs: ReadonlyMap<string, SelectInputProps>; chosen: ReadonlySet<string>; warn: (warning: string) => void }
 
 const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[] => {
-  const { models, actions, pages, createPages, functions, params, warn } = input
+  const { models, actions, pages, createPages, functions, params, inputs, chosen, warn } = input
   const problems: string[] = []
   const resource = elementResource(node, scope)
   const own = text(node.props.resource)
   if (own !== undefined && !models[own]) return [`unknown resource "${own}"`]
   const model = resource === undefined ? undefined : models[resource]
-  const placed = pathFindings(node, scope, { models, params })
+  const placed = pathFindings(node, scope, { models, params, chosen })
   problems.push(...placed.problems)
   placed.warnings.forEach(warn)
   // A field a block shows is found through the records around it, as a bare name in Mustache is
@@ -93,9 +95,12 @@ const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[
   if (own !== undefined && model) {
     const filter = text(node.props.filter)
     const sort = text(node.props.sort)
-    const filterError = filter === undefined ? undefined : filterProblem(model, filter)
+    // A filter fed by page parameters is checked with each of their values, which a stand-in may not fit, such as a duration
+    const choiceErrors = filter === undefined ? undefined : choiceFilterProblems(model, filter, inputs)
+    const filterError = filter === undefined || choiceErrors ? undefined : filterProblem(model, filter)
     const sortError = sort === undefined ? undefined : sortProblem(model, sort)
     if (filterError) problems.push(`filter: ${filterError}`)
+    problems.push(...(choiceErrors ?? []))
     if (sortError) problems.push(`sort: ${sortError}`)
   }
   if (inlineFieldTypes.has(node.type)) path(String(node.props.source))
@@ -194,9 +199,11 @@ export const pageFindings = (page: PageModel, input: PageCheckInput): { problems
   const problems: string[] = []
   const warnings: string[] = []
   const params = pageParams(page.tree)
+  const inputs = pageInputs(page.tree)
+  const chosen = chosenParams(page.tree)
   walkTree(page.tree, (node, { path, scope }) => {
     const warn = (warning: string) => warnings.push(`${path}: ${warning}`)
-    const found = node.custom ? customProblems(node, scope, input) : nodeProblems(node, scope, { ...input, params, warn })
+    const found = node.custom ? customProblems(node, scope, input) : nodeProblems(node, scope, { ...input, params, inputs, chosen, warn })
     for (const problem of found) problems.push(`${path}: ${problem}`)
   })
   return { problems, warnings }

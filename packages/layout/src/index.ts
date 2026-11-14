@@ -77,6 +77,8 @@ export type {
   UsersProps,
 } from './blocks'
 export { ArrayField, RecordsIterator, ReferenceArrayField, ReferenceField, ReferenceManyField, defaultPerPage, defaultSort, defaultSource, maxPerPage } from './list-blocks'
+export { SelectInput, chosenChoice, chosenParams, inputValue, pageInputs, pageParamValues, paramNamePattern, selectParams, type Choice, type SelectInputProps } from './page-params'
+export { selectBlocks } from './select-blocks'
 export type { ArrayFieldProps, FilterObject, RecordsIteratorProps, ReferenceArrayFieldProps, ReferenceFieldProps, ReferenceManyFieldProps, SortObject } from './list-blocks'
 export { allOf, filterLiteral, filterText, referenceArrayFilter, referenceArrayRead, referenceManyFilter, referenceManyRead, sortText, type ListRead } from './list-query'
 export { blockSpecs, type BlockReads, type BlockSpec } from './block-specs'
