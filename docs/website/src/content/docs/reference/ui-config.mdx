@@ -1161,6 +1161,10 @@ A custom input's component gets the answer as `value` (`null` when empty), `onCh
 
 #### Secret inputs
 
+:::caution[Beta]
+A secret input has no button that shows what you typed. It takes no `default`, a later input's `when` cannot read it, and an `a.update` cannot write it.
+:::
+
 `i.secret(name, { label, help })` asks for a value that must not be seen or kept, such as an API key, so an app takes one without a custom component. The field draws what you type as discs, and browsers and password managers do not offer to save it, fill it, correct it or keep it in their form history. The value goes only to the handler, as `values[name]`:
 
 ```ts
