@@ -1,9 +1,9 @@
 import { Ajv, type ErrorObject } from 'ajv'
-import { definitionSchema } from './schema'
+import { dataflowDefinitionSchema, definitionSchema } from './schema'
 import { fieldPath, type Problem } from './problem'
 
 const ajv = new Ajv({ allErrors: true, discriminator: true, strict: false })
-const validate = ajv.compile(definitionSchema)
+const validators = { sequence: ajv.compile(definitionSchema), data: ajv.compile(dataflowDefinitionSchema) }
 
 // `/stateMachine/States/Each/ItemProcessor/States/Fetch/Retry/0` (or a Block's `Processor`) as the state `Each/Fetch` and its field `Retry[0]`;
 // `/trigger/schedule` as the field `trigger.schedule`.
@@ -26,12 +26,14 @@ const located = (pointer: string): Pick<Problem, 'state' | 'field'> => {
   return { ...(state.length > 0 && { state: state.join('/') }), ...(field.length > 0 && { field: fieldPath(field) }) }
 }
 
-const message = (error: ErrorObject) => {
+const message = (error: ErrorObject, data: boolean) => {
+  if (error.keyword === 'additionalProperties' && data && ['Next', 'End', 'StartAt'].includes(String(error.params.additionalProperty))) return `${error.params.additionalProperty} is not a field in dataflow order, where a state runs once the states it reads from have ended`
+  if (error.keyword === 'additionalProperties' && !data && error.params.additionalProperty === 'Condition') return 'Condition is a field only in dataflow order ("order": "data"); in sequence order a Choice decides'
   if (error.keyword === 'additionalProperties') return `${error.params.additionalProperty} is not a field here`
   if (error.keyword === 'required') return `${error.params.missingProperty} is missing`
   if (error.keyword === 'minItems') return `is missing; it needs at least ${String(error.params.limit)}`
   if (error.keyword === 'const') return `must be ${JSON.stringify(error.params.allowedValue)}`
-  if (error.keyword === 'discriminator') return 'must be one of Task, Choice, Pass, Map, Block, Wait, Succeed and Fail'
+  if (error.keyword === 'discriminator') return data ? 'must be one of Task, Pass, Map, Block, Wait and Fail; in dataflow order a Condition takes the place of Choice, and the run ends when no state is left to run' : 'must be one of Task, Choice, Pass, Map, Block, Wait, Succeed and Fail'
   if (error.keyword === 'pattern' && error.instancePath === '/trigger') return 'names a trigger type <plugin>:<key>, such as app:record, or manual'
   if (error.keyword === 'pattern' && error.instancePath.endsWith('/Assign')) return 'names a variable with letters, digits and _, starting with a letter'
   if (error.keyword === 'pattern') return 'must be an expression written as {% ... %}'
@@ -44,8 +46,10 @@ const message = (error: ErrorObject) => {
 // The `oneOf` of Next or End, Seconds or Timestamp, says only "must match exactly one schema": name the fields instead.
 const choices: Record<string, string> = { Next: 'needs either Next or End', Seconds: 'needs either Seconds or Timestamp' }
 
-/** The ways a definition does not fit the schema, each with the state and field it is about. */
+/** The ways a definition does not fit the schema of its order, each with the state and field it is about. */
 export const schemaProblems = (definition: unknown): Problem[] => {
+  const data = typeof definition === 'object' && definition !== null && (definition as { order?: unknown }).order === 'data'
+  const validate = data ? validators.data : validators.sequence
   if (validate(definition)) return []
   const problems: Problem[] = []
   const seen = new Set<string>()
@@ -55,7 +59,7 @@ export const schemaProblems = (definition: unknown): Problem[] => {
     if (error.keyword === 'required' && /(oneOf|allOf)\/\d+\/oneOf\/\d+\/required$/.test(error.schemaPath)) continue
     if (error.keyword === 'not') continue
     const where = { ...located(error.instancePath), ...(error.keyword === 'discriminator' && { field: 'Type' }) }
-    let text = message(error)
+    let text = message(error, data)
     if (error.keyword === 'oneOf') {
       const branch = errors.find((other) => other.instancePath === error.instancePath && other.schemaPath.startsWith(error.schemaPath.replace(/\/oneOf$/, '/oneOf/')) && other.keyword === 'required')
       text = choices[String(branch?.params.missingProperty)] ?? text

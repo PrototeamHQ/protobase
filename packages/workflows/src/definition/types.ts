@@ -9,9 +9,11 @@ export type Retrier = {
   MaxDelaySeconds?: number
 }
 
-export type Catcher = { ErrorEquals: string[]; Next: string; Output?: Template; Assign?: Record<string, Template> }
+/** In dataflow mode a catcher has no `Next`: the state counts as ended, its Status `FAILED`, with the catcher's `Output` and `Assign`. */
+export type Catcher = { ErrorEquals: string[]; Next?: string; Output?: Template; Assign?: Record<string, Template> }
 
-type Common = { Comment?: string; Output?: Template; Assign?: Record<string, Template>; QueryLanguage?: 'JSONata' }
+/** `Condition`, in dataflow mode only: the state runs once its dependencies have ended and only when it is true, else it is skipped. */
+type Common = { Comment?: string; Output?: Template; Assign?: Record<string, Template>; QueryLanguage?: 'JSONata'; Condition?: string }
 type Flow = { Next?: string; End?: boolean }
 
 export type PassState = Common & Flow & { Type: 'Pass' }
@@ -41,7 +43,7 @@ export type BlockState = Common & Flow & { Type: 'Block'; Arguments?: Template; 
 
 export type State = PassState | TaskState | ChoiceState | WaitState | SucceedState | FailState | MapState | BlockState
 
-/** States and where they start: a whole state machine, or a Map's item processor. */
+/** States and where they start: a whole state machine, or a Map's item processor. A dataflow machine has no `StartAt`. */
 export type Machine = { StartAt: string; States: Record<string, State>; Comment?: string }
 
 /** The state machine of a workflow: the States Language with JSONata expressions, in the named-reads profile. */
@@ -51,8 +53,18 @@ export type StateMachine = Machine & { QueryLanguage: 'JSONata' }
 export type Trigger = { manual?: Record<string, unknown>; [type: `${string}:${string}`]: Record<string, unknown> }
 
 /**
- * A workflow definition: its trigger, the state machine a run runs from `StartAt`, the connected account each
+ * How a workflow's states are ordered: `sequence`, by each state's `Next` as the States Language orders them, or `data`,
+ * where a state runs once every state it reads from has ended and states that read nothing of each other run at once.
+ */
+export type Order = 'sequence' | 'data'
+
+/**
+ * A workflow definition: its trigger, how its states are ordered (`order`, sequence when absent), the state machine a
+ * run runs from `StartAt`, or by its reads in dataflow mode, the connected account each
  * connection `<plugin>:<connection>` of its types signs in with, by the account's id, and which of its runs keep a
  * trace (`all`, `failed` or `none`), when it says, over the app's default.
  */
-export type Definition = { trigger: Trigger; stateMachine: StateMachine; connections?: Record<string, string>; trace?: 'all' | 'failed' | 'none' }
+export type Definition = { trigger: Trigger; order?: Order; stateMachine: StateMachine; connections?: Record<string, string>; trace?: 'all' | 'failed' | 'none' }
+
+/** How a definition's states are ordered: as it says, else in sequence. */
+export const orderOf = (definition: Pick<Definition, 'order'>): Order => definition.order ?? 'sequence'

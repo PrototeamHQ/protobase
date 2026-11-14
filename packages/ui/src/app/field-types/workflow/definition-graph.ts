@@ -30,7 +30,7 @@ const stateEdges = (machine: Machine, scope: string[], name: string, state: Stat
     ...('Next' in state && typeof state.Next === 'string' ? edge('next', 'Next', state.Next) : []),
     ...rulesOf(state).flatMap((rule, index) => edge('rule', `Choices[${index}].Next`, rule.Next, rule.Condition)),
     ...(state.Type === 'Choice' && typeof state.Default === 'string' ? edge('default', 'Default', state.Default) : []),
-    ...catchersOf(state).flatMap((catcher, index) => edge('catch', `Catch[${index}].Next`, catcher.Next, Array.isArray(catcher.ErrorEquals) ? catcher.ErrorEquals.join(', ') : undefined)),
+    ...catchersOf(state).flatMap((catcher, index) => (catcher.Next === undefined ? [] : edge('catch', `Catch[${index}].Next`, catcher.Next, Array.isArray(catcher.ErrorEquals) ? catcher.ErrorEquals.join(', ') : undefined))),
   ]
 }
 

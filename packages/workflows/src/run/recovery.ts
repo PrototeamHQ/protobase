@@ -17,10 +17,19 @@ export const retryDelaySeconds = (retrier: Retrier, retries: number) => {
   return Math.min(delay, retrier.MaxDelaySeconds ?? limits.retryDelaySeconds)
 }
 
+/**
+ * The variable a catcher without `Next` keeps the error it caught in, which a dataflow state's Status reads: a name no
+ * definition can assign, as an assigned name starts with a letter.
+ */
+export const caughtVariable = '__caught'
+
+// A catcher with `Next` goes on there; one without, in dataflow order, ends its state's scope with the error kept.
 const caught = async (catcher: Catcher, failure: ErrorOutput, bindings: Bindings, logs: StepLog[]): Promise<StateResult> => {
   const after = { ...bindings, states: { ...(bindings.states as object), errorOutput: failure } }
   const output = catcher.Output === undefined ? failure : await evaluateKept(catcher.Output, after, 'Output')
-  return { kind: 'step', status: 'caught', next: catcher.Next, output, assigned: await evaluateAssign(catcher.Assign, after), error: failure.Error, cause: failure.Cause, logs }
+  const assigned = await evaluateAssign(catcher.Assign, after)
+  if (catcher.Next !== undefined) return { kind: 'step', status: 'caught', next: catcher.Next, output, assigned, error: failure.Error, cause: failure.Cause, logs }
+  return { kind: 'step', status: 'caught', next: null, output, assigned: { ...assigned, [caughtVariable]: failure }, error: failure.Error, cause: failure.Cause, logs }
 }
 
 /**

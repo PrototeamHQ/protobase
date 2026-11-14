@@ -1,3 +1,4 @@
+import type { Machine } from '../definition/types'
 import type { BlockRun, BlockShare, Checkpoint, StepLog, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
 import type { StepCacheStore } from './cache/cache-port'
@@ -7,8 +8,11 @@ import type { Replay } from './replay-of'
 /** What every scope of one segment shares. */
 export type SegmentContext = {
   runId: string
-  /** What expressions read as `$states.context`: the run's input and start time, and the secrets by name. */
-  stateContext: { Execution: { Input: unknown; StartTime: string }; Secrets: Readonly<Record<string, string>> }
+  /**
+   * What expressions read as `$states.context`: the run's input and start time, the secrets by name, and in dataflow
+   * order the status of each state of the machine that ended, by its name.
+   */
+  stateContext: { Execution: { Input: unknown; StartTime: string }; Secrets: Readonly<Record<string, string>>; Steps?: Readonly<Record<string, unknown>> }
   redactor: Redactor
   tasks: TaskHandlers
   /** Where step types that cache keep their results, and the namer of the secrets in their keys. */
@@ -39,6 +43,8 @@ export type SegmentContext = {
   /** Steps of the run so far, the saved ones and this segment's, and the most it may take. */
   steps: { count: number }
   maxSteps: number
+  /** Runs a machine as the definition orders its states, in sequence or by their reads: the run's, or a Map item's. */
+  runMachine: (context: SegmentContext, machine: Machine, where: { scope: string; logical: string }, input: unknown, outer: Record<string, unknown>, clock: Date) => Promise<ScopeOutcome>
 }
 
 /** How a scope's state ran: a step to save, or a Map that waits on its items. */
@@ -68,8 +74,8 @@ export type StateResult =
 /** A scope that cannot go on in this segment: it waits until a time, or the segment's time is up. */
 export type Paused = { kind: 'blocked'; until: Date } | { kind: 'yielded' }
 
-/** How a scope ended in this segment. */
-export type ScopeOutcome = { kind: 'ended'; output: unknown } | { kind: 'failed'; error: string; cause: string } | Paused
+/** How a scope ended in this segment, with the variables it assigned when it ended. */
+export type ScopeOutcome = { kind: 'ended'; output: unknown; variables?: Record<string, unknown> } | { kind: 'failed'; error: string; cause: string } | Paused
 
 /** A run's blocks' runs, as its segment reaches them. */
 export type SegmentBlocks = {

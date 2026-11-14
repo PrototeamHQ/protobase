@@ -13,6 +13,8 @@ export const stateExpressions = (state: State) => {
   }
   // A Task or Map shapes its result with Output and Assign; the other states have no result.
   const after: ExpressionPlace = state.Type === 'Task' || state.Type === 'Map' || state.Type === 'Block' ? 'result' : 'state'
+  // In dataflow order, before the state runs
+  add(state.Condition, ['Condition'], 'state')
   if (state.Type === 'Fail') {
     add(state.Error, ['Error'], 'state')
     add(state.Cause, ['Cause'], 'state')

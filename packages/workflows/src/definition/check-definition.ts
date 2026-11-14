@@ -16,6 +16,8 @@ import { limits } from '../limits'
 import { nestingDepth } from '../nesting'
 import { pinProblems } from './pins/check-pins'
 import type { PinSchemas } from './pins/pin-sources'
+import { dataflowProblems, dataflowVisible } from './dataflow/check-dataflow'
+import { orderOf } from './types'
 
 /**
  * What a definition is checked against beside the language: the step types (Task resources) the app has, the
@@ -34,8 +36,9 @@ export type CheckOptions = {
   pins?: PinSchemas
 }
 
-// `blocks`: how many Blocks the machine is inside.
-type Scope = { path: string[]; outer: ReadonlySet<string>; item: boolean; blocks: number }
+// `blocks`: how many Blocks the machine is inside; `data`: whether its states run in dataflow order, and `steps` the
+// names of the states around it whose status its states may read.
+type Scope = { path: string[]; outer: ReadonlySet<string>; item: boolean; blocks: number; data: boolean; steps: ReadonlySet<string> }
 
 // The arguments a Task's step type needs and its Arguments leave out; none when Arguments is one expression, whose
 // value is known only when it runs.
@@ -51,13 +54,16 @@ const machineProblems = (machine: Machine, scope: Scope, options: CheckOptions):
   const where = (name: string) => [...scope.path, name].join('/')
   const prefix = scope.path.length > 0 ? { state: scope.path.join('/') } : {}
   const names = Object.keys(machine.States)
-  if (!machine.States[machine.StartAt]) problems.push({ ...prefix, field: 'StartAt', message: `names "${machine.StartAt}", which is not a state here` })
-  const visible = visibleVariables(machine, scope.outer)
-  const reached = reachable(machine)
+  const { data } = scope
+  // In dataflow order a machine has no start: each state starts once the states it reads from have ended
+  if (!data && !machine.States[machine.StartAt]) problems.push({ ...prefix, field: 'StartAt', message: `names "${machine.StartAt}", which is not a state here` })
+  const visible = data ? dataflowVisible(machine, scope.outer) : visibleVariables(machine, scope.outer)
+  const reached = data ? undefined : reachable(machine)
+  const steps = new Set([...scope.steps, ...names])
 
   for (const name of names) {
     const state = machine.States[name]!
-    if (!reached.has(name) && machine.States[machine.StartAt]) problems.push({ state: where(name), message: `is never reached from "${machine.StartAt}"` })
+    if (reached && !reached.has(name) && machine.States[machine.StartAt]) problems.push({ state: where(name), message: `is never reached from "${machine.StartAt}"` })
     for (const edge of edges(state)) {
       if (!machine.States[edge.target]) problems.push({ state: where(name), field: edge.field, message: `names "${edge.target}", which is not a state here` })
     }
@@ -71,17 +77,19 @@ const machineProblems = (machine: Machine, scope: Scope, options: CheckOptions):
       problems.push({ state: where(name), field: 'Resource', message: `"${state.Resource}" is not a step type; use one of ${options.resources.join(', ')}` })
     }
     if (state.Type === 'Task') for (const missing of missingArguments(state, options)) problems.push({ state: where(name), field: `Arguments.${missing}`, message: `is missing; ${state.Resource} needs it` })
-    const firstOfItem = scope.item && name === machine.StartAt
+    // In dataflow order every state of an item's machine starts from the item, which it reads as $states.input
+    const firstOfItem = scope.item && (data || name === machine.StartAt)
     for (const { field, source, place } of stateExpressions(state)) {
-      for (const message of readProblems(source, { place, visible: visible.get(name)!, firstOfItem, inBlock: scope.blocks > 0 })) problems.push({ state: where(name), field, message })
+      for (const message of readProblems(source, { place, visible: visible.get(name)!, firstOfItem, inBlock: scope.blocks > 0, ...(data && { steps }) })) problems.push({ state: where(name), field, message })
     }
-    if (state.Type === 'Map') problems.push(...machineProblems(state.ItemProcessor, { ...scope, path: [...scope.path, name], outer: visible.get(name)!, item: true }, options))
+    if (state.Type === 'Map') problems.push(...machineProblems(state.ItemProcessor, { ...scope, path: [...scope.path, name], outer: visible.get(name)!, item: true, steps }, options))
     // A Block's steps run as a run of their own: they read its input, never the variables around it.
     if (state.Type === 'Block') {
       problems.push(...blockProblems(state, where(name), scope.blocks + 1))
-      problems.push(...machineProblems(state.Processor, { path: [...scope.path, name], outer: new Set(), item: false, blocks: scope.blocks + 1 }, options))
+      problems.push(...machineProblems(state.Processor, { path: [...scope.path, name], outer: new Set(), item: false, blocks: scope.blocks + 1, data, steps: new Set() }, options))
     }
   }
+  if (data) problems.push(...dataflowProblems(machine, where))
   return problems
 }
 
@@ -109,5 +117,5 @@ export const checkDefinition = (definition: unknown, options: CheckOptions): Pro
   const shape = schemaProblems(definition)
   if (shape.length > 0) return shape
   const document = definition as Definition
-  return [...triggerProblems(document.trigger, options.triggers, options.unavailable), ...(options.connections ? connectionProblems(document, options.connections) : []), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false, blocks: 0 }, options), ...(options.pins ? pinProblems(document, options.pins) : [])]
+  return [...triggerProblems(document.trigger, options.triggers, options.unavailable), ...(options.connections ? connectionProblems(document, options.connections) : []), ...wholeProblems(document), ...machineProblems(document.stateMachine, { path: [], outer: new Set(), item: false, blocks: 0, data: orderOf(document) === 'data', steps: new Set() }, options), ...(options.pins ? pinProblems(document, options.pins) : [])]
 }

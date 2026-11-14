@@ -9,7 +9,7 @@ const nextOf = (state: State): string[] => {
     for (const rule of state.Choices ?? []) along.push(rule.Next)
     if (state.Default !== undefined) along.push(state.Default)
   }
-  if ('Catch' in state) for (const catcher of state.Catch ?? []) along.push(catcher.Next)
+  if ('Catch' in state) for (const catcher of state.Catch ?? []) if (catcher.Next !== undefined) along.push(catcher.Next)
   return along
 }
 

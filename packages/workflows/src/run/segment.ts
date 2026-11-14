@@ -7,6 +7,8 @@ import type { Redactor } from './redact'
 import type { StepCacheStore } from './cache/cache-port'
 import { secretNamer } from './cache/secret-names'
 import { replayOf, type Replayed } from './replay-of'
+import { orderOf } from '../definition/types'
+import { runDataflow } from './dataflow'
 import { runScope } from './scope'
 
 export type SegmentInput = {
@@ -96,12 +98,13 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
     },
     trace: (step: StepRecord) => void steps.push(step),
     superseded: () => superseded,
+    runMachine: orderOf(definition) === 'data' ? runDataflow : runScope,
     // Each scope numbers its steps from 0, so its latest checkpoint counts the steps it took up to it.
     steps: { count: saved.reduce((count, checkpoint) => count + checkpoint.seq + 1, 0) },
     maxSteps,
   }
   try {
-    const outcome = await runScope(context, definition.stateMachine, { scope: '', logical: '' }, input, {}, startedAt)
+    const outcome = await context.runMachine(context, definition.stateMachine, { scope: '', logical: '' }, input, {}, startedAt)
     // A run that ended needs no checkpoint: its outcome is the run's own.
     if (outcome.kind === 'blocked' || outcome.kind === 'yielded') await write()
     return { ...outcome, steps }
