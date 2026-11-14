@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '../../lib/cn'
+import { useDocumentState } from './document-state'
 import type { ViewedFile } from './file-viewer'
 import { frameDocument } from './frame-document'
 import { frameMessage } from './frame-messages'
@@ -39,12 +40,13 @@ type HtmlFrameProps<File extends ViewedFile> = {
 export const HtmlFrame = <File extends ViewedFile>({ html, title, links = noLinks, onLink, scripts = 'bridge', className }: HtmlFrameProps<File>) => {
   const frame = useRef<HTMLIFrameElement>(null)
   const [height, setHeight] = useState<number>()
-  // A page that navigated its frame anyway is shown again once; doing so again leaves the frame empty.
-  const [shownAgain, setShownAgain] = useState(0)
   const shown = useMemo(() => {
     const nonce = frameNonce()
     return { nonce, srcDoc: frameDocument(html, scripts, nonce) }
   }, [html, scripts])
+  // A page that navigated its frame anyway is shown again once; doing so again leaves the frame empty, until another
+  // document is shown.
+  const [shownAgain, setShownAgain] = useDocumentState(shown.nonce, 0)
   const key = `${shown.nonce}:${shownAgain}`
   // The loads of the frame shown as `key`: its first is its page, any later one the page leaving it.
   const loads = useRef({ key, count: 0 })
