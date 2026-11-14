@@ -8,6 +8,7 @@ import { maxLimit } from './list-query'
 import { orderTerm } from './order'
 import type { Scope } from './scope'
 import { effectiveSort } from './sort'
+import { rankAlias } from './internal-aliases'
 
 /** The values of `field` a per-value read keeps: those among `values` when given, else every one the filter keeps. */
 export type PerValue = {
@@ -31,7 +32,7 @@ export type RelatedRowsQuery = PerValue & {
 }
 
 export const ownerAlias = '__pb_owner'
-export const rankAlias = '__pb_rank'
+export { rankAlias }
 
 type AnySelect = SelectQueryBuilder<any, any, any>
 
