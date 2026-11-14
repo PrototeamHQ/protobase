@@ -106,7 +106,8 @@ export const actionInputErrors = (entries: ActionInputModel[]) =>
     const errors: string[] = []
     if (entries.findIndex((other) => other.name === entry.name) !== index) errors.push(`input "${entry.name}" is declared twice`)
     if (entry.kind === 'secret' && entry.default !== undefined) errors.push(`input "${entry.name}": a secret takes no default`)
-    if (entry.options && entry.default !== undefined && !entry.options.some((option) => option.value === entry.default)) errors.push(`input "${entry.name}": default "${String(entry.default)}" is not one of its options`)
+    // A secret's default is refused above without naming it, so its value never lands in an error.
+    if (entry.kind !== 'secret' && entry.options && entry.default !== undefined && !entry.options.some((option) => option.value === entry.default)) errors.push(`input "${entry.name}": default "${String(entry.default)}" is not one of its options`)
     const when = checkedWhen(entries, index)
     if (typeof when === 'string') errors.push(`input "${entry.name}": "when" is not a valid condition over the inputs before it: ${when}`)
     return [...errors, ...checklistErrors(entry)]

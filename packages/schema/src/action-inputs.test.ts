@@ -53,6 +53,7 @@ describe('action inputs', () => {
     expect(built.inputs).toEqual([{ name: 'api_key', kind: 'secret', label: 'API key', required: true, help: 'From the settings page.' }])
     expect(() => actions.action('a', { label: 'A', inputs: (i) => [i.secret('key', { label: 'Key' }), i.text('y', { label: 'Y', when: "key = 'x'" })] })).toThrow('input "y": "when" is not a valid condition')
     expect(actionInputErrors([{ name: 'key', kind: 'secret', label: 'Key', required: true, default: 'sk-1' }])).toEqual(['input "key": a secret takes no default'])
+    expect(actionInputErrors([{ name: 'key', kind: 'secret', label: 'Key', required: true, default: 'sk-1', options: [{ value: 'a', label: 'A' }] }]).join()).not.toContain('sk-1')
     expect(() => actions.update('a', { label: 'A', inputs: (i) => [i.secret('key', { label: 'Key' })], set: { token: '{{key}}' } })).toThrow('set "token" names secret input "key", which an update never writes')
   })
 
