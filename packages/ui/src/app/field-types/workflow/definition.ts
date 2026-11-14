@@ -15,7 +15,9 @@ export const definitionOf = (value: unknown): Definition => {
   const given = value as Partial<Definition>
   const machine = given.stateMachine
   const States = typeof machine?.States === 'object' && machine.States !== null && !Array.isArray(machine.States) ? machine.States : {}
-  return { ...given, trigger: given.trigger ?? { manual: {} }, stateMachine: { ...machine, QueryLanguage: 'JSONata', StartAt: machine?.StartAt ?? '', States } } as Definition
+  // In data order a machine has no start, as it is saved
+  const start = given.order === 'data' ? {} : { StartAt: machine?.StartAt ?? '' }
+  return { ...given, trigger: given.trigger ?? { manual: {} }, stateMachine: { ...machine, QueryLanguage: 'JSONata', ...start, States } } as Definition
 }
 
 /**
