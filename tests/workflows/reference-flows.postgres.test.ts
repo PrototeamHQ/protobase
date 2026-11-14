@@ -11,6 +11,7 @@ import d from '../../packages/workflows/src/reference/d.json'
 import g from '../../packages/workflows/src/reference/g.json'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
+import { definitionFields } from '../../test-support/workflow-fields'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -89,7 +90,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("the report's reference 
   const runRow = async (id: string) => (await sql<{ status: string; error: string | null; cause: string | null }>`select status, error, cause from workflows.runs where id = ${id}`.execute(db)).rows[0]!
   const runFlow = async (name: string, flow: unknown, input: unknown) => {
     // Runs start by hand here: the flows' triggers are not what this test is about.
-    const workflow = await post('/workflows', { name, definition: { ...pointedAt(flow, base), trigger: { manual: {} } } })
+    const workflow = await post('/workflows', { name, ...definitionFields({ ...pointedAt(flow, base), trigger: { manual: {} } }) })
     const run = await post('/workflow_runs', { workflow_id: workflow, input })
     await vi.waitFor(async () => expect(['succeeded', 'failed']).toContain((await runRow(run)).status), { timeout: 20_000, interval: 50 })
     return run

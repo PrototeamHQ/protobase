@@ -31,7 +31,7 @@ export const issueWebhook = async ({ deps, schema, webhooks, origin }: IssueInpu
     const found = await fetchReadable(trx, access, [id], deletedRows(access.full, false), { lock: true })
     if (!found || !(await mayUpdateWorkflow(trx, access, id, found.record))) throw missing()
     const record = found.record
-    const [type, input] = Object.entries((record.definition as { trigger: Record<string, Record<string, unknown>> }).trigger)[0]!
+    const [type, input] = Object.entries(record.trigger as Record<string, Record<string, unknown>>)[0]!
     const trigger = webhooks(type)
     if (!trigger) throw badRequest('not-a-webhook', 'This workflow does not start from a webhook trigger, such as app:webhook')
     if (trigger.subscribe) throw badRequest('not-a-webhook', `${type} registers its own URL with its service as the workflow is turned on`)

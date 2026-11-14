@@ -6,6 +6,7 @@ import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRun
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
+import { definitionFields } from '../../test-support/workflow-fields'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -56,7 +57,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the http step of a work
     const base = `http://127.0.0.1:${(receiver.address() as AddressInfo).port}`
     const workflow = await post('/workflows', {
       name: 'Download',
-      definition: { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Get', States: { Get: { Type: 'Task', Resource: 'app:http', Arguments: { url: '{% $states.context.Execution.Input.base & "/big" %}', response: 'text' }, End: true } } } },
+      ...definitionFields({ trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Get', States: { Get: { Type: 'Task', Resource: 'app:http', Arguments: { url: '{% $states.context.Execution.Input.base & "/big" %}', response: 'text' }, End: true } } } }),
     })
     const run = await post('/workflow_runs', { workflow_id: workflow, input: { base } })
     const row = async () => (await sql<{ status: string; error: string | null; cause: string | null }>`select status, error, cause from workflows.runs where id = ${run}`.execute(db)).rows[0]!

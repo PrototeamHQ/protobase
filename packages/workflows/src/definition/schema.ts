@@ -43,7 +43,8 @@ const schemaFor = (order: Order) => {
   const machine = sequence
     ? { type: 'object', required: ['StartAt', 'States'], properties: { StartAt: name, Comment: { type: 'string' }, States: { type: 'object', minProperties: 1, propertyNames: name, additionalProperties: { $ref: '#/definitions/state' } } } }
     : { type: 'object', required: ['States'], properties: { Comment: { type: 'string' }, States: { type: 'object', minProperties: 1, propertyNames: name, additionalProperties: { $ref: '#/definitions/state' } } } }
-  const machineFields = { ...(sequence && { StartAt: {} }), States: {}, Comment: {} }
+  // A state machine Step Functions exports may carry its Version, which runs nothing
+  const machineFields = { ...(sequence && { StartAt: {} }), States: {}, Comment: {}, Version: { type: 'string' } }
   const flowStates = [
     state('Pass', flow, nextOrEnd),
     state('Task', { ...flow, ...recovery, Resource: name, Arguments: {}, TimeoutSeconds: { type: 'integer', minimum: 1, maximum: limits.taskTimeoutSeconds }, Cache: { type: 'boolean' } }, { required: ['Resource'], ...nextOrEnd }),

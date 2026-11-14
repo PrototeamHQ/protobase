@@ -8,6 +8,7 @@ import { StepError, type Definition } from '@protobase/workflows'
 import { App } from '../../app'
 import { fakeApi } from '../../testing/fake-api'
 import { fakeWorkflowEngine } from '../../testing/fake-workflow-engine'
+import { definitionRecord } from '../workflow/definition'
 
 const meta = { title: 'Plugins/Field types/Workflow run', parameters: { layout: 'fullscreen' } } satisfies Meta
 export default meta
@@ -134,8 +135,8 @@ const greet = (trace: Definition['trace']): Definition => ({
 // The page of the stories' first run, which each run story opens
 const runPage = appPath({ kind: 'record', resource: 'workflow_runs', key: 'run-1' })
 
-const workflow = (id: number, name: string, definition: Definition) => ({ id, name, description: null, definition, version: 1 })
-const version = (id: number, definition: Definition) => ({ workflow_id: id, version: 1, definition, saved_by: 'u-ada', saved_at: '2026-11-04T09:00:00Z' })
+const workflow = (id: number, name: string, definition: Definition) => ({ id, name, description: null, ...definitionRecord(definition), version: 1 })
+const version = (id: number, definition: Definition) => ({ workflow_id: id, version: 1, ...definitionRecord(definition), saved_by: 'u-ada', saved_at: '2026-11-04T09:00:00Z' })
 
 // What the stories' steps did, for the checks to read, and the gate the gated step waits on
 const calls = { fetch: 0, store: 0, mail: 0 }

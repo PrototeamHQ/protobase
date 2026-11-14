@@ -89,6 +89,8 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
   const sourceOf = (value: unknown) => {
     const reference = parseReference(value)
     if (!reference) return
+    // A read of a state's status draws no wire here
+    if ('step' in reference.base) return
     const node = 'input' in reference.base ? triggerId : variables.get(reference.base.variable)
     return node === undefined || node === null || !outputs.has(node) ? undefined : from(node, reference.path)
   }

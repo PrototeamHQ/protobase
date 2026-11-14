@@ -45,9 +45,17 @@ export const triggerSchema = (definition: Definition, schemas: PinSchemas) => {
  * The schema of the value a reference reads, in a state outside any Block: the trigger's run input, or the result a
  * state keeps whole in a variable, down the reference's path; undefined when nothing says, so it is of any type.
  */
+/** What `$states.context.Steps.<name>` gives in data order: a state's status, its error and cause. */
+export const stepStatusSchema: JsonSchema = {
+  type: 'object',
+  title: 'Step status',
+  properties: { Status: { enum: ['SUCCEEDED', 'FAILED', 'TIMED_OUT', 'ABORTED', 'SKIPPED'] }, Error: { type: ['string', 'null'] }, Cause: { type: ['string', 'null'] } },
+}
+
 export const referenceSchema = (definition: Definition, reference: Reference, schemas: PinSchemas): JsonSchema | undefined => {
   const { base, path } = reference
   if ('input' in base) return schemaAt(triggerSchema(definition, schemas), path)
+  if ('step' in base) return schemaAt(stepStatusSchema, path)
   const found = resultState(definition.stateMachine, base.variable)
   return found && schemaAt(resultSchema(found[1], schemas), path)
 }

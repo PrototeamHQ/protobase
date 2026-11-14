@@ -8,7 +8,7 @@ import { App } from '../../app'
 import { fakeApi } from '../../testing/fake-api'
 import { ticketsWorkflow } from '../../testing/workflow-fixtures'
 import { exampleWorkflowTypes } from '../../../../../../test-support/workflow-types'
-import { definitionOf } from './definition'
+import { definitionRecord, recordDefinition } from './definition'
 import { definitionProblems } from './problems'
 
 const meta = { title: 'Plugins/Field types/Workflow', parameters: { layout: 'fullscreen' } } satisfies Meta
@@ -25,8 +25,8 @@ const fetchOnly: Definition = {
 
 const rows = {
   workflows: [
-    { id: 1, name: 'Open tickets', description: null, definition: ticketsWorkflow, version: 1 },
-    { id: 2, name: 'Fetch tickets', description: null, definition: fetchOnly, version: 1 },
+    { id: 1, name: 'Open tickets', description: null, ...definitionRecord(ticketsWorkflow), version: 1 },
+    { id: 2, name: 'Fetch tickets', description: null, ...definitionRecord(fetchOnly), version: 1 },
   ],
   workflow_versions: [],
   workflow_runs: [],
@@ -39,12 +39,12 @@ let stored: Record<string, unknown> | undefined
 const checkSave = (resource: string, row: Record<string, unknown>) => {
   if (resource !== 'workflows') return
   // A workflow starts with no steps, which the server keeps
-  const definition = definitionOf(row.definition)
+  const definition = recordDefinition(row)
   if (Object.keys(definition.stateMachine.States).length === 0) return
   const problems = definitionProblems(definition, exampleWorkflowTypes)
   if (problems.length === 0) return
   const detail = `The workflow cannot be saved: ${problems.map(problemText).join('; ')}`
-  const errors = problems.map((problem) => ({ code: 'invalid-workflow', field: 'definition', message: problemText(problem), params: { state: problem.state, field: problem.field } }))
+  const errors = problems.map((problem) => ({ code: 'invalid-workflow', field: problem.field?.startsWith('trigger') ? 'trigger' : 'state_machine', message: problemText(problem), params: { state: problem.state, field: problem.field } }))
   throw new ApiError({ type: 'urn:protobase:problem:invalid-workflow', title: 'Bad Request', status: 400, detail, errors })
 }
 
@@ -115,14 +115,13 @@ export const CreatesAndConnectsChecks: StoryObj = {
     await addStep(canvasElement, 'Succeed')
     await laidOut(canvasElement, 4)
     await waitFor(() => expect(canvasElement.querySelectorAll('.react-flow__edge')).toHaveLength(3))
-    // A connection redrawn by a tap on a handle, then on the step it leads to, as the form's Goes on to can too
+    // A connection redrawn by the form's Goes on to, away and back
     await userEvent.click(await nodeOf(canvasElement, 'Step 1'))
     await userEvent.selectOptions(await panel().findByRole('combobox', { name: 'Goes on to' }), 'Step 3')
-    await userEvent.click((await nodeOf(canvasElement, 'Step 1')).querySelector('[data-handleid="next"]')!)
-    await userEvent.click((await nodeOf(canvasElement, 'Step 2')).querySelector('[data-handleid="in"]')!)
+    await userEvent.selectOptions(await panel().findByRole('combobox', { name: 'Goes on to' }), 'Step 2')
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
-      expect(stored?.definition).toEqual({
+      expect({ trigger: stored?.trigger, stateMachine: stored?.state_machine }).toEqual({
         trigger: { manual: {} },
         stateMachine: {
           QueryLanguage: 'JSONata',

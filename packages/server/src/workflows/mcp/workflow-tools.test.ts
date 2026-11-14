@@ -9,8 +9,8 @@ import { getWorkflowRunTool, workflowReadTools } from './workflow-read-tools'
 import { createWorkflowTool, runWorkflowTool, updateWorkflowTool } from './workflow-write-tools'
 
 const machine = (states: Record<string, unknown>) => ({ QueryLanguage: 'JSONata', StartAt: Object.keys(states)[0], States: states })
-const fetchUrl = (url: string) => ({ trigger: { manual: {} }, stateMachine: machine({ Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url }, End: true } }) })
-const saved = { record: { id: 'w1', name: 'Fetch', version: 1, definition: fetchUrl('https://a.example') }, etag: '"v1"' }
+const fetchUrl = (url: string) => ({ trigger: { manual: {} }, state_machine: machine({ Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url }, End: true } }) })
+const saved = { record: { id: 'w1', name: 'Fetch', version: 1, execution_order: 'sequence', ...fetchUrl('https://a.example') }, etag: '"v1"' }
 const readable = { models: [], views: [] } as unknown as ReadableResources
 const validateWorkflowTool = workflowReadTools({ ...workflowTypes(), readTrace: async () => [] }).find((tool) => tool.name === 'validate_workflow')!
 
@@ -25,29 +25,30 @@ const refusedSave = badRequest('invalid-workflow', 'The workflow cannot be saved
 describe('validate_workflow', () => {
   it('checks a definition with no steps as a save does, but for its want of steps', async () => {
     const { context } = contextWith({})
-    const empty = { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: '', States: {} } }
-    expect(JSON.parse(await validateWorkflowTool.run({ definition: empty }, context))).toEqual({ valid: true })
-    expect(JSON.parse(await validateWorkflowTool.run({ definition: { ...empty, trigger: { manual: {}, other: {} } } }, context))).toMatchObject({ valid: false })
+    const empty = { trigger: { manual: {} }, state_machine: { QueryLanguage: 'JSONata', StartAt: '', States: {} } }
+    expect(JSON.parse(await validateWorkflowTool.run(empty, context))).toEqual({ valid: true })
+    expect(JSON.parse(await validateWorkflowTool.run({ ...empty, trigger: { manual: {}, other: {} } }, context))).toMatchObject({ valid: false })
+    expect(JSON.parse(await validateWorkflowTool.run({ execution_order: 'data', state_machine: { QueryLanguage: 'JSONata', States: {} } }, context))).toEqual({ valid: true })
   })
 
   it('names the state, the field and what was expected, and reads nothing for a whole definition', async () => {
     const get = vi.fn()
     const { context } = contextWith({ get })
-    const definition = { trigger: { manual: {} }, stateMachine: machine({ Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url: '{% $nope %}' }, Next: 'Gone' } }) }
-    expect(JSON.parse(await validateWorkflowTool.run({ definition }, context))).toEqual({
+    const state_machine = machine({ Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url: '{% $nope %}' }, Next: 'Gone' } })
+    expect(JSON.parse(await validateWorkflowTool.run({ state_machine }, context))).toEqual({
       valid: false,
       problems: [
         { state: 'Fetch', field: 'Next', message: 'names "Gone", which is not a state here' },
         { state: 'Fetch', field: 'Arguments.url', message: 'reads $nope, which no state that can run before it assigns' },
       ],
     })
-    expect(JSON.parse(await validateWorkflowTool.run({ definition: fetchUrl('https://a.example') }, context))).toEqual({ valid: true })
+    expect(JSON.parse(await validateWorkflowTool.run(fetchUrl('https://a.example'), context))).toEqual({ valid: true })
     expect(get).not.toHaveBeenCalled()
   })
 
   it('checks an edit of the saved definition, read as the caller', async () => {
     const { context } = contextWith({})
-    const edit = { stateMachine: { States: { Fetch: { Resource: 'app:nope' } } } }
+    const edit = { state_machine: { States: { Fetch: { Resource: 'app:nope' } } } }
     expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit }, context)).problems).toEqual([expect.objectContaining({ state: 'Fetch', field: 'Resource' })])
     const refusing = contextWith({ get: () => Promise.reject(forbidden('forbidden', 'You may not read workflows')) })
     expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit }, refusing.context))).toEqual({ error: 'forbidden', message: 'You may not read workflows' })
@@ -60,17 +61,17 @@ describe('validate_workflow', () => {
     const { salary: _salary, ...visible } = app.orders.fields
     const { context } = contextWith({})
     const caller = { ...context, resources: async () => ({ models: [{ ...app.orders, fields: visible }], views: [] }) as unknown as ReadableResources }
-    const onRecord = (input: Record<string, unknown>) => ({ trigger: { 'app:record': input }, stateMachine: machine({ Done: { Type: 'Succeed' } }) })
-    const problems = async (input: Record<string, unknown>) => JSON.parse(await tool.run({ definition: onRecord(input) }, caller)).problems?.map((problem: { message: string }) => problem.message)
+    const onRecord = (input: Record<string, unknown>) => ({ trigger: { 'app:record': input }, state_machine: machine({ Done: { Type: 'Succeed' } }) })
+    const problems = async (input: Record<string, unknown>) => JSON.parse(await tool.run(onRecord(input), caller)).problems?.map((problem: { message: string }) => problem.message)
     expect(await problems({ resource: 'orders', key: ['status'] })).toBeUndefined()
     expect(await problems({ resource: 'payroll' })).toEqual(['"payroll" is not a resource of this app'])
     expect(await problems({ resource: 'payroll', key: ['salary'] })).toEqual(['"payroll" is not a resource of this app'])
     expect(await problems({ resource: 'orders', key: ['salary'] })).toEqual(['orders has no field "salary"'])
   })
 
-  it('takes a definition or an id with an edit, not both', async () => {
+  it('takes a state machine or an id with an edit, not both', async () => {
     const { context } = contextWith({})
-    expect(await validateWorkflowTool.run({ definition: {}, id: 'w1', edit: {} }, context)).toMatch(/^Pass either/)
+    expect(await validateWorkflowTool.run({ state_machine: {}, id: 'w1', edit: {} }, context)).toMatch(/^Pass either/)
     expect(await validateWorkflowTool.run({ id: 'w1' }, context)).toMatch(/^Pass either/)
   })
 })
@@ -79,34 +80,47 @@ describe('create_workflow', () => {
   it('creates the workflow once approved and returns its id, version and etag', async () => {
     const create = vi.fn(async () => saved)
     const { context, approve } = contextWith({ create })
-    const result = await createWorkflowTool().run({ name: 'Fetch', definition: fetchUrl('https://a.example') }, context)
+    const result = await createWorkflowTool().run({ name: 'Fetch', ...fetchUrl('https://a.example') }, context)
     expect(approve).toHaveBeenCalledOnce()
-    expect(create).toHaveBeenCalledWith('workflows', { name: 'Fetch', definition: fetchUrl('https://a.example') })
+    expect(create).toHaveBeenCalledWith('workflows', { name: 'Fetch', ...fetchUrl('https://a.example') })
     expect(JSON.parse(result)).toEqual({ id: 'w1', version: 1, etag: '"v1"' })
   })
 
   it('returns the saved workflow when a field rule hides its definition from the caller', async () => {
-    const { definition: _hidden, ...withoutDefinition } = saved.record
+    const { state_machine: _hidden, ...withoutDefinition } = saved.record
     const { context } = contextWith({ create: async () => ({ ...saved, record: withoutDefinition }) })
-    expect(JSON.parse(await createWorkflowTool().run({ name: 'Fetch', definition: fetchUrl('https://a.example') }, context))).toEqual({ id: 'w1', version: 1, etag: '"v1"' })
+    expect(JSON.parse(await createWorkflowTool().run({ name: 'Fetch', ...fetchUrl('https://a.example') }, context))).toEqual({ id: 'w1', version: 1, etag: '"v1"' })
+  })
+
+  it('imports a state machine exported from Step Functions: a manual trigger, and its HTTP tasks as app:http steps', async () => {
+    const create = vi.fn(async () => saved)
+    const { context } = contextWith({ create })
+    const exported = { QueryLanguage: 'JSONata', StartAt: 'Call', States: { Call: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: { ApiEndpoint: 'https://a.example', Method: 'POST', RequestBody: { a: 1 } }, End: true } } }
+    await createWorkflowTool().run({ name: 'Imported', state_machine: exported }, context)
+    expect(create).toHaveBeenCalledWith('workflows', { name: 'Imported', trigger: { manual: {} }, state_machine: { ...exported, States: { Call: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://a.example', method: 'POST', body: { a: 1 } }, End: true } } } })
+    const jsonPath = { StartAt: 'A', States: { A: { Type: 'Pass', ResultPath: '$.x', End: true } } }
+    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: jsonPath }, context)).problems).toEqual([
+      { field: 'stateMachine.QueryLanguage', message: 'is missing, so the machine is JSONPath, the default of Step Functions; only JSONata machines run here: set "QueryLanguage": "JSONata" and write its states in JSONata' },
+      { state: 'A', field: 'ResultPath', message: 'is JSONPath, which does not run here; write the state in JSONata, with Arguments, Output and Assign' },
+    ])
   })
 
   it("gives back the save check's problems, and saves nothing unapproved", async () => {
     const { context } = contextWith({ create: () => Promise.reject(refusedSave) })
-    expect(JSON.parse(await createWorkflowTool().run({ name: 'Fetch', definition: fetchUrl('x') }, context))).toEqual({
+    expect(JSON.parse(await createWorkflowTool().run({ name: 'Fetch', ...fetchUrl('x') }, context))).toEqual({
       error: 'invalid-workflow',
-      message: 'The definition does not fit the language; nothing was saved. Fix each problem and try again.',
+      message: 'The workflow does not fit the language; nothing was saved. Fix each problem and try again.',
       problems: [{ state: 'Fetch', field: 'Next', message: 'names "Gone", which is not a state here' }],
     })
     const create = vi.fn()
     const rejected = contextWith({ create }, 'rejected')
-    expect(await createWorkflowTool().run({ name: 'Fetch', definition: fetchUrl('x') }, rejected.context)).toMatch(/did not approve/)
+    expect(await createWorkflowTool().run({ name: 'Fetch', ...fetchUrl('x') }, rejected.context)).toMatch(/did not approve/)
     expect(create).not.toHaveBeenCalled()
   })
 
   it('refuses before asking where writes reach other resources only', async () => {
     const { context, approve } = contextWith({})
-    expect(JSON.parse(await createWorkflowTool({ resources: ['tasks'] }).run({ name: 'Fetch', definition: fetchUrl('x') }, context)).error).toBe('forbidden')
+    expect(JSON.parse(await createWorkflowTool({ resources: ['tasks'] }).run({ name: 'Fetch', ...fetchUrl('x') }, context)).error).toBe('forbidden')
     expect(approve).not.toHaveBeenCalled()
   })
 })
@@ -115,24 +129,25 @@ describe('update_workflow', () => {
   it('applies an edit to the saved definition and saves it with the etag it was read with', async () => {
     const update = vi.fn(async () => ({ record: { ...saved.record, version: 2 }, etag: '"v2"' }))
     const { context } = contextWith({ update })
-    const result = await updateWorkflowTool().run({ id: 'w1', edit: { stateMachine: { States: { Fetch: { Arguments: { url: 'https://b.example' } } } } } }, context)
-    expect(update).toHaveBeenCalledWith('workflows', 'w1', { definition: fetchUrl('https://b.example') }, { etag: '"v1"' })
+    const result = await updateWorkflowTool().run({ id: 'w1', edit: { state_machine: { States: { Fetch: { Arguments: { url: 'https://b.example' } } } } } }, context)
+    expect(update).toHaveBeenCalledWith('workflows', 'w1', { execution_order: 'sequence', ...fetchUrl('https://b.example') }, { etag: '"v1"' })
     expect(JSON.parse(result)).toEqual({ id: 'w1', version: 2, etag: '"v2"' })
   })
 
   it('replaces the whole definition, or only the name, and takes either an edit or a definition', async () => {
     const update = vi.fn(async () => saved)
     const { context } = contextWith({ update })
-    await updateWorkflowTool().run({ id: 'w1', definition: fetchUrl('https://c.example') }, context)
+    await updateWorkflowTool().run({ id: 'w1', ...fetchUrl('https://c.example') }, context)
     await updateWorkflowTool().run({ id: 'w1', name: 'Renamed' }, context)
-    expect(update.mock.calls.map((call) => (call as unknown[]).slice(2))).toEqual([[{ definition: fetchUrl('https://c.example') }, {}], [{ name: 'Renamed' }, {}]])
-    expect(await updateWorkflowTool().run({ id: 'w1', edit: {}, definition: fetchUrl('x') }, context)).toMatch(/^Pass/)
+    await updateWorkflowTool().run({ id: 'w1', execution_order: 'data' }, context)
+    expect(update.mock.calls.map((call) => (call as unknown[]).slice(2))).toEqual([[fetchUrl('https://c.example'), {}], [{ name: 'Renamed' }, {}], [{ execution_order: 'data' }, {}]])
+    expect(await updateWorkflowTool().run({ id: 'w1', edit: {}, ...fetchUrl('x') }, context)).toMatch(/^Pass/)
     expect(await updateWorkflowTool().run({ id: 'w1' }, context)).toMatch(/nothing was saved/)
   })
 
   it("gives back the save check's problems for an edit that breaks the definition", async () => {
     const { context } = contextWith({ update: () => Promise.reject(refusedSave) })
-    expect(JSON.parse(await updateWorkflowTool().run({ id: 'w1', edit: { stateMachine: { States: { Fetch: { End: null, Next: 'Gone' } } } } }, context)).problems).toHaveLength(1)
+    expect(JSON.parse(await updateWorkflowTool().run({ id: 'w1', edit: { state_machine: { States: { Fetch: { End: null, Next: 'Gone' } } } } }, context)).problems).toHaveLength(1)
   })
 
   it('refuses an edit of a workflow the caller cannot read', async () => {

@@ -13,6 +13,7 @@ import { fakeGmail } from '../../test-support/fake-gmail/fake-gmail'
 import { mail } from '../../test-support/fake-gmail/mail'
 import { fakeOAuthServer } from '../../packages/server/src/better-auth/connections/testing/fake-oauth-server'
 import { traceFiles } from './support/run-trace'
+import { definitionFields } from '../../test-support/workflow-fields'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -100,7 +101,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('gmail:new_mail on the s
   }
   const turnedOn = async (account: string) => {
     const definition = { trigger: { 'gmail:new_mail': { subject: 'invoice' } }, connections: { 'gmail:google': account }, stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Done', States: { Done: { Type: 'Succeed' } } } }
-    const workflow = (await as('/workflows', 'POST', { name: 'Invoices', definition })).body as { id: string; version: number }
+    const workflow = (await as('/workflows', 'POST', { name: 'Invoices', ...definitionFields(definition) })).body as { id: string; version: number }
     expect((await as(`/workflows/${workflow.id}`, 'PATCH', { enabled_version: workflow.version })).status).toBe(200)
     return workflow.id
   }

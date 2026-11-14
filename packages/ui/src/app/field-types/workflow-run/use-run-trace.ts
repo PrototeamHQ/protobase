@@ -4,7 +4,7 @@ import { FocusRefreshContext } from '../../../data/focus-refresh'
 import { liveRefresh } from '../../../data/live-refresh'
 import type { Definition } from '@protobase/workflows'
 import { useRecord } from '../../../data/use-record'
-import { definitionOf, pathOfName, stateAt } from '../workflow/definition'
+import { pathOfName, recordDefinition, stateAt } from '../workflow/definition'
 import type { TraceStep } from './run-trace'
 import { followMs, useRunSteps } from './use-run-steps'
 
@@ -62,7 +62,7 @@ export const useRunTrace = (runId: string | undefined) => {
   const versioned = record?.workflow_id != null && record.version != null
   const version = useRecord('workflow_versions', [String(record?.workflow_id ?? ''), Number(record?.version ?? 0)], versioned)
   const going = goingOn.has(String(record?.status))
-  const definition = version.data ? definitionOf(version.data.record.definition) : undefined
+  const definition = version.data ? recordDefinition(version.data.record) : undefined
   const steps = useRunSteps(runId, going)
   useFollow(going)
   useEndRefresh(going)

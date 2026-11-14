@@ -1,12 +1,13 @@
 import type { ResourceModel } from '@protobase/schema'
 import type { IssueWebhook } from './webhook-tools'
 import { listConnectionsTool, type ListConnections } from './connection-tools'
-import { checkDefinition, definitionWarnings, typeCatalog, type Definition, type CheckOptions, type TypeEntry } from '@protobase/workflows'
+import { checkDefinition, definitionFromParts, definitionWarnings, typeCatalog, type DefinitionParts, type CheckOptions, type TypeEntry } from '@protobase/workflows'
 import { refused } from '../../assistant/record-tool-args'
 import { defineTool, type ToolContext } from '../../assistant/tools'
 import { mergePatch } from './merge-patch'
 import { withStepsToCheck } from '../save-hook'
-import { definitionParameter, editParameter, idOf, idParameter, objectOf, pageSizeOf, textOf } from './workflow-tool-args'
+import { definitionDataOf, definitionFieldsOf, definitionParameters, editParameter, idOf, idParameter, objectOf, pageSizeOf, textOf } from './workflow-tool-args'
+import { importedStateMachine } from './imported-state-machine'
 
 const reads = { readOnlyHint: true, openWorldHint: false }
 const listed = ['id', 'name', 'description', 'version', 'updated_at']
@@ -57,7 +58,7 @@ export const listWorkflowsTool = defineTool({
 /** One workflow with its definition and the etag an update can pass. */
 export const getWorkflowTool = defineTool({
   name: 'get_workflow',
-  description: 'Reads one workflow by its id, as JSON ({ workflow, etag }): its name, description, version and whole definition. Pass the etag to update_workflow to fail when someone changed it since.',
+  description: 'Reads one workflow by its id, as JSON ({ workflow, etag }): its name, description, version and definition fields: state_machine, trigger, execution_order, connections and trace. Pass the etag to update_workflow to fail when someone changed it since.',
   parameters: { type: 'object', properties: { id: idParameter }, required: ['id'] },
   annotations: reads,
   run: async (args, context) => {
@@ -69,27 +70,29 @@ export const getWorkflowTool = defineTool({
 
 // Checked against the resources the caller may read, each with their fields only, so a problem tells them nothing of a
 // resource or field hidden from them: one they cannot read is "not a resource of this app".
-const checked = async (definition: unknown, catalog: WorkflowCatalog, context: ToolContext) => {
+const checked = async (fields: Record<string, unknown>, catalog: WorkflowCatalog, context: ToolContext) => {
   const { models } = await context.resources()
+  const definition = definitionFromParts({ trigger: { manual: {} }, ...fields } as DefinitionParts)
   // As a save checks it: a definition with no steps yet is checked but for that
   const problems = checkDefinition(withStepsToCheck(definition), catalog.checkWith((name) => models.find((model) => model.name === name)))
   if (problems.length > 0) return JSON.stringify({ valid: false, problems })
-  const warnings = definitionWarnings(definition as Definition)
+  const warnings = definitionWarnings(definition)
   return JSON.stringify({ valid: true, ...(warnings.length > 0 && { warnings }) })
 }
 
 /** Checks a definition, or a saved one with an edit, without saving anything. */
 const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
   name: 'validate_workflow',
-  description: 'Checks a definition as a save checks it, and saves nothing: pass a whole definition, or a workflow\'s id with an edit to check that edit of its saved definition. Returns JSON { valid: true }, or { valid: false, problems }, each problem { state, field, message } naming the state, the field and what was expected. A valid one may come with warnings in the same shape, which a save goes through with, such as a Wait between a Block and a state that reads its result, which may have expired by then.',
-  parameters: { type: 'object', properties: { definition: definitionParameter, id: idParameter, edit: editParameter } },
+  description: 'Checks a definition as a save checks it, and saves nothing: pass its state_machine, with its trigger and execution_order when they are not manual and sequence, or a workflow\'s id with an edit to check that edit of its saved definition fields. A state machine exported from Step Functions is checked as create_workflow imports it. Returns JSON { valid: true }, or { valid: false, problems }, each problem { state, field, message } naming the state, the field and what was expected. A valid one may come with warnings in the same shape, which a save goes through with, such as a Wait between a Block and a state that reads its result, which may have expired by then.',
+  parameters: { type: 'object', properties: { ...definitionParameters, id: idParameter, edit: editParameter } },
   annotations: reads,
   run: async (args, context) => {
     const id = idOf(args)
     const edit = objectOf(args.edit)
-    if (args.definition !== undefined && id === undefined && edit === undefined) return checked(args.definition, catalog, context)
-    if (args.definition === undefined && id && edit) return context.records.get('workflows', id).then(({ record }) => checked(mergePatch(record.definition, edit), catalog, context), refused)
-    return 'Pass either { "definition": { ... } } or { "id": "<id>", "edit": { ... } }.'
+    const machine = objectOf(args.state_machine)
+    if (machine && id === undefined && edit === undefined) return checked({ ...definitionDataOf(args), state_machine: importedStateMachine(machine) }, catalog, context)
+    if (!machine && id && edit) return context.records.get('workflows', id).then(({ record }) => checked(mergePatch(definitionFieldsOf(record), edit) as Record<string, unknown>, catalog, context), refused)
+    return 'Pass either { "state_machine": { ... } } or { "id": "<id>", "edit": { ... } }.'
   },
 })
 

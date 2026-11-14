@@ -11,6 +11,7 @@ import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type P
 import { fakeOAuthServer } from '../../packages/server/src/better-auth/connections/testing/fake-oauth-server'
 import { sealToken } from '../../packages/server/src/better-auth/connections/sealed-revocation'
 import { traceFiles } from './support/run-trace'
+import { definitionFields } from '../../test-support/workflow-fields'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -179,7 +180,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
     stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Use', States: { Use: { Type: 'Task', Resource: 'acme:token', End: true } } },
     ...(account && { connections: { 'acme:account': account } }),
   })
-  const save = async (user: string, account?: string, trigger?: object) => (await as(user, '/workflows', 'POST', { name: 'Mail', definition: definition(account, trigger) })).body as { id: string; version: number }
+  const save = async (user: string, account?: string, trigger?: object) => (await as(user, '/workflows', 'POST', { name: 'Mail', ...definitionFields(definition(account, trigger)) })).body as { id: string; version: number }
   const run = async (user: string, workflow: string) => {
     const id = (await as(user, '/workflow_runs', 'POST', { workflow_id: workflow, input: {} })).body.id as string
     return until(async () => (await sql<{ status: string; error: string | null; cause: string | null; output: unknown }>`select status, error, cause, output from workflows.runs where id = ${id}`.execute(db)).rows[0]!, (row) => row.status === 'succeeded' || row.status === 'failed')
@@ -249,12 +250,12 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
     await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: workflow.version })
     const then = definition(account)
     const states = { Use: { Type: 'Task', Resource: 'acme:token', Next: 'Done' }, Done: { Type: 'Succeed' } }
-    expect((await as(ada, `/workflows/${workflow.id}`, 'PATCH', { definition: { ...then, stateMachine: { ...then.stateMachine, States: states } } })).status).toBe(200)
+    expect((await as(ada, `/workflows/${workflow.id}`, 'PATCH', { ...definitionFields({ ...then, stateMachine: { ...then.stateMachine, States: states } }) })).status).toBe(200)
     expect((await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: 2 })).status).toBe(200)
     const consents = async () => (await sql<{ version: number; enabled_by: string | null }>`select version, enabled_by from workflows.versions where workflow_id = ${workflow.id} order by version`.execute(db)).rows
     expect(await consents()).toEqual([{ version: 1, enabled_by: ada }, { version: 2, enabled_by: ada }])
     const unconnected = { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Done', States: { Done: { Type: 'Succeed' } } } }
-    expect((await as(grace, `/workflows/${workflow.id}`, 'PATCH', { definition: unconnected })).status).toBe(200)
+    expect((await as(grace, `/workflows/${workflow.id}`, 'PATCH', { ...definitionFields(unconnected), connections: null })).status).toBe(200)
     expect(await consents()).toEqual([{ version: 1, enabled_by: ada }, { version: 2, enabled_by: ada }, { version: 3, enabled_by: null }])
     expect((await as(grace, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: 3 })).status).toBe(200)
     expect(await consents()).toEqual([{ version: 1, enabled_by: null }, { version: 2, enabled_by: null }, { version: 3, enabled_by: grace }])
@@ -286,7 +287,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
     await as(ada, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: workflow.version })
     const { id } = (await subscribed(workflow.id))!
     const unconnected = { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Done', States: { Done: { Type: 'Succeed' } } } }
-    const saved = await as(grace, `/workflows/${workflow.id}`, 'PATCH', { definition: unconnected })
+    const saved = await as(grace, `/workflows/${workflow.id}`, 'PATCH', { ...definitionFields(unconnected), connections: null })
     expect(saved.status).toBe(200)
     expect(unsubscribed).toEqual([])
     expect((await as(grace, `/workflows/${workflow.id}`, 'PATCH', { enabled_version: saved.body.version })).status).toBe(200)
@@ -344,7 +345,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
 
   it("lists on the account page the workflows that use an account: turned on by its owner, binding it, and still theirs to change", async () => {
     const account = (await connect())!
-    const named = async (user: string, name: string) => (await as(user, '/workflows', 'POST', { name, definition: definition(account) })).body as { id: string; version: number }
+    const named = async (user: string, name: string) => (await as(user, '/workflows', 'POST', { name, ...definitionFields(definition(account)) })).body as { id: string; version: number }
     const used = await named(ada, 'Mail')
     const other = await named(ada, 'Other')
     const off = await named(ada, 'Off')

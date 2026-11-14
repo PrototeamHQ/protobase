@@ -1,3 +1,4 @@
+import { awsProblems } from './check-aws'
 import { schemaProblems } from './check-schema'
 import { triggerProblems, type TriggerCheck } from './check-trigger'
 import { assignedNames, stateExpressions } from './expression-fields'
@@ -114,6 +115,9 @@ export const checkDefinition = (definition: unknown, options: CheckOptions): Pro
   const bytes = new TextEncoder().encode(JSON.stringify(definition) ?? '').length
   if (bytes > limits.definitionBytes) return [{ message: `The definition is ${bytes} bytes as JSON, more than the ${limits.definitionBytes} a workflow may have` }]
   if (nestingDepth(definition, limits.definitionDepth) > limits.definitionDepth) return [{ message: `The definition nests more than ${limits.definitionDepth} levels of arrays and objects` }]
+  // What Step Functions runs and this app does not, named, before the shape a standard document would otherwise miss
+  const aws = awsProblems(definition)
+  if (aws.length > 0) return aws
   const shape = schemaProblems(definition)
   if (shape.length > 0) return shape
   const document = definition as Definition

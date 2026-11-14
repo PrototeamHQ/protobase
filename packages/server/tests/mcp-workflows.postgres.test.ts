@@ -16,6 +16,7 @@ import { tempDir } from '../src/files/testing/temp-dir'
 import type { WorkflowsOptions } from '../src/workflows/options'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 import { password, serveMcp } from './support/mcp-app'
+import { definitionFields } from '../../../test-support/workflow-fields'
 
 // An MCP client signed in as a person finds, makes, changes and test-runs workflows on the app's MCP endpoint, the runs
 // on the app's jobs over real Postgres, whose workers poll on real timers that a recording cannot replay.
@@ -126,7 +127,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
     const http = types.step_types.find((type: { id: string }) => type.id === 'app:http')
     expect(http.input.required).toEqual(['url'])
     expect(http.input.properties.url).toEqual({ type: 'string', description: 'an http or https URL' })
-    const created = await ana('create_workflow', { name: 'Greet', definition: definition({ Fetch: fetchGreeting('Shape'), Shape: { Type: 'Pass', Output: '{% { "said": $greeting } %}', End: true } }) })
+    const created = await ana('create_workflow', { name: 'Greet', ...definitionFields(definition({ Fetch: fetchGreeting('Shape'), Shape: { Type: 'Pass', Output: '{% { "said": $greeting } %}', End: true } })) })
     expect(created).toMatchObject({ id: expect.any(String), version: 1 })
     expect((await ana('list_workflows')).items).toEqual([expect.objectContaining({ id: created.id, name: 'Greet', version: 1 })])
     const started = await ana('run_workflow', { id: created.id, input: { base } })
@@ -142,16 +143,16 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
 
   it('reads why the second step failed, fixes that step with an edit and runs again to success', async () => {
     const notify = { Type: 'Task', Resource: 'app:http', Arguments: { method: 'POST', url: `{% $states.context.Execution.Input.base & '/notify' %}`, body: { said: '{% $greeting %}' } }, End: true }
-    const { id } = await ana('create_workflow', { name: 'Notify', definition: definition({ Fetch: fetchGreeting('Notify'), Notify: notify }) })
+    const { id } = await ana('create_workflow', { name: 'Notify', ...definitionFields(definition({ Fetch: fetchGreeting('Notify'), Notify: notify })) })
     const failed = await finished((await ana('run_workflow', { id, input: { base } })).run_id)
     expect(failed.run).toMatchObject({ status: 'failed', error: 'Http.Status' })
     expect(failed.steps.find((step) => step.state === 'Notify')).toMatchObject({ status: 'failed', error: 'Http.Status', cause: expect.stringContaining('500: the notifier is down') })
 
-    const edit = { stateMachine: { States: { Notify: { Arguments: { url: `{% $states.context.Execution.Input.base & '/greeting' %}` } } } } }
+    const edit = { state_machine: { States: { Notify: { Arguments: { url: `{% $states.context.Execution.Input.base & '/greeting' %}` } } } } }
     expect(await ana('validate_workflow', { id, edit })).toEqual({ valid: true })
     expect(await ana('update_workflow', { id, edit })).toMatchObject({ id, version: 2 })
     const saved = (await ana('get_workflow', { id })).workflow
-    expect(saved.definition.stateMachine.States.Notify).toEqual({ ...notify, Arguments: { ...notify.Arguments, url: edit.stateMachine.States.Notify.Arguments.url } })
+    expect(saved.state_machine.States.Notify).toEqual({ ...notify, Arguments: { ...notify.Arguments, url: edit.state_machine.States.Notify.Arguments.url } })
     const fixed = await finished((await ana('run_workflow', { id, input: { base } })).run_id)
     expect(fixed.run.status).toBe('succeeded')
     expect(fixed.steps.map((step) => [step.state, step.status])).toEqual([['Fetch', 'succeeded'], ['Notify', 'succeeded']])
@@ -160,19 +161,19 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
   it('refuses an invalid definition naming the step and field, and saves nothing', async () => {
     const before = await counts()
     const broken = definition({ Fetch: { ...fetchGreeting('Gone'), Arguments: { url: '{% $nowhere %}' } } })
-    const refused = await ana('create_workflow', { name: 'Broken', definition: broken })
+    const refused = await ana('create_workflow', { name: 'Broken', ...definitionFields(broken) })
     expect(refused).toMatchObject({ error: 'invalid-workflow' })
     expect(refused.problems).toEqual(expect.arrayContaining([
       { state: 'Fetch', field: 'Next', message: 'names "Gone", which is not a state here' },
       { state: 'Fetch', field: 'Arguments.url', message: 'reads $nowhere, which no state that can run before it assigns' },
     ]))
-    expect((await ana('validate_workflow', { definition: broken })).problems).toEqual(refused.problems)
+    expect((await ana('validate_workflow', { ...definitionFields(broken) })).problems).toEqual(refused.problems)
     expect(await counts()).toEqual(before)
   })
 
   it('creates a webhook workflow, turns it on, gets its URL, and reads the run a signed call started', async () => {
     const echo = { QueryLanguage: 'JSONata', StartAt: 'Done', States: { Done: { Type: 'Pass', Output: '{% $states.context.Execution.Input.body %}', End: true } } }
-    const { id } = await ana('create_workflow', { name: 'Hook', definition: { trigger: { 'app:webhook': {} }, stateMachine: echo } })
+    const { id } = await ana('create_workflow', { name: 'Hook', ...definitionFields({ trigger: { 'app:webhook': {} }, stateMachine: echo }) })
     expect(await ana('enable_workflow', { id, enabled: true, version: 1 })).toEqual({ id, enabled_version: 1 })
     const { url, secret } = await ana('new_webhook_url', { id })
     expect(url).toMatch(/\/api\/workflows\/hooks\/[\w-]{43}$/)
@@ -189,14 +190,14 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
   })
 
   it('lets a person without the grants list, change or run no workflow', async () => {
-    const { id } = await ana('create_workflow', { name: 'Private', definition: definition({ Done: { Type: 'Succeed' } }) })
+    const { id } = await ana('create_workflow', { name: 'Private', ...definitionFields(definition({ Done: { Type: 'Succeed' } })) })
     const before = await counts()
     const bo = (name: string, args: object = {}) => call('bo@example.com', name, args)
     // The resources are hidden from them, as the REST API hides them.
     const hidden = (resource: string) => ({ error: 'not-found', message: `There is no resource "${resource}"` })
     expect(await bo('list_workflows')).toEqual(hidden('workflows'))
     expect(await bo('get_workflow', { id })).toEqual(hidden('workflows'))
-    expect(await bo('create_workflow', { name: 'Mine', definition: definition({ Done: { Type: 'Succeed' } }) })).toEqual(hidden('workflows'))
+    expect(await bo('create_workflow', { name: 'Mine', ...definitionFields(definition({ Done: { Type: 'Succeed' } })) })).toEqual(hidden('workflows'))
     expect(await bo('update_workflow', { id, name: 'Taken' })).toEqual(hidden('workflows'))
     expect(await bo('run_workflow', { id, input: {} })).toMatchObject({ error: 'not-found' })
     expect(await bo('enable_workflow', { id, enabled: true, version: 1 })).toMatchObject({ error: 'not-found' })

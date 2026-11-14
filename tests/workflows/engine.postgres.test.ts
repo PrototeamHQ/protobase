@@ -9,6 +9,7 @@ import { localFiles, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { postgresRunStore } from '../../packages/server/src/workflows/store'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
+import { definitionFields } from '../../test-support/workflow-fields'
 
 // Workers poll and retry on real timers, which a busy machine stretches.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -64,7 +65,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
   const as = (user: string, path: string, init: { method?: string; body?: unknown } = {}) =>
     admin.request(`/api/v1${path}`, { method: init.method ?? 'GET', headers: { 'content-type': 'application/json', 'x-user': user, 'if-match': '*' }, ...(init.body !== undefined && { body: JSON.stringify(init.body) }) })
   const create = async (name: string, value: unknown) => {
-    const response = await as('ada', '/workflows', { method: 'POST', body: { name, definition: value } })
+    const response = await as('ada', '/workflows', { method: 'POST', body: { name, ...definitionFields(value) } })
     if (response.status !== 201) throw new Error(await response.text())
     return (await response.json()).id as string
   }
@@ -86,7 +87,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
   it('refuses a definition with a missing input or an edge to no step, naming the step and the field', async () => {
     const response = await as('ada', '/workflows', {
       method: 'POST',
-      body: { name: 'Broken', definition: definition({ Call: { Type: 'Task', Resource: 'app:http', Arguments: { url: '{% $address %}' }, Next: 'Nowhere' }, Done: { Type: 'Succeed' } }) },
+      body: { name: 'Broken', ...definitionFields(definition({ Call: { Type: 'Task', Resource: 'app:http', Arguments: { url: '{% $address %}' }, Next: 'Nowhere' }, Done: { Type: 'Succeed' } })) },
     })
     expect(response.status).toBe(400)
     const problem = await response.json()
@@ -96,12 +97,12 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
       { state: 'Done', message: 'is never reached from "Call"' },
     ])
     expect(problem.detail).toContain('State "Call", field "Next": names "Nowhere", which is not a state here')
-    expect(problem.errors[0]).toEqual({ code: 'invalid-workflow', field: 'definition', message: 'State "Call", field "Next": names "Nowhere", which is not a state here', params: { state: 'Call', field: 'Next' } })
+    expect(problem.errors[0]).toEqual({ code: 'invalid-workflow', field: 'state_machine', message: 'State "Call", field "Next": names "Nowhere", which is not a state here', params: { state: 'Call', field: 'Next' } })
     expect((await sql<{ count: number }>`select count(*)::int as count from workflows.workflows`.execute(db)).rows[0]!.count).toBe(0)
   })
 
   it('refuses a step without an argument its step type needs', async () => {
-    const response = await as('ada', '/workflows', { method: 'POST', body: { name: 'No address', definition: definition({ Call: { Type: 'Task', Resource: 'app:http', Arguments: { method: 'GET' }, End: true } }) } })
+    const response = await as('ada', '/workflows', { method: 'POST', body: { name: 'No address', ...definitionFields(definition({ Call: { Type: 'Task', Resource: 'app:http', Arguments: { method: 'GET' }, End: true } })) } })
     expect(response.status).toBe(400)
     expect((await response.json()).problems).toEqual([{ state: 'Call', field: 'Arguments.url', message: 'is missing; app:http needs it' }])
   })
@@ -109,7 +110,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
   it('keeps each saved definition as a version, and a run keeps the version it started on', async () => {
     const id = await create('Echo', definition({ Echo: { Type: 'Pass', Output: '{% $states.context.Execution.Input.word %}', End: true } }))
     const first = await run(id, { word: 'one' })
-    const changed = await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { definition: definition({ Echo: { Type: 'Pass', Output: '{% $uppercase($states.context.Execution.Input.word) %}', End: true } }) } })
+    const changed = await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { ...definitionFields(definition({ Echo: { Type: 'Pass', Output: '{% $uppercase($states.context.Execution.Input.word) %}', End: true } })) } })
     expect(changed.status).toBe(200)
     const second = await run(id, { word: 'two' })
     await finished(first)
@@ -178,7 +179,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
   it('keeps a save out of what is published: a start runs the published version unless it names one, and refuses a version never saved', async () => {
     const id = await create('Echo', definition({ Echo: { Type: 'Pass', Output: 'one', End: true } }))
     expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 1 } })).status).toBe(200)
-    const saved = await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { definition: definition({ Echo: { Type: 'Pass', Output: 'two', End: true } }) } })
+    const saved = await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { ...definitionFields(definition({ Echo: { Type: 'Pass', Output: 'two', End: true } })) } })
     expect(await saved.json()).toMatchObject({ version: 2, enabled_version: 1 })
     const published = await run(id, {})
     const test = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, input: {}, version: 2 } })
@@ -202,7 +203,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     const made = await admin.request('/api/v1:batchWrite', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-user': 'ada' },
-      body: JSON.stringify({ ops: [{ op: 'create', resource: 'workflows', ref: 'new', data: { name: 'Made', definition: definition({ Echo: { Type: 'Pass', Output: 'one', End: true } }) } }, { op: 'update', resource: 'workflows', key: { $ref: 'new' }, etag: '*', data: { enabled_version: 1 } }] }),
+      body: JSON.stringify({ ops: [{ op: 'create', resource: 'workflows', ref: 'new', data: { name: 'Made', ...definitionFields(definition({ Echo: { Type: 'Pass', Output: 'one', End: true } })) } }, { op: 'update', resource: 'workflows', key: { $ref: 'new' }, etag: '*', data: { enabled_version: 1 } }] }),
     })
     expect(made.status).toBe(200)
     const [created, live] = (await made.json()).results as { etag: string }[]
@@ -219,7 +220,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     const first = await run(id, {})
     await finished(first)
     const emptied = { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: '', States: {} } }
-    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { definition: emptied } })).status).toBe(200)
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { ...definitionFields(emptied) } })).status).toBe(200)
     // A start without a version runs the published one, which has steps; a replay takes the empty one saved last
     const started = await run(id, {})
     await finished(started)
@@ -250,7 +251,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     const save = (body: unknown, etag: string) =>
       admin.request(`/api/v1/workflows/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', 'x-user': 'ada', 'if-match': etag }, body: JSON.stringify(body) })
     const read = await as('ada', `/workflows/${id}`)
-    const changed = await save({ definition: definition({ Echo: { Type: 'Pass', Output: 1, End: true } }) }, read.headers.get('etag')!)
+    const changed = await save({ ...definitionFields(definition({ Echo: { Type: 'Pass', Output: 1, End: true } })) }, read.headers.get('etag')!)
     expect(changed.status).toBe(200)
     expect(await changed.json()).toMatchObject({ version: 2 })
     expect(changed.headers.get('etag')).toBe((await as('ada', `/workflows/${id}`)).headers.get('etag'))
@@ -344,7 +345,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(await runRow(failed)).toMatchObject({ status: 'failed', error: 'States.QueryEvaluationError' })
     const refused = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, rerun_of: failed, input: { items: [] } } })
     expect(refused.status).toBe(400)
-    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { definition: definition(states('{% $size %}')) } })).status).toBe(200)
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { ...definitionFields(definition(states('{% $size %}'))) } })).status).toBe(200)
     const response = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, rerun_of: failed } })
     expect(response.status).toBe(201)
     const rerun = (await response.json()).id as string
@@ -363,7 +364,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     const id = await create('Recount', definition(states('{% 0 %}')))
     const done = await run(id, { items: [1, 2, 3] })
     await finished(done)
-    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { definition: definition(states('{% $size %}')) } })).status).toBe(200)
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { ...definitionFields(definition(states('{% $size %}'))) } })).status).toBe(200)
     const response = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: id, rerun_of: done, rerun_from: 'Total' } })
     expect(response.status).toBe(201)
     const rerun = (await response.json()).id as string
@@ -423,7 +424,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     const runId = await run(id, {})
     await finished(runId)
     // A resource the role cannot read answers as one that is not there.
-    expect([403, 404]).toContain((await as('vic', '/workflows', { method: 'POST', body: { name: 'Mine', definition: definition({ Done: { Type: 'Succeed' } }) } })).status)
+    expect([403, 404]).toContain((await as('vic', '/workflows', { method: 'POST', body: { name: 'Mine', ...definitionFields(definition({ Done: { Type: 'Succeed' } })) } })).status)
     expect((await as('vic', `/workflows/${id}`, { method: 'PATCH', body: { name: 'Renamed' } })).status).toBe(404)
     expect([403, 404]).toContain((await as('vic', '/workflow_runs', { method: 'POST', body: { workflow_id: id, input: {} } })).status)
     expect((await sql<{ count: number }>`select count(*)::int as count from workflows.runs where workflow_id = ${id}`.execute(db)).rows[0]!.count).toBe(1)

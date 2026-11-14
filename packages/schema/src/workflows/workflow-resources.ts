@@ -7,6 +7,18 @@ import { resolutionsResource, resolutionsView, workflowStatusFields, workflowSta
 
 const runStatuses = ['queued', 'running', 'waiting', 'succeeded', 'failed'] as const
 const traceModes = ['all', 'failed', 'none'] as const
+const executionOrders = ['sequence', 'data'] as const
+
+// A workflow's definition, in fields of their own, as a workflow and each of its versions keep it: the state machine in
+// the States Language (in sequence order exactly as Step Functions takes and gives it), what starts its runs, the order
+// its states run in, the account each of its connections signs in with, and which of its runs keep a trace.
+const definitionFields = {
+  state_machine: f.json().dbDefault(),
+  trigger: f.json().dbDefault(),
+  execution_order: f.enum(executionOrders).dbDefault().filterable(),
+  connections: f.json().optional(),
+  trace: f.enum(traceModes).optional(),
+}
 
 /**
  * Workflows: a trigger and a state machine in the States Language with JSONata, checked on every save, each changed definition a new version. A
@@ -20,7 +32,7 @@ const workflowsResource = (schema: string) =>
       id: f.uuid().readOnly().dbDefault(),
       name: f.text().min(1).max(100).filterable().sortable(),
       description: f.text().optional().max(2000),
-      definition: f.json().dbDefault(),
+      ...definitionFields,
       version: f.integer().optional().readOnly(),
       enabled_version: f.integer().optional(),
       tenant_id: f.text().optional().readOnly(),
@@ -45,10 +57,19 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
   .fields((r) => ({
     description: r.description.notOnCreate(),
     enabled_version: r.enabled_version.label('Published version').help('The saved version that is live: its trigger starts runs, and so does a start that names no version. Set it to any saved version to publish that version, and clear it to turn the workflow off. A save never changes it.').notOnCreate(),
-    definition: r.definition
+    state_machine: r.state_machine
+      .label('Steps')
       .help('Its trigger and its steps, drawn as a graph that lays itself out. Every value is read by name: the run\'s input as $states.context.Execution.Input, an earlier result by the variable a state assigned')
       .widget('workflow')
       .notOnCreate(),
+    execution_order: r.execution_order
+      .label('Execution order')
+      .valueLabels({ sequence: 'In sequence', data: 'From the data' })
+      .help('In sequence, each step names the one after it, as the States Language has it. From the data, a step runs once the steps it reads from have ended, and steps that read nothing of each other run at once.')
+      .notOnCreate(),
+    trigger: r.trigger.notOnCreate(),
+    connections: r.connections.notOnCreate(),
+    trace: r.trace.label('Traces').valueLabels({ all: 'Every run', failed: 'Failed runs', none: 'None' }).notOnCreate(),
     updated_at: r.updated_at.label('Updated'),
     run_status: r.run_status.label('Status').valueLabels(workflowStatusLabels).valueColors({ failing: 'red', unresolved: 'amber', healthy: 'green' }).widget('workflow_status'),
     status_run_id: r.status_run_id.label('Status run'),
@@ -60,7 +81,7 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
   .list((r) => ({ columns: [r.name, r.run_status, r.version, r.updated_at], sort: [[r.updated_at, 'desc']] }))
   .recordWidth('full')
   // The graph is the page; the name, the Trigger, Runs and Versions tables are on the form, a link away
-  .record((r) => ({ surface: r.definition }))
+  .record((r) => ({ surface: r.state_machine }))
   .layout((r) => [
     l.section('Workflow', [r.run_status, r.name, r.description, r.enabled_version]),
     l.sidebar([r.version, r.created_at, r.updated_at]),
@@ -76,7 +97,11 @@ const versionsResource = (schema: string) =>
     .fields({
       workflow_id: f.relation('workflows').readOnly().filterable(),
       version: f.integer().readOnly().sortable(),
-      definition: f.json().readOnly(),
+      state_machine: f.json().readOnly(),
+      trigger: f.json().readOnly(),
+      execution_order: f.enum(executionOrders).readOnly(),
+      connections: f.json().optional().readOnly(),
+      trace: f.enum(traceModes).optional().readOnly(),
       saved_by: f.text().optional().readOnly(),
       tenant_id: f.text().optional().readOnly(),
       saved_at: f.timestamp().readOnly().dbDefault(),

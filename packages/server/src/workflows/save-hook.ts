@@ -1,6 +1,6 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
-import { checkDefinition, problemText, type CheckOptions, type Definition } from '@protobase/workflows'
+import { checkDefinition, definitionFromParts, partOfProblem, problemText, type CheckOptions, type Definition, type DefinitionParts } from '@protobase/workflows'
 import { badRequest } from '../problem'
 import type { PipelineHook } from '../types'
 import type { TriggerJobs } from './triggers/trigger-jobs'
@@ -18,15 +18,19 @@ const savedDefinition = async (trx: Db, schema: string, workflow: string, versio
  * field are checked all the same, and only the want of steps is let through.
  */
 export const withStepsToCheck = (definition: unknown) => {
-  const machine = (definition as Partial<Definition> | null)?.stateMachine
-  if (!machine || typeof machine.States !== 'object' || machine.States === null || Array.isArray(machine.States) || Object.keys(machine.States).length > 0 || machine.StartAt !== '') return definition
+  const document = definition as Partial<Definition> | null
+  const machine = document?.stateMachine
+  if (!machine || typeof machine.States !== 'object' || machine.States === null || Array.isArray(machine.States) || Object.keys(machine.States).length > 0) return definition
+  // In dataflow order a machine has no start, and a run ends once nothing is left to run
+  if (document?.order === 'data') return machine.StartAt === undefined ? { ...(definition as Definition), stateMachine: { ...machine, States: { Done: { Type: 'Pass' } } } } : definition
+  if (machine.StartAt !== '') return definition
   return { ...(definition as Definition), stateMachine: { ...machine, StartAt: 'Done', States: { Done: { Type: 'Succeed' } } } }
 }
 
 const refuseProblems = (definition: unknown, types: CheckOptions) => {
   const problems = checkDefinition(definition, types)
   if (problems.length === 0) return
-  const errors = problems.map((problem) => ({ code: 'invalid-workflow', field: 'definition', message: problemText(problem), params: { state: problem.state, field: problem.field } }))
+  const errors = problems.map((problem) => ({ code: 'invalid-workflow', field: partOfProblem(problem.field), message: problemText(problem), params: { state: problem.state, field: problem.field } }))
   throw badRequest('invalid-workflow', `The workflow cannot be saved: ${problems.map(problemText).join('; ')}`, { problems, errors })
 }
 
@@ -50,9 +54,9 @@ export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick
   const id = String(event.after.id)
   if (changed) {
     // A workflow starts with no steps; a version without any is kept, and refused as it is published or run.
-    refuseProblems(withStepsToCheck(event.after.definition), types)
-    await sql`insert into ${sql.id(schema, 'versions')} (workflow_id, version, definition, saved_by, tenant_id)
-      select w.id, w.version, w.definition, ${String(event.user.id)}, w.tenant_id from ${sql.id(schema, 'workflows')} w where w.id = ${id}`.execute(trx)
+    refuseProblems(withStepsToCheck(definitionFromParts(event.after as DefinitionParts)), types)
+    await sql`insert into ${sql.id(schema, 'versions')} (workflow_id, version, state_machine, trigger, execution_order, connections, trace, saved_by, tenant_id)
+      select w.id, w.version, w.state_machine, w.trigger, w.execution_order, w.connections, w.trace, ${String(event.user.id)}, w.tenant_id from ${sql.id(schema, 'workflows')} w where w.id = ${id}`.execute(trx)
   }
   if (!publishing) return
   if (enabled === null) {

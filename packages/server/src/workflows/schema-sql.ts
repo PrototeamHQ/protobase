@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 22
+export const workflowsVersion = 23
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -13,6 +13,21 @@ export const commentVersion = (comment: string | null) => {
 
 const ms = (from: string, to: string) => `(floor(extract(epoch from ("${to}" - "${from}")) * 1000)::bigint)`
 
+// A definition's parts, each a column of its own, on a workflow and on each of its versions.
+const definitionColumns = `"state_machine" jsonb not null,
+  "trigger" jsonb not null,
+  "execution_order" text not null default 'sequence' check ("execution_order" in ('sequence', 'data')),
+  "connections" jsonb,
+  "trace" text check ("trace" in ('all', 'failed', 'none'))`
+
+// The definition the runner, the checks and the queries read, put together from its parts by the database: never
+// written, and no field of the API.
+// A generated column takes immutable functions only: jsonb_set, unlike jsonb_build_object, and a text cast to jsonb of
+// the order and trace, which their checks keep to plain words.
+const definitionSql = `jsonb_set(jsonb_set(jsonb_set('{}'::jsonb, '{trigger}', "trigger"), '{order}', ('"' || "execution_order" || '"')::jsonb), '{stateMachine}', "state_machine")
+    || case when "connections" is null then '{}'::jsonb else jsonb_set('{}'::jsonb, '{connections}', "connections") end
+    || case when "trace" is null then '{}'::jsonb else jsonb_set('{}'::jsonb, '{trace}', ('"' || "trace" || '"')::jsonb) end`
+
 /**
  * The workflows, each version of their definitions as it was saved, and their runs. A run pins the version it started
  * on, and a run with a key is started once per workflow and key.
@@ -23,7 +38,8 @@ export const tablesSql = (schema: string) => {
   "id" uuid primary key default gen_random_uuid(),
   "name" text not null,
   "description" text,
-  "definition" jsonb not null,
+  ${definitionColumns},
+  "definition" jsonb generated always as (${definitionSql}) stored,
   "version" integer,
   "tenant_id" text,
   "created_at" timestamptz not null default now(),
@@ -33,7 +49,8 @@ export const tablesSql = (schema: string) => {
 create table if not exists ${s}."versions" (
   "workflow_id" uuid not null references ${s}."workflows" ("id") on delete cascade,
   "version" integer not null,
-  "definition" jsonb not null,
+  ${definitionColumns},
+  "definition" jsonb generated always as (${definitionSql}) stored,
   "saved_by" text,
   "tenant_id" text,
   "saved_at" timestamptz not null default now(),
@@ -92,6 +109,27 @@ export const checkpointsSql = (schema: string) => {
 );
 alter table ${s}."runs" add column if not exists "trace" text check ("trace" in ('all', 'failed', 'none'));
 alter table ${s}."runs" add column if not exists "trace_file" text`
+}
+
+/**
+ * A schema made when a workflow kept its definition as one JSON column: its parts become columns of their own, filled
+ * from it, and the column becomes the one the database puts together from them, on workflows and versions alike.
+ */
+export const definitionPartsSql = (schema: string) => {
+  const s = quoteIdent(schema)
+  const literal = `'${schema.replaceAll("'", "''")}'`
+  const split = (table: string) => `do $$ begin
+  if exists (select 1 from information_schema.columns where table_schema = ${literal} and table_name = '${table}' and column_name = 'definition' and is_generated = 'NEVER') then
+    alter table ${s}."${table}" add column "state_machine" jsonb, add column "trigger" jsonb,
+      add column "execution_order" text not null default 'sequence' check ("execution_order" in ('sequence', 'data')),
+      add column "connections" jsonb, add column "trace" text check ("trace" in ('all', 'failed', 'none'));
+    update ${s}."${table}" set "state_machine" = "definition" -> 'stateMachine', "trigger" = "definition" -> 'trigger',
+      "execution_order" = coalesce("definition" ->> 'order', 'sequence'), "connections" = "definition" -> 'connections', "trace" = "definition" ->> 'trace';
+    alter table ${s}."${table}" alter column "state_machine" set not null, alter column "trigger" set not null, drop column "definition";
+    alter table ${s}."${table}" add column "definition" jsonb generated always as (${definitionSql}) stored;
+  end if;
+end $$`
+  return [split('workflows'), split('versions')].join(';\n')
 }
 
 /** The per-step table runs kept before checkpoints and the trace, which nothing reads or writes; its indexes go with it. */
@@ -178,6 +216,7 @@ export const indexesSql = (schema: string) => {
 create index if not exists "workflows_tenant" on ${s}."workflows" ("tenant_id");
 create index if not exists "workflows_name" on ${s}."workflows" ("name");
 create index if not exists "workflows_updated_at" on ${s}."workflows" ("updated_at");
+create index if not exists "workflows_execution_order" on ${s}."workflows" ("execution_order");
 create index if not exists "workflows_name_search" on ${s}."workflows" using gin ("name" gin_trgm_ops);
 create index if not exists "versions_tenant" on ${s}."versions" ("tenant_id");
 create index if not exists "versions_version" on ${s}."versions" ("version");
@@ -211,7 +250,8 @@ export const functionsSql = (schema: string) => {
   const s = quoteIdent(schema)
   return `alter table ${s}."runs" add column if not exists "rerun_from" text;
 
-alter table ${s}."workflows" alter column "definition" set default '{"trigger":{"manual":{}},"stateMachine":{"QueryLanguage":"JSONata","StartAt":"","States":{}}}'::jsonb;
+alter table ${s}."workflows" alter column "state_machine" set default '{"QueryLanguage":"JSONata","StartAt":"","States":{}}'::jsonb;
+alter table ${s}."workflows" alter column "trigger" set default '{"manual":{}}'::jsonb;
 
 create or replace function ${s}."workflow_version"() returns trigger
 language plpgsql as $$
@@ -221,10 +261,10 @@ begin
     return new;
   end if;
   -- The write holds the row, so a save in another transaction numbers its version after this one.
-  new.version := case when new.definition is distinct from old.definition then coalesce(old.version, 0) + 1 else old.version end;
+  new.version := case when (new.state_machine, new.trigger, new.execution_order, new.connections, new.trace) is distinct from (old.state_machine, old.trigger, old.execution_order, old.connections, old.trace) then coalesce(old.version, 0) + 1 else old.version end;
   -- Its status, which runs ending and marks as resolved write, is no change to the workflow itself.
   -- Otherwise never the same twice, nor now(): two writes in one transaction, as a batch that saves and publishes, are two ETags.
-  if to_jsonb(new) - ${statusColumns} is distinct from to_jsonb(old) - ${statusColumns} then
+  if to_jsonb(new) - ${statusColumns} - 'definition' is distinct from to_jsonb(old) - ${statusColumns} - 'definition' then
     new.updated_at := greatest(clock_timestamp(), old.updated_at + interval '1 microsecond');
   end if;
   return new;
