@@ -15,12 +15,12 @@ type RowButtonLinkProps = { button: RowButtonModel; model: ResourceModel; view: 
 export const RowButtonLink = ({ button, model, view, record }: RowButtonLinkProps) => {
   const shown = rowButtonFor(button, model, view, record)
   if (!shown) return null
-  // A label longer than its column has shortens inside the button, which stays whole
+  // A label longer than its column has shortens inside the button, which stays whole and names it whole on hover
   const style = cn(buttonClass({ variant: 'secondary', size: 'sm' }), 'min-w-0 max-w-full shrink')
-  const label = <span className="truncate" title={shown.label}>{shown.label}</span>
+  const label = <span className="truncate">{shown.label}</span>
   if ('href' in shown) {
     return (
-      <a href={shown.href} target="_blank" rel="noreferrer" className={style}>
+      <a href={shown.href} target="_blank" rel="noreferrer" title={shown.label} className={style}>
         {label}
         <span className="sr-only"> {text('opensNewTab')}</span>
         <ExternalLink aria-hidden className="size-3.5 shrink-0" />
@@ -28,7 +28,7 @@ export const RowButtonLink = ({ button, model, view, record }: RowButtonLinkProp
     )
   }
   return (
-    <AppLink to={shown.to} className={style}>
+    <AppLink to={shown.to} title={shown.label} className={style}>
       {label}
     </AppLink>
   )
