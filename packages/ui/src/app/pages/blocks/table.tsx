@@ -9,6 +9,7 @@ import { propsOf, type BlockProps } from './block-props'
 import { ListTable } from './list-table'
 import { CardFrame } from './card-frame'
 import { phoneSpecs } from './table-phone-columns'
+import { GuardedParams } from '../../guarded-params'
 import { ChosenRecord } from './chosen-record'
 import { usePageParams } from '../page-params'
 import type { RouteTarget } from '../../../primitives/route-link'
@@ -74,6 +75,7 @@ const SelectTable = ({ select, children, ...props }: Omit<LoadedProps, 'chosen'>
   const { given, linkTo } = usePageParams()
   const rowTo = (key: string) => linkTo({ [select]: key })
   const key = given[select]
-  const details = key === undefined ? null : <ChosenRecord key={key} model={props.model} recordKey={key}>{children}</ChosenRecord>
+  // A form under the chosen row asks before another row replaces it
+  const details = key === undefined ? null : <GuardedParams name={select}><ChosenRecord key={key} model={props.model} recordKey={key}>{children}</ChosenRecord></GuardedParams>
   return <LoadedTable {...props} chosen={{ rowTo, details }} />
 }

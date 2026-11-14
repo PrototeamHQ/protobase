@@ -4,6 +4,8 @@ import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
 import { RouteLink } from '../primitives/route-link'
 import { text as appText } from './messages'
+import { useGuardedParams } from './guarded-params'
+import { leavesPage } from './leaves-page'
 import { createPagePlaces } from './page-places'
 import { restoreScroll } from './restore-scroll'
 
@@ -21,8 +23,11 @@ type RouterValue = {
   navigate: (to: string, options?: NavigateOptions) => void
   /** Goes back to a path below the base path: as the browser's Back when the page before is that path, else as `navigate`. */
   back: (to: string) => void
-  /** Asks to be told before the page changes; returns how to stop asking. Used by `useNavigationGuard`. */
-  registerGuard: (kind?: GuardKind) => () => void
+  /**
+   * Asks to be told before the page changes, or one of the page parameters `params` whose content the guard sits in;
+   * returns how to stop asking. Used by `useNavigationGuard`.
+   */
+  registerGuard: (kind?: GuardKind, params?: readonly string[]) => () => void
   /** Reloads the page, asking first while a guard holds unsaved changes. */
   reload: () => void
   /** Whether the person chose to reload despite unsaved changes, so the page leaves without asking again. */
@@ -85,8 +90,8 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   const memory = initialUrl !== undefined
   const [page, setPage] = useState(() => ({ url: initialUrl ?? browserUrl(), entry: memory ? newEntry() : historyEntry() }))
   const [places] = useState(() => createPagePlaces(memory ? noStorage : (guarded(() => window.sessionStorage, undefined) ?? noStorage)))
-  const guards = useRef(new Map<symbol, GuardKind>())
-  const losesInput = () => [...guards.current.values()].includes('input-lost')
+  const guards = useRef(new Map<symbol, { kind: GuardKind; params: readonly string[] }>())
+  const losesInput = () => [...guards.current.values()].some((guard) => guard.kind === 'input-lost')
   const current = useRef(page)
   current.current = page
   const position = useRef(memory ? 0 : historyIndex())
@@ -125,8 +130,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
         return
       }
       const delta = next - position.current
-      const leaving = pathOf(browserUrl()) !== pathOf(current.current.url)
-      if (!proceeding.current && guards.current.size > 0 && leaving) {
+      if (!proceeding.current && guards.current.size > 0 && leavesPage(current.current.url, browserUrl(), guards.current.values())) {
         // The browser has already moved; step back to where the person was and ask.
         undoing.current = true
         window.history.go(-delta)
@@ -164,7 +168,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   const navigate = useCallback(
     (to: string, { replace = false, keepScroll = false }: NavigateOptions = {}) => {
       const full = `${basePath}${to}`
-      if (pathOf(full) !== pathOf(current.current.url) && guards.current.size > 0) return setPending({ kind: 'link', full, replace, inputLost: losesInput() })
+      if (guards.current.size > 0 && leavesPage(current.current.url, full, guards.current.values())) return setPending({ kind: 'link', full, replace, inputLost: losesInput() })
       go(full, replace, keepScroll)
     },
     [basePath, go],
@@ -179,9 +183,9 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
     [memory, basePath, navigate],
   )
 
-  const registerGuard = useCallback((kind: GuardKind = 'draft-kept') => {
+  const registerGuard = useCallback((kind: GuardKind = 'draft-kept', params: readonly string[] = []) => {
     const token = Symbol('guard')
-    guards.current.set(token, kind)
+    guards.current.set(token, { kind, params })
     return () => void guards.current.delete(token)
   }, [])
 
@@ -266,10 +270,14 @@ export const Link = ({ to, replace, ...rest }: AnchorHTMLAttributes<HTMLAnchorEl
   return <RouteLink to={{ href: `${basePath}${to}`, onFollow: () => navigate(to, { replace }) }} {...rest} />
 }
 
-/** While `active`, leaving the page asks first (in-app links, a reload and closing the tab). */
+/**
+ * While `active`, leaving the page asks first (in-app links, a reload and closing the tab), and so does changing a page
+ * parameter whose content it sits in (`GuardedParams`).
+ */
 export const useNavigationGuard = (active: boolean, kind: GuardKind = 'draft-kept') => {
   const { registerGuard, reloadConfirmed } = useRouter()
-  useEffect(() => (active ? registerGuard(kind) : undefined), [active, kind, registerGuard])
+  const params = useGuardedParams()
+  useEffect(() => (active ? registerGuard(kind, params) : undefined), [active, kind, params, registerGuard])
   useEffect(() => {
     if (!active) return
     const warn = (event: BeforeUnloadEvent) => {
