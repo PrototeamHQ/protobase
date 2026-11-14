@@ -381,6 +381,9 @@ const noContext = () => Promise.reject(new Error('The auth context is read only 
 // organization plugin's own active-organization and accept endpoints are replaced by Protobase's.
 const organizationPaths = ['/organization/set-active', '/organization/accept-invitation']
 
+/** The reads every page load makes, which the rate limit leaves out: they check a session, never a credential. */
+const pageLoadReads = ['/get-session', '/role/current', '/token']
+
 /**
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
@@ -550,6 +553,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       window: 60,
       max: 100,
       customRules: {
+        // Every page load reads the session, the role it acts with and its token: limiting them would refuse browsing.
+        ...Object.fromEntries(pageLoadReads.map((path) => [path, false as const])),
         '/sign-in/email': { window: 60, max: options.signInPerMinute ?? 5 },
         '/staff/sign-in': { window: 60, max: 5 },
         [setPasswordPath]: { window: 60, max: 5 },

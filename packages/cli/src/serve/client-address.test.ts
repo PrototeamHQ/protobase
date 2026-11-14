@@ -16,6 +16,12 @@ describe('clientAddress', () => {
     expect(clientAddress('10.0.0.2', '6.6.6.6, 203.0.113.7, 10.0.0.9', ['10.0.0.0/8'])).toBe('203.0.113.7')
   })
 
+  it('tells apart two clients behind a trusted proxy that sets their address, whatever they sent before it', () => {
+    expect(clientAddress('172.30.0.1', '203.0.113.7', ['172.30.0.1'])).toBe('203.0.113.7')
+    expect(clientAddress('172.30.0.1', '203.0.113.8', ['172.30.0.1'])).toBe('203.0.113.8')
+    expect(clientAddress('172.30.0.1', '203.0.113.7, 203.0.113.8', ['172.30.0.1'])).toBe('203.0.113.8')
+  })
+
   it('keeps the whole IPv6 address', () => {
     expect(clientAddress('::1', '2001:db8::5', ['::1'])).toBe('2001:0db8:0000:0000:0000:0000:0000:0005')
   })
