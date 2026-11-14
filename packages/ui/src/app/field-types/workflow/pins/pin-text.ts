@@ -41,7 +41,7 @@ const outputLabels: Record<string, () => string> = {
  */
 export const outputLabel = (path: readonly string[], trigger = false, field = false) => {
   if (path.length === 0) return trigger ? text('pinRunInput') : text('pinResult')
-  if (path.length === 1 && path[0] === statusKey) return text('statusPin')
+  if (path.length === 1 && path[0] === statusKey) return text('stepStatusType')
   const name = path.at(-1)!
   return field ? name : (outputLabels[name]?.() ?? name)
 }

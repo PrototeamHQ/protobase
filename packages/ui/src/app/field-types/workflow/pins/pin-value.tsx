@@ -32,9 +32,9 @@ export const PinValue = ({ pin, label, onChange }: { pin: InputPin; label: strin
     )
   }
   const kind = inlineKind(pin)
-  if (!kind || (pin.state === 'literal' && typeof pin.value === 'object')) {
-    return pin.state === 'literal' ? <span className="ml-auto shrink-0 text-xs text-muted-foreground" title={text('pinObjectValue')}>{'{…}'}</span> : null
-  }
+  if (pin.state === 'literal' && typeof pin.value === 'object') return <span className="ml-auto shrink-0 text-xs text-muted-foreground" title={text('pinObjectValue')}>{'{…}'}</span>
+  // A value of a type no editor here takes, such as a key that is text or a number, shows as it is
+  if (!kind) return pin.state === 'literal' ? <span className="ml-auto min-w-0 truncate text-xs text-muted-foreground">{String(pin.value)}</span> : null
   const name = text('inputValue', { label })
   if (!onChange) return <span className="ml-auto min-w-0 truncate text-xs text-muted-foreground">{pin.value === undefined ? '' : String(pin.value)}</span>
   const editor = 'nodrag nopan nowheel ml-auto min-w-0'

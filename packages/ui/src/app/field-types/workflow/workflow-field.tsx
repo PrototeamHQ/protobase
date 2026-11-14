@@ -27,14 +27,25 @@ const otherFields = ['trigger', 'execution_order', 'connections', 'trace'] as co
  */
 const useDefinition = (value: unknown, onChange?: (stateMachine: unknown) => void) => {
   const focus = useFocusRecord()
-  const definition = focus ? recordDefinition({ ...Object.fromEntries(otherFields.map((name) => [name, focus.value(name)])), state_machine: value }) : definitionOf({ stateMachine: value })
+  // A draft keeps a JSON field as its text until it is changed, and an empty field as ''
+  const draft = (name: (typeof otherFields)[number]) => {
+    const kept = focus?.value(name)
+    if (kept === '' || kept === undefined) return null
+    if (typeof kept !== 'string' || (name !== 'trigger' && name !== 'connections')) return kept
+    try {
+      return JSON.parse(kept) as unknown
+    } catch {
+      return kept
+    }
+  }
+  const definition = focus ? recordDefinition({ ...Object.fromEntries(otherFields.map((name) => [name, draft(name)])), state_machine: value }) : definitionOf({ stateMachine: value })
   const change =
     onChange &&
     ((next: Definition) => {
       const fields = definitionRecord(next)
       onChange(fields.state_machine)
       if (!focus) return
-      for (const name of otherFields) if (JSON.stringify(fields[name]) !== JSON.stringify(focus.value(name) ?? null)) focus.change(name, fields[name])
+      for (const name of otherFields) if (JSON.stringify(fields[name]) !== JSON.stringify(draft(name))) focus.change(name, fields[name])
     })
   return { definition, change }
 }
