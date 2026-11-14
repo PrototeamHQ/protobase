@@ -6,7 +6,7 @@ description: Pages of your own, built from blocks in a JSX layout.
 - [Composed pages](/reference/layouts/#setup): Pages built from a JSX layout, with their own address, sidebar entry and role limits, reading the API under the same access rules as the lists.
 - [Layout checks](/reference/layouts/#what-a-layout-may-hold): The build refuses a layout with code, unknown props or unknown fields, and names the file and place.
 - [Conditions](/reference/layouts/#conditions): Part of a page shows only while a condition on a record or a count holds.
-- [Paths and scopes](/reference/layouts/#paths-and-scopes) (beta): Layout values resolve through the records around them with Handlebars paths, such as `../name`, `@root` and `@index`; typos and reads that would wait on other reads fail the build, and `Show`, `Switch` and `Match` choose what is drawn.
+- [Paths and scopes](/reference/layouts/#paths-and-scopes) (beta): Layout values resolve through the records around them with paths relative to those records, such as `../name`, `@root` and `@index`; typos and reads that would wait on other reads fail the build, and `Show`, `Switch` and `Match` choose what is drawn.
 - [App addresses](/reference/layouts/#addresses): Links to lists, records, create forms and pages are typed addresses that can carry filters and prefilled values.
 - [Component fallbacks](/reference/custom-components/#fallbacks): A custom component declares what a client that cannot draw it shows instead, or nothing, and the web shows it too when the component is missing or throws.
 - [Text form](/reference/layouts/#text-form): Every layout block renders to Markdown text through one shared function, built up from its children, as the last-resort fallback and for MCP clients and LLMs.

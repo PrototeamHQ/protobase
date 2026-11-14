@@ -110,30 +110,30 @@ A `RecordCard` (its first match) and each card of a `CardRow` hold a **record**.
 
 ## Paths and scopes
 
-A `RecordCard` and each card of a `CardRow` put their record on a stack of records, as each section does in [Mustache](https://mustache.github.io/mustache.5.html): an element inside both a task's `RecordCard` and a `CardRow` of its claims sits in a claim, inside the task. A name in a layout is looked up through that stack, by the rules of the [Mustache spec](https://github.com/mustache/spec) and [Handlebars path expressions](https://handlebarsjs.com/guide/expressions.html#path-expressions):
+A `RecordCard` and each card of a `CardRow` put their record on a stack of records: an element inside both a task's `RecordCard` and a `CardRow` of its claims sits in a claim, inside the task. A bare name is looked up in the innermost record, then in each record further out, then in the page's own record; the [compatibility page](/features/compatibility/#template-paths) says which template syntax this follows:
 
 | Path | Reads |
 | --- | --- |
 | `status` | The nearest record that has a field `status`, then each record around it in turn. |
-| `meta.size` | `meta` as above, then `size` from that value only: when it has none, the path is empty, and no record further out is tried (Mustache's "Dotted Names - Context Precedence"). |
+| `meta.size` | `meta` as above, then `size` from that value only: when it has none, the path is empty, and no record further out is tried. |
 | `../id`, `../../id` | The record one, or two, out from the nearest. |
 | `this.id`, `./id` | The nearest record only. |
 | `@index`, `@first`, `@last` | The card's place among a `CardRow`'s cards, from 0, and whether it is the first or the last. |
 | `@root.id` | The page's own record. <gap>A path cannot read `@root` because pages with a record of their own are not implemented.</gap> |
 | `@params.window` | The page parameter `window`. <gap>A path cannot read `@params` because the input that sets a page parameter is not implemented.</gap> |
 
-`Field name`, `Stat field`, `Progress`, and the names in a [condition](#conditions) take a path. A string prop takes `{{path}}` placeholders, double braces as in Handlebars, filled with the path's value where the element draws, and empty when it has none:
+`Field name`, `Stat field`, `Progress`, and the names in a [condition](#conditions) take a path. A string prop takes `{{path}}` placeholders in double braces, filled with the path's value where the element draws, and empty when it has none:
 
 - `title`, `description`, `empty` and `label` read any path: `<Table resource="claim_steps" title="Steps of {{title}}" />`.
 - `filter`, `recordKey` and `values` read a field of a record around them. A filter takes one only as a top-level `AND` equality, `claim_id = {{id}} AND done = false`, the shape a read can take for every row at once with a [`related()`](/reference/api/#filtering-through-related-records) filter. A filter takes a page parameter anywhere.
 - `when` takes them where a name cannot go, such as `this.status = '{{../status}}'`, since a name in AIP-160 cannot start with `../` or `@`.
 - A [link's address](#addresses) takes them in its resource, key, tab, filter, order and values.
 
-A placeholder quoted on its own in a filter or condition, `title = '{{title}}'`, is filled with its quotes and backslashes escaped, so any text stays one value; Handlebars escapes for HTML instead. One inside a longer quoted value, `title = 'about {{title}}'`, fails the build, as it would be filled unescaped. Paths are all a placeholder holds: no helpers, subexpressions, literals, `@key` or `{{{triple braces}}}`. A `{{…}}` that holds anything else fails as soon as the layout loads, before its names are checked.
+A placeholder quoted on its own in a filter or condition, `title = '{{title}}'`, is filled with its quotes and backslashes escaped, so any text stays one value: a placeholder is escaped for the string it lands in, not for HTML. One inside a longer quoted value, `title = 'about {{title}}'`, fails the build, as it would be filled unescaped. Paths are all a placeholder holds: no helpers, subexpressions, literals, `@key` or `{{{triple braces}}}`. A `{{…}}` that holds anything else fails as soon as the layout loads, before its names are checked.
 
 The build checks every path where it sits:
 
-- **Typos.** A name no record around it has fails, naming every record searched and the closest field: `"claimd_at" is no field of task_claims, tasks; did you mean claimed_at?`. Mustache would draw it empty, so a layout the build accepts draws the same under Mustache's rules.
+- **Typos.** A name no record around it has fails, naming every record searched and the closest field: `"claimd_at" is no field of task_claims, tasks; did you mean claimed_at?`. A name the build accepts that has no value in a record draws empty.
 - **Bad roots.** `../` past the outermost record, `@root` on a page without a record, `@index` outside a `CardRow`, and `@params.x` without an input setting `x` fail.
 - **Reads that would wait.** A per-row value in a filter in any other place than a top-level `AND` equality (with `>=`, inside `OR` or `NOT`, a second one), `@index`, `@first`, `@last` or `this` in a filter, key or values, and any placeholder in `resource`, `sort`, `columns` or `limit` fail with "this would wait for the parent's rows": each block's records are one read of their own, and none may wait for another's rows.
 - **Shadowing.** A bare name that more than one record around it has reads the nearest, and the build warns which it read and how to write the others: `"id" resolves to task_claims; write ../id for the one of tasks`. `protobase build --strict` fails on it instead. `this.`, `./`, `../` and `@` paths never warn.
