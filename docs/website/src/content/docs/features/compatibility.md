@@ -12,3 +12,7 @@ description: Apps written for other systems that keep working on Protobase, and 
 - [Supabase Storage](/reference/supabase-storage/) (beta): supabase-js storage calls keep working, over the app's file storage.
 - [Supabase Realtime](/reference/supabase-realtime/) (beta): Database changes, broadcast and presence through supabase-js channels, private ones authorized by the policies on `realtime.messages`, broadcasts sent from a server without joining a channel, and broadcasts from the database with `realtime.send()` and `realtime.broadcast_changes()`, across [several processes](/reference/supabase-realtime/#several-processes) serving one app.
 - [Edge Functions](/guides/api-functions/#functions-moved-from-supabase): Functions moved from Supabase answer at their old addresses.
+
+## Template paths
+
+- [Paths and scopes](/reference/layouts/#paths-and-scopes) (beta): Layout paths follow Mustache's context-stack lookup and Handlebars' path grammar: `../`, `this`, `./`, `@root`, `@index`, `@first` and `@last`, though `@root` cannot be read yet. Protobase differs in three ways: a placeholder is escaped for the string it lands in, such as a filter's quoted value, rather than for HTML; `@params` reads a page parameter; and a name no record around it has fails the build instead of drawing empty.
