@@ -29,7 +29,9 @@ const useDefinition = (value: unknown, onChange?: (stateMachine: unknown) => voi
   const focus = useFocusRecord()
   // A draft keeps a JSON field as its text until it is changed, and an empty field as ''
   const draft = (name: (typeof otherFields)[number]) => {
-    const kept = focus?.value(name)
+    // A model from before these fields, as the start cache may hold until /meta is read again, has none of them
+    if (!focus?.model.fields[name]) return null
+    const kept = focus.value(name)
     if (kept === '' || kept === undefined) return null
     if (typeof kept !== 'string' || (name !== 'trigger' && name !== 'connections')) return kept
     try {
@@ -45,7 +47,7 @@ const useDefinition = (value: unknown, onChange?: (stateMachine: unknown) => voi
       const fields = definitionRecord(next)
       onChange(fields.state_machine)
       if (!focus) return
-      for (const name of otherFields) if (JSON.stringify(fields[name]) !== JSON.stringify(draft(name))) focus.change(name, fields[name])
+      for (const name of otherFields) if (focus.model.fields[name] && JSON.stringify(fields[name]) !== JSON.stringify(draft(name))) focus.change(name, fields[name])
     })
   return { definition, change }
 }
