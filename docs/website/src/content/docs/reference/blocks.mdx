@@ -72,7 +72,7 @@ A link in text: `to` an address in the app, or an `href` that leaves it (`https:
 
 | Prop | |
 | --- | --- |
-| `to` | An [address](/reference/layouts/#addresses). Inside a record, `{{field}}` in its key, filter or order is the record's value. |
+| `to` | An [address](/reference/layouts/#addresses). `{{path}}` in it is the value of that [path](/reference/layouts/#paths-and-scopes) through the records around the link. |
 | `href` | A link that leaves the app. A path in the app is refused when the config loads: give it as `to`. |
 | `variant` | `primary`, `secondary`, `danger` or `ghost`: drawn as a button of that variant, still a link. `className` adds to it, such as `w-full`. |
 
@@ -515,16 +515,33 @@ A button that opens a form in a dialog. `create` makes a record of `resource`; `
 
 ### Show
 
-Its children while [`when`](/reference/layouts/#conditions) holds.
+Its children while [`when`](/reference/layouts/#conditions) holds, else its `fallback`, as SolidJS's [`<Show>`](https://docs.solidjs.com/reference/components/show). Its text form is what it draws.
 
 | Prop | |
 | --- | --- |
 | `when` | A condition. Required. |
+| `fallback` | Text or elements drawn while `when` does not hold. |
 
 ```tsx
-<Show when="orders.count = 0">
+<Show when="orders.count = 0" fallback={<Text>Orders are coming in.</Text>}>
   <Card title="No orders yet">...</Card>
 </Show>
+```
+
+### Switch and Match
+
+The first `Match` whose `when` holds, else the `Switch`'s `fallback`, as SolidJS's [`<Switch>` and `<Match>`](https://docs.solidjs.com/reference/components/switch-and-match). A `Switch` holds `Match`es only. Its text form is the branch it draws.
+
+| Prop | |
+| --- | --- |
+| `Switch fallback` | Text or elements drawn while no `Match` holds. |
+| `Match when` | A [condition](/reference/layouts/#conditions). Required. |
+
+```tsx
+<Switch fallback={<Text>Not started</Text>}>
+  <Match when="status = 'done'"><Text>Done</Text></Match>
+  <Match when="claims.count > 0"><Text>Claimed</Text></Match>
+</Switch>
 ```
 
 ## Accounts
