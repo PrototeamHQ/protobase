@@ -177,7 +177,7 @@ export const PerRowOnPhoneChecks: StoryObj = {
 
 
 const isCut = (link: HTMLElement) => {
-  const label = link.querySelector<HTMLElement>('[title]')!
+  const label = link.querySelector<HTMLElement>('.truncate')!
   return label.scrollWidth > label.clientWidth
 }
 
@@ -188,7 +188,7 @@ const checkLabels = async (canvasElement: HTMLElement) => {
   expect(isCut(short)).toBe(false)
   const long = canvas.getByRole('link', { name: longLabel })
   expect(isCut(long)).toBe(true)
-  expect(long.querySelector('[title]')!.getAttribute('title')).toBe(longLabel)
+  expect(long.getAttribute('title')).toBe(longLabel)
   for (const link of [short, long]) expect(link.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth)
   await canvas.findAllByText('Hear everyone out')
 }
