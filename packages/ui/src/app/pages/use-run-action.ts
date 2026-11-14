@@ -14,6 +14,7 @@ import { useProjectUi } from './project-ui'
 import type { LayoutRecord } from './record-scope'
 import { runEach, type EachVerdict } from './run-each'
 import { answersFor } from './action-inputs/checklist-boxes'
+import { maskSecrets, secretAnswers } from './action-inputs/secret-mask'
 import { useRecordTitle } from '../titles/record-titles'
 import { useRefreshResource } from './use-layout-data'
 import { text } from './messages'
@@ -123,7 +124,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
     return shows && refusedOn(action, on) ? 'refuse' : 'skip'
   }
 
-  // A failure on one record leaves the others to run; the toast counts them, with the first failure's message, and
+  // A failure on one record leaves the others to run; the toast counts them, with the first failure's message, its secret answers masked, and
   // the records the caller left out already as not applying (`skipped`), and names those the person may not change,
   // refused here or by the API.
   const runOnEach = async (action: ActionModel, records: LayoutRecord[], skipped = 0, values?: Record<string, unknown>) => {
@@ -135,7 +136,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
     await refresh(resource)
     const refused = outcome.refused.map((on) => quoted(titleOf(on.model, views[resource], on.record, on.key)))
     const title = text('doneOn', { label: action.label, done: outcome.done, skipped: outcome.skipped + skipped, failed: outcome.failed, refused: refused.length })
-    const description = [refused.length > 0 && text('refusedOn', { records: refused.join(', '), count: refused.length }), outcome.failed > 0 && message(outcome.error)].filter(Boolean).join(' ')
+    const description = [refused.length > 0 && text('refusedOn', { records: refused.join(', '), count: refused.length }), outcome.failed > 0 && maskSecrets(message(outcome.error), secretAnswers(action.inputs ?? [], values ?? {}))].filter(Boolean).join(' ')
     toast.show({ state: outcome.failed > 0 || refused.length > 0 ? 'error' : 'success', title, ...(description && { description }) })
     if (outcome.done > 0) afterRun?.(action)
     return outcome

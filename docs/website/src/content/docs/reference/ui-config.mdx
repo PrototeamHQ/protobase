@@ -1144,6 +1144,7 @@ a.update('answer', { label: 'Answer', inputs: (i) => [i.text('answer', { label: 
 | `i.decimal(name, o)` | A number with decimals, which the handler gets as text, as the API gives decimals, so no digit is lost. |
 | `i.boolean(name, o)` | A switch, `true` or `false`, so it is never required. |
 | `i.date(name, o)` | A date, `YYYY-MM-DD`. |
+| `i.secret(name, o)` | A [secret](#secret-inputs), such as an API key, in a masked field; the handler gets it exactly as typed. |
 | `i.choice(name, { options })` | One of `options`, each a `value` with the `label` it reads as. |
 | `i.choice(name, { resource })` | A record of `resource`, picked as the create form picks a relation; the handler gets its key. |
 | `i.checklist(name, { items })` | Boxes to tick, every one, before the action runs: the same `items` for every record. The answer is the list of their texts. |
@@ -1157,6 +1158,22 @@ An empty answer is `null`. Before the handler runs, the dialog refuses a require
 A custom input's component gets the answer as `value` (`null` when empty), `onChange`, `invalid` while its answer is refused, the input's `props` and the `input` itself (`ActionInputProps`), as a [field type's](/reference/custom-components/#field-types) editor does. Without that component the button is disabled, with the reason as its tooltip. In `/api/meta`, a user who cannot read the resource of a choice does not get the action.
 
 <StoryFrame id="record-page-action-inputs--dialog" title="Create invoice, asking for a due date, who to bill and how to send it" height={720} />
+
+#### Secret inputs
+
+`i.secret(name, { label, help })` asks for a value that must not be seen or kept, such as an API key, so an app takes one without a custom component. The field draws what you type as discs, and browsers and password managers do not offer to save it, fill it, correct it or keep it in their form history. The value goes only to the handler, as `values[name]`:
+
+```ts
+a.action('connect_carrier', {
+  label: 'Connect carrier',
+  icon: 'key',
+  inputs: (i) => [i.secret('api_key', { label: 'API key', help: 'From the carrier’s settings page.' })],
+})
+```
+
+It is never sent back: when the handler's error or an input's message holds the value, the dialog or the toast shows discs in its place. A secret takes no `default`, a later input's `when` cannot read it, and an `a.update` whose `set` writes it stops the config from loading, since the update would store the value and send it back; the handler decides what to do with it.
+
+<StoryFrame id="record-page-secret-input--desktop" title="Connect carrier, asking for an API key in a masked field" height={600} />
 
 ### Actions that send from someone's mailbox
 

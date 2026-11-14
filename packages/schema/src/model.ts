@@ -1423,10 +1423,10 @@ export type ActionModel = {
 
 /**
  * What an input of a named action asks for: a line of `text`, a whole number (`integer`), a number with decimals
- * (`decimal`), a yes or no (`boolean`), a `date`, one of `options` or a record of `resource` (`choice`), or what a
- * project component edits (`custom`).
+ * (`decimal`), a yes or no (`boolean`), a `date`, one of `options` or a record of `resource` (`choice`), a masked `secret`, or
+ * what a project component edits (`custom`).
  */
-export type ActionInputKind = 'text' | 'integer' | 'decimal' | 'boolean' | 'date' | 'choice' | 'checklist' | 'custom'
+export type ActionInputKind = 'text' | 'integer' | 'decimal' | 'boolean' | 'date' | 'choice' | 'secret' | 'checklist' | 'custom'
 
 /** One input of a named action's dialog (`inputs: (i) => [...]`); see [Named actions](docs/website/src/content/docs/reference/ui-config.mdx#actions-that-ask-for-input). */
 export type ActionInputModel = {

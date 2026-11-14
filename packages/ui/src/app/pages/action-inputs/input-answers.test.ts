@@ -47,6 +47,13 @@ describe('action input answers', () => {
     expect(refusedAnswers(inputs, answeredValues(inputs, pro).values)).toEqual({ vat: 'Required' })
     expect(refusedAnswers(inputs, answeredValues(inputs, { ...pro, plan: 'free' }).values)).toEqual({})
   })
+  it('gives the handler a secret exactly as typed, refuses it empty, and never names it in a refusal', () => {
+    const secret: ActionInputModel[] = [{ name: 'api_key', kind: 'secret', label: 'API key', required: true, max: 4 }]
+    expect(inputField(secret[0]!)).toMatchObject({ type: 'text' })
+    expect(answeredValues(secret, { api_key: ' sk-1 ' }).values).toEqual({ api_key: ' sk-1 ' })
+    expect(refusedAnswers(secret, answeredValues(secret, { api_key: '' }).values)).toEqual({ api_key: 'Required' })
+    expect(refusedAnswers(secret, answeredValues(secret, { api_key: 'sk-12345' }).values)).toEqual({ api_key: 'At most 4 characters' })
+  })
   it('starts a checklist with nothing ticked, and refuses it until every box it shows is ticked', () => {
     const checklist: ActionInputModel[] = [{ name: 'checked', kind: 'checklist', label: 'Checked', required: true, from: 'checklist' }]
     const boxes = { checked: ['Deploy checked', 'Key rotated'] }

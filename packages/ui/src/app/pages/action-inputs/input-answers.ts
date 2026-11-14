@@ -4,7 +4,7 @@ import { toDraft, toPatchValue } from '../../../live/field-values'
 import { isChosen, type Draft } from '../../create/create-values'
 import { text } from '../messages'
 
-const fieldTypes: Record<Exclude<ActionInputModel['kind'], 'choice' | 'checklist' | 'custom'>, FieldType> = { text: 'text', integer: 'integer', decimal: 'decimal', boolean: 'boolean', date: 'date' }
+const fieldTypes: Record<Exclude<ActionInputModel['kind'], 'choice' | 'checklist' | 'custom'>, FieldType> = { text: 'text', integer: 'integer', decimal: 'decimal', boolean: 'boolean', date: 'date', secret: 'text' }
 
 /** The field an input is edited as, so the create form's editors edit it: a choice of options is an enum, of records a relation. */
 export const inputField = (input: ActionInputModel): FieldModel => {
@@ -33,10 +33,12 @@ export const startingAnswers = (inputs: ActionInputModel[]): Draft =>
     }),
   )
 
-// An answer as the handler gets it: null when empty, a number for an integer, a chosen record's key, a checklist's ticked boxes.
+// An answer as the handler gets it: null when empty, a number for an integer, a chosen record's key, a checklist's ticked boxes, a secret as typed.
 const answerOf = (input: ActionInputModel, held: unknown) => {
   if (input.kind === 'custom') return held ?? null
   if (input.kind === 'checklist') return Array.isArray(held) ? held : []
+  // A secret goes to the handler exactly as typed, never trimmed.
+  if (input.kind === 'secret') return typeof held === 'string' && held !== '' ? held : null
   if (isChosen(held)) return held.key
   // A record's key given as the default, before anything is picked.
   if (input.resource !== undefined) return String(held ?? '') === '' ? null : String(held)
