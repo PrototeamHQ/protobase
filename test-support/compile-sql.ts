@@ -1,7 +1,7 @@
 import { DummyDriver, Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler, type RawBuilder } from 'kysely'
 
 // Compiles SQL as Kysely sends it to Postgres, connecting to nothing: for the unit tests of SQL builders.
-const db = new Kysely<unknown>({
+export const db = new Kysely<any>({
   dialect: {
     createAdapter: () => new PostgresAdapter(),
     createDriver: () => new DummyDriver(),
