@@ -27,6 +27,8 @@ type RelatedPage =
   | {
       /** The order the related records are read in, as a list's `order_by`; `''` for the list's default. */
       orderBy: string
+      /** A page token needs a limit: the page size it was read with. */
+      pageToken?: never
     }
   | {
       /** The order the related records are read in, as a list's `order_by`; `''` for the list's default. */

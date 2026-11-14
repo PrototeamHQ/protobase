@@ -6,11 +6,16 @@ import type { Entry } from './registry'
 // An `order_by` inside a filter is refused as the filter, at the term, with what the order's checker found.
 const orderProblem = (errors: FilterError[], term: RelatedFilter) => filterProblem('filter', errors.map((error) => ({ ...error, span: term.span })))
 
+// A page token without the limit it was read with names no page: refused at the term, as the parser refuses a malformed one.
+const tokenProblem = (term: RelatedFilter) =>
+  filterProblem('filter', [{ code: 'invalid-arguments', message: 'A page token in related() needs the limit it was read with', hint: 'Usage: related(field, resource.field, (filter), "order_by", limit, "page_token")', span: term.span }])
+
 /**
  * The page of its resource a `related()` term keeps to, as a list of `model` with `filter` in `scope` reads it for the
  * same `order_by`, `page_size` and `page_token`; undefined without an order, so today's terms read every record.
  */
 export const termPage = (model: ResourceModel, term: RelatedFilter, filter: CheckedFilter | undefined, scope: Scope) => {
+  if (term.pageToken !== undefined && term.limit === undefined) throw tokenProblem(term)
   if (term.orderBy === undefined) return undefined
   const parsed = term.orderBy.trim() ? parseOrderBy(term.orderBy) : undefined
   if (parsed && !parsed.ok) throw orderProblem(parsed.errors, term)
