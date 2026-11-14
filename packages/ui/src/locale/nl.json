@@ -872,7 +872,10 @@
     "refuseNotPins": "Verbind een uitvoer met een invoer",
     "pureOfferTitle": "Een knoop voor deze pin toevoegen",
     "pureOfferClose": "Sluiten",
-    "inputValue": "Waarde van {label}"
+    "inputValue": "Waarde van {label}",
+    "graphView": "Grafiekweergave",
+    "viewPins": "Pinnen",
+    "viewSimple": "Eenvoudig"
   },
   "app/field-types/workflow-run": {
     "chosenStep": "Gekozen stap",

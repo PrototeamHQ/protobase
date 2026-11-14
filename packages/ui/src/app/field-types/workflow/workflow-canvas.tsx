@@ -1,4 +1,4 @@
-import { Background, Controls, ReactFlow, ReactFlowProvider, useReactFlow, useStore, useUpdateNodeInternals, type Connection, type Edge, type EdgeChange, type IsValidConnection, type NodeChange } from '@xyflow/react'
+import { Background, Controls, Panel, ReactFlow, ReactFlowProvider, useReactFlow, useStore, useUpdateNodeInternals, type Connection, type Edge, type EdgeChange, type IsValidConnection, type NodeChange } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import './workflow-canvas.css'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -10,6 +10,8 @@ import { definitionGraph, type EdgeKind, type GraphNode } from './definition-gra
 import { dataFlowEdges, flowEdges, flowNodes, graphId, pureFlowNodes, type FlowNode } from './flow-elements'
 import { AddAtContext } from './add-at-context'
 import { StateNode, TriggerNode } from './flow-nodes'
+import { Segmented } from '../../../primitives/segmented'
+import { useGraphView, type GraphView } from './pins/graph-view'
 import { PinActionsContext } from './pins/pin-actions'
 import { PureNodeView } from './pins/pure-nodes'
 import { PureOfferMenu } from './pins/pure-offer'
@@ -86,7 +88,10 @@ const MeasureOnLayout = ({ laidOut, ids }: { laidOut: unknown; ids: string[] }) 
 const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, onAddAt, traces, types, schemas, fills = false }: WorkflowCanvasProps) => {
   const graph = useMemo(() => definitionGraph(definition), [definition])
   const frame = useRef<HTMLDivElement>(null)
-  const pins = usePins(definition, graph, schemas, onChange, frame)
+  // The simple view is the same document drawn without pins: its lines are the execution edges, which stay the lines
+  // between steps when the order of steps comes from what they read
+  const [view, setView] = useGraphView()
+  const pins = usePins(definition, graph, view === 'pins' ? schemas : undefined, onChange, frame)
   const boxes = useLayout(graph, pins.layout)
   const nodes = useMemo(
     () => [...flowNodes(graph, boxes, problems, selected, traces, types, warnings, pins.data && { data: pins.data, open: pins.open }), ...(pins.data ? pureFlowNodes(graph, pins.data, boxes, pins.open) : [])],
@@ -175,6 +180,11 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
               aria-label={text('canvas')}
             >
               <Background gap={16} />
+              {schemas && (
+                <Panel position="top-left">
+                  <Segmented<GraphView> label={text('graphView')} value={view} onChange={setView} options={[{ value: 'pins', label: text('viewPins') }, { value: 'simple', label: text('viewSimple') }]} />
+                </Panel>
+              )}
               <Controls showInteractive={false} />
               <FitOnLayout laidOut={boxes} />
               {fills && <KeepCentre />}

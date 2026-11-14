@@ -872,7 +872,10 @@
     "refuseNotPins": "Connect an output to an input",
     "pureOfferTitle": "Add a node for this pin",
     "pureOfferClose": "Close",
-    "inputValue": "{label} value"
+    "inputValue": "{label} value",
+    "graphView": "Graph view",
+    "viewPins": "Pins",
+    "viewSimple": "Simple"
   },
   "app/field-types/workflow-run": {
     "chosenStep": "Chosen step",
