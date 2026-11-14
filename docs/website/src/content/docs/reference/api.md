@@ -174,7 +174,7 @@ tasks         related(id, tasks.waits, (state != "done"), "created_at desc", 20)
 
 - `order_by` is the list's AIP-132 text, `""` for its default order; `limit` is its `page_size`, a whole number from 1, capped at 500 as a page is; `page_token` is a `next_page_token` of the list of `resource` with the same subfilter and order, and with any other it is a `400` `invalid-cursor`. The subfilter is optional here too: `related(task_id, tasks.id, "created_at desc", 20)`.
 - `where.related(..., filter, { orderBy: 'created_at desc', limit: 20, pageToken })` builds it in code.
-- A JSON `key`, such as a task's `waits`, lists keys of the resource `field` points at: a record matches when its `field` is in the list of any record the term reads. A null, empty or non-list value adds no keys, and neither does an item that is no valid key, such as `"x"` among integer keys.
+- A JSON `key`, such as a task's `waits`, lists keys of the resource `field` points at: a record matches when its `field` is in the list of any record the term reads. A null, empty or non-list value adds no keys, and neither does an item that is no valid key, such as `"x"` among integer keys. It needs Postgres 16 or later, which tells a valid key from one that is not (`pg_input_is_valid`).
 
 ### Lists under a record
 
