@@ -32,7 +32,7 @@ describe('the scope stack', () => {
       'Page "board": <Page> › <RecordCard resource="tasks"> › <CardRow resource="task_claims"> › <Show>: "when": "status" resolves to task_claims; write ../status for the one of tasks',
     ])
     expect(() => checkPages([page(tree)], { ...input, strict: true })).toThrow('"status" resolves to task_claims')
-    expect(checkPages([page(claimCards(Show({ when: "{{../status}} = 'open' AND {{this.status}} = 'x'", children: 'Open' })))], { ...input, strict: true })).toEqual([])
+    expect(checkPages([page(claimCards(Show({ when: "this.status = '{{../status}}'", children: 'Open' })))], { ...input, strict: true })).toEqual([])
   })
 
   it('refuses a condition over a name no record around it has, which would wait for another read', () => {

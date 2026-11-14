@@ -12,6 +12,7 @@ import { shellForBuild, shellManifestFile } from './shell'
 import { buildTheme } from './theme'
 import { buildIcons } from './app-icons'
 import { checkUi } from './ui-check'
+import { checkPageScopes } from './page-scope-check'
 import { checkViews } from './view-check'
 import { pagesCarryClasses } from './page-classes'
 import type { Extension } from '../project/extensions'
@@ -27,6 +28,8 @@ export type DeployBundleInput = {
   sourceMaps?: boolean
   /** Hears what the build does not fail on but the developer should know, such as a token the theme misspells. */
   onWarning?: (message: string) => void
+  /** Fails the build on what it otherwise warns of in the pages: a bare name a nearer record shadows. */
+  strict?: boolean
 }
 
 // A folder of the output that a build writes, such as node_modules, is replaced only when the previous build's
@@ -63,14 +66,15 @@ const copyShell = async (publicDir: string, sourceMaps: boolean) => {
 // its app id, plugins and whether it has native push. Of the project's server config only the config folder runs at build time, to check its views against its resources; when it declares custom
 // components, or extensions have UI configs, the UI is loaded once to check its names against the config's and each
 // other's.
-export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = [], sourceMaps = false, onWarning }: DeployBundleInput): Promise<BundleManifest> => {
+export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = [], sourceMaps = false, onWarning, strict = false }: DeployBundleInput): Promise<BundleManifest> => {
   const protobase = bundleProtobaseVersion(projectDir)
   await removeOwnFolder(outDir, bundleNodeModules, 'nodeModules')
   await removeOwnFolder(outDir, bundleMigrations, 'migrations')
   const components = new Set<string>()
   const { native, mobile, notifications } = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun, extensions, components })
   const mobileSection = bundleMobile(mobile, notifications)
-  const pages = await checkViews(projectDir)
+  const { pages, models } = await checkViews(projectDir)
+  checkPageScopes(pages, models, { strict, onWarning })
   await checkUi(projectDir, extensions, components)
   const packages = native.length > 0 ? await copyPackages(native, path.join(outDir, bundleNodeModules)) : []
   const publicDir = path.join(outDir, bundleLayout.public)
