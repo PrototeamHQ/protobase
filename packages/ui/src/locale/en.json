@@ -1273,6 +1273,7 @@
     "noAction": "No action \"{name}\"",
     "couldNotLoad": "Could not load",
     "nothingYet": "Nothing here yet.",
+    "loadMore": "Load more",
     "saved": "{label}: saved",
     "create": "Create",
     "save": "Save",

@@ -10,9 +10,10 @@ import { formatTag } from '../../../locale/active-locale'
 const useAmount = (amount: number | string | undefined, fallback: number) => {
   const stack = useScopeStack()
   const at = typeof amount === 'string' ? frameFor(stack, amount) : undefined
-  const value = usePathValue(at?.frame, at?.path ?? '')
+  const value = usePathValue(at && 'frame' in at ? at.frame : undefined, at && 'path' in at ? at.path : '')
   if (typeof amount === 'number') return amount
   if (amount === undefined) return fallback
+  if (at && 'item' in at) return Number(at.item)
   if (value.state === 'ready') return Number(value.value)
   return value.state === 'loading' ? undefined : Number.NaN
 }

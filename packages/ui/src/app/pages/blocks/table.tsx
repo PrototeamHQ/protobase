@@ -6,6 +6,7 @@ import { useEmbeddedDisplay } from '../../embedded-list/use-embedded-display'
 import { useAdminMeta } from '../../meta-gate'
 import { cn } from '../../../lib/cn'
 import { propsOf, type BlockProps } from './block-props'
+import { ListTable } from './list-table'
 import { CardFrame } from './card-frame'
 import { phoneSpecs } from './table-phone-columns'
 
@@ -35,12 +36,13 @@ const LoadedTable = ({ model, view, filter = '', sort = '', columns, button, bul
 /**
  * The first `limit` records in `sort` order, in the list page's table, with its row button and, with `bulk`, the view's
  * bulk actions for the rows selected, or display, with a link to the whole list. A phone shows the columns `phoneSpecs`
- * picks.
+ * picks. Without `resource`, the records of the list around it.
  */
 export const TableBlock = ({ node, slots, className }: BlockProps) => {
-  const { className: _className, ...props } = propsOf<TableProps & Styled>(node)
+  const { className: _className, resource, ...props } = propsOf<TableProps & Styled>(node)
   const { resources, views } = useAdminMeta()
-  const model = resources[props.resource]
+  if (resource === undefined) return <ListTable {...props} actions={slots.actions} className={className} />
+  const model = resources[resource]
   if (!model) return null
   return <LoadedTable {...props} model={model} view={views[model.name]} actions={slots.actions} className={className} />
 }

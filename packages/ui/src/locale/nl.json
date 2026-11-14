@@ -1273,6 +1273,7 @@
     "noAction": "Geen actie \"{name}\"",
     "couldNotLoad": "Kon niet laden",
     "nothingYet": "Hier staat nog niets.",
+    "loadMore": "Meer laden",
     "saved": "{label}: bewaard",
     "create": "Maken",
     "save": "Bewaren",

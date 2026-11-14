@@ -8,6 +8,7 @@ import { FieldValue } from '../field-value'
 import { useCount } from '../use-layout-data'
 import { useScopedPathValue } from '../use-path-value'
 import { cn } from '../../../lib/cn'
+import { plainText } from './plain-value'
 import { propsOf, type BlockProps } from './block-props'
 import { CardFrame } from './card-frame'
 import { formatTag } from '../../../locale/active-locale'
@@ -31,6 +32,7 @@ const RecordValue = ({ field, format }: { field: string; format: StatProps['form
   const value = useScopedPathValue(field)
   if (value.state === 'loading') return <Skeleton className="h-8 w-16" />
   if (value.state === 'missing') return null
+  if (value.state === 'plain') return <span className={big}>{plainText(value.value)}</span>
   return (
     <span className={big}>
       <FieldValue model={value.model} field={value.field} value={value.value} format={format} />

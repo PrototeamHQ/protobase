@@ -13,6 +13,9 @@ export type PathValue =
   | { state: 'loading' }
   | { state: 'missing' }
 
+/** A path's value from the records around it: a record's, or one of an `ArrayField` item, which no field describes. */
+export type ScopedPathValue = PathValue | { state: 'plain'; value: unknown }
+
 /** The steps of `path` from the record around it, or none when it names nothing the caller can read. */
 const stepsOf = (resources: Record<string, ResourceModel>, scope: LayoutRecord | undefined, path: string): PathStep[] => {
   if (!scope) return []
@@ -54,9 +57,10 @@ export const usePathValue = (scope: LayoutRecord | undefined, path: string): Pat
 }
 
 /** The value at `path` from the records around it, its first name read from the nearest record that has that field. */
-export const useScopedPathValue = (path: string): PathValue => {
+export const useScopedPathValue = (path: string): ScopedPathValue => {
   const at = frameFor(useScopeStack(), path)
-  return usePathValue(at?.frame, at?.path ?? path)
+  const value = usePathValue(at && 'frame' in at ? at.frame : undefined, at && 'path' in at ? at.path : path)
+  return at && 'item' in at ? { state: 'plain', value: at.item } : value
 }
 
 /** Several paths at once, each from its own record, for conditions. */

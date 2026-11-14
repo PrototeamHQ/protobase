@@ -4,14 +4,16 @@ import type { ResourceModel } from '@protobase/schema'
 import { Skeleton } from '../../../primitives/skeleton'
 import { ErrorBanner } from '../../error-banner'
 import { useAdminMeta } from '../../meta-gate'
-import { RecordScope } from '../record-scope'
-import { scopeOf, useListPage } from '../use-layout-data'
+import { LayoutListScope } from '../layout-list'
+import { useListPage } from '../use-layout-data'
 import { propsOf, type BlockProps } from './block-props'
 import { CardFrame, Quiet } from './card-frame'
+import { RecordsEach } from './records-iterator'
 import { text } from '../messages'
 
 type LoadedProps = Omit<CardRowProps, 'resource' | 'actions' | 'children'> & { model: ResourceModel; actions: ReactNode; children: ReactNode[]; className?: string }
 
+// A list of its records, drawn as a RecordsIterator draws one, each in a small card of the row
 const LoadedCardRow = ({ model, filter, sort, limit = 12, title, description, empty, actions, children, className }: LoadedProps) => {
   const page = useListPage(model, { filter, sort, pageSize: limit })
   const rows = page.data?.items ?? []
@@ -25,16 +27,17 @@ const LoadedCardRow = ({ model, filter, sort, limit = 12, title, description, em
         <Quiet>{empty ?? text('nothingYet')}</Quiet>
       ) : (
         <ul className="relative -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1">
-          {rows.map((row, index) => {
-            const scope = scopeOf(model, row)
-            return (
-              <li key={scope.key} className="flex w-60 shrink-0 snap-start flex-col gap-2 rounded-lg border border-border bg-surface p-3">
-                <RecordScope value={scope} row={{ index, count: rows.length }}>
-                  {children}
-                </RecordScope>
-              </li>
-            )
-          })}
+          <LayoutListScope value={{ model, items: rows }}>
+            <RecordsEach
+              wrap={(entry, key) => (
+                <li key={key} className="flex w-60 shrink-0 snap-start flex-col gap-2 rounded-lg border border-border bg-surface p-3">
+                  {entry}
+                </li>
+              )}
+            >
+              {children}
+            </RecordsEach>
+          </LayoutListScope>
         </ul>
       )}
     </CardFrame>
