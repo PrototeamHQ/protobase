@@ -16,9 +16,9 @@ export const billing = page(
         actions={[<Action name="cancel" variant="danger" />, <Action name="upgrade" variant="primary" />]}
       >
         <Grid columns={3}>
-          <Field name="plan.name" label="Plan" />
-          <Field name="plan.price" label="Per month" />
-          <Field name="renews_at" />
+          <Field source="plan.name" label="Plan" />
+          <Field source="plan.price" label="Per month" />
+          <Field source="renews_at" />
         </Grid>
         <Progress label="Seats" value="seats_used" max="plan.seats" />
         <SeatHistory months={6} />
@@ -29,10 +29,10 @@ export const billing = page(
         actions={<ModalForm mode="edit" label="Edit" title="Edit billing details" fields={['company', 'vat_number', 'address', 'email']} />}
       >
         <Grid columns={2}>
-          <Field name="company" />
-          <Field name="vat_number" />
-          <Field name="address" />
-          <Field name="email" />
+          <Field source="company" />
+          <Field source="vat_number" />
+          <Field source="address" />
+          <Field source="email" />
         </Grid>
       </RecordCard>
     </Grid>
@@ -42,9 +42,9 @@ export const billing = page(
       sort="is_default desc, id"
       actions={<ModalForm mode="create" label="Add card" resource="payment_methods" fields={['brand', 'last4', 'expires']} />}
     >
-      <Field name="brand" label={false} />
-      <Field name="last4" label="Number" />
-      <Field name="expires" />
+      <Field source="brand" label={false} />
+      <Field source="last4" label="Number" />
+      <Field source="expires" />
       <Show when="is_default = true">Default card</Show>
       <Show when="is_default = false">
         <Action name="makeDefault" />
@@ -57,8 +57,8 @@ export const billing = page(
         <Stat label="Open invoices" resource="invoices" filter="status = 'open'" />
         <RecordCard title="Latest invoice" resource="invoices" sort="issued_at desc" actions={<Action name="download" />}>
           <Grid columns={2}>
-            <Field name="number" />
-            <Field name="total" />
+            <Field source="number" />
+            <Field source="total" />
           </Grid>
         </RecordCard>
         <Card title="Questions about a bill?">

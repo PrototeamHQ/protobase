@@ -5,8 +5,8 @@ import { Fragment, jsx } from './jsx-runtime'
 
 describe('createNode', () => {
   it('turns an element into plain data that survives JSON', () => {
-    const node = Card({ title: 'Plan', span: 2, children: [Field({ name: 'plan.name' }), 'text'] })
-    expect(node).toEqual({ type: 'Card', props: { title: 'Plan', span: 2 }, children: [{ type: 'Field', props: { name: 'plan.name' }, children: [] }, 'text'] })
+    const node = Card({ title: 'Plan', span: 2, children: [Field({ source: 'plan.name' }), 'text'] })
+    expect(node).toEqual({ type: 'Card', props: { title: 'Plan', span: 2 }, children: [{ type: 'Field', props: { source: 'plan.name' }, children: [] }, 'text'] })
     expect(JSON.parse(JSON.stringify(node))).toEqual(node)
   })
 
@@ -16,14 +16,14 @@ describe('createNode', () => {
   })
 
   it('flattens arrays and fragments and drops what React renders as nothing', () => {
-    const fragment = jsx(Fragment, { children: [Field({ name: 'a' }), [Field({ name: 'b' })]] })
-    const node = Grid({ children: [fragment, null, undefined, false, true, 3, ['x', [Field({ name: 'c' })]]] })
+    const fragment = jsx(Fragment, { children: [Field({ source: 'a' }), [Field({ source: 'b' })]] })
+    const node = Grid({ children: [fragment, null, undefined, false, true, 3, ['x', [Field({ source: 'c' })]]] })
     expect(node.children).toEqual([
-      { type: 'Field', props: { name: 'a' }, children: [] },
-      { type: 'Field', props: { name: 'b' }, children: [] },
+      { type: 'Field', props: { source: 'a' }, children: [] },
+      { type: 'Field', props: { source: 'b' }, children: [] },
       '3',
       'x',
-      { type: 'Field', props: { name: 'c' }, children: [] },
+      { type: 'Field', props: { source: 'c' }, children: [] },
     ])
   })
 
@@ -47,10 +47,10 @@ describe('createNode', () => {
 
   it('marks custom components so the app renders them from its registry', () => {
     const UsageChart = component<{ metric: string }>('UsageChart')
-    expect(jsx(UsageChart, { metric: 'cpu', children: Field({ name: 'a' }) })).toEqual({
+    expect(jsx(UsageChart, { metric: 'cpu', children: Field({ source: 'a' }) })).toEqual({
       type: 'UsageChart',
       props: { metric: 'cpu' },
-      children: [{ type: 'Field', props: { name: 'a' }, children: [] }],
+      children: [{ type: 'Field', props: { source: 'a' }, children: [] }],
       custom: true,
     })
   })
@@ -64,8 +64,8 @@ describe('createNode', () => {
   })
 
   it('carries the fallback a component declares on each of its elements, and none when it declares none', () => {
-    const Map = component('Map', { fallback: [Field({ name: 'address' }), 'Open the map on the web'] })
-    expect(jsx(Map, {})).toEqual({ type: 'Map', props: {}, children: [], custom: true, fallback: [{ type: 'Field', props: { name: 'address' }, children: [] }, 'Open the map on the web'] })
+    const Map = component('Map', { fallback: [Field({ source: 'address' }), 'Open the map on the web'] })
+    expect(jsx(Map, {})).toEqual({ type: 'Map', props: {}, children: [], custom: true, fallback: [{ type: 'Field', props: { source: 'address' }, children: [] }, 'Open the map on the web'] })
     expect(jsx(component('Hidden', { fallback: [] }), {}).fallback).toEqual([])
     expect(jsx(component('Plain'), {})).not.toHaveProperty('fallback')
     expect(() => component('Broken', { fallback: [() => null] as never })).toThrow("component('Broken') fallback has a child that is a function")

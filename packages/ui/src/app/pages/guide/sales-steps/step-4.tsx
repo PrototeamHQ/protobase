@@ -19,10 +19,10 @@ export const overview = page(
       actions={<Action name="markPaid" variant="primary" />}
     >
       <Grid columns={4}>
-        <Field name="number" />
-        <Field name="total" />
-        <Field name="company_id" label="Customer" />
-        <Field name="company_id.city" label="City" />
+        <Field source="number" />
+        <Field source="total" />
+        <Field source="company_id" label="Customer" />
+        <Field source="company_id.city" label="City" />
       </Grid>
       <Show when="company_id.status = 'dormant'">The customer has gone quiet: call before sending a reminder.</Show>
     </RecordCard>
@@ -38,9 +38,9 @@ export const overview = page(
       sort="created_at desc"
       actions={<ModalForm mode="create" label="Add lead" resource="companies" fields={['name', 'city', 'email']} values={{ status: 'lead' }} />}
     >
-      <Field name="name" label={false} />
-      <Field name="city" />
-      <Field name="email" />
+      <Field source="name" label={false} />
+      <Field source="city" />
+      <Field source="email" />
       <ModalForm mode="edit" label="Edit" fields={['name', 'city', 'email', 'status']} />
     </CardRow>
   </Page>,

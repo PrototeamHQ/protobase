@@ -94,7 +94,7 @@ const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[
   }
   switch (node.type) {
     case 'Field':
-      path(String(node.props.name))
+      path(String(node.props.source))
       break
     case 'Stat':
       if (text(node.props.field) !== undefined) path(String(node.props.field))

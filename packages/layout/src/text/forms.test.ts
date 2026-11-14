@@ -14,7 +14,7 @@ const samples: Record<string, LayoutNode> = {
   Card: built.Card({ title: 'Totals', children: text }),
   Stat: built.Stat({ label: 'Open', resource: 'tasks', filter: "state = 'open'" }),
   RecordCard: built.RecordCard({ resource: 'tasks', recordKey: '1', children: text }),
-  Field: built.Field({ name: 'title' }),
+  Field: built.Field({ source: 'title' }),
   Table: built.Table({ resource: 'tasks', title: 'Tasks' }),
   CardRow: built.CardRow({ resource: 'tasks', children: text }),
   RecordRow: built.RecordRow({ resource: 'tasks', filter: "state = 'open'" }),

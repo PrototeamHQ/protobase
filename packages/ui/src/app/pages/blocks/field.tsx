@@ -16,13 +16,13 @@ export const fieldLabel = (path: string, viewLabel: string | undefined) => {
 
 /** A label over a value of the record around it; `label={false}` shows the value alone. */
 export const FieldBlock = ({ node, className }: BlockProps) => {
-  const { name, label, format } = propsOf<FieldProps>(node)
+  const { source, label, format } = propsOf<FieldProps>(node)
   const { views } = useAdminMeta()
-  const value = useScopedPathValue(name)
+  const value = useScopedPathValue(source)
   if (value.state === 'missing') return null
   const shown = value.state === 'loading' ? <Skeleton className="h-4 w-24" /> : <FieldValue model={value.model} field={value.field} value={value.value} format={format} />
   if (label === false) return <div className={className}>{shown}</div>
-  const text = label ?? fieldLabel(name, value.state === 'ready' ? views[value.model.name]?.fields[value.field.name]?.label : undefined)
+  const text = label ?? fieldLabel(source, value.state === 'ready' ? views[value.model.name]?.fields[value.field.name]?.label : undefined)
   return (
     <div className={cn('min-w-0', className)}>
       <div className="text-body text-muted-foreground">{text}</div>

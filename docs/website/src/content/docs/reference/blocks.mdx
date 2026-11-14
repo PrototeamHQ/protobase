@@ -257,8 +257,8 @@ One record and what is inside it: the one `recordKey` names (the key as the reco
 
 ```tsx
 <RecordCard title="Biggest unpaid delivery" resource="orders" filter="status = 'delivered' AND paid = false" sort="total desc" actions={<Action name="markPaid" variant="primary" />}>
-  <Field name="number" />
-  <Field name="company_id.city" label="City" />
+  <Field source="number" />
+  <Field source="company_id.city" label="City" />
 </RecordCard>
 ```
 
@@ -323,8 +323,8 @@ A label over a value of the record, formatted as on the record page: statuses as
 
 | Prop | |
 | --- | --- |
-| `name` | A field, through relations (`company_id.city`). Required. |
-| `label` | Default: the view's label, else the name in words. `false` shows the value alone. |
+| `source` | A field, through relations (`company_id.city`), named as react-admin's fields name it. Required. |
+| `label` | Default: the view's label, else the path in words. `false` shows the value alone. |
 | `format` | Instead of the view's [format](/reference/ui-config/#names-and-columns). |
 
 ### Progress

@@ -20,7 +20,7 @@ const access = (overrides: Partial<CallerAccess> = {}): CallerAccess => ({
 
 const types = (page: PageModel | undefined) => {
   const found: string[] = []
-  if (page) walkTree(page.tree, (node) => found.push(node.type + (typeof node.props.name === 'string' ? `:${node.props.name}` : '')))
+  if (page) walkTree(page.tree, (node) => found.push(node.type + (typeof (node.props.source ?? node.props.name) === 'string' ? `:${node.props.source ?? node.props.name}` : '')))
   return found
 }
 

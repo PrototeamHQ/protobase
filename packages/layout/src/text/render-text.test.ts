@@ -12,7 +12,7 @@ const fields = { status: { label: 'Status', valueLabels: { in_progress: 'In prog
 
 describe('renderText', () => {
   it('renders each child of a container as its own text, in order', () => {
-    const section = Box({ children: [Text({ as: 'h2', children: 'Roof' }), Field({ name: 'title', label: 'Title' }), Field({ name: 'seats', label: 'Seats' }), Field({ name: 'status', format: 'badge' })] })
+    const section = Box({ children: [Text({ as: 'h2', children: 'Roof' }), Field({ source: 'title', label: 'Title' }), Field({ source: 'seats', label: 'Seats' }), Field({ source: 'status', format: 'badge' })] })
     expect(renderText(section, { record, fields })).toBe('## Roof\n\n**Title**: Fix the roof\n\n**Seats**: 3\n\n**Status**: In progress')
   })
 
@@ -23,7 +23,7 @@ describe('renderText', () => {
   })
 
   it('reads an enum value as its label, not its raw value', () => {
-    expect(renderText(Field({ name: 'status', label: false }), { record, fields })).toBe('In progress')
+    expect(renderText(Field({ source: 'status', label: false }), { record, fields })).toBe('In progress')
   })
 
   it('runs text and links on in one line, as one part', () => {
@@ -42,11 +42,11 @@ describe('renderText', () => {
   })
 
   it('reads a field as its label alone without a record', () => {
-    expect(renderText(Field({ name: 'status' }), { fields })).toBe('**Status**')
+    expect(renderText(Field({ source: 'status' }), { fields })).toBe('**Status**')
   })
 
   it('gives what a record card holds no record of the page around it', () => {
-    const card = RecordCard({ resource: 'tasks', title: 'Latest', children: [Field({ name: 'title', label: 'Title' })] })
+    const card = RecordCard({ resource: 'tasks', title: 'Latest', children: [Field({ source: 'title', label: 'Title' })] })
     expect(renderText(card, { record })).toBe('### [Latest](/tasks)\n\n**Title**')
   })
 

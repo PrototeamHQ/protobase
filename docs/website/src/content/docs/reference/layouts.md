@@ -59,7 +59,7 @@ Every layout block renders to Markdown text through one shared function, `render
 ```tsx
 import { Field, Page, renderText } from '@protobase/layout'
 
-renderText(<Page title="Order"><Field name="status" /></Page>, {
+renderText(<Page title="Order"><Field source="status" /></Page>, {
   record: { status: 'in_progress' },
   fields: { status: { label: 'Status', valueLabels: { in_progress: 'In progress' } } },
 })
@@ -126,7 +126,7 @@ A `RecordCard` and each card of a `CardRow` put their record on a stack of recor
 | `@root.id` | The page's own record. <gap>A path cannot read `@root` because pages with a record of their own are not implemented.</gap> |
 | `@params.window` | The page parameter `window`. <gap>A path cannot read `@params` because the input that sets a page parameter is not implemented.</gap> |
 
-`Field name`, `Stat field`, `Progress`, and the names in a [condition](#conditions) take a path. A string prop takes `{{path}}` placeholders in double braces, filled with the path's value where the element draws, and empty when it has none:
+`Field source`, `Stat field`, `Progress`, and the names in a [condition](#conditions) take a path. A string prop takes `{{path}}` placeholders in double braces, filled with the path's value where the element draws, and empty when it has none:
 
 - `title`, `description`, `empty` and `label` read any path: `<Table resource="claim_steps" title="Steps of {{title}}" />`.
 - `filter`, `recordKey` and `values` read a field of a record around them. A filter takes one only as a top-level `AND` equality, `claim_id = {{id}} AND done = false`, the shape a read can take for every row at once with a [`related()`](/reference/api/#filtering-through-related-records) filter. A filter takes a page parameter anywhere.

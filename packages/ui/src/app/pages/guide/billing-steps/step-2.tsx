@@ -13,9 +13,9 @@ export const billing = page(
         actions={[<Action name="cancel" variant="danger" />, <Action name="upgrade" variant="primary" />]}
       >
         <Grid columns={3}>
-          <Field name="plan.name" label="Plan" />
-          <Field name="plan.price" label="Per month" />
-          <Field name="renews_at" />
+          <Field source="plan.name" label="Plan" />
+          <Field source="plan.price" label="Per month" />
+          <Field source="renews_at" />
         </Grid>
         <Progress label="Seats" value="seats_used" max="plan.seats" />
       </RecordCard>
@@ -25,10 +25,10 @@ export const billing = page(
         actions={<ModalForm mode="edit" label="Edit" title="Edit billing details" fields={['company', 'vat_number', 'address', 'email']} />}
       >
         <Grid columns={2}>
-          <Field name="company" />
-          <Field name="vat_number" />
-          <Field name="address" />
-          <Field name="email" />
+          <Field source="company" />
+          <Field source="vat_number" />
+          <Field source="address" />
+          <Field source="email" />
         </Grid>
       </RecordCard>
     </Grid>

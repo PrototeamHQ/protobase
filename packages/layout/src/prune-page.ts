@@ -64,7 +64,7 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: Rea
 
   switch (node.type) {
     case 'Field':
-      return readable(String(node.props.name)) ? node : null
+      return readable(String(node.props.source)) ? node : null
     case 'Stat':
       return text(node.props.field) === undefined || readable(String(node.props.field)) ? node : null
     case 'Chart':

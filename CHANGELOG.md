@@ -6,6 +6,8 @@ The releases of Protobase that the release workflow cut with a release commit. L
 
 ### ⚠ BREAKING CHANGES
 
+* **layout:** `Field` names its field with `source`, as react-admin's fields do, instead of `name`; a `Field` with `name` now fails as the layout loads with `unknown prop "name"`. To upgrade: rename `name=` to `source=` on every `Field`, such as `<Field source="plan.name" label="Plan" />` or `Field({ source: 'total' })`; `grep -rn '<Field name=\|Field({ name' config` lists them. See [Field](https://docs.protobase.net/reference/blocks/#field).
+
 * **schema:** a placeholder is written with double braces: `{{field}}` instead of `{field}`, in link, row-button and `recordOpens`/`createOpens` addresses, button labels, hrefs and `{{host}}`, an update's `set` answers, a url field's link text and AI prompts. A single-brace `{field}` is now plain text. To upgrade: write `{{x}}` wherever you wrote `{x}` in those places, such as `key: '{{order_id}}'`, `href: '{{website}}'`, `label: 'View on {{host}}'`, `set: { answer: '{{answer}}' }` and `prompt: 'Sum up {{title}}'`; `grep -rnE '(^|[^{])\{[A-Za-z_]+\}' config` lists the single-brace placeholders, at the start of a string or inside one, to check and rewrite. See [Paths and scopes](https://docs.protobase.net/reference/layouts/#paths-and-scopes).
 
 * **ui:** `l.section(title, fields, { width: 'page' })` is gone, with the page-wide section it drew. To upgrade: (1) remove `width: 'page'` from the section, which then stands in the main column as any section; (2) for a field that should fill the page, such as a graph, make it the record page's surface with `.record((r) => ({ surface: r.<field> }))` and keep the rest of the layout, which stays as the form at `?standard=true`. See [Focus pages](https://docs.protobase.net/reference/ui-config/#focus-pages).
@@ -60,6 +62,8 @@ The releases of Protobase that the release workflow cut with a release commit. L
 
 ### ⚠ BREAKING CHANGES
 
+* **layout:** `Field` names its field with `source`, as react-admin's fields do, instead of `name`; a `Field` with `name` now fails as the layout loads with `unknown prop "name"`. To upgrade: rename `name=` to `source=` on every `Field`, such as `<Field source="plan.name" label="Plan" />` or `Field({ source: 'total' })`; `grep -rn '<Field name=\|Field({ name' config` lists them. See [Field](https://docs.protobase.net/reference/blocks/#field).
+
 * **schema:** helpers only the protobase packages use move to @protobase/schema/internal
 
 * **schema:** helpers only the protobase packages use move to @protobase/schema/internal ([fe137ad](https://github.com/PrototeamHQ/protobase/commit/fe137adbdedc2898d6f3b575a91c9c17b118b157))
@@ -108,6 +112,8 @@ The releases of Protobase that the release workflow cut with a release commit. L
 ## [0.13.0](https://github.com/PrototeamHQ/protobase/compare/v0.12.22...v0.13.0) (2026-10-13)
 
 ### ⚠ BREAKING CHANGES
+
+* **layout:** `Field` names its field with `source`, as react-admin's fields do, instead of `name`; a `Field` with `name` now fails as the layout loads with `unknown prop "name"`. To upgrade: rename `name=` to `source=` on every `Field`, such as `<Field source="plan.name" label="Plan" />` or `Field({ source: 'total' })`; `grep -rn '<Field name=\|Field({ name' config` lists them. See [Field](https://docs.protobase.net/reference/blocks/#field).
 
 * **ui:** page tables and related lists show the list's displays, capped with a link to the list
 
@@ -292,6 +298,8 @@ The releases of Protobase that the release workflow cut with a release commit. L
 
 ### ⚠ BREAKING CHANGES
 
+* **layout:** `Field` names its field with `source`, as react-admin's fields do, instead of `name`; a `Field` with `name` now fails as the layout loads with `unknown prop "name"`. To upgrade: rename `name=` to `source=` on every `Field`, such as `<Field source="plan.name" label="Plan" />` or `Field({ source: 'total' })`; `grep -rn '<Field name=\|Field({ name' config` lists them. See [Field](https://docs.protobase.net/reference/blocks/#field).
+
 * **cli:** protobase build copies the prebuilt shell and builds the project's UI as plugins
 
 ### Features
@@ -315,6 +323,8 @@ The releases of Protobase that the release workflow cut with a release commit. L
 
 ### ⚠ BREAKING CHANGES
 
+* **layout:** `Field` names its field with `source`, as react-admin's fields do, instead of `name`; a `Field` with `name` now fails as the layout loads with `unknown prop "name"`. To upgrade: rename `name=` to `source=` on every `Field`, such as `<Field source="plan.name" label="Plan" />` or `Field({ source: 'total' })`; `grep -rn '<Field name=\|Field({ name' config` lists them. See [Field](https://docs.protobase.net/reference/blocks/#field).
+
 * a link in the app goes to an address in to, and an href in the app is refused at startup
 
 ### Features
@@ -335,6 +345,8 @@ The releases of Protobase that the release workflow cut with a release commit. L
 ## [0.10.0](https://github.com/PrototeamHQ/protobase/compare/v0.9.0...v0.10.0) (2026-10-11)
 
 ### ⚠ BREAKING CHANGES
+
+* **layout:** `Field` names its field with `source`, as react-admin's fields do, instead of `name`; a `Field` with `name` now fails as the layout loads with `unknown prop "name"`. To upgrade: rename `name=` to `source=` on every `Field`, such as `<Field source="plan.name" label="Plan" />` or `Field({ source: 'total' })`; `grep -rn '<Field name=\|Field({ name' config` lists them. See [Field](https://docs.protobase.net/reference/blocks/#field).
 
 * **server:** a passkey domain for new passkeys, each passkey keeping its RP ID for sign-in
 * **server:** a session acts with one active role, its token's only one; write an auth migration
@@ -365,6 +377,8 @@ The releases of Protobase that the release workflow cut with a release commit. L
 ## [0.9.0](https://github.com/PrototeamHQ/protobase/compare/v0.8.2...v0.9.0) (2026-10-11)
 
 ### ⚠ BREAKING CHANGES
+
+* **layout:** `Field` names its field with `source`, as react-admin's fields do, instead of `name`; a `Field` with `name` now fails as the layout loads with `unknown prop "name"`. To upgrade: rename `name=` to `source=` on every `Field`, such as `<Field source="plan.name" label="Plan" />` or `Field({ source: 'total' })`; `grep -rn '<Field name=\|Field({ name' config` lists them. See [Field](https://docs.protobase.net/reference/blocks/#field).
 
 * **server:** deliver resource events to subscriptions, signed, retried and shaped per receiver
 
@@ -403,6 +417,8 @@ The releases of Protobase that the release workflow cut with a release commit. L
 
 ### ⚠ BREAKING CHANGES
 
+* **layout:** `Field` names its field with `source`, as react-admin's fields do, instead of `name`; a `Field` with `name` now fails as the layout loads with `unknown prop "name"`. To upgrade: rename `name=` to `source=` on every `Field`, such as `<Field source="plan.name" label="Plan" />` or `Field({ source: 'total' })`; `grep -rn '<Field name=\|Field({ name' config` lists them. See [Field](https://docs.protobase.net/reference/blocks/#field).
+
 * **presets:** the ERP works in organizations; run its base seed before the first user
 
 ### Features
@@ -434,6 +450,8 @@ The releases of Protobase that the release workflow cut with a release commit. L
 
 ### ⚠ BREAKING CHANGES
 
+* **layout:** `Field` names its field with `source`, as react-admin's fields do, instead of `name`; a `Field` with `name` now fails as the layout loads with `unknown prop "name"`. To upgrade: rename `name=` to `source=` on every `Field`, such as `<Field source="plan.name" label="Plan" />` or `Field({ source: 'total' })`; `grep -rn '<Field name=\|Field({ name' config` lists them. See [Field](https://docs.protobase.net/reference/blocks/#field).
+
 * **server:** snake_case auth tables and columns; protobase auth migration renames those of 0.6
 
 ### Features
@@ -443,6 +461,8 @@ The releases of Protobase that the release workflow cut with a release commit. L
 ## [0.6.0](https://github.com/PrototeamHQ/protobase/compare/v0.5.0...v0.6.0) (2026-10-10)
 
 ### ⚠ BREAKING CHANGES
+
+* **layout:** `Field` names its field with `source`, as react-admin's fields do, instead of `name`; a `Field` with `name` now fails as the layout loads with `unknown prop "name"`. To upgrade: rename `name=` to `source=` on every `Field`, such as `<Field source="plan.name" label="Plan" />` or `Field({ source: 'total' })`; `grep -rn '<Field name=\|Field({ name' config` lists them. See [Field](https://docs.protobase.net/reference/blocks/#field).
 
 * **server:** a platform sign-in provider from PROTOBASE_SIGN_IN_*; run auth:migrate to upgrade
 * **cli,server:** auth schema changes as project migrations for db:migrate, checked at startup
@@ -459,6 +479,8 @@ Moving an app back to an earlier release is not supported: below 1.0 a minor ver
 ## [0.5.0](https://github.com/PrototeamHQ/protobase/compare/v0.4.1...v0.5.0) (2026-10-10)
 
 ### ⚠ BREAKING CHANGES
+
+* **layout:** `Field` names its field with `source`, as react-admin's fields do, instead of `name`; a `Field` with `name` now fails as the layout loads with `unknown prop "name"`. To upgrade: rename `name=` to `source=` on every `Field`, such as `<Field source="plan.name" label="Plan" />` or `Field({ source: 'total' })`; `grep -rn '<Field name=\|Field({ name' config` lists them. See [Field](https://docs.protobase.net/reference/blocks/#field).
 
 * **schema,server:** a widget part an app component draws, and the widget() helper
 
@@ -479,6 +501,8 @@ Moving an app back to an earlier release is not supported: below 1.0 a minor ver
 ## [0.4.0](https://github.com/PrototeamHQ/protobase/compare/v0.3.5...v0.4.0) (2026-10-10)
 
 ### ⚠ BREAKING CHANGES
+
+* **layout:** `Field` names its field with `source`, as react-admin's fields do, instead of `name`; a `Field` with `name` now fails as the layout loads with `unknown prop "name"`. To upgrade: rename `name=` to `source=` on every `Field`, such as `<Field source="plan.name" label="Plan" />` or `Field({ source: 'total' })`; `grep -rn '<Field name=\|Field({ name' config` lists them. See [Field](https://docs.protobase.net/reference/blocks/#field).
 
 * **client,ui:** a staff sign-in page, a banner for staff sessions and the log of staff sign-ins
 * **server:** emailed codes, passkeys, two-factor and a sign-in policy; run auth:migrate to upgrade
@@ -537,6 +561,8 @@ Moving an app back to an earlier release is not supported: below 1.0 a minor ver
 
 ### ⚠ BREAKING CHANGES
 
+* **layout:** `Field` names its field with `source`, as react-admin's fields do, instead of `name`; a `Field` with `name` now fails as the layout loads with `unknown prop "name"`. To upgrade: rename `name=` to `source=` on every `Field`, such as `<Field source="plan.name" label="Plan" />` or `Field({ source: 'total' })`; `grep -rn '<Field name=\|Field({ name' config` lists them. See [Field](https://docs.protobase.net/reference/blocks/#field).
+
 * **server:** keep assistant transcripts in a conversation store and cache their prefix per turn
 
 ### Features
@@ -549,6 +575,8 @@ Moving an app back to an earlier release is not supported: below 1.0 a minor ver
 ## [0.2.0](https://github.com/PrototeamHQ/protobase/compare/v0.1.6...v0.2.0) (2026-10-10)
 
 ### ⚠ BREAKING CHANGES
+
+* **layout:** `Field` names its field with `source`, as react-admin's fields do, instead of `name`; a `Field` with `name` now fails as the layout loads with `unknown prop "name"`. To upgrade: rename `name=` to `source=` on every `Field`, such as `<Field source="plan.name" label="Plan" />` or `Field({ source: 'total' })`; `grep -rn '<Field name=\|Field({ name' config` lists them. See [Field](https://docs.protobase.net/reference/blocks/#field).
 
 * **ui:** render assistant backends with generic chat primitives in the shell's dock
 
