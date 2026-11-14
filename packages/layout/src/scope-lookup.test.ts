@@ -38,11 +38,11 @@ describe('resolveScopePath', () => {
   it('refuses ../ past the outermost record, @root without a page record, @index outside a CardRow and @params without a SelectInput', () => {
     expect(resolve('../../id', claims)).toEqual({ ok: false, message: '"../../id" goes up past the outermost record around it' })
     expect(resolve('@root.id', claims)).toEqual({ ok: false, message: '"@root.id": @root is the page\'s own record, and this page has none' })
-    expect(resolve('@index', { stack: [frame('tasks')] })).toEqual({ ok: false, message: '"@index": @index counts the rows of a CardRow, and this sits in none' })
+    expect(resolve('@index', { stack: [frame('tasks')] })).toEqual({ ok: false, message: '"@index": @index counts the rows of a CardRow or RecordsIterator, and this sits in none' })
     expect(resolve('@index', claims)).toMatchObject({ ok: true, kind: 'data', variable: 'index' })
     expect(resolve('@params.window', claims)).toEqual({ ok: false, message: '"@params.window": no SelectInput source="window" on the page sets @params.window' })
     expect(resolve('@params.window', claims, 'stored', ['window'])).toMatchObject({ ok: true, kind: 'data', variable: 'params' })
-    expect(resolve('title', { stack: [] })).toEqual({ ok: false, message: '"title" needs a record around it: put it inside a RecordCard or a CardRow' })
+    expect(resolve('title', { stack: [] })).toEqual({ ok: false, message: '"title" needs a record around it: put it inside a RecordCard, a CardRow or a RecordsIterator' })
   })
 
   it('names every record it searched and the closest field for a typo', () => {

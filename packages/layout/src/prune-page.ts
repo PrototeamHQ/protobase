@@ -3,6 +3,7 @@ import { addressErrors, followableRowButton, pruneByShape, shapes } from '@proto
 import { chartFields } from './check-chart'
 import { threadFields } from './check-conversation'
 import { scopedConditionReadable } from './check-condition'
+import { listModelProblems } from './check-list-models'
 import { pathFindings } from './check-paths'
 import { pruneToolCalls, type ToolCallSource } from './check-tool-calls'
 import { elementResource, linkPlaceholderError, pageParams } from './check-page'
@@ -65,6 +66,12 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: Rea
 
   if (inlineFieldTypes.has(node.type)) return readable(String(node.props.source)) ? node : null
   switch (node.type) {
+    // A list or record the caller cannot read by its target, source, filter or sort is left out, with what it holds
+    case 'ReferenceManyField':
+    case 'ReferenceArrayField':
+    case 'ArrayField':
+    case 'ReferenceField':
+      return listModelProblems(node, scope, { models, params }).length > 0 ? null : node
     case 'Field':
       return readable(String(node.props.source)) ? node : null
     case 'Stat':

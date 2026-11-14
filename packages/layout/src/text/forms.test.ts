@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as built from '../blocks'
+import * as lists from '../list-blocks'
 import { blockSpecs } from '../block-specs'
 import { Details, Summary } from '../details'
 import { Box, Column, Row, Text } from '../elements'
@@ -51,6 +52,11 @@ const samples: Record<string, LayoutNode> = {
   Row: Row({ children: text }),
   Column: Column({ children: text }),
   Text: text,
+  ReferenceManyField: lists.ReferenceManyField({ reference: 'claims', target: 'task_id', children: lists.RecordsIterator({ children: text }) }),
+  ReferenceArrayField: lists.ReferenceArrayField({ source: 'tag_ids', reference: 'tags', children: lists.RecordsIterator({ children: text }) }),
+  ArrayField: lists.ArrayField({ source: 'labels', children: lists.RecordsIterator({ children: text }) }),
+  RecordsIterator: lists.RecordsIterator({ children: text }),
+  ReferenceField: lists.ReferenceField({ source: 'worker_id', reference: 'workers', empty: 'Nobody' }),
   Details: Details({ children: [Summary({ children: 'More' }), text] }),
   Summary: Summary({ children: 'More' }),
   TextField: fields.TextField({ source: 'title' }),
@@ -61,8 +67,8 @@ const samples: Record<string, LayoutNode> = {
   ChipField: fields.ChipField({ source: 'state' }),
 }
 
-// The record a field component reads, which the text has where the tree sits in one
-const record = { title: 'Fix the brakes', hours: 3, due_on: '2026-02-15', done: true, website: 'https://example.com', state: 'open' }
+// The record field components and an ArrayField read, which the text has where the tree sits in one
+const record = { title: 'Fix the brakes', hours: 3, due_on: '2026-02-15', done: true, website: 'https://example.com', state: 'open', labels: ['urgent'] }
 
 describe('text forms', () => {
   it('has a sample of every registered block', () => {

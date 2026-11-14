@@ -13,7 +13,8 @@ import { propsOf, type BlockProps } from './block-props'
 
 // React-admin's field components: one value of the records around them, inline, formatted as react-admin formats it.
 
-type Shown = { value: unknown; field: FieldModel; hints: FieldViewModel | undefined; props: InlineFieldProps }
+// `field` is missing for an item of a JSON list, which no model describes
+type Shown = { value: unknown; field: FieldModel | undefined; hints: FieldViewModel | undefined; props: InlineFieldProps }
 
 /** A field component: its value drawn by `show`, `emptyText` when empty, and nothing while there is no value to read. */
 const inlineField = (show: (shown: Shown) => ReactNode) =>
@@ -24,11 +25,12 @@ const inlineField = (show: (shown: Shown) => ReactNode) =>
     if (read.state === 'missing') return null
     if (read.state === 'loading') return <Skeleton className="inline-block h-3 w-16 align-middle" />
     if (isEmptyFieldValue(node.type, read.value)) return props.emptyText ? <span className={className}>{props.emptyText}</span> : null
+    if (read.state === 'plain') return <span className={className}>{show({ value: read.value, field: undefined, hints: undefined, props })}</span>
     return <span className={className}>{show({ value: read.value, field: read.field, hints: views[read.model.name]?.fields[read.field.name], props })}</span>
   }
 
 // An enum's value as its label, as everywhere else it is shown
-const labelled = ({ value, field, hints }: Shown) => (field.type === 'enum' && typeof value === 'string' ? enumLabel(value, hints?.valueLabels) : textFieldText(value))
+const labelled = ({ value, field, hints }: Shown) => (field?.type === 'enum' && typeof value === 'string' ? enumLabel(value, hints?.valueLabels) : textFieldText(value))
 
 export const TextFieldBlock = inlineField(labelled)
 

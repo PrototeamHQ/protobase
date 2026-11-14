@@ -27,6 +27,11 @@ import { TableBlock } from './blocks/table'
 import { TabBlock, TabsBlock } from './blocks/tabs'
 import { ThreadBlock } from './blocks/thread'
 import { BoxBlock, ColumnBlock, RowBlock, TextBlock } from './blocks/plain'
+import { ArrayFieldBlock } from './blocks/array-field'
+import { RecordsIteratorBlock } from './blocks/records-iterator'
+import { ReferenceArrayFieldBlock } from './blocks/reference-array-field'
+import { ReferenceFieldBlock } from './blocks/reference-field'
+import { ReferenceManyFieldBlock } from './blocks/reference-many-field'
 import { UsersBlock } from '../../users/users-block'
 import { ConnectedAccountsBlock } from '../../account/blocks/connected-accounts-block'
 import { PersonalMailBlock } from '../../account/blocks/personal-mail-block'
@@ -86,6 +91,11 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Row: RowBlock,
   Column: ColumnBlock,
   Text: TextBlock,
+  ReferenceManyField: ReferenceManyFieldBlock,
+  ReferenceArrayField: ReferenceArrayFieldBlock,
+  ArrayField: ArrayFieldBlock,
+  RecordsIterator: RecordsIteratorBlock,
+  ReferenceField: ReferenceFieldBlock,
   Details: DetailsBlock,
   Summary: SummaryBlock,
   TextField: TextFieldBlock,
@@ -97,7 +107,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
 }
 
 // The blocks that put their classes on an element of their own; the others draw none, or several, and get a <div> for them.
-const ownClasses = new Set(['Page', 'Grid', 'Card', 'Stat', 'RecordCard', 'Field', 'Table', 'CardRow', 'RecordRow', 'RecordCards', 'Chart', 'Progress', 'Image', 'Thread', 'Link', 'Tabs', 'Settings', 'Show', 'Switch', 'Action', 'Box', 'Row', 'Column', 'Text', 'Details', 'Summary', 'TextField', 'NumberField', 'DateField', 'BooleanField', 'UrlField', 'ChipField'])
+const ownClasses = new Set(['Page', 'Grid', 'Card', 'Stat', 'RecordCard', 'Field', 'Table', 'CardRow', 'RecordRow', 'RecordCards', 'Chart', 'Progress', 'Image', 'Thread', 'Link', 'Tabs', 'Settings', 'Show', 'Switch', 'Action', 'Box', 'Row', 'Column', 'Text', 'ReferenceField', 'Details', 'Summary', 'TextField', 'NumberField', 'DateField', 'BooleanField', 'UrlField', 'ChipField'])
 
 /** Text and links as they run in one line. */
 const renderInline = (run: LayoutChild[]) => run.map((child, position) => (typeof child === 'string' ? <Fragment key={position}>{child}</Fragment> : <RenderNode key={position} node={child} />))

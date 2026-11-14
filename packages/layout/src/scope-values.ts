@@ -1,11 +1,14 @@
-import { fillFilter, fillText, parseTemplatePath, valueText, type PathLookup } from '@protobase/schema/internal'
+import { fillFilter, fillText, parseTemplatePath, valueText, wholePlaceholder, type PathLookup } from '@protobase/schema/internal'
 import type { LayoutNode, LayoutValue } from './node'
 
 // The records around an element as it draws, and the value a path reads from them, by the same Mustache lookup the
 // build checks with: a bare name from the nearest record that has it, `../` and `this` from one record only.
 
-/** One record of the stack, and its place among its rows when it is one of a `CardRow`'s. */
-export type ValueFrame = { record: Record<string, unknown>; row?: { index: number; count: number } }
+/**
+ * One record of the stack, or an item of an `ArrayField`'s list, which may be any JSON value, and its place among its
+ * rows when it is one of a `CardRow`'s or a `RecordsIterator`'s.
+ */
+export type ValueFrame = { record: unknown; row?: { index: number; count: number } }
 
 /** The records around an element, outermost first, the page's own record, and the page's parameters. */
 export type ValueScope = { stack: readonly ValueFrame[]; root?: Record<string, unknown>; params?: Readonly<Record<string, string>> }
@@ -32,12 +35,21 @@ export const scopeValue = (scope: ValueScope, path: string): unknown => {
     return context === undefined ? undefined : readRest(context, parsed.names)
   }
   const [first, ...rest] = parsed.names
-  const context = contexts.findLast((record) => Object.hasOwn(record, first!))
-  return context === undefined ? undefined : readRest(context[first!], rest)
+  const context = contexts.findLast((record) => isObject(record) && Object.hasOwn(record, first!))
+  return isObject(context) ? readRest(context[first!], rest) : undefined
 }
 
 /** How a filler reads values where `scope` is. */
 export const scopeLookup = (scope: ValueScope): PathLookup => (path) => scopeValue(scope, path)
+
+const scalar = (value: unknown): LayoutValue => (value === undefined ? null : typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || value === null ? value : valueText(value))
+
+// A filter object's value that is one whole `{{path}}` takes the value itself, so a number stays a number for the read
+const fillFilterObject = (filter: Record<string, LayoutValue>, lookup: PathLookup) =>
+  Object.fromEntries(Object.entries(filter).map(([name, value]) => {
+    const whole = typeof value === 'string' ? wholePlaceholder(value) : undefined
+    return [name, whole === undefined ? fillValues(value, lookup) : scalar(lookup(whole))]
+  }))
 
 /** Props drawn as text, each `{{path}}` replaced by its value. */
 const textProps = ['title', 'description', 'empty', 'label', 'recordKey']
@@ -64,7 +76,7 @@ export const fillProps = (node: LayoutNode, scope: ValueScope): LayoutNode => {
   const props = { ...node.props }
   for (const name of textProps) if (typeof props[name] === 'string') props[name] = fillText(props[name], (path) => valueText(lookup(path)))
   for (const name of filterProps) if (typeof props[name] === 'string') props[name] = fillFilter(props[name], lookup)
-  if (isObject(props.filter)) props.filter = fillValues(props.filter, lookup)
+  if (isObject(props.filter)) props.filter = fillFilterObject(props.filter as Record<string, LayoutValue>, lookup)
   if (props.values !== undefined) props.values = fillValues(props.values, lookup)
   return { ...node, props }
 }

@@ -30,7 +30,7 @@ describe('field components and Details', () => {
 
   it('need a record around them', () => {
     expect(structureProblems(Page({ title: 'x', children: Text({ children: BooleanField({ source: 'paid' }) }) }))).toEqual([
-      '<Page> › <Text> › <BooleanField source="paid">: needs a record: put it inside a RecordCard or a CardRow',
+      '<Page> › <Text> › <BooleanField source="paid">: needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator',
     ])
   })
 

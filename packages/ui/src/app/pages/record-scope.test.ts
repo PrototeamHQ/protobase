@@ -24,3 +24,18 @@ describe('valueScopeOf', () => {
     expect(valueScopeOf([task, claim])).toEqual({ stack: [{ record: task.record }, { record: claim.record, row: { index: 0, count: 2 } }] })
   })
 })
+
+describe('items of a JSON list', () => {
+  const item: ScopeFrame = { item: { name: 'lint', status: 'ok' }, row: { index: 0, count: 1 } }
+
+  it('read a key of the nearest item that holds it, and the value itself as this', () => {
+    expect(frameFor([task, item], 'name')).toEqual({ item: 'lint' })
+    expect(frameFor([task, item], 'title')).toEqual({ frame: task, path: 'title' })
+    expect(frameFor([task, { item: 'urgent' }], 'this')).toEqual({ item: 'urgent' })
+    expect(frameFor([task, item], '../status')).toEqual({ frame: task, path: 'status' })
+  })
+
+  it('give the fillers the item as it is', () => {
+    expect(valueScopeOf([task, { item: 'urgent' }])).toEqual({ stack: [{ record: task.record }, { record: 'urgent' }] })
+  })
+})

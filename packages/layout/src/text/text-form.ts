@@ -14,6 +14,11 @@ export type TextOptions = {
   fields?: Record<string, TextFieldLabels>
   /** What a `Table` shows, which the caller loaded, so it reads as a Markdown table; a table without it reads as its heading. */
   tables?: (node: LayoutNode) => TableText | undefined
+  /**
+   * The records a `ReferenceManyField`, `ReferenceArrayField` or `ReferenceField` holds for `record`, the record around
+   * it, which the caller read; such a block reads as a link to its records without them.
+   */
+  records?: (node: LayoutNode, record: Record<string, unknown> | undefined) => unknown[] | undefined
   /** The reader's locale, such as `nl-NL`, in which field components without `locales` format numbers and dates; the runtime's default when omitted. */
   locale?: string
   /** What the app's paths start with, such as `https://example.com/admin`; none when omitted. */

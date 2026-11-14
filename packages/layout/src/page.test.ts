@@ -44,8 +44,8 @@ describe('page', () => {
     const tree: LayoutNode = { type: 'Page', props: { title: 'x' }, children: [{ type: 'Table', props: { colums: ['a'], limit: 0 }, children: [] }] }
     expect(problems(tree)).toEqual([
       '<Page> › <Table>: unknown prop "colums"; it takes resource, filter, sort, title, description, actions, columns, button, bulk, limit, display, empty, span, className',
-      '<Page> › <Table>: "resource" is required',
       '<Page> › <Table>: "limit" must be a positive whole number',
+      '<Page> › <Table>: "resource" is required, or put it inside a ReferenceManyField, ReferenceArrayField or ArrayField to draw that list',
     ])
   })
 
@@ -136,11 +136,11 @@ describe('page', () => {
       ],
     })
     expect(problems(tree)).toEqual([
-      '<Page> › <Field source="a">: needs a record: put it inside a RecordCard or a CardRow',
-      '<Page> › <Stat>: with "field" needs a record: put it inside a RecordCard or a CardRow',
-      '<Page> › <Progress>: with a field name needs a record: put it inside a RecordCard or a CardRow',
-      '<Page> › <ModalForm>: in edit mode needs a record: put it inside a RecordCard or a CardRow, or name "resource" and "recordKey"',
-      '<Page> › <Action name="go">: needs a record: put it inside a RecordCard or a CardRow, or name "resource"',
+      '<Page> › <Field source="a">: needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator',
+      '<Page> › <Stat>: with "field" needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator',
+      '<Page> › <Progress>: with a field name needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator',
+      '<Page> › <ModalForm>: in edit mode needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator, or name "resource" and "recordKey"',
+      '<Page> › <Action name="go">: needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator, or name "resource"',
     ])
   })
 
@@ -152,7 +152,7 @@ describe('page', () => {
         { type: 'CardRow', props: { resource: 'plans', actions: Action({ name: 'add' }) }, children: [] },
       ],
     })
-    expect(problems(tree)).toEqual(['<Page> › <CardRow resource="plans"> actions={<Action name="add">}: needs a record: put it inside a RecordCard or a CardRow, or name "resource"'])
+    expect(problems(tree)).toEqual(['<Page> › <CardRow resource="plans"> actions={<Action name="add">}: needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator, or name "resource"'])
   })
 
   it('wants exactly one source for a Stat, and parsable conditions', () => {
@@ -201,7 +201,7 @@ describe('page', () => {
 
   it('reports every problem at once, under the page name', () => {
     expect(() => page('broken', Page({ title: 'x', children: [Field({ source: 'a' }), Table({ resource: 'r', limit: 1.5 })] }))).toThrow(
-      'Page "broken" is not a valid layout:\n  - <Page> › <Field source="a">: needs a record: put it inside a RecordCard or a CardRow\n  - <Page> › <Table resource="r">: "limit" must be a positive whole number',
+      'Page "broken" is not a valid layout:\n  - <Page> › <Field source="a">: needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator\n  - <Page> › <Table resource="r">: "limit" must be a positive whole number',
     )
   })
 })

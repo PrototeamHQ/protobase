@@ -13,6 +13,8 @@ type Models = Record<string, ResourceModel>
 /** A context the lookup searches: a record of the stack, by its place in it, or the page's own record. */
 export type ScopeContext = { at: number | 'root'; resource: string }
 
+type Context = ScopeContext & { label: string; item?: true }
+
 /**
  * What a path names: a field of a record around it (`names` the whole path, the first a field of `context`), the whole
  * record (`this`), or a data variable the renderer supplies. `shadows` is set when a bare name is a field of more than
@@ -22,6 +24,8 @@ export type ScopeResolution =
   | { ok: true; kind: 'field'; context: ScopeContext; names: string[]; shadows?: string }
   | { ok: true; kind: 'record'; context: ScopeContext }
   | { ok: true; kind: 'data'; variable: 'params' | 'index' | 'first' | 'last'; names: string[] }
+  /** An `ArrayField` item, or a key of one (`names`), which no model describes. */
+  | { ok: true; kind: 'item'; names: string[] }
   | { ok: false; message: string }
 
 /**
@@ -39,10 +43,10 @@ export type LookupInput = {
 }
 
 // The contexts outermost first: the page's record at the bottom of the stack, as Mustache's root is.
-const contextsOf = (scope: Scope): Array<ScopeContext & { label: string }> => [
+const contextsOf = (scope: Scope): Context[] => [
   ...(scope.root === undefined ? [] : [{ at: 'root' as const, resource: scope.root, label: `${scope.root} (@root)` }]),
-  // A frame without a resource was refused by the structure check already; it still counts for `../`
-  ...scope.stack.map((frame, at) => ({ at, resource: frame.resource ?? '', label: frame.resource ?? frame.block })),
+  // A record frame without a resource was refused by the structure check already; it still counts for `../`
+  ...scope.stack.map((frame, at): Context => ({ at, resource: frame.resource ?? '', label: frame.item ? `the items of ${frame.block}` : (frame.resource ?? frame.block), ...(frame.item && { item: true as const }) })),
 ]
 
 const hasField = (models: Models, resource: string, name: string) => Object.hasOwn(models[resource]?.fields ?? {}, name)
@@ -61,13 +65,13 @@ const restProblem = (models: Models, resource: string, names: string[], mode: Pa
 }
 
 // The ways to write `name` for a context other than the one it resolves to: `../` up to it, and `@root.` for the root.
-const reachOf = (contexts: Array<ScopeContext & { label: string }>, index: number, name: string) => {
+const reachOf = (contexts: Context[], index: number, name: string) => {
   const up = contexts.length - 1 - index
   const parent = up > 0 ? [`${'../'.repeat(up)}${name}`] : []
   return contexts[index]!.at === 'root' ? [...parent, `@root.${name}`] : parent
 }
 
-const fieldNames = (models: Models, contexts: Array<ScopeContext & { label: string }>) => [...new Set(contexts.flatMap((context) => Object.keys(models[context.resource]?.fields ?? {})))]
+const fieldNames = (models: Models, contexts: Context[]) => [...new Set(contexts.flatMap((context) => Object.keys(models[context.resource]?.fields ?? {})))]
 
 // The field a typo most likely meant, when one is close enough to say so.
 const suggestion = (name: string, names: string[]) => {
@@ -76,7 +80,7 @@ const suggestion = (name: string, names: string[]) => {
   return distance(name, near) <= Math.max(2, Math.floor(name.length / 3)) ? `; did you mean ${near}?` : ''
 }
 
-const outside = 'needs a record around it: put it inside a RecordCard or a CardRow'
+const outside = 'needs a record around it: put it inside a RecordCard, a CardRow or a RecordsIterator'
 
 const dataVariable = (path: { variable: 'root' | 'params' | 'index' | 'first' | 'last'; names: string[] }, text: string, input: LookupInput): ScopeResolution => {
   const { scope, params, models, mode } = input
@@ -93,7 +97,7 @@ const dataVariable = (path: { variable: 'root' | 'params' | 'index' | 'first' | 
     if (name === undefined || more.length > 0) return { ok: false, message: `"${text}": @params takes one parameter's name, such as @params.window` }
     return params.has(name) ? { ok: true, kind: 'data', variable: 'params', names: [name] } : { ok: false, message: `"${text}": no SelectInput source="${name}" on the page sets @params.${name}` }
   }
-  if (!scope.stack.some((frame) => frame.repeated)) return { ok: false, message: `"${text}": @${path.variable} counts the rows of a CardRow, and this sits in none` }
+  if (!scope.stack.some((frame) => frame.repeated)) return { ok: false, message: `"${text}": @${path.variable} counts the rows of a CardRow or RecordsIterator, and this sits in none` }
   return { ok: true, kind: 'data', variable: path.variable, names: [] }
 }
 
@@ -111,13 +115,17 @@ export const resolveScopePath = (text: string, input: LookupInput): ScopeResolut
     const index = contexts.length - 1 - path.up
     if (index < 0) return { ok: false, message: `"${text}" goes up past the outermost record around it` }
     const context = contexts[index]!
+    if (context.item) return { ok: true, kind: 'item', names: path.names }
     if (first === undefined) return { ok: true, kind: 'record', context: { at: context.at, resource: context.resource } }
     if (!hasField(models, context.resource, first)) return { ok: false, message: `"${text}": "${first}" is no field of ${context.label}${suggestion(first, Object.keys(models[context.resource]?.fields ?? {}))}` }
     const rest = restProblem(models, context.resource, path.names, mode)
     return rest ? { ok: false, message: rest } : { ok: true, kind: 'field', context: { at: context.at, resource: context.resource }, names: path.names }
   }
-  // A bare name: the top context, then each lower one, then the root; the rest of a dotted name only from there
-  const found = contexts.flatMap((context, index) => (hasField(models, context.resource, first!) ? [index] : [])).reverse()
+  // A bare name: the top context, then each lower one, then the root; the rest of a dotted name only from there. An
+  // item has no model, so it may hold any name: one no record has is read from it
+  const found = contexts.flatMap((context, index) => (!context.item && hasField(models, context.resource, first!) ? [index] : [])).reverse()
+  const item = contexts.findLastIndex((context) => context.item)
+  if (found.length === 0 && item >= 0) return { ok: true, kind: 'item', names: path.names }
   if (found.length === 0) {
     const searched = [...contexts].reverse().map((context) => context.label).join(', ')
     return { ok: false, message: `"${first}" is no field of ${searched}${suggestion(first!, fieldNames(models, contexts))}` }
@@ -126,7 +134,9 @@ export const resolveScopePath = (text: string, input: LookupInput): ScopeResolut
   const context = contexts[nearest!]!
   const rest = restProblem(models, context.resource, path.names, mode)
   if (rest) return { ok: false, message: rest }
-  const shadows =
-    others.length === 0 ? undefined : `"${first}" resolves to ${context.label}; ${others.map((index) => `write ${reachOf(contexts, index, first!).join(' or ')} for the one of ${contexts[index]!.label}`).join(', ')}`
+  // An item nearer than the record may hold the name too, and Mustache would read it from there
+  const nearerItem = item > nearest! ? [`write ${'../'.repeat(contexts.length - 1 - item)}this.${first} for an item's, if it has one`] : []
+  const ways = [...nearerItem, ...others.map((index) => `write ${reachOf(contexts, index, first!).join(' or ')} for the one of ${contexts[index]!.label}`)]
+  const shadows = ways.length === 0 ? undefined : `"${first}" resolves to ${context.label}; ${ways.join(', ')}`
   return { ok: true, kind: 'field', context: { at: context.at, resource: context.resource }, names: path.names, ...(shadows && { shadows }) }
 }

@@ -5,6 +5,7 @@ import { useAdminMeta } from '../../meta-gate'
 import { FieldValue } from '../field-value'
 import { useScopedPathValue } from '../use-path-value'
 import { cn } from '../../../lib/cn'
+import { plainText } from './plain-value'
 import { propsOf, type BlockProps } from './block-props'
 
 /** The view's label for the field at the end of the path, else the path in words: `companyId.city` is "Company city". */
@@ -20,7 +21,8 @@ export const FieldBlock = ({ node, className }: BlockProps) => {
   const { views } = useAdminMeta()
   const value = useScopedPathValue(source)
   if (value.state === 'missing') return null
-  const shown = value.state === 'loading' ? <Skeleton className="h-4 w-24" /> : <FieldValue model={value.model} field={value.field} value={value.value} format={format} />
+  const shown =
+    value.state === 'loading' ? <Skeleton className="h-4 w-24" /> : value.state === 'plain' ? plainText(value.value) : <FieldValue model={value.model} field={value.field} value={value.value} format={format} />
   if (label === false) return <div className={className}>{shown}</div>
   const text = label ?? fieldLabel(source, value.state === 'ready' ? views[value.model.name]?.fields[value.field.name]?.label : undefined)
   return (
