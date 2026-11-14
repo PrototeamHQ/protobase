@@ -15,4 +15,4 @@ description: Apps written for other systems that keep working on Protobase, and 
 
 ## Template paths
 
-- [Paths and scopes](/reference/layouts/#paths-and-scopes) (beta): Layout paths follow Mustache's context-stack lookup and Handlebars' path grammar: `../`, `this`, `./`, `@root`, `@index`, `@first` and `@last`. Protobase differs in three ways: a placeholder is escaped for the string it lands in, such as a filter's quoted value, rather than for HTML; `@params` reads a page parameter; and a name no record around it has fails the build instead of drawing empty.
+- [Paths and scopes](/reference/layouts/#paths-and-scopes) (beta): Layout paths follow Mustache's context-stack lookup and Handlebars' path grammar: `../`, `this`, `./`, `@root`, `@index`, `@first` and `@last`, though `@root` cannot be read yet. Protobase differs in three ways: a placeholder is escaped for the string it lands in, such as a filter's quoted value, rather than for HTML; `@params` reads a page parameter; and a name no record around it has fails the build instead of drawing empty.

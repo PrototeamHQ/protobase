@@ -110,6 +110,10 @@ A `RecordCard` (its first match) and each card of a `CardRow` hold a **record**.
 
 ## Paths and scopes
 
+:::caution[Beta]
+A path cannot read `@root` or `@params` yet, and a block inside a card or under a condition reads its records only once it draws, as the marked limits below say.
+:::
+
 A `RecordCard` and each card of a `CardRow` put their record on a stack of records: an element inside both a task's `RecordCard` and a `CardRow` of its claims sits in a claim, inside the task. A bare name is looked up in the innermost record, then in each record further out, then in the page's own record; the [compatibility page](/features/compatibility/#template-paths) says which template syntax this follows:
 
 | Path | Reads |
