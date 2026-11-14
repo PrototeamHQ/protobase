@@ -38,7 +38,7 @@ const filterDescription = [
   'An [AIP-160](https://google.aip.dev/160) filter, for example `status = "confirmed" AND total > 100`.',
   'Only filterable fields can be used.',
   'Functions: `in(field, v1, v2, ...)`, `search("text")` (also bare words), `similar(field, "text")`, `regex(field, "pattern")`, `isNull(field)`, `now()` with a duration offset such as `now() - 7d`.',
-  '`related(field, resource.key, (filter))`, ANDed with the rest, keeps the records whose `field` holds the `key` of a record of `resource` the caller may list that meets the subfilter, such as `related(task_id, objective_tasks.task_id, (objective_id = 40))`.',
+  '`related(field, resource.key, (filter))`, ANDed with the rest, keeps the records whose `field` holds the `key` of a record of `resource` the caller may list that meets the subfilter, such as `related(task_id, objective_tasks.task_id, (objective_id = 40))`; after the subfilter, `"order_by", limit, "page_token"` keep to one page of those records, and a JSON `key` lists keys.',
   'Syntax errors come back as a problem with `errors` carrying spans and hints.',
 ].join(' ')
 

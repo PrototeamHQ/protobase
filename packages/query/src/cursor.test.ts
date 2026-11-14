@@ -31,6 +31,19 @@ describe('cursor', () => {
     expect(() => decodeCursor(encodeCursor(keys, ['1', '2']), keys, undefined, scope('40'))).toThrowError(expect.objectContaining({ code: 'invalid_cursor' }))
   })
 
+  it("continues only the list whose related() terms kept to the same page of their records", () => {
+    const target = { name: 'links', table: { name: 'links' } } as unknown as ResourceModel
+    const key = field('task_id', 'integer')
+    const scope = (limit?: number, after?: string): Scope => ({
+      parents: [{ field: key, parent: { model: target, key, scope: {} }, related: { model: target, ...(limit && { page: { keys, limit, ...(after && { after: [after, after] }) } }) } }],
+    })
+    const cursor = encodeCursor(keys, ['1', '2'], undefined, scope(2))
+    expect(decodeCursor(cursor, keys, undefined, scope(2))).toEqual(['1', '2'])
+    expect(() => decodeCursor(cursor, keys, undefined, scope(3))).toThrowError(expect.objectContaining({ code: 'invalid_cursor' }))
+    expect(() => decodeCursor(cursor, keys, undefined, scope(2, '5'))).toThrowError(expect.objectContaining({ code: 'invalid_cursor' }))
+    expect(() => decodeCursor(cursor, keys, undefined, scope())).toThrowError(expect.objectContaining({ code: 'invalid_cursor' }))
+  })
+
   it('round-trips values including unicode, commas and quotes', () => {
     const values = ['a, "b" ✓', '42']
     expect(decodeCursor(encodeCursor(keys, values), keys)).toEqual(values)

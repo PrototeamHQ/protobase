@@ -1,10 +1,14 @@
 import type { CheckedFilter } from '@protobase/schema'
 import type { Scope } from './scope'
 
-// The `related()` terms of a read, which leave the filter for its scope; a cursor continues only the list that held them.
+// The `related()` terms of a read, which leave the filter for its scope, with the page each keeps to; a cursor continues
+// only the list that held them.
 const relatedTerms = (scope?: Scope): unknown[] =>
-  (scope?.parents ?? []).flatMap(({ field, parent, related }) =>
-    related ? [{ column: field.column, resource: parent?.model.name, key: parent?.key.column, subfilter: related.filter, terms: relatedTerms(parent?.scope) }] : [])
+  (scope?.parents ?? []).flatMap(({ field, parent, related }) => {
+    if (!related) return []
+    const page = related.page && { keys: related.page.keys, limit: related.page.limit, after: related.page.after }
+    return [{ column: field.column, resource: parent?.model.name, key: parent?.key.column, subfilter: related.filter, ...(page && { page }), terms: relatedTerms(parent?.scope) }]
+  })
 
 /** The filter's structure without source spans, each field named by its column, so equal filters match however they were written. */
 const canonical = (filter: unknown) =>

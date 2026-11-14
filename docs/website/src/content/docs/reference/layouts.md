@@ -138,7 +138,7 @@ A record's related records repeat under it as a list: a `ReferenceManyField` hol
 
 Each entry is a record of the stack while its children draw, so `Field`, `Show`, `{{path}}` placeholders and nested lists inside it read it, and `@index`, `@first` and `@last` count its place in the list. A text item of an `ArrayField`, such as a label, is read as `this`; an object item by its keys, which no model describes, so the build does not check them, and it warns when an item's key could shadow a field of a record further out. A list ties itself to the record around it by a field of that record: `source`, `id` of the nearest record by default. `filter` and `sort` take AIP-160 and AIP-132 text, or the objects react-admin writes: `{ status: 'open' }` is `status = "open"`, its fields ANDed, and `{ field: 'claimed_at', order: 'DESC' }` is `claimed_at desc`. Without `sort`, a list is in its key's order, descending, as react-admin's is. `pagination="more"` adds a button that reads the next `perPage` records into the same list. The [blocks reference](/reference/blocks/#related-records) lists every prop.
 
-<gap>A list block cannot read its records at page load, beside the records around it, because planning a page's reads is not implemented; each reads once the record around it has drawn.</gap> <gap>A `ReferenceArrayField` cannot read its records through a `related()` filter because array fields in `related()` are not implemented; it reads them by their keys with `in()`.</gap>
+<gap>A list block cannot read its records at page load, beside the records around it, because planning a page's reads is not implemented; each reads once the record around it has drawn.</gap>
 
 ## Field values
 

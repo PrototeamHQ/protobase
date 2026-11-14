@@ -65,13 +65,30 @@ const wordOf = (node: Operand) => {
 // value would lower to nothing and drop the whole filter without an error.
 const isSubfilter = (arg: Arg): arg is Generic => ['sequence', 'and', 'or', 'not', 'compare', 'has', 'present', 'global', 'call'].includes(arg.kind)
 
+// After the optional subfilter come the parent read's page, in a list's order: `"order_by"`, a positive whole `limit`
+// and `"page_token"`, each needing the one before it.
+const pageOf = (args: Arg[]) => {
+  const [orderBy, limit, pageToken, ...extra] = args
+  if (extra.length > 0) return undefined
+  if (orderBy && orderBy.kind !== 'string') return undefined
+  if (limit && (limit.kind !== 'number' || !Number.isSafeInteger(limit.value) || limit.value < 1)) return undefined
+  if (pageToken && pageToken.kind !== 'string') return undefined
+  return {
+    ...(orderBy?.kind === 'string' && { orderBy: orderBy.value }),
+    ...(limit?.kind === 'number' && { limit: limit.value }),
+    ...(pageToken?.kind === 'string' && { pageToken: pageToken.value }),
+  }
+}
+
 const lowerRelated = (l: Lowering, node: Call, field: FieldPath | undefined, bad: (usage: string) => undefined): FilterExpr | undefined => {
-  const [, target, subfilter, ...rest] = node.args
-  const usage = 'related(field, resource.field, (filter))'
-  if (!field || target?.kind !== 'member' || target.path.length !== 2 || rest.length > 0) return bad(usage)
-  const related = { kind: 'related', field, resource: target.path[0]!, key: target.path[1]!, span: node.span } as const
+  const [, target, ...rest] = node.args
+  const usage = 'related(field, resource.field, (filter), "order_by", limit, "page_token"), each after the field optional'
+  if (!field || target?.kind !== 'member' || target.path.length !== 2) return bad(usage)
+  const subfilter = rest[0] && isSubfilter(rest[0]) ? rest[0] : undefined
+  const page = pageOf(subfilter ? rest.slice(1) : rest)
+  if (!page) return bad(usage)
+  const related = { kind: 'related', field, resource: target.path[0]!, key: target.path[1]!, ...page, span: node.span } as const
   if (!subfilter) return related
-  if (!isSubfilter(subfilter)) return bad(usage)
   const filter = lower(l, subfilter)
   return filter && { ...related, filter }
 }
