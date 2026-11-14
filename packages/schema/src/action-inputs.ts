@@ -39,7 +39,7 @@ export const inputs = {
    * A secret, such as an API key, in a masked field that browsers and password managers do not offer to save or fill.
    * It takes no default and no `when` reads it; the handler gets its text, and no update writes it.
    */
-  secret: (name: string, o: Omit<InputOptions<string>, 'default'>) => input(name, 'secret', o),
+  secret: (name: string, o: { label: string; help?: string; optional?: boolean; when?: string }) => input(name, 'secret', o),
   /** A date as `YYYY-MM-DD`. */
   date: (name: string, o: InputOptions<string>) => input(name, 'date', o),
   /** One of `options`, each a value with its label, or a record of `resource`, whose key the handler gets. */
