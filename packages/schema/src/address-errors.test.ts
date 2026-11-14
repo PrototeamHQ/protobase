@@ -21,6 +21,7 @@ describe('addressErrors', () => {
   it('names an unknown resource or page', () => {
     expect(addressErrors({ kind: 'create', resource: 'bikes' }, { models })).toEqual(['unknown resource "bikes"'])
     expect(addressErrors({ kind: 'page', page: 'nope' }, { models, pages: new Set() })).toEqual(['unknown page "nope"'])
+    expect(addressErrors({ kind: 'page', page: 'claims', params: { customer: '{{nope}}' } }, { models, pages: new Set(['claims']), source: customers })).toEqual(['"{{nope}}" is not a field of customers'])
     expect(addressErrors({ kind: 'nope' } as never, { models })).toEqual(['an address\'s kind is list, record, create or page, not "nope"'])
   })
 

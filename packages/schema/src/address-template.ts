@@ -9,9 +9,9 @@ const names = templatePlaceholders
 /** The path a link's address takes its resource from, when its `resource` is only `{{path}}`, as `'{{name}}'`. */
 export const resourceField = (to: AppAddress) => (to.kind === 'page' ? undefined : wholePlaceholder(to.resource))
 
-// The parts of an address a `{{path}}` may stand in: the resource, the record key, tab, run and panel, the list's filter and order, a create form's values.
+// The parts of an address a `{{path}}` may stand in: a page's tab and parameters, the resource, the record key, tab, run and panel, the list's filter and order, a create form's values.
 const templated = (to: AppAddress): string[] => {
-  if (to.kind === 'page') return []
+  if (to.kind === 'page') return [...(to.tab === undefined ? [] : [to.tab]), ...Object.values(to.params ?? {})]
   const resource = resourceField(to) === undefined ? [] : [to.resource]
   if (to.kind === 'record') return [...resource, ...(Array.isArray(to.key) ? to.key : [to.key]).filter((part): part is string => typeof part === 'string'), ...[to.tab, to.run, to.panel].filter((part) => part !== undefined)]
   if (to.kind === 'list') return [...resource, ...[to.filter, to.orderBy].filter((part): part is string => part !== undefined)]
@@ -48,11 +48,11 @@ export const fillFilter = (filter: string, lookup: PathLookup) =>
   )
 
 /**
- * `to` with every `{{path}}` in its resource, key, tab, run, panel, filter, order or values replaced by the value
+ * `to` with every `{{path}}` in its page parameters, resource, key, tab, run, panel, filter, order or values replaced by the value
  * `lookup` gives; a missing value becomes empty, and one quoted in a filter is escaped.
  */
 export const fillAddressFrom = (to: AppAddress, lookup: PathLookup): AppAddress => {
-  if (to.kind === 'page') return to
+  if (to.kind === 'page') return { ...to, ...(to.tab !== undefined && { tab: fill(to.tab, lookup) }), ...(to.params && { params: Object.fromEntries(Object.entries(to.params).map(([name, value]) => [name, fill(value, lookup)])) }) }
   const resource = resourceField(to) === undefined ? to.resource : fill(to.resource, lookup)
   if (to.kind === 'record') {
     const part = (value: string | number) => (typeof value === 'string' ? fill(value, lookup) : value)

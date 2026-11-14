@@ -44,4 +44,17 @@ describe('LinkBlock', () => {
     )
     expect(markup).toBe(`<a href="/windows/30d" ${look}>Window</a>`)
   })
+
+  it('carries a page parameter to another page', () => {
+    const tree = SelectInput({ source: 'window', choices: [{ id: '7d', name: 'Last 7 days' }, { id: '30d', name: 'Last 30 days' }] })
+    const link = node('Link', { to: { kind: 'page', page: 'payouts', params: { window: '{{@params.window}}' } } }, ['Payouts'])
+    const markup = renderToStaticMarkup(
+      <Router initialUrl="/claims?window=30d">
+        <PageParamsProvider page="claims" tree={tree} given={{ window: '30d' }}>
+          <RenderNode node={link} />
+        </PageParamsProvider>
+      </Router>,
+    )
+    expect(markup).toBe(`<a href="/payouts?window=30d" ${look}>Payouts</a>`)
+  })
 })

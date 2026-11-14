@@ -61,7 +61,7 @@ export const addressErrors = (to: AppAddress, { models, pages, source, placehold
   }
   switch (to.kind) {
     case 'page':
-      return pages && !pages.has(to.page) ? [`unknown page "${to.page}"`] : []
+      return pages && !pages.has(to.page) ? [...placeholders, `unknown page "${to.page}"`] : placeholders
     case 'list':
     case 'record':
     case 'create': {
