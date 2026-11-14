@@ -8,12 +8,20 @@ type Fitted = { key: string; sizes: Record<string, Size> }
 
 const sizesOf = (specs: ColumnSpec[]) => Object.fromEntries(specs.map(({ id, width, minWidth, fixed }) => [id, { width, minWidth, fixed }]))
 
+/** What a fit depends on besides the rows: each column with the bounds its width is clamped to. */
+export const fitKey = (columns: ColumnSpec[]) =>
+  columns
+    .map(({ id, minWidth, maxWidth }) => `${id}:${minWidth ?? ''}:${maxWidth ?? ''}`)
+    .sort()
+    .join(' ')
+
 /**
- * `columns` sized by the first rows shown, fitted once per set of columns: later pages, filters and sorts keep those
- * widths, so columns never jump while scrolling, and a longer value later on is cut, with the whole of it on hover.
+ * `columns` sized by the first rows shown, fitted once per set of columns and their bounds: later pages, filters and
+ * sorts keep those widths, so columns never jump while scrolling, and a longer value later on is cut, with the whole of
+ * it on hover.
  */
 export const useFittedColumns = (columns: ColumnSpec[], rows: GridRow[]) => {
-  const key = columns.map((spec) => spec.id).sort().join(' ')
+  const key = fitKey(columns)
   const [fitted, setFitted] = useState<Fitted>()
   const current = fitted?.key === key ? fitted : undefined
   // Fitting is stored while rendering, the way React keeps state derived from earlier renders, so no frame shows the old widths
