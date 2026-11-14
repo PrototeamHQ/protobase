@@ -1,6 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { LayoutChild, LayoutNode } from '@protobase/layout'
+import { SelectInput, type LayoutChild, type LayoutNode } from '@protobase/layout'
+import { Router } from '../../router'
+import { PageParamsProvider } from '../page-params'
 import { RenderNode } from '../render-node'
 
 const node = (type: string, props: LayoutNode['props'] = {}, children: LayoutChild[] = []): LayoutNode => ({ type, props, children })
@@ -28,5 +30,18 @@ describe('LinkBlock', () => {
 
   it('runs inline in the one paragraph of a Text', () => {
     expect(html(node('Text', {}, ['Write to ', node('Link', { href: 'mailto:a@example.com' }, ['Sam'])]))).toBe(`<p>Write to <a href="mailto:a@example.com" ${look}>Sam</a></p>`)
+  })
+
+  it('fills its address from the page parameters', () => {
+    const tree = SelectInput({ source: 'window', choices: [{ id: '7d', name: 'Last 7 days' }, { id: '30d', name: 'Last 30 days' }] })
+    const link = node('Link', { to: { kind: 'record', resource: 'windows', key: '{{@params.window}}' } }, ['Window'])
+    const markup = renderToStaticMarkup(
+      <Router initialUrl="/claims?window=30d">
+        <PageParamsProvider page="claims" tree={tree} given={{ window: '30d' }}>
+          <RenderNode node={link} />
+        </PageParamsProvider>
+      </Router>,
+    )
+    expect(markup).toBe(`<a href="/windows/30d" ${look}>Window</a>`)
   })
 })

@@ -3,6 +3,7 @@ import { appPath } from '@protobase/schema'
 import { scopeLookup } from '@protobase/layout'
 import { fillAddressFrom } from '@protobase/schema/internal'
 import { AppLink } from '../../use-app-address'
+import { usePageParamValues } from '../page-params'
 import { useScopeStack, valueScopeOf } from '../record-scope'
 import { cn } from '../../../lib/cn'
 import { buttonClass } from '../../../primitives/button'
@@ -11,12 +12,12 @@ import { propsOf, type BlockProps } from './block-props'
 const linkStyle = 'font-medium text-primary-text hover:underline'
 
 /**
- * `to` an address in the app, through the router, its `{{path}}`s filled from the records around it; an `href` (`mailto:`,
- * `https:`) is an ordinary anchor. It shows its children, text and spans inline, else where it leads.
+ * `to` an address in the app, through the router, its `{{path}}`s filled from the records around it and the page's
+ * parameters; an `href` (`mailto:`, `https:`) is an ordinary anchor. It shows its children, text and spans inline, else where it leads.
  */
 export const LinkBlock = ({ node, children, className }: BlockProps) => {
   const props = propsOf<LinkProps>(node)
-  const scope = valueScopeOf(useScopeStack())
+  const scope = { ...valueScopeOf(useScopeStack()), params: usePageParamValues() }
   // A button's look, to which classes add; otherwise classes of its own replace the link's look
   const style = props.variant ? cn(buttonClass({ variant: props.variant }), className) : (className ?? linkStyle)
   // Children that are only blank text show nothing, so the link shows where it leads instead
