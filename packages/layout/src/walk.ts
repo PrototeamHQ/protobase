@@ -1,18 +1,33 @@
 import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from './node'
 
-/** Where an element sits: inside a record (a `RecordCard`, or one card of a `CardRow`) of `resource`, or not. */
-export type Scope = { resource?: string; record: boolean }
+/**
+ * One context of the stack, as Mustache calls it: the record of a `RecordCard`, or one of the rows of a `CardRow`,
+ * which `@index`, `@first` and `@last` count. `block` names the element that pushed it, for messages.
+ */
+export type Frame = { resource?: string; repeated: boolean; block: string }
 
-export const pageScope: Scope = { record: false }
+/**
+ * Where an element sits: the records around it, outermost first, and `root`, the resource of the page's own record on
+ * a page that has one (`@root`). A composed page has none.
+ */
+export type Scope = { stack: readonly Frame[]; root?: string }
 
-const recordScope = (node: LayoutNode): Scope => ({ resource: typeof node.props.resource === 'string' ? node.props.resource : undefined, record: true })
+export const pageScope: Scope = { stack: [] }
 
-/** The scope of an element's children: each card of a `RecordCard` or `CardRow` is a record of its resource. */
+/** The record nearest around an element, if any. */
+export const innermost = (scope: Scope): Frame | undefined => scope.stack.at(-1)
+
+const pushed = (node: LayoutNode, scope: Scope): Scope => ({
+  ...scope,
+  stack: [...scope.stack, { resource: typeof node.props.resource === 'string' ? node.props.resource : undefined, repeated: node.type === 'CardRow', block: label(node) }],
+})
+
+/** The scope of an element's children: a `RecordCard` pushes its record, a `CardRow` each of its rows. */
 export const childScope = (node: LayoutNode, scope: Scope): Scope =>
-  !node.custom && (node.type === 'RecordCard' || node.type === 'CardRow') ? recordScope(node) : scope
+  !node.custom && (node.type === 'RecordCard' || node.type === 'CardRow') ? pushed(node, scope) : scope
 
 /** The scope of the elements in a prop: a `RecordCard`'s header actions belong to its record, others to the parent's scope. */
-export const propScope = (node: LayoutNode, scope: Scope): Scope => (!node.custom && node.type === 'RecordCard' ? recordScope(node) : scope)
+export const propScope = (node: LayoutNode, scope: Scope): Scope => (!node.custom && node.type === 'RecordCard' ? pushed(node, scope) : scope)
 
 export type Location = { path: string; scope: Scope }
 

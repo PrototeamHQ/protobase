@@ -44,7 +44,7 @@ const preconditionsView = view<typeof preconditions>('task_preconditions')
   .list((r) => ({ columns: [r.reason, r.state] }))
   .actions((a) => [
     a.update('approve', { label: 'Approve', confirm: 'The task goes on with this plan.', set: { state: 'approved' } }),
-    a.update('request_changes', { label: 'Request changes', inputs: (i) => [i.text('changes', { label: 'Changes', multiline: true })], set: { state: 'changes_requested', changes: '{changes}' } }),
+    a.update('request_changes', { label: 'Request changes', inputs: (i) => [i.text('changes', { label: 'Changes', multiline: true })], set: { state: 'changes_requested', changes: '{{changes}}' } }),
   ])
 
 const questionsView = view<typeof questions>('task_questions')

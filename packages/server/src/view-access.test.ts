@@ -57,8 +57,8 @@ describe('pruneView', () => {
   })
 
   it("drops a url link's text that names a field the caller cannot read, so the link shows its address", () => {
-    const repairsView = view<typeof repairs>('repairs').fields((r) => ({ number: r.number.format('url', { text: 'Costs {costPrice}' }) })).toModel()
-    expect(pruneView(repairsView, all.repairs, all).fields).toEqual({ number: { format: 'url', linkText: 'Costs {costPrice}' } })
+    const repairsView = view<typeof repairs>('repairs').fields((r) => ({ number: r.number.format('url', { text: 'Costs {{costPrice}}' }) })).toModel()
+    expect(pruneView(repairsView, all.repairs, all).fields).toEqual({ number: { format: 'url', linkText: 'Costs {{costPrice}}' } })
     const hidden = without({ repairs: ['costPrice'] })
     expect(pruneView(repairsView, hidden.repairs!, hidden).fields).toEqual({ number: { format: 'url' } })
   })
@@ -66,9 +66,9 @@ describe('pruneView', () => {
   it('leaves out links that read a hidden field or lead where the caller cannot go', () => {
     const repairsView = view<typeof repairs>('repairs')
       .actions((a) => [
-        a.link('customer', { label: 'Customer', to: { kind: 'record', resource: 'customers', key: '{customerId}' } }),
-        a.link('sameCustomer', { label: 'Same customer', to: { kind: 'list', resource: 'repairs', filter: 'customerId = {customerId}' } }),
-        a.link('quote', { label: 'Quote', href: 'https://quotes.example/{estimate}' }),
+        a.link('customer', { label: 'Customer', to: { kind: 'record', resource: 'customers', key: '{{customerId}}' } }),
+        a.link('sameCustomer', { label: 'Same customer', to: { kind: 'list', resource: 'repairs', filter: 'customerId = {{customerId}}' } }),
+        a.link('quote', { label: 'Quote', href: 'https://quotes.example/{{estimate}}' }),
       ])
       .toModel()
     const names = (models: Record<string, ResourceModel>) => pruneView(repairsView, models.repairs!, models).actions.map((action) => action.name)
@@ -79,16 +79,16 @@ describe('pruneView', () => {
   })
 
   it("keeps the address a record's page opens only while the caller can follow it", () => {
-    const repairsView = view<typeof repairs>('repairs').recordOpens({ kind: 'record', resource: 'customers', key: '{customerId}' }).toModel()
+    const repairsView = view<typeof repairs>('repairs').recordOpens({ kind: 'record', resource: 'customers', key: '{{customerId}}' }).toModel()
     const opens = (models: Record<string, ResourceModel>) => pruneView(repairsView, models.repairs!, models).recordOpens
-    expect(opens(all)).toEqual({ kind: 'record', resource: 'customers', key: '{customerId}' })
+    expect(opens(all)).toEqual({ kind: 'record', resource: 'customers', key: '{{customerId}}' })
     expect(opens(without({}, ['customers']))).toBeUndefined()
     expect(opens(without({ repairs: ['customerId'] }))).toBeUndefined()
   })
 
   it('keeps a create link with values beyond the fields only when the resource opens a create page', () => {
     const customersView = view<typeof customers>('customers')
-      .actions((a) => [a.link('book', { label: 'Book a repair', to: { kind: 'create', resource: 'repairs', values: { owner_id: '{id}' } } })])
+      .actions((a) => [a.link('book', { label: 'Book a repair', to: { kind: 'create', resource: 'repairs', values: { owner_id: '{{id}}' } } })])
       .toModel()
     expect(pruneView(customersView, all.customers, all).actions).toEqual([])
     expect(pruneView(customersView, all.customers, all, new Set(), new Set(['repairs'])).actions.map((action) => action.name)).toEqual(['book'])
@@ -96,7 +96,7 @@ describe('pruneView', () => {
 
   it('sends an AI action without its prompt, and leaves it out when the caller cannot read a field it reads or writes', () => {
     const repairsView = view<typeof repairs>('repairs')
-      .actions((a) => [a.ai('triage', { label: 'Triage', prompt: 'How urgent is {number}? Cost {estimate}', writes: 'status' })])
+      .actions((a) => [a.ai('triage', { label: 'Triage', prompt: 'How urgent is {{number}}? Cost {{estimate}}', writes: 'status' })])
       .toModel()
     const actions = (models: Record<string, ResourceModel>) => pruneView(repairsView, models.repairs!, models).actions
     expect(actions(all)).toEqual([{ name: 'triage', label: 'Triage', bulk: false, run: { kind: 'ai', writes: 'status' } }])
@@ -136,14 +136,14 @@ describe('pruneView', () => {
 
   it('keeps an update with inputs whole', () => {
     const repairsView = view<typeof repairs>('repairs')
-      .actions((a) => [a.update('renumber', { label: 'Renumber', inputs: (i) => [i.text('number', { label: 'Number' })], set: { number: '{number}' } })])
+      .actions((a) => [a.update('renumber', { label: 'Renumber', inputs: (i) => [i.text('number', { label: 'Number' })], set: { number: '{{number}}' } })])
       .toModel()
     expect(pruneView(repairsView, all.repairs, all).actions).toEqual(repairsView.actions)
   })
 
   it("keeps a link to a record's URL for any caller the view grants the field, and leaves it out for one it hides it from", () => {
     const repairsView = view<typeof repairs>('repairs')
-      .actions((a) => [a.link('source', { label: 'View on {host}', href: '{number}' })])
+      .actions((a) => [a.link('source', { label: 'View on {{host}}', href: '{{number}}' })])
       .toModel()
     const names = (models: Record<string, ResourceModel>) => pruneView(repairsView, models.repairs!, models).actions.map((action) => action.name)
     // A visitor who is not signed in reads only the number and the status, and gets the link all the same
@@ -260,8 +260,8 @@ describe('pruneView', () => {
       ])
       .actions((a) => [
         a.update('zero', { label: 'Zero', set: { costPrice: 0 } }),
-        a.link('cheaper', { label: 'Cheaper', to: { kind: 'list', resource: 'repairs', filter: 'costPrice < {costPrice}' } }),
-        a.link('quote', { label: 'Quote', href: 'https://quotes.example/{costPrice}' }),
+        a.link('cheaper', { label: 'Cheaper', to: { kind: 'list', resource: 'repairs', filter: 'costPrice < {{costPrice}}' } }),
+        a.link('quote', { label: 'Quote', href: 'https://quotes.example/{{costPrice}}' }),
         a.update('ready', { label: 'Ready', set: { status: 'ready' } }),
       ])
       .toModel()
@@ -324,7 +324,7 @@ describe('pruneView', () => {
   })
 
   it('keeps a related section but drops its row button when the caller cannot read a field it names or go where it leads', () => {
-    const button = { label: 'Open {repairId}', to: { kind: 'record' as const, resource: 'repairs', key: '{repairId}', tab: 'Work' } }
+    const button = { label: 'Open {{repairId}}', to: { kind: 'record' as const, resource: 'repairs', key: '{{repairId}}', tab: 'Work' } }
     const written = view<typeof customers>('customers')
       .layout(() => [l.related('Repairs', { resource: 'customer_repairs', field: 'customerId', button })])
       .toModel()
@@ -333,10 +333,10 @@ describe('pruneView', () => {
     expect(related(without({ customer_repairs: ['repairId'] }))).toEqual([{ kind: 'related', title: 'Repairs', resource: 'customer_repairs', field: 'customerId' }])
     expect(related(without({}, ['repairs']))).toEqual([{ kind: 'related', title: 'Repairs', resource: 'customer_repairs', field: 'customerId' }])
     const choices = view<typeof customers>('customers')
-      .layout(() => [l.related('Repairs', { resource: 'customer_repairs', field: 'customerId', button: [{ label: 'Repair', href: '{repairId}' }, button] })])
+      .layout(() => [l.related('Repairs', { resource: 'customer_repairs', field: 'customerId', button: [{ label: 'Repair', href: '{{repairId}}' }, button] })])
       .toModel()
     const noRepairs = without({}, ['repairs'])
-    expect(pruneView(choices, noRepairs.customers!, noRepairs).layout).toEqual([{ kind: 'related', title: 'Repairs', resource: 'customer_repairs', field: 'customerId', button: [{ label: 'Repair', href: '{repairId}' }] }])
+    expect(pruneView(choices, noRepairs.customers!, noRepairs).layout).toEqual([{ kind: 'related', title: 'Repairs', resource: 'customer_repairs', field: 'customerId', button: [{ label: 'Repair', href: '{{repairId}}' }] }])
   })
 
   it("keeps a chart's series the caller can read, and leaves out one they cannot place or draw", () => {

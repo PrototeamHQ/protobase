@@ -13,14 +13,14 @@ const tickets = resource('tickets')
     id: f.integer().readOnly().dbDefault(),
     title: f.text(),
     description: f.text().optional(),
-    summary: f.text().optional().ai({ prompt: 'Sum up this ticket.\n\nTitle: {title}\n\n{description}' }).access({ update: (ctx) => !roles(ctx).includes('clerk') }),
+    summary: f.text().optional().ai({ prompt: 'Sum up this ticket.\n\nTitle: {{title}}\n\n{{description}}' }).access({ update: (ctx) => !roles(ctx).includes('clerk') }),
     priority: f.enum(['low', 'high']).optional(),
   })
   .primaryKey((r) => r.id)
   .access({ read: () => true, list: () => true, create: writers, update: writers })
 
 const ticketsView = view<typeof tickets>('tickets').actions((a) => [
-  a.ai('triage', { label: 'Suggest priority', prompt: 'How urgent is this?\n\n{title}\n{description}', writes: 'priority' }),
+  a.ai('triage', { label: 'Suggest priority', prompt: 'How urgent is this?\n\n{{title}}\n{{description}}', writes: 'priority' }),
 ])
 // Clerks have a view of their own, without the action.
 const clerksView = view<typeof tickets>('tickets').forRoles(['clerk'])

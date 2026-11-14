@@ -103,7 +103,7 @@ export const PickingTheme: StoryObj = {
 // A visitor the view grants the orders' website gets the action rail's link to it, named after its host, opening it
 // in a new tab with neither the opener nor the referrer; an order without a web address has no link.
 const readOnly = { create: false, update: false, delete: false, conditional: [] }
-const websiteLink = { name: 'website', label: 'View on {host}', icon: 'external-link', bulk: false, run: { kind: 'link' as const, href: '{website}' } }
+const websiteLink = { name: 'website', label: 'View on {{host}}', icon: 'external-link', bulk: false, run: { kind: 'link' as const, href: '{{website}}' } }
 const websites = { 'SO-1': 'https://www.shop.example/orders/SO-1?ref=a&b=1', 'SO-2': null, 'SO-3': 'javascript:alert(1)' }
 
 export const LinkToRecordUrl: StoryObj = {

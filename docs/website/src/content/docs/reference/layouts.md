@@ -70,7 +70,7 @@ renderText(<Page title="Order"><Field name="status" /></Page>, {
 
 | Option | |
 | --- | --- |
-| `record` | The record around the tree. `Field`, `Stat field`, `Progress`, `Show` conditions and the `{field}`s of addresses read it, through relations as nested objects (`plan.name`); a count a condition names, such as `billing_profiles.count`, is a key of its own. Without it, a field reads as its label alone, a `Show` reads as all it holds, and addresses keep their `{field}`s. |
+| `record` | The record around the tree. `Field`, `Stat field`, `Progress`, `Show` conditions and the `{{field}}`s of addresses read it, through relations as nested objects (`plan.name`); a count a condition names, such as `billing_profiles.count`, is a key of its own. The `{{path}}`s of props read it too. Without it, a field reads as its label alone, a condition as holding (a `Show` reads as its children, a `Switch` as its first `Match`), a prop's `{{path}}`s as empty, and addresses keep their `{{field}}`s. |
 | `fields` | Per field path, its `label` and the `valueLabels` its enum values read as; a field without a label reads under its path. |
 | `tables` | Per `Table` element, the records it shows and its columns (`{ columns: [{ name, label, title?, badge?, valueLabels? }], rows }`), which you loaded; the table then reads as its heading and a Markdown table. Without it, a table reads as its heading. |
 | `basePath` | What links start with, such as `https://example.com/admin`. |
@@ -108,13 +108,45 @@ Behaviour comes from [named actions](#named-actions); React code from [custom co
 
 A `RecordCard` (its first match) and each card of a `CardRow` hold a **record**. Inside one, `Field`, `Progress`, `Stat field`, `Show`, `Action` and `ModalForm mode="edit"` work on that record, and a `RecordCard`'s header `actions` do too. A field name may follow relations: `company_id.city` is the city of the record's company, fetched like the record page fetches it and cached.
 
+## Paths and scopes
+
+A `RecordCard` and each card of a `CardRow` put their record on a stack of records, as each section does in [Mustache](https://mustache.github.io/mustache.5.html): an element inside both a task's `RecordCard` and a `CardRow` of its claims sits in a claim, inside the task. A name in a layout is looked up through that stack, by the rules of the [Mustache spec](https://github.com/mustache/spec) and [Handlebars path expressions](https://handlebarsjs.com/guide/expressions.html#path-expressions):
+
+| Path | Reads |
+| --- | --- |
+| `status` | The nearest record that has a field `status`, then each record around it in turn. |
+| `meta.size` | `meta` as above, then `size` from that value only: when it has none, the path is empty, and no record further out is tried (Mustache's "Dotted Names - Context Precedence"). |
+| `../id`, `../../id` | The record one, or two, out from the nearest. |
+| `this.id`, `./id` | The nearest record only. |
+| `@index`, `@first`, `@last` | The card's place among a `CardRow`'s cards, from 0, and whether it is the first or the last. |
+| `@root.id` | The page's own record. <gap>A path cannot read `@root` because pages with a record of their own are not implemented.</gap> |
+| `@params.window` | The page parameter `window`. <gap>A path cannot read `@params` because the input that sets a page parameter is not implemented.</gap> |
+
+`Field name`, `Stat field`, `Progress`, and the names in a [condition](#conditions) take a path. A string prop takes `{{path}}` placeholders, double braces as in Handlebars, filled with the path's value where the element draws, and empty when it has none:
+
+- `title`, `description`, `empty` and `label` read any path: `<Table resource="claim_steps" title="Steps of {{title}}" />`.
+- `filter`, `recordKey` and `values` read a field of a record around them. A filter takes one only as a top-level `AND` equality, `claim_id = {{id}} AND done = false`, the shape a read can take for every row at once with a [`related()`](/reference/api/#filtering-through-related-records) filter. A filter takes a page parameter anywhere.
+- `when` takes them where a name cannot go, such as `this.status = '{{../status}}'`, since a name in AIP-160 cannot start with `../` or `@`.
+- A [link's address](#addresses) takes them in its resource, key, tab, filter, order and values.
+
+A placeholder quoted on its own in a filter or condition, `title = '{{title}}'`, is filled with its quotes and backslashes escaped, so any text stays one value; Handlebars escapes for HTML instead. One inside a longer quoted value, `title = 'about {{title}}'`, fails the build, as it would be filled unescaped. Paths are all a placeholder holds: no helpers, subexpressions, literals, `@key` or `{{{triple braces}}}`. A `{{…}}` that holds anything else fails as soon as the layout loads, before its names are checked.
+
+The build checks every path where it sits:
+
+- **Typos.** A name no record around it has fails, naming every record searched and the closest field: `"claimd_at" is no field of task_claims, tasks; did you mean claimed_at?`. Mustache would draw it empty, so a layout the build accepts draws the same under Mustache's rules.
+- **Bad roots.** `../` past the outermost record, `@root` on a page without a record, `@index` outside a `CardRow`, and `@params.x` without an input setting `x` fail.
+- **Reads that would wait.** A per-row value in a filter in any other place than a top-level `AND` equality (with `>=`, inside `OR` or `NOT`, a second one), `@index`, `@first`, `@last` or `this` in a filter, key or values, and any placeholder in `resource`, `sort`, `columns` or `limit` fail with "this would wait for the parent's rows": each block's records are one read of their own, and none may wait for another's rows.
+- **Shadowing.** A bare name that more than one record around it has reads the nearest, and the build warns which it read and how to write the others: `"id" resolves to task_claims; write ../id for the one of tasks`. `protobase build --strict` fails on it instead. `this.`, `./`, `../` and `@` paths never warn.
+
+<gap>A block inside a `CardRow` or `RecordCard` cannot read its records at page load, beside the records around it, because planning a page's reads is not implemented; it reads once the card around it draws.</gap> <gap>A block under a `Show` or `Match` cannot read its records before its condition holds because planning a page's reads is not implemented.</gap>
+
 ## Conditions
 
-`<Show when="...">` keeps its children while the condition holds. It is AIP-160 over named values:
+`<Show when="...">` keeps its children while the condition holds, and draws its `fallback` while it does not; `<Switch>` draws the first of its `<Match when="...">` that holds, or its `fallback`, as [SolidJS's](https://docs.solidjs.com/reference/components/show) `Show`, `Switch` and `Match` do. A condition is AIP-160 over named values:
 
 | Name | Value |
 | --- | --- |
-| `status`, `plan.name` | A field of the record around it, through relations. |
+| `status`, `plan.name` | A field of the records around it, through relations, by the [lookup of paths](#paths-and-scopes). |
 | `invoices.count` | How many `invoices` the user can see (an exact count from the list API). |
 
 Comparisons, `AND`, `OR`, `NOT`, parentheses, `isNull(field)` and `in(field, "a", "b")` work. <gap>A condition cannot call other functions, such as `now()`, because their evaluation is not implemented.</gap> A field that is missing or that the user cannot read makes the comparison false, and a `Show` that names a resource or field the user cannot see is left out of their page.
@@ -127,34 +159,34 @@ Record pages take the same conditions in the `when` of `l.section`, `l.related` 
 
 | Builder | Does |
 | --- | --- |
-| `a.update(name, { label, set, confirm?, icon?, bulk?, inputs? })` | Updates the record with `set`, with its ETag; not offered on a record that holds those values already, unless it asks for `inputs`, whose answers it writes where `set` says `'{name}'`. |
+| `a.update(name, { label, set, confirm?, icon?, bulk?, inputs? })` | Updates the record with `set`, with its ETag; not offered on a record that holds those values already, unless it asks for `inputs`, whose answers it writes where `set` says `'{{name}}'`. |
 | `a.remove(name, { label, confirm?, icon? })` | Deletes the record (soft delete when the resource has one). |
-| `a.link(name, { label, to, icon? })` | Goes `to` an [address](#addresses) in the app, with `{field}` in its key, tab, filter, order or create values replaced by the record's value (one in quotes in a filter, `title = "{title}"`, with its quotes escaped, so any text stays one value), and its resource too when that is only `{field}`: see [links to a resource the record names](#links-to-a-resource-the-record-names). |
-| `a.link(name, { label, href, icon? })` | Opens an `href` that leaves the app (`https:`, `mailto:`), with `{field}` replaced by the record's value (percent-encoded); an `https:` or `http:` link opens in a new tab without the referrer. An `href` that is only a field, `'{website}'`, opens the URL the record holds, as it is: see [links to a record's URL](#links-to-a-records-url). A path in the app is refused when the config loads: give it as `to`. |
-| `a.ai(name, { label, prompt, writes, confirm?, icon? })` | Has the model write the field `writes` of the record from `prompt`, `{field}` replaced by the record's values, as the user, on the server; see [AI fields and actions](/reference/ai/#ai-actions). |
+| `a.link(name, { label, to, icon? })` | Goes `to` an [address](#addresses) in the app, with `{{field}}` in its key, tab, filter, order or create values replaced by the record's value (one in quotes in a filter, `title = "{{title}}"`, with its quotes escaped, so any text stays one value), and its resource too when that is only `{{field}}`: see [links to a resource the record names](#links-to-a-resource-the-record-names). |
+| `a.link(name, { label, href, icon? })` | Opens an `href` that leaves the app (`https:`, `mailto:`), with `{{field}}` replaced by the record's value (percent-encoded); an `https:` or `http:` link opens in a new tab without the referrer. An `href` that is only a field, `'{{website}}'`, opens the URL the record holds, as it is: see [links to a record's URL](#links-to-a-records-url). A path in the app is refused when the config loads: give it as `to`. |
+| `a.ai(name, { label, prompt, writes, confirm?, icon? })` | Has the model write the field `writes` of the record from `prompt`, `{{field}}` replaced by the record's values, as the user, on the server; see [AI fields and actions](/reference/ai/#ai-actions). |
 | `a.action(name, { label, confirm?, icon?, bulk?, inputs? })` | Runs the handler the app registers under `name` in [`protobase.ui.tsx`](/reference/custom-components/#action-handlers), after asking for its [`inputs`](/reference/ui-config/#actions-that-ask-for-input) in a dialog when it has some. |
 
 `icon` is one of `archive`, `arrow-right-left`, `ban`, `bath`, `bed`, `bell`, `bookmark`, `calendar`, `camera`, `copy`, `cpu`, `door-open`, `download`, `external-link`, `file-text`, `hard-drive`, `heart`, `history`, `house`, `key`, `land-plot`, `leaf`, `memory`, `network`, `play`, `plug`, `plus`, `power`, `restart`, `ruler`, `send`, `server`, `stop`, `table`, `tag`, `terminal`, `upload`, `wallet` or `wrench`; another name shows a lightning bolt. With `confirm` the button asks first. Every builder also takes `when`, `otherwise` and `reason`, which limit the action to the records it [applies to](/reference/ui-config/#where-an-action-applies), and `variant: 'danger'`, which draws it in red. The button is disabled, with the reason as its tooltip, when the user may not update or delete the record (or, for an AI action, the field it writes), when an `a.action` has no handler, or when an update, delete or AI action has no record. After an action, everything shown of that resource reloads. The record page's action rail runs the same actions the same way; there an `a.link` is a real link that looks like the rail's buttons, which the browser can preview, copy or open in a new tab, while a disabled one is a disabled button with its reason. <gap>An `<Action>` block for an `a.link` cannot be opened in a new tab or copied as a link because drawing link actions as links is not implemented for the block.</gap>
 
 ### Links to a record's URL
 
-A link whose `href` is a single `{field}` opens the address that field holds, such as the page a listing came from:
+A link whose `href` is a single `{{field}}` opens the address that field holds, such as the page a listing came from:
 
 ```ts
-a.link('source', { label: 'View on {host}', icon: 'external-link', href: '{source_url}' })
+a.link('source', { label: 'View on {{host}}', icon: 'external-link', href: '{{source_url}}' })
 ```
 
-The value is used as it is, not percent-encoded, and must be an absolute `https:` or `http:` URL: on a record whose field is empty or holds anything else the button does not show. It opens in a new tab that gets neither the app's window nor its address. `{host}` in the label becomes the URL's host without `www.`, so the button above reads "View on example.com". The field must be one of the resource's, and the button shows to whoever the view grants the field, a visitor who is not signed in included; for anyone it hides the field from, the action is left out.
+The value is used as it is, not percent-encoded, and must be an absolute `https:` or `http:` URL: on a record whose field is empty or holds anything else the button does not show. It opens in a new tab that gets neither the app's window nor its address. `{{host}}` in the label becomes the URL's host without `www.`, so the button above reads "View on example.com". The field must be one of the resource's, and the button shows to whoever the view grants the field, a visitor who is not signed in included; for anyone it hides the field from, the action is left out.
 
 ### Links to a resource the record names
 
-A link whose address has only a `{field}` as its `resource` goes to the resource that field names, such as a record that describes a table and links to that table's list:
+A link whose address has only a `{{field}}` as its `resource` goes to the resource that field names, such as a record that describes a table and links to that table's list:
 
 ```ts
-a.link('open_table', { label: 'Open table', to: { kind: 'list', resource: '{name}' } })
+a.link('open_table', { label: 'Open table', to: { kind: 'list', resource: '{{name}}' } })
 ```
 
-The button shows only while the app gives the user a resource of that name: on a record whose field is empty, or names a resource the user cannot see or the app does not serve yet, it is left out, and it shows once `/meta` names it. As the resource is known only when the link is followed, such an address takes no filter, order or create values, which the server refuses when it starts; a record's `key` may still be a `{field}`.
+The button shows only while the app gives the user a resource of that name: on a record whose field is empty, or names a resource the user cannot see or the app does not serve yet, it is left out, and it shows once `/meta` names it. As the resource is known only when the link is followed, such an address takes no filter, order or create values, which the server refuses when it starts; a record's `key` may still be a `{{field}}`.
 
 ## Tailwind classes
 
@@ -193,7 +225,7 @@ Every place in the app has an address, and the app writes and reads them in one 
 | --- | --- |
 | `{ kind: 'list', resource, filter?, orderBy?, display? }` | A resource's list, with the filter, order and [display](/reference/ui-config/#list-displays) the list page would show. |
 | `{ kind: 'record', resource, key, edit?, open?, tab?, standard?, version?, run?, panel?, file? }` | One record; `key` is its value, or its parts for a composite key. `edit: true` is its form (`?edit=true`), on a view whose record page opens as a [read view or locked](/reference/ui-config/#read-view-and-edit). `open` lists the titles of the record page's collapsed [groups](/reference/ui-config/#groups) that are open (`?open=<title>`, once per group), and `tab` the title of the [tab](/reference/ui-config/#tabs) it shows (`?tab=<title>`). `standard: true` is its standard page (`?standard=true`), on a view whose record page is a [component of the app's own](/reference/ui-config/#full-area-record-pages) or [opens another](/reference/ui-config/#a-record-page-that-opens-another). On a workflow, `version` is the saved version its graph shows, read-only (`?version=<number>`), and `run` the run shown on it (`?run=<id>`); see [The workflow's page](/reference/workflows/#the-workflows-page). `panel` is the panel a [focus page](/reference/ui-config/#focus-pages) opens with, by a name its surface knows (`?panel=<name>`). `file` names a file field whose file opens in the [viewer](/reference/files/#viewers) for its type (`?file=<field>`). |
-| `{ kind: 'create', resource, values? }` | The form for a new record, with `values` filled in by field name, as text: `{ kind: 'create', resource: 'notes', values: { listing_id: '{id}' } }` on a listing's page starts a note about that listing. A relation shows the name of the record it points at. The values are a start the person can change, not a rule: what they may write is still up to the access rules. A view with a [create page](/reference/ui-config/#create-pages) shows that page here instead, with the values in the address. |
+| `{ kind: 'create', resource, values? }` | The form for a new record, with `values` filled in by field name, as text: `{ kind: 'create', resource: 'notes', values: { listing_id: '{{id}}' } }` on a listing's page starts a note about that listing. A relation shows the name of the record it points at. The values are a start the person can change, not a rule: what they may write is still up to the access rules. A view with a [create page](/reference/ui-config/#create-pages) shows that page here instead, with the values in the address. |
 | `{ kind: 'page', page, tab? }` | A composed page; `tab` the name of one of its [tabs](/reference/blocks/#tabs-and-tab) (`/<page>/<tab>`), the first when omitted. |
 
 The resources, pages and fields an address names are checked when the server starts, like every other name.

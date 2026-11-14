@@ -395,7 +395,7 @@ export class ViewBuilder<R extends {
   }
 
   /**
-   * A record's page opens `to` in its place, replacing the address in the history, `{field}` in its resource, key and
+   * A record's page opens `to` in its place, replacing the address in the history, `{{field}}` in its resource, key and
    * run replaced by the record's values: a workflow run's opens its workflow's page with the run on the graph. A caller
    * who cannot see where it leads gets the record's own page. See
    * [The record page](docs/website/src/content/docs/reference/ui-config.mdx#a-record-page-that-opens-another).
@@ -405,7 +405,7 @@ export class ViewBuilder<R extends {
   }
 
   /**
-   * The resource's create address opens `to` in place of the form, replacing the address in the history, `{field}`
+   * The resource's create address opens `to` in place of the form, replacing the address in the history, `{{field}}`
    * filled from the address's values, for a record that is made where it is used: a workflow's test run opens in the
    * workflow's page. An address that does not give every such field shows the form.
    */

@@ -12,7 +12,7 @@ const plainValue = (value: unknown) => typeof value === 'number' || typeof value
 
 /**
  * The button `button` draws on `record`, a row of `model`: its first choice whose fields the row holds, its label with
- * each `{field}` as the record page shows the value (an enum value by its label), and its address filled from the row,
+ * each `{{field}}` as the record page shows the value (an enum value by its label), and its address filled from the row,
  * or the `https:` URL its href field holds. None when no choice has its fields, or the chosen one leads nowhere: an
  * href field without an `https:` URL, or a value outside quotes in a filter that is not a number or a boolean.
  */

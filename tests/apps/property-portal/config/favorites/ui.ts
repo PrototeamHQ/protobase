@@ -21,6 +21,6 @@ export const favoritesView = view<typeof favorites>('favorites')
   })
   .layout((r) => [l.section('Favorite', [r.listing_id, r.created_at])])
   .actions((a) => [
-    a.link('open_listing', { label: 'Open the listing', to: { kind: 'record', resource: 'listings', key: '{listing_id}' } }),
+    a.link('open_listing', { label: 'Open the listing', to: { kind: 'record', resource: 'listings', key: '{{listing_id}}' } }),
     a.remove('unsave', { label: 'Remove from favorites', confirm: 'Remove this listing from your favorites?' }),
   ])

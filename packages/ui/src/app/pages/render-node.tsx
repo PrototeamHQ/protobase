@@ -1,5 +1,5 @@
-import { Fragment, type ComponentType } from 'react'
-import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from '@protobase/layout'
+import { Fragment, useMemo, type ComponentType } from 'react'
+import { fillProps, isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from '@protobase/layout'
 import { unmarkFieldRefs } from '@protobase/schema/internal'
 import { ActionBlock } from './blocks/action'
 import type { BlockProps } from './blocks/block-props'
@@ -19,6 +19,7 @@ import { RecordCardsBlock } from './blocks/record-cards'
 import { RecordRowBlock } from './blocks/record-row'
 import { SettingsBlock } from './blocks/settings'
 import { ShowBlock } from './blocks/show'
+import { MatchBlock, SwitchBlock } from './blocks/switch'
 import { StatBlock } from './blocks/stat'
 import { TableBlock } from './blocks/table'
 import { TabBlock, TabsBlock } from './blocks/tabs'
@@ -39,6 +40,7 @@ import { TwoFactorBlock } from '../../account/blocks/two-factor-block'
 import { CustomOrFallback } from './custom-or-fallback'
 import { Problem } from './problem'
 import { useProjectUi } from './project-ui'
+import { useScopeStack, valueScopeOf } from './record-scope'
 import { text } from './messages'
 
 const blocks: Record<string, ComponentType<BlockProps>> = {
@@ -60,6 +62,8 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Composer: ComposerBlock,
   Action: ActionBlock,
   Show: ShowBlock,
+  Switch: SwitchBlock,
+  Match: MatchBlock,
   Link: LinkBlock,
   Settings: SettingsBlock,
   Tabs: TabsBlock,
@@ -83,7 +87,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
 }
 
 // The blocks that put their classes on an element of their own; the others draw none, or several, and get a <div> for them.
-const ownClasses = new Set(['Page', 'Grid', 'Card', 'Stat', 'RecordCard', 'Field', 'Table', 'CardRow', 'RecordRow', 'RecordCards', 'Chart', 'Progress', 'Image', 'Thread', 'Link', 'Tabs', 'Settings', 'Show', 'Action', 'Box', 'Row', 'Column', 'Text'])
+const ownClasses = new Set(['Page', 'Grid', 'Card', 'Stat', 'RecordCard', 'Field', 'Table', 'CardRow', 'RecordRow', 'RecordCards', 'Chart', 'Progress', 'Image', 'Thread', 'Link', 'Tabs', 'Settings', 'Show', 'Switch', 'Action', 'Box', 'Row', 'Column', 'Text'])
 
 const isInline = (child: LayoutChild) => typeof child === 'string' || (!child.custom && (child.type === 'Link' || (child.type === 'Text' && child.props.as === 'span')))
 
@@ -115,9 +119,14 @@ const isElements = (value: LayoutValue): value is LayoutNode | LayoutNode[] => i
 const renderSlots = (node: LayoutNode) =>
   Object.fromEntries(Object.entries(node.props).flatMap(([name, value]) => (isElements(value) ? [[name, <>{renderChildren(Array.isArray(value) ? value : [value])}</>]] : [])))
 
-/** One element of a composed page: a built-in block, or the project's component registered under its name. */
-export const RenderNode = ({ node }: { node: LayoutNode }) => {
+/**
+ * One element of a composed page: a built-in block, or the project's component registered under its name. A block's
+ * `{{path}}`s are filled from the records around it before it draws.
+ */
+export const RenderNode = ({ node: written }: { node: LayoutNode }) => {
   const { components } = useProjectUi()
+  const stack = useScopeStack()
+  const node = useMemo(() => fillProps(written, valueScopeOf(stack)), [written, stack])
   if (node.custom) {
     const Custom = components?.[node.type]
     // Field references reach the component as the names they reference
@@ -133,7 +142,7 @@ export const RenderNode = ({ node }: { node: LayoutNode }) => {
   // A Text is one line, and a Link a piece of one: what they hold runs inline, in no paragraph of its own
   const block = (
     <Block node={node} slots={renderSlots(node)} className={className}>
-      {node.type === 'Text' || node.type === 'Link' ? renderInline(node.children) : renderChildren(node.children)}
+      {node.type === 'Text' || node.type === 'Link' ? renderInline(node.children) : renderChildren(node.type === 'Switch' ? node.children.filter((child) => typeof child !== 'string') : node.children)}
     </Block>
   )
   return className === undefined || ownClasses.has(node.type) ? block : <div className={className}>{block}</div>

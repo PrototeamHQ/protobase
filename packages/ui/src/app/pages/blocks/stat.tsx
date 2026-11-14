@@ -5,9 +5,8 @@ import { useAdminMeta } from '../../meta-gate'
 import { filteredListAddress } from '../../list-link'
 import { AppLink } from '../../use-app-address'
 import { FieldValue } from '../field-value'
-import { useLayoutRecord } from '../record-scope'
 import { useCount } from '../use-layout-data'
-import { usePathValue } from '../use-path-value'
+import { useScopedPathValue } from '../use-path-value'
 import { cn } from '../../../lib/cn'
 import { propsOf, type BlockProps } from './block-props'
 import { CardFrame } from './card-frame'
@@ -29,7 +28,7 @@ const Count = ({ model, filter }: { model: ResourceModel; filter?: string }) => 
 }
 
 const RecordValue = ({ field, format }: { field: string; format: StatProps['format'] }) => {
-  const value = usePathValue(useLayoutRecord(), field)
+  const value = useScopedPathValue(field)
   if (value.state === 'loading') return <Skeleton className="h-8 w-16" />
   if (value.state === 'missing') return null
   return (

@@ -40,8 +40,8 @@ export const tablesView = view<Definitions['tables']>(tablesResourceName)
     l.related('Fields', { resource: fieldsResourceName, field: 'table_id', columns: ['label', 'name', 'type'], sort: 'position', empty: 'No fields yet.' }),
   ])
   .actions((a) => [
-    a.link('open_table', { label: 'Open table', icon: 'table', to: { kind: 'list', resource: '{table_name}' } }),
-    a.link('add_field', { label: 'Add field', icon: 'plus', to: { kind: 'create', resource: fieldsResourceName, values: { table_id: '{id}' } } }),
+    a.link('open_table', { label: 'Open table', icon: 'table', to: { kind: 'list', resource: '{{table_name}}' } }),
+    a.link('add_field', { label: 'Add field', icon: 'plus', to: { kind: 'create', resource: fieldsResourceName, values: { table_id: '{{id}}' } } }),
   ])
 
 /** A table's fields, reached from its page; a field users add is always optional, so its form leaves that out. */

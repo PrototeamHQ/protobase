@@ -32,7 +32,7 @@ const holds = resource('holds')
   })
   .primaryKey((r) => r.id)
 
-const next = { label: '{verb}', to: { kind: 'record' as const, resource: 'tasks', key: '{blocker_id}', tab: 'Review' } }
+const next = { label: '{{verb}}', to: { kind: 'record' as const, resource: 'tasks', key: '{{blocker_id}}', tab: 'Review' } }
 
 const tasksView = view<typeof tasks>('tasks')
   .title((r) => r.title)
@@ -51,9 +51,9 @@ const today = page('today', Page({ title: 'Today', children: Table({ title: 'Hol
 
 // Each hold settles somewhere else: its error report, the tab of the task it names, or the list of the task's holds
 const lever = [
-  { label: 'Error report', href: '{report_url}' },
-  { label: '{verb}', to: { kind: 'record' as const, resource: 'tasks', key: '{blocker_id}', tab: '{tab}' } },
-  { label: 'All its holds', to: { kind: 'list' as const, resource: 'holds', filter: 'task_id = {task_id}' } },
+  { label: 'Error report', href: '{{report_url}}' },
+  { label: '{{verb}}', to: { kind: 'record' as const, resource: 'tasks', key: '{{blocker_id}}', tab: '{{tab}}' } },
+  { label: 'All its holds', to: { kind: 'list' as const, resource: 'holds', filter: 'task_id = {{task_id}}' } },
 ]
 
 const attention = page('attention', Page({ title: 'Attention', children: Table({ title: 'Keep an eye on', resource: 'holds', columns: ['reason'], button: lever }) }))

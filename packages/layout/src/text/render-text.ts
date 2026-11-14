@@ -1,4 +1,5 @@
 import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from '../node'
+import { fillProps } from '../scope-values'
 import { childScope, pageScope, propScope } from '../walk'
 import { textForms } from './forms'
 import { escapeMarkdown } from './markdown'
@@ -39,13 +40,17 @@ const partsOf = (children: LayoutChild[], options: TextOptions, oneLine: boolean
  * first: each element's text form gets its children's text already rendered, so a container needs no form of its own.
  * `options.forms` adds or replaces forms by block type.
  */
-export const renderText = (node: LayoutNode, options: TextOptions = {}): string => {
-  const inner = scoped(options, childScope(node, pageScope).record)
-  const slotOptions = scoped(options, propScope(node, pageScope).record)
+export const renderText = (unfilled: LayoutNode, options: TextOptions = {}): string => {
+  // Its `{{path}}`s read the record around the tree, the only one the text has; others read as empty
+  const node = fillProps(unfilled, { stack: options.record ? [{ record: options.record }] : [] })
+  const inner = scoped(options, childScope(node, pageScope).stack.length > 0)
+  const slotOptions = scoped(options, propScope(node, pageScope).stack.length > 0)
   const slots = Object.fromEntries(
     Object.entries(node.props).flatMap(([name, value]) => (isElements(value) ? [[name, (Array.isArray(value) ? value : [value]).map((element) => renderText(element, slotOptions))]] : [])),
   )
   const fallback = node.fallback && partsOf(node.fallback, options, false)
-  const children = partsOf(node.children, inner, holdsOneLine(node))
+  // A Switch's children are Matches, one part each, so its text form finds the one it draws by its place
+  const own = !node.custom && node.type === 'Switch' ? node.children.filter((child) => typeof child !== 'string') : node.children
+  const children = partsOf(own, inner, holdsOneLine(node))
   return formOf(node, options)({ node, children, slots, ...(fallback && { fallback }), options }).trim()
 }

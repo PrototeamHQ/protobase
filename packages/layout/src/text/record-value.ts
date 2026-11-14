@@ -15,5 +15,5 @@ export const recordValue = (record: Record<string, unknown>, path: string): unkn
   return value
 }
 
-/** The path of an address, its `{field}`s filled from the record when there is one, and left as written when not. */
+/** The path of an address, its `{{field}}`s filled from the record when there is one, and left as written when not. */
 export const addressHref = (to: AppAddress, options: TextOptions) => appPath(options.record ? fillAddress(to, options.record) : to, options.basePath)

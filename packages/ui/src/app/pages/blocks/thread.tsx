@@ -3,8 +3,8 @@ import { SectionContent } from '../../../record-view/section'
 import { MessageThread } from '../../conversation/message-thread'
 import { ThreadBox } from '../../conversation/thread-box'
 import { useAdminMeta } from '../../meta-gate'
-import { useLayoutRecord } from '../record-scope'
-import { useConditions } from '../use-conditions'
+import { useScopeStack } from '../record-scope'
+import { useStackConditions } from '../use-conditions'
 import { cn } from '../../../lib/cn'
 import { propsOf, type BlockProps } from './block-props'
 
@@ -16,7 +16,7 @@ import { propsOf, type BlockProps } from './block-props'
 export const ThreadBlock = ({ node, slots, className }: BlockProps) => {
   const { title, description, resource, filter, sender, time, text, status, working, calls, limit, empty } = propsOf<ThreadProps>(node)
   const { resources } = useAdminMeta()
-  const [busy] = useConditions(working === undefined ? [] : [working], useLayoutRecord())
+  const [busy] = useStackConditions(working === undefined ? [] : [working], useScopeStack())
   const model = resources[resource]
   if (!model) return null
   const callsModel = calls && resources[calls.resource]

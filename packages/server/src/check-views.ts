@@ -113,7 +113,7 @@ const linkErrors = (view: ViewModel, model: ResourceModel, models: Record<string
     return 'to' in run ? addressErrors(run.to, { models, pages, source: model, createPages }).map((error) => `action "${name}": ${error}`) : []
   })
 
-// A record's page opens an address the app has, its `{field}`s fields of the record
+// A record's page opens an address the app has, its `{{field}}`s fields of the record
 const opensErrors = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, pages: ReadonlySet<string>, createPages: ReadonlySet<string>) =>
   view.recordOpens ? addressErrors(view.recordOpens, { models, pages, source: model, createPages }).map((error) => `recordOpens: ${error}`) : []
 

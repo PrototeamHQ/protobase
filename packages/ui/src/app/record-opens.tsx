@@ -6,7 +6,7 @@ import { useAppAddress } from './use-app-address'
 import { text } from './record-messages'
 
 /**
- * A record's page that opens another address in its place (`.recordOpens(...)`), its `{field}`s filled from the
+ * A record's page that opens another address in its place (`.recordOpens(...)`), its `{{field}}`s filled from the
  * record, replacing this address in the history so Back skips it.
  */
 export const RecordOpens = ({ to, record }: { to: AppAddress; record: Record<string, unknown> }) => {

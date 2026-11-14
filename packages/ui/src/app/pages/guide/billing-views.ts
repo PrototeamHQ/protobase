@@ -10,7 +10,7 @@ export const subscriptionsView = view<typeof subscriptions>('subscriptions')
   .fields((r) => ({ renews_at: r.renews_at.label('Renews on'), status: r.status.valueLabels({ active: 'Active', canceled: 'Canceled' }).valueColors({ active: 'green' }) }))
   .actions((a) => [
     a.update('cancel', { label: 'Cancel plan', set: { status: 'canceled' }, confirm: 'Your plan stays active until the end of the period.' }),
-    a.link('upgrade', { label: 'Upgrade', href: 'mailto:sales@example.com?subject=Upgrade%20from%20plan%20{plan}' }),
+    a.link('upgrade', { label: 'Upgrade', href: 'mailto:sales@example.com?subject=Upgrade%20from%20plan%20{{plan}}' }),
   ])
 
 export const billingProfilesView = view<typeof billingProfiles>('billing_profiles').nav({ hidden: true }).fields((r) => ({ vat_number: r.vat_number.label('VAT number') }))

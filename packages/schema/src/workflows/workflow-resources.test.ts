@@ -18,7 +18,7 @@ describe('workflowResources', () => {
     expect(workflows.recordWidth).toBe('full')
     expect(workflows.record).toEqual({ surface: 'definition' })
     expect(workflows.layout.some((item) => item.kind === 'section' && item.fields.includes('definition'))).toBe(false)
-    expect(parts.workflowRunsView.toModel(parts.workflowRuns.toModel()).recordOpens).toEqual({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' })
+    expect(parts.workflowRunsView.toModel(parts.workflowRuns.toModel()).recordOpens).toEqual({ kind: 'record', resource: 'workflows', key: '{{workflow_id}}', run: '{{id}}' })
   })
 
   it('lists every workflow under its sidebar entry by name, marked by its run status, and says the status on its page', () => {

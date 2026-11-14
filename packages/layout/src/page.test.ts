@@ -86,11 +86,11 @@ describe('page', () => {
 
   it('takes a row button on a Table as a label and an address or href, or a list of them', () => {
     const table = (button: unknown): LayoutNode => ({ type: 'Page', props: { title: 'x' }, children: [{ type: 'Table', props: { resource: 'tasks', button: button as never }, children: [] }] })
-    const open = { label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{id}' } }
-    const report = { label: 'Report', href: '{report_url}' }
+    const open = { label: '{{verb}}', to: { kind: 'record', resource: 'tasks', key: '{{id}}' } }
+    const report = { label: 'Report', href: '{{report_url}}' }
     expect(problems(table(open))).toEqual([])
     expect(problems(table([report, open]))).toEqual([])
-    const shape = '<Page> › <Table resource="tasks">: "button" must be a button, such as { label: \'Open\', to: { kind: \'record\', resource: \'orders\', key: \'{id}\' } } or { label: \'Report\', href: \'{report_url}\' }, or a list of them'
+    const shape = '<Page> › <Table resource="tasks">: "button" must be a button, such as { label: \'Open\', to: { kind: \'record\', resource: \'orders\', key: \'{{id}}\' } } or { label: \'Report\', href: \'{{report_url}}\' }, or a list of them'
     expect(problems(table({ label: 'Open' }))).toEqual([shape])
     expect(problems(table([]))).toEqual([shape])
     expect(problems(table([report, { label: 'Open' }]))).toEqual([shape])

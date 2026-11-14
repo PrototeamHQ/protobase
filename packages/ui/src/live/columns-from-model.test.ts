@@ -111,7 +111,7 @@ describe('columnsFromModel', () => {
 
   it("gives a url column with link text each row's text, from the row's fields", () => {
     const reports = { ...model, fields: { ...model.fields, url: field('url', 'text') } } as ResourceModel
-    const linked = { ...view, fields: { ...view.fields, url: { format: 'url', linkText: 'Report {number}' } }, list: { columns: ['number', 'url'] } } as unknown as ViewModel
+    const linked = { ...view, fields: { ...view.fields, url: { format: 'url', linkText: 'Report {{number}}' } }, list: { columns: ['number', 'url'] } } as unknown as ViewModel
     const [, url] = columnsFromModel(reports, linked)
     expect(url).toMatchObject({ kind: 'text', link: 'url' })
     expect(url?.linkText?.({ id: '1', url: 'https://example.com/r/1', number: 'R-1' })).toBe('Report R-1')

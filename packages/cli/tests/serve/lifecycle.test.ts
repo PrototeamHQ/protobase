@@ -111,7 +111,7 @@ describe('startServe', () => {
   it('refuses to start with an AI action and no model to run it, unless startup checks are off', async () => {
     vi.stubEnv('PROTOBASE_ASSISTANT_API_KEY', '')
     const tickets = resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text(), priority: f.text().optional() }).primaryKey((r) => r.id)
-    const ticketsView = view<typeof tickets>('tickets').actions((a) => [a.ai('triage', { label: 'Triage', prompt: '{title}', writes: 'priority' })])
+    const ticketsView = view<typeof tickets>('tickets').actions((a) => [a.ai('triage', { label: 'Triage', prompt: '{{title}}', writes: 'priority' })])
     const withAi = { ...project, config: { tickets, ticketsView } }
     await expect(serve({ project: withAi, env, createDb: await dbFactory() })).rejects.toThrow('AI fields and actions need a model: set PROTOBASE_ASSISTANT_API_KEY')
     const server = await serve({ project: withAi, env: { ...env, startupChecks: false }, createDb: await dbFactory() })

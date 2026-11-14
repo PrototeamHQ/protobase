@@ -25,11 +25,13 @@ const LoadedCardRow = ({ model, filter, sort, limit = 12, title, description, em
         <Quiet>{empty ?? text('nothingYet')}</Quiet>
       ) : (
         <ul className="relative -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1">
-          {rows.map((row) => {
+          {rows.map((row, index) => {
             const scope = scopeOf(model, row)
             return (
               <li key={scope.key} className="flex w-60 shrink-0 snap-start flex-col gap-2 rounded-lg border border-border bg-surface p-3">
-                <RecordScope value={scope}>{children}</RecordScope>
+                <RecordScope value={scope} row={{ index, count: rows.length }}>
+                  {children}
+                </RecordScope>
               </li>
             )
           })}

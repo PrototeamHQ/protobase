@@ -163,7 +163,7 @@ describe('loadedFields and sortFields', () => {
 
   it("loads the fields a column's link text names", () => {
     const reports = resource('reports').table('reports').fields({ id: f.integer(), url: f.text(), title: f.text() }).primaryKey((r) => r.id)
-    const linked = view<typeof reports>('reports').fields((r) => ({ url: r.url.format('url', { text: '{title}' }) })).list((r) => ({ columns: [r.url] })).toModel(reports.toModel())
+    const linked = view<typeof reports>('reports').fields((r) => ({ url: r.url.format('url', { text: '{{title}}' }) })).list((r) => ({ columns: [r.url] })).toModel(reports.toModel())
     expect(loadedFields(reports.toModel(), linked, ['url'])).toEqual(['url', 'title'])
   })
 

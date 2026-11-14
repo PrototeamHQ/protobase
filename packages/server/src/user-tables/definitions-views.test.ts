@@ -16,8 +16,8 @@ describe('the views over the definitions', () => {
   it("link a table to its own list, by its name, and to a new field of it", () => {
     const runs = Object.fromEntries(tablesView.toModel().actions.map((action) => [action.name, action.run]))
     expect(runs).toEqual({
-      open_table: { kind: 'link', to: { kind: 'list', resource: '{table_name}' } },
-      add_field: { kind: 'link', to: { kind: 'create', resource: 'user_table_fields', values: { table_id: '{id}' } } },
+      open_table: { kind: 'link', to: { kind: 'list', resource: '{{table_name}}' } },
+      add_field: { kind: 'link', to: { kind: 'create', resource: 'user_table_fields', values: { table_id: '{{id}}' } } },
     })
   })
 

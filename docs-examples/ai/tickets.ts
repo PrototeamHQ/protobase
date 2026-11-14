@@ -11,7 +11,7 @@ export const tickets = resource('tickets')
     description: f.text().optional(),
     priority: f.enum(['low', 'normal', 'urgent']).optional(),
     // empty until the job fills it, after a create and after a change of the title or description
-    summary: f.text().optional().ai({ prompt: 'Summarise this support ticket in one sentence.\n\nTitle: {title}\n\n{description}' }),
+    summary: f.text().optional().ai({ prompt: 'Summarise this support ticket in one sentence.\n\nTitle: {{title}}\n\n{{description}}' }),
   })
   .primaryKey((r) => r.id)
 
@@ -20,6 +20,6 @@ export const ticketsView = view<typeof tickets>('tickets')
   .title((r) => r.title)
   .layout((r) => [l.section('Ticket', [r.title, r.description, r.priority, r.summary])])
   .actions((a) => [
-    a.ai('translate', { label: 'Translate to English', icon: 'file-text', prompt: 'Translate into English:\n\n{description}', writes: 'description' }),
-    a.ai('triage', { label: 'Suggest priority', icon: 'tag', prompt: 'How urgent is this support ticket?\n\n{title}\n{description}', writes: 'priority', confirm: 'Replace the priority?' }),
+    a.ai('translate', { label: 'Translate to English', icon: 'file-text', prompt: 'Translate into English:\n\n{{description}}', writes: 'description' }),
+    a.ai('triage', { label: 'Suggest priority', icon: 'tag', prompt: 'How urgent is this support ticket?\n\n{{title}}\n{{description}}', writes: 'priority', confirm: 'Replace the priority?' }),
   ])

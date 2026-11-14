@@ -81,7 +81,7 @@ Every option returns a new [field](/api/schema/interfaces/field/), so they chain
 | `.sensitive()` | Hidden like a password: no response carries it, and a caller who may read it reveals one record's value at a time. See [Sensitive fields](#sensitive-fields). |
 | `.encrypted()` | Sensitive, and stored encrypted with the app's own key, so the database only ever holds ciphertext. Text only. See [Encrypted fields](#encrypted-fields). |
 | `.strongSignIn({ minutes })` | Sensitive, and revealed only after a passkey or a second step in the last `minutes` (15 by default). See [Recent strong sign-in](#recent-strong-sign-in). |
-| `.ai({ prompt })` | A job fills the field from `prompt`, `{field}` replaced by the record's values, after a create and after an update of a field the prompt reads, as the user who wrote. Text or enum, optional. See [AI fields and actions](/reference/ai/). |
+| `.ai({ prompt })` | A job fills the field from `prompt`, `{{field}}` replaced by the record's values, after a create and after an update of a field the prompt reads, as the user who wrote. Text or enum, optional. See [AI fields and actions](/reference/ai/). |
 | `.rollup({ from, via, fn, field })` | The database keeps the field from the records of another resource: their count, sum, average, least or greatest value. Read-only. See [Rollups and formulas](#rollups-and-formulas). |
 | `.formula(expression)` | The database computes the field from the record's other number fields, as a generated column. Read-only. See [Rollups and formulas](#rollups-and-formulas). |
 

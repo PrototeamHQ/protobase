@@ -141,6 +141,7 @@ program
   .option('--bun', "have Bun's bundler write the config module, for a bundle only Bun serves (needs bun on PATH)", false)
   .option('--extend <dir>', 'merge the protobase.config.ts and protobase.ui.tsx in this folder before the project\'s, repeatable', collect, [])
   .option('--source-maps', 'end each script with a //# debugId= comment and write its source map, carrying the same id, beside it', false)
+  .option('--strict', 'fail on what it otherwise warns of in the pages, such as a name a nearer record shadows', false)
   .action(async (opts) => {
     const [{ buildDeployBundle }, { manifestFile }, { resolveExtensions }, { writeProjectTypes }] = await Promise.all([
       import('./build/deploy-bundle'),
@@ -151,7 +152,7 @@ program
     const extensions = resolveExtensions(opts.extend)
     await writeProjectTypes(process.cwd())
     const onWarning = (message: string) => process.stderr.write(`warning: ${message}\n`)
-    const manifest = await buildDeployBundle({ projectDir: process.cwd(), outDir: path.resolve(opts.out), bun: opts.bun, extensions, sourceMaps: opts.sourceMaps, onWarning })
+    const manifest = await buildDeployBundle({ projectDir: process.cwd(), outDir: path.resolve(opts.out), bun: opts.bun, extensions, sourceMaps: opts.sourceMaps, onWarning, strict: opts.strict })
     const packages = manifest.nodeModules ? `, ${manifest.nodeModules}/` : ''
     const plugins = manifest.plugins.length > 0 ? ` with plugins ${manifest.plugins.map((plugin) => plugin.name).join(', ')}` : ''
     out(`built ${opts.out}: ${manifest.server}${packages}, ${manifest.public}/${plugins} and ${manifestFile} (api ${manifest.api.join(', ')})\n`)

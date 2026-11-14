@@ -31,7 +31,7 @@ The two header buttons are named actions of the subscriptions view, each with it
 
 <Code code={billingViews} lang="ts" title="config/billing/ui.ts" />
 
-`a.update('cancel', ...)` sets `status` after its `confirm` question. `a.link` opens its `href`, with `{plan}` filled in from the record: an `href` leaves the app (`https:`, `mailto:`), while a place in the app is a `to`, such as `{ kind: 'record', resource: 'plans', key: '{plan}' }`; a path in the app as an `href` is refused. Cancel the plan in the story and the card says there is no active plan, because its `filter` no longer matches.
+`a.update('cancel', ...)` sets `status` after its `confirm` question. `a.link` opens its `href`, with `{{plan}}` filled in from the record: an `href` leaves the app (`https:`, `mailto:`), while a place in the app is a `to`, such as `{ kind: 'record', resource: 'plans', key: '{{plan}}' }`; a path in the app as an `href` is refused. Cancel the plan in the story and the card says there is no active plan, because its `filter` no longer matches.
 
 <StoryFrame id="guides-billing-page--step-1" title="Step 1: your plan" height={400} />
 

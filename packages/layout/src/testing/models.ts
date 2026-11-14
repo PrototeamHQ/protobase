@@ -1,6 +1,6 @@
 import type { FieldModel, ResourceModel } from '@protobase/schema'
 
-const field = (name: string, type: FieldModel['type'], extra: Partial<FieldModel> = {}): FieldModel => ({
+export const field = (name: string, type: FieldModel['type'], extra: Partial<FieldModel> = {}): FieldModel => ({
   name,
   column: name,
   type,
@@ -12,7 +12,7 @@ const field = (name: string, type: FieldModel['type'], extra: Partial<FieldModel
   ...extra,
 })
 
-const model = (name: string, fields: FieldModel[], extra: Partial<ResourceModel> = {}): ResourceModel => ({
+export const model = (name: string, fields: FieldModel[], extra: Partial<ResourceModel> = {}): ResourceModel => ({
   name,
   table: { name },
   primaryKey: ['id'],
@@ -72,3 +72,18 @@ export const restricted = (hide: Record<string, string[]>, readOnly: Record<stri
         },
       ]),
   )
+
+/** A task with claims, each claim with steps: three records deep, for the scope stack's tests. */
+export const nested: Record<string, ResourceModel> = {
+  tasks: model('tasks', [field('id', 'integer', { readOnly: true }), field('title', 'text'), field('status', 'text')]),
+  task_claims: model('task_claims', [
+    field('id', 'integer', { readOnly: true }),
+    field('task_id', 'integer'),
+    field('claimed_at', 'timestamp'),
+    field('status', 'text'),
+    field('worker', 'relation', { relation: { resource: 'workers', columns: ['worker_id'] } }),
+    field('meta', 'json'),
+  ]),
+  claim_steps: model('claim_steps', [field('id', 'integer', { readOnly: true }), field('claim_id', 'integer'), field('name', 'text')]),
+  workers: model('workers', [field('id', 'integer', { readOnly: true }), field('name', 'text')]),
+}

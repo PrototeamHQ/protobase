@@ -26,8 +26,8 @@ const templatesView = view<typeof templates>('templates')
   .recordMode('read')
   .layout((r) => [l.section('Template', [r.name, r.status])])
   .actions((a) => [
-    a.link('new_vm', { label: 'New VM', icon: 'play', to: { kind: 'create', resource: 'vms', values: { template_id: '{id}' } }, when: "status = 'ready'", otherwise: 'disable', reason: 'The template is a draft' }),
-    a.link('docs', { label: 'Docs', icon: 'file-text', href: 'https://docs.example/templates/{id}' }),
+    a.link('new_vm', { label: 'New VM', icon: 'play', to: { kind: 'create', resource: 'vms', values: { template_id: '{{id}}' } }, when: "status = 'ready'", otherwise: 'disable', reason: 'The template is a draft' }),
+    a.link('docs', { label: 'Docs', icon: 'file-text', href: 'https://docs.example/templates/{{id}}' }),
   ])
 
 const rows = {

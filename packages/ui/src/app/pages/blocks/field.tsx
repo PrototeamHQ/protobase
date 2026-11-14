@@ -3,8 +3,7 @@ import { humanize } from '../../../live/naming'
 import { Skeleton } from '../../../primitives/skeleton'
 import { useAdminMeta } from '../../meta-gate'
 import { FieldValue } from '../field-value'
-import { useLayoutRecord } from '../record-scope'
-import { usePathValue } from '../use-path-value'
+import { useScopedPathValue } from '../use-path-value'
 import { cn } from '../../../lib/cn'
 import { propsOf, type BlockProps } from './block-props'
 
@@ -19,7 +18,7 @@ export const fieldLabel = (path: string, viewLabel: string | undefined) => {
 export const FieldBlock = ({ node, className }: BlockProps) => {
   const { name, label, format } = propsOf<FieldProps>(node)
   const { views } = useAdminMeta()
-  const value = usePathValue(useLayoutRecord(), name)
+  const value = useScopedPathValue(name)
   if (value.state === 'missing') return null
   const shown = value.state === 'loading' ? <Skeleton className="h-4 w-24" /> : <FieldValue model={value.model} field={value.field} value={value.value} format={format} />
   if (label === false) return <div className={className}>{shown}</div>

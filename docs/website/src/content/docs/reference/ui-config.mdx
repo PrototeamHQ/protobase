@@ -128,18 +128,18 @@ Cards, boards and the mobile rows do not open a url link's address yet. JSON sum
 
 Tables show JSON fields readably, and links can carry their own text. A JSON field, such as a tool call's input, shows in a list's table, a related table, a page's `Table` block and on cards and the mobile rows as a short summary on one line: an object as its keys and values, plain values before nested ones, `command: ls -la, cwd: /tmp, env: {…}`, a list of plain values as those values, and a list of objects as how many it holds, `3 items`. An object or list inside another shows as `{…}` or `[…]`, an empty text as `""`, each value is cut at 40 characters so one long value leaves room for the rest, and the summary at 160. The keys keep the order the database returns, which for a `jsonb` column is shortest first. The record page shows the value written out on several lines across the width of its section; a value of more than 20 lines shows its first 20 with a "Show all" button that shows the rest.
 
-A `url` field's link shows its address unless you give it a text. `.format('url', { text })` takes a fixed text, or one with `{field}` placeholders the record fills in, each as the record page shows it, such as an enum value by its label and a relation by the name of the record it points at:
+A `url` field's link shows its address unless you give it a text. `.format('url', { text })` takes a fixed text, or one with `{{field}}` placeholders the record fills in, each as the record page shows it, such as an enum value by its label and a relation by the name of the record it points at:
 
 ```ts
 view<typeof errors>('errors').fields((r) => ({
   report: r.report.format('url', { text: 'Error report' }),
-  trace: r.trace.format('url', { text: '{title}' }),
+  trace: r.trace.format('url', { text: '{{title}}' }),
 }))
 ```
 
 The link still opens the address in a new tab, in the list's cells, related tables, the record page and its sidebar; cards and the mobile rows show the text too. When a field it names is empty, the link shows its address rather than a text with a gap, and so does it for a reader who cannot read a field it names. The list loads the fields a link's text names along with its columns. A text on another format, or one naming a field the resource does not have, stops the server at startup; a later `.format()` with another format drops the text.
 
-<gap>Lists, related tables and cards cannot fill a `{field}` naming a relation with the related record's name because resolving those names for link text outside the record page is not implemented; they show its key.</gap>
+<gap>Lists, related tables and cards cannot fill a `{{field}}` naming a relation with the related record's name because resolving those names for link text outside the record page is not implemented; they show its key.</gap>
 
 <gap>Cards, boards and a list's mobile rows cannot open a url field's address because links on a card's one-line parts are not implemented; they show its text or address as plain text.</gap>
 
@@ -501,7 +501,7 @@ view<typeof repairs>('repairs').create({ page: 'book-repair' })
 - `/<resource>/new` shows that page instead of the create form, so the list's **New** button and every [create address](/reference/layouts/#addresses) open it. The breadcrumb reads the resource and **New**, as for the form.
 - **New** shows to whoever `/api/meta` gives the page, as its `roles` say, whatever the resource's `create` access. The resource's API can then refuse creates (`create: () => false`) while the page creates through an [API function](/guides/api-functions/) that writes with `db`. Someone without the page gets no **New**, and `/<resource>/new` tells them they cannot create there: the create form never shows. **Import** still follows the resource's `create` access.
 - The address's `values` stay in it. A component on the page reads them with `useAppAddress()` and can keep its answers there as they are given, so a reload, a link, or a round trip through another site keeps them. See [Create pages](/reference/custom-components/#create-pages).
-- A create address's `values` may name what is not a field of the resource, such as `{ kind: 'create', resource: 'tasks', values: { objective_id: '{id}' } }` for a task's objectives kept in a join resource, since the page reads them. Its `{field}` placeholders are still checked against the record the link sits on. A resource without a create page still refuses such values, as its create form would drop them.
+- A create address's `values` may name what is not a field of the resource, such as `{ kind: 'create', resource: 'tasks', values: { objective_id: '{{id}}' } }` for a task's objectives kept in a join resource, since the page reads them. Its `{{field}}` placeholders are still checked against the record the link sits on. A resource without a create page still refuses such values, as its create form would drop them.
 - The server refuses a page that does not exist when it starts.
 
 [A create page of your own](/guides/create-page/) builds one step by step.
@@ -587,10 +587,10 @@ view<typeof objectives>('objectives')
 
 ### A record page that opens another
 
-`.recordOpens(to)` sends a record's page to another address in its place, its `{field}`s, in the resource, the key and `run`, filled from the record, replacing the record's address in the history so Back skips it: a workflow run's page opens its workflow's page with the run on the graph. A caller who cannot follow it, such as one who may not read the resource it names or open the page it names, gets the record's own page. The record's own page stays at its address with `?standard=true`.
+`.recordOpens(to)` sends a record's page to another address in its place, its `{{field}}`s, in the resource, the key and `run`, filled from the record, replacing the record's address in the history so Back skips it: a workflow run's page opens its workflow's page with the run on the graph. A caller who cannot follow it, such as one who may not read the resource it names or open the page it names, gets the record's own page. The record's own page stays at its address with `?standard=true`.
 
 ```ts
-view<typeof workflowRuns>('workflow_runs').recordOpens({ kind: 'record', resource: 'workflows', key: '{workflow_id}', run: '{id}' })
+view<typeof workflowRuns>('workflow_runs').recordOpens({ kind: 'record', resource: 'workflows', key: '{{workflow_id}}', run: '{{id}}' })
 ```
 
 A record address can also carry `version`, an earlier saved version of the record shown by a field type that keeps versions, such as the `workflow` field type: the record page then shows its read view, without Save or Edit.
@@ -629,7 +629,7 @@ The bar gets the record's state, Save, its [actions](#actions-and-views-per-role
 
 <StoryFrame id="record-page-focus-page--pin-board-page" title="A field type of the app's own on a focus page" height={560} />
 
-A create address can open a page in place of the form too, for a record made where it is used, as a workflow's test run is made in the workflow's page. `.createOpens(to)` replaces the address, its `{field}`s filled from the address's `values`; when the address's `values` lack any of those `{field}`s, or the caller may not open the page, the create address shows what the view shows without it: its [`.create(...)`](#create-pages) page when it has one, else the form. A record address's `panel` (`?panel=<name>`) names a panel its surface opens with.
+A create address can open a page in place of the form too, for a record made where it is used, as a workflow's test run is made in the workflow's page. `.createOpens(to)` replaces the address, its `{{field}}`s filled from the address's `values`; when the address's `values` lack any of those `{{field}}`s, or the caller may not open the page, the create address shows what the view shows without it: its [`.create(...)`](#create-pages) page when it has one, else the form. A record address's `panel` (`?panel=<name>`) names a panel its surface opens with.
 
 ### Read view and edit
 
@@ -884,7 +884,7 @@ Without any configuration, the record page's rail has a **Related records** card
 | `actions` | Named actions of `resource`'s view, by name, as buttons on each card; only with `presentation: 'cards'` or `'compact'`. A screen reader names each button by its label and the card's title, such as *Mark clear: Lists lose their place*. |
 | `time` | A date or timestamp field of `resource` each compact card shows beside its title, as its view formats it; only with `presentation: 'compact'`. |
 | `tone` | An enum field of `resource` whose value colours each card's left edge, by its view's [`valueColors`](#value-tones-and-currencies); only with `presentation: 'cards'` or `'compact'`. |
-| `button` | `{ label, to }` or `{ label, href }`, or a list of them of which each row shows the first whose fields it holds: a [button on each row](/reference/blocks/#row-buttons), or each card, to an address the row's fields name, its tab or list filter too, or to the outside page a field holds, such as `{ label: '{verb}', to: { kind: 'record', resource: 'tasks', key: '{task_id}', tab: 'Review' } }`; a row without a value for a field it names shows none. Not with `lines`. |
+| `button` | `{ label, to }` or `{ label, href }`, or a list of them of which each row shows the first whose fields it holds: a [button on each row](/reference/blocks/#row-buttons), or each card, to an address the row's fields name, its tab or list filter too, or to the outside page a field holds, such as `{ label: '{{verb}}', to: { kind: 'record', resource: 'tasks', key: '{{task_id}}', tab: 'Review' } }`; a row without a value for a field it names shows none. Not with `lines`. |
 | `open` | The relation of `resource` whose record a row opens, for rows that link this record to another. By default the one relation in `resource`'s primary key besides `field`, when there is exactly one (a join resource such as `task_dependencies` keyed on `[task_id, type, depends_on_id]`); otherwise rows open their own records. The row's menu then has **Open** for the other record and **Edit** for the link itself. |
 | `limit` | How many records it shows, 1 to 100; default 10. Not with `presentation: 'record'`. When there are more, the section says so beside View all, such as "The first 10 of 37.". Before 0.13 this was `pageSize`, rows per page; rename it. |
 | `display` | The display of `resource`'s list it opens in, and View all opens, such as `cards`; default the list's. Not with `presentation: 'record'`. |
@@ -1131,10 +1131,10 @@ The ERP's orders view uses most of this page at once, with a recent-record group
 ])
 ```
 
-An `a.update` writes the answers with no code: a `set` value that is exactly `'{name}'` is the answer of the input called `name`. An empty answer writes `null`, an input that is hidden by `when` leaves its field as it is, and a `'{name}'` that names no input stops the config from loading. An update that asks for input is always offered, since the answer can always change the record. This button works the same on a composed page, so a dashboard can answer in place:
+An `a.update` writes the answers with no code: a `set` value that is exactly `'{{name}}'` is the answer of the input called `name`. An empty answer writes `null`, an input that is hidden by `when` leaves its field as it is, and a `'{{name}}'` that names no input stops the config from loading. An update that asks for input is always offered, since the answer can always change the record. This button works the same on a composed page, so a dashboard can answer in place:
 
 ```ts
-a.update('answer', { label: 'Answer', inputs: (i) => [i.text('answer', { label: 'Answer', multiline: true })], set: { answer: '{answer}' } })
+a.update('answer', { label: 'Answer', inputs: (i) => [i.text('answer', { label: 'Answer', multiline: true })], set: { answer: '{{answer}}' } })
 ```
 
 | Input | Asks for |

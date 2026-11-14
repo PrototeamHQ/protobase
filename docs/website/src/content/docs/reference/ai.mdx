@@ -18,7 +18,7 @@ Both write through the API as the user who wrote or clicked, so their access rul
 
 ## Prompts
 
-A prompt names fields of the record as `{field}`, at least one. The model gets a fixed instruction to answer with the value only, and the prompt with each `{field}` replaced by the record's value as text: text as it is, numbers and booleans written out, json as JSON, an empty value as nothing. For an enum field, the prompt ends with the values the answer must be one of. Nothing else of the record or the app is sent. The answer is trimmed, and validated as any write is, so an enum value the field does not have, or text over its `.max()`, is refused.
+A prompt names fields of the record as `{{field}}`, at least one. The model gets a fixed instruction to answer with the value only, and the prompt with each `{{field}}` replaced by the record's value as text: text as it is, numbers and booleans written out, json as JSON, an empty value as nothing. For an enum field, the prompt ends with the values the answer must be one of. Nothing else of the record or the app is sent. The answer is trimmed, and validated as any write is, so an enum value the field does not have, or text over its `.max()`, is refused.
 
 When every field the prompt reads is empty, the model is not asked: an AI field is cleared to `null` and an AI action answers `422`. A summary of nothing is never invented.
 

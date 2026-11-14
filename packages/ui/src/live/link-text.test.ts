@@ -19,17 +19,17 @@ describe('linkTextOf', () => {
 
   it('fills each field as the record page shows it: an enum by its label, a relation by its name', () => {
     const record = { title: 'Crash on save', level: 'fatal', project: { id: 3, name: 'Shop' } }
-    expect(linkTextOf(model, viewWith('{level}: {title} ({project})'), 'report', record)).toBe('Fatal: Crash on save (Shop)')
+    expect(linkTextOf(model, viewWith('{{level}}: {{title}} ({{project}})'), 'report', record)).toBe('Fatal: Crash on save (Shop)')
   })
 
   it('fills a relation by the name resolved for it, else by its key', () => {
-    expect(linkTextOf(model, viewWith('Report for {project}'), 'report', { project: 3 }, { project: 'Shop' })).toBe('Report for Shop')
-    expect(linkTextOf(model, viewWith('Report for {project}'), 'report', { project: 3 }, { project: undefined })).toBe('Report for 3')
+    expect(linkTextOf(model, viewWith('Report for {{project}}'), 'report', { project: 3 }, { project: 'Shop' })).toBe('Report for Shop')
+    expect(linkTextOf(model, viewWith('Report for {{project}}'), 'report', { project: 3 }, { project: undefined })).toBe('Report for 3')
   })
 
   it('is nothing without link text, or when a field it names is empty, so the address shows', () => {
     expect(linkTextOf(model, viewWith(), 'report', { title: 'x' })).toBeUndefined()
-    expect(linkTextOf(model, viewWith('{title}'), 'report', { title: null })).toBeUndefined()
-    expect(linkTextOf(model, viewWith('{title} ({level})'), 'report', { title: 'Crash on save', level: '' })).toBeUndefined()
+    expect(linkTextOf(model, viewWith('{{title}}'), 'report', { title: null })).toBeUndefined()
+    expect(linkTextOf(model, viewWith('{{title}} ({{level}})'), 'report', { title: 'Crash on save', level: '' })).toBeUndefined()
   })
 })

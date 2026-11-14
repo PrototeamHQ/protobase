@@ -39,7 +39,7 @@ const approvalsView = view<typeof approvals>('approvals')
       when: "state = 'waiting'",
       confirm: 'Tick each detail you confirm.',
       inputs: (i) => [i.checklist('checked', { label: 'What you checked', from: 'checklist' })],
-      set: { checked: '{checked}', state: 'approved' },
+      set: { checked: '{{checked}}', state: 'approved' },
     }),
   ])
 

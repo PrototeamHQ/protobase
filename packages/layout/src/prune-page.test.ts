@@ -118,7 +118,7 @@ describe('prunePage', () => {
   })
 
   it("drops a table's row button that reads a hidden field or leads where the caller cannot go", () => {
-    const button = { label: '{status}', to: { kind: 'record' as const, resource: 'invoices', key: '{id}', tab: 'Payments' } }
+    const button = { label: '{{status}}', to: { kind: 'record' as const, resource: 'invoices', key: '{{id}}', tab: 'Payments' } }
     const page: PageModel = { name: 'p', title: 'p', tree: Page({ title: 'p', children: Table({ resource: 'invoices', button }) }) }
     const shown = (models: CallerAccess['models']) => find(prunePage(page, [], access({ models })), 'Table')!.props
     expect(shown(restricted({}))).toEqual({ resource: 'invoices', button })
@@ -129,8 +129,8 @@ describe('prunePage', () => {
 
   it("drops a table's row button whose tab or outside page comes from a hidden field", () => {
     const shown = (button: RowButtonModel, models: CallerAccess['models']) => find(prunePage({ name: 'p', title: 'p', tree: Page({ title: 'p', children: Table({ resource: 'invoices', button }) }) }, [], access({ models })), 'Table')!.props
-    const tab: RowButtonModel = { label: 'Open', to: { kind: 'record', resource: 'invoices', key: '{id}', tab: '{status}' } }
-    const outside: RowButtonModel = { label: 'Pay', href: '{number}' }
+    const tab: RowButtonModel = { label: 'Open', to: { kind: 'record', resource: 'invoices', key: '{{id}}', tab: '{{status}}' } }
+    const outside: RowButtonModel = { label: 'Pay', href: '{{number}}' }
     expect(shown(tab, restricted({}))).toEqual({ resource: 'invoices', button: tab })
     expect(shown(tab, restricted({ invoices: ['status'] }))).toEqual({ resource: 'invoices' })
     expect(shown(outside, restricted({}))).toEqual({ resource: 'invoices', button: outside })
@@ -188,7 +188,7 @@ describe('prunePage', () => {
         title: 'p',
         children: [
           Link({ to: { kind: 'list', resource: 'invoices', filter: 'status = "open"' }, children: 'Open invoices' }),
-          RecordCard({ resource: 'subscriptions', children: Link({ to: { kind: 'record', resource: 'plans', key: '{plan}' }, children: 'Plan' }) }),
+          RecordCard({ resource: 'subscriptions', children: Link({ to: { kind: 'record', resource: 'plans', key: '{{plan}}' }, children: 'Plan' }) }),
         ],
       }),
     }
@@ -249,5 +249,17 @@ describe('prunePage', () => {
     expect(types(prunePage(page, [], access({ models: restricted({}, {}, ['invoices']) })))).toEqual(['Page', 'Tabs', 'Tab:profile', 'Card'])
     const billingOnly: PageModel = { ...page, tree: Page({ title: 'Account', children: Tabs({ children: Tab({ name: 'billing', label: 'Billing', children: Table({ resource: 'invoices' }) }) }) }) }
     expect(types(prunePage(billingOnly, [], access({ models: restricted({}, {}, ['invoices']) })))).toEqual(['Page'])
+  })
+})
+
+describe('placeholders', () => {
+  const invoicesOf = (filter: string): PageModel => ({ name: 'p', title: 'P', tree: Page({ title: 'P', children: RecordCard({ resource: 'subscriptions', children: Table({ resource: 'invoices', filter }) }) }) })
+
+  it('keeps a filter whose slot stands in for a value its field type would refuse', () => {
+    expect(types(prunePage(invoicesOf(`status = '{{status}}'`), [], access()))).toContain('Table')
+  })
+
+  it('leaves out an element whose slot reads a field the caller cannot read', () => {
+    expect(types(prunePage(invoicesOf(`status = '{{status}}'`), [], access({ models: restricted({ subscriptions: ['status'] }) })))).not.toContain('Table')
   })
 })

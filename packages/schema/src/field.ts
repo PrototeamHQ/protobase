@@ -143,7 +143,7 @@ export class Field<V> {
 
   /**
    * Hidden like a password: never part of a list, record, search or write response. A caller who may read it fetches the
-   * value of one record on its own (`POST /{resource}/{key}:reveal`), and every reveal is published as an audit event.
+   * value of one record on its own (`POST /{{resource}}/{{key}}:reveal`), and every reveal is published as an audit event.
    */
   sensitive() {
     return this.with({ sensitive: true })
@@ -208,7 +208,7 @@ export class Field<V> {
   }
 
   /**
-   * A job fills the field from `prompt`, `{field}` replaced by the record's values, after a create, and after an update
+   * A job fills the field from `prompt`, `{{field}}` replaced by the record's values, after a create, and after an update
    * that changes a field the prompt names, as the user who wrote; see [AI fields and actions](docs/website/src/content/docs/reference/ai.mdx).
    */
   ai(o: { prompt: string }) {

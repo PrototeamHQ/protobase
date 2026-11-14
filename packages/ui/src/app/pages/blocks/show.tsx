@@ -1,13 +1,22 @@
+import type { ReactNode } from 'react'
 import { type ShowProps } from '@protobase/layout'
-import { useLayoutRecord } from '../record-scope'
-import { useConditions } from '../use-conditions'
+import { useScopeStack } from '../record-scope'
+import { useStackConditions } from '../use-conditions'
 import { propsOf, type BlockProps } from './block-props'
 
-/** Its children while `when` holds: fields of the record around it, and `<resource>.count` for any resource. */
-export const ShowBlock = ({ node, children, className }: BlockProps) => {
+/** A `fallback` as it draws: text as it is, elements as they were rendered into the slot of that name. */
+export const fallbackOf = (node: BlockProps['node'], slots: BlockProps['slots']): ReactNode => (typeof node.props.fallback === 'string' ? node.props.fallback : slots.fallback)
+
+/**
+ * Its children while `when` holds, else its `fallback`, as SolidJS's `<Show>`: fields of the records around it, and
+ * `<resource>.count` for any resource. Nothing while a value the condition reads loads.
+ */
+export const ShowBlock = ({ node, children, slots, className }: BlockProps) => {
   const { when } = propsOf<ShowProps>(node)
-  const [shown] = useConditions([when], useLayoutRecord())
-  if (!shown) return null
-  // Its classes go on an element around its children while it shows, and on nothing while it does not
-  return className === undefined ? <>{children}</> : <div className={className}>{children}</div>
+  const [shown] = useStackConditions([when], useScopeStack())
+  if (shown === undefined) return null
+  const drawn = shown ? children : fallbackOf(node, slots)
+  if (drawn === undefined || drawn === null) return null
+  // Its classes go on an element around what it draws, and on nothing while it draws nothing
+  return className === undefined ? <>{drawn}</> : <div className={className}>{drawn}</div>
 }
