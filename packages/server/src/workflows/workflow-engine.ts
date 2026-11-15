@@ -41,7 +41,7 @@ import { customStepRunners } from './runners/runners'
  * on, the hook that checks their manifests and keeps their versions, each tenant's custom step types
  * (`customTypes`), which its saves, its type list and its checks take, and the runners that run them: their calls
  * (`routes.runners`) and install script (`routes.runnerInstall`), the registration tokens a runner's editor issues, and
- * the job that ends a runner's lease.
+ * the job that ends a runner's lease; `stop` answers the runners' claims held open, as the process closes.
  */
 export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth?: AdminAuth, locale?: Locale) => {
   const schema = workflowsSchema(options)
@@ -108,5 +108,5 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
     ...(runners && { runners: runners.route, runnerInstall: runners.install }),
   }
   const customTypes = custom && ((tenant: unknown) => custom(deps().db, tenant))
-  return { routes, issue, answerTask: answerTaskAs(deps, tokens, answerTask), customTypes, hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent, custom), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema), ...(storage ? [storageConfigurationHook(storage)] : []), ...(custom ? [customStepSaveHook(schema)] : []), ...(runners ? runners.hooks : [])], writeChecks: [runInputCheck, ...(storage ? [storageEndpointCheck(storage, allowPrivateAddresses)] : [])], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : []), ...(runners ? runners.jobs : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId) }
+  return { routes, issue, answerTask: answerTaskAs(deps, tokens, answerTask), customTypes, hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent, custom), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema), ...(storage ? [storageConfigurationHook(storage)] : []), ...(custom ? [customStepSaveHook(schema)] : []), ...(runners ? runners.hooks : [])], writeChecks: [runInputCheck, ...(storage ? [storageEndpointCheck(storage, allowPrivateAddresses)] : [])], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : []), ...(runners ? runners.jobs : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId), stop: async () => void (runners && (await runners.stop())) }
 }

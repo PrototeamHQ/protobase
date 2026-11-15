@@ -67,19 +67,24 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("custom steps' runners o
   // Short times, so claims, leases and waits are seen within a test.
   const workflows: WorkflowsOptions = { savedByRoles: async ({ id }) => people[id]?.roles ?? [], customSteps: true, secrets: ['RUNNER_TEST_KEY'], runners: { claimSeconds: 2, leaseSeconds: 1, coldWaitSeconds: 1.5, warmWaitSeconds: 0.5 } }
 
-  beforeAll(async () => {
-    pg = await openPostgresDatabase('jobs')
-    db = pg.db
-    await pg.exec((await workflowsMigration(db, workflows))!)
-    const { resources, views } = configExports(workflowsModule(workflows))
-    admin = createAdmin({
-      resources, views, db, files: trace.files, workflows,
+  // The app's admin, with these workflows options, over the test's database.
+  const adminOf = (options: WorkflowsOptions) => {
+    const { resources, views } = configExports(workflowsModule(options))
+    return createAdmin({
+      resources, views, db, files: trace.files, workflows: options,
       authenticate: (request) => {
         const person = people[request.headers.get('x-user')!]!
         return { user: { id: request.headers.get('x-user')!, roles: person.roles }, tenant: person.tenant }
       },
       options: { statementTimeoutMs, roles },
     })
+  }
+
+  beforeAll(async () => {
+    pg = await openPostgresDatabase('jobs')
+    db = pg.db
+    await pg.exec((await workflowsMigration(db, workflows))!)
+    admin = adminOf(workflows)
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
     expect((await as('ada', '/workflow_custom_steps', { method: 'POST', body: ocr })).status).toBe(201)
     workflow = String((await created('bob', '/workflows', { name: 'Read pages', ...definitionFields(reading) })).id)
@@ -335,5 +340,28 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("custom steps' runners o
     expect((await job(alone.id)).passed_over_at).toBeNull()
     await cold.complete(alone.id, { output: { text: 'Alone' } })
     expect(await ended(fourth)).toMatchObject({ status: 'succeeded', output: { text: 'Alone' } })
+  })
+
+  it('answers a claim held open with none at once as it stops holding, and each claim after it, and holds no claim open for the runner', async () => {
+    // A process of its own, whose claims are held half a minute, with a runner of Eve's tenant, which queues no job here.
+    const closing = adminOf({ ...workflows, runners: { ...workflows.runners, claimSeconds: 30 } })
+    const runner = await created('eve', '/workflow_runners', { name: 'Closing' })
+    const { token } = (await (await as('eve', `/api/workflows/runners/${String(runner.id)}/registration`, { method: 'POST' })).json()) as { token: string }
+    const machine = testRunner((path, init) => closing.request(path, init))
+    expect((await machine.register(token)).status).toBe(200)
+    const pollingUntil = async () => (await sql<{ polling_until: Date | null }>`select polling_until from workflows.runners where id = ${String(runner.id)}`.execute(db)).rows[0]!.polling_until
+
+    const held = machine.claim()
+    await vi.waitFor(async () => expect(await pollingUntil()).not.toBeNull(), { timeout: 5000, interval: 25 })
+    const started = Date.now()
+    await closing.stopHolding()
+    expect(await held).toBeUndefined()
+    expect(Date.now() - started).toBeLessThan(5000)
+    expect(await pollingUntil()).toBeNull()
+
+    const after = Date.now()
+    expect(await machine.claim()).toBeUndefined()
+    expect(Date.now() - after).toBeLessThan(5000)
+    expect(await pollingUntil()).toBeNull()
   })
 })
