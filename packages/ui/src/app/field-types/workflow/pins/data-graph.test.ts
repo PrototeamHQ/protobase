@@ -96,6 +96,21 @@ describe('the data graph', () => {
     expect(wireRefusal(definition, graph, { node: 'Each/Fetch', handle: outHandle([statusKey]) }, { node: 'Save', handle: inHandle(conditionKey) })).toEqual({ reason: 'otherScope', step: 'Fetch' })
   })
 
+  it("refuses a wire into a Block's step from a step outside the Block, which its steps never read", () => {
+    const definition = {
+      trigger: { manual: {} },
+      stateMachine: {
+        QueryLanguage: 'JSONata',
+        StartAt: 'Fetch',
+        States: {
+          Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://example.com' }, Assign: { fetch: '{% $states.result %}' }, Next: 'Keep' },
+          Keep: { Type: 'Block', Processor: { StartAt: 'Call', States: { Call: { Type: 'Task', Resource: 'app:http', Arguments: {}, End: true } } }, Cache: { Ttl: '1 hour' }, End: true },
+        },
+      },
+    } as unknown as Definition
+    expect(wireRefusal(definition, dataGraph(definition, schemas), { node: 'Fetch', handle: outHandle(['status']) }, { node: 'Keep/Call', handle: inHandle('url') })).toEqual({ reason: 'otherScope', step: 'Fetch' })
+  })
+
   it('keeps in data order the line between two steps that no wire stands for', () => {
     const definition = {
       trigger: { manual: {} },

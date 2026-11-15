@@ -11,8 +11,9 @@ const isSchema = (value: unknown): value is JsonSchema => typeof value === 'obje
 /**
  * A type's schema with what its arguments name filled in: `{ "x-record-of": "<argument>" }` is the record of the
  * resource that argument names, for the `x-record-use` it says (default `read`), and `{ "x-schema-of": "<argument>" }`
- * is the schema that argument holds, such as an HTTP answer's declared body. An argument that is an expression, or a
- * resource the app does not have, leaves the value of any type.
+ * is the schema that argument holds, such as an HTTP answer's declared body, and `{ "x-one-or-many-of": "<argument>",
+ * "anyOf": [<one>, <list>] }` is one or the list as that argument holds an object or a list. An argument that is an
+ * expression, or a resource the app does not have, leaves the value of any type.
  */
 export const resolveSchema = (schema: JsonSchema, args: Record<string, unknown>, records: RecordSchemas): JsonSchema => {
   const resolve = (node: unknown): unknown => {
@@ -24,6 +25,14 @@ export const resolveSchema = (schema: JsonSchema, args: Record<string, unknown>,
       const use = node['x-record-use'] === 'write' ? 'write' : 'read'
       const record = typeof resource === 'string' && !resource.startsWith('{%') ? records(resource, use) : undefined
       return record ?? withoutKeys(node, ['x-record-of', 'x-record-use'])
+    }
+    // One of an object and a list of them, as the argument it names holds one or a list
+    const oneOrMany = node['x-one-or-many-of']
+    if (typeof oneOrMany === 'string' && Array.isArray(node.anyOf) && node.anyOf.length === 2) {
+      const given = args[oneOrMany]
+      if (Array.isArray(given)) return resolve(node.anyOf[1])
+      if (isSchema(given)) return resolve(node.anyOf[0])
+      return resolve(withoutKeys(node, ['x-one-or-many-of']))
     }
     const schemaOf = node['x-schema-of']
     if (typeof schemaOf === 'string') {
@@ -54,6 +63,8 @@ export const schemaAt = (schema: JsonSchema | undefined, path: readonly string[]
 const fieldSchema = (schema: JsonSchema, key: string): JsonSchema | undefined => {
   const branches = [schema.anyOf, schema.oneOf].find(Array.isArray) as unknown[] | undefined
   if (branches) {
+    // A branch that is true, or no schema, takes any value there
+    if (branches.some((branch) => !isSchema(branch))) return
     const found = branches.filter(isSchema).map((branch) => fieldSchema(branch, key))
     if (found.length === 0 || found.some((each) => each === undefined)) return
     return found.length === 1 ? found[0] : { anyOf: found }

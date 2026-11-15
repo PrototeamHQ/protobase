@@ -51,6 +51,21 @@ const looping = (machine: Machine): string | undefined => {
   return
 }
 
+// A state its machine's Nexts never reach from StartAt, in the machine or a Map's or Block's inside it: sequence order
+// never runs it, where data order would run it on every run
+const unreached = (machine: Machine): string | undefined => {
+  const reached = new Set<string>()
+  for (let name = machine.StartAt; name !== undefined && machine.States[name] && !reached.has(name); name = (machine.States[name] as { Next?: string }).Next) reached.add(name)
+  const left = Object.keys(machine.States).find((name) => !reached.has(name))
+  if (left !== undefined) return left
+  for (const state of Object.values(machine.States)) {
+    const inner = innerMachine(state)
+    const found = inner && unreached(inner)
+    if (found) return found
+  }
+  return
+}
+
 const statusCondition = (names: string[]) => `{% ${names.map((name) => `$states.context.Steps.${stepName(name)}.Status = 'SUCCEEDED'`).join(' and ')} %}`
 
 // A sequence machine in data order: each Next a dependency of the state it names, the read of the earlier state's
@@ -114,6 +129,8 @@ export const toDataOrder = (definition: Definition): Switched => {
   if (caught) return { refused: text('switchCatchNext', { state: caught[0] }) }
   const twice = assignedTwice(definition.stateMachine)
   if (twice !== undefined) return { refused: text('switchAssignedTwice', { variable: twice }) }
+  const lone = unreached(definition.stateMachine)
+  if (lone !== undefined) return { refused: text('switchUnreached', { state: lone }) }
   const loop = looping(definition.stateMachine)
   if (loop !== undefined) return { refused: text('switchLoop', { state: loop }) }
   const passing = passThrough(definition.stateMachine, true)

@@ -870,6 +870,7 @@
     "switchCatchNext": "{state} has an error path to another state; in data order a catcher has no Next",
     "switchAssignedTwice": "two states assign ${variable}; in data order each variable has one state that assigns it",
     "switchLoop": "{state} runs again in a loop of Next; in data order each state runs once",
+    "switchUnreached": "{state} is never reached in sequence order, where data order would run it on every run; connect it or remove it",
     "switchPassThroughData": "{state} has no Output, so it gives the output of the state before it, which in data order it does not get; give it an Output that reads what it needs",
     "switchCondition": "{state} has a Condition; in sequence order a Choice decides",
     "switchCatchNoNext": "{state} has a catcher without Next, which sequence order needs",

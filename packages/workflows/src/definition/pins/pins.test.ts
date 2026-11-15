@@ -69,6 +69,12 @@ describe('pins', () => {
     // A field that branches type otherwise is any of their types, and of any type where one branch does not say
     expect(schemaAt({ anyOf: [{ properties: { value: { type: 'string' } } }, { properties: { value: { type: 'number' } } }] }, ['value'])).toEqual({ anyOf: [{ type: 'string' }, { type: 'number' }] })
     expect(schemaAt({ anyOf: [{ properties: { value: { type: 'string' } } }, { properties: {} }] }, ['value'])).toBeUndefined()
+    expect(schemaAt({ anyOf: [{ properties: { value: { type: 'string' } } }, true] }, ['value'])).toBeUndefined()
+    // One record or a list of them, as the argument named holds one or a list
+    const created = { 'x-one-or-many-of': 'data', anyOf: [{ type: 'object' }, { type: 'array' }] }
+    expect(resolveSchema(created, { data: { name: 'a' } }, records)).toEqual({ type: 'object' })
+    expect(resolveSchema(created, { data: [{ name: 'a' }] }, records)).toEqual({ type: 'array' })
+    expect(resolveSchema(created, { data: '{% $rows %}' }, records)).toEqual({ anyOf: [{ type: 'object' }, { type: 'array' }] })
   })
 
   it('reports an argument that reads a value of a type it does not take, naming both, and lets the rest pass', () => {

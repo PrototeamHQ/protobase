@@ -38,7 +38,7 @@ export const recordsSteps: Record<string, StepType> = {
     'Create records',
     "Creates records of the app's resources, as the workflow's last editor.",
     { required: ['resource', 'data'], properties: { resource, data: { description: 'an object of field values, or a list of them, created in one batch: all or none', anyOf: [written, { type: 'array', items: written }] } } },
-    { description: 'the created record, or the list of them', anyOf: [record, { type: 'array', items: record }] },
+    { description: 'the created record, or the list of them', 'x-one-or-many-of': 'data', anyOf: [record, { type: 'array', items: record }] },
     true,
     async ({ input, records }) => {
       const many = listOf(input.data)

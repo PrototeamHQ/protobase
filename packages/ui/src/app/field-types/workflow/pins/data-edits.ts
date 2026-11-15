@@ -47,6 +47,13 @@ const pinType = (graph: DataGraph, end: PinEnd, side: 'out' | 'in') => {
 // A step inside a Block reads only the Block's own input, never the run's
 const inBlock = (definition: Definition, step: string) => splitPath(step).scope.some((_, index, scope) => stateAt(definition, scope.slice(0, index + 1).join('/'))?.Type === 'Block')
 
+// The innermost Block a step sits in, by its path; none for a step outside every Block
+const blockAround = (definition: Definition, step: string) => {
+  const { scope } = splitPath(step)
+  for (let depth = scope.length; depth > 0; depth--) if (stateAt(definition, scope.slice(0, depth).join('/'))?.Type === 'Block') return scope.slice(0, depth).join('/')
+  return
+}
+
 // In data order, whether `from` already runs after `to`, so a read of it by `to` would make them wait on each other
 const runsAfter = (definition: Definition, from: string, to: string) => {
   const { scope, name } = splitPath(from)
@@ -69,6 +76,9 @@ export const wireRefusal = (definition: Definition, graph: DataGraph, from: PinE
   const source = origin(graph, from)
   const target = destination(graph, to)
   if (!source || !target) return { reason: 'notPins' }
+  // A Block's steps read only its own input and each other, never a step outside it
+  const block = blockAround(definition, target.step)
+  if (block !== undefined && source.node !== triggerId && !source.node.startsWith(`${block}/`)) return { reason: 'otherScope', step: splitPath(source.node).name }
   if (orderOf(definition) === 'data' && source.node !== triggerId) {
     // In data order a read is what orders the states: any state may read another that does not run after it, of its
     // own machine or one around it, never of a Map's or Block's inside, whose states only that one runs

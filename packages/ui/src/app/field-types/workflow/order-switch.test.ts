@@ -21,6 +21,12 @@ describe('toDataOrder', () => {
     expect(toDataOrder(sequence({ Only: { Type: 'Succeed' } }))).toEqual({ definition: data({ Only: { Type: 'Pass' } }) })
   })
 
+  it('refuses a step sequence order never reaches, which data order would run on every run', () => {
+    expect(toDataOrder(sequence({ Used: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://a.example' }, End: true }, Extra: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://b.example' }, End: true } }))).toEqual({
+      refused: 'Extra is never reached in sequence order, where data order would run it on every run; connect it or remove it',
+    })
+  })
+
   it('refuses a loop of Nexts, which in data order would wait on itself', () => {
     expect(toDataOrder(sequence({ A: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://a.example' }, Next: 'B' }, B: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://b.example' }, Next: 'A' } }))).toEqual({
       refused: 'A runs again in a loop of Next; in data order each state runs once',
