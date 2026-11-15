@@ -1,5 +1,7 @@
 import type { ResourceModel } from '@protobase/schema'
 import type { IssueWebhook } from './webhook-tools'
+import type { GoLive } from '../hooks/create-workflow'
+import type { Session } from '../../types'
 import { listConnectionsTool, type ListConnections } from './connection-tools'
 import { checkDefinition, definitionFromParts, definitionWarnings, typeCatalog, withCustomSteps, type DefinitionParts, type CheckOptions, type TypeEntry } from '@protobase/workflows'
 import { refused } from '../../assistant/record-tool-args'
@@ -23,8 +25,15 @@ export type WorkflowCatalog = {
   checkWith: (models: (name: string) => ResourceModel | undefined) => CheckOptions
   /** The custom step types of a tenant, which follow the app's types in the list and the check; none without it. */
   customTypes?: (tenant: unknown) => Promise<TypeEntry[]>
-  /** Issues a workflow's webhook URL as the caller, for `new_webhook_url`. */
+  /** Issues a workflow's webhook URL as the caller, for `new_webhook_url` and `create_workflow` with `publish`. */
   issueWebhook?: IssueWebhook
+  /**
+   * Whether a create can go live as asked, before anything is saved: the webhook trigger whose URL `create_workflow`
+   * with `publish` issues, or none; a refusal throws, as for a secret the trigger's auth mode cannot check.
+   */
+  checkGoLive?: (trigger: unknown, live: GoLive) => { type: string } | undefined
+  /** Whether the caller may change workflows, which issuing a webhook URL needs, checked before `create_workflow` saves. */
+  mayIssueWebhook?: (session: Session) => Promise<boolean>
   /** Answers a waiting Task as the caller, for `send_task_success`, `send_task_failure` and `send_task_heartbeat`. */
   answerTask?: AnswerTaskAs
   /** The caller's own connected accounts, for `list_connections`; none without it. */
