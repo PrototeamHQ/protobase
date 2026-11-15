@@ -13,8 +13,11 @@ export const makeId = (target: string, key: string) => `make:${part(target)}|${p
 /** A condition node's id: the step whose Condition it is part of, and where it is among the Condition's nodes. */
 export const conditionId = (target: string, at: readonly number[]) => `when:${part(target)}|${at.join('/')}`
 
-/** Whether a node id is a Break's, a Make's or a condition node's, which the editor draws and the document holds no state for. */
-export const isPureId = (id: string) => id.startsWith('break:') || id.startsWith('make:') || id.startsWith('when:')
+/** A Select node's id: the step whose argument it chooses, and the argument. */
+export const selectId = (target: string, key: string) => `select:${part(target)}|${part(key)}`
+
+/** Whether a node id is a Break's, a Make's, a condition node's or a Select's, which the editor draws and the document holds no state for. */
+export const isPureId = (id: string) => id.startsWith('break:') || id.startsWith('make:') || id.startsWith('when:') || id.startsWith('select:')
 
 /** The handle of an input pin, by its argument or field. */
 export const inHandle = (key: string) => `in:${part(key)}`
@@ -28,6 +31,10 @@ export const makeOut = 'make-out'
 
 /** The handle a condition node gives its yes or no from. */
 export const conditionOut = 'condition-out'
+
+/** The handle a Select gives the value it chose from, and the key of the input it looks at. */
+export const selectOut = 'select-out'
+export const selectInput = 'value'
 
 /** An input handle's argument or field; undefined for any other handle. */
 export const inKey = (handle: string | null | undefined) => (handle?.startsWith('in:') ? decodeURIComponent(handle.slice(3)) : undefined)

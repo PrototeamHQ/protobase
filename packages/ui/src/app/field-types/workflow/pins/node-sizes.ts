@@ -11,6 +11,9 @@ export type Size = { width: number; height: number }
 // A Break's or a Make's title is one line
 const pureHeader = 34
 
+// A Select's cases each hold two values side by side
+const selectWidth = 280
+
 // A Make shows every field it builds, as Blueprints draw one, unless it has more than this
 const makeFieldsShown = 8
 
@@ -49,6 +52,11 @@ export const nodeSizes = (graph: Graph, data: DataGraph, open: ReadonlySet<strin
   for (const pure of data.pure) {
     if (pure.kind === 'condition' && pure.part.kind === 'expression') {
       sizes.set(pure.id, { width: pureWidth, height: expressionHeight(pure.inputs.length) })
+      continue
+    }
+    // A Select: the value it looks at, a row per case, what it gives otherwise, and the row that adds a case
+    if (pure.kind === 'select') {
+      sizes.set(pure.id, { width: selectWidth, height: pinnedHeight(pure.part.cases.length + 3, 1, false, pureHeader) })
       continue
     }
     if (pure.kind === 'break') {

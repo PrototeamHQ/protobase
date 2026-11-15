@@ -31,6 +31,8 @@ const listSome: Definition = {
 
 // In data order, a step that runs only once another succeeded, as its Condition says
 const tellWhenSaved = "{% $states.context.Steps.Save.Status = 'SUCCEEDED' %}"
+// Its address chosen by the run's input, which a Select node draws
+const tellUrl = "{% $states.context.Execution.Input.topic = 'sales' ? 'https://tickets.example.com/sales' : 'https://tickets.example.com/tell' %}"
 const saveThenTell: Definition = {
   trigger: { manual: {} },
   order: 'data',
@@ -38,7 +40,7 @@ const saveThenTell: Definition = {
     QueryLanguage: 'JSONata',
     States: {
       Save: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://tickets.example.com/save' } },
-      Tell: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://tickets.example.com/tell' }, Condition: tellWhenSaved },
+      Tell: { Type: 'Task', Resource: 'app:http', Arguments: { url: tellUrl }, Condition: tellWhenSaved },
     },
   },
 } as Definition
@@ -606,6 +608,17 @@ export const ConditionNodesChecks: StoryObj = {
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(stored).toBeDefined())
     expect(((stored!.state_machine as Definition['stateMachine']).States.Tell as { Condition?: string }).Condition).toBe(tellWhenSaved)
+    // Tell's address is a Select of the run's topic, whose Otherwise is edited on the node
+    const select = await waitFor(() => canvasElement.querySelector<HTMLElement>('.react-flow__node[data-id="select:Tell|url"]')!)
+    expect(select).toHaveTextContent('Select')
+    expect(within(select).getByRole('textbox', { name: 'Case 1 value' })).toHaveValue('sales')
+    const otherwise = within(select).getByRole('textbox', { name: 'Otherwise' })
+    await userEvent.clear(otherwise)
+    await userEvent.type(otherwise, 'https://tickets.example.com/other')
+    stored = undefined
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(stored).toBeDefined())
+    expect(((stored!.state_machine as Definition['stateMachine']).States.Tell as { Arguments: { url: string } }).Arguments.url).toBe(tellUrl.replace("'https://tickets.example.com/tell'", "'https://tickets.example.com/other'"))
   },
 }
 

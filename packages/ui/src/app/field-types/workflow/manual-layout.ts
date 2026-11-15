@@ -60,13 +60,14 @@ const pathPart = (path: readonly string[]) => path.map((field) => (field === sta
 /**
  * The key a node's position is kept under: a state's name; the trigger's key; a Break's the value it takes apart, such
  * as `Save.record`, or `Save.#break` for the whole of what a step gives; a Make's the argument it builds, such as
- * `Save.#make.data`; and a condition node's its place among its step's Condition's nodes, such as `Tell.#when` for the
+ * `Save.#make.data`; a Select's the argument it chooses, such as `Notify.#select.to`; and a condition node's its place among its step's Condition's nodes, such as `Tell.#when` for the
  * one wired to Only when and `Tell.#when.1` for the one at its second side. Every key but the trigger's starts with its
  * state's name, so a save drops those of a state removed.
  */
 export const layoutKey = (id: string, pure?: PureNode) => {
   if (pure?.kind === 'break') return [nameOf(pure.source), ...(pure.path.length === 0 ? ['#break'] : pathPart(pure.path))].join('.')
   if (pure?.kind === 'make') return [nameOf(pure.target), '#make', keyPart(pure.key)].join('.')
+  if (pure?.kind === 'select') return [nameOf(pure.target), '#select', keyPart(pure.key)].join('.')
   if (pure?.kind === 'condition') return [nameOf(pure.target), '#when', ...pure.at.map(String)].join('.')
   return nameOf(id)
 }

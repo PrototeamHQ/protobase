@@ -138,3 +138,59 @@ export const conditionParts = (value: unknown): ConditionPart | undefined => {
   const part = partOf(parsed.expression.ast() as Node)
   return part && conditionValue(part) === value ? part : undefined
 }
+
+/** A value a Select gives or compares with: text, a number, or true or false. */
+export type SelectValue = string | number | boolean
+
+/**
+ * A value chosen by another, which a Select node draws: the value it looks at, read by name or one of its own, a case
+ * per value it can be with what it gives then, and what it gives for any other. JSONata writes it as a chain of
+ * conditionals: `$topic = 'sales' ? 'sales@example.com' : $topic = 'support' ? 'help@example.com' : 'info@example.com'`.
+ */
+export type SelectPart = { operand: ConditionOperand; cases: { when: SelectValue; then: SelectValue }[]; otherwise: SelectValue }
+
+const valueOf = (node: Node | undefined): SelectValue | undefined => {
+  if (!node) return
+  const operand = operandOf(node)
+  return operand && 'value' in operand ? operand.value : undefined
+}
+
+const selectOf = (node: Node): SelectPart | undefined => {
+  const cases: SelectPart['cases'] = []
+  let operand: ConditionOperand | undefined
+  let at: Node | undefined = node
+  // Each conditional of the chain compares the same value with one of its own, and gives one of its own
+  while (at?.type === 'condition') {
+    const test = at.condition as Node | undefined
+    if (test?.type !== 'binary' || test.value !== '=') return
+    const read = operandOf(test.lhs!)
+    const [when, then] = [valueOf(test.rhs), valueOf(at.then as Node | undefined)]
+    if (!read || when === undefined || then === undefined) return
+    if (operand && operandText(operand) !== operandText(read)) return
+    operand = read
+    cases.push({ when, then })
+    at = at.else as Node | undefined
+  }
+  const otherwise = valueOf(at)
+  return operand && otherwise !== undefined ? { operand, cases, otherwise } : undefined
+}
+
+/** The value a Select node and what it holds write: `{% $topic = 'sales' ? 'sales@example.com' : 'info@example.com' %}`. */
+export const selectValue = ({ operand, cases, otherwise }: SelectPart) => {
+  const read = operandText(operand)
+  const text = (value: SelectValue) => operandText({ value })
+  return `{% ${[...cases.map(({ when, then }) => `${read} = ${text(when)} ? ${text(then)}`), text(otherwise)].join(' : ')} %}`
+}
+
+/**
+ * A value taken apart into a Select node, when it is a chain of conditionals that compare one value with values of
+ * their own and give values of their own, and writing the node back gives it exactly as it is; undefined for any other.
+ */
+export const selectParts = (value: unknown): SelectPart | undefined => {
+  const source = expressionSource(value)
+  if (source === undefined) return
+  const parsed = parse(source)
+  if ('error' in parsed) return
+  const part = selectOf(parsed.expression.ast() as Node)
+  return part && selectValue(part) === value ? part : undefined
+}

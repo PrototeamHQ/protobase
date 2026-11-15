@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { conditionParts, conditionValue, type ConditionPart } from './conditions'
+import { conditionParts, conditionValue, selectParts, selectValue, type ConditionPart } from './conditions'
 
 const status = (step: string) => ({ read: { base: { step }, path: ['Status'] } })
 
@@ -78,5 +78,26 @@ describe('a Condition taken apart into nodes', () => {
     expect(conditionValue(text("it's"))).toBe('{% $a = "it\'s" %}')
     expect(conditionValue(text('a\\b\n'))).toBe('{% $a = "a\\\\b\\n" %}')
     for (const value of ["it's", 'a\\b\n', '', 'x"y']) expect(conditionParts(conditionValue(text(value)))).toEqual(text(value))
+  })
+})
+
+describe('a value taken apart into a Select node', () => {
+  it('takes a chain of conditionals on one value apart, and writes it back as it was', () => {
+    const value = "{% $states.context.Execution.Input.body.topic = 'sales' ? 'sales@example.com' : $states.context.Execution.Input.body.topic = 'support' ? 'help@example.com' : 'info@example.com' %}"
+    const part = selectParts(value)
+    expect(part).toEqual({
+      operand: { read: { base: { input: true }, path: ['body', 'topic'] } },
+      cases: [
+        { when: 'sales', then: 'sales@example.com' },
+        { when: 'support', then: 'help@example.com' },
+      ],
+      otherwise: 'info@example.com',
+    })
+    expect(selectValue(part!)).toBe(value)
+    for (const kept of ["{% $a = 1 ? 'one' : $a = 2 ? 'two' : 'many' %}", "{% $a = 'x' ? true : false %}"]) expect(selectValue(selectParts(kept)!)).toBe(kept)
+  })
+
+  it('leaves any other value as it is', () => {
+    for (const value of ["{% $a = 'x' ? 'y' : $b = 'z' ? 'w' : 'v' %}", "{% $a = 'x' ? $b : 'v' %}", "{% $a > 1 ? 'y' : 'n' %}", "{% $a = 'x' ? 'y' %}", "{% $a='x' ? 'y' : 'n' %}", "{% 'x' %}", 'text']) expect(selectParts(value), value).toBeUndefined()
   })
 })

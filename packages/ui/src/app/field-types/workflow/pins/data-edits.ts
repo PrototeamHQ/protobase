@@ -1,9 +1,9 @@
-import { conditionValue, dependsOn, fits, machineDependencies, orderOf, referenceValue, type Definition, type Reference } from '@protobase/workflows'
+import { conditionValue, dependsOn, fits, machineDependencies, orderOf, referenceValue, selectValue, type Definition, type Reference } from '@protobase/workflows'
 import { machineAt, splitPath, stateAt, triggerId } from '../definition'
 import { earlierSteps, shapesItsOutput, variableFor } from '../../workflow-page/value-insert'
 import { setArgument } from './argument-edits'
 import { clearConditionSide, setConditionSide } from './condition-edits'
-import type { ConditionNode, DataEdge, DataGraph, PureNode } from './data-graph'
+import type { ConditionNode, DataEdge, DataGraph, PureNode, SelectNode } from './data-graph'
 import { conditionKey, statusKey, type OutputPin } from './node-pins'
 import { inKey, outPath } from './pure-ids'
 
@@ -26,12 +26,14 @@ const origin = (graph: DataGraph, end: PinEnd): { node: string; path: string[] }
 
 // The step an input belongs to, and the keys of its Arguments the input sets; for a condition node's side, its Condition
 // and the side, at the node's place among the Condition's nodes
-const destination = (graph: DataGraph, end: PinEnd): { step: string; keys: string[]; side?: { node: ConditionNode; at: number[] } } | undefined => {
+const destination = (graph: DataGraph, end: PinEnd): { step: string; keys: string[]; side?: { node: ConditionNode; at: number[] }; select?: SelectNode } | undefined => {
   const key = inKey(end.handle)
   if (key === undefined) return
   const pure = pureOf(graph, end.node)
   if (!pure) return graph.inputs.has(end.node) ? { step: end.node, keys: [key] } : undefined
   if (pure.kind === 'make') return { step: pure.target, keys: [pure.key, key] }
+  // A Select's one input is the value it looks at, in the argument it chooses
+  if (pure.kind === 'select') return { step: pure.target, keys: [pure.key], select: pure }
   // An Expression's pins are the values it reads, which only its text changes
   // A Matches node's pattern is written on it, never wired
   if (pure.kind === 'condition' && pure.part.kind === 'matches' && key === '1') return
@@ -50,8 +52,8 @@ const pinType = (graph: DataGraph, end: PinEnd, side: 'out' | 'in') => {
     return pins.find((pin) => JSON.stringify(pin.path) === JSON.stringify(path))?.type
   }
   const key = inKey(end.handle)!
-  // A Comparison compares values of any type
-  if (pure?.kind === 'condition' && pure.part.kind === 'compare') return
+  // A Comparison compares values of any type, and a Select looks at a value of any type
+  if ((pure?.kind === 'condition' && pure.part.kind === 'compare') || pure?.kind === 'select') return
   const pins = pure?.kind === 'make' || pure?.kind === 'condition' ? pure.inputs : graph.inputs.get(end.node) ?? []
   return pins.find((pin) => pin.key === key)?.type
 }
@@ -132,6 +134,7 @@ export const connectData = (definition: Definition, graph: DataGraph, from: PinE
   }
   const status = 'step' in reference.base && reference.path.length === 0 ? { ...reference, path: ['Status'] } : reference
   if (target.side) return setConditionSide(next, target.step, target.side.at, { read: status })
+  if (target.select) return setArgument(next, target.step, target.keys, selectValue({ ...target.select.part, operand: { read: status } }))
   if (statusShortcut(source, target)) return setArgument(next, target.step, target.keys, conditionValue({ kind: 'compare', op: '=', sides: [{ read: status }, { value: 'SUCCEEDED' }] }))
   return setArgument(next, target.step, target.keys, referenceValue(reference))
 }
@@ -143,6 +146,8 @@ export const connectData = (definition: Definition, graph: DataGraph, from: PinE
 export const disconnectData = (definition: Definition, graph: DataGraph, edge: Pick<DataEdge, 'target' | 'targetHandle' | 'source'>): Definition => {
   const target = destination(graph, { node: edge.target, handle: edge.targetHandle })
   if (target?.side) return clearConditionSide(definition, target.step, target.side.at)
+  // A Select whose input is cut looks at a value of its own, empty, until another is wired
+  if (target?.select) return setArgument(definition, target.step, target.keys, selectValue({ ...target.select.part, operand: { value: '' } }))
   if (target) return setArgument(definition, target.step, target.keys, undefined)
   const pure = pureOf(graph, edge.target) ?? pureOf(graph, edge.source)
   return pure ? removePure(definition, graph, pure) : definition
@@ -154,7 +159,7 @@ export const disconnectData = (definition: Definition, graph: DataGraph, edge: P
  * expression that reads through it among other values stays, and so does the Break it draws.
  */
 export const removePure = (definition: Definition, graph: DataGraph, node: PureNode): Definition => {
-  if (node.kind === 'make') return setArgument(definition, node.target, [node.key], undefined)
+  if (node.kind === 'make' || node.kind === 'select') return setArgument(definition, node.target, [node.key], undefined)
   if (node.kind === 'condition') return clearConditionSide(definition, node.target, node.at)
   return graph.edges.filter((edge) => edge.source === node.id && !edge.expression).reduce((next, edge) => {
     const after = pureOf(graph, edge.target)

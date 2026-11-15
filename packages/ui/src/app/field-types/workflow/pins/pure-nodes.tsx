@@ -4,6 +4,7 @@ import type { FlowNode, PureData } from '../flow-elements'
 import { text } from '../messages'
 import type { PureNode } from './data-graph'
 import { ConditionPins } from './condition-nodes'
+import { SelectRows } from './select-node'
 import { FoldRow, InputRow, OutputRow } from './pin-rows'
 import { conditionNodeTitle, pinColour, typeLabel } from './pin-text'
 import { breakIn, makeOut } from './pure-ids'
@@ -11,6 +12,7 @@ import { MovedMark } from '../moved-mark'
 
 const titleOf = (pure: PureNode) => {
   if (pure.kind === 'condition') return conditionNodeTitle(pure)
+  if (pure.kind === 'select') return text('selectTitle')
   return pure.kind === 'break' ? text('breakTitle', { type: typeLabel(pure.type) }) : text('makeTitle', { type: typeLabel(pure.type) })
 }
 
@@ -31,6 +33,8 @@ export const PureNodeView = ({ id, data, selected, isConnectable: editable }: No
       <Title pure={pure} />
       {pure.kind === 'condition' ? (
         <ConditionPins node={pure} editable={editable} />
+      ) : pure.kind === 'select' ? (
+        <SelectRows node={pure} editable={editable} />
       ) : pure.kind === 'break' ? (
         <div className="relative pt-1">
           <Handle id={breakIn} type="target" position={Position.Left} isConnectable={false} className={`pb-pin pb-pin-${pinColour(pure.type)}`} style={{ top: 13 }} />

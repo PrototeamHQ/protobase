@@ -106,6 +106,11 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     if (gone.length > 0) setLocal((current) => localsLeft(current, gone.flatMap((node) => data.pure.filter((each) => each.id === node.id))))
     return after
   }
+  // A Select chosen in an offer, added to the definition as it is when it is chosen
+  const addSelect = (step: string, key: string) => {
+    const { definition: current, editing: latest } = now.current
+    latest?.onChange(latest.edits.addSelect(current, step, key))
+  }
   // A condition node chosen in an offer, added to the definition as it is when it is chosen
   const addCondition = (step: string, at: readonly number[], choice: ConditionChoice) => {
     const { definition: current, editing: latest } = now.current
@@ -142,6 +147,11 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     const pin = key === undefined ? undefined : data.inputs.get(node)?.find((each) => each.key === key)
     if (pin?.key === conditionKey && pin.state === 'empty') {
       setOffer({ ...at, choices: conditionOffer(editing.edits.conditionChoices(true), (choice) => addCondition(node, [], choice)) })
+      return
+    }
+    // An input of a value, empty or holding one of its own, can have a Select choose it from another value
+    if (pin && pin.key !== conditionKey && !isObjectType(pin.type.kinds) && (pin.state === 'empty' || pin.state === 'literal')) {
+      setOffer({ ...at, choices: [{ label: text('selectOffer'), add: () => addSelect(node, pin.key) }] })
       return
     }
     if (!pin || !isObjectType(pin.type.kinds) || pin.state === 'wired' || pin.state === 'expression') return
