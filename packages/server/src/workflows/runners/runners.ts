@@ -7,7 +7,7 @@ import type { RunnerSettings } from '../options'
 import type { SecretKey } from '../../better-auth/connections/sealed-revocation'
 import type { StorageInput } from '../storage/plugin-storage'
 import { jobSealer } from './job-seal'
-import { issueRegistration } from './registration'
+import { issueRegistration, mayIssueRegistration } from './registration'
 import { runnerBroker } from './runner-broker'
 import { runnerFiles } from './runner-files'
 import { runnerSaveHook } from './runner-hook'
@@ -49,6 +49,7 @@ export const customStepRunners = ({ deps, schema, settings, secrets, key, answer
      * `fallback`, such as the MCP endpoint's.
      */
     issue: (session: Session, id: string, fallback: string) => issueRegistration(deps, schema, session, id, { origin: origin() ?? fallback, apiPath: deps().systemPath }),
+    mayIssue: (session: Session) => mayIssueRegistration(deps, session),
     jobs: [lease],
     hooks: [runnerSaveHook],
     stop: broker.stop,

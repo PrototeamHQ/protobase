@@ -40,7 +40,7 @@ describe('mcpTools', () => {
   })
 
   it('offers the custom steps\' tools with custom steps on, the ones that save, test and make runners only with writes on', () => {
-    const customSteps = { test: async () => '', online: async () => ({ ids: [], builds: false }), register: async () => ({ token: '', expires_at: '', command: '', endpoint: '' }) }
+    const customSteps = { test: async () => '', online: async () => ({ ids: [], builds: false }), register: async () => ({ token: '', expires_at: '', command: '', endpoint: '' }), mayIssue: async () => true }
     const tools = (writes: McpWrites) => mcpTools({ db, sql: false, writes, workflows: { types: [], checkWith: () => ({ resources: [], triggers: {} }), readTrace: async () => [], customSteps } })({ user: { id: 1, roles: ['sales'] } }).map((tool) => tool.name)
     const reads = ['list_workflow_types', 'list_workflows', 'get_workflow', 'validate_workflow', 'get_workflow_run', 'list_connections', 'get_custom_step', 'list_runners']
     expect(tools(false)).toEqual([...records, ...reads])

@@ -192,7 +192,8 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('custom steps over MCP',
     expect(await bo('get_custom_step', { name: 'shout' })).toMatchObject({ error: 'not-found' })
     expect(await bo('test_custom_step', { name: 'shout', version: 1, input: { text: 'x' } })).toMatchObject({ error: 'not-found' })
     expect(await bo('list_runners')).toMatchObject({ error: 'not-found' })
-    expect(await bo('create_runner_token', { name: 'Mine' })).toMatchObject({ error: 'not-found' })
+    // Checked before anything is made: issuing its token needs update access, which bo has not
+    expect(await bo('create_runner_token', { name: 'Mine' })).toMatchObject({ error: 'forbidden' })
     expect((await sql<{ count: number }>`select (select count(*)::int from workflows.runs) + (select count(*)::int from workflows.runners) + (select count(*)::int from workflows.custom_steps) as count`.execute(database.db)).rows[0]).toEqual(before)
   })
 })

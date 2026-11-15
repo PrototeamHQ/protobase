@@ -27,6 +27,8 @@ export type CustomStepService = {
   online: (tenant: unknown) => Promise<{ ids: string[]; builds: boolean }>
   /** Issues a runner's registration token, for the app at its own address, else `origin`. */
   register: (session: Session, id: string, origin: string) => Promise<RunnerRegistration>
+  /** Whether the session may issue runners' registration tokens, which needs update access to the runners. */
+  mayIssue: (session: Session) => Promise<boolean>
 }
 
 /** The custom steps' calls a tool makes, with the address a registration's command falls back on bound. */
@@ -306,6 +308,9 @@ const createRunnerTokenTool = (calls: CustomStepCalls, input: WriteRecordToolsIn
       if (!name || (args.labels !== undefined && !Array.isArray(args.labels))) return 'Pass { "name": "<name>" }, and labels as a list such as ["gpu"].'
       const refusal = outside(input, 'workflow_runners')
       if (refusal) return refusal
+      // Its token is issued as the registration route issues one, to who may change the runner: checked before anything
+      // is made, so no runner is left without one
+      if (!(await calls.mayIssue(context.session))) return JSON.stringify({ error: 'forbidden', message: 'Making a runner with its install command needs both workflow_runners.create and workflow_runners.update; nothing was made.' })
       const data = { name, ...(args.labels !== undefined && { labels: args.labels }) }
       const { text } = await approvalTexts(context, 'workflow_runners')
       const answer = await context.approve({ title: text('runnerTitle', { name }), body: text('runnerBody'), approveLabel: text('create'), rejectLabel: text('reject') })

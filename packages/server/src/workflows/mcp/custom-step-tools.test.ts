@@ -22,6 +22,7 @@ const listing = (rows: Record<string, Row[]>) => async (resource: string, params
 const calls = (given: Partial<CustomStepCalls> = {}): CustomStepCalls => ({
   test: vi.fn(async () => '00000000-0000-4000-8000-000000000001'),
   online: vi.fn(async () => ({ ids: ['r1'], builds: true })),
+  mayIssue: vi.fn(async () => true),
   register: vi.fn(async () => ({ token: 'pbr_once_x', expires_at: '2026-11-15T11:00:00.000Z', command: 'curl -fsSL https://app.example/api/runners/install.sh | sh -s -- --token pbr_once_x', endpoint: 'https://app.example/api/runners/v1' })),
   ...given,
 })
@@ -179,5 +180,14 @@ describe('create_runner_token', () => {
     create.mockClear()
     expect(await tool('create_runner_token').run({ name: 'Box' }, rejected.context)).toMatch(/did not approve/)
     expect(create).not.toHaveBeenCalled()
+  })
+
+  it('makes no runner for a caller who may create runners but not issue their tokens, which needs update', async () => {
+    const create = vi.fn()
+    const { context, approve } = contextWith({ create })
+    const answer = JSON.parse(await tool('create_runner_token', calls({ mayIssue: async () => false })).run({ name: 'Box' }, context))
+    expect(answer).toEqual({ error: 'forbidden', message: 'Making a runner with its install command needs both workflow_runners.create and workflow_runners.update; nothing was made.' })
+    expect(create).not.toHaveBeenCalled()
+    expect(approve).not.toHaveBeenCalled()
   })
 })

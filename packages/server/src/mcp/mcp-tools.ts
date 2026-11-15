@@ -45,7 +45,7 @@ export type McpToolsInput = {
 const writeTools = (input: WriteRecordToolsInput) => [...writeRecordTools(input), batchWriteTool(input)]
 
 // The custom steps' calls of the tools that only take up their names.
-const notCalled: CustomStepCalls = { test: () => Promise.reject(new Error('Not called')), online: () => Promise.reject(new Error('Not called')), register: () => Promise.reject(new Error('Not called')) }
+const notCalled: CustomStepCalls = { test: () => Promise.reject(new Error('Not called')), online: () => Promise.reject(new Error('Not called')), register: () => Promise.reject(new Error('Not called')), mayIssue: () => Promise.reject(new Error('Not called')) }
 
 // Every name a built-in tool may take, whatever the options: an own tool cannot take one that turning an option on would offer.
 const builtInNames = (db: Db) => new Set([...readRecordTools(), ...writeTools({}), ...commentTools({ commented: ['comments'] }, {}), readOnlyQueryTool(db), ...workflowReadTools({ types: [], checkWith: () => ({ resources: [], triggers: {} }), readTrace: async () => [] }), ...workflowWriteTools(), ...webhookTools({}, () => Promise.reject(new Error('Not called'))), ...taskTools({}, () => Promise.reject(new Error('Not called'))), ...customStepReadTools(notCalled), ...customStepWriteTools(notCalled)].map((tool) => tool.name))
