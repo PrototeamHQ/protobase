@@ -212,6 +212,26 @@ export const MadeThroughTheApi: StoryObj = { name: 'A workflow made through the 
 /** A contact form in data order, with Break, Make, Select and Matches nodes between its steps. */
 export const ContactForm: StoryObj = { name: 'A contact form in data order', render: () => <Workspace start="/workflows/5" /> }
 
+/** The pattern of the contact form's Matches node is typed on the node, which takes no wire, and saved. */
+export const MatchesPatternChecks: StoryObj = {
+  ...ContactForm,
+  name: 'Edits a Matches pattern on its node (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await nodeOf(canvasElement, 'AutoReply')
+    await userEvent.click(await canvas.findByRole('button', { name: 'Pins' }))
+    const matches = await waitFor(() => canvasElement.querySelector<HTMLElement>('.react-flow__node[data-id="when:AutoReply|"]')!)
+    expect(matches).toHaveTextContent('Matches')
+    const pattern = within(matches).getByRole('textbox', { name: 'Pattern value' })
+    await userEvent.clear(pattern)
+    await userEvent.type(pattern, '@')
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(stored).toBeDefined())
+    expect(((stored!.state_machine as Definition['stateMachine']).States.AutoReply as { Condition: string }).Condition).toBe('{% $contains($contact.email, /@/) %}')
+  },
+}
+
 /** A new workflow starts with a name and no steps; steps added through the picker connect as they come, and Save stores what the graph shows. */
 export const CreatesAndConnectsChecks: StoryObj = {
   ...NewWorkflow,
