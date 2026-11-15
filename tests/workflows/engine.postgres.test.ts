@@ -382,6 +382,15 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect((await refused.json()).type).toContain('rerun-no-trace')
   })
 
+  it("keeps no trace of a run whose workflow keeps none, when the run sets nothing of its own", async () => {
+    const id = await create('Quiet', { ...definition({ Done: { Type: 'Succeed', Output: '{% 1 %}' } }), trace: 'none' })
+    const quiet = await run(id, {})
+    await finished(quiet)
+    // The run's last segment would have joined its trace into a file by now
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    expect((await sql<{ trace_file: string | null }>`select trace_file from workflows.runs where id = ${quiet}`.execute(db)).rows[0]!.trace_file).toBeNull()
+  })
+
   it('starts a run from the app\'s own code inside the caller\'s transaction, or not at all when it rolls back', async () => {
     const id = await create('Inside', definition({ Done: { Type: 'Succeed', Output: '{% $states.context.Execution.Input %}' } }))
     await expect(db.transaction().execute(async (trx) => {

@@ -16,13 +16,14 @@ export const postgresRunStore = (schema: string): RunStore<Db> => {
   const checkpoints = sql.id(schema, 'checkpoints')
   return {
     load: async (db, id) => {
-      const { rows } = await sql<{ id: string; input: unknown; status: 'queued'; startedAt: Date; trace: TraceMode | null; blockOf: string | null; blockState: string | null; replay: boolean | null; rerun_of: string | null } & Record<string, unknown>>`select r.id, ${definitionColumns('v')}, r.input, r.status, r.created_at as "startedAt", r.trace, r.block_of as "blockOf", r.block_state as "blockState", r.replay, r.rerun_of, ${definitionColumns('rv', 'replayed_')}
+      const { rows } = await sql<{ id: string; input: unknown; status: 'queued'; startedAt: Date; runTrace: TraceMode | null; blockOf: string | null; blockState: string | null; replay: boolean | null; rerun_of: string | null } & Record<string, unknown>>`select r.id, ${definitionColumns('v')}, r.input, r.status, r.created_at as "startedAt", r.trace as "runTrace", r.block_of as "blockOf", r.block_state as "blockState", r.replay, r.rerun_of, ${definitionColumns('rv', 'replayed_')}
         from ${runs} r join ${versions} v on v.workflow_id = r.workflow_id and v.version = r.version
         left join ${runs} o on r.replay and o.id = r.rerun_of left join ${versions} rv on rv.workflow_id = o.workflow_id and rv.version = o.version
         where r.id = ${id}`.execute(db)
       if (!rows[0]) return
       // A replay stays one when the run it replays is gone (its key set to null): its writing steps then give nothing.
-      const { id: runId, input, status, startedAt, trace, blockOf, blockState, replay, rerun_of } = rows[0]
+      // The run's own trace setting, apart from its version's `trace`, which the definition columns select
+      const { id: runId, input, status, startedAt, runTrace: trace, blockOf, blockState, replay, rerun_of } = rows[0]
       const run = { id: runId, definition: definitionOfRow(rows[0])!, input, status, startedAt, trace, blockOf, blockState }
       const replayed = definitionOfRow(rows[0], 'replayed_') ?? null
       if (replay !== true) return run
