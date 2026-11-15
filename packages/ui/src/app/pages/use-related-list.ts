@@ -3,6 +3,7 @@ import type { ResourceModel } from '@protobase/schema'
 import { useList } from '../../data/use-list'
 import type { LayoutList } from './layout-list'
 import type { Planned } from './plan-reads'
+import { relatedListOf } from './related-list-of'
 
 type Request = {
   model: ResourceModel
@@ -30,14 +31,6 @@ export const useRelatedList = ({ model, filter, sort, perPage, more, planned }: 
   useEffect(() => {
     if (planned && expanded && !error && pages === 1 && hasNextPage && !isFetchingNextPage) void fetchNextPage()
   }, [planned, expanded, error, pages, hasNextPage, isFetchingNextPage, fetchNextPage])
-  if (filter === undefined) return { read: { isPending: false, error: null }, list: { model, items: [] } }
-  if (planned && !expanded) {
-    const items = planned.rows.slice(0, perPage)
-    const loadMore = more && items.length === perPage ? () => setExpanded(true) : undefined
-    return { read: planned, list: { model, items, planned: true, ...(loadMore && { loadMore }) } }
-  }
-  // While a planned list reads its first two pages, its planned rows stay, the button loading
-  if (planned && !query.error && pages < 2 && (pages === 0 || hasNextPage)) return { read: planned, list: { model, items: planned.rows.slice(0, perPage), loadMore: () => {}, loadingMore: true } }
-  const loadMore = more && query.hasNextPage ? () => void query.fetchNextPage() : undefined
-  return { read: { isPending: query.isPending, error: query.error }, list: { model, items: query.items, ...(loadMore && { loadMore, loadingMore: query.isFetchingNextPage }) } }
+  const own = { pages, items: query.items, hasNextPage, isFetchingNextPage, isPending: query.isPending, error, fetchNextPage }
+  return relatedListOf({ model, filter, perPage, more, planned, expanded, expand: () => setExpanded(true), own })
 }
