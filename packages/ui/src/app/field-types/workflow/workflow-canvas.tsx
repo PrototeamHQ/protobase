@@ -23,7 +23,7 @@ import { WireCheckContext, WireLine } from './pins/wire-line'
 import type { NodeTrace } from './node-trace'
 import type { NodeProblem } from './problems'
 import { useLayout } from './use-layout'
-import { layoutKey, placedBoxes, withoutKey, type ManualLayout } from './manual-layout'
+import { layoutKey, placedBoxes, withoutKey, workflowLayoutOf, type ManualLayout, type WorkflowLayout } from './manual-layout'
 import { UnpinContext } from './unpin-context'
 import { text } from './messages'
 
@@ -49,10 +49,13 @@ export type WorkflowCanvasProps = {
   schemas?: PinSchemas
   /** The canvas is the window, on a page that does not scroll: as a panel opens beside it, what was in its middle stays there. */
   fills?: boolean
-  /** Where nodes were moved by hand, by their layout keys, which the layout leaves where they were put. */
-  layout?: ManualLayout
-  /** Without it, no node is moved by hand: with it, a node dragged stays where it is let go, and Unpin and Tidy up hand nodes back to the layout. */
-  onLayoutChange?: (layout: ManualLayout) => void
+  /** Where nodes were moved by hand in each view, by their layout keys, which the layout leaves where they were put. */
+  layout?: WorkflowLayout
+  /**
+   * Without it, no node is moved by hand: with it, a node dragged stays where it is let go in the view shown, and Unpin
+   * and Tidy up hand that view's nodes back to the layout.
+   */
+  onLayoutChange?: (layout: WorkflowLayout) => void
 }
 
 // The machine a node's states lead within: the Maps it is inside, or the trigger's, the whole workflow's.
@@ -106,9 +109,11 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
   const pins = usePins(definition, graph, view === 'pins' ? schemas : undefined, onChange, frame)
   const laidOut = useLayout(graph, pins.layout)
   const byId = useMemo(() => new Map(graph.nodes.map((node) => [node.id, node])), [graph])
-  // The record hands the layout over anew on each render: it changes only when its JSON does
+  // The record hands the layout over anew on each render: it changes only when its JSON does. Each view keeps its own.
   const layoutJson = JSON.stringify(layout ?? {})
-  const manual = useMemo(() => JSON.parse(layoutJson) as ManualLayout, [layoutJson])
+  const whole = useMemo(() => workflowLayoutOf(layoutJson), [layoutJson])
+  const manual = whole[view]
+  const changeView = (next: ManualLayout) => onLayoutChange?.({ ...whole, [view]: next })
   // Each node's layout key, by its id on the graph, a Break's or a Make's its own
   const keys = useMemo(() => new Map([...graph.nodes.map((node): [string, string] => [node.id, layoutKey(node.id)]), ...(pins.data?.pure ?? []).map((pure): [string, string] => [pure.id, layoutKey(pure.id, pure)])]), [graph, pins.data])
   const moved = useMemo(() => new Map([...keys].flatMap(([id, key]) => (Object.hasOwn(manual, key) ? [[id, manual[key]!] as const] : []))), [keys, manual])
@@ -175,14 +180,14 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
       if (key === undefined || (!moved.has(id) && box && Math.round(box.x) === point.x && Math.round(box.y) === point.y)) return []
       return [[key, point]]
     })
-    if (placed.length > 0) onLayoutChange?.({ ...manual, ...Object.fromEntries(placed) })
+    if (placed.length > 0) changeView({ ...manual, ...Object.fromEntries(placed) })
   }
   const unpin = onLayoutChange && ((node: string) => {
     const key = keys.get(graphId(node))
-    if (key !== undefined) onLayoutChange(withoutKey(manual, key))
+    if (key !== undefined) changeView(withoutKey(manual, key))
   })
   const tidy = () => {
-    onLayoutChange?.({})
+    changeView({})
     setTidied((count) => count + 1)
   }
   const onNodesChange = (changes: NodeChange<FlowNode>[]) => {
@@ -315,8 +320,8 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
  * The workflow's graph on a canvas, laid out by ELK each time it changes: the trigger, a node per state, a Map's states
  * inside it, and an edge per state it leads to. With `onChange`, dragging from a handle connects states, a click on
  * one asks `onAddAt` for a step there, Delete removes the chosen state or edge, and each change is the definition edited.
- * With `onLayoutChange`, a node dragged stays where it is let go, marked, until Unpin on it or Tidy up hands it back to
- * ELK, which lays the others out around it.
+ * With `onLayoutChange`, a node dragged stays where it is let go in the view shown, Pins or Simple, each keeping its own
+ * places, marked, until Unpin on it or Tidy up hands it back to ELK, which lays the others out around it.
  */
 export const WorkflowCanvas = (props: WorkflowCanvasProps) => (
   <ReactFlowProvider>

@@ -4,7 +4,7 @@ import { useFocusRecord } from '../../focus/focus-record'
 import { useAppAddress } from '../../use-app-address'
 import { useRunTrace } from '../workflow-run/use-run-trace'
 import { recordDefinition } from '../workflow/definition'
-import { manualLayoutOf } from '../workflow/manual-layout'
+import { workflowLayoutOf } from '../workflow/manual-layout'
 import { workflowsResource, type WorkflowView } from './workflow-view'
 
 /** The most versions the version selector offers, the latest first: one page of the API. */
@@ -49,7 +49,7 @@ export const useWorkflowPage = (view: WorkflowView) => {
     shown,
     pastDefinition: past.data && recordDefinition(past.data.record),
     // As the version looked when it was saved
-    pastLayout: past.data && manualLayoutOf(past.data.record.layout),
+    pastLayout: past.data && workflowLayoutOf(past.data.record.layout),
     versionsError: versions.error,
     runsError: runs.error,
     pastError: past.error,

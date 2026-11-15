@@ -1,15 +1,23 @@
 import { splitPath, triggerId } from './definition'
 import type { Box } from './graph-layout'
 import type { PureNode } from './pins/data-graph'
+import type { GraphView } from './pins/graph-view'
+import { statusKey } from './pins/node-pins'
 
 /** Where a node's top left corner is, within the Map or Block it is inside or else the canvas. */
 export type Point = { x: number; y: number }
 
-/**
- * Where nodes were moved by hand, by their layout keys, as a workflow's `layout` field keeps them for everyone who edits
- * it: ELK lays out every node it does not name.
- */
+/** Where nodes were moved by hand in one view of the graph, by their layout keys: ELK lays out every node it does not name. */
 export type ManualLayout = Readonly<Record<string, Point>>
+
+/**
+ * A workflow's `layout` field, kept for everyone who edits it: the nodes moved by hand in each view of the graph, Pins
+ * and Simple, each view's its own, so moving a node in one leaves it where it is in the other.
+ */
+export type WorkflowLayout = Readonly<Record<GraphView, ManualLayout>>
+
+/** The views a layout keeps, as its field holds them. */
+export const layoutViews: readonly GraphView[] = ['pins', 'simple']
 
 /** The key of the trigger's node, and before the fields of the run's input that Break nodes take apart; no state's name. */
 export const triggerLayoutKey = '$trigger'
@@ -18,34 +26,45 @@ const isObject = (value: unknown): value is Record<string, unknown> => typeof va
 
 const isPoint = (value: unknown): value is Point => isObject(value) && Number.isFinite(value.x) && Number.isFinite(value.y)
 
+const pointsOf = (value: unknown): ManualLayout => (isObject(value) ? Object.fromEntries(Object.entries(value).flatMap(([key, point]) => (isPoint(point) ? [[key, { x: point.x, y: point.y }]] : []))) : {})
+
 /**
- * The layout a workflow's field holds, as its value or the JSON text a draft keeps it as: each position with a finite
- * `x` and `y`, read as those two alone, and nothing of what else it holds.
+ * The layout a workflow's field holds, as its value or the JSON text a draft keeps it as: in each view, each position
+ * with a finite `x` and `y`, read as those two alone, and nothing of what else it holds.
  */
-export const manualLayoutOf = (value: unknown): ManualLayout => {
+export const workflowLayoutOf = (value: unknown): WorkflowLayout => {
   let given = value
   if (typeof value === 'string') {
     try {
       given = JSON.parse(value)
     } catch {
-      return {}
+      given = undefined
     }
   }
-  if (!isObject(given)) return {}
-  return Object.fromEntries(Object.entries(given).flatMap(([key, point]) => (isPoint(point) ? [[key, { x: point.x, y: point.y }]] : [])))
+  const views = isObject(given) ? given : {}
+  return { pins: pointsOf(views.pins), simple: pointsOf(views.simple) }
 }
 
+/**
+ * A name or a field as a part of a key: `%`, `.` and a leading `#` or `$` written as `%25`, `%2E`, `%23` and `%24`, so
+ * a part is never read as two, and no part is taken for the trigger's key or a node's kind, which `#` starts.
+ */
+export const keyPart = (part: string) => part.replaceAll('%', '%25').replaceAll('.', '%2E').replace(/^#/, '%23').replace(/^\$/, '%24')
+
 // A node's part of a key: a state's name, which is unique across the workflow, or the trigger's key
-const nameOf = (id: string) => (id === triggerId ? triggerLayoutKey : splitPath(id).name)
+const nameOf = (id: string) => (id === triggerId ? triggerLayoutKey : keyPart(splitPath(id).name))
+
+// Where a value is in what a node gives, a status by its pin's own `#status`
+const pathPart = (path: readonly string[]) => path.map((field) => (field === statusKey ? statusKey : keyPart(field)))
 
 /**
- * The key a node's position is kept under: a state's name, the trigger's key, a Break's the value it takes apart, such
- * as `Save.record`, and a Make's the argument it builds, such as `Save.Arguments.data`. Every key but the trigger's
- * starts with the name of its state, so a save drops those of a state removed.
+ * The key a node's position is kept under: a state's name; the trigger's key; a Break's the value it takes apart, such
+ * as `Save.record`, or `Save.#break` for the whole of what a step gives; and a Make's the argument it builds, such as
+ * `Save.#make.data`. Every key but the trigger's starts with its state's name, so a save drops those of a state removed.
  */
 export const layoutKey = (id: string, pure?: PureNode) => {
-  if (pure?.kind === 'break') return [nameOf(pure.source), ...pure.path].join('.')
-  if (pure?.kind === 'make') return [nameOf(pure.target), 'Arguments', pure.key].join('.')
+  if (pure?.kind === 'break') return [nameOf(pure.source), ...(pure.path.length === 0 ? ['#break'] : pathPart(pure.path))].join('.')
+  if (pure?.kind === 'make') return [nameOf(pure.target), '#make', keyPart(pure.key)].join('.')
   return nameOf(id)
 }
 

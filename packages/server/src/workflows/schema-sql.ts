@@ -124,8 +124,8 @@ alter table ${s}."${table}" drop column if exists "definition"`
 }
 
 /**
- * Where the editor's nodes were moved by hand, on a workflow and on each of its versions, which no run reads: a save
- * that changes only it makes no new version. Added to a schema made before, empty on every workflow and version.
+ * Where the editor's nodes were moved by hand, in each view of its graph, on a workflow and on each of its versions,
+ * which no run reads: a save that changes only it makes no new version. Added to a schema made before, empty on every workflow and version.
  */
 export const layoutSql = (schema: string) => {
   const s = quoteIdent(schema)
@@ -133,8 +133,11 @@ export const layoutSql = (schema: string) => {
 alter table ${s}."versions" add column if not exists "layout" jsonb not null default '{}'::jsonb`
 }
 
-/** The key a layout keeps the trigger's node, and the Break nodes of the run's input, under; no state is named so. */
+/** The key a layout keeps the trigger's node, and the Break nodes of the run's input, under; no state's name is written so. */
 export const triggerLayoutKey = '$trigger'
+
+/** The views of the editor's graph a layout keeps positions for, each its own: only Pins draws Break and Make nodes. */
+export const layoutViews = ['pins', 'simple'] as const
 
 /** The per-step table runs kept before checkpoints and the trace, which nothing reads or writes; its indexes go with it. */
 export const droppedSql = (schema: string) => `drop table if exists ${quoteIdent(schema)}."steps"`
@@ -257,8 +260,10 @@ export const functionsSql = (schema: string) => {
 alter table ${s}."workflows" alter column "state_machine" set default '{"QueryLanguage":"JSONata","StartAt":"","States":{}}'::jsonb;
 alter table ${s}."workflows" alter column "trigger" set default '{"manual":{}}'::jsonb;
 
--- The layout a definition keeps: only positions under the trigger's key or a state's name, alone or before a dot, as a
--- Break or a Make of that state is kept, so a state removed takes its positions along; a layout that is no object is none.
+-- The layout a definition keeps: each view's own positions, Pins' and Simple's, of the views it knows alone. In each, a
+-- position only under the trigger's key or a state's name as keys write it ('%', '.' and a leading '#' or '$' escaped),
+-- and in Pins also before a dot, as a Break or a Make of that state is kept, so a state removed takes its positions
+-- along; a layout or a view that is no object is none.
 create or replace function ${s}."kept_layout"(layout jsonb, machine jsonb) returns jsonb
 language sql immutable as $$
   with recursive machines(states) as (
@@ -269,11 +274,19 @@ language sql immutable as $$
       lateral (select case state.value ->> 'Type' when 'Map' then state.value -> 'ItemProcessor' else state.value -> 'Processor' end as inner_machine) as held
     where jsonb_typeof(state.value) = 'object' and state.value ->> 'Type' in ('Map', 'Block')
   ), names(name) as (
-    select jsonb_object_keys(states) from machines union select '${triggerLayoutKey}'
+    select regexp_replace(regexp_replace(replace(replace(state.name, '%', '%25'), '.', '%2E'), '^#', '%23'), '^\\$', '%24') from machines, jsonb_object_keys(machines.states) as state(name)
+    union select '${triggerLayoutKey}'
+  ), views(view, positions) as (
+    select key, case when jsonb_typeof(value) = 'object' then value else '{}'::jsonb end
+    from jsonb_each(case when jsonb_typeof(layout) = 'object' then layout else '{}'::jsonb end)
+    where key in (${layoutViews.map((view) => `'${view}'`).join(', ')})
   )
-  select coalesce(jsonb_object_agg(kept.key, kept.value), '{}'::jsonb)
-  from jsonb_each(case when jsonb_typeof(layout) = 'object' then layout else '{}'::jsonb end) as kept
-  where exists (select from names where kept.key = names.name or starts_with(kept.key, names.name || '.'))
+  select coalesce(jsonb_object_agg(views.view, (
+    select coalesce(jsonb_object_agg(kept.key, kept.value), '{}'::jsonb)
+    from jsonb_each(views.positions) as kept
+    where exists (select from names where kept.key = names.name or (views.view = 'pins' and starts_with(kept.key, names.name || '.')))
+  )), '{}'::jsonb)
+  from views
 $$;
 
 create or replace function ${s}."workflow_version"() returns trigger

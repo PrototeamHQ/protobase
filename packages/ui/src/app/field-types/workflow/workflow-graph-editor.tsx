@@ -13,7 +13,7 @@ import { ProblemList } from './problem-list'
 import { definitionProblems, problemsByNode, warningsByNode } from './problems'
 import { WorkflowCanvas } from './workflow-canvas'
 import { usePinSchemas } from './pins/pin-schemas'
-import type { ManualLayout } from './manual-layout'
+import type { WorkflowLayout } from './manual-layout'
 import { text } from './messages'
 
 export type WorkflowGraphEditorProps = {
@@ -25,10 +25,10 @@ export type WorkflowGraphEditorProps = {
   onChange?: (definition: Definition) => void
   /** What the side panel says first, such as that the version shown is only read. */
   notice?: ReactNode
-  /** Where nodes were moved by hand. */
-  layout?: ManualLayout
+  /** Where nodes were moved by hand in each view. */
+  layout?: WorkflowLayout
   /** Without it, nodes are not moved by hand. */
-  onLayoutChange?: (layout: ManualLayout) => void
+  onLayoutChange?: (layout: WorkflowLayout) => void
 }
 
 // A new state goes into the Map or Block chosen, or the one the chosen state is in, else into the workflow itself.

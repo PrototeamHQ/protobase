@@ -19,11 +19,13 @@ export const definitionParameters = {
 /**
  * Where the editor's nodes were moved by hand, which no run reads: a save that changes only it makes no new version.
  */
+const positions = { type: 'object', additionalProperties: { type: 'object', properties: { x: { type: 'number' }, y: { type: 'number' } } } }
+
 export const layoutParameter = {
   type: 'object',
   description:
-    'Where nodes of the editor\'s graph were moved by hand, { "<key>": { "x": <number>, "y": <number> } }, which no run reads; the editor lays out every node it does not name. A step\'s key is its name, the trigger\'s "$trigger", a Break\'s the value it takes apart (such as "Save.record") and a Make\'s the argument it builds (such as "Save.Arguments.data"); a position inside a Map or Block is from its top left corner. Keys of states the workflow no longer has are dropped; {} lays out every node. A save that changes only the layout makes no new version. Written whole.',
-  additionalProperties: { type: 'object', properties: { x: { type: 'number' }, y: { type: 'number' } } },
+    'Where nodes of the editor\'s graph were moved by hand in each of its views, which no run reads: { "pins": { "<key>": { "x": <number>, "y": <number> } }, "simple": { ... } }, each view its own, so a node moved in one stays where it is in the other; the editor lays out every node a view does not name. A step\'s key is its name, the trigger\'s "$trigger"; in pins only, a Break\'s the value it takes apart (such as "Save.record", or "Save.#break" for a step\'s whole result) and a Make\'s the argument it builds (such as "Save.#make.data"). In a name or field, %, . and a leading # or $ are written %25, %2E, %23 and %24. A position inside a Map or Block is from its top left corner. Other views, and keys of states the workflow no longer has, are dropped; {} lays out every node. A save that changes only the layout makes no new version. Written whole.',
+  properties: { pins: positions, simple: positions },
 }
 
 /** The layout an MCP call gives, as a workflow record's data: none when it gives no object. */

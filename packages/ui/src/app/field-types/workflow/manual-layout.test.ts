@@ -2,18 +2,20 @@ import { describe, expect, it } from 'vitest'
 import { pinType } from '@protobase/workflows'
 import { triggerId } from './definition'
 import type { Box } from './graph-layout'
-import { layoutKey, manualLayoutOf, placedBoxes, triggerLayoutKey, withoutKey } from './manual-layout'
+import { keyPart, layoutKey, placedBoxes, triggerLayoutKey, withoutKey, workflowLayoutOf } from './manual-layout'
 import { breakId, makeId } from './pins/pure-ids'
 import { statusKey } from './pins/node-pins'
 
 const box = (x: number, y: number, width = 100, height = 50): Box => ({ x, y, width, height })
 const overlap = (a: Box, b: Box) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
 
-describe('manualLayoutOf', () => {
-  it('reads each position with a finite x and y, from the value or its JSON text, and nothing else', () => {
-    expect(manualLayoutOf({ Save: { x: 420, y: 180, note: 'left out' }, Odd: { x: '1', y: 2 }, Far: { x: Infinity, y: 0 }, None: null })).toEqual({ Save: { x: 420, y: 180 } })
-    expect(manualLayoutOf('{"Save":{"x":1,"y":2}}')).toEqual({ Save: { x: 1, y: 2 } })
-    for (const nothing of [undefined, null, '', 'not json', [1], 3]) expect(manualLayoutOf(nothing)).toEqual({})
+describe('workflowLayoutOf', () => {
+  it("reads each view's positions with a finite x and y, from the value or its JSON text, and nothing else", () => {
+    const pins = { Save: { x: 420, y: 180, note: 'left out' }, Odd: { x: '1', y: 2 }, Far: { x: Infinity, y: 0 }, None: null }
+    expect(workflowLayoutOf({ pins, simple: { Save: { x: 1, y: 2 } }, other: { Save: { x: 3, y: 4 } } })).toEqual({ pins: { Save: { x: 420, y: 180 } }, simple: { Save: { x: 1, y: 2 } } })
+    expect(workflowLayoutOf('{"simple":{"Save":{"x":1,"y":2}}}')).toEqual({ pins: {}, simple: { Save: { x: 1, y: 2 } } })
+    expect(workflowLayoutOf({ pins: [1], simple: 'no' })).toEqual({ pins: {}, simple: {} })
+    for (const nothing of [undefined, null, '', 'not json', [1], 3]) expect(workflowLayoutOf(nothing)).toEqual({ pins: {}, simple: {} })
   })
 })
 
@@ -25,7 +27,20 @@ describe('layoutKey', () => {
     expect(layoutKey(breakId('Each/Save', ['record']), { kind: 'break', id: breakId('Each/Save', ['record']), source: 'Each/Save', path: ['record'], type, outputs: [] })).toBe('Save.record')
     expect(layoutKey(breakId(triggerId, ['customer']), { kind: 'break', id: breakId(triggerId, ['customer']), source: triggerId, path: ['customer'], type, outputs: [] })).toBe('$trigger.customer')
     expect(layoutKey(breakId('Save', [statusKey]), { kind: 'break', id: breakId('Save', [statusKey]), source: 'Save', path: [statusKey], type, outputs: [] })).toBe('Save.#status')
-    expect(layoutKey(makeId('Save', 'record'), { kind: 'make', id: makeId('Save', 'record'), target: 'Save', key: 'record', type, inputs: [] })).toBe('Save.Arguments.record')
+    expect(layoutKey(makeId('Save', 'record'), { kind: 'make', id: makeId('Save', 'record'), target: 'Save', key: 'record', type, inputs: [] })).toBe('Save.#make.record')
+  })
+
+  it('keys a Break of the whole of what a step gives apart from the step, and every node apart from every other', () => {
+    const type = pinType(undefined)
+    const broken = (source: string, path: string[]) => layoutKey(breakId(source, path), { kind: 'break', id: breakId(source, path), source, path, type, outputs: [] })
+    const made = (target: string, key: string) => layoutKey(makeId(target, key), { kind: 'make', id: makeId(target, key), target, key, type, inputs: [] })
+    expect(broken('Save', [])).toBe('Save.#break')
+    expect(broken(triggerId, [])).toBe('$trigger.#break')
+    const keys = [layoutKey('Save'), broken('Save', []), broken('Save', ['#break']), broken('Save', ['a', 'b']), broken('Save', ['a.b']), broken('Save', ['#make', 'data']), made('Save', 'data'), layoutKey('Save.a'), layoutKey('$trigger'), layoutKey(triggerId), broken('Save', ['%2E'])]
+    expect(new Set(keys).size).toBe(keys.length)
+    expect(keys).toContain('Save.a%2Eb')
+    expect(keyPart('$trigger')).toBe('%24trigger')
+    expect(keyPart('#x.y%')).toBe('%23x%2Ey%25')
   })
 
   it('forgets one position, keeping the others', () => {

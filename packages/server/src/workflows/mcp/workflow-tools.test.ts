@@ -148,7 +148,7 @@ describe('create_workflow', () => {
   it('saves the layout it is given beside the definition, and only an object as one', async () => {
     const create = vi.fn(async () => saved)
     const { context } = contextWith({ create })
-    const layout = { Fetch: { x: 420, y: 180 } }
+    const layout = { pins: { Fetch: { x: 420, y: 180 } }, simple: {} }
     await createWorkflowTool().run({ name: 'Fetch', ...fetchUrl('https://a.example'), layout }, context)
     await createWorkflowTool().run({ name: 'Fetch', ...fetchUrl('https://a.example'), layout: [1] }, context)
     expect(create.mock.calls.map((call) => (call as unknown[])[1])).toEqual([{ name: 'Fetch', ...fetchUrl('https://a.example'), layout }, { name: 'Fetch', ...fetchUrl('https://a.example') }])
@@ -257,9 +257,9 @@ describe('update_workflow', () => {
     expect(update.mock.calls.map((call) => (call as unknown[]).slice(2))).toEqual([[fetchUrl('https://c.example'), {}], [{ name: 'Renamed' }, {}], [{ execution_order: 'data' }, {}]])
     // The layout goes whole, alone or beside an edit, which it is no part of
     update.mockClear()
-    await updateWorkflowTool().run({ id: 'w1', layout: { Fetch: { x: 1, y: 2 } } }, context)
+    await updateWorkflowTool().run({ id: 'w1', layout: { simple: { Fetch: { x: 1, y: 2 } } } }, context)
     await updateWorkflowTool().run({ id: 'w1', edit: { state_machine: { States: { Fetch: { Arguments: { url: 'https://d.example' } } } } }, layout: {} }, context)
-    expect(update.mock.calls.map((call) => (call as unknown[])[2])).toEqual([{ layout: { Fetch: { x: 1, y: 2 } } }, { state_machine: fetchUrl('https://d.example').state_machine, layout: {} }])
+    expect(update.mock.calls.map((call) => (call as unknown[])[2])).toEqual([{ layout: { simple: { Fetch: { x: 1, y: 2 } } } }, { state_machine: fetchUrl('https://d.example').state_machine, layout: {} }])
     expect(await updateWorkflowTool().run({ id: 'w1', edit: {}, ...fetchUrl('x') }, context)).toMatch(/^Pass/)
     expect(await updateWorkflowTool().run({ id: 'w1' }, context)).toMatch(/nothing was saved/)
   })

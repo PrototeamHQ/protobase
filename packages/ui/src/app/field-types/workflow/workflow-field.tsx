@@ -11,7 +11,7 @@ import { useWorkflowView } from '../workflow-page/use-workflow-page'
 import { useWorkflowTypes } from './use-workflow-types'
 import { text } from './messages'
 import { toFieldDraft } from '../../../live/field-values'
-import { manualLayoutOf, type ManualLayout } from './manual-layout'
+import { workflowLayoutOf, type WorkflowLayout } from './manual-layout'
 
 // React Flow, ELK and the definition's check load with the first workflow drawn, not with the app.
 const WorkflowGraphEditor = lazy(() => import('./workflow-graph-editor').then((module) => ({ default: module.WorkflowGraphEditor })))
@@ -57,8 +57,8 @@ const useDefinition = (value: unknown, onChange?: (stateMachine: unknown) => voi
     })
   // Where nodes were moved by hand, beside the definition: a field of the record, which a record from before it lacks
   const layoutField = focus?.model.fields.layout
-  const layout = layoutField ? manualLayoutOf(focus.value('layout')) : undefined
-  const changeLayout = onChange && layoutField && ((next: ManualLayout) => focus.change('layout', toFieldDraft(layoutField, next)))
+  const layout = layoutField ? workflowLayoutOf(focus.value('layout')) : undefined
+  const changeLayout = onChange && layoutField && ((next: WorkflowLayout) => focus.change('layout', toFieldDraft(layoutField, next)))
   return { definition, change, layout, changeLayout }
 }
 

@@ -17,7 +17,7 @@ import { ProblemList } from '../workflow/problem-list'
 import { definitionProblems, isMissing, problemsByNode, warningsByNode, withoutMissing } from '../workflow/problems'
 import { WorkflowCanvas } from '../workflow/workflow-canvas'
 import { usePinSchemas } from '../workflow/pins/pin-schemas'
-import type { ManualLayout } from '../workflow/manual-layout'
+import type { WorkflowLayout } from '../workflow/manual-layout'
 import { text as graphText } from '../workflow/messages'
 import { usePermissions } from '../../meta-gate'
 import { can } from '../../permissions'
@@ -49,10 +49,10 @@ export type WorkflowWorkbenchProps = {
   types: WorkflowTypeList
   /** Without it, the latest version is only shown, as to someone who may not change it. */
   onChange?: (definition: Definition) => void
-  /** Where nodes of the latest version were moved by hand, with its unsaved changes. */
-  layout?: ManualLayout
+  /** Where nodes of the latest version were moved by hand in each view, with its unsaved changes. */
+  layout?: WorkflowLayout
   /** Without it, nodes of the latest version are not moved by hand. */
-  onLayoutChange?: (layout: ManualLayout) => void
+  onLayoutChange?: (layout: WorkflowLayout) => void
 }
 
 /** What the end panel shows by a button of the bar; with none, it shows the step chosen. */

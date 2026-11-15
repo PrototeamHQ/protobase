@@ -260,36 +260,46 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(await renamed.json()).toMatchObject({ name: 'Renamed', version: 2 })
   })
 
-  it('keeps where nodes were moved beside the definition: alone it makes no version and leaves nothing to publish', async () => {
+  it('keeps where nodes were moved in each view beside the definition: alone it makes no version and leaves nothing to publish', async () => {
     const steps = (output: string, more = {}) => definition({ Echo: { Type: 'Pass', Output: output, Next: 'Done' }, Done: { Type: 'Succeed' }, ...more })
     const id = await create('Moved', steps('one'))
     const read = async () => (await as('ada', `/workflows/${id}`)).json()
     const versions = async () => (await sql<{ version: number; layout: unknown }>`select version, layout from workflows.versions where workflow_id = ${id} order by version`.execute(db)).rows
-    expect(await read()).toMatchObject({ version: 1, layout: {} })
+    expect(await read()).toMatchObject({ version: 1 })
+    expect((await read()).layout).toEqual({})
     expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { enabled_version: 1 } })).status).toBe(200)
-    // Keys of no state go, positions keep what they hold besides x and y, and a save takes the layout as it is
-    const layout = { Echo: { x: 420, y: 180 }, 'Echo.result': { x: 600, y: 200, note: 'kept' }, Done: { x: 900, y: 40 }, $trigger: { x: 0, y: 0 }, Gone: { x: 1, y: 1 }, 'Gone.record': { x: 2, y: 2 } }
-    const moved = await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { layout } })
+    // Each view keeps its own: keys of no state go, Simple keeps no Break or Make, and positions keep what they hold
+    // besides x and y; views the editor has not go, and a view that is no object is none
+    const pins = { Echo: { x: 420, y: 180 }, 'Echo.result': { x: 600, y: 200, note: 'kept' }, 'Echo.#break': { x: 5, y: 5 }, Done: { x: 900, y: 40 }, $trigger: { x: 0, y: 0 }, Gone: { x: 1, y: 1 }, 'Gone.record': { x: 2, y: 2 } }
+    const simple = { Echo: { x: 10, y: 10 }, 'Echo.result': { x: 3, y: 3 }, Gone: { x: 1, y: 1 } }
+    const moved = await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { layout: { pins, simple, other: { Echo: { x: 1, y: 1 } } } } })
     expect(moved.status).toBe(200)
-    const kept = { Echo: layout.Echo, 'Echo.result': layout['Echo.result'], Done: layout.Done, $trigger: layout.$trigger }
-    expect(await moved.json()).toMatchObject({ version: 1, enabled_version: 1, layout: kept })
+    const kept = { pins: { Echo: pins.Echo, 'Echo.result': pins['Echo.result'], 'Echo.#break': pins['Echo.#break'], Done: pins.Done, $trigger: pins.$trigger }, simple: { Echo: simple.Echo } }
+    const movedRow = await moved.json()
+    expect(movedRow).toMatchObject({ version: 1, enabled_version: 1 })
+    expect(movedRow.layout).toEqual(kept)
     expect(await versions()).toEqual([{ version: 1, layout: {} }])
+    expect((await (await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { layout: { pins: [1], simple } } })).json()).layout).toEqual({ pins: {}, simple: { Echo: simple.Echo } })
     // A layout that is no object is none
-    expect(await (await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { layout: [1, 2] } })).json()).toMatchObject({ version: 1, layout: {} })
-    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { layout } })).status).toBe(200)
+    expect((await (await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { layout: [1, 2] } })).json()).layout).toEqual({})
+    expect((await read()).version).toBe(1)
+    expect((await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { layout: { pins, simple } } })).status).toBe(200)
     // A changed definition is the next version, with the layout it has then, less the states it lost
     const changed = await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { ...definitionFields(definition({ Echo: { Type: 'Pass', Output: 'two', End: true } })) } })
-    expect(await changed.json()).toMatchObject({ version: 2, enabled_version: 1, layout: { Echo: layout.Echo, 'Echo.result': layout['Echo.result'], $trigger: layout.$trigger } })
+    const lost = { pins: { Echo: pins.Echo, 'Echo.result': pins['Echo.result'], 'Echo.#break': pins['Echo.#break'], $trigger: pins.$trigger }, simple: { Echo: simple.Echo } }
+    const changedRow = await changed.json()
+    expect(changedRow).toMatchObject({ version: 2, enabled_version: 1 })
+    expect(changedRow.layout).toEqual(lost)
     // Moved again afterwards, the version keeps the layout it was saved with
-    expect(await (await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { layout: { Echo: { x: 10, y: 20 } } } })).json()).toMatchObject({ version: 2, layout: { Echo: { x: 10, y: 20 } } })
-    expect(await versions()).toEqual([{ version: 1, layout: {} }, { version: 2, layout: { Echo: layout.Echo, 'Echo.result': layout['Echo.result'], $trigger: layout.$trigger } }])
+    const again = await (await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { layout: { simple: { Echo: { x: 10, y: 20 } } } } })).json()
+    expect([again.version, again.layout]).toEqual([2, { simple: { Echo: { x: 10, y: 20 } } }])
+    expect(await versions()).toEqual([{ version: 1, layout: {} }, { version: 2, layout: lost }])
     const { items } = await (await as('ada', `/workflow_versions?filter=${encodeURIComponent(`workflow_id = "${id}"`)}`)).json()
-    expect(items.map((item: { version: number; layout: unknown }) => [item.version, item.layout])).toEqual([[1, {}], [2, { Echo: layout.Echo, 'Echo.result': layout['Echo.result'], $trigger: layout.$trigger }]])
-    // A state inside a Map or a Block keeps its place, as the Map does
-    const inside = { Each: { Type: 'Map', Items: '{% [1] %}', ItemProcessor: { StartAt: 'Item', States: { Item: { Type: 'Pass', End: true } } }, End: true } }
-    const nested = await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { ...definitionFields(definition(inside)), layout: { Each: { x: 1, y: 1 }, Item: { x: 24, y: 48 }, 'Item.value': { x: 3, y: 3 }, Echo: { x: 1, y: 1 } } } })
-    expect(await nested.json()).toMatchObject({ version: 3, layout: { Each: { x: 1, y: 1 }, Item: { x: 24, y: 48 }, 'Item.value': { x: 3, y: 3 } } })
-    expect((await read()).layout).not.toHaveProperty('Echo')
+    expect(items.map((item: { version: number; layout: unknown }) => [item.version, item.layout])).toEqual([[1, {}], [2, lost]])
+    // A state inside a Map or a Block keeps its place, as the Map does; a name is matched as keys write it
+    const inside = { Each: { Type: 'Map', Items: '{% [1] %}', ItemProcessor: { StartAt: 'Item.one', States: { 'Item.one': { Type: 'Pass', End: true } } }, End: true } }
+    const nested = await as('ada', `/workflows/${id}`, { method: 'PATCH', body: { ...definitionFields(definition(inside)), layout: { pins: { Each: { x: 1, y: 1 }, 'Item%2Eone': { x: 24, y: 48 }, 'Item%2Eone.value': { x: 3, y: 3 }, 'Item.one': { x: 4, y: 4 }, Echo: { x: 1, y: 1 } } } } })
+    expect((await nested.json()).layout).toEqual({ pins: { Each: { x: 1, y: 1 }, 'Item%2Eone': { x: 24, y: 48 }, 'Item%2Eone.value': { x: 3, y: 3 } } })
   })
 
   it('adds the layout to a schema of the version before it, empty on every workflow and version', async () => {

@@ -214,7 +214,7 @@ export const MovesByHandChecks: StoryObj = {
     expect(await canvas.findByRole('button', { name: 'Unpin Done' })).toBeVisible()
     const moved = done.style.transform
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(stored?.layout).toEqual({ Done: { x: expect.any(Number), y: expect.any(Number) } }))
+    await waitFor(() => expect(stored?.layout).toEqual({ pins: { Done: { x: expect.any(Number), y: expect.any(Number) } }, simple: {} }))
     expect(stored?.state_machine).toEqual(ticketsWorkflow.stateMachine)
     // Saved, it is still where it was put
     await waitFor(() => expect(canvas.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-disabled', 'true'))
@@ -260,7 +260,51 @@ export const TidiesUpChecks: StoryObj = {
     expect(canvas.queryByRole('button', { name: /^Unpin/ })).toBeNull()
     expect(canvas.queryByRole('button', { name: 'Tidy up' })).toBeNull()
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
-    await waitFor(() => expect(stored?.layout).toEqual({}))
+    await waitFor(() => expect(stored?.layout).toEqual({ pins: {}, simple: {} }))
+  },
+}
+
+/**
+ * Pins and Simple each keep their own places: a node moved in one stays where the layout puts it in the other, and Tidy
+ * up forgets only the places of the view shown.
+ */
+export const MovesByViewChecks: StoryObj = {
+  ...MadeThroughTheApi,
+  name: 'Keeps the nodes moved in Pins and in Simple apart (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const view = (name: 'Pins' | 'Simple') => userEvent.click(canvas.getByRole('button', { name }))
+    const marked = (name: string) => canvas.queryByRole('button', { name: `Unpin ${name}` }) !== null
+    await laidOut(canvasElement, 8)
+    await drag(await nodeOf(canvasElement, 'Done'), 40, 160)
+    await canvas.findByRole('button', { name: 'Unpin Done' })
+    await view('Simple')
+    await waitFor(() => expect(canvas.queryByRole('button', { name: 'Unpin Done' })).toBeNull())
+    await laidOut(canvasElement, 8)
+    expect((await nodeOf(canvasElement, 'Done')).getAttribute('aria-label')).not.toMatch(/Moved by hand/)
+    await drag(await nodeOf(canvasElement, 'Failed'), -60, 120)
+    await canvas.findByRole('button', { name: 'Unpin Failed' })
+    expect(marked('Done')).toBe(false)
+    await view('Pins')
+    await canvas.findByRole('button', { name: 'Unpin Done' })
+    expect(marked('Failed')).toBe(false)
+    // Tidy up in Pins leaves Simple's places
+    await userEvent.click(canvas.getByRole('button', { name: 'Tidy up' }))
+    await waitFor(() => expect(marked('Done')).toBe(false))
+    await view('Simple')
+    await canvas.findByRole('button', { name: 'Unpin Failed' })
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(stored?.layout).toEqual({ pins: {}, simple: { Failed: { x: expect.any(Number), y: expect.any(Number) } } }))
+    // Unpin in Simple leaves Pins' places
+    await view('Pins')
+    await drag(await nodeOf(canvasElement, 'Any'), 20, 140)
+    await canvas.findByRole('button', { name: 'Unpin Any' })
+    await view('Simple')
+    await userEvent.click(await canvas.findByRole('button', { name: 'Unpin Failed' }))
+    await waitFor(() => expect(marked('Failed')).toBe(false))
+    await view('Pins')
+    expect(await canvas.findByRole('button', { name: 'Unpin Any' })).toBeVisible()
   },
 }
 
