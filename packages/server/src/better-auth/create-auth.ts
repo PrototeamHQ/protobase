@@ -710,6 +710,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
       list: async (session: Session) => listConnections({ findAccounts: async (userId) => (await auth.$context).internalAdapter.findAccounts(userId), connections: resolvedConnections, events }, session.user.id),
       revokeSealed: sealedRevoker(resolvedConnections, async () => (await context()).secretConfig, allowPrivateAddresses),
     },
+    /** The app's secret, with the ones it rotated through, as `sealToken` seals with it and Better Auth reads it back. */
+    secretKey: async () => (await context()).secretConfig,
     /** The OAuth provider for MCP clients, when on: the endpoint's resource (its URL) and path, and the scope its tokens carry. */
     mcp: mcp && { resource: mcp.resource, path: mcp.path, scope: mcpScope },
     /** The OAuth resource of the app's API, when clients may get tokens for it (`oauth.api`): the audience the API takes them with. */

@@ -1,5 +1,4 @@
 import type { TaskState } from '../definition/types'
-import { customPlugin } from '../plugin/custom-steps'
 import { limits } from '../limits'
 import type { SegmentContext } from './context'
 import { StepError, SupersededError } from './errors'
@@ -14,12 +13,10 @@ const aborted = (signal: AbortSignal) =>
 /**
  * Runs a Task's step type with its arguments, within its `TimeoutSeconds`: its result, or a `StepError` naming why it
  * failed (`States.Timeout` when the time ran out, `States.TaskFailed` for an error of no name of its own). When the
- * worker stops, the abort is thrown as it is, so the step is not saved and runs again in the next segment. A custom
- * step, which the save takes, fails as one that does not run yet.
+ * worker stops, the abort is thrown as it is, so the step is not saved and runs again in the next segment.
  */
 export const runTask = async (context: SegmentContext, state: TaskState, args: unknown, idempotencyKey: string, logs: StepLog[]) => {
   const handler = context.tasks[state.Resource]
-  if (!handler && state.Resource.startsWith(`${customPlugin}:`)) throw new StepError('States.Runtime', 'Custom steps do not run yet')
   if (!handler) throw new StepError('States.Runtime', `"${state.Resource}" is not a step type of this app`)
   const timeout = AbortSignal.timeout((state.TimeoutSeconds ?? limits.defaultTaskTimeoutSeconds) * 1000)
   const signal = AbortSignal.any([context.signal, timeout])

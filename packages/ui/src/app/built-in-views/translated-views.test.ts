@@ -16,7 +16,7 @@ const storage = workflowResources('workflows', { storage: true })
 const storageViews = { workflows: [storage.workflowsView.toModel(), storage.workflows.toModel()], storage_configurations: [storage.storageConfigurationsView!.toModel(), storage.storageConfigurations!.toModel()] } as const
 // With custom steps on, the workflows' view links to them.
 const custom = workflowResources('workflows', { customSteps: true })
-const customViews = { workflows: [custom.workflowsView.toModel(), custom.workflows.toModel()], custom_steps: [custom.customStepsView!.toModel(), custom.customSteps!.toModel()], custom_step_versions: [custom.customStepVersionsView!.toModel(), custom.customStepVersions!.toModel()] } as const
+const customViews = { workflows: [custom.workflowsView.toModel(), custom.workflows.toModel()], custom_steps: [custom.customStepsView!.toModel(), custom.customSteps!.toModel()], custom_step_versions: [custom.customStepVersionsView!.toModel(), custom.customStepVersions!.toModel()], runners: [custom.runnersView!.toModel(), custom.runners!.toModel()], custom_step_jobs: [custom.customStepJobsView!.toModel(), custom.customStepJobs!.toModel()] } as const
 
 afterEach(() => setAppLocale(undefined))
 
@@ -61,10 +61,10 @@ describe('translatedView', () => {
     expect((configurations.layout[0] as { title: string }).title).toBe('Opslagconfiguratie')
   })
 
-  it("gives the custom steps' views and the workflows' link to them in English as the server sends them, and in Dutch", () => {
+  it("gives the custom steps', runners' and jobs' views and the workflows' links to them in English as the server sends them, and in Dutch", () => {
     for (const [view, model] of Object.values(customViews)) expect(translatedView(view, model)).toEqual(view)
     setAppLocale('nl')
-    expect(translatedView(...customViews.workflows).actions.map((action) => action.label)).toEqual(['Eigen stappen'])
+    expect(translatedView(...customViews.workflows).actions.map((action) => action.label)).toEqual(['Eigen stappen', 'Runners'])
     const steps = translatedView(...customViews.custom_steps)
     expect(steps.names).toEqual({ singular: 'Eigen stap', plural: 'Eigen stappen' })
     expect(steps.fields.kind?.valueLabels).toEqual({ container: 'Container' })
@@ -73,6 +73,13 @@ describe('translatedView', () => {
     const versions = translatedView(...customViews.custom_step_versions)
     expect(versions.names).toEqual({ singular: 'Versie van een eigen stap', plural: 'Versies van eigen stappen' })
     expect(Object.values(versions.fields).map((hints) => hints.label)).toEqual(['Eigen stap', 'Soort', 'Foutvoorvoegsel', 'Opgeslagen door', 'Opgeslagen'])
+    const runners = translatedView(...customViews.runners)
+    expect(runners.names).toEqual({ singular: 'Runner', plural: 'Runners' })
+    expect(Object.values(runners.fields).map((hints) => hints.label)).toEqual(['Naam', 'Labels', 'Ingetrokken', 'Ingetrokken op', 'Registratietoken geldig tot', 'Geregistreerd', 'Platform', 'Soorten', 'Laatste stand', 'Laatste aanvraag', 'Vraagt aan tot', 'Aangemaakt', 'Bijgewerkt'])
+    expect(runners.layout.flatMap((item) => ('title' in item && item.title !== undefined ? [item.title] : []))).toEqual(['Runner', 'Machine', 'Taken'])
+    const jobs = translatedView(...customViews.custom_step_jobs)
+    expect(jobs.names).toEqual({ singular: 'Taak van een eigen stap', plural: 'Taken van eigen stappen' })
+    expect(jobs.fields.status?.valueLabels).toEqual({ queued: 'In de wachtrij', running: 'Bezig', succeeded: 'Gelukt', failed: 'Mislukt', timed_out: 'Verlopen' })
   })
 
   it("leaves the views of an app's own resources, and the tables users add, as they are", () => {

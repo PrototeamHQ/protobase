@@ -3,7 +3,7 @@ import type { CacheIdentity, StepCacheStore } from './cache/cache-port'
 import { canonicalJson } from './cache/canonical'
 import { createRunner } from './runner'
 import { findBlock } from '../definition/inner'
-import type { BlockRun, BlockRunStore, Checkpoint, LoadedRun, RunStore, StepRecord, TaskAnswer, TaskHandlers, TaskTokenStore, TraceMode, TraceSink, WaitingTask } from './port'
+import type { BlockRun, BlockRunStore, Checkpoint, CustomStepJob, CustomStepJobs, LoadedRun, RunStore, StepRecord, TaskAnswer, TaskHandlers, TaskTokenStore, TraceMode, TraceSink, WaitingTask } from './port'
 import { rerunCheckpoint, rerunProblem } from './rerun'
 import { rerunFrom } from './rerun-from'
 import { orderOf } from '../definition/types'
@@ -15,6 +15,7 @@ type MemoryOptions = { budgetMs?: number; secrets?: Record<string, string>; maxS
  * segments as the queue would, moving the clock to each wait's end, until nothing is queued. `checkpoints` is what the
  * database would hold (a failed run keeps them), `writes` the checkpoints each save took, and `steps` every step the runs' kept traces hold.
  * `whoOf` says who a run's call acts as, as the step cache's does, so a block's run is shared only by runs of one identity.
+ * `jobs` holds the custom steps' tries queued for a runner.
  */
 export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps, traceMode, cache, whoOf = () => ({}) }: MemoryOptions = {}) => {
   let clock = new Date('2026-11-04T12:00:00Z')
@@ -120,7 +121,16 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
       return true
     },
   }
-  const runner = createRunner({ store, queue: { schedule, wake }, blocks, tokens, tasks, trace, now: () => clock, ...(traceMode && { traceMode }), ...(budgetMs !== undefined && { budgetMs }), ...(secrets && { secrets }), ...(maxSteps !== undefined && { maxSteps }), ...(cache && { cache }) })
+  // Custom steps' jobs, as runners would claim them: one per try, a try queued again replacing its job.
+  const jobs: CustomStepJob[] = []
+  const customSteps: CustomStepJobs<null> = {
+    queue: async (_, job) => {
+      const index = jobs.findIndex((one) => one.run === job.run && one.visit === job.visit)
+      if (index >= 0) jobs.splice(index, 1)
+      jobs.push(structuredClone(job))
+    },
+  }
+  const runner = createRunner({ store, queue: { schedule, wake }, blocks, tokens, customSteps, tasks, trace, now: () => clock, ...(traceMode && { traceMode }), ...(budgetMs !== undefined && { budgetMs }), ...(secrets && { secrets }), ...(maxSteps !== undefined && { maxSteps }), ...(cache && { cache }) })
   return {
     runner,
     store,
@@ -135,6 +145,10 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
     /** Each waiting Task's try, as its token keeps it. */
     waiting,
     tokens,
+    /** The custom steps' jobs queued for a runner. */
+    jobs,
+    /** Answers the waiting Task whose token has this hash, as the app does for a custom step's runner. */
+    answerHash: (hash: string, answer: TaskAnswer) => runner.answerTaskByHash(null, hash, answer),
     /** Answers the waiting Task a token was given to, as an outside executor does. */
     answer: (token: string, answer: TaskAnswer) => runner.answerTask(null, token, answer),
     /** Whether a segment of the run is queued, and for when. */

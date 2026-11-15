@@ -15,13 +15,15 @@ import { emptyTask, heldBack, heldBackLog, replayedOutcome } from './replay'
 import { runTask } from './task'
 import { runWaitingTask } from './waiting-task'
 import { taskResource } from '../definition/task-resource'
+import { customStepOf } from '../plugin/custom-step-id'
 
 /** What a state goes on with: a held-back step's is what the replayed run's step gave. */
 type Outcome = ({ result: unknown } | { failure: Failure }) & { input: unknown; held?: true; recorded?: boolean; fetchedAt?: Date; run?: string; reused?: true; joined?: true }
 type ResultState = TaskState | MapState | BlockState
 
 const task = async (state: TaskState, call: StateCall): Promise<Ran> => {
-  if (taskResource(state.Resource).waits) return runWaitingTask(state, call)
+  // A custom step waits for the runner that runs it, as a Task waits for an outside result.
+  if (taskResource(state.Resource).waits || customStepOf(state.Resource)) return runWaitingTask(state, call)
   const args = await evaluateTemplate(state.Arguments ?? {}, call.bindings, 'Arguments')
   // Each try of a visit is a step of its own, so the key counts from the visit's first try: the same for every retry.
   const key = `${call.context.runId}/${call.scope}/${call.position.seq - call.position.attempt + 1}`

@@ -247,6 +247,22 @@ export type TaskTokenStore<Db> = {
   answer(db: Db, hash: string, answer: KeptAnswer, at: Date): Promise<boolean>
 }
 
+/**
+ * A try of a custom step (`custom:<name>:<version>`) as it is handed to a runner: its arguments as given (`arguments`)
+ * and as the step records them, its secrets blanked out (`input`), and the hash of its try's token, by which the app
+ * answers it once the runner completes it. The token itself goes nowhere: the runner proves itself otherwise.
+ */
+export type CustomStepJob = { run: string; visit: string; state: string; step: string; input: unknown; arguments: unknown; hash: string }
+
+/** Where custom steps' tries wait for a runner. */
+export type CustomStepJobs<Db> = {
+  /**
+   * Queues a try for a runner, replacing a job of the same try that a segment queued before it stopped; throws a
+   * `StepError` when the run's tenant has no such custom step.
+   */
+  queue(db: Db, job: CustomStepJob): Promise<void>
+}
+
 /** Which runs keep a trace: every run, only those that fail, or none. */
 export type TraceMode = NonNullable<Definition['trace']>
 

@@ -4,7 +4,7 @@ import type { Deps } from '../deps'
 import { betterAuthOwnerRoles } from '../webhooks/table/owner-roles'
 import { runInputCheck } from './input-limits'
 import { secretRedactor } from '@protobase/workflows'
-import { workflowSecrets, workflowsCustomStepsOn, workflowsSchema, workflowsStorage, workflowsTraceMode, type WorkflowsOptions } from './options'
+import { workflowSecrets, workflowsCustomStepsOn, workflowsRunnerSettings, workflowsSchema, workflowsStorage, workflowsTraceMode, type WorkflowsOptions } from './options'
 import { storageConfigurationHook, storageEndpointCheck } from './storage/configuration-hook'
 import { readTrace, traceSink } from './trace-sink'
 import { workflowSaveHook } from './save-hook'
@@ -31,14 +31,16 @@ import { taskRoute } from './tasks/task-route'
 import { answerTaskAs } from './tasks/answer-as'
 import { customStepSaveHook } from './custom-steps/custom-step-hook'
 import { customStepTypes } from './custom-steps/custom-step-types'
+import { customStepRunners } from './runners/runners'
 
 /**
  * What `createAdmin` needs for `workflows`: the hooks that check saves and start runs, the check of a run's input before
  * it is validated, the app's trigger and step types, the segment and trigger jobs, the routing of changes to
  * ready triggers, and the segment job, whose step types act on records as each workflow's last editor (from Better
  * Auth unless the options say otherwise), and which keeps runs' traces in the private file provider. With custom steps
- * on, the hook that checks their manifests and keeps their versions, and each tenant's custom step types
- * (`customTypes`), which its saves, its type list and its checks take.
+ * on, the hook that checks their manifests and keeps their versions, each tenant's custom step types
+ * (`customTypes`), which its saves, its type list and its checks take, and the runners that run them: their calls
+ * (`routes.runners`), the registration tokens a runner's editor issues, and the job that ends a runner's lease.
  */
 export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth?: AdminAuth, locale?: Locale) => {
   const schema = workflowsSchema(options)
@@ -52,12 +54,18 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   const connections = connectionWiring({ deps, schema, roles, accounts, plugins: types.plugins, connectionOf: types.connections, text, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }) })
   const storage = workflowsStorage(options)
   const custom = workflowsCustomStepsOn(options) ? customStepTypes(schema) : undefined
+  const runnerSettings = workflowsRunnerSettings(options)
+  // Jobs' arguments are sealed with the app's secret: Better Auth's, with the ones it rotated through, else PROTOBASE_SECRET.
+  const sealKey = auth ? auth.secretKey : env.PROTOBASE_SECRET ? async () => env.PROTOBASE_SECRET! : undefined
+  if (custom && !sealKey) throw new Error("workflows.customSteps seals the arguments of custom steps' jobs with the app's secret: give the config `auth`, or set PROTOBASE_SECRET")
+  // A runner's completion answers its job's Task by its token's hash, as an outside executor's answer by its token.
+  const runners = custom && customStepRunners({ deps, schema, settings: runnerSettings, secrets: Object.values(secrets), key: sealKey!, answer: (hash, answer) => answerTaskByHash(hash, answer) })
   const allowPrivateAddresses = Boolean(options.allowPrivateAddresses)
   const input = { deps, schema, roles, allowPrivateAddresses, storage, connect: connections.trigger }
   const cache = postgresStepCache(() => deps().db, schema, secretFingerprints(secrets, env.PROTOBASE_SECRET), roles)
   const files = () => deps().files
   const trace = traceSink({ files, joining: traceJoining(() => deps().db, schema), report: (error) => deps().report(error) })
-  const { runner, job, tokens } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail, connections.step, connections.mailbox), secrets, cache, trace, traceMode: workflowsTraceMode(options), roles })
+  const { runner, job, tokens } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail, connections.step, connections.mailbox), secrets, cache, trace, traceMode: workflowsTraceMode(options), roles, ...(runners && { customSteps: runners.queue }) })
   const redactor = secretRedactor(Object.values(secrets))
   // Only the types a save takes: a trigger of a type no longer available, as after an app update, does nothing.
   const usable = <T>(found: Map<string, T>) => (type: string) => (types.check.triggers[type] ? found.get(type) : undefined)
@@ -84,12 +92,19 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   // An outside executor's answer to a waiting Task, which its token alone admits, and the same as a signed-in caller. The
   // answer and the run's wake commit together, so an answer whose wake failed is not kept and may be sent again.
   const answerTask = (token: string, answer: Parameters<typeof runner.answerTask>[2]) => deps().db.transaction().execute((trx) => runner.answerTask(trx, token, answer))
-  // The public webhook address, where a caller who may change a workflow issues its URL, and the waiting Tasks' answers.
+  const answerTaskByHash = (hash: string, answer: Parameters<typeof runner.answerTask>[2]) => deps().db.transaction().execute((trx) => runner.answerTaskByHash(trx, hash, answer))
+  // The public webhook address, where a caller who may change a workflow issues its URL or a runner's registration
+  // token, the waiting Tasks' answers, and the runners' calls.
   const routes = {
     tasks: () => taskRoute({ answer: answerTask, report: (error) => deps().report(error) }),
     hooks: () => hookRoute({ db: deps().db, schema, webhooks, webhookTypes: () => [...types.webhooks.keys()].filter((id) => webhooks(id)), files: () => deps().files, report: (error) => deps().report(error), redact: redactor.text }),
-    issue: () => issueRoute(issue),
+    issue: () => {
+      const app = issueRoute(issue)
+      if (runners) app.route('/runners', runners.registration())
+      return app
+    },
+    ...(runners && { runners: runners.route }),
   }
   const customTypes = custom && ((tenant: unknown) => custom(deps().db, tenant))
-  return { routes, issue, answerTask: answerTaskAs(deps, tokens, answerTask), customTypes, hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent, custom), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema), ...(storage ? [storageConfigurationHook(storage)] : []), ...(custom ? [customStepSaveHook(schema)] : [])], writeChecks: [runInputCheck, ...(storage ? [storageEndpointCheck(storage, allowPrivateAddresses)] : [])], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId) }
+  return { routes, issue, answerTask: answerTaskAs(deps, tokens, answerTask), customTypes, hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent, custom), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema), ...(storage ? [storageConfigurationHook(storage)] : []), ...(custom ? [customStepSaveHook(schema)] : []), ...(runners ? runners.hooks : [])], writeChecks: [runInputCheck, ...(storage ? [storageEndpointCheck(storage, allowPrivateAddresses)] : [])], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : []), ...(runners ? runners.jobs : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId) }
 }

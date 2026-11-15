@@ -69,8 +69,27 @@ describe('workflowResources', () => {
     expect(access.name?.update?.({})).toBe(false)
     expect(access.name?.create).toBeUndefined()
     expect(Object.values(versions.fields).every((field) => field.readOnly)).toBe(true)
-    expect(parts.workflowsView.toModel().actions).toEqual([expect.objectContaining({ name: 'workflow_custom_steps', run: { kind: 'link', to: { kind: 'list', resource: 'workflow_custom_steps' } } })])
+    expect(parts.workflowsView.toModel().actions).toEqual([
+      expect.objectContaining({ name: 'workflow_custom_steps', run: { kind: 'link', to: { kind: 'list', resource: 'workflow_custom_steps' } } }),
+      expect.objectContaining({ name: 'workflow_runners', run: { kind: 'link', to: { kind: 'list', resource: 'workflow_runners' } } }),
+    ])
     const both = workflowResources('workflows', { storage: true, customSteps: true })
-    expect(both.workflowsView.toModel().actions.map((action) => action.name)).toEqual(['storage_configurations', 'workflow_custom_steps'])
+    expect(both.workflowsView.toModel().actions.map((action) => action.name)).toEqual(['storage_configurations', 'workflow_custom_steps', 'workflow_runners'])
+  })
+
+  it('adds the runners, granted by name, and their jobs, read-only, with custom steps, both out of the sidebar', () => {
+    expect(workflowResources('workflows')).not.toHaveProperty('runners')
+    const parts = workflowResources('workflows', { customSteps: true })
+    const runners = parts.runners!.toModel()
+    const jobs = parts.customStepJobs!.toModel()
+    expect([runners.name, jobs.name]).toEqual(['workflow_runners', 'workflow_custom_step_jobs'])
+    expect([runners.tenant, jobs.tenant]).toEqual(['tenant_id', 'tenant_id'])
+    expect([runners.explicitGrants, jobs.explicitGrants]).toEqual([true, true])
+    expect([parts.runnersView!.toModel().nav?.hidden, parts.customStepJobsView!.toModel().nav?.hidden]).toEqual([true, true])
+    // Only the server writes what a runner says of itself and how it registered; none of its tokens' hashes is a field
+    expect(Object.entries(runners.fields).filter(([, field]) => !field.readOnly).map(([name]) => name)).toEqual(['name', 'labels', 'revoked'])
+    expect(Object.values(jobs.fields).every((field) => field.readOnly)).toBe(true)
+    expect(Object.keys(jobs.fields)).not.toContain('token')
+    expect(Object.keys(jobs.fields)).not.toContain('arguments')
   })
 })

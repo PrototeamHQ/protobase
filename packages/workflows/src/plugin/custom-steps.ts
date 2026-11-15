@@ -2,9 +2,10 @@ import { Ajv } from 'ajv'
 import type { CheckOptions } from '../definition/check-definition'
 import type { JsonSchema } from './context'
 import type { TypeEntry } from './type-list'
+import { customPlugin, customStepOf } from './custom-step-id'
 
-/** The plugin name the app's custom steps take, as `custom:<name>:<version>`; no plugin may take it. */
-export const customPlugin = 'custom'
+export { customPlugin, customStepOf }
+
 
 /** One saved version of a custom step, as its type is made from it. */
 export type CustomStepVersion = {
@@ -172,14 +173,6 @@ export const customStepEntry = (step: CustomStepVersion): TypeEntry => {
 }
 
 const requiredInputs = (input: JsonSchema) => (Array.isArray(input.required) ? (input.required as string[]) : [])
-
-const customId = /^custom:([a-z][a-z0-9_]*):([1-9][0-9]*)$/
-
-/** The custom step and version a step type's id names, `custom:<name>:<version>`; undefined for any other id. */
-export const customStepOf = (id: string): { name: string; version: number } | undefined => {
-  const found = customId.exec(id)
-  return found ? { name: found[1]!, version: Number(found[2]) } : undefined
-}
 
 /** The latest version of each custom step among `ids`, by the step's unversioned id, `custom:<name>`. */
 export const latestCustomSteps = (ids: readonly string[]): Record<string, string> => {

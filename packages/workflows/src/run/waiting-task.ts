@@ -1,5 +1,6 @@
 import type { TaskState } from '../definition/types'
 import { taskResource } from '../definition/task-resource'
+import { customStepOf } from '../plugin/custom-step-id'
 import { limits } from '../limits'
 import { errorOutput, StepError } from './errors'
 import { evaluateTemplate, recordedArguments, type Bindings } from './evaluate'
@@ -37,14 +38,20 @@ export const overdue = (task: WaitingTask, at: Date, timeoutSeconds = Math.round
  * no segment, until an answer wakes it, its `TimeoutSeconds` pass (`States.Timeout`, from the try's start) or a
  * heartbeat is overdue (`States.HeartbeatTimeout`). The answer is the Task's result, which `Output` and `Assign` read as
  * `$states.result`, or its failure, under the error the answer names. The token is blanked out of all the run keeps.
+ *
+ * A custom step's Task (`custom:<name>:<version>`) waits the same way, its hand-off a job queued for a runner with the
+ * hash of the try's token, by which the app answers it as the runner completes the job; its `TimeoutSeconds` is a step type's by default, the queue
+ * included.
  */
 export const runWaitingTask = async (state: TaskState, call: StateCall): Promise<Ran> => {
   const { type } = taskResource(state.Resource)
+  const custom = customStepOf(type) !== undefined
   const template = state.Arguments ?? {}
   // A replay sends nothing: it goes on with what the replayed run's step gave.
   if (call.context.replay) return { held: true, input: redacted(recordedArguments(template, await evaluateTemplate(template, withToken(call.bindings, ''), 'Arguments'))) }
   const tokens = call.context.tokens
   if (!tokens) throw new StepError('States.Runtime', 'This app keeps no waiting Tasks')
+  if (custom && !call.context.customSteps) throw new StepError('States.Runtime', 'This app runs no custom steps')
   const visit = `${call.scope}|${call.position.seq}`
   const found = await tokens.find(visit)
   if (found && (found.handedOffAt || found.status !== 'waiting')) return settle(found, visit, call)
@@ -52,7 +59,7 @@ export const runWaitingTask = async (state: TaskState, call: StateCall): Promise
   const token = newTaskToken()
   call.context.redactor.add(token)
   const startedAt = call.context.now()
-  const timeout = state.TimeoutSeconds ?? limits.waitingTaskTimeoutSeconds
+  const timeout = state.TimeoutSeconds ?? (custom ? limits.taskTimeoutSeconds : limits.waitingTaskTimeoutSeconds)
   const hash = await taskTokenHash(token)
   await tokens.begin({ visit, state: call.name, hash, startedAt, deadline: new Date(startedAt.getTime() + timeout * 1000), heartbeatSeconds: state.HeartbeatSeconds ?? null })
   const args = await evaluateTemplate(template, withToken(call.bindings, token), 'Arguments')
@@ -63,7 +70,8 @@ export const runWaitingTask = async (state: TaskState, call: StateCall): Promise
   const key = `${call.context.runId}/${call.scope}/${call.position.seq}/${hash.slice(0, 16)}`
   const handOff = { ...state, Resource: type, TimeoutSeconds: Math.min(timeout, limits.taskTimeoutSeconds), Cache: false }
   try {
-    await runTask(call.context, handOff, args, key, call.logs)
+    if (custom) await call.context.customSteps!.queue({ visit, state: call.name, step: type, input, arguments: args, hash })
+    else await runTask(call.context, handOff, args, key, call.logs)
   } catch (error) {
     if (!(error instanceof StepError)) throw error
     const failure = errorOutput(error)
@@ -71,7 +79,8 @@ export const runWaitingTask = async (state: TaskState, call: StateCall): Promise
     // The receiver answered before its hand-off failed, so that answer is the try's
     return handedOff(visit, call, input)
   }
-  call.logs.push({ at: call.context.now().toISOString(), message: `Handed off; waits for an outside result until ${new Date(startedAt.getTime() + timeout * 1000).toISOString()}` })
+  const until = new Date(startedAt.getTime() + timeout * 1000).toISOString()
+  call.logs.push({ at: call.context.now().toISOString(), message: custom ? `Queued for a runner; waits for its result until ${until}` : `Handed off; waits for an outside result until ${until}` })
   return handedOff(visit, call, input)
 }
 

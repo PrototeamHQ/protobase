@@ -1,5 +1,5 @@
 import type { WorkflowTypeList } from '@protobase/client'
-import { limits, taskResource, waitSuffix, type TaskState } from '@protobase/workflows'
+import { customStepOf, limits, taskResource, waitSuffix, type TaskState } from '@protobase/workflows'
 import { Select } from '../../../primitives/select'
 import { Switch } from '../../../primitives/switch'
 import { Field } from '../../../record-view/field'
@@ -31,6 +31,15 @@ const waiting = (state: TaskState, waits: boolean): TaskState => {
   return { ...rest, Resource: type, ...(timeout !== undefined && timeout <= limits.taskTimeoutSeconds && { TimeoutSeconds: timeout }) }
 }
 
+/**
+ * Whether a Task's form offers to make it wait for an outside result: not for a custom step, which waits for the
+ * runner that runs it already and whose save refuses `.waitForTaskToken`.
+ */
+export const offersWaiting = (type: string) => customStepOf(type) === undefined
+
+/** The Task with another step type, still waiting for an outside result if it did and the new type may. */
+export const withStepType = (state: TaskState, type: string): TaskState => ({ ...state, Resource: `${type}${taskResource(state.Resource).waits && offersWaiting(type) ? waitSuffix : ''}` })
+
 const withArgument = (state: TaskState, name: string, value: unknown): TaskState => {
   const given = typeof state.Arguments === 'object' && state.Arguments !== null ? (state.Arguments as Record<string, unknown>) : {}
   const { [name]: _, ...rest } = given
@@ -41,19 +50,20 @@ const withArgument = (state: TaskState, name: string, value: unknown): TaskState
  * A Task's step type, among those of `types` the app can run, and a field for each argument its input schema takes:
  * the ones it needs marked. Arguments written as one expression, or of a type the list does not have, are one field.
  * A switch makes it wait for an outside result after the type handed the work off (`.waitForTaskToken`), with how long
- * it waits and how often a heartbeat must come.
+ * it waits and how often a heartbeat must come; a custom step has no switch, as it waits for its runner, with both.
  */
 export const TaskFields = ({ state, types, problems, disabled, onChange }: TaskFieldsProps) => {
-  const offered = types.step_types.filter((type) => type.available)
+  const available = types.step_types.filter((type) => type.available)
   const { type: id, waits } = taskResource(state.Resource)
+  const offered = offersWaiting(id)
   const type = types.step_types.find((entry) => entry.id === id)
   const whole = typeof state.Arguments === 'string' || !type
   return (
     <>
       <Field label={text('stepType')} error={errorAt(problems, 'Resource')}>
-        <Select value={id} disabled={disabled} onChange={(event) => onChange({ ...state, Resource: `${event.target.value}${waits ? waitSuffix : ''}` })}>
-          {!offered.some((entry) => entry.id === id) && <option value={id}>{stepTypeOption(id, type?.label)}</option>}
-          {offered.map((entry) => (
+        <Select value={id} disabled={disabled} onChange={(event) => onChange(withStepType(state, event.target.value))}>
+          {!available.some((entry) => entry.id === id) && <option value={id}>{stepTypeOption(id, type?.label)}</option>}
+          {available.map((entry) => (
             <option key={entry.id} value={entry.id}>
               {stepTypeOption(entry.id, entry.label)}
             </option>
@@ -78,10 +88,12 @@ export const TaskFields = ({ state, types, problems, disabled, onChange }: TaskF
           />
         ))
       )}
-      <Field label={text('waitsForResult')} help={text('waitsForResultHelp')}>
-        <Switch checked={waits} onChange={(on) => !disabled && onChange(waiting(state, on))} />
-      </Field>
-      {waits ? (
+      {offered && (
+        <Field label={text('waitsForResult')} help={text('waitsForResultHelp')}>
+          <Switch checked={waits} onChange={(on) => !disabled && onChange(waiting(state, on))} />
+        </Field>
+      )}
+      {waits || !offered ? (
         <>
           <ValueField label={text('waitTimeout')} help={text('waitTimeoutHelp')} kind="json" value={state.TimeoutSeconds} error={errorAt(problems, 'TimeoutSeconds')} disabled={disabled} onChange={(value) => onChange(withField(state, 'TimeoutSeconds', value))} />
           <ValueField label={text('heartbeatSeconds')} help={text('heartbeatHelp')} kind="json" value={state.HeartbeatSeconds} error={errorAt(problems, 'HeartbeatSeconds')} disabled={disabled} onChange={(value) => onChange(withField(state, 'HeartbeatSeconds', value))} />
