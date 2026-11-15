@@ -58,7 +58,7 @@ export const runLoop = async ({ app, engine, settings, identity, say, signal, wa
       }
       let order
       try {
-        const state: RunnerState = { platform: platform(), kinds: kinds(settings), labels: [], capacity: { slots: settings.slots - running.size }, images: (await engine.images(appKey(identity))).map((step) => ({ step })), instances: [] }
+        const state: RunnerState = { platform: platform(), kinds: kinds(settings), labels: [], capacity: { slots: settings.slots - running.size }, images: (await engine.images(appKey(identity), stop)).map((step) => ({ step })), instances: [] }
         order = await app.claim(state, stop)
         failures = 0
       } catch (error) {

@@ -71,15 +71,24 @@ export const cleanArgs = ({ name, image, work, settings }: { name: string; image
 /** The command line that builds a version's image from its folder, labelled with its step and its app. */
 export const buildArgs = ({ tag, step, app, dockerfile, context }: { tag: string; step: string; app: string; dockerfile: string; context: string }) => ['build', '--tag', tag, '--label', `${stepLabel}=${step}`, '--label', `${appLabel}=${app}`, '--file', dockerfile, context]
 
+/** How long listing the runner's images may take before a claim goes on without them. */
+export const imagesTimeoutMs = 30_000
+
 /** Docker or Podman, driven through its command line, which is the same for both. */
 export const engine = (exec: Exec, name: EngineName) => ({
   name,
-  /** The custom step versions whose images of this app and tenant are here, by their labels. */
-  images: async (app: string) => {
-    const listed = await exec(name, ['image', 'ls', '--filter', `label=${appLabel}=${app}`, '--format', '{{.ID}}'])
+  /**
+   * The custom step versions whose images of this app and tenant are here, by their labels; none when the engine does
+   * not answer within `imagesTimeoutMs`, or `signal` stops the runner meanwhile, so a stalled engine never holds a claim
+   * or a shutdown.
+   */
+  images: async (app: string, signal?: AbortSignal) => {
+    const bounded = { signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(imagesTimeoutMs)]) : AbortSignal.timeout(imagesTimeoutMs) }
+    const listed = await exec(name, ['image', 'ls', '--filter', `label=${appLabel}=${app}`, '--format', '{{.ID}}'], bounded)
     const ids = [...new Set(listed.stdout.split('\n').map((line) => line.trim()).filter(Boolean))]
     if (listed.code !== 0 || ids.length === 0) return []
-    const labels = await exec(name, ['image', 'inspect', '--format', `{{index .Config.Labels "${stepLabel}"}}`, ...ids])
+    const labels = await exec(name, ['image', 'inspect', '--format', `{{index .Config.Labels "${stepLabel}"}}`, ...ids], bounded)
+    if (labels.code !== 0) return []
     return [...new Set(labels.stdout.split('\n').map((line) => line.trim()).filter((step) => customStepOf(step) !== undefined))]
   },
   has: async (tag: string) => (await exec(name, ['image', 'inspect', '--format', '{{.Id}}', tag])).code === 0,

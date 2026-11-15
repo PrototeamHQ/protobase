@@ -5,6 +5,7 @@ import type { Fetch } from './app'
 import { cli } from './cli'
 import { cleanerImage, configPath, readConfig, settingsOf } from './config'
 import { appKey, buildArgs, engine, findEngine, imageTag } from './engine'
+import type { Exec } from './exec'
 import { fakeExec, testSettings } from './testing/fakes'
 
 const removals: (() => Promise<void>)[] = []
@@ -42,6 +43,16 @@ describe("the runner's images", () => {
     expect(imageTag(app, 'custom:ocr:4')).not.toBe(imageTag({ ...app, url: 'https://other.example.com' }, 'custom:ocr:4'))
     expect(() => imageTag(app, 'app:http')).toThrow()
     expect(buildArgs({ tag: 't:1', step: 'custom:ocr:1', app: 'abc', dockerfile: '/b/Dockerfile', context: '/b/context' })).toEqual(['build', '--tag', 't:1', '--label', 'org.protobase.step=custom:ocr:1', '--label', 'org.protobase.app=abc', '--file', '/b/Dockerfile', '/b/context'])
+  })
+
+  it('are given up on when the engine does not answer, as soon as the runner stops', async () => {
+    // An engine that never answers until the command is stopped, as a hung daemon
+    const hung: Exec = (_command, _args, options) =>
+      new Promise((resolve) => options?.signal?.addEventListener('abort', () => resolve({ code: 137, stdout: '', stderr: '' }), { once: true }))
+    const stop = new AbortController()
+    const listing = engine(hung, 'docker').images('abc', stop.signal)
+    stop.abort()
+    expect(await listing).toEqual([])
   })
 
   it("are listed by their step label, only the app's own", async () => {
