@@ -14,6 +14,7 @@ import { useListPage } from '../../use-layout-data'
 import { propsOf, type BlockProps } from '../block-props'
 import { CardFrame, Quiet } from '../card-frame'
 import { ChosenRecord } from '../chosen-record'
+import { barIdOf, barIn, type BarId } from './bar-identity'
 import { timelineShape, type TimelineBar, type TimelineFields } from './timeline-layout'
 import { TimelineLanes, type LanesProps } from './timeline-lanes'
 import { TimelineLegend, TimelineReadout } from './timeline-readout'
@@ -33,9 +34,12 @@ type LoadedProps = Omit<TimelineProps, 'resource' | 'actions' | 'children' | 'se
 // Its records from the page's planned read, or a read of its own, the earliest first, drawn as lanes with what the
 // bar pointed at holds under them
 const LoadedTimeline = ({ model, view, fields, sort, at, filter, limit = 500, title, description, empty, actions, className, choose, details }: LoadedProps) => {
-  // The bar under the pointer shows over the one with focus, which shows again once the pointer leaves
-  const [hovered, setHovered] = useState<TimelineBar | null>(null)
-  const [focused, setFocused] = useState<TimelineBar | null>(null)
+  // The bar under the pointer shows over the one with focus, which shows again once the pointer leaves; each is kept
+  // by its identity and found in the current data, so the readout follows a refresh and drops a bar that is gone
+  const [hovered, setHovered] = useState<BarId | null>(null)
+  const [focused, setFocused] = useState<BarId | null>(null)
+  const idOf = (bar: TimelineBar | null) => (bar ? barIdOf(bar) : null)
+  const point = { hover: (bar: TimelineBar | null) => setHovered(idOf(bar)), focus: (bar: TimelineBar | null) => setFocused(idOf(bar)) }
   const planned = usePlanned(at)
   const own = useListPage(model, { filter, sort, pageSize: limit, enabled: !planned })
   const page = planned ?? own
@@ -49,9 +53,9 @@ const LoadedTimeline = ({ model, view, fields, sort, at, filter, limit = 500, ti
     return (
       <div className="flex flex-col gap-4">
         <TimelineLegend model={model} view={view} fields={fields} values={values} />
-        <TimelineLanes shape={shape} model={model} view={view} fields={fields} point={{ hover: setHovered, focus: setFocused }} {...(choose && { choose })} />
+        <TimelineLanes shape={shape} model={model} view={view} fields={fields} point={point} {...(choose && { choose })} />
         <div aria-live="polite">
-          <TimelineReadout bar={hovered ?? focused} model={model} view={view} fields={fields} />
+          <TimelineReadout bar={barIn(shape, hovered) ?? barIn(shape, focused)} model={model} view={view} fields={fields} />
         </div>
       </div>
     )
