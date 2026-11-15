@@ -330,6 +330,8 @@ Where an `Action` sits decides what it runs on. Directly in a `ReferenceManyFiel
 
 The list's button counts the records the action applies to, such as **Approve (3)**, and runs as a [selection in a list](/reference/blocks/#signing-several-records-off) does, whether or not the action has `bulk`: it asks its question or inputs once, a checklist shows each box once however many records hold it, and a record the person may not change is refused and named while the others run. It is not offered when the list holds no record the action applies to, and an `a.link` is not offered there. An `Action` with `resource` naming another resource keeps working as outside the list. In the [text form](#text-form), the list's action reads as its label with the count, `Approve (3)`.
 
+<gap>An `Action` in a list cannot run on records past the pages the list has loaded because reading the rest of a list for an action is not implemented.</gap>
+
 ### Links to a record's URL
 
 A link whose `href` is a single `{{field}}` opens the address that field holds, such as the page a listing came from:
