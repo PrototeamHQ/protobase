@@ -32,7 +32,7 @@ Under `/api/v1`:
 
 | Route | |
 | --- | --- |
-| `GET /{resource}` | list: `filter`, `order_by`, `page_size` (50, max 500), `page_token`, `fields`, `labels`, `photos`, `photos_order_by`, `count=exact`, [`limit_per`](#first-rows-per-value) |
+| `GET /{resource}` | list: `filter`, `order_by`, `page_size` (50, max 500), `page_token`, `fields`, `labels`, `photos`, `photos_order_by`, `count=exact`, [`limit_per`](#first-rows-per-value), [`etag=false`](#writes) |
 | `POST /{resource}:search` | same parameters as a JSON body (`fields` and `labels` arrays), for long filters |
 | `GET /{parent}/{key}/{resource}` | the list of `resource` that belongs to one record, see [Lists under a record](#lists-under-a-record) |
 | `GET /{resource}/{key}` | one record, with `ETag`; composite keys are `part,part`, each part percent-encoded |
@@ -220,7 +220,7 @@ Create, update and delete share one pipeline (`write-pipeline.ts`):
 
 **ETag**: the `version` or `updated_at` column when the resource has a read-only one (bumped on every update, so no trigger is needed; the ETag keeps the column's full microsecond text), otherwise a hash of the exposed fields. It is computed from the row itself, so lists need no extra query.
 
-**`etag` property**: every record in a get, list, `:search`, create or update response carries its current version as `etag` (the value of the `ETag` header, [AIP-154](https://google.aip.dev/154)), so a grid row can be updated or deleted without a get. It survives `fields` selection. A resource cannot have a field named `etag` (startup error); a body containing `etag` is a `400` that points at `If-Match`.
+**`etag` property**: every record in a get, list, `:search`, create or update response carries its current version as `etag` (the value of the `ETag` header, [AIP-154](https://google.aip.dev/154)), so a grid row can be updated or deleted without a get. It survives `fields` selection. `etag=false` on a list, `:search` or `:seek` (`true`, the default, keeps it; any other value is a `400`) leaves it out of every item, so a list that only shows records reads only its `fields` from the database, where a resource without a version column otherwise reads every field it may read to hash its ETags. A resource cannot have a field named `etag` (startup error); a body containing `etag` is a `400` that points at `If-Match`.
 
 **If-Match** is required on PATCH (`428` without it). On DELETE it is optional: without it the current version is deleted. When sent it must match, otherwise `412`; `*` matches whatever the current version is (RFC 9110).
 

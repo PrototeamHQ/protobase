@@ -77,6 +77,7 @@ export const parameters = {
   },
   ifMatch: { name: 'If-Match', in: 'header', required: true, description: 'The `etag` of the record, from a GET or a list item; `*` matches any version', schema: { type: 'string' } },
   ifMatchOptional: { name: 'If-Match', in: 'header', description: 'When sent, the operation only happens if it matches the current `etag` ([AIP-135](https://google.aip.dev/135)); `*` matches any version', schema: { type: 'string' } },
+  etag: { name: 'etag', in: 'query', description: '`false` leaves `etag` out of each item, so a `fields` selection reads only those columns (default `true`)', schema: { type: 'boolean' } },
   showDeleted: { name: 'show_deleted', in: 'query', description: 'Also return soft-deleted records ([AIP-164](https://google.aip.dev/164)); only on resources that soft delete', schema: { type: 'boolean' } },
   prefer: { name: 'Prefer', in: 'header', description: '`return=minimal` or `return=representation` (default)', schema: { type: 'string' } },
 }
@@ -95,6 +96,7 @@ export const searchBody = {
     photos: { type: 'string', description: parameters.photos.description },
     photos_order_by: { type: 'string', description: parameters.photosOrderBy.description },
     limit_per: { type: 'string', description: parameters.limitPer.description },
+    etag: { type: 'boolean', description: parameters.etag.description },
     show_deleted: { type: 'boolean', description: 'Soft-delete resources only' },
   },
 }
