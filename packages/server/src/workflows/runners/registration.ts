@@ -39,6 +39,9 @@ export const issueRegistration = async (deps: () => Deps, schema: string, sessio
   })
 }
 
+/** Whether `session` may issue registration tokens of its tenant's runners, as `issueRegistration` decides: update access. */
+export const mayIssueRegistration = async (deps: () => Deps, session: Session) => (await requestAccess(deps(), deps().registry.find(runnersResource)!, session)).resolved.operations.update === true
+
 /** Why a registration is refused, each by its name. */
 export const registrationRefusals = {
   invalid: () => new HttpProblem(401, 'invalid-registration-token', 'InvalidRegistrationToken', 'This is no registration token of a runner of this app'),

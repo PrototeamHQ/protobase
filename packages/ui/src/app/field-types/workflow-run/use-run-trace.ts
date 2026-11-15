@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useContext, useEffect, useRef } from 'react'
 import { FocusRefreshContext } from '../../../data/focus-refresh'
 import { liveRefresh } from '../../../data/live-refresh'
-import type { Definition } from '@protobase/workflows'
+import { customStepTestDefinition, type Definition } from '@protobase/workflows'
 import { useRecord } from '../../../data/use-record'
 import { pathOfName, recordDefinition, stateAt } from '../workflow/definition'
 import type { TraceStep } from './run-trace'
@@ -53,8 +53,8 @@ const placeOf = (definition: Definition | undefined, block: unknown) => {
 }
 
 /**
- * A run with what its trace draws: the run as stored, the definition of the version it runs, where its steps are on that
- * graph, and the steps of its trace in the order they ran, followed while the run goes on. Without a run nothing is read.
+ * A run with what its trace draws: the run as stored, the definition of the version it runs, or of a custom step's test
+ * run its one Task, where its steps are on that graph, and the steps of its trace in the order they ran, followed while the run goes on. Without a run nothing is read.
  */
 export const useRunTrace = (runId: string | undefined) => {
   const run = useRecord('workflow_runs', runId ?? '', runId !== undefined)
@@ -62,7 +62,8 @@ export const useRunTrace = (runId: string | undefined) => {
   const versioned = record?.workflow_id != null && record.version != null
   const version = useRecord('workflow_versions', [String(record?.workflow_id ?? ''), Number(record?.version ?? 0)], versioned)
   const going = goingOn.has(String(record?.status))
-  const definition = version.data ? recordDefinition(version.data.record) : undefined
+  // A custom step's test run has no workflow: its one Task is the step version it tested
+  const definition = typeof record?.test_step === 'string' ? customStepTestDefinition(record.test_step) : version.data ? recordDefinition(version.data.record) : undefined
   const steps = useRunSteps(runId, going)
   useFollow(going)
   useEndRefresh(going)

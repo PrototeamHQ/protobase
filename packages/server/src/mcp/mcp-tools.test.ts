@@ -39,6 +39,14 @@ describe('mcpTools', () => {
     expect(names(false, ['sales'], true)).not.toContain('list_workflows')
   })
 
+  it('offers the custom steps\' tools with custom steps on, the ones that save, test and make runners only with writes on', () => {
+    const customSteps = { test: async () => '', online: async () => ({ ids: [], builds: false }), register: async () => ({ token: '', expires_at: '', command: '', endpoint: '' }), mayIssue: async () => true }
+    const tools = (writes: McpWrites) => mcpTools({ db, sql: false, writes, workflows: { types: [], checkWith: () => ({ resources: [], triggers: {} }), readTrace: async () => [], customSteps } })({ user: { id: 1, roles: ['sales'] } }).map((tool) => tool.name)
+    const reads = ['list_workflow_types', 'list_workflows', 'get_workflow', 'validate_workflow', 'get_workflow_run', 'list_connections', 'get_custom_step', 'list_runners']
+    expect(tools(false)).toEqual([...records, ...reads])
+    expect(tools(true)).toEqual([...records, 'create_record', 'update_record', 'delete_record', 'batch_write', ...reads, 'create_workflow', 'update_workflow', 'run_workflow', 'enable_workflow', 'save_custom_step', 'test_custom_step', 'create_runner_token'])
+  })
+
   it('offers list_comments where a resource takes comments, and add_comment after the write tools with writes on', () => {
     const tools = (writes: McpWrites, commented: string[]) => mcpTools({ db, sql: false, writes, commented })({ user: { id: 1, roles: ['sales'] } }).map((tool) => tool.name)
     expect(tools(false, [])).toEqual(records)
@@ -58,7 +66,7 @@ describe('mcpTools', () => {
 
   it("stops startup on an own tool named twice, or named as a built-in tool even one its options leave off", () => {
     const tool = (name: string) => defineTool({ name, description: name, parameters: { type: 'object' }, run: async () => name })
-    for (const name of ['get_record', 'create_record', 'add_comment', 'run_read_only_query']) {
+    for (const name of ['get_record', 'create_record', 'add_comment', 'run_read_only_query', 'save_custom_step', 'list_runners']) {
       expect(() => mcpTools({ db, sql: false, writes: false, own: [tool(name)] })).toThrow(`The MCP tool "${name}" has the name of a built-in MCP tool; give it another name`)
     }
     expect(() => mcpTools({ db, sql: false, writes: false, own: [tool('usage'), tool('usage')] })).toThrow('Two assistant tools are named "usage"')

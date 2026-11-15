@@ -41,7 +41,7 @@ import { closedMcpRoutes, mcpRoutes } from './mcp/mcp-routes'
 import { mcpServer } from './mcp/mcp-server'
 import { mcpTools } from './mcp/mcp-tools'
 import { mcpServerInstructions } from './mcp/mcp-server-instructions'
-import { workflowInstructions } from './workflows/mcp/workflow-instructions'
+import { customStepInstructions, workflowInstructions } from './workflows/mcp/workflow-instructions'
 import { checkMcpWrites, rolesWithoutApproval } from './mcp/mcp-writes'
 import { withoutSessionTokens } from './better-auth/without-session-tokens'
 import { webauthnPath } from './better-auth/origins'
@@ -439,8 +439,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   else if (auth?.mcp && mcpAuthenticate) {
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const commented = registry.entries.filter((entry) => entry.model.comments).map((entry) => entry.name)
-    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, ...(engine.customTypes && { customTypes: engine.customTypes }), readTrace: engine.readTrace, listConnections: auth.connections.list, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }), answerTask: engine.answerTask } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
-    const instructions = mcpServerInstructions(options.mcp ? options.mcp.instructions : undefined, engine ? workflowInstructions : undefined)
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, ...(engine.customTypes && { customTypes: engine.customTypes }), readTrace: engine.readTrace, listConnections: auth.connections.list, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }), answerTask: engine.answerTask, ...(engine.customSteps && { customSteps: { ...engine.customSteps, register: (session, id) => engine.customSteps!.register(session, id, new URL(auth.mcp!.resource).origin) } }) } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
+    const instructions = mcpServerInstructions(options.mcp ? options.mcp.instructions : undefined, engine ? [workflowInstructions, ...(engine.customSteps ? [customStepInstructions] : [])].join('\n') : undefined)
     const approvals = mcpApprovals()
     const { resource } = auth.mcp
     const info = { name: appName, version: '1.0.0', icons: mcpIcons(resource, icons) }

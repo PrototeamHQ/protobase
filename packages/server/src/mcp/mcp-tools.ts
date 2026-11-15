@@ -13,6 +13,7 @@ import { workflowReadTools, type WorkflowCatalog } from '../workflows/mcp/workfl
 import { workflowWriteTools } from '../workflows/mcp/workflow-write-tools'
 import { webhookTools } from '../workflows/mcp/webhook-tools'
 import { taskTools } from '../workflows/mcp/task-tools'
+import { customStepReadTools, customStepWriteTools, type CustomStepCalls } from '../workflows/mcp/custom-step-tools'
 
 export type McpToolsInput = {
   db: Db
@@ -32,7 +33,8 @@ export type McpToolsInput = {
   /**
    * Offers the workflow tools, for an app with `workflows`: reading workflows, their types and runs, and checking
    * definitions against the app's types; with writes on, `create_workflow`, `update_workflow`, `run_workflow`,
-   * `enable_workflow`, `new_webhook_url` and the `send_task_*` answers to waiting Tasks too.
+   * `enable_workflow`, `new_webhook_url` and the `send_task_*` answers to waiting Tasks too. With custom steps, reading
+   * them and their runners, and with writes on, saving, testing them and making runners.
    * Off by default.
    */
   workflows?: WorkflowCatalog
@@ -42,8 +44,11 @@ export type McpToolsInput = {
 
 const writeTools = (input: WriteRecordToolsInput) => [...writeRecordTools(input), batchWriteTool(input)]
 
+// The custom steps' calls of the tools that only take up their names.
+const notCalled: CustomStepCalls = { test: () => Promise.reject(new Error('Not called')), online: () => Promise.reject(new Error('Not called')), register: () => Promise.reject(new Error('Not called')), mayIssue: () => Promise.reject(new Error('Not called')) }
+
 // Every name a built-in tool may take, whatever the options: an own tool cannot take one that turning an option on would offer.
-const builtInNames = (db: Db) => new Set([...readRecordTools(), ...writeTools({}), ...commentTools({ commented: ['comments'] }, {}), readOnlyQueryTool(db), ...workflowReadTools({ types: [], checkWith: () => ({ resources: [], triggers: {} }), readTrace: async () => [] }), ...workflowWriteTools(), ...webhookTools({}, () => Promise.reject(new Error('Not called'))), ...taskTools({}, () => Promise.reject(new Error('Not called')))].map((tool) => tool.name))
+const builtInNames = (db: Db) => new Set([...readRecordTools(), ...writeTools({}), ...commentTools({ commented: ['comments'] }, {}), readOnlyQueryTool(db), ...workflowReadTools({ types: [], checkWith: () => ({ resources: [], triggers: {} }), readTrace: async () => [] }), ...workflowWriteTools(), ...webhookTools({}, () => Promise.reject(new Error('Not called'))), ...taskTools({}, () => Promise.reject(new Error('Not called'))), ...customStepReadTools(notCalled), ...customStepWriteTools(notCalled)].map((tool) => tool.name))
 
 /** The app's own tools; one whose name is taken twice, or by a built-in tool, stops the server at startup. */
 const checkedOwnTools = (db: Db, own: AssistantTool[]) => {
@@ -66,7 +71,7 @@ export const mcpTools = ({ db, sql, writes, commented = [], workflows, own = [] 
   const limits = writes === false ? false : writes === true || !writes.resources ? {} : { resources: writes.resources }
   const write = limits === false ? [] : writeTools(limits)
   const comments = commentTools({ commented }, limits)
-  const flows = workflows ? [...workflowReadTools(workflows), ...(limits === false ? [] : [...workflowWriteTools(limits), ...webhookTools(limits, workflows.issueWebhook), ...(workflows.answerTask ? taskTools(limits, workflows.answerTask) : [])])] : []
+  const flows = workflows ? [...workflowReadTools(workflows), ...(limits === false ? [] : [...workflowWriteTools(limits), ...webhookTools(limits, workflows.issueWebhook), ...(workflows.answerTask ? taskTools(limits, workflows.answerTask) : []), ...(workflows.customSteps ? customStepWriteTools(workflows.customSteps, limits) : [])])] : []
   const query = sql ? [readOnlyQueryTool(db)] : []
   return (session: Session): AssistantTool[] => [...read, ...write, ...comments, ...flows, ...(seesAssistant(session.user.roles) ? query : []), ...ownTools]
 }

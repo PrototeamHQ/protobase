@@ -31,10 +31,13 @@ export const saverSession = async (roles: SaverRoles, savedBy: string | null, te
   return { user: { id: savedBy, roles: held }, ...(tenant !== undefined && { tenant, organization: { id: tenant } }) }
 }
 
-/** The session a run's records steps act in: that of the user who saved the version the run pinned, in the run's tenant. */
+/**
+ * The session a run's records steps act in: that of the user who saved the version the run pinned, in the run's tenant;
+ * a custom step's test run, of no version, acts as the user who started it.
+ */
 export const runSession = async ({ deps, schema, roles }: RecordsInput, runId: string) => {
-  const { rows } = await sql<{ saved_by: string | null; tenant_id: string | null }>`select v.saved_by, r.tenant_id from ${sql.id(schema, 'runs')} r
-    join ${sql.id(schema, 'versions')} v on v.workflow_id = r.workflow_id and v.version = r.version where r.id = ${runId}`.execute(deps().db)
+  const { rows } = await sql<{ saved_by: string | null; tenant_id: string | null }>`select case when r.test_step is null then v.saved_by else r.started_by end as saved_by, r.tenant_id
+    from ${sql.id(schema, 'runs')} r left join ${sql.id(schema, 'versions')} v on v.workflow_id = r.workflow_id and v.version = r.version where r.id = ${runId}`.execute(deps().db)
   return saverSession(roles, rows[0]?.saved_by ?? null, rows[0]?.tenant_id ?? undefined)
 }
 

@@ -9,6 +9,7 @@ import { withStepsToCheck } from '../save-hook'
 import { connectionHeadersParameter, importedFields } from './import-machine-args'
 import { definitionDataOf, definitionFieldsOf, definitionParameters, editParameter, hiddenMergeMessage, hiddenMerges, idOf, idParameter, objectOf, pageSizeOf, textOf } from './workflow-tool-args'
 import type { AnswerTaskAs } from '../tasks/answer-as'
+import { customStepReadTools, type CustomStepCalls } from './custom-step-tools'
 
 const reads = { readOnlyHint: true, openWorldHint: false }
 const listed = ['id', 'name', 'description', 'version', 'updated_at']
@@ -30,6 +31,8 @@ export type WorkflowCatalog = {
   listConnections?: ListConnections
   /** The steps of a run's trace, for `get_workflow_run`. */
   readTrace: TraceReader
+  /** With custom steps on, their tests, runners and registrations, for the custom steps' tools; none without it. */
+  customSteps?: CustomStepCalls
 }
 
 // The caller's tenant's custom steps, which every caller who reads the types reads, as they do the plugins' types.
@@ -38,7 +41,7 @@ const customOf = async (catalog: WorkflowCatalog, context: ToolContext) => withC
 /** The step types and triggers a definition may name, with their arguments, results, errors and run inputs. */
 const listWorkflowTypesTool = (catalog: WorkflowCatalog) => defineTool({
   name: 'list_workflow_types',
-  description: "Lists what a workflow definition may name, as JSON ({ step_types, triggers }): each step type a Task names as its Resource and each trigger, by id, with its label, description, input (the Task's Arguments, or the trigger's input) and output as JSON Schema, the errors a step fails with, the connection it signs in with, and whether this app can run it.",
+  description: "Lists what a workflow definition may name, as JSON ({ step_types, triggers }): each step type a Task names as its Resource and each trigger, by id, with its label, description, input (the Task's Arguments, or the trigger's input) and output as JSON Schema, the errors a step fails with, the connection it signs in with, and whether this app can run it. Each version of a custom step is a step type of its own, custom:<name>:<version>, with how its image's build stands on the app's runners (build: ready, building or failed; none before a build began).",
   parameters: { type: 'object', properties: {} },
   annotations: reads,
   run: async (_args, context) => JSON.stringify(typeCatalog((await customOf(catalog, context)).types(catalog.types))),
@@ -122,7 +125,7 @@ const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
   },
 })
 
-const runFields = ['id', 'workflow_id', 'version', 'rerun_of', 'block_of', 'block_state', 'started_by', 'status', 'input', 'output', 'error', 'cause', 'resume_at', 'trace', 'trace_file', 'created_at', 'finished_at', 'duration_ms']
+const runFields = ['id', 'workflow_id', 'version', 'test_step', 'rerun_of', 'block_of', 'block_state', 'started_by', 'status', 'input', 'output', 'error', 'cause', 'resume_at', 'trace', 'trace_file', 'created_at', 'finished_at', 'duration_ms']
 const stepFields = ['state', 'scope', 'seq', 'type', 'attempt', 'status', 'input', 'output', 'assigned', 'logs', 'error', 'cause', 'next', 'resumeAt', 'startedAt', 'finishedAt', 'recorded', 'run']
 
 /** The steps of a run's trace, in the order they ran. */
@@ -137,7 +140,7 @@ const offsetOf = (token: unknown) => {
 export const getWorkflowRunTool = (readTrace: TraceReader) =>
   defineTool({
     name: 'get_workflow_run',
-    description: "Reads a run by its id, as JSON ({ run, steps, next_page_token }): its status (queued, running, waiting, succeeded or failed), input, output, error and cause, and the steps of its trace in the order they ran, each with its state, scope (empty, or the Map item it ran in), try, status (succeeded, retrying, caught or failed), input, output, assigned variables, logs, error and cause. A run goes on in the background: read it again while it is queued, running or waiting; its trace grows as it goes. A run that keeps no trace (its trace setting none, or failed while it succeeds) lists no steps. Pass state to read only that state's steps; pass next_page_token back as page_token for more steps.",
+    description: "Reads a run by its id, as JSON ({ run, steps, next_page_token }): its workflow, or for a test of a custom step test_step, the version it tested with no workflow, its status (queued, running, waiting, succeeded or failed), input, output, error and cause, and the steps of its trace in the order they ran, each with its state, scope (empty, or the Map item it ran in), try, status (succeeded, retrying, caught or failed), input, output, assigned variables, logs, error and cause. A run goes on in the background: read it again while it is queued, running or waiting; its trace grows as it goes. A run that keeps no trace (its trace setting none, or failed while it succeeds) lists no steps. Pass state to read only that state's steps; pass next_page_token back as page_token for more steps.",
     parameters: {
       type: 'object',
       properties: {
@@ -166,5 +169,8 @@ export const getWorkflowRunTool = (readTrace: TraceReader) =>
     },
   })
 
-/** The tools that read workflows, their types and runs and the caller's connections, and check definitions. */
-export const workflowReadTools = (catalog: WorkflowCatalog) => [listWorkflowTypesTool(catalog), listWorkflowsTool, getWorkflowTool, validateWorkflowTool(catalog), getWorkflowRunTool(catalog.readTrace), listConnectionsTool(catalog.listConnections)]
+/**
+ * The tools that read workflows, their types and runs and the caller's connections, and check definitions; with custom
+ * steps, their versions and builds and the runners too.
+ */
+export const workflowReadTools = (catalog: WorkflowCatalog) => [listWorkflowTypesTool(catalog), listWorkflowsTool, getWorkflowTool, validateWorkflowTool(catalog), getWorkflowRunTool(catalog.readTrace), listConnectionsTool(catalog.listConnections), ...(catalog.customSteps ? customStepReadTools(catalog.customSteps) : [])]

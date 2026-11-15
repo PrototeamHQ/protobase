@@ -21,6 +21,8 @@ export type TypeEntry = {
   /** False when this app cannot run it, with the reason; a definition that uses it is not saved. */
   available: boolean
   reason?: string
+  /** A custom step version's image on the app's runners: `ready` once one built it, `building`, or `failed` on each that tried; none before a build began. */
+  build?: 'ready' | 'building' | 'failed'
 }
 
 const entry = (plugin: Plugin, key: string, type: StepType | TriggerType): Omit<TypeEntry, 'available'> => ({

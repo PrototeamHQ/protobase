@@ -32,6 +32,8 @@ import { answerTaskAs } from './tasks/answer-as'
 import { customStepSaveHook } from './custom-steps/custom-step-hook'
 import { customStepTypes } from './custom-steps/custom-step-types'
 import { customStepRunners } from './runners/runners'
+import { runnersOnline, startCustomStepTest } from './custom-steps/custom-step-tests'
+import type { CustomStepService } from './mcp/custom-step-tools'
 
 /**
  * What `createAdmin` needs for `workflows`: the hooks that check saves and start runs, the check of a run's input before
@@ -41,7 +43,8 @@ import { customStepRunners } from './runners/runners'
  * on, the hook that checks their manifests and keeps their versions, each tenant's custom step types
  * (`customTypes`), which its saves, its type list and its checks take, and the runners that run them: their calls
  * (`routes.runners`) and install script (`routes.runnerInstall`), the registration tokens a runner's editor issues, and
- * the job that ends a runner's lease; `stop` answers the runners' claims held open, as the process closes.
+ * the job that ends a runner's lease, with what the MCP tools of custom steps need beside their records
+ * (`customSteps`): a version's test run, the runners online and a runner's registration token; `stop` answers the runners' claims held open, as the process closes.
  */
 export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth?: AdminAuth, locale?: Locale) => {
   const schema = workflowsSchema(options)
@@ -108,5 +111,12 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
     ...(runners && { runners: runners.route, runnerInstall: runners.install }),
   }
   const customTypes = custom && ((tenant: unknown) => custom(deps().db, tenant))
-  return { routes, issue, answerTask: answerTaskAs(deps, tokens, answerTask), customTypes, hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent, custom), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema), ...(storage ? [storageConfigurationHook(storage)] : []), ...(custom ? [customStepSaveHook(schema)] : []), ...(runners ? runners.hooks : [])], writeChecks: [runInputCheck, ...(storage ? [storageEndpointCheck(storage, allowPrivateAddresses)] : [])], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : []), ...(runners ? runners.jobs : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId), stop: async () => void (runners && (await runners.stop())) }
+  // What the MCP tools of custom steps do beyond their records: test runs, the runners online, registration tokens.
+  const customSteps: CustomStepService | undefined = runners && {
+    test: (session, step, input) => startCustomStepTest(deps, schema, runner, session, step, input),
+    online: (tenant) => runnersOnline(deps().db, schema, tenant),
+    register: (session, id, origin) => runners.issue(session, id, origin),
+    mayIssue: (session) => runners.mayIssue(session),
+  }
+  return { routes, issue, answerTask: answerTaskAs(deps, tokens, answerTask), customTypes, customSteps, hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent, custom), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema), ...(storage ? [storageConfigurationHook(storage)] : []), ...(custom ? [customStepSaveHook(schema)] : []), ...(runners ? runners.hooks : [])], writeChecks: [runInputCheck, ...(storage ? [storageEndpointCheck(storage, allowPrivateAddresses)] : [])], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : []), ...(runners ? runners.jobs : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId), stop: async () => void (runners && (await runners.stop())) }
 }

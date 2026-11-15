@@ -1,4 +1,4 @@
-import { ApiError, type Client, type HistoryChange, type MentionableUser, type RecordComment, type MapLayerModel, type PluginRef, type PublicForm, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult, type WorkflowRunTrace, type WorkflowTraceHeld, type WorkflowTypeList } from '@protobase/client'
+import { ApiError, type Client, type HistoryChange, type MentionableUser, type RecordComment, type MapLayerModel, type PluginRef, type PublicForm, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult, type RunnerRegistration, type WorkflowRunTrace, type WorkflowTraceHeld, type WorkflowTypeList } from '@protobase/client'
 import { evaluateCondition, parseCondition, type PageModel } from '@protobase/layout'
 import { checkFilter, evaluateFilter, parseFilter, printFilter, type BottomBarModel, type CardPhotosModel, type RelatedFilter, type ResourceModel, type SignInViewModel, type ViewModel } from '@protobase/schema'
 import { cardPhotoLimit, encodeKey, matchesSearch, movePlan, splitRelated, workflowTraceRevision } from '@protobase/schema/internal'
@@ -56,6 +56,8 @@ export type FakeApiInput = {
   workflowTypes?: WorkflowTypeList
   /** A workflow run's whole trace, which the run's page reads after the steps it has; no steps without it. */
   workflowRunTrace?: (runId: string) => Promise<Pick<WorkflowRunTrace, 'steps'>>
+  /** A runner's new registration token with its install command; rejects to answer a refusal. One for any runner without it. */
+  runnerRegistration?: (runner: string) => Promise<RunnerRegistration>
 }
 
 const keyOf = (model: ResourceModel, row: Row) => encodeKey(model.primaryKey.map((name) => row[name] as string | number))
@@ -136,7 +138,13 @@ const filled = <G extends { value: unknown; count: number }>(groups: G[], stride
   })
 }
 
-export const fakeApi = ({ resources, views = [], pages = [], account, rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, beforeWrite, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, comments: initialComments = {}, users = [], forms = [], submitForm, generate, workflowTypes = exampleWorkflowTypes, workflowRunTrace = async () => ({ steps: [] }) }: FakeApiInput) => {
+// A token as the server issues one: valid an hour, with the command that installs the runner with it.
+const exampleRegistration = async (runner: string): Promise<RunnerRegistration> => {
+  const token = `pbr_once_${runner.replaceAll('-', '').padEnd(43, 'x').slice(0, 43)}`
+  return { token, expires_at: new Date(Date.now() + 3600_000).toISOString(), command: `curl -fsSL https://app.example.test/api/runners/install.sh | sh -s -- --token ${token}`, endpoint: 'https://app.example.test/api/runners/v1' }
+}
+
+export const fakeApi = ({ resources, views = [], pages = [], account, rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, beforeWrite, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, comments: initialComments = {}, users = [], forms = [], submitForm, generate, workflowTypes = exampleWorkflowTypes, workflowRunTrace = async () => ({ steps: [] }), runnerRegistration = exampleRegistration }: FakeApiInput) => {
   const rows: Record<string, Row[]> = structuredClone(initial)
   const models = Object.fromEntries(resources.map((model) => [model.name, model]))
   let version = 0
@@ -259,6 +267,7 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
     // The stories link files as data: URLs, which are read as they are.
     fileReadUrl: (_resource: unknown, file: { url: string }) => file.url,
     workflowTypes: async () => structuredClone(workflowTypes),
+    runnerRegistration,
     workflowRunTrace: async (runId: string, held?: WorkflowTraceHeld): Promise<WorkflowRunTrace> => {
       const { steps } = await workflowRunTrace(runId)
       const kept = held !== undefined && held.after <= steps.length && held.revision === (await workflowTraceRevision(steps.slice(0, held.after)))

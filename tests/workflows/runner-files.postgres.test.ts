@@ -200,7 +200,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("runners' job files, bui
     await sql`delete from workflows.custom_step_builds`.execute(db)
   })
 
-  it('has runners that build prepare the versions a published workflow uses, once each until they have the image or its build failed', async () => {
+  it("has runners that build prepare the versions a published workflow uses and each custom step's current one, once each until they have the image or its build failed", async () => {
     const etag = async () => (await as('bob', `/workflows/${workflow}`)).headers.get('etag')!
     const publish = (version: number | null) => admin.request(`/api/v1/workflows/${workflow}`, { method: 'PATCH', headers: { 'content-type': 'application/json', 'x-user': 'bob', 'if-match': '*' }, body: JSON.stringify({ enabled_version: version }) })
     expect(await etag()).toBeTruthy()
@@ -230,11 +230,17 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("runners' job files, bui
     expect(((await (await second.raw('/claim', { platform: 'linux/amd64', capacity: { slots: 1 }, ...building })).json()) as { order: string }).order).toBe('prepare')
     expect(await second.claim(building)).toBeUndefined()
 
-    // Turning the workflow off wants nothing
+    // Turning the workflow off wants nothing of it, but the custom step's current version, its last save, is built still
     expect((await publish(null)).status).toBe(200)
     expect((await sql`select 1 from workflows.custom_step_wanted where workflow_id = ${workflow}`.execute(db)).rows).toEqual([])
     const third = await registered('Third')
-    expect(await third.claim(building)).toBeUndefined()
+    expect(await third.raw('/claim', { platform: 'linux/amd64', capacity: { slots: 1 }, ...building }).then((response) => response.json())).toMatchObject({ order: 'prepare', step })
+    // Once a later save makes another version current, the one no published workflow uses is wanted no more
+    const { rows: [saved] } = await sql<{ id: string }>`select id from workflows.custom_steps where name = 'convert'`.execute(db)
+    expect((await as('ada', `/workflow_custom_steps/${saved!.id}`, { method: 'PATCH', body: { container: { ...convert.container, dockerfile: `${convert.container.dockerfile}\n# 2` } } })).status).toBe(200)
+    const fourth = await registered('Fourth')
+    expect(await fourth.raw('/claim', { platform: 'linux/amd64', capacity: { slots: 1 }, ...building }).then((response) => response.json())).toMatchObject({ order: 'prepare', step: 'custom:convert:2' })
+    expect(await fourth.raw('/claim', { platform: 'linux/amd64', capacity: { slots: 1 }, ...building, images: [{ step: 'custom:convert:2' }] }).then((response) => response.json())).toEqual({ order: 'none' })
   })
 
   it('serves the install script to anyone, for this app, and gives the one command with each registration token', async () => {

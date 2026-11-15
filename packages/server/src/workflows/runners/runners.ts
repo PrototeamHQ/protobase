@@ -1,12 +1,13 @@
 import { Hono } from 'hono'
+import { runnerRegistrationParam, runnerRegistrationRoute } from '@protobase/schema/internal'
 import type { Db } from '@protobase/query'
 import type { Deps } from '../../deps'
-import type { AdminEnv } from '../../types'
+import type { AdminEnv, Session } from '../../types'
 import type { RunnerSettings } from '../options'
 import type { SecretKey } from '../../better-auth/connections/sealed-revocation'
 import type { StorageInput } from '../storage/plugin-storage'
 import { jobSealer } from './job-seal'
-import { issueRegistration } from './registration'
+import { issueRegistration, mayIssueRegistration } from './registration'
 import { runnerBroker } from './runner-broker'
 import { runnerFiles } from './runner-files'
 import { runnerSaveHook } from './runner-hook'
@@ -18,7 +19,7 @@ import { runnerRoute } from './runner-route'
  * What custom steps' runners need of the engine: where the runner queues a custom step's try (`queue`), the runners'
  * calls (`route`, under `.../runners/v1`), the install script (`install`, `.../runners/install.sh`) and the
  * registration tokens a caller who may change a runner issues (`registration`,
- * `POST .../workflows/runners/<id>/registration`), the lease job and the hook that checks a runner's writes. Each job's
+ * `POST .../workflows/runners/<id>/registration`, and `issue`, as over MCP), the lease job and the hook that checks a runner's writes. Each job's
  * Task is answered by its token's hash through `answer`, the waiting Tasks' own path, and its arguments are sealed with
  * the app's secret (`key`) while it waits. Its files are read and stored through `storage`, as the run's storage steps
  * do. The app's address, for the install script and its command, is `origin`, else the request's, with the path of its
@@ -35,7 +36,7 @@ export const customStepRunners = ({ deps, schema, settings, secrets, key, answer
   const appOf = (request: Request): RunnerApp => ({ origin: origin() ?? new URL(request.url).origin, apiPath: deps().systemPath })
   const registration = () => {
     const app = new Hono<AdminEnv>()
-    app.post('/:id/registration', async (c) => c.json(await issueRegistration(deps, schema, c.get('session'), c.req.param('id'), appOf(c.req.raw)), 200, { 'Cache-Control': 'no-store' }))
+    app.post(runnerRegistrationRoute, async (c) => c.json(await issueRegistration(deps, schema, c.get('session'), c.req.param(runnerRegistrationParam), appOf(c.req.raw)), 200, { 'Cache-Control': 'no-store' }))
     return app
   }
   return {
@@ -43,6 +44,12 @@ export const customStepRunners = ({ deps, schema, settings, secrets, key, answer
     route: () => runnerRoute({ db, schema, broker, jobs, files, report }),
     install: () => installRoute(appOf),
     registration,
+    /**
+     * Issues a runner's one-time registration token as `session`, as `registration` does, for the app at its origin, else
+     * `fallback`, such as the MCP endpoint's.
+     */
+    issue: (session: Session, id: string, fallback: string) => issueRegistration(deps, schema, session, id, { origin: origin() ?? fallback, apiPath: deps().systemPath }),
+    mayIssue: (session: Session) => mayIssueRegistration(deps, session),
     jobs: [lease],
     hooks: [runnerSaveHook],
     stop: broker.stop,

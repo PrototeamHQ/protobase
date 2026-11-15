@@ -1,5 +1,6 @@
 import { Ajv } from 'ajv'
 import type { CheckOptions } from '../definition/check-definition'
+import type { Definition } from '../definition/types'
 import type { JsonSchema } from './context'
 import type { TypeEntry } from './type-list'
 import { customPlugin, customStepOf } from './custom-step-id'
@@ -18,7 +19,12 @@ export type CustomStepVersion = {
   output: JsonSchema
   error_prefix: string
   errors: Record<string, string>
+  /** How its image's builds on the app's runners stand, when one began: `ready` once any runner built it. */
+  build?: CustomStepBuildStatus | null
 }
+
+/** How a custom step version's image stands on the app's runners: built by one, building on one, or failed on each that tried. */
+export type CustomStepBuildStatus = 'ready' | 'building' | 'failed'
 
 /** A custom step's manifest as a create or an update writes it. */
 export type CustomStepManifest = Partial<Omit<CustomStepVersion, 'version'>> & { container?: unknown }
@@ -179,8 +185,22 @@ export const customStepEntry = (step: CustomStepVersion): TypeEntry => {
     // What its container changes is its own, so a replay does not run it
     writes: true,
     available: true,
+    ...(step.build && { build: step.build }),
   }
 }
+
+/** The state a custom step's test run runs its step in. */
+export const customStepTestState = 'Test'
+
+/**
+ * What a custom step's test run runs, with no workflow: the version `step` names, such as `custom:ocr:2`, alone, as
+ * one Task whose arguments are the run's input, with a step type's timeout.
+ */
+export const customStepTestDefinition = (step: string): Definition => ({
+  trigger: { manual: {} },
+  order: 'sequence',
+  stateMachine: { QueryLanguage: 'JSONata', StartAt: customStepTestState, States: { [customStepTestState]: { Type: 'Task', Resource: step, Arguments: '{% $states.context.Execution.Input %}', End: true } } },
+})
 
 const requiredInputs = (input: JsonSchema) => (Array.isArray(input.required) ? (input.required as string[]) : [])
 

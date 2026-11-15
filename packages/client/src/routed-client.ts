@@ -56,5 +56,6 @@ export const routedClient = (own: Client, sourceOf: (resource: string) => Client
     // The types are those of the API that serves the workflows
     workflowTypes: () => to('workflows').workflowTypes(),
     workflowRunTrace: (runId, held) => to('workflow_runs').workflowRunTrace(runId, held),
+    runnerRegistration: (runner) => to('workflow_runners').runnerRegistration(runner),
   }
 }

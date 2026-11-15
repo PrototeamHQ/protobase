@@ -124,7 +124,11 @@ const versionsView = view<ReturnType<typeof versionsResource>>('workflow_version
   .fields((r) => ({ saved_by: r.saved_by.label('Saved by'), saved_at: r.saved_at.label('Saved') }))
   .list((r) => ({ columns: [r.workflow_id, r.version, r.saved_by, r.saved_at], sort: [[r.version, 'desc']] }))
 
-/** A run of a workflow, started by creating it with its input: it runs the version it names, else the published one, or on a workflow that is off the one saved last. */
+/**
+ * A run of a workflow, started by creating it with its input: it runs the version it names, else the published one, or
+ * on a workflow that is off the one saved last. A custom step's test run, which only the engine starts, names no
+ * workflow but the step version it ran alone (`test_step`).
+ */
 const runsResource = (schema: string) =>
   resource('workflow_runs')
     .table(`${schema}.runs`)
@@ -149,6 +153,8 @@ const runsResource = (schema: string) =>
       block_of: f.relation('workflow_runs').optional().readOnly().filterable(),
       block_state: f.text().optional().readOnly(),
       block_visit: f.text().optional().readOnly(),
+      // Only the engine starts a custom step's test run, which names no workflow.
+      test_step: f.text().optional().readOnly(),
       tenant_id: f.text().optional().readOnly(),
       created_at: f.timestamp().readOnly().dbDefault().sortable(),
       finished_at: f.timestamp().optional().readOnly(),
@@ -165,7 +171,7 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
   .icon('play')
   .nav({ hidden: true })
   .title((r) => r.created_at)
-  // A run is shown on its workflow's graph, on the version it ran on
+  // A run is shown on its workflow's graph, on the version it ran on; a custom step's test run, of no workflow, on its own page
   .recordOpens({ kind: 'record', resource: 'workflows', key: '{{workflow_id}}', run: '{{id}}' })
   // A test run starts in place, on the workflow's page
   .createOpens({ kind: 'record', resource: 'workflows', key: '{{workflow_id}}', panel: 'test_run' })
@@ -188,18 +194,19 @@ const runsView = view<ReturnType<typeof runsResource>>('workflow_runs')
     started_by: r.started_by.label('Started by'),
     block_of: r.block_of.label('Block of').help("The run whose Block this run ran: it runs that Block's steps alone, and its result went back to that run"),
     block_state: r.block_state.label('Block').help('The Block whose steps this run runs'),
+    test_step: r.test_step.label('Tested step').help('The custom step version this run tested alone, with no workflow'),
     created_at: r.created_at.label('Started'),
     finished_at: r.finished_at.label('Finished'),
     duration_ms: r.duration_ms.label('Duration (ms)'),
   }))
-  .list((r) => ({ columns: [r.created_at, r.workflow_id, r.status, r.started_by, r.duration_ms, r.error], sort: [[r.created_at, 'desc']] }))
+  .list((r) => ({ columns: [r.created_at, r.workflow_id, r.test_step, r.status, r.started_by, r.duration_ms, r.error], sort: [[r.created_at, 'desc']] }))
   .actions((a) => [
-    a.link('replay', { label: 'Replay without writing', icon: 'history', to: { kind: 'record', resource: 'workflows', key: '{{workflow_id}}', run: '{{id}}', panel: 'replay' }, when: 'status = "succeeded" OR status = "failed"' }),
-    a.link('rerun', { label: 'Re-run from a step', icon: 'restart', to: { kind: 'record', resource: 'workflows', key: '{{workflow_id}}', run: '{{id}}' }, when: 'status = "succeeded" OR status = "failed"' }),
+    a.link('replay', { label: 'Replay without writing', icon: 'history', to: { kind: 'record', resource: 'workflows', key: '{{workflow_id}}', run: '{{id}}', panel: 'replay' }, when: '(status = "succeeded" OR status = "failed") AND workflow_id:*' }),
+    a.link('rerun', { label: 'Re-run from a step', icon: 'restart', to: { kind: 'record', resource: 'workflows', key: '{{workflow_id}}', run: '{{id}}' }, when: '(status = "succeeded" OR status = "failed") AND workflow_id:*' }),
   ])
   .layout((r) => [
     l.section('Trace', [r.id]),
-    l.section('Run', [r.workflow_id, r.input, r.output, r.error, r.cause, r.trace_file]),
+    l.section('Run', [r.workflow_id, r.test_step, r.input, r.output, r.error, r.cause, r.trace_file]),
     l.sidebar([r.status, r.version, r.trace, r.started_by, r.block_of, r.block_state, r.rerun_of, r.rerun_from, r.replay, r.created_at, r.resume_at, r.finished_at, r.duration_ms]),
     l.related('Re-runs', { resource: 'workflow_runs', field: 'rerun_of', columns: ['status', 'started_by', 'created_at', 'duration_ms', 'error'] }),
   ])

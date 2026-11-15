@@ -24,8 +24,9 @@ export const buildOf = (container: JobBuild): JobBuild => ({ dockerfile: contain
 
 /**
  * Gives the runners holding a claim here (`ids`) that build images, and hold no job placed with them and not yet sent,
- * one wanted custom step version each that they lack: one a workflow's published version of their tenant uses, whose
- * image their claim does not list, and that they have no build of under way or failed. Each runner is sent `prepare`
+ * one wanted custom step version each that they lack: one a workflow's published version of their tenant uses, or a
+ * custom step's current version, its last save, so it is built before it is tested or published; whose image their
+ * claim does not list, and that they have no build of under way or failed. Each runner is sent `prepare`
  * once per version until it lists the image or its build failed: a build of it is kept as building from now, which the
  * runner's report of the start takes up, and its claim is held open no longer. Under the matching pass's lock, so no
  * pass places a job with a runner answered so.
@@ -38,9 +39,10 @@ export const preparePass = (db: Db, schema: string, ids: readonly string[]) =>
     const now = new Date()
     const { rows } = await sql<Prepared>`select distinct on (r.id) r.id as runner_id, v.id as version_id, r.tenant_id, 'custom:' || v.name || ':' || v.version as step, v.container
       from ${runners} r
-      join ${sql.id(schema, 'custom_step_wanted')} w on coalesce(w.tenant_id, '') = coalesce(r.tenant_id, '')
-      join ${sql.id(schema, 'custom_step_versions')} v on v.id = w.version_id and v.custom_step_id is not null
+      join ${sql.id(schema, 'custom_step_versions')} v on coalesce(v.tenant_id, '') = coalesce(r.tenant_id, '') and v.custom_step_id is not null
       where r.id = any(${ids}) and r.polling_until > ${now} and not r.revoked and r.state -> 'kinds' @> '["build"]'::jsonb
+        and (exists (select 1 from ${sql.id(schema, 'custom_step_wanted')} w where w.version_id = v.id)
+          or exists (select 1 from ${sql.id(schema, 'custom_steps')} c where c.id = v.custom_step_id and c.version = v.version))
         and not exists (select 1 from jsonb_array_elements(r.state -> 'images') i where i ->> 'step' = 'custom:' || v.name || ':' || v.version)
         and not exists (select 1 from ${sql.id(schema, 'custom_step_builds')} b where b.runner_id = r.id and b.version_id = v.id
           and (b.status = 'failed' or (b.status = 'building' and b.started_at > ${new Date(now.getTime() - buildMs)})))
