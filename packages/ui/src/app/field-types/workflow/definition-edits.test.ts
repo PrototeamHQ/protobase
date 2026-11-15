@@ -168,5 +168,7 @@ describe('workflow edits', () => {
     const renamed = renameState(flow, 'A', 'Save it')
     expect(renamed.stateMachine.States.Tell).toEqual({ Type: 'Pass', Condition: "{% $states.context.Steps.`Save it`.Status = 'SUCCEEDED' and $states.context.Steps.AB.Status = 'SUCCEEDED' %}", Output: 'Steps.A is plain text' })
     expect(renamed.stateMachine.States.Each).toMatchObject({ ItemProcessor: { States: { Item: { Condition: '{% $states.context.Steps.`Save it`.Error = null %}' } } } })
+    // A name JSONata reads as a value is backticked too
+    expect(renameState(flow, 'A', 'true').stateMachine.States.Tell).toMatchObject({ Condition: "{% $states.context.Steps.`true`.Status = 'SUCCEEDED' and $states.context.Steps.AB.Status = 'SUCCEEDED' %}" })
   })
 })

@@ -265,8 +265,9 @@ const renamedIn = (machine: Machine, from: string, to: string) => {
   }
 }
 
-// A state's name as an expression reads it after `$states.context.Steps.`: bare, or in backticks when it is no identifier
-const stepName = (name: string) => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `\`${name}\``)
+// A state's name as an expression reads it after `$states.context.Steps.`: bare, or in backticks when it is no
+// identifier or one JSONata reads as a value
+export const stepName = (name: string) => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !['true', 'false', 'null'].includes(name) ? name : `\`${name}\``)
 const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 // Every expression of `value` with its reads of `from`'s status read from `to`'s instead, the backticked form too.

@@ -1,3 +1,4 @@
+import { stepName } from './definition-edits'
 import { allStates, assignedNames, dependsOn, innerMachine, machineDependencies, orderOf, type Definition, type Machine, type State } from '@protobase/workflows'
 
 
@@ -31,7 +32,25 @@ const passThrough = (machine: Machine, toData: boolean, first?: string): string 
   return
 }
 
-const statusCondition = (names: string[]) => `{% ${names.map((name) => `$states.context.Steps.${/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `\`${name}\``}.Status = 'SUCCEEDED'`).join(' and ')} %}`
+// A state that a chain of Nexts leads back to, in the machine or a Map's or Block's inside it, which runs more than once
+// in sequence order: in data order each state runs once, after the ones it depends on, so a loop would wait on itself.
+const looping = (machine: Machine): string | undefined => {
+  for (const start of Object.keys(machine.States)) {
+    const seen = new Set<string>()
+    for (let name: string | undefined = start; name !== undefined && machine.States[name]; name = (machine.States[name] as { Next?: string }).Next) {
+      if (seen.has(name)) return name
+      seen.add(name)
+    }
+  }
+  for (const state of Object.values(machine.States)) {
+    const inner = innerMachine(state)
+    const found = inner && looping(inner)
+    if (found) return found
+  }
+  return
+}
+
+const statusCondition = (names: string[]) => `{% ${names.map((name) => `$states.context.Steps.${stepName(name)}.Status = 'SUCCEEDED'`).join(' and ')} %}`
 
 // A sequence machine in data order: each Next a dependency of the state it names, the read of the earlier state's
 // status where the later one reads none of its data, so the order stays as it was
@@ -83,8 +102,8 @@ const machineToSequence = (machine: Machine): Machine => {
 /**
  * The definition in data order: each Next becomes what the state it names runs after, by its data or, where it reads
  * none of it, by a Condition on the earlier state's Status, so the states run in the same order; Succeed becomes Pass.
- * Refused with a Choice, a catcher with Next, a variable two states assign, or a Pass or Succeed without Output that
- * gives on the output of the state before it.
+ * Refused with a Choice, a catcher with Next, a variable two states assign, a loop of Nexts, or a Pass or Succeed
+ * without Output that gives on the output of the state before it.
  */
 export const toDataOrder = (definition: Definition): Switched => {
   const states = allStates(definition.stateMachine)
@@ -94,6 +113,8 @@ export const toDataOrder = (definition: Definition): Switched => {
   if (caught) return { refused: `${caught[0]} has an error path to another state; in data order a catcher has no Next` }
   const twice = assignedTwice(definition.stateMachine)
   if (twice !== undefined) return { refused: `two states assign $${twice}; in data order each variable has one state that assigns it` }
+  const loop = looping(definition.stateMachine)
+  if (loop !== undefined) return { refused: `${loop} runs again in a loop of Next; in data order each state runs once` }
   const passing = passThrough(definition.stateMachine, true)
   if (passing !== undefined) return { refused: `${passing} has no Output, so it gives the output of the state before it, which in data order it does not get; give it an Output that reads what it needs` }
   return { definition: { ...definition, order: 'data', stateMachine: { ...machineToData(definition.stateMachine), QueryLanguage: 'JSONata' } as Definition['stateMachine'] } }
