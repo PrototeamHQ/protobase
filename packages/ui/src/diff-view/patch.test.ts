@@ -50,6 +50,43 @@ describe('parsePatch', () => {
     expect(files[1]!.lines.map((line) => line.text)).toEqual(['@@ -1 +1 @@', 'a', 'b'])
   })
 
+  it('reads quoted names and keeps a quoted rename-only file before an ordinary one', () => {
+    const patch = [
+      'diff --git "a/old name\\303\\251.txt" "b/new \\"name\\".txt"',
+      'similarity index 100%',
+      'rename from "old name\\303\\251.txt"',
+      'rename to "new \\"name\\".txt"',
+      'diff --git a/plain b/plain',
+      '--- a/plain',
+      '+++ b/plain',
+      '@@ -1 +1 @@',
+      '-a',
+      '+b',
+      'diff --git "a/caf\\303\\251" "b/caf\\303\\251"',
+      '--- "a/caf\\303\\251"',
+      '+++ "b/caf\\303\\251"',
+      '@@ -1 +1 @@',
+      '-c',
+      '+d',
+      'diff --git "a/tab\\there" b/moved',
+      'similarity index 100%',
+      'rename from "tab\\there"',
+      'rename to moved',
+    ].join('\n')
+    const files = parsePatch(patch)!
+    expect(files.map((file) => [file.path, file.lines.length])).toEqual([
+      ['new "name".txt', 0],
+      ['plain', 3],
+      ['café', 3],
+      ['moved', 0],
+    ])
+  })
+
+  it('gives a plain name holding " b/" the name its +++ line gives', () => {
+    const files = parsePatch('diff --git a/x b/y b/x b/y\n--- a/x b/y\n+++ b/x b/y\n@@ -1 +1 @@\n-a\n+b\n')!
+    expect(files.map((file) => file.path)).toEqual(['x b/y'])
+  })
+
   it('is undefined for text that is not a patch', () => {
     expect(parsePatch('Release notes\n\n- faster lists')).toBeUndefined()
     expect(parsePatch('@@ -1 +1 @@\n-a\n+b')).toBeUndefined()
