@@ -1,6 +1,6 @@
 import type { Definition } from '../definition/types'
 import { limits } from '../limits'
-import type { ScopeOutcome, SegmentBlocks, SegmentTokens } from './context'
+import type { ScopeOutcome, SegmentBlocks, SegmentCustomSteps, SegmentTokens } from './context'
 import { SupersededError } from './errors'
 import type { Checkpoint, StepRecord, TaskHandlers } from './port'
 import type { Redactor } from './redact'
@@ -36,6 +36,8 @@ export type SegmentInput = {
   blocks?: SegmentBlocks
   /** The run's waiting Tasks' tokens; without them a Task that waits for an outside result fails. */
   tokens?: SegmentTokens
+  /** Where the run's custom steps wait for a runner; without it a custom step fails. */
+  customSteps?: SegmentCustomSteps
   signal: AbortSignal
   now?: () => Date
   /** How long the segment takes new steps. Default `limits.segmentMs`. */
@@ -52,7 +54,7 @@ export type SegmentOutcome = (ScopeOutcome | { kind: 'superseded' }) & { steps: 
  * (a Wait, a retry's delay), or yields once its time is up, saving its checkpoints on the way and as it pauses.
  * `superseded` when another segment saved a newer checkpoint first.
  */
-export const runSegment = async ({ runId, definition, input, startedAt, secrets, redactor, saved, save, keep, tasks, cache, replayed, blocks, tokens, signal, now = () => new Date(), budgetMs = limits.segmentMs, maxSteps = limits.runSteps }: SegmentInput): Promise<SegmentOutcome> => {
+export const runSegment = async ({ runId, definition, input, startedAt, secrets, redactor, saved, save, keep, tasks, cache, replayed, blocks, tokens, customSteps, signal, now = () => new Date(), budgetMs = limits.segmentMs, maxSteps = limits.runSteps }: SegmentInput): Promise<SegmentOutcome> => {
   const latest = new Map(saved.map((checkpoint) => [checkpoint.scope, checkpoint]))
   // The seq of each scope's last saved checkpoint, which the next one follows.
   const after = new Map(saved.map((checkpoint) => [checkpoint.scope, checkpoint.seq]))
@@ -91,6 +93,7 @@ export const runSegment = async ({ runId, definition, input, startedAt, secrets,
     ...(replayed && { replay: replayOf(replayed) }),
     ...(blocks && { blocks }),
     ...(tokens && { tokens }),
+    ...(customSteps && { customSteps }),
     signal,
     now,
     deadline: Date.now() + budgetMs,

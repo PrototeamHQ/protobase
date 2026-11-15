@@ -1,5 +1,5 @@
 import type { Machine } from '../definition/types'
-import type { BlockRun, BlockShare, Checkpoint, StepLog, StepRecord, TaskHandlers, TaskTokenStore, WaitingTask } from './port'
+import type { BlockRun, BlockShare, Checkpoint, CustomStepJob, StepLog, StepRecord, TaskHandlers, TaskTokenStore, WaitingTask } from './port'
 import type { Redactor } from './redact'
 import type { StepCacheStore } from './cache/cache-port'
 import type { SecretNamer } from './cache/secret-names'
@@ -26,6 +26,8 @@ export type SegmentContext = {
   blocks?: SegmentBlocks
   /** This run's waiting Tasks' tokens, by the try of the Task (`visit`) each was given to. */
   tokens?: SegmentTokens
+  /** Where this run's custom steps wait for a runner. */
+  customSteps?: SegmentCustomSteps
   /** The job's signal: aborted when the worker stops, which ends the segment without saving the step in progress. */
   signal: AbortSignal
   now: () => Date
@@ -86,6 +88,9 @@ export type SegmentTokens = {
   handedOff: (visit: string, done: Parameters<TaskTokenStore<unknown>['handedOff']>[3]) => Promise<void>
   close: (visit: string, failure: { error: string; cause: string }, seen?: { heartbeatAt: Date | null }) => Promise<boolean>
 }
+
+/** Where a run's custom steps wait for a runner, as its segment queues them. */
+export type SegmentCustomSteps = { queue: (job: Omit<CustomStepJob, 'run'>) => Promise<void> }
 
 /** A run's blocks' runs, as its segment reaches them. */
 export type SegmentBlocks = {

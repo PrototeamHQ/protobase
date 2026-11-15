@@ -312,7 +312,7 @@ A Task whose `Resource` is a step type followed by `.waitForTaskToken`, the Stat
 - **Its time.** `TimeoutSeconds` counts from the try's start, its hand-off included, as in Step Functions, and may be up to 366 days, its default; past it the Task fails with `States.Timeout`. `HeartbeatSeconds`, less than `TimeoutSeconds`, fails it with `States.HeartbeatTimeout` when no heartbeat came in that time since the hand-off or the last one. The step type's own call still ends within 300 seconds.
 - **Once only.** The hand-off happens once per try: a run that stops after it, as when its worker restarts, only waits again; one that stops before it was marked hands off again with a new token, under a new idempotency key, so a receiver that drops repeated keys still gets it. An answer that comes while the hand-off is still running counts, even if the hand-off then fails. A [replay](#replaying-a-run) hands nothing off and goes on with what the replayed run was sent. A Task that waits caches nothing, so `Cache` is refused on it.
 - **Where it may be read.** `$states.context.Task.Token` is read only in such a Task's `Arguments`.
-- **In the editor.** A Task's form has *Wait for an outside result*, which adds `.waitForTaskToken`, with *Wait at most* (`TimeoutSeconds`) and *Heartbeat within* (`HeartbeatSeconds`); its node is named for its step type, *then waits*.
+- **In the editor.** A Task's form has *Wait for an outside result*, which adds `.waitForTaskToken`, with *Wait at most* (`TimeoutSeconds`) and *Heartbeat within* (`HeartbeatSeconds`); its node is named for its step type, *then waits*. A [custom step's](#custom-workflow-steps) form has no switch, since it waits for its runner already, and always shows both fields.
 
 ### Blocks
 
@@ -526,7 +526,7 @@ A stored file is read from where its configuration points now. <gap>Changing a c
 ## Custom workflow steps
 
 :::caution[In development]
-A custom step is saved, listed and checked, but it does not run: a run that reaches one fails. It cannot yet be built, tested or given limits on its resources and network.
+A custom step is saved, listed and checked, and a run hands it to a registered runner, but no runner program ships yet: Protobase neither builds its image nor runs its container. It cannot yet take or give files through its runner, be tested, or be given limits on its resources and network.
 :::
 
 A **custom step** is a step type the app's authors keep as a record: a container built from a Dockerfile, with the input it takes and the output it gives as JSON Schema. Each save that changes its manifest is a new version, and every version is a step type of its own, `custom:<name>:<version>`, such as `custom:invoice_pdf:2`, so changing a custom step never changes a workflow that names an earlier version.
@@ -537,7 +537,7 @@ Turn them on with `customSteps` in `workflows`:
 export default defineConfig({ workflows: { customSteps: true } })
 ```
 
-Their tables, `workflows.custom_steps` and `workflows.custom_step_versions`, come with the next [`protobase migration`](/reference/cli/#migration) after you turn them on.
+Their jobs' arguments are sealed with the app's secret, its sign-in's, else `PROTOBASE_SECRET`; without either, startup stops. Their tables, `workflows.custom_steps` and `workflows.custom_step_versions`, come with the next [`protobase migration`](/reference/cli/#migration) after you turn them on.
 
 A custom step is a record of `workflow_custom_steps`, which you create and change on its standard pages, linked from each workflow's page, through the API or over MCP. Each save is checked, and refused with a 400 problem whose `problems` name each field, such as `container.dockerfile`:
 
@@ -585,7 +585,71 @@ Its arguments are the manifest's `input` and `store`, `{ configuration, path? }`
 
 The editor's step picker lists each custom step at its latest version under *Custom steps*, and a Task's form takes any version, and `GET /api/workflows/types`, `list_workflow_types` and `validate_workflow` take them, each with the custom steps of the caller's tenant: whoever may read workflows reads them, as they do a plugin's types, and only creating, changing and deleting them is granted.
 
-- <gap>A custom step cannot run because building its image and running its container are not implemented; a run that reaches one fails with `States.Runtime` and the cause `Custom steps do not run yet`.</gap>
+A run hands a custom step to one of its tenant's [runners](#runners) as a [waiting Task](#waiting-for-an-outside-result) hands off its work: it queues a **job** with its arguments, then waits, holding no worker, until the runner that claimed the job completes it. So `Retry`, `Catch`, `HeartbeatSeconds` and the once-only answer work as for any waiting Task, and a retry queues a new job with a new token. Its `TimeoutSeconds` counts from the try's start, its time in the queue included, and is 300 by default, as for any step type, up to 366 days; past it the Task fails with `States.Timeout`. A custom step waits for its runner already, so `.waitForTaskToken` on its `Resource` is refused, naming the `Resource` to write, and so is `Cache`. A run of a custom step that was deleted meanwhile fails with `States.Runtime`.
+
+### Runners
+
+:::caution[In development]
+No runner program ships yet, so a runner is a program of your own that makes these calls. Its jobs take and give no files, and a claim is answered only with a job, no order to prepare an image or keep instances warm.
+:::
+
+A **runner** is a machine that runs custom steps' jobs: a record of `workflow_runners`, linked from each workflow's page, of one tenant, whose jobs it alone takes. It connects out to the app and claims work; the app never connects to it.
+
+| Field | |
+| --- | --- |
+| `name` | What you call it. |
+| `labels` | A list of at most 20 labels, each lowercase letters, digits and `_.:-`, such as `["gpu"]`. |
+| `revoked` | Set to `true` to refuse the runner from its next call on: the jobs it holds go back to the queue, for another runner. It cannot be set back; register the machine again as a new runner. |
+| `registered_at`, `platform`, `kinds` | When it registered, and the platform and kinds of steps it gave then. Read-only. |
+| `state`, `polled_at`, `polling_until` | What it said of itself with its last claim, when it made it, and until when that claim is held open. Read-only. |
+
+Deleting a runner refuses its token as revoking it does.
+
+**Registering one.** Make the runner, then issue its one-time registration token with `POST /api/workflows/runners/<id>/registration`, which needs the right to change that runner in your tenant; anyone else gets 404. It answers `{ token, expires_at }` once, a `pbr_once_...` token valid one hour, and the app keeps only its SHA-256, so it cannot show it again; a token issued again replaces the earlier one, until the runner registers. The machine then exchanges it, with no sign-in, for its own token:
+
+```http
+POST /api/runners/v1/register
+{ "token": "pbr_once_...", "platform": "linux/amd64", "kinds": ["container"] }
+```
+
+It answers `{ runner: { id, name, labels }, token }`, the runner's own `pbr_...` token, also given once and kept only as its SHA-256. A registration token is used once: used again it is refused as `RegistrationTokenUsed` (409), more than an hour old as `RegistrationTokenExpired` (410), and one of no runner, or of a revoked one, as `InvalidRegistrationToken` (401), each the problem's title.
+
+**The runner's calls.** Every other call carries the runner's own token as `Authorization: Bearer pbr_...`; a revoked or deleted runner's is refused with 401. An address refused 30 times in a minute waits a minute.
+
+| Call | Body | Answer |
+| --- | --- | --- |
+| `POST /api/runners/v1/claim` | What the runner says of itself: `{ "platform": "linux/amd64", "kinds": ["container"], "labels": [], "capacity": { "slots": 2 }, "images": [{ "step": "custom:ocr:4", "snapshot": true }], "instances": [{ "step": "custom:ocr:4", "free": 3 }] }` | Held open up to 50 seconds until a job is placed with the runner: `{ "order": "job", "job": { "id", "step", "input", "deadline", "heartbeat_seconds", "lease_seconds" } }`, or `{ "order": "none" }` when its time ran out. Claim again at once. |
+| `POST /api/runners/v1/jobs/<id>/heartbeat` | `{}` | `{ "stop": false }`, extending the runner's hold of the job and counting as a heartbeat of its Task; `{ "stop": true }` once the runner no longer holds it, as when its try timed out, its run ended or its lease ran out: stop the job. |
+| `POST /api/runners/v1/jobs/<id>/log` | `{ "lines": ["..."] }`, at most 100 | `{}`; the job keeps its last 100 lines, each up to 1,000 characters, with the workflows' secrets and the token blanked out. |
+| `POST /api/runners/v1/jobs/<id>/complete` | `{ "output": { ... } }`, or `{ "error": "Unreadable", "cause": "..." }` | `{}`, ending the job and its Task. |
+
+A claim's `images` are the steps whose images the runner holds, by step version, each with whether a snapshot of it is ready, and its `instances` the warm instances it keeps, each with how many more jobs it takes now; all three lists may be left out when empty. A claim is also the runner's sign of life: a runner whose claim is no longer held is given no job.
+
+A job's `input` is the Task's arguments as given, secrets included, and `deadline` when its `TimeoutSeconds` pass. The runner gets no task token: its own token and its hold of the job prove it may answer, and the app answers the Task for it. Send a heartbeat every `heartbeat_seconds`, a third of the shorter of `lease_seconds` and the Task's `HeartbeatSeconds`. A completion's `output` must fit the custom step's `output` schema, or the Task fails with `Custom.InvalidOutput` and what does not fit as its cause; an output over 256 KiB fails it the same way. An `error` that is one of the step's `errors`, by its name or in full, fails the Task as `<error_prefix>.<Name>`, such as `Ocr.Unreadable`, which a `Catch` takes; any other fails it as `Custom.Failed`, the name given in the cause. A completion of a job whose Task ended already is refused with 409 and the title `TaskTimedOut`.
+
+A runner that holds a job sends heartbeats within `lease_seconds`, 30 by default. When none comes, the job goes back to the queue, once, for any runner; the second time, its Task fails with `States.HeartbeatTimeout`, which a `Retry` can take up with a new job.
+
+### How jobs are placed
+
+The app places each job with one runner that holds a claim open, of the job's tenant, that runs `container` steps, has a free slot and every label the job needs, preferring, best first:
+
+1. a runner with a warm instance of the same step version that takes another job;
+2. one with a snapshot of that version's image ready;
+3. one with the image;
+4. any other.
+
+A job whose best free runner has nothing of its image waits up to 5 seconds for one with it to claim, and one whose best has its image waits up to 1 second for a warm instance; then it takes the best runner free. It waits only while a runner of its tenant that holds a claim open or runs a job, busy or not, said with its last claim that it has what the job waits for: the image, a snapshot or a warm instance of that step version for the first wait, a warm instance for the second. With none, it takes the best runner free at once. Pulling an image takes far longer than either wait, so a short wait usually starts the job sooner. A waiting job keeps its place and lets later jobs take the runner it left. Within a tenant the oldest job picks first, and tenants with waiting jobs take turns. Each claim takes one job, and its runner claims again for the next. [`workflows.runners`](/reference/config/jobs-and-events/#workflowsrunners) sets the claim's time, the lease and both waits.
+
+Placing runs as a job is queued, as a claim comes, and every second while a server process holds a claim open, one placing at a time across all the app's processes, so a job queued on one process reaches a runner whose claim another holds within a second.
+
+### Jobs
+
+Each job is a record of `workflow_custom_step_jobs`, read-only, listed on its runner's page: its run and state, its step and version, its `input` with the workflows' secrets blanked out, its `status` (`queued`, `running`, `succeeded`, `failed` or `timed_out`), the runner that holds or held it and until when (`lease_until`), how often it went back to the queue (`requeues`), when it was queued, claimed and finished, and its `output`, `error`, `cause` and `logs`. Its arguments as given are not among its fields: while it waits they are kept sealed with the app's secret, opened only into the claim answer, and dropped once it ends. Of its try's token it keeps only the hash. A job whose try ends without it, by its time or its run's end, is `timed_out`.
+
+- <gap>A custom step cannot run without a runner program of your own because Protobase's runner, which builds a step's image and runs its container, is not implemented.</gap>
+- <gap>A custom step's runner cannot take or give files because the runners' file routes are not implemented.</gap>
+- <gap>A runner cannot be told to prepare an image, keep warm instances, drain or stop because those orders are not implemented; a claim is answered only with a job or none.</gap>
+- <gap>A runner's registration token cannot be issued in the admin app because its action is not implemented; `POST /api/workflows/runners/<id>/registration` issues it.</gap>
 - <gap>A custom step cannot limit its memory, CPU, time or network because those fields of its manifest are not implemented.</gap>
 - <gap>A custom step cannot be saved or tested over MCP with tools of its own because those tools are not implemented; `create_record` and `update_record` save it.</gap>
 
@@ -699,6 +763,8 @@ The workflow resources take only [named grants](/reference/access/#resources-tha
 | `storage_configurations.create`, `storage_configurations.update`, `storage_configurations.delete` | Make, change and delete storage configurations. |
 | `workflow_custom_steps.read`, `workflow_custom_step_versions.read` | Read the [custom steps](#custom-workflow-steps) and their versions. A workflow's author needs neither to use them: the step types are listed to whoever may read workflows. |
 | `workflow_custom_steps.create`, `workflow_custom_steps.update`, `workflow_custom_steps.delete` | Make, change and delete custom steps. Each change of a manifest is a new version. |
+| `workflow_runners.read`, `workflow_custom_step_jobs.read` | Read the [runners](#runners) and the jobs they claim, the jobs' input and output included. |
+| `workflow_runners.create`, `workflow_runners.update`, `workflow_runners.delete` | Make, revoke and delete runners. Issuing a runner's registration token needs the right to change it. |
 
 ```ts
 defineRoles({
@@ -730,7 +796,7 @@ Every limit fails closed: a run or step that passes one fails, rather than going
 | --- | --- |
 | A definition | 256 KiB as JSON, 100 states, Maps included; an expression 4,096 characters. |
 | An expression's evaluation | 1 second, and 300 levels deep; beyond, `States.QueryEvaluationError`. |
-| A Task's `TimeoutSeconds` | 300 by default, and at most; for a Task that [waits for an outside result](#waiting-for-an-outside-result), 366 days. |
+| A Task's `TimeoutSeconds` | 300 by default, and at most; for a Task that [waits for an outside result](#waiting-for-an-outside-result), 366 days, its default; for a [custom step](#custom-workflow-steps), 300 by default and 366 days at most. |
 | A retrier's `MaxAttempts` | 19. |
 | The wait before a retry | 1 day, however `BackoffRate` grows it. |
 | A Map's items | 10,000; beyond, the Map fails with `States.DataLimitExceeded` before any item runs. |

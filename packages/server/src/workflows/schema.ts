@@ -12,18 +12,19 @@ import { statusSql, statusTriggers } from './status-sql'
 import { blockRunsSql } from './block-runs-sql'
 import { taskTokensSql } from './task-tokens-sql'
 import { customStepsSql, customStepsTables } from './custom-steps/custom-steps-sql'
+import { runnersSql, runnersTables } from './custom-steps/runners-sql'
 
 // Only reads the catalogue: whether the runs and triggers tables are there, the version of the run trigger's function,
 // and whether both database triggers are on their tables, since a trigger can be dropped while its function stays.
 const triggerNames = [...workflowsTriggers, ...statusTriggers]
 
 // With `storage` on, the storage configurations table must be there too, so turning storage on later writes a migration;
-// with `customSteps` on, the custom steps' tables.
+// with `customSteps` on, the custom steps' tables and their runners'.
 const readWorkflowsSchema = async (db: Db, schema: string, { storage, customSteps }: { storage: boolean; customSteps: boolean }) => {
   const runs = `${quoteIdent(schema)}."runs"`
   const triggerRows = `${quoteIdent(schema)}."triggers"`
   const configurations = `${quoteIdent(schema)}."storage_configurations"`
-  const custom = sql.join(customStepsTables.map((table) => sql`to_regclass(${`${quoteIdent(schema)}."${table}"`}) is not null`), sql` and `)
+  const custom = sql.join([...customStepsTables, ...runnersTables].map((table) => sql`to_regclass(${`${quoteIdent(schema)}."${table}"`}) is not null`), sql` and `)
   const { rows } = await sql<{ found: boolean; trigger_rows: boolean; configurations: boolean; custom_steps: boolean; comment: string | null; triggers: number }>`select to_regclass(${runs}) is not null as found,
     to_regclass(${triggerRows}) is not null as trigger_rows,
     to_regclass(${configurations}) is not null as configurations,
@@ -42,8 +43,8 @@ const turnedOn = (options: Pick<WorkflowsOptions, 'storage' | 'customSteps'>) =>
 /**
  * The SQL that brings the `workflows` schema to what `workflows` needs: its tables, indexes and the triggers that number a
  * workflow's versions and pin a run's; `undefined` when current. A schema made before loses its `steps` table, which
- * runs no longer keep. The storage configurations table is added only with `storage`, the custom steps' tables only
- * with `customSteps`.
+ * runs no longer keep. The storage configurations table is added only with `storage`, the custom steps' tables, with
+ * their runners and jobs, only with `customSteps`.
  */
 export const workflowsMigration = async (db: Db, options: Pick<WorkflowsOptions, 'schema' | 'storage' | 'customSteps'> = {}) => {
   const schema = workflowsSchema(options)
@@ -55,7 +56,7 @@ export const workflowsMigration = async (db: Db, options: Pick<WorkflowsOptions,
 
 /** The statements of a migration of the `workflows` schema: its tables only when missing, storage and custom steps only when on. */
 export const workflowsSql = (schema: string, { tables, storage, customSteps = false }: { tables: boolean; storage: boolean; customSteps?: boolean }) => {
-  const statements = [`create schema if not exists ${quoteIdent(schema)}`, ...(tables ? [] : [tablesSql(schema)]), definitionPartsSql(schema), checkpointsSql(schema), droppedSql(schema), triggersSql(schema), effectsSql(schema), revocationsSql(schema), hooksSql(schema), stepCacheSql(schema), indexesSql(schema), blockRunsSql(schema), taskTokensSql(schema), ...(storage ? [storageSql(schema)] : []), ...(customSteps ? [customStepsSql(schema)] : []), functionsSql(schema), statusSql(schema)]
+  const statements = [`create schema if not exists ${quoteIdent(schema)}`, ...(tables ? [] : [tablesSql(schema)]), definitionPartsSql(schema), checkpointsSql(schema), droppedSql(schema), triggersSql(schema), effectsSql(schema), revocationsSql(schema), hooksSql(schema), stepCacheSql(schema), indexesSql(schema), blockRunsSql(schema), taskTokensSql(schema), ...(storage ? [storageSql(schema)] : []), ...(customSteps ? [customStepsSql(schema), runnersSql(schema)] : []), functionsSql(schema), statusSql(schema)]
   return `${statements.join(';\n\n')};`
 }
 

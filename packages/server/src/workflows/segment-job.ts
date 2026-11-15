@@ -1,5 +1,5 @@
 import type { Db } from '@protobase/query'
-import { createRunner, type SegmentQueue, type StepCacheStore, type TaskHandlers, type TraceMode, type TraceSink } from '@protobase/workflows'
+import { createRunner, type CustomStepJobs, type SegmentQueue, type StepCacheStore, type TaskHandlers, type TraceMode, type TraceSink } from '@protobase/workflows'
 import { defineJob } from '../jobs/define-job'
 import type { JobContext, JobDefinition } from '../jobs/job-types'
 import { postgresRunStore } from './store'
@@ -23,6 +23,8 @@ export type WorkflowsRunnerInput = {
   traceMode: TraceMode
   /** The roles a saver holds now, which a run of a block is shared under as the step cache keeps its result. */
   roles: SaverRoles
+  /** Where custom steps wait for a runner, with custom steps on. */
+  customSteps?: CustomStepJobs<Db>
 }
 
 /**
@@ -30,7 +32,7 @@ export type WorkflowsRunnerInput = {
  * timeout is above a segment's time plus the longest step's, so a job that times out is a worker that died, and its
  * next try takes the run up from its last saved step.
  */
-export const workflowsRunner = ({ schema, tasks, secrets, cache, trace, traceMode, roles }: WorkflowsRunnerInput) => {
+export const workflowsRunner = ({ schema, tasks, secrets, cache, trace, traceMode, roles, customSteps }: WorkflowsRunnerInput) => {
   let job: JobDefinition<{ run: string }> | undefined
   const store = postgresRunStore(schema)
   const queue: SegmentQueue<Db> = {
@@ -44,7 +46,7 @@ export const workflowsRunner = ({ schema, tasks, secrets, cache, trace, traceMod
   job = defineJob<{ run: string }>({
     name: segmentJobName,
     run: ({ run }, context) =>
-      createRunner({ store, queue, blocks, tokens, tasks: tasks(context), secrets, trace, traceMode, ...(cache && { cache }) })
+      createRunner({ store, queue, blocks, tokens, tasks: tasks(context), secrets, trace, traceMode, ...(cache && { cache }), ...(customSteps && { customSteps }) })
         .segment(context.db, run, context.signal)
         .catch(async (error: unknown) => {
           // No segment comes after the job's last try, so that try ends the run rather than leaving it running.

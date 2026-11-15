@@ -210,7 +210,7 @@ export default defineConfig(({ command }) => ({ webhooks: { allowPrivateAddresse
 
 ## workflows
 
-- **Type:** `{ schema?: string; secrets?: string[]; allowPrivateAddresses?: boolean; plugins?: string[]; storage?: { root?: string; endpoints?: string[] }; customSteps?: boolean }`
+- **Type:** `{ schema?: string; secrets?: string[]; allowPrivateAddresses?: boolean; plugins?: string[]; storage?: { root?: string; endpoints?: string[] }; customSteps?: boolean; runners?: { claimSeconds?: number; leaseSeconds?: number; coldWaitSeconds?: number; warmWaitSeconds?: number } }`
 - **Default:** off; `{}` turns them on
 
 Workflows that people and models make in the app, kept with their versions, runs and steps in a schema of the app's database that `protobase migration` writes, and run by the `workflows.segment` job. Records steps act as each workflow's last editor, with the roles they hold now, read from the app's sign-in; a project that signs people in otherwise exports its own, `async ({ id, tenant }) => [...]`, as the default of `workflows/saved-by-roles.ts`. See [Workflows](/reference/workflows/).
@@ -279,10 +279,21 @@ export default defineConfig({ workflows: { storage: { root: './data/workflow-sto
 - **Type:** `boolean`
 - **Default:** `false`
 
-Turns on [custom steps](/reference/workflows/#custom-workflow-steps), step types the app's authors keep as records, each saved version a type of its own, `custom:<name>:<version>`. Their tables come with the next `protobase migration` after you turn them on. Any other value than `true` or `false` stops startup.
+Turns on [custom steps](/reference/workflows/#custom-workflow-steps), step types the app's authors keep as records, each saved version a type of its own, `custom:<name>:<version>`, and the [runners](/reference/workflows/#runners) that run them. Their tables come with the next `protobase migration` after you turn them on. Their jobs' arguments are sealed with the app's secret, its sign-in's (`auth`), else `PROTOBASE_SECRET`, so startup stops without either. Any other value than `true` or `false` stops startup.
 
 ```ts
 export default defineConfig({ workflows: { customSteps: true } })
+```
+
+## workflows.runners
+
+- **Type:** `{ claimSeconds?: number; leaseSeconds?: number; coldWaitSeconds?: number; warmWaitSeconds?: number }`
+- **Default:** `{ claimSeconds: 50, leaseSeconds: 30, coldWaitSeconds: 5, warmWaitSeconds: 1 }`
+
+How custom steps' jobs reach [runners](/reference/workflows/#runners), with `customSteps` on, each in seconds: how long a claim is held open waiting for a job (`claimSeconds`), how long a runner holds a job without a heartbeat before it goes back to the queue (`leaseSeconds`), how long a job whose best free runner lacks its image waits for one that has it (`coldWaitSeconds`), and how long a job whose best free runner has its image waits for a warm instance (`warmWaitSeconds`), as [How jobs are placed](/reference/workflows/#how-jobs-are-placed) says. Startup stops on a setting it does not know, a time that is no number above 0, or a wait below 0.
+
+```ts
+export default defineConfig({ workflows: { customSteps: true, runners: { coldWaitSeconds: 10 } } })
 ```
 
 ## notifications

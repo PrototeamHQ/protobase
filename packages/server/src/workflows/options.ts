@@ -42,10 +42,19 @@ export type WorkflowsOptions = {
   storage?: { root?: string; endpoints?: string[] }
   /**
    * Turns on custom steps, step types the app's authors keep as records, each saved version a type of its own,
-   * `custom:<name>:<version>`, which a workflow saves with and whose runs fail as steps that do not run yet. Default
-   * false; any other value than `true` or `false` stops startup.
+   * `custom:<name>:<version>`, which a workflow saves with and the app's runners run. Their jobs' arguments are sealed
+   * with the app's secret, its sign-in's, else `PROTOBASE_SECRET`; startup stops without either. Default false; any
+   * other value than `true` or `false` stops startup.
    */
   customSteps?: boolean
+  /**
+   * How custom steps' jobs reach runners, in seconds: how long a claim is held open waiting for a job (`claimSeconds`,
+   * default 50), how long a runner holds a job without a heartbeat (`leaseSeconds`, 30), how long a job whose best free
+   * runner lacks its image waits for one that has it (`coldWaitSeconds`, 5), and how long one whose best has its image
+   * waits for a warm instance (`warmWaitSeconds`, 1). Startup stops on one that is not a number above 0, or for a wait,
+   * 0 or more.
+   */
+  runners?: { claimSeconds?: number; leaseSeconds?: number; coldWaitSeconds?: number; warmWaitSeconds?: number }
 }
 
 const schemaPattern = /^[a-z_][a-z0-9_]*$/
@@ -89,6 +98,23 @@ export const workflowsCustomStepsOn = (options: Pick<WorkflowsOptions, 'customSt
   if (typeof on !== 'boolean') throw new Error(`workflows.customSteps is ${JSON.stringify(on) ?? String(on)}: use true or false`)
   return on
 }
+
+const runnerDefaults = { claimSeconds: 50, leaseSeconds: 30, coldWaitSeconds: 5, warmWaitSeconds: 1 }
+
+/** How custom steps' jobs reach runners, in milliseconds, checked: the options' settings, each default where left out. */
+export const workflowsRunnerSettings = (options: Pick<WorkflowsOptions, 'runners'>) => {
+  const given = options.runners ?? {}
+  const unknown = Object.keys(given).filter((key) => !Object.hasOwn(runnerDefaults, key))
+  if (unknown.length > 0) throw new Error(`workflows.runners.${unknown[0]} is not a setting; use ${Object.keys(runnerDefaults).join(', ')}`)
+  const seconds = (key: keyof typeof runnerDefaults, least: 'above' | 'from') => {
+    const value = given[key] ?? runnerDefaults[key]
+    if (typeof value !== 'number' || !Number.isFinite(value) || (least === 'above' ? value <= 0 : value < 0)) throw new Error(`workflows.runners.${key} is ${JSON.stringify(value) ?? String(value)}: use a number of seconds ${least === 'above' ? 'above 0' : 'of 0 or more'}`)
+    return value * 1000
+  }
+  return { claimMs: seconds('claimSeconds', 'above'), leaseMs: seconds('leaseSeconds', 'above'), coldWaitMs: seconds('coldWaitSeconds', 'from'), warmWaitMs: seconds('warmWaitSeconds', 'from') }
+}
+
+export type RunnerSettings = ReturnType<typeof workflowsRunnerSettings>
 
 /** The storage options, checked: each endpoint an `https://` origin with no path, user or query, kept as its origin. */
 export const workflowsStorage = (options: Pick<WorkflowsOptions, 'storage'>) => {

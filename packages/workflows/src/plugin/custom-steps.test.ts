@@ -3,6 +3,7 @@ import { checkDefinition, type CheckOptions } from '../definition/check-definiti
 import { pinProblems } from '../definition/pins/check-pins'
 import { resolveSchema } from '../definition/pins/resolve-schema'
 import type { Definition } from '../definition/types'
+import { limits } from '../limits'
 import { memoryRunner } from '../run/memory-port'
 import { customStepEntry, customStepOf, latestCustomSteps, manifestProblems, withCustomSteps, type CustomStepManifest, type CustomStepVersion } from './custom-steps'
 import { definePlugin } from './define-plugin'
@@ -120,10 +121,44 @@ describe('the custom plugin name', () => {
 })
 
 describe('a run of a custom step', () => {
-  it('fails with States.Runtime, as custom steps do not run yet', async () => {
-    const port = memoryRunner({})
-    await port.start('r1', definition({ Render: { Type: 'Task', Resource: 'custom:invoice_pdf:1', Arguments: { number: '1' }, End: true } }), {})
+  const render = (task: Record<string, unknown> = {}) =>
+    definition({
+      Render: { Type: 'Task', Resource: 'custom:invoice_pdf:1', Arguments: { number: '{% $states.context.Execution.Input.number %}', key: '{% $states.context.Secrets.KEY %}' }, Assign: { invoice: '{% $states.result %}' }, Next: 'Done', ...task } as never,
+      Done: { Type: 'Succeed', Output: '{% $invoice %}' },
+    })
+
+  it('queues a job for a runner with its try\'s token\'s hash, never the token, waits holding no segment, and goes on with what it is answered with by that hash', async () => {
+    const port = memoryRunner({}, { secrets: { KEY: 'secret-key-1234' } })
+    await port.start('r1', render(), { number: '7' })
+    await port.step()
+    expect(port.jobs).toEqual([{ run: 'r1', visit: expect.any(String), state: 'Render', step: 'custom:invoice_pdf:1', input: { number: '7', key: '[redacted]' }, arguments: { number: '7', key: 'secret-key-1234' }, hash: expect.stringMatching(/^[0-9a-f]{64}$/) }])
+    expect(port.run('r1').status).toBe('waiting')
+    // It waits as long as a step type runs by default, the queue included
+    expect(port.queued('r1')).toEqual([{ runId: 'r1', at: new Date(port.now().getTime() + limits.taskTimeoutSeconds * 1000) }])
+    expect(await port.answerHash(port.jobs[0]!.hash, { kind: 'success', output: JSON.stringify({ pages: 2 }) })).toEqual({ run: 'r1' })
     await port.drain()
-    expect(port.run('r1')).toMatchObject({ status: 'failed', error: 'States.Runtime', cause: 'Custom steps do not run yet' })
+    expect(port.run('r1')).toMatchObject({ status: 'succeeded', output: { pages: 2 } })
+    const step = port.steps.find((one) => one.state === 'Render')!
+    expect(step).toMatchObject({ status: 'succeeded', input: { number: '7', key: '[redacted]' }, recorded: true })
+    expect(step.logs[0]!.message).toMatch(/^Queued for a runner; waits for its result until /)
+  })
+
+  it('fails with States.Timeout when no runner answers within its TimeoutSeconds, which may be longer than a step type\'s', async () => {
+    const port = memoryRunner({}, { secrets: { KEY: 'secret-key-1234' } })
+    await port.start('r1', render({ TimeoutSeconds: 3600 }), { number: '7' })
+    await port.step()
+    expect(port.queued('r1')).toEqual([{ runId: 'r1', at: new Date(port.now().getTime() + 3600 * 1000) }])
+    await port.drain()
+    expect(port.run('r1')).toMatchObject({ status: 'failed', error: 'States.Timeout' })
+    expect(await port.answerHash(port.jobs[0]!.hash, { kind: 'success', output: '{}' })).toMatchObject({ error: 'TaskTimedOut' })
+  })
+
+  it('takes a longer TimeoutSeconds and a HeartbeatSeconds on save, and refuses .waitForTaskToken and Cache naming why', () => {
+    const check = withCustomSteps([customStepEntry(version('invoice_pdf', 1))]).check(appCheck)
+    const task = (fields: Record<string, unknown>) => definition({ Render: { Type: 'Task', Resource: 'custom:invoice_pdf:1', Arguments: { number: '1', store: { configuration: 'archive' } }, End: true, ...fields } as never })
+    expect(checkDefinition(task({ TimeoutSeconds: 86_400, HeartbeatSeconds: 60 }), check)).toEqual([])
+    expect(checkDefinition(task({ HeartbeatSeconds: 300 }), check)).toEqual([{ state: 'Render', field: 'HeartbeatSeconds', message: "is 300, which must be less than the Task's TimeoutSeconds (300)" }])
+    expect(checkDefinition(task({ Cache: true }), check)).toEqual([{ state: 'Render', field: 'Cache', message: 'is true, but a custom step runs on a runner on every try and caches nothing' }])
+    expect(checkDefinition(task({ Resource: 'custom:invoice_pdf:1.waitForTaskToken' }), check)).toEqual([{ state: 'Render', field: 'Resource', message: 'ends in .waitForTaskToken, but custom:invoice_pdf:1 is a custom step, which waits for the runner that runs it already: write custom:invoice_pdf:1' }])
   })
 })

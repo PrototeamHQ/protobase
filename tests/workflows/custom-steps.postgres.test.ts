@@ -9,6 +9,8 @@ import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type P
 import { definitionFields } from '../../test-support/workflow-fields'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
+// The app's secret, which seals custom steps' jobs' arguments while they wait.
+process.env.PROTOBASE_SECRET = 'custom-steps-test-app-secret-0123456789'
 
 const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_custom_steps' | 'workflow_custom_step_versions'>({
   author: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_custom_steps.read', 'workflow_custom_step_versions.read'],
@@ -82,6 +84,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('custom steps on the app
     const upgrade = await workflowsMigration(db, workflows)
     expect(upgrade).toContain('create table if not exists "workflows"."custom_steps"')
     expect(upgrade).toContain('create table if not exists "workflows"."custom_step_versions"')
+    expect(upgrade).toContain('create table if not exists "workflows"."runners"')
+    expect(upgrade).toContain('create table if not exists "workflows"."custom_step_jobs"')
     await pg.exec(upgrade!)
     expect(await workflowsMigration(db, workflows)).toBeUndefined()
     await pg.exec(upgrade!)
@@ -173,12 +177,14 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('custom steps on the app
     expect((await problems(await save('eve', render('custom:invoice_pdf:1'))))[0]).toMatchObject({ state: 'Render', field: 'Resource', message: expect.stringContaining('"custom:invoice_pdf:1" is not a step type') })
   })
 
-  it('fails a run of a custom step, as custom steps do not run yet', async () => {
+  it("queues a run's custom step as a job for its tenant's runners, of the version it names, and waits", async () => {
     const [{ id: workflow }] = (await sql<{ id: string }>`select id from workflows.workflows where name = 'Invoices'`.execute(db)).rows as [{ id: string }]
-    const run = await created('bob', '/workflow_runs', { workflow_id: workflow, input: { number: '1' } })
-    const row = async () => (await sql<{ status: string; error: string | null; cause: string | null }>`select status, error, cause from workflows.runs where id = ${String(run.id)}`.execute(db)).rows[0]!
-    await vi.waitFor(async () => expect(['succeeded', 'failed']).toContain((await row()).status), { timeout: 20_000, interval: 50 })
-    expect(await row()).toEqual({ status: 'failed', error: 'States.Runtime', cause: 'Custom steps do not run yet' })
+    const run = String((await created('bob', '/workflow_runs', { workflow_id: workflow, input: { number: '1' } })).id)
+    const jobs = async () => (await sql<{ step: string; state: string; status: string; tenant_id: string; version: number; input: unknown }>`select j.step, j.state, j.status, j.tenant_id, v.version, j.input
+      from workflows.custom_step_jobs j join workflows.custom_step_versions v on v.id = j.version_id where j.run_id = ${run}`.execute(db)).rows
+    await vi.waitFor(async () => expect(await jobs()).toHaveLength(1), { timeout: 20_000, interval: 50 })
+    expect(await jobs()).toEqual([{ step: 'custom:invoice_pdf:1', state: 'Render', status: 'queued', tenant_id: '1', version: 1, input: { number: '1', store: { configuration: 'archive' } } }])
+    expect((await sql<{ status: string }>`select status from workflows.runs where id = ${run}`.execute(db)).rows[0]!.status).toBe('waiting')
   })
 
   it('keeps a deleted custom step\'s versions, as no step types, and numbers a new one of its name after them', async () => {

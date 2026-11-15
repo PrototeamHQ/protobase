@@ -20,6 +20,7 @@ import type { PinSchemas } from './pins/pin-sources'
 import { dataflowProblems, dataflowVisible } from './dataflow/check-dataflow'
 import { orderOf } from './types'
 import { taskResource } from './task-resource'
+import { customStepOf } from '../plugin/custom-step-id'
 
 /**
  * What a definition is checked against beside the language: the step types (Task resources) the app has, the
@@ -54,19 +55,22 @@ const missingArguments = (state: TaskState, options: CheckOptions) => {
 }
 
 // A Task runs its step type within 300 seconds; one that waits for an outside result may wait longer, its heartbeats
-// coming more often than its timeout, and hands its work off on every try, so it caches nothing.
+// coming more often than its timeout, and hands its work off on every try, so it caches nothing. A custom step waits
+// for its runner as such a Task does, 300 seconds by default, and so takes no suffix.
 const waitProblems = (state: TaskState): Omit<Problem, 'state'>[] => {
-  const { waits } = taskResource(state.Resource)
-  if (!waits) {
+  const { type, waits } = taskResource(state.Resource)
+  const custom = customStepOf(type) !== undefined
+  if (custom && waits) return [{ field: 'Resource', message: `ends in .waitForTaskToken, but ${type} is a custom step, which waits for the runner that runs it already: write ${type}` }]
+  if (!waits && !custom) {
     return [
       ...(state.TimeoutSeconds !== undefined && state.TimeoutSeconds > limits.taskTimeoutSeconds ? [{ field: 'TimeoutSeconds', message: `is ${state.TimeoutSeconds}, more than the ${limits.taskTimeoutSeconds} seconds a step type runs; only a Task whose Resource ends in .waitForTaskToken waits longer` }] : []),
       ...(state.HeartbeatSeconds !== undefined ? [{ field: 'HeartbeatSeconds', message: 'is for a Task whose Resource ends in .waitForTaskToken, whose outside executor sends heartbeats; this step type ends or fails within its TimeoutSeconds' }] : []),
     ]
   }
-  const timeout = state.TimeoutSeconds ?? limits.waitingTaskTimeoutSeconds
+  const timeout = state.TimeoutSeconds ?? (custom ? limits.taskTimeoutSeconds : limits.waitingTaskTimeoutSeconds)
   return [
     ...(state.HeartbeatSeconds !== undefined && state.HeartbeatSeconds >= timeout ? [{ field: 'HeartbeatSeconds', message: `is ${state.HeartbeatSeconds}, which must be less than the Task's TimeoutSeconds (${timeout})` }] : []),
-    ...(state.Cache === true ? [{ field: 'Cache', message: 'is true, but a Task that waits for an outside result hands its work off on every try and caches nothing' }] : []),
+    ...(state.Cache === true ? [{ field: 'Cache', message: custom ? 'is true, but a custom step runs on a runner on every try and caches nothing' : 'is true, but a Task that waits for an outside result hands its work off on every try and caches nothing' }] : []),
   ]
 }
 

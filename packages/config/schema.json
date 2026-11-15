@@ -777,10 +777,64 @@
               ]
             },
             "customSteps": {
-              "description": "Turns on custom steps, step types the app's authors keep as records, each saved version a type of its own,\n`custom:<name>:<version>`, which a workflow saves with and whose runs fail as steps that do not run yet. Default\nfalse; any other value than `true` or `false` stops startup.",
+              "description": "Turns on custom steps, step types the app's authors keep as records, each saved version a type of its own,\n`custom:<name>:<version>`, which a workflow saves with and the app's runners run. Their jobs' arguments are sealed\nwith the app's secret, its sign-in's, else `PROTOBASE_SECRET`; startup stops without either. Default false; any\nother value than `true` or `false` stops startup.",
               "anyOf": [
                 {
                   "type": "boolean"
+                },
+                {
+                  "$ref": "#/definitions/EnvValue"
+                }
+              ]
+            },
+            "runners": {
+              "description": "How custom steps' jobs reach runners, in seconds: how long a claim is held open waiting for a job (`claimSeconds`,\ndefault 50), how long a runner holds a job without a heartbeat (`leaseSeconds`, 30), how long a job whose best free\nrunner lacks its image waits for one that has it (`coldWaitSeconds`, 5), and how long one whose best has its image\nwaits for a warm instance (`warmWaitSeconds`, 1). Startup stops on one that is not a number above 0, or for a wait,\n0 or more.",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "claimSeconds": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    },
+                    "leaseSeconds": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    },
+                    "coldWaitSeconds": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    },
+                    "warmWaitSeconds": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "$ref": "#/definitions/EnvValue"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
                 },
                 {
                   "$ref": "#/definitions/EnvValue"
