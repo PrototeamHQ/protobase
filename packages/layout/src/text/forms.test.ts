@@ -25,6 +25,7 @@ const samples: Record<string, LayoutNode> = {
   RecordRow: built.RecordRow({ resource: 'tasks', filter: "state = 'open'" }),
   RecordCards: built.RecordCards({ resource: 'tasks' }),
   Chart: built.Chart({ resource: 'tasks', groupBy: 'state', title: 'By state' }),
+  Timeline: built.Timeline({ resource: 'tasks', lane: 'owner', bar: 'id', start: 'started_at', end: 'ended_at', color: 'state', title: 'Work' }),
   Progress: built.Progress({ label: 'Done', value: 40 }),
   ModalForm: built.ModalForm({ mode: 'create', label: 'New task', fields: ['title'] }),
   Thread: built.Thread({ resource: 'messages', sender: 'author', time: 'sent_at', text: 'body' }),
