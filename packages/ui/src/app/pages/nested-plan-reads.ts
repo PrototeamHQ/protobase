@@ -17,8 +17,8 @@ import { phoneSpecs } from './blocks/table-phone-columns'
 /** How a nested block's planned read is made: the read as sent, what it asks for beside its rows, and what it does with them. */
 export type NestedRead = { read: PlanRead; extras: PlannedExtras; then?: (page: PlannedPage) => Promise<void> }
 
-// The order the block reads in without its own: the list's, or the API's when the list has none
-const orderOf = (read: PlanRead, own: string) => (read.orderBy ?? own) || undefined
+/** The order the block reads in without its own, an empty one as none: the list's, or the API's when the list has none. */
+export const orderOf = (read: PlanRead, own: string | undefined) => read.orderBy || own || undefined
 
 // The fields the table reads besides those the plan names, unless either reads them all
 const withFields = (planned: string[] | undefined, own: string[] | undefined) => (planned && own ? [...new Set([...planned, ...own])].sort() : undefined)
