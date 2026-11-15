@@ -1,15 +1,14 @@
 import type { ChartBucket, ChartType } from '@protobase/layout'
-import type { FieldModel, ResourceModel, ViewModel } from '@protobase/schema'
+import type { ResourceModel, ViewModel } from '@protobase/schema'
 import { useAggregate } from '../../data/use-aggregates'
-import { labelFieldOf } from '../../live/model-helpers'
 import { Skeleton } from '../../primitives/skeleton'
 import { useAdminMeta } from '../meta-gate'
-import { periodPoints, seriesColors, valueSlices, type ChartMeasure } from './chart-groups'
+import { periodPoints, valueSlices, type ChartMeasure } from './chart-groups'
+import { chartAggregate } from './chart-params'
 import { GroupBars } from './group-bars'
 import { GroupDonut } from './group-donut'
 import { PeriodChart } from './period-chart'
 import { splitPoints } from './split-points'
-import { viewerZone } from '../../format/zone'
 import { text } from './messages'
 
 /** What a chart shows: the records of `model` matching `filter`, grouped by `groupBy` and added up. */
@@ -36,12 +35,6 @@ const measureOf = (model: ResourceModel, view: ViewModel | undefined, sum?: stri
   return { kind: sum !== undefined ? 'sum' : 'average', field, hints: view?.fields[name] }
 }
 
-// For a relation to a single-key resource: the field of that resource that names each of its records
-const labelOf = (field: FieldModel | undefined, resources: Record<string, ResourceModel>, views: Record<string, ViewModel>) => {
-  const target = field?.type === 'relation' && field.relation ? resources[field.relation.resource] : undefined
-  return target && target.primaryKey.length === 1 ? labelFieldOf(target, views[target.name]) : undefined
-}
-
 /**
  * Loads a chart's groups through `:aggregate` and draws them: a date field's buckets as bars or a line, a field's
  * values as ranked bars or a donut, each value linking to its records. The server checked the chart at startup.
@@ -50,13 +43,9 @@ export const ChartView = ({ model, view, groupBy, splitBy, type = 'bar', sum, av
   const { resources, views } = useAdminMeta()
   const field = model.fields[groupBy]
   const dated = field?.type === 'date' || field?.type === 'timestamp'
-  const label = labelOf(field, resources, views)
   const splitField = dated && splitBy !== undefined ? model.fields[splitBy] : undefined
-  const splitLabel = labelOf(splitField, resources, views)
-  // A timestamp's buckets are the viewer's days, hours and months; a date's are its own
-  const split = splitField ? { splitBy: splitField.name, splitLimit: seriesColors, ...(splitLabel && { splitLabel }) } : {}
-  const params = dated ? { granularity, range, timeZone: viewerZone(), ...split } : { limit, ...(label && { label }) }
-  const result = useAggregate(model.name, { groupBy, filter, ...(sum && { sum }), ...(average && { average }), ...params }, Boolean(field))
+  const params = chartAggregate({ model, groupBy, splitBy, sum, average, filter, granularity, range, limit }, resources, views)
+  const result = useAggregate(model.name, params ?? { groupBy }, params !== undefined)
   const measure = measureOf(model, view, sum, average)
   if (!field) return null
   if (result.isPending) return <Skeleton className="h-36 w-full" />
