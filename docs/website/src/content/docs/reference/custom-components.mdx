@@ -58,7 +58,11 @@ The admin app draws the fallback too when the component is missing or throws whi
 
 ### Reads
 
-A component that reads records says which of its props name what it reads, so its read is in the page's [read plan](/reference/layouts/#how-a-page-reads-its-data) with the other blocks' and `protobase doctor` checks the indexes of that read. The plan describes the read; it does not make it, so the component still fetches its own data, through the hooks above:
+:::caution[Beta]
+Several reads and `select` may still change. On a record page, which has no read plan, a component's reads are made where it draws instead of as the page opens.
+:::
+
+A component that reads records says which of its props name what it reads, so its read is in the page's [read plan](/reference/layouts/#how-a-page-reads-its-data) with the other blocks', starts with them as the page opens, and `protobase doctor` checks its indexes. The component then only draws: `useComponentReads()` from `@protobase/ui` gives it what each read holds, and it fetches nothing itself.
 
 ```tsx
 export const TaskBoard = component<{ resource: string; filter?: string; limit?: number }>('TaskBoard', {
@@ -66,7 +70,36 @@ export const TaskBoard = component<{ resource: string; filter?: string; limit?: 
 })
 ```
 
-`reads` takes `resource`, the one prop it needs, and `filter`, `sort`, `fields` (a prop holding a list of field names) and `limit`. A component without `reads` is outside the plan, which lists it as such (`page.reads.outside`), and doctor does not check its reads.
+```tsx
+// protobase.ui.tsx
+import { useComponentReads } from '@protobase/ui'
+
+export const TaskBoard = () => {
+  const { resource } = useComponentReads()
+  if (!resource || resource.isPending) return null
+  return <ul>{resource.rows.map((row) => <li key={String(row.id)}>{String(row.title)}</li>)}</ul>
+}
+```
+
+`reads` takes `resource`, the one prop it needs, and `filter`, `sort`, `fields` and `limit`. `fields` is a prop holding a list of field names, or a list of props, each holding one field name or a list of them; the read asks for those fields and the key, and every field without `fields`. Without a `limit`, a read holds as many records as one read of the API does, 500. A list declares several reads, each named by the prop of its resource, which may not be `calls`, `chosen` or `condition`:
+
+```tsx
+export const Board = component<{ cards: string; lanes: string; title: string; lane: string; select?: string }>('Board', {
+  reads: [
+    { resource: 'cards', fields: ['title', 'lane'], select: 'select' },
+    { resource: 'lanes' },
+  ],
+})
+```
+
+The build checks that each of those props names a resource and each field prop a field of it. `select`, in one read at most, is the prop naming the [page parameter](/reference/layouts/#page-parameters) that holds the key of the record chosen among that read's records, as a `Table`'s `select` does: the element's children draw inside that record, and nothing while none is chosen.
+
+| From `@protobase/ui` | |
+| --- | --- |
+| `useComponentReads()` | Each read the component declares, by the prop of its resource (`resource`, `cards`): `{ model, view, rows, isPending, error }`. A read comes from the page's plan; where the page plans none, such as in a record view, it is read here. |
+| `useComponentSelect()` | `{ chosen, linkTo }` for the component's `select`: the chosen record's key as the address holds it, and `linkTo(key)`, the page with another chosen, for a `RouteLink`; `undefined` without `select` or outside a composed page. |
+
+A component without `reads` is outside the plan, which lists it as such (`page.reads.outside`), and doctor does not check its reads.
 
 ### Fields and resources in props
 

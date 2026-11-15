@@ -205,6 +205,70 @@ export default definePlugin({ fileViewers: { 'application/vnd.example.report+jso
 
 `useFileText(file)` reads the file's text once, as a TanStack Query result kept while the file stays the same. It reads through the API that serves the record, whatever store holds the file and wherever its link points, up to 10 MB. The viewer draws on the page below the file's bar, which scrolls as the page does. The file's link is a download link served with a sandboxing CSP, so a viewer reads the file and draws it itself rather than framing it; a page of HTML it draws in an [`HtmlFrame`](/reference/files/#html-files).
 
+## Graph
+
+:::caution[Beta]
+A graph is read-only, and its positions are laid out automatically: you cannot move, add or connect nodes in it.
+:::
+
+`@protobase/graph` is a plugin with a `Graph` layout block: it draws the records of one resource as nodes and the records of another as edges between them, each node in the box of its group and coloured by its status, and with `select` the chosen node's details beside the graph. It draws with React Flow (`@xyflow/react`) and lays the graph out with `@dagrejs/dagre`, so an app that does not attach it carries neither. An app installs it and extends its `protobase.ui.tsx` with it:
+
+```sh
+npm install @protobase/graph
+```
+
+```tsx
+// protobase.ui.tsx
+import { defineUi } from '@protobase/ui'
+import graph from '@protobase/graph'
+
+export default defineUi({ extends: [graph] })
+```
+
+Its layout uses the block from `@protobase/graph/layout`, which carries no drawing code:
+
+```tsx
+/** @jsxImportSource @protobase/layout */
+import { Card, Field, page, Page } from '@protobase/layout'
+import { Graph } from '@protobase/graph/layout'
+
+export const services = page(
+  'services',
+  <Page title="Services" width="full">
+    <Card title="Service map">
+      <Graph nodes="services" edges="links" label="name" group="area" status="health" source="from_id" target="to_id" select="service">
+        <Field source="name" />
+        <Field source="health" />
+      </Graph>
+    </Card>
+  </Page>,
+)
+```
+
+| Prop | |
+| --- | --- |
+| `nodes` | The resource whose records are the nodes, each by its key. |
+| `edges` | The resource whose records are the edges. An edge whose `source` or `target` is not among the nodes is left out. |
+| `label` | The field of a node that labels it. |
+| `group` | The field of a node whose value puts it in a box with the nodes that hold the same; a node without one stands outside every box. |
+| `status` | The enum field of a node shown under its label, and colouring its left edge, as the view's `valueColors` give each value. |
+| `source`, `target` | The fields of an edge that hold the keys of the nodes it runs from and to. |
+| `select` | The [page parameter](/reference/layouts/#page-parameters) that holds the chosen node's key: each node's label links to the page with it chosen, and the `Graph`'s children draw beside the graph, inside that node's record, or under it on a narrow screen. |
+| `empty` | What it shows without nodes. |
+
+The block declares its [reads](/reference/custom-components/#reads): the page's [read plan](/reference/layouts/#how-a-page-reads-its-data) reads the nodes and the edges, up to 500 of each, with the rest of the page as it opens, and the plugin only draws them. The same records always make the same picture: edges run top to bottom, and groups, nodes and edges are laid out in the order of their keys. The graph is as wide as its place and as tall as its shape asks, up to most of the screen; it fits in that box unless that would make it too small to read, as on a phone, where you drag to pan. Pinch or the zoom buttons zoom it, the fit button shows all of it, and the mouse wheel scrolls the page past it. <gap>A group cannot show the title of the record its field points at because reading related records' titles in the graph is not implemented, so a relation groups by its key.</gap>
+
+Where it cannot be drawn, a client draws its fallback. `graph({ fallback })` declares the block with one, such as the [picture](/reference/blocks/#image) one of the app's API functions draws of the same graph:
+
+```tsx
+import { Image } from '@protobase/layout'
+import { graph } from '@protobase/graph/layout'
+
+export const Graph = graph({ fallback: <Image function="service_map" alt="The services and the links between them" /> })
+```
+
+Its [text form](/reference/layouts/#text-form), `graphText` from `@protobase/graph/layout`, lists each group with its nodes and their status, then each edge as `a → b`, from the records of the page's plan: pass it as `forms: { Graph: graphText }` to `pageText`, with the app's `models` and `labels`.
+
 ## Building
 
 ```sh
@@ -379,6 +443,9 @@ From `@protobase/ui`:
 | `SearchPicker` | A searchable list to pick from, for a panel or a dialog (see [focus pages](/reference/custom-components/#focus-pages)). |
 | `useCreateForm`, `InPlaceForm` | A create form that stays where it is (see [focus pages](/reference/custom-components/#focus-pages)). |
 | `RecordCardProps` | The props of a [record card](/reference/custom-components/#record-cards), `{ row }`. |
+| `useComponentReads`, `useComponentSelect`, `ComponentRead`, `ComponentReads`, `ComponentSelect` | The records a page element's declared [reads](/reference/custom-components/#reads) hold, and the record its `select` chose. |
+| `RouteLink`, `RouteTarget` | An ordinary link to a target's `href`, which a plain click follows in the app, as `useComponentSelect().linkTo(key)` gives it. |
+| `FieldBadge`, `ToneEdge` | A record's value of a field as a badge in its view's words and colour, and a card's left edge in that colour, as the app's related cards draw them. |
 | `AuthLayout`, `CodeForm`, `ResendCodeButton`, `Button`, `buttonClass`, `Input`, `Spinner`, `LogoMark` | The pieces of the app's sign-in pages, for a page of a plugin or a host's own that looks like them. Outside the app, `@protobase/ui/styles.css` is the stylesheet that draws them, for a Vite build with Tailwind. |
 | `isFramed`, `useArmedAfterFocus`, `useGuardedPress`, `allowDelayMs` | The connect page's guard against clickjacking and click-through, for a host's own consent screen: it refuses to render when `isFramed()`, and its Allow button spreads `useGuardedPress(armed, onAllow)`, so a press counts only once the page has been in front for `allowDelayMs`, and a press anywhere on the page before then starts that wait again. |
 | `pluginApi` | The plugin API of the app's `@protobase/ui`. |
@@ -388,4 +455,4 @@ From `@protobase/ui`:
 
 The modules of `@protobase/ui` that the table leaves out are reached one by one at `@protobase/ui/unstable/<module>`, by the module's path in `packages/ui/src` without its extension, such as `@protobase/ui/unstable/primitives/skeleton`. They come with no promise: any release may change or remove them, outside the plugin API. They are for UI that a bundler of its own builds on `@protobase/ui`, such as a host's own pages, so it imports a component rather than copying it; a plugin, or a project's `protobase.ui.tsx`, cannot import them, like any other file inside `@protobase/ui` (see [imports](#writing-a-plugin)). A module an app needs to rely on can become a stable export: see [versioning](/reference/versioning/#plugins).
 
-From `@protobase/layout`: `component(name, { plugin })` (see [above](#declaring-its-components-in-the-config)). From `@protobase/schema`: `.widget(name, props)` on a view's fields and `d.cards(fields, { card })` (see [Views](/reference/ui-config/)). From the config: `plugins`; from the environment: `PROTOBASE_PLUGINS` and `PROTOBASE_PLUGINS_BEFORE_SIGN_IN` (see [loading](#loading)). The tokens a plugin's utilities read are in [Theme](/reference/theme/).
+From `@protobase/layout`: `component(name, { plugin, reads })` (see [above](#declaring-its-components-in-the-config) and [reads](/reference/custom-components/#reads)). From `@protobase/schema`: `.widget(name, props)` on a view's fields and `d.cards(fields, { card })` (see [Views](/reference/ui-config/)). From the config: `plugins`; from the environment: `PROTOBASE_PLUGINS` and `PROTOBASE_PLUGINS_BEFORE_SIGN_IN` (see [loading](#loading)). The tokens a plugin's utilities read are in [Theme](/reference/theme/).

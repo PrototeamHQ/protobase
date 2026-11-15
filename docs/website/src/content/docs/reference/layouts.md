@@ -78,6 +78,8 @@ renderText(<Page title="Order"><Field source="status" /></Page>, {
 | `locale` | The reader's locale, such as `nl-NL`, in which [field components](#field-values) without `locales` format numbers and dates; the runtime's default when omitted. |
 | `basePath` | What links start with, such as `https://example.com/admin`. |
 | `forms` | Text forms by block type, over the built-in ones. |
+| `models`, `labels` | The app's resources by name, and per resource its fields' labels and value labels, which a custom component's text form reads its records with, such as the graph plugin's [`graphText`](/reference/plugins/#graph). |
+| `planned` | Per read of the page's plan, by its block's place in the tree with `#<part>` for a block's other reads (`/children/0#edges`), and the record around it, the records it holds; `pageText` gives it, so a custom component's text form reads its own reads' records. |
 
 A heading reads at its level: a `Page` title as `#`, a `Tab` label as `##`, and the title of a `Card` and of a data block as `###`, the data block's linked to its records' list as it filters them. A field's value reads as its enum label, a list as its items, and JSON as a code block. A table's records read as a Markdown table: a header row of labels, a separator row and a row per record, its columns most important first by the same rule a [phone](/reference/blocks/#columns-on-a-phone) uses, each cell on one line with its pipes escaped. `tableMarkdown` gives the same table for records you hold yourself.
 
@@ -108,7 +110,7 @@ const text = await pageText(page.tree, page.reads, {
 })
 ```
 
-It takes the options of `renderText` but `records` and `tables`, and `labels`: per resource, its fields' labels and value labels, which its tables' headers and cells read. A count's `read` gives `{ rows: [], total }`, and a count per record around it, an `:aggregate`, its groups as rows `{ value, count }`.
+It takes the options of `renderText` but `records`, `tables` and `planned`, and `labels`: per resource, its fields' labels and value labels, which its tables' headers and cells read. A count's `read` gives `{ rows: [], total }`, and a count per record around it, an `:aggregate`, its groups as rows `{ value, count }`.
 
 <gap>A `Stat` count, a `Chart`, a `RecordCards`, a `RecordRow` or a `Thread` cannot read its records in `pageText` because their text forms for planned records are not implemented.</gap> <gap>A path in the text form cannot read a record further out than the nearest, such as `../id`, because a stack of records in the text form is not implemented.</gap> A `Thread` holding the elements of [`threadItemNodes`](/reference/blocks/#tool-calls) reads as its messages and calls. <gap>A data block other than a `Table`, a `RecordCard`, a `CardRow`, a `Thread` or a list block cannot list records you pass because its text form for records is not implemented.</gap> <gap>A field's text form cannot apply its `format`, such as a relative time, because formatting in the text form is not implemented.</gap> <gap>MCP clients cannot read a page's text form because a tool that serves it is not implemented.</gap>
 
@@ -174,7 +176,7 @@ When a page opens, the web starts every read of its plan at once, with the page'
 
 Each read in the plan (`page.reads.reads`) names its block by a JSON Pointer into the page's tree, such as `/children/0/children/2`, which `elementAt(tree, pointer)` finds. It gives the read's `resource`, its `kind` (`list`, `count` or `aggregate`), `filter`, `orderBy`, `pageSize`, `limitPer`, `groupBy`, `fields` (absent for every field), `etag`, and for a read inside the records of another its `split`: the `field` its rows hold the value `source`, a path, reads where the block draws, and the `parent` read, by `planReadId(read)`. `compileReadPlan(tree, { models })` makes the same plan from a tree of your own. `runReadPlan(plan, read, { params })` starts every read at once through `read` and gives each outcome by `planReadId`, and `plannedRows(read, rows, scope)` the rows of one record around a block.
 
-A [custom component](/reference/custom-components/#reads) is planned when it declares its reads. One that declares none is outside the plan (`page.reads.outside`): whatever it reads, it reads by itself once it draws, and `protobase doctor` lists it.
+A [custom component](/reference/custom-components/#reads) is planned when it declares its reads: the page starts them with the others, each of several a part of its own named by its resource prop (`/children/0#edges`), and the component draws from them. One that declares none is outside the plan (`page.reads.outside`): whatever it reads, it reads by itself once it draws, and `protobase doctor` lists it.
 
 <gap>A `Table`, `Thread`, `Chart`, `RecordCards` or `RecordRow` cannot start its read when the page opens because drawing those blocks from their planned read is not implemented; each still reads once it draws, under a `Show` or `Match` once its condition holds.</gap> <gap>A read without an ETag cannot read only its fields from the database because skipping ETags in the list API is not implemented; it still sends only its fields.</gap> <gap>A `Chart` cannot sit inside a repeated record because grouping a chart per record is not implemented.</gap>
 
