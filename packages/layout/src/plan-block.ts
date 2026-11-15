@@ -9,6 +9,7 @@ import type { LayoutNode, LayoutValue } from './node'
 import type { Draft, PlanContext, Rows } from './plan-draft'
 import { fieldEquality, keyEquality, splitFilter, type ImpliedSplit, type SplitFilter } from './plan-split'
 import { planReadId } from './read-plan'
+import { totalOf } from './plan-total'
 import { columnName, type TableColumn } from './table-columns'
 import { readList, selectOf } from './select-blocks'
 import { label, type Scope } from './walk'
@@ -161,7 +162,10 @@ const shapeOf = (node: LayoutNode, n: number | undefined, parent: Draft | undefi
 // How each record around it finds its rows in the read
 const splitOf = ({ parent, field, path }: SplitFilter): Pick<Draft, 'split'> => (parent && field && path !== undefined ? { split: { field, source: path, parent: planReadId(parent) } } : {})
 
-/** The reads a block makes: its own, the row a `Table`'s or bar a `Timeline`'s `select` chose, and any others it makes beside it. */
+/**
+ * The reads a block makes: its own, the row a `Table`'s or bar a `Timeline`'s `select` chose, and any others it makes
+ * beside it, such as a nested list's total per record.
+ */
 export type BlockDrafts = { own?: Draft; chosen?: Draft; extra: Draft[] }
 
 /**
@@ -199,7 +203,7 @@ const callsOf = (node: LayoutNode, block: string, scope: Scope, rows: Rows, cont
 }
 
 // One read of a block, named `part` among a component's several, with the row its `select` chose
-const readDrafts = (node: LayoutNode, block: string, { reads, part }: { reads: BlockReads; part?: string }, scope: Scope, rows: Rows, context: PlanContext): Omit<BlockDrafts, 'extra'> => {
+const readDrafts = (node: LayoutNode, block: string, { reads, part }: { reads: BlockReads; part?: string }, scope: Scope, rows: Rows, context: PlanContext): Omit<BlockDrafts, 'extra'> & { total?: Draft } => {
   const resource = text(node.props[reads.resource])
   const model = resource === undefined ? undefined : context.models[resource]
   if (!model) return {}
@@ -218,7 +222,8 @@ const readDrafts = (node: LayoutNode, block: string, { reads, part }: { reads: B
     etag: changesOwn(node),
   }
   const chosen = !node.custom || reads.select !== undefined ? chosenOf(node, block, model, split.filter, context) : undefined
-  return { own, ...(chosen && { chosen }) }
+  const total = split.parent && totalOf(node, own, rowsOf(split.parent))
+  return { own, ...(chosen && { chosen }), ...(total && { total }) }
 }
 
 export const blockDrafts = (node: LayoutNode, block: string, scope: Scope, rows: Rows, context: PlanContext): BlockDrafts => {
@@ -227,5 +232,6 @@ export const blockDrafts = (node: LayoutNode, block: string, scope: Scope, rows:
   // A component's several reads are each a part of its own; a block's one read is its own
   const own = made.find((each) => each.own && each.own.part === undefined)?.own
   const parts = made.flatMap((each) => (each.own?.part !== undefined ? [each.own] : []))
-  return { ...(own && { own }), ...(chosen && { chosen }), extra: [...parts, ...callsOf(node, block, scope, rows, context)] }
+  const totals = made.flatMap((each) => (each.total ? [each.total] : []))
+  return { ...(own && { own }), ...(chosen && { chosen }), extra: [...parts, ...callsOf(node, block, scope, rows, context), ...totals] }
 }
