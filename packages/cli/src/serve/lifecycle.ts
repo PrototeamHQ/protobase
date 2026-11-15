@@ -11,6 +11,7 @@ import { apiWebSocketServer } from '../project/api-websocket-server'
 import { createServeApp, type ServedSite } from './app'
 import { startCleanupTimer } from './cleanup-timer'
 import { withClientAddress } from './client-address'
+import { serverCloser } from './close-server'
 import { closeSockets } from './close-sockets'
 import { servedRelease } from './mobile-release'
 import { protobaseVersion } from '../version/version'
@@ -29,6 +30,8 @@ export type ServeOptions = {
   ui?: BundleUi
   // Where the API's 500s go besides the console.
   reporter?: ErrorReporter
+  // How long `close` lets open requests finish before it drops their connections; tests shorten it.
+  closeGraceMs?: number
 }
 
 export type RunningServer = { port: number; close: () => Promise<void> }
@@ -43,18 +46,19 @@ const listen = (server: Server, port: number, host?: string) =>
     })
   })
 
-const closeServer = (server: Server) =>
-  new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())))
+/** How long a closing server lets the requests open on it finish, as the jobs' shutdown lets running jobs, in ms. */
+export const closeGraceMs = 30_000
 
-// Serves the project until `close`, which stops accepting connections, closes open WebSockets with 1001 (dropping them
-// after 5 seconds), lets open requests finish, then the work their functions left to `waitUntil` and running jobs, and
-// then drains the pool it created. It does not
+// Serves the project until `close`, which stops accepting connections, answers the requests the API holds open waiting,
+// such as runners' claims, closes open WebSockets with 1001 (dropping them after 5 seconds), lets open requests finish
+// on connections it closes after them (dropping them after `closeGraceMs`), then the work their functions left to
+// `waitUntil` and running jobs, and then drains the pool it created. It does not
 // start while the auth schema, the change capture of resources with events, the rollup and formula columns, the built-in assistant's query role or the jobs schema is behind, which it only
 // reads: the project's migrations change them, before the new version serves. `startupChecks` false skips those reads,
 // for a restart of a bundle that already started on this database. With jobs it runs them too, unless
 // `runJobs` is off; with file fields it runs their scheduled deletes every `filesCleanupMinutes`, and it prunes the realtime tables (startRealtimePrune). With a mobile section
 // it serves the app's files to the mobile app's live updater, composed once here (see servedRelease).
-export const startServe = async ({ config, env, openDb = (url) => openAppDatabase(pg, url, env.dbConnections), site, ui, reporter }: ServeOptions): Promise<RunningServer> => {
+export const startServe = async ({ config, env, openDb = (url) => openAppDatabase(pg, url, env.dbConnections), site, ui, reporter, closeGraceMs: graceMs = closeGraceMs }: ServeOptions): Promise<RunningServer> => {
   if (!env.databaseUrl) throw new Error('No database: set DATABASE_URL')
   const database = openDb(env.databaseUrl)
   const { db } = database
@@ -88,22 +92,24 @@ export const startServe = async ({ config, env, openDb = (url) => openAppDatabas
     // its client in X-Forwarded-For.
     const sockets = apiWebSocketServer()
     const server = createAdaptorServer({ fetch: withClientAddress(app.fetch, env.trustedProxies), overrideGlobalObjects: false, websocket: { server: sockets } }) as Server
+    const closeServer = serverCloser(server)
     await listen(server, env.port, env.host).catch(async (error: Error) => {
       await jobs?.stop()
       throw error
     })
     // The old rows of the realtime tables, pruned while this process serves, whether or not a socket is open.
     const prune = admin.startRealtimePrune()
-    return { server, sockets, jobs, prune, resources, files: project.files }
+    return { server, closeServer, admin, sockets, jobs, prune, resources, files: project.files }
   }
-  const { server, sockets, jobs, prune, resources, files } = await startJobsAndListen().catch(async (error: Error) => {
+  const { server, closeServer, admin, sockets, jobs, prune, resources, files } = await startJobsAndListen().catch(async (error: Error) => {
     await db.destroy()
     throw error
   })
   const cleanup = createFileCleanup({ resources, db, ...(files && { files }) })
   const timer = cleanup && env.filesCleanupMinutes > 0 ? startCleanupTimer(cleanup.run, env.filesCleanupMinutes, (error) => console.error(error)) : undefined
   const close = async () => {
-    const closed = closeServer(server)
+    const closed = closeServer(graceMs)
+    await admin.stopHolding()
     await closeSockets(sockets.clients)
     await closed
     await backgroundSettled()

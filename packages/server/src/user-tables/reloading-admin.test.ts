@@ -19,7 +19,7 @@ const fakeAdmin = (name: string, known: string[]) => {
     if (!known.includes(c.req.param('resource'))) throw notFound(`There is no resource "${c.req.param('resource')}"`)
     return c.json({ name, body: c.req.method === 'POST' ? await c.req.json() : undefined })
   })
-  return Object.assign(app, { jobs: [], startRealtimePrune: () => ({ stop: async () => {} }), decryptField: async () => undefined, metaPath: '/api/meta' }) as unknown as Admin
+  return Object.assign(app, { jobs: [], startRealtimePrune: () => ({ stop: async () => {} }), stopHolding: async () => {}, decryptField: async () => undefined, metaPath: '/api/meta' }) as unknown as Admin
 }
 
 const setup = (versions: string[], build = (tables: UserTables) => fakeAdmin(`built ${tables === noTables}`, ['orders', 'notes'])) => {
@@ -107,7 +107,7 @@ describe('reloadingAdmin after a write to a definition', () => {
   const write = (status = 200) => {
     const first = new Hono<AdminEnv>()
     first.all('*', (c) => c.json({}, status as 200))
-    const shaped = Object.assign(first, { jobs: [], startRealtimePrune: () => ({ stop: async () => {} }), decryptField: async () => undefined, metaPath: '/api/meta' }) as unknown as Admin
+    const shaped = Object.assign(first, { jobs: [], startRealtimePrune: () => ({ stop: async () => {} }), stopHolding: async () => {}, decryptField: async () => undefined, metaPath: '/api/meta' }) as unknown as Admin
     const readVersion = vi.fn(async () => '1')
     const admin = reloadingAdmin({ first: shaped, version: '1', readVersion, readTables: async () => noTables, build: () => shaped, now: () => 0 })
     return { admin, readVersion }
