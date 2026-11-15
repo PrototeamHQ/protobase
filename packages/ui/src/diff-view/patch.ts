@@ -19,23 +19,40 @@ const fileName = (line: string) => {
   return name.replace(/^[ab]\//, '')
 }
 
-// The new name a `diff --git` line gives, without its `b/`; each side is quoted or plain, and a plain one holds no quote
-const gitPath = (line: string) => {
+// The old and new names of a `diff --git` line, without their `a/` and `b/`
+type GitNames = { old: string; new: string }
+
+const gitSides = (old: string, next: string): GitNames | undefined => {
+  const quotedNew = readQuoted(next)
+  if (quotedNew && quotedNew.rest !== '') return
+  const newPath = quotedNew ? quotedNew.path : next
+  if (!old.startsWith('a/') || !newPath.startsWith('b/')) return
+  return { old: old.slice(2), new: newPath.slice(2) }
+}
+
+// Each side is quoted or plain, and a plain one holds no quote. Plain names holding ` b/` split more than one way: the split
+// whose halves are equal, as git writes a file that keeps its name, else the last; a rename's own lines then give its names
+const gitNames = (line: string) => {
   if (!line.startsWith('diff --git ')) return
   const names = line.slice('diff --git '.length)
   const quotedOld = readQuoted(names)
-  if (quotedOld && !(quotedOld.path.startsWith('a/') && quotedOld.rest.startsWith(' '))) return
+  if (quotedOld) return quotedOld.rest.startsWith(' ') ? gitSides(quotedOld.path, quotedOld.rest.slice(1)) : undefined
   const quotedNewAt = names.indexOf(' "b/')
-  const newName = quotedOld ? quotedOld.rest.slice(1) : quotedNewAt === -1 ? /^a\/.+ (b\/.+)$/.exec(names)?.[1] : names.slice(quotedNewAt + 1)
-  if (newName === undefined) return
-  const quotedNew = readQuoted(newName)
-  if (quotedNew && quotedNew.rest !== '') return
-  const path = quotedNew ? quotedNew.path : newName
-  if (!path.startsWith('b/')) return
-  return path.slice(2)
+  if (quotedNewAt !== -1) return gitSides(names.slice(0, quotedNewAt), names.slice(quotedNewAt + 1))
+  const splits = [...names.matchAll(/ b\//g)].map((match) => [names.slice(0, match.index), names.slice(match.index + 1)] as const)
+  const split = splits.find(([old, next]) => old.slice(2) === next.slice(2)) ?? splits.at(-1)
+  return split && gitSides(...split)
 }
 
-const startsFile = (lines: string[], index: number) => gitPath(lines[index]!) !== undefined || (lines[index]!.startsWith('--- ') && lines[index + 1]?.startsWith('+++ ') === true)
+// The name a `rename from`, `rename to`, `copy from` or `copy to` line gives in full, quoted or plain
+const extendedName = (line: string, prefixes: string[]) => {
+  const prefix = prefixes.find((candidate) => line.startsWith(candidate))
+  if (prefix === undefined) return
+  const name = line.slice(prefix.length)
+  return readQuoted(name)?.path ?? name
+}
+
+const startsFile = (lines: string[], index: number) => gitNames(lines[index]!) !== undefined || (lines[index]!.startsWith('--- ') && lines[index + 1]?.startsWith('+++ ') === true)
 
 /** The files of a unified patch, or `undefined` when the text is not one. */
 export const parsePatch = (text: string): PatchFile[] | undefined => {
@@ -44,37 +61,45 @@ export const parsePatch = (text: string): PatchFile[] | undefined => {
   let index = 0
   while (index < lines.length && !startsFile(lines, index)) index++
   const files: PatchFile[] = []
-  // Whether the file last opened by a `diff --git` line still waits for its `---`/`+++` names
-  let named = true
+  // The names of the file last opened by a `diff --git` line while it still waits for its `---`/`+++` lines
+  let pending: GitNames | undefined
   while (index < lines.length) {
     const line = lines[index]!
     const current = files.at(-1)
     // `git format-patch` ends with its version under a signature line
     if (line === '-- ') break
-    const git = gitPath(line)
+    const git = gitNames(line)
     if (git !== undefined) {
-      files.push({ path: git, lines: [] })
-      named = false
+      files.push({ path: git.new, lines: [] })
+      pending = git
       index++
       continue
     }
     if (line.startsWith('--- ') && lines[index + 1]?.startsWith('+++ ')) {
-      const path = fileName(lines[index + 1]!) ?? fileName(line) ?? ''
-      // They are the waiting file's when they name it, or a name with ` b/` in it, which a plain `diff --git` line splits at
-      // its last ` b/`; otherwise a file without them, such as a rename alone, came before
-      const theirs = !named && current !== undefined && (path === current.path || path.endsWith(` b/${current.path}`))
-      if (theirs) current.path = path
-      else files.push({ path, lines: [] })
-      named = true
+      const oldName = fileName(line)
+      const newName = fileName(lines[index + 1]!)
+      // They are the waiting file's when both name it exactly, /dev/null standing for an added or deleted side; otherwise a
+      // file without them, such as a rename alone, came before
+      const theirs = pending !== undefined && (oldName ?? pending.old) === pending.old && (newName ?? pending.new) === pending.new
+      if (!theirs) files.push({ path: newName ?? oldName ?? '', lines: [] })
+      pending = undefined
       index += 2
       continue
     }
     if (current && current.lines.length === 0 && extendedHeader.test(line)) {
+      const from = extendedName(line, ['rename from ', 'copy from '])
+      const to = extendedName(line, ['rename to ', 'copy to '])
+      if (pending && from !== undefined) pending.old = from
+      if (pending && to !== undefined) {
+        pending.new = to
+        current.path = to
+      }
       index++
       continue
     }
     const hunk = hunkHeader.exec(line)
     if (!current || !hunk) return
+    pending = undefined
     current.lines.push({ kind: 'hunk', text: line })
     let oldNo = Number(hunk[1])
     let newNo = Number(hunk[3])

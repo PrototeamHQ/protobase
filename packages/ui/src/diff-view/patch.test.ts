@@ -87,6 +87,27 @@ describe('parsePatch', () => {
     expect(files.map((file) => file.path)).toEqual(['x b/y'])
   })
 
+  it('keeps a plain patch whose name only ends like a rename before it as its own file', () => {
+    const files = parsePatch('diff --git a/old b/x\nsimilarity index 100%\nrename from old\nrename to x\n--- a/dir b/x\n+++ b/dir b/x\n@@ -1 +1 @@\n-a\n+b\n')!
+    expect(files.map((file) => [file.path, file.lines.length])).toEqual([
+      ['x', 0],
+      ['dir b/x', 3],
+    ])
+  })
+
+  it('names a renamed file holding " b/" from its rename lines', () => {
+    const files = parsePatch('diff --git a/p b/q b/r b/s\nsimilarity index 90%\nrename from p b/q\nrename to r b/s\n--- a/p b/q\n+++ b/r b/s\n@@ -1 +1 @@\n-a\n+b\n')!
+    expect(files.map((file) => [file.path, file.lines.length])).toEqual([['r b/s', 3]])
+  })
+
+  it('gives an added and a deleted file their own diff --git line', () => {
+    const files = parsePatch('diff --git a/new b/new\nnew file mode 100644\n--- /dev/null\n+++ b/new\n@@ -0,0 +1 @@\n+a\ndiff --git a/gone b/gone\ndeleted file mode 100644\n--- a/gone\n+++ /dev/null\n@@ -1 +0,0 @@\n-a\n')!
+    expect(files.map((file) => [file.path, file.lines.length])).toEqual([
+      ['new', 2],
+      ['gone', 2],
+    ])
+  })
+
   it('is undefined for text that is not a patch', () => {
     expect(parsePatch('Release notes\n\n- faster lists')).toBeUndefined()
     expect(parsePatch('@@ -1 +1 @@\n-a\n+b')).toBeUndefined()
