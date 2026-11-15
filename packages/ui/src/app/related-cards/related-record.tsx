@@ -12,6 +12,7 @@ import { text as listText } from '../embedded-list/messages'
 import { ErrorBanner } from '../error-banner'
 import { defaultOrderBy } from '../list-order'
 import { scopeOf, useListPage } from '../pages/use-layout-data'
+import { useAdminMeta } from '../meta-gate'
 import { RowButtonLink } from '../row-button/row-button-link'
 import type { CurrentAddress } from '../current-address'
 import { AppLink } from '../use-app-address'
@@ -48,6 +49,7 @@ const singularOf = (model: ResourceModel, view: ViewModel | undefined) => (view?
  */
 export const RelatedRecord = ({ title, help, count, model, view, filter, sort, fields, button, empty, add }: RelatedRecordProps) => {
   const xs = useIsXs()
+  const { resources } = useAdminMeta()
   const orderBy = sort || defaultOrderBy(model, view)
   const page = useListPage(model, { filter, sort: orderBy, pageSize: 2 })
   if (page.isPending) return <Section title={title} help={help} count={count}><Skeleton className="h-24 w-full" /></Section>
@@ -69,7 +71,7 @@ export const RelatedRecord = ({ title, help, count, model, view, filter, sort, f
   const shown = fields.map((path) => <RelatedField key={path} scope={scope} path={path} labelled={labelled} />)
   const actions = (
     <div className="flex flex-wrap items-center gap-2">
-      {button && <RowButtonLink button={button} model={model} view={view} record={row} />}
+      {button && <RowButtonLink button={button} model={model} view={view} record={row} models={resources} />}
       <AppLink to={{ kind: 'record', resource: model.name, key: recordKey(model, row) }} className={buttonClass({ size: 'sm' })}>
         {text('open', { singular })}
       </AppLink>

@@ -32,7 +32,7 @@ const LoadedListTable = ({ model, items, columns, button, title, description, em
   const names = useMemo(() => columns?.map(columnName) ?? listColumnNames(model, view), [columns, model, view])
   const all = useMemo(() => embeddedColumns(model, view, names, { resources, views, fieldTypes }), [model, view, names, resources, views, fieldTypes])
   const specs = useMemo(() => (xs ? phoneSpecs(columns)(all) : all), [xs, columns, all])
-  const gridColumns = useMemo(() => (button ? withRowButton(specs, model, view, button, narrow) : specs), [specs, model, view, button, narrow])
+  const gridColumns = useMemo(() => (button ? withRowButton(specs, model, view, button, resources, narrow) : specs), [specs, model, view, button, resources, narrow])
   const rows = useMemo(() => items.map((item) => ({ ...(item as Record<string, unknown>), id: recordId(model, item as Record<string, unknown>) })), [items, model])
   const source = useMemo(() => ({ total: rows.length, rowAt: (index: number) => rows[index]! }), [rows])
   const targets = embeddedRowTargets({ model, view, opens: undefined, resources, views, canUpdate })

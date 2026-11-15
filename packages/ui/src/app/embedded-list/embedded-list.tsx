@@ -91,7 +91,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   const all = useMemo(() => embeddedColumns(model, view, names, { resources, views, fieldTypes }), [model, view, names.join(','), resources, views, fieldTypes])
   const specs = useMemo(() => (xs && phoneColumns ? phoneColumns(all) : all), [xs, phoneColumns, all])
   const fields = useMemo(() => loadedFields(model, view, [...specs.map((spec) => spec.id), ...(button ? rowButtonFields(button) : [])]), [model, view, specs, button])
-  const gridColumns = useMemo(() => (button ? withRowButton(specs, model, view, button, narrow) : specs), [specs, model, view, button, narrow])
+  const gridColumns = useMemo(() => (button ? withRowButton(specs, model, view, button, resources, narrow) : specs), [specs, model, view, button, resources, narrow])
   const read = useMemo(() => embeddedReadFields(model, view, { shown: fields, opens, bulk }), [model, view, fields, opens, bulk])
   const rows = useEmbeddedRows({ model, filter, orderBy, limit, fields, read })
   const named = useListActions(model)
