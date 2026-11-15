@@ -51,4 +51,26 @@ describe('workflowResources', () => {
     }
     expect(parts.workflowsView.toModel().actions).toEqual([expect.objectContaining({ name: 'storage_configurations', run: { kind: 'link', to: { kind: 'list', resource: 'storage_configurations' } } })])
   })
+
+  it('adds custom steps and their versions only with customSteps, out of the sidebar, linked from each workflow, the name set on create only', () => {
+    expect(workflowResources('workflows')).not.toHaveProperty('customSteps')
+    const parts = workflowResources('workflows', { customSteps: true })
+    const steps = parts.customSteps!.toModel()
+    const versions = parts.customStepVersions!.toModel()
+    expect([steps.name, versions.name]).toEqual(['workflow_custom_steps', 'workflow_custom_step_versions'])
+    expect([steps.explicitGrants, versions.explicitGrants]).toEqual([true, true])
+    expect([steps.tenant, versions.tenant]).toEqual(['tenant_id', 'tenant_id'])
+    expect([parts.customStepsView!.toModel().nav?.hidden, parts.customStepVersionsView!.toModel().nav?.hidden]).toEqual([true, true])
+    expect(steps.fields.version).toMatchObject({ readOnly: true })
+    expect(steps.fields.kind).toMatchObject({ type: 'enum', enumValues: ['container'] })
+    expect(parts.customStepsView!.toModel(steps).fields.kind?.valueLabels).toEqual({ container: 'Container' })
+    // Every Task that calls it names it
+    const access = parts.customSteps!.fieldAccess()
+    expect(access.name?.update?.({})).toBe(false)
+    expect(access.name?.create).toBeUndefined()
+    expect(Object.values(versions.fields).every((field) => field.readOnly)).toBe(true)
+    expect(parts.workflowsView.toModel().actions).toEqual([expect.objectContaining({ name: 'workflow_custom_steps', run: { kind: 'link', to: { kind: 'list', resource: 'workflow_custom_steps' } } })])
+    const both = workflowResources('workflows', { storage: true, customSteps: true })
+    expect(both.workflowsView.toModel().actions.map((action) => action.name)).toEqual(['storage_configurations', 'workflow_custom_steps'])
+  })
 })

@@ -4,7 +4,7 @@ import type { Deps } from '../deps'
 import { betterAuthOwnerRoles } from '../webhooks/table/owner-roles'
 import { runInputCheck } from './input-limits'
 import { secretRedactor } from '@protobase/workflows'
-import { workflowSecrets, workflowsSchema, workflowsStorage, workflowsTraceMode, type WorkflowsOptions } from './options'
+import { workflowSecrets, workflowsCustomStepsOn, workflowsSchema, workflowsStorage, workflowsTraceMode, type WorkflowsOptions } from './options'
 import { storageConfigurationHook, storageEndpointCheck } from './storage/configuration-hook'
 import { readTrace, traceSink } from './trace-sink'
 import { workflowSaveHook } from './save-hook'
@@ -29,12 +29,16 @@ import { connectionTexts } from './connections/connection-texts'
 import { traceJoining } from './trace-joining'
 import { taskRoute } from './tasks/task-route'
 import { answerTaskAs } from './tasks/answer-as'
+import { customStepSaveHook } from './custom-steps/custom-step-hook'
+import { customStepTypes } from './custom-steps/custom-step-types'
 
 /**
  * What `createAdmin` needs for `workflows`: the hooks that check saves and start runs, the check of a run's input before
  * it is validated, the app's trigger and step types, the segment and trigger jobs, the routing of changes to
  * ready triggers, and the segment job, whose step types act on records as each workflow's last editor (from Better
- * Auth unless the options say otherwise), and which keeps runs' traces in the private file provider.
+ * Auth unless the options say otherwise), and which keeps runs' traces in the private file provider. With custom steps
+ * on, the hook that checks their manifests and keeps their versions, and each tenant's custom step types
+ * (`customTypes`), which its saves, its type list and its checks take.
  */
 export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth?: AdminAuth, locale?: Locale) => {
   const schema = workflowsSchema(options)
@@ -47,6 +51,7 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   const text = connectionTexts(locale)
   const connections = connectionWiring({ deps, schema, roles, accounts, plugins: types.plugins, connectionOf: types.connections, text, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }) })
   const storage = workflowsStorage(options)
+  const custom = workflowsCustomStepsOn(options) ? customStepTypes(schema) : undefined
   const allowPrivateAddresses = Boolean(options.allowPrivateAddresses)
   const input = { deps, schema, roles, allowPrivateAddresses, storage, connect: connections.trigger }
   const cache = postgresStepCache(() => deps().db, schema, secretFingerprints(secrets, env.PROTOBASE_SECRET), roles)
@@ -85,5 +90,6 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
     hooks: () => hookRoute({ db: deps().db, schema, webhooks, webhookTypes: () => [...types.webhooks.keys()].filter((id) => webhooks(id)), files: () => deps().files, report: (error) => deps().report(error), redact: redactor.text }),
     issue: () => issueRoute(issue),
   }
-  return { routes, issue, answerTask: answerTaskAs(deps, tokens, answerTask), hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema), ...(storage ? [storageConfigurationHook(storage)] : [])], writeChecks: [runInputCheck, ...(storage ? [storageEndpointCheck(storage, allowPrivateAddresses)] : [])], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId) }
+  const customTypes = custom && ((tenant: unknown) => custom(deps().db, tenant))
+  return { routes, issue, answerTask: answerTaskAs(deps, tokens, answerTask), customTypes, hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent, custom), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema), ...(storage ? [storageConfigurationHook(storage)] : []), ...(custom ? [customStepSaveHook(schema)] : [])], writeChecks: [runInputCheck, ...(storage ? [storageEndpointCheck(storage, allowPrivateAddresses)] : [])], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId) }
 }

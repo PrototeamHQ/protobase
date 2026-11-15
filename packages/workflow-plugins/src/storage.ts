@@ -1,11 +1,4 @@
-import { fetchMaxBytes, isFileValue, isStoredFile, StepError, type StepContext, type StepType } from '@protobase/workflows/plugin'
-
-const storedFileSchema = {
-  type: 'object',
-  required: ['configuration', 'path', 'name', 'type', 'size'],
-  description: 'a stored file, { configuration, node?, path, name, type, size }, as a storage step or the http step gave it',
-  properties: { configuration: { type: 'string' }, node: { type: 'string' }, path: { type: 'string' }, name: { type: 'string' }, type: { type: 'string' }, size: { type: 'integer' } },
-}
+import { fetchMaxBytes, isFileValue, isStoredFile, StepError, storedFileSchema, type StepContext, type StepType } from '@protobase/workflows/plugin'
 
 const configurationSchema = { type: 'string', description: 'the name of a storage configuration, such as "archive"' }
 const pathSchema = { type: 'string', description: 'where in the configuration, such as "invoices/2026/1234.pdf"; default a path of this step in this run' }

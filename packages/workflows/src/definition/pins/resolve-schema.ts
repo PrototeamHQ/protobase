@@ -1,3 +1,5 @@
+import { storedFileSchema } from '../../plugin/stored-file'
+
 type JsonSchema = Record<string, unknown>
 
 /** How a record is used: as a step gives it (`read`), or as a create or an update takes it (`write`). */
@@ -12,13 +14,15 @@ const isSchema = (value: unknown): value is JsonSchema => typeof value === 'obje
  * A type's schema with what its arguments name filled in: `{ "x-record-of": "<argument>" }` is the record of the
  * resource that argument names, for the `x-record-use` it says (default `read`), and `{ "x-schema-of": "<argument>" }`
  * is the schema that argument holds, such as an HTTP answer's declared body, and `{ "x-one-or-many-of": "<argument>",
- * "anyOf": [<one>, <list>] }` is one or the list as that argument holds an object or a list. An argument that is an
- * expression, or a resource the app does not have, leaves the value of any type.
+ * "anyOf": [<one>, <list>] }` is one or the list as that argument holds an object or a list. `{ "x-file": true }` is a
+ * stored file, with its own title and description. An argument that is an expression, or a resource the app does not
+ * have, leaves the value of any type.
  */
 export const resolveSchema = (schema: JsonSchema, args: Record<string, unknown>, records: RecordSchemas): JsonSchema => {
   const resolve = (node: unknown): unknown => {
     if (Array.isArray(node)) return node.map(resolve)
     if (!isSchema(node)) return node
+    if (node['x-file'] === true) return { ...storedFileSchema, ...pick(node, ['title', 'description']) }
     const recordOf = node['x-record-of']
     if (typeof recordOf === 'string') {
       const resource = args[recordOf]
@@ -45,6 +49,7 @@ export const resolveSchema = (schema: JsonSchema, args: Record<string, unknown>,
 }
 
 const withoutKeys = (node: JsonSchema, keys: string[]) => Object.fromEntries(Object.entries(node).filter(([key]) => !keys.includes(key)))
+const pick = (node: JsonSchema, keys: string[]) => Object.fromEntries(Object.entries(node).filter(([key]) => keys.includes(key)))
 
 /**
  * The schema of the value at `path` below a value of `schema`: a property's, or a map's `additionalProperties`; for a

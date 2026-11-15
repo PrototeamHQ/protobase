@@ -3,6 +3,7 @@ import { layout as l } from '../layout'
 import { resource } from '../resource'
 import { view } from '../view'
 import { storageConfigurationResources } from './storage-configurations'
+import { customStepResources } from './custom-steps'
 import { resolutionsResource, resolutionsView, workflowStatusFields, workflowStatusLabels, workflowStatusTones } from './workflow-status'
 
 const runStatuses = ['queued', 'running', 'waiting', 'succeeded', 'failed'] as const
@@ -235,19 +236,23 @@ const triggersView = view<ReturnType<typeof triggersResource>>('workflow_trigger
   }))
   .list((r) => ({ columns: [r.workflow_id, r.type, r.status, r.updated_at], sort: [[r.updated_at, 'desc']] }))
 
-// Storage configurations have no sidebar entry: each workflow's page links to them.
-const workflowsViewWithStorage = workflowsView.actions((a) => [
-  a.link('storage_configurations', { label: 'Storage configurations', icon: 'archive', to: { kind: 'list', resource: 'storage_configurations' } }),
-])
+// Storage configurations and custom steps have no sidebar entry: each workflow's page links to them.
+const linkedFrom = ({ storage, customSteps }: { storage: boolean; customSteps: boolean }) => {
+  if (!storage && !customSteps) return workflowsView
+  return workflowsView.actions((a) => [
+    ...(storage ? [a.link('storage_configurations', { label: 'Storage configurations', icon: 'archive', to: { kind: 'list', resource: 'storage_configurations' } })] : []),
+    ...(customSteps ? [a.link('workflow_custom_steps', { label: 'Custom steps', icon: 'wrench', to: { kind: 'list', resource: 'workflow_custom_steps' } })] : []),
+  ])
+}
 
 /**
  * The resources and views `workflows` adds to an app, over the tables of `schema`: Workflows with their versions and
- * runs, and with `storage` the storage configurations their steps store files in. Config only; the server checks and
- * runs them.
+ * runs, with `storage` the storage configurations their steps store files in, and with `customSteps` the custom steps
+ * their Tasks may name, with their versions. Config only; the server checks and runs them.
  */
-export const workflowResources = (schema: string, { storage = false }: { storage?: boolean } = {}) => ({
+export const workflowResources = (schema: string, { storage = false, customSteps = false }: { storage?: boolean; customSteps?: boolean } = {}) => ({
   workflows: workflowsResource(schema),
-  workflowsView: storage ? workflowsViewWithStorage : workflowsView,
+  workflowsView: linkedFrom({ storage, customSteps }),
   workflowVersions: versionsResource(schema),
   workflowVersionsView: versionsView,
   workflowRuns: runsResource(schema),
@@ -257,4 +262,5 @@ export const workflowResources = (schema: string, { storage = false }: { storage
   workflowResolutions: resolutionsResource(schema),
   workflowResolutionsView: resolutionsView,
   ...(storage && storageConfigurationResources(schema)),
+  ...(customSteps && customStepResources(schema)),
 })

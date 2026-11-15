@@ -1,4 +1,5 @@
 import { f, resource } from '@protobase/schema'
+import { customStepEntry } from '@protobase/workflows'
 import { describe, expect, it, vi } from 'vitest'
 import type { ApprovalAnswer } from '../../assistant/approval'
 import type { ToolRecords } from '../../assistant/records'
@@ -73,6 +74,21 @@ describe('validate_workflow', () => {
     expect(await problems({ resource: 'payroll' })).toEqual(['"payroll" is not a resource of this app'])
     expect(await problems({ resource: 'payroll', key: ['salary'] })).toEqual(['"payroll" is not a resource of this app'])
     expect(await problems({ resource: 'orders', key: ['salary'] })).toEqual(['orders has no field "salary"'])
+  })
+
+  it("lists and checks against the caller's tenant's custom steps, refusing one that names no version", async () => {
+    const invoice = customStepEntry({ name: 'invoice', version: 2, label: 'Invoice', description: null, input: { type: 'object', properties: { number: { type: 'string' } } }, output: { type: 'object' }, error_prefix: 'Invoice', errors: {} })
+    const tenants: unknown[] = []
+    const tools = workflowReadTools({ ...workflowTypes(), customTypes: async (tenant) => (tenants.push(tenant), [invoice]), readTrace: async () => [] })
+    const { context } = contextWith({})
+    const caller = { ...context, session: { ...context.session, tenant: 't1' } }
+    const listed = JSON.parse(await tools.find((tool) => tool.name === 'list_workflow_types')!.run({}, caller))
+    expect(listed.step_types.map((type: { id: string }) => type.id)).toContain('custom:invoice:2')
+    const validate = tools.find((tool) => tool.name === 'validate_workflow')!
+    const calling = (Resource: string) => ({ state_machine: machine({ Make: { Type: 'Task', Resource, Arguments: { number: '1' }, End: true } }) })
+    expect(JSON.parse(await validate.run(calling('custom:invoice:2'), caller))).toEqual({ valid: true })
+    expect(JSON.parse(await validate.run(calling('custom:invoice'), caller)).problems).toEqual([{ state: 'Make', field: 'Resource', message: '"custom:invoice" names no version: write custom:invoice:2' }])
+    expect(tenants).toEqual(['t1', 't1', 't1'])
   })
 
   it('takes a state machine or an id with an edit, not both', async () => {

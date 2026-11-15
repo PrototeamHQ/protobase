@@ -27,7 +27,8 @@ import { taskResource } from './task-resource'
  * app cannot run a type it knows (`unavailable`, by step or trigger type), and the connection `<plugin>:<connection>`
  * each type that signs in uses (`connections`, by step or trigger type); without it the bindings are not checked.
  * With `pins`, the types' input and output schemas and the app's records, an argument that reads a value by name is
- * checked to take that value's type.
+ * checked to take that value's type. `versioned` names the latest version of each step type kept by version, by its id
+ * without one, such as `custom:invoice` for `custom:invoice:3`: a Task that names no version is refused naming it.
  */
 export type CheckOptions = {
   resources: readonly string[]
@@ -36,6 +37,7 @@ export type CheckOptions = {
   unavailable?: Readonly<Record<string, string>>
   connections?: Readonly<Record<string, string>>
   pins?: PinSchemas
+  versioned?: Readonly<Record<string, string>>
 }
 
 // `blocks`: how many Blocks the machine is inside; `data`: whether its states run in dataflow order, and `steps` the
@@ -94,6 +96,8 @@ const machineProblems = (machine: Machine, scope: Scope, options: CheckOptions):
     const task = state.Type === 'Task' ? taskResource(state.Resource) : undefined
     if (task && options.unavailable && Object.hasOwn(options.unavailable, task.type)) {
       problems.push({ state: where(name), field: 'Resource', message: `"${task.type}" cannot run in this app: ${options.unavailable[task.type]}` })
+    } else if (task && options.versioned && Object.hasOwn(options.versioned, task.type)) {
+      problems.push({ state: where(name), field: 'Resource', message: `"${task.type}" names no version: write ${options.versioned[task.type]}` })
     } else if (task && !options.resources.includes(task.type)) {
       problems.push({ state: where(name), field: 'Resource', message: `"${task.type}" is not a step type; use one of ${options.resources.join(', ')}${task.waits ? ', followed by .waitForTaskToken' : ''}` })
     }

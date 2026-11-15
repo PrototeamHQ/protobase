@@ -7,6 +7,13 @@ describe('workflowsSql', () => {
     expect(workflowsSql('workflows', { tables: false, storage: true })).toContain('create table if not exists "workflows"."storage_configurations"')
   })
 
+  it('adds the custom steps tables only with custom steps on', () => {
+    expect(workflowsSql('workflows', { tables: false, storage: false })).not.toContain('"custom_steps"')
+    const sql = workflowsSql('workflows', { tables: false, storage: false, customSteps: true })
+    expect(sql).toContain('create table if not exists "workflows"."custom_steps"')
+    expect(sql).toContain('create table if not exists "workflows"."custom_step_versions"')
+  })
+
   it('leaves the base tables out of a schema that has them', () => {
     expect(workflowsSql('workflows', { tables: true, storage: false })).not.toContain('create table if not exists "workflows"."runs"')
   })

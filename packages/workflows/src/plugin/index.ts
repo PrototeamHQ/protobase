@@ -5,6 +5,6 @@ export type { ConnectionDeclaration, OAuthEndpoints, Plugin, PollEvery, PollingT
 export { StepError } from '../run/errors'
 export { AddressRefusedError, fetchMaxBytes, ResponseTooLargeError } from './fetch-errors'
 export { isFileValue } from './file-value'
-export { isStoredFile } from './stored-file'
+export { isStoredFile, storedFileSchema } from './stored-file'
 export { valueProblems } from './value-check'
 export { webhookBodyCeiling, webhookBodyDefault, webhookInputCheck, webhookInputProperties } from './webhook-input'

@@ -1,7 +1,7 @@
 import type { ResourceModel } from '@protobase/schema'
 import type { IssueWebhook } from './webhook-tools'
 import { listConnectionsTool, type ListConnections } from './connection-tools'
-import { checkDefinition, definitionFromParts, definitionWarnings, typeCatalog, type DefinitionParts, type CheckOptions, type TypeEntry } from '@protobase/workflows'
+import { checkDefinition, definitionFromParts, definitionWarnings, typeCatalog, withCustomSteps, type DefinitionParts, type CheckOptions, type TypeEntry } from '@protobase/workflows'
 import { refused } from '../../assistant/record-tool-args'
 import { defineTool, type ToolContext } from '../../assistant/tools'
 import { mergePatch } from './merge-patch'
@@ -19,6 +19,8 @@ const listed = ['id', 'name', 'description', 'version', 'updated_at']
 export type WorkflowCatalog = {
   types: readonly TypeEntry[]
   checkWith: (models: (name: string) => ResourceModel | undefined) => CheckOptions
+  /** The custom step types of a tenant, which follow the app's types in the list and the check; none without it. */
+  customTypes?: (tenant: unknown) => Promise<TypeEntry[]>
   /** Issues a workflow's webhook URL as the caller, for `new_webhook_url`. */
   issueWebhook?: IssueWebhook
   /** Answers a waiting Task as the caller, for `send_task_success`, `send_task_failure` and `send_task_heartbeat`. */
@@ -29,13 +31,16 @@ export type WorkflowCatalog = {
   readTrace: TraceReader
 }
 
+// The caller's tenant's custom steps, which every caller who reads the types reads, as they do the plugins' types.
+const customOf = async (catalog: WorkflowCatalog, context: ToolContext) => withCustomSteps(catalog.customTypes ? await catalog.customTypes(context.session.tenant) : [])
+
 /** The step types and triggers a definition may name, with their arguments, results, errors and run inputs. */
 const listWorkflowTypesTool = (catalog: WorkflowCatalog) => defineTool({
   name: 'list_workflow_types',
   description: "Lists what a workflow definition may name, as JSON ({ step_types, triggers }): each step type a Task names as its Resource and each trigger, by id, with its label, description, input (the Task's Arguments, or the trigger's input) and output as JSON Schema, the errors a step fails with, the connection it signs in with, and whether this app can run it.",
   parameters: { type: 'object', properties: {} },
   annotations: reads,
-  run: async () => JSON.stringify(typeCatalog(catalog.types)),
+  run: async (_args, context) => JSON.stringify(typeCatalog((await customOf(catalog, context)).types(catalog.types))),
 })
 
 /** The workflows the caller may read, a page at a time, without their definitions. */
@@ -76,7 +81,8 @@ const checked = async (fields: Record<string, unknown>, catalog: WorkflowCatalog
   const { models } = await context.resources()
   const definition = definitionFromParts(fields as DefinitionParts)
   // As a save checks it: a definition with no steps yet is checked but for that
-  const problems = checkDefinition(withStepsToCheck(definition), catalog.checkWith((name) => models.find((model) => model.name === name)))
+  const custom = await customOf(catalog, context)
+  const problems = checkDefinition(withStepsToCheck(definition), custom.check(catalog.checkWith((name) => models.find((model) => model.name === name))))
   if (problems.length > 0) return JSON.stringify({ valid: false, problems })
   const warnings = definitionWarnings(definition)
   return JSON.stringify({ valid: true, ...(warnings.length > 0 && { warnings }) })

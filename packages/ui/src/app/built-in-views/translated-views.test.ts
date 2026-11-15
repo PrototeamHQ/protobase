@@ -14,6 +14,9 @@ const workflowViews = { workflows: [parts.workflowsView.toModel(), parts.workflo
 // With storage on, the workflows' view links to the storage configurations.
 const storage = workflowResources('workflows', { storage: true })
 const storageViews = { workflows: [storage.workflowsView.toModel(), storage.workflows.toModel()], storage_configurations: [storage.storageConfigurationsView!.toModel(), storage.storageConfigurations!.toModel()] } as const
+// With custom steps on, the workflows' view links to them.
+const custom = workflowResources('workflows', { customSteps: true })
+const customViews = { workflows: [custom.workflowsView.toModel(), custom.workflows.toModel()], custom_steps: [custom.customStepsView!.toModel(), custom.customSteps!.toModel()], custom_step_versions: [custom.customStepVersionsView!.toModel(), custom.customStepVersions!.toModel()] } as const
 
 afterEach(() => setAppLocale(undefined))
 
@@ -56,6 +59,20 @@ describe('translatedView', () => {
     expect(Object.values(configurations.fields).map((hints) => hints.label)).toEqual(['Naam', 'Soort', 'Map', 'Bucket', 'Regio', 'Endpoint', 'Aangemaakt', 'Bijgewerkt'])
     expect(configurations.fields.bucket?.help).toBe('Voor een bucket: de naam')
     expect((configurations.layout[0] as { title: string }).title).toBe('Opslagconfiguratie')
+  })
+
+  it("gives the custom steps' views and the workflows' link to them in English as the server sends them, and in Dutch", () => {
+    for (const [view, model] of Object.values(customViews)) expect(translatedView(view, model)).toEqual(view)
+    setAppLocale('nl')
+    expect(translatedView(...customViews.workflows).actions.map((action) => action.label)).toEqual(['Eigen stappen'])
+    const steps = translatedView(...customViews.custom_steps)
+    expect(steps.names).toEqual({ singular: 'Eigen stap', plural: 'Eigen stappen' })
+    expect(steps.fields.kind?.valueLabels).toEqual({ container: 'Container' })
+    expect(Object.values(steps.fields).map((hints) => hints.label)).toEqual(['Naam', 'Label', 'Beschrijving', 'Soort', 'Container', 'Invoer', 'Uitvoer', 'Foutvoorvoegsel', 'Fouten', 'Versie', 'Aangemaakt', 'Bijgewerkt'])
+    expect(steps.layout.flatMap((item) => ('title' in item && item.title !== undefined ? [item.title] : []))).toEqual(['Eigen stap', 'Manifest', 'Versies'])
+    const versions = translatedView(...customViews.custom_step_versions)
+    expect(versions.names).toEqual({ singular: 'Versie van een eigen stap', plural: 'Versies van eigen stappen' })
+    expect(Object.values(versions.fields).map((hints) => hints.label)).toEqual(['Eigen stap', 'Soort', 'Foutvoorvoegsel', 'Opgeslagen door', 'Opgeslagen'])
   })
 
   it("leaves the views of an app's own resources, and the tables users add, as they are", () => {
