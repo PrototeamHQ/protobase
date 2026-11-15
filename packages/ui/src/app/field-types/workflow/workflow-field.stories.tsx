@@ -284,10 +284,13 @@ export const RemovesBreakChecks: StoryObj = {
       if (!node) throw new Error('No Break node yet')
       return node
     })
+    // The step chosen before stays when the Break is chosen and removed
     await userEvent.click(pure)
     await waitFor(() => expect(pure).toHaveClass('selected'))
+    expect(canvasElement.querySelectorAll('.react-flow__node.selected')).toHaveLength(1)
     await userEvent.keyboard('{Delete}')
     await waitFor(() => expect(canvasElement.querySelector('.react-flow__node-pure')).toBeNull())
+    expect(canvasElement.querySelector('.react-flow__node[data-id="state:Step 1"]')).not.toBeNull()
   },
 }
 

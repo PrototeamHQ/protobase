@@ -128,9 +128,13 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
       if (change.selected) setChosenPure(change.id)
       else setChosenPure((current) => (current === change.id ? undefined : current))
     }
-    // A step chosen by the keyboard opens its form as a click does
-    const picked = changes.find((change) => change.type === 'select' && change.selected && !isPureId(change.id))
-    if (picked?.type === 'select') onSelect(graphId(picked.id))
+    // One choice at a time, so Delete removes only what is chosen: a Break or Make chosen leaves no step chosen, and a
+    // step chosen, by the keyboard as by a click, opens its form and leaves no Break or Make chosen
+    const picked = changes.find((change) => change.type === 'select' && change.selected)
+    if (picked?.type !== 'select') return
+    if (isPureId(picked.id)) return onSelect(undefined)
+    setChosenPure(undefined)
+    onSelect(graphId(picked.id))
   }
   const onEdgesChange = (changes: EdgeChange[]) => {
     for (const change of changes) {
@@ -184,7 +188,8 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
               onConnectEnd={pins.connectEnd}
               connectionLineComponent={WireLine}
               onDelete={onDelete}
-              onNodeClick={(_, node) => onSelect(graphId(node.id))}
+              // A Break or Make chosen by a click is chosen as by the keyboard, in onNodesChange
+              onNodeClick={(_, node) => !isPureId(node.id) && onSelect(graphId(node.id))}
               onPaneClick={() => onSelect(undefined)}
               // As in Blueprints: the wheel zooms towards the pointer, as does a pinch, and dragging the empty canvas with
               // the left, middle or right button pans it; Shift-drag selects a box. A trackpad's two-finger scroll is a

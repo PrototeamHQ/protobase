@@ -6,7 +6,7 @@ import { graphId } from '../flow-elements'
 import { text } from '../messages'
 import { setArgument } from './argument-edits'
 import { connectData, disconnectData, removePure, wireRefusal, type PinEnd } from './data-edits'
-import { dataGraph, type DataEdge, type LocalPure } from './data-graph'
+import { dataGraph, type DataEdge, type LocalPure, type PureNode } from './data-graph'
 import { nodeSizes } from './node-sizes'
 import type { PinActions } from './pin-actions'
 import { typeLabel } from './pin-text'
@@ -22,6 +22,16 @@ export const isPinHandle = (handle: string | null | undefined) => inKey(handle) 
 const end = (node: string, handle: string | null | undefined): PinEnd => ({ node: graphId(node), handle: handle ?? '' })
 
 const isObjectType = (kinds: readonly string[] | 'any') => kinds !== 'any' && kinds.includes('object')
+
+/**
+ * The Breaks and Makes made on the canvas that stay once `gone` are removed: those, and each Break made from a field of
+ * a removed Break, which takes its object from it.
+ */
+export const localsLeft = (local: readonly LocalPure[], gone: readonly PureNode[]): LocalPure[] => {
+  const id = (each: LocalPure) => (each.kind === 'break' ? breakId(each.source, each.path) : makeId(each.target, each.key))
+  const under = (each: LocalPure) => each.kind === 'break' && gone.some((parent) => parent.kind === 'break' && parent.source === each.source && parent.path.every((step, index) => each.path[index] === step))
+  return local.filter((each) => !under(each) && !gone.some((node) => node.id === id(each)))
+}
 
 /**
  * The pins of a canvas, given the schemas their types come from: the data graph with the Break and Make nodes made on
@@ -77,7 +87,7 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
       const pure = data.pure.find((each) => each.id === node.id)
       if (pure) after = removePure(after, data, pure)
     }
-    if (gone.length > 0) setLocal((current) => current.filter((each) => !gone.some((node) => node.id === (each.kind === 'break' ? breakId(each.source, each.path) : makeId(each.target, each.key)))))
+    if (gone.length > 0) setLocal((current) => localsLeft(current, gone.flatMap((node) => data.pure.filter((each) => each.id === node.id))))
     return after
   }
   // A wire from an object pin let go on the empty canvas offers to take that object apart, or to build it, there
