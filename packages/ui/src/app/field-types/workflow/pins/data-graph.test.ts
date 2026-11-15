@@ -16,6 +16,7 @@ const schemas: PinSchemas = {
   outputs: {
     'app:http': { type: 'object', properties: { status: { type: 'integer' }, headers: { type: 'object', title: 'Headers' }, body: { title: 'Body', 'x-schema-of': 'body_schema' } } },
     'app:record': { type: 'object', properties: { resource: { type: 'string' }, key: {}, record: { 'x-record-of': 'resource' } } },
+    'app:records.update': { 'x-record-of': 'resource', description: 'the updated record' },
   },
   records: (resource) => (resource === 'contacts' ? contact : undefined),
 }
@@ -109,6 +110,30 @@ describe('the data graph', () => {
       },
     } as unknown as Definition
     expect(wireRefusal(definition, dataGraph(definition, schemas), { node: 'Fetch', handle: outHandle(['status']) }, { node: 'Keep/Call', handle: inHandle('url') })).toEqual({ reason: 'otherScope', step: 'Fetch' })
+  })
+
+  it("keeps in data order a wire from a field of a step's whole result through its Break, once saved and read back", () => {
+    // Save gives one record, its whole result; in data order its status pin is a pin of its own beside it
+    const definition = {
+      trigger: { manual: {} },
+      order: 'data',
+      stateMachine: {
+        QueryLanguage: 'JSONata',
+        States: {
+          Save: { Type: 'Task', Resource: 'app:records.update', Arguments: { resource: 'contacts', key: '2' } },
+          Tell: { Type: 'Task', Resource: 'app:http', Arguments: {} },
+        },
+      },
+    } as unknown as Definition
+    const broken = breakId('Save', [])
+    const graph = dataGraph(definition, schemas, [{ kind: 'break', source: 'Save', path: [] }])
+    const wired = connectData(definition, graph, { node: broken, handle: outHandle(['name']) }, { node: 'Tell', handle: inHandle('url') })
+    expect(wired.stateMachine.States.Tell).toMatchObject({ Arguments: { url: '{% $save.name %}' } })
+    // Read back with no Break of the canvas's own, as after a save and a reload
+    const edges = dataGraph(wired, schemas).edges.map((edge) => `${edge.source}${edge.sourceHandle} > ${edge.target}${edge.targetHandle}`)
+    expect(edges).toContain(`Save${outHandle([])} > ${broken}${breakIn}`)
+    expect(edges).toContain(`${broken}${outHandle(['name'])} > Tell${inHandle('url')}`)
+    expect(edges.filter((edge) => edge.startsWith(`Save${outHandle(['name'])}`))).toEqual([])
   })
 
   it('keeps in data order the line between two steps that no wire stands for', () => {
