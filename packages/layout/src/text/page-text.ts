@@ -3,13 +3,13 @@ import { timelineFields } from '../check-timeline'
 import { pageParamValues } from '../page-params'
 import { planReadId, type PlanRead, type ReadPlan } from '../read-plan'
 import { plannedRows, runReadPlan, type PlanResult } from '../run-plan'
-import { selectBlocks } from '../select-blocks'
+import { selectOf } from '../select-blocks'
 import { columnName, type TableColumn } from '../table-columns'
 import { renderText } from './render-text'
 import type { TableText } from './table-text'
 import type { TextFieldLabels, TextOptions } from './text-form'
 
-export type PageTextOptions = Omit<TextOptions, 'records' | 'tables'> & {
+export type PageTextOptions = Omit<TextOptions, 'records' | 'tables' | 'planned'> & {
   /** Makes one read of the plan as the reader, such as a list or an `:aggregate` of the API. */
   read: (read: PlanRead) => Promise<PlanResult>
   /** Per resource, its fields' labels and value labels, which its tables' headers and cells read; a field without one reads under its name. */
@@ -50,12 +50,13 @@ export const pageText = async (tree: LayoutNode, plan: ReadPlan, { read, labels,
   const reads = new Map(plan.reads.map((planned) => [planReadId(planned), planned]))
   // The row a `select` chose is a read of its own; the block's own read gives its other records
   const records: TextOptions['records'] = (node, record, at) =>
-    rowsAt(outcomes, reads, selectBlocks.has(node.type) && typeof node.props.select === 'string' ? planReadId({ block: at, part: 'chosen' }) : at, record, params)
+    rowsAt(outcomes, reads, selectOf(node) ? planReadId({ block: at, part: 'chosen' }) : at, record, params)
   // A table without `resource` shows the list around it, whose read the list block made
   const tables: TextOptions['tables'] = (node, at, record, around) => {
     if (node.props.resource === undefined) return around && tableOf(node, around.filter(isRecord), labels)
     const rows = rowsAt(outcomes, reads, at, record, params)
     return rows && tableOf(node, rows, labels)
   }
-  return renderText(tree, { ...options, params, records, tables })
+  const planned: TextOptions['planned'] = (id, record) => rowsAt(outcomes, reads, id, record, params)
+  return renderText(tree, { ...options, ...(labels && { labels }), params, records, tables, planned })
 }

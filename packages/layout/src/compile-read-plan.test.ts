@@ -117,9 +117,41 @@ describe('compileReadPlan', () => {
     })
   })
 
+  it('reads as many records as one read holds for a custom component whose reads name no limit, whatever props it has', () => {
+    const Board = component<{ resource: string; limit: number }>('Board', { reads: { resource: 'resource' } })
+    expect(reads(Page({ title: 'Home', children: [Board({ resource: 'tasks', limit: 1 })] }))[0]!.pageSize).toBe(500)
+  })
+
   it("takes no chosen row from a custom component's own select prop", () => {
     const Board = component<{ resource: string; select: string }>('Board', { reads: { resource: 'resource' } })
     expect(reads(Page({ title: 'Home', children: [Board({ resource: 'tasks', select: 'compact' })] })).map((read) => read.part)).toEqual([undefined])
+  })
+
+  it("plans each of a custom component's several reads as a part named by its resource prop, with the fields its props name", () => {
+    const Graph = component<{ nodes: string; edges: string; label: string; group: string; from: string; to: string }>('Graph', {
+      reads: [
+        { resource: 'nodes', fields: ['label', 'group'] },
+        { resource: 'edges', fields: ['from', 'to'] },
+      ],
+    })
+    const tree = Page({ title: 'Map', children: [Graph({ nodes: 'tasks', edges: 'task_claims', label: 'title', group: 'project_id', from: 'task_id', to: 'worker_id' })] })
+    expect(plan(tree).plan).toEqual({
+      reads: [
+        { block: '/children/0', part: 'nodes', kind: 'list', resource: 'tasks', pageSize: 500, fields: ['id', 'project_id', 'title'], etag: false },
+        { block: '/children/0', part: 'edges', kind: 'list', resource: 'task_claims', pageSize: 500, fields: ['id', 'task_id', 'worker_id'], etag: false },
+      ],
+      outside: [],
+    })
+  })
+
+  it("reads the record a custom component's declared select chose by its key, and its children's fields there", () => {
+    const Graph = component<{ nodes: string; label: string; select: string }>('Graph', { reads: [{ resource: 'nodes', fields: 'label', select: 'select' }] })
+    const tree = Page({ title: 'Map', children: [Graph({ nodes: 'tasks', label: 'title', select: 'task', children: Field({ source: 'status' }) })] })
+    const planned = reads(tree)
+    const own = planned.find((read) => read.part === 'nodes')
+    const chosen = planned.find((read) => read.part === 'chosen')
+    expect(own).toMatchObject({ part: 'nodes', fields: ['id', 'title'] })
+    expect(chosen).toMatchObject({ block: '/children/0', part: 'chosen', resource: 'tasks', filter: 'id = {{@params.task}}', pageSize: 1, fields: ['id', 'status'] })
   })
 
   it('warns when the records around a nested list times its page are more than one read holds', () => {

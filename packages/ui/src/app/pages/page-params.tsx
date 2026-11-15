@@ -35,9 +35,16 @@ export const usePageParamValues = () => useContext(PageParamsContext)?.values ??
  * where the page is scrolled. Components read and write them through this hook, never the query string.
  */
 export const usePageParams = () => {
+  const params = usePageParamsIfAny()
+  if (!params) throw new Error('A SelectInput and a select render inside a composed page, whose address holds their values')
+  return params
+}
+
+/** As `usePageParams`, or `undefined` outside a composed page. */
+export const usePageParamsIfAny = () => {
   const route = useContext(PageParamsContext)
-  if (!route) throw new Error('A SelectInput and a select render inside a composed page, whose address holds their values')
   const { go, href } = useAppAddress()
+  if (!route) return
   const linkTo = (change: ParamChange): RouteTarget => {
     const to = pageAddress(route, change)
     return { href: href(to), onFollow: () => go(to, { keepScroll: true }) }

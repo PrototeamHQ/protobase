@@ -114,7 +114,6 @@
     "primitives/menu-edge#useMenuRight",
     "primitives/menu-edge#useMenuTop",
     "primitives/popover-menu#usePopoverMenu",
-    "primitives/route-link#RouteLink",
     "primitives/sheet#Sheet",
     "primitives/skeleton#Skeleton",
     "primitives/snap-row#SnapRow",

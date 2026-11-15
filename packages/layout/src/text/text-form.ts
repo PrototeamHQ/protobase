@@ -1,3 +1,4 @@
+import type { ResourceModel } from '@protobase/schema'
 import type { LayoutNode } from '../node'
 import { blocks } from './markdown'
 import type { TableText } from './table-text'
@@ -24,6 +25,16 @@ export type TextOptions = {
    * a block reads as a link to its records without them. `at` is the element's place in the tree, as for `tables`.
    */
   records?: (node: LayoutNode, record: Record<string, unknown> | undefined, at: string) => unknown[] | undefined
+  /** The app's resources by name, in which a custom component's text form finds its records' keys. */
+  models?: Record<string, ResourceModel>
+  /** Per resource, its fields' labels and value labels, which a custom component's text form reads its records' values with. */
+  labels?: Record<string, Record<string, TextFieldLabels>>
+  /**
+   * The rows of the read the page's plan names `id`, a block's place in the tree with `#<part>` for its other reads
+   * (`/children/0#edges`), for `record`, the record around it, which the caller read; a custom component's text form
+   * reads its own records with it.
+   */
+  planned?: (id: string, record: Record<string, unknown> | undefined) => Record<string, unknown>[] | undefined
   /**
    * The page's parameters as its address gives them, such as `{ window: '30d' }`, which `@params` and its
    * `SelectInput`s read; a block's `select` children read the row `records` gives for that block.

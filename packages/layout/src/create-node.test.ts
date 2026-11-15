@@ -71,6 +71,16 @@ describe('createNode', () => {
     expect(() => component('Broken', { fallback: [() => null] as never })).toThrow("component('Broken') fallback has a child that is a function")
   })
 
+  it('carries the reads a component declares, one or several, and refuses reads it cannot plan', () => {
+    const reads = [{ resource: 'nodes', fields: ['label'], select: 'select' }, { resource: 'edges' }]
+    expect(jsx(component('Graph', { reads }), {}).reads).toEqual(reads)
+    expect(() => component('Graph', { reads: [] })).toThrow("component('Graph') reads must name its props")
+    expect(() => component('Graph', { reads: { resource: 'nodes', fields: [] } })).toThrow('reads must name its props')
+    expect(() => component('Graph', { reads: [{ resource: 'nodes' }, { resource: 'nodes' }] })).toThrow('a resource prop of their own')
+    expect(() => component('Graph', { reads: [{ resource: 'chosen' }, { resource: 'edges' }] })).toThrow('cannot name a resource prop "chosen"')
+    expect(() => component('Graph', { reads: [{ resource: 'nodes', select: 'a' }, { resource: 'edges', select: 'b' }] })).toThrow('a select prop in one read only')
+  })
+
   it('reserves the built-in names and wants PascalCase component names', () => {
     expect(() => component('Table')).toThrow('"Table" is a built-in block')
     expect(() => component('Fragment')).toThrow('built-in block')

@@ -1,7 +1,7 @@
 import type { Styled } from './blocks'
 import { defineBlock } from './create-node'
 import type { LayoutNode } from './node'
-import { selectBlocks } from './select-blocks'
+import { selectOf } from './select-blocks'
 import { walkTree } from './walk'
 
 // A page's parameters: values its own address holds in the query, `?window=7d`, which a `SelectInput` chooses, after
@@ -42,7 +42,8 @@ export const chosenParams = (tree: LayoutNode) => new Set([...pageInputs(tree)].
 export const selectParams = (tree: LayoutNode) => {
   const names = new Set<string>()
   walkTree(tree, (node) => {
-    if (!node.custom && selectBlocks.has(node.type) && typeof node.props.select === 'string') names.add(node.props.select)
+    const selection = selectOf(node)
+    if (selection) names.add(selection.param)
   })
   return names
 }

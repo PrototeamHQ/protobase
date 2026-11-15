@@ -6,10 +6,12 @@ import { readPlanned } from '../../data/read-planned'
 /** The blocks that draw from their planned read; the others still read as they draw. */
 const drawsFromPlan = new Set(['RecordCard', 'CardRow', 'Stat', 'ReferenceManyField', 'ReferenceArrayField', 'ReferenceField'])
 
-// A block's own read, as the blocks that draw from the plan make it
+// A block's own read, as the blocks that draw from the plan make it, and every read a custom component declares; the
+// row a `select` chose is read where it draws
 const runs = (tree: LayoutNode, read: PlanRead) => {
-  const node = read.part === undefined ? elementAt(tree, read.block) : undefined
-  return node !== undefined && !node.custom && drawsFromPlan.has(node.type)
+  const node = elementAt(tree, read.block)
+  if (node?.custom) return node.reads !== undefined && read.part !== 'chosen'
+  return read.part === undefined && node !== undefined && drawsFromPlan.has(node.type)
 }
 
 /**

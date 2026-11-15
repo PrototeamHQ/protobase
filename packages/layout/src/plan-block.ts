@@ -10,7 +10,7 @@ import type { Draft, PlanContext, Rows } from './plan-draft'
 import { fieldEquality, keyEquality, splitFilter, type ImpliedSplit, type SplitFilter } from './plan-split'
 import { planReadId } from './read-plan'
 import { columnName, type TableColumn } from './table-columns'
-import { selectBlocks } from './select-blocks'
+import { readList, selectOf } from './select-blocks'
 import { label, type Scope } from './walk'
 
 // The read a data block makes, from the props its spec's `reads` names and the defaults its web block reads with: a
@@ -40,8 +40,12 @@ const pageSizeOf = (node: LayoutNode, reads: BlockReads): number | undefined => 
       return number(perPage) ?? defaultPerPage
     case 'ReferenceArrayField':
       return number(perPage) ?? maxPerPage
-    default:
+    default: {
+      // A custom component's limit is only the prop its reads name, as where it reads by itself; it draws what its read
+      // holds, so without one it reads as many as one read holds
+      if (node.custom) return (reads.limit === undefined ? undefined : number(node.props[reads.limit])) ?? maxPerPage
       return reads.limit === undefined ? number(limit) : number(node.props[reads.limit])
+    }
   }
 }
 
@@ -71,6 +75,14 @@ const placeholders = (value: LayoutValue | undefined): string[] => {
   return []
 }
 
+// The fields a custom component's `fields` props name, each a field name or a list of them; one not given names none
+const namedFields = (node: LayoutNode, props: string | string[]) =>
+  (Array.isArray(props) ? props : [props]).flatMap((prop) => {
+    const value = node.props[prop]
+    if (typeof value === 'string') return [value]
+    return Array.isArray(value) ? value.filter((item) => typeof item === 'string') : []
+  })
+
 /** The fields a block draws of its own records, the key included; `undefined` when it draws a set its view decides. */
 const ownFields = (node: LayoutNode, reads: BlockReads, model: ResourceModel): Set<string> | undefined => {
   const key = keyOf(model)
@@ -90,7 +102,8 @@ const ownFields = (node: LayoutNode, reads: BlockReads, model: ResourceModel): S
     case 'ReferenceField':
       return node.children.length > 0 ? names([]) : undefined
     default: {
-      const fields = reads.fields === undefined ? undefined : node.props[reads.fields]
+      if (node.custom && reads.fields !== undefined) return names(namedFields(node, reads.fields))
+      const fields = typeof reads.fields === 'string' ? node.props[reads.fields] : undefined
       if (Array.isArray(fields)) return names(fields.map(String))
       return node.custom || node.type === 'RecordCards' ? undefined : names([])
     }
@@ -152,14 +165,20 @@ const splitOf = ({ parent, field, path }: SplitFilter): Pick<Draft, 'split'> => 
 /** The reads a block makes: its own, the row a `Table`'s or bar a `Timeline`'s `select` chose, and any others it makes beside it. */
 export type BlockDrafts = { own?: Draft; chosen?: Draft; extra: Draft[] }
 
-/** The props a block's reads take: its built-in spec's, or what a custom component declares. */
-export const readsOf = (node: LayoutNode): BlockReads | undefined => (node.custom ? node.reads : blockSpecs[node.type]?.reads)
+/**
+ * The props a block's reads take, its built-in spec's or what a custom component declares, each with its part of the
+ * plan: none for a block's one read, the prop of its resource for each of a component's several.
+ */
+export const readsOf = (node: LayoutNode): Array<{ reads: BlockReads; part?: string }> => {
+  if (!node.custom) return blockSpecs[node.type]?.reads ? [{ reads: blockSpecs[node.type]!.reads! }] : []
+  if (!node.reads) return []
+  return Array.isArray(node.reads) ? node.reads.map((reads) => ({ reads, part: reads.resource })) : [{ reads: node.reads }]
+}
 
 // The record a `select` chose is read by its key, which the page's address holds
 const chosenOf = (node: LayoutNode, block: string, model: ResourceModel, own: FilterExpr | undefined, context: PlanContext): Draft | undefined => {
-  const select = text(node.props.select)
-  // A custom component's `select` is its own prop, which names no page parameter
-  if (select === undefined || node.custom || !selectBlocks.has(node.type)) return
+  const select = selectOf(node)?.param
+  if (select === undefined) return
   // A timeline's bar is its `bar` value, whose first record the timeline shows its children draw
   if (node.type === 'Timeline') {
     const bar = fieldEquality(model, String(node.props.bar), `@params.${select}`, context)
@@ -180,16 +199,17 @@ const callsOf = (node: LayoutNode, block: string, scope: Scope, rows: Rows, cont
   return [{ block, part: 'calls', ...shape, resource: model.name, ...(split.filter && { filter: split.filter }), ...splitOf(split), orderBy: threadSort(calls.time!), fields: new Set([keyOf(model), ...named]), etag: false }]
 }
 
-export const blockDrafts = (node: LayoutNode, block: string, scope: Scope, rows: Rows, context: PlanContext): BlockDrafts => {
-  const reads = readsOf(node)
-  const resource = reads && text(node.props[reads.resource])
+// One read of a block, named `part` among a component's several, with the row its `select` chose
+const readDrafts = (node: LayoutNode, block: string, { reads, part }: { reads: BlockReads; part?: string }, scope: Scope, rows: Rows, context: PlanContext): Omit<BlockDrafts, 'extra'> => {
+  const resource = text(node.props[reads.resource])
   const model = resource === undefined ? undefined : context.models[resource]
-  if (!reads || !model) return { extra: [] }
+  if (!model) return {}
   const split = splitFilter(model, sourceFilter(node, reads, model), impliedSplits(node, model), scope, rows, context)
   const shape = shapeOf(node, pageSizeOf(node, reads), split.parent, split.field, context)
   const orderBy = shape.kind === 'count' ? undefined : ownSort(node, reads, model)
   const own: Draft = {
     block,
+    ...(part !== undefined && { part }),
     ...shape,
     resource: model.name,
     ...(split.filter && { filter: split.filter }),
@@ -198,6 +218,15 @@ export const blockDrafts = (node: LayoutNode, block: string, scope: Scope, rows:
     fields: shape.kind === 'list' ? ownFields(node, reads, model) : shape.kind === 'count' ? new Set([keyOf(model)]) : undefined,
     etag: changesOwn(node),
   }
-  const chosen = chosenOf(node, block, model, split.filter, context)
-  return { own, ...(chosen && { chosen }), extra: callsOf(node, block, scope, rows, context) }
+  const chosen = !node.custom || reads.select !== undefined ? chosenOf(node, block, model, split.filter, context) : undefined
+  return { own, ...(chosen && { chosen }) }
+}
+
+export const blockDrafts = (node: LayoutNode, block: string, scope: Scope, rows: Rows, context: PlanContext): BlockDrafts => {
+  const made = readsOf(node).map((read) => readDrafts(node, block, read, scope, rows, context))
+  const chosen = made.find((each) => each.chosen)?.chosen
+  // A component's several reads are each a part of its own; a block's one read is its own
+  const own = made.find((each) => each.own && each.own.part === undefined)?.own
+  const parts = made.flatMap((each) => (each.own?.part !== undefined ? [each.own] : []))
+  return { ...(own && { own }), ...(chosen && { chosen }), extra: [...parts, ...callsOf(node, block, scope, rows, context)] }
 }

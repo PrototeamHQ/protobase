@@ -3,7 +3,7 @@ import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } fro
 import { isInlineChild } from '../inline-fields'
 import { pageParamValues } from '../page-params'
 import { fillProps } from '../scope-values'
-import { selectBlocks } from '../select-blocks'
+import { selectOf } from '../select-blocks'
 import { childScope, pageScope, propScope } from '../walk'
 import { textForms } from './forms'
 import { itemRecord, listOf, referencedRecord } from './list-records'
@@ -55,7 +55,7 @@ const cardsOf = (node: LayoutNode, options: TextOptions, at: string) => (!node.c
 
 // The record the children of a ReferenceField, a RecordCard or a block's `select` read, when the caller read it; none otherwise
 const childOptions = (node: LayoutNode, options: TextOptions, at: string): TextOptions => {
-  if (!node.custom && (node.type === 'ReferenceField' || node.type === 'RecordCard' || (selectBlocks.has(node.type) && typeof node.props.select === 'string'))) {
+  if (selectOf(node) || (!node.custom && (node.type === 'ReferenceField' || node.type === 'RecordCard'))) {
     const record = referencedRecord(node, options, at)
     return { ...options, record, fields: undefined }
   }
@@ -67,20 +67,22 @@ const render = (unfilled: LayoutNode, options: TextOptions, around: unknown[] | 
   const node = fillProps(unfilled, { stack: options.record ? [{ record: options.record }] : [], ...(options.params && { params: options.params }) })
   if (!node.custom && node.type === 'RecordsIterator') return iterate(placed(node.children, at, 'children'), options, around).trim()
   // A list context puts its list around its children; other elements pass on the one around them
-  const list = listOf(node, options, at) ?? (childScope(node, pageScope).stack.length > 0 ? undefined : around)
+  const listed = listOf(node, options, at)
+  const list = listed ?? (childScope(node, pageScope).stack.length > 0 ? undefined : around)
   const inner = childOptions(node, options, at)
   // A RecordCard's header actions sit in its record, as its children do
   const slotOptions = !node.custom && node.type === 'RecordCard' ? inner : scoped(options, propScope(node, pageScope).stack.length > 0)
   const slots = Object.fromEntries(
     Object.entries(node.props).flatMap(([name, value]) => (isElements(value) ? [[name, (Array.isArray(value) ? value : [value]).map((element, index) => render(element, slotOptions, undefined, pointerOf(at, 'props', name, ...(Array.isArray(value) ? [index] : []))))]] : [])),
   )
-  // A custom component's fallback draws in its place, so it reads the list around it as its children do
-  const fallback = node.fallback && partsOf(placed(node.fallback, at, 'fallback'), options, false, list)
+  // A custom component's fallback draws in its place, so it reads the list around it, even where its `select` gives its
+  // children a record of their own
+  const fallback = node.fallback && partsOf(placed(node.fallback, at, 'fallback'), options, false, listed ?? around)
   // A Switch's children are Matches, one part each, so its text form finds the one it draws by its place
   const all = placed(node.children, at, 'children')
   const own = !node.custom && node.type === 'Switch' ? all.filter(({ child }) => typeof child !== 'string') : all
   // A block's `select` children draw nothing while no row is chosen, or the text does not have it
-  const drawn = selectBlocks.has(node.type) && typeof node.props.select === 'string' && !inner.record ? [] : own
+  const drawn = selectOf(node) && !inner.record ? [] : own
   const cards = cardsOf(node, options, at)
   const children = cards ? cards.map((card) => iterate(drawn, options, [card])) : partsOf(drawn, inner, holdsOneLine(node), list)
   return formOf(node, options)({ node, at, children, slots, ...(fallback && { fallback }), ...(around && { around }), options }).trim()
