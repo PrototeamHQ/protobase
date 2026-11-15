@@ -81,7 +81,7 @@ export const Desktop: StoryObj = { name: 'A window and a chosen claim', globals:
 
 export const Phone: StoryObj = { ...Desktop, name: 'A window and a chosen claim, on a phone', globals: { viewport: { value: 'phone390' } } }
 
-// The default window reads one claim; the other choice is a link that reads both; a row is a link that shows its details
+// The default window reads one claim; the other choice is a link that reads both; a row is a link that shows its details and marks it chosen
 const play: StoryObj['play'] = async ({ canvasElement }) => {
   const canvas = within(canvasElement)
   const table = within(await canvas.findByRole('region', { name: 'Claims of the last 7d' }))
@@ -101,6 +101,9 @@ const play: StoryObj['play'] = async ({ canvasElement }) => {
   await waitFor(() => expect(wider.getByRole('link', { name: 'Bo' })).toBeVisible())
   // Its status once in the table and once in the details
   expect(wider.getAllByText('done')).toHaveLength(2)
+  // The chosen row stands out from the other
+  expect(row.closest('[role=row]')).toHaveAttribute('aria-current', 'true')
+  expect(wider.getByRole('link', { name: /Fix the login/ }).closest('[role=row]')).not.toHaveAttribute('aria-current')
 }
 
 export const DesktopChecks: StoryObj = { ...Desktop, name: 'A window and a chosen claim (checks)', tags: ['play', '!dev'], play }

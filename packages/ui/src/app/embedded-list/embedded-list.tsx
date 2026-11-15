@@ -65,6 +65,8 @@ export type EmbeddedListProps = {
   phoneColumns?: (specs: ColumnSpec[]) => ColumnSpec[]
   /** Where a table row leads instead of its record, by the row's key as text, such as the page with that row chosen; its menu still opens the record. */
   rowTo?: (key: string) => RouteTarget
+  /** The key, as text, of the row the page shows the details of, which the table marks as chosen. */
+  chosenKey?: string
 }
 
 /** The switch between the table and the view's displays, for an embedded list's heading; nothing with only a table. */
@@ -79,7 +81,7 @@ const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length:
  * to the whole list with the same filter, order and display, beside a note such as "The first 10 of 37." when there are
  * more. On a phone a cards display is one row that scrolls sideways.
  */
-export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true, opens, button, bulk = false, phoneColumns, rowTo }: EmbeddedListProps) => {
+export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true, opens, button, bulk = false, phoneColumns, rowTo, chosenKey }: EmbeddedListProps) => {
   const { resources, views } = useAdminMeta()
   const canUpdate = can(usePermissions(model.name), 'update')
   const { fields: fieldTypes } = useProjectUi()
@@ -132,7 +134,9 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   }
   const targets = embeddedRowTargets({ model, view, opens, resources, views, canUpdate })
   const linkTo = (to: AppAddress): RouteTarget => ({ href: href(to), onFollow: () => go(to) })
-  const rowTarget = (row: GridRow) => (rowTo ? rowTo(encodeKey(recordKey(model, row))) : linkTo(targets.address(row)))
+  const keyOf = (row: GridRow) => encodeKey(recordKey(model, row))
+  const rowTarget = (row: GridRow) => (rowTo ? rowTo(keyOf(row)) : linkTo(targets.address(row)))
+  const chosenRow = chosenKey === undefined ? undefined : rows.data.rows.find((row) => keyOf(row) === chosenKey)?.id
   const note = cutOffNote(source.total, rows.data.total, rows.data.estimated)
   return (
     <div className="flex flex-col gap-3">
@@ -146,6 +150,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
           onSortChange={(next) => setOrderBy(sortToOrderBy(next))}
           onOpenRow={(row) => rowTarget(row).onFollow?.()}
           rowLink={rowTarget}
+          chosenRow={chosenRow}
           rowActions={targets.actions(linkTo)}
           rowNumbers={false}
           selectable={bulk}
