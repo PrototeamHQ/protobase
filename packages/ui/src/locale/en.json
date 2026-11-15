@@ -973,6 +973,8 @@
     "inputBodySchema": "Body schema",
     "foldMore": "{count, plural, one {# more input} other {# more inputs}}",
     "foldLess": "Fewer inputs",
+    "foldMoreFields": "{count, plural, one {# more field} other {# more fields}}",
+    "foldLessFields": "Fewer fields",
     "breakTitle": "Break {type}",
     "makeTitle": "Make {type}",
     "pinExpression": "Expression: {expression}",

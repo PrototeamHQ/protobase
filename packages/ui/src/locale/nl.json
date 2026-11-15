@@ -973,6 +973,8 @@
     "inputBodySchema": "Bodyschema",
     "foldMore": "{count, plural, one {# invoer meer} other {# invoeren meer}}",
     "foldLess": "Minder invoeren",
+    "foldMoreFields": "{count, plural, one {# veld meer} other {# velden meer}}",
+    "foldLessFields": "Minder velden",
     "breakTitle": "Ontleed {type}",
     "makeTitle": "Maak {type}",
     "pinExpression": "Expressie: {expression}",

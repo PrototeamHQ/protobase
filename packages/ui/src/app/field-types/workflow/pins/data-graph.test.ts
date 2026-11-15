@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Definition, PinSchemas } from '@protobase/workflows'
 import { connectData, disconnectData, removePure, wireRefusal } from './data-edits'
-import { dataGraph } from './data-graph'
+import { dataGraph, type BreakNode } from './data-graph'
+import { breakOutputs } from './node-sizes'
 import { definitionGraph } from '../definition-graph'
 import { unwiredOrderEdges } from '../flow-elements'
 import { conditionKey, statusKey } from './node-pins'
@@ -49,6 +50,18 @@ describe('the data graph', () => {
       `${outHandle(['body'])}`.replace(/^/, `Fetch`) + ` > ${breakId('Fetch', ['body'])}${breakIn}`,
       `${outHandle(['record'])}`.replace(/^/, '') + ` > ${breakId('', ['record'])}${breakIn}`,
     ].sort())
+  })
+
+  it('shows only the fields of a Break that something reads, all of them once opened or while nothing reads any', () => {
+    const graph = dataGraph(workflow({}, { key: '{% $states.context.Execution.Input.record.id %}' }), schemas, [{ kind: 'break', source: 'Fetch', path: ['body'] }])
+    const record = graph.pure.find((node) => node.id === breakId('', ['record'])) as BreakNode
+    expect(record.outputs.map((pin) => pin.path[0])).toEqual(['id', 'name', 'visits'])
+    expect(breakOutputs(record, graph.edges, false)).toEqual({ shown: [{ path: ['id'], type: { kinds: ['string'] } }], folded: 2, foldable: true })
+    expect(breakOutputs(record, graph.edges, true)).toMatchObject({ folded: 0, foldable: true })
+    expect(breakOutputs(record, graph.edges, true).shown).toHaveLength(3)
+    // A Break nothing reads yet, such as one just made on the canvas, shows every field to pick from
+    const body = graph.pure.find((node) => node.id === breakId('Fetch', ['body'])) as BreakNode
+    expect(breakOutputs(body, graph.edges, false)).toEqual({ shown: body.outputs, folded: 0, foldable: false })
   })
 
   it('wires a pin by writing its read into the input, giving the step a variable to keep its result when it has none', () => {

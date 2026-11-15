@@ -24,7 +24,7 @@ const Title = ({ pure }: { pure: PureNode }) => <div className="truncate border-
 export const PureNodeView = ({ id, data, selected, isConnectable: editable }: NodeProps<FlowNode>) => {
   const { pureData, moved } = data
   if (!pureData) return null
-  const { pure, shownInputs, folded, open } = pureData
+  const { pure, shownInputs, shownOutputs, folded, open, foldable } = pureData
   return (
     <div className={cn('h-full rounded-lg border border-dashed border-border-strong bg-background text-body shadow-sm', selected && 'ring-2 ring-primary/40')}>
       {moved && <MovedMark node={id} name={titleOf(pure)} />}
@@ -34,9 +34,10 @@ export const PureNodeView = ({ id, data, selected, isConnectable: editable }: No
       ) : pure.kind === 'break' ? (
         <div className="relative pt-1">
           <Handle id={breakIn} type="target" position={Position.Left} isConnectable={false} className={`pb-pin pb-pin-${pinColour(pure.type)}`} style={{ top: 13 }} />
-          {pure.outputs.map((pin) => (
+          {shownOutputs.map((pin) => (
             <OutputRow key={JSON.stringify(pin.path)} pin={pin} connectable={editable} field />
           ))}
+          {foldable && <FoldRow node={pure.id} folded={folded} open={open} fields />}
         </div>
       ) : (
         <div className="relative pt-1">
