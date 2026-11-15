@@ -12,8 +12,11 @@ import type { Scope } from './walk'
 /** An equality a block implies, such as a `ReferenceManyField`'s `target = {{source}}`. */
 export type ImpliedSplit = { field: string; path: string }
 
-/** A planned filter, and the read of the records around it that it splits by, if any, with the field it splits on. */
-export type SplitFilter = { filter?: FilterExpr; parent?: Draft; field?: string; path?: string }
+/**
+ * A planned filter, and the read of the records around it that it splits by, if any, with the field it splits on and
+ * the column of the records around it whose value that field holds.
+ */
+export type SplitFilter = { filter?: FilterExpr; parent?: Draft; field?: string; path?: string; column?: string }
 
 const numeric = new Set(['integer', 'bigint', 'decimal'])
 
@@ -33,7 +36,7 @@ const addressEquality = (field: string, path: string, model: ResourceModel, cont
   where.eq(field, sentinel(context.slots, path, !numeric.has(model.fields[field]?.type ?? 'text')))
 
 /** The term that stands for `field = {{path}}`, or `undefined` when the slot is an address value and stays one. */
-const splitTerm = (field: string, path: string, scope: Scope, rows: Rows, context: PlanContext): { term: FilterExpr; parent?: Draft } | undefined => {
+const splitTerm = (field: string, path: string, scope: Scope, rows: Rows, context: PlanContext): { term: FilterExpr; parent?: Draft; column?: string } | undefined => {
   const resolved = resolveScopePath(path, { models: context.models, scope, params: context.params, mode: 'stored' })
   if (!resolved.ok || resolved.kind !== 'field') return
   const [column] = resolved.names
@@ -47,7 +50,7 @@ const splitTerm = (field: string, path: string, scope: Scope, rows: Rows, contex
   // The page check refused a slot of an `ArrayField` item in a read
   if (!parent) throw new Error(`"{{${path}}}" is no stored field of a read`)
   reads(parent, column!)
-  return { term: where.related(field, parent.resource, column!, parent.filter, pageOf(parent)), parent }
+  return { term: where.related(field, parent.resource, column!, parent.filter, pageOf(parent)), parent, column }
 }
 
 const conjuncts = (node: FilterExpr): FilterExpr[] => (node.kind === 'and' ? node.args.flatMap(conjuncts) : [node])
@@ -64,7 +67,7 @@ export const splitFilter = (model: ResourceModel, source: string | undefined, im
     const found = splitTerm(field, path, scope, rows, context)
     if (!found) return false
     terms.push(found.term)
-    if (found.parent) Object.assign(split, { parent: found.parent, field, path })
+    if (found.parent) Object.assign(split, { parent: found.parent, field, path, column: found.column })
     return true
   }
   for (const { field, path } of implied) if (!take(field, path)) terms.push(addressEquality(field, path, model, context))

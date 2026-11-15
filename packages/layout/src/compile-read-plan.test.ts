@@ -104,6 +104,11 @@ describe('compileReadPlan', () => {
     expect(reads(tree)[2]).toEqual({ block: '/children/0/children/0', part: 'total', kind: 'aggregate', resource: 'task_claims', filter: taskClaims, groupBy: ['task_id'], pageSize: 10, split: { field: 'task_id', source: 'id', parent: '/children/0' }, etag: false })
   })
 
+  it('reads a total for every key a JSON list of the records around it holds, more keys than records', () => {
+    const tree = Page({ title: 'Tasks', children: [openTasks(Table({ resource: 'tasks', filter: 'id = {{waits}}', columns: ['title'] }))] })
+    expect(reads(tree)[2]).toMatchObject({ part: 'total', kind: 'aggregate', groupBy: ['id'], pageSize: 500, split: { field: 'id', source: 'waits', parent: '/children/0' } })
+  })
+
   it('counts the rows of a RecordCards list inside one record beside its read', () => {
     const tree = Page({ title: 'Task', children: [RecordCard({ resource: 'tasks', recordKey: '7', children: RecordCards({ resource: 'task_claims', filter: 'task_id = {{id}}' }) })] })
     expect(reads(tree)[2]).toMatchObject({ block: '/children/0/children/0', part: 'total', kind: 'count', resource: 'task_claims', split: { field: 'task_id', source: 'id', parent: '/children/0' } })
