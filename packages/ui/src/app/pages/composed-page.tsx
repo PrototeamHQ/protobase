@@ -3,6 +3,7 @@ import { Notice, useAdminMeta } from '../meta-gate'
 import { RevealWhenLoaded } from '../reveal-when-loaded'
 import { PlanReadsProvider } from './plan-reads'
 import { RenderNode } from './render-node'
+import { StartBlockQueries } from './start-block-queries'
 import { PageParamsProvider, pageAddress } from './page-params'
 import { PageTabsProvider } from './page-tabs'
 import { text } from './messages'
@@ -20,6 +21,7 @@ export const ComposedPage = ({ name, tab, params }: { name: string; tab?: string
     <PageTabsProvider route={{ ...(tab && { tab }), pathOf }}>
       <PageParamsProvider page={name} {...(tab && { tab })} tree={page.tree} {...(params && { given: params })}>
         <PlanReadsProvider tree={page.tree} plan={page.reads}>
+          <StartBlockQueries tree={page.tree} plan={page.reads} />
           <RevealWhenLoaded>
             <RenderNode node={page.tree} at="" />
           </RevealWhenLoaded>

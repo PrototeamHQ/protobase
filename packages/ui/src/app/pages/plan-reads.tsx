@@ -1,35 +1,18 @@
-import { useQueries, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react'
+import { useQueries, type UseQueryResult } from '@tanstack/react-query'
+import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { plannedRows, planReadId, type LayoutNode, type PlanRead, type PlanResult, type ReadPlan } from '@protobase/layout'
 import { useClient } from '../../data/api-provider'
-import { useIsXs } from '../../lib/use-media-query'
-import { useAdminMeta } from '../meta-gate'
-import { blockQueries } from './block-queries'
 import { usePageParamValues } from './page-params'
 import { planQueries } from './plan-queries'
-import { useProjectUi } from './project-ui'
 import { useScopeStack, valueScopeOf } from './record-scope'
 
 // A page starts every read of its plan as it opens, each an ordinary request of its own, all at once: whatever a
 // condition says and however deep a block sits. A block then draws from its read, a block inside the records of
-// another the rows of its record, and reads nothing itself; a block that reads by itself finds its query already started.
+// another the rows of its record, and reads nothing itself.
 
 type Running = { read: PlanRead; query: UseQueryResult<PlanResult> }
 
 const PlanReadsContext = createContext<ReadonlyMap<string, Running>>(new Map())
-
-// Starts the queries of the blocks that read by themselves as the page opens; each block then finds its own in the cache
-const useBlockQueries = (tree: LayoutNode, plan: ReadPlan | undefined, params: Readonly<Record<string, string>>) => {
-  const client = useClient()
-  const queryClient = useQueryClient()
-  const { resources, views } = useAdminMeta()
-  const fieldTypes = useProjectUi().fields
-  const xs = useIsXs()
-  const started = useMemo(() => blockQueries({ client, queryClient, resources, views, fieldTypes, xs, params }, tree, plan), [client, queryClient, resources, views, fieldTypes, xs, params, tree, plan])
-  useEffect(() => {
-    for (const query of started) void query.start(queryClient)
-  }, [started, queryClient])
-}
 
 /** Starts every read of `plan` that a block draws from, at once, with the page's parameters filled in. */
 export const PlanReadsProvider = ({ tree, plan, children }: { tree: LayoutNode; plan: ReadPlan | undefined; children: ReactNode }) => {
@@ -37,7 +20,6 @@ export const PlanReadsProvider = ({ tree, plan, children }: { tree: LayoutNode; 
   const params = usePageParamValues()
   const planned = useMemo(() => planQueries(client, tree, plan, params), [client, tree, plan, params])
   const queries = useQueries({ queries: planned.map(({ queryKey, queryFn }) => ({ queryKey, queryFn })) })
-  useBlockQueries(tree, plan, params)
   const running = new Map(planned.map(({ read }, index) => [planReadId(read), { read, query: queries[index]! }]))
   return <PlanReadsContext.Provider value={running}>{children}</PlanReadsContext.Provider>
 }

@@ -1,9 +1,9 @@
 import type { AggregateParams } from '@protobase/client'
+import type { ChartProps } from '@protobase/layout'
 import type { FieldModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { viewerZone } from '../../format/zone'
 import { labelFieldOf } from '../../live/model-helpers'
 import { seriesColors } from './chart-groups'
-import type { ChartRequest } from './chart-view'
 
 // For a relation to a single-key resource: the field of that resource that names each of its records
 const labelOf = (field: FieldModel | undefined, resources: Record<string, ResourceModel>, views: Record<string, ViewModel>) => {
@@ -11,7 +11,7 @@ const labelOf = (field: FieldModel | undefined, resources: Record<string, Resour
   return target && target.primaryKey.length === 1 ? labelFieldOf(target, views[target.name]) : undefined
 }
 
-type ChartAsked = Pick<ChartRequest, 'model' | 'groupBy' | 'splitBy' | 'sum' | 'average' | 'filter' | 'granularity' | 'range' | 'limit'>
+type ChartAsked = { model: ResourceModel } & Pick<ChartProps, 'groupBy' | 'splitBy' | 'sum' | 'average' | 'filter' | 'granularity' | 'range' | 'limit'>
 
 /**
  * The `:aggregate` a chart reads: a date field's buckets in the viewer's time zone, split by `splitBy`, or a field's
