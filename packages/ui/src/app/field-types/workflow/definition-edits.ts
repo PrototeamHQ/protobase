@@ -275,7 +275,11 @@ const renamedReads = (value: unknown, from: string, to: string): unknown => {
   if (typeof value === 'string') {
     if (!value.trimStart().startsWith('{%')) return value
     const read = new RegExp(`\\$states\\.context\\.Steps\\.(?:${escaped(from)}(?![A-Za-z0-9_])|\`${escaped(from)}\`)`, 'g')
-    return value.replace(read, () => `$states.context.Steps.${stepName(to)}`)
+    // Text in quotes and comments is no read, and stays as it is
+    return value
+      .split(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\/\*[\s\S]*?\*\/)/)
+      .map((part, index) => (index % 2 === 1 ? part : part.replace(read, () => `$states.context.Steps.${stepName(to)}`)))
+      .join('')
   }
   if (Array.isArray(value)) return value.map((item) => renamedReads(item, from, to))
   if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, renamedReads(item, from, to)]))

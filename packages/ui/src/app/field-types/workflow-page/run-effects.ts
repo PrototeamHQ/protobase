@@ -1,5 +1,5 @@
 import type { WorkflowTypeList } from '@protobase/client'
-import { innerMachine, resultRead, type Definition, type Machine, type State, type TaskState } from '@protobase/workflows'
+import { dependsOn, innerMachine, machineDependencies, orderOf, resultRead, type Definition, type Machine, type State, type TaskState } from '@protobase/workflows'
 import { stateLabel } from '../workflow/labels'
 
 const nextOf = (state: State): string[] => {
@@ -66,8 +66,28 @@ export const changedSinceRun = (ran: Definition | undefined, definition: Definit
   return JSON.stringify(withoutResultVariables(before, shaped)) !== JSON.stringify(withoutResultVariables(definition.stateMachine.States[state], shaped))
 }
 
+// In data order, a state and every state that depends on it, through others too: those a re-run from it runs again
+const dependents = (machine: Machine, start: string) => {
+  const dependencies = machineDependencies(machine)
+  const after = new Set([start])
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const [name, own] of dependencies) {
+      if (after.has(name) || ![...dependsOn(own)].some((other) => after.has(other))) continue
+      after.add(name)
+      grew = true
+    }
+  }
+  return Object.keys(machine.States).filter((name) => after.has(name))
+}
+
 /**
- * The steps that act on the world among those a run of `definition` reaches from `start`, its first state by default,
- * Maps and Blocks looked into; in data order, which follows no edges, all of them.
+ * The steps that act on the world among those a run of `definition` runs from `start`, its first state by default,
+ * Maps and Blocks looked into: in sequence order those reached along its edges; in data order, which follows none,
+ * every step, or from `start` the steps that depend on it, as a re-run from it runs them again.
  */
-export const stepsThatAct = (definition: Definition, types: WorkflowTypeList | undefined, start = definition.stateMachine.StartAt) => actingSteps(definition.stateMachine, start === undefined ? statesRun(definition.stateMachine) : reachedStates(definition.stateMachine, start), types)
+export const stepsThatAct = (definition: Definition, types: WorkflowTypeList | undefined, start = definition.stateMachine.StartAt) => {
+  const machine = definition.stateMachine
+  const from = orderOf(definition) === 'data' ? (start === undefined ? statesRun(machine) : dependents(machine, start)) : start === undefined ? statesRun(machine) : reachedStates(machine, start)
+  return actingSteps(machine, from, types)
+}

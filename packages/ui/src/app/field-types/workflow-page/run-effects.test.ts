@@ -46,6 +46,22 @@ describe('stepsThatAct', () => {
     }
     expect(stepsThatAct(data, types).map((step) => step.name)).toEqual(['Post', 'Mail'])
   })
+
+  it('names, for a re-run from a step in data order, that step and those that depend on it', () => {
+    const data: Definition = {
+      order: 'data',
+      trigger: { manual: {} },
+      stateMachine: {
+        QueryLanguage: 'JSONata',
+        States: {
+          Read: { Type: 'Task', Resource: 'app:records.get', Assign: { got: '{% $states.result %}' } },
+          Post: { Type: 'Task', Resource: 'app:http', Arguments: { url: '{% $got.url %}', method: 'POST' } },
+          Other: { Type: 'Task', Resource: 'app:mail.send' },
+        },
+      },
+    }
+    expect(stepsThatAct(data, types, 'Read').map((step) => step.name)).toEqual(['Post'])
+  })
 })
 
 describe('changedSinceRun', () => {

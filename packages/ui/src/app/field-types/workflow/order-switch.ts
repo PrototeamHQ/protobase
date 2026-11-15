@@ -1,4 +1,5 @@
 import { stepName } from './definition-edits'
+import { text } from './messages'
 import { allStates, assignedNames, dependsOn, innerMachine, machineDependencies, orderOf, type Definition, type Machine, type State } from '@protobase/workflows'
 
 
@@ -108,15 +109,15 @@ const machineToSequence = (machine: Machine): Machine => {
 export const toDataOrder = (definition: Definition): Switched => {
   const states = allStates(definition.stateMachine)
   const choice = states.find(([, state]) => state.Type === 'Choice')
-  if (choice) return { refused: `${choice[0]} is a Choice; in data order a Condition on each state it leads to decides` }
+  if (choice) return { refused: text('switchChoice', { state: choice[0] }) }
   const caught = states.find(([, state]) => 'Catch' in state && (state.Catch ?? []).some((catcher) => catcher.Next !== undefined))
-  if (caught) return { refused: `${caught[0]} has an error path to another state; in data order a catcher has no Next` }
+  if (caught) return { refused: text('switchCatchNext', { state: caught[0] }) }
   const twice = assignedTwice(definition.stateMachine)
-  if (twice !== undefined) return { refused: `two states assign $${twice}; in data order each variable has one state that assigns it` }
+  if (twice !== undefined) return { refused: text('switchAssignedTwice', { variable: twice }) }
   const loop = looping(definition.stateMachine)
-  if (loop !== undefined) return { refused: `${loop} runs again in a loop of Next; in data order each state runs once` }
+  if (loop !== undefined) return { refused: text('switchLoop', { state: loop }) }
   const passing = passThrough(definition.stateMachine, true)
-  if (passing !== undefined) return { refused: `${passing} has no Output, so it gives the output of the state before it, which in data order it does not get; give it an Output that reads what it needs` }
+  if (passing !== undefined) return { refused: text('switchPassThroughData', { state: passing }) }
   return { definition: { ...definition, order: 'data', stateMachine: { ...machineToData(definition.stateMachine), QueryLanguage: 'JSONata' } as Definition['stateMachine'] } }
 }
 
@@ -128,12 +129,12 @@ export const toDataOrder = (definition: Definition): Switched => {
 export const toSequenceOrder = (definition: Definition): Switched => {
   const states = allStates(definition.stateMachine)
   const conditioned = states.find(([, state]) => state.Condition !== undefined)
-  if (conditioned) return { refused: `${conditioned[0]} has a Condition; in sequence order a Choice decides` }
+  if (conditioned) return { refused: text('switchCondition', { state: conditioned[0] }) }
   const caught = states.find(([, state]) => 'Catch' in state && (state.Catch ?? []).some((catcher) => catcher.Next === undefined))
-  if (caught) return { refused: `${caught[0]} has a catcher without Next, which sequence order needs` }
+  if (caught) return { refused: text('switchCatchNoNext', { state: caught[0] }) }
   const chain = machineToSequence(definition.stateMachine)
   const passing = passThrough(definition.stateMachine, false, chain.StartAt)
-  if (passing !== undefined) return { refused: `${passing} has no Output, so it gives the run's input, which in sequence order would be the output of the state before it; give it an Output that reads what it needs` }
+  if (passing !== undefined) return { refused: text('switchPassThroughSequence', { state: passing }) }
   return { definition: { ...definition, order: 'sequence', stateMachine: { ...chain, QueryLanguage: 'JSONata' } as Definition['stateMachine'] } }
 }
 

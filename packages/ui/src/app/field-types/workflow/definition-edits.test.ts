@@ -168,6 +168,10 @@ describe('workflow edits', () => {
     const renamed = renameState(flow, 'A', 'Save it')
     expect(renamed.stateMachine.States.Tell).toEqual({ Type: 'Pass', Condition: "{% $states.context.Steps.`Save it`.Status = 'SUCCEEDED' and $states.context.Steps.AB.Status = 'SUCCEEDED' %}", Output: 'Steps.A is plain text' })
     expect(renamed.stateMachine.States.Each).toMatchObject({ ItemProcessor: { States: { Item: { Condition: '{% $states.context.Steps.`Save it`.Error = null %}' } } } })
+    // Text in quotes and comments is no read
+    const quoted = structuredClone(flow)
+    ;(quoted.stateMachine.States.Tell as { Output: string }).Output = "{% '$states.context.Steps.A.Status' & /* $states.context.Steps.A */ $states.context.Steps.A.Error %}"
+    expect((renameState(quoted, 'A', 'B').stateMachine.States.Tell as { Output: string }).Output).toBe("{% '$states.context.Steps.A.Status' & /* $states.context.Steps.A */ $states.context.Steps.B.Error %}")
     // A name JSONata reads as a value is backticked too
     expect(renameState(flow, 'A', 'true').stateMachine.States.Tell).toMatchObject({ Condition: "{% $states.context.Steps.`true`.Status = 'SUCCEEDED' and $states.context.Steps.AB.Status = 'SUCCEEDED' %}" })
   })
