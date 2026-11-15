@@ -74,7 +74,8 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
   const from = (source: string, path: string[]): { node: string; handle: string; type: PinType } => {
     const pins = outputs.get(source)!
     const own = pins.find((pin) => samePath(pin.path, path))
-    const fielded = pins.some((pin) => pin.path.length > 0)
+    // A step's status pin in data order is no field of what it gives: a step giving one whole value stays unfielded
+    const fielded = pins.some((pin) => pin.path.length > 0 && pin.path[0] !== statusKey)
     if (own || path.length === 0 || (fielded && path.length === 1)) {
       const pin = own ?? pinOf(pins, path)
       return { node: source, handle: outHandle(pin.path), type: pin.type }
