@@ -13,6 +13,10 @@ description: Apps written for other systems that keep working on Protobase, and 
 - [Supabase Realtime](/reference/supabase-realtime/) (beta): Database changes, broadcast and presence through supabase-js channels, private ones authorized by the policies on `realtime.messages`, broadcasts sent from a server without joining a channel, and broadcasts from the database with `realtime.send()` and `realtime.broadcast_changes()`, across [several processes](/reference/supabase-realtime/#several-processes) serving one app.
 - [Edge Functions](/guides/api-functions/#functions-moved-from-supabase): Functions moved from Supabase answer at their old addresses.
 
+## AWS Step Functions
+
+- [Step Functions import](/reference/workflows/#importing-from-step-functions) (beta): A JSONata state machine exported from AWS Step Functions saves and runs as a workflow as it is, its HTTP tasks as HTTP request steps, and what does not run here is refused by name.
+
 ## Template paths
 
 - [Paths and scopes](/reference/layouts/#paths-and-scopes) (beta): Layout paths follow Mustache's context-stack lookup and Handlebars' path grammar: `../`, `this`, `./`, `@root`, `@index`, `@first` and `@last`, though `@root` cannot be read yet. Protobase differs in three ways: a placeholder is escaped for the string it lands in, such as a filter's quoted value, rather than for HTML; `@params` names a [page parameter](/reference/layouts/#page-parameters), which a `SelectInput` sets; and a name no record around it has fails the build instead of drawing empty.
