@@ -80,6 +80,15 @@ describe('axisTicks limits', () => {
     const { ticks } = axisTicks(t0, t0 + 6 * 24 * hour, offsetOf)
     expect(ticks.map((tick) => (tick.at + offsetOf(tick.at)) % (24 * hour))).toEqual(ticks.map(() => 0))
   })
+
+  it('gives no tick at a local hour the clock skips as it springs forward', () => {
+    // One hour ahead of UTC until 01:00 UTC on the 29th of March, two after it, so 02:00 local never happens
+    const change = Date.parse('2026-03-29T01:00:00Z')
+    const offsetOf = (ms: number) => (ms < change ? hour : 2 * hour)
+    const { ticks } = axisTicks(change - 1.5 * hour, change + 1.5 * hour, offsetOf)
+    expect(ticks.map((tick) => tick.at)).toEqual([change - hour, change])
+    expect(ticks.map((tick) => (tick.at + offsetOf(tick.at)) / hour % 24)).toEqual([1, 3])
+  })
 })
 
 describe('segmentPaint', () => {

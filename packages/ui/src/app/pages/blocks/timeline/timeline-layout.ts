@@ -25,7 +25,8 @@ const timeOf = (value: unknown) => {
   return Number.isNaN(ms) ? undefined : ms
 }
 
-const keyOf = (value: unknown) => (value === null || value === undefined ? '' : String(value))
+/** The key a lane or bar value is grouped by. */
+export const keyOf = (value: unknown) => (value === null || value === undefined ? '' : String(value))
 
 const share = (ms: number, from: number, span: number) => (span === 0 ? 0 : ((ms - from) / span) * 100)
 
@@ -105,7 +106,8 @@ const stepsIn = (from: number, to: number, step: number, offset: number) => Math
 /**
  * The ticks of an axis from `from` to `to`: the shortest step that gives at most `maxTicks`, past the last of
  * `tickSteps` whole years, each on a whole step of the clock `offsetOf` gives at a moment, its ms ahead of UTC there,
- * so a tick stays on its local hour or midnight when the offset changes within the range. Each is placed in %;
+ * so a tick stays on its local hour or midnight when the offset changes within the range, and a local time the clock
+ * skips gets none. Each is placed in %;
  * `daily` when the step is a day or more, so they read as dates.
  */
 export const axisTicks = (from: number, to: number, offsetOf: (ms: number) => number = () => 0) => {
@@ -115,8 +117,9 @@ export const axisTicks = (from: number, to: number, offsetOf: (ms: number) => nu
   const step = tickSteps.find((candidate) => stepsIn(from, to, candidate, offset) <= maxTicks) ?? Math.ceil(span / (maxTicks - 1) / year) * year
   const ticks: Array<{ at: number; left: number }> = []
   for (let local = Math.ceil((from + offset) / step) * step; local <= to + offset; local += step) {
-    // The local step's moment, by the offset in force near it
+    // The local step's moment, by the offset in force near it; a step the clock skips, as it springs forward, has none
     const at = local - offsetOf(local - offset)
+    if (at + offsetOf(at) !== local) continue
     if (at >= from && at <= to) ticks.push({ at, left: share(at, from, span) })
   }
   return { daily: step >= day, ticks }
