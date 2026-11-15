@@ -160,7 +160,7 @@ Each entry is a record of the stack while its children draw, so `Field`, `Show`,
 ## How a page reads its data
 
 :::caution[Beta]
-On the web, a `RecordRow` of a view with `listOf` or `searchesOf`, and a `Table`, `Thread`, `RecordCards` or `RecordRow` inside the records of another block, still read once they draw, as the marked limits below say.
+On the web, a `RecordRow` of a view with `listOf` or `searchesOf`, or one inside the records of another block, still reads once it draws, as the marked limits below say.
 :::
 
 The build compiles each page into a read plan: one ordinary API read per data block, each known before any record is read, so all of them start together when the page opens and none waits for another's rows. There is no combined page query: each read is a request of its own. `/api/meta` sends each user the plan of the page as they see it, so it holds no read of a resource they cannot read and no field they cannot read.
