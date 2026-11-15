@@ -13,6 +13,9 @@ export const parseParams = <S extends z.ZodType>(schema: S, input: unknown): z.o
 export const defaultPageSize = 50
 export const maxPageSize = 500
 
+/** A boolean parameter: JSON `true` or `false` in a body, the text `true` or `false` in a query string. */
+const booleanParam = z.union([z.boolean(), z.enum(['true', 'false']).transform((value) => value === 'true')], { error: 'Expected true or false' }).optional()
+
 export const listParams = z.object({
   filter: z.string().optional(),
   order_by: z.string().optional(),
@@ -24,7 +27,9 @@ export const listParams = z.object({
   photos: z.string().optional(),
   photos_order_by: z.string().optional(),
   limit_per: z.string().optional(),
-  show_deleted: z.union([z.boolean(), z.enum(['true', 'false']).transform((value) => value === 'true')]).optional(),
+  show_deleted: booleanParam,
+  /** `false` leaves each item's `etag` out, so a selection of fields reads only those columns. */
+  etag: booleanParam,
 })
 
 /** The list parameters plus the row position to jump to (`:seek`). */

@@ -1,5 +1,5 @@
 import type { WorkflowTypeList } from '@protobase/client'
-import { checkDefinition, definitionWarnings, type Definition, type PinSchemas, type Problem, type TriggerCheck } from '@protobase/workflows'
+import { checkDefinition, definitionWarnings, latestCustomSteps, type Definition, type PinSchemas, type Problem, type TriggerCheck } from '@protobase/workflows'
 import { triggerId } from './definition'
 import { schemaInputs, type TypeInput } from './type-inputs'
 
@@ -44,8 +44,9 @@ const inputProblems =
 
 /**
  * The check every save of a workflow runs on the server, against the app's trigger and step types as the server lists
- * them, its plugins' included: an unknown type, a type the app cannot run, and a missing input it requires; with `pins`,
- * also an argument that reads a value of a type it does not take.
+ * them, its plugins' and custom steps' included: an unknown type, a type the app cannot run, a custom step without a
+ * version, naming its latest, and a missing input it requires; with `pins`, also an argument that reads a value of a
+ * type it does not take.
  */
 export const definitionProblems = (definition: Definition, types: WorkflowTypeList, pins?: PinSchemas) => {
   const steps = types.step_types.filter((type) => type.available)
@@ -56,6 +57,7 @@ export const definitionProblems = (definition: Definition, types: WorkflowTypeLi
     required: Object.fromEntries(steps.map((type) => [type.id, schemaInputs(type.input).filter((input) => input.required).map((input) => input.name)])),
     triggers: Object.fromEntries(triggers.map((type) => [type.id, inputProblems(schemaInputs(type.input))])),
     unavailable: Object.fromEntries(unavailable.map((type) => [type.id, type.reason ?? ''])),
+    versioned: latestCustomSteps(steps.map((type) => type.id)),
     ...(pins && { pins }),
   })
 }

@@ -14,7 +14,7 @@ import { visibleVariables } from './visible'
 import { blockProblems } from './check-block'
 import { allStates } from './inner'
 import { limits } from '../limits'
-import { nestingDepth } from '../nesting'
+import { depthProblems } from './depth-problems'
 import { pinProblems } from './pins/check-pins'
 import type { PinSchemas } from './pins/pin-sources'
 import { dataflowProblems, dataflowVisible } from './dataflow/check-dataflow'
@@ -144,7 +144,8 @@ const wholeProblems = (definition: Definition): Problem[] => {
 export const checkDefinition = (definition: unknown, options: CheckOptions): Problem[] => {
   const bytes = new TextEncoder().encode(JSON.stringify(definition) ?? '').length
   if (bytes > limits.definitionBytes) return [{ message: `The definition is ${bytes} bytes as JSON, more than the ${limits.definitionBytes} a workflow may have` }]
-  if (nestingDepth(definition, limits.definitionDepth) > limits.definitionDepth) return [{ message: `The definition nests more than ${limits.definitionDepth} levels of arrays and objects` }]
+  const deep = depthProblems(definition)
+  if (deep.length > 0) return deep
   // What Step Functions runs and this app does not, named, before the shape a standard document would otherwise miss
   const aws = awsProblems(definition)
   if (aws.length > 0) return aws

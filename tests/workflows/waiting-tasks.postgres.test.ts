@@ -129,9 +129,11 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("waiting Tasks on the ap
 
   it('keeps no answer whose wake of the run failed, so the caller may send it again', async () => {
     const { id, token } = await handedOff(approval(), 'Ship 2.0?')
-    // The wake's job cannot be written, as when the database refuses it; the worker still ends the segment that parked
-    // the run, as it may be doing now
-    await sql.raw(`create function workflows_refuse_wake() returns trigger language plpgsql as $$ begin if new.data->>'run' = '${id}' and new.state = 'created' then raise exception 'no wake'; end if; return new; end $$`).execute(db)
+    // The segment that handed off may still be scheduling the run's timeout and completing: the trigger below would
+    // refuse its writes too, so it waits until no job of the run is running
+    await vi.waitFor(async () => expect((await sql<{ count: number }>`select count(*)::int as count from jobs.job where data->>'run' = ${id} and state = 'active'`.execute(db)).rows[0]!.count).toBe(0), { timeout: 20_000, interval: 50 })
+    // The wake's job cannot be written, as when the database refuses it
+    await sql.raw(`create function workflows_refuse_wake() returns trigger language plpgsql as $$ begin if new.data->>'run' = '${id}' then raise exception 'no wake'; end if; return new; end $$`).execute(db)
     await sql`create trigger refuse_wake before insert or update on jobs.job for each row execute function workflows_refuse_wake()`.execute(db)
     try {
       expect((await send('success', { taskToken: token, output: JSON.stringify({ approved: true }) })).status).toBe(500)

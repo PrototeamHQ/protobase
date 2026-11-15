@@ -1,10 +1,9 @@
 import { ArrowRight } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import type { AppAddress, ResourceModel, RowButtonModel, ViewModel } from '@protobase/schema'
-import { encodeKey, rowButtonFields } from '@protobase/schema/internal'
+import { encodeKey } from '@protobase/schema/internal'
 import { DataGrid, type ColumnSpec, type GridRow } from '../../data-grid'
 import { useIsDesktop, useIsXs } from '../../lib/use-media-query'
-import { listColumnNames } from '../../live/columns-from-model'
 import { recordKey } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
 import type { RouteTarget } from '../../primitives/route-link'
@@ -17,7 +16,7 @@ import { CustomDisplay } from '../displays/custom-display'
 import { MapDisplay } from '../displays/map-display'
 import { DisplaySwitch } from '../displays/display-controls'
 import type { ListDisplay } from '../displays/display-context'
-import { displayRow, loadedFields, shownDisplay } from '../displays/list-displays'
+import { displayRow, shownDisplay } from '../displays/list-displays'
 import { ErrorBanner } from '../error-banner'
 import { useProjectUi } from '../pages/project-ui'
 import { defaultOrderBy, parseSort, sortToOrderBy } from '../list-order'
@@ -25,10 +24,9 @@ import { useAdminMeta, usePermissions } from '../meta-gate'
 import { can } from '../permissions'
 import { withRowButton } from '../row-button/row-button-column'
 import { AppLink, useAppAddress } from '../use-app-address'
-import { embeddedColumns } from './embedded-columns'
 import { viewAllAddress } from './embedded-display'
 import { cutOffNote } from './cut-off-note'
-import { embeddedReadFields } from './embedded-read-fields'
+import { embeddedFields } from './embedded-fields'
 import { embeddedRowTargets } from './embedded-row-targets'
 import { useListActions } from '../list-actions/use-list-actions'
 import { useEmbeddedRows } from './use-embedded-rows'
@@ -89,12 +87,11 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   const xs = useIsXs()
   const narrow = !useIsDesktop()
   const [orderBy, setOrderBy] = useState(sort || defaultOrderBy(model, view))
-  const names = columns ?? listColumnNames(model, view)
-  const all = useMemo(() => embeddedColumns(model, view, names, { resources, views, fieldTypes }), [model, view, names.join(','), resources, views, fieldTypes])
-  const specs = useMemo(() => (xs && phoneColumns ? phoneColumns(all) : all), [xs, phoneColumns, all])
-  const fields = useMemo(() => loadedFields(model, view, [...specs.map((spec) => spec.id), ...(button ? rowButtonFields(button) : [])]), [model, view, specs, button])
+  const { specs, fields, read } = useMemo(
+    () => embeddedFields({ model, view, resources, views, fieldTypes, columns, button, opens, bulk, phoneColumns, xs }),
+    [model, view, resources, views, fieldTypes, columns?.join(','), button, opens, bulk, phoneColumns, xs],
+  )
   const gridColumns = useMemo(() => (button ? withRowButton(specs, model, view, button, resources, narrow) : specs), [specs, model, view, button, resources, narrow])
-  const read = useMemo(() => embeddedReadFields(model, view, { shown: fields, opens, bulk }), [model, view, fields, opens, bulk])
   const rows = useEmbeddedRows({ model, filter, orderBy, limit, fields, read })
   const named = useListActions(model)
   const loaded = rows.data?.rows

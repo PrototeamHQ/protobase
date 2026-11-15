@@ -35,7 +35,7 @@ const lines = resource('lines')
 describe('list', () => {
   it('builds the query string', async () => {
     const { calls, fetch } = fakeFetch(() => json({ items: [], next_page_token: '', total_size_estimate: 0 }))
-    await createClient({ fetch }).list('orders', { filter: 'status = "draft"', orderBy: 'createdAt desc', pageSize: 25, pageToken: 'abc', fields: ['id', 'status'], count: 'exact', limitPer: { field: 'customerId', count: 3 } })
+    await createClient({ fetch }).list('orders', { filter: 'status = "draft"', orderBy: 'createdAt desc', pageSize: 25, pageToken: 'abc', fields: ['id', 'status'], count: 'exact', limitPer: { field: 'customerId', count: 3 }, etag: false })
     const url = new URL(calls[0]!.url, 'http://x')
     expect(url.pathname).toBe('/api/v1/orders')
     expect(Object.fromEntries(url.searchParams)).toEqual({
@@ -46,6 +46,7 @@ describe('list', () => {
       fields: 'id,status',
       count: 'exact',
       limit_per: 'customerId:3',
+      etag: 'false',
     })
   })
 

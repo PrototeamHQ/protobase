@@ -913,6 +913,7 @@
     "heartbeatSeconds": "Hartslag binnen (seconden)",
     "heartbeatHelp": "Faalt met States.HeartbeatTimeout als er in deze tijd geen hartslag kwam. Leeg: geen nodig.",
     "stepTypeWaits": "{type}, wacht daarna",
+    "stepTypeVersion": "{type}, versie {version}",
     "cacheHelp": "Gebruikt het resultaat van een gelijke eerdere aanroep van deze stap, uit elke run, in plaats van hem opnieuw uit te voeren.",
     "cacheForcedAgainst": "Cache aangezet tegen het advies van deze stap in",
     "cacheConfirmTitle": "Cache toch aanzetten?",

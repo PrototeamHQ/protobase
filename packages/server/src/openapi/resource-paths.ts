@@ -11,7 +11,7 @@ const json = (schema: object) => ({ 'application/json': { schema } })
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` })
 
 export const listParameters = (entry: Entry) =>
-  ['filter', 'orderBy', 'pageSize', 'pageToken', 'fields', 'labels', 'photos', 'photosOrderBy', 'count', 'limitPer', ...(entry.model.softDelete ? ['showDeleted'] : [])].map(param)
+  ['filter', 'orderBy', 'pageSize', 'pageToken', 'fields', 'labels', 'photos', 'photosOrderBy', 'count', 'limitPer', 'etag', ...(entry.model.softDelete ? ['showDeleted'] : [])].map(param)
 
 const field = (description: string) => ({ name: 'field', in: 'query', required: true, description, schema: { type: 'string' } })
 
@@ -387,7 +387,7 @@ export const resourcePaths = (access: RequestAccess) => {
         description: 'For scrollbar jumps: resolves a 0-based row position, within the rows the caller can see and in the given order, to a page of rows, with no OFFSET. The estimate behind it is scaled to the caller\'s own rows; no column statistics or boundary values are returned, only the page and its tokens.',
         parameters: [
           query('position', '0-based row position to jump to', { type: 'integer', minimum: 0 }, true),
-          param('orderBy'), param('filter'), param('pageSize'), param('fields'), param('labels'), param('photos'), param('photosOrderBy'), param('count'),
+          param('orderBy'), param('filter'), param('pageSize'), param('fields'), param('labels'), param('photos'), param('photosOrderBy'), param('count'), param('etag'),
         ],
         responses: {
           200: { description: 'The page at that position; continue from either token', content: page(name, true) },

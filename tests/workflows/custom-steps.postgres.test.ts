@@ -204,4 +204,32 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('custom steps on the app
     expect((await save(1)).status).toBe(400)
     expect((await save(2)).status).toBe(201)
   })
+
+  it('refuses a re-create that numbered a version an update and a delete took meanwhile, as a 409 to send again, never reusing it', async () => {
+    const step = await created('ada', '/workflow_custom_steps', { name: 'raced', ...manifest })
+    // A re-create labelled Held waits after its trigger numbered its version, until the lock below is let go: the
+    // overlap a slow write would have, held open so the update and the delete land in it.
+    await pg.exec(`create function workflows.hold_custom_step() returns trigger language plpgsql as $$ begin perform pg_advisory_xact_lock_shared(4242); return new; end $$;
+      create trigger custom_step_version_held before insert on workflows.custom_steps for each row when (new.label = 'Held') execute function workflows.hold_custom_step()`)
+    const holder = await pg.pool({ max: 1 }).connect()
+    await holder.query('begin; select pg_advisory_xact_lock(4242)')
+    const recreate = as('ada', '/workflow_custom_steps', { method: 'POST', body: { name: 'raced', ...manifest, label: 'Held' } })
+    const held = async () => (await sql<{ count: number }>`select count(*)::int as count from pg_locks where locktype = 'advisory' and not granted`.execute(db)).rows[0]!.count
+    await vi.waitFor(async () => expect(await held()).toBe(1), { timeout: 10_000, interval: 20 })
+    expect((await as('ada', `/workflow_custom_steps/${String(step.id)}`, { method: 'PATCH', body: { label: 'Raced again' } })).status).toBe(200)
+    expect((await as('ada', `/workflow_custom_steps/${String(step.id)}`, { method: 'DELETE' })).status).toBe(204)
+    await holder.query('commit')
+    holder.release()
+    const refused = await recreate
+    await pg.exec('drop trigger custom_step_version_held on workflows.custom_steps; drop function workflows.hold_custom_step()')
+
+    expect(refused.status).toBe(409)
+    expect(await refused.json()).toMatchObject({ detail: 'The custom step was saved at the same time as another write of its name, which took its version; send it again' })
+    const kept = async () => (await sql<{ custom_step_id: string | null; version: number; label: string }>`select custom_step_id, version, label from workflows.custom_step_versions where name = 'raced' order by version`.execute(db)).rows
+    expect(await kept()).toEqual([{ custom_step_id: null, version: 1, label: 'Invoice PDF' }, { custom_step_id: null, version: 2, label: 'Raced again' }])
+    // Sent again, it goes on after the version the update took
+    const again = await created('ada', '/workflow_custom_steps', { name: 'raced', ...manifest, label: 'Raced anew' })
+    expect(again.version).toBe(3)
+    expect((await kept()).map((row) => row.version)).toEqual([1, 2, 3])
+  })
 })

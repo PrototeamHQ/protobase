@@ -23,6 +23,8 @@ export type ListParams = {
   count?: 'exact'
   /** The first `count` records per value of `field`, in the list's order, as one page with no next one (`limit_per`). */
   limitPer?: { field: string; count: number }
+  /** `false` leaves each item's `etag` out, so the server reads only the selected `fields`. */
+  etag?: false
 }
 
 /** What `map` asks for: the fields of the position, the map's zoom, and the bounding box in `filter`. */
@@ -66,6 +68,7 @@ export const listWire = (params: ListParams = {}) => ({
   ...photosWire(params.photos),
   count: params.count,
   limit_per: params.limitPer && `${params.limitPer.field}:${params.limitPer.count}`,
+  etag: params.etag === false ? 'false' : undefined,
 })
 
 export const queryString = (wire: Wire) => {

@@ -5,7 +5,7 @@ import { Switch } from '../../../primitives/switch'
 import { Field } from '../../../record-view/field'
 import { CacheField } from './cache-field'
 import { errorAt } from './field-errors'
-import { inputLabel, stepTypeLabel } from './labels'
+import { inputLabel, stepTypeOption } from './labels'
 import type { NodeProblem } from './problems'
 import { schemaInputs } from './type-inputs'
 import { ValueField } from './value-field'
@@ -62,10 +62,10 @@ export const TaskFields = ({ state, types, problems, disabled, onChange }: TaskF
     <>
       <Field label={text('stepType')} error={errorAt(problems, 'Resource')}>
         <Select value={id} disabled={disabled} onChange={(event) => onChange(withStepType(state, event.target.value))}>
-          {!available.some((entry) => entry.id === id) && <option value={id}>{stepTypeLabel(id, type?.label)}</option>}
+          {!available.some((entry) => entry.id === id) && <option value={id}>{stepTypeOption(id, type?.label)}</option>}
           {available.map((entry) => (
             <option key={entry.id} value={entry.id}>
-              {stepTypeLabel(entry.id, entry.label)}
+              {stepTypeOption(entry.id, entry.label)}
             </option>
           ))}
         </Select>

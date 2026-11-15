@@ -568,7 +568,7 @@ A custom step is a record of `workflow_custom_steps`, which you create and chang
 }
 ```
 
-Each version, its manifest whole with who saved it and when, is a record of `workflow_custom_step_versions`, read-only, listed on its custom step's page. Deleting a custom step keeps its versions, which are then no step types, and a custom step made again under its name goes on from its next version, so `custom:<name>:<version>` always names the one manifest it named first.
+Each version, its manifest whole with who saved it and when, is a record of `workflow_custom_step_versions`, read-only, listed on its custom step's page. Deleting a custom step keeps its versions, which are then no step types, and a custom step made again under its name goes on from its next version, so `custom:<name>:<version>` always names the one manifest it named first. A save whose version another write of its name took meanwhile, such as a custom step made again while its old one was changed and deleted, is refused with a 409 to send again, and goes on from the next version.
 
 A Task names a version in its `Resource`:
 
@@ -583,7 +583,7 @@ A Task names a version in its `Resource`:
 
 Its arguments are the manifest's `input` and `store`, `{ configuration, path? }`, the [storage configuration](#storing-files) it stores the files it gives in, as `app:http` takes it; a version whose `output` gives a file needs it. The save checks the arguments it needs and types its pins from the manifest, as it does any step type's, and its errors are `<error_prefix>.<Name>`. A `Resource` that names no version, such as `custom:invoice_pdf`, is refused, naming the latest: `"custom:invoice_pdf" names no version: write custom:invoice_pdf:2`. A version of another tenant's custom step, or one deleted, is refused as an unknown step type.
 
-The editor's step picker lists each custom step at its latest version under *Custom steps*, and a Task's form takes any version, and `GET /api/workflows/types`, `list_workflow_types` and `validate_workflow` take them, each with the custom steps of the caller's tenant: whoever may read workflows reads them, as they do a plugin's types, and only creating, changing and deleting them is granted.
+The editor's step picker lists each custom step at its latest version under *Custom steps*, and a Task's form takes any version, naming each by its label and number, such as *Invoice PDF, version 2*, and `GET /api/workflows/types`, `list_workflow_types` and `validate_workflow` take them, each with the custom steps of the caller's tenant: whoever may read workflows reads them, as they do a plugin's types, and only creating, changing and deleting them is granted.
 
 A run hands a custom step to one of its tenant's [runners](#runners) as a [waiting Task](#waiting-for-an-outside-result) hands off its work: it queues a **job** with its arguments, then waits, holding no worker, until the runner that claimed the job completes it. So `Retry`, `Catch`, `HeartbeatSeconds` and the once-only answer work as for any waiting Task, and a retry queues a new job with a new token. Its `TimeoutSeconds` counts from the try's start, its time in the queue included, and is 300 by default, as for any step type, up to 366 days; past it the Task fails with `States.Timeout`. A custom step waits for its runner already, so `.waitForTaskToken` on its `Resource` is refused, naming the `Resource` to write, and so is `Cache`. A run of a custom step that was deleted meanwhile fails with `States.Runtime`.
 

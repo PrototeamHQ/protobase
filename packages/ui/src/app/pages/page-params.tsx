@@ -29,6 +29,9 @@ export const PageParamsProvider = ({ page, tab, tree, given = noValues, children
 /** The values the page's `SelectInput`s hold, which `@params` reads; none outside a composed page. */
 export const usePageParamValues = () => useContext(PageParamsContext)?.values ?? noValues
 
+/** What a composed page's address holds, as `usePageParams` gives it as `given`; none outside a composed page. */
+export const usePageParamsGiven = () => useContext(PageParamsContext)?.given ?? noValues
+
 /**
  * A composed page's parameters as logical values, and links that change them: `values` are its `SelectInput`s', `given`
  * what its address holds, such as the key a block's `select` chose, and `linkTo` the page with a change, which keeps
