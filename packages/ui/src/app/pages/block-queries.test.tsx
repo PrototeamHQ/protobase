@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from '@protobase/client'
-import { Chart, compileReadPlan, Field, Match, Page, RecordCard, RecordCards, Show, Switch, Table, Thread, type LayoutNode } from '@protobase/layout'
+import { Chart, compileReadPlan, Field, Match, Page, RecordCard, RecordCards, RecordRow, Show, Switch, Table, Thread, type LayoutNode } from '@protobase/layout'
 import { f, resource } from '@protobase/schema'
 import { ApiProvider } from '../../data/api-provider'
 import { MetaContext } from '../../data/meta-context'
@@ -74,6 +74,12 @@ describe('the queries of blocks that read by themselves', () => {
     held.release()
   })
 
+  it('starts a record row’s first page under a false Show', async () => {
+    const held = startPage(Page({ title: 'Home', children: Show({ when: "status = 'never'", children: RecordRow({ resource: 'tasks', filter: "status = 'open'" }) }) }))
+    await vi.waitFor(() => expect(held.started).toEqual(['/api/v1/tasks']))
+    held.release()
+  })
+
   it('starts a thread’s messages and its tool calls', async () => {
     const calls = { resource: 'tasks', name: 'title', time: 'id', status: 'status' }
     const held = startPage(Page({ title: 'Chat', children: Thread({ resource: 'tasks', sender: 'status', time: 'id', text: 'title', calls }) }))
@@ -125,6 +131,13 @@ describe('the queries of blocks that read by themselves', () => {
     const { html, fetch, started } = await drawnAfterStart(Table({ resource: 'tasks', columns: ['title'], select: 'task', children: Field({ source: 'title' }) }), { task: '7' })
     expect(html).toContain('Chosen one')
     expect(started.filter((path) => path === '/api/v1/tasks/7')).toHaveLength(1)
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('draws a record row from the page the page started, reading nothing more', async () => {
+    const { html, fetch } = await drawnAfterStart(RecordRow({ resource: 'tasks', filter: "status = 'open'" }))
+    // Its count is the first page's total; its cards are drawn from that page's rows once it mounts
+    expect(html).toContain('>1 tasks<')
     expect(fetch).not.toHaveBeenCalled()
   })
 
