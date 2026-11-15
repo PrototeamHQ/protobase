@@ -83,6 +83,26 @@ describe("the runner's loop", () => {
     expect(JSON.parse(server.sent.find((one) => one.path.endsWith('/complete'))!.body)).toEqual({ output: { video: { configuration: 'videos', path: 'runs/x/clip.mp4', name: 'clip.mp4', type: 'video/mp4', size: 9 } } })
   })
 
+  it('goes on claiming after a prepare whose build cannot even start, as on an unwritable work folder', async () => {
+    const { settings, remove } = await testSettings()
+    removals.push(remove)
+    const blocked = path.join(path.dirname(settings.work_dir), 'blocked')
+    await writeFile(blocked, '')
+    const stopping = new AbortController()
+    const job = convertJob()
+    let claims = 0
+    const server = fakeServer([{ order: 'prepare', step: job.step, build: job.build }], () => {})
+    const said: string[] = []
+    const { exec } = fakeExec((one) => (one.args[0] === 'image' && one.args[1] === 'inspect' ? { code: 1 } : {}))
+    const fetch: Fetch = async (url, init) => {
+      if (url.endsWith('/claim') && ++claims === 2) setTimeout(() => stopping.abort(), 10)
+      return server.fetch(url, init)
+    }
+    await runLoop({ app: appClient({ url: identity.url, token: 'pbr_own', fetch }), engine: engine(exec, 'docker'), settings: { ...settings, work_dir: path.join(blocked, 'work') }, identity, say: (line) => said.push(line), signal: stopping.signal })
+    expect(claims).toBe(2)
+    expect(said).toContainEqual(expect.stringMatching(/^prepare custom:ffmpeg_convert:1 failed, claiming again after a pause: ENOTDIR/))
+  })
+
   it('says it builds only when its settings say so, and stops when the app refuses its token', async () => {
     expect([kinds({ build: true }), kinds({ build: false })]).toEqual([['container', 'build'], ['container']])
     expect([platform('x64'), platform('arm64')]).toEqual(['linux/amd64', 'linux/arm64'])

@@ -108,6 +108,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("runners' job files, bui
     return run(id)
   }
   const start = async (input: unknown) => String((await created('bob', '/workflow_runs', { workflow_id: workflow, input })).id)
+  // Once the run's job is queued, which its segment does in the background, however long that takes
+  const queued = (id: string) => vi.waitFor(async () => expect((await sql<{ status: string }>`select status from workflows.custom_step_jobs where run_id = ${id}`.execute(db)).rows).toEqual([{ status: 'queued' }]), { timeout: 20_000, interval: 50 })
 
   it('adds the builds and wanted tables with custom steps, and nothing more once they are there', async () => {
     const { rows } = await sql<{ builds: boolean; wanted: boolean }>`select to_regclass('workflows.custom_step_builds') is not null as builds, to_regclass('workflows.custom_step_wanted') is not null as wanted`.execute(db)
@@ -160,16 +162,23 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("runners' job files, bui
     expect((await machine.complete(job.id, { error: 'Custom.Failed', cause: 'exit code 1' })).status).toBe(200)
     expect(await ended(id)).toMatchObject({ status: 'failed', error: 'Custom.Failed', cause: 'exit code 1' })
 
-    // A file value of the app's that is no file of this run fails its Task before any runner has it
+    // A file value of the app's that is no file of this run is refused to the runner holding its job
     const foreign = await start({ video: { uri: 'private:workflows/another-run/secret', name: 'secret', type: 'text/plain', size: 1 } })
     const taken = await machine.claimJob()
     const refused = await machine.file(taken.files[0]!.url)
     expect([refused.status, ((await refused.json()) as { title: string }).title]).toEqual([400, 'States.TaskFailed'])
     expect((await machine.complete(taken.id, { error: 'Custom.Failed' })).status).toBe(200)
     await ended(foreign)
+    // An argument that is no file fails its Task as its job is placed, before any runner has it; the claim it was
+    // placed with stays held, and takes the next job. Both are queued before the one claim, whatever the time it takes.
     const notFile = await start({ video: 'https://example.com/a.mp4' })
-    // Its claim is held on, as the job it was placed with failed instead
-    expect(await machine.claim()).toBeUndefined()
+    await queued(notFile)
+    const after = await start({ video })
+    await queued(after)
+    const next = await machine.claim()
+    expect(next?.input).toMatchObject({ video })
+    expect((await machine.complete(next!.id, { error: 'Custom.Failed' })).status).toBe(200)
+    await ended(after)
     expect(await ended(notFile)).toMatchObject({ status: 'failed', error: 'Storage.InvalidArguments' })
   })
 

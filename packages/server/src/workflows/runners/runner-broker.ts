@@ -110,6 +110,8 @@ export const runnerBroker = ({ db, schema, path, settings, lease, sealer, answer
   const runners = sql.id(schema, 'runners')
   const jobs = sql.id(schema, 'custom_step_jobs')
   const held = new Map<string, (order: Order) => void>()
+  // Until when each claim held here is held, so one whose job failed before it was sent can take the next.
+  const untils = new WeakMap<(order: Order) => void, Date>()
   let ticking: ReturnType<typeof setInterval> | undefined
   // Passes and sends run one at a time, so a claim whose time runs out never misses a job sent to it meanwhile.
   let line: Promise<unknown> = Promise.resolve()
@@ -161,14 +163,24 @@ export const runnerBroker = ({ db, schema, path, settings, lease, sealer, answer
   }
 
   const send = async () => {
+    let again = false
     for (const job of await take([...held.keys()])) {
       const order = await orderOf(job)
-      // A claim whose job failed so stays held, for the next
-      if (!order) continue
       const reply = held.get(job.runner_id)
+      // A claim whose job failed so stays held, for the next: the pass that placed the job took it from the matching,
+      // which it goes back to until its time, and a pass after this one may place another job with it at once.
+      if (!order) {
+        const until = reply && untils.get(reply)
+        if (until && until > new Date()) {
+          await sql`update ${runners} set polling_until = ${until} where id = ${job.runner_id} and polling_until is null`.execute(db())
+          again = true
+        }
+        continue
+      }
       held.delete(job.runner_id)
       reply?.(order)
     }
+    if (again) void round()
   }
 
   let pending = false
@@ -228,6 +240,7 @@ export const runnerBroker = ({ db, schema, path, settings, lease, sealer, answer
             reply({ order: 'none' })
           })
         const timer = setTimeout(close, settings.claimMs)
+        untils.set(reply, until)
         held.set(runner.id, reply)
         if (signal.aborted) close()
         else signal.addEventListener('abort', close, { once: true })

@@ -1,6 +1,6 @@
 import { chmod, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { jobErrors, type JobCompletion, type RunnerJob } from '@protobase/workflows'
+import { fileInputName, jobErrors, type JobCompletion, type RunnerJob } from '@protobase/workflows'
 import type { AppClient } from './app'
 import type { Builder } from './builds'
 import type { Settings } from './config'
@@ -52,7 +52,7 @@ export const containerInput = (job: Pick<RunnerJob, 'input' | 'files'>) => {
   const args = isObject(job.input) ? { ...job.input } : {}
   delete args.store
   const files = job.files.map((file) => {
-    if (!/^[A-Za-z0-9_][A-Za-z0-9._-]*$/.test(file.input)) throw new Error(`The input ${JSON.stringify(file.input)} cannot be a folder's name`)
+    if (!fileInputName.test(file.input)) throw new Error(`The input ${JSON.stringify(file.input)} cannot be a folder's name`)
     const name = fileName(file.name)
     return { ...file, name, at: `${file.input}/${name}` }
   })

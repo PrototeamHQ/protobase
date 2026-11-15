@@ -27,7 +27,8 @@ export const builder = ({ app, engine, settings, identity, say }: { app: AppClie
     await app.build({ step, status: 'building' }).catch((error: unknown) => say(`build ${step}: could not report its start: ${String(error)}`))
     await mkdir(settings.work_dir, { recursive: true, mode: 0o700 })
     const folder = await mkdtemp(path.join(settings.work_dir, 'build-'))
-    const lines: string[] = []
+    // Only the end of its log, which is all it reports: a build that writes without end grows no memory.
+    let tail = ''
     let ended: Built
     try {
       const context = path.join(folder, 'context')
@@ -42,9 +43,9 @@ export const builder = ({ app, engine, settings, identity, say }: { app: AppClie
       const started = Date.now()
       const result = await engine.build(buildArgs({ tag, step, app: appKey(identity), dockerfile, context }), {
         signal: AbortSignal.timeout(settings.build_timeout_seconds * 1000),
-        line: (line) => lines.push(line),
+        line: (line) => (tail = (tail === '' ? line : `${tail}\n${line}`).slice(-buildLogChars)),
       })
-      const log = lines.join('\n').slice(-buildLogChars)
+      const log = tail
       if (result.code !== 0) {
         const late = Date.now() - started >= settings.build_timeout_seconds * 1000
         ended = { built: false, log: late ? `${log}\nThe build took longer than ${settings.build_timeout_seconds} seconds and was stopped`.slice(-buildLogChars) : log }
@@ -53,7 +54,7 @@ export const builder = ({ app, engine, settings, identity, say }: { app: AppClie
         ended = { built: true, ...(digest && { digest }), log }
       }
     } catch (error) {
-      ended = { built: false, log: `${lines.join('\n')}\n${error instanceof Error ? error.message : String(error)}`.slice(-buildLogChars) }
+      ended = { built: false, log: `${tail}\n${error instanceof Error ? error.message : String(error)}`.slice(-buildLogChars) }
     } finally {
       await rm(folder, { recursive: true, force: true })
     }

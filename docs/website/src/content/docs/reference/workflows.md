@@ -547,7 +547,7 @@ A custom step is a record of `workflow_custom_steps`, which you create and chang
 | `label`, `description` | What the step picker and the type list show. |
 | `kind` | `container`, the only kind there is. |
 | `container` | `{ dockerfile, files, command }`. `dockerfile` is text of at most 64 KiB whose first instruction is `FROM`, after `ARG` lines and comments only. `files` are the files beside it, by a relative path that has no `..` segment, each with its text, at most 1 MiB together, `{}` for none. `command` is a list of non-empty texts, such as `["python", "main.py"]`, or left out for the image's own. |
-| `input`, `output` | The JSON Schema of the step's arguments and of its result, each an object (`"type": "object"`) that compiles. `{ "x-file": true }` is a [stored file](#storing-files): in `input`, an argument that takes one, and in `output`, a file the step stores. It marks only a property of the schema itself, such as `properties.video`; one inside another schema, such as in `allOf` or `items`, is refused. `input` may not declare `store`. |
+| `input`, `output` | The JSON Schema of the step's arguments and of its result, each an object (`"type": "object"`) that compiles. `{ "x-file": true }` is a [stored file](#storing-files): in `input`, an argument that takes one, and in `output`, a file the step stores. It marks only a property of the schema itself, such as `properties.video`; one inside another schema, such as in `allOf` or `items`, is refused. A file input's name is the name of the folder its container gets it in, so it is letters, digits, `_`, `.` and `-`, starting with a letter, a digit or `_`. `input` may not declare `store`. |
 | `error_prefix`, `errors` | The prefix of its error names, `Custom` by default, and the errors it fails with by name, each with what it means, such as `{ "Refused": "the renderer refused the invoice" }`: the step fails as `Invoice.Refused`. Each is a capital, then letters and digits; the prefix is not `States`. |
 | `version` | The version its last change made, which the save numbers. Read-only. |
 
@@ -620,7 +620,7 @@ curl -fsSL https://app.example.com/api/runners/install.sh | sh -s -- --token pbr
 3. registers the runner with the token, keeping its own token and its settings in `~/.config/protobase-runner/config.json`, readable by that user only;
 4. writes a systemd user unit, `protobase-runner.service`, running `protobase-runner run`, and enables and starts it with `systemctl --user`. To keep it running while the user is logged out, run `loginctl enable-linger <user>`, as the script says when it is needed.
 
-Its options: `--url` the app's address, by default the one that served it; `--api-path` the path of its system endpoints, by default the one it was served under; `--bin-dir` the folder of the executable; `--binary-url` another download of the executable, such as a `file://` one; `--service false` to start the runner yourself, `true` by default; and the runner's settings, which it passes on to `protobase-runner register --url <app> --api-path /api --token pbr_once_...`. That command, and `protobase-runner run`, are also how you install a runner by hand.
+Its options: `--url` the app's address, by default the one that served it, which is `https://`, as the runner's token travels on it, or `http://` only on the machine itself (`localhost`, `127.0.0.0/8` or `::1`); `--api-path` the path of its system endpoints, by default the one it was served under; `--bin-dir` the folder of the executable; `--binary-url` another download of the executable, such as a `file://` one; `--service false` to start the runner yourself, `true` by default; and the runner's settings, which it passes on to `protobase-runner register --url <app> --api-path /api --token pbr_once_...`. That command, and `protobase-runner run`, are also how you install a runner by hand.
 
 | Setting | Default | |
 | --- | --- | --- |
@@ -630,7 +630,7 @@ Its options: `--url` the app's address, by default the one that served it; `--ap
 | `--pids` | `256` | The processes a job's container may run. |
 | `--tmp-mb` | `256` | The size of a job's `/tmp`. |
 | `--work-dir` | `~/.cache/protobase-runner` | Where each job's and build's folder goes, deleted after it. |
-| `--engine` | `docker` when it works, else `podman` | Which one runs the containers. |
+| `--engine` | `docker` when it works, else `podman` | Which one runs the containers; it is the one checked for builds. |
 | `--build` | `true` when the engine builds | Whether it builds images, so it is sent `prepare` and takes jobs whose image it lacks. `true` or `false`. |
 | `--build-timeout-seconds` | `1800` | The longest a build may take. |
 
@@ -646,12 +646,12 @@ docker run --rm --name protobase-job-<id> --network none \
   --cap-drop ALL --security-opt no-new-privileges \
   --pids-limit 256 --memory 2048m --memory-swap 2048m --cpus 2 \
   --user 65532:65532 \
-  -v <job folder>/in:/protobase/in:ro -v <job folder>/out:/protobase/out \
+  -v <job folder>/in:/protobase/in:ro,z -v <job folder>/out:/protobase/out:z \
   -e PROTOBASE_INPUT=/protobase/in/input.json -e PROTOBASE_IN=/protobase/in -e PROTOBASE_OUT=/protobase/out \
   -e INPUT_<NAME> ... <image> <command>
 ```
 
-So the container has no network, a read-only root with a small `/tmp` that runs nothing, no capabilities and no way to gain any, user 65532 whatever its image says, limits on its processes, memory and CPUs, and of the machine only the job's two folders: its inputs, read-only, and its output folder. It never gets the engine's socket or the runner's environment. The runner sends its heartbeats throughout, sends its lines of output to the job's logs in batches, and kills it at the job's deadline, or once a heartbeat answers stop, completing nothing then. A line of output is at most 64 KiB, and a longer one is cut into lines; when the app takes them slower than the container writes them, at most 10 batches wait, and the oldest lines past them are dropped and counted in the next batch. A completion the app does not take is sent once more; one it takes neither time leaves the job to its lease, never failed in its place.
+So the container has no network, a read-only root with a small `/tmp` that runs nothing, no capabilities and no way to gain any, user 65532 whatever its image says, limits on its processes, memory and CPUs, and of the machine only the job's two folders: its inputs, read-only, and its output folder, both relabelled (`z`) so SELinux lets the container use them. It never gets the engine's socket or the runner's environment. The runner sends its heartbeats throughout, sends its lines of output to the job's logs in batches, and kills it at the job's deadline, or once a heartbeat answers stop, completing nothing then. A line of output is at most 64 KiB, and a longer one is cut into lines; when the app takes them slower than the container writes them, at most 10 batches wait, and the oldest lines past them are dropped and counted in the next batch. A completion the app does not take is sent once more; one it takes neither time leaves the job to its lease, never failed in its place.
 
 It deletes the job's folder after. What the container's user left there in folders of its own, which the runner's user may not remove, a container of the step's image removes with its `rm`, as that same user, hardened and limited as the job was, with only the output folder, named `protobase-clean-<id>`; it is killed and removed after 60 seconds, at the job's deadline or as the runner stops, and the runner says when it is, or when it fails, as in an image with no `rm`.
 

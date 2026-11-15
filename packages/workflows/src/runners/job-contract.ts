@@ -44,6 +44,12 @@ export const buildKind = 'build'
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
 /**
+ * The name a file input may have: the runner puts it in a folder of that name, `$PROTOBASE_IN/<input>/<file name>`, so
+ * it is letters, digits, `_`, `.` and `-`, starting with a letter, a digit or `_`.
+ */
+export const fileInputName = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/
+
+/**
  * The arguments a schema takes as files, by name: its top-level properties with `x-file: true`, which a runner gets as
  * files in its input folder and gives as files it uploads. A manifest marks a file nowhere else (`manifestProblems`).
  */

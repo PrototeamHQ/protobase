@@ -63,7 +63,14 @@ export const runLoop = async ({ app, engine, settings, identity, say, signal }: 
       running.add(tracked)
     } else if (order.order === 'prepare') {
       say(`prepare ${order.step}`)
-      await build(order.step, order.build)
+      // A build that cannot even start, as on a full disk, is said and waited out; the loop goes on claiming.
+      try {
+        await build(order.step, order.build)
+      } catch (error) {
+        failures++
+        say(`prepare ${order.step} failed, claiming again after a pause: ${error instanceof Error ? error.message : String(error)}`)
+        await pause(backoffMs(failures), signal)
+      }
     }
   }
   await Promise.allSettled(running)

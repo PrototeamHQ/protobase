@@ -31,7 +31,8 @@ export const containerPaths = { input: '/protobase/in/input.json', in: '/protoba
  * The command line of a job's container, hardened: a fresh container, removed after it, named so the runner can kill
  * it; no network; a read-only root with a small `/tmp` that runs nothing; every capability dropped, no new privileges,
  * an unprivileged user whatever the image says; process, memory (no swap beyond it) and CPU limits; only the job's
- * input folder, read-only, and its output folder; and the contract's variables. The values of `env` stay off the command
+ * input folder, read-only, and its output folder, each relabelled (`z`) so SELinux lets the container use them; and the
+ * contract's variables. The values of `env` stay off the command
  * line: each is named, and Docker and Podman take it from the runner's environment.
  */
 export const runArgs = ({ name, image, command, work, settings, env }: { name: string; image: string; command?: readonly string[]; work: string; settings: Pick<Settings, 'cpus' | 'memory_mb' | 'pids' | 'tmp_mb'>; env: readonly string[] }) => [
@@ -41,7 +42,7 @@ export const runArgs = ({ name, image, command, work, settings, env }: { name: s
   '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
   '--pids-limit', String(settings.pids), '--memory', `${settings.memory_mb}m`, '--memory-swap', `${settings.memory_mb}m`, '--cpus', String(settings.cpus),
   '--user', '65532:65532',
-  '-v', `${work}/in:${containerPaths.in}:ro`, '-v', `${work}/out:${containerPaths.out}`,
+  '-v', `${work}/in:${containerPaths.in}:ro,z`, '-v', `${work}/out:${containerPaths.out}:z`,
   '-e', `PROTOBASE_INPUT=${containerPaths.input}`, '-e', `PROTOBASE_IN=${containerPaths.in}`, '-e', `PROTOBASE_OUT=${containerPaths.out}`,
   ...env.flatMap((variable) => ['-e', variable]),
   image,
@@ -59,7 +60,7 @@ export const cleanArgs = ({ name, image, out, entries, settings }: { name: strin
   '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
   '--pids-limit', String(settings.pids), '--memory', `${settings.memory_mb}m`, '--memory-swap', `${settings.memory_mb}m`, '--cpus', String(settings.cpus),
   '--user', '65532:65532',
-  '-v', `${out}:${containerPaths.out}`,
+  '-v', `${out}:${containerPaths.out}:z`,
   '--entrypoint', 'rm',
   image,
   '-rf', '--', ...entries.map((entry) => `${containerPaths.out}/${entry}`),
@@ -96,10 +97,11 @@ export const engine = (exec: Exec, name: EngineName) => ({
 export type Engine = ReturnType<typeof engine>
 
 /**
- * Which engine works here for the user, Docker first, and whether it builds images; undefined when neither works.
+ * Which engine works here for the user, `chosen` or else Docker first, and whether that one builds images; undefined
+ * when none works.
  */
-export const findEngine = async (exec: Exec): Promise<{ engine: EngineName; builds: boolean } | undefined> => {
-  for (const name of ['docker', 'podman'] as const) {
+export const findEngine = async (exec: Exec, chosen?: EngineName): Promise<{ engine: EngineName; builds: boolean } | undefined> => {
+  for (const name of chosen ? [chosen] : (['docker', 'podman'] as const)) {
     if ((await exec(name, ['version'])).code !== 0) continue
     return { engine: name, builds: (await exec(name, ['build', '--help'])).code === 0 }
   }

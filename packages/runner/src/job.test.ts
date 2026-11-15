@@ -54,7 +54,8 @@ describe("a job's container", () => {
         '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
         '--pids-limit', '256', '--memory', '2048m', '--memory-swap', '2048m', '--cpus', '2',
         '--user', '65532:65532',
-        '-v', `${work}/in:/protobase/in:ro`, '-v', `${work}/out:/protobase/out`,
+        // Relabelled, so SELinux lets the container use them
+        '-v', `${work}/in:/protobase/in:ro,z`, '-v', `${work}/out:/protobase/out:z`,
         '-e', 'PROTOBASE_INPUT=/protobase/in/input.json', '-e', 'PROTOBASE_IN=/protobase/in', '-e', 'PROTOBASE_OUT=/protobase/out',
         '-e', 'INPUT_HEIGHT', '-e', 'INPUT_CODEC',
         tag, 'convert',
@@ -266,7 +267,10 @@ describe("a job's end", () => {
       await chmod(path.join(written, 'locked'), 0o500)
       return { code: 1 }
     })
-    await runJob(input, convertJob({ deadline: new Date(Date.now() + 400).toISOString() }))
+    // A deadline the job itself meets, however slow the machine, and the cleaner then does not
+    const deadline = Date.now() + 1500
+    await runJob(input, convertJob({ deadline: new Date(deadline).toISOString() }))
+    expect(Date.now()).toBeGreaterThanOrEqual(deadline)
     const clean = ran.find((one) => one.args.includes('--entrypoint'))!
     const out = clean.args[clean.args.indexOf('-v') + 1]!.split(':')[0]!
     expect(clean.args).toEqual([
@@ -275,7 +279,7 @@ describe("a job's end", () => {
       '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
       '--pids-limit', '256', '--memory', '2048m', '--memory-swap', '2048m', '--cpus', '2',
       '--user', '65532:65532',
-      '-v', `${out}:/protobase/out`,
+      '-v', `${out}:/protobase/out:z`,
       '--entrypoint', 'rm', tag, '-rf', '--', '/protobase/out/locked',
     ])
     // At the job's deadline the hung cleaner is killed and removed by its name, and that is said
@@ -336,5 +340,41 @@ describe("a job's log", () => {
     expect(sent[10]![0]).toMatch(/^\d+ lines of output dropped, as the app took them too slowly$/)
     // The newest lines are the ones kept
     expect(all.at(-1)).toBe('line 4999')
+  })
+})
+
+describe("a build's log", () => {
+  it('keeps only its end, however much the build writes', async () => {
+    const { input, app } = await setUp((one, options) => {
+      if (one.args[0] === 'build') for (let line = 0; line < 200_000; line++) options.line?.(`y ${line}`, 'stdout')
+      return one.args[0] === 'image' ? { code: 1 } : { code: one.args[0] === 'build' ? 1 : 0 }
+    })
+    await runJob(input, convertJob())
+    const failed = app.calls.filter((call) => call.call === 'build').at(-1)!.body as { status: string; log: string }
+    expect(failed.status).toBe('failed')
+    expect(failed.log).toHaveLength(10_000)
+    expect(failed.log.endsWith('y 199999')).toBe(true)
+  })
+})
+
+describe("a job's cleanup as the runner stops", () => {
+  it('kills and removes a cleaner still running once the runner stops', async () => {
+    const stopping = new AbortController()
+    let finish: (() => void) | undefined
+    const { input, ran } = await setUp(async (one) => {
+      if (one.args[0] === 'kill' && one.args[1]!.startsWith('protobase-clean-')) finish?.()
+      if (one.args[0] !== 'run') return {}
+      if (one.args.includes('--entrypoint')) {
+        setTimeout(() => stopping.abort(), 10)
+        return new Promise((resolve) => (finish = () => resolve({ code: 137 })))
+      }
+      const { out } = mounts(one.args)
+      await mkdir(path.join(out, 'locked'))
+      await writeFile(path.join(out, 'locked', 'part.bin'), 'x')
+      await chmod(path.join(out, 'locked'), 0o500)
+      return { code: 1 }
+    })
+    await runJob(input, convertJob(), stopping.signal)
+    expect(ran.filter((one) => one.args[0] !== 'run' && one.args.at(-1)!.startsWith('protobase-clean-')).map((one) => one.args[0])).toEqual(['kill', 'rm'])
   })
 })

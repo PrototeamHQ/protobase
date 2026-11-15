@@ -29,8 +29,8 @@ export const fakeExec = (answer: (ran: Ran, options: ExecOptions) => Promise<Par
 /** The host folders a container's command line mounts, its job folder's `in` and `out`. */
 export const mounts = (args: readonly string[]) => {
   const volumes = args.flatMap((arg, at) => (args[at - 1] === '-v' ? [arg] : []))
-  const into = volumes.find((volume) => volume.endsWith(':/protobase/in:ro'))!.split(':')[0]!
-  const out = volumes.find((volume) => volume.endsWith(':/protobase/out'))!.split(':')[0]!
+  const into = volumes.find((volume) => volume.endsWith(':/protobase/in:ro,z'))!.split(':')[0]!
+  const out = volumes.find((volume) => volume.endsWith(':/protobase/out:z'))!.split(':')[0]!
   return { into, out, work: path.dirname(into) }
 }
 

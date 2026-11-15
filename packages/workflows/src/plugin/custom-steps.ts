@@ -3,6 +3,7 @@ import type { CheckOptions } from '../definition/check-definition'
 import type { JsonSchema } from './context'
 import type { TypeEntry } from './type-list'
 import { customPlugin, customStepOf } from './custom-step-id'
+import { fileInputName, fileProperties } from '../runners/job-contract'
 
 export { customPlugin, customStepOf }
 
@@ -112,6 +113,12 @@ const schemaProblems = (field: 'input' | 'output', schema: unknown): ManifestPro
     if (mark.value !== true) problems.push({ field: at, message: 'is true for a stored file, or left out' })
     // The runner gives and takes files by the schema's own properties alone, so a mark anywhere else would be lost.
     else if (mark.path.length !== 2 || mark.path[0] !== 'properties') problems.push({ field: at, message: `is taken only on a property of ${field} itself, such as ${field}.properties.video, not inside another schema` })
+  }
+  // The runner gives each input file in a folder named after it, so its name must be one a folder can have.
+  if (field === 'input') {
+    for (const name of fileProperties(schema).filter((one) => !fileInputName.test(one))) {
+      problems.push({ field: `input.properties.${name}`, message: 'is a file, which the container gets in a folder of its name: use letters, digits, "_", "." and "-", starting with a letter, a digit or "_"' })
+    }
   }
   if (field === 'input' && isObject(schema.properties) && Object.hasOwn(schema.properties, 'store')) {
     problems.push({ field: 'input.properties.store', message: 'is the argument Protobase gives every custom step, where it stores the files it gives; name yours otherwise' })

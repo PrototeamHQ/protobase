@@ -1,4 +1,4 @@
-import { stat } from 'node:fs/promises'
+import { stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Fetch } from './app'
@@ -96,6 +96,35 @@ describe("the runner's command line", () => {
     await expect(cli(['run'], { exec: fakeExec().exec, env, say: () => {}, fetch })).rejects.toThrow(/revoked or deleted/)
     expect(urls).toEqual(['https://app.example.com/backend/runners/v1/register', 'https://app.example.com/backend/runners/v1/claim'])
     await expect(cli(['register', '--url', 'https://app.example.com', '--api-path', 'backend', '--token', 'pbr_once_x'], { exec: fakeExec().exec, env, say: () => {}, fetch })).rejects.toThrow('--api-path is a path such as /api')
+  })
+
+  it('takes an app address on https, or on http only on this machine, as its token travels on it', async () => {
+    const { settings, remove } = await testSettings()
+    removals.push(remove)
+    const env = { XDG_CONFIG_HOME: path.join(settings.work_dir, 'config') }
+    const fetch: Fetch = async () => Response.json({ runner: { id: 'r1', name: 'Builder', labels: [], tenant: null }, token: 'pbr_own' })
+    const register = (url: string) => cli(['register', '--url', url, '--token', 'pbr_once_x'], { exec: fakeExec().exec, env, say: () => {}, fetch })
+    for (const url of ['https://app.example.com', 'http://localhost:3000', 'http://127.0.0.1:3000', 'http://127.8.9.10', 'http://[::1]:3000']) await expect(register(url)).resolves.toMatch(/^Registered/)
+    for (const url of ['http://app.example.com', 'http://10.0.0.5:3000', 'http://128.0.0.1', 'http://localhost.example.com']) await expect(register(url)).rejects.toThrow(/--url is https:\/\/: the runner's token travels on it, so http is only for this machine itself \(localhost, 127\.0\.0\.0\/8 or ::1\)/)
+    await expect(register('ftp://app.example.com')).rejects.toThrow('--url is the app\'s address')
+    // A config written by hand with such an address is refused before any call
+    const file = configPath(env)
+    await writeFile(file, JSON.stringify({ ...(await readConfig(file)), url: 'http://app.example.com' }))
+    await expect(cli(['run'], { exec: fakeExec().exec, env, say: () => {}, fetch })).rejects.toThrow(/http is only for this machine itself .*; register again$/)
+  })
+
+  it('probes the engine its settings name for builds, not the first that works', async () => {
+    const { settings, remove } = await testSettings()
+    removals.push(remove)
+    const env = { XDG_CONFIG_HOME: path.join(settings.work_dir, 'config') }
+    const fetch: Fetch = async (_, init) => Response.json({ runner: { id: 'r1', name: 'Builder', labels: [], tenant: null }, token: 'pbr_own', kinds: JSON.parse(String(init.body)).kinds })
+    // Docker builds here, Podman does not
+    const { exec, ran } = fakeExec((one) => (one.command === 'podman' && one.args[0] === 'build' ? { code: 125 } : {}))
+    await cli(['register', '--url', 'https://app.example.com', '--token', 'pbr_once_x', '--engine', 'podman'], { exec, env, say: () => {}, fetch })
+    expect((await readConfig(configPath(env))).settings).toMatchObject({ engine: 'podman', build: false })
+    expect(ran.map((one) => one.command)).toEqual(['podman', 'podman'])
+    await expect(cli(['register', '--url', 'https://app.example.com', '--token', 'pbr_once_x', '--engine', 'podman'], { exec: fakeExec((one) => (one.command === 'podman' ? { code: 127 } : {})).exec, env, say: () => {}, fetch })).rejects.toThrow('podman does not work for this user')
+    expect(await findEngine(fakeExec().exec, 'podman')).toEqual({ engine: 'podman', builds: true })
   })
 
   it('refuses an unknown option, a missing token and running unregistered', async () => {
