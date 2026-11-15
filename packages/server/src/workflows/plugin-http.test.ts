@@ -117,6 +117,7 @@ describe('the app:http step, run through the plugin interface', () => {
     expect(await failure(local()({ url: 'ftp:/nowhere' }, context()))).toEqual(['Http.AddressRefused', 'ftp: URLs are not requested; use http or https'])
     expect(await failure(local()({ url: base, method: 'HEAD' }, context()))).toEqual(['Http.InvalidArguments', 'method must be one of GET, POST, PUT, PATCH, DELETE'])
     expect(await failure(local()({ url: base, response: 'xml' }, context()))).toEqual(['Http.InvalidArguments', 'response must be equal to one of the allowed values'])
+    expect(await failure(local()({ url: base, store: { configuration: 'files' }, body_schema: { type: 'string' } }, context()))).toEqual(['Http.InvalidArguments', 'store keeps the body as a stored file, which no body_schema describes: give none with it'])
   })
 
   it('fails when no answer comes as Http.Network', async () => {

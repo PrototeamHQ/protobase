@@ -24,6 +24,7 @@ const storeOf = (input: Record<string, unknown>) => {
   if (typeof configuration !== 'string') throw invalid('store.configuration is the name of a storage configuration')
   if (path !== undefined && typeof path !== 'string') throw invalid('store.path is text')
   if (input.response !== undefined) throw invalid('store keeps the body as a stored file: give no response with it')
+  if (input.body_schema !== undefined) throw invalid('store keeps the body as a stored file, which no body_schema describes: give none with it')
   return { configuration, ...(path !== undefined && { path }) }
 }
 
@@ -179,7 +180,7 @@ export const httpSteps: Record<string, StepType> = {
         store: {
           type: 'object',
           required: ['configuration'],
-          description: "streams the answer's body, of any size, into a storage configuration; the body is then the stored file",
+          description: "streams the answer's body, of any size, into a storage configuration; the body is then the stored file, with no response or body_schema",
           properties: { configuration: { type: 'string', description: 'the name of a storage configuration' }, path: { type: 'string', description: 'where in it; default a path of this step in this run' } },
         },
       },
