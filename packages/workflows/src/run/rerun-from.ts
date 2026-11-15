@@ -86,8 +86,8 @@ const dataRerunFrom = (machine: Machine, ran: Machine, steps: readonly StepRecor
     if (mine.some((step, index) => step.seq !== index)) return { problem: `The run's trace does not hold every step of state "${name}"` }
     let position = startPosition(alone(name, own), null, clock)
     for (const step of mine) position = advance(position, { ...step, assigned: keptAssigned(machine, ran, { ...step, scope: '' }) ?? step.assigned ?? {} })
-    // A state that failed, or did not end, runs again
-    if (position.kind !== 'ended') continue
+    // A state that failed, did not end, or ended in a Wait still to run out at the clock runs again
+    if (position.kind !== 'ended' || (position.resumeAt && position.resumeAt > clock)) continue
     checkpoints.push({ ...checkpointOf(position, mine.at(-1)!, clock), after: -1 })
     kept.push(...latest.filter((step) => step.scope === scope || step.scope.startsWith(`${scope}/`)))
   }

@@ -224,6 +224,14 @@ describe('a re-run from a step', () => {
     expect(rerunFrom(flow.stateMachine, flow.stateMachine, steps, 'Store', new Date())).toEqual({ problem: 'The run\'s trace does not hold every step before state "Store"' })
   })
 
+  it('runs again a Wait of data order that had not run out, rather than keeping its old time', () => {
+    const machine = { States: { A: { Type: 'Pass' }, W: { Type: 'Wait', Seconds: 120 } } } as never
+    const at = new Date('2026-11-04T12:00:00Z')
+    const step = (scope: string, state: string, type: string, resumeAt?: Date) => ({ scope, seq: 0, state, type, status: 'succeeded' as const, attempt: 1, next: null, logs: [], startedAt: at, finishedAt: at, recorded: false, ...(resumeAt && { resumeAt }) })
+    const found = rerunFrom(machine, machine, [step('A', 'A', 'Pass'), step('W', 'W', 'Wait', new Date(at.getTime() + 60_000))], 'A', at, 'data')
+    expect(found).toEqual({ checkpoints: [], kept: [] })
+  })
+
   it("starts at the state with the kept steps' variables and output, at the re-run's time, from its first try", () => {
     const steps = [
       traced({ seq: 0, state: 'Fetch', next: 'Each', output: { id: 7 }, assigned: { id: 7 }, recorded: true }),

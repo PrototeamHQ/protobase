@@ -34,13 +34,14 @@ type Settled = { name: string; outcome: ScopeOutcome }
 export const runDataflow = async (context: SegmentContext, machine: Machine, where: { scope: string; logical: string }, input: unknown, outer: Record<string, unknown>, clock: Date): Promise<ScopeOutcome> => {
   const dependencies = machineDependencies(machine)
   const names = Object.keys(machine.States)
-  const statuses: Record<string, StepStatus> = {}
+  // By name with no prototype, so a state named as an object's own member, such as toString, is no status of its own
+  const statuses: Record<string, StepStatus> = Object.create(null)
   const variables: Record<string, unknown> = {}
   const outputs = new Map<string, unknown>()
   // The states see each other's statuses as they end, and those of the states around them, which ended before they
   // started. The context inherits the segment's rather than copying it, so a failure around this machine stops it too;
   // its own failure stops its states, and the machines inside them, before their next step.
-  const steps: Record<string, unknown> = { ...context.stateContext.Steps }
+  const steps: Record<string, unknown> = Object.assign(Object.create(null), context.stateContext.Steps)
   const local: SegmentContext = Object.create(context, { stateContext: { value: { ...context.stateContext, Steps: steps }, enumerable: true } })
   const stop = () => Object.defineProperty(local, 'deadline', { value: 0, writable: true, enumerable: true })
   const running = new Map<string, Promise<Settled>>()
@@ -98,7 +99,8 @@ export const runDataflow = async (context: SegmentContext, machine: Machine, whe
       for (const name of names) {
         if (statuses[name] || running.has(name) || held.has(name) || !ready(name) || running.size >= limits.mapConcurrency) continue
         try {
-          if (await runs(name, dependencies.get(name)!)) start(name)
+          // A state the run took up from a checkpoint of its own already passed its Condition, which may have changed since
+          if (context.saved.has(scopeOf(where.scope, name)) || (await runs(name, dependencies.get(name)!))) start(name)
           else skipped = true
         } catch (error) {
           if (!(error instanceof StepError)) throw error

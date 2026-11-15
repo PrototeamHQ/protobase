@@ -233,4 +233,29 @@ describe('dataflow order', () => {
     expect(port.run('recover').status).toBe('succeeded')
     expect(ran).toEqual(['1'])
   })
+
+  it('runs a state named as an object member, such as toString', async () => {
+    const port = memoryRunner({ note: async () => 'noted' })
+    await port.start('named', flow({ toString: { Type: 'Task', Resource: 'note' } }), {})
+    await port.drain()
+    expect(port.run('named')).toMatchObject({ status: 'succeeded', output: 'noted' })
+  })
+
+  it('keeps a state a re-run from another kept, though its Condition no longer holds', async () => {
+    const calls: string[] = []
+    const port = memoryRunner({ get: async (args) => (calls.push((args as { name: string }).name), (args as { name: string }).name) })
+    const machine = (condition: string) =>
+      flow({
+        A: { Type: 'Task', Resource: 'get', Arguments: { name: 'a' }, Assign: { a: '{% $states.result %}' } },
+        B: { Type: 'Task', Resource: 'get', Arguments: { name: 'b' }, Condition: condition, Assign: { b: '{% $states.result %}' } },
+        Both: { Type: 'Pass', Output: '{% $a & "+" & $b %}' },
+      })
+    await port.start('first', machine('{% true %}'), {})
+    await port.drain()
+    calls.length = 0
+    await port.rerun('again', 'first', machine('{% false %}'), 'A')
+    await port.drain()
+    expect(port.run('again')).toMatchObject({ status: 'succeeded', output: 'a+b' })
+    expect(calls).toEqual(['a'])
+  })
 })
