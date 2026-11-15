@@ -77,11 +77,11 @@ describe('renderText', () => {
     expect(renderText(tree, { record: { id: 1 }, records })).toBe('Roof\n\nWalls')
   })
 
-  it('counts the records an Action in a list runs on, and reads one inside its RecordsIterator once per record', () => {
+  it('reads an Action in a list as its label without a count, as the text cannot tell which records it applies to, and one inside its RecordsIterator once per record', () => {
     const Approve = () => Action({ name: 'approve', label: 'Approve' })
     const tree = ReferenceManyField({ reference: 'tasks', target: 'project_id', children: [Approve(), RecordsIterator({ children: [Field({ source: 'title', label: false }), Approve()] })] })
     const records = () => [{ title: 'Roof' }, { title: 'Walls' }, { title: 'Door' }]
-    expect(renderText(tree, { record: { id: 1 }, records })).toBe('Approve (3)\n\nRoof\n\nApprove\n\nWalls\n\nApprove\n\nDoor\n\nApprove')
+    expect(renderText(tree, { record: { id: 1 }, records })).toBe('Approve\n\nRoof\n\nApprove\n\nWalls\n\nApprove\n\nDoor\n\nApprove')
     expect(renderText(ReferenceManyField({ reference: 'tasks', target: 'project_id', children: Action({ name: 'archive', resource: 'projects', label: 'Archive' }) }), { record: { id: 1 }, records })).toBe('Archive')
   })
 

@@ -17,7 +17,8 @@ import { resolveScopePath } from './scope-lookup'
 import { dataProps, type LayoutNode, type LayoutValue } from './node'
 import type { PageModel } from './page'
 import { columnName, type TableColumn } from './table-columns'
-import { innermost, mapTree, type Scope } from './walk'
+import { innermost, label, mapTree, type Scope } from './walk'
+import type { ReadPlan } from './read-plan'
 
 export type CallerAccess = {
   /** The resources the caller can do anything with, as restricted models: hidden fields absent, `readOnly` unless writable. */
@@ -64,7 +65,7 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: Rea
   if (own !== undefined && model && (!filterFits(model, text(node.props.filter)) || !sortFits(model, text(node.props.sort)))) return null
   // A `{{path}}` the caller cannot read leaves the element out, as a field they cannot read does
   if (pathFindings(node, scope, { models, params, chosen }).problems.length > 0) return null
-  const readable = (name: string) => innermost(scope) !== undefined && resolveScopePath(name, { models, scope, params, mode: 'relations' }).ok
+  const readable = (name: string) => (innermost(scope) !== undefined || scope.root !== undefined) && resolveScopePath(name, { models, scope, params, mode: 'relations' }).ok
   const conditionFits = (when: unknown) => typeof when === 'string' && scopedConditionReadable(when, { models, scope, params })
 
   if (inlineFieldTypes.has(node.type)) return readable(String(node.props.source)) ? node : null
@@ -165,10 +166,20 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: Rea
  */
 export const prunePage = (page: PageModel, roles: readonly string[], access: CallerAccess): PageModel | undefined => {
   if (page.roles && !page.roles.some((role) => roles.includes(role))) return undefined
-  const params = pageParams(page.tree)
-  const chosen = chosenParams(page.tree)
-  const tree = mapTree(page.tree, (node, { scope }) => prune(node, scope, access, params, chosen))
+  const pruned = pruneTree(page.tree, access)
+  return pruned ? { ...page, ...pruned } : undefined
+}
+
+/**
+ * A tree as one caller may see it, as `prunePage` leaves it, inside the page's own record of resource `root` on a
+ * record page, with the read plan of what is left; `undefined` when nothing is.
+ */
+export const pruneTree = (tree: LayoutNode, access: CallerAccess, root?: string): { tree: LayoutNode; reads: ReadPlan } | undefined => {
+  const params = pageParams(tree)
+  const chosen = chosenParams(tree)
+  const scope: Scope = { stack: [], ...(root !== undefined && { root }) }
+  const kept = mapTree(tree, (node, { scope }) => prune(node, scope, access, params, chosen), { path: label(tree), scope })
   // Planned from what is left, so no read names a resource, field or block the caller cannot use; the page check
   // already reported what keeps the whole page from being planned
-  return tree ? { ...page, tree, reads: compileReadPlan(tree, { models: access.models }).plan } : undefined
+  return kept ? { tree: kept, reads: compileReadPlan(kept, { models: access.models, ...(root !== undefined && { root }) }).plan } : undefined
 }

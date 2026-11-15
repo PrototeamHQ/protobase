@@ -16,6 +16,7 @@ import { seesRuntime } from './runtime/runtime-settings'
 import { sourcesFor, type SourceRef } from './sources/source-settings'
 import type { Session } from './types'
 import { prunePageDestinations, pruneView } from './view-access'
+import { withRecordBlocks } from './view-blocks'
 
 export type ResourcePermissions = {
   read: boolean
@@ -117,6 +118,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       functions: (name: string) => deps.functionGates?.[name]?.(session) ?? false,
     }
     const pages = deps.pages.flatMap((page) => prunePage(page, session.user.roles, callerAccess) ?? [])
+    const withBlocks = views.map((view) => withRecordBlocks(view, callerAccess))
     const pageNames = new Set(pages.map((page) => page.name))
     // Only someone signed in has an account to show
     const account = deps.account && !session.anonymous ? prunePage(deps.account, session.user.roles, callerAccess) : undefined
@@ -131,7 +133,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       protobaseVersion,
       ...(appIcon && { appIcon }),
       resources: visible.map(metaModel),
-      views: views.map((view) => prunePageDestinations(view, pageNames)),
+      views: withBlocks.map((view) => prunePageDestinations(view, pageNames)),
       pages,
       ...(account && { account }),
       permissions: Object.fromEntries(visible.map(({ entry, resolved, full }) => [entry.name, {

@@ -7,6 +7,7 @@ import { useAdminMeta } from '../meta-gate'
 import { blockQueries } from './block-queries'
 import { usePageParamsGiven, usePageParamValues } from './page-params'
 import { useProjectUi } from './project-ui'
+import { rootRecordOf, useScopeStack } from './record-scope'
 
 /**
  * Starts the queries of the blocks of `plan` that read by themselves as the page opens, beside its planned reads; each
@@ -20,7 +21,8 @@ export const StartBlockQueries = ({ tree, plan }: { tree: LayoutNode; plan: Read
   const xs = useIsXs()
   const params = usePageParamValues()
   const given = usePageParamsGiven()
-  const started = useMemo(() => blockQueries({ client, queryClient, resources, views, fieldTypes, xs, params, given }, tree, plan), [client, queryClient, resources, views, fieldTypes, xs, params, given, tree, plan])
+  const root = rootRecordOf(useScopeStack())
+  const started = useMemo(() => blockQueries({ client, queryClient, resources, views, fieldTypes, xs, params, given, ...(root && { root }) }, tree, plan), [client, queryClient, resources, views, fieldTypes, xs, params, given, root, tree, plan])
   useEffect(() => {
     for (const query of started) void query.start(queryClient)
   }, [started, queryClient])

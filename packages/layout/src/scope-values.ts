@@ -68,7 +68,7 @@ const fillValues = (value: LayoutValue, lookup: PathLookup): LayoutValue => {
 
 /**
  * The element with every `{{path}}` in its text props (`title`, `description`, `empty`, `label`, `recordKey`), its
- * filters and conditions (`filter`, `when`, `working`) and its `values` replaced by the values where `scope` is. A
+ * filters and conditions (`filter`, `when`, `working`, a thread's `calls.filter`) and its `values` replaced by the values where `scope` is. A
  * missing value becomes empty, as in Mustache. Custom components and other props are left as they are.
  */
 export const fillProps = (node: LayoutNode, scope: ValueScope): LayoutNode => {
@@ -80,6 +80,8 @@ export const fillProps = (node: LayoutNode, scope: ValueScope): LayoutNode => {
   for (const name of filterProps) if (typeof props[name] === 'string') props[name] = fillFilter(props[name], lookup)
   if (isObject(props.filter)) props.filter = fillFilterObject(props.filter as Record<string, LayoutValue>, lookup)
   if (props.values !== undefined) props.values = fillValues(props.values, lookup)
+  // A thread's tool calls are read by a filter of their own
+  if (isObject(props.calls) && typeof props.calls.filter === 'string') props.calls = { ...props.calls, filter: fillFilter(props.calls.filter, lookup) }
   return { ...node, props }
 }
 

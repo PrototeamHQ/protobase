@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { Composer, Page, RecordCard, Thread } from './blocks'
 import { pageProblems } from './check-page'
+import { compileReadPlan } from './compile-read-plan'
 import { structureProblems } from './check-structure'
 import type { LayoutNode } from './node'
+import { SelectInput } from './page-params'
 import { models } from './testing/models'
 
 const input = { models, actions: () => new Set<string>() }
@@ -20,8 +22,15 @@ describe('a conversation', () => {
     expect(problems(...tree.children.filter((child) => typeof child !== 'string'))).toEqual([])
   })
 
-  it('needs the fields that give the sender, time and text', () => {
-    expect(structureProblems(Page({ title: 'Chat', children: [Thread({ resource: 'messages' } as never)] }))).toEqual([`${thread}: "sender" is required`, `${thread}: "time" is required`, `${thread}: "text" is required`])
+  it('needs the fields that give the time and text', () => {
+    expect(structureProblems(Page({ title: 'Chat', children: [Thread({ resource: 'messages' } as never)] }))).toEqual([`${thread}: "time" is required`, `${thread}: "text" is required`])
+  })
+
+  it("takes one author's thread without a sender, reading only its time and text", () => {
+    const log = Thread({ resource: 'messages', filter: "room = 'general'", time: 'sentAt', text: 'body' })
+    expect(structureProblems(Page({ title: 'Log', children: [log] }))).toEqual([])
+    expect(problems(log)).toEqual([])
+    expect(compileReadPlan(Page({ title: 'Log', children: [log] }), { models }).plan.reads[0]!.fields).toEqual(['body', 'id', 'sentAt'])
   })
 
   it('reads at most one page of the API at once', () => {
@@ -60,6 +69,16 @@ describe('a conversation', () => {
       `${thread}: calls: error: "calledAt" is timestamp; a tool call's error is a text field`,
     ])
     expect(withCalls({ filter: 'nope = 1' })).toEqual([expect.stringMatching(/Thread.*: calls: filter: .*nope/)])
+  })
+
+  it('checks a tool calls filter fed by a SelectInput once per choice, as a block filter is', () => {
+    const windows = (...ids: string[]) => SelectInput({ source: 'window', choices: ids.map((id) => ({ id, name: id })), defaultValue: ids[0] })
+    const calls = { resource: 'toolCalls', filter: 'calledAt >= now() - {{@params.window}}', name: 'tool', time: 'calledAt', status: 'state' }
+    const recent = Thread({ resource: 'messages', time: 'sentAt', text: 'body', calls })
+    expect(problems(windows('7d', '30d'), recent)).toEqual([])
+    const found = problems(windows('7d', '7x'), recent)
+    expect(found).toHaveLength(1)
+    expect(found[0]).toMatch(/^<Page> › <Thread resource="messages">: calls: filter with window = "7x": /)
   })
 
   it('takes tool calls only as an object naming their resource, name, time and status', () => {

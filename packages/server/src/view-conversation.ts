@@ -12,14 +12,14 @@ const ownerErrors = (item: { resource: string }, resource: string, models: Recor
 
 // A sensitive value never leaves the server, so a message would show without it
 const sensitiveErrors = (item: ThreadSectionModel, model: ResourceModel) =>
-  [item.sender, item.time, item.text, ...(item.status === undefined ? [] : [item.status])].flatMap((name) => (model.fields[name]?.sensitive ? [`"${name}" on ${model.name} is sensitive`] : []))
+  [...(item.sender === undefined ? [] : [item.sender]), item.time, item.text, ...(item.status === undefined ? [] : [item.status])].flatMap((name) => (model.fields[name]?.sensitive ? [`"${name}" on ${model.name} is sensitive`] : []))
 
 // A message shows its sender's name and its text, so the sender is a relation or a text field and the text a text field
 const typeErrors = (item: ThreadSectionModel, model: ResourceModel) => {
-  const sender = model.fields[item.sender]!
+  const sender = item.sender === undefined ? undefined : model.fields[item.sender]!
   const body = model.fields[item.text]!
   return [
-    ...(sender.relation || sender.type === 'text' ? [] : [`sender: "${item.sender}" is ${sender.type}; a sender is a relation or a text field`]),
+    ...(!sender || sender.relation || sender.type === 'text' ? [] : [`sender: "${item.sender}" is ${sender.type}; a sender is a relation or a text field`]),
     ...(body.type === 'text' ? [] : [`text: "${item.text}" is ${body.type}; a message is a text field`]),
   ]
 }

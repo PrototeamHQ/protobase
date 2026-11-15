@@ -1,6 +1,6 @@
 import { fallbackItemName, fitsFallback } from './custom-fallback'
 import { markFieldRefs } from './field-ref'
-import type { CardPhotosModel, ChartGranularity, ChartRange, RecordChartRange, RecordTrendModel, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, GroupItemModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen, TabItemModel, ThreadSectionModel } from './model'
+import type { BlockElementModel, BlocksSectionModel, CardPhotosModel, ChartGranularity, ChartRange, RecordChartRange, RecordTrendModel, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, GroupItemModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen, TabItemModel, ThreadSectionModel } from './model'
 import type { Ref } from './refs'
 import { customComponent, type ComponentRef, type ViewProps } from './view-displays'
 
@@ -84,7 +84,7 @@ export const layout = {
   },
   /**
    * A tab of the record page holding main-column items: sections, groups, related tables, custom components, maps,
-   * charts, trends, galleries, history, comments and conversations. A view's tabs stand together and show as one strip, the first tab open unless the
+   * charts, trends, galleries, history, comments, conversations and block trees. A view's tabs stand together and show as one strip, the first tab open unless the
    * address names another; items before and after them show on every tab. Throws on a sidebar item or another tab. See
    * [Tabs](docs/website/src/content/docs/reference/ui-config.mdx#tabs).
    */
@@ -191,6 +191,17 @@ export const layout = {
    * [Conversations](docs/website/src/content/docs/reference/ui-config.mdx#conversations).
    */
   composer: (o: Omit<ComposerSectionModel, 'kind'>): LayoutItemModel => ({ kind: 'composer', ...structuredClone(o) }) satisfies ComposerSectionModel,
+  /**
+   * A tree of layout blocks, written in JSX as a composed page's, inside the page's own record: `@root` in a path, and the
+   * record a bare name reaches last, so `{{@root.id}}` or `{{id}}` reads its key from the address and `{{@root.owner_id}}`
+   * a field read beside the tree's reads, never before them. The server checks it against the resources when it starts
+   * and plans its reads as a page's. Its root is any element but a `Page`; it sets no page parameters or tabs of its own.
+   * See [Record pages](docs/website/src/content/docs/reference/layouts.md#record-pages).
+   */
+  blocks: (tree: BlockElementModel, o: { when?: ShowWhen } = {}): LayoutItemModel => {
+    if (typeof tree !== 'object' || tree === null || typeof tree.type !== 'string' || !Array.isArray(tree.children)) throw new Error('l.blocks takes one layout element, such as <Thread ... />')
+    return { kind: 'blocks', tree: structuredClone(tree), ...(o.when !== undefined && { when: o.when }) } satisfies BlocksSectionModel
+  },
   /**
    * A component of the project, registered in `protobase.ui.tsx` under its name, drawn where it is listed: in the main
    * column, or in the sidebar with `sidebar: true`. The record page stays around it, with its title, breadcrumbs,
