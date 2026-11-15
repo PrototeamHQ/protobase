@@ -30,6 +30,7 @@ import { embeddedFields } from './embedded-fields'
 import { embeddedRowTargets } from './embedded-row-targets'
 import { useListActions } from '../list-actions/use-list-actions'
 import { useEmbeddedRows } from './use-embedded-rows'
+import { plannedEmbeddedRows, type PlannedList } from './planned-embedded-rows'
 import { text } from './messages'
 
 export type EmbeddedListProps = {
@@ -65,6 +66,8 @@ export type EmbeddedListProps = {
   rowTo?: (key: string) => RouteTarget
   /** The key, as text, of the row the page shows the details of, which the table marks as chosen. */
   chosenKey?: string
+  /** Its rows and total from the page's planned reads, drawn until a header sorts it another way, which it reads itself. */
+  planned?: PlannedList
 }
 
 /** The switch between the table and the view's displays, for an embedded list's heading; nothing with only a table. */
@@ -79,20 +82,24 @@ const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length:
  * to the whole list with the same filter, order and display, beside a note such as "The first 10 of 37." when there are
  * more. On a phone a cards display is one row that scrolls sideways.
  */
-export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true, opens, button, bulk = false, phoneColumns, rowTo, chosenKey }: EmbeddedListProps) => {
+export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true, opens, button, bulk = false, phoneColumns, rowTo, chosenKey, planned }: EmbeddedListProps) => {
   const { resources, views } = useAdminMeta()
   const canUpdate = can(usePermissions(model.name), 'update')
   const { fields: fieldTypes } = useProjectUi()
   const { go, href } = useAppAddress()
   const xs = useIsXs()
   const narrow = !useIsDesktop()
-  const [orderBy, setOrderBy] = useState(sort || defaultOrderBy(model, view))
+  const initialOrder = sort || defaultOrderBy(model, view)
+  const [orderBy, setOrderBy] = useState(initialOrder)
   const { specs, fields, read } = useMemo(
     () => embeddedFields({ model, view, resources, views, fieldTypes, columns, button, opens, bulk, phoneColumns, xs }),
     [model, view, resources, views, fieldTypes, columns?.join(','), button, opens, bulk, phoneColumns, xs],
   )
   const gridColumns = useMemo(() => (button ? withRowButton(specs, model, view, button, resources, narrow) : specs), [specs, model, view, button, resources, narrow])
-  const rows = useEmbeddedRows({ model, filter, orderBy, limit, fields, read })
+  const fromPlan = planned !== undefined && orderBy === initialOrder
+  const own = useEmbeddedRows({ model, filter, orderBy, limit, fields, read }, !fromPlan)
+  const plannedRows = useMemo(() => planned && plannedEmbeddedRows(resources, model, fields, planned), [planned, resources, model, fields])
+  const rows = fromPlan ? plannedRows! : own
   const named = useListActions(model)
   const loaded = rows.data?.rows
   const source = useMemo(() => loaded && { total: loaded.length, rowAt: (index: number) => loaded[index]! }, [loaded])
@@ -115,15 +122,16 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   if (rows.isPending) return withPrompt(<Loading />)
   if (rows.error) return withPrompt(<ErrorBanner title={text('couldNotLoad')} error={rows.error} />)
   // A link of its own still leads somewhere when nothing here matches
-  if (!source || source.total === 0) {
+  const data = rows.data
+  if (!data || !source || source.total === 0) {
     const nothing = <p className="text-muted-foreground">{empty ?? text('nothingYet')}</p>
     return withPrompt(viewAll && link ? <div className="flex flex-col gap-3">{nothing}{allLink}</div> : nothing)
   }
 
   const list: ListDisplay = {
     resource: model.name,
-    rows: rows.data.rows.map((row) => displayRow(model, row)),
-    total: rows.data.total,
+    rows: data.rows.map((row) => displayRow(model, row)),
+    total: data.total,
     loading: false,
     error: null,
     more: false,
@@ -133,8 +141,8 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   const linkTo = (to: AppAddress): RouteTarget => ({ href: href(to), onFollow: () => go(to) })
   const keyOf = (row: GridRow) => encodeKey(recordKey(model, row))
   const rowTarget = (row: GridRow) => (rowTo ? rowTo(keyOf(row)) : linkTo(targets.address(row)))
-  const chosenRow = chosenKey === undefined ? undefined : rows.data.rows.find((row) => keyOf(row) === chosenKey)?.id
-  const note = cutOffNote(source.total, rows.data.total, rows.data.estimated)
+  const chosenRow = chosenKey === undefined ? undefined : data.rows.find((row) => keyOf(row) === chosenKey)?.id
+  const note = cutOffNote(source.total, data.total, data.estimated)
   return (
     <div className="flex flex-col gap-3">
       {!shown ? (
