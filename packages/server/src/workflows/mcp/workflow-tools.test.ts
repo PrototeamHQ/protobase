@@ -50,6 +50,8 @@ describe('validate_workflow', () => {
     const { context } = contextWith({})
     const edit = { state_machine: { States: { Fetch: { Resource: 'app:nope' } } } }
     expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit }, context)).problems).toEqual([expect.objectContaining({ state: 'Fetch', field: 'Resource' })])
+    // An edited state machine is checked as update_workflow imports it, a Step Functions HTTP task as app:http
+    expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit: { state_machine: { States: { Fetch: { Resource: 'arn:aws:states:::http:invoke', Arguments: { url: null, ApiEndpoint: 'https://b.example' } } } } } }, context))).toEqual({ valid: true })
     // A workflow keeps its state machine and order, which an edit cannot remove
     expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit: { execution_order: null } }, context))).toEqual({ valid: false, problems: [{ field: 'execution_order', message: 'cannot be removed: a workflow keeps one' }] })
     // An edit that removes the trigger is checked as update_workflow saves it, with none, not with a manual one
