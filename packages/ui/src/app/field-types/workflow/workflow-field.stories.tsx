@@ -632,39 +632,62 @@ export const SelectsSeveralChecks: StoryObj = {
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
+    // One session, so Shift held on the keyboard is held on the clicks and the drag, as a person's is
+    const user = userEvent.setup()
+    // A click where the node is, as a hand's is, rather than at the window's corner
+    const clickOn = async (node: HTMLElement) => {
+      const box = node.getBoundingClientRect()
+      await user.pointer({ keys: '[MouseLeft]', target: node, coords: { clientX: box.left + box.width / 2, clientY: box.top + 12 } })
+    }
     for (const view of ['Simple', 'Pins']) {
-      await userEvent.click(await canvas.findByRole('button', { name: view }))
+      await user.click(await canvas.findByRole('button', { name: view }))
       const count = view === 'Simple' ? 8 : canvasElement.querySelectorAll('.react-flow__node').length
       await laidOut(canvasElement, count)
       const chosen = () => [...canvasElement.querySelectorAll<HTMLElement>('.react-flow__node.selected')].map((node) => node.dataset.id).toSorted()
+      // A step's form opens only on a plain click on it, never while a choice of several is made
+      const panel = () => canvas.queryByRole('region', { name: 'Chosen step' })
       const [fetch, done] = [await nodeOf(canvasElement, 'Fetch'), await nodeOf(canvasElement, 'Done')]
-      await userEvent.click(fetch)
-      await userEvent.keyboard('{Shift>}')
-      await userEvent.click(done)
-      await userEvent.keyboard('{/Shift}')
-      await waitFor(() => expect(chosen()).toEqual(['state:Done', 'state:Fetch']))
-      // Shift-click again takes it out
-      await userEvent.keyboard('{Shift>}')
-      await userEvent.click(done)
-      await userEvent.keyboard('{/Shift}')
-      await waitFor(() => expect(chosen()).toEqual(['state:Fetch']))
-      // A box drawn with Shift over the empty canvas chooses every node it covers
+      // A plain click on the empty canvas chooses nothing
       const pane = canvasElement.querySelector<HTMLElement>('.react-flow__pane')!
+      const corner = pane.getBoundingClientRect()
+      await user.pointer({ keys: '[MouseLeft]', target: pane, coords: { clientX: corner.left + 8, clientY: corner.bottom - 8 } })
+      await waitFor(() => expect(chosen()).toEqual([]))
+      await user.keyboard('{Shift>}')
+      await clickOn(fetch)
+      await user.keyboard('{/Shift}')
+      await waitFor(() => expect(chosen()).toEqual(['state:Fetch']))
+      expect(panel()).toBeNull()
+      await clickOn(fetch)
+      await waitFor(() => expect(panel()).not.toBeNull())
+      await user.keyboard('{Shift>}')
+      await clickOn(done)
+      await user.keyboard('{/Shift}')
+      await waitFor(() => expect(chosen()).toEqual(['state:Done', 'state:Fetch']))
+      await waitFor(() => expect(panel()).toBeNull())
+      // Shift-click again takes it out
+      await user.keyboard('{Shift>}')
+      await clickOn(done)
+      await user.keyboard('{/Shift}')
+      await waitFor(() => expect(chosen()).toEqual(['state:Fetch']))
+      expect(panel()).toBeNull()
+      // A box drawn with Shift over the empty canvas chooses every node it covers, opening no form on the way
       const boxes = [fetch, done].map((node) => node.getBoundingClientRect())
       const from = { x: Math.min(...boxes.map((box) => box.left)) - 6, y: Math.min(...boxes.map((box) => box.top)) - 6 }
       const to = { x: Math.max(...boxes.map((box) => box.right)) + 6, y: Math.max(...boxes.map((box) => box.bottom)) + 6 }
-      await userEvent.keyboard('{Shift>}')
+      await user.keyboard('{Shift>}')
       // A frame between moves, as a hand moves, so each move is taken before the button is let go
       const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
-      await userEvent.pointer({ keys: '[MouseLeft>]', target: pane, coords: { clientX: from.x, clientY: from.y } })
+      await user.pointer({ keys: '[MouseLeft>]', target: pane, coords: { clientX: from.x, clientY: from.y } })
       for (const step of [0.25, 0.5, 0.75, 1, 1]) {
-        await userEvent.pointer({ target: pane, coords: { clientX: from.x + (to.x - from.x) * step, clientY: from.y + (to.y - from.y) * step } })
+        await user.pointer({ target: pane, coords: { clientX: from.x + (to.x - from.x) * step, clientY: from.y + (to.y - from.y) * step } })
         await frame()
+        expect(panel()).toBeNull()
       }
-      await userEvent.pointer({ keys: '[/MouseLeft]', target: pane, coords: { clientX: to.x, clientY: to.y } })
-      await userEvent.keyboard('{/Shift}')
+      await user.pointer({ keys: '[/MouseLeft]', target: pane, coords: { clientX: to.x, clientY: to.y } })
+      await user.keyboard('{/Shift}')
       await waitFor(() => expect(chosen()).toEqual(expect.arrayContaining(['state:Done', 'state:Fetch'])))
       expect(chosen().length).toBeGreaterThan(2)
+      expect(panel()).toBeNull()
       // The nodes chosen move together
       const before = [fetch.getBoundingClientRect(), done.getBoundingClientRect()]
       await drag(done, 30, 40)
@@ -672,7 +695,7 @@ export const SelectsSeveralChecks: StoryObj = {
       const after = [fetch.getBoundingClientRect(), done.getBoundingClientRect()]
       expect(Math.round(after[0]!.left - before[0]!.left)).toBe(Math.round(after[1]!.left - before[1]!.left))
       expect(Math.round(after[0]!.top - before[0]!.top)).toBe(Math.round(after[1]!.top - before[1]!.top))
-      await userEvent.click(canvas.getByRole('button', { name: 'Tidy up' }))
+      await user.click(canvas.getByRole('button', { name: 'Tidy up' }))
     }
   },
 }

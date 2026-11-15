@@ -1,4 +1,4 @@
-import { Background, Controls, Panel, ReactFlow, ReactFlowProvider, useReactFlow, useStore, useUpdateNodeInternals, type Connection, type Edge, type EdgeChange, type IsValidConnection, type NodeChange, type XYPosition } from '@xyflow/react'
+import { Background, Controls, Panel, ReactFlow, ReactFlowProvider, useKeyPress, useReactFlow, useStore, useUpdateNodeInternals, type Connection, type Edge, type EdgeChange, type IsValidConnection, type NodeChange, type XYPosition } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import './workflow-canvas.css'
 import { LayoutGrid } from 'lucide-react'
@@ -221,12 +221,16 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange: 
       else next.delete(change.id)
     }
     setChosen(next)
-    // A step's form opens while it is the one node chosen, by the keyboard as by a click; a Break, a Make or several
-    // nodes chosen open none
+    // A step's form opens when it is chosen alone, by a plain click or the keyboard; a Break, a Make or several nodes
+    // chosen open none. A choice made with Shift or a box never opens one, not even while it holds one step on the way.
     const [only] = next.size === 1 ? [...next] : []
     const step = only === undefined || isPureFlowId(only) ? undefined : graphId(only)
+    if (step !== undefined && (shiftHeld || boxing.current)) return selected === undefined ? undefined : onSelect(undefined)
     if (step !== selected) onSelect(step)
   }
+  // Whether a choice is being made with Shift or a box, which opens no step's form
+  const shiftHeld = useKeyPress('Shift')
+  const boxing = useRef(false)
   const onEdgesChange = (changes: EdgeChange[]) => {
     for (const change of changes) {
       if (change.type !== 'select') continue
@@ -286,6 +290,8 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange: 
                 onDelete={onDelete}
                 // Shift adds a node to the choice or takes it out, as a Shift-drag box adds every node it covers
                 multiSelectionKeyCode="Shift"
+                onSelectionStart={() => void (boxing.current = true)}
+                onSelectionEnd={() => void (boxing.current = false)}
                 // A click on a step chooses it alone, opening its form; with Shift it only adds to the choice, in onNodesChange
                 onNodeClick={(event, node) => !event.shiftKey && !isPureFlowId(node.id) && onSelect(graphId(node.id))}
                 onPaneClick={() => onSelect(undefined)}
