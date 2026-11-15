@@ -71,6 +71,15 @@ describe('the app:http step, run through the plugin interface', () => {
     expect(logs.at(-1)).toMatch(new RegExp(`^POST ${base}/items: 200 in \\d+ ms$`))
   })
 
+  it('sends any body as JSON with body_encoding json, a text as a JSON string, keeping a Content-Type the headers give', async () => {
+    await local()({ url: `${base}/items`, method: 'POST', body: 'hello', body_encoding: 'json' }, context())
+    expect(seen.at(-1)).toMatchObject({ body: '"hello"', type: 'application/json' })
+    await local()({ url: `${base}/items`, method: 'POST', body: [1, 2], body_encoding: 'json' }, context())
+    expect(seen.at(-1)).toMatchObject({ body: '[1,2]', type: 'application/json' })
+    await local()({ url: `${base}/items`, method: 'POST', headers: { 'Content-Type': 'application/vnd.acme+json' }, body: 'hello', body_encoding: 'json' }, context())
+    expect(seen.at(-1)).toMatchObject({ body: '"hello"', type: 'application/vnd.acme+json' })
+  })
+
   it('reads the answer as text or as a file of the run, and sends such a file as its bytes with its type', async () => {
     expect(await local()({ url: `${base}/text`, response: 'text' }, context())).toMatchObject({ body: 'plain words' })
     expect(await failure(local()({ url: `${base}/text`, response: 'json' }, context()))).toEqual(['Http.InvalidBody', `127.0.0.1:${(server.address() as AddressInfo).port} answered with a body that is not JSON; read it with "response": "text"`])

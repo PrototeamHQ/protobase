@@ -36,8 +36,14 @@ const checked = (input: Record<string, unknown>) => {
   return { url, method, headers: new Headers(input.headers as Record<string, string> | undefined), reading: input.response as Reading | undefined, store: storeOf(input) }
 }
 
-const requestBody = async (given: unknown, method: string, headers: Headers, { files }: StepContext) => {
+// The body as `body_encoding` says, else a text as it is, a file value as its bytes and any other value as JSON. With
+// `json`, every value is sent as JSON, a text too, quotes and all, as the States Language's HTTP task sends one.
+const requestBody = async (given: unknown, method: string, headers: Headers, { files }: StepContext, encoding?: unknown) => {
   if (given === undefined || method === 'GET') return
+  if (encoding === 'json') {
+    if (!headers.has('content-type')) headers.set('content-type', 'application/json')
+    return JSON.stringify(given)
+  }
   if (isFileValue(given)) {
     const file = await files.read(given, 'body')
     if (!headers.has('content-type')) headers.set('content-type', file.type ?? 'application/octet-stream')
@@ -122,7 +128,7 @@ const send = async (context: StepContext) => {
   const { url, method, headers, reading, store } = checked(input)
   // A configuration or path that cannot take the answer fails before any request leaves.
   const target = store && (await context.storage.open(store.configuration, store.path ?? (await stepPath(context))))
-  const body = await requestBody(input.body, method, headers, context)
+  const body = await requestBody(input.body, method, headers, context, input.body_encoding)
   const started = Date.now()
   const answer = await context.fetch(url.href, { method, headers, ...(body !== undefined && { body }), signal, ...(store && { stream: true }) }).catch((error: unknown) => {
     if (error instanceof AddressRefusedError) throw new StepError('Http.AddressRefused', error.message)
@@ -164,6 +170,7 @@ export const httpSteps: Record<string, StepType> = {
         headers: { ...textRecord, title: 'Headers', description: 'an object of text values' },
         query: { ...textRecord, title: 'Query', description: "an object of text values, added to the URL's query" },
         body: { description: 'text sent as it is, a file value sent as its bytes, any other value sent as JSON; a GET sends none' },
+        body_encoding: { enum: ['json'], description: "json sends the body as JSON whatever it holds, a text as a JSON string, with Content-Type application/json unless the headers give one" },
         response: {
           enum: ['json', 'text', 'file'],
           description: "how the answer's body is read: by default by its Content-Type, JSON for application/json and +json, text for text/* and other textual types, a file for any other or none, and null when empty; json (empty is null), text, or file (kept as a file value of the run) reads every answer so",
