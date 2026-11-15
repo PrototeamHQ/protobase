@@ -412,6 +412,8 @@ export type FieldViewModel = {
    * A value without one is `neutral`.
    */
   valueColors?: Record<string, BadgeTone | (string & {})>
+  /** Enum values that mark a wait rather than work, such as `queued`: a `Timeline` draws their segments striped. */
+  waitingValues?: string[]
   /** `arrow` draws the field's badges as arrows pointing right, as on a rating scale such as the EU energy label. */
   badgeShape?: BadgeShape
   /**

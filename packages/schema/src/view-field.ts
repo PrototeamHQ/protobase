@@ -127,6 +127,11 @@ export class FieldView<N extends string = string, V = unknown> {
     return this.with({ valueColors: { ...this.props.valueColors, ...Object.fromEntries(entries) } })
   }
 
+  /** Enum values that mark a wait rather than work, such as `.waitingValues(['queued', 'blocked'])`: a `Timeline` draws them striped. */
+  waitingValues(values: readonly Extract<V, string>[]) {
+    return this.with({ waitingValues: [...values] })
+  }
+
   /** `arrow` draws the field's badges as arrows pointing right, as on a rating scale such as the EU energy label. */
   badgeShape(badgeShape: BadgeShape) {
     return this.with({ badgeShape })
