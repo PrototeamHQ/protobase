@@ -72,6 +72,7 @@ import { workflowEngine } from './workflows/workflow-engine'
 import { workflowTraceRoute } from './workflows/workflow-trace-route'
 import { workflowTypesRoute } from './workflows/workflow-types-route'
 import { hooksBase } from './workflows/hooks/hook-paths'
+import { checkGoLive } from './workflows/hooks/create-workflow'
 import { issueWebhook } from './workflows/hooks/issue-webhook'
 import type { WorkflowsOptions } from './workflows/options'
 import type { NotificationsOptions } from './notifications/options'
@@ -439,7 +440,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   else if (auth?.mcp && mcpAuthenticate) {
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const commented = registry.entries.filter((entry) => entry.model.comments).map((entry) => entry.name)
-    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, ...(engine.customTypes && { customTypes: engine.customTypes }), readTrace: engine.readTrace, listConnections: auth.connections.list, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }), answerTask: engine.answerTask, ...(engine.customSteps && { customSteps: { ...engine.customSteps, register: (session, id) => engine.customSteps!.register(session, id, new URL(auth.mcp!.resource).origin) } }) } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, ...(engine.customTypes && { customTypes: engine.customTypes }), readTrace: engine.readTrace, listConnections: auth.connections.list, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }), checkGoLive: (trigger, live) => checkGoLive(engine.issue.webhooks, trigger, live), answerTask: engine.answerTask, ...(engine.customSteps && { customSteps: { ...engine.customSteps, register: (session, id) => engine.customSteps!.register(session, id, new URL(auth.mcp!.resource).origin) } }) } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
     const instructions = mcpServerInstructions(options.mcp ? options.mcp.instructions : undefined, engine ? [workflowInstructions, ...(engine.customSteps ? [customStepInstructions] : [])].join('\n') : undefined)
     const approvals = mcpApprovals()
     const { resource } = auth.mcp

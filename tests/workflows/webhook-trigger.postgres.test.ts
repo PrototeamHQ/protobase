@@ -74,6 +74,8 @@ const until = async <T>(read: () => Promise<T>, done: (value: T) => boolean, ms 
 const sign = (secret: string, id: string, timestamp: number, body: string) =>
   `v1,${createHmac('sha256', Buffer.from(secret.replace(/^whsec_/, ''), 'base64')).update(`${id}.${timestamp}.${body}`).digest('base64')}`
 const now = () => Math.floor(Date.now() / 1000)
+// A Standard Webhooks secret a sender makes: whsec_ and 32 bytes in base64
+const given32 = () => `whsec_${Buffer.alloc(32, 7).toString('base64')}`
 
 describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and its public address', () => {
   let pg: PostgresDatabase
@@ -345,6 +347,44 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     const issued = await issue('ada', workflow.id, given)
     expect(issued.body.secret).toBe(given)
     expect((await issue('ada', workflow.id, 'whsec_c2hvcnQ=')).status).toBe(400)
+  })
+
+  it('goes live in one call: POST /api/workflows with publish creates, publishes and issues the URL, which starts runs at once', async () => {
+    const created = await admin.request('/api/workflows', { method: 'POST', headers: { 'content-type': 'application/json', 'x-user': 'ada' }, body: JSON.stringify({ name: 'One call', ...definitionFields({ trigger: { 'app:webhook': {} }, stateMachine: echo }), publish: true }) })
+    expect(created.status).toBe(201)
+    expect(created.headers.get('cache-control')).toBe('no-store')
+    const body = (await created.json()) as Record<string, any>
+    expect(body).toMatchObject({ name: 'One call', version: 1, enabled_version: 1, webhook: { url: expect.stringContaining('/api/workflows/hooks/'), secret: expect.stringMatching(/^whsec_/) } })
+    expect(created.headers.get('location')).toBe(`/api/v1/workflows/${body.id}`)
+    const response = await signed(new URL(body.webhook.url).pathname, body.webhook.secret)
+    expect(response.status).toBe(202)
+    expect(await runsOf(body.id)).toHaveLength(1)
+  })
+
+  it('takes the sender\'s own secret in one call, saves only without publish, and publishes on POST /api/v1/workflows with enabled_version', async () => {
+    const one = (user: string, extra: Record<string, unknown>, trigger: unknown = { 'app:webhook': { auth: { mode: 'bearer' } } }) => as(user, '/api/workflows', 'POST', { name: 'One call', ...definitionFields({ trigger, stateMachine: echo }), ...extra })
+    const given = 'a-bearer-secret-the-sender-made-of-40-chars'
+    const own = await one('ada', { publish: true, webhook_secret: given })
+    expect(own.body.webhook.secret).toBe(given)
+    expect((await call(new URL(own.body.webhook.url).pathname, { body: '{}', headers: { 'content-type': 'application/json', authorization: `Bearer ${given}` } })).status).toBe(202)
+    const saved = await one('ada', {})
+    expect(saved.status).toBe(201)
+    expect(saved.body.enabled_version).toBeNull()
+    expect(saved.body.webhook).toBeUndefined()
+    const plain = await as('ada', '/api/v1/workflows', 'POST', { name: 'Published', ...definitionFields({ trigger: { 'app:webhook': {} }, stateMachine: echo }), enabled_version: 1 })
+    expect(plain.body).toMatchObject({ version: 1, enabled_version: 1 })
+    expect((await sql`select 1 from workflows.triggers where workflow_id = ${plain.body.id}`.execute(db)).rows).toHaveLength(1)
+  })
+
+  it('refuses a one-call create that cannot go live as asked before saving anything', async () => {
+    const count = async () => Number((await sql<{ n: string }>`select count(*) as n from workflows.workflows where name = 'Refused'`.execute(db)).rows[0]!.n)
+    const one = (extra: Record<string, unknown>, trigger: unknown = { 'app:webhook': {} }) => as('ada', '/api/workflows', 'POST', { name: 'Refused', ...definitionFields({ trigger, stateMachine: echo }), ...extra })
+    expect(await one({ publish: true, webhook_secret: 'whsec_c2hvcnQ=' })).toMatchObject({ status: 400, body: { type: 'urn:protobase:problem:invalid-secret' } })
+    expect(await one({ publish: true, webhook_secret: given32() }, { manual: {} })).toMatchObject({ status: 400, body: { type: 'urn:protobase:problem:not-a-webhook' } })
+    expect(await one({ webhook_secret: given32() })).toMatchObject({ status: 400, body: { type: 'urn:protobase:problem:not-a-webhook' } })
+    expect(await one({ publish: 'yes' })).toMatchObject({ status: 400, body: { type: 'urn:protobase:problem:invalid-body' } })
+    expect((await as('rita', '/api/workflows', 'POST', { name: 'Refused', ...definitionFields({ trigger: { 'app:webhook': {} }, stateMachine: echo }), publish: true })).status).toBe(403)
+    expect(await count()).toBe(0)
   })
 
   it('takes a signed call in an app with a live resource and no anonymous role, whose stream wants a token', async () => {
