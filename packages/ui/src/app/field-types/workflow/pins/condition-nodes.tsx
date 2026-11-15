@@ -3,13 +3,20 @@ import { useState } from 'react'
 import { text } from '../messages'
 import type { ConditionNode } from './data-graph'
 import { usePinActions } from './pin-actions'
+import { Input } from '../../../../primitives/input'
 import { InputRow } from './pin-rows'
 import { pinColour, typeLabel } from './pin-text'
 import { expressionTextHeight } from './pin-layout'
 import { conditionOut, inHandle } from './pure-ids'
 
-// A side's name: a Comparison's, an And's or an Or's two are A and B, a Not's one is what it turns round
-const sideName = (node: ConditionNode, key: string) => (node.part.kind === 'not' ? text('conditionNotSide') : key === '0' ? text('conditionSideA') : text('conditionSideB'))
+// An input's name: a Comparison's two are A and B, an All of's and an Any of's A, B, C and on, a Matches node's the text
+// and the pattern, a Not's what it turns round
+const sideName = (node: ConditionNode, key: string) => {
+  if (node.part.kind === 'not') return text('conditionNotSide')
+  if (node.part.kind === 'matches') return key === '0' ? text('conditionMatchesText') : text('conditionMatchesPattern')
+  if (node.part.kind === 'logic') return String.fromCharCode(65 + (Number(key) % 26))
+  return key === '0' ? text('conditionSideA') : text('conditionSideB')
+}
 
 // The text of an Expression, kept as typed while it has the focus and written once the focus leaves, so a Condition
 // typed into a form the nodes stand for turns into them only then
@@ -38,6 +45,32 @@ const ExpressionText = ({ node, source }: { node: ConditionNode; source: string 
 
 // A value an Expression reads, by where it comes from: Save.Status, input.record.id or $fetch.body.ip
 const readName = (key: string) => key.replace(/^\$states\.context\.Steps\./, '').replace(/^\$states\.context\.Execution\.Input/, 'input')
+
+// A Matches node's pattern, typed on the node and never wired: what is typed shows while the box has the focus, and only
+// a pattern that is not empty is written, as an empty one is no regular expression
+const PatternRow = ({ node, editable }: { node: ConditionNode; editable: boolean }) => {
+  const actions = usePinActions()
+  const [typed, setTyped] = useState<string>()
+  const label = text('conditionMatchesPattern')
+  const pattern = String(node.inputs[1]?.value ?? '')
+  return (
+    <div className="relative flex h-[26px] items-center gap-1.5 pr-2 pl-3">
+      <span className="min-w-0 shrink truncate text-xs text-body">{label}</span>
+      <Input
+        aria-label={text('inputValue', { label })}
+        wrapperClassName="nodrag nopan nowheel ml-auto h-6 w-[60%] min-w-0 px-1.5"
+        className="font-mono text-xs"
+        value={typed ?? pattern}
+        disabled={!actions || !editable}
+        onChange={(event) => {
+          setTyped(event.target.value)
+          if (event.target.value !== '') actions?.setConditionSide(node.target, [...node.at, 1], event.target.value)
+        }}
+        onBlur={() => setTyped(undefined)}
+      />
+    </div>
+  )
+}
 
 /**
  * A condition node's pins and inputs: a Comparison's, an And's or an Or's two sides, a Not's one, each wired or
@@ -68,18 +101,24 @@ export const ConditionPins = ({ node, editable }: { node: ConditionNode; editabl
   return (
     <div className="relative pt-1">
       {out}
-      {node.inputs.map((pin) => (
-        <InputRow
-          key={pin.key}
-          pin={pin}
-          step={node.target}
-          keys={[]}
-          name={sideName(node, pin.key)}
-          connectable={editable}
-          // A value cleared is an empty one: a check box gives true or false, so only text or a number is cleared
-          onValue={(value) => actions?.setConditionSide(node.target, [...node.at, Number(pin.key)], (value ?? '') as string | number | boolean)}
-        />
-      ))}
+      {node.inputs.map((pin) =>
+        node.part.kind === 'matches' && pin.key === '1' ? (
+          <PatternRow key={pin.key} node={node} editable={editable} />
+        ) : (
+          <InputRow
+            key={pin.key}
+            pin={pin}
+            step={node.target}
+            keys={[]}
+            name={sideName(node, pin.key)}
+            // The empty input after an All of's or an Any of's last takes a wire or a node, which adds its next condition
+            bare={node.part.kind === 'logic' && Number(pin.key) === node.part.sides.length}
+            connectable={editable}
+            // A value cleared is an empty one: a check box gives true or false, so only text or a number is cleared
+            onValue={(value) => actions?.setConditionSide(node.target, [...node.at, Number(pin.key)], (value ?? '') as string | number | boolean)}
+          />
+        ),
+      )}
     </div>
   )
 }

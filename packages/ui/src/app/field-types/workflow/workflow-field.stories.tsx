@@ -31,6 +31,8 @@ const listSome: Definition = {
 
 // In data order, a step that runs only once another succeeded, as its Condition says
 const tellWhenSaved = "{% $states.context.Steps.Save.Status = 'SUCCEEDED' %}"
+// Its address chosen by the run's input, which a Select node draws
+const tellUrl = "{% $states.context.Execution.Input.topic = 'sales' ? 'https://tickets.example.com/sales' : 'https://tickets.example.com/tell' %}"
 const saveThenTell: Definition = {
   trigger: { manual: {} },
   order: 'data',
@@ -38,8 +40,68 @@ const saveThenTell: Definition = {
     QueryLanguage: 'JSONata',
     States: {
       Save: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://tickets.example.com/save' } },
-      Tell: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://tickets.example.com/tell' }, Condition: tellWhenSaved },
+      Tell: { Type: 'Task', Resource: 'app:http', Arguments: { url: tellUrl }, Condition: tellWhenSaved },
     },
+  },
+} as Definition
+
+// A website contact form in data order: the sender stored as a contact with a note, one mail to the team chosen by
+// topic, and an auto-reply when the stored address looks valid
+const contactForm: Definition = {
+  trigger: { 'app:webhook': { auth: { mode: 'bearer' } } },
+  order: 'data',
+  stateMachine: {
+    "QueryLanguage": "JSONata",
+    "States": {
+      "SaveContact": {
+        "Type": "Task",
+        "Resource": "app:records.create",
+        "Arguments": {
+          "resource": "contacts",
+          "data": {
+            "name": "{% $states.context.Execution.Input.body.name %}",
+            "email": "{% $states.context.Execution.Input.body.email %}",
+            "status": "lead"
+          }
+        },
+        "Assign": {
+          "contact": "{% $states.result %}"
+        }
+      },
+      "SaveMessage": {
+        "Type": "Task",
+        "Resource": "app:records.create",
+        "Arguments": {
+          "resource": "notes",
+          "data": {
+            "contact_id": "{% $contact.id %}",
+            "text": "{% '[' & $states.context.Execution.Input.body.topic & '] ' & $states.context.Execution.Input.body.message %}"
+          }
+        },
+        "Assign": {
+          "note": "{% $states.result %}"
+        }
+      },
+      "AutoReply": {
+        "Type": "Task",
+        "Resource": "app:mail.send",
+        "Condition": "{% $contains($contact.email, /^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/) %}",
+        "Arguments": {
+          "to": "{% $contact.email %}",
+          "subject": "We received your message",
+          "text": "{% 'Hi ' & $contact.name & ',\\n\\nThanks for getting in touch. We received your message and will answer within one working day.\\n\\nThe Lab team' %}"
+        }
+      },
+      "Notify": {
+        "Type": "Task",
+        "Resource": "app:mail.send",
+        "Arguments": {
+          "to": "{% $states.context.Execution.Input.body.topic = 'sales' ? 'sales@lab.example' : 'support@lab.example' %}",
+          "subject": "{% 'New ' & $states.context.Execution.Input.body.topic & ' message from ' & $contact.name %}",
+          "text": "{% $contact.name & ' <' & $contact.email & '> wrote:\\n\\n' & $states.context.Execution.Input.body.message & '\\n\\nContact ' & $contact.id & ', note ' & $note.id %}"
+        }
+      }
+    }
   },
 } as Definition
 
@@ -49,6 +111,7 @@ const rows = {
     { id: 2, name: 'Fetch tickets', description: null, ...definitionRecord(fetchOnly), version: 1 },
     { id: 3, name: 'Some workflows', description: null, ...definitionRecord(listSome), version: 1 },
     { id: 4, name: 'Tell when saved', description: null, ...definitionRecord(saveThenTell), version: 1 },
+    { id: 5, name: 'Contact form', description: null, ...definitionRecord(contactForm), version: 1 },
   ],
   workflow_versions: [],
   workflow_runs: [],
@@ -145,6 +208,29 @@ const places = (canvasElement: HTMLElement) => Object.fromEntries([...canvasElem
 export const NewWorkflow: StoryObj = { name: 'A new workflow', render: () => <Workspace start="/workflows/new" /> }
 
 export const MadeThroughTheApi: StoryObj = { name: 'A workflow made through the API', render: () => <Workspace start="/workflows/1" /> }
+
+/** A contact form in data order, with Break, Make, Select and Matches nodes between its steps. */
+export const ContactForm: StoryObj = { name: 'A contact form in data order', render: () => <Workspace start="/workflows/5" /> }
+
+/** The pattern of the contact form's Matches node is typed on the node, which takes no wire, and saved. */
+export const MatchesPatternChecks: StoryObj = {
+  ...ContactForm,
+  name: 'Edits a Matches pattern on its node (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await nodeOf(canvasElement, 'AutoReply')
+    await userEvent.click(await canvas.findByRole('button', { name: 'Pins' }))
+    const matches = await waitFor(() => canvasElement.querySelector<HTMLElement>('.react-flow__node[data-id="when:AutoReply|"]')!)
+    expect(matches).toHaveTextContent('Matches')
+    const pattern = within(matches).getByRole('textbox', { name: 'Pattern value' })
+    await userEvent.clear(pattern)
+    await userEvent.type(pattern, '@')
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(stored).toBeDefined())
+    expect(((stored!.state_machine as Definition['stateMachine']).States.AutoReply as { Condition: string }).Condition).toBe('{% $contains($contact.email, /@/) %}')
+  },
+}
 
 /** A new workflow starts with a name and no steps; steps added through the picker connect as they come, and Save stores what the graph shows. */
 export const CreatesAndConnectsChecks: StoryObj = {
@@ -606,6 +692,95 @@ export const ConditionNodesChecks: StoryObj = {
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(stored).toBeDefined())
     expect(((stored!.state_machine as Definition['stateMachine']).States.Tell as { Condition?: string }).Condition).toBe(tellWhenSaved)
+    // Tell's address is a Select of the run's topic, whose Otherwise is edited on the node
+    const select = await waitFor(() => canvasElement.querySelector<HTMLElement>('.react-flow__node[data-id="select:Tell|url"]')!)
+    expect(select).toHaveTextContent('Select')
+    expect(within(select).getByRole('textbox', { name: 'Case 1 value' })).toHaveValue('sales')
+    const otherwise = within(select).getByRole('textbox', { name: 'Otherwise' })
+    await userEvent.clear(otherwise)
+    await userEvent.type(otherwise, 'https://tickets.example.com/other')
+    stored = undefined
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(stored).toBeDefined())
+    expect(((stored!.state_machine as Definition['stateMachine']).States.Tell as { Arguments: { url: string } }).Arguments.url).toBe(tellUrl.replace("'https://tickets.example.com/tell'", "'https://tickets.example.com/other'"))
+  },
+}
+
+/**
+ * Shift-click adds a node to the choice or takes it out, and Shift-drag on the empty canvas chooses every node its box
+ * covers; the nodes chosen move together, in Pins and in Simple alike.
+ */
+export const SelectsSeveralChecks: StoryObj = {
+  ...MadeThroughTheApi,
+  name: 'Chooses several nodes with Shift and moves them together (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    // One session, so Shift held on the keyboard is held on the clicks and the drag, as a person's is
+    const user = userEvent.setup()
+    // A click where the node is, as a hand's is, rather than at the window's corner
+    const clickOn = async (node: HTMLElement) => {
+      const box = node.getBoundingClientRect()
+      await user.pointer({ keys: '[MouseLeft]', target: node, coords: { clientX: box.left + box.width / 2, clientY: box.top + 12 } })
+    }
+    for (const view of ['Simple', 'Pins']) {
+      await user.click(await canvas.findByRole('button', { name: view }))
+      const count = view === 'Simple' ? 8 : canvasElement.querySelectorAll('.react-flow__node').length
+      await laidOut(canvasElement, count)
+      const chosen = () => [...canvasElement.querySelectorAll<HTMLElement>('.react-flow__node.selected')].map((node) => node.dataset.id).toSorted()
+      // A step's form opens only on a plain click on it, never while a choice of several is made
+      const panel = () => canvas.queryByRole('region', { name: 'Chosen step' })
+      const [fetch, done] = [await nodeOf(canvasElement, 'Fetch'), await nodeOf(canvasElement, 'Done')]
+      // A plain click on the empty canvas chooses nothing
+      const pane = canvasElement.querySelector<HTMLElement>('.react-flow__pane')!
+      const corner = pane.getBoundingClientRect()
+      await user.pointer({ keys: '[MouseLeft]', target: pane, coords: { clientX: corner.left + 8, clientY: corner.bottom - 8 } })
+      await waitFor(() => expect(chosen()).toEqual([]))
+      await user.keyboard('{Shift>}')
+      await clickOn(fetch)
+      await user.keyboard('{/Shift}')
+      await waitFor(() => expect(chosen()).toEqual(['state:Fetch']))
+      expect(panel()).toBeNull()
+      await clickOn(fetch)
+      await waitFor(() => expect(panel()).not.toBeNull())
+      await user.keyboard('{Shift>}')
+      await clickOn(done)
+      await user.keyboard('{/Shift}')
+      await waitFor(() => expect(chosen()).toEqual(['state:Done', 'state:Fetch']))
+      await waitFor(() => expect(panel()).toBeNull())
+      // Shift-click again takes it out
+      await user.keyboard('{Shift>}')
+      await clickOn(done)
+      await user.keyboard('{/Shift}')
+      await waitFor(() => expect(chosen()).toEqual(['state:Fetch']))
+      expect(panel()).toBeNull()
+      // A box drawn with Shift over the empty canvas chooses every node it covers, opening no form on the way
+      const boxes = [fetch, done].map((node) => node.getBoundingClientRect())
+      const from = { x: Math.min(...boxes.map((box) => box.left)) - 6, y: Math.min(...boxes.map((box) => box.top)) - 6 }
+      const to = { x: Math.max(...boxes.map((box) => box.right)) + 6, y: Math.max(...boxes.map((box) => box.bottom)) + 6 }
+      await user.keyboard('{Shift>}')
+      // A frame between moves, as a hand moves, so each move is taken before the button is let go
+      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+      await user.pointer({ keys: '[MouseLeft>]', target: pane, coords: { clientX: from.x, clientY: from.y } })
+      for (const step of [0.25, 0.5, 0.75, 1, 1]) {
+        await user.pointer({ target: pane, coords: { clientX: from.x + (to.x - from.x) * step, clientY: from.y + (to.y - from.y) * step } })
+        await frame()
+        expect(panel()).toBeNull()
+      }
+      await user.pointer({ keys: '[/MouseLeft]', target: pane, coords: { clientX: to.x, clientY: to.y } })
+      await user.keyboard('{/Shift}')
+      await waitFor(() => expect(chosen()).toEqual(expect.arrayContaining(['state:Done', 'state:Fetch'])))
+      expect(chosen().length).toBeGreaterThan(2)
+      expect(panel()).toBeNull()
+      // The nodes chosen move together
+      const before = [fetch.getBoundingClientRect(), done.getBoundingClientRect()]
+      await drag(done, 30, 40)
+      await waitFor(() => expect(done.getBoundingClientRect().left).not.toBe(before[1]!.left))
+      const after = [fetch.getBoundingClientRect(), done.getBoundingClientRect()]
+      expect(Math.round(after[0]!.left - before[0]!.left)).toBe(Math.round(after[1]!.left - before[1]!.left))
+      expect(Math.round(after[0]!.top - before[0]!.top)).toBe(Math.round(after[1]!.top - before[1]!.top))
+      await user.click(canvas.getByRole('button', { name: 'Tidy up' }))
+    }
   },
 }
 

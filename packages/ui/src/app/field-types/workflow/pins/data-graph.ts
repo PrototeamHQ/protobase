@@ -12,9 +12,11 @@ import {
   referenceValue,
   resultRead,
   schemaAt,
+  selectParts,
   stepStatuses,
+  type SelectPart,
+  type ConditionInput,
   type ConditionPart,
-  type ConditionSide,
   type Definition,
   type PinSchemas,
   type PinType,
@@ -23,7 +25,7 @@ import {
 } from '@protobase/workflows'
 import { pathOfName, triggerId } from '../definition'
 import { conditionKey, conditionPin, fieldsOf, givenSchema, inputPin, inputPins, statusKey, statusPin, stepOutputs, triggerOutputs, type InputPin, type OutputPin } from './node-pins'
-import { breakId, breakIn, conditionId, conditionOut, inHandle, makeId, makeOut, outHandle } from './pure-ids'
+import { breakId, breakIn, conditionId, conditionOut, inHandle, makeId, makeOut, outHandle, selectId, selectInput, selectOut } from './pure-ids'
 
 /** A Break node: the fields of the object a node gives at `path`, each a pin of its own. */
 export type BreakNode = { kind: 'break'; id: string; source: string; path: string[]; type: PinType; outputs: OutputPin[] }
@@ -41,7 +43,13 @@ export type ConditionExpression = { kind: 'expression'; source: string }
  */
 export type ConditionNode = { kind: 'condition'; id: string; target: string; at: number[]; part: ConditionPart | ConditionExpression; inputs: InputPin[] }
 
-export type PureNode = BreakNode | MakeNode | ConditionNode
+/**
+ * A Select node: the value a step's argument `key` holds, chosen by another, which its one input reads; with a case per
+ * value that one can be and what it gives then, and what it gives for any other.
+ */
+export type SelectNode = { kind: 'select'; id: string; target: string; key: string; part: SelectPart; type: PinType; inputs: InputPin[] }
+
+export type PureNode = BreakNode | MakeNode | ConditionNode | SelectNode
 
 /**
  * A wire from an output pin to an input pin, of the type of the value it carries. `expression`: the input is an
@@ -62,10 +70,10 @@ const samePath = (a: readonly string[], b: readonly string[]) => a.length === b.
 const booleanType: PinType = { kinds: ['boolean'] }
 
 // The reads a Condition's nodes make, each once for each side that makes it
-const partReads = (part: ConditionPart): Reference[] => part.sides.flatMap((side: ConditionSide) => (isConditionPart(side) ? partReads(side) : 'read' in side ? [side.read] : []))
+const partReads = (part: ConditionPart): Reference[] => (part.sides as ConditionInput[]).flatMap((side) => (isConditionPart(side) ? partReads(side) : 'read' in side ? [side.read] : []))
 
 // A read of a step's Status, which the step's status pin gives
-const readsStatus = (side: ConditionSide) => !isConditionPart(side) && 'read' in side && 'step' in side.read.base && samePath(side.read.path, ['Status'])
+const readsStatus = (side: ConditionInput) => !isConditionPart(side) && 'read' in side && 'step' in side.read.base && samePath(side.read.path, ['Status'])
 
 // The type of a value of a Comparison's own, by the type of what it is compared with, else by its own
 const literalType = (value: unknown, other: PinType | undefined): PinType => {
@@ -105,6 +113,7 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
   const breaks = new Map<string, BreakNode>()
   const makes = new Map<string, MakeNode>()
   const conditions: ConditionNode[] = []
+  const selects: SelectNode[] = []
   const edges = new Map<string, DataEdge>()
   const variables = resultVariables(definition)
 
@@ -167,7 +176,7 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
     return node === undefined || node === null || !outputs.has(node) ? undefined : from(node, reference.path)
   }
   // A read a condition node takes: a step's Status from its status pin, any other as a step's input takes it
-  const sourceOfSide = (side: ConditionSide) => {
+  const sourceOfSide = (side: ConditionInput) => {
     if (isConditionPart(side) || !('read' in side)) return
     if (!readsStatus(side)) return sourceOfReference(side.read)
     const node = pathOfState((side.read.base as { step: string }).step)
@@ -176,20 +185,26 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
   // Each node of a Condition, its output wired to where it goes, and each side wired from its node or what it reads
   const partOf = (target: string, part: ConditionPart, at: number[], into: { node: string; handle: string }) => {
     const id = conditionId(target, at)
-    const sources = part.sides.map(sourceOfSide)
-    const inputs = part.sides.map((side, index): InputPin => {
+    const sides: ConditionInput[] = part.sides
+    const sources = sides.map(sourceOfSide)
+    const inputs = sides.map((side, index): InputPin => {
       const key = String(index)
       if (isConditionPart(side)) return { key, type: booleanType, required: false, value: undefined, state: 'made' }
       if ('read' in side) return { key, type: sources[index]?.type ?? pinType(undefined), required: false, value: referenceValue(side.read), state: 'wired' }
+      // A Matches node's pattern is its own, written on the node; the text it tests is any text
+      if ('pattern' in side) return { key, type: { kinds: ['string'] }, required: false, value: side.pattern, state: 'literal' }
+      if (part.kind === 'matches') return { key, type: { kinds: ['string'] }, required: false, value: side.value, state: 'literal' }
       if (part.kind !== 'compare') return { key, type: booleanType, required: false, value: side.value, state: 'literal' }
       // A value compared with a step's Status is one of the statuses it can be
-      const other = part.sides[1 - index]!
+      const other = sides[1 - index]!
       if (readsStatus(other)) return { key, type: { kinds: ['string'] }, required: false, value: side.value, state: 'literal', options: stepStatuses, statuses: true }
       return { key, type: literalType(side.value, sources[1 - index]?.type), required: false, value: side.value, state: 'literal' }
     })
+    // An All of or an Any of has one input more, empty, which a wire or a node adds as its next condition
+    if (part.kind === 'logic') inputs.push({ key: String(sides.length), type: booleanType, required: false, value: undefined, state: 'empty' })
     conditions.push({ kind: 'condition', id, target, at, part, inputs })
     wire({ node: id, handle: conditionOut, type: booleanType }, into.node, into.handle)
-    part.sides.forEach((side, index) => {
+    sides.forEach((side, index) => {
       if (isConditionPart(side)) partOf(target, side, [...at, index], { node: id, handle: inHandle(String(index)) })
       else if (sources[index]) wire(sources[index], id, inHandle(String(index)))
     })
@@ -208,6 +223,20 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
     conditions.push({ kind: 'condition', id, target, at: [], part: { kind: 'expression', source: expressionSource(value)! }, inputs: reads.map(({ read, source }) => ({ key: readText(read), type: source.type, required: false, value: referenceValue(read), state: 'wired' })) })
     wire({ node: id, handle: conditionOut, type: booleanType }, into.node, into.handle)
     for (const { read, source } of reads) wire(source, id, inHandle(readText(read)), true)
+  }
+  // A step's argument chosen by another value, as a Select node, when what it looks at has a pin to come from
+  const selectOf = (target: string, pin: InputPin) => {
+    const part = selectParts(pin.value)
+    const source = part && sourceOfSide(part.operand)
+    if (!part || ('read' in part.operand && !source)) return false
+    const id = selectId(target, pin.key)
+    const operand: InputPin = 'read' in part.operand
+      ? { key: selectInput, type: source!.type, required: false, value: referenceValue(part.operand.read), state: 'wired' }
+      : { key: selectInput, type: { kinds: ['string'] }, required: false, value: part.operand.value, state: 'literal' }
+    selects.push({ kind: 'select', id, target, key: pin.key, part, type: pin.type, inputs: [operand] })
+    wire({ node: id, handle: selectOut, type: pin.type }, target, inHandle(pin.key))
+    if (source) wire(source, id, inHandle(selectInput))
+    return true
   }
   const makeOf = (target: string, key: string) => {
     const id = makeId(target, key)
@@ -235,6 +264,11 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
         conditionOf(target, pin.value)
         continue
       }
+      // A value chosen by another is drawn as a Select node, which builds it as a Make builds an object
+      if (pin.state === 'expression' && selectOf(target, pin)) {
+        pins[index] = { ...pin, state: 'made' }
+        continue
+      }
       if (pin.state === 'made') makeOf(target, pin.key)
       if (pin.state === 'wired' || pin.state === 'expression') wireValue(pin.value, target, inHandle(pin.key))
     }
@@ -244,5 +278,5 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
     // A Make made on the canvas stays only while its input holds no read or expression, which a wire would have put there
     if (each.kind === 'make' && inputs.get(each.target)?.some((pin) => pin.key === each.key && pin.state !== 'wired' && pin.state !== 'expression')) makeOf(each.target, each.key)
   }
-  return { inputs, outputs, pure: [...breaks.values(), ...makes.values(), ...conditions], edges: [...edges.values()] }
+  return { inputs, outputs, pure: [...breaks.values(), ...makes.values(), ...conditions, ...selects], edges: [...edges.values()] }
 }

@@ -12,7 +12,7 @@ import type { DataGraph, PureNode } from './pins/data-graph'
 import type { InputPin, OutputPin } from './pins/node-pins'
 import { shownInputs } from './pins/pin-layout'
 import { pinColour } from './pins/pin-text'
-import { pureInputs } from './pins/node-sizes'
+import { breakOutputs, pureInputs } from './pins/node-sizes'
 import { pureParent } from './pins/pure-parents'
 
 /**
@@ -21,8 +21,11 @@ import { pureParent } from './pins/pure-parents'
  * advice.
  */
 /** `dataOrder`: the workflow runs in data order, so the node has no execution handles to draw edges from by hand. */
-/** What a Break's or a Make's node draws from: the node, which of its inputs it shows, and whether the canvas is editable. */
-export type PureData = { pure: PureNode; shownInputs: InputPin[]; folded: number; open: boolean }
+/**
+ * What a Break's, a Make's or a condition node draws from: the node, which of its inputs and a Break's fields it shows,
+ * how many it folds away, whether it is open, and whether it has a row to fold or open them.
+ */
+export type PureData = { pure: PureNode; shownInputs: InputPin[]; shownOutputs: OutputPin[]; folded: number; open: boolean; foldable: boolean }
 
 /** `moved`: the node was moved by hand, so the layout leaves it where it was put. */
 export type NodeData = { node: GraphNode; kind: string; problems: NodeProblem[]; warnings?: NodeProblem[]; trace?: NodeTrace; cacheWarning?: boolean; pins?: NodePins; pureData?: PureData; dataOrder?: boolean; moved?: boolean }
@@ -130,6 +133,7 @@ export const pureFlowNodes = (graph: Graph, data: DataGraph, boxes: ReadonlyMap<
     const box = boxes?.get(pure.id) ?? { x: 0, y: 0, ...nodeSize }
     const parent = pureParent(graph, pure)
     const { shown, folded } = pureInputs(pure, open.has(pure.id))
+    const fields = pure.kind === 'break' ? breakOutputs(pure, data.edges, open.has(pure.id)) : undefined
     // The graph node it stands beside, which names nothing a panel opens
     const near = graph.nodes.find((node) => node.id === (pure.kind === 'break' ? pure.source : pure.target))!
     return {
@@ -139,7 +143,7 @@ export const pureFlowNodes = (graph: Graph, data: DataGraph, boxes: ReadonlyMap<
       width: box.width,
       height: box.height,
       measured: { width: box.width, height: box.height },
-      data: { node: near, kind: pure.kind, problems: [], pureData: { pure, shownInputs: shown, folded, open: open.has(pure.id) } },
+      data: { node: near, kind: pure.kind, problems: [], pureData: { pure, shownInputs: shown, shownOutputs: fields?.shown ?? [], folded: fields?.folded ?? folded, open: open.has(pure.id), foldable: fields ? fields.foldable : folded > 0 || open.has(pure.id) } },
       draggable: false,
       deletable: true,
       ...(parent !== undefined && { parentId: flowId(parent), extent: 'parent' as const }),

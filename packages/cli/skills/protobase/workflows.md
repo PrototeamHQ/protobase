@@ -21,7 +21,7 @@ state, step type and trigger, is in [the workflows reference](references/referen
 - `"execution_order": "data"`: no `StartAt`, no `Next`, no `End`, no `Choice`. A state runs once every state it reads
   from has ended, and states that read nothing of each other run at once. Use it when steps are mostly independent,
   or to branch per step with a `Condition`; the editor draws a Condition as nodes (Equals, Not equals, Greater, Less,
-  And, Or, Not), any other expression as one Expression node.
+  Matches, All of, Any of, Not), any other expression as one Expression node.
 
 Data order's rules, each checked against the save or a run:
 
@@ -70,8 +70,8 @@ A test run does what its steps do: it sends the mail and writes the records.
 ## Examples
 
 A website contact form, in data order: the sender becomes a lead contact with the message as a note, sales or support
-is mailed by the topic, and the sender gets an auto-reply when the address looks valid. The routing Conditions show as
-Equals and Not equals nodes; the address check, a regular expression, as an Expression node.
+is mailed by the topic, and the sender gets an auto-reply when the stored address looks valid. The routing Conditions
+show as Equals and Not equals nodes, the address check as a Matches node.
 
 ```json
 {
@@ -108,8 +108,8 @@ Equals and Not equals nodes; the address check, a regular expression, as an Expr
       "AutoReply": {
         "Type": "Task",
         "Resource": "app:mail.send",
-        "Condition": "{% $states.context.Steps.SaveMessage.Status = 'SUCCEEDED' and $type($states.context.Execution.Input.body.email) = 'string' and $contains($states.context.Execution.Input.body.email, /^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/) %}",
-        "Arguments": { "to": "{% $states.context.Execution.Input.body.email %}", "subject": "We received your message", "text": "{% 'Hi ' & $states.context.Execution.Input.body.name & ',\n\nThanks for getting in touch; we will answer within one working day.' %}" }
+        "Condition": "{% $contains($contact.email, /^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/) %}",
+        "Arguments": { "to": "{% $contact.email %}", "subject": "We received your message", "text": "{% 'Hi ' & $contact.name & ',\n\nThanks for getting in touch; we will answer within one working day.' %}" }
       }
     }
   }

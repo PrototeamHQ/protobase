@@ -11,9 +11,9 @@ const pinClass = (pin: { type: InputPin['type'] }) => `pb-pin pb-pin-${pinColour
 /**
  * An input pin's row: its dot on the left edge, which a wire ends at, its name with its type on hover, and what it
  * holds. `step` and `keys` say which argument it sets, such as a Make's field of `data`; `onValue`, what its value
- * changes instead, such as a condition node's side, named `name`.
+ * changes instead, such as a condition node's side, named `name`; `bare`, it takes a wire only and shows no value.
  */
-export const InputRow = ({ pin, step, keys, connectable, name, onValue }: { pin: InputPin; step: string; keys: readonly string[]; connectable: boolean; name?: string; onValue?: (value: unknown) => void }) => {
+export const InputRow = ({ pin, step, keys, connectable, name, onValue, bare = false }: { pin: InputPin; step: string; keys: readonly string[]; connectable: boolean; name?: string; onValue?: (value: unknown) => void; bare?: boolean }) => {
   const actions = usePinActions()
   const label = name ?? inputPinLabel(pin.key)
   return (
@@ -23,7 +23,7 @@ export const InputRow = ({ pin, step, keys, connectable, name, onValue }: { pin:
         {label}
         {pin.required && <span aria-hidden="true" className="text-danger-text">*</span>}
       </span>
-      <PinValue pin={pin} label={label} {...(actions && connectable && { onChange: onValue ?? ((value: unknown) => actions.setArgument(step, keys, value)) })} />
+      {!bare && <PinValue pin={pin} label={label} {...(actions && connectable && { onChange: onValue ?? ((value: unknown) => actions.setArgument(step, keys, value)) })} />}
     </div>
   )
 }
@@ -59,13 +59,13 @@ export const GroupPins = ({ inputs, outputs, connectable }: { inputs: readonly I
   )
 }
 
-/** The button that opens a node's optional inputs, or folds them again. */
-export const FoldRow = ({ node, folded, open }: { node: string; folded: number; open: boolean }) => {
+/** The button that opens a node's optional inputs, or a Break's fields nothing reads, or folds them again. */
+export const FoldRow = ({ node, folded, open, fields = false }: { node: string; folded: number; open: boolean; fields?: boolean }) => {
   const actions = usePinActions()
   if (folded === 0 && !open) return null
   return (
     <button type="button" className="nodrag h-6 w-full px-3 text-left text-xs text-muted-foreground hover:text-foreground" onClick={() => actions?.toggleOpen(node)} disabled={!actions}>
-      {open ? text('foldLess') : text('foldMore', { count: folded })}
+      {fields ? (open ? text('foldLessFields') : text('foldMoreFields', { count: folded })) : open ? text('foldLess') : text('foldMore', { count: folded })}
     </button>
   )
 }

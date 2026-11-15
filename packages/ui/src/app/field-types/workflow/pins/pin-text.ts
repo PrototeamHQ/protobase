@@ -57,13 +57,14 @@ const conditionTitles: Record<ConditionChoice, () => string> = {
   '!=': () => text('conditionNotEquals'),
   '>': () => text('conditionGreater'),
   '<': () => text('conditionLess'),
+  matches: () => text('conditionMatches'),
   and: () => text('conditionAnd'),
   or: () => text('conditionOr'),
   not: () => text('conditionNot'),
   expression: () => text('conditionExpression'),
 }
 
-/** A condition node's name, as the canvas offers it and titles it: Equals, Not equals, Greater, Less, And, Or, Not or Expression. */
+/** A condition node's name, as the canvas offers it and titles it: Equals, Not equals, Greater, Less, Matches, All of, Any of, Not or Expression. */
 export const conditionTitle = (choice: ConditionChoice) => conditionTitles[choice]()
 
 /** The title of a condition node on the canvas. */

@@ -1,15 +1,16 @@
 import type { Connection, Edge, FinalConnectionState } from '@xyflow/react'
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import type { Definition, PinSchemas } from '@protobase/workflows'
+import { orderOf, type Definition, type PinSchemas } from '@protobase/workflows'
 import type { Graph } from '../definition-graph'
 import type { CanvasEdits } from '../canvas-edits'
 import { graphId, isPureFlowId } from '../flow-elements'
 import { text } from '../messages'
 import type { ConditionChoice } from './condition-edits'
 import type { PinEnd } from './data-edits'
+import { lastPlaceFirst, nodePlace, wirePlace } from './removal-order'
 import { dataGraph, type DataEdge, type LocalPure, type PureNode } from './data-graph'
 import { conditionKey } from './node-pins'
-import { nodeSizes } from './node-sizes'
+import { nodeSizes, pinPorts } from './node-sizes'
 import type { PinActions } from './pin-actions'
 import { conditionTitle, typeLabel } from './pin-text'
 import type { PureOffer } from './pure-offer'
@@ -57,14 +58,17 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     now.current = { definition, editing }
   })
   const data = useMemo(() => schemas && dataGraph(definition, schemas, local), [definition, schemas, local])
+  const dataOrder = orderOf(definition) === 'data'
   const layout = useMemo(() => {
     if (!data) return
     return {
       sizes: nodeSizes(graph, data, open),
       pure: data.pure.map((pure) => ({ id: pure.id, parent: pureParent(graph, pure) })),
-      wires: data.edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target })),
+      wires: data.edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.sourceHandle, targetHandle: edge.targetHandle })),
+      ports: pinPorts(graph, data, open),
+      dataOrder,
     }
-  }, [graph, data, open])
+  }, [graph, data, open, dataOrder])
 
   const actions: PinActions | undefined = editing && {
     setArgument: (step, keys, value) => editing.onChange(editing.edits.setArgument(definition, step, keys, value)),
@@ -95,16 +99,23 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
       return pure ? [{ id: pure.id }] : []
     })
     const gone = [...nodes.filter((node) => isPureFlowId(node.id)), ...bound.filter((node) => !nodes.some((other) => other.id === node.id))]
-    for (const edge of edges) {
+    // Wires cut and nodes removed, the last inputs of a Condition's nodes first, so none moves another's place
+    const cut = edges.flatMap((edge) => {
       const wire = (edge.data as { kind?: string; wire?: DataEdge } | undefined)?.wire
-      if (wire && !gone.some((node) => node.id === wire.source || node.id === wire.target)) after = edits.disconnectData(after, data, wire)
-    }
-    for (const node of gone) {
-      const pure = data.pure.find((each) => each.id === node.id)
-      if (pure) after = edits.removePure(after, data, pure)
+      return wire && !gone.some((node) => node.id === wire.source || node.id === wire.target) ? [{ wire }] : []
+    })
+    const removed = gone.flatMap((node) => data.pure.filter((each) => each.id === node.id).map((pure) => ({ pure })))
+    const removals: ({ wire: DataEdge } | { pure: PureNode })[] = [...cut, ...removed]
+    for (const removal of lastPlaceFirst(data, removals, (each) => ('wire' in each ? wirePlace(data, each.wire) : nodePlace(each.pure)))) {
+      after = 'wire' in removal ? edits.disconnectData(after, data, removal.wire) : edits.removePure(after, data, removal.pure)
     }
     if (gone.length > 0) setLocal((current) => localsLeft(current, gone.flatMap((node) => data.pure.filter((each) => each.id === node.id))))
     return after
+  }
+  // A Select chosen in an offer, added to the definition as it is when it is chosen
+  const addSelect = (step: string, key: string) => {
+    const { definition: current, editing: latest } = now.current
+    latest?.onChange(latest.edits.addSelect(current, step, key))
   }
   // A condition node chosen in an offer, added to the definition as it is when it is chosen
   const addCondition = (step: string, at: readonly number[], choice: ConditionChoice) => {
@@ -112,7 +123,7 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     latest?.onChange(latest.edits.addCondition(current, step, at, choice))
   }
   // A wire from an object pin let go on the empty canvas offers to take that object apart, or to build it, there; one
-  // from an empty Only when pin, or a side of an And, an Or or a Not that holds a value, the condition nodes
+  // from an empty Only when pin, or an input of an All of, an Any of or a Not that holds a value or none, the condition nodes
   const connectEnd = (event: MouseEvent | TouchEvent, state: FinalConnectionState) => {
     if (!data || !editing || state.isValid || state.toHandle || !state.fromHandle?.id || !state.fromNode) return
     const node = graphId(state.fromNode.id)
@@ -134,13 +145,19 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     const condition = data.pure.find((each) => each.id === node)
     if (condition?.kind === 'condition') {
       const side = condition.inputs.find((each) => each.key === key)
-      if (!side || side.state !== 'literal' || condition.part.kind === 'compare' || condition.part.kind === 'expression') return
+      // An input of an All of, an Any of or a Not that holds a value, or the empty one after an All of's or Any of's last
+      if (!side || (side.state !== 'literal' && side.state !== 'empty') || (condition.part.kind !== 'logic' && condition.part.kind !== 'not')) return
       setOffer({ ...at, choices: conditionOffer(editing.edits.conditionChoices(false), (choice) => addCondition(condition.target, [...condition.at, Number(key)], choice)) })
       return
     }
     const pin = key === undefined ? undefined : data.inputs.get(node)?.find((each) => each.key === key)
     if (pin?.key === conditionKey && pin.state === 'empty') {
       setOffer({ ...at, choices: conditionOffer(editing.edits.conditionChoices(true), (choice) => addCondition(node, [], choice)) })
+      return
+    }
+    // An input of a value, empty or holding one of its own, can have a Select choose it from another value
+    if (pin && pin.key !== conditionKey && !isObjectType(pin.type.kinds) && (pin.state === 'empty' || pin.state === 'literal')) {
+      setOffer({ ...at, choices: [{ label: text('selectOffer'), add: () => addSelect(node, pin.key) }] })
       return
     }
     if (!pin || !isObjectType(pin.type.kinds) || pin.state === 'wired' || pin.state === 'expression') return
