@@ -23,10 +23,17 @@ const fetchOnly: Definition = {
   stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Fetch', States: { Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://tickets.example.com/open' }, End: true } } },
 }
 
+// A step with a number input, whose pin edits it on the canvas
+const listSome: Definition = {
+  trigger: { manual: {} },
+  stateMachine: { QueryLanguage: 'JSONata', StartAt: 'List', States: { List: { Type: 'Task', Resource: 'app:records.list', Arguments: { resource: 'workflows', limit: 5 }, End: true } } },
+}
+
 const rows = {
   workflows: [
     { id: 1, name: 'Open tickets', description: null, ...definitionRecord(ticketsWorkflow), version: 1 },
     { id: 2, name: 'Fetch tickets', description: null, ...definitionRecord(fetchOnly), version: 1 },
+    { id: 3, name: 'Some workflows', description: null, ...definitionRecord(listSome), version: 1 },
   ],
   workflow_versions: [],
   workflow_runs: [],
@@ -318,6 +325,31 @@ export const RemovesChecks: StoryObj = {
     expect(Object.keys(states)).toEqual(['Fetch', 'Any', 'Each', 'Done'])
     expect(states.Any).toEqual({ Type: 'Choice', Choices: [{ Condition: '{% $count($tickets) > 0 %}', Next: 'Each' }] })
     expect(states.Fetch).not.toHaveProperty('Catch')
+  },
+}
+
+/** A number pin's editor keeps what is typed, such as "1." on the way to 1.5, and the save stores the number. */
+export const NumberPinChecks: StoryObj = {
+  name: 'Edits a number on its pin (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Workspace start="/workflows/3" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await nodeOf(canvasElement, 'List')
+    await userEvent.click(await canvas.findByRole('button', { name: 'Pins' }))
+    const limit = await canvas.findByRole('textbox', { name: 'Limit value' })
+    expect(limit).toHaveValue('5')
+    await userEvent.type(limit, '1.', { initialSelectionStart: 0, initialSelectionEnd: 1 })
+    expect(limit).toHaveValue('1.')
+    await userEvent.type(limit, '5')
+    expect(limit).toHaveValue('1.5')
+    await userEvent.type(limit, '{Backspace}{Backspace}')
+    expect(limit).toHaveValue('1')
+    await userEvent.tab()
+    expect(limit).toHaveValue('1')
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(stored).toBeDefined())
+    expect((stored!.state_machine as Definition['stateMachine']).States.List).toMatchObject({ Arguments: { resource: 'workflows', limit: 1 } })
   },
 }
 
