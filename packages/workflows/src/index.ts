@@ -4,6 +4,7 @@ export { definitionFromParts, partOfProblem, partsOfDefinition, type DefinitionP
 export { expressionSource } from './definition/expressions'
 export { fits, pinType, pinTypeText, type PinKind, type PinType } from './definition/pins/pin-type'
 export { expressionReferences, parseReference, readText, referenceValue, type ReadBase, type Reference } from './definition/pins/references'
+export { conditionParts, conditionValue, isConditionPart, stepStatuses, type CompareOp, type ConditionOperand, type ConditionPart, type ConditionSide } from './definition/pins/conditions'
 export { resolveSchema, schemaAt, type RecordSchemas, type RecordUse } from './definition/pins/resolve-schema'
 export { inputSchema, referenceSchema, resultSchema, resultState, stepStatusSchema, triggerSchema, type PinSchemas } from './definition/pins/pin-sources'
 export { definitionWarnings } from './definition/check-warnings'

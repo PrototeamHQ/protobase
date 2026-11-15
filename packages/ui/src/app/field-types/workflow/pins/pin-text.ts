@@ -1,6 +1,8 @@
 import type { PinKind, PinType } from '@protobase/workflows'
 import { inputLabel } from '../labels'
 import { text } from '../messages'
+import type { ConditionChoice } from './condition-edits'
+import type { ConditionNode } from './data-graph'
 import { conditionKey, statusKey } from './node-pins'
 
 const kindLabels: Record<PinKind | 'any', () => string> = {
@@ -49,3 +51,31 @@ export const outputLabel = (path: readonly string[], trigger = false, field = fa
 
 /** An input pin's name: a built-in argument by its label, else its name. */
 export const inputPinLabel = (key: string) => (key === conditionKey ? text('onlyWhen') : inputLabel(key))
+
+const conditionTitles: Record<ConditionChoice, () => string> = {
+  '=': () => text('conditionEquals'),
+  '!=': () => text('conditionNotEquals'),
+  '>': () => text('conditionGreater'),
+  '<': () => text('conditionLess'),
+  and: () => text('conditionAnd'),
+  or: () => text('conditionOr'),
+  not: () => text('conditionNot'),
+  expression: () => text('conditionExpression'),
+}
+
+/** A condition node's name, as the canvas offers it and titles it: Equals, Not equals, Greater, Less, And, Or, Not or Expression. */
+export const conditionTitle = (choice: ConditionChoice) => conditionTitles[choice]()
+
+/** The title of a condition node on the canvas. */
+export const conditionNodeTitle = ({ part }: ConditionNode) => conditionTitle(part.kind === 'compare' || part.kind === 'logic' ? part.op : part.kind)
+
+const statusLabels: Record<string, () => string> = {
+  SUCCEEDED: () => text('statusSucceeded'),
+  FAILED: () => text('statusFailed'),
+  TIMED_OUT: () => text('statusTimedOut'),
+  ABORTED: () => text('statusAborted'),
+  SKIPPED: () => text('statusSkipped'),
+}
+
+/** What a step's status is, in words: Succeeded for `SUCCEEDED`; any other as it is. */
+export const statusLabel = (status: string) => (Object.hasOwn(statusLabels, status) ? statusLabels[status]!() : status)

@@ -1,15 +1,17 @@
 import type { Connection, Edge, FinalConnectionState } from '@xyflow/react'
 import { useMemo, useState, type RefObject } from 'react'
-import type { Definition, PinSchemas } from '@protobase/workflows'
+import { conditionValue, type Definition, type PinSchemas } from '@protobase/workflows'
 import type { Graph } from '../definition-graph'
 import { graphId, isPureFlowId } from '../flow-elements'
 import { text } from '../messages'
 import { setArgument } from './argument-edits'
+import { conditionChoices, newExpression, newPart, setConditionSide, type ConditionChoice } from './condition-edits'
 import { connectData, disconnectData, removePure, wireRefusal, type PinEnd } from './data-edits'
 import { dataGraph, type DataEdge, type LocalPure, type PureNode } from './data-graph'
+import { conditionKey } from './node-pins'
 import { nodeSizes } from './node-sizes'
 import type { PinActions } from './pin-actions'
-import { typeLabel } from './pin-text'
+import { conditionTitle, typeLabel } from './pin-text'
 import type { PureOffer } from './pure-offer'
 import { breakId, inKey, makeId, outPath } from './pure-ids'
 import { pureParent } from './pure-parents'
@@ -23,6 +25,9 @@ const end = (node: string, handle: string | null | undefined): PinEnd => ({ node
 
 const isObjectType = (kinds: readonly string[] | 'any') => kinds !== 'any' && kinds.includes('object')
 
+// The offer of each condition node a pin can have, each written where `put` puts it
+const conditionOffer = (root: boolean, put: (choice: ConditionChoice) => void) => conditionChoices(root).map((choice) => ({ label: conditionTitle(choice), add: () => put(choice) }))
+
 /**
  * The Breaks and Makes made on the canvas that stay once `gone` are removed: those, and each Break made from a field of
  * a removed Break, which takes its object from it.
@@ -35,8 +40,8 @@ export const localsLeft = (local: readonly LocalPure[], gone: readonly PureNode[
 
 /**
  * The pins of a canvas, given the schemas their types come from: the data graph with the Break and Make nodes made on
- * the canvas, which inputs are open, what the layout places, and what wiring, unwiring, removing a Break or a Make and
- * letting go of a wire on the empty canvas do. Without schemas, no pins.
+ * the canvas, which inputs are open, what the layout places, and what wiring, unwiring, removing a Break, a Make or a
+ * condition node and letting go of a wire on the empty canvas do. Without schemas, no pins.
  */
 export const usePins = (definition: Definition, graph: Graph, schemas: PinSchemas | undefined, onChange: ((definition: Definition) => void) | undefined, frame: RefObject<HTMLElement | null>) => {
   const [local, setLocal] = useState<LocalPure[]>([])
@@ -54,6 +59,8 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
 
   const actions: PinActions | undefined = onChange && {
     setArgument: (step, keys, value) => onChange(setArgument(definition, step, keys, value)),
+    setConditionSide: (step, at, value) => onChange(setConditionSide(definition, step, at, { value })),
+    setCondition: (step, value) => onChange(setArgument(definition, step, [conditionKey], value)),
     toggleOpen: (node) => setOpen((current) => (current.has(node) ? new Set([...current].filter((id) => id !== node)) : new Set([...current, node]))),
   }
   const check: WireCheck = (from, to) => {
@@ -90,7 +97,8 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     if (gone.length > 0) setLocal((current) => localsLeft(current, gone.flatMap((node) => data.pure.filter((each) => each.id === node.id))))
     return after
   }
-  // A wire from an object pin let go on the empty canvas offers to take that object apart, or to build it, there
+  // A wire from an object pin let go on the empty canvas offers to take that object apart, or to build it, there; one
+  // from an empty Only when pin, or a side of an And, an Or or a Not that holds a value, the condition nodes
   const connectEnd = (event: MouseEvent | TouchEvent, state: FinalConnectionState) => {
     if (!data || !onChange || state.isValid || state.toHandle || !state.fromHandle?.id || !state.fromNode) return
     const node = graphId(state.fromNode.id)
@@ -105,13 +113,24 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
       const type = pins.find((pin) => JSON.stringify(pin.path) === JSON.stringify(path))?.type
       if (!type || !isObjectType(type.kinds)) return
       const source = pure?.kind === 'break' ? { source: pure.source, path: [...pure.path, ...path] } : { source: node, path }
-      setOffer({ ...at, label: text('breakTitle', { type: typeLabel(type) }), add: () => setLocal((current) => [...current, { kind: 'break', ...source }]) })
+      setOffer({ ...at, choices: [{ label: text('breakTitle', { type: typeLabel(type) }), add: () => setLocal((current) => [...current, { kind: 'break', ...source }]) }] })
       return
     }
     const key = inKey(handle)
+    const condition = data.pure.find((each) => each.id === node)
+    if (condition?.kind === 'condition') {
+      const side = condition.inputs.find((each) => each.key === key)
+      if (!side || side.state !== 'literal' || condition.part.kind === 'compare' || condition.part.kind === 'expression') return
+      setOffer({ ...at, choices: conditionOffer(false, (choice) => choice !== 'expression' && onChange(setConditionSide(definition, condition.target, [...condition.at, Number(key)], newPart(choice)))) })
+      return
+    }
     const pin = key === undefined ? undefined : data.inputs.get(node)?.find((each) => each.key === key)
+    if (pin?.key === conditionKey && pin.state === 'empty') {
+      setOffer({ ...at, choices: conditionOffer(true, (choice) => onChange(setArgument(definition, node, [conditionKey], choice === 'expression' ? newExpression : conditionValue(newPart(choice))))) })
+      return
+    }
     if (!pin || !isObjectType(pin.type.kinds) || pin.state === 'wired' || pin.state === 'expression') return
-    setOffer({ ...at, label: text('makeTitle', { type: typeLabel(pin.type) }), add: () => setLocal((current) => [...current, { kind: 'make', target: node, key: pin.key }]) })
+    setOffer({ ...at, choices: [{ label: text('makeTitle', { type: typeLabel(pin.type) }), add: () => setLocal((current) => [...current, { kind: 'make', target: node, key: pin.key }]) }] })
   }
   return { data, open, layout, actions, check, isValid, connect, remove, connectEnd, offer, closeOffer: () => setOffer(undefined) }
 }

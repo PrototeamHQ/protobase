@@ -8,8 +8,11 @@ type JsonSchema = Record<string, unknown>
  */
 export type InputState = 'empty' | 'literal' | 'expression' | 'wired' | 'made'
 
-/** A pin on the left of a step: an argument of its type, with its type, whether the type needs it, and what it holds. */
-export type InputPin = { key: string; type: PinType; required: boolean; value: unknown; state: InputState; options?: readonly string[] }
+/**
+ * A pin on the left of a step: an argument of its type, with its type, whether the type needs it, and what it holds;
+ * `statuses`: its options are what a step's status can be, shown by their names.
+ */
+export type InputPin = { key: string; type: PinType; required: boolean; value: unknown; state: InputState; options?: readonly string[]; statuses?: true }
 
 /** A pin on the right of a node: the value at `path` in what it gives, with its type. */
 export type OutputPin = { path: string[]; type: PinType }
