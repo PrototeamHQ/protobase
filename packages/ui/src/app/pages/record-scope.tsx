@@ -3,6 +3,7 @@ import type { RecordPermissions } from '@protobase/client'
 import type { ValueScope } from '@protobase/layout'
 import type { ResourceModel } from '@protobase/schema'
 import { parseTemplatePath } from '@protobase/schema/internal'
+import { LayoutListScope } from './layout-list'
 
 /** The record a RecordCard, or one card of a CardRow, shows; Fields, Actions and forms inside it work on it. */
 export type LayoutRecord = {
@@ -29,8 +30,9 @@ const RecordScopeContext = createContext<LayoutRecord | undefined>(undefined)
 const ScopeStackContext = createContext<readonly ScopeFrame[]>([])
 
 /**
- * Puts `value` around its children, on top of the records already around them. An item is no record a form or action
- * can work on, so inside one `useLayoutRecord` gives none.
+ * Puts `value` around its children, on top of the records already around them, and ends the list around them, as the
+ * layout's scope does: a `RecordsIterator` or an `Action` inside works on the record, not on that list. An item is no
+ * record a form or action can work on, so inside one `useLayoutRecord` gives none.
  */
 export const RecordScope = ({ value, row, children }: { value: LayoutRecord | ItemFrame; row?: ScopeFrame['row']; children: ReactNode }) => {
   const below = useContext(ScopeStackContext)
@@ -39,7 +41,9 @@ export const RecordScope = ({ value, row, children }: { value: LayoutRecord | It
   const stack = useMemo(() => [...below, index === undefined || count === undefined ? value : { ...value, row: { index, count } }], [below, value, index, count])
   return (
     <ScopeStackContext.Provider value={stack}>
-      <RecordScopeContext.Provider value={isItem(value) ? undefined : value}>{children}</RecordScopeContext.Provider>
+      <RecordScopeContext.Provider value={isItem(value) ? undefined : value}>
+        <LayoutListScope value={undefined}>{children}</LayoutListScope>
+      </RecordScopeContext.Provider>
     </ScopeStackContext.Provider>
   )
 }

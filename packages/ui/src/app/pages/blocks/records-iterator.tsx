@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
 import { RecordScope, type ItemFrame, type LayoutRecord } from '../record-scope'
-import { LayoutListScope, useLayoutList } from '../layout-list'
+import { useLayoutList } from '../layout-list'
 import { scopeOf } from '../use-layout-data'
 import type { BlockProps } from './block-props'
 
@@ -23,7 +23,7 @@ export const RecordsEach = ({ children, wrap = (entry, key) => <Fragment key={ke
     const key = 'key' in value ? value.key : index
     return wrap(
       <RecordScope value={value} row={{ index, count: items.length }}>
-        <LayoutListScope value={undefined}>{children}</LayoutListScope>
+        {children}
       </RecordScope>,
       key,
     )

@@ -6,7 +6,6 @@ import { Skeleton } from '../../../primitives/skeleton'
 import { ErrorBanner } from '../../error-banner'
 import { useAdminMeta } from '../../meta-gate'
 import { AppLink } from '../../use-app-address'
-import { LayoutListScope } from '../layout-list'
 import { RecordScope, useScopeStack, valueScopeOf } from '../record-scope'
 import { usePlanned } from '../plan-reads'
 import { plannedRecord, useFirstRecord } from '../use-layout-data'
@@ -26,9 +25,7 @@ const LoadedReference = ({ model, at, recordKey, link = 'edit', children, classN
   if (record.error) return <ErrorBanner title={text('couldNotLoad')} error={record.error} />
   if (!record.data) return null
   const shown = children.length > 0 ? (
-      <RecordScope value={record.data}>
-        <LayoutListScope value={undefined}>{children}</LayoutListScope>
-      </RecordScope>
+      <RecordScope value={record.data}>{children}</RecordScope>
     ) : recordTitle(model, views[model.name], record.data.record, recordKey)
   if (link === false) return <span className={className}>{shown}</span>
   return (
