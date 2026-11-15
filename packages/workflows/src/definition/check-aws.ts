@@ -1,4 +1,6 @@
 import type { Problem } from './problem'
+import { expressionSource, parse } from './expressions'
+import { expressionReads } from './reads'
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -22,6 +24,25 @@ export const isHttpInvoke = (resource: unknown) => resource === httpInvoke
 // The HTTP task's arguments the import carries over, or, for its connection, leaves out
 const httpArgumentNames = new Set(['ApiEndpoint', 'Method', 'Headers', 'QueryParameters', 'RequestBody', 'Authentication', 'InvocationConfig'])
 
+// The methods app:http sends
+const httpMethods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
+
+// The fields of a state's Output and Assign whose expression reads its result, $states.result, at any depth
+const resultReads = (state: Record<string, unknown>): string[] => {
+  const found: string[] = []
+  const visit = (value: unknown, field: string) => {
+    if (typeof value === 'string') {
+      const source = expressionSource(value)
+      const parsed = source === undefined ? undefined : parse(source)
+      if (parsed && !('error' in parsed) && expressionReads(parsed.expression).states.some((path) => path[0] === 'result')) found.push(field)
+    } else if (Array.isArray(value)) value.forEach((item, index) => visit(item, `${field}[${index}]`))
+    else if (isObject(value)) for (const [key, item] of Object.entries(value)) visit(item, `${field}.${key}`)
+  }
+  visit(state.Output, 'Output')
+  visit(state.Assign, 'Assign')
+  return found
+}
+
 /**
  * What an HTTP task of Step Functions holds that app:http cannot do the same way, each named: Arguments that are one
  * expression, an argument it does not carry over, such as `Transform`, which encodes the body otherwise, and a retrier or catcher of a status's own error
@@ -34,6 +55,10 @@ export const httpImportProblems = (state: Record<string, unknown>): Omit<Problem
   const found: Omit<Problem, 'state'>[] = Object.keys(args)
     .filter((name) => !httpArgumentNames.has(name))
     .map((name) => ({ field: `Arguments.${name}`, message: `is an HTTP task's ${name}, which does not import: app:http takes only ApiEndpoint, Method, Headers, QueryParameters and RequestBody` }))
+  const method = typeof args.Method === 'string' ? args.Method.toUpperCase() : undefined
+  if (method !== undefined && !httpMethods.has(method)) found.push({ field: 'Arguments.Method', message: `is ${method}, which app:http does not send: it sends GET, POST, PUT, PATCH and DELETE` })
+  if (method === 'GET' && args.RequestBody !== undefined) found.push({ field: 'Arguments.RequestBody', message: 'is the body of a GET, which app:http does not send' })
+  for (const field of resultReads(state)) found.push({ field, message: "reads the HTTP task's result, whose ResponseBody, StatusCode and Headers app:http gives as body, status and headers: write the read against app:http's result" })
   for (const field of ['Retry', 'Catch'] as const) {
     const rules = Array.isArray(state[field]) ? (state[field] as unknown[]) : []
     rules.forEach((rule, index) => {

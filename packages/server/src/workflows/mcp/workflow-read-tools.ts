@@ -92,6 +92,8 @@ const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
     const machine = objectOf(args.state_machine)
     // A definition on its own runs by hand unless it says otherwise, as create_workflow saves it
     if (machine && id === undefined && edit === undefined) return checked({ trigger: { manual: {} }, ...definitionDataOf(args), state_machine: importedStateMachine(machine) }, catalog, context)
+    // An edit comes alone, as update_workflow takes it: whole definition fields beside it are refused, not left out
+    if (edit && Object.keys(definitionDataOf(args)).length > 0) return 'Pass either { "state_machine": { ... } } or { "id": "<id>", "edit": { ... } }, with no other definition field beside an edit.'
     // A workflow keeps a state machine and an order: an edit cannot remove them
     const kept = id && edit ? ['state_machine', 'execution_order'].filter((key) => edit[key] === null) : []
     if (kept.length > 0) return JSON.stringify({ valid: false, problems: kept.map((field) => ({ field, message: 'cannot be removed: a workflow keeps one' })) })
