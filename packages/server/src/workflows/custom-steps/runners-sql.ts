@@ -8,7 +8,8 @@ export const runnersTables = ['runners', 'custom_step_jobs', 'custom_step_builds
  * versions its published workflows use.
  *
  * A runner keeps only the SHA-256 of its one-time registration token and of its own token. Its admin fields (name,
- * labels, revoked) give the row a new `updated_at`, its ETag, which what it says with each claim leaves as it is.
+ * labels, revoked) give the row a new `updated_at`, its ETag, which what it says with each claim leaves as it is; its
+ * free slots and the images it holds are columns the database keeps from what it said last.
  * Revoking it is kept with its time; revoking or deleting it puts the jobs it holds back in the queue.
  *
  * A job is one try of a custom step, unique by its run and try (`visit`). It holds the arguments as given sealed with
@@ -54,6 +55,9 @@ create index if not exists "runners_name" on ${s}."runners" ("name");
 create index if not exists "runners_name_search" on ${s}."runners" using gin ("name" gin_trgm_ops);
 create index if not exists "runners_updated_at" on ${s}."runners" ("updated_at");
 create index if not exists "runners_polling" on ${s}."runners" ("polling_until") where "polling_until" is not null;
+-- What its last claim said, as columns a list shows: its free slots, and the custom step versions whose images it holds
+alter table ${s}."runners" add column if not exists "free_slots" integer generated always as (("state" -> 'capacity' ->> 'slots')::integer) stored;
+alter table ${s}."runners" add column if not exists "images" jsonb generated always as (coalesce(jsonb_path_query_array("state", '$.images[*].step'), '[]'::jsonb)) stored;
 
 create table if not exists ${s}."custom_step_jobs" (
   "id" uuid primary key default gen_random_uuid(),
@@ -87,6 +91,7 @@ create index if not exists "custom_step_jobs_queued_at" on ${s}."custom_step_job
 create index if not exists "custom_step_jobs_status" on ${s}."custom_step_jobs" ("status", "queued_at");
 create index if not exists "custom_step_jobs_runner" on ${s}."custom_step_jobs" ("runner_id", "queued_at");
 create index if not exists "custom_step_jobs_token" on ${s}."custom_step_jobs" ("token_hash");
+create index if not exists "custom_step_jobs_version" on ${s}."custom_step_jobs" ("version_id", "queued_at");
 
 create table if not exists ${s}."custom_step_builds" (
   "id" uuid primary key default gen_random_uuid(),

@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
-import { heldBackLog } from '@protobase/workflows'
+import { customStepOf, heldBackLog } from '@protobase/workflows'
 import { formatDateTime } from '../../../format/date'
 import { formatTag } from '../../../locale/active-locale'
 import { cn } from '../../../lib/cn'
 import { Badge } from '../../../primitives/badge'
 import { buttonClass } from '../../../primitives/button'
+import { useAdminMeta } from '../../meta-gate'
 import { AppLink } from '../../use-app-address'
 import { JsonBlock } from '../json/json-block'
 import { nodeStatusLabel } from '../workflow/labels'
@@ -39,12 +40,18 @@ const Logs = ({ logs }: { logs: NonNullable<StepRow['logs']> }) => (
   </ol>
 )
 
+/** The resource of custom steps' jobs, which a custom step's step links to. */
+export const jobsResource = 'workflow_custom_step_jobs'
+
 /**
  * One step of a run: its try, item, status and timing, then its error, input, output, variables and logs, as the run's
- * trace keeps them, secrets blanked out. A step a replay did not send says so, and a Block's step links to the block's
- * own run, which gave its result.
+ * trace keeps them, secrets blanked out. A step a replay did not send says so, a Block's step links to the block's
+ * own run, which gave its result, and a custom step's step to the run's jobs, with the logs its container wrote, for
+ * whoever may read them.
  */
-export const StepCard = ({ step, valueActions }: { step: StepRow; valueActions?: ValueActions }) => {
+export const StepCard = ({ step, runId, valueActions }: { step: StepRow; runId: string; valueActions?: ValueActions }) => {
+  const meta = useAdminMeta()
+  const jobs = typeof step.type === 'string' && customStepOf(step.type) !== undefined && meta.resources[jobsResource] !== undefined && meta.permissions[jobsResource]?.read !== false
   const heldBack = step.logs?.some((line) => line.message === heldBackLog) ?? false
   const items = scopeItems(step.scope)
   const output = step.output !== undefined && step.output !== null && <Part title={text('output')}><JsonBlock value={step.output} />{valueActions?.(step.output, 'output')}</Part>
@@ -80,6 +87,11 @@ export const StepCard = ({ step, valueActions }: { step: StepRow; valueActions?:
             {step.reused === true ? text('openEarlierBlockRun') : text('openBlockRun')}
           </AppLink>
         </div>
+      )}
+      {jobs && (
+        <AppLink to={{ kind: 'list', resource: jobsResource, filter: `run_id = "${runId}"` }} className={cn(buttonClass({ size: 'sm' }), 'justify-self-start')}>
+          {text('openJobs')}
+        </AppLink>
       )}
       {step.status !== 'failed' && output}
       {step.input !== undefined && step.input !== null && <Part title={text('input')}><JsonBlock value={step.input} />{valueActions?.(step.input, 'input')}</Part>}

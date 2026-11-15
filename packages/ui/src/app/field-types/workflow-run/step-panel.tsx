@@ -47,7 +47,7 @@ export const StateSteps = ({ run, name, block, valueActions }: { run: StepsRun; 
   return (
     <div className="grid gap-3">
       {steps.slice(0, shown).map((step) => (
-        <StepCard key={String(step.id)} step={step} {...(valueActions && { valueActions })} />
+        <StepCard key={String(step.id)} step={step} runId={run.id} {...(valueActions && { valueActions })} />
       ))}
       {steps.length > shown && (
         <Button size="sm" className="justify-self-start" onClick={() => setShown(shown + stepPageSize)}>

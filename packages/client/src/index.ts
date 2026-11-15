@@ -11,6 +11,7 @@ export type { InboxNotification, InboxPage, NotificationHistoryClient } from './
 export type { Availability, PersonStatus, StatusClient, StatusInput } from './status'
 export type { WorkflowTypeEntry, WorkflowTypeList } from './workflow-types'
 export type { WorkflowRunTrace, WorkflowTraceHeld, WorkflowTraceStep } from './workflow-trace'
+export type { RunnerRegistration } from './runner-registration'
 export { availabilities, heldStatus, maxStatusText, statusTextProblem } from '@protobase/schema/internal'
 export type { RecordCall, RecordCallsHandlers } from './record-calls'
 export type { CallRing, RingsClient } from './rings'

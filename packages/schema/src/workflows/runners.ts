@@ -25,6 +25,8 @@ const runnersResource = (schema: string) =>
       platform: f.text().optional().readOnly(),
       kinds: f.json().readOnly().dbDefault(),
       state: f.json().optional().readOnly(),
+      free_slots: f.integer().optional().readOnly(),
+      images: f.json().readOnly().dbDefault(),
       polled_at: f.timestamp().optional().readOnly(),
       polling_until: f.timestamp().optional().readOnly(),
       tenant_id: f.text().optional().readOnly(),
@@ -53,15 +55,22 @@ const runnersView = view<ReturnType<typeof runnersResource>>('workflow_runners')
     platform: r.platform.label('Platform'),
     kinds: r.kinds.label('Kinds').widget('json'),
     state: r.state.label('Last state').widget('json').help('What the runner said of itself with its last claim: its free slots, the images it holds and its warm instances'),
-    polled_at: r.polled_at.label('Last claim'),
+    free_slots: r.free_slots.label('Free slots').help('How many more jobs it could run at once, as it said with its last claim'),
+    images: r.images.label('Images').widget('json').help('The custom step versions whose images it holds, as it said with its last claim'),
+    polled_at: r.polled_at.label('Last claim').help('A runner with a free slot claims again as soon as a claim ends, so a claim seconds ago says it is online'),
     polling_until: r.polling_until.label('Claiming until'),
+    id: r.id.label('Install command').widget('runner_install').help('Run it on a Linux machine with Docker or Podman, as the user the runner runs as: it installs the runner and registers it with a one-time token, valid for an hour, which replaces any issued before'),
     created_at: r.created_at.label('Created'),
     updated_at: r.updated_at.label('Updated'),
   }))
-  .list((r) => ({ columns: [r.name, r.platform, r.registered_at, r.polled_at, r.revoked], sort: [[r.name, 'asc']] }))
+  .list((r) => ({ columns: [r.name, r.platform, r.polled_at, r.free_slots, r.images, r.revoked], sort: [[r.name, 'asc']] }))
+  .actions((a) => [
+    a.update('revoke', { label: 'Revoke', icon: 'ban', set: { revoked: true }, confirm: 'Revoke this runner? It is refused from its next call on, its jobs go back to the queue, and it cannot be undone.', when: 'revoked = false', variant: 'danger' }),
+  ])
   .layout((r) => [
     l.section('Runner', [r.name, r.labels, r.revoked]),
-    l.section('Machine', [r.platform, r.kinds, r.state]),
+    l.section('Install', [r.id], { when: 'isNull(registered_at) AND revoked = false' }),
+    l.section('Machine', [r.platform, r.kinds, r.free_slots, r.images, r.state]),
     l.sidebar([r.registration_expires_at, r.registered_at, r.polled_at, r.polling_until, r.revoked_at, r.created_at, r.updated_at]),
     l.related('Jobs', { resource: 'workflow_custom_step_jobs', field: 'runner_id', columns: ['step', 'status', 'queued_at'] }),
   ])
@@ -79,7 +88,7 @@ const customStepJobsResource = (schema: string) =>
       run_id: f.relation('workflow_runs').readOnly().filterable(),
       state: f.text().readOnly(),
       step: f.text().readOnly(),
-      version_id: f.relation('workflow_custom_step_versions').readOnly(),
+      version_id: f.relation('workflow_custom_step_versions').readOnly().filterable(),
       input: f.json().optional().readOnly(),
       status: f.enum(customStepJobStatuses).readOnly().filterable(),
       runner_id: f.relation('workflow_runners').optional().readOnly().filterable(),
@@ -125,6 +134,11 @@ const customStepJobsView = view<ReturnType<typeof customStepJobsResource>>('work
     logs: r.logs.label('Logs').widget('json'),
   }))
   .list((r) => ({ columns: [r.step, r.status, r.runner_id, r.queued_at, r.finished_at], sort: [[r.queued_at, 'desc']] }))
+  .layout((r) => [
+    l.section('Custom step job', [r.step, r.status, r.error, r.cause, r.output, r.input]),
+    l.section('Logs', [r.logs]),
+    l.sidebar([r.run_id, r.state, r.version_id, r.runner_id, r.requeues, r.queued_at, r.claimed_at, r.lease_until, r.finished_at]),
+  ])
 
 /**
  * Each build of a custom step version's image on a runner, as the runner reports it: building, then ready with the

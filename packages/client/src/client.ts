@@ -14,6 +14,7 @@ import { devicesClient } from './devices'
 import { statusClient } from './status'
 import { workflowRunTraceClient } from './workflow-trace'
 import { workflowTypesClient } from './workflow-types'
+import { runnerRegistrationClient } from './runner-registration'
 import { notificationHistoryClient } from './notification-history'
 import { recordCallsClient } from './record-calls'
 import { ringsClient } from './rings'
@@ -420,6 +421,9 @@ export const createClient = (options: ClientOptions = {}) => {
   /** A workflow run's trace, the steps it ran with their input, output and logs (see `workflowRunTraceClient`). */
   const workflowRunTrace = workflowRunTraceClient(send)
 
+  /** A runner's new one-time registration token, with the command that installs it (see `runnerRegistrationClient`). */
+  const runnerRegistration = runnerRegistrationClient(send)
+
   /** The calls that ring the signed-in user, and declining one (see `ringsClient`). */
   const rings = ringsClient(send)
 
@@ -429,7 +433,7 @@ export const createClient = (options: ClientOptions = {}) => {
   /** Where a page reads the bytes of a file of `resource` with `fetch`, from this API's own origin (see `fileReadUrl`). */
   const readUrl = (_resource: ResourceRef, file: { uri: string; url: string }) => fileReadUrl(file, systemUrlOf(options.baseUrl))
 
-  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, bridges, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes, workflowRunTrace, fileReadUrl: readUrl }
+  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, bridges, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes, workflowRunTrace, runnerRegistration, fileReadUrl: readUrl }
 }
 
 export type Client = ReturnType<typeof createClient>

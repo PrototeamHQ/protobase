@@ -38,6 +38,6 @@ export { typeCatalog, type CatalogEntry, type TypeCatalog } from './plugin/type-
 export { matchJobs, jobKind, tierOf, type KnownRunner, type MatchSettings, type Placement, type PollingRunner, type QueuedJob, type RunnerState, type Tier } from './runners/match-jobs'
 export { jobAnswer, jobErrors, type CompletedVersion, type JobCompletion } from './runners/job-answer'
 export { buildKind, buildStatuses, fileInputName, fileProperties, type BuildReport, type JobBuild, type JobFile, type RunnerJob, type RunnerOrder } from './runners/job-contract'
-export { customPlugin, customStepEntry, customStepOf, latestCustomSteps, manifestProblems, withCustomSteps, type CustomStepManifest, type CustomStepVersion, type ManifestProblem } from './plugin/custom-steps'
+export { customPlugin, customStepEntry, customStepOf, customStepTestDefinition, customStepTestState, latestCustomSteps, manifestProblems, withCustomSteps, type CustomStepBuildStatus, type CustomStepManifest, type CustomStepVersion, type ManifestProblem } from './plugin/custom-steps'
 export type { CacheCall, CacheEntry, CacheIdentity, StepCacheStore } from './run/cache/cache-port'
 export type { KeyShape } from './run/cache/cache-key'

@@ -11,6 +11,7 @@ import { checkpointsSql, commentVersion, definitionPartsSql, droppedSql, functio
 import { statusSql, statusTriggers } from './status-sql'
 import { blockRunsSql } from './block-runs-sql'
 import { taskTokensSql } from './task-tokens-sql'
+import { testRunsSql } from './test-runs-sql'
 import { customStepsSql, customStepsTables } from './custom-steps/custom-steps-sql'
 import { runnersSql, runnersTables } from './custom-steps/runners-sql'
 
@@ -56,7 +57,7 @@ export const workflowsMigration = async (db: Db, options: Pick<WorkflowsOptions,
 
 /** The statements of a migration of the `workflows` schema: its tables only when missing, storage and custom steps only when on. */
 export const workflowsSql = (schema: string, { tables, storage, customSteps = false }: { tables: boolean; storage: boolean; customSteps?: boolean }) => {
-  const statements = [`create schema if not exists ${quoteIdent(schema)}`, ...(tables ? [] : [tablesSql(schema)]), definitionPartsSql(schema), layoutSql(schema), checkpointsSql(schema), droppedSql(schema), triggersSql(schema), effectsSql(schema), revocationsSql(schema), hooksSql(schema), stepCacheSql(schema), indexesSql(schema), blockRunsSql(schema), taskTokensSql(schema), ...(storage ? [storageSql(schema)] : []), ...(customSteps ? [customStepsSql(schema), runnersSql(schema)] : []), functionsSql(schema), statusSql(schema)]
+  const statements = [`create schema if not exists ${quoteIdent(schema)}`, ...(tables ? [] : [tablesSql(schema)]), definitionPartsSql(schema), layoutSql(schema), checkpointsSql(schema), droppedSql(schema), triggersSql(schema), effectsSql(schema), revocationsSql(schema), hooksSql(schema), stepCacheSql(schema), indexesSql(schema), blockRunsSql(schema), taskTokensSql(schema), testRunsSql(schema), ...(storage ? [storageSql(schema)] : []), ...(customSteps ? [customStepsSql(schema), runnersSql(schema)] : []), functionsSql(schema), statusSql(schema)]
   return `${statements.join(';\n\n')};`
 }
 

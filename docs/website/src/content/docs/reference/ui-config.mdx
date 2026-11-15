@@ -589,7 +589,7 @@ view<typeof objectives>('objectives')
 
 ### A record page that opens another
 
-`.recordOpens(to)` sends a record's page to another address in its place, its `{{field}}`s, in the resource, the key and `run`, filled from the record, replacing the record's address in the history so Back skips it: a workflow run's page opens its workflow's page with the run on the graph. A caller who cannot follow it, such as one who may not read the resource it names or open the page it names, gets the record's own page. The record's own page stays at its address with `?standard=true`.
+`.recordOpens(to)` sends a record's page to another address in its place, its `{{field}}`s, in the resource, the key and `run`, filled from the record, replacing the record's address in the history so Back skips it: a workflow run's page opens its workflow's page with the run on the graph. A caller who cannot follow it, such as one who may not read the resource it names or open the page it names, gets the record's own page, and so does a record whose field leaves the key empty, such as a custom step's test run, which has no workflow. The record's own page stays at its address with `?standard=true`.
 
 ```ts
 view<typeof workflowRuns>('workflow_runs').recordOpens({ kind: 'record', resource: 'workflows', key: '{{workflow_id}}', run: '{{id}}' })

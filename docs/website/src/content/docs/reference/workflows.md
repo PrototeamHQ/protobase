@@ -546,7 +546,7 @@ A stored file is read from where its configuration points now. <gap>Changing a c
 ## Custom workflow steps
 
 :::caution[In development]
-A custom step is saved, listed and checked, and a run hands it to a registered [runner](#runners), which builds its image and runs its container. Each runner builds its own images, as there is no image registry; a job's container has no network; and a step cannot yet be tested on its own, or given limits on its resources in its manifest.
+A custom step is saved, built, tested, listed and checked, and a run hands it to a registered [runner](#runners), which builds its image and runs its container. Each runner builds its own images, as there is no image registry; a job's container has no network; a step cannot yet be tested on its own in the admin app; and it cannot be given limits on its resources in its manifest.
 :::
 
 A **custom step** is a step type the app's authors keep as a record: a container built from a Dockerfile, with the input it takes and the output it gives as JSON Schema. Each save that changes its manifest is a new version, and every version is a step type of its own, `custom:<name>:<version>`, such as `custom:invoice_pdf:2`, so changing a custom step never changes a workflow that names an earlier version.
@@ -559,7 +559,7 @@ export default defineConfig({ workflows: { customSteps: true } })
 
 Their jobs' arguments are sealed with the app's secret, its sign-in's, else `PROTOBASE_SECRET`; without either, startup stops. Their tables, `workflows.custom_steps` and `workflows.custom_step_versions` with those of their runners, jobs and builds, come with the next [`protobase migration`](/reference/cli/#migration) after you turn them on.
 
-A custom step is a record of `workflow_custom_steps`, which you create and change on its standard pages, linked from each workflow's page, through the API or over MCP. Each save is checked, and refused with a 400 problem whose `problems` name each field, such as `container.dockerfile`:
+A custom step is a record of `workflow_custom_steps`, which you create and change on its standard pages, linked from each workflow's page, through the API or [over MCP](/reference/mcp/#workflows). Its page shows its `container` as code: the Dockerfile in a box of its own, each file beside it by its path, with *Add a file* and a button that removes one, and the command, one argument a line, the image's own when empty. Each save is checked, and refused with a 400 problem whose `problems` name each field, such as `container.dockerfile`:
 
 | Field | |
 | --- | --- |
@@ -588,7 +588,7 @@ A custom step is a record of `workflow_custom_steps`, which you create and chang
 }
 ```
 
-Each version, its manifest whole with who saved it and when, is a record of `workflow_custom_step_versions`, read-only, listed on its custom step's page. Deleting a custom step keeps its versions, which are then no step types, and a custom step made again under its name goes on from its next version, so `custom:<name>:<version>` always names the one manifest it named first. A save whose version another write of its name took meanwhile, such as a custom step made again while its old one was changed and deleted, is refused with a 409 to send again, and goes on from the next version.
+Each version, its manifest whole with who saved it and when, is a record of `workflow_custom_step_versions`, read-only, listed on its custom step's page; a version's page lists its [builds](#builds), one per runner, and the [jobs](#jobs) that ran it. Deleting a custom step keeps its versions, which are then no step types, and a custom step made again under its name goes on from its next version, so `custom:<name>:<version>` always names the one manifest it named first. A save whose version another write of its name took meanwhile, such as a custom step made again while its old one was changed and deleted, is refused with a 409 to send again, and goes on from the next version.
 
 A Task names a version in its `Resource`:
 
@@ -607,6 +607,26 @@ The editor's step picker lists each custom step at its latest version under *Cus
 
 A run hands a custom step to one of its tenant's [runners](#runners) as a [waiting Task](#waiting-for-an-outside-result) hands off its work: it queues a **job** with its arguments, then waits, holding no worker, until the runner that claimed the job completes it. So `Retry`, `Catch`, `HeartbeatSeconds` and the once-only answer work as for any waiting Task, and a retry queues a new job with a new token. Its `TimeoutSeconds` counts from the try's start, its time in the queue included, and is 300 by default, as for any step type, up to 366 days; past it the Task fails with `States.Timeout`. A custom step waits for its runner already, so `.waitForTaskToken` on its `Resource` is refused, naming the `Resource` to write, and so is `Cache`. A run of a custom step that was deleted meanwhile fails with `States.Runtime`.
 
+### Testing a custom step
+
+A **custom step test** runs one job of a custom step version on an input, without a workflow: a run of no workflow whose one Task is that version, its arguments the run's input. It is a run as any other: it needs `workflow_runs.create`, takes the person's tenant, acts as them, its files read and stored through their [storage configurations](#storing-files), its step queues a job for one of the tenant's runners, and its Task waits 300 seconds, its time in the queue included. Its run reads as theirs, with no `workflow_id` and the version it tested as `test_step`, and no workflow's status counts it. It never leads to a workflow: the runs list names it by *Tested step*, its address `/workflow_runs/<id>` opens its own page with its one step's trace, error and output and the way to its job, and it offers no replay or re-run. The MCP tool `test_custom_step` starts one and gives the job's output or error, cause and the last lines its container wrote; only the server starts one, so the API's `POST /api/v1/workflow_runs` always names a workflow.
+
+### From a Dockerfile to a workflow
+
+**For a person**, in the admin app:
+
+1. *Runners*, linked from a workflow's page: make a runner, then on its page *New install command* issues the command with a one-time token, valid an hour, to copy and run on a Linux machine with Docker or Podman. Once it registers, its list shows it with its platform, last claim, free slots and images.
+2. *Custom steps*: make one with its Dockerfile, files and command, and its input and output schemas. Each save that changes the manifest is the next version, which the runners that build images build at once; its version's page lists each build, ready with the image's digest or failed with the end of its log.
+3. Make a workflow with a Task of `custom:<name>:<version>`, which the step picker lists under *Custom steps*, and try it with *Test run*. The run's step links to its jobs, with the lines its container wrote; fix the manifest, save the next version, name it in the Task and run again.
+4. Publish the workflow once it gives what it should.
+
+**For an LLM** over [MCP](/reference/mcp/#workflows), whose instructions describe the manifest and the files a container gets and gives:
+
+1. `list_runners` says whether a runner is online; if none is, `create_runner_token` gives the install command, for the person to run.
+2. `save_custom_step` with the manifest and `wait_seconds` saves the step and waits for its build: `ready` with the digest, or `failed` with the end of the build's log to fix and save again.
+3. `test_custom_step` runs the version on a sample input, a stored file for a file argument, and gives its output, or its error with the end of its stderr and its log; fix, save the next version and test again.
+4. `update_workflow` or `create_workflow` names the version in a Task, `validate_workflow` checks its arguments and pins, `run_workflow` and `get_workflow_run` try it, and `enable_workflow` publishes it.
+
 ### Runners
 
 :::caution[In development]
@@ -622,12 +642,13 @@ A **runner** is a machine that runs custom steps' jobs: a record of `workflow_ru
 | `revoked` | Set to `true` to refuse the runner from its next call on: the jobs it holds go back to the queue, for another runner. It cannot be set back; register the machine again as a new runner. |
 | `registered_at`, `platform`, `kinds` | When it registered, and the platform and kinds of steps it gave then. Read-only. |
 | `state`, `polled_at`, `polling_until` | What it said of itself with its last claim, when it made it, and until when that claim is held open. Read-only. |
+| `free_slots`, `images` | How many more jobs it could run at once, and the custom step versions whose images it holds, from its last claim's `state`: columns the database keeps, which the runners' list shows. Read-only. |
 
-Deleting a runner refuses its token as revoking it does.
+Deleting a runner refuses its token as revoking it does. A runner's page offers *Revoke*, which asks first, while it is not revoked.
 
 #### Installing a runner
 
-Make the runner, then issue its one-time registration token with `POST /api/workflows/runners/<id>/registration`, which needs the right to change that runner in your tenant; anyone else gets 404. It answers `{ token, expires_at, command, endpoint }` once: a `pbr_once_...` token valid one hour, of which the app keeps only the SHA-256, so it cannot show it again, the one command that installs the runner with it, and the address of the runner's calls. Both are under the path of the app's system endpoints, `/api` unless its `basePath` moves them, as `/backend` for `/backend/v1`. A token issued again replaces the earlier one, until the runner registers. Run the command on the machine, as the user the runner runs as:
+Make the runner, then issue its one-time registration token: on the runner's page, *New install command* shows the command with the token, to copy, until the runner registers; over MCP, `create_runner_token` makes the runner and gives the command; through the API, `POST /api/workflows/runners/<id>/registration`, `client.runnerRegistration(id)` of `@protobase/client`. It needs the right to change that runner in your tenant; anyone else gets 404. It answers `{ token, expires_at, command, endpoint }` once: a `pbr_once_...` token valid one hour, of which the app keeps only the SHA-256, so it cannot show it again, the one command that installs the runner with it, and the address of the runner's calls. Both are under the path of the app's system endpoints, `/api` unless its `basePath` moves them, as `/backend` for `/backend/v1`. A token issued again replaces the earlier one, until the runner registers. Run the command on the machine, as the user the runner runs as:
 
 ```sh
 curl -fsSL https://app.example.com/api/runners/install.sh | sh -s -- --token pbr_once_...
@@ -712,7 +733,7 @@ A runner builds a version's image from its `dockerfile` and `files` alone, in a 
 
 Each build is a record of `workflow_custom_step_builds`, read-only, listed on its version's page: its runner and step version, its `status` (`building`, `ready` or `failed`), its image's `digest` once ready, the last 10,000 characters of its `log`, and when it started and finished. A job whose image does not build fails as `Custom.Failed`, the end of the log its cause.
 
-**Prepare on publish.** Publishing a workflow's version keeps the custom step versions it uses as wanted, until another version is published or the workflow is turned off. A claim that no job reaches is then answered `{ "order": "prepare", "step", "build" }` for a wanted version whose image the runner lacks, when the runner builds: it builds the image before it claims again, so the first run finds it ready. Each runner is sent it once per version, until it lists the image or its build failed.
+**Prepare on save and publish.** Each custom step's current version, its last save, is wanted, so it is built before it is tested or used; and publishing a workflow's version keeps the custom step versions it uses as wanted, until another version is published or the workflow is turned off. A claim that no job reaches is then answered `{ "order": "prepare", "step", "build" }` for a wanted version whose image the runner lacks, when the runner builds: it builds the image before it claims again, so the first run finds it ready. Each runner is sent it once per version, until it lists the image or its build failed.
 
 #### The runner's calls
 
@@ -760,15 +781,15 @@ Placing runs as a job is queued, as a claim comes, and every second while a serv
 
 ### Jobs
 
-Each job is a record of `workflow_custom_step_jobs`, read-only, listed on its runner's page: its run and state, its step and version, its `input` with the workflows' secrets blanked out, its `status` (`queued`, `running`, `succeeded`, `failed` or `timed_out`), the runner that holds or held it and until when (`lease_until`), how often it went back to the queue (`requeues`), when it was queued, claimed and finished, and its `output`, `error`, `cause` and `logs`. Its arguments as given are not among its fields: while it waits they are kept sealed with the app's secret, opened only into the claim answer, and dropped once it ends. Of its try's token it keeps only the hash. A job whose try ends without it, by its time or its run's end, is `timed_out`.
+Each job is a record of `workflow_custom_step_jobs`, read-only, listed on its runner's and its version's page, and linked from its run's step, *Open this run's jobs*, for whoever may read jobs: its run and state, its step and version, its `input` with the workflows' secrets blanked out, its `status` (`queued`, `running`, `succeeded`, `failed` or `timed_out`), the runner that holds or held it and until when (`lease_until`), how often it went back to the queue (`requeues`), when it was queued, claimed and finished, and its `output`, `error`, `cause` and `logs`. Its arguments as given are not among its fields: while it waits they are kept sealed with the app's secret, opened only into the claim answer, and dropped once it ends. Of its try's token it keeps only the hash. A job whose try ends without it, by its time or its run's end, is `timed_out`.
 
 - <gap>A runner cannot pull a custom step's image another runner built because an image registry is not implemented; each runner builds the images it runs.</gap>
 - <gap>A custom step's container cannot reach the network because network access for jobs is not implemented.</gap>
 - <gap>A runner cannot keep warm instances of a custom step, or be told to drain or stop, because those orders are not implemented; a claim is answered with a job, `prepare` or none.</gap>
 - <gap>A runner cannot be installed on macOS or Windows because only Linux executables are built.</gap>
-- <gap>A runner's registration token cannot be issued in the admin app because its action is not implemented; `POST /api/workflows/runners/<id>/registration` issues it.</gap>
 - <gap>A custom step cannot set its own memory, CPU or disk because those fields of its manifest are not implemented; its runner's settings limit every job alike.</gap>
-- <gap>A custom step cannot be saved or tested over MCP with tools of its own because those tools are not implemented; `create_record` and `update_record` save it.</gap>
+- <gap>A custom step version cannot be tested on its own in the admin app because a test action on its page is not implemented; a workflow's *Test run* runs it, and `test_custom_step` over MCP.</gap>
+- <gap>A runner's list cannot say whether it is online because a column that follows the time is not implemented; its last claim says when it last asked for work, and `list_runners` over MCP says whether it is online.</gap>
 
 ## Runs and their steps
 
@@ -873,14 +894,14 @@ The workflow resources take only [named grants](/reference/access/#resources-tha
 | Grant | |
 | --- | --- |
 | `workflows.create`, `workflows.update`, `workflows.delete` | Make, change and delete workflows, and turn them on and off. Each save that changes the definition makes the saver the workflow's last editor, whom its records steps and its trigger act as. |
-| `workflow_runs.create` | Run a workflow, with any input. The API writes only the fields a caller reads, so it goes with `workflow_runs.read`, and the caller must read the workflow too. |
+| `workflow_runs.create` | Run a workflow, with any input, and [test a custom step](#testing-a-custom-step). The API writes only the fields a caller reads, so it goes with `workflow_runs.read`, and the caller must read the workflow too. |
 | `workflows.read`, `workflow_versions.read`, `workflow_runs.read`, `workflow_triggers.read` | Read workflows, their versions, runs and triggers, the runs' traces with every step's input and output included. |
 | `workflow_resolutions.read` | Read who marked which workflow resolved and when. Marking one needs no grant of its own: whoever may change the workflow may. |
 | `storage_configurations.read` | Let workflows you save use the [storage configurations](#storing-files), and see them. Their keys are never shown. |
 | `storage_configurations.create`, `storage_configurations.update`, `storage_configurations.delete` | Make, change and delete storage configurations. |
 | `workflow_custom_steps.read`, `workflow_custom_step_versions.read` | Read the [custom steps](#custom-workflow-steps) and their versions. A workflow's author needs neither to use them: the step types are listed to whoever may read workflows. |
 | `workflow_custom_steps.create`, `workflow_custom_steps.update`, `workflow_custom_steps.delete` | Make, change and delete custom steps. Each change of a manifest is a new version. |
-| `workflow_runners.read`, `workflow_custom_step_jobs.read` | Read the [runners](#runners) and the jobs they claim, the jobs' input and output included. |
+| `workflow_runners.read`, `workflow_custom_step_jobs.read`, `workflow_custom_step_builds.read` | Read the [runners](#runners), the jobs they claim, the jobs' input and output included, and the builds of custom step versions' images. |
 | `workflow_runners.create`, `workflow_runners.update`, `workflow_runners.delete` | Make, revoke and delete runners. Issuing a runner's registration token needs the right to change it. |
 
 ```ts

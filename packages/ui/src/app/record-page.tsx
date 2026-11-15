@@ -19,7 +19,7 @@ import { ErrorBanner } from './error-banner'
 import { CustomSection } from './custom-section'
 import { FullAreaRecord } from './full-area-record'
 import { RecordFocusPage } from './focus/record-focus-page'
-import { RecordOpens } from './record-opens'
+import { openedAddress, RecordOpens } from './record-opens'
 import { MapSection } from './map/map-section'
 import { RecordChartSection } from './record-chart/record-chart-section'
 import { RecordTrendSection } from './record-trend/record-trend-section'
@@ -114,7 +114,11 @@ export const RecordPage = ({ resource, recordKey }: { resource: string; recordKe
   if (opened) return <FileViewerPage key={opened.file.uri} model={model} record={record.data.record} viewed={opened} back={back} />
   const standardAsked = address?.kind === 'record' && address.standard === true
   const opens = views[resource]?.recordOpens
-  if (opens && !standardAsked) return record.isPlaceholderData ? <RecordSkeleton /> : <RecordOpens to={opens} record={record.data.record} />
+  if (opens && !standardAsked) {
+    if (record.isPlaceholderData) return <RecordSkeleton />
+    const to = openedAddress(opens, record.data.record)
+    if (to) return <RecordOpens to={to} />
+  }
   const page = views[resource]?.record
   if (!page || standardAsked) return standard
   // The app's component reads fields a list row may not have, so it waits for the whole record

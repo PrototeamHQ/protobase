@@ -28,6 +28,11 @@
     "webhookTitle": "Issue a new webhook URL for {record}?",
     "webhookBody": "Its old URL stops at once, and the new URL and secret are shown to this client once.",
     "issue": "Issue",
+    "testTitle": "Test {step} on this input?",
+    "testBody": "It runs once on one of your runners, as a run of its own, and stores the files it gives where the input says.",
+    "test": "Test",
+    "runnerTitle": "Make the runner {name} and issue its install command?",
+    "runnerBody": "The command holds a one-time token, valid for an hour and shown to this client once: whoever runs it with it registers a machine that runs your custom steps.",
     "createNamedAction": "Create {resource} \"{title}\""
   },
   "mcp/approval": {

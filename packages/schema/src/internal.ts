@@ -9,6 +9,7 @@ export { keyTypes, recordJsonSchema, type KeyType, type RecordUse } from './work
 export { storageNamePattern } from './workflows/storage-configurations'
 export { resolvableStatuses, statusRuns, workflowStatuses, workflowStatusTones, type WorkflowStatus } from './workflows/workflow-status'
 export { workflowTypesPath, type WorkflowCacheAdvice, type WorkflowTypeEntry, type WorkflowTypeList } from './workflows/workflow-types-path'
+export { runnerRegistrationParam, runnerRegistrationPath, runnerRegistrationRoute, type RunnerRegistration } from './workflows/runner-registration-path'
 export { workflowRunParam, workflowRunsPath, workflowRunTraceRoute, workflowRunTracePath, workflowTraceAfterParam, workflowTraceRevisionParam, type WorkflowRunTrace, type WorkflowTraceHeld, type WorkflowTraceStep } from './workflows/workflow-trace-path'
 export { workflowTraceRevision } from './workflows/workflow-trace-revision'
 export { boardErrors, datesErrors, cardPhotoLimit, displayFields, tableDisplay } from './view-displays'

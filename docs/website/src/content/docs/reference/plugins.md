@@ -173,6 +173,9 @@ The create form and the record's form pick the members of the organization the s
 
 `workflow_run` is the field type the `workflow_runs` resource draws its own `id` with: the run's [trace](/reference/workflows/#following-and-debugging-a-run) on its workflow's graph, with the chosen step's records under it. Another uuid field holding a run's id picks it as `r.run_id.widget('workflow_run')`. It takes the whole width, and a list's table shows the id. A plugin that registers a field type named `workflow_run` replaces it.
 
+### Custom steps and runners
+
+`custom_step_container` is the field type the `workflow_custom_steps` resource draws its `container` with: the Dockerfile, each file beside it by its path and the command, shown as code and edited in boxes of their own, files added and removed by path and the command one argument a line, stored as `{ dockerfile, files, command }`. `runner_install` is the one the `workflow_runners` resource draws its own `id` with: *New install command*, which issues the runner a [one-time token](/reference/workflows/#installing-a-runner) and shows the command that installs it, with a button to copy it. A plugin that registers a field type of either name replaces it.
 
 ## File viewers
 

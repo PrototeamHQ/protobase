@@ -51,7 +51,7 @@ const customStepsView = view<ReturnType<typeof customStepsResource>>('workflow_c
     label: r.label.label('Label'),
     description: r.description.label('Description'),
     kind: r.kind.label('Kind').valueLabels({ container: 'Container' }),
-    container: r.container.label('Container').widget('json').help('Its dockerfile, the files beside it by their relative paths, and the command it runs, the image\'s own without one'),
+    container: r.container.label('Container').widget('custom_step_container').help('Its Dockerfile, the files beside it by their relative paths, which it copies, and the command it runs, the image\'s own without one'),
     input: r.input.label('Input').widget('json').help('The JSON Schema of the arguments it takes, an object; a property with x-file true takes a stored file'),
     output: r.output.label('Output').widget('json').help('The JSON Schema of what it gives, an object; a property with x-file true is a file it stores, in the storage configuration its store argument names'),
     error_prefix: r.error_prefix.label('Error prefix').help('The start of its error names, such as Invoice in Invoice.Refused'),
@@ -102,6 +102,10 @@ const customStepVersionsView = view<ReturnType<typeof customStepVersionsResource
   .fields((r) => ({
     custom_step_id: r.custom_step_id.label('Custom step'),
     kind: r.kind.label('Kind').valueLabels({ container: 'Container' }),
+    container: r.container.label('Container').widget('custom_step_container'),
+    input: r.input.label('Input').widget('json'),
+    output: r.output.label('Output').widget('json'),
+    errors: r.errors.label('Errors').widget('json'),
     error_prefix: r.error_prefix.label('Error prefix'),
     saved_by: r.saved_by.label('Saved by'),
     saved_at: r.saved_at.label('Saved'),
@@ -111,7 +115,8 @@ const customStepVersionsView = view<ReturnType<typeof customStepVersionsResource
     l.section('Custom step version', [r.custom_step_id, r.version, r.name, r.label, r.description, r.kind]),
     l.section('Manifest', [r.container, r.input, r.output, r.error_prefix, r.errors]),
     l.sidebar([r.saved_by, r.saved_at]),
-    l.related('Builds', { resource: 'workflow_custom_step_builds', field: 'version_id', columns: ['status', 'runner_id', 'started_at', 'finished_at'] }),
+    l.related('Builds', { resource: 'workflow_custom_step_builds', field: 'version_id', columns: ['status', 'runner_id', 'digest', 'started_at', 'finished_at'] }),
+    l.related('Jobs', { resource: 'workflow_custom_step_jobs', field: 'version_id', columns: ['status', 'run_id', 'runner_id', 'queued_at', 'finished_at', 'error'] }),
   ])
 
 /** The custom steps of the workflows over `schema`, with their versions, offered when the app turns custom steps on. */

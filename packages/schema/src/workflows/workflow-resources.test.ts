@@ -21,6 +21,18 @@ describe('workflowResources', () => {
     expect(parts.workflowRunsView.toModel(parts.workflowRuns.toModel()).recordOpens).toEqual({ kind: 'record', resource: 'workflows', key: '{{workflow_id}}', run: '{{id}}' })
   })
 
+  it("names a custom step's test run by the version it tested, and offers it no way back to a workflow it has not", () => {
+    const parts = workflowResources('workflows')
+    const runs = parts.workflowRunsView.toModel(parts.workflowRuns.toModel())
+    expect(parts.workflowRuns.toModel().fields.test_step).toMatchObject({ type: 'text', readOnly: true })
+    expect(runs.list?.columns.slice(0, 3)).toEqual(['created_at', 'workflow_id', 'test_step'])
+    // Replay and re-run open the run on its workflow's graph, so a run of no workflow is offered neither
+    expect(runs.actions.map((action) => [action.name, action.when])).toEqual([
+      ['replay', '(status = "succeeded" OR status = "failed") AND workflow_id:*'],
+      ['rerun', '(status = "succeeded" OR status = "failed") AND workflow_id:*'],
+    ])
+  })
+
   it('lists every workflow under its sidebar entry by name, marked by its run status, and says the status on its page', () => {
     const parts = workflowResources('workflows')
     const workflows = parts.workflowsView.toModel(parts.workflows.toModel())
@@ -99,6 +111,6 @@ describe('workflowResources', () => {
     expect([builds.name, builds.tenant, builds.explicitGrants]).toEqual(['workflow_custom_step_builds', 'tenant_id', true])
     expect(Object.values(builds.fields).every((field) => field.readOnly)).toBe(true)
     expect(parts.customStepBuildsView!.toModel().nav?.hidden).toBe(true)
-    expect(parts.customStepVersionsView!.toModel(parts.customStepVersions!.toModel()).layout.at(-1)).toMatchObject({ kind: 'related', resource: 'workflow_custom_step_builds', field: 'version_id' })
+    expect(parts.customStepVersionsView!.toModel(parts.customStepVersions!.toModel()).layout.slice(-2)).toMatchObject([{ kind: 'related', resource: 'workflow_custom_step_builds', field: 'version_id' }, { kind: 'related', resource: 'workflow_custom_step_jobs', field: 'version_id' }])
   })
 })

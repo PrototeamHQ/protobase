@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 26
+export const workflowsVersion = 27
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -251,7 +251,7 @@ export const workflowsTriggers = ['workflow_version', 'run_version']
  * that is off, and refuses a workflow of another tenant as one that is not there, one that has no saved version, and a
  * version the workflow does not have. A re-run takes the input of the run it re-runs, which the start hook checks, and
  * the Block it ran when it was a block's run; a replay too; both run the version saved last unless they name one. A workflow is created with no steps unless it says otherwise;
- * such a version is kept but runs nothing.
+ * such a version is kept but runs nothing. A custom step's test run, of no workflow, takes no version.
  */
 export const functionsSql = (schema: string) => {
   const s = quoteIdent(schema)
@@ -319,6 +319,10 @@ language plpgsql as $$
 declare
   found record;
 begin
+  -- A custom step's test run, which only the engine starts, runs that step alone and has no workflow.
+  if new.test_step is not null then
+    return new;
+  end if;
   select w.id, w.version, w.enabled_version, w.tenant_id into found from ${s}."workflows" w where w.id = new.workflow_id;
   -- Another tenant's workflow is refused as one that is not there, so a start tells nothing of other tenants.
   if found.id is null or new.tenant_id is distinct from found.tenant_id then

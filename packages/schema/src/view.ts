@@ -397,7 +397,7 @@ export class ViewBuilder<R extends {
   /**
    * A record's page opens `to` in its place, replacing the address in the history, `{{field}}` in its resource, key and
    * run replaced by the record's values: a workflow run's opens its workflow's page with the run on the graph. A caller
-   * who cannot see where it leads gets the record's own page. See
+   * who cannot see where it leads gets the record's own page, and so does a record whose field leaves the key empty. See
    * [The record page](docs/website/src/content/docs/reference/ui-config.mdx#a-record-page-that-opens-another).
    */
   recordOpens(to: AppAddress) {
