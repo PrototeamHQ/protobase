@@ -28,11 +28,8 @@ type Placed = { child: LayoutChild; at: string }
 
 const placed = (children: LayoutChild[], at: string, place: string): Placed[] => children.map((child, index) => ({ child, at: pointerOf(at, place, index) }))
 
-/** A list around elements: its entries, and the resource they are records of; none for an `ArrayField`'s items. */
-type Around = { items: unknown[]; resource?: string }
-
 /** The text of each child, a run of inline children joined into one part; `list` is the list around them, if any. */
-const partsOf = (children: Placed[], options: TextOptions, oneLine: boolean, list?: Around): string[] => {
+const partsOf = (children: Placed[], options: TextOptions, oneLine: boolean, list?: unknown[]): string[] => {
   const parts: string[] = []
   let runOn = false
   for (const { child, at } of children) {
@@ -48,9 +45,9 @@ const partsOf = (children: Placed[], options: TextOptions, oneLine: boolean, lis
 
 // A RecordsIterator reads as its children once per record of the list around it, each in that record; while the text
 // does not have the list, once without a record, as a field reads as its label alone
-const iterate = (children: Placed[], options: TextOptions, list: Around | undefined) => {
+const iterate = (children: Placed[], options: TextOptions, list: unknown[] | undefined) => {
   if (list === undefined) return blocks(partsOf(children, { ...options, record: undefined, fields: undefined }, false))
-  return blocks(list.items.map((item) => blocks(partsOf(children, { ...options, record: itemRecord(item), fields: undefined }, false))))
+  return blocks(list.map((item) => blocks(partsOf(children, { ...options, record: itemRecord(item), fields: undefined }, false))))
 }
 
 // A CardRow's records, when the caller read them: its children read once per record, a part each
@@ -65,13 +62,12 @@ const childOptions = (node: LayoutNode, options: TextOptions, at: string): TextO
   return scoped(options, childScope(node, pageScope).stack.length > 0)
 }
 
-const render = (unfilled: LayoutNode, options: TextOptions, around: Around | undefined, at: string): string => {
+const render = (unfilled: LayoutNode, options: TextOptions, around: unknown[] | undefined, at: string): string => {
   // Its `{{path}}`s read the record around the tree, the only one the text has, and the page's parameters; others read as empty
   const node = fillProps(unfilled, { stack: options.record ? [{ record: options.record }] : [], ...(options.params && { params: options.params }) })
   if (!node.custom && node.type === 'RecordsIterator') return iterate(placed(node.children, at, 'children'), options, around).trim()
   // A list context puts its list around its children; other elements pass on the one around them
-  const items = listOf(node, options, at)
-  const listed = items && { items, ...(node.type !== 'ArrayField' && { resource: String(node.props.reference) }) }
+  const listed = listOf(node, options, at)
   const list = listed ?? (childScope(node, pageScope).stack.length > 0 ? undefined : around)
   const inner = childOptions(node, options, at)
   // A RecordCard's header actions sit in its record, as its children do
@@ -88,8 +84,8 @@ const render = (unfilled: LayoutNode, options: TextOptions, around: Around | und
   // A block's `select` children draw nothing while no row is chosen, or the text does not have it
   const drawn = selectOf(node) && !inner.record ? [] : own
   const cards = cardsOf(node, options, at)
-  const children = cards ? cards.map((card) => iterate(drawn, options, { items: [card] })) : partsOf(drawn, inner, holdsOneLine(node), list)
-  return formOf(node, options)({ node, at, children, slots, ...(fallback && { fallback }), ...(around && { around: around.items, ...(around.resource !== undefined && { aroundResource: around.resource }) }), options }).trim()
+  const children = cards ? cards.map((card) => iterate(drawn, options, [card])) : partsOf(drawn, inner, holdsOneLine(node), list)
+  return formOf(node, options)({ node, at, children, slots, ...(fallback && { fallback }), ...(around && { around }), options }).trim()
 }
 
 /**
