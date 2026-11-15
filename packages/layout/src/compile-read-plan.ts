@@ -9,7 +9,7 @@ import { pointerOf } from './element-at'
 import { newSlots } from './plan-slots'
 import type { ReadPlan, UnplannedBlock } from './read-plan'
 import { columnName, type TableColumn } from './table-columns'
-import { childScope, label, propScope, type Scope } from './walk'
+import { actsOnList, childScope, label, propScope, type Scope } from './walk'
 
 export type ReadPlanInput = {
   models: Record<string, ResourceModel>
@@ -68,7 +68,10 @@ export const compileReadPlan = (tree: LayoutNode, { models, root }: ReadPlanInpu
     countsOf(node, scope, pointer)
     drawList(node, list)
     const nearest = rows.at(-1)
-    if (changesRecord(node) && nearest) nearest.etag = true
+    // An Action in a list runs on each of its records, so the list's read asks for their ETags
+    if (actsOnList(node, scope)) {
+      if (list) list.etag = true
+    } else if (changesRecord(node) && nearest) nearest.etag = true
 
     const inner = childScope(node, scope)
     const pushed = inner.stack.length > scope.stack.length

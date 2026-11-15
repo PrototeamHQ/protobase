@@ -640,12 +640,12 @@ A text box that grows with its text: Enter or the send button creates a record o
 
 ### Action
 
-A button for a [named action](/reference/layouts/#named-actions) of the view, on the record around it.
+A button for a [named action](/reference/layouts/#named-actions) of the view, on the record around it, or, directly in a `ReferenceManyField` or `ReferenceArrayField`, on every record of that list ([actions in a list](/reference/layouts/#actions-in-a-list)).
 
 | Prop | |
 | --- | --- |
 | `name` | The action's name in the view. Required. |
-| `resource` | Outside a record: the resource whose view declares it. |
+| `resource` | Outside a record and a list: the resource whose view declares it. |
 | `label` | Default: the action's label. |
 | `variant` | `primary`, `secondary` (default), `danger` or `ghost`. |
 

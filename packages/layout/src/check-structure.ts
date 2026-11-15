@@ -28,7 +28,7 @@ const recordProblems = (node: LayoutNode, scope: Scope): string[] => {
     case 'ModalForm':
       return props.mode === 'edit' && (props.resource === undefined || props.recordKey === undefined) ? [`in edit mode ${outside}, or name "resource" and "recordKey"`] : []
     case 'Action':
-      return props.resource === undefined ? [`${outside}, or name "resource"`] : []
+      return props.resource === undefined && scope.list?.resource === undefined ? [`${outside}, or in a ReferenceManyField or ReferenceArrayField to run on its records, or name "resource"`] : []
     default:
       return []
   }

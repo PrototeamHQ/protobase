@@ -53,6 +53,8 @@ export type TextContext = {
   at: string
   /** The records of the list around it, when the text has them, which a `Table` without `resource` shows. */
   around?: unknown[]
+  /** The resource the records of `around` belong to; none for an `ArrayField`'s items. An `Action` of it runs on each of them. */
+  aroundResource?: string
   /**
    * The text of each child, in order. A run of text and links, as they read in one line, is one part, so joining the
    * parts with a separator never splits a sentence.

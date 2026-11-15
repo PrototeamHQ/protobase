@@ -19,7 +19,7 @@ import { columnName, type TableColumn } from './table-columns'
 import { inlineFieldTypes } from './inline-fields'
 import { dataProps, type LayoutNode } from './node'
 import type { PageModel } from './page'
-import { innermost, walkTree, type Scope } from './walk'
+import { actsOnList, innermost, walkTree, type Scope } from './walk'
 
 export type PageCheckInput = {
   models: Record<string, ResourceModel>
@@ -51,11 +51,11 @@ const sortProblem = (model: ResourceModel, source: string) => {
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
 
 /**
- * The resource an element reads or writes: its own `resource` prop, the list around a `Table` without one, or the
- * record nearest around it.
+ * The resource an element reads or writes: its own `resource` prop, the list around a `Table` or an `Action` without
+ * one, or the record nearest around it.
  */
 export const elementResource = (node: LayoutNode, scope: Scope) =>
-  text(node.props.resource) ?? (!node.custom && node.type === 'Table' ? scope.list?.resource : innermost(scope)?.resource)
+  text(node.props.resource) ?? ((!node.custom && node.type === 'Table') || actsOnList(node, scope) ? scope.list?.resource : innermost(scope)?.resource)
 
 /** Why a link's `{{path}}` cannot be filled where it sits, through the records around it; `undefined` when it can. */
 export const linkPlaceholderError = (models: Record<string, ResourceModel>, scope: Scope, params: ReadonlySet<string>) => (path: string) => {

@@ -140,7 +140,7 @@ describe('page', () => {
       '<Page> › <Stat>: with "field" needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator',
       '<Page> › <Progress>: with a field name needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator',
       '<Page> › <ModalForm>: in edit mode needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator, or name "resource" and "recordKey"',
-      '<Page> › <Action name="go">: needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator, or name "resource"',
+      '<Page> › <Action name="go">: needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator, or in a ReferenceManyField or ReferenceArrayField to run on its records, or name "resource"',
     ])
   })
 
@@ -152,7 +152,7 @@ describe('page', () => {
         { type: 'CardRow', props: { resource: 'plans', actions: Action({ name: 'add' }) }, children: [] },
       ],
     })
-    expect(problems(tree)).toEqual(['<Page> › <CardRow resource="plans"> actions={<Action name="add">}: needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator, or name "resource"'])
+    expect(problems(tree)).toEqual(['<Page> › <CardRow resource="plans"> actions={<Action name="add">}: needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator, or in a ReferenceManyField or ReferenceArrayField to run on its records, or name "resource"'])
   })
 
   it('wants exactly one source for a Stat, and parsable conditions', () => {
