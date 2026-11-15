@@ -66,6 +66,10 @@ The database tests in `packages/*/tests/` and `tests/` replay SQL recorded from 
 - Keep a recording under about 200 KB: read only the columns a test checks and seed only the rows it needs. Send requests one at a time for a stable recording.
 - A table above 30k rows needs a higher statistics target (`alter table ... alter column ... set statistics 1000`) and `autovacuum_enabled = off`.
 
+## Example apps
+
+The examples in `tests/apps` are the presets, and `automations` is what `protobase-try.exe` serves, so a change that makes the server need more of a schema it checks at startup, such as a bump of `workflowsVersion`, ships each example's migration with it: `bun run protobase migration` in `tests/apps/<name>`, on a database its own migrations made. `packages/cli/tests/project/examples-schema.integration.test.ts`, in the integration tests, serves every example on its own migrations and fails while one is behind.
+
 ## Releases
 
 Every push to `main` with a fix, feature or breaking change is released by `.github/workflows/release.yml`: a `v<version>` tag and a GitHub release, without a commit to `main`. Below 1.0 a breaking change bumps the minor and a feature or fix the patch. `bun run release --dry-run` shows the next release. Its rules: [Versioning](https://docs.protobase.net/reference/versioning/).
