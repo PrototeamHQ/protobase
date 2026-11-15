@@ -144,6 +144,13 @@ describe('compileReadPlan', () => {
     })
   })
 
+  it("reads every field of a composite key beside the fields a custom component's props name, a dotted one by its first name", () => {
+    const Graph = component<{ nodes: string; label: string }>('Graph', { reads: [{ resource: 'nodes', fields: 'label' }] })
+    const pinned = { ...models, pins: model('pins', [field('board_id', 'integer'), field('task_id', 'integer'), field('note', 'json')], { primaryKey: ['board_id', 'task_id'] }) }
+    const tree = Page({ title: 'Map', children: [Graph({ nodes: 'pins', label: 'note.text' })] })
+    expect(compileReadPlan(tree, { models: pinned }).plan.reads[0]).toMatchObject({ part: 'nodes', fields: ['board_id', 'note', 'task_id'] })
+  })
+
   it("reads the record a custom component's declared select chose by its key, and its children's fields there", () => {
     const Graph = component<{ nodes: string; label: string; select: string }>('Graph', { reads: [{ resource: 'nodes', fields: 'label', select: 'select' }] })
     const tree = Page({ title: 'Map', children: [Graph({ nodes: 'tasks', label: 'title', select: 'task', children: Field({ source: 'status' }) })] })
