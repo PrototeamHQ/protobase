@@ -19,6 +19,7 @@ import { pinProblems } from './pins/check-pins'
 import type { PinSchemas } from './pins/pin-sources'
 import { dataflowProblems, dataflowVisible } from './dataflow/check-dataflow'
 import { orderOf } from './types'
+import { taskResource } from './task-resource'
 
 /**
  * What a definition is checked against beside the language: the step types (Task resources) the app has, the
@@ -44,10 +45,27 @@ type Scope = { path: string[]; outer: ReadonlySet<string>; item: boolean; blocks
 // The arguments a Task's step type needs and its Arguments leave out; none when Arguments is one expression, whose
 // value is known only when it runs.
 const missingArguments = (state: TaskState, options: CheckOptions) => {
-  const needed = options.required?.[state.Resource] ?? []
+  const needed = options.required?.[taskResource(state.Resource).type] ?? []
   if (expressionSource(state.Arguments) !== undefined) return []
   const given = typeof state.Arguments === 'object' && state.Arguments !== null ? (state.Arguments as Record<string, unknown>) : {}
   return needed.filter((name) => given[name] === undefined || given[name] === '')
+}
+
+// A Task runs its step type within 300 seconds; one that waits for an outside result may wait longer, its heartbeats
+// coming more often than its timeout, and hands its work off on every try, so it caches nothing.
+const waitProblems = (state: TaskState): Omit<Problem, 'state'>[] => {
+  const { waits } = taskResource(state.Resource)
+  if (!waits) {
+    return [
+      ...(state.TimeoutSeconds !== undefined && state.TimeoutSeconds > limits.taskTimeoutSeconds ? [{ field: 'TimeoutSeconds', message: `is ${state.TimeoutSeconds}, more than the ${limits.taskTimeoutSeconds} seconds a step type runs; only a Task whose Resource ends in .waitForTaskToken waits longer` }] : []),
+      ...(state.HeartbeatSeconds !== undefined ? [{ field: 'HeartbeatSeconds', message: 'is for a Task whose Resource ends in .waitForTaskToken, whose outside executor sends heartbeats; this step type ends or fails within its TimeoutSeconds' }] : []),
+    ]
+  }
+  const timeout = state.TimeoutSeconds ?? limits.waitingTaskTimeoutSeconds
+  return [
+    ...(state.HeartbeatSeconds !== undefined && state.HeartbeatSeconds >= timeout ? [{ field: 'HeartbeatSeconds', message: `is ${state.HeartbeatSeconds}, which must be less than the Task's TimeoutSeconds (${timeout})` }] : []),
+    ...(state.Cache === true ? [{ field: 'Cache', message: 'is true, but a Task that waits for an outside result hands its work off on every try and caches nothing' }] : []),
+  ]
 }
 
 const machineProblems = (machine: Machine, scope: Scope, options: CheckOptions): Problem[] => {
@@ -73,16 +91,19 @@ const machineProblems = (machine: Machine, scope: Scope, options: CheckOptions):
       if (reservedVariables.has(variable) || builtInFunctions.has(variable)) problems.push({ state: where(name), field: 'Assign', message: `cannot assign $${variable}, a name the runner or JSONata keeps` })
       if (scope.outer.has(variable)) problems.push({ state: where(name), field: 'Assign', message: `cannot assign $${variable}, which an outer state assigns already` })
     }
-    if (state.Type === 'Task' && options.unavailable && Object.hasOwn(options.unavailable, state.Resource)) {
-      problems.push({ state: where(name), field: 'Resource', message: `"${state.Resource}" cannot run in this app: ${options.unavailable[state.Resource]}` })
-    } else if (state.Type === 'Task' && !options.resources.includes(state.Resource)) {
-      problems.push({ state: where(name), field: 'Resource', message: `"${state.Resource}" is not a step type; use one of ${options.resources.join(', ')}` })
+    const task = state.Type === 'Task' ? taskResource(state.Resource) : undefined
+    if (task && options.unavailable && Object.hasOwn(options.unavailable, task.type)) {
+      problems.push({ state: where(name), field: 'Resource', message: `"${task.type}" cannot run in this app: ${options.unavailable[task.type]}` })
+    } else if (task && !options.resources.includes(task.type)) {
+      problems.push({ state: where(name), field: 'Resource', message: `"${task.type}" is not a step type; use one of ${options.resources.join(', ')}${task.waits ? ', followed by .waitForTaskToken' : ''}` })
     }
-    if (state.Type === 'Task') for (const missing of missingArguments(state, options)) problems.push({ state: where(name), field: `Arguments.${missing}`, message: `is missing; ${state.Resource} needs it` })
+    if (state.Type === 'Task') for (const missing of missingArguments(state, options)) problems.push({ state: where(name), field: `Arguments.${missing}`, message: `is missing; ${task!.type} needs it` })
+    if (state.Type === 'Task') for (const problem of waitProblems(state)) problems.push({ state: where(name), ...problem })
     // In dataflow order every state of an item's machine starts from the item, which it reads as $states.input
     const firstOfItem = scope.item && (data || name === machine.StartAt)
     for (const { field, source, place } of stateExpressions(state)) {
-      for (const message of readProblems(source, { place, visible: visible.get(name)!, firstOfItem, inBlock: scope.blocks > 0, ...(data && { steps }) })) problems.push({ state: where(name), field, message })
+      const token = Boolean(task?.waits) && /^Arguments($|[.[])/.test(field)
+      for (const message of readProblems(source, { place, visible: visible.get(name)!, firstOfItem, inBlock: scope.blocks > 0, token, ...(data && { steps }) })) problems.push({ state: where(name), field, message })
     }
     if (state.Type === 'Map') problems.push(...machineProblems(state.ItemProcessor, { ...scope, path: [...scope.path, name], outer: visible.get(name)!, item: true, steps }, options))
     // A Block's steps run as a run of their own: they read its input, never the variables around it.

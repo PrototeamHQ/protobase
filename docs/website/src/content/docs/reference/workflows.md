@@ -134,7 +134,7 @@ A workflow switches order in the editor (see [The editor](#the-editor)), or by s
 - <gap>A state machine with a service task, the HTTP task (`arn:aws:states:::http:invoke`) included, a `Parallel` or a distributed Map cannot import because running them, or turning an HTTP task into an `app:http` step, is not implemented: write such a task with one of this app's step types, such as `app:http`.</gap>
 :::
 
-A JSONata state machine exported from AWS Step Functions saves and runs as it is, in sequence order: `create_workflow` over MCP takes it as `state_machine`, with a manual trigger unless one is given. Refused, each by name: a JSONPath state machine (`QueryLanguage` missing or `JSONPath`, or a state with `InputPath`, `Parameters`, `ResultSelector`, `ResultPath`, `OutputPath` or `ItemsPath`), every service task (`arn:aws:...`, the HTTP task, `.sync` and `.waitForTaskToken` included), Parallel, a distributed Map, `HeartbeatSeconds`, `Credentials` and a whole-run `TimeoutSeconds`.
+A JSONata state machine exported from AWS Step Functions saves and runs as it is, in sequence order: `create_workflow` over MCP takes it as `state_machine`, with a manual trigger unless one is given. Refused, each by name: a JSONPath state machine (`QueryLanguage` missing or `JSONPath`, or a state with `InputPath`, `Parameters`, `ResultSelector`, `ResultPath`, `OutputPath` or `ItemsPath`), every service task (`arn:aws:...`, the HTTP task, `.sync` and `.waitForTaskToken` included), Parallel, a distributed Map, `Credentials` and a whole-run `TimeoutSeconds`.
 
 ### Triggers
 
@@ -250,7 +250,7 @@ A save refuses a Task that leaves out an argument its step type needs, as [the e
 
 | Type | |
 | --- | --- |
-| `Task` | Runs a step type, its `Resource`, with its `Arguments`; `TimeoutSeconds`, `Retry` and `Catch`. `Cache` reuses the result of an identical earlier call: `true` forces it on, `false` turns it off, and without it the step type decides, as [Caching results](/reference/workflow-plugins/#caching-results) says. |
+| `Task` | Runs a step type, its `Resource`, with its `Arguments`; `TimeoutSeconds`, `Retry` and `Catch`. A `Resource` ending in `.waitForTaskToken` hands the work off and waits for an outside result, with `HeartbeatSeconds`, as [Waiting for an outside result](#waiting-for-an-outside-result) says. `Cache` reuses the result of an identical earlier call: `true` forces it on, `false` turns it off, and without it the step type decides, as [Caching results](/reference/workflow-plugins/#caching-results) says. |
 | `Pass` | Shapes values with `Output` and `Assign`, and goes on. |
 | `Choice` | Goes to the `Next` of the first of its `Choices` whose `Condition` is true, else to its `Default`; with neither it fails with `States.NoChoiceMatched`. A rule may carry its own `Output` and `Assign`. |
 | `Wait` | Waits `Seconds`, or until a `Timestamp` (ISO 8601), as a number or an expression. |
@@ -263,7 +263,42 @@ A state's output is its `Output`, else its result (a Task or Map) or the input i
 
 ### Errors and retries
 
-A failing Task or Map fails with an error name: a step type's own, such as `Http.Status`, `States.Timeout` when it ran past its timeout, `States.TaskFailed` for any other error it threw, and `States.QueryEvaluationError` for an expression that did not evaluate or ran past its limits. The first retrier whose `ErrorEquals` names it tries the state again after `IntervalSeconds` (default 1), times `BackoffRate` (default 2) for each earlier retry, up to `MaxDelaySeconds`; `MaxAttempts` counts the retries after the first try (default 3, 0 for none). Without `Retry` a failure is not retried. Once no retry is left, the first catcher that names it goes on to its `Next`; without one the run fails. `States.ALL` names every error but `States.DataLimitExceeded` and `States.Runtime`, which end the run even where a retrier or catcher names them.
+A failing Task or Map fails with an error name: a step type's own, such as `Http.Status`, `States.Timeout` when it ran past its timeout, `States.HeartbeatTimeout` when a waiting Task's heartbeat was overdue, the error an outside failure names, `States.TaskFailed` for any other error it threw, and `States.QueryEvaluationError` for an expression that did not evaluate or ran past its limits. The first retrier whose `ErrorEquals` names it tries the state again after `IntervalSeconds` (default 1), times `BackoffRate` (default 2) for each earlier retry, up to `MaxDelaySeconds`; `MaxAttempts` counts the retries after the first try (default 3, 0 for none). Without `Retry` a failure is not retried. Once no retry is left, the first catcher that names it goes on to its `Next`; without one the run fails. `States.ALL` names every error but `States.DataLimitExceeded` and `States.Runtime`, which end the run even where a retrier or catcher names them.
+
+### Waiting for an outside result
+
+A Task whose `Resource` is a step type followed by `.waitForTaskToken`, the States Language's own suffix for it, hands its work off to someone or something outside the app and waits for the result: an approver, a job on another machine, a service that calls back. Its step type runs once with `Arguments` that pass on the try's token, `$states.context.Task.Token`; then the run waits, holding no worker, until that token comes back with a result, a failure, or not in time.
+
+```json
+"Approve": {
+  "Type": "Task",
+  "Resource": "app:http.waitForTaskToken",
+  "Arguments": {
+    "url": "https://approvals.example.com/ask",
+    "method": "POST",
+    "body": { "question": "{% 'Ship ' & $states.context.Execution.Input.version & '?' %}", "token": "{% $states.context.Task.Token %}" }
+  },
+  "TimeoutSeconds": 86400,
+  "HeartbeatSeconds": 3600,
+  "Assign": { "approval": "{% $states.result %}" },
+  "Next": "Ship"
+}
+```
+
+- **Sending the result back.** Whoever holds the token answers with one of three calls, `SendTaskSuccess`, `SendTaskFailure` and `SendTaskHeartbeat`, whose bodies are the ones a States Language runtime takes, so an existing caller works unchanged ([compatibility](/features/compatibility/#aws-step-functions)). They need no sign-in: the token is the proof, as a [webhook's](#appwebhook) address is.
+
+  | Call | Body | Does |
+  | --- | --- | --- |
+  | `POST /api/workflows/tasks/success` | `{ "taskToken": "...", "output": "{\"approved\": true}" }` | Ends the Task with `output`, a string of JSON up to 256 KiB, which `Output` and `Assign` read parsed as `$states.result`. |
+  | `POST /api/workflows/tasks/failure` | `{ "taskToken": "...", "error": "Approval.Refused", "cause": "Not on a Friday" }` | Fails the Task with that error (`States.TaskFailed` without one) and cause, which `Retry` and `Catch` take as any failure. |
+  | `POST /api/workflows/tasks/heartbeat` | `{ "taskToken": "..." }` | Says the work goes on, so `HeartbeatSeconds` counts again from now. |
+
+  Each answers `200 {}`, or a problem whose title names the error as those callers know it: `InvalidToken` (400, not a token), `InvalidOutput` (400, an `output` that is not JSON, too large or too deep, or an error or cause over 256 and 32,768 characters), `TaskDoesNotExist` (404, no Task was given this token) or `TaskTimedOut` (409, the Task already ended, by an answer, its time or its run). Over MCP, `send_task_success`, `send_task_failure` and `send_task_heartbeat` do the same for a caller who may read the run.
+- **Its token.** Each try gets its own: a retry hands the work off again with a new one, and the old one answers nothing. A token settles its Task once, by a success or a failure, and expires with the wait. The app keeps only its SHA-256, and blanks the token out of the step's input, logs and every trace.
+- **Its time.** `TimeoutSeconds` counts from the hand-off and may be up to 366 days, its default; past it the Task fails with `States.Timeout`. `HeartbeatSeconds`, less than `TimeoutSeconds`, fails it with `States.HeartbeatTimeout` when no heartbeat came in that time since the hand-off or the last one. The step type's own call still ends within 300 seconds.
+- **Once only.** The hand-off happens once per try: a run that stops after it, as when its worker restarts, only waits again, and a [replay](#replaying-a-run) hands nothing off and goes on with what the replayed run was sent. A Task that waits caches nothing, so `Cache` is refused on it.
+- **Where it may be read.** `$states.context.Task.Token` is read only in such a Task's `Arguments`.
+- **In the editor.** A Task's form has *Wait for an outside result*, which adds `.waitForTaskToken`, with *Wait at most* (`TimeoutSeconds`) and *Heartbeat within* (`HeartbeatSeconds`); its node is named for its step type, *then waits*.
 
 ### Blocks
 
@@ -611,7 +646,7 @@ Every limit fails closed: a run or step that passes one fails, rather than going
 | --- | --- |
 | A definition | 256 KiB as JSON, 100 states, Maps included; an expression 4,096 characters. |
 | An expression's evaluation | 1 second, and 300 levels deep; beyond, `States.QueryEvaluationError`. |
-| A Task's `TimeoutSeconds` | 300 by default, and at most. |
+| A Task's `TimeoutSeconds` | 300 by default, and at most; for a Task that [waits for an outside result](#waiting-for-an-outside-result), 366 days. |
 | A retrier's `MaxAttempts` | 19. |
 | The wait before a retry | 1 day, however `BackoffRate` grows it. |
 | A Map's items | 10,000; beyond, the Map fails with `States.DataLimitExceeded` before any item runs. |

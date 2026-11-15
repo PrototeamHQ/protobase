@@ -195,6 +195,55 @@ export type BlockRunStore<Db> = {
   count(db: Db, parent: string): Promise<number>
 }
 
+/**
+ * A try of a Task that waits for an outside result, as its token keeps it: `waiting` until an answer or the Task's end
+ * (its time ran out, or its hand-off failed) settles it, which no later answer changes. `handedOffAt` is null until the
+ * step type handed the work off, so a segment that stopped before hands it off again with a new token. `input` and
+ * `logs` are what the hand-off recorded, with the token blanked out, which the try's step records once it ends.
+ */
+export type WaitingTask = {
+  status: 'waiting' | 'succeeded' | 'failed'
+  startedAt: Date
+  handedOffAt: Date | null
+  /** When its `TimeoutSeconds` pass, from its start. */
+  deadline: Date
+  heartbeatSeconds: number | null
+  heartbeatAt: Date | null
+  input?: unknown
+  logs: StepLog[]
+  output?: unknown
+  error?: string | null
+  cause?: string | null
+  answeredAt?: Date | null
+}
+
+/**
+ * What an outside executor sends with a token, as Step Functions' SendTaskSuccess, SendTaskFailure and SendTaskHeartbeat
+ * take it: a success's `output` is a string of JSON.
+ */
+export type TaskAnswer = { kind: 'success'; output: string } | { kind: 'failure'; error: string; cause: string } | { kind: 'heartbeat' }
+
+/** An answer as a try keeps it: a success's output parsed. */
+export type KeptAnswer = Exclude<TaskAnswer, { kind: 'success' }> | { kind: 'success'; output: unknown }
+
+/**
+ * Where waiting Tasks' tokens are kept, by the run and its try of the Task (`visit`). A token is kept only as its hash
+ * (`hash`), which an answer finds it by; the token itself is never kept.
+ */
+export type TaskTokenStore<Db> = {
+  find(db: Db, run: string, visit: string): Promise<WaitingTask | undefined>
+  /** Keeps a try's token, replacing that of the same try whose hand-off never finished. */
+  begin(db: Db, task: { run: string; visit: string; state: string; hash: string; startedAt: Date; deadline: Date; heartbeatSeconds: number | null }): Promise<void>
+  /** Marks the try handed off, with what its hand-off recorded: from now on a segment only waits for its answer. */
+  handedOff(db: Db, run: string, visit: string, done: { at: Date; input: unknown; logs: StepLog[] }): Promise<void>
+  /** Ends a waiting try without an answer, with its failure: false when an answer settled it first. */
+  close(db: Db, run: string, visit: string, failure: { error: string; cause: string }): Promise<boolean>
+  /** The try a token opens, by the token's hash, with its run. */
+  byHash(db: Db, hash: string): Promise<(WaitingTask & { run: string }) | undefined>
+  /** Takes an answer for a try still waiting: a heartbeat marks its time, a success or failure settles it; false when it no longer waits. */
+  answer(db: Db, hash: string, answer: KeptAnswer, at: Date): Promise<boolean>
+}
+
 /** Which runs keep a trace: every run, only those that fail, or none. */
 export type TraceMode = NonNullable<Definition['trace']>
 

@@ -1,5 +1,5 @@
 import type { Machine } from '../definition/types'
-import type { BlockRun, BlockShare, Checkpoint, StepLog, StepRecord, TaskHandlers } from './port'
+import type { BlockRun, BlockShare, Checkpoint, StepLog, StepRecord, TaskHandlers, TaskTokenStore, WaitingTask } from './port'
 import type { Redactor } from './redact'
 import type { StepCacheStore } from './cache/cache-port'
 import type { SecretNamer } from './cache/secret-names'
@@ -24,6 +24,8 @@ export type SegmentContext = {
   replay?: Replay
   /** This run's blocks' runs, by the try of a Block (`visit`) that started each. */
   blocks?: SegmentBlocks
+  /** This run's waiting Tasks' tokens, by the try of the Task (`visit`) each was given to. */
+  tokens?: SegmentTokens
   /** The job's signal: aborted when the worker stops, which ends the segment without saving the step in progress. */
   signal: AbortSignal
   now: () => Date
@@ -76,6 +78,14 @@ export type Paused = { kind: 'blocked'; until: Date } | { kind: 'yielded' }
 
 /** How a scope ended in this segment, with the variables it assigned when it ended. */
 export type ScopeOutcome = { kind: 'ended'; output: unknown; variables?: Record<string, unknown> } | { kind: 'failed'; error: string; cause: string } | Paused
+
+/** A run's waiting Tasks' tokens, as its segment reaches them. */
+export type SegmentTokens = {
+  find: (visit: string) => Promise<WaitingTask | undefined>
+  begin: (task: Omit<Parameters<TaskTokenStore<unknown>['begin']>[1], 'run'>) => Promise<void>
+  handedOff: (visit: string, done: Parameters<TaskTokenStore<unknown>['handedOff']>[3]) => Promise<void>
+  close: (visit: string, failure: { error: string; cause: string }) => Promise<boolean>
+}
 
 /** A run's blocks' runs, as its segment reaches them. */
 export type SegmentBlocks = {

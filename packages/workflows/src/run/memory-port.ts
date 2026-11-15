@@ -3,7 +3,7 @@ import type { CacheIdentity, StepCacheStore } from './cache/cache-port'
 import { canonicalJson } from './cache/canonical'
 import { createRunner } from './runner'
 import { findBlock } from '../definition/inner'
-import type { BlockRun, BlockRunStore, Checkpoint, LoadedRun, RunStore, StepRecord, TaskHandlers, TraceMode, TraceSink } from './port'
+import type { BlockRun, BlockRunStore, Checkpoint, LoadedRun, RunStore, StepRecord, TaskAnswer, TaskHandlers, TaskTokenStore, TraceMode, TraceSink, WaitingTask } from './port'
 import { rerunCheckpoint, rerunProblem } from './rerun'
 import { rerunFrom } from './rerun-from'
 import { orderOf } from '../definition/types'
@@ -93,7 +93,33 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
     waiters: async (_, run) => waiters.filter((one) => one.run === run).map((one) => one.parent),
     count: async (_, parent) => [...runs.values()].filter((run) => run.blockOf === parent).length,
   }
-  const runner = createRunner({ store, queue: { schedule, wake }, blocks, tasks, trace, now: () => clock, ...(traceMode && { traceMode }), ...(budgetMs !== undefined && { budgetMs }), ...(secrets && { secrets }), ...(maxSteps !== undefined && { maxSteps }), ...(cache && { cache }) })
+  // Each waiting Task's try by its run and visit, with its token's hash, as the database keeps them.
+  const waiting = new Map<string, WaitingTask & { run: string; visit: string; hash: string }>()
+  const tryOf = (run: string, visit: string) => waiting.get(`${run}|${visit}`)
+  const tokens: TaskTokenStore<null> = {
+    find: async (_, run, visit) => structuredClone(tryOf(run, visit)),
+    begin: async (_, { run, visit, hash, startedAt, deadline, heartbeatSeconds }) => {
+      const found = tryOf(run, visit)
+      if (found?.handedOffAt || (found && found.status !== 'waiting')) return
+      waiting.set(`${run}|${visit}`, { run, visit, hash, status: 'waiting', startedAt, handedOffAt: null, deadline, heartbeatSeconds, heartbeatAt: null, logs: [] })
+    },
+    handedOff: async (_, run, visit, { at, input, logs }) => void Object.assign(tryOf(run, visit)!, { handedOffAt: at, input: structuredClone(input), logs: structuredClone(logs) }),
+    close: async (_, run, visit, { error, cause }) => {
+      const found = tryOf(run, visit)
+      if (found?.status !== 'waiting') return false
+      Object.assign(found, { status: 'failed', error, cause })
+      return true
+    },
+    byHash: async (_, hash) => structuredClone([...waiting.values()].find((one) => one.hash === hash)),
+    answer: async (_, hash, answer, at) => {
+      const found = [...waiting.values()].find((one) => one.hash === hash)
+      if (found?.status !== 'waiting') return false
+      if (answer.kind === 'heartbeat') found.heartbeatAt = at
+      else Object.assign(found, answer.kind === 'success' ? { status: 'succeeded', output: structuredClone(answer.output) } : { status: 'failed', error: answer.error, cause: answer.cause }, { answeredAt: at })
+      return true
+    },
+  }
+  const runner = createRunner({ store, queue: { schedule, wake }, blocks, tokens, tasks, trace, now: () => clock, ...(traceMode && { traceMode }), ...(budgetMs !== undefined && { budgetMs }), ...(secrets && { secrets }), ...(maxSteps !== undefined && { maxSteps }), ...(cache && { cache }) })
   return {
     runner,
     store,
@@ -105,6 +131,12 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
       return [...traces].flatMap(([runId, parts]) => parts.flat().map((step) => ({ ...step, runId })))
     },
     run: (id: string) => runs.get(id)!,
+    /** Each waiting Task's try, as its token keeps it. */
+    waiting,
+    /** Answers the waiting Task a token was given to, as an outside executor does. */
+    answer: (token: string, answer: TaskAnswer) => runner.answerTask(null, token, answer),
+    /** Whether a segment of the run is queued, and for when. */
+    queued: (runId: string) => queued.filter((one) => one.runId === runId),
     now: () => clock,
     start: async (id: string, definition: Definition, input: unknown, trace?: TraceMode) => {
       runs.set(id, { id, definition, input, status: 'queued', startedAt: clock, ...(trace && { trace }) })

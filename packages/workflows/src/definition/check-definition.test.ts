@@ -261,3 +261,28 @@ describe('checkDefinition, the rules of the decided profile', () => {
     ])
   })
 })
+
+describe('checkDefinition of a Task that waits for an outside result', () => {
+  const task = (fields: object) => ({ QueryLanguage: 'JSONata', StartAt: 'Ask', States: { Ask: { Type: 'Task', Arguments: { url: 'https://approver.test', body: '{% $states.context.Task.Token %}' }, End: true, ...fields } } })
+
+  it('takes the step type with .waitForTaskToken, its token read in Arguments, a timeout over 300 seconds and a shorter heartbeat', () => {
+    expect(check(task({ Resource: 'http.waitForTaskToken', TimeoutSeconds: 86_400, HeartbeatSeconds: 600 }))).toEqual([])
+  })
+
+  it('refuses the token, a longer timeout and a heartbeat on a Task that does not wait, and an unknown step type by its own name', () => {
+    expect(check(task({ Resource: 'http', TimeoutSeconds: 3600, HeartbeatSeconds: 60 }))).toEqual([
+      'State "Ask", field "TimeoutSeconds": is 3600, more than the 300 seconds a step type runs; only a Task whose Resource ends in .waitForTaskToken waits longer',
+      'State "Ask", field "HeartbeatSeconds": is for a Task whose Resource ends in .waitForTaskToken, whose outside executor sends heartbeats; this step type ends or fails within its TimeoutSeconds',
+      'State "Ask", field "Arguments.body": reads $states.context.Task, which only the Arguments of a Task whose Resource ends in .waitForTaskToken read, as $states.context.Task.Token',
+    ])
+    expect(check(task({ Resource: 'mail.waitForTaskToken' }))).toEqual(['State "Ask", field "Resource": "mail" is not a step type; use one of http, followed by .waitForTaskToken'])
+  })
+
+  it('refuses a heartbeat not shorter than the timeout, a cache, and the token read outside Arguments', () => {
+    expect(check(task({ Resource: 'http.waitForTaskToken', TimeoutSeconds: 600, HeartbeatSeconds: 600, Cache: true, Output: '{% $states.context.Task.Token %}' }))).toEqual([
+      'State "Ask", field "HeartbeatSeconds": is 600, which must be less than the Task\'s TimeoutSeconds (600)',
+      'State "Ask", field "Cache": is true, but a Task that waits for an outside result hands its work off on every try and caches nothing',
+      'State "Ask", field "Output": reads $states.context.Task, which only the Arguments of a Task whose Resource ends in .waitForTaskToken read, as $states.context.Task.Token',
+    ])
+  })
+})
