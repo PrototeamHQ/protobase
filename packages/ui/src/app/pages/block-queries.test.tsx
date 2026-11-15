@@ -11,6 +11,7 @@ import { blockQueries } from './block-queries'
 import { ToastProvider } from '../../toasts/toast-provider'
 import { Router } from '../router'
 import { RenderNode } from './render-node'
+import { PageParamsProvider } from './page-params'
 
 const tasks = resource('tasks').table('tasks').fields({ id: f.integer().readOnly(), title: f.text(), status: f.text() }).primaryKey((r) => r.id).toModel()
 const models = { tasks }
@@ -18,7 +19,9 @@ const meta = { resources: models, views: {}, permissions: {}, pages: {} } as unk
 
 const planOf = (tree: LayoutNode) => compileReadPlan(tree, { models }).plan
 
-const answer = () => Response.json({ items: [{ id: 1, title: 'Ship it', status: 'open' }], next_page_token: '', total_size_estimate: 1, total_size: 1, groups: [] })
+// A record by its key, or a list
+const answer = (url: string | URL | Request = '/api/v1/tasks') =>
+  new URL(String(url), 'http://x').pathname === '/api/v1/tasks/7' ? Response.json({ id: 7, title: 'Chosen one', status: 'open' }) : Response.json({ items: [{ id: 1, title: 'Ship it', status: 'open' }], next_page_token: '', total_size_estimate: 1, total_size: 1, groups: [] })
 
 // A fetch whose answers wait until `release`, so a read that waited for another would never start
 const heldFetch = () => {
@@ -31,7 +34,7 @@ const heldFetch = () => {
   return { started, fetch: fetch as typeof globalThis.fetch, release: () => held.forEach((resolve) => resolve()) }
 }
 
-const readerOf = (fetch: typeof globalThis.fetch, queryClient: QueryClient, params: Record<string, string> = {}) => ({
+const readerOf = (fetch: typeof globalThis.fetch, queryClient: QueryClient, params: Record<string, string> = {}, given: Record<string, string> = {}) => ({
   client: createClient({ fetch }),
   queryClient,
   resources: meta.resources,
@@ -39,12 +42,13 @@ const readerOf = (fetch: typeof globalThis.fetch, queryClient: QueryClient, para
   fieldTypes: undefined,
   xs: false,
   params,
+  given,
 })
 
-const startPage = (tree: LayoutNode, params: Record<string, string> = {}) => {
+const startPage = (tree: LayoutNode, params: Record<string, string> = {}, given: Record<string, string> = {}) => {
   const held = heldFetch()
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  for (const query of blockQueries(readerOf(held.fetch, queryClient, params), tree, planOf(tree))) void query.start(queryClient)
+  for (const query of blockQueries(readerOf(held.fetch, queryClient, params, given), tree, planOf(tree))) void query.start(queryClient)
   return held
 }
 
@@ -58,7 +62,7 @@ describe('the queries of blocks that read by themselves', () => {
         Show({ when: "status = 'never'", children: Table({ resource: 'tasks', filter: 'status = {{@params.status}}', columns: ['title'], select: 'task', children: Field({ source: 'title' }) }) }),
       ],
     })
-    const held = startPage(tree, { status: 'open', task: '7' })
+    const held = startPage(tree, { status: 'open' }, { status: 'open', task: '7' })
     await vi.waitFor(() => expect(held.started).toHaveLength(4))
     expect([...held.started].sort()).toEqual(['/api/v1/tasks', '/api/v1/tasks/7', '/api/v1/tasks:aggregate', '/api/v1/tasks:search'])
     held.release()
@@ -85,23 +89,27 @@ describe('the queries of blocks that read by themselves', () => {
   afterEach(() => vi.unstubAllGlobals())
 
   // The block drawn once the queries the page started for it answered, and what it fetched itself
-  const drawnAfterStart = async (block: LayoutNode) => {
+  const drawnAfterStart = async (block: LayoutNode, given: Record<string, string> = {}) => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } })
     const tree = Page({ title: 'Home', children: block })
-    await Promise.all(blockQueries(readerOf(async () => answer(), queryClient), tree, planOf(tree)).map((query) => query.start(queryClient)))
+    // The page's parameters hold only its SelectInputs' values, so a `select`'s key is in its address alone
+    const started = vi.fn(async (url: string | URL | Request) => answer(url))
+    await Promise.all(blockQueries(readerOf(started, queryClient, {}, given), tree, planOf(tree)).map((query) => query.start(queryClient)))
     const fetch = vi.fn<typeof globalThis.fetch>()
     const html = renderToStaticMarkup(
       <ApiProvider client={createClient({ fetch })} queryClient={queryClient}>
         <MetaContext.Provider value={meta}>
           <Router initialUrl="/">
-            <ToastProvider>
-              <RenderNode node={block} at="/children/0" />
-            </ToastProvider>
+            <PageParamsProvider page="home" tree={tree} given={given}>
+              <ToastProvider>
+                <RenderNode node={block} at="/children/0" />
+              </ToastProvider>
+            </PageParamsProvider>
           </Router>
         </MetaContext.Provider>
       </ApiProvider>,
     )
-    return { html, fetch }
+    return { html, fetch, started: started.mock.calls.map(([url]) => new URL(String(url), 'http://x').pathname) }
   }
 
   it('draws a table from the query the page started, reading nothing more', async () => {
@@ -109,6 +117,14 @@ describe('the queries of blocks that read by themselves', () => {
     vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined })
     const { html, fetch } = await drawnAfterStart(Table({ resource: 'tasks', filter: "status = 'open'", columns: ['title', 'status'] }))
     expect(html).toContain('Ship it')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('draws a table’s chosen row from the query the page started with the key its address holds, reading nothing more', async () => {
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined })
+    const { html, fetch, started } = await drawnAfterStart(Table({ resource: 'tasks', columns: ['title'], select: 'task', children: Field({ source: 'title' }) }), { task: '7' })
+    expect(html).toContain('Chosen one')
+    expect(started.filter((path) => path === '/api/v1/tasks/7')).toHaveLength(1)
     expect(fetch).not.toHaveBeenCalled()
   })
 

@@ -17,8 +17,10 @@ export type BlockReader = {
   fieldTypes: Readonly<Record<string, FieldWidget>> | undefined
   /** Whether the screen is a phone's, as `useIsXs` says. */
   xs: boolean
-  /** The page's parameters, as `usePageParamValues` gives them. */
+  /** The page's parameters, as `usePageParamValues` gives them, which a `{{@params.name}}` reads. */
   params: Readonly<Record<string, string>>
+  /** What the page's address holds, as `usePageParams` gives it as `given`, such as the key a `select` chose. */
+  given: Readonly<Record<string, string>>
 }
 
 /** A block's own query, started ahead of its block: its key, and how it starts, as one query or as a list's first page. */
