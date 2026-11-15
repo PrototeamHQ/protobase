@@ -1,5 +1,6 @@
-import { checkFilter, parseFilter, type ResourceModel, type ToolCallFields } from '@protobase/schema'
+import type { ResourceModel, ToolCallFields } from '@protobase/schema'
 import { timeProblems } from './check-time'
+import { sampledFilterErrors } from './sampled-filter'
 
 /** The tool calls a thread draws between its messages: records of `resource`, by the fields it reads of each, narrowed by `filter` on a page. */
 export type ToolCallSource = ToolCallFields & { resource: string; filter?: string }
@@ -29,11 +30,11 @@ const typeProblems = (source: ToolCallSource, model: ResourceModel): string[] =>
   ]
 }
 
+// A filter with `{{path}}` slots, such as `task_id = {{@root.id}}`, is checked with a stand-in for each, as a block's own filter is
 const filterProblems = (filter: string | undefined, model: ResourceModel): string[] => {
   if (filter === undefined) return []
-  const parsed = parseFilter(filter)
-  const checked = parsed.ok ? (parsed.ast === undefined ? { ok: true as const } : checkFilter(model, parsed.ast)) : parsed
-  return checked.ok ? [] : [`filter: ${checked.errors.map((error) => error.message).join('; ')}`]
+  const errors = sampledFilterErrors(model, filter)
+  return errors.length === 0 ? [] : [`filter: ${errors.join('; ')}`]
 }
 
 /** What a thread's tool calls name that their resource does not have, cannot order them by, or cannot show as their name, status or error. */

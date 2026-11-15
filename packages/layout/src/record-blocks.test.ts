@@ -13,6 +13,7 @@ const models = {
   tasks: model('tasks', [field('id', 'integer', { readOnly: true }), field('title', 'text'), field('status', 'text'), field('owner_id', 'integer')]),
   owners: model('owners', [field('id', 'integer', { readOnly: true }), field('name', 'text')]),
   task_notes: model('task_notes', [field('id', 'integer', { readOnly: true }), field('task_id', 'integer'), field('noted_at', 'timestamp'), field('body', 'text')]),
+  task_calls: model('task_calls', [field('id', 'integer', { readOnly: true }), field('task_id', 'integer'), field('tool', 'text'), field('called_at', 'timestamp'), field('state', 'text')]),
 }
 
 const input = { models, actions: (resource: string) => new Set(resource === 'tasks' ? ['close'] : []) }
@@ -23,6 +24,11 @@ describe('recordBlocksFindings', () => {
   it("reads the page's record as @root, and as the record a bare name reaches last", () => {
     const tree = Card({ title: '{{@root.title}}', children: [Field({ source: 'status' }), Show({ when: "status = 'open'", children: Action({ name: 'close' }) }), notes('task_id = {{@root.id}}')] })
     expect(findings(tree)).toEqual({ problems: [], warnings: [] })
+  })
+
+  it("takes the page record's key in a thread's tool calls filter", () => {
+    const calls = { resource: 'task_calls', filter: 'task_id = {{@root.id}}', name: 'tool', time: 'called_at', status: 'state' }
+    expect(findings(Thread({ resource: 'task_notes', filter: 'task_id = {{@root.id}}', time: 'noted_at', text: 'body', calls })).problems).toEqual([])
   })
 
   it('fails on a typo, naming the root resource and the closest field', () => {
