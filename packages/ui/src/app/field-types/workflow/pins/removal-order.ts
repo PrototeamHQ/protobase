@@ -22,11 +22,24 @@ const later = (a: readonly number[], b: readonly number[]): number => {
 
 /**
  * Removals in the order that keeps each one's place: an All of or an Any of that loses an input moves the inputs after
- * it up, so of the removals in one step's Condition the last place goes first, each place as the graph drawn before
- * them all names it. Removals elsewhere keep their order.
+ * it up, so the removals in one step's Condition go together, the last place first, each place as the graph drawn
+ * before them all names it. The steps keep the order their first removal came in, and every other removal its own.
  */
-export const lastPlaceFirst = <T>(graph: DataGraph, removals: readonly T[], placeOf: (removal: T) => { step: string; at: number[] } | undefined): T[] =>
-  removals
-    .map((removal, index) => ({ removal, index, place: placeOf(removal) }))
-    .sort((a, b) => (a.place && b.place && a.place.step === b.place.step ? later(b.place.at, a.place.at) : a.index - b.index))
-    .map(({ removal }) => removal)
+export const lastPlaceFirst = <T>(_graph: DataGraph, removals: readonly T[], placeOf: (removal: T) => { step: string; at: number[] } | undefined): T[] => {
+  const groups = new Map<string, { removal: T; at: number[] }[]>()
+  const order: (T | string)[] = []
+  for (const removal of removals) {
+    const place = placeOf(removal)
+    if (!place) {
+      order.push(removal)
+      continue
+    }
+    const key = `step:${place.step}`
+    if (!groups.has(key)) {
+      groups.set(key, [])
+      order.push(key)
+    }
+    groups.get(key)!.push({ removal, at: place.at })
+  }
+  return order.flatMap((each) => (typeof each === 'string' && groups.has(each) ? groups.get(each)!.toSorted((a, b) => later(b.at, a.at)).map(({ removal }) => removal) : [each as T]))
+}

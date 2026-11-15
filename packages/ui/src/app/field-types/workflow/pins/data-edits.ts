@@ -162,9 +162,13 @@ export const disconnectData = (definition: Definition, graph: DataGraph, edge: P
 export const removePure = (definition: Definition, graph: DataGraph, node: PureNode): Definition => {
   if (node.kind === 'make' || node.kind === 'select') return setArgument(definition, node.target, [node.key], undefined)
   if (node.kind === 'condition') return clearConditionSide(definition, node.target, node.at)
-  return lastPlaceFirst(graph, graph.edges.filter((edge) => edge.source === node.id && !edge.expression), (edge) => wirePlace(graph, edge)).reduce((next, edge) => {
-    const after = pureOf(graph, edge.target)
-    if (after?.kind === 'break') return removePure(next, graph, after)
-    return disconnectData(next, graph, edge)
-  }, definition)
+  // Every input that reads through it, through the Breaks of its fields too, in one pass, so no removal moves another's place
+  const reads = (from: PureNode): DataEdge[] =>
+    graph.edges
+      .filter((edge) => edge.source === from.id && !edge.expression)
+      .flatMap((edge) => {
+        const after = pureOf(graph, edge.target)
+        return after?.kind === 'break' ? reads(after) : [edge]
+      })
+  return lastPlaceFirst(graph, reads(node), (edge) => wirePlace(graph, edge)).reduce((next, edge) => disconnectData(next, graph, edge), definition)
 }

@@ -209,5 +209,24 @@ describe('condition nodes', () => {
     const ordered = lastPlaceFirst(drawn, nots, nodePlace).reduce((next, node) => removePure(next, drawn, node), nested)
     expect(conditionOf(ordered)).toBe('{% true and $fetch.ok %}')
   })
+
+  it('removes in one pass the inputs a removed Break gives directly and through the Breaks of its fields', () => {
+    const definition = workflow('{% true and $states.context.Execution.Input.flags.nested.b and $states.context.Execution.Input.flags.a and false %}')
+    const graph = dataGraph(definition, schemas)
+    const flags = graph.pure.find((node) => node.kind === 'break' && node.path.join('/') === 'flags')!
+    expect(conditionOf(removePure(definition, graph, flags))).toBe('{% true and false %}')
+  })
+
+  it('groups removals by step, the last place first within each, whatever order they come in', () => {
+    const removals = [{ step: 'A', at: [0] }, { step: 'B', at: [0] }, { step: 'A', at: [1] }, undefined, { step: 'B', at: [2] }]
+    const graph = dataGraph(workflow(), schemas)
+    expect(lastPlaceFirst(graph, removals, (removal) => removal)).toEqual([{ step: 'A', at: [1] }, { step: 'A', at: [0] }, { step: 'B', at: [2] }, { step: 'B', at: [0] }, undefined])
+  })
+
+  it('writes no pattern typed halfway, which is no regular expression yet', () => {
+    const definition = workflow('{% $contains($states.context.Execution.Input.email, /@/) %}')
+    for (const halfway of ['[', '(a', 'a/b\\']) expect(setConditionSide(definition, 'Tell', [1], { value: halfway }), halfway).toEqual(definition)
+    expect(conditionOf(setConditionSide(definition, 'Tell', [1], { value: '[a-z]+' }))).toBe('{% $contains($states.context.Execution.Input.email, /[a-z]+/) %}')
+  })
 })
 

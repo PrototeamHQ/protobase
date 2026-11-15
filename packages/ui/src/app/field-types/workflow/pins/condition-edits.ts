@@ -60,7 +60,8 @@ const putSide = (part: ConditionPart, index: number, side: ConditionSide): Condi
 export const setConditionSide = (definition: Definition, step: string, at: readonly number[], side: ConditionSide): Definition => {
   const root = conditionParts(stateAt(definition, step)?.Condition)
   const next = root && at.length > 0 && withPart(root, at.slice(0, -1), (parent) => putSide(parent, at.at(-1)!, side))
-  return next ? setArgument(definition, step, [conditionKey], conditionValue(next)) : definition
+  // Only a Condition its nodes read back, so a pattern typed halfway, such as [, is not written
+  return next && conditionParts(conditionValue(next)) ? setArgument(definition, step, [conditionKey], conditionValue(next)) : definition
 }
 
 /**
