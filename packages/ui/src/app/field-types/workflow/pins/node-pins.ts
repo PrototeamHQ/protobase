@@ -16,12 +16,16 @@ export type OutputPin = { path: string[]; type: PinType }
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
+// The fields of an object a schema describes, or of the branches of its anyOf or oneOf, each name once: a field that
+// several branches declare takes any of their schemas.
 const propertiesOf = (schema: JsonSchema | undefined): [string, JsonSchema][] => {
   if (!schema) return []
   const branches = [schema.anyOf, schema.oneOf].find(Array.isArray) as unknown[] | undefined
   const own = isObject(schema.properties) ? Object.entries(schema.properties).filter((entry): entry is [string, JsonSchema] => isObject(entry[1])) : []
   if (own.length > 0 || !branches) return own
-  return branches.filter(isObject).flatMap((branch) => propertiesOf(branch as JsonSchema))
+  const merged = new Map<string, JsonSchema[]>()
+  for (const [name, field] of branches.filter(isObject).flatMap((branch) => propertiesOf(branch as JsonSchema))) merged.set(name, [...(merged.get(name) ?? []), field])
+  return [...merged].map(([name, fields]) => [name, fields.length === 1 ? fields[0]! : { anyOf: fields }])
 }
 
 /** The fields of an object a schema describes, each with its schema; none when it names none. */
