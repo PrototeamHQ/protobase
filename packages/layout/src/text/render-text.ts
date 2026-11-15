@@ -74,7 +74,8 @@ const render = (unfilled: LayoutNode, options: TextOptions, around: unknown[] | 
   const slots = Object.fromEntries(
     Object.entries(node.props).flatMap(([name, value]) => (isElements(value) ? [[name, (Array.isArray(value) ? value : [value]).map((element, index) => render(element, slotOptions, undefined, pointerOf(at, 'props', name, ...(Array.isArray(value) ? [index] : []))))]] : [])),
   )
-  const fallback = node.fallback && partsOf(placed(node.fallback, at, 'fallback'), options, false)
+  // A custom component's fallback draws in its place, so it reads the list around it as its children do
+  const fallback = node.fallback && partsOf(placed(node.fallback, at, 'fallback'), options, false, list)
   // A Switch's children are Matches, one part each, so its text form finds the one it draws by its place
   const all = placed(node.children, at, 'children')
   const own = !node.custom && node.type === 'Switch' ? all.filter(({ child }) => typeof child !== 'string') : all

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Field, Page } from '../blocks'
+import { component } from '../component'
 import { Text } from '../elements'
 import { ArrayField, RecordsIterator, ReferenceField, ReferenceManyField } from '../list-blocks'
 import type { LayoutNode } from '../node'
@@ -30,6 +31,13 @@ const nestedList = ReferenceManyField({
 describe('text forms of lists', () => {
   it('reads a two-level nested list once per record, an empty one as its empty text', () => {
     expect(renderText(Page({ title: 'Ship it', children: nestedList }), { record: task, records })).toBe('# Ship it\n\n**worker**: Ann\n\nplan\n\nbuild\n\n**worker**: Bo\n\nNo steps yet')
+  })
+
+  it('reads a custom component’s fallback in the list around it', () => {
+    const ClaimBoard = component('ClaimBoard', { fallback: RecordsIterator({ children: Field({ source: 'status', label: false }) }) })
+    const board = ReferenceManyField({ reference: 'task_claims', target: 'task_id', children: ClaimBoard({}) })
+    const statuses = () => [{ id: 1, status: 'open' }, { id: 2, status: 'done' }]
+    expect(renderText(board, { record: task, records: statuses })).toBe('open\n\ndone')
   })
 
   it('links to the related records while the text does not have them', () => {
