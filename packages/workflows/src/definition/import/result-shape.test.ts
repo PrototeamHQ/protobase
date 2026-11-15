@@ -17,20 +17,36 @@ describe('httpTaskResult', () => {
 
 describe('withHttpTaskResult', () => {
   it('reads the HTTP task\'s fields from the answer, a list body kept as a list', async () => {
-    expect(await evaluate(withHttpTaskResult('$states.result.ResponseBody.items'))).toEqual([1])
-    expect(await evaluate(withHttpTaskResult('$states.result.StatusCode = 201'))).toBe(true)
-    expect(await evaluate(withHttpTaskResult('$states.result.Headers.etag[0]'))).toBe('"a"')
+    expect(await evaluate(withHttpTaskResult('$states.result.ResponseBody.items')!)).toEqual([1])
+    expect(await evaluate(withHttpTaskResult('$states.result.StatusCode = 201')!)).toBe(true)
+    expect(await evaluate(withHttpTaskResult('$states.result.Headers.etag[0]')!)).toBe('"a"')
   })
 
-  it('leaves strings, backtick names, comments and longer names alone', () => {
-    expect(withHttpTaskResult(`"$states.result" & '$states.result' /* $states.result */ & $states.results & $x.\`$states.result\``)).toBe(`"$states.result" & '$states.result' /* $states.result */ & $states.results & $x.\`$states.result\``)
+  it('leaves strings, backtick names, regular expressions, comments and longer names alone', () => {
+    const untouched = `"$states.result" & '$states.result' /* $states.result */ & $states.results.a & $x.\`$states.result\` & $match('a', /$states.result/)`
+    expect(withHttpTaskResult(untouched)).toBe(untouched)
+  })
+
+  it("reads past a regular expression holding a quote, and tells a regular expression from a division", async () => {
+    expect(await evaluate(withHttpTaskResult("$replace('a', /'/, '') & $states.result.ResponseBody.id")!)).toBe('a7')
+    expect(await evaluate(withHttpTaskResult('$states.result.StatusCode / 1 / $states.result.ResponseBody.id')!)).toBeCloseTo(201 / 7)
+  })
+
+  it('gives undefined for a read it does not reach, and leaves an expression that does not parse to the check', () => {
+    expect(withHttpTaskResult('$states . result.ResponseBody')).toBeUndefined()
+    expect(withHttpTaskResult('$states.`result`.ResponseBody')).toBeUndefined()
+    expect(withHttpTaskResult('$states.result /* note */ .ResponseBody')).toBeDefined()
+    expect(withHttpTaskResult('$keys($states)')).toBeUndefined()
+    expect(withHttpTaskResult('$states.result.(')).toBe('$states.result.(')
   })
 })
 
 describe('templateWithHttpTaskResult', () => {
   it('rewrites each expression of a template and keeps every other value', async () => {
-    const template = templateWithHttpTaskResult({ id: '{% $states.result.ResponseBody.id %}', kept: ['text', 1] }) as { id: string; kept: unknown }
+    const { value, unreached } = templateWithHttpTaskResult({ id: '{% $states.result.ResponseBody.id %}', kept: ['text', 1], odd: ['{% $states . result %}'] })
+    const template = value as { id: string; kept: unknown }
     expect(template.kept).toEqual(['text', 1])
     expect(await evaluate(template.id.slice(2, -2))).toBe(7)
+    expect(unreached).toEqual([['odd', 0]])
   })
 })

@@ -1,4 +1,4 @@
-import type { Problem } from '../problem'
+import { fieldPath, type Problem } from '../problem'
 import { expressionSource } from '../expressions'
 import { connectionHeaderProblem, connectionOf, withConnectionHeader, type ConnectionHeaders } from './http-connection'
 import { httpTaskResult, templateWithHttpTaskResult } from './result-shape'
@@ -12,6 +12,9 @@ const isObject = (value: unknown): value is Record<string, unknown> => typeof va
 const argumentNames: Record<string, string> = { ApiEndpoint: 'url', Method: 'method', Headers: 'headers', QueryParameters: 'query', RequestBody: 'body' }
 const connectionFields = ['Authentication', 'InvocationConfig']
 const unsentMethods = ['HEAD', 'OPTIONS']
+
+const unreachedRead =
+  "reads the HTTP task's result as a whole or in a form the import does not rewrite, such as $states . result: read its fields as $states.result.ResponseBody, $states.result.StatusCode, $states.result.StatusText and $states.result.Headers, or the result as $states.result"
 
 const otherArgument = (key: string) =>
   key === 'Transform' ? 'encodes the body as a form, which app:http does not do; send the body as text with a Content-Type header instead' : 'is not an argument of the HTTP task this app imports'
@@ -85,9 +88,12 @@ export const importHttpTask = (state: Record<string, unknown>, where: string, co
   ]
   const headerProblem = connection.arn !== undefined ? connectionHeaderProblem(connection.arn, connections, where, connection.field!) : undefined
   if (headerProblem) problems.push(headerProblem)
+  const output = state.Output === undefined ? { value: `{% ${httpTaskResult} %}`, unreached: [] } : templateWithHttpTaskResult(state.Output, ['Output'])
+  const assign = state.Assign === undefined ? undefined : templateWithHttpTaskResult(state.Assign, ['Assign'])
+  for (const path of [...output.unreached, ...(assign?.unreached ?? [])]) problems.push({ state: where, field: fieldPath(path), message: unreachedRead })
   if (problems.length > 0) return { state, problems }
   const header = connection.arn !== undefined ? connections[connection.arn]! : null
-  const imported: Record<string, unknown> = { ...state, Resource: 'app:http', Arguments: httpArguments(args, header), Output: state.Output === undefined ? `{% ${httpTaskResult} %}` : templateWithHttpTaskResult(state.Output) }
-  if (state.Assign !== undefined) imported.Assign = templateWithHttpTaskResult(state.Assign)
+  const imported: Record<string, unknown> = { ...state, Resource: 'app:http', Arguments: httpArguments(args, header), Output: output.value }
+  if (assign) imported.Assign = assign.value
   return { state: imported, problems: [] }
 }

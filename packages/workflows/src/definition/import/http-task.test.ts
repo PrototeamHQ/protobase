@@ -38,6 +38,10 @@ describe('importHttpTask', () => {
     expect((state.Arguments as Record<string, unknown>).headers).toBeUndefined()
   })
 
+  it('refuses an Output or Assign whose reads of the result the import does not reach', () => {
+    expect(imported(task(post, { Assign: { a: '{% $states . result.ResponseBody %}' } })).problems).toEqual([{ state: 'Call', field: 'Assign.a', message: expect.stringMatching(/^reads the HTTP task's result/) }])
+  })
+
   it('refuses by name what app:http would not do exactly', () => {
     expect(imported(task('{% $states.input.request %}')).problems).toEqual([{ state: 'Call', field: 'Arguments', message: expect.stringMatching(/^is one expression/) }])
     const args = { ...post, Method: 'head', Transform: { RequestBodyEncoding: 'URL_ENCODED' }, Headers: { accept: ['a', 'b'] }, QueryParameters: 'a=1' }
@@ -58,6 +62,7 @@ describe('importHttpTask', () => {
     expect(importHttpTask(task(post), 'Call', {}).problems).toEqual([{ state: 'Call', field: 'Arguments.Authentication.ConnectionArn', message: expect.stringContaining(`connection_headers { "${arn}": { "header": "Authorization"`) }])
     expect(importHttpTask(task(post), 'Call', { [arn]: { header: 'Auth orization', secret: 'X' } }).problems[0]?.message).toMatch(/not a header name/)
     expect(importHttpTask(task(post), 'Call', { [arn]: { header: 'Authorization', secret: 'a-b' } }).problems[0]?.message).toMatch(/not a secret's name/)
+    expect(importHttpTask(task(post), 'Call', { [arn]: { header: 'Authorization', secret: 'true' } }).problems[0]?.message).toMatch(/not a secret's name/)
     expect(imported(task({ ...post, Authentication: { ConnectionArn: '{% $arn %}' } })).problems.map(({ field }) => field)).toEqual(['Arguments.Authentication.ConnectionArn'])
     expect(imported(task({ ...post, InvocationConfig: { ConnectionArn: arn } })).problems.map(({ field }) => field)).toEqual(['Arguments.InvocationConfig'])
   })
