@@ -197,6 +197,8 @@ const layoutShape = (resource: string, model: ResourceModel, models: Record<stri
     // A conversation goes when the caller cannot read the messages or a field each one needs; its box when they cannot create one
     thread: s.map<ThreadSectionModel>((item) => pruneThreadSection(item, resource, models)),
     composer: s.map<ComposerSectionModel>((item) => (creates(item, creatable) ? item : undefined)),
+    // A block tree is pruned and planned as a composed page's once the caller's actions are known (`withRecordBlocks`)
+    blocks: s.data,
     // A custom section falls back to any main-column item, another custom section included, so its shape, set below, holds these cases, itself included.
     // A fallback the caller can see none of stays, empty, so the client still draws nothing in the component's place.
     custom: s.data,

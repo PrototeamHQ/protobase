@@ -1169,6 +1169,38 @@ export type ThreadSectionModel = {
 }
 
 /**
+ * One element of a layout block tree, as `@protobase/layout`'s JSX makes it: a block's or a registered component's
+ * `type`, its props and children, all plain data.
+ */
+export type BlockElementModel = {
+  type: string
+  props: Record<string, JsonValue>
+  children: Array<BlockElementModel | string>
+  /** A component the project registers, rather than a built-in block. */
+  custom?: true
+  /** What a client draws in place of a component it does not have. */
+  fallback?: Array<BlockElementModel | string>
+  /** Which of a component's props name what it reads. */
+  reads?: unknown
+}
+
+/**
+ * A tree of layout blocks on the record page (`l.blocks`), checked and planned as a composed page's, inside the page's
+ * own record: `@root`, which its bare names reach last. See
+ * [Record pages](docs/website/src/content/docs/reference/layouts.md#record-pages).
+ */
+export type BlocksSectionModel = {
+  /** A tree of layout blocks. */
+  kind: 'blocks'
+  /** Its root element: any block or component but a `Page`. */
+  tree: BlockElementModel
+  /** The reads that draw `tree`, as the server plans them for each caller: `@protobase/layout`'s `ReadPlan`. */
+  reads?: unknown
+  /** Whether it shows on the form, the read view or both. */
+  when?: ShowWhen
+}
+
+/**
  * A box that adds a message to the record's conversation: each send creates a record of `resource` with the text in
  * `text` and the record's key in the relation `field`, as the signed-in user. It shows only to a user who may create
  * them. See [Conversations](docs/website/src/content/docs/reference/ui-config.mdx#conversations).
@@ -1234,6 +1266,7 @@ export type LayoutItemModel =
   | CommentsSectionModel
   | ThreadSectionModel
   | ComposerSectionModel
+  | BlocksSectionModel
   | TabModel
 
 /** A titled group of sections and related tables on the record page, closed until opened with `collapsed`; see [Groups](docs/website/src/content/docs/reference/ui-config.mdx#groups). */
@@ -1281,6 +1314,7 @@ export type TabItemModel =
   | CommentsSectionModel
   | ThreadSectionModel
   | ComposerSectionModel
+  | BlocksSectionModel
 
 /**
  * A record's photos as tiles in the main column under `title`, one large and the next few smaller, opening a lightbox

@@ -6,6 +6,7 @@ export { isBackgroundWork, runInBackground, wantsLongQueries } from './backgroun
 export { longQueryTimeoutMs } from './statement-timeout'
 export { configExports } from './resource-source'
 export { checkViewQueries } from './check-view-queries'
+export { recordBlocksOf } from './view-blocks'
 export type { ResourceSource } from './resource-source'
 export type { AuditEvent, AuditQueue } from './types'
 export type { DecryptField, FieldDecrypter, FieldReader, RecordKey } from './encryption/decrypt-field-types'

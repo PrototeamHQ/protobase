@@ -73,8 +73,8 @@ export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = 
   const components = new Set<string>()
   const { native, mobile, notifications } = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun, extensions, components })
   const mobileSection = bundleMobile(mobile, notifications)
-  const { pages, models } = await checkViews(projectDir)
-  checkPageScopes(pages, models, { strict, onWarning })
+  const { pages, views, models } = await checkViews(projectDir)
+  checkPageScopes(pages, models, { strict, onWarning, views })
   await checkUi(projectDir, extensions, components)
   const packages = native.length > 0 ? await copyPackages(native, path.join(outDir, bundleNodeModules)) : []
   const publicDir = path.join(outDir, bundleLayout.public)

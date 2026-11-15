@@ -67,6 +67,7 @@ import { useClient } from '../data/api-provider'
 import { markdownExcerpt } from '../markdown/markdown-excerpt'
 import { ComposerSection } from './conversation/composer-section'
 import { ThreadSection } from './conversation/thread-section'
+import { RecordBlocks } from './pages/record-blocks'
 import { isMarkdown } from '../markdown/markdown-hint'
 import { ContactLink } from '../live/contact-link'
 import { linkTextOf } from '../live/link-text'
@@ -367,13 +368,14 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     }
     if (item.kind === 'chart') return [<RecordChartSection key={`chart:${index}`} item={item} recordKey={recordKey} />]
     if (item.kind === 'trend') return [<RecordTrendSection key={`trend:${index}`} item={item} recordKey={recordKey} />]
-    // Project components, maps and photos read fields a list row may not have, so they wait for the record
-    if (preview && (item.kind === 'custom' || item.kind === 'map' || item.kind === 'gallery')) return []
+    // Project components, maps, photos and block trees read fields a list row may not have, so they wait for the record
+    if (preview && (item.kind === 'custom' || item.kind === 'map' || item.kind === 'gallery' || item.kind === 'blocks')) return []
     if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} fallback={item.fallback && <>{fallbackEntries(item).flatMap(([entry, at]) => mainItem(entry, at))}</>} />]
     if (item.kind === 'map') return item.sidebar ? [] : [<MapSection key={`map:${index}`} item={item} record={stored.record} />]
     if (item.kind === 'gallery') return [<GallerySection key={`gallery:${index}`} item={item} record={stored.record} recordKey={recordKey} />]
     if (item.kind === 'history') return [<HistorySection key={`history:${index}`} item={item} model={model} view={view} recordKey={recordKey} etag={stored.etag} />]
     if (item.kind === 'thread') return [<ThreadSection key={`thread:${index}`} item={item} scope={scope} />]
+    if (item.kind === 'blocks') return [<RecordBlocks key={`blocks:${index}`} item={item} scope={scope} />]
     // Writing waits for the record, so a message never goes out from the preview
     if (item.kind === 'composer') return preview ? [] : [<ComposerSection key={`composer:${index}`} item={item} owner={model} recordKey={recordKey} />]
     if (item.kind === 'comments') return [<CommentsSection key={`comments:${index}`} item={item} resource={model.name} recordKey={recordKey} canWrite={auth.kind !== 'visitor'} />]

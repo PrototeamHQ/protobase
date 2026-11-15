@@ -11,9 +11,12 @@ import { inlineFieldProblems } from './check-inline-fields'
 import { inlineFieldTypes, isInlineChild } from './inline-fields'
 import { innermost, label, pageScope, walkTree, type Scope } from './walk'
 
-/** Problems that need a record around the element, which a `RecordCard`, a `CardRow` card or a `RecordsIterator` row provides. */
+/**
+ * Problems that need a record around the element, which a `RecordCard`, a `CardRow` card or a `RecordsIterator` row
+ * provides, or the record page's own record around its tree.
+ */
 const recordProblems = (node: LayoutNode, scope: Scope): string[] => {
-  if (innermost(scope)) return []
+  if (innermost(scope) || scope.root !== undefined) return []
   const { props } = node
   const outside = 'needs a record: put it inside a RecordCard, a CardRow or a RecordsIterator'
   if (inlineFieldTypes.has(node.type)) return [outside]
@@ -105,20 +108,30 @@ const switchProblems = ({ type, children }: LayoutNode): string[] => {
   return children.some(isMatch) ? ['holds a <Match>, which only a <Switch> takes'] : []
 }
 
+// A record page's address is the record's, which holds no page parameters or block tabs of its own
+const recordTreeProblems = (node: LayoutNode): string[] => {
+  if (node.type === 'Page') return ['<Page> is a composed page of its own; a record page\'s tree is the blocks inside one']
+  if (node.type === 'SelectInput' || node.type === 'Tabs') return [`<${node.type}> sets the page's own address, and a record page's address is the record's; use l.tab for tabs`]
+  return []
+}
+
 /**
  * Checks a page's tree without the models: the root is one `Page`, every built-in element has known props of the right
  * kind, elements that show a record's fields sit inside one, tabs are placed as their address needs, and conditions
- * parse. Returns the problems, each with where it is.
+ * parse. Returns the problems, each with where it is. With `scope.root`, it is a record page's tree (`l.blocks`), whose
+ * root is any element but a `Page`, inside the page's own record, and which sets no address of its own.
  */
-export const structureProblems = (tree: LayoutNode): string[] => {
+export const structureProblems = (tree: LayoutNode, scope: Scope = pageScope): string[] => {
   const problems: string[] = []
-  if (tree.custom || tree.type !== 'Page') problems.push(`the root element is <${tree.type}>, it must be <Page>`)
+  const record = scope.root !== undefined
+  if (!record && (tree.custom || tree.type !== 'Page')) problems.push(`the root element is <${tree.type}>, it must be <Page>`)
   walkTree(tree, (node, { path, scope }) => {
     const report = (problem: string) => problems.push(`${path}: ${problem}`)
     if (node.custom) return
     const spec = blockSpecs[node.type]
     if (!spec) return report(`<${node.type}> is not a block; custom components are declared with component('${node.type}')`)
-    if (node.type === 'Page' && node !== tree) report('<Page> is only allowed as the root')
+    if (record) recordTreeProblems(node).forEach(report)
+    else if (node.type === 'Page' && node !== tree) report('<Page> is only allowed as the root')
     propProblems(spec, node.props, node.children.length).forEach(report)
     recordProblems(node, scope).forEach(report)
     if (node.type === 'Stat') statProblems(node).forEach(report)
@@ -137,6 +150,6 @@ export const structureProblems = (tree: LayoutNode): string[] => {
       const parsed = parseCondition(sampleSlots(node.props.when).text)
       if (!parsed.ok) report(`"when" is not a valid condition: ${parsed.message}`)
     }
-  })
-  return [...problems, ...tabsProblems(tree), ...pageParamProblems(tree)]
+  }, { path: label(tree), scope })
+  return record ? problems : [...problems, ...tabsProblems(tree), ...pageParamProblems(tree)]
 }

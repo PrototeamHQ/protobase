@@ -69,6 +69,8 @@ export type {
   ThreadSectionModel,
   ToolCallFields,
   ComposerSectionModel,
+  BlocksSectionModel,
+  BlockElementModel,
   ChartRange,
   ChartGranularity,
   ChartModel,

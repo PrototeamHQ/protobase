@@ -10,7 +10,7 @@ import { planQueries } from './plan-queries'
 import type { Planned } from './planned'
 import { useProjectUi } from './project-ui'
 import { samePlanned } from './same-planned'
-import { useScopeStack, valueScopeOf } from './record-scope'
+import { rootRecordOf, useScopeStack, valueScopeOf } from './record-scope'
 
 // A page starts every read of its plan as it opens, each an ordinary request of its own, all at once: whatever a
 // condition says and however deep a block sits. A block then draws from its read, a block inside the records of
@@ -28,7 +28,9 @@ export const PlanReadsProvider = ({ tree, plan, children }: { tree: LayoutNode; 
   const fieldTypes = useProjectUi().fields
   const xs = useIsXs()
   const params = usePageParamValues()
-  const planned = useMemo(() => planQueries({ client, queryClient, resources, views, fieldTypes, xs, params }, tree, plan), [client, queryClient, resources, views, fieldTypes, xs, params, tree, plan])
+  // On a record page, the page's own record fills the `{{@root.…}}` slots
+  const root = rootRecordOf(useScopeStack())
+  const planned = useMemo(() => planQueries({ client, queryClient, resources, views, fieldTypes, xs, params, ...(root && { root }) }, tree, plan), [client, queryClient, resources, views, fieldTypes, xs, params, root, tree, plan])
   const queries = useQueries({ queries: planned.map(({ queryKey, queryFn }) => ({ queryKey, queryFn })) })
   const running = new Map(planned.map(({ read }, index) => [planReadId(read), { read, query: queries[index]! }]))
   return <PlanReadsContext.Provider value={running}>{children}</PlanReadsContext.Provider>
