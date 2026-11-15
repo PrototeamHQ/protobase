@@ -19,8 +19,8 @@ export const newPart = (choice: Exclude<ConditionChoice, 'expression'>): Conditi
   return { kind: 'compare', op: choice, sides: [{ value: '' }, { value: '' }] }
 }
 
-/** The Condition a new Expression node holds, which the step runs under as before it had one. */
-export const newExpression = '{% true %}'
+// The Condition a new Expression node holds, which the step runs under as before it had one
+const newExpression = '{% true %}'
 
 // The node at `at` of a Condition's nodes, which `at` names by the side each holds it at
 const partAt = (part: ConditionPart, at: readonly number[]): ConditionPart | undefined => {
@@ -48,6 +48,15 @@ export const setConditionSide = (definition: Definition, step: string, at: reado
   const root = conditionParts(stateAt(definition, step)?.Condition)
   const next = root && withSide(root, at, side)
   return next ? setArgument(definition, step, [conditionKey], conditionValue(next)) : definition
+}
+
+/**
+ * The definition with a new condition node chosen for the side at `at` of the Condition of the step at `step`, or for
+ * its Only when pin with `[]`, where an Expression may be chosen too.
+ */
+export const addCondition = (definition: Definition, step: string, at: readonly number[], choice: ConditionChoice): Definition => {
+  if (at.length === 0) return setArgument(definition, step, [conditionKey], choice === 'expression' ? newExpression : conditionValue(newPart(choice)))
+  return choice === 'expression' ? definition : setConditionSide(definition, step, at, newPart(choice))
 }
 
 /** The definition with the side at `at` holding nothing, and the node there removed with all it takes; the whole Condition for `[]`. */

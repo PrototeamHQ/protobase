@@ -1,12 +1,12 @@
 import type { Connection, Edge, FinalConnectionState } from '@xyflow/react'
 import { useMemo, useState, type RefObject } from 'react'
-import { conditionValue, type Definition, type PinSchemas } from '@protobase/workflows'
+import type { Definition, PinSchemas } from '@protobase/workflows'
 import type { Graph } from '../definition-graph'
+import type { CanvasEdits } from '../canvas-edits'
 import { graphId, isPureFlowId } from '../flow-elements'
 import { text } from '../messages'
-import { setArgument } from './argument-edits'
-import { conditionChoices, newExpression, newPart, setConditionSide, type ConditionChoice } from './condition-edits'
-import { connectData, disconnectData, removePure, wireRefusal, type PinEnd } from './data-edits'
+import type { ConditionChoice } from './condition-edits'
+import type { PinEnd } from './data-edits'
 import { dataGraph, type DataEdge, type LocalPure, type PureNode } from './data-graph'
 import { conditionKey } from './node-pins'
 import { nodeSizes } from './node-sizes'
@@ -25,8 +25,8 @@ const end = (node: string, handle: string | null | undefined): PinEnd => ({ node
 
 const isObjectType = (kinds: readonly string[] | 'any') => kinds !== 'any' && kinds.includes('object')
 
-// The offer of each condition node a pin can have, each written where `put` puts it
-const conditionOffer = (root: boolean, put: (choice: ConditionChoice) => void) => conditionChoices(root).map((choice) => ({ label: conditionTitle(choice), add: () => put(choice) }))
+// The offer of each condition node of `choices`, each written where `put` puts it
+const conditionOffer = (choices: readonly ConditionChoice[], put: (choice: ConditionChoice) => void) => choices.map((choice) => ({ label: conditionTitle(choice), add: () => put(choice) }))
 
 /**
  * The Breaks and Makes made on the canvas that stay once `gone` are removed: those, and each Break made from a field of
@@ -38,12 +38,16 @@ export const localsLeft = (local: readonly LocalPure[], gone: readonly PureNode[
   return local.filter((each) => !under(each) && !gone.some((node) => node.id === id(each)))
 }
 
+/** What an editable canvas's pins change: the definition, through `onChange`, by `edits`. */
+export type PinEditing = { onChange: (definition: Definition) => void; edits: CanvasEdits }
+
 /**
  * The pins of a canvas, given the schemas their types come from: the data graph with the Break and Make nodes made on
- * the canvas, which inputs are open, what the layout places, and what wiring, unwiring, removing a Break, a Make or a
- * condition node and letting go of a wire on the empty canvas do. Without schemas, no pins.
+ * the canvas, which inputs are open, what the layout places, and with `editing`, what wiring, unwiring, removing a
+ * Break, a Make or a condition node and letting go of a wire on the empty canvas do. Without schemas, no pins.
  */
-export const usePins = (definition: Definition, graph: Graph, schemas: PinSchemas | undefined, onChange: ((definition: Definition) => void) | undefined, frame: RefObject<HTMLElement | null>) => {
+export const usePins = (definition: Definition, graph: Graph, schemas: PinSchemas | undefined, editing: PinEditing | undefined, frame: RefObject<HTMLElement | null>) => {
+  const edits = editing?.edits
   const [local, setLocal] = useState<LocalPure[]>([])
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
   const [offer, setOffer] = useState<PureOffer>()
@@ -57,28 +61,28 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     }
   }, [graph, data, open])
 
-  const actions: PinActions | undefined = onChange && {
-    setArgument: (step, keys, value) => onChange(setArgument(definition, step, keys, value)),
-    setConditionSide: (step, at, value) => onChange(setConditionSide(definition, step, at, { value })),
-    setCondition: (step, value) => onChange(setArgument(definition, step, [conditionKey], value)),
+  const actions: PinActions | undefined = editing && {
+    setArgument: (step, keys, value) => editing.onChange(editing.edits.setArgument(definition, step, keys, value)),
+    setConditionSide: (step, at, value) => editing.onChange(editing.edits.setConditionSide(definition, step, at, { value })),
+    setCondition: (step, value) => editing.onChange(editing.edits.setArgument(definition, step, [conditionKey], value)),
     toggleOpen: (node) => setOpen((current) => (current.has(node) ? new Set([...current].filter((id) => id !== node)) : new Set([...current, node]))),
   }
   const check: WireCheck = (from, to) => {
-    if (!data || !isPinHandle(from.handle) || !isPinHandle(to.handle)) return
+    if (!data || !edits || !isPinHandle(from.handle) || !isPinHandle(to.handle)) return
     // A wire may be dragged from its input end
     const [start, finish] = outPath(from.handle) ? [from, to] : [to, from]
-    const refusal = wireRefusal(definition, data, end(start.node, start.handle), end(finish.node, finish.handle))
+    const refusal = edits.wireRefusal(definition, data, end(start.node, start.handle), end(finish.node, finish.handle))
     return refusal && refusalText(refusal)
   }
-  const isValid = (connection: Connection | Edge) => Boolean(data) && wireRefusal(definition, data!, end(connection.source, connection.sourceHandle), end(connection.target, connection.targetHandle)) === undefined
+  const isValid = (connection: Connection | Edge) => Boolean(data && edits) && edits!.wireRefusal(definition, data!, end(connection.source, connection.sourceHandle), end(connection.target, connection.targetHandle)) === undefined
   const connect = (connection: Connection) => {
-    if (!onChange || !data) return
-    onChange(connectData(definition, data, end(connection.source, connection.sourceHandle), end(connection.target, connection.targetHandle)))
+    if (!editing || !data) return
+    editing.onChange(editing.edits.connectData(definition, data, end(connection.source, connection.sourceHandle), end(connection.target, connection.targetHandle)))
   }
   // Wires cut and Breaks and Makes removed, from what the other removals left. Cutting the wire a Break takes its object
   // by, or a Make gives its object by, removes that node, which has no place without it.
   const remove = (next: Definition, nodes: readonly { id: string }[], edges: readonly Edge[]) => {
-    if (!data) return next
+    if (!data || !edits) return next
     let after = next
     const bound = edges.flatMap((edge) => {
       const wire = (edge.data as { wire?: DataEdge } | undefined)?.wire
@@ -88,11 +92,11 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     const gone = [...nodes.filter((node) => isPureFlowId(node.id)), ...bound.filter((node) => !nodes.some((other) => other.id === node.id))]
     for (const edge of edges) {
       const wire = (edge.data as { kind?: string; wire?: DataEdge } | undefined)?.wire
-      if (wire && !gone.some((node) => node.id === wire.source || node.id === wire.target)) after = disconnectData(after, data, wire)
+      if (wire && !gone.some((node) => node.id === wire.source || node.id === wire.target)) after = edits.disconnectData(after, data, wire)
     }
     for (const node of gone) {
       const pure = data.pure.find((each) => each.id === node.id)
-      if (pure) after = removePure(after, data, pure)
+      if (pure) after = edits.removePure(after, data, pure)
     }
     if (gone.length > 0) setLocal((current) => localsLeft(current, gone.flatMap((node) => data.pure.filter((each) => each.id === node.id))))
     return after
@@ -100,7 +104,7 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
   // A wire from an object pin let go on the empty canvas offers to take that object apart, or to build it, there; one
   // from an empty Only when pin, or a side of an And, an Or or a Not that holds a value, the condition nodes
   const connectEnd = (event: MouseEvent | TouchEvent, state: FinalConnectionState) => {
-    if (!data || !onChange || state.isValid || state.toHandle || !state.fromHandle?.id || !state.fromNode) return
+    if (!data || !editing || state.isValid || state.toHandle || !state.fromHandle?.id || !state.fromNode) return
     const node = graphId(state.fromNode.id)
     const handle = state.fromHandle.id
     const point = 'changedTouches' in event ? event.changedTouches[0]! : event
@@ -121,12 +125,12 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     if (condition?.kind === 'condition') {
       const side = condition.inputs.find((each) => each.key === key)
       if (!side || side.state !== 'literal' || condition.part.kind === 'compare' || condition.part.kind === 'expression') return
-      setOffer({ ...at, choices: conditionOffer(false, (choice) => choice !== 'expression' && onChange(setConditionSide(definition, condition.target, [...condition.at, Number(key)], newPart(choice)))) })
+      setOffer({ ...at, choices: conditionOffer(editing.edits.conditionChoices(false), (choice) => editing.onChange(editing.edits.addCondition(definition, condition.target, [...condition.at, Number(key)], choice))) })
       return
     }
     const pin = key === undefined ? undefined : data.inputs.get(node)?.find((each) => each.key === key)
     if (pin?.key === conditionKey && pin.state === 'empty') {
-      setOffer({ ...at, choices: conditionOffer(true, (choice) => onChange(setArgument(definition, node, [conditionKey], choice === 'expression' ? newExpression : conditionValue(newPart(choice))))) })
+      setOffer({ ...at, choices: conditionOffer(editing.edits.conditionChoices(true), (choice) => editing.onChange(editing.edits.addCondition(definition, node, [], choice))) })
       return
     }
     if (!pin || !isObjectType(pin.type.kinds) || pin.state === 'wired' || pin.state === 'expression') return

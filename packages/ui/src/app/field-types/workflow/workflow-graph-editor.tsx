@@ -11,6 +11,7 @@ import { GraphFrame, PanelHint } from './graph-frame'
 import { NodePanel } from './node-panel'
 import { ProblemList } from './problem-list'
 import { definitionProblems, problemsByNode, warningsByNode } from './problems'
+import { canvasEdits } from './canvas-edits'
 import { WorkflowCanvas } from './workflow-canvas'
 import { usePinSchemas } from './pins/pin-schemas'
 import type { WorkflowLayout } from './manual-layout'
@@ -79,7 +80,7 @@ export const WorkflowGraphEditor = ({ value, types, onChange, notice, layout, on
       )}
       <ProblemList problems={checked.whole} />
       <GraphFrame
-        canvas={<WorkflowCanvas definition={definition} problems={checked.byNode} warnings={warned} selected={selected} onSelect={setChosen} onChange={onChange} onAddAt={(at) => setAdding({ at })} types={types} schemas={schemas} layout={layout} onLayoutChange={onLayoutChange} />}
+        canvas={<WorkflowCanvas definition={definition} problems={checked.byNode} warnings={warned} selected={selected} onSelect={setChosen} onChange={onChange} edits={canvasEdits} onAddAt={(at) => setAdding({ at })} types={types} schemas={schemas} layout={layout} onLayoutChange={onLayoutChange} />}
         panel={
           <>
             {notice}
