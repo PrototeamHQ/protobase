@@ -159,6 +159,11 @@ const shapeOf = (node: LayoutNode, n: number | undefined, parent: Draft | undefi
   return { kind: 'list', pageSize: total, limitPer: { field: field!, count: n } }
 }
 
+// How many values the records around it give a read to split on at most: one each, or for a JSON list of keys as many
+// as one read holds, since each list may hold several
+const keysOf = ({ parent, column }: SplitFilter, context: PlanContext) =>
+  context.models[parent!.resource]?.fields[column!]?.type === 'json' ? maxPerPage : rowsOf(parent!)
+
 // How each record around it finds its rows in the read
 const splitOf = ({ parent, field, path }: SplitFilter): Pick<Draft, 'split'> => (parent && field && path !== undefined ? { split: { field, source: path, parent: planReadId(parent) } } : {})
 
@@ -222,7 +227,7 @@ const readDrafts = (node: LayoutNode, block: string, { reads, part }: { reads: B
     etag: changesOwn(node),
   }
   const chosen = !node.custom || reads.select !== undefined ? chosenOf(node, block, model, split.filter, context) : undefined
-  const total = split.parent && totalOf(node, own, rowsOf(split.parent))
+  const total = split.parent && totalOf(node, own, keysOf(split, context))
   return { own, ...(chosen && { chosen }), ...(total && { total }) }
 }
 

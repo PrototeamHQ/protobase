@@ -13,6 +13,7 @@ import { blockQueries } from './block-queries'
 import { PageParamsProvider } from './page-params'
 import { planQueries } from './plan-queries'
 import { PlanReadsProvider } from './plan-reads'
+import { orderOf } from './nested-plan-reads'
 import { RenderNode } from './render-node'
 
 const tasks = resource('tasks').table('tasks').fields({ id: f.integer().readOnly(), title: f.text(), status: f.text() }).primaryKey((r) => r.id).toModel()
@@ -121,5 +122,18 @@ describe('a Table, RecordCards and Thread inside the records of another block', 
     expect(second).toContain('Grace')
     expect(second).not.toContain('The first')
     expect(fetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('orderOf', () => {
+  const read = { block: '/children/0', kind: 'list' as const, resource: 'task_claims', etag: false }
+  it('takes the read’s order over the view’s', () => expect(orderOf({ ...read, orderBy: 'id desc' }, 'id asc')).toBe('id desc'))
+  it('takes the view’s order when the read’s is empty or absent', () => {
+    expect(orderOf({ ...read, orderBy: '' }, 'id asc')).toBe('id asc')
+    expect(orderOf(read, 'id asc')).toBe('id asc')
+  })
+  it('has none when both are empty or absent', () => {
+    expect(orderOf({ ...read, orderBy: '' }, '')).toBeUndefined()
+    expect(orderOf(read, undefined)).toBeUndefined()
   })
 })
