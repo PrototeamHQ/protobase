@@ -31,33 +31,33 @@ export const countQuery = (client: Client, model: ResourceModel, filter = '') =>
 
 export const useCount = (model: ResourceModel, filter = '', enabled = true) => useQuery({ ...countQuery(useClient(), model, filter), enabled })
 
-/** The record a RecordCard shows: the one `recordKey` names, or the first that matches `filter` in `sort` order. */
-export const useFirstRecord = (model: ResourceModel, { filter = '', sort = '', key, enabled = true }: { filter?: string; sort?: string; key?: string; enabled?: boolean }) => {
-  const client = useClient()
-  return useQuery({
-    enabled,
-    queryKey: key === undefined ? keys.firstRecord(model.name, filter, sort) : keys.record(model.name, key),
-    queryFn: async (): Promise<LayoutRecord | null> => {
-      if (key !== undefined) {
-        const stored = await client.get(model.name, key)
-        return { ...scopeOf(model, stored.record), etag: stored.etag, permissions: stored.permissions }
-      }
-      const page = await client.list(model.name, { filter: filter || undefined, orderBy: sort || undefined, pageSize: 1 })
-      return page.items[0] ? scopeOf(model, page.items[0]) : null
-    },
-  })
-}
+type FirstRecord = { filter?: string; sort?: string; key?: string }
 
-/** One page of a list, from `pageToken`; the previous page stays on screen while the next loads. */
-export const useListPage = (model: ResourceModel, { filter = '', sort = '', pageSize, pageToken = '', enabled = true }: { filter?: string; sort?: string; pageSize: number; pageToken?: string; enabled?: boolean }) => {
-  const client = useClient()
-  return useQuery({
-    enabled,
-    queryKey: keys.list(model.name, filter, sort, pageSize, pageToken),
-    placeholderData: keepPreviousData,
-    queryFn: () => client.list(model.name, { filter: filter || undefined, orderBy: sort || undefined, pageSize, pageToken: pageToken || undefined }),
-  })
-}
+/** The record a RecordCard shows: the one `recordKey` names, or the first that matches `filter` in `sort` order. */
+export const firstRecordQuery = (client: Client, model: ResourceModel, { filter = '', sort = '', key }: FirstRecord) => ({
+  queryKey: key === undefined ? keys.firstRecord(model.name, filter, sort) : keys.record(model.name, key),
+  queryFn: async (): Promise<LayoutRecord | null> => {
+    if (key !== undefined) {
+      const stored = await client.get(model.name, key)
+      return { ...scopeOf(model, stored.record), etag: stored.etag, permissions: stored.permissions }
+    }
+    const page = await client.list(model.name, { filter: filter || undefined, orderBy: sort || undefined, pageSize: 1 })
+    return page.items[0] ? scopeOf(model, page.items[0]) : null
+  },
+})
+
+export const useFirstRecord = (model: ResourceModel, { enabled = true, ...query }: FirstRecord & { enabled?: boolean }) => useQuery({ ...firstRecordQuery(useClient(), model, query), enabled })
+
+type ListPageRequest = { filter?: string; sort?: string; pageSize: number; pageToken?: string }
+
+/** One page of a list, from `pageToken`. */
+export const listPageQuery = (client: Client, model: ResourceModel, { filter = '', sort = '', pageSize, pageToken = '' }: ListPageRequest) => ({
+  queryKey: keys.list(model.name, filter, sort, pageSize, pageToken),
+  queryFn: () => client.list(model.name, { filter: filter || undefined, orderBy: sort || undefined, pageSize, pageToken: pageToken || undefined }),
+})
+
+/** One page of a list, as `listPageQuery`; the previous page stays on screen while the next loads. */
+export const useListPage = (model: ResourceModel, { enabled = true, ...request }: ListPageRequest & { enabled?: boolean }) => useQuery({ ...listPageQuery(useClient(), model, request), enabled, placeholderData: keepPreviousData })
 
 /** A planned read's first record, as `useFirstRecord` gives it: `null` when it holds none. */
 export const plannedRecord = (model: ResourceModel, planned: Planned): { isPending: boolean; error: Error | null; data: LayoutRecord | null | undefined } => ({
