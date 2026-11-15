@@ -1,5 +1,5 @@
 import { expressionSource, parse } from '../expressions'
-import { expressionReads } from '../reads'
+import { boundAtRoot, boundWithin, expressionReads } from '../reads'
 
 /** Where a read starts: the run's input, a variable a state assigns, or in data order a state's status by its name. */
 export type ReadBase = { input: true } | { variable: string } | { step: string }
@@ -91,20 +91,24 @@ export const expressionReferences = (value: unknown): Reference[] => {
   const found = new Map<string, Reference>()
   const add = (reference: Reference | undefined) => reference && found.set(readText(reference), reference)
   const inPath = new WeakSet<Node>()
-  const visit = (node: unknown): void => {
-    if (Array.isArray(node)) return node.forEach(visit)
+  // A name the expression binds where a read stands is its own, not the workflow's variable of that name
+  const visit = (node: unknown, outer: ReadonlySet<string>): void => {
+    if (Array.isArray(node)) return node.forEach((item) => visit(item, outer))
     if (!isNode(node)) return
+    const bound = boundWithin(node, outer)
+    const workflows = (name: string) => free.has(name) && !bound.has(name)
     if (node.type === 'path' && Array.isArray(node.steps) && node.steps[0]?.type === 'variable') {
       const [first, ...rest] = node.steps
       inPath.add(first!)
       const name = String(first!.value)
       if (name === 'states') add(statesReference(namesAfter(rest)))
-      else if (free.has(name)) add({ base: { variable: name }, path: namesAfter(rest) })
-    } else if (node.type === 'variable' && !inPath.has(node) && free.has(String(node.value))) {
+      else if (workflows(name)) add({ base: { variable: name }, path: namesAfter(rest) })
+    } else if (node.type === 'variable' && !inPath.has(node) && workflows(String(node.value))) {
       add({ base: { variable: String(node.value) }, path: [] })
     }
-    for (const [key, child] of Object.entries(node)) if (key !== 'position' && key !== 'value' && key !== 'type') visit(child)
+    for (const [key, child] of Object.entries(node)) if (key !== 'position' && key !== 'value' && key !== 'type') visit(child, bound)
   }
-  visit(parsed.expression.ast())
+  const ast = parsed.expression.ast()
+  visit(ast, boundAtRoot(ast))
   return [...found.values()]
 }

@@ -76,6 +76,15 @@ describe('pins', () => {
     ])
     // Without a declared body, its fields are of any type
     expect(pinProblems(workflow({ url: 'https://example.com' }, { key: '1', data: { age: '{% $fetch.body.ip %}' } }), schemas)).toEqual([])
+    // A Block's steps keep their variables to themselves, so one of the same name inside it leaves the read outside typed
+    const blocked = workflow({ url: 'https://example.com' }, { key: '1', data: { name: '{% $fetch.status %}' } })
+    blocked.stateMachine.States.Keep = { Type: 'Block', Processor: { StartAt: 'Inner', States: { Inner: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://b.example' }, Assign: { fetch: '{% $states.result %}' }, End: true } } }, Cache: { Ttl: '1 hour' }, End: true } as never
+    expect(pinProblems(blocked, schemas)).toEqual([{ state: 'Save', field: 'Arguments.data.name', message: 'reads $fetch.status, a whole number, where data.name takes text' }])
+    // A read deeper in an argument is checked against the schema at its place
+    const deep: PinSchemas = { ...schemas, inputs: { ...schemas.inputs, 'app:http': { type: 'object', properties: { url: { type: 'string' }, payload: { type: 'object', properties: { profile: { type: 'object', properties: { age: { type: 'integer' } } } } } } } } }
+    expect(pinProblems(workflow({ url: 'https://example.com', payload: { profile: { age: '{% $states.context.Execution.Input.record.name %}' } } }, { key: '1', data: {} }), deep)).toEqual([
+      { state: 'Fetch', field: 'Arguments.payload.profile.age', message: 'reads $states.context.Execution.Input.record.name, text, where payload.profile.age takes a whole number' },
+    ])
   })
 
   it('runs as part of the save check when the options give the pins', () => {
@@ -90,6 +99,8 @@ describe('pins', () => {
 
 describe('the reads of an expression', () => {
   it('finds every read by name, however the expression combines them, and no name it binds itself', () => {
+    // A block that binds a name of a workflow variable reads its own one inside, the workflow's outside
+    expect(expressionReferences("{% $fetch.body.ip & ($fetch := {'name': 'local'}; $fetch.name) %}")).toEqual([{ base: { variable: 'fetch' }, path: ['body', 'ip'] }])
     expect(expressionReferences("{% $ip.body.ip & ' / ' & $uuid.body.uuid & $string($count($ip.headers)) %}")).toEqual([
       { base: { variable: 'ip' }, path: ['body', 'ip'] },
       { base: { variable: 'uuid' }, path: ['body', 'uuid'] },

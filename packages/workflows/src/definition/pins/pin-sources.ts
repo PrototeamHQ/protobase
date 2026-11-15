@@ -1,4 +1,4 @@
-import { allStates, innerMachine } from '../inner'
+import { innerMachine } from '../inner'
 import type { Definition, Machine, State } from '../types'
 import type { Reference } from './references'
 import { resolveSchema, schemaAt, type RecordSchemas } from './resolve-schema'
@@ -19,9 +19,17 @@ export const argumentsOf = (state: State): Record<string, unknown> => {
   return typeof args === 'object' && args !== null && !Array.isArray(args) ? (args as Record<string, unknown>) : {}
 }
 
-/** The state that keeps its whole result in `variable`, when exactly one does; its name. */
+// The states of a machine and of the Maps in it, whose variables a state outside any Block may read: a Block's steps
+// keep theirs to themselves.
+const statesOutsideBlocks = (machine: Machine): [string, State][] =>
+  Object.entries(machine.States).flatMap(([name, state]) => {
+    const inner = state.Type === 'Map' ? innerMachine(state) : undefined
+    return [[name, state] as [string, State], ...(inner ? statesOutsideBlocks(inner) : [])]
+  })
+
+/** The state outside any Block that keeps its whole result in `variable`, when exactly one does; its name. */
 export const resultState = (machine: Machine, variable: string): [string, State] | undefined => {
-  const keeping = allStates(machine).filter(([, state]) => {
+  const keeping = statesOutsideBlocks(machine).filter(([, state]) => {
     const assign = 'Assign' in state ? (state.Assign as Record<string, unknown> | undefined) : undefined
     return assign?.[variable] !== undefined
   })

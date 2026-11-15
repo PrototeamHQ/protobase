@@ -10,9 +10,9 @@ type JsonSchema = Record<string, unknown>
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
 /**
- * Where a Task's argument, or a field of an argument written as an object, is one read by name of a value whose type
- * does not fit what the step type takes there, as a wire between pins of those types is refused: a problem naming
- * both. A read of a value of any type, or into an input of any type, fits.
+ * Where a Task's argument, or a field at any depth of an argument written as an object, is one read by name of a value
+ * whose type does not fit what the step type takes there, as a wire between pins of those types is refused: a problem
+ * naming both. A read of a value of any type, or into an input of any type, fits.
  */
 export const pinProblems = (definition: Definition, schemas: PinSchemas): Problem[] =>
   tasksOutsideBlocks(definition.stateMachine).flatMap(({ path, state }) => {
@@ -26,9 +26,8 @@ export const pinProblems = (definition: Definition, schemas: PinSchemas): Proble
       if (fits(source, taken)) return []
       return [{ state: path, field: ['Arguments', ...field].join('.'), message: `reads ${readText(reference)}, ${pinTypeText(source)}, where ${field.join('.')} takes ${pinTypeText(taken)}` }]
     }
-    return Object.entries(argumentsOf(state)).flatMap(([key, value]) => {
-      const target = schemaAt(input, [key])
-      if (!isObject(value)) return mismatch(value, target, [key])
-      return Object.entries(value).flatMap(([field, inner]) => mismatch(inner, schemaAt(target, [field]), [key, field]))
-    })
+    // Each value of an object down to its reads, against the schema at its place
+    const walk = (value: unknown, target: JsonSchema | undefined, field: string[]): Problem[] =>
+      isObject(value) ? Object.entries(value).flatMap(([name, inner]) => walk(inner, schemaAt(target, [name]), [...field, name])) : mismatch(value, target, field)
+    return Object.entries(argumentsOf(state)).flatMap(([key, value]) => walk(value, schemaAt(input, [key]), [key]))
   })
