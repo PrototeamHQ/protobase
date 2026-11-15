@@ -15,7 +15,8 @@ export type LanesProps = {
   model: ResourceModel
   view: ViewModel | undefined
   fields: TimelineFields
-  onPoint: (bar: TimelineBar | null) => void
+  /** What pointing at a bar and moving focus to it do; `null` when the pointer or focus leaves it. */
+  point: { hover: (bar: TimelineBar | null) => void; focus: (bar: TimelineBar | null) => void }
   /** With `select`: where a bar leads, and the key of the bar chosen. */
   choose?: { barTo: (key: string) => RouteTarget; chosen: string | undefined }
 }
@@ -24,12 +25,12 @@ const barLook = 'absolute inset-y-0 flex overflow-hidden rounded-sm ring-offset-
 
 // One bar: its segments side by side within it, a link to the page with it chosen under `select`, else a mark that
 // can take focus, so a keyboard and a screen reader reach its times too
-const BarMark = ({ bar, model, view, fields, onPoint, choose }: Omit<LanesProps, 'shape'> & { bar: TimelineBar }) => {
+const BarMark = ({ bar, model, view, fields, point: on, choose }: Omit<LanesProps, 'shape'> & { bar: TimelineBar }) => {
   // A bar of a relation is named by the record it points at, as its readout shows it
   const target = useAdminMeta().resources[model.fields[fields.bar]?.relation?.resource ?? '']
   const name = useRelationTitle(target ?? model, bar.key, target !== undefined)
   const label = barText(bar, model, view, fields, target ? name : undefined)
-  const point = { onMouseEnter: () => onPoint(bar), onMouseLeave: () => onPoint(null), onFocus: () => onPoint(bar), onBlur: () => onPoint(null) }
+  const point = { onMouseEnter: () => on.hover(bar), onMouseLeave: () => on.hover(null), onFocus: () => on.focus(bar), onBlur: () => on.focus(null) }
   const style = { left: `${bar.left}%`, width: `max(${bar.width}%, 4px)` }
   const segments = <SegmentFill bar={bar} field={model.fields[fields.color]!} hints={view?.fields[fields.color]} />
   if (!choose) {
@@ -58,7 +59,7 @@ export const TimelineLanes = ({ shape, ...props }: LanesProps) => {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex sm:pl-40">
-        <TimelineAxis from={shape.from} to={shape.to} />
+        <TimelineAxis from={shape.from} to={shape.to} dated={model.fields[fields.start]?.type === 'date'} />
       </div>
       <ul className="flex flex-col gap-3 sm:gap-2">
         {shape.lanes.map((lane) => (

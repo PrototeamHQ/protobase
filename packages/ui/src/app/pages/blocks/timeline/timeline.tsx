@@ -33,7 +33,9 @@ type LoadedProps = Omit<TimelineProps, 'resource' | 'actions' | 'children' | 'se
 // Its records from the page's planned read, or a read of its own, the earliest first, drawn as lanes with what the
 // bar pointed at holds under them
 const LoadedTimeline = ({ model, view, fields, sort, at, filter, limit = 500, title, description, empty, actions, className, choose, details }: LoadedProps) => {
-  const [pointed, setPointed] = useState<TimelineBar | null>(null)
+  // The bar under the pointer shows over the one with focus, which shows again once the pointer leaves
+  const [hovered, setHovered] = useState<TimelineBar | null>(null)
+  const [focused, setFocused] = useState<TimelineBar | null>(null)
   const planned = usePlanned(at)
   const own = useListPage(model, { filter, sort, pageSize: limit, enabled: !planned })
   const page = planned ?? own
@@ -47,9 +49,9 @@ const LoadedTimeline = ({ model, view, fields, sort, at, filter, limit = 500, ti
     return (
       <div className="flex flex-col gap-4">
         <TimelineLegend model={model} view={view} fields={fields} values={values} />
-        <TimelineLanes shape={shape} model={model} view={view} fields={fields} onPoint={setPointed} {...(choose && { choose })} />
+        <TimelineLanes shape={shape} model={model} view={view} fields={fields} point={{ hover: setHovered, focus: setFocused }} {...(choose && { choose })} />
         <div aria-live="polite">
-          <TimelineReadout bar={pointed} model={model} view={view} fields={fields} />
+          <TimelineReadout bar={hovered ?? focused} model={model} view={view} fields={fields} />
         </div>
       </div>
     )
@@ -62,10 +64,9 @@ const LoadedTimeline = ({ model, view, fields, sort, at, filter, limit = 500, ti
   )
 }
 
-const numeric = new Set(['integer', 'bigint', 'decimal'])
-
-// The bar a key names, as its `bar` field holds it: a number for a numeric field, the text otherwise
-const barValue = (field: FieldModel, key: string) => (numeric.has(field.type) ? Number(key) : key)
+// The bar a key names, as its `bar` field holds it: a number for an integer field, the text otherwise, as the API
+// gives a bigint or decimal, whose digits a number would round
+const barValue = (field: FieldModel, key: string) => (field.type === 'integer' ? Number(key) : key)
 
 /** A timeline whose bars each link to the page with that bar's value in the parameter `select`, and the chosen bar's children under it. */
 const SelectTimeline = ({ select, children, ...props }: LoadedProps & { select: string; children: ReactNode[] }) => {
@@ -73,11 +74,11 @@ const SelectTimeline = ({ select, children, ...props }: LoadedProps & { select: 
   const key = given[select]
   const barTo = (barKey: string) => linkTo({ [select]: barKey })
   const field = props.model.fields[props.fields.bar]!
-  // A form under the chosen bar asks before another bar replaces it
+  // The chosen bar's first record among those the timeline shows; a form under it asks before another bar replaces it
   const details =
     key === undefined ? null : (
       <GuardedParams name={select}>
-        <ChosenRecord key={key} model={props.model} query={{ filter: groupFilter(field, barValue(field, key)), sort: props.sort }}>
+        <ChosenRecord key={key} model={props.model} query={{ filter: groupFilter(field, barValue(field, key), props.filter), sort: props.sort }}>
           {children}
         </ChosenRecord>
       </GuardedParams>

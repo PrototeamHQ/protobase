@@ -124,6 +124,15 @@ const play: StoryObj['play'] = async ({ canvasElement }) => {
   expect(exportBar).toHaveAttribute('aria-current', 'true')
   expect(bars.find((bar) => bar.getAttribute('href') === '/work?task=1')).not.toHaveAttribute('aria-current')
   await waitFor(() => expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth))
+
+  // The bar with focus shows again once the pointer leaves another
+  exportBar.focus()
+  const readout = canvasElement.querySelector('[aria-live="polite"]') as HTMLElement
+  const signIn = bars.find((bar) => bar.getAttribute('href') === '/work?task=1')!
+  await userEvent.hover(signIn)
+  await waitFor(() => expect(readout).toHaveTextContent('Sign-in with a code'))
+  await userEvent.unhover(signIn)
+  await waitFor(() => expect(readout).toHaveTextContent('Export to CSV'))
 }
 
 // The chosen task is in the page's address, so opening it again shows it chosen

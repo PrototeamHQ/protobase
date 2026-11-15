@@ -60,8 +60,25 @@ describe('axisTicks', () => {
   })
 
   it('ticks on the clock of the viewer, and not at all for no time', () => {
-    expect(axisTicks(t0, t0 + 8 * hour, hour).ticks[0]!.at).toBe(t0 + 2 * hour)
+    expect(axisTicks(t0, t0 + 8 * hour, () => hour).ticks[0]!.at).toBe(t0 + 2 * hour)
     expect(axisTicks(t0, t0)).toEqual({ daily: false, ticks: [] })
+  })
+})
+
+describe('axisTicks limits', () => {
+  it('counts both ends, so a half hour ticks every 15 minutes, and a long range ticks in whole years', () => {
+    expect(axisTicks(t0, t0 + hour / 2).ticks).toHaveLength(3)
+    const decade = axisTicks(t0, t0 + 12 * 365 * 24 * hour)
+    expect(decade.ticks.length).toBeLessThanOrEqual(6)
+    expect(decade.daily).toBe(true)
+  })
+
+  it('keeps each daily tick at local midnight when the offset changes within the range', () => {
+    // Five hours behind UTC until the 3rd of the days, four after it
+    const change = t0 + 3 * 24 * hour
+    const offsetOf = (ms: number) => (ms < change ? -5 * hour : -4 * hour)
+    const { ticks } = axisTicks(t0, t0 + 6 * 24 * hour, offsetOf)
+    expect(ticks.map((tick) => (tick.at + offsetOf(tick.at)) % (24 * hour))).toEqual(ticks.map(() => 0))
   })
 })
 

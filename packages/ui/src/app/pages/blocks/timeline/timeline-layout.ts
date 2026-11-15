@@ -97,15 +97,27 @@ export const tickSteps = [5 * minute, 15 * minute, 30 * minute, hour, 3 * hour, 
 /** How many ticks an axis shows at most, so their labels fit a phone's width. */
 export const maxTicks = 6
 
+const year = 365 * day
+
+// How many whole steps lie from `from` to `to`, both included, on a clock `offset` ms ahead of UTC
+const stepsIn = (from: number, to: number, step: number, offset: number) => Math.floor((to + offset) / step) - Math.ceil((from + offset) / step) + 1
+
 /**
- * The ticks of an axis from `from` to `to`: the shortest step that gives at most `maxTicks`, each at a whole step of
- * the clock `offset` ms ahead of UTC, placed in %; `daily` when the step is a day or more, so they read as dates.
+ * The ticks of an axis from `from` to `to`: the shortest step that gives at most `maxTicks`, past the last of
+ * `tickSteps` whole years, each on a whole step of the clock `offsetOf` gives at a moment, its ms ahead of UTC there,
+ * so a tick stays on its local hour or midnight when the offset changes within the range. Each is placed in %;
+ * `daily` when the step is a day or more, so they read as dates.
  */
-export const axisTicks = (from: number, to: number, offset = 0) => {
+export const axisTicks = (from: number, to: number, offsetOf: (ms: number) => number = () => 0) => {
   const span = to - from
   if (span <= 0) return { daily: false, ticks: [] }
-  const step = tickSteps.find((candidate) => span / candidate <= maxTicks) ?? tickSteps.at(-1)!
+  const offset = offsetOf(from)
+  const step = tickSteps.find((candidate) => stepsIn(from, to, candidate, offset) <= maxTicks) ?? Math.ceil(span / (maxTicks - 1) / year) * year
   const ticks: Array<{ at: number; left: number }> = []
-  for (let at = Math.ceil((from + offset) / step) * step - offset; at <= to; at += step) ticks.push({ at, left: share(at, from, span) })
+  for (let local = Math.ceil((from + offset) / step) * step; local <= to + offset; local += step) {
+    // The local step's moment, by the offset in force near it
+    const at = local - offsetOf(local - offset)
+    if (at >= from && at <= to) ticks.push({ at, left: share(at, from, span) })
+  }
   return { daily: step >= day, ticks }
 }
