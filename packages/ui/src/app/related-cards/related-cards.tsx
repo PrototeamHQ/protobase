@@ -11,6 +11,8 @@ import { embeddedDisplay, viewAllAddress } from '../embedded-list/embedded-displ
 import { text as listText } from '../embedded-list/messages'
 import { ErrorBanner } from '../error-banner'
 import { defaultOrderBy } from '../list-order'
+import type { PlannedList } from '../embedded-list/planned-embedded-rows'
+import { plannedCount } from '../pages/planned-count'
 import { scopeOf, useCount, useListPage } from '../pages/use-layout-data'
 import { AppLink } from '../use-app-address'
 import { CompactCard } from './compact-card'
@@ -40,6 +42,8 @@ type RelatedCardsProps = {
   compact?: { time?: string }
   /** The enum field whose value colours each card's left edge. */
   tone?: string
+  /** Its records and how many match in all, from the page's planned reads, inside the records of another block. */
+  planned?: PlannedList
 }
 
 // Compact cards are two lines high, a long title taking a third on a phone; three of them hold the room a
@@ -54,14 +58,17 @@ const CardsSkeleton = ({ compact, limit }: { compact: boolean; limit: number }) 
  * The first `limit` records of a list as cards stacked full width or in a `carousel`, each with its fields, its
  * actions' buttons and its row button, and a link to the whole list beside a note such as "The first 10 of 37." when there are more.
  */
-export const RelatedCards = ({ model, view, filter, sort, fields, actions, button, limit, display, empty, carousel, compact, tone }: RelatedCardsProps) => {
+export const RelatedCards = ({ model, view, filter, sort, fields, actions, button, limit, display, empty, carousel, compact, tone, planned }: RelatedCardsProps) => {
   const xs = useIsXs()
   const scroll = useSnapScroll()
   const plural = view?.names?.plural ?? humanize(model.name)
   const orderBy = sort || defaultOrderBy(model, view)
-  const page = useListPage(model, { filter, sort: orderBy, pageSize: limit })
-  const count = useCount(model, filter)
-  const scopes = useMemo(() => (page.data?.items ?? []).map((row) => scopeOf(model, row)), [model, page.data])
+  const own = useListPage(model, { filter, sort: orderBy, pageSize: limit, enabled: !planned })
+  const ownCount = useCount(model, filter, !planned)
+  const page = planned ? planned.rows : { isPending: own.isPending, error: own.error }
+  const items = planned ? planned.rows.rows : own.data?.items
+  const count = planned ? { data: planned.total && !planned.total.isPending && !planned.total.error ? plannedCount(planned.total) : undefined } : ownCount
+  const scopes = useMemo(() => (items ?? []).map((row) => scopeOf(model, row)), [model, items])
   const keys = useMemo(() => scopes.map((scope) => scope.key), [scopes])
   const leaving = useLeavingFocus(keys)
   const content = () => {
