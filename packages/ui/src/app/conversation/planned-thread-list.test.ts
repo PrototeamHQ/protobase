@@ -30,6 +30,20 @@ describe('threadListOf', () => {
     expect(threadListOf({ planned, limit: 2, expanded: true, expand: vi.fn(), own: own(1, planned.rows, true) })).toMatchObject({ items: planned.rows, isFetchingNextPage: true })
   })
 
+  it('keeps the planned messages and labels while its own read loads its first page', () => {
+    const read = { ...own(0), isLoading: true }
+    expect(threadListOf({ planned, limit: 2, expanded: true, expand: vi.fn(), own: read })).toMatchObject({ items: planned.rows, labels: planned.labels, error: null })
+  })
+
+  it('keeps the planned messages when its own read fails before its first page, with its error and a retry of it', () => {
+    const error = new Error('down')
+    const read = { ...own(0), isLoading: false, error }
+    const list = threadListOf({ planned, limit: 2, expanded: true, expand: vi.fn(), own: read })
+    expect(list).toMatchObject({ items: planned.rows, labels: planned.labels, error, isFetchingNextPage: false, isFetchNextPageError: false })
+    list.refetch()
+    expect(read.refetch).toHaveBeenCalled()
+  })
+
   it('loads its earlier messages with its own read after the planned first page', () => {
     const read = own(2, [{ id: 2 }, { id: 1 }, { id: 0 }])
     expect(threadListOf({ planned, limit: 2, expanded: true, expand: vi.fn(), own: read })).toBe(read)

@@ -27,22 +27,23 @@ type State = {
 
 /**
  * The list a thread draws: the planned latest records until earlier ones are asked for, which its own read then gives
- * from its first page and the one after it, the planned records staying while it reads them; its own read without one.
+ * from its first page and the one after it, the planned records staying while it reads them or until it reads one
+ * after failing; its own read without one.
  */
 export const threadListOf = ({ planned, limit, expanded, expand, own }: State): ThreadList => {
   if (!planned) return own
   const reading = expanded && !own.error && own.pages < 2 && (own.pages === 0 || own.hasNextPage)
-  if (expanded && !reading) return own
-  return {
+  const plannedList = {
     items: planned.rows,
     labels: planned.labels ?? {},
     hasNextPage: planned.rows.length >= limit,
     isFetchingNextPage: reading,
     isFetchNextPageError: false,
     isLoading: planned.isPending,
-    error: planned.error,
-    fetchNextPage: expand,
-    // A planned read that failed is read again as its own
-    refetch: expand,
   }
+  // Its own read failed before its first page: the planned records stay, with its error, and trying again reads it again
+  if (expanded && own.error && own.pages === 0) return { ...plannedList, error: own.error, fetchNextPage: own.refetch, refetch: own.refetch }
+  if (expanded && !reading) return own
+  // A planned read that failed is read again as its own
+  return { ...plannedList, error: planned.error, fetchNextPage: expand, refetch: expand }
 }
