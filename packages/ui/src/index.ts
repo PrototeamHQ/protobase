@@ -60,7 +60,7 @@ export { SearchPicker, type PickerGroup, type PickerItem, type SearchPickerProps
 export { ActionCard, FieldList, type ActionCardProps, type CardAction, type CardTone } from './action-card'
 export { StepList, type Step, type StepState } from './step-list'
 export { Carousel, type CarouselImage, type CarouselProps } from './carousel'
-export { DiffView, diffStats, parseDiff, type DiffLine, type DiffViewProps } from './diff-view'
+export { DiffView, diffStats, parsePatch, parseDiff, type DiffLine, type DiffViewProps, type PatchFile } from './diff-view'
 export { CompactTable, type CompactTableProps } from './compact-table'
 export { Markdown } from './markdown/markdown'
 export type { MarkdownContentProps as MarkdownProps } from './markdown/markdown-content'

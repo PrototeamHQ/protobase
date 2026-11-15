@@ -1,2 +1,3 @@
 export { DiffView, type DiffViewProps } from './diff-view'
-export { diffStats, parseDiff, type DiffLine } from './diff'
+export { diffStats, parseDiff, splitRows, type DiffLine, type SplitRow } from './diff'
+export { parsePatch, type PatchFile } from './patch'
