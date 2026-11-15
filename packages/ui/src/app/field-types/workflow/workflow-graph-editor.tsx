@@ -13,6 +13,7 @@ import { ProblemList } from './problem-list'
 import { definitionProblems, problemsByNode, warningsByNode } from './problems'
 import { WorkflowCanvas } from './workflow-canvas'
 import { usePinSchemas } from './pins/pin-schemas'
+import type { WorkflowLayout } from './manual-layout'
 import { text } from './messages'
 
 export type WorkflowGraphEditorProps = {
@@ -24,6 +25,10 @@ export type WorkflowGraphEditorProps = {
   onChange?: (definition: Definition) => void
   /** What the side panel says first, such as that the version shown is only read. */
   notice?: ReactNode
+  /** Where nodes were moved by hand in each view. */
+  layout?: WorkflowLayout
+  /** Without it, nodes are not moved by hand. */
+  onLayoutChange?: (layout: WorkflowLayout) => void
 }
 
 // A new state goes into the Map or Block chosen, or the one the chosen state is in, else into the workflow itself.
@@ -38,7 +43,7 @@ const scopeFor = (definition: Definition, selected: string | undefined): string[
  * each change, and the chosen node's fields in the side panel beside it. Every problem the save's check would refuse it for shows on the
  * node it names as it is edited, and the rest above the canvas.
  */
-export const WorkflowGraphEditor = ({ value, types, onChange, notice }: WorkflowGraphEditorProps) => {
+export const WorkflowGraphEditor = ({ value, types, onChange, notice, layout, onLayoutChange }: WorkflowGraphEditorProps) => {
   // The form hands the value over anew on each render: the definition changes only when its JSON does
   const json = JSON.stringify(value ?? null)
   const definition = useMemo(() => definitionOf(JSON.parse(json)), [json])
@@ -74,7 +79,7 @@ export const WorkflowGraphEditor = ({ value, types, onChange, notice }: Workflow
       )}
       <ProblemList problems={checked.whole} />
       <GraphFrame
-        canvas={<WorkflowCanvas definition={definition} problems={checked.byNode} warnings={warned} selected={selected} onSelect={setChosen} onChange={onChange} onAddAt={(at) => setAdding({ at })} types={types} schemas={schemas} />}
+        canvas={<WorkflowCanvas definition={definition} problems={checked.byNode} warnings={warned} selected={selected} onSelect={setChosen} onChange={onChange} onAddAt={(at) => setAdding({ at })} types={types} schemas={schemas} layout={layout} onLayoutChange={onLayoutChange} />}
         panel={
           <>
             {notice}

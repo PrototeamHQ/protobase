@@ -40,7 +40,7 @@ const refuseProblems = (definition: unknown, types: CheckOptions) => {
 /**
  * Checks a workflow's definition on every save that changes it against the language's schema and the named-reads
  * profile, with the trigger and step types the app has, and keeps a changed definition as the version the table's
- * trigger numbered, saved by the caller. A save leaves what is published alone: a write that sets `enabled_version`
+ * trigger numbered, saved by the caller, with the layout it has then. A save that moves only nodes checks and keeps nothing. A save leaves what is published alone: a write that sets `enabled_version`
  * publishes that saved version, checked again, and puts the workflow's trigger on it, and clearing it turns the
  * workflow off, which never depends on a definition still checking, as after an app update removed a plugin. A refusal is a 400
  * problem naming each state and field, also listed as `problems`, and as the `definition` field's `errors` with the
@@ -62,8 +62,9 @@ export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick
   if (changed) {
     // A workflow starts with no steps; a version without any is kept, and refused as it is published or run.
     refuseProblems(withStepsToCheck(definitionFromParts(event.after as DefinitionParts)), check)
-    await sql`insert into ${sql.id(schema, 'versions')} (workflow_id, version, state_machine, trigger, execution_order, connections, trace, saved_by, tenant_id)
-      select w.id, w.version, w.state_machine, w.trigger, w.execution_order, w.connections, w.trace, ${String(event.user.id)}, w.tenant_id from ${sql.id(schema, 'workflows')} w where w.id = ${id}`.execute(trx)
+    // With its layout as it is now, so the version opens as it looked when it was saved
+    await sql`insert into ${sql.id(schema, 'versions')} (workflow_id, version, state_machine, trigger, execution_order, connections, trace, layout, saved_by, tenant_id)
+      select w.id, w.version, w.state_machine, w.trigger, w.execution_order, w.connections, w.trace, w.layout, ${String(event.user.id)}, w.tenant_id from ${sql.id(schema, 'workflows')} w where w.id = ${id}`.execute(trx)
   }
   if (!publishing) return
   if (enabled === null) {

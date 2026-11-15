@@ -66,7 +66,7 @@ export const listWorkflowsTool = defineTool({
 /** One workflow with its definition and the etag an update can pass. */
 export const getWorkflowTool = defineTool({
   name: 'get_workflow',
-  description: 'Reads one workflow by its id, as JSON ({ workflow, etag }): its name, description, version and definition fields: state_machine, trigger, execution_order, connections and trace. Pass the etag to update_workflow to fail when someone changed it since.',
+  description: 'Reads one workflow by its id, as JSON ({ workflow, etag }): its name, description, version, definition fields (state_machine, trigger, execution_order, connections and trace) and layout, where nodes of the editor\'s graph were moved by hand. Pass the etag to update_workflow to fail when someone changed it since.',
   parameters: { type: 'object', properties: { id: idParameter }, required: ['id'] },
   annotations: reads,
   run: async (args, context) => {

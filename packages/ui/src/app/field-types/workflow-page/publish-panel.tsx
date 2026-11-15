@@ -22,6 +22,8 @@ export type PublishPanelProps = {
   /** The definition shown, which is what publishes. */
   definition: Definition
   types: WorkflowTypeList
+  /** Saving the draft makes a new version: its definition changed, not only where its nodes are. */
+  newVersion: boolean
   onClose: () => void
 }
 
@@ -36,7 +38,7 @@ const usePublish = (workflow: string) => {
 }
 
 /** Publish in the end panel, always asked: what goes live, what changes, and what happens to a trigger, or going back to an older version. */
-export const PublishPanel = ({ view, page, definition, types, onClose }: PublishPanelProps) => {
+export const PublishPanel = ({ view, page, definition, types, newVersion, onClose }: PublishPanelProps) => {
   const focus = useFocusRecord()!
   const client = useClient()
   const publish = usePublish(view.workflow)
@@ -44,7 +46,8 @@ export const PublishPanel = ({ view, page, definition, types, onClose }: Publish
   const [busy, setBusy] = useState(false)
   const [refused, setRefused] = useState(false)
   const unsaved = view.version === undefined && focus.dirty
-  const version = view.version ?? (page.latest ?? 0) + (unsaved ? 1 : 0)
+  // Nodes moved alone are saved first all the same, as the version they were moved on
+  const version = view.version ?? (page.latest ?? 0) + (unsaved && newVersion ? 1 : 0)
   const { enabled, latest } = page
   const live = useRecord('workflow_versions', [view.workflow, enabled ?? 0], enabled !== undefined)
   const rollback = !unsaved && latest !== undefined && version < latest

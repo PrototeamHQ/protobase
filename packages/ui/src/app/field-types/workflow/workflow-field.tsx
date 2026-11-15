@@ -11,6 +11,7 @@ import { useWorkflowView } from '../workflow-page/use-workflow-page'
 import { useWorkflowTypes } from './use-workflow-types'
 import { text } from './messages'
 import { toFieldDraft } from '../../../live/field-values'
+import { workflowLayoutOf, type WorkflowLayout } from './manual-layout'
 
 // React Flow, ELK and the definition's check load with the first workflow drawn, not with the app.
 const WorkflowGraphEditor = lazy(() => import('./workflow-graph-editor').then((module) => ({ default: module.WorkflowGraphEditor })))
@@ -23,8 +24,8 @@ const otherFields = ['trigger', 'execution_order', 'connections', 'trace'] as co
 
 /**
  * The definition the state machine `value` is part of, and the way to change it: on a workflow's page with the trigger,
- * execution order, connections and trace of the record's draft, each change written to the fields it changed;
- * elsewhere, as on the standard form, the state machine alone, run by hand in sequence.
+ * execution order, connections and trace of the record's draft, each change written to the fields it changed, and the
+ * draft's layout beside it; elsewhere, as on the standard form, the state machine alone, run by hand in sequence.
  */
 const useDefinition = (value: unknown, onChange?: (stateMachine: unknown) => void) => {
   const focus = useFocusRecord()
@@ -54,7 +55,11 @@ const useDefinition = (value: unknown, onChange?: (stateMachine: unknown) => voi
         if (field && JSON.stringify(fields[name]) !== JSON.stringify(draft(name))) focus.change(name, toFieldDraft(field, fields[name]))
       }
     })
-  return { definition, change }
+  // Where nodes were moved by hand, beside the definition: a field of the record, which a record from before it lacks
+  const layoutField = focus?.model.fields.layout
+  const layout = layoutField ? workflowLayoutOf(focus.value('layout')) : undefined
+  const changeLayout = onChange && layoutField && ((next: WorkflowLayout) => focus.change('layout', toFieldDraft(layoutField, next)))
+  return { definition, change, layout, changeLayout }
 }
 
 // The graph once the app's trigger and step types are read, which its menus, forms and check are drawn from: on a
@@ -62,14 +67,15 @@ const useDefinition = (value: unknown, onChange?: (stateMachine: unknown) => voi
 const Graph = ({ value: stateMachine, onChange: changeMachine }: { value: unknown; onChange?: (stateMachine: unknown) => void }) => {
   const types = useWorkflowTypes()
   const view = useWorkflowView()
-  const { definition: value, change: onChange } = useDefinition(stateMachine, changeMachine)
+  const { definition: value, change: onChange, layout, changeLayout } = useDefinition(stateMachine, changeMachine)
+  const placed = { ...(layout && { layout }), ...(changeLayout && { onLayoutChange: changeLayout }) }
   if (types.error) return <ErrorBanner title={text('typesFailed')} error={types.error} />
   if (!types.data) return <Loading />
   // The graph holds many controls, each with a label of its own: none of them is the field's one control
   return (
     <FieldControlContext.Provider value={undefined}>
       <Suspense fallback={<Loading />}>
-        {view ? <WorkflowWorkbench view={view} value={value} types={types.data} {...(onChange && { onChange })} /> : <WorkflowGraphEditor value={value} types={types.data} {...(onChange && { onChange })} />}
+        {view ? <WorkflowWorkbench view={view} value={value} types={types.data} {...(onChange && { onChange })} {...placed} /> : <WorkflowGraphEditor value={value} types={types.data} {...(onChange && { onChange })} {...placed} />}
       </Suspense>
     </FieldControlContext.Provider>
   )

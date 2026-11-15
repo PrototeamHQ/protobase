@@ -16,6 +16,21 @@ export const definitionParameters = {
   trace: { type: ['string', 'null'], enum: ['all', 'failed', 'none', null], description: 'Which of its runs keep a trace; the app decides when absent or null.' },
 }
 
+/**
+ * Where the editor's nodes were moved by hand, which no run reads: a save that changes only it makes no new version.
+ */
+const positions = { type: 'object', additionalProperties: { type: 'object', properties: { x: { type: 'number' }, y: { type: 'number' } } } }
+
+export const layoutParameter = {
+  type: 'object',
+  description:
+    'Where nodes of the editor\'s graph were moved by hand in each of its views, which no run reads: { "pins": { "<key>": { "x": <number>, "y": <number> } }, "simple": { ... } }, each view its own, so a node moved in one stays where it is in the other; the editor lays out every node a view does not name. A step\'s key is its name, the trigger\'s "$trigger"; in pins only, a Break\'s the value it takes apart (such as "Save.record", or "Save.#break" for a step\'s whole result) and a Make\'s the argument it builds (such as "Save.#make.data"). In a name or field, %, . and a leading # or $ are written %25, %2E, %23 and %24. A position inside a Map or Block is from its top left corner. Other views, and keys of states the workflow no longer has, are dropped; {} lays out every node. A save that changes only the layout makes no new version. Written whole.',
+  properties: { pins: positions, simple: positions },
+}
+
+/** The layout an MCP call gives, as a workflow record's data: none when it gives no object. */
+export const layoutDataOf = (args: Record<string, unknown>) => (objectOf(args.layout) ? { layout: args.layout } : {})
+
 /** The definition's fields an MCP call gives, as a workflow record's data; null clears connections and trace. */
 export const definitionDataOf = (args: Record<string, unknown>) =>
   Object.fromEntries(Object.keys(definitionParameters).filter((key) => args[key] !== undefined).map((key) => [key, args[key]]))

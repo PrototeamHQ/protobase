@@ -169,6 +169,23 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
     expect(fixed.steps.map((step) => [step.state, step.status])).toEqual([['Fetch', 'succeeded'], ['Notify', 'succeeded']])
   })
 
+  it('reads and saves where nodes were moved, which alone makes no version, and creates a workflow with none', async () => {
+    const steps = definitionFields(definition({ Fetch: fetchGreeting('Shape'), Shape: { Type: 'Pass', Output: '{% $greeting %}', End: true } }))
+    const plain = await ana('create_workflow', { name: 'Unmoved', ...steps })
+    expect((await ana('get_workflow', { id: plain.id })).workflow.layout).toEqual({})
+    const layout = { pins: { Fetch: { x: 420, y: 180 }, 'Fetch.body': { x: 700, y: 180 }, Gone: { x: 0, y: 0 } }, simple: { Fetch: { x: 10, y: 20 }, 'Fetch.body': { x: 1, y: 1 } } }
+    const { id } = await ana('create_workflow', { name: 'Moved', ...steps, layout })
+    const read = await ana('get_workflow', { id })
+    expect(read.workflow.version).toBe(1)
+    expect(read.workflow.layout).toEqual({ pins: { Fetch: layout.pins.Fetch, 'Fetch.body': layout.pins['Fetch.body'] }, simple: { Fetch: layout.simple.Fetch } })
+    expect(await ana('update_workflow', { id, layout: { simple: { Shape: { x: 1, y: 2 } } }, etag: read.etag })).toMatchObject({ id, version: 1 })
+    const moved = (await ana('get_workflow', { id })).workflow
+    expect([moved.version, moved.layout]).toEqual([1, { simple: { Shape: { x: 1, y: 2 } } }])
+    const edit = { state_machine: { States: { Fetch: { Next: 'Tell' }, Shape: null, Tell: { Type: 'Pass', End: true } } } }
+    expect(await ana('update_workflow', { id, edit, layout: { pins: { Shape: { x: 1, y: 2 }, Tell: { x: 3, y: 4 } }, simple: { Shape: { x: 5, y: 6 } } } })).toMatchObject({ id, version: 2 })
+    expect((await ana('get_workflow', { id })).workflow.layout).toEqual({ pins: { Tell: { x: 3, y: 4 } }, simple: {} })
+  })
+
   it('refuses an invalid definition naming the step and field, and saves nothing', async () => {
     const before = await counts()
     const broken = definition({ Fetch: { ...fetchGreeting('Gone'), Arguments: { url: '{% $nowhere %}' } } })
