@@ -45,12 +45,73 @@ const saveThenTell: Definition = {
   },
 } as Definition
 
+// A website contact form in data order: the sender stored as a contact with a note, one mail to the team chosen by
+// topic, and an auto-reply when the stored address looks valid
+const contactForm: Definition = {
+  trigger: { 'app:webhook': { auth: { mode: 'bearer' } } },
+  order: 'data',
+  stateMachine: {
+    "QueryLanguage": "JSONata",
+    "States": {
+      "SaveContact": {
+        "Type": "Task",
+        "Resource": "app:records.create",
+        "Arguments": {
+          "resource": "contacts",
+          "data": {
+            "name": "{% $states.context.Execution.Input.body.name %}",
+            "email": "{% $states.context.Execution.Input.body.email %}",
+            "status": "lead"
+          }
+        },
+        "Assign": {
+          "contact": "{% $states.result %}"
+        }
+      },
+      "SaveMessage": {
+        "Type": "Task",
+        "Resource": "app:records.create",
+        "Arguments": {
+          "resource": "notes",
+          "data": {
+            "contact_id": "{% $contact.id %}",
+            "text": "{% '[' & $states.context.Execution.Input.body.topic & '] ' & $states.context.Execution.Input.body.message %}"
+          }
+        },
+        "Assign": {
+          "note": "{% $states.result %}"
+        }
+      },
+      "AutoReply": {
+        "Type": "Task",
+        "Resource": "app:mail.send",
+        "Condition": "{% $contains($contact.email, /^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/) %}",
+        "Arguments": {
+          "to": "{% $contact.email %}",
+          "subject": "We received your message",
+          "text": "{% 'Hi ' & $contact.name & ',\\n\\nThanks for getting in touch. We received your message and will answer within one working day.\\n\\nThe Lab team' %}"
+        }
+      },
+      "Notify": {
+        "Type": "Task",
+        "Resource": "app:mail.send",
+        "Arguments": {
+          "to": "{% $states.context.Execution.Input.body.topic = 'sales' ? 'sales@lab.example' : 'support@lab.example' %}",
+          "subject": "{% 'New ' & $states.context.Execution.Input.body.topic & ' message from ' & $contact.name %}",
+          "text": "{% $contact.name & ' <' & $contact.email & '> wrote:\\n\\n' & $states.context.Execution.Input.body.message & '\\n\\nContact ' & $contact.id & ', note ' & $note.id %}"
+        }
+      }
+    }
+  },
+} as Definition
+
 const rows = {
   workflows: [
     { id: 1, name: 'Open tickets', description: null, ...definitionRecord(ticketsWorkflow), version: 1 },
     { id: 2, name: 'Fetch tickets', description: null, ...definitionRecord(fetchOnly), version: 1 },
     { id: 3, name: 'Some workflows', description: null, ...definitionRecord(listSome), version: 1 },
     { id: 4, name: 'Tell when saved', description: null, ...definitionRecord(saveThenTell), version: 1 },
+    { id: 5, name: 'Contact form', description: null, ...definitionRecord(contactForm), version: 1 },
   ],
   workflow_versions: [],
   workflow_runs: [],
@@ -147,6 +208,9 @@ const places = (canvasElement: HTMLElement) => Object.fromEntries([...canvasElem
 export const NewWorkflow: StoryObj = { name: 'A new workflow', render: () => <Workspace start="/workflows/new" /> }
 
 export const MadeThroughTheApi: StoryObj = { name: 'A workflow made through the API', render: () => <Workspace start="/workflows/1" /> }
+
+/** A contact form in data order, with Break, Make, Select and Matches nodes between its steps. */
+export const ContactForm: StoryObj = { name: 'A contact form in data order', render: () => <Workspace start="/workflows/5" /> }
 
 /** A new workflow starts with a name and no steps; steps added through the picker connect as they come, and Save stores what the graph shows. */
 export const CreatesAndConnectsChecks: StoryObj = {

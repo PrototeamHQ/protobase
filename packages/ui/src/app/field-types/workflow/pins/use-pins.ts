@@ -1,6 +1,6 @@
 import type { Connection, Edge, FinalConnectionState } from '@xyflow/react'
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import type { Definition, PinSchemas } from '@protobase/workflows'
+import { orderOf, type Definition, type PinSchemas } from '@protobase/workflows'
 import type { Graph } from '../definition-graph'
 import type { CanvasEdits } from '../canvas-edits'
 import { graphId, isPureFlowId } from '../flow-elements'
@@ -9,7 +9,7 @@ import type { ConditionChoice } from './condition-edits'
 import type { PinEnd } from './data-edits'
 import { dataGraph, type DataEdge, type LocalPure, type PureNode } from './data-graph'
 import { conditionKey } from './node-pins'
-import { nodeSizes } from './node-sizes'
+import { nodeSizes, pinPorts } from './node-sizes'
 import type { PinActions } from './pin-actions'
 import { conditionTitle, typeLabel } from './pin-text'
 import type { PureOffer } from './pure-offer'
@@ -57,14 +57,17 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     now.current = { definition, editing }
   })
   const data = useMemo(() => schemas && dataGraph(definition, schemas, local), [definition, schemas, local])
+  const dataOrder = orderOf(definition) === 'data'
   const layout = useMemo(() => {
     if (!data) return
     return {
       sizes: nodeSizes(graph, data, open),
       pure: data.pure.map((pure) => ({ id: pure.id, parent: pureParent(graph, pure) })),
-      wires: data.edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target })),
+      wires: data.edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.sourceHandle, targetHandle: edge.targetHandle })),
+      ports: pinPorts(graph, data, open),
+      dataOrder,
     }
-  }, [graph, data, open])
+  }, [graph, data, open, dataOrder])
 
   const actions: PinActions | undefined = editing && {
     setArgument: (step, keys, value) => editing.onChange(editing.edits.setArgument(definition, step, keys, value)),
