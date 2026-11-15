@@ -7,6 +7,8 @@ import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type P
 import { definitionFields } from '../../test-support/workflow-fields'
 import { traceFiles } from './support/run-trace'
 import { testRunner } from './support/test-runner'
+import { customStepQueue } from '../../packages/server/src/workflows/runners/runner-jobs'
+import { jobSealer } from '../../packages/server/src/workflows/runners/job-seal'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -211,6 +213,24 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("custom steps' runners o
     const odd = await machine.claimJob()
     expect((await machine.complete(odd.id, { output: { text: 3 } })).status).toBe(200)
     expect(await ended(second)).toMatchObject({ status: 'failed', error: 'Custom.InvalidOutput', cause: "The output does not fit the step's output schema: output/text must be string" })
+
+    // An error the version does not declare goes into the cause, with any secret in it blanked out
+    const third = await start('leaky')
+    const leaky = await machine.claimJob()
+    expect((await machine.complete(leaky.id, { error: `request failed with ${secret}`, cause: 'no answer' })).status).toBe(200)
+    const failed = await ended(third)
+    expect(failed).toMatchObject({ status: 'failed', error: 'Custom.Failed' })
+    expect(failed.cause).toContain('request failed with')
+    expect(JSON.stringify([failed, await job(leaky.id)])).not.toContain(secret)
+  })
+
+  it('queues no job for a run that ended, saying so', async () => {
+    const run = await start('ended')
+    await vi.waitFor(async () => expect(await sql`select 1 from workflows.custom_step_jobs where run_id = ${run}`.execute(db).then(({ rows }) => rows.length)).toBe(1), { timeout: 10_000, interval: 50 })
+    await sql`update workflows.runs set status = 'failed', finished_at = now() where id = ${run}`.execute(db)
+    const queue = customStepQueue('workflows', jobSealer(async () => 'a-secret-for-the-ended-run-test-0123456789'), () => {})
+    await expect(queue.queue(db, { run, visit: 'again|1', state: 'Read', step: 'custom:ocr:1', input: {}, arguments: {}, hash: 'b'.repeat(64) })).rejects.toThrow('Its run ended before its job was queued')
+    expect((await sql`select 1 from workflows.custom_step_jobs where run_id = ${run} and visit = 'again|1'`.execute(db)).rows).toEqual([])
   })
 
   it('times a job out with its try, the queue included, and tells the runner holding it to stop', async () => {

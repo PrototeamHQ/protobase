@@ -24,8 +24,9 @@ const notHeld = () => new HttpProblem(409, 'job-not-held', 'Conflict', 'This run
 /**
  * Queues a custom step's try as a job of the run's tenant's version of that step, in `db`, replacing the job of the
  * same try a segment queued before it stopped, which its new token supersedes; the job takes the run's tenant, and
- * its arguments sealed. A run whose tenant has no such custom step, or only a deleted one, fails the step. `queued`
- * follows each queueing, for a matching pass.
+ * its arguments sealed. A run whose tenant has no such custom step, or only a deleted one, fails the step. The run's
+ * row is held while the job is written, and an ended run queues nothing, so a run that ends meanwhile waits for the job
+ * and then ends it too. `queued` follows each queueing, for a matching pass.
  */
 export const customStepQueue = (schema: string, sealer: JobSealer, queued: () => void): CustomStepJobs<Db> => ({
   queue: async (db, job) => {
@@ -35,12 +36,17 @@ export const customStepQueue = (schema: string, sealer: JobSealer, queued: () =>
       select r.id, ${job.visit}, ${job.state}, ${job.step}, v.id, ${JSON.stringify(job.input) ?? null}::jsonb, ${await sealer.seal(job.arguments)}, ${job.hash}, r.tenant_id
       from ${sql.id(schema, 'runs')} r join ${sql.id(schema, 'custom_step_versions')} v
         on coalesce(v.tenant_id, '') = coalesce(r.tenant_id, '') and v.name = ${name} and v.version = ${version} and v.custom_step_id is not null
-      where r.id = ${job.run}
+      where r.id = ${job.run} and r.status not in ('succeeded', 'failed')
+      for share of r
       on conflict (run_id, visit) do update set step = excluded.step, version_id = excluded.version_id, input = excluded.input, arguments = excluded.arguments,
         token_hash = excluded.token_hash, status = 'queued', runner_id = null, requeues = 0, lease_until = null, queued_at = now(), passed_over_at = null, claimed_at = null,
         sent_at = null, finished_at = null, output = null, error = null, cause = null, logs = '[]'::jsonb
       returning id`.execute(db)
-    if (rows.length === 0) throw new StepError('States.Runtime', `${job.step} is not a custom step of this app`)
+    if (rows.length === 0) {
+      const { rows: [run] } = await sql<{ status: string }>`select status from ${sql.id(schema, 'runs')} where id = ${job.run}`.execute(db)
+      if (run && (run.status === 'succeeded' || run.status === 'failed')) throw new StepError('States.Runtime', 'Its run ended before its job was queued')
+      throw new StepError('States.Runtime', `${job.step} is not a custom step of this app`)
+    }
     queued()
   },
 })
@@ -96,7 +102,9 @@ export const runnerJobs = ({ db, schema, settings, secrets, answer }: { db: () =
       if (!held(job, runner)) throw notHeld()
       const { rows } = await sql<{ output: Record<string, unknown>; error_prefix: string; errors: Record<string, string> }>`select v.output, v.error_prefix, v.errors
         from ${jobs} j join ${sql.id(schema, 'custom_step_versions')} v on v.id = j.version_id where j.id = ${id}`.execute(db())
-      const given = jobAnswer(rows[0]!, 'output' in completion ? completion : { error: completion.error, cause: blank(completion.cause ?? '') })
+      // A failure's whole cause is blanked once its error is mapped, as an unknown error's name goes into it
+      const mapped = jobAnswer(rows[0]!, completion)
+      const given = mapped.kind === 'failure' ? { ...mapped, cause: blank(mapped.cause) } : mapped
       let answered = await answer(job.token_hash, given)
       if ('error' in answered && answered.error === 'InvalidOutput') answered = await answer(job.token_hash, { kind: 'failure', error: jobErrors.invalidOutput, cause: answered.message })
       if ('error' in answered) throw new HttpProblem(409, 'task-timed-out', answered.error, answered.message)
