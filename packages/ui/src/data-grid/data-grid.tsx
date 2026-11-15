@@ -45,6 +45,8 @@ export type DataGridProps = {
    * or is copied as any link is. A cell edited in place is no link, since a click there chooses it.
    */
   rowLink?: (row: GridRow) => RouteTarget
+  /** The id of the row the page shows the details of, such as the row chosen in its address; it looks selected. */
+  chosenRow?: string
   /** Entries of the "..." menu at the end of each row; a row none apply to gets no menu, but keeps the column. */
   rowActions?: RowAction[]
   /** Cells edited in place, between which the arrow keys and Tab move. */
@@ -73,7 +75,7 @@ export type DataGridProps = {
   className?: string
 }
 
-export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowLink, rowActions, cellEditor, rowPatches, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable: selecting = true, reorder, fit = false, scroll = 'own', className }: DataGridProps) => {
+export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowLink, chosenRow, rowActions, cellEditor, rowPatches, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable: selecting = true, reorder, fit = false, scroll = 'own', className }: DataGridProps) => {
   const selectable = selecting && !reorder
   const { header: headerHeight, row: rowHeight, footer: footerHeight } = gridHeights(useRootFontSize(), { compact, withBelow: given.some((spec) => spec.below) })
   const narrow = !useIsDesktop()
@@ -193,6 +195,7 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
     const props = {
       ...frame,
       selected: tableRow.getIsSelected(),
+      current: row.id === chosenRow,
       onToggle: () => tableRow.toggleSelected(),
       onOpen: onOpenRow ? () => onOpenRow(row) : undefined,
       menu: actions.length > 0 ? <RowMenu row={row} actions={actions} /> : undefined,

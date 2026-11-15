@@ -20,8 +20,8 @@ type LoadedProps = Omit<TableProps, 'resource' | 'actions' | 'children' | 'selec
   view: ViewModel | undefined
   actions: BlockProps['slots'][string]
   className?: string
-  /** With `select`: where a row leads, and the chosen row's children under the table. */
-  chosen?: { rowTo: (key: string) => RouteTarget; details: ReactNode }
+  /** With `select`: where a row leads, the chosen row's key, and its children under the table. */
+  chosen?: { rowTo: (key: string) => RouteTarget; key: string | undefined; details: ReactNode }
 }
 
 const LoadedTable = ({ model, view, filter = '', sort = '', columns, button, bulk, limit = 10, display: picked, title, description, empty, actions, className, chosen }: LoadedProps) => {
@@ -42,7 +42,7 @@ const LoadedTable = ({ model, view, filter = '', sort = '', columns, button, bul
       }
       className={cn('h-full', className)}
     >
-      <EmbeddedList model={model} view={view} filter={filter} sort={sort} columns={names} button={button} bulk={bulk} limit={limit} display={display} empty={empty} phoneColumns={phoneColumns} {...(chosen && { rowTo: chosen.rowTo })} />
+      <EmbeddedList model={model} view={view} filter={filter} sort={sort} columns={names} button={button} bulk={bulk} limit={limit} display={display} empty={empty} phoneColumns={phoneColumns} {...(chosen && { rowTo: chosen.rowTo, chosenKey: chosen.key })} />
       {chosen?.details}
     </CardFrame>
   )
@@ -77,5 +77,5 @@ const SelectTable = ({ select, children, ...props }: Omit<LoadedProps, 'chosen'>
   const key = given[select]
   // A form under the chosen row asks before another row replaces it
   const details = key === undefined ? null : <GuardedParams name={select}><ChosenRecord key={key} model={props.model} recordKey={key}>{children}</ChosenRecord></GuardedParams>
-  return <LoadedTable {...props} chosen={{ rowTo, details }} />
+  return <LoadedTable {...props} chosen={{ rowTo, key, details }} />
 }

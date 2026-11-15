@@ -51,6 +51,8 @@ export type RowCell = { spec: ColumnSpec; content: ReactNode; props?: HTMLAttrib
 export type DataRowProps = RowFrame & {
   cells: RowCell[]
   selected: boolean
+  /** The row the page shows the details of, marked `aria-current` and looking selected. */
+  current?: boolean
   onToggle: () => void
   onOpen?: () => void
   menu?: ReactNode
@@ -79,13 +81,14 @@ const openUnlessLink = (onOpen: () => void) => (event: MouseEvent) => {
   onOpen()
 }
 
-export const DataRow = ({ cells, selected, onToggle, onOpen, menu, handle, rowRef, dragY, transition, dragging, ...frame }: DataRowProps) => (
+export const DataRow = ({ cells, selected, current = false, onToggle, onOpen, menu, handle, rowRef, dragY, transition, dragging, ...frame }: DataRowProps) => (
   <div
     ref={rowRef}
     role="row"
+    aria-current={current || undefined}
     data-pressable={onOpen ? '' : undefined}
     onClick={onOpen && openUnlessLink(onOpen)}
-    className={cn('absolute inset-x-0 top-0 grid items-center border-b', selected ? 'bg-primary-soft' : 'bg-background hover:bg-surface', onOpen && 'cursor-pointer', dragging && 'z-30 bg-surface shadow-pop')}
+    className={cn('absolute inset-x-0 top-0 grid items-center border-b', selected || current ? 'bg-primary-soft' : 'bg-background hover:bg-surface', onOpen && 'cursor-pointer', dragging && 'z-30 bg-surface shadow-pop')}
     style={dragY === undefined ? frameStyle(frame) : dragStyle(frame, dragY, transition)}
   >
     {handle ? (
