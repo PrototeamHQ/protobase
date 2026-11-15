@@ -211,7 +211,7 @@ export default definePlugin({ fileViewers: { 'application/vnd.example.report+jso
 A graph is read-only, and its positions are laid out automatically: you cannot move, add or connect nodes in it.
 :::
 
-`@protobase/graph` is a plugin with a `Graph` layout block: it draws the records of one resource as nodes and the records of another as edges between them, each node in the box of its group and coloured by its status, and with `select` the chosen node's details beside the graph. It draws with React Flow (`@xyflow/react`) and lays the graph out with `@dagrejs/dagre`, so an app that does not attach it carries neither. An app installs it and extends its `protobase.ui.tsx` with it:
+`@protobase/graph` is a plugin with a `Graph` layout block: it draws the records of one resource as nodes and the records of another as edges between them, each node in the box of its group and coloured by its status, and with `select` the chosen node's details beside the graph. It draws with the `@xyflow/react` package and lays the graph out with the `@dagrejs/dagre` package, so an app that does not attach it carries neither. An app installs it and extends its `protobase.ui.tsx` with it:
 
 ```sh
 npm install @protobase/graph
@@ -232,8 +232,8 @@ Its layout uses the block from `@protobase/graph/layout`, which carries no drawi
 import { Card, Field, page, Page } from '@protobase/layout'
 import { Graph } from '@protobase/graph/layout'
 
-export const services = page(
-  'services',
+export const serviceMap = page(
+  'service-map',
   <Page title="Services" width="full">
     <Card title="Service map">
       <Graph nodes="services" edges="links" label="name" group="area" status="health" source="from_id" target="to_id" select="service">
@@ -247,7 +247,7 @@ export const services = page(
 
 | Prop | |
 | --- | --- |
-| `nodes` | The resource whose records are the nodes, each by its key. |
+| `nodes` | The resource whose records are the nodes, each by its key, which is one field: a resource with a key of several fields draws the fallback. |
 | `edges` | The resource whose records are the edges. An edge whose `source` or `target` is not among the nodes is left out. |
 | `label` | The field of a node that labels it. |
 | `group` | The field of a node whose value puts it in a box with the nodes that hold the same; a node without one stands outside every box. |
