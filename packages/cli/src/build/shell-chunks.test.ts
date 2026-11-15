@@ -40,6 +40,9 @@ describe('the shell chunk groups', () => {
     expect(isWorkflowsModule('/app/packages/workflows/src/definition/reads.ts', '/app/packages/workflows')).toBe(true)
     expect(isWorkflowsModule('/app/packages/workflows-ui/src/index.ts', '/app/packages/workflows')).toBe(false)
     expect(isWorkflowsModule('/app/packages/ui/src/app/field-types/workflow/flow-nodes.tsx', '/app/packages/workflows')).toBe(false)
+    // On Windows the folder comes with backslashes, and Vite's ids with forward slashes
+    expect(isWorkflowsModule('C:/app/packages/workflows/src/definition/reads.ts', 'C:\\app\\packages\\workflows')).toBe(true)
+    expect(isWorkflowsModule('C:/app/packages/workflows-ui/src/index.ts', 'C:\\app\\packages\\workflows')).toBe(false)
   })
 
   it("leave the app's own modules to app", () => {

@@ -39,8 +39,11 @@ const preloadHelper = '\0vite/preload-helper.js'
 // repository, where the shell is built from.
 const workflowsDir = path.resolve(path.dirname(createRequire(uiEntry).resolve('@protobase/workflows')), '..')
 
-/** Whether a module is one of the workflow engine's, which go in the `workflows` chunk. */
-export const isWorkflowsModule = (id: string, dir = workflowsDir) => id.startsWith(`${dir}${path.sep}`)
+// A path with forward slashes, as Vite gives module ids on every platform.
+const slashed = (file: string) => file.replaceAll('\\', '/')
+
+/** Whether a module is one of the workflow engine's, which go in the `workflows` chunk: inside its folder, not beside it. */
+export const isWorkflowsModule = (id: string, dir = workflowsDir) => slashed(id).startsWith(`${slashed(dir).replace(/\/$/, '')}/`)
 
 /** The chunk name of a third-party module only lazy code loads: its package's, such as `lib-xyflow-react`. */
 export const libChunkName = (id: string) => `lib-${npmPackage(id)!.replace('@', '').replace('/', '-')}`
