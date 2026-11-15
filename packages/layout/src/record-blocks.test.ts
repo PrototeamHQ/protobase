@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Action, Card, Field, Page, Show, Table, Thread } from './blocks'
+import { component } from './component'
 import { SelectInput } from './page-params'
 import { RecordsIterator, ReferenceManyField } from './list-blocks'
 import { pruneRecordBlocks, recordBlocksFindings } from './record-blocks'
@@ -32,6 +33,14 @@ describe('recordBlocksFindings', () => {
   it('warns of a name a nearer record shadows, saying how to reach the page record', () => {
     const tree = ReferenceManyField({ reference: 'task_claims', target: 'task_id', children: RecordsIterator({ children: Field({ source: 'status' }) }) })
     expect(findings(tree).warnings).toEqual(['<ReferenceManyField reference="task_claims"> › <RecordsIterator> › <Field source="status">: "status" resolves to task_claims; write ../status or @root.status for the one of tasks (@root)'])
+  })
+
+  it('refuses a block or custom component that chooses a row into the address', () => {
+    const Graph = component<{ nodes: string; chosen: string }>('Graph', { reads: { resource: 'nodes', select: 'chosen' } })
+    expect(findings(Card({ children: [Table({ resource: 'owners', select: 'owner' }), Graph({ nodes: 'owners', chosen: 'owner' })] })).problems).toEqual([
+      `<Card> › <Table resource="owners">: <Table> chooses a row into the page's own address with "select", and a record page's address is the record's`,
+      `<Card> › <Graph>: <Graph> chooses a row into the page's own address with "select", and a record page's address is the record's`,
+    ])
   })
 
   it('refuses a Page, page parameters and tabs of its own', () => {

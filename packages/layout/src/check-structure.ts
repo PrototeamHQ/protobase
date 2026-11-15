@@ -9,6 +9,7 @@ import { tabsProblems } from './check-tabs'
 import { detailsProblems } from './check-details'
 import { inlineFieldProblems } from './check-inline-fields'
 import { inlineFieldTypes, isInlineChild } from './inline-fields'
+import { selectOf } from './select-blocks'
 import { innermost, label, pageScope, walkTree, type Scope } from './walk'
 
 /**
@@ -108,8 +109,10 @@ const switchProblems = ({ type, children }: LayoutNode): string[] => {
   return children.some(isMatch) ? ['holds a <Match>, which only a <Switch> takes'] : []
 }
 
-// A record page's address is the record's, which holds no page parameters or block tabs of its own
+// A record page's address is the record's, which holds no page parameters, chosen rows or block tabs of its own
 const recordTreeProblems = (node: LayoutNode): string[] => {
+  if (selectOf(node)) return [`<${node.type}> chooses a row into the page's own address with "select", and a record page's address is the record's`]
+  if (node.custom) return []
   if (node.type === 'Page') return ['<Page> is a composed page of its own; a record page\'s tree is the blocks inside one']
   if (node.type === 'SelectInput' || node.type === 'Tabs') return [`<${node.type}> sets the page's own address, and a record page's address is the record's; use l.tab for tabs`]
   return []
@@ -127,11 +130,11 @@ export const structureProblems = (tree: LayoutNode, scope: Scope = pageScope): s
   if (!record && (tree.custom || tree.type !== 'Page')) problems.push(`the root element is <${tree.type}>, it must be <Page>`)
   walkTree(tree, (node, { path, scope }) => {
     const report = (problem: string) => problems.push(`${path}: ${problem}`)
+    if (record) recordTreeProblems(node).forEach(report)
     if (node.custom) return
     const spec = blockSpecs[node.type]
     if (!spec) return report(`<${node.type}> is not a block; custom components are declared with component('${node.type}')`)
-    if (record) recordTreeProblems(node).forEach(report)
-    else if (node.type === 'Page' && node !== tree) report('<Page> is only allowed as the root')
+    if (!record && node.type === 'Page' && node !== tree) report('<Page> is only allowed as the root')
     propProblems(spec, node.props, node.children.length).forEach(report)
     recordProblems(node, scope).forEach(report)
     if (node.type === 'Stat') statProblems(node).forEach(report)

@@ -254,7 +254,7 @@ The build checks every path where it sits:
 ## Record pages
 
 :::caution[Beta]
-A block tree on a record page sets no page parameters or tabs of its own, and may still change.
+A block tree on a record page sets no page parameters, chosen rows or tabs of its own, and may still change.
 :::
 
 A record page holds a tree of blocks among its items with `l.blocks(tree)`, in a [tab](/reference/ui-config/#tabs) or in the main column, beside its sections and related tables. The tree is written in JSX like a composed page's, and checked and read like one, inside the page's own record: `@root` is the record, and it is the last record a bare name reaches, so `{{title}}` and `{{@root.title}}` both read the record's title where no record nearer has one. The page keeps its address, `/<resource>/<key>`, its breadcrumbs, its place among the recent records and its actions.
@@ -279,7 +279,7 @@ The view's file is then `.tsx` and starts with the JSX import source, as a [layo
 
 Every block reads as it does on a composed page, all its reads started at once as the record page opens. The record's key comes from the address, so a filter that takes `{{@root.id}}` reads at once. A filter that takes another field of the record, such as `id = {{@root.owner_id}}`, reads with a [`related()`](/reference/api/#filtering-through-related-records) filter on the record by its key, so it does not wait for the record either. Blocks that work on a record, such as a `Field`, an `Action` or a custom component's `useLayoutRecord()`, work on the page's record where no record nearer is around them.
 
-The server checks each tree against the resources when it starts, as it checks pages: a name the record does not have fails, naming the record's resource, `"titel" is no field of tasks (@root); did you mean title?`, and a name a nearer record shadows warns as [above](#paths-and-scopes). A `<Page>`, a `SelectInput` or `Tabs` in the tree fails too, since the record page's address is the record's. <gap>A block tree on a record page cannot hold a `SelectInput` or `Tabs` because page parameters and block tabs in a record page's address are not implemented.</gap> Each reader gets the tree without what they cannot read, and no tree when nothing of it is left.
+The server checks each tree against the resources when it starts, as it checks pages: a name the record does not have fails, naming the record's resource, `"titel" is no field of tasks (@root); did you mean title?`, and a name a nearer record shadows warns as [above](#paths-and-scopes). A `<Page>`, a `SelectInput`, `Tabs` or a block that chooses a row with `select` in the tree fails too, since the record page's address is the record's. <gap>A block tree on a record page cannot hold a `SelectInput`, `Tabs` or a `select` because page parameters, block tabs and chosen rows in a record page's address are not implemented.</gap> Each reader gets the tree without what they cannot read, and no tree when nothing of it is left.
 
 ## Page parameters
 
