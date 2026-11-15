@@ -12,6 +12,8 @@ export type ConnectionHeaders = Record<string, ConnectionHeader>
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const secretName = /^[A-Za-z_][A-Za-z0-9_]*$/
+// Names JSONata reads as literals, never as a step of a path such as `$states.context.Secrets.<NAME>`
+const literalNames = new Set(['true', 'false', 'null'])
 const headerName = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/
 
 const asked = (arn: string) =>
@@ -43,7 +45,7 @@ export const connectionHeaderProblem = (arn: string, given: ConnectionHeaders, s
   const header = given[arn]
   if (header === null) return
   if (!isObject(header) || typeof header.header !== 'string' || !headerName.test(header.header)) return { state, field, message: `has a connection_headers entry whose header is not a header name: ${asked(arn)}` }
-  if (typeof header.secret !== 'string' || !secretName.test(header.secret)) return { state, field, message: `has a connection_headers entry whose secret is not a secret's name: ${asked(arn)}` }
+  if (typeof header.secret !== 'string' || !secretName.test(header.secret) || literalNames.has(header.secret)) return { state, field, message: `has a connection_headers entry whose secret is not a secret's name: ${asked(arn)}` }
 }
 
 /**
