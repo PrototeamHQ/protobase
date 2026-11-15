@@ -5,7 +5,7 @@ export type AppFetch = (path: string, init: RequestInit) => Response | Promise<R
 export type ClaimState = { platform?: string; kinds?: string[]; labels?: string[]; capacity?: { slots: number }; images?: { step: string; snapshot?: boolean }[]; instances?: { step: string; free: number }[] }
 
 /** A job as a claim gives it. */
-export type ClaimedJob = { id: string; step: string; input: Record<string, unknown>; token: string; deadline: string; heartbeat_seconds: number; lease_seconds: number }
+export type ClaimedJob = { id: string; step: string; input: Record<string, unknown>; deadline: string; heartbeat_seconds: number; lease_seconds: number }
 
 /**
  * A runner for the tests that speaks only the runners' HTTP API, as a runner program would: it registers with its
