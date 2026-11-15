@@ -109,6 +109,18 @@ describe('validate_workflow', () => {
     expect(tenants).toEqual(['t1', 't1', 't1'])
   })
 
+  it('refuses a state machine nesting past the depth limit in each tool, before importing it or asking to save', async () => {
+    // Maps inside Maps deep enough that importing them recursively would overflow the stack
+    let deep: Record<string, unknown> = { States: { Call: exported.States.Call } }
+    for (let level = 0; level < 20_000; level++) deep = { States: { Each: { Type: 'Map', ItemProcessor: deep } } }
+    const depthProblem = { message: 'The definition nests more than 256 levels of arrays and objects' }
+    const { context, approve } = contextWith({})
+    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: deep }, context))).toEqual({ valid: false, problems: [depthProblem] })
+    expect(JSON.parse(await createWorkflowTool().run({ name: 'Deep', state_machine: deep }, context))).toMatchObject({ error: 'invalid-workflow', problems: [depthProblem] })
+    expect(JSON.parse(await updateWorkflowTool().run({ id: 'w1', state_machine: deep }, context))).toMatchObject({ error: 'invalid-workflow', problems: [depthProblem] })
+    expect(approve).not.toHaveBeenCalled()
+  })
+
   it('takes a state machine or an id with an edit, not both', async () => {
     const { context } = contextWith({})
     expect(await validateWorkflowTool.run({ state_machine: {}, id: 'w1', edit: {} }, context)).toMatch(/^Pass either/)
