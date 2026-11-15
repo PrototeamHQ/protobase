@@ -1,3 +1,4 @@
+export { findField } from './filter/check-field'
 // Helpers the @protobase packages share with each other, which an app has no use for: they check, prune and match the
 // models the server sends, and are not part of the documented API.
 export { checkEventFilter } from './events/event-models'

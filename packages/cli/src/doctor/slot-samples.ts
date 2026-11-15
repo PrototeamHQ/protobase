@@ -1,4 +1,5 @@
 import { parseFilter, type FieldModel, type FilterExpr, type Literal, type ResourceModel } from '@protobase/schema'
+import { findField } from '@protobase/schema/internal'
 
 // A plan's `{{path}}` slots are the address's values, which the index rule reads only as values: each stands in as a
 // value its field takes, so the filter checks as the API checks it once the address fills the slot.
@@ -35,7 +36,8 @@ const sampleFor = (field: FieldModel | undefined): Literal => {
 
 const isSlot = (value: unknown) => typeof value === 'object' && value !== null && (value as Literal).kind === 'string' && (value as { value?: unknown }).value === sentinel
 
-const fieldOf = (model: ResourceModel, path: readonly string[]) => (path.length === 1 ? model.fields[path[0]!] : undefined)
+// A name resolves as the filter check resolves it, aliases included
+const fieldOf = (model: ResourceModel, path: readonly string[]) => (path.length === 1 ? findField(model, path[0]!) : undefined)
 
 /** `ast` with each slot's stand-in replaced by a value its field takes in `model`; `related()` terms are left as they are. */
 export const fitSlots = (ast: FilterExpr, model: ResourceModel): FilterExpr => {
@@ -57,7 +59,10 @@ export const fitSlots = (ast: FilterExpr, model: ResourceModel): FilterExpr => {
 /** A planned filter parsed with a stand-in for each slot, a duration after `+` or `-`; `undefined` when it has none. */
 export const parseSampled = (filter: string | undefined): FilterExpr | undefined => {
   if (filter === undefined) return
-  const sampled = filter.replace(/"\{\{[^{}]*\}\}"/g, `"${sentinel}"`).replace(/([-+]\s*)\{\{[^{}]*\}\}/g, '$11d').replace(/\{\{[^{}]*\}\}/g, `"${sentinel}"`)
+  // A text value that is one slot stands in whole; a slot inside a longer one, such as a key `w-{{@params.worker}}`,
+  // stays part of that text
+  const strings = filter.replace(/"(?:[^"\\]|\\.)*"/g, (value) => (/^"\{\{[^{}]*\}\}"$/.test(value) ? `"${sentinel}"` : value.replace(/\{\{[^{}]*\}\}/g, 'x')))
+  const sampled = strings.replace(/([-+]\s*)\{\{[^{}]*\}\}/g, '$11d').replace(/\{\{[^{}]*\}\}/g, `"${sentinel}"`)
   const result = parseFilter(sampled)
   if (!result.ok) throw new Error(`The planned filter "${filter}" does not parse: ${result.errors[0]!.message}`)
   return result.ast

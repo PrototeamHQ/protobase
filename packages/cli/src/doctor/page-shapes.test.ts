@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CardRow, Field, Page, RecordsIterator, ReferenceManyField, component, page } from '@protobase/layout'
+import { CardRow, Field, Page, RecordCard, RecordsIterator, ReferenceManyField, component, page } from '@protobase/layout'
 import type { TableIndexes } from '@protobase/query'
 import { f, resource } from '@protobase/schema'
 import { indexIssues } from './index-issues'
@@ -69,6 +69,17 @@ describe('pageShapes', () => {
     const tree = Page({ title: 'Typed', children: [CardRow({ resource: 'typed', filter: "state = '{{@params.state}}' AND id = {{@params.id}} AND at >= '{{@params.since}}'" })] })
     const shapes = pageShapes({ name: 'typed', title: 'Typed', tree }, { typed }, [])
     expect(shapes[0]!.query.filter).toMatchObject({ kind: 'and' })
+  })
+
+  it('reads a slot inside a longer text value, and a slot of a field named by its alias', () => {
+    const keyed = resource('keyed')
+      .table('keyed')
+      .fields({ id: f.text().filterable().sortable(), state: f.enum(['open', 'done']).filterable().alias('status') })
+      .primaryKey((r) => r.id)
+      .toModel()
+    const tree = Page({ title: 'Keyed', children: [RecordCard({ resource: 'keyed', recordKey: 'w_{{@params.worker}}' }), CardRow({ resource: 'keyed', filter: "status = '{{@params.state}}'" })] })
+    const shapes = pageShapes({ name: 'keyed', title: 'Keyed', tree }, { keyed }, [])
+    expect(shapes.map((shape) => shape.request)).toEqual(['GET /keyed?filter=id = "w_{{@params.worker}}"', 'GET /keyed?filter=status = "{{@params.state}}"'])
   })
 
   it('lists a custom component without reads as outside the plan', () => {
