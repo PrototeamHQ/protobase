@@ -6,21 +6,23 @@ import type { PureNode } from './data-graph'
 import { FoldRow, InputRow, OutputRow } from './pin-rows'
 import { pinColour, typeLabel } from './pin-text'
 import { breakIn, makeOut } from './pure-ids'
+import { MovedMark } from '../moved-mark'
 
-const Title = ({ pure }: { pure: PureNode }) => (
-  <div className="truncate border-b px-3 py-1.5 text-xs font-medium text-foreground">{pure.kind === 'break' ? text('breakTitle', { type: typeLabel(pure.type) }) : text('makeTitle', { type: typeLabel(pure.type) })}</div>
-)
+const titleOf = (pure: PureNode) => (pure.kind === 'break' ? text('breakTitle', { type: typeLabel(pure.type) }) : text('makeTitle', { type: typeLabel(pure.type) }))
+
+const Title = ({ pure }: { pure: PureNode }) => <div className="truncate border-b px-3 py-1.5 text-xs font-medium text-foreground">{titleOf(pure)}</div>
 
 /**
  * A Break or a Make: a node of the editor's own, with no step at run time, that takes an object apart into a pin per
  * field, or builds one from a pin per field. Its object's own pin is bound to the value it breaks or the argument it makes.
  */
-export const PureNodeView = ({ data, selected, isConnectable: editable }: NodeProps<FlowNode>) => {
-  const { pureData } = data
+export const PureNodeView = ({ id, data, selected, isConnectable: editable }: NodeProps<FlowNode>) => {
+  const { pureData, moved } = data
   if (!pureData) return null
   const { pure, shownInputs, folded, open } = pureData
   return (
     <div className={cn('h-full rounded-lg border border-dashed border-border-strong bg-background text-body shadow-sm', selected && 'ring-2 ring-primary/40')}>
+      {moved && <MovedMark node={id} name={titleOf(pure)} />}
       <Title pure={pure} />
       {pure.kind === 'break' ? (
         <div className="relative pt-1">

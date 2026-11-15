@@ -100,6 +100,33 @@ const addStep = async (canvasElement: HTMLElement, search: string) => {
 
 const overlaps = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
 
+// No two nodes overlap but a Map or Block and the nodes inside it
+const apart = (canvasElement: HTMLElement) => {
+  const boxes = [...canvasElement.querySelectorAll<HTMLElement>('.react-flow__node')].map((node) => ({ id: node.dataset.id!, rect: node.getBoundingClientRect() }))
+  for (const [index, a] of boxes.entries()) {
+    for (const b of boxes.slice(index + 1)) {
+      const nested = b.id.startsWith(`${a.id}/`) || a.id.startsWith(`${b.id}/`)
+      if (!nested) expect(overlaps(a.rect, b.rect), `${a.id} overlaps ${b.id}`).toBe(false)
+    }
+  }
+}
+
+// Drags a node by its title by `dx` and `dy` pixels on the screen, as a mouse does, in a few moves
+const drag = async (node: HTMLElement, dx: number, dy: number) => {
+  const { left, top } = node.getBoundingClientRect()
+  const mouse = (type: string, target: EventTarget, step: number) =>
+    target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window, button: 0, buttons: type === 'mouseup' ? 0 : 1, clientX: left + 12 + dx * step, clientY: top + 12 + dy * step }))
+  mouse('mousedown', node, 0)
+  for (const step of [0.25, 0.5, 0.75, 1]) {
+    mouse('mousemove', node.ownerDocument, step)
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+  }
+  mouse('mouseup', node.ownerDocument, 1)
+}
+
+// Each node's place on the canvas, by its id
+const places = (canvasElement: HTMLElement) => Object.fromEntries([...canvasElement.querySelectorAll<HTMLElement>('.react-flow__node')].map((node) => [node.dataset.id!, node.style.transform]))
+
 export const NewWorkflow: StoryObj = { name: 'A new workflow', render: () => <Workspace start="/workflows/new" /> }
 
 export const MadeThroughTheApi: StoryObj = { name: 'A workflow made through the API', render: () => <Workspace start="/workflows/1" /> }
@@ -165,6 +192,103 @@ export const LaidOutChecks: StoryObj = {
     const canvas = within(canvasElement)
     const labels = () => [...canvasElement.querySelectorAll('.react-flow__edge-text')].map((label) => label.textContent)
     await waitFor(() => expect(labels()).toEqual(expect.arrayContaining(['On error: States.ALL', '{% $count($tickets) > 0 %}', 'Otherwise'])))
+  },
+}
+
+/**
+ * A node dragged stays where it is let go, marked as moved by hand, and the save keeps where under its step's name
+ * beside the definition, which it leaves as it was.
+ */
+export const MovesByHandChecks: StoryObj = {
+  ...MadeThroughTheApi,
+  name: 'Keeps a node moved by hand where it was put (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await laidOut(canvasElement, 8)
+    const done = await nodeOf(canvasElement, 'Done')
+    const before = done.style.transform
+    await drag(done, 40, 160)
+    await waitFor(() => expect(done.getAttribute('aria-label')).toMatch(/^Done, .*, Moved by hand$/))
+    expect(done.style.transform).not.toBe(before)
+    expect(await canvas.findByRole('button', { name: 'Unpin Done' })).toBeVisible()
+    const moved = done.style.transform
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(stored?.layout).toEqual({ Done: { x: expect.any(Number), y: expect.any(Number) } }))
+    expect(stored?.state_machine).toEqual(ticketsWorkflow.stateMachine)
+    // Saved, it is still where it was put
+    await waitFor(() => expect(canvas.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-disabled', 'true'))
+    expect(done.style.transform).toBe(moved)
+    expect(canvas.getByRole('button', { name: 'Unpin Done' })).toBeVisible()
+  },
+}
+
+/** Unpin on a node moved by hand hands it back to the layout, which puts it where it was before. */
+export const UnpinsChecks: StoryObj = {
+  ...MadeThroughTheApi,
+  name: 'Unpins a node moved by hand (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await laidOut(canvasElement, 8)
+    const done = await nodeOf(canvasElement, 'Done')
+    const before = done.style.transform
+    await drag(done, 40, 160)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Unpin Done' }))
+    await waitFor(() => expect(done.style.transform).toBe(before))
+    expect(done.getAttribute('aria-label')).not.toMatch(/Moved by hand/)
+    expect(canvas.queryByRole('button', { name: 'Unpin Done' })).toBeNull()
+    expect(canvas.queryByRole('button', { name: 'Tidy up' })).toBeNull()
+  },
+}
+
+/** Tidy up lays the whole graph out again, forgetting every node moved by hand, which the save then keeps none of. */
+export const TidiesUpChecks: StoryObj = {
+  ...MadeThroughTheApi,
+  name: 'Tidies up, forgetting every node moved (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await laidOut(canvasElement, 8)
+    const before = places(canvasElement)
+    await drag(await nodeOf(canvasElement, 'Done'), 40, 160)
+    await drag(await nodeOf(canvasElement, 'Failed'), -60, 120)
+    await canvas.findByRole('button', { name: 'Unpin Failed' })
+    expect(canvas.getByRole('button', { name: 'Unpin Done' })).toBeVisible()
+    await userEvent.click(canvas.getByRole('button', { name: 'Tidy up' }))
+    await waitFor(() => expect(places(canvasElement)).toEqual(before))
+    expect(canvas.queryByRole('button', { name: /^Unpin/ })).toBeNull()
+    expect(canvas.queryByRole('button', { name: 'Tidy up' })).toBeNull()
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(stored?.layout).toEqual({}))
+  },
+}
+
+/**
+ * A node moved by hand onto another stays where it was put, and the other moves clear of it; when a connection changes,
+ * the nodes not moved are laid out again around it, and it stays.
+ */
+export const LaysOutAroundMovedChecks: StoryObj = {
+  ...MadeThroughTheApi,
+  name: 'Lays the other nodes out around one moved by hand (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await laidOut(canvasElement, 8)
+    const done = await nodeOf(canvasElement, 'Done')
+    const failed = await nodeOf(canvasElement, 'Failed')
+    const [from, to] = [done.getBoundingClientRect(), failed.getBoundingClientRect()]
+    await drag(done, to.left - from.left, to.top - from.top)
+    await canvas.findByRole('button', { name: 'Unpin Done' })
+    await waitFor(() => apart(canvasElement))
+    const moved = done.style.transform
+    const before = places(canvasElement)
+    // Otherwise now goes to Failed, not to Done
+    await userEvent.click(await nodeOf(canvasElement, 'Any'))
+    await userEvent.selectOptions(await within(await canvas.findByRole('region', { name: 'Chosen step' })).findByRole('combobox', { name: 'Otherwise goes to' }), 'Failed')
+    await waitFor(() => expect(places(canvasElement)).not.toEqual(before))
+    await waitFor(() => apart(canvasElement))
+    expect(done.style.transform).toBe(moved)
   },
 }
 

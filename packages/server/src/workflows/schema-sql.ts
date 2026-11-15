@@ -1,7 +1,7 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
-export const workflowsVersion = 25
+export const workflowsVersion = 26
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -123,6 +123,19 @@ alter table ${s}."${table}" drop column if exists "definition"`
   return [split('workflows'), split('versions')].join(';\n')
 }
 
+/**
+ * Where the editor's nodes were moved by hand, on a workflow and on each of its versions, which no run reads: a save
+ * that changes only it makes no new version. Added to a schema made before, empty on every workflow and version.
+ */
+export const layoutSql = (schema: string) => {
+  const s = quoteIdent(schema)
+  return `alter table ${s}."workflows" add column if not exists "layout" jsonb not null default '{}'::jsonb;
+alter table ${s}."versions" add column if not exists "layout" jsonb not null default '{}'::jsonb`
+}
+
+/** The key a layout keeps the trigger's node, and the Break nodes of the run's input, under; no state is named so. */
+export const triggerLayoutKey = '$trigger'
+
 /** The per-step table runs kept before checkpoints and the trace, which nothing reads or writes; its indexes go with it. */
 export const droppedSql = (schema: string) => `drop table if exists ${quoteIdent(schema)}."steps"`
 
@@ -230,7 +243,7 @@ export const workflowsTriggers = ['workflow_version', 'run_version']
 
 /**
  * A workflow numbers its next version as a save changes its definition, in the row the write returns, so its ETag is
- * the saved row's; the save hook keeps that version's definition and who saved it, and publishes only as `enabled_version`
+ * the saved row's, and keeps of its layout only the positions of what it still has; the save hook keeps that version's definition and who saved it, and publishes only as `enabled_version`
  * is written. A run takes the version it names as it is created, else the published one, or the one saved last on a workflow
  * that is off, and refuses a workflow of another tenant as one that is not there, one that has no saved version, and a
  * version the workflow does not have. A re-run takes the input of the run it re-runs, which the start hook checks, and
@@ -244,12 +257,36 @@ export const functionsSql = (schema: string) => {
 alter table ${s}."workflows" alter column "state_machine" set default '{"QueryLanguage":"JSONata","StartAt":"","States":{}}'::jsonb;
 alter table ${s}."workflows" alter column "trigger" set default '{"manual":{}}'::jsonb;
 
+-- The layout a definition keeps: only positions under the trigger's key or a state's name, alone or before a dot, as a
+-- Break or a Make of that state is kept, so a state removed takes its positions along; a layout that is no object is none.
+create or replace function ${s}."kept_layout"(layout jsonb, machine jsonb) returns jsonb
+language sql immutable as $$
+  with recursive machines(states) as (
+    select case when jsonb_typeof(machine -> 'States') = 'object' then machine -> 'States' else '{}'::jsonb end
+    union all
+    select case when jsonb_typeof(inner_machine -> 'States') = 'object' then inner_machine -> 'States' else '{}'::jsonb end
+    from machines, jsonb_each(machines.states) as state(name, value),
+      lateral (select case state.value ->> 'Type' when 'Map' then state.value -> 'ItemProcessor' else state.value -> 'Processor' end as inner_machine) as held
+    where jsonb_typeof(state.value) = 'object' and state.value ->> 'Type' in ('Map', 'Block')
+  ), names(name) as (
+    select jsonb_object_keys(states) from machines union select '${triggerLayoutKey}'
+  )
+  select coalesce(jsonb_object_agg(kept.key, kept.value), '{}'::jsonb)
+  from jsonb_each(case when jsonb_typeof(layout) = 'object' then layout else '{}'::jsonb end) as kept
+  where exists (select from names where kept.key = names.name or starts_with(kept.key, names.name || '.'))
+$$;
+
 create or replace function ${s}."workflow_version"() returns trigger
 language plpgsql as $$
 begin
   if tg_op = 'INSERT' then
     new.version := 1;
+    new.layout := ${s}."kept_layout"(new.layout, new.state_machine);
     return new;
+  end if;
+  -- Where nodes were moved is no part of the definition: it makes no new version
+  if (new.layout, new.state_machine) is distinct from (old.layout, old.state_machine) then
+    new.layout := ${s}."kept_layout"(new.layout, new.state_machine);
   end if;
   -- The write holds the row, so a save in another transaction numbers its version after this one.
   new.version := case when (new.state_machine, new.trigger, new.execution_order, new.connections, new.trace) is distinct from (old.state_machine, old.trigger, old.execution_order, old.connections, old.trace) then coalesce(old.version, 0) + 1 else old.version end;

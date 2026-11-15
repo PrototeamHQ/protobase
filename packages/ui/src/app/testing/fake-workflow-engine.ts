@@ -15,8 +15,8 @@ const ended = new Set(['succeeded', 'failed'])
  * API is given its workflow's version and, for a re-run or a replay, the earlier run's input, and for a re-run the
  * earlier run's checkpoints, as the server's trigger and start hook do; then its segments run on timers, keeping
  * checkpoints and traces in memory and changing the run as the server does. `trace` reads a run's trace as the API
- * serves it. A saved workflow whose definition changed gets its next version. A Block's run is a run of its own, as the
- * server keeps it.
+ * serves it. A saved workflow whose definition changed gets its next version, with the layout it has then. A Block's
+ * run is a run of its own, as the server keeps it.
  */
 export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => Record<string, Row[]>; tasks: TaskHandlers; secrets?: Record<string, string> }) => {
   let runs = 0
@@ -130,7 +130,9 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
         const parts = partsOf(row)
         if (last && JSON.stringify(partsOf(last)) === JSON.stringify(parts)) return
         row.version = versions.length + 1
-        table('workflow_versions').push({ workflow_id: row.id, version: row.version, ...structuredClone(parts), saved_by: 'u-ada', saved_at: new Date().toISOString() })
+        // With where its nodes were moved then, which alone makes no version
+        const layout = typeof row.layout === 'string' ? JSON.parse(row.layout) : (row.layout ?? {})
+        table('workflow_versions').push({ workflow_id: row.id, version: row.version, ...structuredClone(parts), layout: structuredClone(layout), saved_by: 'u-ada', saved_at: new Date().toISOString() })
         return
       }
       if (resource !== 'workflow_runs') return

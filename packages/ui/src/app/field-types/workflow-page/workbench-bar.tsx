@@ -20,6 +20,8 @@ export type WorkbenchBarProps = {
   page: WorkflowPage
   /** Whether the graph takes changes. */
   editable: boolean
+  /** A save makes a new version: the draft's definition changed, not only where its nodes are. */
+  newVersion: boolean
   /** The workflow has no step yet, so a run has nothing to do. */
   empty: boolean
   /** How many problems the save's check would refuse, those that are fields to fill in counted apart. */
@@ -72,7 +74,7 @@ const savedShownMs = 4000
  * Test run, and Publish as the primary, with Save beside it from the framework. A mobile screen keeps what checks a
  * failure and acts on it, and the graph's structure stays on wider ones.
  */
-export const WorkbenchBar = ({ view, page, editable, empty, problems, missing, onAddStep, onProblems, onRuns, onTestRun, onPublish, onTurnOff, runActions, orderSwitch }: WorkbenchBarProps) => {
+export const WorkbenchBar = ({ view, page, editable, newVersion, empty, problems, missing, onAddStep, onProblems, onRuns, onTestRun, onPublish, onTurnOff, runActions, orderSwitch }: WorkbenchBarProps) => {
   const focus = useFocusRecord()!
   const { go } = useAppAddress()
   const size = useFocusPage()?.size
@@ -82,7 +84,7 @@ export const WorkbenchBar = ({ view, page, editable, empty, problems, missing, o
   const shown = view.version ?? latest
   const live = enabled !== undefined && enabled === shown
   const versions = useMemo(() => (shown === undefined || page.versions.some((each) => each.version === shown) ? page.versions : [...page.versions, { version: shown, savedAt: '' }]), [page.versions, shown])
-  const blocked = empty ? text('noStepsToRun') : live && !focus.dirty ? text('alreadyLive', { version: shown ?? 0 }) : undefined
+  const blocked = empty ? text('noStepsToRun') : live && !newVersion ? text('alreadyLive', { version: shown ?? 0 }) : undefined
   const compact = size === 'compact'
   const testRun: FocusAction | undefined = mayRun ? { name: text('testRun'), icon: Play, onRun: onTestRun, inBar: true, ...(empty && { blocked: text('noStepsToRun') }) } : undefined
   const publish: FocusAction = { name: text('publish'), icon: Upload, onRun: onPublish, ...(blocked && { blocked }) }

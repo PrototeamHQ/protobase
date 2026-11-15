@@ -169,6 +169,21 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
     expect(fixed.steps.map((step) => [step.state, step.status])).toEqual([['Fetch', 'succeeded'], ['Notify', 'succeeded']])
   })
 
+  it('reads and saves where nodes were moved, which alone makes no version, and creates a workflow with none', async () => {
+    const steps = definitionFields(definition({ Fetch: fetchGreeting('Shape'), Shape: { Type: 'Pass', Output: '{% $greeting %}', End: true } }))
+    const plain = await ana('create_workflow', { name: 'Unmoved', ...steps })
+    expect((await ana('get_workflow', { id: plain.id })).workflow.layout).toEqual({})
+    const layout = { Fetch: { x: 420, y: 180 }, 'Fetch.body': { x: 700, y: 180 }, Gone: { x: 0, y: 0 } }
+    const { id } = await ana('create_workflow', { name: 'Moved', ...steps, layout })
+    const read = await ana('get_workflow', { id })
+    expect(read.workflow).toMatchObject({ version: 1, layout: { Fetch: layout.Fetch, 'Fetch.body': layout['Fetch.body'] } })
+    expect(await ana('update_workflow', { id, layout: { Shape: { x: 1, y: 2 } }, etag: read.etag })).toMatchObject({ id, version: 1 })
+    expect((await ana('get_workflow', { id })).workflow).toMatchObject({ version: 1, layout: { Shape: { x: 1, y: 2 } } })
+    const edit = { state_machine: { States: { Fetch: { Next: 'Tell' }, Shape: null, Tell: { Type: 'Pass', End: true } } } }
+    expect(await ana('update_workflow', { id, edit, layout: { Shape: { x: 1, y: 2 }, Tell: { x: 3, y: 4 } } })).toMatchObject({ id, version: 2 })
+    expect((await ana('get_workflow', { id })).workflow.layout).toEqual({ Tell: { x: 3, y: 4 } })
+  })
+
   it('refuses an invalid definition naming the step and field, and saves nothing', async () => {
     const before = await counts()
     const broken = definition({ Fetch: { ...fetchGreeting('Gone'), Arguments: { url: '{% $nowhere %}' } } })

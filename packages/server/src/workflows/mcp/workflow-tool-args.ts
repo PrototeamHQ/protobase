@@ -16,6 +16,19 @@ export const definitionParameters = {
   trace: { type: ['string', 'null'], enum: ['all', 'failed', 'none', null], description: 'Which of its runs keep a trace; the app decides when absent or null.' },
 }
 
+/**
+ * Where the editor's nodes were moved by hand, which no run reads: a save that changes only it makes no new version.
+ */
+export const layoutParameter = {
+  type: 'object',
+  description:
+    'Where nodes of the editor\'s graph were moved by hand, { "<key>": { "x": <number>, "y": <number> } }, which no run reads; the editor lays out every node it does not name. A step\'s key is its name, the trigger\'s "$trigger", a Break\'s the value it takes apart (such as "Save.record") and a Make\'s the argument it builds (such as "Save.Arguments.data"); a position inside a Map or Block is from its top left corner. Keys of states the workflow no longer has are dropped; {} lays out every node. A save that changes only the layout makes no new version. Written whole.',
+  additionalProperties: { type: 'object', properties: { x: { type: 'number' }, y: { type: 'number' } } },
+}
+
+/** The layout an MCP call gives, as a workflow record's data: none when it gives no object. */
+export const layoutDataOf = (args: Record<string, unknown>) => (objectOf(args.layout) ? { layout: args.layout } : {})
+
 /** The definition's fields an MCP call gives, as a workflow record's data; null clears connections and trace. */
 export const definitionDataOf = (args: Record<string, unknown>) =>
   Object.fromEntries(Object.keys(definitionParameters).filter((key) => args[key] !== undefined).map((key) => [key, args[key]]))
