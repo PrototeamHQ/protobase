@@ -58,11 +58,17 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     if (!onChange || !data) return
     onChange(connectData(definition, data, end(connection.source, connection.sourceHandle), end(connection.target, connection.targetHandle)))
   }
-  // Wires cut and Breaks and Makes removed, from what the other removals left
+  // Wires cut and Breaks and Makes removed, from what the other removals left. Cutting the wire a Break takes its object
+  // by, or a Make gives its object by, removes that node, which has no place without it.
   const remove = (next: Definition, nodes: readonly { id: string }[], edges: readonly Edge[]) => {
     if (!data) return next
     let after = next
-    const gone = nodes.filter((node) => isPureId(node.id))
+    const bound = edges.flatMap((edge) => {
+      const wire = (edge.data as { wire?: DataEdge } | undefined)?.wire
+      const pure = wire && data.pure.find((each) => (each.kind === 'break' && each.id === wire.target) || (each.kind === 'make' && each.id === wire.source))
+      return pure ? [{ id: pure.id }] : []
+    })
+    const gone = [...nodes.filter((node) => isPureId(node.id)), ...bound.filter((node) => !nodes.some((other) => other.id === node.id))]
     for (const edge of edges) {
       const wire = (edge.data as { kind?: string; wire?: DataEdge } | undefined)?.wire
       if (wire && !gone.some((node) => node.id === wire.source || node.id === wire.target)) after = disconnectData(after, data, wire)

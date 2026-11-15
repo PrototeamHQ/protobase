@@ -10,6 +10,7 @@ import { allNames, definitionOf, definitionRecord, recordDefinition } from './de
 import { useWorkflowView } from '../workflow-page/use-workflow-page'
 import { useWorkflowTypes } from './use-workflow-types'
 import { text } from './messages'
+import { toFieldDraft } from '../../../live/field-values'
 
 // React Flow, ELK and the definition's check load with the first workflow drawn, not with the app.
 const WorkflowGraphEditor = lazy(() => import('./workflow-graph-editor').then((module) => ({ default: module.WorkflowGraphEditor })))
@@ -47,7 +48,11 @@ const useDefinition = (value: unknown, onChange?: (stateMachine: unknown) => voi
       const fields = definitionRecord(next)
       onChange(fields.state_machine)
       if (!focus) return
-      for (const name of otherFields) if (focus.model.fields[name] && JSON.stringify(fields[name]) !== JSON.stringify(draft(name))) focus.change(name, fields[name])
+      // As a field's editor writes it: a JSON field's value as its text, which the save reads back as JSON
+      for (const name of otherFields) {
+        const field = focus.model.fields[name]
+        if (field && JSON.stringify(fields[name]) !== JSON.stringify(draft(name))) focus.change(name, toFieldDraft(field, fields[name]))
+      }
     })
   return { definition, change }
 }

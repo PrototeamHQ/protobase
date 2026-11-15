@@ -94,9 +94,14 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
   const pins = usePins(definition, graph, view === 'pins' ? schemas : undefined, onChange, frame)
   const boxes = useLayout(graph, pins.layout)
   const dataOrder = orderOf(definition) === 'data'
+  // The Break or Make chosen, which Delete removes: no panel opens for one, so the canvas keeps the choice itself
+  const [chosenPure, setChosenPure] = useState<string>()
   const nodes = useMemo(
-    () => [...flowNodes(graph, boxes, problems, selected, traces, types, warnings, pins.data && { data: pins.data, open: pins.open }, dataOrder), ...(pins.data ? pureFlowNodes(graph, pins.data, boxes, pins.open) : [])],
-    [graph, boxes, problems, selected, traces, types, warnings, pins.data, pins.open, dataOrder],
+    () => [
+      ...flowNodes(graph, boxes, problems, selected, traces, types, warnings, pins.data && { data: pins.data, open: pins.open }, dataOrder),
+      ...(pins.data ? pureFlowNodes(graph, pins.data, boxes, pins.open).map((node) => ({ ...node, selected: node.id === chosenPure })) : []),
+    ],
+    [graph, boxes, problems, selected, traces, types, warnings, pins.data, pins.open, dataOrder, chosenPure],
   )
   // The edge chosen, which Delete removes
   const [chosenEdge, setChosenEdge] = useState<string>()
@@ -118,8 +123,13 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
     return target?.kind === 'state' && scopeOf(source) === scopeOf(target)
   }
   const onNodesChange = (changes: NodeChange<FlowNode>[]) => {
-    // A node chosen by the keyboard opens its form as a click does
-    const picked = changes.find((change) => change.type === 'select' && change.selected)
+    for (const change of changes) {
+      if (change.type !== 'select' || !isPureId(change.id)) continue
+      if (change.selected) setChosenPure(change.id)
+      else setChosenPure((current) => (current === change.id ? undefined : current))
+    }
+    // A step chosen by the keyboard opens its form as a click does
+    const picked = changes.find((change) => change.type === 'select' && change.selected && !isPureId(change.id))
     if (picked?.type === 'select') onSelect(graphId(picked.id))
   }
   const onEdgesChange = (changes: EdgeChange[]) => {

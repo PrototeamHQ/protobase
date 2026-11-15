@@ -220,6 +220,25 @@ export const PluginTypesChecks: StoryObj = {
   },
 }
 
+/** A trigger chosen on the graph is saved as the JSON object it is, as every definition field the graph changes. */
+export const SavesTriggerChecks: StoryObj = {
+  ...NewWorkflow,
+  name: 'Saves a trigger chosen on the graph (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.type(await canvas.findByRole('textbox', { name: /^Name/ }), 'Morning digest')
+    await userEvent.click(canvas.getByRole('button', { name: 'Create workflow' }))
+    await addStep(canvasElement, 'Succeed')
+    await userEvent.click(canvasElement.querySelector<HTMLElement>('.react-flow__node[data-id="trigger"]')!)
+    const panel = within(await canvas.findByRole('region', { name: 'Chosen step' }))
+    await userEvent.selectOptions(await panel.findByRole('combobox', { name: 'Starts a run' }), 'Invoice overdue')
+    await userEvent.type(await panel.findByRole('textbox', { name: /^days/ }), '3')
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(stored?.trigger).toEqual({ 'acme:overdue': { days: 3 } }))
+  },
+}
+
 /**
  * A step whose type advises against forcing its cache on shows the type's disclaimer, as text, before the switch turns
  * on; once on, its node carries the warning mark.
@@ -245,6 +264,30 @@ export const CacheForcedChecks: StoryObj = {
     expect(canvas.getAllByTitle("Caching forced on against this step's advice")).toHaveLength(1)
     await userEvent.click(cache)
     await waitFor(() => expect(canvas.queryByTitle("Caching forced on against this step's advice")).toBeNull())
+  },
+}
+
+/** A Break chosen on the canvas is marked chosen, and Delete removes it as it does a step, with the reads it gave. */
+export const RemovesBreakChecks: StoryObj = {
+  ...NewWorkflow,
+  name: 'Removes a Break node chosen on the canvas (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.type(await canvas.findByRole('textbox', { name: /^Name/ }), 'Fetch by input')
+    await userEvent.click(canvas.getByRole('button', { name: 'Create workflow' }))
+    await addStep(canvasElement, 'HTTP request')
+    const panel = within(await canvas.findByRole('region', { name: 'Chosen step' }))
+    await userEvent.type(await panel.findByRole('textbox', { name: /^URL/ }), '{{% $states.context.Execution.Input.url %}')
+    const pure = await waitFor(() => {
+      const node = canvasElement.querySelector<HTMLElement>('.react-flow__node-pure')
+      if (!node) throw new Error('No Break node yet')
+      return node
+    })
+    await userEvent.click(pure)
+    await waitFor(() => expect(pure).toHaveClass('selected'))
+    await userEvent.keyboard('{Delete}')
+    await waitFor(() => expect(canvasElement.querySelector('.react-flow__node-pure')).toBeNull())
   },
 }
 
