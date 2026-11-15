@@ -91,10 +91,12 @@ export const fillComponentReads = (node: LayoutNode, scope: ValueScope): LayoutN
   if (!node.custom || !node.reads) return node
   const lookup = scopeLookup(scope)
   const props = { ...node.props }
-  for (const { filter } of readList(node.reads)) {
-    const value = filter === undefined ? undefined : props[filter]
-    if (typeof value === 'string') props[filter!] = fillFilter(value, lookup)
-    else if (isObject(value)) props[filter!] = fillFilterObject(value as Record<string, LayoutValue>, lookup)
+  // Each prop once, from its written value, so two reads naming the same one never fill text already filled
+  const filters = new Set(readList(node.reads).flatMap(({ filter }) => (filter === undefined ? [] : [filter])))
+  for (const filter of filters) {
+    const value = node.props[filter]
+    if (typeof value === 'string') props[filter] = fillFilter(value, lookup)
+    else if (isObject(value)) props[filter] = fillFilterObject(value as Record<string, LayoutValue>, lookup)
   }
   return { ...node, props }
 }

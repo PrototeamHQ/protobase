@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Table } from './blocks'
-import { fillProps, scopeValue, type ValueScope } from './scope-values'
+import { component } from './component'
+import { fillComponentReads, fillProps, scopeValue, type ValueScope } from './scope-values'
 
 const task = { id: 7, title: 'Ship it', status: 'open', a: { b: 'outer' } }
 const claim = { id: 3, task_id: 7, status: 'claimed', a: { c: 'inner' } }
@@ -46,5 +47,14 @@ describe('fillProps', () => {
     const plain = Table({ resource: 'claims', title: 'Claims' })
     expect(fillProps(plain, scope)).toBe(plain)
     expect(fillProps(Table({ resource: 'claims', title: '[{{nope}}]' }), scope).props.title).toBe('[]')
+  })
+})
+
+describe('fillComponentReads', () => {
+  it('fills a filter two reads share once, so filled text that looks like a placeholder stays as it is', () => {
+    const Graph = component<{ nodes: string; edges: string; filter: string }>('Graph', { reads: [{ resource: 'nodes', filter: 'filter' }, { resource: 'edges', filter: 'filter' }] })
+    const tricky: ValueScope = { stack: [{ record: { title: '{{status}}', status: 'open' } }] }
+    const node = fillComponentReads(Graph({ nodes: 'tasks', edges: 'links', filter: "title = '{{title}}'" }), tricky)
+    expect(node.props.filter).toBe("title = '{{status}}'")
   })
 })
