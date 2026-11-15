@@ -23,6 +23,9 @@ export type BlockReader = {
   given: Readonly<Record<string, string>>
 }
 
+/** What a page's planned reads are made with: a block's reader without the address, which only a `select`'s row reads. */
+export type PlanReader = Omit<BlockReader, 'given'>
+
 /** A block's own query, started ahead of its block: its key, and how it starts, as one query or as a list's first page. */
 export type BlockQuery = { queryKey: QueryKey; start: (queryClient: QueryClient) => Promise<void> }
 

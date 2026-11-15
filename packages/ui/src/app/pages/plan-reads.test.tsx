@@ -26,6 +26,8 @@ const twoLevels = Page({ title: 'Tasks', children: CardRow({ resource: 'tasks', 
 
 const planOf = (tree: LayoutNode) => compileReadPlan(tree, { models }).plan
 
+const readerOf = (client: ReturnType<typeof createClient>, queryClient: QueryClient) => ({ client, queryClient, resources: meta.resources, views: meta.views, fieldTypes: undefined, xs: false, params: {} })
+
 // A fetch whose answers wait until `release`, so a read that waited for another would never start
 const heldFetch = () => {
   const started: string[] = []
@@ -39,8 +41,9 @@ const heldFetch = () => {
 
 const startPage = (tree: LayoutNode) => {
   const held = heldFetch()
-  const queries = planQueries(createClient({ fetch: held.fetch }), tree, planOf(tree), {})
-  new QueriesObserver(new QueryClient({ defaultOptions: { queries: { retry: false } } }), queries.map(({ queryKey, queryFn }) => ({ queryKey, queryFn }))).subscribe(() => {})
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const queries = planQueries(readerOf(createClient({ fetch: held.fetch }), queryClient), tree, planOf(tree))
+  new QueriesObserver(queryClient, queries.map(({ queryKey, queryFn }) => ({ queryKey, queryFn }))).subscribe(() => {})
   return held
 }
 
@@ -56,7 +59,7 @@ const drawn = (element: ReactNode) => {
   const client = createClient({ fetch })
   const queryClient = new QueryClient()
   const plan = planOf(twoLevels)
-  for (const { read, queryKey } of planQueries(client, twoLevels, plan, {})) queryClient.setQueryData(queryKey, { rows: rows[read.resource] })
+  for (const { read, queryKey } of planQueries(readerOf(client, queryClient), twoLevels, plan)) queryClient.setQueryData(queryKey, { rows: rows[read.resource] })
   const html = renderToStaticMarkup(
     <ApiProvider client={client} queryClient={queryClient}>
       <MetaContext.Provider value={meta}>

@@ -87,7 +87,7 @@ describe('the queries of blocks that read by themselves', () => {
     held.release()
   })
 
-  it('leaves a table inside the records of another to read as it draws', () => {
+  it('leaves a table inside the records of another to the page’s planned reads', () => {
     const tree = Page({ title: 'Task', children: RecordCard({ resource: 'tasks', recordKey: '1', children: Table({ resource: 'tasks', filter: 'id = {{id}}', columns: ['title'] }) }) })
     expect(blockQueries(readerOf(vi.fn(), new QueryClient()), tree, planOf(tree))).toEqual([])
   })
