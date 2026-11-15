@@ -133,10 +133,14 @@ const sourceFilter = (node: LayoutNode, reads: BlockReads, model: ResourceModel)
 /** How many records the read holds at most: its page, or the API's largest one without a page size. */
 export const rowsOf = (draft: Draft) => draft.pageSize ?? maxPerPage
 
+// Whether the records around it give a read a JSON list of keys to split on, each list holding any number of them
+const listed = ({ parent, column }: SplitFilter, context: PlanContext) => context.models[parent!.resource]?.fields[column!]?.type === 'json'
+
 type Shape = Pick<Draft, 'kind' | 'pageSize' | 'limitPer' | 'groupBy'>
 
 // Inside a read of several records, a list reads `n` per record, a reference one per record, and a count is grouped
-const shapeOf = (node: LayoutNode, n: number | undefined, parent: Draft | undefined, field: string | undefined, context: PlanContext): Shape => {
+const shapeOf = (node: LayoutNode, n: number | undefined, split: SplitFilter, context: PlanContext): Shape => {
+  const { parent, field } = split
   const counts = node.type === 'Stat'
   const many = parent !== undefined && rowsOf(parent) > 1
   if (node.type === 'Chart') {
@@ -151,6 +155,11 @@ const shapeOf = (node: LayoutNode, n: number | undefined, parent: Draft | undefi
     context.problems.push(`${label(node)}: inside a repeated record it needs a limit, so each record's page can be read at once`)
     return { kind: 'list' }
   }
+  // Each record's JSON list may hold several keys, so a list reads the API's largest page, and still may not hold all
+  if (node.type !== 'ReferenceArrayField' && listed(split, context)) {
+    context.warnings.push(`${label(node)}: the JSON lists of keys of the ${parents} records around it may hold more than the ${maxPerPage} records one read holds at ${n} each, so some may show fewer; lower its limit or the one around it`)
+    return { kind: 'list', pageSize: maxPerPage, limitPer: { field: field!, count: n } }
+  }
   // One read holds at most the API's largest page, so the records around it may get fewer than `n` each
   if (parents * n > maxPerPage) context.warnings.push(`${label(node)}: ${parents} records around it × ${n} each is more than the ${maxPerPage} records one read holds, so some may show fewer; lower its limit or the one around it`)
   const total = Math.min(maxPerPage, parents * n)
@@ -161,8 +170,7 @@ const shapeOf = (node: LayoutNode, n: number | undefined, parent: Draft | undefi
 
 // How many values the records around it give a read to split on at most: one each, or for a JSON list of keys as many
 // as one read holds, since each list may hold several
-const keysOf = ({ parent, column }: SplitFilter, context: PlanContext) =>
-  context.models[parent!.resource]?.fields[column!]?.type === 'json' ? maxPerPage : rowsOf(parent!)
+const keysOf = (split: SplitFilter, context: PlanContext) => (listed(split, context) ? maxPerPage : rowsOf(split.parent!))
 
 // How each record around it finds its rows in the read
 const splitOf = ({ parent, field, path }: SplitFilter): Pick<Draft, 'split'> => (parent && field && path !== undefined ? { split: { field, source: path, parent: planReadId(parent) } } : {})
@@ -202,7 +210,7 @@ const callsOf = (node: LayoutNode, block: string, scope: Scope, rows: Rows, cont
   const model = calls && context.models[calls.resource!]
   if (!calls || !model) return []
   const split = splitFilter(model, calls.filter, [], scope, rows, context)
-  const shape = shapeOf(node, number(node.props.limit) ?? 50, split.parent, split.field, context)
+  const shape = shapeOf(node, number(node.props.limit) ?? 50, split, context)
   const named = ['name', 'time', 'status', 'input', 'result', 'error'].flatMap((name) => (calls[name] ? [calls[name]!] : []))
   return [{ block, part: 'calls', ...shape, resource: model.name, ...(split.filter && { filter: split.filter }), ...splitOf(split), orderBy: threadSort(calls.time!), fields: new Set([keyOf(model), ...named]), etag: false }]
 }
@@ -213,7 +221,7 @@ const readDrafts = (node: LayoutNode, block: string, { reads, part }: { reads: B
   const model = resource === undefined ? undefined : context.models[resource]
   if (!model) return {}
   const split = splitFilter(model, sourceFilter(node, reads, model), impliedSplits(node, model), scope, rows, context)
-  const shape = shapeOf(node, pageSizeOf(node, reads), split.parent, split.field, context)
+  const shape = shapeOf(node, pageSizeOf(node, reads), split, context)
   const orderBy = shape.kind === 'count' ? undefined : ownSort(node, reads, model)
   const own: Draft = {
     block,
