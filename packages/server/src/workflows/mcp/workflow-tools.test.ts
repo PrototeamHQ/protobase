@@ -14,6 +14,13 @@ const saved = { record: { id: 'w1', name: 'Fetch', version: 1, execution_order: 
 const readable = { models: [], views: [] } as unknown as ReadableResources
 const validateWorkflowTool = workflowReadTools({ ...workflowTypes(), readTrace: async () => [] }).find((tool) => tool.name === 'validate_workflow')!
 
+const connectionArn = 'arn:aws:events:eu-west-1:123456789012:connection/api/0b1c'
+const exported = {
+  QueryLanguage: 'JSONata',
+  StartAt: 'Call',
+  States: { Call: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: { ApiEndpoint: 'https://a.example', Method: 'POST', Authentication: { ConnectionArn: connectionArn }, RequestBody: { a: 1 } }, Assign: { id: '{% $states.result.ResponseBody.id %}' }, End: true } },
+}
+
 const contextWith = (records: Partial<ToolRecords>, answer: ApprovalAnswer = 'approved') => {
   const approve = vi.fn(async () => answer)
   const context = { session: { user: { id: 1, roles: ['builder'] } }, show: () => {}, approve, records: { get: async () => saved, ...records } as ToolRecords, resources: async () => readable } satisfies ToolContext
@@ -44,6 +51,17 @@ describe('validate_workflow', () => {
     })
     expect(JSON.parse(await validateWorkflowTool.run(fetchUrl('https://a.example'), context))).toEqual({ valid: true })
     expect(get).not.toHaveBeenCalled()
+  })
+
+  it('checks a state machine from Step Functions as create_workflow imports it, an edit of a saved one too', async () => {
+    const { context } = contextWith({})
+    const connection_headers = { [connectionArn]: { header: 'Authorization', secret: 'API_TOKEN' } }
+    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: exported, connection_headers }, context))).toEqual({ valid: true })
+    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: exported }, context)).problems).toEqual([expect.objectContaining({ state: 'Call', field: 'Arguments.Authentication.ConnectionArn' })])
+    const edit = { state_machine: { States: { Fetch: { Next: 'Call', End: null }, Call: exported.States.Call } } }
+    expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit, connection_headers }, context))).toEqual({ valid: true })
+    const head = { state_machine: { States: { Fetch: { Next: 'Call', End: null }, Call: { ...exported.States.Call, Arguments: { ...exported.States.Call.Arguments, Method: 'HEAD' } } } } }
+    expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit: head, connection_headers }, context)).problems).toEqual([expect.objectContaining({ state: 'Call', field: 'Arguments.Method' })])
   })
 
   it('checks an edit of the saved definition, read as the caller', async () => {
@@ -98,12 +116,17 @@ describe('create_workflow', () => {
     expect(JSON.parse(await createWorkflowTool().run({ name: 'Fetch', ...fetchUrl('https://a.example') }, context))).toEqual({ id: 'w1', version: 1, etag: '"v1"' })
   })
 
-  it('imports a JSONata state machine exported from Step Functions as it is, and refuses its service tasks by name', async () => {
-    const { context } = contextWith({})
-    const exported = { QueryLanguage: 'JSONata', StartAt: 'Call', States: { Call: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: { ApiEndpoint: 'https://a.example', Method: 'POST', RequestBody: { a: 1 } }, End: true } } }
-    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: exported }, context)).problems).toEqual([
-      { state: 'Call', field: 'Resource', message: "is a Step Functions service (arn:aws:states:::http:invoke), which does not run here: write the step with one of this app's step types, such as app:http for an HTTP request" },
-    ])
+  it('imports a JSONata state machine exported from Step Functions, its HTTP task as app:http with its connection as a secret header', async () => {
+    const create = vi.fn(async () => saved)
+    const { context } = contextWith({ create })
+    const result = JSON.parse(await createWorkflowTool().run({ name: 'Call', state_machine: exported, connection_headers: { [connectionArn]: { header: 'Authorization', secret: 'API_TOKEN' } } }, context))
+    expect(result).toEqual({ id: 'w1', version: 1, etag: '"v1"' })
+    const call = (create.mock.calls[0] as unknown as [string, { state_machine: { States: { Call: Record<string, unknown> } } }])[1].state_machine.States.Call
+    expect(call).toMatchObject({ Resource: 'app:http', Arguments: { url: 'https://a.example', method: 'POST', body: { a: 1 }, body_encoding: 'json', headers: { Authorization: '{% $states.context.Secrets.API_TOKEN %}' } }, Assign: { id: expect.stringContaining('"ResponseBody": $states.result.body') } })
+    // Without the connection's header, nothing is asked or saved
+    const unsaved = contextWith({ create })
+    expect(JSON.parse(await createWorkflowTool().run({ name: 'Call', state_machine: exported }, unsaved.context)).problems).toEqual([{ state: 'Call', field: 'Arguments.Authentication.ConnectionArn', message: expect.stringMatching(/^names a connection/) }])
+    expect(unsaved.approve).not.toHaveBeenCalled()
     const jsonPath = { StartAt: 'A', States: { A: { Type: 'Pass', ResultPath: '$.x', End: true } } }
     expect(JSON.parse(await validateWorkflowTool.run({ state_machine: jsonPath }, context)).problems).toEqual([
       { field: 'stateMachine.QueryLanguage', message: 'is missing, so the machine is JSONPath, the default of Step Functions; only JSONata machines run here: set "QueryLanguage": "JSONata" and write its states in JSONata' },
@@ -132,6 +155,20 @@ describe('create_workflow', () => {
 })
 
 describe('update_workflow', () => {
+  it('imports the state machine an edit gives as create_workflow imports one', async () => {
+    const update = vi.fn(async () => ({ record: { ...saved.record, version: 2 }, etag: '"v2"' }))
+    const { context, approve } = contextWith({ update })
+    const edit = { state_machine: { States: { Fetch: { Next: 'Call', End: null }, Call: exported.States.Call } } }
+    await updateWorkflowTool().run({ id: 'w1', edit, connection_headers: { [connectionArn]: null } }, context)
+    const data = (update.mock.calls[0] as unknown as [string, string, { state_machine: { States: Record<string, Record<string, unknown>> } }])[2]
+    expect(data.state_machine.States.Fetch).toEqual({ Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://a.example' }, Next: 'Call' })
+    expect(data.state_machine.States.Call).toMatchObject({ Resource: 'app:http', Arguments: { url: 'https://a.example', method: 'POST', body: { a: 1 }, body_encoding: 'json' } })
+    expect(data.state_machine.States.Call!.Arguments).not.toHaveProperty('headers')
+    approve.mockClear()
+    expect(JSON.parse(await updateWorkflowTool().run({ id: 'w1', edit }, context)).error).toBe('invalid-workflow')
+    expect(approve).not.toHaveBeenCalled()
+  })
+
   it('applies an edit to the saved definition and saves it with the etag it was read with', async () => {
     const update = vi.fn(async () => ({ record: { ...saved.record, version: 2 }, etag: '"v2"' }))
     const { context } = contextWith({ update })

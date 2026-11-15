@@ -15,7 +15,7 @@ description: Apps written for other systems that keep working on Protobase, and 
 
 ## AWS Step Functions
 
-- [Step Functions import](/reference/workflows/#importing-from-step-functions) (beta): A JSONata state machine exported from AWS Step Functions saves and runs as a workflow as it is, and what does not run here, its service tasks included, is refused by name.
+- [Step Functions import](/reference/workflows/#importing-from-step-functions) (beta): A JSONata state machine exported from AWS Step Functions saves and runs as a workflow, its HTTP tasks as `app:http` steps that send the same request and give the same result, and what does not run here exactly, its other service tasks included, is refused by name.
 
 ## Template paths
 

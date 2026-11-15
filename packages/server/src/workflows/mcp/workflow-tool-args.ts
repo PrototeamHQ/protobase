@@ -8,7 +8,7 @@ export const definitionParameters = {
   state_machine: {
     type: 'object',
     description:
-      'The state machine in the States Language with JSONata, exactly as AWS Step Functions takes and gives one: { "QueryLanguage": "JSONata", "StartAt": ..., "States": { ... } } in sequence order, or { "QueryLanguage": "JSONata", "States": { ... } } with no StartAt, Next or End in data order. A document exported from Step Functions imports as it is.',
+      'The state machine in the States Language with JSONata, exactly as AWS Step Functions takes and gives one: { "QueryLanguage": "JSONata", "StartAt": ..., "States": { ... } } in sequence order, or { "QueryLanguage": "JSONata", "States": { ... } } with no StartAt, Next or End in data order. A document exported from Step Functions imports, its HTTP tasks as app:http steps.',
   },
   trigger: { type: 'object', description: 'What starts its runs: { "manual": {} } (the default on create), or one trigger type with its input, such as { "app:record": { "resource": "orders" } }.' },
   execution_order: { type: 'string', enum: ['sequence', 'data'], description: 'sequence (the default): each state names its Next, as the States Language orders them. data: a state runs once the states it reads from have ended, states that read nothing of each other run at once, and a Condition decides whether one runs.' },
@@ -47,12 +47,16 @@ export const textOf = (value: unknown) => (typeof value === 'string' ? value : u
 /** A page size given as a whole number, cut to `max`; `fallback` when none is given. */
 export const pageSizeOf = (value: unknown, fallback: number, max: number) => (typeof value === 'number' && Number.isInteger(value) && value > 0 ? Math.min(value, max) : fallback)
 
+/** A definition refused, by the save check or the import, as `{ error, message, problems }`. */
+export const invalidWorkflow = (problems: unknown) =>
+  JSON.stringify({ error: 'invalid-workflow', message: 'The workflow does not fit the language; nothing was saved. Fix each problem and try again.', problems })
+
 /**
  * A save the workflow check refused, as `{ error, message, problems }`, each problem naming the state and field and
  * what was expected; any other refusal as `refused` words it.
  */
 export const workflowRefused = (error: unknown) => {
   const problem = problemOf(error)
-  if (problem?.slug === 'invalid-workflow') return JSON.stringify({ error: problem.slug, message: 'The workflow does not fit the language; nothing was saved. Fix each problem and try again.', problems: problem.extras.problems })
+  if (problem?.slug === 'invalid-workflow') return invalidWorkflow(problem.extras.problems)
   return refused(error)
 }

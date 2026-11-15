@@ -12,7 +12,8 @@ import { notFound } from '../../problem'
 import type { Row } from '../../types'
 import { definitionFromParts, definitionWarnings, type DefinitionParts } from '@protobase/workflows'
 import { mergePatch } from './merge-patch'
-import { definitionDataOf, definitionFieldsOf, definitionParameters, editParameter, hiddenMergeMessage, hiddenMerges, idOf, idParameter, objectOf, textOf, workflowRefused } from './workflow-tool-args'
+import { connectionHeadersParameter, importedFields } from './import-machine-args'
+import { definitionDataOf, definitionFieldsOf, definitionParameters, editParameter, hiddenMergeMessage, hiddenMerges, idOf, idParameter, invalidWorkflow, objectOf, textOf, workflowRefused } from './workflow-tool-args'
 
 const writes = { readOnlyHint: false, destructiveHint: false, openWorldHint: false }
 const nameParameter = { type: 'string', description: 'A name, 1 to 100 characters.' }
@@ -30,8 +31,8 @@ const saved = (record: Row, etag: string) => {
 export const createWorkflowTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'create_workflow',
-    description: `Creates a workflow from its name and its state machine, with its trigger (manual when absent) and execution order (sequence when absent), checked as validate_workflow checks it, and returns JSON { id, version, etag }, with warnings as validate_workflow gives them. A state machine exported from AWS Step Functions in JSONata imports as it is, and what this app cannot run, its service tasks included (an HTTP task is written as app:http), is refused by name. A definition that does not fit is refused with { error, problems }, each problem naming the state, the field and what was expected; nothing is saved then. The user approves each save in their client first.${onlyNote(input)}`,
-    parameters: { type: 'object', properties: { name: nameParameter, description: descriptionParameter, ...definitionParameters }, required: ['name', 'state_machine'] },
+    description: `Creates a workflow from its name and its state machine, with its trigger (manual when absent) and execution order (sequence when absent), checked as validate_workflow checks it, and returns JSON { id, version, etag }, with warnings as validate_workflow gives them. A state machine exported from AWS Step Functions in JSONata imports, each HTTP task as an app:http step that sends the same request and gives the same result, its connection as the header connection_headers names, and what this app cannot run exactly, its other service tasks included, is refused by name. A definition that does not fit is refused with { error, problems }, each problem naming the state, the field and what was expected; nothing is saved then. The user approves each save in their client first.${onlyNote(input)}`,
+    parameters: { type: 'object', properties: { name: nameParameter, description: descriptionParameter, ...definitionParameters, connection_headers: connectionHeadersParameter }, required: ['name', 'state_machine'] },
     annotations: writes,
     run: async (args, context) => {
       const name = textOf(args.name)
@@ -39,7 +40,8 @@ export const createWorkflowTool = (input: WriteRecordToolsInput = {}) =>
       if (!name || !machine) return 'Pass { "name": "<name>", "state_machine": { "QueryLanguage": "JSONata", ... } }, with a trigger and an execution_order when they are not manual and sequence.'
       const refusal = outside(input, 'workflows')
       if (refusal) return refusal
-      const data = { name, trigger: { manual: {} }, ...definitionDataOf(args), state_machine: machine, ...(textOf(args.description) !== undefined && { description: textOf(args.description) }) }
+      const { fields: data, problems } = importedFields({ name, trigger: { manual: {} }, ...definitionDataOf(args), state_machine: machine, ...(textOf(args.description) !== undefined && { description: textOf(args.description) }) }, args)
+      if (problems.length > 0) return invalidWorkflow(problems)
       const { text, described } = await approvalTexts(context, 'workflows')
       const answer = await context.approve(createApproval(text, described, data))
       if (answer !== 'approved') return notApproved(answer)
@@ -51,10 +53,10 @@ export const createWorkflowTool = (input: WriteRecordToolsInput = {}) =>
 export const updateWorkflowTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'update_workflow',
-    description: `Changes a workflow: its definition fields by a small edit (edit, a JSON Merge Patch of the saved state_machine, trigger, execution_order, connections and trace) or each one whole, and its name or description. The changed definition is checked as validate_workflow checks it and saved as the workflow's next version; runs started before keep theirs. Returns JSON { id, version, etag }, with warnings as validate_workflow gives them. A definition that does not fit is refused with { error, problems }, each naming the state, the field and what was expected; nothing is saved then. Pass the etag get_workflow gave to fail when someone changed it since. The user approves each save in their client first.${onlyNote(input)}`,
+    description: `Changes a workflow: its definition fields by a small edit (edit, a JSON Merge Patch of the saved state_machine, trigger, execution_order, connections and trace) or each one whole, and its name or description. The changed state machine imports as create_workflow imports one, connection_headers included, and the changed definition is checked as validate_workflow checks it and saved as the workflow's next version; runs started before keep theirs. Returns JSON { id, version, etag }, with warnings as validate_workflow gives them. A definition that does not fit is refused with { error, problems }, each naming the state, the field and what was expected; nothing is saved then. Pass the etag get_workflow gave to fail when someone changed it since. The user approves each save in their client first.${onlyNote(input)}`,
     parameters: {
       type: 'object',
-      properties: { id: idParameter, edit: editParameter, ...definitionParameters, name: nameParameter, description: descriptionParameter, etag: { type: 'string', description: 'The etag get_workflow gave, to fail when the workflow changed since.' } },
+      properties: { id: idParameter, edit: editParameter, ...definitionParameters, connection_headers: connectionHeadersParameter, name: nameParameter, description: descriptionParameter, etag: { type: 'string', description: 'The etag get_workflow gave, to fail when the workflow changed since.' } },
       required: ['id'],
     },
     annotations: writes,
@@ -74,7 +76,8 @@ export const updateWorkflowTool = (input: WriteRecordToolsInput = {}) =>
       // caller may read but not write is not sent back; a state machine imports as create_workflow imports one.
       const patched = edit && (mergePatch(definitionFieldsOf(before!.record), edit) as Row)
       const changed = patched ? Object.fromEntries(Object.keys(definitionParameters).filter((key) => Object.hasOwn(edit, key)).map((key) => [key, edit[key] === null ? null : patched[key]])) : whole
-      const fields = changed
+      const { fields, problems } = importedFields(changed, args)
+      if (problems.length > 0) return invalidWorkflow(problems)
       const data: Row = { ...fields, ...(textOf(args.name) !== undefined && { name: textOf(args.name) }), ...(textOf(args.description) !== undefined && { description: textOf(args.description) }) }
       if (Object.keys(data).length === 0) return 'Pass an edit, definition fields, a name or a description to change; nothing was saved.'
       const { text, described } = await approvalTexts(context, 'workflows')
