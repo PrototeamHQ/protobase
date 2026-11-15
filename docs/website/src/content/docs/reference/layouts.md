@@ -311,6 +311,27 @@ Record pages take the same conditions in the `when` of `l.section`, `l.related` 
 
 `icon` is one of `archive`, `arrow-right-left`, `ban`, `bath`, `bed`, `bell`, `bookmark`, `calendar`, `camera`, `copy`, `cpu`, `door-open`, `download`, `external-link`, `file-text`, `hard-drive`, `heart`, `history`, `house`, `key`, `land-plot`, `leaf`, `memory`, `network`, `play`, `plug`, `plus`, `power`, `restart`, `ruler`, `send`, `server`, `stop`, `table`, `tag`, `terminal`, `upload`, `wallet` or `wrench`; another name shows a lightning bolt. With `confirm` the button asks first. Every builder also takes `when`, `otherwise` and `reason`, which limit the action to the records it [applies to](/reference/ui-config/#where-an-action-applies), and `variant: 'danger'`, which draws it in red. The button is disabled, with the reason as its tooltip, when the user may not update or delete the record (or, for an AI action, the field it writes), when an `a.action` has no handler, or when an update, delete or AI action has no record. After an action, everything shown of that resource reloads. The record page's action rail runs the same actions the same way; there an `a.link` is a real link that looks like the rail's buttons, which the browser can preview, copy or open in a new tab, while a disabled one is a disabled button with its reason. <gap>An `<Action>` block for an `a.link` cannot be opened in a new tab or copied as a link because drawing link actions as links is not implemented for the block.</gap>
 
+### Actions in a list
+
+:::caution[Beta]
+It runs only on the records the list has loaded, up to its `perPage` and any pages read with `pagination="more"`, and its dialog shows no progress, as for [signing several records off](/reference/blocks/#signing-several-records-off).
+:::
+
+Where an `Action` sits decides what it runs on. Directly in a `ReferenceManyField` or `ReferenceArrayField`, outside its `RecordsIterator`, it runs on every record of that list; inside the `RecordsIterator`, it runs on the one record of its entry:
+
+```tsx
+<ReferenceManyField reference="approvals" target="release_id">
+  <Action name="approve" />
+  <RecordsIterator>
+    <Card title="{{title}}"><Action name="approve" /></Card>
+  </RecordsIterator>
+</ReferenceManyField>
+```
+
+The list's button counts the records the action applies to, such as **Approve (3)**, and runs as a [selection in a list](/reference/blocks/#signing-several-records-off) does, whether or not the action has `bulk`: it asks its question or inputs once, a checklist shows each box once however many records hold it, and a record the person may not change is refused and named while the others run. It is not offered when the list holds no record the action applies to, and an `a.link` is not offered there. An `Action` with `resource` naming another resource keeps working as outside the list. In the [text form](#text-form), the list's action reads as its label with the count, `Approve (3)`.
+
+<gap>An `Action` in a list cannot run on records past the pages the list has loaded because reading the rest of a list for an action is not implemented.</gap>
+
 ### Links to a record's URL
 
 A link whose `href` is a single `{{field}}` opens the address that field holds, such as the page a listing came from:

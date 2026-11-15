@@ -2,9 +2,11 @@ import { useState } from 'react'
 import type { ActionProps } from '@protobase/layout'
 import { Button } from '../../../primitives/button'
 import { ActionPrompt, asksFirst } from '../action-prompt'
+import { useLayoutList } from '../layout-list'
 import { useLayoutRecord } from '../record-scope'
 import { useRunAction } from '../use-run-action'
 import { propsOf, type BlockProps } from './block-props'
+import { ListActionButton } from './list-action'
 
 /**
  * A button for a named action of `resource`'s view, by default of the record around it, on that record, asking first
@@ -48,5 +50,14 @@ export const ActionButton = ({ name, resource, label, variant, className, about,
   )
 }
 
-/** An Action block: its button. */
-export const ActionBlock = ({ node, className }: BlockProps) => <ActionButton {...propsOf<ActionProps>(node)} className={className} />
+/**
+ * An Action block: its button, on the record around it, or, directly in a list of records and naming no other resource,
+ * on each record of that list.
+ */
+export const ActionBlock = ({ node, className }: BlockProps) => {
+  const props = propsOf<ActionProps>(node)
+  const list = useLayoutList()
+  const model = list?.model
+  if (model && (props.resource === undefined || props.resource === model.name)) return <ListActionButton {...props} model={model} items={list.items} className={className} />
+  return <ActionButton {...props} className={className} />
+}

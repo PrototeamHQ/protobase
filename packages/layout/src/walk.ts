@@ -62,6 +62,13 @@ export const childScope = (node: LayoutNode, scope: Scope): Scope => {
   }
 }
 
+/**
+ * Whether an `Action` runs on every record of the list around it: it sits in a list of records, outside any
+ * `RecordsIterator`, and names no `resource` or the list's own.
+ */
+export const actsOnList = (node: LayoutNode, scope: Scope) =>
+  !node.custom && node.type === 'Action' && scope.list?.resource !== undefined && (node.props.resource === undefined || node.props.resource === scope.list.resource)
+
 /** The scope of the elements in a prop: a `RecordCard`'s header actions belong to its record, others to the parent's scope. */
 export const propScope = (node: LayoutNode, scope: Scope): Scope => (!node.custom && node.type === 'RecordCard' ? childScope(node, scope) : scope)
 

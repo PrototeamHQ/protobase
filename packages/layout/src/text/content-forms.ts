@@ -68,7 +68,12 @@ const Image: TextForm = ({ node }) => {
   return typeof src === 'string' ? image(textOf(alt), src) : textOf(alt)
 }
 
-const Action: TextForm = ({ node }) => textOf(node.props.label ?? node.props.name)
+// One in a list of records runs on each of them, which its label counts, as its button does
+const Action: TextForm = ({ node, around, aroundResource }) => {
+  const label = String(node.props.label ?? node.props.name)
+  const onList = around && aroundResource !== undefined && (node.props.resource === undefined || node.props.resource === aroundResource)
+  return textOf(onList ? `${label} (${around.length})` : label)
+}
 
 const ModalForm: TextForm = ({ node }) => textOf(node.props.label)
 

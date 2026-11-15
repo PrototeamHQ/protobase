@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Card, Field, Grid, Link, Page, Progress, RecordCard, Show, Stat } from '../blocks'
+import { Action, Card, Field, Grid, Link, Page, Progress, RecordCard, Show, Stat } from '../blocks'
 import { component } from '../component'
 import { Box, Column, Row, Text } from '../elements'
 import { RecordsIterator, ReferenceManyField } from '../list-blocks'
@@ -75,6 +75,14 @@ describe('renderText', () => {
     const tree = ReferenceManyField({ reference: 'tasks', target: 'project_id', children: Picker({ nodes: 'tasks', select: 'task' }) })
     const records = () => [{ title: 'Roof' }, { title: 'Walls' }]
     expect(renderText(tree, { record: { id: 1 }, records })).toBe('Roof\n\nWalls')
+  })
+
+  it('counts the records an Action in a list runs on, and reads one inside its RecordsIterator once per record', () => {
+    const Approve = () => Action({ name: 'approve', label: 'Approve' })
+    const tree = ReferenceManyField({ reference: 'tasks', target: 'project_id', children: [Approve(), RecordsIterator({ children: [Field({ source: 'title', label: false }), Approve()] })] })
+    const records = () => [{ title: 'Roof' }, { title: 'Walls' }, { title: 'Door' }]
+    expect(renderText(tree, { record: { id: 1 }, records })).toBe('Approve (3)\n\nRoof\n\nApprove\n\nWalls\n\nApprove\n\nDoor\n\nApprove')
+    expect(renderText(ReferenceManyField({ reference: 'tasks', target: 'project_id', children: Action({ name: 'archive', resource: 'projects', label: 'Archive' }) }), { record: { id: 1 }, records })).toBe('Archive')
   })
 
   it('takes a form of its own for a custom component', () => {

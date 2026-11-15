@@ -117,6 +117,13 @@ describe('compileReadPlan', () => {
     expect(workers).toMatchObject({ etag: false, fields: ['id', 'name'] })
   })
 
+  it('asks for ETags of a list an Action in it runs on, not of the record around the list', () => {
+    const claims = ReferenceManyField({ reference: 'task_claims', target: 'task_id', children: [Action({ name: 'approve' }), RecordsIterator({ children: Field({ source: 'claimed_at' }) })] })
+    const [task, list] = reads(Page({ title: 'Task', children: [RecordCard({ resource: 'tasks', recordKey: '7', children: [Field({ source: 'title' }), claims] })] }))
+    expect(task).toMatchObject({ etag: false })
+    expect(list).toMatchObject({ resource: 'task_claims', etag: true })
+  })
+
   it('plans a custom component that declares its reads, and lists one that does not outside the plan', () => {
     const Board = component<{ resource: string; filter: string; limit: number }>('Board', { reads: { resource: 'resource', filter: 'filter', limit: 'limit' } })
     const Clock = component('Clock')

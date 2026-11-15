@@ -3,6 +3,7 @@ import { Action, CardRow, Field, Image, Link, ModalForm, Page, RecordCard, Recor
 import { fieldRef, type FieldRefValue } from '@protobase/schema'
 import { checkPages, pageProblems } from './check-page'
 import { component } from './component'
+import { RecordsIterator, ReferenceManyField } from './list-blocks'
 import { resolveFieldPath } from './field-path'
 import type { LayoutNode } from './node'
 import type { PageModel } from './page'
@@ -109,6 +110,14 @@ describe('pageProblems', () => {
     const tree = Page({ title: 'x', children: [CardRow({ resource: 'paymentMethods', children: Action({ name: 'remove' }) }), Action({ name: 'cancel', resource: 'subscriptions' })] })
     expect(pageProblems(model(tree), input)).toEqual([
       `<Page> › <CardRow resource="paymentMethods"> › <Action name="remove">: no action "remove" on paymentMethods; declare it with view('paymentMethods').actions(...)`,
+    ])
+  })
+
+  it('checks an Action in a list against the list resource, and one inside its RecordsIterator against each record', () => {
+    const list = (...children: LayoutNode[]) => RecordCard({ resource: 'subscriptions', recordKey: '1', children: ReferenceManyField({ reference: 'paymentMethods', target: 'id', children }) })
+    expect(pageProblems(model(Page({ title: 'x', children: list(Action({ name: 'makeDefault' }), RecordsIterator({ children: Action({ name: 'makeDefault' }) })) })), input)).toEqual([])
+    expect(pageProblems(model(Page({ title: 'x', children: list(Action({ name: 'cancel' })) })), input)).toEqual([
+      `<Page> › <RecordCard resource="subscriptions"> › <ReferenceManyField reference="paymentMethods"> › <Action name="cancel">: no action "cancel" on paymentMethods; declare it with view('paymentMethods').actions(...)`,
     ])
   })
 
