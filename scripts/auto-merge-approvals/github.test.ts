@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { gitHub } from './github'
+import { getRetries, gitHub, retryPauseMs } from './github'
 
 const answer = (status: number) => vi.fn(async () => new Response(null, { status }))
 
@@ -29,5 +29,44 @@ describe('files', () => {
       'https://api.github.com/repos/owner/repo/pulls/7/files?per_page=100&page=1',
       'https://api.github.com/repos/owner/repo/pulls/7/files?per_page=100&page=2',
     ])
+  })
+})
+
+describe('a server error', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('asks a GET again after a pause', async () => {
+    vi.useFakeTimers()
+    const fetch = vi.fn().mockResolvedValueOnce(new Response(null, { status: 502 })).mockResolvedValueOnce(Response.json([]))
+    vi.stubGlobal('fetch', fetch)
+    const timeline = gitHub('token', 'owner/repo').timeline(7)
+    await vi.advanceTimersByTimeAsync(retryPauseMs)
+    await expect(timeline).resolves.toEqual([])
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('fails a GET that keeps failing after the fixed retries', async () => {
+    vi.useFakeTimers()
+    const fetch = answer(503)
+    vi.stubGlobal('fetch', fetch)
+    const timeline = gitHub('token', 'owner/repo').timeline(7)
+    const failed = expect(timeline).rejects.toThrow('GitHub answered 503 for GET /repos/owner/repo/issues/7/timeline?per_page=100&page=1')
+    await vi.advanceTimersByTimeAsync(getRetries * retryPauseMs)
+    await failed
+    expect(fetch).toHaveBeenCalledTimes(1 + getRetries)
+  })
+
+  it('never asks a write again', async () => {
+    const fetch = answer(502)
+    vi.stubGlobal('fetch', fetch)
+    await expect(gitHub('token', 'owner/repo').comment(7, 'body')).rejects.toThrow('GitHub answered 502')
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not ask again on a client error', async () => {
+    const fetch = answer(404)
+    vi.stubGlobal('fetch', fetch)
+    await expect(gitHub('token', 'owner/repo').role('someone')).resolves.toBe('')
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 })
