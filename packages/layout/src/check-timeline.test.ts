@@ -55,6 +55,11 @@ describe('Timeline reads', () => {
     expect(chosen).toEqual({ block: '/children/0', part: 'chosen', kind: 'list', resource: 'phases', filter: 'task_id = {{@params.task}}', orderBy: 'started_at asc', pageSize: 1, fields: ['id', 'note'], etag: false })
   })
 
+  it('reads the chosen bar among the records the timeline shows', () => {
+    const { plan } = compileReadPlan(page(Timeline({ ...props, filter: "project = 'web'", select: 'task', children: Field({ source: 'note' }) })), { models })
+    expect(plan.reads[1]!.filter).toBe('project = "web" AND task_id = {{@params.task}}')
+  })
+
   it('reads as a table with a row per segment, an open end as a dash, under the labels of their fields, then the chosen bar', async () => {
     const tree = page(Timeline({ ...props, title: 'Work', select: 'task', children: Field({ source: 'note', label: 'Note' }) }))
     const { plan } = compileReadPlan(tree, { models })

@@ -1,4 +1,4 @@
-import type { ResourceModel } from '@protobase/schema'
+import { where, type FilterExpr, type ResourceModel } from '@protobase/schema'
 import { templatePlaceholders } from '@protobase/schema/internal'
 import { blockSpecs, type BlockReads } from './block-specs'
 import { threadSort } from './check-time'
@@ -156,13 +156,14 @@ export type BlockDrafts = { own?: Draft; chosen?: Draft; extra: Draft[] }
 export const readsOf = (node: LayoutNode): BlockReads | undefined => (node.custom ? node.reads : blockSpecs[node.type]?.reads)
 
 // The record a `select` chose is read by its key, which the page's address holds
-const chosenOf = (node: LayoutNode, block: string, model: ResourceModel, context: PlanContext): Draft | undefined => {
+const chosenOf = (node: LayoutNode, block: string, model: ResourceModel, own: FilterExpr | undefined, context: PlanContext): Draft | undefined => {
   const select = text(node.props.select)
   // A custom component's `select` is its own prop, which names no page parameter
   if (select === undefined || node.custom || !selectBlocks.has(node.type)) return
-  // A timeline's bar is its `bar` value, whose first record its children draw
+  // A timeline's bar is its `bar` value, whose first record the timeline shows its children draw
   if (node.type === 'Timeline') {
-    const filter = fieldEquality(model, String(node.props.bar), `@params.${select}`, context)
+    const bar = fieldEquality(model, String(node.props.bar), `@params.${select}`, context)
+    const filter = own ? where.and(own, bar) : bar
     return { block, part: 'chosen', kind: 'list', resource: model.name, filter, orderBy: timelineSort(node), pageSize: 1, fields: new Set([keyOf(model)]), etag: false }
   }
   return { block, part: 'chosen', kind: 'list', resource: model.name, filter: keyEquality(model, `@params.${select}`, context), pageSize: 1, fields: new Set([keyOf(model)]), etag: false }
@@ -197,6 +198,6 @@ export const blockDrafts = (node: LayoutNode, block: string, scope: Scope, rows:
     fields: shape.kind === 'list' ? ownFields(node, reads, model) : shape.kind === 'count' ? new Set([keyOf(model)]) : undefined,
     etag: changesOwn(node),
   }
-  const chosen = chosenOf(node, block, model, context)
+  const chosen = chosenOf(node, block, model, split.filter, context)
   return { own, ...(chosen && { chosen }), extra: callsOf(node, block, scope, rows, context) }
 }
