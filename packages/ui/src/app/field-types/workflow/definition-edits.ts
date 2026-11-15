@@ -60,7 +60,7 @@ export const addState = (definition: Definition, scope: readonly string[], kind:
     const state = freshState(kind)
     if (data) delete (state as { End?: boolean }).End
     machine.States[name] = state
-    if (!data && !Object.hasOwn(machine.States, machine.StartAt)) machine.StartAt = name
+    if (!data && (machine.StartAt === undefined || !Object.hasOwn(machine.States, machine.StartAt))) machine.StartAt = name
     if (state.Type !== 'Map' && state.Type !== 'Block') return
     const first = freeName(copy, base)
     const inner = (data ? { States: { [first]: { Type: 'Pass' } } } : { StartAt: first, States: { [first]: { Type: 'Pass', End: true } } }) as Machine
@@ -164,7 +164,7 @@ export const addStateAfter = (definition: Definition, scope: readonly string[], 
  * unconnected when the workflow has a first state, so it never cuts off the states after it.
  */
 export const addStateFirst = (definition: Definition, kind: NewState, name: string, base: string) => {
-  const first = definition.stateMachine.StartAt
+  const first = definition.stateMachine.StartAt ?? ''
   const added = addState(definition, [], kind, name, base)
   if (orderOf(definition) === 'data') return added
   return edited(added, (copy) => {
@@ -265,11 +265,31 @@ const renamedIn = (machine: Machine, from: string, to: string) => {
   }
 }
 
-/** Renames the state at `path`, and every edge and the StartAt naming it. */
+// A state's name as an expression reads it after `$states.context.Steps.`: bare, or in backticks when it is no identifier
+const stepName = (name: string) => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `\`${name}\``)
+const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// Every expression of `value` with its reads of `from`'s status read from `to`'s instead, the backticked form too.
+const renamedReads = (value: unknown, from: string, to: string): unknown => {
+  if (typeof value === 'string') {
+    if (!value.trimStart().startsWith('{%')) return value
+    const read = new RegExp(`\\$states\\.context\\.Steps\\.(?:${escaped(from)}(?![A-Za-z0-9_])|\`${escaped(from)}\`)`, 'g')
+    return value.replace(read, () => `$states.context.Steps.${stepName(to)}`)
+  }
+  if (Array.isArray(value)) return value.map((item) => renamedReads(item, from, to))
+  if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, renamedReads(item, from, to)]))
+  return value
+}
+
+/**
+ * Renames the state at `path`, and every edge and the StartAt naming it, and every read of its status,
+ * `$states.context.Steps.<name>`, anywhere in the workflow, as Maps' and Blocks' states read the statuses around them.
+ */
 export const renameState = (definition: Definition, path: StatePath, to: string) =>
   edited(definition, (copy) => {
     const { scope, name } = splitPath(path)
     renamedIn(machineOf(copy, scope), name, to)
+    copy.stateMachine = renamedReads(copy.stateMachine, name, to) as Definition['stateMachine']
   })
 
 /** Makes the state at `path` the first of its machine. */

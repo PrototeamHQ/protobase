@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkDefinition } from '@protobase/workflows'
+import { checkDefinition, type Definition } from '@protobase/workflows'
 import { ticketsWorkflow } from '../../testing/workflow-fixtures'
 import { emptyDefinition } from './definition'
 import { addState, addStateAfter, addStateAt, addStateFirst, connect, disconnect, freeName, ledTo, placeAfter, removeState, renameState, replaceState, scopeAt, startAt } from './definition-edits'
@@ -149,5 +149,24 @@ describe('workflow edits', () => {
     expect(renamed.stateMachine.States.Any).toMatchObject({ Default: 'Finished' })
     expect(renamed.stateMachine.States.Each).toMatchObject({ Next: 'Finished' })
     expect(startAt(ticketsWorkflow, 'Each/Sent').stateMachine.States.Each).toMatchObject({ ItemProcessor: { StartAt: 'Sent' } })
+  })
+
+  it("rewrites the reads of a renamed state's status, inside Maps too, and leaves other names and plain text alone", () => {
+    const flow = {
+      trigger: { manual: {} },
+      order: 'data',
+      stateMachine: {
+        QueryLanguage: 'JSONata',
+        States: {
+          A: { Type: 'Pass' },
+          AB: { Type: 'Pass' },
+          Tell: { Type: 'Pass', Condition: "{% $states.context.Steps.A.Status = 'SUCCEEDED' and $states.context.Steps.AB.Status = 'SUCCEEDED' %}", Output: 'Steps.A is plain text' },
+          Each: { Type: 'Map', Items: '{% [1] %}', ItemProcessor: { States: { Item: { Type: 'Pass', Condition: '{% $states.context.Steps.`A`.Error = null %}' } } } },
+        },
+      },
+    } as unknown as Definition
+    const renamed = renameState(flow, 'A', 'Save it')
+    expect(renamed.stateMachine.States.Tell).toEqual({ Type: 'Pass', Condition: "{% $states.context.Steps.`Save it`.Status = 'SUCCEEDED' and $states.context.Steps.AB.Status = 'SUCCEEDED' %}", Output: 'Steps.A is plain text' })
+    expect(renamed.stateMachine.States.Each).toMatchObject({ ItemProcessor: { States: { Item: { Condition: '{% $states.context.Steps.`Save it`.Error = null %}' } } } })
   })
 })
