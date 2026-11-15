@@ -53,8 +53,10 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
   const etagField = entry.etag && !model.fields[entry.etag.field.name] ? full.fields[entry.etag.field.name] : undefined
   const queryModel = etagField ? { ...model, fields: { ...model.fields, [etagField.name]: etagField } } : model
   // Without a version column the ETag is a hash of the readable fields, so every readable field is read; a file's
-  // download URL names its row, and photos are matched to it, so a selection with a file field or photos reads the key too
-  const keyed = photos !== undefined || columns?.some((name) => model.fields[name]!.type === 'file')
+  // download URL names its row, photos are matched to it and row permissions are decided by it, so a selection with a
+  // file field, photos or row permissions reads the key too
+  const permitted = deps.rowPermissions(entry.name)
+  const keyed = permitted || photos !== undefined || columns?.some((name) => model.fields[name]!.type === 'file')
   const withKey = keyed && columns ? [...new Set([...columns, ...entry.model.primaryKey.filter((name) => model.fields[name])])] : columns
   // A list across tenants reads each row's tenant too, which tells its row permissions whether it is the caller's own
   const across = model.tenantAcross && model.tenant !== undefined ? [model.tenant] : []
@@ -79,7 +81,7 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
       page,
       rows,
       etags: etags ? await Promise.all(rows.map((row, i) => etagOf(entry, page.rows[i]!, row))) : undefined,
-      permissions: deps.rowPermissions(entry.name) ? await rowPermissions(trx, access, rows) : undefined,
+      permissions: permitted ? await rowPermissions(trx, access, rows) : undefined,
       estimate: await estimateCount(trx, queryModel, filter, scope),
       ...(params.count === 'exact' && { counted: await countUpTo(trx, queryModel, exactCountLimit + 1, filter, scope) }),
       ...(params.labels !== undefined && { labels: await relatedLabels(trx, labels, rows) }),

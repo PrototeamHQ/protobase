@@ -49,6 +49,16 @@ describe('etag=false', () => {
     expect(labelsRead()).not.toMatch(/"color"|"code"/)
   })
 
+  it('reads the key for row permissions, though fields leaves it out', async () => {
+    // The restricted role updates only labels named ok-..., which the database decides by each row's key
+    const restricted = as(1, 'restricted')
+    expect((await app.request('/api/v1/labels', json({ name: 'ok-etag' }, restricted))).status).toBe(201)
+    const body = await (await app.request('/api/v1/labels?page_size=10&fields=name&etag=false', { headers: restricted })).json()
+    const update = Object.fromEntries(body.items.map((item: { name: string; permissions: { update: boolean } }) => [item.name, item.permissions.update]))
+    expect(update).toMatchObject({ 'ok-etag': true, urgent: false })
+    expect(Object.keys(body.items[0]).sort()).toEqual(['name', 'permissions'])
+  })
+
   it('refuses a value other than true or false, naming them', async () => {
     const response = await get('/labels?etag=no')
     expect(response.status).toBe(400)

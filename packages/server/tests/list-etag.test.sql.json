@@ -48,5 +48,25 @@
       {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"labels\" as \"t\" where \"t\".\"organization_id\" = $1","params":["1"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"labels\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.04,\n      \"Plan Rows\": 2,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.organization_id = 1)\"\n    }\n  }\n]"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
+  },
+  "etag=false > reads the key for row permissions, though fields leaves it out": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"insert into \"labels\" (\"name\", \"organization_id\") values ($1, $2) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["ok-etag","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["4","1","ok-etag",null,"a87ff679a2f3e71d9181a67b7542122c"]]}},
+      {"sql":"select \"id\" as \"id\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 and \"t\".\"name\" ~* $3 limit 1","params":["1","4","^ok-"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23]],"rows":[["4"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"name\" as \"name\", \"t\".\"id\" as \"id\", \"t\".\"id\"::text as \"__pb_key0\" from \"labels\" as \"t\" where \"t\".\"organization_id\" = $1 order by \"t\".\"id\" asc limit $2","params":["1","11"],"result":{"command":"SELECT","rowCount":3,"columns":[["name",25],["id",23],["__pb_key0",25]],"rows":[
+        ["urgent","1","1"],
+        ["later","2","2"],
+        ["ok-etag","4","4"]
+      ]}},
+      {"sql":"select \"id\" as \"id\" from \"labels\" as t where \"organization_id\" = $1 and \"t\".\"name\" ~* $2 and (\"id\") in (($3), ($4), ($5))","params":["1","^ok-","1","2","4"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23]],"rows":[["4"]]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"labels\" as \"t\" where \"t\".\"organization_id\" = $1","params":["1"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"labels\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.04,\n      \"Plan Rows\": 2,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.organization_id = 1)\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
   }
 }
