@@ -47,16 +47,19 @@ const checkedAddresses = async (host: string, options: PinnedOptions, signal?: A
 }
 
 const nullBodyStatuses = new Set([204, 205, 304])
+// What a `Response` takes as its status text: a reason phrase of tabs, spaces and visible characters.
+const reasonPhrase = /^[\t\x20-\x7e\x80-\xff]*$/
 
-// The answer as a fetch `Response`; its status is one a `Response` can hold, 200 to 599.
+// The answer as a fetch `Response`, with the reason phrase the server sent; its status is one a `Response` can hold, 200 to 599.
 const toResponse = (message: IncomingMessage, status: number) => {
   const headers = new Headers()
   for (let index = 0; index < message.rawHeaders.length; index += 2) headers.append(message.rawHeaders[index]!, message.rawHeaders[index + 1]!)
+  const statusText = message.statusMessage !== undefined && reasonPhrase.test(message.statusMessage) ? message.statusMessage : ''
   if (nullBodyStatuses.has(status)) {
     message.resume()
-    return new Response(null, { status, headers })
+    return new Response(null, { status, statusText, headers })
   }
-  return new Response(Readable.toWeb(message) as ReadableStream, { status, headers })
+  return new Response(Readable.toWeb(message) as ReadableStream, { status, statusText, headers })
 }
 
 /**

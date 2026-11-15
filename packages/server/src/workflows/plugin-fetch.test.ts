@@ -17,6 +17,7 @@ describe("the plugin context's fetch", () => {
     server = createServer((request, response) => {
       received.push(request.url ?? '')
       if (request.url === '/bomb') return response.writeHead(200, { 'content-encoding': 'gzip', 'content-type': 'text/plain' }).end(bomb)
+      if (request.url === '/teapot') return response.writeHead(418, 'Short and stout', { 'content-type': 'text/plain' }).end('tea')
       if (request.url === '/moved') return response.writeHead(302, { location: `http://127.0.0.1:${port}/inside` }).end()
       response.writeHead(200, { 'content-type': 'text/plain' }).end('ok')
     })
@@ -49,6 +50,12 @@ describe("the plugin context's fetch", () => {
     const answer = await fetch(`http://127.0.0.1:${port}/moved`)
     expect(answer.status).toBe(302)
     expect(received).not.toContain('/inside')
+  })
+
+  it('keeps the reason phrase the server sent, read and streamed', async () => {
+    const fetch = pluginFetch({ allowPrivateAddresses: true })
+    expect((await fetch(`http://127.0.0.1:${port}/teapot`)).statusText).toBe('Short and stout')
+    expect((await fetch(`http://127.0.0.1:${port}/teapot`, { stream: true })).statusText).toBe('Short and stout')
   })
 
   it('refuses a maxBytes that is no number of bytes before it sends anything', async () => {

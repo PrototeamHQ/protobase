@@ -131,10 +131,23 @@ A workflow switches order in the editor (see [The editor](#the-editor)), or by s
 
 :::caution[Beta]
 - <gap>A JSONPath state machine cannot import because converting JSONPath to JSONata is not implemented.</gap>
-- <gap>A state machine with a service task, the HTTP task (`arn:aws:states:::http:invoke`) included, a `Parallel` or a distributed Map cannot import because running them, or turning an HTTP task into an `app:http` step, is not implemented: write such a task with one of this app's step types, such as `app:http`.</gap>
+- <gap>A state machine with a service task other than the HTTP task, a `Parallel` or a distributed Map cannot import because running them is not implemented: write such a task with one of this app's step types.</gap>
+- <gap>An HTTP task's connection cannot send more than one header, or a token it fetches itself, because importing a connection's other parameters and OAuth sign-in is not implemented: its other headers, query and body parameters go in the task's own `Headers`, `QueryParameters` and `RequestBody`.</gap>
+- <gap>An HTTP task that waits for a task token (`http:invoke.waitForTaskToken`) cannot import because turning it into an `app:http.waitForTaskToken` step is not implemented: write it as one.</gap>
 :::
 
-A JSONata state machine exported from AWS Step Functions saves and runs as it is, in sequence order: `create_workflow` over MCP takes it as `state_machine`, with a manual trigger unless one is given. Refused, each by name: a JSONPath state machine (`QueryLanguage` missing or `JSONPath`, or a state with `InputPath`, `Parameters`, `ResultSelector`, `ResultPath`, `OutputPath` or `ItemsPath`), every service task (`arn:aws:...`, the HTTP task, `.sync` and `.waitForTaskToken` included), Parallel, a distributed Map, `Credentials` and a whole-run `TimeoutSeconds`.
+A JSONata state machine exported from AWS Step Functions saves and runs as a workflow, in sequence order: `create_workflow` over MCP takes it as `state_machine`, with a manual trigger unless one is given, and `update_workflow` and `validate_workflow` import a state machine, or an edit of a saved one, the same way. Refused, each by name: a JSONPath state machine (`QueryLanguage` missing or `JSONPath`, or a state with `InputPath`, `Parameters`, `ResultSelector`, `ResultPath`, `OutputPath` or `ItemsPath`), every service task but the HTTP task (`arn:aws:...`, `.sync` and `.waitForTaskToken` included), Parallel, a distributed Map, `Credentials` and a whole-run `TimeoutSeconds`.
+
+An HTTP task (`arn:aws:states:::http:invoke`), in a Map or a Block too, imports as an [`app:http`](#apphttp) step that sends the same request and gives the same result, or is refused by name:
+
+| HTTP task | Imports as |
+| --- | --- |
+| `ApiEndpoint`, `Method`, `Headers`, `QueryParameters` | `url`, `method`, `headers`, `query` |
+| `RequestBody` | `body`, with `body_encoding: "json"`, as Step Functions sends it as JSON whatever it holds |
+| `Authentication` or `InvocationConfig` | the header `connection_headers` names for its `ConnectionArn`, holding a [secret](#secrets) |
+| `$states.result` in `Output` and `Assign` | the HTTP task's result, `{ StatusCode, StatusText, Headers, ResponseBody }`, each header's values as a list; without `Output`, that is the step's output, so later states and variables read what they read in Step Functions |
+
+A connection's credentials stay with Step Functions, so the call names, for each connection's ARN, the header it sends and a secret holding the header's whole value: `"connection_headers": { "arn:aws:events:...:connection/tickets/...": { "header": "Authorization", "secret": "TICKETS_TOKEN" } }`, with `TICKETS_TOKEN` such as `Bearer ...` and listed in `workflows.secrets`; `null` sends no header. The header takes the place of one of the same name in `Headers`, as a connection's does. Refused: `Arguments` written as one expression, any other argument (`Transform`, which encodes the body as a form, among them), headers or query values that are lists, `HEAD` and `OPTIONS`, which `app:http` does not send, a `GET` with a `RequestBody`, a connection with no header given or with more than its `ConnectionArn`, an `Output` or `Assign` that reads `$states.result` in a form the import does not rewrite, such as `$states . result`, or `$states` as a whole, and a retrier or catcher of `States.Http.StatusCode.<code>`, `States.Http.Socket`, `Events.ConnectionResource.*` or `States.TaskFailed`: `app:http` fails with `Http.Status` for every status outside 2xx and `Http.Network` when no answer comes, and `States.TaskFailed` here matches only an error a step type does not name. A method written as an expression is checked when the step runs.
 
 ### Triggers
 
@@ -408,12 +421,12 @@ One request to a URL built at run time:
 | `method` | `GET` (default), `POST`, `PUT`, `PATCH` or `DELETE`. |
 | `headers`, `query` | Objects of text values; `query` is added to the URL's query. |
 | `body` | Text is sent as it is, a file value as its bytes with its type, any other value as JSON; a `GET` sends none. |
-| `body_encoding` | `json` sends the body as JSON whatever it holds, a text as a JSON string, with `Content-Type: application/json` unless the headers give one. |
+| `body_encoding` | `json` sends the body as JSON whatever it holds, a text as a JSON string, with `Content-Type: application/json` unless the headers give one; a `GET` with a body then fails with `Http.InvalidArguments` rather than leaving the body out. |
 | `response` | How the answer's body is read: `json`, parsed (empty is `null`), `text`, or `file`, kept as a file of the run. Without it, by the answer's `Content-Type`: JSON for `application/json` and any `+json` type, text for `text/*` and other textual types (XML, JavaScript, YAML, TOML, NDJSON, form data), a file for any other type or none, and `null` for an empty body. |
 | `body_schema` | The JSON Schema of the answer's body as it is read, such as `{ "type": "object", "properties": { "ip": { "type": "string" } } }`: a body that does not fit it fails the step with `Http.InvalidBody`, and the editor offers the body's fields by it. |
 | `store` | `{ configuration, path? }`: streams the answer's body, of any size, into a [storage configuration](#storing-files), and gives the stored file as `body`. Takes no `response` or `body_schema`. |
 
-A `GET` only reads; every other method is recorded. The result is `{ status, headers, body }`, without the cookies the answer sets. A status outside 2xx fails the step with `Http.Status`, whose cause names the status and holds at most the first 200 characters of the body, secrets blanked out first; a redirect is never followed. `Http.Network` is a request that got no answer. The step resolves the URL's host when it runs and refuses it with `Http.AddressRefused` unless every address is public, then connects to the very address it checked, so a URL built from a webhook's payload cannot reach the app's own network. It reads at most 10 MiB of the answer's body: a larger one fails the step with `Http.ResponseTooLarge`, rather than being cut short. With `store`, the body streams straight into the store, so its size is limited only by what the store takes, and the step is recorded, a `GET` too: a run taken up again keeps the stored file and does not fetch it again, from a link that may have expired by then.
+A `GET` only reads; every other method is recorded. The result is `{ status, status_text, headers, body }`, `status_text` the reason phrase the server sent (empty when it sent none), without the cookies the answer sets. A status outside 2xx fails the step with `Http.Status`, whose cause names the status and holds at most the first 200 characters of the body, secrets blanked out first; a redirect is never followed. `Http.Network` is a request that got no answer. The step resolves the URL's host when it runs and refuses it with `Http.AddressRefused` unless every address is public, then connects to the very address it checked, so a URL built from a webhook's payload cannot reach the app's own network. It reads at most 10 MiB of the answer's body: a larger one fails the step with `Http.ResponseTooLarge`, rather than being cut short. With `store`, the body streams straight into the store, so its size is limited only by what the store takes, and the step is recorded, a `GET` too: a run taken up again keeps the stored file and does not fetch it again, from a link that may have expired by then.
 
 ### app:records
 
@@ -482,7 +495,7 @@ Steps store and read files with:
 | --- | --- | --- |
 | `app:storage.put` | `configuration`, `file`: a file of the run or a stored file, optional `path` | the stored file |
 | `app:storage.get` | `file`: a stored file | a file of the run, up to 10 MiB, for steps that take one, such as mail attachments |
-| `app:http` with `store` | `store: { configuration, path? }` | `{ status, headers, body }`, `body` the stored file |
+| `app:http` with `store` | `store: { configuration, path? }` | `{ status, status_text, headers, body }`, `body` the stored file |
 
 A stored file is `{ configuration, node, path, name, type, size }`: the configuration, the server that holds it for a local one, and its path there, never a folder, bucket or key. A `path` is relative: letters, digits, `.`, `_` and `-` in segments split by `/`, none starting with `.`; any other fails the step with `Storage.InvalidArguments` before anything is stored. Without a `path`, a step stores under a path of its own in its run, the same each time the step is tried, so a step a crash made run again replaces its file rather than leaving a second one. A put is recorded; a get only reads.
 
@@ -567,6 +580,8 @@ Each workflow has a status from its last 10 ended runs, so you see which ones ne
 
 :::caution[Beta]
 A re-run from a step needs the earlier run's trace, and a re-run from the failed step keeps in its trace only the steps it ran, so it cannot itself be re-run from a state before them.
+
+<gap>A re-run from the failed step cannot apply an `Assign` of a step's whole result added since to a state that already ran because keeping each step's result in the checkpoints is not implemented: it goes on with the variables as they ran, and a re-run from that state applies it.</gap>
 :::
 
 A failed run keeps its [checkpoints](#how-a-run-is-run). `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "rerun_of": "..." }` starts a run that:

@@ -6,6 +6,7 @@ import { refused } from '../../assistant/record-tool-args'
 import { defineTool, type ToolContext } from '../../assistant/tools'
 import { mergePatch } from './merge-patch'
 import { withStepsToCheck } from '../save-hook'
+import { connectionHeadersParameter, importedFields } from './import-machine-args'
 import { definitionDataOf, definitionFieldsOf, definitionParameters, editParameter, hiddenMergeMessage, hiddenMerges, idOf, idParameter, objectOf, pageSizeOf, textOf } from './workflow-tool-args'
 import type { AnswerTaskAs } from '../tasks/answer-as'
 
@@ -70,9 +71,13 @@ export const getWorkflowTool = defineTool({
   },
 })
 
-// Checked against the resources the caller may read, each with their fields only, so a problem tells them nothing of a
-// resource or field hidden from them: one they cannot read is "not a resource of this app".
-const checked = async (fields: Record<string, unknown>, catalog: WorkflowCatalog, context: ToolContext) => {
+// Imported as create_workflow and update_workflow import it, then checked against the resources the caller may read,
+// each with their fields only, so a problem tells them nothing of a resource or field hidden from them: one they
+// cannot read is "not a resource of this app".
+const checked = async (given: Record<string, unknown>, args: Record<string, unknown>, catalog: WorkflowCatalog, context: ToolContext) => {
+  const imported = importedFields(given, args)
+  if (imported.problems.length > 0) return JSON.stringify({ valid: false, problems: imported.problems })
+  const fields = imported.fields
   const { models } = await context.resources()
   const definition = definitionFromParts(fields as DefinitionParts)
   // As a save checks it: a definition with no steps yet is checked but for that
@@ -85,15 +90,15 @@ const checked = async (fields: Record<string, unknown>, catalog: WorkflowCatalog
 /** Checks a definition, or a saved one with an edit, without saving anything. */
 const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
   name: 'validate_workflow',
-  description: 'Checks a definition as a save checks it, and saves nothing: pass its state_machine, with its trigger and execution_order when they are not manual and sequence, or a workflow\'s id with an edit to check that edit of its saved definition fields. A state machine exported from Step Functions is checked as it is, its service tasks refused by name. Returns JSON { valid: true }, or { valid: false, problems }, each problem { state, field, message } naming the state, the field and what was expected. A valid one may come with warnings in the same shape, which a save goes through with, such as a Wait between a Block and a state that reads its result, which may have expired by then.',
-  parameters: { type: 'object', properties: { ...definitionParameters, id: idParameter, edit: editParameter } },
+  description: 'Checks a definition as a save checks it, and saves nothing: pass its state_machine, with its trigger and execution_order when they are not manual and sequence, or a workflow\'s id with an edit to check that edit of its saved definition fields. A state machine exported from Step Functions is checked as create_workflow imports it, each HTTP task as an app:http step with the header connection_headers names for its connection, its other service tasks refused by name. Returns JSON { valid: true }, or { valid: false, problems }, each problem { state, field, message } naming the state, the field and what was expected. A valid one may come with warnings in the same shape, which a save goes through with, such as a Wait between a Block and a state that reads its result, which may have expired by then.',
+  parameters: { type: 'object', properties: { ...definitionParameters, connection_headers: connectionHeadersParameter, id: idParameter, edit: editParameter } },
   annotations: reads,
   run: async (args, context) => {
     const id = idOf(args)
     const edit = objectOf(args.edit)
     const machine = objectOf(args.state_machine)
     // A definition on its own runs by hand unless it says otherwise, as create_workflow saves it
-    if (machine && id === undefined && edit === undefined) return checked({ trigger: { manual: {} }, ...definitionDataOf(args), state_machine: machine }, catalog, context)
+    if (machine && id === undefined && edit === undefined) return checked({ trigger: { manual: {} }, ...definitionDataOf(args), state_machine: machine }, args, catalog, context)
     // An edit comes alone, as update_workflow takes it: whole definition fields beside it are refused, not left out
     if (edit && Object.keys(definitionDataOf(args)).length > 0) return 'Pass either { "state_machine": { ... } } or { "id": "<id>", "edit": { ... } }, with no other definition field beside an edit.'
     // A workflow keeps a state machine and an order: an edit cannot remove them
@@ -104,7 +109,7 @@ const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
       return context.records.get('workflows', id).then(({ record }) => {
         const hidden = hiddenMerges(record, edit)
         if (hidden.length > 0) return JSON.stringify({ valid: false, problems: hidden.map((field) => ({ field, message: hiddenMergeMessage })) })
-        return checked({ trigger: null, ...(mergePatch(definitionFieldsOf(record), edit) as Record<string, unknown>) }, catalog, context)
+        return checked({ trigger: null, ...(mergePatch(definitionFieldsOf(record), edit) as Record<string, unknown>) }, args, catalog, context)
       }, refused)
     }
     return 'Pass either { "state_machine": { ... } } or { "id": "<id>", "edit": { ... } }.'
