@@ -31,6 +31,12 @@ describe('rowButtonErrors', () => {
     expect(rowButtonErrors({ label: 'Same verb', to: { kind: 'list', resource: 'holds', filter: 'verb = "{{verb}}" AND task_id = {{task_id}}' } }, holds, { models })).toEqual([])
   })
 
+  it('accepts a list whose resource and whole filter come from the row, checked when the row draws it', () => {
+    expect(rowButtonErrors({ label: 'Look', to: { kind: 'list', resource: '{{verb}}', filter: '{{tab}}' } }, holds, { models })).toEqual([])
+    expect(rowButtonErrors({ label: 'Look', to: { kind: 'list', resource: 'tasks', filter: '{{tab}}' } }, holds, { models })).toEqual([])
+    expect(rowButtonErrors({ label: 'Look', to: { kind: 'list', resource: '{{verb}}', filter: '{{lever_filter}}' } }, holds, { models })).toEqual(['to: "{{lever_filter}}" is not a field of holds'])
+  })
+
   it('refuses a field inside a longer quoted value of a filter', () => {
     expect(rowButtonErrors({ label: 'Same', to: { kind: 'list', resource: 'holds', filter: "verb = 're {{verb}}'" } }, holds, { models })).toEqual([
       'to: filter: "{{verb}}" sits inside a longer quoted value; quote it alone, such as title = "{{verb}}"',

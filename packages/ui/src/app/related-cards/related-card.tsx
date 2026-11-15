@@ -3,6 +3,7 @@ import { recordKey } from '../../live/model-helpers'
 import { ActionButton } from '../pages/blocks/action'
 import { RecordScope, type LayoutRecord } from '../pages/record-scope'
 import { useRecordTitle } from '../titles/record-titles'
+import { useAdminMeta } from '../meta-gate'
 import { RowButtonLink } from '../row-button/row-button-link'
 import { AppLink } from '../use-app-address'
 import { RelatedField } from './related-field'
@@ -15,6 +16,7 @@ import { ToneEdge } from './tone-edge'
  */
 export const RelatedCard = ({ scope, view, fields, tone, actions, button, onActed }: { scope: LayoutRecord; view: ViewModel | undefined; fields: string[]; tone?: string; actions: string[]; button?: RowButtonModel; onActed?: (action: string, title: string) => void }) => {
   const titleOf = useRecordTitle()
+  const { resources } = useAdminMeta()
   const title = titleOf(scope.model, view, scope.record, scope.key)
   return (
     <li data-card={scope.key} className="relative flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-surface p-4">
@@ -30,7 +32,7 @@ export const RelatedCard = ({ scope, view, fields, tone, actions, button, onActe
       {(actions.length > 0 || button) && (
         <RecordScope value={scope}>
           <div className="flex flex-wrap items-center gap-2">
-            {button && <RowButtonLink button={button} model={scope.model} view={view} record={scope.record} />}
+            {button && <RowButtonLink button={button} model={scope.model} view={view} record={scope.record} models={resources} />}
             {actions.map((name) => <ActionButton key={name} name={name} about={title} onRun={(label) => onActed?.(label, title)} />)}
           </div>
         </RecordScope>

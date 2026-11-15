@@ -37,7 +37,7 @@ const choiceErrors = (choice: unknown, source: ResourceModel, check: Omit<Addres
     return [...label, ...missing([field], source, 'href')]
   }
   if (!isObject(choice.to) || typeof choice.to.kind !== 'string') return ["a row button needs an address in `to`, such as { kind: 'record', resource: 'tasks', key: '{{id}}' }, or an outside page in `href`"]
-  return [...label, ...addressErrors(choice.to as AppAddress, { ...check, source }).map((error) => `to: ${error}`)]
+  return [...label, ...addressErrors(choice.to as AppAddress, { ...check, source, filterFromRecord: true }).map((error) => `to: ${error}`)]
 }
 
 /**

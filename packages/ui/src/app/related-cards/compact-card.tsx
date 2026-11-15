@@ -4,6 +4,7 @@ import { cn } from '../../lib/cn'
 import { ActionButton } from '../pages/blocks/action'
 import { RecordScope, type LayoutRecord } from '../pages/record-scope'
 import { useRecordTitle } from '../titles/record-titles'
+import { useAdminMeta } from '../meta-gate'
 import { RowButtonLink } from '../row-button/row-button-link'
 import { AppLink } from '../use-app-address'
 import { RelatedField } from './related-field'
@@ -31,6 +32,7 @@ type CompactCardProps = {
  */
 export const CompactCard = ({ scope, view, fields, time, tone, actions, button, onActed }: CompactCardProps) => {
   const titleOf = useRecordTitle()
+  const { resources } = useAdminMeta()
   const title = titleOf(scope.model, view, scope.record, scope.key)
   const buttons = actions.length > 0 || button !== undefined
   // Without buttons the card is one column: a second, auto-sized one would take the values beside the title and squeeze it
@@ -59,7 +61,7 @@ export const CompactCard = ({ scope, view, fields, time, tone, actions, button, 
       {buttons && (
         <RecordScope value={scope}>
           <div className="col-start-2 flex flex-wrap items-center justify-end gap-2 sm:row-span-2 sm:row-start-1">
-            {button && <RowButtonLink button={button} model={scope.model} view={view} record={scope.record} />}
+            {button && <RowButtonLink button={button} model={scope.model} view={view} record={scope.record} models={resources} />}
             {actions.map((name) => <ActionButton key={name} name={name} about={title} onRun={(label) => onActed?.(label, title)} />)}
           </div>
         </RecordScope>

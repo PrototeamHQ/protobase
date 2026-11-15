@@ -9,6 +9,9 @@ const names = templatePlaceholders
 /** The path a link's address takes its resource from, when its `resource` is only `{{path}}`, as `'{{name}}'`. */
 export const resourceField = (to: AppAddress) => (to.kind === 'page' ? undefined : wholePlaceholder(to.resource))
 
+/** The path a list address takes its whole filter from, when its `filter` is only `{{path}}`, as `'{{lever_filter}}'`: the record holds the filter's text. */
+export const filterField = (to: AppAddress) => (to.kind === 'list' && to.filter !== undefined ? wholePlaceholder(to.filter) : undefined)
+
 // The parts of an address a `{{path}}` may stand in: a page's tab and parameters, the resource, the record key, tab, run and panel, the list's filter and order, a create form's values.
 const templated = (to: AppAddress): string[] => {
   if (to.kind === 'page') return [...(to.tab === undefined ? [] : [to.tab]), ...Object.values(to.params ?? {})]

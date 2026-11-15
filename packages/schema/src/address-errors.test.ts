@@ -33,6 +33,18 @@ describe('addressErrors', () => {
     expect(addressErrors({ kind: 'create', resource: '{{name}}', values: { id: '1' } }, { models, source: customers })).toEqual(['a link whose resource comes from the record ("{{name}}") names no filter, order or values'])
   })
 
+  it('takes a whole filter from a field of the record where the link checks it when drawn, and nothing else beside a resource from the record', () => {
+    const filterFromRecord = true
+    expect(addressErrors({ kind: 'list', resource: '{{name}}', filter: '{{name}}' }, { models, source: customers, filterFromRecord })).toEqual([])
+    expect(addressErrors({ kind: 'list', resource: 'repairs', filter: '{{name}}' }, { models, source: customers, filterFromRecord })).toEqual([])
+    expect(addressErrors({ kind: 'list', resource: '{{name}}', filter: '{{bike}}' }, { models, source: customers, filterFromRecord })).toEqual(['"{{bike}}" is not a field of customers'])
+    expect(addressErrors({ kind: 'list', resource: '{{name}}', filter: 'id = {{id}}' }, { models, source: customers, filterFromRecord })).toEqual([
+      `a link whose resource comes from the record ("{{name}}") names no order or values, and a filter only as one field, such as filter: '{{filter}}'`,
+    ])
+    expect(addressErrors({ kind: 'list', resource: '{{name}}', filter: '{{name}}', orderBy: 'id' }, { models, source: customers, filterFromRecord })).toHaveLength(1)
+    expect(addressErrors({ kind: 'list', resource: '{{name}}', filter: '{{name}}' }, { models, source: customers })).toEqual(['a link whose resource comes from the record ("{{name}}") names no filter, order or values'])
+  })
+
   it('names placeholders the record does not have, or that have no record', () => {
     expect(addressErrors({ kind: 'record', resource: 'customers', key: '{{ownerId}}' }, { models, source: repairs })).toEqual(['"{{ownerId}}" is not a field of repairs'])
     expect(addressErrors({ kind: 'record', resource: 'customers', key: '{{customerId}}' }, { models })).toEqual(['"{{customerId}}" takes a value from the record, but the link sits on none'])

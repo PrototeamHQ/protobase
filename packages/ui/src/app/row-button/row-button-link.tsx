@@ -6,14 +6,14 @@ import { text } from '../messages'
 import { AppLink } from '../use-app-address'
 import { rowButtonFor } from './row-button-for'
 
-type RowButtonLinkProps = { button: RowButtonModel; model: ResourceModel; view: ViewModel | undefined; record: Record<string, unknown> }
+type RowButtonLinkProps = { button: RowButtonModel; model: ResourceModel; view: ViewModel | undefined; record: Record<string, unknown>; models: Record<string, ResourceModel> }
 
 /**
  * A row's button: a link to the address its fields name, looking like a button, or to the outside page a field holds,
  * in a new tab with the outside-link mark, which a screen reader hears as text; nothing on a row without them.
  */
-export const RowButtonLink = ({ button, model, view, record }: RowButtonLinkProps) => {
-  const shown = rowButtonFor(button, model, view, record)
+export const RowButtonLink = ({ button, model, view, record, models }: RowButtonLinkProps) => {
+  const shown = rowButtonFor(button, model, view, record, models)
   if (!shown) return null
   // A label longer than its column has shortens inside the button, which stays whole and names it whole on hover
   const style = cn(buttonClass({ variant: 'secondary', size: 'sm' }), 'min-w-0 max-w-full shrink')
