@@ -3,6 +3,7 @@ import { blockQuery, type BlockQueries, type BlockQuery, type BlockReader } from
 import { chartQueries } from './blocks/chart-query'
 import { recordCardsQueries } from './blocks/record-cards-query'
 import { tableQueries } from './blocks/table-query'
+import { threadQueries } from './blocks/thread-query'
 import { countQuery } from './use-layout-data'
 
 /** The blocks that read by themselves, by type, each with the queries it makes. */
@@ -10,6 +11,7 @@ const byType: Record<string, BlockQueries> = {
   Table: tableQueries,
   Chart: chartQueries,
   RecordCards: recordCardsQueries,
+  Thread: threadQueries,
 }
 
 // A `<resource>.count` a condition names counts all of the resource's records the reader may see, as `useStackConditions` reads it

@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from '@protobase/client'
-import { Chart, compileReadPlan, Field, Match, Page, RecordCard, RecordCards, Show, Switch, Table, type LayoutNode } from '@protobase/layout'
+import { Chart, compileReadPlan, Field, Match, Page, RecordCard, RecordCards, Show, Switch, Table, Thread, type LayoutNode } from '@protobase/layout'
 import { f, resource } from '@protobase/schema'
 import { ApiProvider } from '../../data/api-provider'
 import { MetaContext } from '../../data/meta-context'
@@ -70,6 +70,13 @@ describe('the queries of blocks that read by themselves', () => {
     held.release()
   })
 
+  it('starts a thread’s messages and its tool calls', async () => {
+    const calls = { resource: 'tasks', name: 'title', time: 'id', status: 'status' }
+    const held = startPage(Page({ title: 'Chat', children: Thread({ resource: 'tasks', sender: 'status', time: 'id', text: 'title', calls }) }))
+    await vi.waitFor(() => expect(held.started).toEqual(['/api/v1/tasks', '/api/v1/tasks']))
+    held.release()
+  })
+
   it('leaves a table inside the records of another to read as it draws', () => {
     const tree = Page({ title: 'Task', children: RecordCard({ resource: 'tasks', recordKey: '1', children: Table({ resource: 'tasks', filter: 'id = {{id}}', columns: ['title'] }) }) })
     expect(blockQueries(readerOf(vi.fn(), new QueryClient()), tree, planOf(tree))).toEqual([])
@@ -77,12 +84,10 @@ describe('the queries of blocks that read by themselves', () => {
 
   afterEach(() => vi.unstubAllGlobals())
 
-  it('draws a table from the query the page started, reading nothing more', async () => {
-    // The display a table last showed is remembered in the browser
-    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined })
-    const table = Table({ resource: 'tasks', filter: "status = 'open'", columns: ['title', 'status'] })
-    const tree = Page({ title: 'Home', children: table })
+  // The block drawn once the queries the page started for it answered, and what it fetched itself
+  const drawnAfterStart = async (block: LayoutNode) => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } })
+    const tree = Page({ title: 'Home', children: block })
     await Promise.all(blockQueries(readerOf(async () => answer(), queryClient), tree, planOf(tree)).map((query) => query.start(queryClient)))
     const fetch = vi.fn<typeof globalThis.fetch>()
     const html = renderToStaticMarkup(
@@ -90,12 +95,25 @@ describe('the queries of blocks that read by themselves', () => {
         <MetaContext.Provider value={meta}>
           <Router initialUrl="/">
             <ToastProvider>
-              <RenderNode node={table} at="/children/0" />
+              <RenderNode node={block} at="/children/0" />
             </ToastProvider>
           </Router>
         </MetaContext.Provider>
       </ApiProvider>,
     )
+    return { html, fetch }
+  }
+
+  it('draws a table from the query the page started, reading nothing more', async () => {
+    // The display a table last showed is remembered in the browser
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined })
+    const { html, fetch } = await drawnAfterStart(Table({ resource: 'tasks', filter: "status = 'open'", columns: ['title', 'status'] }))
+    expect(html).toContain('Ship it')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('draws a thread from the pages the page started, reading nothing more', async () => {
+    const { html, fetch } = await drawnAfterStart(Thread({ resource: 'tasks', sender: 'status', time: 'id', text: 'title' }))
     expect(html).toContain('Ship it')
     expect(fetch).not.toHaveBeenCalled()
   })
