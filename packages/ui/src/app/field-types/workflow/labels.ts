@@ -1,5 +1,5 @@
 import type { WorkflowTypeList } from '@protobase/client'
-import type { State, Trigger } from '@protobase/workflows'
+import { taskResource, type State, type Trigger } from '@protobase/workflows'
 import type { NodeStatus } from './node-trace'
 import { text } from './messages'
 
@@ -32,11 +32,15 @@ const stateTypeLabels: Record<Exclude<State['Type'], 'Task'>, () => string> = {
 
 export const stateTypeLabel = (type: Exclude<State['Type'], 'Task'>) => stateTypeLabels[type]?.() ?? type
 
-/** What a state is, as its node and panel name it: its step type for a Task, by the label `types` lists, else its type. */
+/**
+ * What a state is, as its node and panel name it: its step type for a Task, by the label `types` lists, saying so when
+ * it then waits for an outside result; else its type.
+ */
 export const stateLabel = (state: State, types?: WorkflowTypeList) => {
   if (state.Type !== 'Task') return stateTypeLabel(state.Type)
-  const resource = String(state.Resource)
-  return stepTypeLabel(resource, types?.step_types.find((type) => type.id === resource)?.label)
+  const { type, waits } = taskResource(String(state.Resource))
+  const label = stepTypeLabel(type, types?.step_types.find((entry) => entry.id === type)?.label)
+  return waits ? text('stepTypeWaits', { type: label }) : label
 }
 
 /**

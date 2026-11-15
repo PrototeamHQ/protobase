@@ -1,8 +1,8 @@
 import type { WorkflowTypeList } from '@protobase/client'
-import type { State, TaskState } from '@protobase/workflows'
+import { taskResource, type State, type TaskState } from '@protobase/workflows'
 
 /** The cache advice the type list gives a Task's step type; none for a type that offers no cache. */
-export const cacheAdvice = (state: TaskState, types: WorkflowTypeList | undefined) => types?.step_types.find((type) => type.id === state.Resource)?.cache
+export const cacheAdvice = (state: TaskState, types: WorkflowTypeList | undefined) => types?.step_types.find((type) => type.id === taskResource(state.Resource).type)?.cache
 
 /** Whether a workflow forced the cache on for a step whose type advises against it, which its node marks. */
 export const cacheForcedAgainst = (state: State, types: WorkflowTypeList | undefined) => state.Type === 'Task' && state.Cache === true && cacheAdvice(state, types)?.choice === 'discouraged'
