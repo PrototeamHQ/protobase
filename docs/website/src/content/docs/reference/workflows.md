@@ -131,13 +131,10 @@ A workflow switches order in the editor (see [The editor](#the-editor)), or by s
 
 :::caution[Beta]
 - <gap>A JSONPath state machine cannot import because converting JSONPath to JSONata is not implemented.</gap>
-- <gap>A state machine with a service task other than the HTTP task, a `Parallel` or a distributed Map cannot import because running them is not implemented.</gap>
-- <gap>An HTTP task that transforms its request, or retries or catches one status's own error, cannot import because a request transform and an error per status are not implemented in app:http.</gap>
-- <gap>An HTTP task that sends `HEAD` or `OPTIONS`, or a body with a `GET`, cannot import because app:http sending them is not implemented.</gap>
-- <gap>An HTTP task whose `Output` or `Assign` reads its result cannot import as it is because translating `ResponseBody`, `StatusCode` and `Headers` into app:http's `body`, `status` and `headers` is not implemented: write those reads against app:http's result.</gap>
+- <gap>A state machine with a service task, the HTTP task (`arn:aws:states:::http:invoke`) included, a `Parallel` or a distributed Map cannot import because running them, or turning an HTTP task into an `app:http` step, is not implemented: write such a task with one of this app's step types, such as `app:http`.</gap>
 :::
 
-A JSONata state machine exported from AWS Step Functions saves and runs as it is, in sequence order: `create_workflow` over MCP takes it as `state_machine`, with a manual trigger unless one is given. Its HTTP tasks (`arn:aws:states:::http:invoke`) become `app:http` steps, their `ApiEndpoint`, `Method`, `Headers`, `QueryParameters` and `RequestBody` its `url`, `method`, `headers`, `query` and `body`, sent as JSON with `body_encoding` `json`, as Step Functions sends it; their result is `app:http`'s, `{ status, headers, body }`. Refused, each by name: a JSONPath state machine (`QueryLanguage` missing or `JSONPath`, or a state with `InputPath`, `Parameters`, `ResultSelector`, `ResultPath`, `OutputPath` or `ItemsPath`), the other service tasks (`arn:aws:...`, `.sync` and `.waitForTaskToken` included), Parallel, a distributed Map, `HeartbeatSeconds`, `Credentials` and a whole-run `TimeoutSeconds`.
+A JSONata state machine exported from AWS Step Functions saves and runs as it is, in sequence order: `create_workflow` over MCP takes it as `state_machine`, with a manual trigger unless one is given. Refused, each by name: a JSONPath state machine (`QueryLanguage` missing or `JSONPath`, or a state with `InputPath`, `Parameters`, `ResultSelector`, `ResultPath`, `OutputPath` or `ItemsPath`), every service task (`arn:aws:...`, the HTTP task, `.sync` and `.waitForTaskToken` included), Parallel, a distributed Map, `HeartbeatSeconds`, `Credentials` and a whole-run `TimeoutSeconds`.
 
 ### Triggers
 

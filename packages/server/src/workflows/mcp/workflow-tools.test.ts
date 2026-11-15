@@ -50,8 +50,6 @@ describe('validate_workflow', () => {
     const { context } = contextWith({})
     const edit = { state_machine: { States: { Fetch: { Resource: 'app:nope' } } } }
     expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit }, context)).problems).toEqual([expect.objectContaining({ state: 'Fetch', field: 'Resource' })])
-    // An edited state machine is checked as update_workflow imports it, a Step Functions HTTP task as app:http
-    expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit: { state_machine: { States: { Fetch: { Resource: 'arn:aws:states:::http:invoke', Arguments: { url: null, ApiEndpoint: 'https://b.example' } } } } } }, context))).toEqual({ valid: true })
     // An edit comes alone, as update_workflow takes it
     expect(await validateWorkflowTool.run({ id: 'w1', edit: {}, execution_order: 'data' }, context)).toMatch(/^Pass either/)
     // A workflow keeps its state machine and order, which an edit cannot remove
@@ -100,71 +98,16 @@ describe('create_workflow', () => {
     expect(JSON.parse(await createWorkflowTool().run({ name: 'Fetch', ...fetchUrl('https://a.example') }, context))).toEqual({ id: 'w1', version: 1, etag: '"v1"' })
   })
 
-  it('imports a state machine exported from Step Functions: a manual trigger, and its HTTP tasks as app:http steps', async () => {
-    const create = vi.fn(async () => saved)
-    const { context } = contextWith({ create })
+  it('imports a JSONata state machine exported from Step Functions as it is, and refuses its service tasks by name', async () => {
+    const { context } = contextWith({})
     const exported = { QueryLanguage: 'JSONata', StartAt: 'Call', States: { Call: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: { ApiEndpoint: 'https://a.example', Method: 'POST', RequestBody: { a: 1 } }, End: true } } }
-    await createWorkflowTool().run({ name: 'Imported', state_machine: exported }, context)
-    expect(create).toHaveBeenCalledWith('workflows', { name: 'Imported', trigger: { manual: {} }, state_machine: { ...exported, States: { Call: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://a.example', method: 'POST', body: { a: 1 }, body_encoding: 'json' }, End: true } } } })
+    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: exported }, context)).problems).toEqual([
+      { state: 'Call', field: 'Resource', message: "is a Step Functions service (arn:aws:states:::http:invoke), which does not run here: write the step with one of this app's step types, such as app:http for an HTTP request" },
+    ])
     const jsonPath = { StartAt: 'A', States: { A: { Type: 'Pass', ResultPath: '$.x', End: true } } }
     expect(JSON.parse(await validateWorkflowTool.run({ state_machine: jsonPath }, context)).problems).toEqual([
       { field: 'stateMachine.QueryLanguage', message: 'is missing, so the machine is JSONPath, the default of Step Functions; only JSONata machines run here: set "QueryLanguage": "JSONata" and write its states in JSONata' },
       { state: 'A', field: 'ResultPath', message: 'is JSONPath, which does not run here; write the state in JSONata, with Arguments, Output and Assign' },
-    ])
-    // A body encoded otherwise and a retry of one status's own error do not carry over, so that task is refused by name
-    const transformed = {
-      QueryLanguage: 'JSONata',
-      StartAt: 'Call',
-      States: { Call: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: { ApiEndpoint: 'https://a.example', Method: 'POST', RequestBody: { a: 1 }, Transform: { RequestBodyEncoding: 'URL_ENCODED' } }, Retry: [{ ErrorEquals: ['States.Http.StatusCode.429'] }], End: true } },
-    }
-    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: transformed }, context)).problems).toEqual([
-      { state: 'Call', field: 'Arguments.Transform', message: "is an HTTP task's Transform, which does not import: app:http takes only ApiEndpoint, Method, Headers, QueryParameters and RequestBody" },
-      { state: 'Call', field: 'Retry[0].ErrorEquals', message: "names States.Http.StatusCode.429, a status's own error, which does not import: app:http fails with Http.Status for every status, which its error's cause names" },
-    ])
-    // A body goes out as JSON whatever it holds, a text included, as Step Functions sends it; an expression body reads
-    // the workflow's variables as it did
-    const texts = {
-      QueryLanguage: 'JSONata',
-      StartAt: 'Hello',
-      States: {
-        Hello: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: { ApiEndpoint: 'https://a.example', Method: 'POST', RequestBody: 'hello' }, Next: 'Echo' },
-        Echo: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: { ApiEndpoint: 'https://a.example', Method: 'POST', Headers: '{% {} %}', RequestBody: '{% $states.context.Execution.Input.message %}' }, End: true },
-      },
-    }
-    await createWorkflowTool().run({ name: 'Texts', state_machine: texts }, context)
-    expect(create).toHaveBeenLastCalledWith('workflows', expect.objectContaining({
-      state_machine: expect.objectContaining({
-        States: {
-          Hello: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://a.example', method: 'POST', body: 'hello', body_encoding: 'json' }, Next: 'Echo' },
-          Echo: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://a.example', method: 'POST', headers: '{% {} %}', body: '{% $states.context.Execution.Input.message %}', body_encoding: 'json' }, End: true },
-        },
-      }),
-    }))
-    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: texts }, context))).toMatchObject({ valid: true })
-    // A task that waits for a task token is a pattern this app does not run, so it is not turned into a plain request
-    const callback = { QueryLanguage: 'JSONata', StartAt: 'Call', States: { Call: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke.waitForTaskToken', Arguments: { ApiEndpoint: 'https://a.example' }, End: true } } }
-    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: callback }, context)).problems).toEqual([
-      { state: 'Call', field: 'Resource', message: 'is a Step Functions service (arn:aws:states:::http:invoke.waitForTaskToken), which does not run here; of them, only the HTTP task (arn:aws:states:::http:invoke) imports, as app:http' },
-    ])
-    // What app:http cannot do the same way is refused by name: a method it does not send, a GET's body, and reads of the
-    // result by Step Functions' field names
-    const unlike = {
-      QueryLanguage: 'JSONata',
-      StartAt: 'Head',
-      States: {
-        Head: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: { ApiEndpoint: 'https://a.example', Method: 'HEAD' }, Next: 'Get' },
-        Get: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: { ApiEndpoint: 'https://a.example', Method: 'GET', RequestBody: { filter: 'active' } }, Output: '{% $states.result.ResponseBody %}', End: true },
-      },
-    }
-    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: unlike }, context)).problems).toEqual([
-      { state: 'Head', field: 'Arguments.Method', message: 'is HEAD, which app:http does not send: it sends GET, POST, PUT, PATCH and DELETE' },
-      { state: 'Get', field: 'Arguments.RequestBody', message: 'is the body of a GET, which app:http does not send' },
-      { state: 'Get', field: 'Output', message: "reads the HTTP task's result, whose ResponseBody, StatusCode and Headers app:http gives as body, status and headers: write the read against app:http's result" },
-    ])
-    // Arguments that are one expression give their names only when they run
-    const computed = { QueryLanguage: 'JSONata', StartAt: 'Call', States: { Call: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: "{% {'ApiEndpoint': 'https://a.example', 'Method': 'GET'} %}", End: true } } }
-    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: computed }, context)).problems).toEqual([
-      { state: 'Call', field: 'Arguments', message: "is one expression, whose argument names the import cannot carry over to app:http's; write ApiEndpoint, Method, Headers, QueryParameters and RequestBody as fields, each of which may be an expression" },
     ])
   })
 
@@ -196,14 +139,6 @@ describe('update_workflow', () => {
     // Only what the edit names is sent, so a field the caller may read but not write is not sent back
     expect(update).toHaveBeenCalledWith('workflows', 'w1', { state_machine: fetchUrl('https://b.example').state_machine }, { etag: '"v1"' })
     expect(JSON.parse(result)).toEqual({ id: 'w1', version: 2, etag: '"v2"' })
-  })
-
-  it('imports a state machine exported from Step Functions as create_workflow does', async () => {
-    const update = vi.fn(async () => ({ record: { ...saved.record, version: 2 }, etag: '"v2"' }))
-    const { context } = contextWith({ update })
-    const exported = { QueryLanguage: 'JSONata', StartAt: 'Call', States: { Call: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: { ApiEndpoint: 'https://a.example' }, End: true } } }
-    await updateWorkflowTool().run({ id: 'w1', state_machine: exported }, context)
-    expect(update).toHaveBeenLastCalledWith('workflows', 'w1', { state_machine: { ...exported, States: { Call: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://a.example' }, End: true } } } }, {})
   })
 
   it("clears the connections an edit sets to null, though the caller may not read them", async () => {

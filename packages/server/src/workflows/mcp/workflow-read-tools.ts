@@ -7,7 +7,6 @@ import { defineTool, type ToolContext } from '../../assistant/tools'
 import { mergePatch } from './merge-patch'
 import { withStepsToCheck } from '../save-hook'
 import { definitionDataOf, definitionFieldsOf, definitionParameters, editParameter, idOf, idParameter, objectOf, pageSizeOf, textOf } from './workflow-tool-args'
-import { importedStateMachine } from './imported-state-machine'
 
 const reads = { readOnlyHint: true, openWorldHint: false }
 const listed = ['id', 'name', 'description', 'version', 'updated_at']
@@ -83,7 +82,7 @@ const checked = async (fields: Record<string, unknown>, catalog: WorkflowCatalog
 /** Checks a definition, or a saved one with an edit, without saving anything. */
 const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
   name: 'validate_workflow',
-  description: 'Checks a definition as a save checks it, and saves nothing: pass its state_machine, with its trigger and execution_order when they are not manual and sequence, or a workflow\'s id with an edit to check that edit of its saved definition fields. A state machine exported from Step Functions is checked as create_workflow imports it. Returns JSON { valid: true }, or { valid: false, problems }, each problem { state, field, message } naming the state, the field and what was expected. A valid one may come with warnings in the same shape, which a save goes through with, such as a Wait between a Block and a state that reads its result, which may have expired by then.',
+  description: 'Checks a definition as a save checks it, and saves nothing: pass its state_machine, with its trigger and execution_order when they are not manual and sequence, or a workflow\'s id with an edit to check that edit of its saved definition fields. A state machine exported from Step Functions is checked as it is, its service tasks refused by name. Returns JSON { valid: true }, or { valid: false, problems }, each problem { state, field, message } naming the state, the field and what was expected. A valid one may come with warnings in the same shape, which a save goes through with, such as a Wait between a Block and a state that reads its result, which may have expired by then.',
   parameters: { type: 'object', properties: { ...definitionParameters, id: idParameter, edit: editParameter } },
   annotations: reads,
   run: async (args, context) => {
@@ -91,21 +90,14 @@ const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
     const edit = objectOf(args.edit)
     const machine = objectOf(args.state_machine)
     // A definition on its own runs by hand unless it says otherwise, as create_workflow saves it
-    if (machine && id === undefined && edit === undefined) return checked({ trigger: { manual: {} }, ...definitionDataOf(args), state_machine: importedStateMachine(machine) }, catalog, context)
+    if (machine && id === undefined && edit === undefined) return checked({ trigger: { manual: {} }, ...definitionDataOf(args), state_machine: machine }, catalog, context)
     // An edit comes alone, as update_workflow takes it: whole definition fields beside it are refused, not left out
     if (edit && Object.keys(definitionDataOf(args)).length > 0) return 'Pass either { "state_machine": { ... } } or { "id": "<id>", "edit": { ... } }, with no other definition field beside an edit.'
     // A workflow keeps a state machine and an order: an edit cannot remove them
     const kept = id && edit ? ['state_machine', 'execution_order'].filter((key) => edit[key] === null) : []
     if (kept.length > 0) return JSON.stringify({ valid: false, problems: kept.map((field) => ({ field, message: 'cannot be removed: a workflow keeps one' })) })
     // An edit is checked as update_workflow saves it: a field it removes, the trigger included, is null
-    // and with its state machine imported as update_workflow imports it
-    if (!machine && id && edit) {
-      return context.records.get('workflows', id).then(({ record }) => {
-        const merged = mergePatch(definitionFieldsOf(record), edit) as Record<string, unknown>
-        const edited = objectOf(merged.state_machine)
-        return checked({ trigger: null, ...merged, ...(edited && { state_machine: importedStateMachine(edited) }) }, catalog, context)
-      }, refused)
-    }
+    if (!machine && id && edit) return context.records.get('workflows', id).then(({ record }) => checked({ trigger: null, ...(mergePatch(definitionFieldsOf(record), edit) as Record<string, unknown>) }, catalog, context), refused)
     return 'Pass either { "state_machine": { ... } } or { "id": "<id>", "edit": { ... } }.'
   },
 })

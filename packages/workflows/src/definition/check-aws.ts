@@ -1,6 +1,4 @@
 import type { Problem } from './problem'
-import { expressionSource, parse } from './expressions'
-import { expressionReads } from './reads'
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -17,60 +15,6 @@ const awsFields: Record<string, string> = {
   Credentials: 'does not run here: a step signs in through the connection its type declares',
 }
 
-/** Step Functions' HTTP task, which imports as app:http; one that waits for a task token is a service integration pattern this app does not run. */
-export const httpInvoke = 'arn:aws:states:::http:invoke'
-export const isHttpInvoke = (resource: unknown) => resource === httpInvoke
-
-// The HTTP task's arguments the import carries over, or, for its connection, leaves out
-const httpArgumentNames = new Set(['ApiEndpoint', 'Method', 'Headers', 'QueryParameters', 'RequestBody', 'Authentication', 'InvocationConfig'])
-
-// The methods app:http sends
-const httpMethods = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
-
-// The fields of a state's Output and Assign whose expression reads its result, $states.result, at any depth
-const resultReads = (state: Record<string, unknown>): string[] => {
-  const found: string[] = []
-  const visit = (value: unknown, field: string) => {
-    if (typeof value === 'string') {
-      const source = expressionSource(value)
-      const parsed = source === undefined ? undefined : parse(source)
-      if (parsed && !('error' in parsed) && expressionReads(parsed.expression).states.some((path) => path[0] === 'result')) found.push(field)
-    } else if (Array.isArray(value)) value.forEach((item, index) => visit(item, `${field}[${index}]`))
-    else if (isObject(value)) for (const [key, item] of Object.entries(value)) visit(item, `${field}.${key}`)
-  }
-  visit(state.Output, 'Output')
-  visit(state.Assign, 'Assign')
-  return found
-}
-
-/**
- * What an HTTP task of Step Functions holds that app:http cannot do the same way, each named: Arguments that are one
- * expression, an argument it does not carry over, such as `Transform`, which encodes the body otherwise, and a retrier or catcher of a status's own error
- * (`States.Http.StatusCode.<code>`), as app:http fails with `Http.Status` for every status. Empty for one that imports.
- */
-export const httpImportProblems = (state: Record<string, unknown>): Omit<Problem, 'state'>[] => {
-  // One expression gives its argument names only when it runs, so they cannot be carried over
-  if (typeof state.Arguments === 'string') return [{ field: 'Arguments', message: "is one expression, whose argument names the import cannot carry over to app:http's; write ApiEndpoint, Method, Headers, QueryParameters and RequestBody as fields, each of which may be an expression" }]
-  const args = isObject(state.Arguments) ? state.Arguments : {}
-  const found: Omit<Problem, 'state'>[] = Object.keys(args)
-    .filter((name) => !httpArgumentNames.has(name))
-    .map((name) => ({ field: `Arguments.${name}`, message: `is an HTTP task's ${name}, which does not import: app:http takes only ApiEndpoint, Method, Headers, QueryParameters and RequestBody` }))
-  const method = typeof args.Method === 'string' ? args.Method.toUpperCase() : undefined
-  if (method !== undefined && !httpMethods.has(method)) found.push({ field: 'Arguments.Method', message: `is ${method}, which app:http does not send: it sends GET, POST, PUT, PATCH and DELETE` })
-  if (method === 'GET' && args.RequestBody !== undefined) found.push({ field: 'Arguments.RequestBody', message: 'is the body of a GET, which app:http does not send' })
-  for (const field of resultReads(state)) found.push({ field, message: "reads the HTTP task's result, whose ResponseBody, StatusCode and Headers app:http gives as body, status and headers: write the read against app:http's result" })
-  for (const field of ['Retry', 'Catch'] as const) {
-    const rules = Array.isArray(state[field]) ? (state[field] as unknown[]) : []
-    rules.forEach((rule, index) => {
-      const names = isObject(rule) && Array.isArray(rule.ErrorEquals) ? rule.ErrorEquals : []
-      for (const name of names) {
-        if (typeof name === 'string' && name.startsWith('States.Http.StatusCode.')) found.push({ field: `${field}[${index}].ErrorEquals`, message: `names ${name}, a status's own error, which does not import: app:http fails with Http.Status for every status, which its error's cause names` })
-      }
-    })
-  }
-  return found
-}
-
 const stateProblems = (states: unknown, path: string[]): Problem[] => {
   if (!isObject(states)) return []
   return Object.entries(states).flatMap(([name, state]): Problem[] => {
@@ -78,13 +22,8 @@ const stateProblems = (states: unknown, path: string[]): Problem[] => {
     const where = [...path, name].join('/')
     const found: Problem[] = []
     if (state.Type === 'Parallel') found.push({ state: where, field: 'Type', message: 'is Parallel, which does not run here yet; in data order, states that read nothing of each other run at once' })
-    if (isHttpInvoke(state.Resource)) {
-      const http = httpImportProblems(state)
-      // One that would import is written as app:http where no import converts it, such as a save through the API
-      if (http.length === 0) found.push({ state: where, field: 'Resource', message: "is Step Functions' HTTP task, which create_workflow and update_workflow import as app:http; write app:http here" })
-      found.push(...http.map((problem) => ({ state: where, ...problem })))
-    } else if (typeof state.Resource === 'string' && state.Resource.startsWith('arn:')) {
-      found.push({ state: where, field: 'Resource', message: `is a Step Functions service (${state.Resource}), which does not run here; of them, only the HTTP task (arn:aws:states:::http:invoke) imports, as app:http` })
+    if (typeof state.Resource === 'string' && state.Resource.startsWith('arn:')) {
+      found.push({ state: where, field: 'Resource', message: `is a Step Functions service (${state.Resource}), which does not run here: write the step with one of this app's step types, such as app:http for an HTTP request` })
     }
     for (const field of jsonPathFields) if (state[field] !== undefined) found.push({ state: where, field, message: 'is JSONPath, which does not run here; write the state in JSONata, with Arguments, Output and Assign' })
     for (const [field, message] of Object.entries(awsFields)) if (state[field] !== undefined) found.push({ state: where, field, message })
@@ -97,7 +36,7 @@ const stateProblems = (states: unknown, path: string[]): Problem[] => {
 
 /**
  * What a state machine from Step Functions holds that this app does not run, each named: JSONPath (its query
- * language by default), its service tasks but the HTTP one, Parallel, a distributed Map, heartbeats, credentials and a
+ * language by default), its service tasks, the HTTP task included, Parallel, a distributed Map, heartbeats, credentials and a
  * whole-run timeout. Empty for a machine this app can check further.
  */
 export const awsProblems = (definition: unknown): Problem[] => {

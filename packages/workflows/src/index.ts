@@ -7,7 +7,6 @@ export { expressionReferences, parseReference, readText, referenceValue, type Re
 export { resolveSchema, schemaAt, type RecordSchemas, type RecordUse } from './definition/pins/resolve-schema'
 export { inputSchema, referenceSchema, resultSchema, resultState, stepStatusSchema, triggerSchema, type PinSchemas } from './definition/pins/pin-sources'
 export { definitionWarnings } from './definition/check-warnings'
-export { httpImportProblems, isHttpInvoke } from './definition/check-aws'
 export { allStates, blockDefinition, findBlock, innerMachine } from './definition/inner'
 export { problemText, type Problem } from './definition/problem'
 export { usedConnections } from './definition/used-connections'
