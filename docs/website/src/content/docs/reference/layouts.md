@@ -114,7 +114,7 @@ A `RecordCard` (its first match), a `ReferenceField`, each card of a `CardRow` a
 ## Related records
 
 :::caution[Beta]
-Each list block reads its records once the record around it has drawn. Coming soon: reads planned at build, so every list's read starts at page load.
+The build plans every list's read beside the page's other reads, as [how a page reads its data](#how-a-page-reads-its-data) says. Coming soon: the web starts those reads at page load; until then each list block reads its records once the record around it has drawn.
 :::
 
 A record's related records repeat under it as a list: a `ReferenceManyField` holds the records of another resource that point at it, a `ReferenceArrayField` the records whose keys a JSON field of it lists, and an `ArrayField` the items of a JSON list it holds. A `RecordsIterator` inside one draws its children once for each entry, with nothing around them, and a `Table` without `resource` draws the list as a table. A `ReferenceField` draws the one record a field points at. They take the names, props and defaults of the [react-admin](/features/compatibility/#react-admin) components of the same names.
@@ -128,7 +128,7 @@ A record's related records repeat under it as a list: a `ReferenceManyField` hol
     <RecordsIterator>
       <Card title="Claim {{@index}}">
         <ReferenceField source="worker_id" reference="workers" />
-        <ReferenceManyField reference="claim_steps" target="claim_id" empty="No steps yet">
+        <ReferenceManyField reference="claim_steps" target="claim_id" perPage={10} empty="No steps yet">
           <RecordsIterator><Field source="name" /></RecordsIterator>
         </ReferenceManyField>
       </Card>
@@ -139,7 +139,26 @@ A record's related records repeat under it as a list: a `ReferenceManyField` hol
 
 Each entry is a record of the stack while its children draw, so `Field`, `Show`, `{{path}}` placeholders and nested lists inside it read it, and `@index`, `@first` and `@last` count its place in the list. A text item of an `ArrayField`, such as a label, is read as `this`; an object item by its keys, which no model describes, so the build does not check them, and it warns when an item's key could shadow a field of a record further out. A list ties itself to the record around it by a field of that record, its `source`; a `ReferenceManyField`'s is `id` of the nearest record by default. A `ReferenceManyField`'s and a `ReferenceArrayField`'s `filter` and `sort` take AIP-160 and AIP-132 text, or the objects react-admin writes: `{ status: 'open' }` is `status = "open"`, its fields ANDed, and `{ field: 'claimed_at', order: 'DESC' }` is `claimed_at desc`. Without `sort`, such a list is in its key's order, descending, as react-admin's is. A `ReferenceManyField`'s `pagination="more"` adds a button that reads the next `perPage` records into the same list. The [blocks reference](/reference/blocks/#related-records) lists every prop.
 
-<gap>A list block cannot read its records at page load, beside the records around it, because planning a page's reads is not implemented; each reads once the record around it has drawn.</gap>
+## How a page reads its data
+
+:::caution[Beta]
+The build plans a page's reads and `/api/meta` sends the plan; the web does not run it yet.
+:::
+
+The build compiles each page into a read plan: one ordinary API read per data block, each known before any record is read, so all of them can start together at page load and none waits for another's rows. There is no combined page query. `/api/meta` sends each user the plan of the page as they see it, so it holds no read of a resource they cannot read and no field they cannot read.
+
+- **One read per block.** `Stat`, `RecordCard`, `Table`, `CardRow`, `RecordRow`, `RecordCards`, `Thread`, `Chart`, `ReferenceManyField`, `ReferenceArrayField` and `ReferenceField` each make one list, count or `:aggregate` read. A `Thread`'s tool calls, the row a `Table`'s `select` chose and each `<resource>.count` a condition names are reads of their own. A block under `Show` or `Match` is read anyway: the condition decides only what is drawn.
+- **Fields are derived.** You never write `fields`. Each read asks for its key and every field drawn in its scope: by `Field`s, [field components](#field-values), `{{path}}`s, conditions and table columns, and the fields a nested list ties itself by. A block whose view decides what it draws, such as a `Table` without `columns` or a `RecordRow`, reads every field. So does a read whose records an `Action` or an edit form changes, since it asks for each record's ETag and an ETag covers the whole record. The other reads ask for no ETag.
+- **A nested read carries the read around it.** A block inside the records of another ties itself to them by a field: a `ReferenceManyField`'s `target`, a `ReferenceField`'s or `ReferenceArrayField`'s `source`, or `task_id = {{id}}` as a top-level `AND` term of a filter. Its read takes that as a [`related()`](/reference/api/#filtering-through-related-records) term holding the outer read's own filter, order and page size, such as `related(task_id, tasks.id, (status = "open"), "id desc", 10)`, never the values of records read first. A `ReferenceArrayField` ties itself by the JSON list of keys the same way, `related(id, tasks.waits, …)`. Terms nest for a list two levels deep.
+- **Per record, in one read.** Inside a repeated record, such as a `CardRow` or a `RecordsIterator`, a list reads its `perPage` (or `limit`) for each record with [`limit_per`](/reference/api/#first-rows-per-value), and a `Stat` count is one `:aggregate` grouped by the field it ties itself by. Each nested read holds at most 500 records in all, the API's largest page, and the build warns when the records around it times its page are more, as some records would show fewer. A `ReferenceArrayField` there reads one page for all the records around it, of up to `perPage` records for each of them, since one record can sit in several lists. A `RecordRow` there needs a `limit`.
+- **The page's own record.** A field of it that the address does not hold, `{{@root.project_id}}`, becomes `related()` on that record by its key, so the page's record is not read first. Page parameters and the page record's key stay `{{…}}` slots in the plan, which the address fills.
+- **Indexes.** [`protobase doctor`](/reference/cli/#doctor) judges every planned read with the scan guard's rule, the outer reads its `related()` terms carry included, so it reports a nested read's missing index before the API refuses the read.
+
+Each read in the plan (`page.reads.reads`) names its block by a JSON Pointer into the page's tree, such as `/children/0/children/2`, which `elementAt(tree, pointer)` finds. It gives the read's `resource`, its `kind` (`list`, `count` or `aggregate`), `filter`, `orderBy`, `pageSize`, `limitPer`, `groupBy`, `fields` (absent for every field) and `etag`. `compileReadPlan(tree, { models })` makes the same plan from a tree of your own.
+
+A [custom component](/reference/custom-components/#reads) is planned when it declares its reads. One that declares none is outside the plan (`page.reads.outside`): whatever it reads, it reads by itself once it draws, and `protobase doctor` lists it.
+
+<gap>A page cannot start its planned reads at page load because running the read plan on the web is not implemented; each block still reads once it draws.</gap> <gap>A `Chart` cannot sit inside a repeated record because grouping a chart per record is not implemented.</gap>
 
 ## Field values
 
@@ -216,7 +235,7 @@ The build checks every path where it sits:
 - **Reads that would wait.** A per-row value in a filter in any other place than a top-level `AND` equality (with `>=`, inside `OR` or `NOT`, a second one), `@index`, `@first`, `@last` or `this` in a filter, key or values, and any placeholder in `resource`, `sort`, `columns` or `limit` fail with "this would wait for the parent's rows": each block's records are one read of their own, and none may wait for another's rows.
 - **Shadowing.** A bare name that more than one record around it has reads the nearest, and the build warns which it read and how to write the others: `"id" resolves to task_claims; write ../id for the one of tasks`. `protobase build --strict` fails on it instead. `this.`, `./`, `../` and `@` paths never warn.
 
-<gap>A block inside a `CardRow` or `RecordCard` cannot read its records at page load, beside the records around it, because planning a page's reads is not implemented; it reads once the card around it draws.</gap> <gap>A block under a `Show` or `Match` cannot read its records before its condition holds because planning a page's reads is not implemented.</gap>
+<gap>A block inside a `CardRow` or `RecordCard` cannot read its records at page load, beside the records around it, because running the [read plan](#how-a-page-reads-its-data) on the web is not implemented; it reads once the card around it draws.</gap> <gap>A block under a `Show` or `Match` cannot read its records before its condition holds because running the read plan on the web is not implemented.</gap>
 
 ## Page parameters
 
@@ -242,7 +261,7 @@ A `Table` with `select` chooses one of its rows: each row links to the page with
 
 In the [text form](#text-form), a `SelectInput` reads as its label and its choice's name, `**Window**: Last 30 days`, from the `params` you pass, and a `select` table's children as the row `records` gives for it.
 
-<gap>A block reads a page parameter only once it draws, not at page load, because planning a page's reads is not implemented.</gap> <gap>A data block other than a `Table`, or a list display such as a map, cannot take `select` because choosing a row there is not implemented.</gap>
+<gap>A block reads a page parameter only once it draws, not at page load, because running the [read plan](#how-a-page-reads-its-data) on the web is not implemented.</gap> <gap>A data block other than a `Table`, or a list display such as a map, cannot take `select` because choosing a row there is not implemented.</gap>
 
 ## Conditions
 

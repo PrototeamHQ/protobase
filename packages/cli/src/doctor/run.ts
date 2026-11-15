@@ -9,6 +9,7 @@ import { loadDataConfig } from '../project/load-data-config'
 import { builtInIndexIssues, builtInModels } from './built-in-models'
 import { checkResource, type Issue } from './check'
 import { indexIssues } from './index-issues'
+import { unplannedBlocks } from './page-shapes'
 import { readShapes } from './read-shapes'
 import { relationIssues } from './relation-issues'
 import { sortIssues } from './sort-issues'
@@ -43,6 +44,8 @@ export const runDoctor = async (options: DoctorOptions, out: (text: string) => v
     .finally(() => db.destroy())
   const issues = [...userTables.issues, ...models.flatMap((model, i) => [...checkResource(model, tables), ...relationIssues(model, models), ...sortIssues(model, shapes), ...indexes[i]!])]
   for (const issue of issues) out(format(issue))
+  const byName = Object.fromEntries(models.map((model) => [model.name, model]))
+  for (const block of config.pages.flatMap((page) => unplannedBlocks(page, byName))) out(`  note    ${block} declares no reads, so it is outside the page's read plan and reads whatever it reads once it draws\n`)
   const errors = issues.filter((i) => i.severity === 'error').length
   const counted = userTables.models.length > 0 ? `${config.models.length} resources, ${userTables.models.length} user tables` : `${config.models.length} resources`
   const checked = builtIn.models.length > 0 ? `${counted} and ${builtIn.models.length} built-in ones` : counted

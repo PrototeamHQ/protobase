@@ -1,6 +1,13 @@
 /** A static value a layout prop may hold: what survives `JSON.stringify` unchanged, plus elements (also plain data). */
 export type LayoutValue = string | number | boolean | null | LayoutValue[] | { [key: string]: LayoutValue }
 
+/**
+ * Which props of a block that reads records name what it reads: the resource, its filter, its sort, the fields it
+ * draws and how many records it reads, so a page's reads can be planned from the tree. A block without one reads
+ * nothing of its own.
+ */
+export type BlockReads = { resource: string; filter?: string; sort?: string; fields?: string; limit?: string }
+
 /** One element of a layout tree. Plain data: it is sent to the browser as JSON and rendered there. */
 export type LayoutNode = {
   /** A built-in block (`Table`) or a custom component's registered name. */
@@ -14,6 +21,8 @@ export type LayoutNode = {
    * or none to draw nothing. Absent when the component declares no fallback.
    */
   fallback?: LayoutChild[]
+  /** Which of a custom component's props name what it reads, as its `component()` declares, so the page's plan reads it. */
+  reads?: BlockReads
 }
 
 export type LayoutChild = LayoutNode | string
@@ -22,7 +31,7 @@ export type LayoutChild = LayoutNode | string
 export type LayoutChildren = LayoutChild | number | boolean | null | undefined | LayoutChildren[]
 
 /** A block as JSX sees it: called by the runtime with its props, it describes one element. */
-export type Block<P> = ((props: P) => LayoutNode) & { readonly blockName: string; readonly custom: boolean; readonly fallback?: LayoutChild[] }
+export type Block<P> = ((props: P) => LayoutNode) & { readonly blockName: string; readonly custom: boolean; readonly fallback?: LayoutChild[]; readonly reads?: BlockReads }
 
 export const isLayoutNode = (value: unknown): value is LayoutNode =>
   typeof value === 'object' && value !== null && !Array.isArray(value) && typeof (value as LayoutNode).type === 'string' && Array.isArray((value as LayoutNode).children)

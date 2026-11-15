@@ -1,6 +1,7 @@
 import { checkOrderBy, parseOrderBy, type AppAddress, type ResourceModel, type RowButtonModel } from '@protobase/schema'
 import { addressErrors, followableRowButton, pruneByShape, shapes } from '@protobase/schema/internal'
 import { chartFields } from './check-chart'
+import { compileReadPlan } from './compile-read-plan'
 import { threadFields } from './check-conversation'
 import { scopedConditionReadable } from './check-condition'
 import { listModelProblems } from './check-list-models'
@@ -155,7 +156,7 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: Rea
  * The page as one caller may see it, or `undefined` when its roles leave the caller out. Every element that names a
  * resource, field, filter, sort or action the caller cannot use is left out, with what it contains, custom components
  * by their `resource` and field references (`fieldRef`) too, and so is a tab left with nothing in it; table columns and
- * form fields are narrowed to what the caller may read and write. Data still comes from the API, which applies the same
+ * form fields are narrowed to what the caller may read and write. Its read plan is made from what is left. Data still comes from the API, which applies the same
  * access rules (row filters included) to every request.
  */
 export const prunePage = (page: PageModel, roles: readonly string[], access: CallerAccess): PageModel | undefined => {
@@ -163,5 +164,7 @@ export const prunePage = (page: PageModel, roles: readonly string[], access: Cal
   const params = pageParams(page.tree)
   const chosen = chosenParams(page.tree)
   const tree = mapTree(page.tree, (node, { scope }) => prune(node, scope, access, params, chosen))
-  return tree ? { ...page, tree } : undefined
+  // Planned from what is left, so no read names a resource, field or block the caller cannot use; the page check
+  // already reported what keeps the whole page from being planned
+  return tree ? { ...page, tree, reads: compileReadPlan(tree, { models: access.models }).plan } : undefined
 }

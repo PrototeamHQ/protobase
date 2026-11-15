@@ -9,8 +9,8 @@ type Models = Record<string, ResourceModel>
 
 export type ConditionInput = { models: Models; scope: Scope; params: ReadonlySet<string> }
 
-// Whether `name` is a field of any record around the condition, which a bare name in it may read.
-const isScopeField = ({ models, scope }: ConditionInput) => (name: string) =>
+/** Whether `name` is a field of any record around the condition, which a bare name in it may read. */
+export const isScopeField = ({ models, scope }: ConditionInput) => (name: string) =>
   [scope.root, ...scope.stack.map((frame) => frame.resource)].some((resource) => resource !== undefined && Object.hasOwn(models[resource]?.fields ?? {}, name))
 
 // The resource a path counts, when `resource` is the record around the condition and the path is no field of it.

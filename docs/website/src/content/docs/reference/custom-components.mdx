@@ -56,6 +56,18 @@ A visual component, such as a map, falls back to the [picture](/reference/blocks
 
 The admin app draws the fallback too when the component is missing or throws while drawing; `protobase dev` also shows the warning above it. Without a fallback, the warning stands in the component's place, as above. A [record section](#record-sections) takes `fallback` in `l.custom`.
 
+### Reads
+
+A component that reads records says which of its props name what it reads, so its read is in the page's [read plan](/reference/layouts/#how-a-page-reads-its-data) with the other blocks' and `protobase doctor` checks the indexes of that read. The plan describes the read; it does not make it, so the component still fetches its own data, through the hooks above:
+
+```tsx
+export const TaskBoard = component<{ resource: string; filter?: string; limit?: number }>('TaskBoard', {
+  reads: { resource: 'resource', filter: 'filter', limit: 'limit' },
+})
+```
+
+`reads` takes `resource`, the one prop it needs, and `filter`, `sort`, `fields` (a prop holding a list of field names) and `limit`. A component without `reads` is outside the plan, which lists it as such (`page.reads.outside`), and doctor does not check its reads.
+
 ### Fields and resources in props
 
 A prop that names a field is a field reference, `fieldRef('plan.name')` from `@protobase/layout`, read from the record around the element or the resource its `resource` prop names. The component gets the plain name (`'plan.name'`), and the names are checked when the server starts. A `resource` prop names a resource the way a block's does.

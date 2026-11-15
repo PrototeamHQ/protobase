@@ -34,7 +34,21 @@ const find = (page: PageModel | undefined, type: string) => {
 
 describe('prunePage', () => {
   it('keeps everything for a caller who may use everything', () => {
-    expect(prunePage(billing.toModel(), [], access())).toEqual(billing.toModel())
+    const { reads, ...page } = prunePage(billing.toModel(), [], access())!
+    expect(page).toEqual(billing.toModel())
+    expect(reads?.reads.length).toBeGreaterThan(0)
+  })
+
+  it('plans only the reads the caller may make, of the fields they may read', () => {
+    const page: PageModel = {
+      name: 'subscriptions',
+      title: 'Subscriptions',
+      tree: Page({ title: 'Subscriptions', children: [RecordCard({ resource: 'subscriptions', children: [NumberField({ source: 'seatsUsed' }), Table({ resource: 'invoices', columns: ['number'] })] })] }),
+    }
+    const all = prunePage(page, [], access())!.reads!.reads
+    expect(all.map((read) => [read.resource, read.fields])).toEqual([['subscriptions', ['id', 'seatsUsed']], ['invoices', ['id', 'number']]])
+    const narrowed = prunePage(page, [], access({ models: restricted({ subscriptions: ['seatsUsed'] }, {}, ['invoices']) }))!.reads!.reads
+    expect(narrowed.map((read) => [read.resource, read.fields])).toEqual([['subscriptions', ['id']]])
   })
 
   it('leaves out a thread whose messages the caller cannot read, and a composer where they cannot write one', () => {
