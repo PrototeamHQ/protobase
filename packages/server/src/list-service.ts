@@ -58,14 +58,16 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
   const withKey = keyed && columns ? [...new Set([...columns, ...entry.model.primaryKey.filter((name) => model.fields[name])])] : columns
   // A list across tenants reads each row's tenant too, which tells its row permissions whether it is the caller's own
   const across = model.tenantAcross && model.tenant !== undefined ? [model.tenant] : []
-  const read = entry.etag && withKey ? [...new Set([...withKey, ...across])] : Object.keys(model.fields)
+  // `etag=false` hashes nothing, so like a version column it needs no field beyond the selection
+  const etags = params.etag !== false
+  const read = (entry.etag || !etags) && withKey ? [...new Set([...withKey, ...across])] : Object.keys(model.fields)
 
   const shape = { ...(filter && { filter }), ...(sort && { sort }), limit }
   const warning = await deps.guard(entry, { ...shape, ...(per && { per: per.field }) }, { model: queryModel, scope })
   // `:seek` resolves a row position to a page on the server, so no anchor value ever reaches the caller
   const position = jump ? (params as { position: number }).position : undefined
   const result = await readTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
-    const extraColumns = entry.etag ? [{ field: entry.etag.field.name, as: 'text' as const, alias: etagAlias }] : []
+    const extraColumns = entry.etag && etags ? [{ field: entry.etag.field.name, as: 'text' as const, alias: etagAlias }] : []
     const readPage = () => {
       if (per) return listPerValue(trx, queryModel, { ...shape, columns: read }, per, scope, { extraColumns })
       if (position === undefined) return listQuery(trx, queryModel, { ...shape, columns: read, ...(params.page_token && { cursor: params.page_token }) }, scope, { extraColumns })
@@ -76,7 +78,7 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
     return {
       page,
       rows,
-      etags: await Promise.all(rows.map((row, i) => etagOf(entry, page.rows[i]!, row))),
+      etags: etags ? await Promise.all(rows.map((row, i) => etagOf(entry, page.rows[i]!, row))) : undefined,
       permissions: deps.rowPermissions(entry.name) ? await rowPermissions(trx, access, rows) : undefined,
       estimate: await estimateCount(trx, queryModel, filter, scope),
       ...(params.count === 'exact' && { counted: await countUpTo(trx, queryModel, exactCountLimit + 1, filter, scope) }),
@@ -91,7 +93,7 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
     body: {
       items: shown.map((row, i) => ({
         ...pickFields(row, columns),
-        etag: result.etags[i],
+        ...(result.etags && { etag: result.etags[i] }),
         ...(result.permissions && { permissions: result.permissions[i] }),
       })),
       next_page_token: result.page.nextCursor ?? '',
