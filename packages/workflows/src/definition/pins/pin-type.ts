@@ -10,14 +10,19 @@ const kinds: readonly PinKind[] = ['string', 'integer', 'number', 'boolean', 'ob
 
 const isSchema = (value: unknown): value is JsonSchema => typeof value === 'object' && value !== null && !Array.isArray(value)
 
+// The kinds a schema's own `type` allows, none when it names none.
+const declaredKinds = (schema: JsonSchema) => (Array.isArray(schema.type) ? schema.type : schema.type === undefined ? [] : [schema.type]).filter((kind): kind is PinKind => kinds.includes(kind as PinKind))
+
+// A schema with branches allows what any branch allows, within its own `type` when it has one, which applies too.
 const kindsOf = (schema: JsonSchema): PinKind[] | 'any' => {
+  const known = declaredKinds(schema)
   const branches = [schema.anyOf, schema.oneOf].find(Array.isArray) as unknown[] | undefined
   if (branches) {
     const each = branches.filter(isSchema).map(kindsOf)
-    return each.includes('any') ? 'any' : [...new Set(each.flat() as PinKind[])]
+    if (each.includes('any')) return known.length > 0 ? known : 'any'
+    const either = [...new Set(each.flat() as PinKind[])]
+    return known.length > 0 ? either.filter((kind) => known.includes(kind) || (kind === 'integer' && known.includes('number'))) : either
   }
-  const declared = Array.isArray(schema.type) ? schema.type : schema.type === undefined ? [] : [schema.type]
-  const known = declared.filter((kind): kind is PinKind => kinds.includes(kind as PinKind))
   if (known.length > 0) return known
   if (Array.isArray(schema.enum) && schema.enum.every((value) => typeof value === 'string')) return ['string']
   if (isSchema(schema.properties)) return ['object']

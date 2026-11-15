@@ -1,5 +1,6 @@
 import { innerMachine } from '../inner'
-import type { Definition, Machine, State } from '../types'
+import { expressionSource } from '../expressions'
+import type { BlockState, Definition, Machine, State } from '../types'
 import type { Reference } from './references'
 import { resolveSchema, schemaAt, type RecordSchemas } from './resolve-schema'
 
@@ -12,7 +13,6 @@ export type PinSchemas = {
   records: RecordSchemas
 }
 
-const resultRead = '{% $states.result %}'
 
 export const argumentsOf = (state: State): Record<string, unknown> => {
   const args = 'Arguments' in state ? state.Arguments : undefined
@@ -35,7 +35,8 @@ export const resultState = (machine: Machine, variable: string): [string, State]
   })
   if (keeping.length !== 1) return
   const [name, state] = keeping[0]!
-  return (state as { Assign: Record<string, unknown> }).Assign[variable] === resultRead ? [name, state] : undefined
+  // However the expression is spaced
+  return expressionSource((state as { Assign: Record<string, unknown> }).Assign[variable])?.trim() === '$states.result' ? [name, state] : undefined
 }
 
 /** A Task's result as its type gives it, with what its arguments name filled in; undefined for any other state or an unknown type. */
@@ -73,6 +74,14 @@ export const inputSchema = (state: State, schemas: PinSchemas) =>
   state.Type === 'Task' && schemas.inputs[state.Resource] ? resolveSchema(schemas.inputs[state.Resource]!, argumentsOf(state), schemas.records) : undefined
 
 /** Every Task of a machine outside any Block, with its path, the ones in Maps too: a Block's steps read only its own input. */
+/** Every Block of a machine outside any other Block, with its path, the ones in Maps too. */
+export const blocksOutsideBlocks = (machine: Machine, scope: readonly string[] = []): { path: string; state: BlockState }[] =>
+  Object.entries(machine.States).flatMap(([name, state]) => {
+    if (state.Type === 'Block') return [{ path: [...scope, name].join('/'), state }]
+    const inner = state.Type === 'Map' ? innerMachine(state) : undefined
+    return inner ? blocksOutsideBlocks(inner, [...scope, name]) : []
+  })
+
 export const tasksOutsideBlocks = (machine: Machine, scope: readonly string[] = []): { path: string; state: State }[] =>
   Object.entries(machine.States).flatMap(([name, state]) => {
     const here = [{ path: [...scope, name].join('/'), state }]

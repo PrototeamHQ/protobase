@@ -39,8 +39,8 @@ const withoutKeys = (node: JsonSchema, keys: string[]) => Object.fromEntries(Obj
 
 /**
  * The schema of the value at `path` below a value of `schema`: a property's, or a map's `additionalProperties`; for a
- * schema of several kinds, the first branch that has it. Undefined when the schema does not say, so the value is of
- * any type.
+ * schema of several kinds, any of the branches' schemas for it. Undefined when the schema, or one of its branches,
+ * does not say, so the value is of any type.
  */
 export const schemaAt = (schema: JsonSchema | undefined, path: readonly string[]): JsonSchema | undefined => {
   let current = schema
@@ -53,7 +53,11 @@ export const schemaAt = (schema: JsonSchema | undefined, path: readonly string[]
 
 const fieldSchema = (schema: JsonSchema, key: string): JsonSchema | undefined => {
   const branches = [schema.anyOf, schema.oneOf].find(Array.isArray) as unknown[] | undefined
-  if (branches) return branches.filter(isSchema).map((branch) => fieldSchema(branch, key)).find((found) => found !== undefined)
+  if (branches) {
+    const found = branches.filter(isSchema).map((branch) => fieldSchema(branch, key))
+    if (found.length === 0 || found.some((each) => each === undefined)) return
+    return found.length === 1 ? found[0] : { anyOf: found }
+  }
   if (isSchema(schema.properties) && isSchema(schema.properties[key])) return schema.properties[key]
   if (isSchema(schema.additionalProperties)) return schema.additionalProperties
   return

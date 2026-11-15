@@ -45,6 +45,8 @@ describe('pins', () => {
     expect(fits(pinType({ type: ['string', 'integer'] }), pinType({ type: 'string' }))).toBe(false)
     expect(fits(pinType({}), pinType({ type: 'string' }))).toBe(true)
     expect(pinTypeText(pinType({ type: ['string', 'integer'] }))).toBe('text or a whole number')
+    // A schema's own type applies beside its branches
+    expect(pinType({ type: 'string', anyOf: [{ type: 'string' }, { type: 'null' }] })).toEqual({ kinds: ['string'] })
   })
 
   it('reads a value that is one read by name, and writes it back the same', () => {
@@ -53,6 +55,8 @@ describe('pins', () => {
     for (const other of ['{% $fetch.body & "x" %}', '{% $states.result %}', '{% $uppercase($x) %}', 'plain', 3]) expect(parseReference(other)).toBeUndefined()
     expect(referenceValue({ base: { input: true }, path: ['record', 'first name'] })).toBe('{% $states.context.Execution.Input.record.`first name` %}')
     expect(readText({ base: { variable: 'fetch' }, path: [] })).toBe('$fetch')
+    // A name JSONata reads as a value is backticked
+    expect(referenceValue({ base: { variable: 'fetch' }, path: ['body', 'null'] })).toBe('{% $fetch.body.`null` %}')
   })
 
   it('fills in the records and schemas a type\'s arguments name, and finds a value\'s schema down a path', () => {
@@ -62,6 +66,9 @@ describe('pins', () => {
     expect(schemaAt(resolveSchema(schemas.outputs['app:record']!, { resource: 'contacts' }, records), ['record', 'age'])).toEqual({ type: 'integer' })
     expect(resolveSchema({ 'x-record-of': 'resource' }, { resource: '{% $r %}' }, records)).toEqual({})
     expect(schemaAt(schemas.inputs['app:http'], ['headers', 'Accept'])).toEqual({ type: 'string' })
+    // A field that branches type otherwise is any of their types, and of any type where one branch does not say
+    expect(schemaAt({ anyOf: [{ properties: { value: { type: 'string' } } }, { properties: { value: { type: 'number' } } }] }, ['value'])).toEqual({ anyOf: [{ type: 'string' }, { type: 'number' }] })
+    expect(schemaAt({ anyOf: [{ properties: { value: { type: 'string' } } }, { properties: {} }] }, ['value'])).toBeUndefined()
   })
 
   it('reports an argument that reads a value of a type it does not take, naming both, and lets the rest pass', () => {
@@ -80,6 +87,33 @@ describe('pins', () => {
     const blocked = workflow({ url: 'https://example.com' }, { key: '1', data: { name: '{% $fetch.status %}' } })
     blocked.stateMachine.States.Keep = { Type: 'Block', Processor: { StartAt: 'Inner', States: { Inner: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://b.example' }, Assign: { fetch: '{% $states.result %}' }, End: true } } }, Cache: { Ttl: '1 hour' }, End: true } as never
     expect(pinProblems(blocked, schemas)).toEqual([{ state: 'Save', field: 'Arguments.data.name', message: 'reads $fetch.status, a whole number, where data.name takes text' }])
+    // A whole-result keep however spaced still types the reads of it
+    const spaced = workflow({ url: 'https://example.com' }, { key: '1', data: { name: '{% $fetch.status %}' } })
+    ;(spaced.stateMachine.States.Fetch as { Assign: Record<string, string> }).Assign = { fetch: '{%  $states.result  %}' }
+    expect(pinProblems(spaced, schemas)).toHaveLength(1)
+    // A Block's steps are checked among themselves
+    const inBlock: Definition = {
+      trigger: { manual: {} },
+      stateMachine: {
+        QueryLanguage: 'JSONata',
+        StartAt: 'Keep',
+        States: {
+          Keep: {
+            Type: 'Block',
+            Processor: {
+              StartAt: 'Fetch',
+              States: {
+                Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://example.com' }, Assign: { fetch: '{% $states.result %}' }, Next: 'Save' },
+                Save: { Type: 'Task', Resource: 'app:records.update', Arguments: { resource: 'contacts', key: '1', data: { name: '{% $fetch.status %}' } }, End: true },
+              },
+            },
+            Cache: { Ttl: '1 hour' },
+            End: true,
+          },
+        },
+      },
+    }
+    expect(pinProblems(inBlock, schemas)).toEqual([{ state: 'Keep/Save', field: 'Arguments.data.name', message: 'reads $fetch.status, a whole number, where data.name takes text' }])
     // A read deeper in an argument is checked against the schema at its place
     const deep: PinSchemas = { ...schemas, inputs: { ...schemas.inputs, 'app:http': { type: 'object', properties: { url: { type: 'string' }, payload: { type: 'object', properties: { profile: { type: 'object', properties: { age: { type: 'integer' } } } } } } } } }
     expect(pinProblems(workflow({ url: 'https://example.com', payload: { profile: { age: '{% $states.context.Execution.Input.record.name %}' } } }, { key: '1', data: {} }), deep)).toEqual([

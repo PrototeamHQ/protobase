@@ -46,7 +46,8 @@ export const parseReference = (value: unknown): Reference | undefined => {
   return path && { base: { variable: variable[1]! }, path }
 }
 
-const keyText = (key: string) => (plainKey.test(key) ? key : `\`${key}\``)
+// A key read bare, or in backticks when it is no plain name or one JSONata reads as a value
+const keyText = (key: string) => (plainKey.test(key) && !['true', 'false', 'null'].includes(key) ? key : `\`${key}\``)
 
 /** The JSONata read of a reference, such as `$fetch.body.ip`. */
 export const readText = ({ base, path }: Reference) => ['input' in base ? inputRead : 'step' in base ? `${stepsRead}.${keyText(base.step)}` : `$${base.variable}`, ...path.map(keyText)].join('.')
