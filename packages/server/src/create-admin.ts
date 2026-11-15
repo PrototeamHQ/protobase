@@ -103,6 +103,7 @@ import { checkBuckets } from './check-buckets'
 import { checkParents, parentWarnings } from './check-parents'
 import { checkLiveReads } from './check-live-reads'
 import { checkPositionAfter } from './check-position-after'
+import { checkRecordBlocks } from './view-blocks'
 import { checkViews } from './check-views'
 import { liveRoutes } from './live/live-route'
 import { tableFeed } from './live/notice-feed'
@@ -284,12 +285,14 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   checkParents(registry)
   for (const warning of parentWarnings(registry)) console.warn(warning)
   const resourceModels = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
-  checkPages([...pageModels, accountModel], {
+  const pageCheck = {
     models: resourceModels,
-    actions: (resource) => new Set(viewModels.filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name))),
+    actions: (resource: string) => new Set(viewModels.filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name))),
     createPages: new Set(viewModels.filter((view) => view.create).map((view) => view.resource)),
     functions: new Set(Object.keys(apiFunctions)),
-  })
+  }
+  checkPages([...pageModels, accountModel], pageCheck)
+  checkRecordBlocks(viewModels, { ...pageCheck, pages: new Set(pageModels.map((entry) => entry.name)) })
   const forms = createFormsRuntime({ registry, views: viewModels, limits: options.roles?.limits ?? [], env: globalThis.process?.env ?? {}, ...(secret && { secret }), ...(formsDifficulty && { difficulty: formsDifficulty }) })
   const systemPath = basePath.slice(0, basePath.lastIndexOf('/'))
   const assistant = assistantSettings(options.assistant, globalThis.process?.env ?? {})

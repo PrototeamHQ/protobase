@@ -21,6 +21,8 @@ export type BlockReader = {
   params: Readonly<Record<string, string>>
   /** What the page's address holds, as `usePageParams` gives it as `given`, such as the key a `select` chose. */
   given: Readonly<Record<string, string>>
+  /** The record page's own record around a block tree, which a `{{@root.name}}` reads; none on a composed page. */
+  root?: Record<string, unknown>
 }
 
 /** What a page's planned reads are made with: a block's reader without the address, which only a `select`'s row reads. */

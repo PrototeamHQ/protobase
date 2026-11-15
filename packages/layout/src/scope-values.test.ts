@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Table } from './blocks'
+import { Table, Thread } from './blocks'
 import { component } from './component'
 import { fillComponentReads, fillProps, scopeValue, type ValueScope } from './scope-values'
 
@@ -36,6 +36,13 @@ describe('scopeValue', () => {
 })
 
 describe('fillProps', () => {
+  it("fills a thread's tool calls filter, from the record page's own record too", () => {
+    const calls = { resource: 'tool_calls', filter: 'task_id = {{@root.id}}', name: 'tool', time: 'at', status: 'state' }
+    const node = fillProps(Thread({ resource: 'notes', filter: 'task_id = {{@root.id}}', time: 'at', text: 'body', calls }), { stack: [], root: { id: 7 } })
+    expect(node.props.filter).toBe('task_id = 7')
+    expect(node.props.calls).toEqual({ ...calls, filter: 'task_id = 7' })
+  })
+
   it('fills text props and filters, escaping a quoted value so any text stays one value', () => {
     const tricky: ValueScope = { stack: [{ record: { id: 3, title: `it's a "q" \\ b` } }] }
     const node = fillProps(Table({ resource: 'claims', title: 'Claims of {{title}}', filter: `task_id = {{id}} AND title = '{{title}}' AND note = "{{title}}"` }), tricky)

@@ -17,7 +17,7 @@ const runs = (tree: LayoutNode, read: PlanRead) => {
 
 /**
  * The queries a page starts as it opens, one per planned read a block draws from, each an ordinary request of its own
- * with the page's parameters filled in, none waiting for another. A `Table`, `RecordCards` or `Thread` inside the
+ * with the page's parameters, and the record page's own record's key, filled in, none waiting for another. A `Table`, `RecordCards` or `Thread` inside the
  * records of another draws from its read too, which asks for what the block's own read would.
  */
 export const planQueries = (reader: PlanReader, tree: LayoutNode, plan: ReadPlan | undefined) =>
@@ -25,7 +25,7 @@ export const planQueries = (reader: PlanReader, tree: LayoutNode, plan: ReadPlan
     const node = elementAt(tree, planned.block)
     const nested = node && nestedRead(node, planned, reader)
     if (!nested && !runs(tree, planned)) return []
-    const read = fillPlanRead(nested?.read ?? planned, { params: reader.params })
+    const read = fillPlanRead(nested?.read ?? planned, { params: reader.params, ...(reader.root && { root: reader.root }) })
     const extras = nested?.extras ?? {}
     const queryFn = async () => {
       const page = await readPlanned(reader.client, read, extras)

@@ -25,6 +25,18 @@ describe('valueScopeOf', () => {
   })
 })
 
+describe("the record page's own record", () => {
+  const root: ScopeFrame = { ...task, root: true }
+
+  it('is @root, and the record a bare name reaches last', () => {
+    expect(valueScopeOf([root, claim])).toEqual({ root: task.record, stack: [{ record: claim.record, row: { index: 0, count: 2 } }] })
+    expect(frameFor([root, claim], '@root.status')).toEqual({ frame: root, path: 'status' })
+    expect(frameFor([root, claim], 'title')).toEqual({ frame: root, path: 'title' })
+    expect(frameFor([root], 'this.title')).toEqual({ frame: root, path: 'title' })
+    expect(frameFor([task, claim], '@root.status')).toBeUndefined()
+  })
+})
+
 describe('items of a JSON list', () => {
   const item: ScopeFrame = { item: { name: 'lint', status: 'ok' }, row: { index: 0, count: 1 } }
 

@@ -39,7 +39,8 @@ export type MessageThreadProps = MessageFields & {
 }
 
 /**
- * The latest `limit` messages of `model` matching `filter`, oldest first, each under its sender's name and time, with
+ * The latest `limit` messages of `model` matching `filter`, oldest first, each under its sender's name and time, or its
+ * time alone without `sender`, with
  * earlier ones on request, and its `status` under it in the view's enum labels; a text the message resource's view marks
  * `.markdown()` shows rendered. The latest `limit` of its `calls` show between them in time order. Planned, it reads
  * only its earlier ones itself.
@@ -48,21 +49,22 @@ export const MessageThread = ({ model, filter, sender, time, text: body, status,
   const { resources, views } = useAdminMeta()
   const auth = useOptionalAuth()
   const reader = auth?.state.kind === 'signed-in' ? auth.state.user.id : undefined
-  const labels = listLabels(resources, views, model, [sender])
+  const senders = sender === undefined ? [] : [sender]
+  const labels = listLabels(resources, views, model, senders)
   const list = useThreadList(model.name, { filter, orderBy: threadSort(time), pageSize: limit, labels }, planned?.messages)
   const callList = useToolCalls(calls, limit, planned?.calls)
   const state = threadState(list)
   if (state === 'error') return <ErrorBanner title={text('couldNotLoad')} error={list.error} onRetry={retryOf(list)} />
   // The live region mounts with the messages it opens on, so a screen reader announces only those that arrive later
   if (state === 'loading') return <div className="p-4"><Quiet>{text('loadingMessages')}</Quiet></div>
-  const rows = withLabels(resources, model, [sender], list.items, list.labels)
+  const rows = withLabels(resources, model, senders, list.items, list.labels)
   // A call shows after a message sent at the same time
   const newestFirst = mergeByTime({ items: callList.calls, more: callList.hasNextPage }, { items: messageRows(rows, time), more: list.hasNextPage })
   const items = threadItems(newestFirst, { key: (row) => String(recordKey(model, row)), sender, time, text: body, status })
   const statusHints = status === undefined ? undefined : views[model.name]?.fields[status]
   const markdown = model.fields[body] !== undefined && isMarkdown(model.fields[body], views[model.name]?.fields[body])
   // The reader's own newest message: when one arrives, the thread goes to the end wherever they were
-  const own = items.findLast((item) => item.kind === 'message' && item.author.id === reader)
+  const own = items.findLast((item) => item.kind === 'message' && item.author !== undefined && item.author.id === reader)
   return (
     <>
       {/* The messages stay, so the reader keeps their place; Try again runs what failed once more */}
@@ -82,7 +84,7 @@ export const MessageThread = ({ model, filter, sender, time, text: body, status,
           ) : item.kind === 'call' ? (
             <ToolCallItem key={item.key} call={item} statusHints={callList.statusHints} />
           ) : (
-            <ChatMessage key={item.key} author={item.author} time={item.time} continued={item.continued} footer={item.status !== undefined && <MessageStatus value={item.status} hints={statusHints} />}>
+            <ChatMessage key={item.key} {...(item.author ? { author: item.author } : { alone: true as const })} time={item.time} continued={item.continued} footer={item.status !== undefined && <MessageStatus value={item.status} hints={statusHints} />}>
               {/* A message keeps its line breaks; rendered markdown makes its own */}
               {markdown && item.text !== '' ? <Markdown source={item.text} className="whitespace-normal" /> : item.text}
             </ChatMessage>
