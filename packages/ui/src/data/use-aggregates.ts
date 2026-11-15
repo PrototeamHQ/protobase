@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { filterText, type AggregateParams, type FilterInput, type SeriesParams } from '@protobase/client'
+import { filterText, type AggregateParams, type Client, type FilterInput, type SeriesParams } from '@protobase/client'
 import { useClient } from './api-provider'
 import { keys } from './query-keys'
 
@@ -25,12 +25,14 @@ export const useHistogram = (resource: string, field: string, filter?: FilterInp
   return useQuery({ queryKey: keys.histogram(resource, field, buckets, text), enabled, queryFn: () => client.histogram(resource, field, { filter: text, buckets }) })
 }
 
-/** Totals per value or date bucket of a field (`:aggregate`), refetched whenever the resource is written. */
-export const useAggregate = (resource: string, params: AggregateParams, enabled = true) => {
-  const client = useClient()
+/** Totals per value or date bucket of a field (`:aggregate`). */
+export const aggregateQuery = (client: Client, resource: string, params: AggregateParams) => {
   const wire = { ...params, filter: filterText(params.filter) ?? '' }
-  return useQuery({ queryKey: keys.aggregate(resource, JSON.stringify(wire)), enabled, queryFn: () => client.aggregate(resource, wire) })
+  return { queryKey: keys.aggregate(resource, JSON.stringify(wire)), queryFn: () => client.aggregate(resource, wire) }
 }
+
+/** The totals of `aggregateQuery`, refetched whenever the resource is written. */
+export const useAggregate = (resource: string, params: AggregateParams, enabled = true) => useQuery({ ...aggregateQuery(useClient(), resource, params), enabled })
 
 /** Several `:aggregate` reads of one resource at once, in the order of `requests`, cached as `useAggregate` caches each. */
 export const useAggregates = (resource: string, requests: AggregateParams[], enabled = true) => {
