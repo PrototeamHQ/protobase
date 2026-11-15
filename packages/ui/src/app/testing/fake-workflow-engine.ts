@@ -1,7 +1,12 @@
 import type { WorkflowRunTrace, WorkflowTraceStep } from '@protobase/client'
+import { recordDefinition } from '../field-types/workflow/definition'
 import { createRunner, findBlock, rerunCheckpoint, rerunFrom, rerunProblem, type BlockRun, type BlockRunStore, type Checkpoint, type Definition, type RunStore, type StepCacheStore, type StepRecord, type TaskHandlers, type TraceSink } from '@protobase/workflows'
 
 type Row = Record<string, unknown>
+
+// A workflow's definition fields as a version keeps them; a form writes a JSON field as its text.
+const definitionFields = ['state_machine', 'trigger', 'execution_order', 'connections', 'trace'] as const
+const partsOf = (row: Row) => Object.fromEntries(definitionFields.map((field) => [field, typeof row[field] === 'string' && field !== 'execution_order' && field !== 'trace' ? JSON.parse(row[field] as string) : (row[field] ?? null)]))
 
 const ended = new Set(['succeeded', 'failed'])
 
@@ -21,7 +26,7 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
   // A form writes a relation's key as text, so keys compare as text
   const same = (a: unknown, b: unknown) => String(a) === String(b)
   const runOf = (id: string) => table('workflow_runs').find((row) => same(row.id, id))!
-  const definitionOf = (run: Row) => table('workflow_versions').find((row) => same(row.workflow_id, run.workflow_id) && row.version === run.version)!.definition as Definition
+  const definitionOf = (run: Row): Definition => recordDefinition(table('workflow_versions').find((row) => same(row.workflow_id, run.workflow_id) && row.version === run.version)!)
   const store: RunStore<null> = {
     load: async (_, id) => {
       const run = runOf(id)
@@ -122,9 +127,10 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
       if (resource === 'workflows') {
         const versions = table('workflow_versions').filter((version) => same(version.workflow_id, row.id))
         const last = versions.at(-1)
-        if (last && JSON.stringify(last.definition) === JSON.stringify(row.definition)) return
+        const parts = partsOf(row)
+        if (last && JSON.stringify(partsOf(last)) === JSON.stringify(parts)) return
         row.version = versions.length + 1
-        table('workflow_versions').push({ workflow_id: row.id, version: row.version, definition: structuredClone(row.definition), saved_by: 'u-ada', saved_at: new Date().toISOString() })
+        table('workflow_versions').push({ workflow_id: row.id, version: row.version, ...structuredClone(parts), saved_by: 'u-ada', saved_at: new Date().toISOString() })
         return
       }
       if (resource !== 'workflow_runs') return

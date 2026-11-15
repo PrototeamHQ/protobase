@@ -38,6 +38,8 @@ let stored: Record<string, unknown> | undefined
 // A save is checked as the server checks it, and refused as it is: a 400 naming each problem on the definition.
 const checkSave = (resource: string, row: Record<string, unknown>) => {
   if (resource !== 'workflows') return
+  // A workflow created without a trigger runs by hand, as the database's default fills it in
+  row.trigger ??= { manual: {} }
   // A workflow starts with no steps, which the server keeps
   const definition = recordDefinition(row)
   if (Object.keys(definition.stateMachine.States).length === 0) return
@@ -113,8 +115,10 @@ export const CreatesAndConnectsChecks: StoryObj = {
     await userEvent.type(panel().getByRole('textbox', { name: /^Subject/ }), 'Today')
     await userEvent.type(panel().getByRole('textbox', { name: /^Text/ }), "{{% $states.context.Execution.Input.body %}")
     await addStep(canvasElement, 'Succeed')
-    await laidOut(canvasElement, 4)
-    await waitFor(() => expect(canvasElement.querySelectorAll('.react-flow__edge')).toHaveLength(3))
+    // The trigger, three steps, and a Break of the run's input, whose body Step 2's text reads: three execution edges
+    // and that read's two wires
+    await laidOut(canvasElement, 5)
+    await waitFor(() => expect(canvasElement.querySelectorAll('.react-flow__edge')).toHaveLength(5))
     // A connection redrawn by the form's Goes on to, away and back
     await userEvent.click(await nodeOf(canvasElement, 'Step 1'))
     await userEvent.selectOptions(await panel().findByRole('combobox', { name: 'Goes on to' }), 'Step 3')
@@ -264,7 +268,7 @@ export const RemovesChecks: StoryObj = {
     await userEvent.click(await within(await canvas.findByRole('region', { name: 'Chosen step' })).findByRole('button', { name: 'Remove step' }))
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(stored).toBeDefined())
-    const states = (stored!.definition as Definition).stateMachine.States
+    const states = (stored!.state_machine as Definition['stateMachine']).States
     expect(Object.keys(states)).toEqual(['Fetch', 'Any', 'Each', 'Done'])
     expect(states.Any).toEqual({ Type: 'Choice', Choices: [{ Condition: '{% $count($tickets) > 0 %}', Next: 'Each' }] })
     expect(states.Fetch).not.toHaveProperty('Catch')
