@@ -3,7 +3,7 @@ import { graphLayout, type Box } from './graph-layout'
 import { graphShape } from './graph-shape'
 import { linkRows, sampleFields, serviceRows } from './testing/sample-graph'
 
-const shapeOf = (nodes: Record<string, unknown>[] = serviceRows, edges: Record<string, unknown>[] = linkRows) => graphShape({ nodes, edges, key: 'id', edgeKey: 'id', fields: sampleFields })
+const shapeOf = (nodes: Record<string, unknown>[] = serviceRows, edges: Record<string, unknown>[] = linkRows) => graphShape({ nodes, edges, key: 'id', edgeKey: ['id'], fields: sampleFields })
 
 describe('a graph’s shape', () => {
   it('groups the nodes by their group value and keeps every edge between two of them', () => {

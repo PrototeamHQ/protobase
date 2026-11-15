@@ -25,9 +25,10 @@ export const graphText: TextForm = ({ node, at, children, options }) => {
   }
   const nodeRows = options.planned?.(planReadId({ block: at, part: 'nodes' }), options.record)
   const edgeRows = options.planned?.(planReadId({ block: at, part: 'edges' }), options.record) ?? []
-  if (!model || !edgeModel || !nodeRows) return markdown.blocks(children)
+  // A node is found by a key of one field, as an edge's `source` and `target` each hold one value
+  if (!model || !edgeModel || !nodeRows || model.primaryKey.length !== 1) return markdown.blocks(children)
   const labels = options.labels?.[model.name] ?? {}
-  const shape = graphShape({ nodes: nodeRows, edges: edgeRows, key: model.primaryKey[0]!, edgeKey: edgeModel.primaryKey[0]!, fields })
+  const shape = graphShape({ nodes: nodeRows, edges: edgeRows, key: model.primaryKey[0]!, edgeKey: edgeModel.primaryKey, fields })
   if (shape.nodes.length === 0) return markdown.blocks([markdown.escapeMarkdown(text(node.props.empty) ?? ''), ...children])
   const named = new Map(shape.nodes.map((each) => [each.id, markdown.escapeMarkdown(String(each.row[fields.label] ?? each.id))]))
   const line = (row: Record<string, unknown>) => {

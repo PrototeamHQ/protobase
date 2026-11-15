@@ -80,7 +80,8 @@ const play: StoryObj['play'] = async ({ canvasElement }) => {
   const nodes = await canvas.findAllByRole('link', { name: /^(Gateway|Sign-in|Web app|Orders|Billing|Search|Mailer|Database|Queue|Files)$/ })
   expect(nodes).toHaveLength(10)
   expect(await canvas.findByText('Core')).toBeVisible()
-  expect(canvasElement.querySelectorAll('.react-flow__edge')).toHaveLength(11)
+  // Edges draw once the nodes' handles are measured
+  await waitFor(() => expect(canvasElement.querySelectorAll('.react-flow__edge')).toHaveLength(11))
   const billing = nodes.find((node) => node.textContent === 'Billing')!
   expect(billing).toHaveAttribute('href', '/map?service=5')
 

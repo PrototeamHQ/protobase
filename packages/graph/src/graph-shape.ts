@@ -15,11 +15,11 @@ const keyText = (value: unknown) => (value === null || value === undefined || va
 const byText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 
 /**
- * The graph `nodes` and `edges` make: a node per record by its `key` field, an edge by its `edgeKey` field, in the group its `group` value names, and
+ * The graph `nodes` and `edges` make: a node per record by its `key` field, an edge by its `edgeKey` fields, in the group its `group` value names, and
  * an edge per record whose `source` and `target` are both among the nodes; one pointing elsewhere is left out. Groups,
  * nodes and edges are each sorted by key, so the same records make the same graph whatever order they come in.
  */
-export const graphShape = ({ nodes, edges, key, edgeKey, fields }: { nodes: Row[]; edges: Row[]; key: string; edgeKey: string; fields: GraphFields }): GraphShape => {
+export const graphShape = ({ nodes, edges, key, edgeKey, fields }: { nodes: Row[]; edges: Row[]; key: string; edgeKey: readonly string[]; fields: GraphFields }): GraphShape => {
   const byKey = new Map<string, ShapeNode>()
   const groups = new Map<string, ShapeGroup>()
   for (const row of nodes) {
@@ -31,7 +31,8 @@ export const graphShape = ({ nodes, edges, key, edgeKey, fields }: { nodes: Row[
     byKey.set(id, { id, row, ...(group !== undefined && { group }) })
   }
   const linked = edges.flatMap((row) => {
-    const id = keyText(row[edgeKey])
+    const parts = edgeKey.map((name) => keyText(row[name]))
+    const id = parts.includes(undefined) ? undefined : parts.join(',')
     const source = keyText(row[fields.source])
     const target = keyText(row[fields.target])
     if (id === undefined || source === undefined || target === undefined || !byKey.has(source) || !byKey.has(target)) return []

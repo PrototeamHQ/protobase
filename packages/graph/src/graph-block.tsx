@@ -25,8 +25,10 @@ export const Graph = ({ label, group, status, source, target, empty, children }:
   const fields: GraphFields = useMemo(() => ({ label, source, target, ...(group !== undefined && { group }), ...(status !== undefined && { status }) }), [label, source, target, group, status])
   // The rows are new arrays on each render; the same records make the same shape, laid out once
   const signature = JSON.stringify([nodes?.rows, edges?.rows, fields])
-  const shape = useMemo(() => nodes && edges && graphShape({ nodes: nodes.rows, edges: edges.rows, key: nodes.model.primaryKey[0]!, edgeKey: edges.model.primaryKey[0]!, fields }), [signature])
+  const shape = useMemo(() => nodes && edges && graphShape({ nodes: nodes.rows, edges: edges.rows, key: nodes.model.primaryKey[0]!, edgeKey: edges.model.primaryKey, fields }), [signature])
   if (!nodes || !edges || !shape) return null
+  // An edge's `source` and `target` each hold one value, so a node is found by a key of one field
+  if (reads.nodes && reads.nodes.model.primaryKey.length !== 1) throw new Error(`A Graph's nodes need a key of one field, and ${reads.nodes.model.name} has ${reads.nodes.model.primaryKey.length}`)
   // A read that failed draws the block's fallback, as a component that throws does
   if (nodes.error) throw nodes.error
   if (edges.error) throw edges.error
