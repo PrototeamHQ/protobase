@@ -100,8 +100,8 @@ export const maxTicks = 6
 
 const year = 365 * day
 
-// How many whole steps lie from `from` to `to`, both included, on a clock `offset` ms ahead of UTC
-const stepsIn = (from: number, to: number, step: number, offset: number) => Math.floor((to + offset) / step) - Math.ceil((from + offset) / step) + 1
+// How many whole local steps lie from `from` to `to`, both included, on a clock `fromOffset` ms ahead of UTC at `from` and `toOffset` at `to`
+const stepsIn = (from: number, to: number, step: number, fromOffset: number, toOffset: number) => Math.floor((to + toOffset) / step) - Math.ceil((from + fromOffset) / step) + 1
 
 /**
  * The ticks of an axis from `from` to `to`: the shortest step that gives at most `maxTicks`, past the last of
@@ -114,9 +114,10 @@ export const axisTicks = (from: number, to: number, offsetOf: (ms: number) => nu
   const span = to - from
   if (span <= 0) return { daily: false, ticks: [] }
   const offset = offsetOf(from)
-  const step = tickSteps.find((candidate) => stepsIn(from, to, candidate, offset) <= maxTicks) ?? Math.ceil(span / (maxTicks - 1) / year) * year
+  const endOffset = offsetOf(to)
+  const step = tickSteps.find((candidate) => stepsIn(from, to, candidate, offset, endOffset) <= maxTicks) ?? Math.ceil(span / (maxTicks - 1) / year) * year
   const ticks: Array<{ at: number; left: number }> = []
-  for (let local = Math.ceil((from + offset) / step) * step; local <= to + offset; local += step) {
+  for (let local = Math.ceil((from + offset) / step) * step; local <= to + endOffset; local += step) {
     // The local step's moment, by the offset in force near it; a step the clock skips, as it springs forward, has none
     const at = local - offsetOf(local - offset)
     if (at + offsetOf(at) !== local) continue
