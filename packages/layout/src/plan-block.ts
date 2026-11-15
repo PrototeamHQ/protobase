@@ -83,10 +83,9 @@ const namedFields = (node: LayoutNode, props: string | string[]) =>
     return Array.isArray(value) ? value.filter((item) => typeof item === 'string') : []
   })
 
-/** The fields a block draws of its own records, the key included; `undefined` when it draws a set its view decides. */
+/** The fields a block draws of its own records, every key field included; `undefined` when it draws a set its view decides. */
 const ownFields = (node: LayoutNode, reads: BlockReads, model: ResourceModel): Set<string> | undefined => {
-  const key = keyOf(model)
-  const names = (list: string[]) => new Set([key, ...list.map((name) => name.split('.')[0]!)])
+  const names = (list: string[]) => new Set([...model.primaryKey, ...list.map((name) => name.split('.')[0]!)])
   switch (node.type) {
     case 'Table': {
       const columns = node.props.columns as TableColumn[] | undefined
