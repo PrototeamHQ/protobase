@@ -210,7 +210,7 @@ export default defineConfig(({ command }) => ({ webhooks: { allowPrivateAddresse
 
 ## workflows
 
-- **Type:** `{ schema?: string; secrets?: string[]; allowPrivateAddresses?: boolean; plugins?: string[]; storage?: { root?: string; endpoints?: string[] } }`
+- **Type:** `{ schema?: string; secrets?: string[]; allowPrivateAddresses?: boolean; plugins?: string[]; storage?: { root?: string; endpoints?: string[] }; customSteps?: boolean }`
 - **Default:** off; `{}` turns them on
 
 Workflows that people and models make in the app, kept with their versions, runs and steps in a schema of the app's database that `protobase migration` writes, and run by the `workflows.segment` job. Records steps act as each workflow's last editor, with the roles they hold now, read from the app's sign-in; a project that signs people in otherwise exports its own, `async ({ id, tenant }) => [...]`, as the default of `workflows/saved-by-roles.ts`. See [Workflows](/reference/workflows/).
@@ -272,6 +272,17 @@ Turns on [storage configurations](/reference/workflows/#storing-files), the name
 
 ```ts
 export default defineConfig({ workflows: { storage: { root: './data/workflow-storage', endpoints: ['https://storage.example.com'] } } })
+```
+
+## workflows.customSteps
+
+- **Type:** `boolean`
+- **Default:** `false`
+
+Turns on [custom steps](/reference/workflows/#custom-workflow-steps), step types the app's authors keep as records, each saved version a type of its own, `custom:<name>:<version>`. Their tables come with the next `protobase migration` after you turn them on. Any other value than `true` or `false` stops startup.
+
+```ts
+export default defineConfig({ workflows: { customSteps: true } })
 ```
 
 ## notifications

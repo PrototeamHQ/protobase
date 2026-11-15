@@ -27,7 +27,7 @@ It adds five resources, over a `workflows` schema that [`protobase migration`](/
 | `workflow_triggers` | The trigger of each enabled workflow that has one besides `manual`: its type, status and last error. Read-only. |
 | `workflow_resolutions` | Each time someone [marked a workflow resolved](#run-status), by whom and when. Created only. |
 
-With `storage` it adds a sixth, `storage_configurations`, the places workflows [store files](#storing-files) in.
+With `storage` it adds a sixth, `storage_configurations`, the places workflows [store files](#storing-files) in. With `customSteps` it adds `workflow_custom_steps` and `workflow_custom_step_versions`, the app's [custom steps](#custom-workflow-steps) and every version of each.
 
 | `workflows` | |
 | --- | --- |
@@ -37,6 +37,7 @@ With `storage` it adds a sixth, `storage_configurations`, the places workflows [
 | `plugins` | Packages of [workflow plugins](/reference/workflow-plugins/) to run, by name, beside the app's own in `workflows/plugins/<name>.ts`. |
 | `trace` | Which runs keep a [trace](#traces): `all` (default), `failed` or `none`. Any other value stops startup. |
 | `storage` | Turns on [storage configurations](#storing-files): `root`, the one folder local configurations live inside, and `endpoints`, the `https://` origins an S3-compatible configuration may name. Needs `PROTOBASE_ENCRYPTION_KEY`. |
+| `customSteps` | `true` turns on [custom steps](#custom-workflow-steps). Default `false`; any other value stops startup. |
 
 Runs keep their traces and the files steps store in the app's `private` [file provider](/reference/files/), local disk under `data/files/private` unless `PROTOBASE_FILES_PRIVATE` names an S3 bucket, so an app with workflows needs a files secret: `secret`, `files.secret`, `PROTOBASE_FILES_SECRET` or `PROTOBASE_SECRET`.
 
@@ -308,7 +309,7 @@ A Task whose `Resource` is a step type followed by `.waitForTaskToken`, the Stat
 
   Each answers `200 {}`, or a problem whose title names the error as those callers know it: `InvalidToken` (400, not a token), `InvalidOutput` (400, an `output` that is not JSON, too large or too deep, or an error or cause over 256 and 32,768 characters), `TaskDoesNotExist` (404, no Task was given this token) or `TaskTimedOut` (409, the Task already ended, by an answer, its time or its run). Over MCP, `send_task_success`, `send_task_failure` and `send_task_heartbeat` do the same for a caller who may read the run.
 - **Its token.** Each try gets its own: a retry hands the work off again with a new one, and the old one answers nothing. A token settles its Task once, by a success or a failure, and expires with the wait. The app keeps only its SHA-256, and blanks the token out of the step's input, logs and every trace.
-- **Its time.** `TimeoutSeconds` counts from the hand-off and may be up to 366 days, its default; past it the Task fails with `States.Timeout`. `HeartbeatSeconds`, less than `TimeoutSeconds`, fails it with `States.HeartbeatTimeout` when no heartbeat came in that time since the hand-off or the last one. The step type's own call still ends within 300 seconds.
+- **Its time.** `TimeoutSeconds` counts from the try's start, its hand-off included, as in Step Functions, and may be up to 366 days, its default; past it the Task fails with `States.Timeout`. `HeartbeatSeconds`, less than `TimeoutSeconds`, fails it with `States.HeartbeatTimeout` when no heartbeat came in that time since the hand-off or the last one. The step type's own call still ends within 300 seconds.
 - **Once only.** The hand-off happens once per try: a run that stops after it, as when its worker restarts, only waits again; one that stops before it was marked hands off again with a new token, under a new idempotency key, so a receiver that drops repeated keys still gets it. An answer that comes while the hand-off is still running counts, even if the hand-off then fails. A [replay](#replaying-a-run) hands nothing off and goes on with what the replayed run was sent. A Task that waits caches nothing, so `Cache` is refused on it.
 - **Where it may be read.** `$states.context.Task.Token` is read only in such a Task's `Arguments`.
 - **In the editor.** A Task's form has *Wait for an outside result*, which adds `.waitForTaskToken`, with *Wait at most* (`TimeoutSeconds`) and *Heartbeat within* (`HeartbeatSeconds`); its node is named for its step type, *then waits*.
@@ -522,6 +523,72 @@ A step reads the configuration it names afresh each time, as the user who saved 
 
 A stored file is read from where its configuration points now. <gap>Changing a configuration cannot move the files already in it because moving stored files is not implemented.</gap> A local configuration's files are on one server. <gap>A run cannot be kept on the server that holds its local files because routing runs to a server is not implemented.</gap>
 
+## Custom workflow steps
+
+:::caution[In development]
+A custom step is saved, listed and checked, but it does not run: a run that reaches one fails. It cannot yet be built, tested or given limits on its resources and network.
+:::
+
+A **custom step** is a step type the app's authors keep as a record: a container built from a Dockerfile, with the input it takes and the output it gives as JSON Schema. Each save that changes its manifest is a new version, and every version is a step type of its own, `custom:<name>:<version>`, such as `custom:invoice_pdf:2`, so changing a custom step never changes a workflow that names an earlier version.
+
+Turn them on with `customSteps` in `workflows`:
+
+```ts
+export default defineConfig({ workflows: { customSteps: true } })
+```
+
+Their tables, `workflows.custom_steps` and `workflows.custom_step_versions`, come with the next [`protobase migration`](/reference/cli/#migration) after you turn them on.
+
+A custom step is a record of `workflow_custom_steps`, which you create and change on its standard pages, linked from each workflow's page, through the API or over MCP. Each save is checked, and refused with a 400 problem whose `problems` name each field, such as `container.dockerfile`:
+
+| Field | |
+| --- | --- |
+| `name` | What a Task names it by: a lowercase letter, then lowercase letters, digits and `_`, at most 64. Unique in the tenant. It is set on create only, since every Task that calls the step holds it; a change is refused as `"name" is read-only`. |
+| `label`, `description` | What the step picker and the type list show. |
+| `kind` | `container`, the only kind there is. |
+| `container` | `{ dockerfile, files, command }`. `dockerfile` is text of at most 64 KiB whose first instruction is `FROM`, after `ARG` lines and comments only. `files` are the files beside it, by a relative path that has no `..` segment, each with its text, at most 1 MiB together, `{}` for none. `command` is a list of non-empty texts, such as `["python", "main.py"]`, or left out for the image's own. |
+| `input`, `output` | The JSON Schema of the step's arguments and of its result, each an object (`"type": "object"`) that compiles. `{ "x-file": true }` is a [stored file](#storing-files): in `input`, an argument that takes one, and in `output`, a file the step stores. `input` may not declare `store`. |
+| `error_prefix`, `errors` | The prefix of its error names, `Custom` by default, and the errors it fails with by name, each with what it means, such as `{ "Refused": "the renderer refused the invoice" }`: the step fails as `Invoice.Refused`. Each is a capital, then letters and digits; the prefix is not `States`. |
+| `version` | The version its last change made, which the save numbers. Read-only. |
+
+```json
+{
+  "name": "invoice_pdf",
+  "label": "Invoice PDF",
+  "description": "Renders an invoice as a PDF.",
+  "container": {
+    "dockerfile": "FROM python:3.13-slim\nCOPY main.py .",
+    "files": { "main.py": "..." },
+    "command": ["python", "main.py"]
+  },
+  "input": { "type": "object", "required": ["number"], "properties": { "number": { "type": "string" } } },
+  "output": { "type": "object", "properties": { "pdf": { "x-file": true }, "pages": { "type": "integer" } } },
+  "error_prefix": "Invoice",
+  "errors": { "Refused": "the renderer refused the invoice" }
+}
+```
+
+Each version, its manifest whole with who saved it and when, is a record of `workflow_custom_step_versions`, read-only, listed on its custom step's page. Deleting a custom step keeps its versions, which are then no step types, and a custom step made again under its name goes on from its next version, so `custom:<name>:<version>` always names the one manifest it named first.
+
+A Task names a version in its `Resource`:
+
+```json
+"Render": {
+  "Type": "Task",
+  "Resource": "custom:invoice_pdf:2",
+  "Arguments": { "number": "{% $states.context.Execution.Input.number %}", "store": { "configuration": "archive" } },
+  "Next": "Mail"
+}
+```
+
+Its arguments are the manifest's `input` and `store`, `{ configuration, path? }`, the [storage configuration](#storing-files) it stores the files it gives in, as `app:http` takes it; a version whose `output` gives a file needs it. The save checks the arguments it needs and types its pins from the manifest, as it does any step type's, and its errors are `<error_prefix>.<Name>`. A `Resource` that names no version, such as `custom:invoice_pdf`, is refused, naming the latest: `"custom:invoice_pdf" names no version: write custom:invoice_pdf:2`. A version of another tenant's custom step, or one deleted, is refused as an unknown step type.
+
+The editor's step picker lists each custom step at its latest version under *Custom steps*, and a Task's form takes any version, and `GET /api/workflows/types`, `list_workflow_types` and `validate_workflow` take them, each with the custom steps of the caller's tenant: whoever may read workflows reads them, as they do a plugin's types, and only creating, changing and deleting them is granted.
+
+- <gap>A custom step cannot run because building its image and running its container are not implemented; a run that reaches one fails with `States.Runtime` and the cause `Custom steps do not run yet`.</gap>
+- <gap>A custom step cannot limit its memory, CPU, time or network because those fields of its manifest are not implemented.</gap>
+- <gap>A custom step cannot be saved or tested over MCP with tools of its own because those tools are not implemented; `create_record` and `update_record` save it.</gap>
+
 ## Runs and their steps
 
 A run starts when it is created, through the API or the admin app, in the same transaction: `POST /api/v1/workflow_runs` with `{ "workflow_id": "...", "input": { ... } }`. The input is at most 256 KiB as JSON and nests at most 64 levels; a larger one is refused with `input-too-large` or `input-too-deep` and no run. From the app's own code, such as a job or a write hook, `startWorkflow(db, { workflow, input, tenant, startedBy, trace })` from `@protobase/server` starts one in `db`'s transaction, so it starts when the caller's writes commit, or not at all. With a `key`, such as `orders:42`, a workflow runs once per key: a start with a key it has a run for already, in this transaction or another, starts nothing and returns that run's id.
@@ -630,6 +697,8 @@ The workflow resources take only [named grants](/reference/access/#resources-tha
 | `workflow_resolutions.read` | Read who marked which workflow resolved and when. Marking one needs no grant of its own: whoever may change the workflow may. |
 | `storage_configurations.read` | Let workflows you save use the [storage configurations](#storing-files), and see them. Their keys are never shown. |
 | `storage_configurations.create`, `storage_configurations.update`, `storage_configurations.delete` | Make, change and delete storage configurations. |
+| `workflow_custom_steps.read`, `workflow_custom_step_versions.read` | Read the [custom steps](#custom-workflow-steps) and their versions. A workflow's author needs neither to use them: the step types are listed to whoever may read workflows. |
+| `workflow_custom_steps.create`, `workflow_custom_steps.update`, `workflow_custom_steps.delete` | Make, change and delete custom steps. Each change of a manifest is a new version. |
 
 ```ts
 defineRoles({

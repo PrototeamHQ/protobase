@@ -11,7 +11,7 @@ export const limits = {
   taskTimeoutSeconds: 300,
   defaultTaskTimeoutSeconds: 300,
   /**
-   * The longest a Task that waits for an outside result (`.waitForTaskToken`) waits, from its hand-off, and its default:
+   * The longest a Task that waits for an outside result (`.waitForTaskToken`) waits, from its try's start, and its default:
    * 366 days, as a Wait. Its `HeartbeatSeconds` is less.
    */
   waitingTaskTimeoutSeconds: 366 * 24 * 3600,

@@ -40,6 +40,12 @@ export type WorkflowsOptions = {
    * region or session token (`S3_*` or `AWS_*`). Encrypted keys need `PROTOBASE_ENCRYPTION_KEY`.
    */
   storage?: { root?: string; endpoints?: string[] }
+  /**
+   * Turns on custom steps, step types the app's authors keep as records, each saved version a type of its own,
+   * `custom:<name>:<version>`, which a workflow saves with and whose runs fail as steps that do not run yet. Default
+   * false; any other value than `true` or `false` stops startup.
+   */
+  customSteps?: boolean
 }
 
 const schemaPattern = /^[a-z_][a-z0-9_]*$/
@@ -76,6 +82,13 @@ export const workflowsTraceMode = (options: WorkflowsOptions) => {
 
 /** Whether storage is on: a `storage` object turns it on, and leaving it out, `false` or `null` leaves it off. */
 export const workflowsStorageOn = (options: Pick<WorkflowsOptions, 'storage'>) => Boolean(options.storage)
+
+/** Whether custom steps are on: `true` turns them on, `false` or leaving it out leaves them off, and startup stops on any other value. */
+export const workflowsCustomStepsOn = (options: Pick<WorkflowsOptions, 'customSteps'>) => {
+  const on = options.customSteps === undefined ? false : options.customSteps
+  if (typeof on !== 'boolean') throw new Error(`workflows.customSteps is ${JSON.stringify(on) ?? String(on)}: use true or false`)
+  return on
+}
 
 /** The storage options, checked: each endpoint an `https://` origin with no path, user or query, kept as its origin. */
 export const workflowsStorage = (options: Pick<WorkflowsOptions, 'storage'>) => {

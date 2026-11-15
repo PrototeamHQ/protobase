@@ -436,7 +436,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   else if (auth?.mcp && mcpAuthenticate) {
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const commented = registry.entries.filter((entry) => entry.model.comments).map((entry) => entry.name)
-    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, readTrace: engine.readTrace, listConnections: auth.connections.list, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }), answerTask: engine.answerTask } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, ...(engine.customTypes && { customTypes: engine.customTypes }), readTrace: engine.readTrace, listConnections: auth.connections.list, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }), answerTask: engine.answerTask } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
     const instructions = mcpServerInstructions(options.mcp ? options.mcp.instructions : undefined, engine ? workflowInstructions : undefined)
     const approvals = mcpApprovals()
     const { resource } = auth.mcp
@@ -479,7 +479,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     if (auth) removeHistoryWithUsers(auth, history)
     app.route(historyPath(systemPath), guarded((routes) => void routes.route('/', historyRoutes(history, auth?.origins ?? []))))
   }
-  if (engine) app.route(workflowTypesPath(systemPath), guarded((routes) => void routes.route('/', workflowTypesRoute(deps, engine.types.types))))
+  if (engine) app.route(workflowTypesPath(systemPath), guarded((routes) => void routes.route('/', workflowTypesRoute(deps, engine.types.types, engine.customTypes))))
   if (engine) app.route(workflowRunsPath(systemPath), guarded((routes) => void routes.route('/', workflowTraceRoute(deps, engine.readTrace))))
   if (statusTables) app.route(statusPath(systemPath), guarded((routes) => void routes.route('/', statusRoutes(db, statusTables))))
   if (deps.calls) app.route(ringsPath(systemPath), guarded((routes) => void routes.route('/', ringRoutes(deps.calls!))))

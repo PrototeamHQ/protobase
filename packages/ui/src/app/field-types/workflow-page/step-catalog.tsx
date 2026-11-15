@@ -1,6 +1,6 @@
 import { Bell, CircleCheck, CircleX, Database, GitBranch, Globe, Mail, Package, PenLine, Puzzle, Repeat, Timer, type LucideIcon } from 'lucide-react'
 import type { WorkflowTypeEntry, WorkflowTypeList } from '@protobase/client'
-import type { State } from '@protobase/workflows'
+import { customPlugin, customStepOf, latestCustomSteps, type State } from '@protobase/workflows'
 import type { PickerGroup, PickerItem } from '../../../search-picker'
 import type { NewState } from '../workflow/definition-edits'
 import { stateTypeLabel, stepTypeLabel } from '../workflow/labels'
@@ -35,16 +35,21 @@ const stepItem = (type: WorkflowTypeEntry): PickerItem => ({
   icon: builtIn[type.id]?.icon ?? (type.id.startsWith('app:') ? Bell : Puzzle),
 })
 
-// The plugin a step type comes from, by its id's prefix: `app:` is the app's own
+// The plugin a step type comes from, by its id's prefix: `app:` is the app's own, `custom:` its custom steps
 const pluginOf = (id: string) => id.slice(0, Math.max(id.indexOf(':'), 0))
 
-/** What a new step can be, as the step picker groups it: what the app has built in, each plugin's, and the states that steer the run. */
+// A plugin's group is titled by its name; the app's custom steps have a title of their own.
+const groupTitle = (plugin: string) => (plugin === customPlugin ? text('customSteps') : plugin)
+
+/** What a new step can be, as the step picker groups it: what the app has built in, each plugin's, the app's custom steps at their latest version, and the states that steer the run. */
 export const stepGroups = (types: WorkflowTypeList): PickerGroup[] => {
-  const offered = types.step_types.filter((type) => type.available)
+  // A custom step is offered at its latest version; a step already written keeps the version it names
+  const latest = new Set(Object.values(latestCustomSteps(types.step_types.map((type) => type.id))))
+  const offered = types.step_types.filter((type) => type.available && (!customStepOf(type.id) || latest.has(type.id)))
   const plugins = [...new Set(offered.map((type) => pluginOf(type.id)).filter((name) => name !== 'app'))]
   return [
     { title: text('builtIn'), items: offered.filter((type) => pluginOf(type.id) === 'app').map(stepItem) },
-    ...plugins.map((plugin) => ({ title: plugin, items: offered.filter((type) => pluginOf(type.id) === plugin).map(stepItem) })),
+    ...plugins.map((plugin) => ({ title: groupTitle(plugin), items: offered.filter((type) => pluginOf(type.id) === plugin).map(stepItem) })),
     { title: text('flow'), items: flow.map((each) => ({ id: `type:${each.type}`, title: stateTypeLabel(each.type), description: each.description(), keywords: each.keywords, icon: each.icon })) },
   ].filter((group) => group.items.length > 0)
 }

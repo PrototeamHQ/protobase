@@ -1,12 +1,13 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
-import { checkDefinition, definitionFromParts, partOfProblem, problemText, type CheckOptions, type Definition, type DefinitionParts } from '@protobase/workflows'
+import { checkDefinition, definitionFromParts, partOfProblem, problemText, withCustomSteps, type CheckOptions, type Definition, type DefinitionParts } from '@protobase/workflows'
 import { badRequest } from '../problem'
 import type { PipelineHook } from '../types'
 import type { TriggerJobs } from './triggers/trigger-jobs'
 import { syncTrigger } from './triggers/trigger-sync'
 import { saveConsent, type ConnectionConsent } from './connections/connection-consent'
 import { definitionColumns, definitionOfRow } from './definition-columns'
+import type { CustomStepTypes } from './custom-steps/custom-step-types'
 
 // The definition of a saved version, or nothing when the workflow has no such version.
 const savedDefinition = async (trx: Db, schema: string, workflow: string, version: number) => {
@@ -42,9 +43,10 @@ const refuseProblems = (definition: unknown, types: CheckOptions) => {
  * publishes that saved version, checked again, and puts the workflow's trigger on it, and clearing it turns the
  * workflow off, which never depends on a definition still checking, as after an app update removed a plugin. A refusal is a 400
  * problem naming each state and field, also listed as `problems`, and as the `definition` field's `errors` with the
- * state and field in their `params`, for a form to show each on its step; the write rolls back.
+ * state and field in their `params`, for a form to show each on its step; the write rolls back. With `custom`, the
+ * workflow's tenant's custom steps are step types too, read in the write's transaction.
  */
-export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick<TriggerJobs, 'start' | 'stop'>, consent: ConnectionConsent): PipelineHook => async (event, trx) => {
+export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick<TriggerJobs, 'start' | 'stop'>, consent: ConnectionConsent, custom?: CustomStepTypes): PipelineHook => async (event, trx) => {
   if (event.resource.name !== 'workflows' || !event.after) return
   if (event.operation !== 'create' && event.operation !== 'update') return
   // The trigger numbers a new version only when the definition changed.
@@ -53,9 +55,11 @@ export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick
   const publishing = enabled !== (event.before?.enabled_version ?? null)
   if (!changed && !publishing) return
   const id = String(event.after.id)
+  // Turning a workflow off checks nothing
+  const check = custom && (changed || enabled !== null) ? withCustomSteps(await custom(trx, event.after.tenant_id)).check(types) : types
   if (changed) {
     // A workflow starts with no steps; a version without any is kept, and refused as it is published or run.
-    refuseProblems(withStepsToCheck(definitionFromParts(event.after as DefinitionParts)), types)
+    refuseProblems(withStepsToCheck(definitionFromParts(event.after as DefinitionParts)), check)
     await sql`insert into ${sql.id(schema, 'versions')} (workflow_id, version, state_machine, trigger, execution_order, connections, trace, saved_by, tenant_id)
       select w.id, w.version, w.state_machine, w.trigger, w.execution_order, w.connections, w.trace, ${String(event.user.id)}, w.tenant_id from ${sql.id(schema, 'workflows')} w where w.id = ${id}`.execute(trx)
   }
@@ -67,7 +71,7 @@ export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick
   }
   const definition = await savedDefinition(trx, schema, id, enabled)
   if (!definition) throw badRequest('invalid-workflow', `Version ${enabled} of this workflow was never saved: set enabled_version to a saved version, or clear it to turn the workflow off`)
-  refuseProblems(definition, types)
+  refuseProblems(definition, check)
   const enabledBy = await consent(event.session, definition)
   await saveConsent(trx, schema, id, enabled, enabledBy)
   await syncTrigger(trx, schema, jobs, event.after, definition, enabledBy, types.connections)
