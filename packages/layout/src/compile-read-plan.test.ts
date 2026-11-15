@@ -47,7 +47,7 @@ describe('compileReadPlan', () => {
       pageSize: 50,
       limitPer: { field: 'task_id', count: 5 },
       split: { field: 'task_id', source: 'this.id', parent: '/children/0' },
-      fields: ['claimed_at', 'id'],
+      fields: ['claimed_at', 'id', 'task_id'],
       etag: false,
     })
   })
@@ -140,6 +140,8 @@ describe('compileReadPlan', () => {
     const tree = Page({ title: 'Tasks', children: [RecordCard({ resource: 'tasks', recordKey: '7', children: Field({ source: 'title' }) }), Table({ resource: 'workers', select: 'worker', children: Field({ source: 'name' }) })] })
     const [card, , chosen] = reads(tree)
     expect(card).toMatchObject({ filter: 'id = 7', pageSize: 1, fields: ['id', 'title'] })
+    // Its key names its record whatever its filter says, as the record's own read does
+    expect(reads(Page({ title: 'Task', children: [RecordCard({ resource: 'tasks', recordKey: '7', filter: "status = 'open'" })] }))[0]!.filter).toBe('id = 7')
     expect(chosen).toEqual({ block: '/children/1', part: 'chosen', kind: 'list', resource: 'workers', filter: 'id = {{@params.worker}}', pageSize: 1, fields: ['id', 'name'], etag: false })
   })
 })

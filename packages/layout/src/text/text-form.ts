@@ -14,9 +14,10 @@ export type TextOptions = {
   fields?: Record<string, TextFieldLabels>
   /**
    * What a `Table` shows, which the caller loaded, so it reads as a Markdown table; a table without it reads as its
-   * heading. `at` is the element's place in the tree, the JSON Pointer the read plan names its block by.
+   * heading. `at` is the element's place in the tree, the JSON Pointer the read plan names its block by; `record` the
+   * record around it, and `around` the records of the list around it, which a table without `resource` shows.
    */
-  tables?: (node: LayoutNode, at: string) => TableText | undefined
+  tables?: (node: LayoutNode, at: string, record: Record<string, unknown> | undefined, around: unknown[] | undefined) => TableText | undefined
   /**
    * The records a `ReferenceManyField`, `ReferenceArrayField` or `ReferenceField` holds for `record`, the record around
    * it, a `RecordCard`'s record, a `CardRow`'s records, or the row a block's `select` chose, which the caller read; such
@@ -39,6 +40,8 @@ export type TextContext = {
   node: LayoutNode
   /** The element's place in the tree, the JSON Pointer the read plan names its block by, such as `/children/0`. */
   at: string
+  /** The records of the list around it, when the text has them, which a `Table` without `resource` shows. */
+  around?: unknown[]
   /**
    * The text of each child, in order. A run of text and links, as they read in one line, is one part, so joining the
    * parts with a separator never splits a sentence.

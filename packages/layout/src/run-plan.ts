@@ -29,7 +29,8 @@ export const planReadResources = (read: PlanRead, plan: ReadPlan): string[] => {
  */
 export const runReadPlan = async (plan: ReadPlan, read: (planned: PlanRead) => Promise<PlanResult>, values: PlanValues = {}) => {
   const filled = plan.reads.map((planned) => fillPlanRead(planned, values))
-  const settled = await Promise.allSettled(filled.map(read))
+  // A read that throws before it returns its promise fails alone too, and the others still start
+  const settled = await Promise.allSettled(filled.map((planned) => new Promise<PlanResult>((resolve) => resolve(read(planned)))))
   return new Map(filled.map((planned, index) => [planReadId(planned), settled[index]!]))
 }
 

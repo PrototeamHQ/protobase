@@ -3,7 +3,7 @@ import { templatePlaceholders } from '@protobase/schema/internal'
 import { blockSpecs, type BlockReads } from './block-specs'
 import { threadSort } from './check-time'
 import { defaultPerPage, defaultSort, defaultSource, maxPerPage } from './list-blocks'
-import { allOf, filterLiteral, filterText, sortText } from './list-query'
+import { filterLiteral, filterText, sortText } from './list-query'
 import type { LayoutNode, LayoutValue } from './node'
 import type { Draft, PlanContext, Rows } from './plan-draft'
 import { keyEquality, splitFilter, type ImpliedSplit, type SplitFilter } from './plan-split'
@@ -105,9 +105,10 @@ const keyTerm = (model: ResourceModel, recordKey: string) => {
   return `${keyOf(model)} = ${quoted || !/^-?\d+$/.test(recordKey) ? filterLiteral(recordKey) : recordKey}`
 }
 
+// A RecordCard's `recordKey` names its record whatever its `filter` says, which picks the first match only without a key
 const sourceFilter = (node: LayoutNode, reads: BlockReads, model: ResourceModel) => {
   const recordKey = node.type === 'RecordCard' ? text(node.props.recordKey) : undefined
-  return allOf(ownFilter(node, reads), recordKey === undefined ? undefined : keyTerm(model, recordKey))
+  return recordKey === undefined ? ownFilter(node, reads) : keyTerm(model, recordKey)
 }
 
 /** How many records the read holds at most: its page, or the API's largest one without a page size. */

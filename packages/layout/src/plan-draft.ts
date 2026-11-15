@@ -30,7 +30,8 @@ export const finalRead = (draft: Draft, context: PlanContext, label: string): Pl
   return {
     ...rest,
     ...(filter && { filter: restoreSlots(printFilter(filter), context.slots) }),
-    // An ETag hashes the whole record, so a read that asks for one reads every field
-    ...(fields && !draft.etag && { fields: [...fields].sort() }),
+    // An ETag hashes the whole record, so a read that asks for one reads every field; a nested read's rows are told
+    // apart by the field it splits on
+    ...(fields && !draft.etag && { fields: [...new Set([...fields, ...(draft.split ? [draft.split.field] : [])])].sort() }),
   }
 }

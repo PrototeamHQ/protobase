@@ -15,6 +15,8 @@ export type PageTextOptions = Omit<TextOptions, 'records' | 'tables'> & {
   labels?: Record<string, Record<string, TextFieldLabels>>
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+
 type Outcomes = Awaited<ReturnType<typeof runReadPlan>>
 
 // The rows a read gave where its block draws: none when it failed, so the block reads as it does without them
@@ -26,10 +28,11 @@ const rowsAt = (outcomes: Outcomes, reads: Map<string, PlanRead>, id: string, re
   return plannedRows(read, outcome.value.rows, { stack: record ? [{ record }] : [], params })
 }
 
+// A table without `resource` has no resource to take labels from, so its columns read under their names
 const tableOf = (node: LayoutNode, rows: Record<string, unknown>[], labels: PageTextOptions['labels']): TableText => {
-  const resource = String(node.props.resource)
+  const own = typeof node.props.resource === 'string' ? labels?.[node.props.resource] : undefined
   const names = (node.props.columns as TableColumn[] | undefined)?.map(columnName) ?? Object.keys(rows[0] ?? {})
-  const columns = names.map((name) => ({ name, label: labels?.[resource]?.[name]?.label ?? name, ...(labels?.[resource]?.[name]?.valueLabels && { valueLabels: labels[resource][name].valueLabels }) }))
+  const columns = names.map((name) => ({ name, label: own?.[name]?.label ?? name, ...(own?.[name]?.valueLabels && { valueLabels: own[name].valueLabels }) }))
   return { columns, rows }
 }
 
@@ -40,13 +43,16 @@ const tableOf = (node: LayoutNode, rows: Record<string, unknown>[], labels: Page
  */
 export const pageText = async (tree: LayoutNode, plan: ReadPlan, { read, labels, ...options }: PageTextOptions): Promise<string> => {
   const params = pageParamValues(tree, options.params)
-  const outcomes = await runReadPlan(plan, read, { params })
+  // The record around the tree is the page's own, whose key fills `{{@root.…}}`
+  const outcomes = await runReadPlan(plan, read, { params, ...(options.record && { root: options.record }) })
   const reads = new Map(plan.reads.map((planned) => [planReadId(planned), planned]))
   // The row a `select` chose is a read of its own; the block's own read gives its other records
   const records: TextOptions['records'] = (node, record, at) =>
     rowsAt(outcomes, reads, selectBlocks.has(node.type) && typeof node.props.select === 'string' ? planReadId({ block: at, part: 'chosen' }) : at, record, params)
-  const tables: TextOptions['tables'] = (node, at) => {
-    const rows = rowsAt(outcomes, reads, at, undefined, params)
+  // A table without `resource` shows the list around it, whose read the list block made
+  const tables: TextOptions['tables'] = (node, at, record, around) => {
+    if (node.props.resource === undefined) return around && tableOf(node, around.filter(isRecord), labels)
+    const rows = rowsAt(outcomes, reads, at, record, params)
     return rows && tableOf(node, rows, labels)
   }
   return renderText(tree, { ...options, params, records, tables })

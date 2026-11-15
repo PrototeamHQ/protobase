@@ -86,4 +86,29 @@ describe('pageText', () => {
     const text = await pageText(tree, plan, { read: async (planned) => (planned.resource === 'task_claims' ? Promise.reject(new Error('refused')) : { rows: rows[planned.resource]! }) })
     expect(text).toContain('[task\\_claims](/task_claims?filter=task_id+%3D+1)')
   })
+
+  it("fills the page's own key from the record around the tree", async () => {
+    const tree = Page({ title: 'Task', children: Table({ resource: 'task_claims', columns: ['status'], filter: 'task_id = {{@root.id}}' }) })
+    const { plan } = compileReadPlan(tree, { models: nested, root: 'tasks' })
+    const filters: Array<string | undefined> = []
+    await pageText(tree, plan, { record: { id: 7 }, read: async (planned) => (filters.push(planned.filter), { rows: [] }) })
+    expect(filters).toEqual(['task_id = 7'])
+  })
+
+  it("reads a RecordCard's header actions in its record, and a table inside a record by that record's rows", async () => {
+    const claimTable = Table({ resource: 'claim_steps', columns: ['name'], filter: 'claim_id = {{id}}' })
+    const tree = Page({ title: 'Task', children: RecordCard({ resource: 'task_claims', recordKey: '11', actions: Field({ source: 'status' }), children: claimTable }) })
+    const { plan } = compileReadPlan(tree, { models: nested })
+    const text = await pageText(tree, plan, { read: async (planned) => ({ rows: rows[planned.resource]! }) })
+    expect(text).toContain('**status**: done')
+    expect(text).toContain('| plan |\n| build |')
+  })
+
+  it('reads a table without resource as the list around it', async () => {
+    const listed = ReferenceManyField({ reference: 'task_claims', target: 'task_id', perPage: 5, children: Table({ columns: ['status'] }) })
+    const tree = Page({ title: 'Tasks', children: CardRow({ resource: 'tasks', limit: 10, children: listed }) })
+    const { plan } = compileReadPlan(tree, { models: nested })
+    const text = await pageText(tree, plan, { read: async (planned) => ({ rows: rows[planned.resource]! }) })
+    expect(text).toContain('| status |\n| --- |\n| done |\n| open |')
+  })
 })

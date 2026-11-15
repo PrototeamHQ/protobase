@@ -32,6 +32,17 @@ describe('runReadPlan', () => {
     expect(outcome.get('/children/0')).toEqual({ status: 'fulfilled', value: { rows: [{ id: 1 }] } })
     expect(outcome.get('/children/0/children/0/children/0')?.status).toBe('rejected')
   })
+
+  it('starts the other reads when one throws before it returns its promise', async () => {
+    const started: string[] = []
+    const outcome = await runReadPlan(plan, (planned) => {
+      started.push(planned.resource)
+      if (planned.resource === 'tasks') throw new Error('refused')
+      return Promise.resolve({ rows: [] })
+    })
+    expect(started).toEqual(['tasks', 'task_claims', 'claim_steps'])
+    expect([...outcome.values()].map((settled) => settled.status)).toEqual(['rejected', 'fulfilled', 'fulfilled'])
+  })
 })
 
 describe('fillPlanRead', () => {

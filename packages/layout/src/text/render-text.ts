@@ -69,7 +69,8 @@ const render = (unfilled: LayoutNode, options: TextOptions, around: unknown[] | 
   // A list context puts its list around its children; other elements pass on the one around them
   const list = listOf(node, options, at) ?? (childScope(node, pageScope).stack.length > 0 ? undefined : around)
   const inner = childOptions(node, options, at)
-  const slotOptions = scoped(options, propScope(node, pageScope).stack.length > 0)
+  // A RecordCard's header actions sit in its record, as its children do
+  const slotOptions = !node.custom && node.type === 'RecordCard' ? inner : scoped(options, propScope(node, pageScope).stack.length > 0)
   const slots = Object.fromEntries(
     Object.entries(node.props).flatMap(([name, value]) => (isElements(value) ? [[name, (Array.isArray(value) ? value : [value]).map((element, index) => render(element, slotOptions, undefined, pointerOf(at, 'props', name, ...(Array.isArray(value) ? [index] : []))))]] : [])),
   )
@@ -81,7 +82,7 @@ const render = (unfilled: LayoutNode, options: TextOptions, around: unknown[] | 
   const drawn = selectBlocks.has(node.type) && typeof node.props.select === 'string' && !inner.record ? [] : own
   const cards = cardsOf(node, options, at)
   const children = cards ? cards.map((card) => iterate(drawn, options, [card])) : partsOf(drawn, inner, holdsOneLine(node), list)
-  return formOf(node, options)({ node, at, children, slots, ...(fallback && { fallback }), options }).trim()
+  return formOf(node, options)({ node, at, children, slots, ...(fallback && { fallback }), ...(around && { around }), options }).trim()
 }
 
 /**
