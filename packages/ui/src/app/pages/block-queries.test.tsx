@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createClient } from '@protobase/client'
-import { Chart, compileReadPlan, Field, Match, Page, RecordCard, Show, Switch, Table, type LayoutNode } from '@protobase/layout'
+import { Chart, compileReadPlan, Field, Match, Page, RecordCard, RecordCards, Show, Switch, Table, type LayoutNode } from '@protobase/layout'
 import { f, resource } from '@protobase/schema'
 import { ApiProvider } from '../../data/api-provider'
 import { MetaContext } from '../../data/meta-context'
@@ -61,6 +61,12 @@ describe('the queries of blocks that read by themselves', () => {
     const held = startPage(tree, { status: 'open', task: '7' })
     await vi.waitFor(() => expect(held.started).toHaveLength(4))
     expect([...held.started].sort()).toEqual(['/api/v1/tasks', '/api/v1/tasks/7', '/api/v1/tasks:aggregate', '/api/v1/tasks:search'])
+    held.release()
+  })
+
+  it('starts a list of record cards with the count of its records', async () => {
+    const held = startPage(Page({ title: 'Home', children: RecordCards({ resource: 'tasks', filter: "status = 'open'", limit: 3 }) }))
+    await vi.waitFor(() => expect(held.started).toEqual(['/api/v1/tasks', '/api/v1/tasks']))
     held.release()
   })
 

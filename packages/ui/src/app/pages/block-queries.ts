@@ -1,6 +1,7 @@
 import { elementAt, fillProps, type LayoutNode, type ReadPlan } from '@protobase/layout'
 import { blockQuery, type BlockQueries, type BlockQuery, type BlockReader } from './block-query'
 import { chartQueries } from './blocks/chart-query'
+import { recordCardsQueries } from './blocks/record-cards-query'
 import { tableQueries } from './blocks/table-query'
 import { countQuery } from './use-layout-data'
 
@@ -8,6 +9,7 @@ import { countQuery } from './use-layout-data'
 const byType: Record<string, BlockQueries> = {
   Table: tableQueries,
   Chart: chartQueries,
+  RecordCards: recordCardsQueries,
 }
 
 // A `<resource>.count` a condition names counts all of the resource's records the reader may see, as `useStackConditions` reads it
