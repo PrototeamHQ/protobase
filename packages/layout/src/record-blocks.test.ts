@@ -31,6 +31,14 @@ describe('recordBlocksFindings', () => {
     expect(findings(Thread({ resource: 'task_notes', filter: 'task_id = {{@root.id}}', time: 'noted_at', text: 'body', calls })).problems).toEqual([])
   })
 
+  it("resolves a thread's tool calls filter through the records around it, as its own filter", () => {
+    const calls = { resource: 'task_calls', filter: 'task_id = {{@root.no_such_field}}', name: 'tool', time: 'called_at', status: 'state' }
+    const thread = '<Thread resource="task_notes">'
+    const problem = '"@root.no_such_field": "no_such_field" is no field of tasks (@root)'
+    expect(findings(notes('task_id = {{@root.no_such_field}}')).problems).toEqual([expect.stringContaining(`${thread}: filter: ${problem}`)])
+    expect(findings(Thread({ resource: 'task_notes', filter: 'task_id = {{@root.id}}', time: 'noted_at', text: 'body', calls })).problems).toEqual([expect.stringContaining(`${thread}: calls: filter: ${problem}`)])
+  })
+
   it('fails on a typo, naming the root resource and the closest field', () => {
     expect(findings(Card({ title: '{{@root.titel}}' })).problems).toEqual(['<Card>: title: "@root.titel": "titel" is no field of tasks (@root); did you mean title?'])
     expect(findings(Field({ source: 'titel' })).problems).toEqual(['<Field source="titel">: "titel" is no field of tasks (@root); did you mean title?'])

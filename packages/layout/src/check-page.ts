@@ -153,7 +153,7 @@ const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[
       }
       break
     case 'Thread':
-      if (model) problems.push(...threadProblems(node, models, model))
+      if (model) problems.push(...threadProblems(node, models, model, { models, scope, params, chosen, inputs, warn: (warning) => warn(`calls: ${warning}`) }))
       if (node.props.working !== undefined) condition(String(node.props.working), 'working: ')
       break
     case 'Composer':
