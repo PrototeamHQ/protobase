@@ -13,6 +13,7 @@ import { nodeTones, type NodeTrace } from './node-trace'
 import { holdsSteps } from './definition'
 import { text } from './messages'
 import { GroupPins, PinColumns } from './pins/pin-rows'
+import { MovedMark } from './moved-mark'
 
 type Source = { kind: EdgeKind; top: number; label?: string }
 
@@ -128,11 +129,12 @@ const OnlyWhen = ({ condition }: { condition: string | undefined }) =>
     </span>
   )
 
-export const StateNode = ({ data, selected, isConnectable }: NodeProps<FlowNode>) => {
-  const { node, kind, problems, trace, cacheWarning, warnings = [], pins, dataOrder } = data
+export const StateNode = ({ id, data, selected, isConnectable }: NodeProps<FlowNode>) => {
+  const { node, kind, problems, trace, cacheWarning, warnings = [], pins, dataOrder, moved } = data
   if (node.kind !== 'state') return null
   return (
     <div className={cn(boxClass(selected, problems.length, trace), 'h-full', holdsSteps(node.state) && 'bg-muted/40')}>
+      {moved && <MovedMark node={id} name={node.name} />}
       <div className="relative h-[52px] py-2 pr-6 pl-4">
         {dataOrder ? <DataSides /> : <Handle id="in" type="target" position={Position.Left} isConnectable={isConnectable} className="pb-workflow-exec" style={{ top: execTops[0] }} />}
         {dataOrder && <OnlyWhen condition={node.state.Condition} />}
@@ -146,13 +148,14 @@ export const StateNode = ({ data, selected, isConnectable }: NodeProps<FlowNode>
 }
 
 /** The trigger: what starts a run, leading to the first state. */
-export const TriggerNode = ({ data, selected, isConnectable }: NodeProps<FlowNode>) => {
-  const { node, kind, problems, pins, dataOrder } = data
+export const TriggerNode = ({ id, data, selected, isConnectable }: NodeProps<FlowNode>) => {
+  const { node, kind, problems, pins, dataOrder, moved } = data
   // In data order no state is first, so the trigger's handle adds no step
   const addAt = useAddAt({ kind: 'start', source: node.id }, isConnectable && !dataOrder)
   if (node.kind !== 'trigger') return null
   return (
     <div className={cn(boxClass(selected, problems.length), 'h-full border-dashed')}>
+      {moved && <MovedMark node={id} name={text('trigger')} />}
       <div className="relative h-[52px] py-2 pr-6 pl-4">
         <Title name={kind} kind={text('trigger')} problems={problems.length} />
         {dataOrder ? (

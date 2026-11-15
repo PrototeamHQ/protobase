@@ -35,6 +35,7 @@ const workflowsResource = (schema: string) =>
       name: f.text().min(1).max(100).filterable().sortable(),
       description: f.text().optional().max(2000),
       ...definitionFields,
+      layout: f.json().dbDefault(),
       version: f.integer().optional().readOnly(),
       enabled_version: f.integer().optional(),
       tenant_id: f.text().optional().readOnly(),
@@ -72,6 +73,7 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
     trigger: r.trigger.notOnCreate(),
     connections: r.connections.notOnCreate(),
     trace: r.trace.label('Traces').valueLabels({ all: 'Every run', failed: 'Failed runs', none: 'None' }).notOnCreate(),
+    layout: r.layout.label('Layout').help('Where nodes of the graph were moved by hand, by the state each is of; the graph lays out the others. A change to it alone makes no new version.').notOnCreate(),
     updated_at: r.updated_at.label('Updated'),
     run_status: r.run_status.label('Status').valueLabels(workflowStatusLabels).valueColors({ failing: 'red', unresolved: 'amber', healthy: 'green' }).widget('workflow_status'),
     status_run_id: r.status_run_id.label('Status run'),
@@ -92,7 +94,7 @@ const workflowsView = view<ReturnType<typeof workflowsResource>>('workflows')
     l.related('Versions', { resource: 'workflow_versions', field: 'workflow_id', columns: ['version', 'saved_by', 'saved_at'] }),
   ])
 
-/** Each version of a workflow's definition, as it was saved. */
+/** Each version of a workflow's definition, as it was saved, with where its nodes were moved then. */
 const versionsResource = (schema: string) =>
   resource('workflow_versions')
     .table(`${schema}.versions`)
@@ -104,6 +106,7 @@ const versionsResource = (schema: string) =>
       execution_order: f.enum(executionOrders).readOnly(),
       connections: f.json().optional().readOnly(),
       trace: f.enum(traceModes).optional().readOnly(),
+      layout: f.json().readOnly(),
       saved_by: f.text().optional().readOnly(),
       tenant_id: f.text().optional().readOnly(),
       saved_at: f.timestamp().readOnly().dbDefault(),

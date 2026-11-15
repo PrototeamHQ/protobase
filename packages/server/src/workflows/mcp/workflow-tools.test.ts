@@ -145,6 +145,15 @@ describe('create_workflow', () => {
     expect(JSON.parse(result)).toEqual({ id: 'w1', version: 1, etag: '"v1"' })
   })
 
+  it('saves the layout it is given beside the definition, and only an object as one', async () => {
+    const create = vi.fn(async () => saved)
+    const { context } = contextWith({ create })
+    const layout = { pins: { Fetch: { x: 420, y: 180 } }, simple: {} }
+    await createWorkflowTool().run({ name: 'Fetch', ...fetchUrl('https://a.example'), layout }, context)
+    await createWorkflowTool().run({ name: 'Fetch', ...fetchUrl('https://a.example'), layout: [1] }, context)
+    expect(create.mock.calls.map((call) => (call as unknown[])[1])).toEqual([{ name: 'Fetch', ...fetchUrl('https://a.example'), layout }, { name: 'Fetch', ...fetchUrl('https://a.example') }])
+  })
+
   it('returns the saved workflow when a field rule hides its definition from the caller', async () => {
     const { state_machine: _hidden, ...withoutDefinition } = saved.record
     const { context } = contextWith({ create: async () => ({ ...saved, record: withoutDefinition }) })
@@ -156,6 +165,8 @@ describe('create_workflow', () => {
     const { context } = contextWith({ create })
     const result = JSON.parse(await createWorkflowTool().run({ name: 'Call', state_machine: exported, connection_headers: { [connectionArn]: { header: 'Authorization', secret: 'API_TOKEN' } } }, context))
     expect(result).toEqual({ id: 'w1', version: 1, etag: '"v1"' })
+    // Step Functions keeps no layout: the workflow comes with none, and the editor lays out every node
+    expect((create.mock.calls[0] as unknown as [string, Record<string, unknown>])[1]).not.toHaveProperty('layout')
     const call = (create.mock.calls[0] as unknown as [string, { state_machine: { States: { Call: Record<string, unknown> } } }])[1].state_machine.States.Call
     expect(call).toMatchObject({ Resource: 'app:http', Arguments: { url: 'https://a.example', method: 'POST', body: { a: 1 }, body_encoding: 'json', headers: { Authorization: '{% $states.context.Secrets.API_TOKEN %}' } }, Assign: { id: expect.stringContaining('"ResponseBody": $states.result.body') } })
     // Without the connection's header, nothing is asked or saved
@@ -244,6 +255,11 @@ describe('update_workflow', () => {
     await updateWorkflowTool().run({ id: 'w1', name: 'Renamed' }, context)
     await updateWorkflowTool().run({ id: 'w1', execution_order: 'data' }, context)
     expect(update.mock.calls.map((call) => (call as unknown[]).slice(2))).toEqual([[fetchUrl('https://c.example'), {}], [{ name: 'Renamed' }, {}], [{ execution_order: 'data' }, {}]])
+    // The layout goes whole, alone or beside an edit, which it is no part of
+    update.mockClear()
+    await updateWorkflowTool().run({ id: 'w1', layout: { simple: { Fetch: { x: 1, y: 2 } } } }, context)
+    await updateWorkflowTool().run({ id: 'w1', edit: { state_machine: { States: { Fetch: { Arguments: { url: 'https://d.example' } } } } }, layout: {} }, context)
+    expect(update.mock.calls.map((call) => (call as unknown[])[2])).toEqual([{ layout: { simple: { Fetch: { x: 1, y: 2 } } } }, { state_machine: fetchUrl('https://d.example').state_machine, layout: {} }])
     expect(await updateWorkflowTool().run({ id: 'w1', edit: {}, ...fetchUrl('x') }, context)).toMatch(/^Pass/)
     expect(await updateWorkflowTool().run({ id: 'w1' }, context)).toMatch(/nothing was saved/)
   })

@@ -10,13 +10,14 @@ import { ErrorBanner } from '../../error-banner'
 import { useFocusRecord } from '../../focus/focus-record'
 import { useAppAddress } from '../../use-app-address'
 import { nodeTraces } from '../workflow-run/run-trace'
-import { definitionOf, holdsSteps, pathOf, splitPath, stateAt, triggerId, allNames } from '../workflow/definition'
+import { definitionOf, definitionRecord, holdsSteps, pathOf, recordDefinition, splitPath, stateAt, triggerId, allNames } from '../workflow/definition'
 import { addStateAfter, addStateAt, addStateFirst, freeName, ledTo, placeAfter, scopeAt, type AddAt, type NewState } from '../workflow/definition-edits'
 import { NodePanel } from '../workflow/node-panel'
 import { ProblemList } from '../workflow/problem-list'
 import { definitionProblems, isMissing, problemsByNode, warningsByNode, withoutMissing } from '../workflow/problems'
 import { WorkflowCanvas } from '../workflow/workflow-canvas'
 import { usePinSchemas } from '../workflow/pins/pin-schemas'
+import type { WorkflowLayout } from '../workflow/manual-layout'
 import { text as graphText } from '../workflow/messages'
 import { usePermissions } from '../../meta-gate'
 import { can } from '../../permissions'
@@ -48,6 +49,10 @@ export type WorkflowWorkbenchProps = {
   types: WorkflowTypeList
   /** Without it, the latest version is only shown, as to someone who may not change it. */
   onChange?: (definition: Definition) => void
+  /** Where nodes of the latest version were moved by hand in each view, with its unsaved changes. */
+  layout?: WorkflowLayout
+  /** Without it, nodes of the latest version are not moved by hand. */
+  onLayoutChange?: (layout: WorkflowLayout) => void
 }
 
 /** What the end panel shows by a button of the bar; with none, it shows the step chosen. */
@@ -74,7 +79,7 @@ const scopeFor = (definition: Definition, selected: string | undefined): string[
  * run's marks on either, followed live; the bar holds what is live, the versions and the tools; and the end panel takes
  * the step chosen, the step picker, Test run, the runs and Publish, so nothing leaves the graph.
  */
-export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWorkbenchProps) => {
+export const WorkflowWorkbench = ({ view, value, types, onChange, layout, onLayoutChange }: WorkflowWorkbenchProps) => {
   const focus = useFocusRecord()!
   const page = useWorkflowPage(view)
   const desktop = useIsDesktop()
@@ -86,6 +91,12 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
   const past = useMemo(() => (page.pastDefinition === undefined ? undefined : definitionOf(page.pastDefinition)), [page.pastDefinition])
   const older = view.version !== undefined && view.version !== page.latest
   const definition = older ? past : draft
+  // A save makes a new version only where the draft's definition changed, not where nodes were moved alone
+  const savedJson = useMemo(() => JSON.stringify(definitionRecord(recordDefinition(focus.record))), [focus.record])
+  const newVersion = focus.dirty && JSON.stringify(definitionRecord(draft)) !== savedJson
+  // An older version opens as it looked when it was saved, and only the latest is moved
+  const shownLayout = older ? page.pastLayout : layout
+  const changeLayout = older || !onChange || focus.readOnly ? undefined : onLayoutChange
   const change =
     older || !onChange
       ? undefined
@@ -277,6 +288,7 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
         view={view}
         page={page}
         editable={Boolean(change) && !focus.readOnly}
+        newVersion={newVersion}
         empty={empty}
         problems={wrong}
         missing={missing}
@@ -306,7 +318,7 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
       />
       <RunNotice view={view} page={page} failed={failed && splitPath(failed).name} changed={focus.dirty} gone={gone} {...(failed !== undefined && failed !== selected && { onOpenFailed: () => setChosen(failed) })} />
       <div className="h-full">
-        <WorkflowCanvas fills definition={definition} problems={run || empty ? noProblems : shownProblems} warnings={run || empty ? noProblems : warned} selected={selected} onSelect={(id) => setChosen(id ?? null)} {...(change && !focus.readOnly && { onChange: change, onAddAt: (at) => setPanel({ kind: 'add', at }) })} {...(traces && run && { traces })} types={types} schemas={schemas} />
+        <WorkflowCanvas fills definition={definition} problems={run || empty ? noProblems : shownProblems} warnings={run || empty ? noProblems : warned} selected={selected} onSelect={(id) => setChosen(id ?? null)} {...(change && !focus.readOnly && { onChange: change, onAddAt: (at) => setPanel({ kind: 'add', at }) })} {...(traces && run && { traces })} types={types} schemas={schemas} layout={shownLayout} onLayoutChange={changeLayout} />
       </div>
       {empty && panel === undefined && (
         <div className="pointer-events-none absolute inset-x-0 top-[60%] flex justify-center">
@@ -326,7 +338,7 @@ export const WorkflowWorkbench = ({ view, value, types, onChange }: WorkflowWork
       {panel?.kind === 'add' && <AddStepPanel types={types} placement={panel.at ? placementAt(panel.at) : placement()} onAdd={(kind) => add(kind, panel.at)} onClose={close} />}
       {panel?.kind === 'test' && <TestRunPanel view={view} page={page} definition={definition} types={types} seed={panel.seed} onClose={close} />}
       {panel?.kind === 'runs' && <RunsPanel view={view} page={page} onTestRun={() => setPanel({ kind: 'test' })} onClose={close} />}
-      {panel?.kind === 'publish' && <PublishPanel view={view} page={page} definition={definition} types={types} onClose={close} />}
+      {panel?.kind === 'publish' && <PublishPanel view={view} page={page} definition={definition} types={types} newVersion={newVersion} onClose={close} />}
       {panel?.kind === 'off' && <TurnOffPanel view={view} onClose={close} />}
       {panel?.kind === 'problems' && (
         <FocusPanel title={text('problemsTitle')} onClose={close} takesFocus>

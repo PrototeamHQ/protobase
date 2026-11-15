@@ -24,7 +24,8 @@ import { pureParent } from './pins/pure-parents'
 /** What a Break's or a Make's node draws from: the node, which of its inputs it shows, and whether the canvas is editable. */
 export type PureData = { pure: PureNode; shownInputs: InputPin[]; folded: number; open: boolean }
 
-export type NodeData = { node: GraphNode; kind: string; problems: NodeProblem[]; warnings?: NodeProblem[]; trace?: NodeTrace; cacheWarning?: boolean; pins?: NodePins; pureData?: PureData; dataOrder?: boolean }
+/** `moved`: the node was moved by hand, so the layout leaves it where it was put. */
+export type NodeData = { node: GraphNode; kind: string; problems: NodeProblem[]; warnings?: NodeProblem[]; trace?: NodeTrace; cacheWarning?: boolean; pins?: NodePins; pureData?: PureData; dataOrder?: boolean; moved?: boolean }
 
 /** The pins a node shows: the inputs it shows, its outputs, how many inputs it folds away and whether it is open. */
 export type NodePins = { inputs: InputPin[]; outputs: OutputPin[]; folded: number; open: boolean }
@@ -52,7 +53,7 @@ export const nodePins = (data: DataGraph, id: string, open: boolean): NodePins =
 
 /**
  * The canvas's nodes, at the boxes the layout gave them: a Map holds the nodes inside it, which come after it, and a
- * node not laid out yet waits at the top left. Nodes are not dragged: the layout places them.
+ * node not laid out yet waits at the top left. Nodes are not dragged here: the canvas lets them be where it takes changes.
  */
 export const flowNodes = (graph: Graph, boxes: ReadonlyMap<string, Box> | undefined, problems: ReadonlyMap<string, NodeProblem[]>, selected: string | undefined, traces?: ReadonlyMap<string, NodeTrace>, types?: WorkflowTypeList, warnings?: ReadonlyMap<string, NodeProblem[]>, pins?: { data: DataGraph; open: ReadonlySet<string> }, dataOrder = false): FlowNode[] =>
   graph.nodes.map((node) => {

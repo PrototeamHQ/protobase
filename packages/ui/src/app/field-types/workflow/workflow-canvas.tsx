@@ -1,6 +1,7 @@
-import { Background, Controls, Panel, ReactFlow, ReactFlowProvider, useReactFlow, useStore, useUpdateNodeInternals, type Connection, type Edge, type EdgeChange, type IsValidConnection, type NodeChange } from '@xyflow/react'
+import { Background, Controls, Panel, ReactFlow, ReactFlowProvider, useReactFlow, useStore, useUpdateNodeInternals, type Connection, type Edge, type EdgeChange, type IsValidConnection, type NodeChange, type XYPosition } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import './workflow-canvas.css'
+import { LayoutGrid } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { WorkflowTypeList } from '@protobase/client'
 import { orderOf, type Definition, type PinSchemas } from '@protobase/workflows'
@@ -10,16 +11,20 @@ import { definitionGraph, type EdgeKind, type GraphNode } from './definition-gra
 import { dataFlowEdges, flowEdges, flowNodes, graphId, isPureFlowId, pureFlowNodes, unwiredOrderEdges, type FlowNode } from './flow-elements'
 import { AddAtContext } from './add-at-context'
 import { StateNode, TriggerNode } from './flow-nodes'
+import { Button } from '../../../primitives/button'
 import { Segmented } from '../../../primitives/segmented'
 import { useGraphView, type GraphView } from './pins/graph-view'
 import { PinActionsContext } from './pins/pin-actions'
 import { PureNodeView } from './pins/pure-nodes'
 import { PureOfferMenu } from './pins/pure-offer'
+import { pureParent } from './pins/pure-parents'
 import { isPinHandle, usePins } from './pins/use-pins'
 import { WireCheckContext, WireLine } from './pins/wire-line'
 import type { NodeTrace } from './node-trace'
 import type { NodeProblem } from './problems'
 import { useLayout } from './use-layout'
+import { layoutKey, placedBoxes, withoutKey, workflowLayoutOf, type ManualLayout, type WorkflowLayout } from './manual-layout'
+import { UnpinContext } from './unpin-context'
 import { text } from './messages'
 
 const nodeTypes = { state: StateNode, trigger: TriggerNode, pure: PureNodeView }
@@ -44,17 +49,25 @@ export type WorkflowCanvasProps = {
   schemas?: PinSchemas
   /** The canvas is the window, on a page that does not scroll: as a panel opens beside it, what was in its middle stays there. */
   fills?: boolean
+  /** Where nodes were moved by hand in each view, by their layout keys, which the layout leaves where they were put. */
+  layout?: WorkflowLayout
+  /**
+   * Without it, no node is moved by hand: with it, a node dragged stays where it is let go in the view shown, and Unpin
+   * and Tidy up hand that view's nodes back to the layout.
+   */
+  onLayoutChange?: (layout: WorkflowLayout) => void
 }
 
 // The machine a node's states lead within: the Maps it is inside, or the trigger's, the whole workflow's.
 const scopeOf = (node: GraphNode | undefined) => (node?.kind === 'state' ? node.scope.join('/') : '')
 
-// Each new layout is fitted to the canvas, so a change is in sight without zooming by hand.
-const FitOnLayout = ({ laidOut }: { laidOut: unknown }) => {
+// Each new layout is fitted to the canvas, so a change is in sight without zooming by hand, as is the graph tidied up;
+// a node moved by hand moves nothing else in sight.
+const FitOnLayout = ({ laidOut, tidied }: { laidOut: unknown; tidied: number }) => {
   const flow = useReactFlow()
   useEffect(() => {
     if (laidOut) void flow.fitView({ maxZoom: 1, padding: 0.1 })
-  }, [laidOut])
+  }, [laidOut, tidied])
   return null
 }
 
@@ -84,23 +97,58 @@ const MeasureOnLayout = ({ laidOut, ids }: { laidOut: unknown; ids: string[] }) 
   return null
 }
 
-const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, onAddAt, traces, types, schemas, fills = false }: WorkflowCanvasProps) => {
+// Where nodes dragged are until they are let go, by their canvas ids
+const notDragged: ReadonlyMap<string, XYPosition> = new Map()
+
+const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, onAddAt, traces, types, schemas, fills = false, layout, onLayoutChange }: WorkflowCanvasProps) => {
   const graph = useMemo(() => definitionGraph(definition), [definition])
   const frame = useRef<HTMLDivElement>(null)
   // The simple view is the same document drawn without pins: its lines are the execution edges, which stay the lines
   // between steps when the order of steps comes from what they read
   const [view, setView] = useGraphView()
   const pins = usePins(definition, graph, view === 'pins' ? schemas : undefined, onChange, frame)
-  const boxes = useLayout(graph, pins.layout)
+  const laidOut = useLayout(graph, pins.layout)
+  const byId = useMemo(() => new Map(graph.nodes.map((node) => [node.id, node])), [graph])
+  // The record hands the layout over anew on each render: it changes only when its JSON does. Each view keeps its own.
+  const layoutJson = JSON.stringify(layout ?? {})
+  const whole = useMemo(() => workflowLayoutOf(layoutJson), [layoutJson])
+  const manual = whole[view]
+  const changeView = (next: ManualLayout) => onLayoutChange?.({ ...whole, [view]: next })
+  // Each node's layout key, by its id on the graph, a Break's or a Make's its own
+  const keys = useMemo(() => new Map([...graph.nodes.map((node): [string, string] => [node.id, layoutKey(node.id)]), ...(pins.data?.pure ?? []).map((pure): [string, string] => [pure.id, layoutKey(pure.id, pure)])]), [graph, pins.data])
+  const moved = useMemo(() => new Map([...keys].flatMap(([id, key]) => (Object.hasOwn(manual, key) ? [[id, manual[key]!] as const] : []))), [keys, manual])
+  // The nodes ELK laid out, with the moved ones where they were put and the others clear of them
+  const boxes = useMemo(() => {
+    if (!laidOut) return undefined
+    const pure = new Map((pins.data?.pure ?? []).map((node) => [node.id, node]))
+    const parentOf = (id: string) => {
+      const node = byId.get(id)
+      return pure.has(id) ? pureParent(graph, pure.get(id)!) : node?.kind === 'state' ? node.parent : undefined
+    }
+    return placedBoxes(laidOut, moved, parentOf)
+  }, [laidOut, moved, byId, graph, pins.data])
+  const movable = Boolean(onLayoutChange)
+  const [dragged, setDragged] = useState(notDragged)
+  const [tidied, setTidied] = useState(0)
   const dataOrder = orderOf(definition) === 'data'
   // The Break or Make chosen, which Delete removes: no panel opens for one, so the canvas keeps the choice itself
   const [chosenPure, setChosenPure] = useState<string>()
   const nodes = useMemo(
-    () => [
-      ...flowNodes(graph, boxes, problems, selected, traces, types, warnings, pins.data && { data: pins.data, open: pins.open }, dataOrder),
-      ...(pins.data ? pureFlowNodes(graph, pins.data, boxes, pins.open).map((node) => ({ ...node, selected: node.id === chosenPure })) : []),
-    ],
-    [graph, boxes, problems, selected, traces, types, warnings, pins.data, pins.open, dataOrder, chosenPure],
+    () =>
+      [
+        ...flowNodes(graph, boxes, problems, selected, traces, types, warnings, pins.data && { data: pins.data, open: pins.open }, dataOrder),
+        ...(pins.data ? pureFlowNodes(graph, pins.data, boxes, pins.open).map((node) => ({ ...node, selected: node.id === chosenPure })) : []),
+      ].map((node) => {
+        const at = dragged.get(node.id)
+        const pinned = moved.has(graphId(node.id))
+        return {
+          ...node,
+          draggable: movable,
+          ...(at && { position: at }),
+          ...(pinned && { data: { ...node.data, moved: true }, ...(node.ariaLabel && { ariaLabel: `${node.ariaLabel}, ${text('movedByHand')}` }) }),
+        }
+      }),
+    [graph, boxes, problems, selected, traces, types, warnings, pins.data, pins.open, dataOrder, chosenPure, dragged, moved, movable],
   )
   // The edge chosen, which Delete removes
   const [chosenEdge, setChosenEdge] = useState<string>()
@@ -110,7 +158,6 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
     () => [...(dataOrder && pins.data ? unwiredOrderEdges(graph, pins.data) : flowEdges(graph, dataOrder)), ...(pins.data ? dataFlowEdges(pins.data) : [])].map((edge) => ({ ...edge, selected: edge.id === chosenEdge })),
     [graph, pins.data, chosenEdge, dataOrder],
   )
-  const byId = useMemo(() => new Map(graph.nodes.map((node) => [node.id, node])), [graph])
   const editable = Boolean(onChange)
 
   // A state leads only to a state of its own machine: the trigger to one of the workflow's, a Map's to its own.
@@ -122,7 +169,37 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
     const source = byId.get(graphId(connection.source))
     return target?.kind === 'state' && scopeOf(source) === scopeOf(target)
   }
+  // Nodes let go stay where they are, each under its key; one let go where the layout has it stays the layout's
+  const drop = (positions: ReadonlyMap<string, XYPosition>) => {
+    setDragged(notDragged)
+    const placed = [...positions].flatMap(([node, at]): [string, XYPosition][] => {
+      const id = graphId(node)
+      const key = keys.get(id)
+      const box = boxes?.get(id)
+      const point = { x: Math.round(at.x), y: Math.round(at.y) }
+      if (key === undefined || (!moved.has(id) && box && Math.round(box.x) === point.x && Math.round(box.y) === point.y)) return []
+      return [[key, point]]
+    })
+    if (placed.length > 0) changeView({ ...manual, ...Object.fromEntries(placed) })
+  }
+  const unpin = onLayoutChange && ((node: string) => {
+    const key = keys.get(graphId(node))
+    if (key !== undefined) changeView(withoutKey(manual, key))
+  })
+  const tidy = () => {
+    changeView({})
+    setTidied((count) => count + 1)
+  }
   const onNodesChange = (changes: NodeChange<FlowNode>[]) => {
+    // A node follows the pointer while dragged, and the arrow keys move the chosen one, each move let go at once
+    const dropped = new Map<string, XYPosition>()
+    for (const change of changes) {
+      if (change.type !== 'position' || !change.position || !movable) continue
+      const at = change.position
+      if (change.dragging) setDragged((current) => new Map(current).set(change.id, at))
+      else dropped.set(change.id, at)
+    }
+    if (dropped.size > 0) drop(dropped)
     for (const change of changes) {
       if (change.type !== 'select' || !isPureFlowId(change.id)) continue
       if (change.selected) setChosenPure(change.id)
@@ -165,62 +242,76 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
 
   return (
     <AddAtContext.Provider value={onChange ? onAddAt : undefined}>
-      <PinActionsContext.Provider value={pins.actions}>
-        <WireCheckContext.Provider value={pins.check}>
-          <div ref={frame} className="relative h-full w-full">
-            <ReactFlow
-              className="pb-workflow"
-              nodes={nodes}
-              edges={edges}
-              nodeTypes={nodeTypes}
-              nodesDraggable={false}
-              nodesConnectable={editable}
-              // A click on a handle adds a step there; a connection is drawn by dragging, from a few pixels on
-              connectOnClick={false}
-              connectionDragThreshold={4}
-              edgesFocusable={editable}
-              elementsSelectable
-              deleteKeyCode={editable ? ['Backspace', 'Delete'] : null}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              isValidConnection={isValidConnection}
-              onConnect={onConnect}
-              onConnectEnd={pins.connectEnd}
-              connectionLineComponent={WireLine}
-              onDelete={onDelete}
-              // A Break or Make chosen by a click is chosen as by the keyboard, in onNodesChange
-              onNodeClick={(_, node) => !isPureFlowId(node.id) && onSelect(graphId(node.id))}
-              onPaneClick={() => onSelect(undefined)}
-              // As in Blueprints: the wheel zooms towards the pointer, as does a pinch, and dragging the empty canvas with
-              // the left, middle or right button pans it; Shift-drag selects a box. A trackpad's two-finger scroll is a
-              // wheel too, so it zooms: telling it from a mouse's wheel would be a guess. Over the canvas the page does
-              // not scroll; elsewhere it does.
-              zoomOnScroll
-              panOnScroll={false}
-              panOnDrag={[0, 1, 2]}
-              selectionOnDrag={false}
-              selectionKeyCode="Shift"
-              preventScrolling
-              onPaneContextMenu={(event) => event.preventDefault()}
-              minZoom={0.2}
-              maxZoom={1.5}
-              aria-label={text('canvas')}
-            >
-              <Background gap={16} />
-              {schemas && (
-                <Panel position="top-left">
-                  <Segmented<GraphView> label={text('graphView')} value={view} onChange={setView} options={[{ value: 'pins', label: text('viewPins') }, { value: 'simple', label: text('viewSimple') }]} />
-                </Panel>
-              )}
-              <Controls showInteractive={false} />
-              <FitOnLayout laidOut={boxes} />
-              {fills && <KeepCentre />}
-              <MeasureOnLayout laidOut={boxes} ids={nodes.map((node) => node.id)} />
-            </ReactFlow>
-            {pins.offer && <PureOfferMenu offer={pins.offer} onClose={pins.closeOffer} />}
-          </div>
-        </WireCheckContext.Provider>
-      </PinActionsContext.Provider>
+      <UnpinContext.Provider value={unpin}>
+        <PinActionsContext.Provider value={pins.actions}>
+          <WireCheckContext.Provider value={pins.check}>
+            <div ref={frame} className="relative h-full w-full">
+              <ReactFlow
+                className="pb-workflow"
+                nodes={nodes}
+                edges={edges}
+                nodeTypes={nodeTypes}
+                nodesDraggable={movable}
+                // A click that slips a pixel or two moves nothing, and a node moved is not chosen: its form would narrow the
+                // canvas under the pointer
+                nodeDragThreshold={4}
+                selectNodesOnDrag={false}
+                nodesConnectable={editable}
+                // A click on a handle adds a step there; a connection is drawn by dragging, from a few pixels on
+                connectOnClick={false}
+                connectionDragThreshold={4}
+                edgesFocusable={editable}
+                elementsSelectable
+                deleteKeyCode={editable ? ['Backspace', 'Delete'] : null}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                isValidConnection={isValidConnection}
+                onConnect={onConnect}
+                onConnectEnd={pins.connectEnd}
+                connectionLineComponent={WireLine}
+                onDelete={onDelete}
+                // A Break or Make chosen by a click is chosen as by the keyboard, in onNodesChange
+                onNodeClick={(_, node) => !isPureFlowId(node.id) && onSelect(graphId(node.id))}
+                onPaneClick={() => onSelect(undefined)}
+                // As in Blueprints: the wheel zooms towards the pointer, as does a pinch, and dragging the empty canvas with
+                // the left, middle or right button pans it; Shift-drag selects a box. A trackpad's two-finger scroll is a
+                // wheel too, so it zooms: telling it from a mouse's wheel would be a guess. Over the canvas the page does
+                // not scroll; elsewhere it does.
+                zoomOnScroll
+                panOnScroll={false}
+                panOnDrag={[0, 1, 2]}
+                selectionOnDrag={false}
+                selectionKeyCode="Shift"
+                preventScrolling
+                onPaneContextMenu={(event) => event.preventDefault()}
+                minZoom={0.2}
+                maxZoom={1.5}
+                aria-label={text('canvas')}
+              >
+                <Background gap={16} />
+                {schemas && (
+                  <Panel position="top-left">
+                    <Segmented<GraphView> label={text('graphView')} value={view} onChange={setView} options={[{ value: 'pins', label: text('viewPins') }, { value: 'simple', label: text('viewSimple') }]} />
+                  </Panel>
+                )}
+                {movable && Object.keys(manual).length > 0 && (
+                  <Panel position="top-right">
+                    <Button title={text('tidyUpHelp')} onClick={tidy}>
+                      <LayoutGrid className="size-3.5" aria-hidden />
+                      {text('tidyUp')}
+                    </Button>
+                  </Panel>
+                )}
+                <Controls showInteractive={false} />
+                <FitOnLayout laidOut={laidOut} tidied={tidied} />
+                {fills && <KeepCentre />}
+                <MeasureOnLayout laidOut={boxes} ids={nodes.map((node) => node.id)} />
+              </ReactFlow>
+              {pins.offer && <PureOfferMenu offer={pins.offer} onClose={pins.closeOffer} />}
+            </div>
+          </WireCheckContext.Provider>
+        </PinActionsContext.Provider>
+      </UnpinContext.Provider>
     </AddAtContext.Provider>
   )
 }
@@ -229,6 +320,8 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
  * The workflow's graph on a canvas, laid out by ELK each time it changes: the trigger, a node per state, a Map's states
  * inside it, and an edge per state it leads to. With `onChange`, dragging from a handle connects states, a click on
  * one asks `onAddAt` for a step there, Delete removes the chosen state or edge, and each change is the definition edited.
+ * With `onLayoutChange`, a node dragged stays where it is let go in the view shown, Pins or Simple, each keeping its own
+ * places, marked, until Unpin on it or Tidy up hands it back to ELK, which lays the others out around it.
  */
 export const WorkflowCanvas = (props: WorkflowCanvasProps) => (
   <ReactFlowProvider>
