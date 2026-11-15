@@ -184,7 +184,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('custom steps on the app
       from workflows.custom_step_jobs j join workflows.custom_step_versions v on v.id = j.version_id where j.run_id = ${run}`.execute(db)).rows
     await vi.waitFor(async () => expect(await jobs()).toHaveLength(1), { timeout: 20_000, interval: 50 })
     expect(await jobs()).toEqual([{ step: 'custom:invoice_pdf:1', state: 'Render', status: 'queued', tenant_id: '1', version: 1, input: { number: '1', store: { configuration: 'archive' } } }])
-    expect((await sql<{ status: string }>`select status from workflows.runs where id = ${run}`.execute(db)).rows[0]!.status).toBe('waiting')
+    // The segment queues the job before it records the run as waiting
+    await vi.waitFor(async () => expect((await sql<{ status: string }>`select status from workflows.runs where id = ${run}`.execute(db)).rows[0]!.status).toBe('waiting'), { timeout: 20_000, interval: 50 })
   })
 
   it('keeps a deleted custom step\'s versions, as no step types, and numbers a new one of its name after them', async () => {
