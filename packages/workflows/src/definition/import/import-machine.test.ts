@@ -9,8 +9,8 @@ const call = { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments
 
 // A Map inside a Map, `levels` deep, with the HTTP task innermost: each level nests three objects, built in a loop so
 // no depth overflows the test's own stack
-const nested = (levels: number) => {
-  let machine: Record<string, unknown> = { States: { Call: call } }
+const nested = (levels: number, task: Record<string, unknown> = call) => {
+  let machine: Record<string, unknown> = { States: { Call: task } }
   for (let level = 0; level < levels; level++) machine = { States: { Each: { Type: 'Map', ItemProcessor: machine } } }
   return machine
 }
@@ -39,8 +39,9 @@ describe('importStateMachine', () => {
     const { stateMachine, problems } = importStateMachine(deep)
     expect(stateMachine).toBe(deep)
     expect(problems).toEqual([depthProblem])
-    const past = nested(85)
-    expect(nestingDepth(past, 1000)).toBe(limits.definitionDepth + 3)
+    // One level past the limit: the innermost task's Arguments hold one more object
+    const past = nested(84, { ...call, Arguments: { ...call.Arguments, Headers: {} } })
+    expect(nestingDepth(past, 1000)).toBe(limits.definitionDepth + 1)
     expect(importStateMachine(past)).toEqual({ stateMachine: past, problems: [depthProblem] })
   })
 
