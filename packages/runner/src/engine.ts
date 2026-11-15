@@ -91,7 +91,7 @@ export const engine = (exec: Exec, name: EngineName) => ({
     if (labels.code !== 0) return []
     return [...new Set(labels.stdout.split('\n').map((line) => line.trim()).filter((step) => customStepOf(step) !== undefined))]
   },
-  has: async (tag: string) => (await exec(name, ['image', 'inspect', '--format', '{{.Id}}', tag])).code === 0,
+  has: async (tag: string, options: ExecOptions = {}) => (await exec(name, ['image', 'inspect', '--format', '{{.Id}}', tag], options)).code === 0,
   /** The image's digest, its content's ID. */
   digest: async (tag: string) => {
     const found = await exec(name, ['image', 'inspect', '--format', '{{.Id}}', tag])
@@ -99,8 +99,8 @@ export const engine = (exec: Exec, name: EngineName) => ({
   },
   build: (args: readonly string[], options: ExecOptions) => exec(name, args, options),
   run: (args: readonly string[], options: ExecOptions) => exec(name, args, options),
-  kill: (container: string) => exec(name, ['kill', container]),
-  remove: (container: string) => exec(name, ['rm', '-f', container]),
+  kill: (container: string, options: ExecOptions = {}) => exec(name, ['kill', container], options),
+  remove: (container: string, options: ExecOptions = {}) => exec(name, ['rm', '-f', container], options),
   pull: (image: string, options: ExecOptions) => exec(name, ['pull', image], options),
   /** Removes what a job's container left in its output folder (`cleanArgs`). */
   clean: (given: Parameters<typeof cleanArgs>[0], options: ExecOptions) => exec(name, cleanArgs(given), options),

@@ -3,6 +3,7 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { builder } from './builds'
 import { engine, imageTag } from './engine'
+import type { ExecOptions } from './exec'
 import { containerInput, fileName, inputVariable, logLines, outputFile, runJob } from './job'
 import { convertJob, fakeApp, fakeExec, mounts, testSettings, type Ran } from './testing/fakes'
 
@@ -289,8 +290,8 @@ describe("a build's log", () => {
 
 // A container that leaves a folder its user made unwritable, as the runner's own user may not remove; and a cleaner,
 // the runner's image, which removes it as the container's root may: `answer` says what else the engine answers.
-const locking = (answer: (one: Ran) => Promise<Partial<{ code: number; stderr: string }>> | Partial<{ code: number; stderr: string }> | undefined = () => undefined) => async (one: Ran) => {
-  const given = await answer(one)
+const locking = (answer: (one: Ran, options: ExecOptions) => Promise<Partial<{ code: number; stderr: string }>> | Partial<{ code: number; stderr: string }> | undefined = () => undefined) => async (one: Ran, options: ExecOptions) => {
+  const given = await answer(one, options)
   if (given) return given
   if (one.args[0] !== 'run') return {}
   if (one.args.includes('/protobase/work/out')) {
@@ -360,6 +361,27 @@ describe("a job's folder", () => {
     expect(failing.lines).toContainEqual("job 0b6f2f8e-1111-4222-8333-944445555666: removing its folder's files exited with 125: permission denied")
   })
 
+  it('gives up on an engine that does not answer whether the cleaner image is here, at the deadline, and bounds killing and removing it', async () => {
+    const signals: Record<string, boolean> = {}
+    const hang = (options: ExecOptions) => new Promise<{ code: number }>((resolve) => options.signal?.addEventListener('abort', () => resolve({ code: 137 }), { once: true }))
+    const { input, lines } = await setUp(locking((one, options) => {
+      if (one.args[0] === 'image' && one.args[1] === 'inspect' && one.args.at(-1)!.startsWith('busybox')) return hang(options)
+      if (one.args[0] === 'pull') return options.signal?.aborted ? { code: 1 } : hang(options)
+      return undefined
+    }))
+    const deadline = Date.now() + 1500
+    await runJob(input, convertJob({ deadline: new Date(deadline).toISOString() }))
+    expect(lines.some((line) => line.includes('its folder\'s files are left'))).toBe(true)
+    // A cleaner that hangs is killed and removed with a limit of their own, as its own limit passed already
+    const ended = await setUp(locking((one, options) => {
+      if (one.args[0] === 'kill' || one.args[0] === 'rm') signals[one.args[0]] = options.signal !== undefined
+      if (cleaners([one]).length > 0) return hang(options)
+      return undefined
+    }))
+    await runJob(ended.input, convertJob({ deadline: new Date(Date.now() + 1500).toISOString() }))
+    expect(signals).toEqual({ kill: true, rm: true })
+  })
+
   it('is still removed when the runner stops during its job, which kills the container', async () => {
     const stopping = new AbortController()
     let finish: (() => void) | undefined
@@ -367,7 +389,7 @@ describe("a job's folder", () => {
       if (one.args[0] === 'kill' && one.args[1]!.startsWith('protobase-job-')) finish?.()
       if (one.args[0] === 'run' && !one.args.includes('/protobase/work/out')) {
         return (async () => {
-          await locking()(one)
+          await locking()(one, {})
           setTimeout(() => stopping.abort(), 10)
           await new Promise<void>((resolve) => (finish = resolve))
           return { code: 137 }

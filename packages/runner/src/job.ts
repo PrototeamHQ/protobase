@@ -20,6 +20,9 @@ const logPending = 10
 // How long a job's folder may take to remove, once the runner's own user cannot.
 const cleanMs = 60_000
 
+// How long killing or removing the cleaner may take, as they come after its own limit passed.
+const endMs = 10_000
+
 // How long the runner waits to send a completion again, once, when the app did not take it.
 const completeAgainMs = 1000
 
@@ -264,17 +267,19 @@ export const runJob = async ({ app, engine, build, settings, identity, say }: Jo
     const left = Date.parse(job.deadline) - Date.now()
     const limit = AbortSignal.any([AbortSignal.timeout(cleanMs), ...(left > 0 ? [AbortSignal.timeout(left)] : [])])
     const image = settings.cleaner_image
-    const pulled = (await engine.has(image)) || (await engine.pull(image, { signal: limit })).code === 0
+    const pulled = (await engine.has(image, { signal: limit })) || (await engine.pull(image, { signal: limit })).code === 0
     if (!pulled) {
       say(`job ${job.id}: its folder's files are left in ${work}, as the cleaner image ${image} is not here and could not be pulled: load it, or give another with --cleaner-image`)
       return
     }
-    const end = () => void engine.kill(cleaner)
+    // Killing and removing it come after the limit passed, so they have a short limit of their own
+    const ending = () => ({ signal: AbortSignal.timeout(endMs) })
+    const end = () => void engine.kill(cleaner, ending())
     limit.addEventListener('abort', end, { once: true })
     const cleaned = await engine.clean({ name: cleaner, image, work, settings }, { signal: limit })
     limit.removeEventListener('abort', end)
     if (limit.aborted) {
-      await engine.remove(cleaner)
+      await engine.remove(cleaner, ending())
       say(`job ${job.id}: removing its folder was stopped, as it took longer than ${cleanMs / 1000} seconds or the job's deadline`)
     } else if (cleaned.code !== 0) say(`job ${job.id}: removing its folder's files exited with ${cleaned.code}: ${cleaned.stderr.trim().slice(-500)}`)
     await rm(work, { recursive: true, force: true }).catch((error: unknown) => say(`job ${job.id}: could not remove ${work}: ${String(error)}`))
