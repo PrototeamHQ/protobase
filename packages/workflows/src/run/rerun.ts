@@ -8,11 +8,12 @@ export type EarlierCheckpoint = Pick<Checkpoint, 'scope' | 'next'>
 // The machine a scope runs: the run's own, the item processor of each Map its scope names, as `innerScope` writes it,
 // or in data order a state of its own, its name as `scopeOf` writes it, which no Map item's part can be, since a name
 // is written URI-encoded, without brackets.
+const itemPart = /^(.*)\.\d+\[\d+\]$/
 const machineOf = (machine: Machine, scope: string, order: Order): Machine | string => {
   if (scope === '') return machine
   let inner = machine
   for (const part of scope.split('/')) {
-    const item = /^(.*)\.\d+\[\d+\]$/.exec(part)
+    const item = itemPart.exec(part)
     const name = decodeURIComponent(item ? item[1]! : part)
     const state = inner.States[name]
     if (!item) {
@@ -36,10 +37,13 @@ const machineOf = (machine: Machine, scope: string, order: Order): Machine | str
  * recorded ones before it never.
  */
 export const rerunProblem = (machine: Machine, checkpoints: readonly EarlierCheckpoint[], order: Order = 'sequence') => {
+  // The order a run ran in, which its scopes tell: the run's own scope and a Map item's outermost run in sequence, a
+  // state's name in data order. A run of the other order would start its states anew, running their writes again.
+  const ranIn = checkpoints.some(({ scope }) => scope !== '' && !itemPart.test(scope.split('/')[0]!)) ? 'data' : 'sequence'
+  if (checkpoints.length > 0 && ranIn !== order) return `The run ran in ${ranIn} order, and the workflow now runs in ${order} order; switch it back to re-run it`
   for (const { scope, next } of checkpoints) {
     // A scope that ended, such as a finished Map item, is history and stays as it ran.
     if (next === null) continue
-    if (scope === '' && order === 'data') return 'The run goes on as sequence order runs it, and the workflow now runs in data order'
     const inner = machineOf(machine, scope, order)
     if (typeof inner === 'string') return inner
     if (!Object.hasOwn(inner.States, next)) return `The run goes on at state "${next}"${scope ? ` in ${scope}` : ''}, which the workflow no longer has`

@@ -112,6 +112,15 @@ describe('a re-run', () => {
     expect(rerunProblem(flow, [{ scope: 'Each.0[1]', next: 'Handle' }])).toBe('The run goes on in the Map "Each", which the workflow no longer has')
     expect(rerunProblem(flow, [{ scope: 'Each.0[0]', next: null }])).toBeUndefined()
   })
+
+  it('refuses a run of the other order, its ended states included, whose writes would run again', () => {
+    const machine = definition({ Save: { Type: 'Task', Resource: 'save', Next: 'Fetch' }, Fetch: { Type: 'Task', Resource: 'fetch', End: true } }).stateMachine
+    // A data-order run whose Save ended and whose Fetch failed, now that the workflow runs in sequence
+    expect(rerunProblem(machine, [{ scope: 'Save', next: null }, { scope: 'Fetch', next: 'Fetch' }], 'sequence')).toBe('The run ran in data order, and the workflow now runs in sequence order; switch it back to re-run it')
+    expect(rerunProblem(machine, [{ scope: 'Save', next: null }], 'sequence')).toBe('The run ran in data order, and the workflow now runs in sequence order; switch it back to re-run it')
+    expect(rerunProblem(machine, [{ scope: '', next: 'Fetch' }], 'data')).toBe('The run ran in sequence order, and the workflow now runs in data order; switch it back to re-run it')
+    expect(rerunProblem(machine, [{ scope: 'Save', next: null }, { scope: 'Fetch', next: 'Fetch' }], 'data')).toBeUndefined()
+  })
 })
 
 const byPlace = (a: { scope: string; seq: number }, b: { scope: string; seq: number }) => a.scope.localeCompare(b.scope) || a.seq - b.seq
