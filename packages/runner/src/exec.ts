@@ -18,7 +18,10 @@ export type Exec = (command: string, args: readonly string[], options?: ExecOpti
 // The most of a command's output kept whole; its lines all go to `line`.
 const keptChars = 64 * 1024
 
-/** The machine's `Exec`: a child process, its output split into lines, the last 64 KiB of each stream kept. */
+/** The longest line a command's output gives: past it, what came so far is a line of its own, so no output without a newline grows the runner's memory. */
+export const maxLineChars = 64 * 1024
+
+/** The machine's `Exec`: a child process, its output split into lines of at most `maxLineChars`, the last 64 KiB of each stream kept. */
 export const exec: Exec = (command, args, { env, signal, line } = {}) =>
   new Promise((resolve) => {
     const child = spawn(command, args, { env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -29,7 +32,11 @@ export const exec: Exec = (command, args, { env, signal, line } = {}) =>
       kept[stream] = (kept[stream] + text).slice(-keptChars)
       const lines = (partial[stream] + text).split('\n')
       partial[stream] = lines.pop()!
-      for (const one of lines) line?.(one.replace(/\r$/, ''), stream)
+      for (const one of lines) for (let at = 0; at < Math.max(one.length, 1); at += maxLineChars) line?.(one.slice(at, at + maxLineChars).replace(/\r$/, ''), stream)
+      while (partial[stream].length >= maxLineChars) {
+        line?.(partial[stream].slice(0, maxLineChars), stream)
+        partial[stream] = partial[stream].slice(maxLineChars)
+      }
     }
     child.stdout.on('data', read('stdout'))
     child.stderr.on('data', read('stderr'))

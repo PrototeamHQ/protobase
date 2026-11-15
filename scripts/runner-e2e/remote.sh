@@ -2,8 +2,9 @@
 # The runner's end-to-end test on the Linux test machine, run by run.sh in the folder it made, ~/pb-runner-e2e-<stamp>,
 # with the branch copied into its repo/. It downloads Bun into the folder, builds the runner, starts one Postgres
 # container named for the test, and runs e2e.ts, which builds and runs the custom step's image. On exit, passed or
-# failed, it removes that container, every image labelled org.protobase.step that it built, the base images it pulled
-# that were not here before, and the folder. Docker's and Bun's own state stays inside the folder too.
+# failed, it removes that container and its jobs' containers, every image labelled org.protobase.step that it built,
+# the base images it pulled, and the folder; an image that was here before stays, labelled or not, and so does
+# everything else on the machine. Docker's and Bun's own state stays inside the folder too.
 set -eu
 
 repo=$(cd "$(dirname "$0")/../.." && pwd)
@@ -35,18 +36,23 @@ cleanup() {
   trap '' PIPE HUP
   echo "== cleaning up (exit $status)"
   [ -f "$E2E/runner.pid" ] && kill "$(cat "$E2E/runner.pid")" 2>/dev/null
+  app_key=$(cat "$E2E/app-key" 2>/dev/null)
   docker rm -f "$name" >/dev/null 2>&1
-  for container in $(docker ps -a --format '{{.Names}}' | grep '^protobase-job-'); do
-    printf '%s\n' "$containers_before" | grep -qxF "$container" || docker rm -f "$container" >/dev/null
-  done
+  # Only the containers of this test's own jobs, never another runner's on the machine
+  if [ -f "$E2E/jobs" ]; then
+    for job in $(cat "$E2E/jobs"); do docker rm -f "protobase-job-$job" "protobase-clean-$job" >/dev/null 2>&1; done
+  fi
   # A job's container's user may have left files the runner's user cannot remove: the base image's root removes them.
   if ! rm -rf "$E2E" 2>/dev/null && docker image inspect debian:bookworm-slim >/dev/null 2>&1; then
     docker run --rm --network none --user 0:0 -v "$E2E:/e2e" debian:bookworm-slim sh -c 'rm -rf /e2e/* /e2e/.[!.]*'
     rm -rf "$E2E"
   fi
-  for image in $(docker image ls -q --filter label=org.protobase.step); do
-    printf '%s\n' "$step_images_before" | grep -qxF "$image" || docker image rm -f "$image" >/dev/null
-  done
+  # The step images of this test's app only, and of those none that was here before
+  if [ -n "$app_key" ]; then
+    for image in $(docker image ls -q --filter label=org.protobase.step --filter "label=org.protobase.app=$app_key"); do
+      printf '%s\n' "$step_images_before" | grep -qxF "$image" || docker image rm -f "$image" >/dev/null
+    done
+  fi
   for image in $postgres_image $bases; do
     was_here "$image" || docker image rm "$image" >/dev/null 2>&1
   done
@@ -86,7 +92,11 @@ for image in $postgres_image $bases; do
 done
 
 echo "== Postgres"
-port=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
+# A free port, never 5291, which another use of the machine keeps
+port=$(python3 -c 'import socket
+while True:
+    s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]
+    if port != 5291: print(port); break')
 docker run -d --name "$name" --label "org.protobase.e2e=$name" -e POSTGRES_USER=protobase -e POSTGRES_PASSWORD=e2e -p "127.0.0.1:$port:5432" "$postgres_image" >/dev/null
 for _ in $(seq 60); do docker exec "$name" pg_isready -U protobase -h 127.0.0.1 >/dev/null 2>&1 && break; sleep 1; done
 echo "Postgres on 127.0.0.1:$port"

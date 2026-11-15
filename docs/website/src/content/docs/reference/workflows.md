@@ -547,7 +547,7 @@ A custom step is a record of `workflow_custom_steps`, which you create and chang
 | `label`, `description` | What the step picker and the type list show. |
 | `kind` | `container`, the only kind there is. |
 | `container` | `{ dockerfile, files, command }`. `dockerfile` is text of at most 64 KiB whose first instruction is `FROM`, after `ARG` lines and comments only. `files` are the files beside it, by a relative path that has no `..` segment, each with its text, at most 1 MiB together, `{}` for none. `command` is a list of non-empty texts, such as `["python", "main.py"]`, or left out for the image's own. |
-| `input`, `output` | The JSON Schema of the step's arguments and of its result, each an object (`"type": "object"`) that compiles. `{ "x-file": true }` is a [stored file](#storing-files): in `input`, an argument that takes one, and in `output`, a file the step stores. `input` may not declare `store`. |
+| `input`, `output` | The JSON Schema of the step's arguments and of its result, each an object (`"type": "object"`) that compiles. `{ "x-file": true }` is a [stored file](#storing-files): in `input`, an argument that takes one, and in `output`, a file the step stores. It marks only a property of the schema itself, such as `properties.video`; one inside another schema, such as in `allOf` or `items`, is refused. `input` may not declare `store`. |
 | `error_prefix`, `errors` | The prefix of its error names, `Custom` by default, and the errors it fails with by name, each with what it means, such as `{ "Refused": "the renderer refused the invoice" }`: the step fails as `Invoice.Refused`. Each is a capital, then letters and digits; the prefix is not `States`. |
 | `version` | The version its last change made, which the save numbers. Read-only. |
 
@@ -607,7 +607,7 @@ Deleting a runner refuses its token as revoking it does.
 
 #### Installing a runner
 
-Make the runner, then issue its one-time registration token with `POST /api/workflows/runners/<id>/registration`, which needs the right to change that runner in your tenant; anyone else gets 404. It answers `{ token, expires_at, command }` once: a `pbr_once_...` token valid one hour, of which the app keeps only the SHA-256, so it cannot show it again, and the one command that installs the runner with it. A token issued again replaces the earlier one, until the runner registers. Run the command on the machine, as the user the runner runs as:
+Make the runner, then issue its one-time registration token with `POST /api/workflows/runners/<id>/registration`, which needs the right to change that runner in your tenant; anyone else gets 404. It answers `{ token, expires_at, command, endpoint }` once: a `pbr_once_...` token valid one hour, of which the app keeps only the SHA-256, so it cannot show it again, the one command that installs the runner with it, and the address of the runner's calls. Both are under the path of the app's system endpoints, `/api` unless its `basePath` moves them, as `/backend` for `/backend/v1`. A token issued again replaces the earlier one, until the runner registers. Run the command on the machine, as the user the runner runs as:
 
 ```sh
 curl -fsSL https://app.example.com/api/runners/install.sh | sh -s -- --token pbr_once_...
@@ -620,7 +620,7 @@ curl -fsSL https://app.example.com/api/runners/install.sh | sh -s -- --token pbr
 3. registers the runner with the token, keeping its own token and its settings in `~/.config/protobase-runner/config.json`, readable by that user only;
 4. writes a systemd user unit, `protobase-runner.service`, running `protobase-runner run`, and enables and starts it with `systemctl --user`. To keep it running while the user is logged out, run `loginctl enable-linger <user>`, as the script says when it is needed.
 
-Its options: `--url` the app's address, by default the one that served it; `--bin-dir` the folder of the executable; `--binary-url` another download of the executable, such as a `file://` one; `--service false` to start the runner yourself, `true` by default; and the runner's settings, which it passes on to `protobase-runner register --url <app> --token pbr_once_...`. That command, and `protobase-runner run`, are also how you install a runner by hand.
+Its options: `--url` the app's address, by default the one that served it; `--api-path` the path of its system endpoints, by default the one it was served under; `--bin-dir` the folder of the executable; `--binary-url` another download of the executable, such as a `file://` one; `--service false` to start the runner yourself, `true` by default; and the runner's settings, which it passes on to `protobase-runner register --url <app> --api-path /api --token pbr_once_...`. That command, and `protobase-runner run`, are also how you install a runner by hand.
 
 | Setting | Default | |
 | --- | --- | --- |
@@ -651,7 +651,9 @@ docker run --rm --name protobase-job-<id> --network none \
   -e INPUT_<NAME> ... <image> <command>
 ```
 
-So the container has no network, a read-only root with a small `/tmp` that runs nothing, no capabilities and no way to gain any, user 65532 whatever its image says, limits on its processes, memory and CPUs, and of the machine only the job's two folders: its inputs, read-only, and its output folder. It never gets the engine's socket or the runner's environment. The runner sends its heartbeats throughout, sends its lines of output to the job's logs in batches, and kills it at the job's deadline, or once a heartbeat answers stop, completing nothing then. It deletes the job's folder after.
+So the container has no network, a read-only root with a small `/tmp` that runs nothing, no capabilities and no way to gain any, user 65532 whatever its image says, limits on its processes, memory and CPUs, and of the machine only the job's two folders: its inputs, read-only, and its output folder. It never gets the engine's socket or the runner's environment. The runner sends its heartbeats throughout, sends its lines of output to the job's logs in batches, and kills it at the job's deadline, or once a heartbeat answers stop, completing nothing then. A line of output is at most 64 KiB, and a longer one is cut into lines; when the app takes them slower than the container writes them, at most 10 batches wait, and the oldest lines past them are dropped and counted in the next batch. A completion the app does not take is sent once more; one it takes neither time leaves the job to its lease, never failed in its place.
+
+It deletes the job's folder after. What the container's user left there in folders of its own, which the runner's user may not remove, a container of the step's image removes with its `rm`, as that same user, hardened and limited as the job was, with only the output folder, named `protobase-clean-<id>`; it is killed and removed after 60 seconds, at the job's deadline or as the runner stops, and the runner says when it is, or when it fails, as in an image with no `rm`.
 
 **For an image's author**, what goes in and out is plain files and variables:
 

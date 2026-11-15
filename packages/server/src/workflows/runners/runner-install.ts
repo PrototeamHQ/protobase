@@ -7,21 +7,31 @@ export const runnerReleases = 'https://github.com/PrototeamHQ/protobase/releases
 // A value as one word of POSIX sh, in single quotes.
 const quoted = (value: string) => `'${value.replaceAll("'", `'\\''`)}'`
 
-/** The one command that installs a runner for the app at `origin`, registering it with its one-time token. */
-export const installCommand = (origin: string, token: string) => `curl -fsSL ${origin}/api/runners/install.sh | sh -s -- --token ${token}`
+/**
+ * Where a runner reaches the app: its address (`origin`) and the path its system endpoints are under (`apiPath`), `/api`
+ * unless the app's `basePath` puts them elsewhere, as `/backend` for `/backend/v1`.
+ */
+export type RunnerApp = { origin: string; apiPath: string }
+
+/** The address of the runners' calls on the app, `<origin><apiPath>/runners/v1`. */
+export const runnerEndpoint = ({ origin, apiPath }: RunnerApp) => `${origin}${apiPath}/runners/v1`
+
+/** The one command that installs a runner for the app, registering it with its one-time token. */
+export const installCommand = ({ origin, apiPath }: RunnerApp, token: string) => `curl -fsSL ${origin}${apiPath}/runners/install.sh | sh -s -- --token ${token}`
 
 /**
- * The install script, POSIX sh, for the app at `origin` of Protobase `version`: it finds the machine's platform,
+ * The install script, POSIX sh, for the app at `origin` with its endpoints under `apiPath`, of Protobase `version`: it finds the machine's platform,
  * downloads the runner of that version for it (`--binary-url` gives another, such as a file for a test), checks that
  * Docker or Podman works for the user and recommends rootless mode when it is not, registers with the one-time token
  * (`--token`), and writes, enables and starts a systemd user unit running `protobase-runner run` (`--service false`
  * leaves that to the user). The runner's settings pass on to `register`.
  */
-export const installScript = (origin: string, version: string) => `#!/bin/sh
-# Installs a Protobase runner for ${origin}: curl -fsSL ${origin}/api/runners/install.sh | sh -s -- --token pbr_once_...
+export const installScript = ({ origin, apiPath }: RunnerApp, version: string) => `#!/bin/sh
+# Installs a Protobase runner for ${origin}: ${installCommand({ origin, apiPath }, 'pbr_once_...')}
 set -eu
 
 url=${quoted(origin)}
+api_path=${quoted(apiPath)}
 version=${quoted(version)}
 token=''
 binary_url=''
@@ -44,11 +54,12 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --token) token=$2 ;;
     --url) url=$2 ;;
+    --api-path) api_path=$2 ;;
     --binary-url) binary_url=$2 ;;
     --bin-dir) bin_dir=$2 ;;
     --service) service=$2 ;;
     --slots|--cpus|--memory-mb|--pids|--tmp-mb|--work-dir|--engine|--build|--build-timeout-seconds) settings="$settings $1 $(word "$2")" ;;
-    *) fail "unknown option $1; give --token pbr_once_..., and optionally --url, --binary-url, --bin-dir, --service true|false and the runner's settings" ;;
+    *) fail "unknown option $1; give --token pbr_once_..., and optionally --url, --api-path, --binary-url, --bin-dir, --service true|false and the runner's settings" ;;
   esac
   shift 2
 done
@@ -84,7 +95,7 @@ chmod 755 "$runner.download"
 mv "$runner.download" "$runner"
 
 eval "set -- $settings"
-"$runner" register --url "$url" --token "$token" "$@"
+"$runner" register --url "$url" --api-path "$api_path" --token "$token" "$@"
 
 if [ "$service" = false ]; then
   echo "Installed. Start it with: $runner run"
@@ -120,11 +131,11 @@ echo "Installed and started: systemctl --user status protobase-runner"
 `
 
 /**
- * `GET .../runners/install.sh`, public: the install script for this app, at the address the app is served at
- * (`origin`, else the request's own), and its own version.
+ * `GET .../runners/install.sh`, public: the install script for this app, at the address it is served at (`app`, from
+ * the request), and its own version.
  */
-export const installRoute = (origin: () => string | undefined) => {
-  const app = new Hono()
-  app.get('/', (c) => c.body(installScript(origin() ?? new URL(c.req.url).origin, protobaseVersion), 200, { 'content-type': 'text/x-shellscript; charset=utf-8', 'cache-control': 'no-store' }))
-  return app
+export const installRoute = (app: (request: Request) => RunnerApp) => {
+  const route = new Hono()
+  route.get('/', (c) => c.body(installScript(app(c.req.raw), protobaseVersion), 200, { 'content-type': 'text/x-shellscript; charset=utf-8', 'cache-control': 'no-store' }))
+  return route
 }

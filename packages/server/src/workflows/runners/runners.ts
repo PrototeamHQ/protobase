@@ -10,7 +10,7 @@ import { issueRegistration } from './registration'
 import { runnerBroker } from './runner-broker'
 import { runnerFiles } from './runner-files'
 import { runnerSaveHook } from './runner-hook'
-import { installRoute } from './runner-install'
+import { installRoute, type RunnerApp } from './runner-install'
 import { customStepQueue, leaseJob, runnerJobs, type AnswerByHash } from './runner-jobs'
 import { runnerRoute } from './runner-route'
 
@@ -21,7 +21,8 @@ import { runnerRoute } from './runner-route'
  * `POST .../workflows/runners/<id>/registration`), the lease job and the hook that checks a runner's writes. Each job's
  * Task is answered by its token's hash through `answer`, the waiting Tasks' own path, and its arguments are sealed with
  * the app's secret (`key`) while it waits. Its files are read and stored through `storage`, as the run's storage steps
- * do, and the app's address, for the install script and its command, is `origin`, else the request's.
+ * do. The app's address, for the install script and its command, is `origin`, else the request's, with the path of its
+ * system endpoints, as the app's `basePath` sets it.
  */
 export const customStepRunners = ({ deps, schema, settings, secrets, key, answer, storage, origin }: { deps: () => Deps; schema: string; settings: RunnerSettings; secrets: readonly string[]; key: () => Promise<SecretKey>; answer: AnswerByHash; storage: StorageInput; origin: () => string | undefined }) => {
   const db = (): Db => deps().db
@@ -31,15 +32,16 @@ export const customStepRunners = ({ deps, schema, settings, secrets, key, answer
   const broker = runnerBroker({ db, schema, path: () => `${deps().systemPath}/runners/v1`, settings, lease: () => lease, sealer, answer, report })
   const jobs = runnerJobs({ db, schema, settings, secrets, answer })
   const files = runnerFiles({ db, schema, sealer, storage, files: () => deps().files })
+  const appOf = (request: Request): RunnerApp => ({ origin: origin() ?? new URL(request.url).origin, apiPath: deps().systemPath })
   const registration = () => {
     const app = new Hono<AdminEnv>()
-    app.post('/:id/registration', async (c) => c.json(await issueRegistration(deps, schema, c.get('session'), c.req.param('id'), origin() ?? new URL(c.req.url).origin), 200, { 'Cache-Control': 'no-store' }))
+    app.post('/:id/registration', async (c) => c.json(await issueRegistration(deps, schema, c.get('session'), c.req.param('id'), appOf(c.req.raw)), 200, { 'Cache-Control': 'no-store' }))
     return app
   }
   return {
     queue: customStepQueue(schema, sealer, () => broker.nudge()),
     route: () => runnerRoute({ db, schema, broker, jobs, files, report }),
-    install: () => installRoute(origin),
+    install: () => installRoute(appOf),
     registration,
     jobs: [lease],
     hooks: [runnerSaveHook],

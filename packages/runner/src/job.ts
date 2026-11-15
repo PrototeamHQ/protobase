@@ -1,4 +1,4 @@
-import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { chmod, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { jobErrors, type JobCompletion, type RunnerJob } from '@protobase/workflows'
 import type { AppClient } from './app'
@@ -15,6 +15,13 @@ const jsonBytes = 1024 * 1024
 // Lines go to the app at least this often while a job runs, and at most this many at once.
 const logMs = 1000
 const logBatch = 100
+const logPending = 10
+
+// How long a job's folder may take to remove, once the runner's own user cannot.
+const cleanMs = 60_000
+
+// How long the runner waits to send a completion again, once, when the app did not take it.
+const completeAgainMs = 1000
 
 const types: Record<string, string> = {
   mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', mkv: 'video/x-matroska', mp3: 'audio/mpeg', m4a: 'audio/mp4', wav: 'audio/wav', ogg: 'audio/ogg',
@@ -85,14 +92,28 @@ const readJson = async (out: string, name: string): Promise<{ value: unknown } |
   }
 }
 
-/** A job's lines, sent to the app in batches as they come, never the runner's own. */
-const logLines = (app: AppClient, job: string, say: (line: string) => void) => {
+/**
+ * A job's lines, sent to the app in batches as they come, never the runner's own. At most `logPending` batches wait for
+ * the app at once: past that, the oldest lines not sent yet are dropped and counted, and the next batch starts with how
+ * many were, so a container that writes faster than the app takes its lines never grows the runner's memory. Every
+ * batch, the count included, holds at most the 100 lines the app takes.
+ */
+export const logLines = (app: AppClient, job: string, say: (line: string) => void) => {
   let lines: string[] = []
   let sending = Promise.resolve()
+  let pending = 0
+  let dropped = 0
   const send = () => {
-    if (lines.length === 0) return sending
-    const batch = lines.splice(0, logBatch)
-    sending = sending.then(() => app.log(job, batch).then(() => {}, (error: unknown) => say(`job ${job}: could not send its log: ${String(error)}`)))
+    if (lines.length === 0 && dropped === 0) return sending
+    if (pending >= logPending) {
+      dropped += lines.splice(0, lines.length - (logBatch - 1)).length
+      return sending
+    }
+    const notice = dropped > 0 ? [`${dropped} ${dropped === 1 ? 'line' : 'lines'} of output dropped, as the app took them too slowly`] : []
+    const batch = [...notice, ...lines.splice(0, logBatch - notice.length)]
+    dropped = 0
+    pending++
+    sending = sending.then(() => app.log(job, batch).then(() => {}, (error: unknown) => say(`job ${job}: could not send its log: ${String(error)}`))).finally(() => void pending--)
     return sending
   }
   const timer = setInterval(() => void send(), logMs)
@@ -103,8 +124,8 @@ const logLines = (app: AppClient, job: string, say: (line: string) => void) => {
     },
     close: async () => {
       clearInterval(timer)
-      while (lines.length > 0) await send()
       await sending
+      while (lines.length > 0 || dropped > 0) await send()
       lines = []
     },
   }
@@ -116,9 +137,10 @@ export type JobInput = { app: AppClient; engine: Engine; build: Builder; setting
  * Runs one job: downloads its input files into a fresh folder, writes `input.json`, builds its step's image when the
  * runner has not got it, runs the container hardened (`runArgs`), and completes the job: with `output.json`, each file it
  * names uploaded and replaced by the stored file the app answers; with `error.json`'s `{ error, cause }`; or, on any
- * other exit, `Custom.Failed` with the end of stderr. It heartbeats all along, and kills the container at the job's
- * deadline or when a heartbeat answers stop, completing nothing then; the job's folder is deleted after.
- * `signal` stops it as the runner stops.
+ * other exit, `Custom.Failed` with the end of stderr, as it does when the runner cannot run the job at all. A completion
+ * the app does not take is sent once more, never replaced by a failure. It heartbeats all along, and kills the
+ * container at the job's deadline or when a heartbeat answers stop, completing nothing then; the job's folder is
+ * deleted after. `signal` stops it as the runner stops.
  */
 export const runJob = async ({ app, engine, build, settings, identity, say }: JobInput, job: RunnerJob, signal?: AbortSignal) => {
   const stopped = new AbortController()
@@ -128,41 +150,63 @@ export const runJob = async ({ app, engine, build, settings, identity, say }: Jo
     stopped.abort(why)
   }
   const stopping = () => stop('stopped, as the runner stops')
-  signal?.addEventListener('abort', stopping, { once: true })
-  const heartbeats = setInterval(() => {
-    app.heartbeat(job.id).then(
-      (answer) => answer.stop && stop('stopped, as the app answered its heartbeat'),
-      (error: unknown) => say(`job ${job.id}: heartbeat failed: ${String(error)}`),
-    )
-  }, job.heartbeat_seconds * 1000)
-  const deadline = setTimeout(() => stop('killed at its deadline'), Math.max(0, Date.parse(job.deadline) - Date.now()))
-  const logs = logLines(app, job.id, say)
-  await mkdir(settings.work_dir, { recursive: true, mode: 0o700 })
-  const work = await mkdtemp(path.join(settings.work_dir, 'job-'))
   const container = `protobase-job-${job.id}`
-  const tag = imageTag(identity, job.step)
-  say(`job ${job.id}: ${job.step} started`)
+  let heartbeats: ReturnType<typeof setInterval> | undefined
+  let deadline: ReturnType<typeof setTimeout> | undefined
+  let logs: ReturnType<typeof logLines> | undefined
+  let work: string | undefined
+  let tag: string | undefined
   try {
-    const completion = await perform()
+    // Everything that can fail goes on inside, so a failure of its folder or its step ends the job and clears all.
+    signal?.addEventListener('abort', stopping, { once: true })
+    heartbeats = setInterval(() => {
+      app.heartbeat(job.id).then(
+        (answer) => answer.stop && stop('stopped, as the app answered its heartbeat'),
+        (error: unknown) => say(`job ${job.id}: heartbeat failed: ${String(error)}`),
+      )
+    }, job.heartbeat_seconds * 1000)
+    deadline = setTimeout(() => stop('killed at its deadline'), Math.max(0, Date.parse(job.deadline) - Date.now()))
+    logs = logLines(app, job.id, say)
+    say(`job ${job.id}: ${job.step} started`)
+    let completion: JobCompletion | undefined
+    let ran = false
+    try {
+      tag = imageTag(identity, job.step)
+      await mkdir(settings.work_dir, { recursive: true, mode: 0o700 })
+      work = await mkdtemp(path.join(settings.work_dir, 'job-'))
+      completion = await perform(work, tag, logs)
+      ran = true
+    } catch (error) {
+      say(`job ${job.id}: failed: ${error instanceof Error ? error.message : String(error)}`)
+      completion = { error: jobErrors.failed, cause: `The runner could not run the job: ${error instanceof Error ? error.message : String(error)}` }
+    }
     // Its lines reach the app before its completion, after which the job no longer takes any.
     await logs.close()
-    if (completion && !stopped.signal.aborted) {
-      await app.complete(job.id, completion)
-      say(`job ${job.id}: ${'output' in completion ? 'succeeded' : `failed with ${completion.error}`}`)
-    }
-  } catch (error) {
-    say(`job ${job.id}: failed: ${error instanceof Error ? error.message : String(error)}`)
-    await logs.close()
-    if (!stopped.signal.aborted) await app.complete(job.id, { error: jobErrors.failed, cause: `The runner could not run the job: ${error instanceof Error ? error.message : String(error)}` }).catch(() => {})
+    if (completion && !stopped.signal.aborted) await complete(completion, ran)
   } finally {
     signal?.removeEventListener('abort', stopping)
     clearInterval(heartbeats)
     clearTimeout(deadline)
-    await logs.close()
-    await removeWork()
+    await logs?.close()
+    if (work) await removeWork(work, tag)
   }
 
-  async function perform(): Promise<JobCompletion | undefined> {
+  // Sends the completion, and once more after a moment when the app did not take it: a step that ran is never failed
+  // instead, as the first may have reached the app. A completion it never takes leaves the job to its lease.
+  async function complete(completion: JobCompletion, ran: boolean) {
+    const what = 'output' in completion ? 'succeeded' : `failed with ${completion.error}`
+    for (let tried = 1; ; tried++) {
+      try {
+        await app.complete(job.id, completion)
+        return say(`job ${job.id}: ${what}`)
+      } catch (error) {
+        if (tried === 2) return say(`job ${job.id}: ${what}, but the app took its completion neither time (${String(error)}); its lease ends it${ran ? ', and it runs again' : ''}`)
+        await new Promise((resolve) => setTimeout(resolve, completeAgainMs))
+      }
+    }
+  }
+
+  async function perform(work: string, tag: string, logs: ReturnType<typeof logLines>): Promise<JobCompletion | undefined> {
     const input = containerInput(job)
     const into = path.join(work, 'in')
     const out = path.join(work, 'out')
@@ -210,12 +254,28 @@ export const runJob = async ({ app, engine, build, settings, identity, say }: Jo
     return { output }
   }
 
-  // Files the container's user left in folders of its own cannot be removed by the runner's user: the container's
-  // root, of the step's own image, removes them then.
-  async function removeWork() {
+  // Files the container's user left in folders of its own cannot be removed by the runner's user: a container of the
+  // step's image removes them as that same user, hardened as the job was, named, within `cleanMs`, the job's deadline
+  // and the runner's stop, and killed and removed once any passes. Every way it fails is said.
+  async function removeWork(work: string, tag: string | undefined) {
     const removed = await rm(work, { recursive: true, force: true }).then(() => true, () => false)
     if (removed) return
-    await engine.clean(tag, work)
+    const out = path.join(work, 'out')
+    const entries = await readdir(out).catch(() => [])
+    if (tag && entries.length > 0 && signal?.aborted) say(`job ${job.id}: its folder's files are left in ${work}, as the runner stops`)
+    else if (tag && entries.length > 0) {
+      const cleaner = `protobase-clean-${job.id}`
+      const left = Date.parse(job.deadline) - Date.now()
+      const limit = AbortSignal.any([AbortSignal.timeout(cleanMs), ...(left > 0 ? [AbortSignal.timeout(left)] : []), ...(signal ? [signal] : [])])
+      const end = () => void engine.kill(cleaner)
+      limit.addEventListener('abort', end, { once: true })
+      const cleaned = await engine.clean({ name: cleaner, image: tag, out, entries, settings }, { signal: limit })
+      limit.removeEventListener('abort', end)
+      if (limit.aborted) {
+        await engine.remove(cleaner)
+        say(`job ${job.id}: removing its folder was stopped, as it took too long or the runner stops`)
+      } else if (cleaned.code !== 0) say(`job ${job.id}: removing its folder's files exited with ${cleaned.code}: ${cleaned.stderr.trim().slice(-500)}`)
+    }
     await rm(work, { recursive: true, force: true }).catch((error: unknown) => say(`job ${job.id}: could not remove ${work}: ${String(error)}`))
   }
 }

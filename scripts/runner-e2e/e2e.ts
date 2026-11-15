@@ -14,6 +14,7 @@ import { defineRoles } from '@protobase/schema'
 import { configExports, createAdmin, jobsSchemaMigration, startJobs, workflowsMigration, type WorkflowsOptions } from '@protobase/server'
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import { partsOfDefinition, type Definition } from '@protobase/workflows'
+import { appKey } from '../../packages/runner/src/engine'
 
 const dir = process.env.E2E_DIR!
 const databaseUrl = process.env.E2E_DATABASE_URL!
@@ -143,6 +144,8 @@ try {
   const port = (server.address() as { port: number }).port
   const origin = `http://127.0.0.1:${port}`
   say(`app on ${origin}`)
+  // The label of this app's images, by which remote.sh removes only the ones this test built
+  await writeFile(path.join(dir, 'app-key'), `${appKey({ url: origin, tenant: '1' })}\n`)
   const api = async (method: string, at: string, body?: unknown) => {
     const response = await fetch(`${origin}${at.startsWith('/api/') ? at : `/api/v1${at}`}`, { method, headers: { 'content-type': 'application/json', 'if-match': '*' }, ...(body !== undefined && { body: JSON.stringify(body) }) })
     const text = await response.text()
@@ -189,8 +192,9 @@ try {
     })
     if (build.status !== 'ready') throw new Error(`the build failed:\n${build.log}`)
     say(`build ready in ${seconds(build.started_at, build.finished_at!)} s, ${build.digest}`)
-    const image = (await docker(['image', 'ls', '--filter', `label=org.protobase.step=${step}`, '--format', '{{.Repository}}:{{.Tag}}'])).split('\n')[0]!
-    say(`image ${image}, labelled ${await docker(['image', 'inspect', '--format', '{{index .Config.Labels "org.protobase.step"}}', image])}`)
+    // By the digest its build reported, never by a label another app's image on the machine may carry too
+    const image = build.digest!
+    say(`image ${await docker(['image', 'inspect', '--format', '{{index .RepoTags 0}}', image])}, labelled ${await docker(['image', 'inspect', '--format', '{{index .Config.Labels "org.protobase.step"}}', image])}`)
 
     // The sample: 10 s of 1920x1080 at 30 frames from FFmpeg's test source, with a tone, stored in the configuration.
     const videos = path.join(storageRoot, 'videos')
@@ -204,6 +208,9 @@ try {
 
     const run = await api('POST', '/workflow_runs', { workflow_id: workflow.id, input: { video: { configuration: 'videos', path: 'in/sample.mp4', name: 'sample.mp4', type: 'video/mp4', size } } })
     say(`run ${String(run.id)} started`)
+    // Its job's containers are named by the job, which remote.sh removes on exit should they be left
+    const queued = await waitFor('the job', 1, async () => (await sql<{ id: string }>`select id from workflows.custom_step_jobs where run_id = ${String(run.id)}`.execute(db)).rows[0]?.id)
+    await writeFile(path.join(dir, 'jobs'), `${queued}\n`)
     const ended = await waitFor('the run', 20, async () => {
       const { rows } = await sql<{ status: string; output: { video?: { path: string; size: number } } | null; error: string | null; cause: string | null }>`select status, output, error, cause from workflows.runs where id = ${String(run.id)}`.execute(db)
       return rows[0] && ['succeeded', 'failed'].includes(rows[0].status) ? rows[0] : undefined

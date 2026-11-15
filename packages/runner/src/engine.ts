@@ -48,6 +48,23 @@ export const runArgs = ({ name, image, command, work, settings, env }: { name: s
   ...(command ?? []),
 ]
 
+/**
+ * The command line that removes what a job's container left in its output folder (`entries`), which the runner's own
+ * user may not: the step image's `rm`, run as the job's user, who wrote them, hardened and limited as the job was, with
+ * only that folder, so it may do nothing the job itself could not. It is named, so the runner can kill and remove it.
+ */
+export const cleanArgs = ({ name, image, out, entries, settings }: { name: string; image: string; out: string; entries: readonly string[]; settings: Pick<Settings, 'cpus' | 'memory_mb' | 'pids'> }) => [
+  'run', '--rm', '--name', name,
+  '--network', 'none', '--read-only',
+  '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+  '--pids-limit', String(settings.pids), '--memory', `${settings.memory_mb}m`, '--memory-swap', `${settings.memory_mb}m`, '--cpus', String(settings.cpus),
+  '--user', '65532:65532',
+  '-v', `${out}:${containerPaths.out}`,
+  '--entrypoint', 'rm',
+  image,
+  '-rf', '--', ...entries.map((entry) => `${containerPaths.out}/${entry}`),
+]
+
 /** The command line that builds a version's image from its folder, labelled with its step and its app. */
 export const buildArgs = ({ tag, step, app, dockerfile, context }: { tag: string; step: string; app: string; dockerfile: string; context: string }) => ['build', '--tag', tag, '--label', `${stepLabel}=${step}`, '--label', `${appLabel}=${app}`, '--file', dockerfile, context]
 
@@ -71,8 +88,9 @@ export const engine = (exec: Exec, name: EngineName) => ({
   build: (args: readonly string[], options: ExecOptions) => exec(name, args, options),
   run: (args: readonly string[], options: ExecOptions) => exec(name, args, options),
   kill: (container: string) => exec(name, ['kill', container]),
-  /** Removes a folder a container wrote into, as the container's root, which may delete what its user left there. */
-  clean: (image: string, folder: string) => exec(name, ['run', '--rm', '--network', 'none', '--user', '0:0', '--entrypoint', 'rm', '-v', `${folder}:/protobase/clean`, image, '-rf', '/protobase/clean/out']),
+  remove: (container: string) => exec(name, ['rm', '-f', container]),
+  /** Removes what a job's container left in its output folder (`cleanArgs`). */
+  clean: (given: Parameters<typeof cleanArgs>[0], options: ExecOptions) => exec(name, cleanArgs(given), options),
 })
 
 export type Engine = ReturnType<typeof engine>

@@ -8,9 +8,10 @@ import packageJson from '../package.json' with { type: 'json' }
 
 export const usage = `protobase-runner ${packageJson.version}: runs an app's custom steps in containers.
 
-  protobase-runner register --url <app> --token pbr_once_... [settings]
+  protobase-runner register --url <app> [--api-path /api] --token pbr_once_... [settings]
       Registers this machine with the app's one-time token, keeping its own in
-      $XDG_CONFIG_HOME/protobase-runner/config.json (~/.config by default).
+      $XDG_CONFIG_HOME/protobase-runner/config.json (~/.config by default). --api-path
+      is where the app serves its system endpoints, /api unless its basePath moved them.
   protobase-runner run
       Claims the app's jobs and runs them, until stopped.
   protobase-runner version
@@ -42,20 +43,22 @@ export const cli = async (args: readonly string[], { exec, env, say, fetch, sign
   if (command === 'version' || command === '--version') return packageJson.version
   if (command === 'register') {
     const flags = flagsOf(rest)
-    const known = ['--url', '--token', ...Object.keys(settingFlags)]
+    const known = ['--url', '--api-path', '--token', ...Object.keys(settingFlags)]
     const unknown = Object.keys(flags).find((name) => !known.includes(name))
     if (unknown) throw new Error(`${unknown} is not an option of register\n\n${usage}`)
     const url = flags['--url']?.replace(/\/+$/, '')
     const token = flags['--token']
     if (!url || !/^https?:\/\//.test(url)) throw new Error('Give the app\'s address: --url https://app.example.com')
     if (!token) throw new Error('Give the runner\'s one-time registration token: --token pbr_once_...')
+    const apiPath = (flags['--api-path'] ?? '/api').replace(/\/+$/, '')
+    if (!/^(\/[A-Za-z0-9._~-]+)*$/.test(apiPath)) throw new Error(`--api-path is a path such as /api, not ${JSON.stringify(flags['--api-path'])}`)
     const found = await findEngine(exec)
     const given = Object.fromEntries(Object.entries(flags).flatMap(([name, value]) => (settingFlags[name] ? [[settingFlags[name], value]] : []))) as Partial<Record<keyof Settings, string>>
     if (!found && !given.engine) throw new Error('Neither docker nor podman works for this user: install one, rootless is recommended, then register again')
     const settings = settingsOf(given, { cpus: availableParallelism(), engine: found?.engine ?? 'docker', builds: found?.builds ?? false, workDir: defaultWorkDir(env) })
-    const registered = await appClient({ url, ...(fetch && { fetch }) }).register({ token, platform: platform(), kinds: kinds(settings) })
+    const registered = await appClient({ url, apiPath, ...(fetch && { fetch }) }).register({ token, platform: platform(), kinds: kinds(settings) })
     const file = configPath(env)
-    await writeConfig(file, { url, token: registered.token, runner: { id: registered.runner.id, name: registered.runner.name, tenant: registered.runner.tenant ?? null }, settings })
+    await writeConfig(file, { url, api_path: apiPath, token: registered.token, runner: { id: registered.runner.id, name: registered.runner.name, tenant: registered.runner.tenant ?? null }, settings })
     return `Registered as ${registered.runner.name} (${registered.runner.id}), running ${settings.slots} ${settings.slots === 1 ? 'job' : 'jobs'} at once with ${settings.engine}${settings.build ? ', building images' : ''}; its config is ${file}`
   }
   if (command === 'run') {
@@ -63,7 +66,7 @@ export const cli = async (args: readonly string[], { exec, env, say, fetch, sign
     const config = await readConfig(configPath(env))
     say(`Running for ${config.url} as ${config.runner.name}, ${config.settings.slots} ${config.settings.slots === 1 ? 'job' : 'jobs'} at once with ${config.settings.engine}`)
     await runLoop({
-      app: appClient({ url: config.url, token: config.token, ...(fetch && { fetch }) }),
+      app: appClient({ url: config.url, apiPath: config.api_path ?? '/api', token: config.token, ...(fetch && { fetch }) }),
       engine: engine(exec, config.settings.engine),
       settings: config.settings,
       identity: { url: config.url, tenant: config.runner.tenant },

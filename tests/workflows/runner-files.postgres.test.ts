@@ -8,6 +8,7 @@ import { localFiles, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { definitionFields } from '../../test-support/workflow-fields'
+import { appClient } from '../../packages/runner/src/app'
 import { testRunner } from './support/test-runner'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -236,5 +237,33 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("runners' job files, bui
     const runner = await created('ada', '/workflow_runners', { name: 'Installed' })
     const issued = (await (await as('ada', `/api/workflows/runners/${String(runner.id)}/registration`, { method: 'POST' })).json()) as { token: string; command: string }
     expect(issued.command).toBe(`curl -fsSL http://localhost/api/runners/install.sh | sh -s -- --token ${issued.token}`)
+  })
+
+  it("carries a basePath that moves the system endpoints through the install command, its script and the runner's calls", async () => {
+    const options = workflows(join(folder.dir, 'storage'))
+    const { resources, views } = configExports(workflowsModule(options))
+    vi.stubEnv('PROTOBASE_ENCRYPTION_KEY', Buffer.from(Array.from({ length: 32 }, (_, i) => i)).toString('base64'))
+    const backend = createAdmin({
+      resources, views, db, workflows: options,
+      files: { providers: { private: localFiles({ dir: join(folder.dir, 'private') }) }, secret: 'files-secret-for-the-runner-tests' },
+      authenticate: () => ({ user: { id: 'ada', roles: ['keeper'] }, tenant: '1' }),
+      options: { statementTimeoutMs, roles, basePath: '/backend/v1' },
+    })
+    vi.unstubAllEnvs()
+    const post = (path: string, body?: unknown) => backend.request(path, { method: 'POST', headers: { 'content-type': 'application/json' }, ...(body !== undefined && { body: JSON.stringify(body) }) })
+    const runner = (await (await post('/backend/v1/workflow_runners', { name: 'Elsewhere' })).json()) as { id: string }
+    const issued = (await (await post(`/backend/workflows/runners/${runner.id}/registration`)).json()) as { token: string; command: string; endpoint: string }
+    expect(issued.command).toBe(`curl -fsSL http://localhost/backend/runners/install.sh | sh -s -- --token ${issued.token}`)
+    expect(issued.endpoint).toBe('http://localhost/backend/runners/v1')
+    const script = await (await backend.request('/backend/runners/install.sh')).text()
+    expect(script).toContain("api_path='/backend'")
+    expect((await backend.request('/api/runners/install.sh')).status).toBe(404)
+    // The runner's own client, with the path the script passes to register
+    const urls: string[] = []
+    const fetch = async (url: string, init: RequestInit) => (urls.push(new URL(url).pathname), backend.request(url, init))
+    const registered = await appClient({ url: 'http://localhost', apiPath: '/backend', fetch }).register({ token: issued.token, platform: 'linux/amd64', kinds: ['container'] })
+    const machine = appClient({ url: 'http://localhost', apiPath: '/backend', token: registered.token, fetch })
+    expect(await machine.claim({ platform: 'linux/amd64', kinds: ['container'], labels: [], capacity: { slots: 1 }, images: [], instances: [] })).toEqual({ order: 'none' })
+    expect(urls).toEqual(['/backend/runners/v1/register', '/backend/runners/v1/claim'])
   })
 })

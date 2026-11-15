@@ -22,9 +22,13 @@ export type Settings = {
   build_timeout_seconds: number
 }
 
-/** What `register` keeps: the app, the runner's own token, who it is, and its settings. Readable by its user only. */
+/**
+ * What `register` keeps: the app's address and the path of its system endpoints, the runner's own token, who it is, and
+ * its settings. Readable by its user only.
+ */
 export type RunnerConfig = {
   url: string
+  api_path: string
   token: string
   runner: { id: string; name: string; tenant: string | null }
   settings: Settings

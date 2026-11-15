@@ -24,9 +24,12 @@ const checked = async (response: Response) => {
   return response
 }
 
-/** The app's runner API under `<url>/api/runners/v1`, every call but the registration with the runner's own token. */
-export const appClient = ({ url, token, fetch = globalThis.fetch }: { url: string; token?: string; fetch?: Fetch }) => {
-  const api = `${url}/api/runners/v1`
+/**
+ * The app's runner API under `<url><apiPath>/runners/v1`, `apiPath` the path of the app's system endpoints, `/api` by
+ * default; every call but the registration with the runner's own token.
+ */
+export const appClient = ({ url, apiPath = '/api', token, fetch = globalThis.fetch }: { url: string; apiPath?: string; token?: string; fetch?: Fetch }) => {
+  const api = `${url}${apiPath}/runners/v1`
   const headers = { ...(token && { authorization: `Bearer ${token}` }) }
   const post = async (path: string, body: unknown, signal?: AbortSignal) =>
     (await checked(await fetch(`${api}${path}`, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(body), ...(signal && { signal }) }))).json() as Promise<unknown>

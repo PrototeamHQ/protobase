@@ -33,13 +33,15 @@ describe("a runner's build report", () => {
 
 describe("the runners' install script", () => {
   it("installs this app's version of the runner for this app, quoting what it holds as sh words", () => {
-    const script = installScript("https://app.example.com/it's", '0.15.0')
+    const script = installScript({ origin: "https://app.example.com/it's", apiPath: '/api' }, '0.15.0')
     expect(script.startsWith('#!/bin/sh\n')).toBe(true)
     expect(script).toContain("url='https://app.example.com/it'\\''s'")
     expect(script).toContain("version='0.15.0'")
     expect(script).toContain('binary_url="https://github.com/PrototeamHQ/protobase/releases/download/v${version}/protobase-runner-linux-${arch}"')
-    expect(script).toContain('"$runner" register --url "$url" --token "$token" "$@"')
+    expect(script).toContain("api_path='/api'")
+    expect(script).toContain('"$runner" register --url "$url" --api-path "$api_path" --token "$token" "$@"')
     expect(script).toContain('systemctl --user enable --now protobase-runner.service')
-    expect(installCommand('https://app.example.com', 'pbr_once_abc')).toBe('curl -fsSL https://app.example.com/api/runners/install.sh | sh -s -- --token pbr_once_abc')
+    expect(installCommand({ origin: 'https://app.example.com', apiPath: '/api' }, 'pbr_once_abc')).toBe('curl -fsSL https://app.example.com/api/runners/install.sh | sh -s -- --token pbr_once_abc')
+    expect(installCommand({ origin: 'https://app.example.com', apiPath: '/backend' }, 'pbr_once_abc')).toBe('curl -fsSL https://app.example.com/backend/runners/install.sh | sh -s -- --token pbr_once_abc')
   })
 })

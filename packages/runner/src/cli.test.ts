@@ -75,10 +75,27 @@ describe("the runner's command line", () => {
     expect((await stat(file)).mode & 0o777).toBe(0o600)
     expect(await readConfig(file)).toEqual({
       url: 'https://app.example.com',
+      api_path: '/api',
       token: 'pbr_own',
       runner: { id: 'r1', name: 'Builder', tenant: '1' },
       settings: expect.objectContaining({ slots: 3, build: false, engine: 'docker', work_dir: path.join(env.XDG_CACHE_HOME, 'protobase-runner') }),
     })
+  })
+
+  it("reaches the app's runner API under the path its basePath gives its system endpoints", async () => {
+    const { settings, remove } = await testSettings()
+    removals.push(remove)
+    const env = { XDG_CONFIG_HOME: path.join(settings.work_dir, 'config') }
+    const urls: string[] = []
+    const fetch: Fetch = async (url) => {
+      urls.push(url)
+      return url.endsWith('/claim') ? new Response('{}', { status: 401 }) : Response.json({ runner: { id: 'r1', name: 'Builder', labels: [], tenant: null }, token: 'pbr_own' })
+    }
+    await cli(['register', '--url', 'https://app.example.com', '--api-path', '/backend/', '--token', 'pbr_once_x'], { exec: fakeExec().exec, env, say: () => {}, fetch })
+    expect((await readConfig(configPath(env))).api_path).toBe('/backend')
+    await expect(cli(['run'], { exec: fakeExec().exec, env, say: () => {}, fetch })).rejects.toThrow(/revoked or deleted/)
+    expect(urls).toEqual(['https://app.example.com/backend/runners/v1/register', 'https://app.example.com/backend/runners/v1/claim'])
+    await expect(cli(['register', '--url', 'https://app.example.com', '--api-path', 'backend', '--token', 'pbr_once_x'], { exec: fakeExec().exec, env, say: () => {}, fetch })).rejects.toThrow('--api-path is a path such as /api')
   })
 
   it('refuses an unknown option, a missing token and running unregistered', async () => {

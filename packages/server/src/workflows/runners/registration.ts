@@ -7,7 +7,7 @@ import { HttpProblem, notFound } from '../../problem'
 import { requestAccess } from '../../request-access'
 import type { Session } from '../../types'
 import { mayUpdateWorkflow } from '../may-update-workflow'
-import { installCommand } from './runner-install'
+import { installCommand, runnerEndpoint, type RunnerApp } from './runner-install'
 import { newRegistrationToken, newRunnerToken, registrationMs, registrationPattern, runnerTokenHash } from './runner-tokens'
 
 /** The resource of the runners. */
@@ -20,10 +20,10 @@ const missing = () => notFound('No runner with this key that you may change')
  * Gives a runner that never registered a new one-time registration token, valid one hour, as
  * `POST .../workflows/runners/<id>/registration` does: only for a caller who may change that runner in their tenant, as
  * its update access decides, and 404 for anyone else. The token comes back once, with the one command that installs a
- * runner with it on a machine for the app at `origin`, and only its hash is kept; a token issued before stops. A runner
- * that registered, or was revoked, takes none.
+ * runner with it on a machine for `app` and the address of the runners' calls, and only its hash is kept; a token
+ * issued before stops. A runner that registered, or was revoked, takes none.
  */
-export const issueRegistration = async (deps: () => Deps, schema: string, session: Session, id: string, origin: string) => {
+export const issueRegistration = async (deps: () => Deps, schema: string, session: Session, id: string, app: RunnerApp) => {
   if (!uuid.test(id)) throw missing()
   const access = await requestAccess(deps(), deps().registry.find(runnersResource)!, session)
   if (!access.resolved.operations.update) throw missing()
@@ -35,7 +35,7 @@ export const issueRegistration = async (deps: () => Deps, schema: string, sessio
     const token = newRegistrationToken()
     const expires = new Date(Date.now() + registrationMs)
     await sql`update ${sql.id(schema, 'runners')} set registration_hash = ${await runnerTokenHash(token)}, registration_expires_at = ${expires} where id = ${id}`.execute(trx)
-    return { token, expires_at: expires.toISOString(), command: installCommand(origin, token) }
+    return { token, expires_at: expires.toISOString(), command: installCommand(app, token), endpoint: runnerEndpoint(app) }
   })
 }
 

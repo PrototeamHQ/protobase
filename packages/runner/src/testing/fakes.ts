@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { JobCompletion, RunnerJob } from '@protobase/workflows'
@@ -39,9 +39,10 @@ export type AppCall = { call: string; job?: string; body?: unknown }
 
 /**
  * An app for the tests, as a runner reaches it: it records each call, writes each input file it is asked for with
- * `bytes`, and answers each upload with a stored file of the videos configuration; `heartbeat` says whether to stop.
+ * `bytes`, and answers each upload with a stored file of the videos configuration; `stop` says whether a heartbeat
+ * answers stop, and the first `completeFails` completions fail as a dropped connection would.
  */
-export const fakeApp = ({ bytes = 'input bytes', stop = () => false }: { bytes?: string; stop?: () => boolean } = {}) => {
+export const fakeApp = ({ bytes = 'input bytes', stop = () => false, completeFails = 0 }: { bytes?: string; stop?: () => boolean; completeFails?: number } = {}) => {
   const calls: AppCall[] = []
   const uploads: { job: string; path: string; type: string; text: string }[] = []
   const app: AppClient = {
@@ -57,6 +58,7 @@ export const fakeApp = ({ bytes = 'input bytes', stop = () => false }: { bytes?:
     },
     complete: async (job, completion: JobCompletion) => {
       calls.push({ call: 'complete', job, body: completion })
+      if (completeFails-- > 0) throw new Error('fetch failed')
       return {}
     },
     build: async (report) => {
@@ -97,6 +99,11 @@ export const testSettings = async (): Promise<{ settings: Settings; remove: () =
   const dir = await mkdtemp(path.join(tmpdir(), 'protobase-runner-test-'))
   return {
     settings: { slots: 2, cpus: 2, memory_mb: 2048, pids: 256, tmp_mb: 256, work_dir: path.join(dir, 'work'), engine: 'docker', build: true, build_timeout_seconds: 60 },
-    remove: () => rm(dir, { recursive: true, force: true }),
+    // Folders a test locked, as a container's user would leave them, are opened first
+    remove: async () => {
+      const folders = (await readdir(dir, { recursive: true, withFileTypes: true }).catch(() => [])).filter((entry) => entry.isDirectory())
+      for (const folder of folders) await chmod(path.join(folder.parentPath, folder.name), 0o700)
+      await rm(dir, { recursive: true, force: true })
+    },
   }
 }

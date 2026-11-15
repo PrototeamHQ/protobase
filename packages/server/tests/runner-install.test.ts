@@ -32,7 +32,7 @@ const machine = async ({ os = 'Linux', arch = 'x86_64', docker = 'rootless' }: {
   await stub('loginctl', 'echo Linger=no')
   await stub('id', 'echo lab')
   const script = path.join(root, 'install.sh')
-  await writeFile(script, installScript('https://app.example.com', '0.15.0'))
+  await writeFile(script, installScript({ origin: 'https://app.example.com', apiPath: '/backend' }, '0.15.0'))
   const env = { PATH: `${stubs}:/usr/bin:/bin`, HOME: path.join(root, 'home'), XDG_CONFIG_HOME: path.join(root, 'config') }
   const install = (...args: string[]) => run('sh', [script, ...args], { env })
   return { root, install, calls: async () => (await readFile(calls, 'utf8')).trim().split('\n'), env }
@@ -44,7 +44,7 @@ describe('the install script', () => {
     const { stdout, stderr } = await install('--token', 'pbr_once_abc', '--slots', '2', '--work-dir', "/srv/it's jobs")
     const made = await calls()
     expect(made).toContain(`curl -fsSL https://github.com/PrototeamHQ/protobase/releases/download/v0.15.0/protobase-runner-linux-x64 -o ${env.HOME}/.local/bin/protobase-runner.download`)
-    expect(made).toContain("protobase-runner register --url https://app.example.com --token pbr_once_abc --slots 2 --work-dir /srv/it's jobs")
+    expect(made).toContain("protobase-runner register --url https://app.example.com --api-path /backend --token pbr_once_abc --slots 2 --work-dir /srv/it's jobs")
     expect(made).toEqual(expect.arrayContaining(['systemctl --user daemon-reload', 'systemctl --user enable --now protobase-runner.service']))
     const unit = await readFile(path.join(root, 'config', 'systemd', 'user', 'protobase-runner.service'), 'utf8')
     expect(unit).toContain(`ExecStart=${env.HOME}/.local/bin/protobase-runner run`)
@@ -60,7 +60,7 @@ describe('the install script', () => {
     const { stdout, stderr } = await install('--token', 'pbr_once_abc', '--url', 'http://127.0.0.1:3000', '--binary-url', 'file:///tmp/runner', '--bin-dir', path.join(root, 'bin'), '--service', 'false')
     const made = await calls()
     expect(made).toContain(`curl -fsSL file:///tmp/runner -o ${root}/bin/protobase-runner.download`)
-    expect(made).toContain('protobase-runner register --url http://127.0.0.1:3000 --token pbr_once_abc')
+    expect(made).toContain('protobase-runner register --url http://127.0.0.1:3000 --api-path /backend --token pbr_once_abc')
     expect(made.some((call) => call.startsWith('systemctl'))).toBe(false)
     expect(stdout).toContain(`Start it with: ${root}/bin/protobase-runner run`)
     expect(stderr).toContain('rootless Docker is recommended')

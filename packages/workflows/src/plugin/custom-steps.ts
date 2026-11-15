@@ -108,7 +108,10 @@ const schemaProblems = (field: 'input' | 'output', schema: unknown): ManifestPro
     problems.push({ field, message: `is no JSON Schema that compiles: ${error instanceof Error ? error.message : String(error)}` })
   }
   for (const mark of fileMarks(schema)) {
-    if (mark.value !== true) problems.push({ field: [field, ...mark.path, 'x-file'].join('.'), message: 'is true for a stored file, or left out' })
+    const at = [field, ...mark.path, 'x-file'].join('.')
+    if (mark.value !== true) problems.push({ field: at, message: 'is true for a stored file, or left out' })
+    // The runner gives and takes files by the schema's own properties alone, so a mark anywhere else would be lost.
+    else if (mark.path.length !== 2 || mark.path[0] !== 'properties') problems.push({ field: at, message: `is taken only on a property of ${field} itself, such as ${field}.properties.video, not inside another schema` })
   }
   if (field === 'input' && isObject(schema.properties) && Object.hasOwn(schema.properties, 'store')) {
     problems.push({ field: 'input.properties.store', message: 'is the argument Protobase gives every custom step, where it stores the files it gives; name yours otherwise' })

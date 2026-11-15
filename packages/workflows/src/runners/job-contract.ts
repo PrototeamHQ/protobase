@@ -45,7 +45,7 @@ const isObject = (value: unknown): value is Record<string, unknown> => typeof va
 
 /**
  * The arguments a schema takes as files, by name: its top-level properties with `x-file: true`, which a runner gets as
- * files in its input folder and gives as files it uploads.
+ * files in its input folder and gives as files it uploads. A manifest marks a file nowhere else (`manifestProblems`).
  */
 export const fileProperties = (schema: JsonSchema): string[] =>
   isObject(schema.properties) ? Object.entries(schema.properties).flatMap(([name, property]) => (isObject(property) && property['x-file'] === true ? [name] : [])) : []

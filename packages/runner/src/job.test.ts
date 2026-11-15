@@ -1,9 +1,9 @@
-import { mkdir, readdir, readFile, symlink, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { builder } from './builds'
 import { engine, imageTag } from './engine'
-import { containerInput, fileName, inputVariable, outputFile, runJob } from './job'
+import { containerInput, fileName, inputVariable, logLines, outputFile, runJob } from './job'
 import { convertJob, fakeApp, fakeExec, mounts, testSettings, type Ran } from './testing/fakes'
 
 const identity = { url: 'https://app.example.com', tenant: '1' }
@@ -216,5 +216,125 @@ describe("a job's image", () => {
     expect(app.calls.find((call) => call.call === 'complete')?.body).toEqual({ error: 'Custom.Failed', cause: "The step's image did not build: E: Unable to locate package nope" })
     expect(app.calls.filter((call) => call.call === 'build').at(-1)?.body).toEqual({ step: 'custom:ffmpeg_convert:1', status: 'failed', log: 'E: Unable to locate package nope' })
     expect(runs(ran)).toEqual([])
+  })
+})
+
+describe("a job's end", () => {
+  it('fails the job and clears its timers when its folder or step cannot be set up', async () => {
+    const { input, app, settings } = await setUp(converting)
+    await runJob(input, convertJob({ step: 'app:http', heartbeat_seconds: 0.02 }))
+    expect(app.calls.filter((call) => call.call === 'complete').map((call) => call.body)).toEqual([{ error: 'Custom.Failed', cause: 'The runner could not run the job: app:http is no custom step version' }])
+    // A folder that cannot be made fails it the same way
+    await writeFile(path.join(path.dirname(settings.work_dir), 'blocked'), '')
+    await runJob({ ...input, settings: { ...settings, work_dir: path.join(path.dirname(settings.work_dir), 'blocked', 'work') } }, convertJob({ heartbeat_seconds: 0.02 }))
+    expect(app.calls.filter((call) => call.call === 'complete').at(-1)?.body).toMatchObject({ error: 'Custom.Failed', cause: expect.stringMatching(/^The runner could not run the job: ENOTDIR/) })
+    const beats = app.calls.filter((call) => call.call === 'heartbeat').length
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(app.calls.filter((call) => call.call === 'heartbeat').length).toBe(beats)
+  })
+
+  it('sends a completion the app did not take once more, and never a failure in place of a step that ran', async () => {
+    const again = await setUp(converting, fakeApp({ completeFails: 1 }))
+    await runJob(again.input, convertJob())
+    const sent = again.app.calls.filter((call) => call.call === 'complete').map((call) => call.body)
+    expect(sent).toHaveLength(2)
+    expect(sent.every((body) => 'output' in (body as object))).toBe(true)
+    // Not taken either time, it is left to the job's lease
+    const never = await setUp(converting, fakeApp({ completeFails: 2 }))
+    await runJob(never.input, convertJob())
+    expect(never.app.calls.filter((call) => call.call === 'complete').map((call) => 'output' in (call.body as object))).toEqual([true, true])
+    expect(never.lines.at(-1)).toMatch(/took its completion neither time .* its lease ends it, and it runs again$/)
+  })
+
+  it("removes what the container's user left beyond the runner's reach as that user, hardened, named, and stopped at the deadline", async () => {
+    let finish: (() => void) | undefined
+    const { input, ran, lines } = await setUp(async (one) => {
+      if (one.args[0] === 'kill' && one.args[1]!.startsWith('protobase-clean-')) finish?.()
+      if (one.args[0] !== 'run') return {}
+      const out = one.args[one.args.indexOf('-v') + 1]!.split(':')[0]!
+      if (one.args.includes('--entrypoint')) {
+        // The cleaner hangs once, until it is killed; it removes the folder as the job's user would
+        if (!finish) return new Promise((resolve) => (finish = () => resolve({ code: 137 })))
+        await chmod(path.join(out, 'locked'), 0o700)
+        await rm(path.join(out, 'locked'), { recursive: true })
+        return {}
+      }
+      const { out: written } = mounts(one.args)
+      // A folder the runner's user may not empty, as one the container's user made would be
+      await mkdir(path.join(written, 'locked'))
+      await writeFile(path.join(written, 'locked', 'part.bin'), 'x')
+      await chmod(path.join(written, 'locked'), 0o500)
+      return { code: 1 }
+    })
+    await runJob(input, convertJob({ deadline: new Date(Date.now() + 400).toISOString() }))
+    const clean = ran.find((one) => one.args.includes('--entrypoint'))!
+    const out = clean.args[clean.args.indexOf('-v') + 1]!.split(':')[0]!
+    expect(clean.args).toEqual([
+      'run', '--rm', '--name', 'protobase-clean-0b6f2f8e-1111-4222-8333-944445555666',
+      '--network', 'none', '--read-only',
+      '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+      '--pids-limit', '256', '--memory', '2048m', '--memory-swap', '2048m', '--cpus', '2',
+      '--user', '65532:65532',
+      '-v', `${out}:/protobase/out`,
+      '--entrypoint', 'rm', tag, '-rf', '--', '/protobase/out/locked',
+    ])
+    // At the job's deadline the hung cleaner is killed and removed by its name, and that is said
+    expect(ran.filter((one) => one.args[0] !== 'run' && one.args.at(-1)!.startsWith('protobase-clean-')).map((one) => one.args)).toEqual([
+      ['kill', 'protobase-clean-0b6f2f8e-1111-4222-8333-944445555666'],
+      ['rm', '-f', 'protobase-clean-0b6f2f8e-1111-4222-8333-944445555666'],
+    ])
+    expect(lines).toContain('job 0b6f2f8e-1111-4222-8333-944445555666: removing its folder was stopped, as it took too long or the runner stops')
+
+    // One that removes them leaves no folder; one that exits otherwise is said
+    const second = await setUp(async (one) => {
+      if (one.args[0] !== 'run') return {}
+      const folder = one.args[one.args.indexOf('-v') + 1]!.split(':')[0]!
+      if (one.args.includes('--entrypoint')) {
+        await chmod(path.join(folder, 'locked'), 0o700)
+        await rm(path.join(folder, 'locked'), { recursive: true })
+        return {}
+      }
+      await mkdir(path.join(mounts(one.args).out, 'locked'))
+      await writeFile(path.join(mounts(one.args).out, 'locked', 'part.bin'), 'x')
+      await chmod(path.join(mounts(one.args).out, 'locked'), 0o500)
+      return { code: 1 }
+    })
+    await runJob(second.input, convertJob())
+    expect(await readdir(second.settings.work_dir)).toEqual([])
+    const third = await setUp(async (one) => {
+      if (one.args[0] !== 'run') return {}
+      if (one.args.includes('--entrypoint')) return { code: 127, stderr: 'exec: "rm": executable file not found in $PATH' }
+      await mkdir(path.join(mounts(one.args).out, 'locked'))
+      await writeFile(path.join(mounts(one.args).out, 'locked', 'part.bin'), 'x')
+      await chmod(path.join(mounts(one.args).out, 'locked'), 0o500)
+      return { code: 1 }
+    })
+    await runJob(third.input, convertJob())
+    expect(third.lines).toContain('job 0b6f2f8e-1111-4222-8333-944445555666: removing its folder\'s files exited with 127: exec: "rm": executable file not found in $PATH')
+  })
+})
+
+describe("a job's log", () => {
+  it('keeps at most 10 batches waiting for the app, drops the oldest lines past them and says how many, each batch at most 100 lines', async () => {
+    const sent: string[][] = []
+    let release: (() => void) | undefined
+    const held = new Promise<void>((resolve) => (release = resolve))
+    const { app } = fakeApp()
+    const logs = logLines({ ...app, log: async (_, lines) => (sent.push(lines), await held, {}) }, 'job', () => {})
+    for (let line = 0; line < 5000; line++) logs.add(`line ${line}`)
+    // One batch is with the app and nine more wait behind it; the lines past them are dropped but for the newest
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(sent).toHaveLength(1)
+    release!()
+    await logs.close()
+    expect(sent.every((batch) => batch.length <= 100)).toBe(true)
+    const all = sent.flat()
+    const notices = all.filter((line) => line.includes('dropped'))
+    const dropped = notices.reduce((sum, line) => sum + Number(line.split(' ')[0]), 0)
+    expect(all.length - notices.length + dropped).toBe(5000)
+    expect(sent).toHaveLength(11)
+    expect(sent[10]![0]).toMatch(/^\d+ lines of output dropped, as the app took them too slowly$/)
+    // The newest lines are the ones kept
+    expect(all.at(-1)).toBe('line 4999')
   })
 })
