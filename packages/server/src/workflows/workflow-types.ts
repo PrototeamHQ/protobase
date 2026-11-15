@@ -1,7 +1,7 @@
 import type { JsonSchema, Plugin, PollingTrigger, ReadyTrigger, TriggerType, WebhookTrigger } from '@protobase/workflows/plugin'
 import { connectionUnavailable, loadPlugins, stepHandlers, triggerChecks, typeList, type CheckOptions, type ConnectionSupport, type LoadedPlugin, type StepWiring, type TaskHandlers, type TriggerCheck } from '@protobase/workflows'
 import type { ResourceModel } from '@protobase/schema'
-import { recordJsonSchema } from '@protobase/schema/internal'
+import { keyTypes, recordJsonSchema } from '@protobase/schema/internal'
 import type { Mailer } from '../mail/mail-message'
 import { workflowPlugins } from './default-plugins'
 import { pluginServices, type ServicesInput } from './plugin-services'
@@ -60,7 +60,7 @@ export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Mode
         outputs: Object.fromEntries(types.flatMap((type) => (type.output ? [[type.id, type.output]] : []))),
         records: (resource, use) => {
           const model = against(resource)
-          return model && recordJsonSchema(model, use)
+          return model && recordJsonSchema(model, use, model.name, keyTypes(against))
         },
       },
     }

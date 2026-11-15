@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { WorkflowTypeList } from '@protobase/client'
 import type { ResourceModel, ViewModel } from '@protobase/schema'
-import { recordJsonSchema } from '@protobase/schema/internal'
+import { keyTypes, recordJsonSchema } from '@protobase/schema/internal'
 import type { PinSchemas } from '@protobase/workflows'
 import { useMeta } from '../../../../data/use-meta'
 import { humanize } from '../../../../live/naming'
@@ -12,7 +12,7 @@ export const pinSchemas = (types: WorkflowTypeList, resources: Record<string, Re
   outputs: Object.fromEntries([...types.step_types, ...types.triggers].flatMap((type) => (type.output ? [[type.id, type.output]] : []))),
   records: (resource, use) => {
     const model = resources[resource]
-    return model && recordJsonSchema(model, use, views[resource]?.names?.singular ?? humanize(resource))
+    return model && recordJsonSchema(model, use, views[resource]?.names?.singular ?? humanize(resource), keyTypes((name) => resources[name]))
   },
 })
 

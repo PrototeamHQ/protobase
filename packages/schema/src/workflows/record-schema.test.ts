@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource } from '../index'
-import { recordJsonSchema } from './record-schema'
+import { keyTypes, recordJsonSchema } from './record-schema'
 
 const contacts = resource('contacts')
   .table('contacts')
@@ -21,6 +21,18 @@ describe('recordJsonSchema', () => {
       title: 'Contact',
       properties: { id: { type: 'string' }, name: { type: 'string' }, visits: { type: 'integer' }, status: { type: 'string', enum: ['lead', 'customer'] }, balance: { type: 'string' } },
     })
-    expect(recordJsonSchema(contacts, 'write').properties).toEqual({ name: { type: 'string' }, visits: { type: 'integer' }, status: { type: 'string', enum: ['lead', 'customer'] }, balance: { type: ['string', 'number'] } })
+    expect(recordJsonSchema(contacts, 'write').properties).toEqual({ name: { type: 'string' }, visits: { type: ['integer', 'null'] }, status: { type: 'string', enum: ['lead', 'customer'] }, balance: { type: ['string', 'number'] } })
+  })
+
+  it("reads a relation as its target's key, a number for an integer key, and lets a write to an optional field take null", () => {
+    const accounts = resource('accounts').table('accounts').fields({ id: f.integer().readOnly().dbDefault(), name: f.text() }).primaryKey((r) => r.id).toModel()
+    const people = resource('people')
+      .table('people')
+      .fields({ id: f.uuid().readOnly().dbDefault(), account_id: f.relation('accounts'), contact_id: f.relation('contacts').optional(), stage: f.enum(['new', 'won']).optional() })
+      .primaryKey((r) => r.id)
+      .toModel()
+    const keyType = keyTypes((name) => ({ accounts, contacts, people })[name])
+    expect(recordJsonSchema(people, 'read', 'Person', keyType).properties).toEqual({ id: { type: 'string' }, account_id: { type: 'integer' }, contact_id: { type: 'string' }, stage: { type: 'string', enum: ['new', 'won'] } })
+    expect(recordJsonSchema(people, 'write', 'Person', keyType).properties).toEqual({ account_id: { type: ['string', 'integer'] }, contact_id: { type: ['string', 'integer', 'null'] }, stage: { type: ['string', 'null'], enum: ['new', 'won', null] } })
   })
 })
