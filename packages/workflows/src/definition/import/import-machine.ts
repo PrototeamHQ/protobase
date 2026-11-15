@@ -1,3 +1,4 @@
+import { depthProblems } from '../depth-problems'
 import type { Problem } from '../problem'
 import type { ConnectionHeaders } from './http-connection'
 import { httpTaskResource, importHttpTask } from './http-task'
@@ -36,9 +37,12 @@ const importStates = (states: unknown, path: string[], connections: ConnectionHe
 /**
  * A state machine exported from Step Functions with each of its HTTP tasks, in Maps and Blocks too, as an app:http step
  * (see `importHttpTask`), each connection sending the header `connections` gives for it; every other state as it is.
- * With problems, nothing should be saved: each names the state and field that does not import exactly.
+ * With problems, nothing should be saved: each names the state and field that does not import exactly. A machine nesting
+ * past the definition's depth limit is given back as it is with that problem, before the import's walk could overflow the stack.
  */
 export const importStateMachine = (machine: Record<string, unknown>, connections: ConnectionHeaders = {}): { stateMachine: Record<string, unknown>; problems: Problem[] } => {
+  const deep = depthProblems(machine)
+  if (deep.length > 0) return { stateMachine: machine, problems: deep }
   const { states, problems } = importStates(machine.States, [], connections)
   return { stateMachine: machine.States === undefined ? machine : { ...machine, States: states }, problems }
 }
