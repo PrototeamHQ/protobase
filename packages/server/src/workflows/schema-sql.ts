@@ -1,6 +1,9 @@
 import { quoteIdent } from '../changes/capture-sql'
 
-/** Bumped whenever the tables, functions or indexes below change, so the next migration writes them again. */
+/**
+ * Bumped whenever the tables, functions or indexes below change, so the next migration writes them again; each example
+ * app ships its migration with the bump (docs/example-apps.md).
+ */
 export const workflowsVersion = 27
 
 /** The comment the schema's function carries, which the startup check reads. */
