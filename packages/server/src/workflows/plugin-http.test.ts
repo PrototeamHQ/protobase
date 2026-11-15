@@ -65,7 +65,7 @@ describe('the app:http step, run through the plugin interface', () => {
 
   it('sends JSON with the query and returns the status, headers without cookies and the parsed body', async () => {
     const result = await local()({ url: `${base}/items`, method: 'post', query: { page: '2' }, body: { name: 'a' } }, context())
-    expect(result).toMatchObject({ status: 200, body: { ok: true }, headers: { 'content-type': 'application/json' } })
+    expect(result).toMatchObject({ status: 200, status_text: 'OK', body: { ok: true }, headers: { 'content-type': 'application/json' } })
     expect((result as { headers: object }).headers).not.toHaveProperty('set-cookie')
     expect(seen.at(-1)).toEqual({ method: 'POST', url: '/items?page=2', body: '{"name":"a"}', type: 'application/json' })
     expect(logs.at(-1)).toMatch(new RegExp(`^POST ${base}/items: 200 in \\d+ ms$`))
@@ -78,6 +78,9 @@ describe('the app:http step, run through the plugin interface', () => {
     expect(seen.at(-1)).toMatchObject({ body: '[1,2]', type: 'application/json' })
     await local()({ url: `${base}/items`, method: 'POST', headers: { 'Content-Type': 'application/vnd.acme+json' }, body: 'hello', body_encoding: 'json' }, context())
     expect(seen.at(-1)).toMatchObject({ body: '"hello"', type: 'application/vnd.acme+json' })
+    const before = seen.length
+    expect(await failure(local()({ url: `${base}/items`, method: 'GET', body: {}, body_encoding: 'json' }, context()))).toEqual(['Http.InvalidArguments', 'a GET sends no body: send a body with body_encoding json by POST, PUT, PATCH or DELETE'])
+    expect(seen.length).toBe(before)
   })
 
   it('reads the answer as text or as a file of the run, and sends such a file as its bytes with its type', async () => {

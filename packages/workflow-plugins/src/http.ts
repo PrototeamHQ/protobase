@@ -38,8 +38,10 @@ const checked = (input: Record<string, unknown>) => {
 }
 
 // The body as `body_encoding` says, else a text as it is, a file value as its bytes and any other value as JSON. With
-// `json`, every value is sent as JSON, a text too, quotes and all, as the States Language's HTTP task sends one.
+// `json`, every value is sent as JSON, a text too, quotes and all, as the States Language's HTTP task sends one; a GET
+// with such a body fails rather than leaving it out, as a method from an expression can only be told when it runs.
 const requestBody = async (given: unknown, method: string, headers: Headers, { files }: StepContext, encoding?: unknown) => {
+  if (given !== undefined && method === 'GET' && encoding === 'json') throw invalid('a GET sends no body: send a body with body_encoding json by POST, PUT, PATCH or DELETE')
   if (given === undefined || method === 'GET') return
   if (encoding === 'json') {
     if (!headers.has('content-type')) headers.set('content-type', 'application/json')
@@ -119,7 +121,7 @@ const storedAnswer = async (answer: Response, target: StorageTarget, url: URL, c
   const body = answer.body ?? new Blob([]).stream()
   const stored = await target.put(body, { name: fileName(url), type })
   const kept = Object.fromEntries([...answer.headers].filter(([name]) => name !== 'set-cookie'))
-  return { status: answer.status, headers: kept, body: stored }
+  return { status: answer.status, status_text: answer.statusText, headers: kept, body: stored }
 }
 
 const loggedUrl = (given: string) => given.replace(/^([^:/?#]+:\/\/)[^/?#]*@/, '$1').replace(/[?#].*$/, '')
@@ -149,7 +151,7 @@ const send = async (context: StepContext) => {
   // Cookies the receiver sets are sessions of its own, not data for later steps.
   const kept = Object.fromEntries([...answer.headers].filter(([name]) => name !== 'set-cookie'))
   const read = await answerBody(bytes, reading, url, answer.headers.get('content-type'), context)
-  return { status: answer.status, headers: kept, body: checkedBody(read, input.body_schema, url) }
+  return { status: answer.status, status_text: answer.statusText, headers: kept, body: checkedBody(read, input.body_schema, url) }
 }
 
 /**
@@ -171,7 +173,7 @@ export const httpSteps: Record<string, StepType> = {
         headers: { ...textRecord, title: 'Headers', description: 'an object of text values' },
         query: { ...textRecord, title: 'Query', description: "an object of text values, added to the URL's query" },
         body: { description: 'text sent as it is, a file value sent as its bytes, any other value sent as JSON; a GET sends none' },
-        body_encoding: { enum: ['json'], description: "json sends the body as JSON whatever it holds, a text as a JSON string, with Content-Type application/json unless the headers give one" },
+        body_encoding: { enum: ['json'], description: "json sends the body as JSON whatever it holds, a text as a JSON string, with Content-Type application/json unless the headers give one; a GET with a body then fails with InvalidArguments" },
         response: {
           enum: ['json', 'text', 'file'],
           description: "how the answer's body is read: by default by its Content-Type, JSON for application/json and +json, text for text/* and other textual types, a file for any other or none, and null when empty; json (empty is null), text, or file (kept as a file value of the run) reads every answer so",
@@ -187,8 +189,8 @@ export const httpSteps: Record<string, StepType> = {
     },
     output: {
       type: 'object',
-      description: '{ status, headers, body }',
-      properties: { status: { type: 'integer' }, headers: { ...textRecord, title: 'Headers' }, body: { title: 'Body', 'x-schema-of': 'body_schema' } },
+      description: '{ status, status_text, headers, body }',
+      properties: { status: { type: 'integer' }, status_text: { type: 'string', description: 'the reason phrase the server sent, such as OK; empty when it sent none' }, headers: { ...textRecord, title: 'Headers' }, body: { title: 'Body', 'x-schema-of': 'body_schema' } },
     },
     errors: {
       Status: 'a status outside 2xx; the cause names it with the start of the body',

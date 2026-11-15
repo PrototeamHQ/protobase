@@ -27,8 +27,8 @@ export const pluginFetch = ({ allowPrivateAddresses = false, resolve, ca }: Plug
     throw error
   })
   // A streamed answer is read by the step as it goes on, such as into storage, so no part of it is held here.
-  if (init.stream) return new Response(nullBodyStatuses.has(answer.status) ? null : answer.body, { status: answer.status, headers: answer.headers })
+  if (init.stream) return new Response(nullBodyStatuses.has(answer.status) ? null : answer.body, { status: answer.status, statusText: answer.statusText, headers: answer.headers })
   const bytes = await readLimited(answer, maxBytes + 1)
   if (bytes.length > maxBytes) throw new ResponseTooLargeError(maxBytes)
-  return new Response(nullBodyStatuses.has(answer.status) ? null : bytes, { status: answer.status, headers: answer.headers })
+  return new Response(nullBodyStatuses.has(answer.status) ? null : bytes, { status: answer.status, statusText: answer.statusText, headers: answer.headers })
 }
