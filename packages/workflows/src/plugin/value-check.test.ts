@@ -10,4 +10,8 @@ describe('valueProblems', () => {
     expect(valueProblems(schema, { ip: 5 }, 'body')).toEqual(['body.ip must be string'])
     expect(valueProblems({ type: 'nonsense' }, {})[0]).toMatch(/^the schema is not valid JSON Schema/)
   })
+
+  it('refuses an asynchronous schema, whose answer would come later, without running it', () => {
+    expect(valueProblems({ $async: true, type: 'string' }, 4)).toEqual(['the schema is asynchronous ($async), which a value is not checked against'])
+  })
 })

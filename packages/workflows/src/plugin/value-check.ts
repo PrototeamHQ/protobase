@@ -5,10 +5,11 @@ const ajv = new Ajv({ allErrors: true, strict: false })
 
 /**
  * Why `value` does not fit `schema`, a JSON Schema an argument gave, such as the body an HTTP answer was declared to
- * have: one line per problem naming where it is (`body.ip must be string`); a schema that does not compile is one.
- * Empty when it fits.
+ * have: one line per problem naming where it is (`body.ip must be string`); a schema that does not compile is one, and
+ * so is an asynchronous one (`$async`), whose answer would come later. Empty when it fits.
  */
 export const valueProblems = (schema: JsonSchema, value: unknown, name = 'value'): string[] => {
+  if (schema.$async === true) return ['the schema is asynchronous ($async), which a value is not checked against']
   let validate
   try {
     validate = ajv.compile(schema)
