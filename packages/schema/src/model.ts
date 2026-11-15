@@ -1173,8 +1173,11 @@ export type ThreadSectionModel = {
  * `type`, its props and children, all plain data.
  */
 export type BlockElementModel = {
+  /** A built-in block's name, such as `Thread`, or a registered component's. */
   type: string
+  /** Its props, plain data. */
   props: Record<string, JsonValue>
+  /** The elements and text inside it. */
   children: Array<BlockElementModel | string>
   /** A component the project registers, rather than a built-in block. */
   custom?: true
