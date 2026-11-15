@@ -15,6 +15,7 @@ import { addStateAfter, addStateAt, addStateFirst, freeName, ledTo, placeAfter, 
 import { NodePanel } from '../workflow/node-panel'
 import { ProblemList } from '../workflow/problem-list'
 import { definitionProblems, isMissing, problemsByNode, warningsByNode, withoutMissing } from '../workflow/problems'
+import { canvasEdits } from '../workflow/canvas-edits'
 import { WorkflowCanvas } from '../workflow/workflow-canvas'
 import { usePinSchemas } from '../workflow/pins/pin-schemas'
 import type { WorkflowLayout } from '../workflow/manual-layout'
@@ -318,7 +319,7 @@ export const WorkflowWorkbench = ({ view, value, types, onChange, layout, onLayo
       />
       <RunNotice view={view} page={page} failed={failed && splitPath(failed).name} changed={focus.dirty} gone={gone} {...(failed !== undefined && failed !== selected && { onOpenFailed: () => setChosen(failed) })} />
       <div className="h-full">
-        <WorkflowCanvas fills definition={definition} problems={run || empty ? noProblems : shownProblems} warnings={run || empty ? noProblems : warned} selected={selected} onSelect={(id) => setChosen(id ?? null)} {...(change && !focus.readOnly && { onChange: change, onAddAt: (at) => setPanel({ kind: 'add', at }) })} {...(traces && run && { traces })} types={types} schemas={schemas} layout={shownLayout} onLayoutChange={changeLayout} />
+        <WorkflowCanvas fills definition={definition} problems={run || empty ? noProblems : shownProblems} warnings={run || empty ? noProblems : warned} selected={selected} onSelect={(id) => setChosen(id ?? null)} {...(change && !focus.readOnly && { onChange: change, edits: canvasEdits, onAddAt: (at) => setPanel({ kind: 'add', at }) })} {...(traces && run && { traces })} types={types} schemas={schemas} layout={shownLayout} onLayoutChange={changeLayout} />
       </div>
       {empty && panel === undefined && (
         <div className="pointer-events-none absolute inset-x-0 top-[60%] flex justify-center">

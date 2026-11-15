@@ -10,6 +10,9 @@ const padding = 8
 export const stepWidth = 296
 export const pureWidth = 216
 
+/** The height of an Expression's text, which scrolls inside past it. */
+export const expressionTextHeight = 64
+
 /**
  * The inputs a node shows: the ones its type needs and the ones that hold something, all of them once it is opened,
  * so a node stays small; with how many it folds away.

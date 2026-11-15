@@ -29,11 +29,26 @@ const listSome: Definition = {
   stateMachine: { QueryLanguage: 'JSONata', StartAt: 'List', States: { List: { Type: 'Task', Resource: 'app:records.list', Arguments: { resource: 'workflows', limit: 5 }, End: true } } },
 }
 
+// In data order, a step that runs only once another succeeded, as its Condition says
+const tellWhenSaved = "{% $states.context.Steps.Save.Status = 'SUCCEEDED' %}"
+const saveThenTell: Definition = {
+  trigger: { manual: {} },
+  order: 'data',
+  stateMachine: {
+    QueryLanguage: 'JSONata',
+    States: {
+      Save: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://tickets.example.com/save' } },
+      Tell: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://tickets.example.com/tell' }, Condition: tellWhenSaved },
+    },
+  },
+} as Definition
+
 const rows = {
   workflows: [
     { id: 1, name: 'Open tickets', description: null, ...definitionRecord(ticketsWorkflow), version: 1 },
     { id: 2, name: 'Fetch tickets', description: null, ...definitionRecord(fetchOnly), version: 1 },
     { id: 3, name: 'Some workflows', description: null, ...definitionRecord(listSome), version: 1 },
+    { id: 4, name: 'Tell when saved', description: null, ...definitionRecord(saveThenTell), version: 1 },
   ],
   workflow_versions: [],
   workflow_runs: [],
@@ -556,6 +571,41 @@ export const NumberPinChecks: StoryObj = {
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(stored).toBeDefined())
     expect((stored!.state_machine as Definition['stateMachine']).States.List).toMatchObject({ Arguments: { resource: 'workflows', limit: 1 } })
+  },
+}
+
+/**
+ * A Condition opens as its nodes: Save's status wired to an Equals whose other side is a choice of statuses, wired to
+ * Tell's Only when pin. A status chosen there changes the Condition, and choosing Succeeded again saves it as it was.
+ */
+export const ConditionNodesChecks: StoryObj = {
+  name: 'Opens and saves a Condition as its nodes (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Workspace start="/workflows/4" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await nodeOf(canvasElement, 'Tell')
+    await userEvent.click(await canvas.findByRole('button', { name: 'Pins' }))
+    const equals = await waitFor(() => {
+      const node = canvasElement.querySelector<HTMLElement>('.react-flow__node[data-id="when:Tell|"]')
+      if (!node) throw new Error('No Equals node yet')
+      return node
+    })
+    expect(equals).toHaveTextContent('Equals')
+    const wires = [...canvasElement.querySelectorAll<HTMLElement>('.react-flow__edge')].map((edge) => edge.dataset.id ?? edge.getAttribute('data-id'))
+    expect(wires).toEqual(expect.arrayContaining([expect.stringMatching(/^data:Save\|out:\/%23status->when:Tell\|\|in:0$/), expect.stringMatching(/^data:when:Tell\|\|condition-out->Tell\|in:%23condition$/)]))
+    const status = within(equals).getByRole('combobox', { name: 'B value' })
+    expect(status).toHaveValue('SUCCEEDED')
+    expect(within(status).getByRole('option', { name: 'Timed out' })).toHaveValue('TIMED_OUT')
+    await userEvent.selectOptions(status, 'FAILED')
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(stored).toBeDefined())
+    expect((stored!.state_machine as Definition['stateMachine']).States.Tell).toMatchObject({ Condition: "{% $states.context.Steps.Save.Status = 'FAILED' %}" })
+    stored = undefined
+    await userEvent.selectOptions(within(await waitFor(() => canvasElement.querySelector<HTMLElement>('.react-flow__node[data-id="when:Tell|"]')!)).getByRole('combobox', { name: 'B value' }), 'SUCCEEDED')
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(stored).toBeDefined())
+    expect(((stored!.state_machine as Definition['stateMachine']).States.Tell as { Condition?: string }).Condition).toBe(tellWhenSaved)
   },
 }
 

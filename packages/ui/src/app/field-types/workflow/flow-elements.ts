@@ -124,7 +124,7 @@ export const flowEdges = (graph: Graph, dataOrder = false): Edge[] =>
     }
   })
 
-/** The Break and Make nodes, at their boxes, inside the Map or Block of what they break or make. */
+/** The Break, Make and condition nodes, at their boxes, inside the Map or Block of what they break or make. */
 export const pureFlowNodes = (graph: Graph, data: DataGraph, boxes: ReadonlyMap<string, Box> | undefined, open: ReadonlySet<string>): FlowNode[] =>
   data.pure.map((pure) => {
     const box = boxes?.get(pure.id) ?? { x: 0, y: 0, ...nodeSize }
@@ -152,7 +152,7 @@ export const pureFlowNodes = (graph: Graph, data: DataGraph, boxes: ReadonlyMap<
  * pin shows, such as a variable assigned part of its result, still shows that it runs after it.
  */
 export const unwiredOrderEdges = (graph: Graph, data: DataGraph): Edge[] => {
-  // The step a wire's end belongs to, through the Break or Make it passes
+  // The step a wire's end belongs to, through the Break, Make or condition node it passes
   const step = (node: string) => {
     const pure = data.pure.find((each) => each.id === node)
     return pure ? (pure.kind === 'break' ? pure.source : pure.target) : node

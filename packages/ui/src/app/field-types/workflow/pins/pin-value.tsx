@@ -4,6 +4,7 @@ import { Input } from '../../../../primitives/input'
 import { Select } from '../../../../primitives/select'
 import { text } from '../messages'
 import { conditionKey, type InputPin } from './node-pins'
+import { statusLabel } from './pin-text'
 
 // The one kind an inline editor writes, for a pin that takes text, a number or true and false
 const inlineKind = (pin: InputPin) => {
@@ -66,7 +67,7 @@ export const PinValue = ({ pin, label, onChange }: { pin: InputPin; label: strin
         <option value="" />
         {pin.options!.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {pin.statuses ? statusLabel(option) : option}
           </option>
         ))}
       </Select>

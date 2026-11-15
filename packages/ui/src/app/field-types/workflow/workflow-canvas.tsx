@@ -6,7 +6,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { WorkflowTypeList } from '@protobase/client'
 import { orderOf, type Definition, type PinSchemas } from '@protobase/workflows'
 import { triggerId } from './definition'
-import { connect, disconnect, removeState, type AddAt } from './definition-edits'
+import type { CanvasEdits } from './canvas-edits'
+import type { AddAt } from './definition-edits'
 import { definitionGraph, type EdgeKind, type GraphNode } from './definition-graph'
 import { dataFlowEdges, flowEdges, flowNodes, graphId, isPureFlowId, pureFlowNodes, unwiredOrderEdges, type FlowNode } from './flow-elements'
 import { AddAtContext } from './add-at-context'
@@ -35,8 +36,10 @@ export type WorkflowCanvasProps = {
   /** The node chosen, by its graph id: the trigger's, or a state's path. */
   selected: string | undefined
   onSelect: (id: string | undefined) => void
-  /** Without it, the graph is only shown. */
+  /** Without it and `edits`, the graph is only shown. */
   onChange?: (definition: Definition) => void
+  /** What the canvas edits the definition with, `canvasEdits`, handed over with `onChange` so a canvas that only shows loads none of it. */
+  edits?: CanvasEdits
   /** A click on a source handle, rather than a drag from it: a step is to be added there. */
   onAddAt?: (at: AddAt) => void
   /** How each state did in a run, by its path, marked on its node. */
@@ -100,13 +103,14 @@ const MeasureOnLayout = ({ laidOut, ids }: { laidOut: unknown; ids: string[] }) 
 // Where nodes dragged are until they are let go, by their canvas ids
 const notDragged: ReadonlyMap<string, XYPosition> = new Map()
 
-const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, onAddAt, traces, types, schemas, fills = false, layout, onLayoutChange }: WorkflowCanvasProps) => {
+const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange: changed, edits, onAddAt, traces, types, schemas, fills = false, layout, onLayoutChange }: WorkflowCanvasProps) => {
+  const editing = changed && edits && { onChange: changed, edits }
   const graph = useMemo(() => definitionGraph(definition), [definition])
   const frame = useRef<HTMLDivElement>(null)
   // The simple view is the same document drawn without pins: its lines are the execution edges, which stay the lines
   // between steps when the order of steps comes from what they read
   const [view, setView] = useGraphView()
-  const pins = usePins(definition, graph, view === 'pins' ? schemas : undefined, onChange, frame)
+  const pins = usePins(definition, graph, view === 'pins' ? schemas : undefined, editing, frame)
   const laidOut = useLayout(graph, pins.layout)
   const byId = useMemo(() => new Map(graph.nodes.map((node) => [node.id, node])), [graph])
   // The record hands the layout over anew on each render: it changes only when its JSON does. Each view keeps its own.
@@ -158,7 +162,7 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
     () => [...(dataOrder && pins.data ? unwiredOrderEdges(graph, pins.data) : flowEdges(graph, dataOrder)), ...(pins.data ? dataFlowEdges(pins.data) : [])].map((edge) => ({ ...edge, selected: edge.id === chosenEdge })),
     [graph, pins.data, chosenEdge, dataOrder],
   )
-  const editable = Boolean(onChange)
+  const editable = Boolean(editing)
 
   // A state leads only to a state of its own machine: the trigger to one of the workflow's, a Map's to its own.
   const isValidConnection: IsValidConnection = (connection) => {
@@ -221,27 +225,27 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
     }
   }
   const onConnect = (connection: Connection) => {
-    if (!onChange || !connection.sourceHandle) return
+    if (!editing || !connection.sourceHandle) return
     if (isPinHandle(connection.sourceHandle)) return pins.connect(connection)
-    onChange(connect(definition, connection.sourceHandle as EdgeKind, graphId(connection.source), graphId(connection.target)))
+    editing.onChange(editing.edits.connect(definition, connection.sourceHandle as EdgeKind, graphId(connection.source), graphId(connection.target)))
   }
   // Deleting a state takes the edges to it along: its own removal does that, so they are left alone here.
   const onDelete = ({ nodes: gone, edges: cut }: { nodes: { id: string }[]; edges: Edge[] }) => {
-    if (!onChange) return
+    if (!editing) return
     const removed = gone.filter((node) => !isPureFlowId(node.id)).map((node) => graphId(node.id)).filter((id) => id !== triggerId)
     let next = pins.remove(definition, gone, cut)
     for (const edge of cut) {
       const data = edge.data as { kind: EdgeKind; field: string; source: string }
       if ((data.kind as string) === 'data') continue
-      if (!removed.includes(data.source) && !removed.includes(graphId(edge.target))) next = disconnect(next, data)
+      if (!removed.includes(data.source) && !removed.includes(graphId(edge.target))) next = editing.edits.disconnect(next, data)
     }
     // A Map's states go with it
-    for (const path of removed) if (!removed.some((other) => path.startsWith(`${other}/`))) next = removeState(next, path)
-    onChange(next)
+    for (const path of removed) if (!removed.some((other) => path.startsWith(`${other}/`))) next = editing.edits.removeState(next, path)
+    editing.onChange(next)
   }
 
   return (
-    <AddAtContext.Provider value={onChange ? onAddAt : undefined}>
+    <AddAtContext.Provider value={editing ? onAddAt : undefined}>
       <UnpinContext.Provider value={unpin}>
         <PinActionsContext.Provider value={pins.actions}>
           <WireCheckContext.Provider value={pins.check}>
@@ -318,7 +322,7 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
 
 /**
  * The workflow's graph on a canvas, laid out by ELK each time it changes: the trigger, a node per state, a Map's states
- * inside it, and an edge per state it leads to. With `onChange`, dragging from a handle connects states, a click on
+ * inside it, and an edge per state it leads to. With `onChange` and `edits`, dragging from a handle connects states, a click on
  * one asks `onAddAt` for a step there, Delete removes the chosen state or edge, and each change is the definition edited.
  * With `onLayoutChange`, a node dragged stays where it is let go in the view shown, Pins or Simple, each keeping its own
  * places, marked, until Unpin on it or Tidy up hands it back to ELK, which lays the others out around it.
