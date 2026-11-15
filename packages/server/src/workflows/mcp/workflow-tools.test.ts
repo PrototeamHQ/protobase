@@ -103,6 +103,16 @@ describe('create_workflow', () => {
       { field: 'stateMachine.QueryLanguage', message: 'is missing, so the machine is JSONPath, the default of Step Functions; only JSONata machines run here: set "QueryLanguage": "JSONata" and write its states in JSONata' },
       { state: 'A', field: 'ResultPath', message: 'is JSONPath, which does not run here; write the state in JSONata, with Arguments, Output and Assign' },
     ])
+    // A body encoded otherwise and a retry of one status's own error do not carry over, so that task is refused by name
+    const transformed = {
+      QueryLanguage: 'JSONata',
+      StartAt: 'Call',
+      States: { Call: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: { ApiEndpoint: 'https://a.example', Method: 'POST', RequestBody: { a: 1 }, Transform: { RequestBodyEncoding: 'URL_ENCODED' } }, Retry: [{ ErrorEquals: ['States.Http.StatusCode.429'] }], End: true } },
+    }
+    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: transformed }, context)).problems).toEqual([
+      { state: 'Call', field: 'Arguments.Transform', message: "is an HTTP task's Transform, which does not import: app:http takes only ApiEndpoint, Method, Headers, QueryParameters and RequestBody" },
+      { state: 'Call', field: 'Retry[0].ErrorEquals', message: "names States.Http.StatusCode.429, a status's own error, which does not import: app:http fails with Http.Status for every status, which its error's cause names" },
+    ])
   })
 
   it("gives back the save check's problems, and saves nothing unapproved", async () => {

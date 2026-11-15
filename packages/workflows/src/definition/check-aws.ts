@@ -15,6 +15,35 @@ const awsFields: Record<string, string> = {
   Credentials: 'does not run here: a step signs in through the connection its type declares',
 }
 
+/** Step Functions' HTTP task, which imports as app:http, waiting for a task token or not. */
+export const httpInvoke = 'arn:aws:states:::http:invoke'
+export const isHttpInvoke = (resource: unknown) => resource === httpInvoke || resource === `${httpInvoke}.waitForTaskToken`
+
+// The HTTP task's arguments the import carries over, or, for its connection, leaves out
+const httpArgumentNames = new Set(['ApiEndpoint', 'Method', 'Headers', 'QueryParameters', 'RequestBody', 'Authentication', 'InvocationConfig'])
+
+/**
+ * What an HTTP task of Step Functions holds that app:http cannot do the same way, each named: an argument it does not
+ * carry over, such as `Transform`, which encodes the body otherwise, and a retrier or catcher of a status's own error
+ * (`States.Http.StatusCode.<code>`), as app:http fails with `Http.Status` for every status. Empty for one that imports.
+ */
+export const httpImportProblems = (state: Record<string, unknown>): Omit<Problem, 'state'>[] => {
+  const args = isObject(state.Arguments) ? state.Arguments : {}
+  const found: Omit<Problem, 'state'>[] = Object.keys(args)
+    .filter((name) => !httpArgumentNames.has(name))
+    .map((name) => ({ field: `Arguments.${name}`, message: `is an HTTP task's ${name}, which does not import: app:http takes only ApiEndpoint, Method, Headers, QueryParameters and RequestBody` }))
+  for (const field of ['Retry', 'Catch'] as const) {
+    const rules = Array.isArray(state[field]) ? (state[field] as unknown[]) : []
+    rules.forEach((rule, index) => {
+      const names = isObject(rule) && Array.isArray(rule.ErrorEquals) ? rule.ErrorEquals : []
+      for (const name of names) {
+        if (typeof name === 'string' && name.startsWith('States.Http.StatusCode.')) found.push({ field: `${field}[${index}].ErrorEquals`, message: `names ${name}, a status's own error, which does not import: app:http fails with Http.Status for every status, which its error's cause names` })
+      }
+    })
+  }
+  return found
+}
+
 const stateProblems = (states: unknown, path: string[]): Problem[] => {
   if (!isObject(states)) return []
   return Object.entries(states).flatMap(([name, state]): Problem[] => {
@@ -22,7 +51,12 @@ const stateProblems = (states: unknown, path: string[]): Problem[] => {
     const where = [...path, name].join('/')
     const found: Problem[] = []
     if (state.Type === 'Parallel') found.push({ state: where, field: 'Type', message: 'is Parallel, which does not run here yet; in data order, states that read nothing of each other run at once' })
-    if (typeof state.Resource === 'string' && state.Resource.startsWith('arn:')) {
+    if (isHttpInvoke(state.Resource)) {
+      const http = httpImportProblems(state)
+      // One that would import is written as app:http where no import converts it, such as a save through the API
+      if (http.length === 0) found.push({ state: where, field: 'Resource', message: `is Step Functions' HTTP task, which create_workflow and update_workflow import as app:http; write app:http${state.Resource === httpInvoke ? '' : '.waitForTaskToken'} here` })
+      found.push(...http.map((problem) => ({ state: where, ...problem })))
+    } else if (typeof state.Resource === 'string' && state.Resource.startsWith('arn:')) {
       found.push({ state: where, field: 'Resource', message: `is a Step Functions service (${state.Resource}), which does not run here; of them, only the HTTP task (arn:aws:states:::http:invoke) imports, as app:http` })
     }
     for (const field of jsonPathFields) if (state[field] !== undefined) found.push({ state: where, field, message: 'is JSONPath, which does not run here; write the state in JSONata, with Arguments, Output and Assign' })
