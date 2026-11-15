@@ -1,3 +1,5 @@
+import type { PlanRead } from '@protobase/layout'
+
 export const keys = {
   meta: ['meta'] as const,
   /** A source's `/meta`, as far as the app draws it: its URL, and the resources the app lists for it. */
@@ -37,6 +39,11 @@ export const keys = {
   /** The names of the records a `RecordPicker` holds. */
   pickedLabels: (resource: string, ids: string) => ['picked-labels', resource, ids] as const,
   count: (resource: string, filter: string) => ['count', resource, filter] as const,
+  /**
+   * A read of a page's read plan, as its address filled it, and every resource it reads: its own, then those of the
+   * reads its `related()` terms carry.
+   */
+  planRead: (resources: readonly string[], read: PlanRead) => ['plan', resources[0]!, resources, read] as const,
   /** How many rows an export of the list would hold, exactly up to 10,000; starts with `list`, so it refreshes with the list. */
   exportCount: (resource: string, filter: string) => ['list', resource, filter, 'export-count'] as const,
   firstRecord: (resource: string, filter: string, orderBy: string) => ['first-record', resource, filter, orderBy] as const,
@@ -64,3 +71,7 @@ export const keys = {
   /** A public form, as `/-/forms/<name>` draws it. */
   publicForm: (name: string) => ['public-form', name] as const,
 }
+
+/** Whether a query reads one of `resources`: one keyed by it, or a planned read that reads it through a `related()` term. */
+export const readsResource = (key: readonly unknown[], resources: ReadonlySet<string>) =>
+  resources.has(key[1] as string) || (key[0] === 'plan' && (key[2] as readonly string[]).some((resource) => resources.has(resource)))

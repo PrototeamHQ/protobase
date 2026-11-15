@@ -158,10 +158,10 @@ Each entry is a record of the stack while its children draw, so `Field`, `Show`,
 ## How a page reads its data
 
 :::caution[Beta]
-The build plans a page's reads and `/api/meta` sends the plan; the web does not run it yet.
+On the web, a `Table`, `Thread`, `Chart`, `RecordCards` and `RecordRow` still read once they draw, as the marked limits below say.
 :::
 
-The build compiles each page into a read plan: one ordinary API read per data block, each known before any record is read, so all of them can start together at page load and none waits for another's rows. There is no combined page query. `/api/meta` sends each user the plan of the page as they see it, so it holds no read of a resource they cannot read and no field they cannot read.
+The build compiles each page into a read plan: one ordinary API read per data block, each known before any record is read, so all of them start together when the page opens and none waits for another's rows. There is no combined page query: each read is a request of its own. `/api/meta` sends each user the plan of the page as they see it, so it holds no read of a resource they cannot read and no field they cannot read.
 
 - **One read per block.** `Stat`, `RecordCard`, `Table`, `CardRow`, `RecordRow`, `RecordCards`, `Thread`, `Chart`, `ReferenceManyField`, `ReferenceArrayField` and `ReferenceField` each make one list, count or `:aggregate` read. A `Thread`'s tool calls, the row a `Table`'s `select` chose and each `<resource>.count` a condition names are reads of their own. A block under `Show` or `Match` is read anyway: the condition decides only what is drawn.
 - **Fields are derived.** You never write `fields`. Each read asks for its key and every field drawn in its scope: by `Field`s, [field components](#field-values), `{{path}}`s, conditions and table columns, and the fields a nested list ties itself by. A block whose view decides what it draws, such as a `Table` without `columns` or a `RecordRow`, reads every field. So does a read whose records an `Action` or an edit form changes, since it asks for each record's ETag and an ETag covers the whole record. The other reads ask for no ETag.
@@ -170,11 +170,13 @@ The build compiles each page into a read plan: one ordinary API read per data bl
 - **The page's own record.** A field of it that the address does not hold, `{{@root.project_id}}`, becomes `related()` on that record by its key, so the page's record is not read first. Page parameters and the page record's key stay `{{…}}` slots in the plan, which the address fills.
 - **Indexes.** [`protobase doctor`](/reference/cli/#doctor) judges every planned read with the scan guard's rule, the outer reads its `related()` terms carry included, so it reports a nested read's missing index before the API refuses the read.
 
-Each read in the plan (`page.reads.reads`) names its block by a JSON Pointer into the page's tree, such as `/children/0/children/2`, which `elementAt(tree, pointer)` finds. It gives the read's `resource`, its `kind` (`list`, `count` or `aggregate`), `filter`, `orderBy`, `pageSize`, `limitPer`, `groupBy`, `fields` (absent for every field) and `etag`. `compileReadPlan(tree, { models })` makes the same plan from a tree of your own.
+When a page opens, the web starts every read of its plan at once, with the page's parameters filled in, whatever a condition says and however deep a block sits. A `RecordCard`, `CardRow`, `Stat`, `ReferenceManyField`, `ReferenceArrayField` and `ReferenceField` then draw from their read and read nothing themselves; one inside the records of another takes the rows of its own record out of its read, by the field it ties itself by. A `Show` or `Match` decides only what is drawn: switching what it shows starts no new read. A change to a resource, live or the page's own, reads again exactly the reads of that resource, and a nested read also when the records around it change.
+
+Each read in the plan (`page.reads.reads`) names its block by a JSON Pointer into the page's tree, such as `/children/0/children/2`, which `elementAt(tree, pointer)` finds. It gives the read's `resource`, its `kind` (`list`, `count` or `aggregate`), `filter`, `orderBy`, `pageSize`, `limitPer`, `groupBy`, `fields` (absent for every field), `etag`, and for a read inside the records of another its `split`: the `field` its rows hold the value `source`, a path, reads where the block draws, and the `parent` read, by `planReadId(read)`. `compileReadPlan(tree, { models })` makes the same plan from a tree of your own. `runReadPlan(plan, read, { params })` starts every read at once through `read` and gives each outcome by `planReadId`, and `plannedRows(read, rows, scope)` the rows of one record around a block.
 
 A [custom component](/reference/custom-components/#reads) is planned when it declares its reads. One that declares none is outside the plan (`page.reads.outside`): whatever it reads, it reads by itself once it draws, and `protobase doctor` lists it.
 
-<gap>A page cannot start its planned reads at page load because running the read plan on the web is not implemented; each block still reads once it draws.</gap> <gap>A `Chart` cannot sit inside a repeated record because grouping a chart per record is not implemented.</gap>
+<gap>A `Table`, `Thread`, `Chart`, `RecordCards` or `RecordRow` cannot start its read when the page opens because drawing those blocks from their planned read is not implemented; each still reads once it draws, under a `Show` or `Match` once its condition holds.</gap> <gap>A read without an ETag cannot read only its fields from the database because skipping ETags in the list API is not implemented; it still sends only its fields.</gap> <gap>A `Chart` cannot sit inside a repeated record because grouping a chart per record is not implemented.</gap>
 
 ## Field values
 
@@ -220,7 +222,7 @@ In the [text form](#text-form) each one reads as its formatted value, a `UrlFiel
 ## Paths and scopes
 
 :::caution[Beta]
-A path cannot read `@root` yet, and a block inside a card or under a condition reads its records only once it draws, as the marked limits below say.
+A path cannot read `@root` yet, as the marked limit below says.
 :::
 
 A `RecordCard`, a `ReferenceField`, each card of a `CardRow` and each entry of a [`RecordsIterator`](#related-records) put their record on a stack of records: an element inside both a task's `RecordCard` and a `CardRow` of its claims sits in a claim, inside the task. A bare name is looked up in the innermost record, then in each record further out, then in the page's own record; the [compatibility page](/features/compatibility/#template-paths) says which template syntax this follows:
@@ -251,8 +253,6 @@ The build checks every path where it sits:
 - **Reads that would wait.** A per-row value in a filter in any other place than a top-level `AND` equality (with `>=`, inside `OR` or `NOT`, a second one), `@index`, `@first`, `@last` or `this` in a filter, key or values, and any placeholder in `resource`, `sort`, `columns` or `limit` fail with "this would wait for the parent's rows": each block's records are one read of their own, and none may wait for another's rows.
 - **Shadowing.** A bare name that more than one record around it has reads the nearest, and the build warns which it read and how to write the others: `"id" resolves to task_claims; write ../id for the one of tasks`. `protobase build --strict` fails on it instead. `this.`, `./`, `../` and `@` paths never warn.
 
-<gap>A block inside a `CardRow` or `RecordCard` cannot read its records at page load, beside the records around it, because running the [read plan](#how-a-page-reads-its-data) on the web is not implemented; it reads once the card around it draws.</gap> <gap>A block under a `Show` or `Match` cannot read its records before its condition holds because running the read plan on the web is not implemented.</gap>
-
 ## Page parameters
 
 :::caution[Beta]
@@ -277,7 +277,7 @@ A `Table` with `select` chooses one of its rows: each row links to the page with
 
 In the [text form](#text-form), a `SelectInput` reads as its label and its choice's name, `**Window**: Last 30 days`, from the `params` you pass, and a `select` table's children as the row `records` gives for it.
 
-<gap>A block reads a page parameter only once it draws, not at page load, because running the [read plan](#how-a-page-reads-its-data) on the web is not implemented.</gap> <gap>A data block other than a `Table`, or a list display such as a map, cannot take `select` because choosing a row there is not implemented.</gap>
+<gap>A data block other than a `Table`, or a list display such as a map, cannot take `select` because choosing a row there is not implemented.</gap>
 
 ## Conditions
 

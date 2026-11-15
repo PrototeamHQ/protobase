@@ -1,6 +1,7 @@
 import { appPath } from '@protobase/schema'
 import { Notice, useAdminMeta } from '../meta-gate'
 import { RevealWhenLoaded } from '../reveal-when-loaded'
+import { PlanReadsProvider } from './plan-reads'
 import { RenderNode } from './render-node'
 import { PageParamsProvider, pageAddress } from './page-params'
 import { PageTabsProvider } from './page-tabs'
@@ -8,7 +9,7 @@ import { text } from './messages'
 
 /**
  * `/<page>`, and `/<page>/<tab>` for one of its tabs, with its parameters in the query: the page's tree as `/meta` gave
- * it to this user, shown once its parts have their first data.
+ * it to this user, its planned reads all started as it opens, shown once its parts have their first data.
  */
 export const ComposedPage = ({ name, tab, params }: { name: string; tab?: string; params?: Readonly<Record<string, string>> }) => {
   const page = useAdminMeta().pages[name]
@@ -18,9 +19,11 @@ export const ComposedPage = ({ name, tab, params }: { name: string; tab?: string
   return (
     <PageTabsProvider route={{ ...(tab && { tab }), pathOf }}>
       <PageParamsProvider page={name} {...(tab && { tab })} tree={page.tree} {...(params && { given: params })}>
-        <RevealWhenLoaded>
-          <RenderNode node={page.tree} />
-        </RevealWhenLoaded>
+        <PlanReadsProvider tree={page.tree} plan={page.reads}>
+          <RevealWhenLoaded>
+            <RenderNode node={page.tree} at="" />
+          </RevealWhenLoaded>
+        </PlanReadsProvider>
       </PageParamsProvider>
     </PageTabsProvider>
   )

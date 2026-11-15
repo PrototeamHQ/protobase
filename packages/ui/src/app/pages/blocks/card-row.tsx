@@ -5,18 +5,22 @@ import { Skeleton } from '../../../primitives/skeleton'
 import { ErrorBanner } from '../../error-banner'
 import { useAdminMeta } from '../../meta-gate'
 import { LayoutListScope } from '../layout-list'
+import { usePlanned } from '../plan-reads'
 import { useListPage } from '../use-layout-data'
 import { propsOf, type BlockProps } from './block-props'
 import { CardFrame, Quiet } from './card-frame'
 import { RecordsEach } from './records-iterator'
 import { text } from '../messages'
 
-type LoadedProps = Omit<CardRowProps, 'resource' | 'actions' | 'children'> & { model: ResourceModel; actions: ReactNode; children: ReactNode[]; className?: string }
+type LoadedProps = Omit<CardRowProps, 'resource' | 'actions' | 'children'> & { model: ResourceModel; at?: string; actions: ReactNode; children: ReactNode[]; className?: string }
 
-// A list of its records, drawn as a RecordsIterator draws one, each in a small card of the row
-const LoadedCardRow = ({ model, filter, sort, limit = 12, title, description, empty, actions, children, className }: LoadedProps) => {
-  const page = useListPage(model, { filter, sort, pageSize: limit })
-  const rows = page.data?.items ?? []
+// A list of its records, from the page's planned read or one of its own, drawn as a RecordsIterator draws one, each in a
+// small card of the row
+const LoadedCardRow = ({ model, at, filter, sort, limit = 12, title, description, empty, actions, children, className }: LoadedProps) => {
+  const planned = usePlanned(at)
+  const own = useListPage(model, { filter, sort, pageSize: limit, enabled: !planned })
+  const page = planned ?? own
+  const rows = planned ? planned.rows : (own.data?.items ?? [])
   return (
     <CardFrame title={title} description={description} actions={actions} className={className}>
       {page.isPending ? (
@@ -45,12 +49,12 @@ const LoadedCardRow = ({ model, filter, sort, limit = 12, title, description, em
 }
 
 /** Up to `limit` records side by side, each a small card made from the children, with their own actions. */
-export const CardRowBlock = ({ node, children, slots }: BlockProps) => {
+export const CardRowBlock = ({ node, at, children, slots }: BlockProps) => {
   const { resource, ...props } = propsOf<CardRowProps>(node)
   const model = useAdminMeta().resources[resource]
   if (!model) return null
   return (
-    <LoadedCardRow {...props} model={model} actions={slots.actions}>
+    <LoadedCardRow {...props} model={model} {...(at !== undefined && { at })} actions={slots.actions}>
       {children}
     </LoadedCardRow>
   )

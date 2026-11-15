@@ -3,7 +3,7 @@ import type { KeyValue } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
 import { PreconditionFailedError } from '@protobase/client'
 import { useClient } from './api-provider'
-import { keys } from './query-keys'
+import { keys, readsResource } from './query-keys'
 import type { LiveRecord } from './use-record'
 
 export type UpdateArgs = { patch: Record<string, unknown>; etag: string }
@@ -25,6 +25,7 @@ export const useUpdateRecord = (resource: string, key: KeyValue | readonly KeyVa
       void queryClient.invalidateQueries({ queryKey: ['map', resource] })
       void queryClient.invalidateQueries({ queryKey: ['count', resource] })
       void queryClient.invalidateQueries({ queryKey: ['aggregate', resource] })
+      void queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === 'plan' && readsResource(query.queryKey, new Set([resource])) })
     },
   })
 }
