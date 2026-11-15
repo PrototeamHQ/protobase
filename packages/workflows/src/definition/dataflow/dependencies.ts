@@ -14,7 +14,8 @@ export type Dependencies = { data: Set<string>; status: Set<string>; handled: Se
 type Read = { variables: string[]; steps: string[]; condition: boolean }
 
 // The variables and the Steps entries each expression of a state reads, a Map's item processor's reads of the scopes
-// around it included, as its items run only once those have ended. A Block's steps read only its own input.
+// around it included, as its items run only once those have ended; an item's Condition that reads a status handles it
+// for the Map, which then runs so that Condition can. A Block's steps read only its own input.
 const readsOf = (state: State): Read[] => {
   const found: Read[] = []
   for (const { field, source } of stateExpressions(state)) {
@@ -29,7 +30,7 @@ const readsOf = (state: State): Read[] => {
     const own = new Set(Object.values(inner.States).flatMap(assignedNames))
     const innerNames = new Set(Object.keys(inner.States))
     for (const read of Object.values(inner.States).flatMap(readsOf)) {
-      found.push({ variables: read.variables.filter((name) => !own.has(name)), steps: read.steps.filter((name) => !innerNames.has(name)), condition: false })
+      found.push({ variables: read.variables.filter((name) => !own.has(name)), steps: read.steps.filter((name) => !innerNames.has(name)), condition: read.condition })
     }
   }
   return found

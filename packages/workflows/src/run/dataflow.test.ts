@@ -212,4 +212,25 @@ describe('dataflow order', () => {
     expect(calls).toEqual(['b2'])
     await expect(port.rerun('never', 'done', machine(''), 'Gone')).rejects.toThrow('The workflow no longer has state "Gone"')
   })
+
+  it("runs a Map whose item's Condition reads a state that failed into a catcher, so that item can recover", async () => {
+    const ran: string[] = []
+    const port = memoryRunner({
+      save: async () => {
+        throw new StepError('Broken', 'no')
+      },
+      recover: async (args) => void ran.push(String((args as { item: number }).item)),
+    })
+    await port.start('recover', flow({
+      Save: { Type: 'Task', Resource: 'save', Catch: [{ ErrorEquals: ['Broken'] }] },
+      Each: {
+        Type: 'Map',
+        Items: '{% [1] %}',
+        ItemProcessor: { States: { Recover: { Type: 'Task', Resource: 'recover', Arguments: { item: '{% $states.input %}' }, Condition: "{% $states.context.Steps.Save.Status = 'FAILED' %}" } } },
+      },
+    }), {})
+    await port.drain()
+    expect(port.run('recover').status).toBe('succeeded')
+    expect(ran).toEqual(['1'])
+  })
 })
