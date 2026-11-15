@@ -8,6 +8,7 @@ import { CardRowBlock } from './blocks/card-row'
 import { ChartBlock } from './blocks/chart'
 import { ComposerBlock } from './blocks/composer'
 import { DetailsBlock, SummaryBlock } from './blocks/details'
+import { DiffBlock } from './blocks/diff'
 import { FieldBlock } from './blocks/field'
 import { GridBlock } from './blocks/grid'
 import { ImageBlock } from './blocks/image'
@@ -59,6 +60,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Stat: StatBlock,
   RecordCard: RecordCardBlock,
   Field: FieldBlock,
+  Diff: DiffBlock,
   Table: TableBlock,
   CardRow: CardRowBlock,
   RecordRow: RecordRowBlock,
@@ -110,7 +112,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
 }
 
 // The blocks that put their classes on an element of their own; the others draw none, or several, and get a <div> for them.
-const ownClasses = new Set(['Page', 'Grid', 'Card', 'Stat', 'RecordCard', 'Field', 'Table', 'CardRow', 'RecordRow', 'RecordCards', 'Chart', 'Progress', 'Image', 'Thread', 'Link', 'Tabs', 'Settings', 'Show', 'Switch', 'Action', 'Box', 'Row', 'Column', 'Text', 'ReferenceField', 'SelectInput', 'Details', 'Summary', 'TextField', 'NumberField', 'DateField', 'BooleanField', 'UrlField', 'ChipField'])
+const ownClasses = new Set(['Page', 'Grid', 'Card', 'Stat', 'RecordCard', 'Field', 'Diff', 'Table', 'CardRow', 'RecordRow', 'RecordCards', 'Chart', 'Progress', 'Image', 'Thread', 'Link', 'Tabs', 'Settings', 'Show', 'Switch', 'Action', 'Box', 'Row', 'Column', 'Text', 'ReferenceField', 'SelectInput', 'Details', 'Summary', 'TextField', 'NumberField', 'DateField', 'BooleanField', 'UrlField', 'ChipField'])
 
 /** A child and its place in the page's tree, the JSON Pointer its planned read names it by; none outside a page. */
 type Placed = { child: LayoutChild; at?: string }

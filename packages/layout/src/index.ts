@@ -84,6 +84,7 @@ export { allOf, filterLiteral, filterText, referenceArrayFilter, referenceArrayR
 export { blockSpecs, type BlockReads, type BlockSpec } from './block-specs'
 export { Box, Column, Row, Text, type BoxProps, type ColumnProps, type RowProps, type TextAs, type TextProps } from './elements'
 export { Details, Summary, type DetailsProps, type SummaryProps } from './details'
+export { Diff, type DiffProps } from './diff'
 export {
   BooleanField,
   ChipField,

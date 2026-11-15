@@ -10,8 +10,8 @@ import type { TextContext, TextForm, TextOptions } from './text-form'
 // Text forms of the field components: the value as the web formats it, `emptyText` when it has none, and nothing
 // when the text has no record to read it from.
 
-// The value `source` names in the record around the tree, the only one the text has
-const sourceValue = (source: string, options: TextOptions) => {
+/** The value `source` names in the record around the tree, the only one the text has. */
+export const sourceValue = (source: string, options: TextOptions) => {
   const path = parseTemplatePath(source)
   if (!options.record || !path || path.kind === 'data' || path.up > 0 || path.names.length === 0) return
   return recordValue(options.record, path.names.join('.'))

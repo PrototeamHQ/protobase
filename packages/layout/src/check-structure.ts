@@ -19,6 +19,7 @@ const recordProblems = (node: LayoutNode, scope: Scope): string[] => {
   if (inlineFieldTypes.has(node.type)) return [outside]
   switch (node.type) {
     case 'Field':
+    case 'Diff':
       return [outside]
     case 'Stat':
       return props.field !== undefined ? [`with "field" ${outside}`] : []

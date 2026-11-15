@@ -53,7 +53,7 @@ export const readScopeFields = (node: LayoutNode, scope: Scope, rows: Rows, cont
     for (const path of paths) add(path, 'relations')
     for (const path of stored) add(path, 'stored')
   }
-  if (inlineFieldTypes.has(node.type) || node.type === 'Field' || node.type === 'ArrayField') add(String(node.props.source), 'relations')
+  if (inlineFieldTypes.has(node.type) || node.type === 'Field' || node.type === 'Diff' || node.type === 'ArrayField') add(String(node.props.source), 'relations')
   if (node.type === 'Stat' && node.props.resource === undefined && typeof node.props.field === 'string') add(node.props.field, 'relations')
   if (node.type === 'Progress') for (const value of [node.props.value, node.props.max]) if (typeof value === 'string') add(value, 'relations')
 }

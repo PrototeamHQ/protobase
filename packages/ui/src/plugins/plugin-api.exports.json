@@ -70,6 +70,7 @@
     "mentionedIds",
     "mergeUi",
     "parseDiff",
+    "parsePatch",
     "pluginApi",
     "protobaseVersion",
     "sameChatDay",

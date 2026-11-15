@@ -23,6 +23,7 @@ description: Pages of your own, built from blocks in a JSX layout.
 - [Row buttons](/reference/blocks/#row-buttons) (experimental): A table's rows carry a button labelled by a field of the row, such as its next step; the row decides where it goes: a record tab a field names, a list with a filter built from its fields, or an outside https link a field holds. On mobile width the button sits under the row's first cell.
 - [Record rows](/reference/blocks/#recordrow): A sideways row of cards for a filter, favorites or saved searches, with a count and new-record marks.
 - [Record cards](/reference/blocks/#recordcards): Full-width cards with fields and buttons, stacked or in a carousel.
+- [Diff block](/reference/blocks/#diff) (beta): A `Diff` block shows a unified patch the record holds, side by side on wide screens and in one column on a phone; it shows stored patches and does not compute them.
 - [Image block](/reference/blocks/#image): A picture one of the app's API functions draws for the reader, such as a system map, at the size and theme the client asks, refreshed on a timer; a client that draws no images shows its alt text, or nothing.
 - [Chart block](/reference/blocks/#chart): Counts, sums or averages by value or by date, as bars, lines or a donut, and over time split by a second field.
 - [Conversations](/reference/blocks/#conversation): A chat declared in the layout: a thread of a resource's messages under each sender's name and time, following new ones as they arrive, and a box that sends one as the signed-in user.
