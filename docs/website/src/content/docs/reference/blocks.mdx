@@ -365,6 +365,29 @@ A bar for `value` out of `max`, with both numbers. It turns amber from 90%.
 <Progress label="Seats" value="seats_used" max="plan.seats" />
 ```
 
+### Diff
+
+:::caution[Beta]
+`Diff` may still change.
+:::
+
+A unified patch the record holds in a text field, as `diff -u` and `git diff` write it: each file under its name with the counts of added and removed lines, then its changes, numbered by the patch's `@@` lines. From the `md` breakpoint (768px) up, the old lines stand on the left and the new ones beside them; below it, both run in one column. Text that is not a unified patch shows as it is, in a code font, and text before the first file, such as a mailed patch's message, is left out.
+
+| Prop | |
+| --- | --- |
+| `source` | The text field holding the patch, a [path](/reference/layouts/#paths-and-scopes) as a [field component](#field-components)'s `source` is. Required. |
+| `emptyText` | Shown when the field is empty; nothing is shown without it. |
+
+```tsx
+<RecordCard resource="changes" recordKey="42" title="Proposed change">
+  <Diff source="patch" emptyText="No changes yet" />
+</RecordCard>
+```
+
+In the [text form](/reference/layouts/#text-form) it reads as the patch in a fenced `diff` code block, its fence longer than any run of backticks the patch holds, so a patch of a Markdown file cannot end it early.
+
+<gap>A Diff block cannot compare two versions of a field because computing a diff is not implemented; it shows a patch the record already holds.</gap>
+
 ### Image
 
 A fixed picture at `src`, or one an [API function](/guides/api-functions/) draws.

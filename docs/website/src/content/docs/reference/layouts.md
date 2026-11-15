@@ -70,7 +70,7 @@ renderText(<Page title="Order"><Field source="status" /></Page>, {
 
 | Option | |
 | --- | --- |
-| `record` | The record around the tree. `Field`, the [field components](#field-values), `Stat field`, `Progress`, `Show` conditions and the `{{field}}`s of addresses read it, through relations as nested objects (`plan.name`); a count a condition names, such as `billing_profiles.count`, is a key of its own. The `{{path}}`s of props read it too. Without it, a field reads as its label alone, a condition as holding (a `Show` reads as its children, a `Switch` as its first `Match`), a prop's `{{path}}`s as empty, and addresses keep their `{{field}}`s. |
+| `record` | The record around the tree. `Field`, the [field components](#field-values), `Diff`, `Stat field`, `Progress`, `Show` conditions and the `{{field}}`s of addresses read it, through relations as nested objects (`plan.name`); a count a condition names, such as `billing_profiles.count`, is a key of its own. The `{{path}}`s of props read it too. Without it, a field reads as its label alone, a condition as holding (a `Show` reads as its children, a `Switch` as its first `Match`), a prop's `{{path}}`s as empty, and addresses keep their `{{field}}`s. |
 | `fields` | Per field path, its `label` and the `valueLabels` its enum values read as; a field without a label reads under its path. |
 | `records` | Per `ReferenceManyField`, `ReferenceArrayField` or `ReferenceField` element and the record around it, the records it holds, which you loaded; its `RecordsIterator` then reads as its children once per record, in that record, and an empty list as its `empty`. Without it, the block reads as a link to its records. An `ArrayField` reads its items from the record around it. For a `RecordCard`, its record, which its children read; for a `CardRow`, its records, its children once per record. For a `Table` with `select`, the row chosen, whose record its children read; without it they read as nothing. It gets the element, the record around it and the element's place in the tree, the pointer the [read plan](#how-a-page-reads-its-data) names its block by. |
 | `params` | The [page parameters](#page-parameters) the page's address holds, such as `{ window: '30d' }`, which `@params` and the `SelectInput`s read, each held to its choices. |
@@ -125,7 +125,7 @@ Behaviour comes from [named actions](#named-actions); React code from [custom co
 
 `Stat`, `RecordCard`, `Table`, `CardRow`, `RecordRow`, `RecordCards` and `Thread` read records of a `resource`. `filter` is AIP-160 and `sort` AIP-132, exactly as the list API's `filter` and `order_by`, so a filter that works in the list's URL works here. `Thread` takes no `sort`: it orders its messages by its `time` field, newest first. `ReferenceManyField`, `ReferenceArrayField` and `ReferenceField` read records of their `reference` that the record around them points to or is pointed at by: see [related records](#related-records).
 
-A `RecordCard` (its first match), a `ReferenceField`, each card of a `CardRow` and each entry of a `RecordsIterator` hold a **record**. Inside one, `Field`, `Progress`, `Stat field`, `Show`, `Action` and `ModalForm mode="edit"` work on that record, and a `RecordCard`'s header `actions` do too. A field name may follow relations: `company_id.city` is the city of the record's company, fetched like the record page fetches it and cached.
+A `RecordCard` (its first match), a `ReferenceField`, each card of a `CardRow` and each entry of a `RecordsIterator` hold a **record**. Inside one, `Field`, `Diff`, `Progress`, `Stat field`, `Show`, `Action` and `ModalForm mode="edit"` work on that record, and a `RecordCard`'s header `actions` do too. A field name may follow relations: `company_id.city` is the city of the record's company, fetched like the record page fetches it and cached.
 
 ## Related records
 
@@ -237,7 +237,7 @@ A `RecordCard`, a `ReferenceField`, each card of a `CardRow` and each entry of a
 | `@root.id` | The page's own record. <gap>A path cannot read `@root` because pages with a record of their own are not implemented.</gap> |
 | `@params.window` | The [page parameter](#page-parameters) `window`, which a `SelectInput source="window"` on the page sets. |
 
-`Field source`, a field component's `source`, `Stat field`, `Progress`, and the names in a [condition](#conditions) take a path. A string prop takes `{{path}}` placeholders in double braces, filled with the path's value where the element draws, and empty when it has none:
+`Field source`, a field component's `source`, `Diff source`, `Stat field`, `Progress`, and the names in a [condition](#conditions) take a path. A string prop takes `{{path}}` placeholders in double braces, filled with the path's value where the element draws, and empty when it has none:
 
 - `title`, `description`, `empty`, `label`, and a field component's `emptyText`, `content`, `valueLabelTrue` and `valueLabelFalse` read any path: `<Table resource="claim_steps" title="Steps of {{title}}" />`.
 - `filter`, `recordKey` and `values` read a field of a record around them. A filter takes one only as a top-level `AND` equality, `claim_id = {{id}} AND done = false`, the shape a read can take for every row at once with a [`related()`](/reference/api/#filtering-through-related-records) filter. A filter takes a page parameter anywhere.
@@ -377,7 +377,7 @@ Every block reads the regular API with the user's token, so the access rules app
 
 - a page whose `roles` leave the user out is not sent;
 - an element whose resource they cannot see, or whose filter or sort names a field they cannot read, is left out with everything inside it, and so is a `Tab` left with nothing in it;
-- `Field`, `Progress` and `Stat field` on a field they cannot read are left out, and table columns are narrowed;
+- `Field`, `Diff`, `Progress` and `Stat field` on a field they cannot read are left out, and table columns are narrowed;
 - `ModalForm` needs create or update permission and keeps only the fields they may write;
 - an `Action` missing from their view of the resource is left out, and so is a `Show` that names something they cannot see.
 - an `Image` whose function they may not call is left out; a fixed one (`src`) is kept.

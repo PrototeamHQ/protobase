@@ -3,6 +3,7 @@ import * as built from '../blocks'
 import * as lists from '../list-blocks'
 import { blockSpecs } from '../block-specs'
 import { Details, Summary } from '../details'
+import { Diff } from '../diff'
 import { Box, Column, Row, Text } from '../elements'
 import { SelectInput } from '../page-params'
 import * as fields from '../inline-fields'
@@ -67,10 +68,11 @@ const samples: Record<string, LayoutNode> = {
   BooleanField: fields.BooleanField({ source: 'done' }),
   UrlField: fields.UrlField({ source: 'website' }),
   ChipField: fields.ChipField({ source: 'state' }),
+  Diff: Diff({ source: 'patch' }),
 }
 
 // The record field components and an ArrayField read, which the text has where the tree sits in one
-const record = { title: 'Fix the brakes', hours: 3, due_on: '2026-02-15', done: true, website: 'https://example.com', state: 'open', labels: ['urgent'] }
+const record = { title: 'Fix the brakes', hours: 3, due_on: '2026-02-15', done: true, website: 'https://example.com', state: 'open', labels: ['urgent'], patch: '@@ -1 +1 @@\n-open\n+done' }
 
 describe('text forms', () => {
   it('has a sample of every registered block', () => {

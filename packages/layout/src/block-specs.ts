@@ -33,6 +33,7 @@ const specs: Record<string, BlockSpec> = {
   },
   RecordCard: { children: true, props: { ...data, ...heading, recordKey: optional('text'), empty: optional('text'), span: optional('span') }, reads },
   Field: { children: false, props: { source: required('text'), label: optional('label'), format: optional('format') } },
+  Diff: { children: false, props: inlineField },
   // Without `resource`, it draws the list around it and reads nothing; its children draw the row `select` chose
   Table: { children: true, reads, props: { ...data, resource: optional('text'), ...heading, columns: optional('tableColumns'), button: optional('rowButton'), bulk: optional('boolean'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span'), select: optional('text') } },
   SelectInput: { children: false, props: { source: required('text'), choices: optional('choices'), label: optional('text'), defaultValue: optional('scalar') } },

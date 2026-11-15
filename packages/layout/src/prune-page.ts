@@ -75,6 +75,7 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: Rea
     case 'ReferenceField':
       return listModelProblems(node, scope, { models, params }).length > 0 ? null : node
     case 'Field':
+    case 'Diff':
       return readable(String(node.props.source)) ? node : null
     case 'Stat':
       return text(node.props.field) === undefined || readable(String(node.props.field)) ? node : null

@@ -107,6 +107,7 @@ const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[
   if (inlineFieldTypes.has(node.type)) path(String(node.props.source))
   switch (node.type) {
     case 'Field':
+    case 'Diff':
       path(String(node.props.source))
       break
     case 'Stat':
