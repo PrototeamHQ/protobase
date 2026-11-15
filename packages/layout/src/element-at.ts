@@ -14,3 +14,9 @@ export const elementAt = (tree: LayoutNode, pointer: string): LayoutNode | undef
   }
   return isLayoutNode(value) ? value : undefined
 }
+
+/**
+ * The pointer of an element below the one at `at`, step by step: `pointerOf('/children/0', 'props', 'actions', 1)` is
+ * `/children/0/props/actions/1`, each step escaped as RFC 6901 says.
+ */
+export const pointerOf = (at: string, ...steps: Array<string | number>) => at + steps.map((step) => `/${String(step).replaceAll('~', '~0').replaceAll('/', '~1')}`).join('')

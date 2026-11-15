@@ -13,7 +13,7 @@ import type { Scope } from './walk'
 export type ImpliedSplit = { field: string; path: string }
 
 /** A planned filter, and the read of the records around it that it splits by, if any, with the field it splits on. */
-export type SplitFilter = { filter?: FilterExpr; parent?: Draft; field?: string }
+export type SplitFilter = { filter?: FilterExpr; parent?: Draft; field?: string; path?: string }
 
 const numeric = new Set(['integer', 'bigint', 'decimal'])
 
@@ -64,7 +64,7 @@ export const splitFilter = (model: ResourceModel, source: string | undefined, im
     const found = splitTerm(field, path, scope, rows, context)
     if (!found) return false
     terms.push(found.term)
-    if (found.parent) Object.assign(split, { parent: found.parent, field })
+    if (found.parent) Object.assign(split, { parent: found.parent, field, path })
     return true
   }
   for (const { field, path } of implied) if (!take(field, path)) terms.push(addressEquality(field, path, model, context))

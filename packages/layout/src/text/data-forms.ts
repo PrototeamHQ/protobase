@@ -21,7 +21,7 @@ const listBlock: TextForm = (context) => headed(context, 3, listHeading(context)
 
 // A table the caller loaded reads as a Markdown table under its heading, and the row its `select` chose after it
 const Table: TextForm = (context) => {
-  const shown = context.options.tables?.(context.node)
+  const shown = context.options.tables?.(context.node, context.at, context.options.record, context.around)
   const rows = shown ? tableMarkdown(shown, (context.node.props.columns as TableColumn[] | undefined) ?? []) : ''
   // One without a resource draws the list around it, which holds its heading
   if (context.node.props.resource === undefined) return rows

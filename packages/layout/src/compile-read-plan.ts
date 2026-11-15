@@ -5,6 +5,7 @@ import { blockDrafts, type BlockDrafts } from './plan-block'
 import { finalRead, reads, type Draft, type PlanContext, type Rows } from './plan-draft'
 import { changesRecord, conditionPaths, readScopeFields } from './plan-fields'
 import { pageInputs } from './page-params'
+import { pointerOf } from './element-at'
 import { newSlots } from './plan-slots'
 import type { ReadPlan, UnplannedBlock } from './read-plan'
 import { columnName, type TableColumn } from './table-columns'
@@ -15,8 +16,6 @@ export type ReadPlanInput = {
   /** The resource of the page's own record, on a page that has one (`@root`). */
   root?: string
 }
-
-const pointerName = (name: string) => name.replaceAll('~', '~0').replaceAll('/', '~1')
 
 const elementsOf = (value: LayoutValue): LayoutNode[] => {
   if (isLayoutNode(value)) return [value]
@@ -78,14 +77,14 @@ export const compileReadPlan = (tree: LayoutNode, { models, root }: ReadPlanInpu
     const walk = (child: LayoutChild, childScope: Scope, childRows: Rows, childList: Draft | undefined, childPointer: string, place: string) => {
       if (typeof child !== 'string') visit(child, childScope, childRows, childList, childPointer, place)
     }
-    node.children.forEach((child, index) => walk(child, inner, innerRows, innerList, `${pointer}/children/${index}`, typeof child === 'string' ? at : `${at} › ${label(child)}`))
+    node.children.forEach((child, index) => walk(child, inner, innerRows, innerList, pointerOf(pointer, 'children', index), typeof child === 'string' ? at : `${at} › ${label(child)}`))
     const slot = propScope(node, scope)
     const slotted = slot === scope ? { rows, list } : { rows: innerRows, list: innerList }
     for (const [name, value] of Object.entries(node.props)) {
       const elements = elementsOf(value)
-      elements.forEach((element, index) => walk(element, slot, slotted.rows, slotted.list, `${pointer}/props/${pointerName(name)}${Array.isArray(value) ? `/${index}` : ''}`, `${at} ${name}={${label(element)}}`))
+      elements.forEach((element, index) => walk(element, slot, slotted.rows, slotted.list, pointerOf(pointer, 'props', name, ...(Array.isArray(value) ? [index] : [])), `${at} ${name}={${label(element)}}`))
     }
-    node.fallback?.forEach((child, index) => walk(child, scope, rows, list, `${pointer}/fallback/${index}`, typeof child === 'string' ? at : `${at} fallback={${label(child)}}`))
+    node.fallback?.forEach((child, index) => walk(child, scope, rows, list, pointerOf(pointer, 'fallback', index), typeof child === 'string' ? at : `${at} fallback={${label(child)}}`))
   }
 
   visit(tree, { stack: [], ...(root !== undefined && { root }) }, [], undefined, '', label(tree))

@@ -32,9 +32,20 @@ export type PlanRead = {
   groupBy?: string[]
   /** As the list's `fields`, the key included: every field drawn in its scope. Every field without it. */
   fields?: string[]
+  /**
+   * How a read inside the records of another gives each of them its own rows: those whose `field` holds the value
+   * `source`, a path, reads where the block draws, or whose `field` is among them when that value is a JSON list of keys.
+   * `parent` is the read of the records around it, by `planReadId`, whose resource it reads too.
+   */
+  split?: PlanSplit
   /** Whether it asks for each record's ETag, which only a record that an `Action` or a form changes needs. */
   etag: boolean
 }
+
+export type PlanSplit = { field: string; source: string; parent: string }
+
+/** A read's name within its page's plan: its block's pointer, with `#<part>` for a block's other reads. */
+export const planReadId = (read: Pick<PlanRead, 'block' | 'part'>) => (read.part === undefined ? read.block : `${read.block}#${read.part}`)
 
 /** A custom component that declares no reads, which the plan leaves out: whatever it reads, it reads by itself. */
 export type UnplannedBlock = { block: string; type: string }

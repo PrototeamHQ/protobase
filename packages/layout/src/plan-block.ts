@@ -3,10 +3,11 @@ import { templatePlaceholders } from '@protobase/schema/internal'
 import { blockSpecs, type BlockReads } from './block-specs'
 import { threadSort } from './check-time'
 import { defaultPerPage, defaultSort, defaultSource, maxPerPage } from './list-blocks'
-import { allOf, filterLiteral, filterText, sortText } from './list-query'
+import { filterLiteral, filterText, sortText } from './list-query'
 import type { LayoutNode, LayoutValue } from './node'
 import type { Draft, PlanContext, Rows } from './plan-draft'
-import { keyEquality, splitFilter, type ImpliedSplit } from './plan-split'
+import { keyEquality, splitFilter, type ImpliedSplit, type SplitFilter } from './plan-split'
+import { planReadId } from './read-plan'
 import { columnName, type TableColumn } from './table-columns'
 import { selectBlocks } from './select-blocks'
 import { label, type Scope } from './walk'
@@ -104,9 +105,10 @@ const keyTerm = (model: ResourceModel, recordKey: string) => {
   return `${keyOf(model)} = ${quoted || !/^-?\d+$/.test(recordKey) ? filterLiteral(recordKey) : recordKey}`
 }
 
+// A RecordCard's `recordKey` names its record whatever its `filter` says, which picks the first match only without a key
 const sourceFilter = (node: LayoutNode, reads: BlockReads, model: ResourceModel) => {
   const recordKey = node.type === 'RecordCard' ? text(node.props.recordKey) : undefined
-  return allOf(ownFilter(node, reads), recordKey === undefined ? undefined : keyTerm(model, recordKey))
+  return recordKey === undefined ? ownFilter(node, reads) : keyTerm(model, recordKey)
 }
 
 /** How many records the read holds at most: its page, or the API's largest one without a page size. */
@@ -138,6 +140,9 @@ const shapeOf = (node: LayoutNode, n: number | undefined, parent: Draft | undefi
   return { kind: 'list', pageSize: total, limitPer: { field: field!, count: n } }
 }
 
+// How each record around it finds its rows in the read
+const splitOf = ({ parent, field, path }: SplitFilter): Pick<Draft, 'split'> => (parent && field && path !== undefined ? { split: { field, source: path, parent: planReadId(parent) } } : {})
+
 /** The reads a block makes: its own, the row a `Table`'s `select` chose, and any others it makes beside it. */
 export type BlockDrafts = { own?: Draft; chosen?: Draft; extra: Draft[] }
 
@@ -160,7 +165,7 @@ const callsOf = (node: LayoutNode, block: string, scope: Scope, rows: Rows, cont
   const split = splitFilter(model, calls.filter, [], scope, rows, context)
   const shape = shapeOf(node, number(node.props.limit) ?? 50, split.parent, split.field, context)
   const named = ['name', 'time', 'status', 'input', 'result', 'error'].flatMap((name) => (calls[name] ? [calls[name]!] : []))
-  return [{ block, part: 'calls', ...shape, resource: model.name, ...(split.filter && { filter: split.filter }), orderBy: threadSort(calls.time!), fields: new Set([keyOf(model), ...named]), etag: false }]
+  return [{ block, part: 'calls', ...shape, resource: model.name, ...(split.filter && { filter: split.filter }), ...splitOf(split), orderBy: threadSort(calls.time!), fields: new Set([keyOf(model), ...named]), etag: false }]
 }
 
 export const blockDrafts = (node: LayoutNode, block: string, scope: Scope, rows: Rows, context: PlanContext): BlockDrafts => {
@@ -176,6 +181,7 @@ export const blockDrafts = (node: LayoutNode, block: string, scope: Scope, rows:
     ...shape,
     resource: model.name,
     ...(split.filter && { filter: split.filter }),
+    ...splitOf(split),
     ...(orderBy !== undefined && { orderBy }),
     fields: shape.kind === 'list' ? ownFields(node, reads, model) : shape.kind === 'count' ? new Set([keyOf(model)]) : undefined,
     etag: changesOwn(node),

@@ -1,3 +1,4 @@
+import { pointerOf } from '../element-at'
 import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from '../node'
 import { isInlineChild } from '../inline-fields'
 import { pageParamValues } from '../page-params'
@@ -22,12 +23,17 @@ const customForm: TextForm = (context) => childrenText(context.fallback ? { ...c
 
 const formOf = (node: LayoutNode, options: TextOptions): TextForm => options.forms?.[node.type] ?? (node.custom ? customForm : textForms[node.type]) ?? childrenText
 
+/** A child and its place in the tree. */
+type Placed = { child: LayoutChild; at: string }
+
+const placed = (children: LayoutChild[], at: string, place: string): Placed[] => children.map((child, index) => ({ child, at: pointerOf(at, place, index) }))
+
 /** The text of each child, a run of inline children joined into one part; `list` is the list around them, if any. */
-const partsOf = (children: LayoutChild[], options: TextOptions, oneLine: boolean, list?: unknown[]): string[] => {
+const partsOf = (children: Placed[], options: TextOptions, oneLine: boolean, list?: unknown[]): string[] => {
   const parts: string[] = []
   let runOn = false
-  for (const child of children) {
-    const text = typeof child === 'string' ? escapeMarkdown(child) : render(child, options, list)
+  for (const { child, at } of children) {
+    const text = typeof child === 'string' ? escapeMarkdown(child) : render(child, options, list, at)
     // Text, links, `Text as="span"` and field components run on in one line, as the web draws them; other elements stand alone
     const inline = oneLine || isInlineChild(child)
     if (inline && runOn) parts[parts.length - 1] += text
@@ -39,38 +45,44 @@ const partsOf = (children: LayoutChild[], options: TextOptions, oneLine: boolean
 
 // A RecordsIterator reads as its children once per record of the list around it, each in that record; while the text
 // does not have the list, once without a record, as a field reads as its label alone
-const iterate = (node: LayoutNode, options: TextOptions, list: unknown[] | undefined) => {
-  if (list === undefined) return blocks(partsOf(node.children, { ...options, record: undefined, fields: undefined }, false))
-  return blocks(list.map((item) => blocks(partsOf(node.children, { ...options, record: itemRecord(item), fields: undefined }, false))))
+const iterate = (children: Placed[], options: TextOptions, list: unknown[] | undefined) => {
+  if (list === undefined) return blocks(partsOf(children, { ...options, record: undefined, fields: undefined }, false))
+  return blocks(list.map((item) => blocks(partsOf(children, { ...options, record: itemRecord(item), fields: undefined }, false))))
 }
 
-// The record the children of a ReferenceField or a block's `select` read, when the caller read it; none otherwise, as in a record card
-const childOptions = (node: LayoutNode, options: TextOptions): TextOptions => {
-  if (!node.custom && (node.type === 'ReferenceField' || (selectBlocks.has(node.type) && typeof node.props.select === 'string'))) {
-    const record = referencedRecord(node, options)
+// A CardRow's records, when the caller read them: its children read once per record, a part each
+const cardsOf = (node: LayoutNode, options: TextOptions, at: string) => (!node.custom && node.type === 'CardRow' ? options.records?.(node, options.record, at) : undefined)
+
+// The record the children of a ReferenceField, a RecordCard or a block's `select` read, when the caller read it; none otherwise
+const childOptions = (node: LayoutNode, options: TextOptions, at: string): TextOptions => {
+  if (!node.custom && (node.type === 'ReferenceField' || node.type === 'RecordCard' || (selectBlocks.has(node.type) && typeof node.props.select === 'string'))) {
+    const record = referencedRecord(node, options, at)
     return { ...options, record, fields: undefined }
   }
   return scoped(options, childScope(node, pageScope).stack.length > 0)
 }
 
-const render = (unfilled: LayoutNode, options: TextOptions, around: unknown[] | undefined): string => {
+const render = (unfilled: LayoutNode, options: TextOptions, around: unknown[] | undefined, at: string): string => {
   // Its `{{path}}`s read the record around the tree, the only one the text has, and the page's parameters; others read as empty
   const node = fillProps(unfilled, { stack: options.record ? [{ record: options.record }] : [], ...(options.params && { params: options.params }) })
-  if (!node.custom && node.type === 'RecordsIterator') return iterate(node, options, around).trim()
+  if (!node.custom && node.type === 'RecordsIterator') return iterate(placed(node.children, at, 'children'), options, around).trim()
   // A list context puts its list around its children; other elements pass on the one around them
-  const list = listOf(node, options) ?? (childScope(node, pageScope).stack.length > 0 ? undefined : around)
-  const inner = childOptions(node, options)
-  const slotOptions = scoped(options, propScope(node, pageScope).stack.length > 0)
+  const list = listOf(node, options, at) ?? (childScope(node, pageScope).stack.length > 0 ? undefined : around)
+  const inner = childOptions(node, options, at)
+  // A RecordCard's header actions sit in its record, as its children do
+  const slotOptions = !node.custom && node.type === 'RecordCard' ? inner : scoped(options, propScope(node, pageScope).stack.length > 0)
   const slots = Object.fromEntries(
-    Object.entries(node.props).flatMap(([name, value]) => (isElements(value) ? [[name, (Array.isArray(value) ? value : [value]).map((element) => render(element, slotOptions, undefined))]] : [])),
+    Object.entries(node.props).flatMap(([name, value]) => (isElements(value) ? [[name, (Array.isArray(value) ? value : [value]).map((element, index) => render(element, slotOptions, undefined, pointerOf(at, 'props', name, ...(Array.isArray(value) ? [index] : []))))]] : [])),
   )
-  const fallback = node.fallback && partsOf(node.fallback, options, false)
+  const fallback = node.fallback && partsOf(placed(node.fallback, at, 'fallback'), options, false)
   // A Switch's children are Matches, one part each, so its text form finds the one it draws by its place
-  const own = !node.custom && node.type === 'Switch' ? node.children.filter((child) => typeof child !== 'string') : node.children
+  const all = placed(node.children, at, 'children')
+  const own = !node.custom && node.type === 'Switch' ? all.filter(({ child }) => typeof child !== 'string') : all
   // A block's `select` children draw nothing while no row is chosen, or the text does not have it
   const drawn = selectBlocks.has(node.type) && typeof node.props.select === 'string' && !inner.record ? [] : own
-  const children = partsOf(drawn, inner, holdsOneLine(node), list)
-  return formOf(node, options)({ node, children, slots, ...(fallback && { fallback }), options }).trim()
+  const cards = cardsOf(node, options, at)
+  const children = cards ? cards.map((card) => iterate(drawn, options, [card])) : partsOf(drawn, inner, holdsOneLine(node), list)
+  return formOf(node, options)({ node, at, children, slots, ...(fallback && { fallback }), ...(around && { around }), options }).trim()
 }
 
 /**
@@ -79,4 +91,4 @@ const render = (unfilled: LayoutNode, options: TextOptions, around: unknown[] | 
  * `options.forms` adds or replaces forms by block type; `options.params` are the parameters the page's address gives,
  * which its `SelectInput`s hold to their choices.
  */
-export const renderText = (node: LayoutNode, options: TextOptions = {}): string => render(node, { ...options, params: pageParamValues(node, options.params) }, undefined)
+export const renderText = (node: LayoutNode, options: TextOptions = {}): string => render(node, { ...options, params: pageParamValues(node, options.params) }, undefined, '')

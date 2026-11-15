@@ -46,7 +46,8 @@ describe('compileReadPlan', () => {
       orderBy: 'id desc',
       pageSize: 50,
       limitPer: { field: 'task_id', count: 5 },
-      fields: ['claimed_at', 'id'],
+      split: { field: 'task_id', source: 'this.id', parent: '/children/0' },
+      fields: ['claimed_at', 'id', 'task_id'],
       etag: false,
     })
   })
@@ -64,6 +65,13 @@ describe('compileReadPlan', () => {
     expect(owner).toMatchObject({ resource: 'workers', filter: 'related(id, tasks.owner_id, (status = "open"), "id desc", 10)', pageSize: 10, fields: ['id', 'name'] })
     expect(owner!.limitPer).toBeUndefined()
     expect(waits).toMatchObject({ resource: 'tasks', filter: 'related(id, tasks.waits, (status = "open"), "id desc", 10)', orderBy: 'id desc', pageSize: 30 })
+    expect([owner!.split, waits!.split]).toEqual([{ field: 'id', source: 'owner_id', parent: '/children/0' }, { field: 'id', source: 'waits', parent: '/children/0' }])
+  })
+
+  it('names the read a nested read splits on, and the path its value comes from', () => {
+    const steps = ReferenceManyField({ reference: 'claim_steps', target: 'claim_id', children: RecordsIterator({ children: Field({ source: 'name' }) }) })
+    const tree = Page({ title: 'Tasks', children: [openTasks(ReferenceManyField({ reference: 'task_claims', target: 'task_id', perPage: 5, children: RecordsIterator({ children: steps }) }))] })
+    expect(reads(tree).map((read) => read.split)).toEqual([undefined, { field: 'task_id', source: 'this.id', parent: '/children/0' }, { field: 'claim_id', source: 'this.id', parent: '/children/0/children/0' }])
   })
 
   it("rewrites a field of the page's own record to related() on it by its key, and keeps the key a slot", () => {
@@ -88,7 +96,7 @@ describe('compileReadPlan', () => {
 
   it('counts under a repeat with one aggregate grouped by the field it splits on', () => {
     const tree = Page({ title: 'Tasks', children: [openTasks(Stat({ label: 'Claims', resource: 'task_claims', filter: 'task_id = {{id}}' }))] })
-    expect(reads(tree)[1]).toEqual({ block: '/children/0/children/0', kind: 'aggregate', resource: 'task_claims', filter: taskClaims, groupBy: ['task_id'], pageSize: 10, etag: false })
+    expect(reads(tree)[1]).toEqual({ block: '/children/0/children/0', kind: 'aggregate', resource: 'task_claims', filter: taskClaims, groupBy: ['task_id'], pageSize: 10, split: { field: 'task_id', source: 'id', parent: '/children/0' }, etag: false })
   })
 
   it('asks for ETags only for a read whose records an Action changes, reading every field', () => {
@@ -132,6 +140,8 @@ describe('compileReadPlan', () => {
     const tree = Page({ title: 'Tasks', children: [RecordCard({ resource: 'tasks', recordKey: '7', children: Field({ source: 'title' }) }), Table({ resource: 'workers', select: 'worker', children: Field({ source: 'name' }) })] })
     const [card, , chosen] = reads(tree)
     expect(card).toMatchObject({ filter: 'id = 7', pageSize: 1, fields: ['id', 'title'] })
+    // Its key names its record whatever its filter says, as the record's own read does
+    expect(reads(Page({ title: 'Task', children: [RecordCard({ resource: 'tasks', recordKey: '7', filter: "status = 'open'" })] }))[0]!.filter).toBe('id = 7')
     expect(chosen).toEqual({ block: '/children/1', part: 'chosen', kind: 'list', resource: 'workers', filter: 'id = {{@params.worker}}', pageSize: 1, fields: ['id', 'name'], etag: false })
   })
 })

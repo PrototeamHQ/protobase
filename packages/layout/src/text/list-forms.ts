@@ -20,7 +20,7 @@ const listLink = (context: TextContext, filter: string | undefined) => {
 
 // What a list holds, `empty` when it holds nothing, and a link to its records while the text does not have them
 const listBlock = (context: TextContext, filter: () => string | undefined) => {
-  const list = listOf(context.node, context.options)
+  const list = listOf(context.node, context.options, context.at)
   if (list === undefined) return listLink(context, context.options.record ? filter() : undefined)
   if (list.length === 0) return escapeMarkdown(text(context.node.props.empty) ?? '')
   return childrenText(context)

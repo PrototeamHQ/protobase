@@ -72,9 +72,9 @@ renderText(<Page title="Order"><Field source="status" /></Page>, {
 | --- | --- |
 | `record` | The record around the tree. `Field`, the [field components](#field-values), `Stat field`, `Progress`, `Show` conditions and the `{{field}}`s of addresses read it, through relations as nested objects (`plan.name`); a count a condition names, such as `billing_profiles.count`, is a key of its own. The `{{path}}`s of props read it too. Without it, a field reads as its label alone, a condition as holding (a `Show` reads as its children, a `Switch` as its first `Match`), a prop's `{{path}}`s as empty, and addresses keep their `{{field}}`s. |
 | `fields` | Per field path, its `label` and the `valueLabels` its enum values read as; a field without a label reads under its path. |
-| `records` | Per `ReferenceManyField`, `ReferenceArrayField` or `ReferenceField` element and the record around it, the records it holds, which you loaded; its `RecordsIterator` then reads as its children once per record, in that record, and an empty list as its `empty`. Without it, the block reads as a link to its records. An `ArrayField` reads its items from the record around it. For a `Table` with `select`, the row chosen, whose record its children read; without it they read as nothing. |
+| `records` | Per `ReferenceManyField`, `ReferenceArrayField` or `ReferenceField` element and the record around it, the records it holds, which you loaded; its `RecordsIterator` then reads as its children once per record, in that record, and an empty list as its `empty`. Without it, the block reads as a link to its records. An `ArrayField` reads its items from the record around it. For a `RecordCard`, its record, which its children read; for a `CardRow`, its records, its children once per record. For a `Table` with `select`, the row chosen, whose record its children read; without it they read as nothing. It gets the element, the record around it and the element's place in the tree, the pointer the [read plan](#how-a-page-reads-its-data) names its block by. |
 | `params` | The [page parameters](#page-parameters) the page's address holds, such as `{ window: '30d' }`, which `@params` and the `SelectInput`s read, each held to its choices. |
-| `tables` | Per `Table` element, the records it shows and its columns (`{ columns: [{ name, label, title?, badge?, valueLabels? }], rows }`), which you loaded; the table then reads as its heading and a Markdown table. Without it, a table reads as its heading. |
+| `tables` | Per `Table` element, its place in the tree, the record around it and the records of the list around it (which a table without `resource` shows), the records it shows and its columns (`{ columns: [{ name, label, title?, badge?, valueLabels? }], rows }`), which you loaded; the table then reads as its heading and a Markdown table. Without it, a table reads as its heading. |
 | `locale` | The reader's locale, such as `nl-NL`, in which [field components](#field-values) without `locales` format numbers and dates; the runtime's default when omitted. |
 | `basePath` | What links start with, such as `https://example.com/admin`. |
 | `forms` | Text forms by block type, over the built-in ones. |
@@ -94,7 +94,23 @@ renderText(tree, { forms: { Grid: ruled, Card: noted, SeatChart: childrenText } 
 
 A custom component reads as its [fallback](/reference/custom-components/#fallbacks) when it declares one, and otherwise as what it holds, unless `forms` names it.
 
-<gap>A data block's text form cannot read its records itself, such as a table's rows, because reading records for the text form is not implemented.</gap> A `Thread` holding the elements of [`threadItemNodes`](/reference/blocks/#tool-calls) reads as its messages and calls. <gap>A data block other than a `Table`, a `Thread` or a list block cannot list records you pass because its text form for records is not implemented.</gap> <gap>A field's text form cannot apply its `format`, such as a relative time, because formatting in the text form is not implemented.</gap> <gap>MCP clients cannot read a page's text form because a tool that serves it is not implemented.</gap>
+### A page's text with its records
+
+`pageText` reads a page's records itself: it starts every read of the page's [read plan](#how-a-page-reads-its-data) at once through the `read` you give it, which makes one read as the reader, such as a list or an `:aggregate` of the API, and once they are all back renders the text form with them. A `RecordCard` reads as its record, its header `actions` too, a `CardRow` as its records, a `Table` as a Markdown table of its rows, one without `resource` of the list around it, and a related list as its records, each nested list under its own record. The record you pass as `record` is the page's own, whose key fills `{{@root.…}}`. A read that fails leaves its block as it reads without records, a link to them.
+
+```ts
+import { pageText } from '@protobase/layout'
+
+const text = await pageText(page.tree, page.reads, {
+  read: async (read) => ({ rows: (await client.list(read.resource, { filter: read.filter, orderBy: read.orderBy, pageSize: read.pageSize, fields: read.fields, limitPer: read.limitPer })).items }),
+  labels: { workers: { name: { label: 'Name' } } },
+  params: { window: '30d' },
+})
+```
+
+It takes the options of `renderText` but `records` and `tables`, and `labels`: per resource, its fields' labels and value labels, which its tables' headers and cells read. A count's `read` gives `{ rows: [], total }`, and a count per record around it, an `:aggregate`, its groups as rows `{ value, count }`.
+
+<gap>A `Stat` count, a `Chart`, a `RecordCards`, a `RecordRow` or a `Thread` cannot read its records in `pageText` because their text forms for planned records are not implemented.</gap> <gap>A path in the text form cannot read a record further out than the nearest, such as `../id`, because a stack of records in the text form is not implemented.</gap> A `Thread` holding the elements of [`threadItemNodes`](/reference/blocks/#tool-calls) reads as its messages and calls. <gap>A data block other than a `Table`, a `RecordCard`, a `CardRow`, a `Thread` or a list block cannot list records you pass because its text form for records is not implemented.</gap> <gap>A field's text form cannot apply its `format`, such as a relative time, because formatting in the text form is not implemented.</gap> <gap>MCP clients cannot read a page's text form because a tool that serves it is not implemented.</gap>
 
 ## What a layout may hold
 
@@ -114,7 +130,7 @@ A `RecordCard` (its first match), a `ReferenceField`, each card of a `CardRow` a
 ## Related records
 
 :::caution[Beta]
-The build plans every list's read beside the page's other reads, as [how a page reads its data](#how-a-page-reads-its-data) says. Coming soon: the web starts those reads at page load; until then each list block reads its records once the record around it has drawn.
+A list's next pages, with `pagination="more"`, are a read of the list's own. A `Table` inside a list's records still reads once it draws, as [how a page reads its data](#how-a-page-reads-its-data) says.
 :::
 
 A record's related records repeat under it as a list: a `ReferenceManyField` holds the records of another resource that point at it, a `ReferenceArrayField` the records whose keys a JSON field of it lists, and an `ArrayField` the items of a JSON list it holds. A `RecordsIterator` inside one draws its children once for each entry, with nothing around them, and a `Table` without `resource` draws the list as a table. A `ReferenceField` draws the one record a field points at. They take the names, props and defaults of the [react-admin](/features/compatibility/#react-admin) components of the same names.
@@ -142,10 +158,10 @@ Each entry is a record of the stack while its children draw, so `Field`, `Show`,
 ## How a page reads its data
 
 :::caution[Beta]
-The build plans a page's reads and `/api/meta` sends the plan; the web does not run it yet.
+On the web, a `Table`, `Thread`, `Chart`, `RecordCards` and `RecordRow` still read once they draw, as the marked limits below say.
 :::
 
-The build compiles each page into a read plan: one ordinary API read per data block, each known before any record is read, so all of them can start together at page load and none waits for another's rows. There is no combined page query. `/api/meta` sends each user the plan of the page as they see it, so it holds no read of a resource they cannot read and no field they cannot read.
+The build compiles each page into a read plan: one ordinary API read per data block, each known before any record is read, so all of them start together when the page opens and none waits for another's rows. There is no combined page query: each read is a request of its own. `/api/meta` sends each user the plan of the page as they see it, so it holds no read of a resource they cannot read and no field they cannot read.
 
 - **One read per block.** `Stat`, `RecordCard`, `Table`, `CardRow`, `RecordRow`, `RecordCards`, `Thread`, `Chart`, `ReferenceManyField`, `ReferenceArrayField` and `ReferenceField` each make one list, count or `:aggregate` read. A `Thread`'s tool calls, the row a `Table`'s `select` chose and each `<resource>.count` a condition names are reads of their own. A block under `Show` or `Match` is read anyway: the condition decides only what is drawn.
 - **Fields are derived.** You never write `fields`. Each read asks for its key and every field drawn in its scope: by `Field`s, [field components](#field-values), `{{path}}`s, conditions and table columns, and the fields a nested list ties itself by. A block whose view decides what it draws, such as a `Table` without `columns` or a `RecordRow`, reads every field. So does a read whose records an `Action` or an edit form changes, since it asks for each record's ETag and an ETag covers the whole record. The other reads ask for no ETag.
@@ -154,11 +170,13 @@ The build compiles each page into a read plan: one ordinary API read per data bl
 - **The page's own record.** A field of it that the address does not hold, `{{@root.project_id}}`, becomes `related()` on that record by its key, so the page's record is not read first. Page parameters and the page record's key stay `{{…}}` slots in the plan, which the address fills.
 - **Indexes.** [`protobase doctor`](/reference/cli/#doctor) judges every planned read with the scan guard's rule, the outer reads its `related()` terms carry included, so it reports a nested read's missing index before the API refuses the read.
 
-Each read in the plan (`page.reads.reads`) names its block by a JSON Pointer into the page's tree, such as `/children/0/children/2`, which `elementAt(tree, pointer)` finds. It gives the read's `resource`, its `kind` (`list`, `count` or `aggregate`), `filter`, `orderBy`, `pageSize`, `limitPer`, `groupBy`, `fields` (absent for every field) and `etag`. `compileReadPlan(tree, { models })` makes the same plan from a tree of your own.
+When a page opens, the web starts every read of its plan at once, with the page's parameters filled in, whatever a condition says and however deep a block sits. A `RecordCard`, `CardRow`, `Stat`, `ReferenceManyField`, `ReferenceArrayField` and `ReferenceField` then draw from their read and read nothing themselves; one inside the records of another takes the rows of its own record out of its read, by the field it ties itself by. Inside a record the plan did not read, such as one of a list's later pages, it reads its rows itself. A `Show` or `Match` decides only what is drawn: switching what it shows starts no new read. A change to a resource, live or the page's own, reads again exactly the reads of that resource, and a nested read also when the records around it change.
+
+Each read in the plan (`page.reads.reads`) names its block by a JSON Pointer into the page's tree, such as `/children/0/children/2`, which `elementAt(tree, pointer)` finds. It gives the read's `resource`, its `kind` (`list`, `count` or `aggregate`), `filter`, `orderBy`, `pageSize`, `limitPer`, `groupBy`, `fields` (absent for every field), `etag`, and for a read inside the records of another its `split`: the `field` its rows hold the value `source`, a path, reads where the block draws, and the `parent` read, by `planReadId(read)`. `compileReadPlan(tree, { models })` makes the same plan from a tree of your own. `runReadPlan(plan, read, { params })` starts every read at once through `read` and gives each outcome by `planReadId`, and `plannedRows(read, rows, scope)` the rows of one record around a block.
 
 A [custom component](/reference/custom-components/#reads) is planned when it declares its reads. One that declares none is outside the plan (`page.reads.outside`): whatever it reads, it reads by itself once it draws, and `protobase doctor` lists it.
 
-<gap>A page cannot start its planned reads at page load because running the read plan on the web is not implemented; each block still reads once it draws.</gap> <gap>A `Chart` cannot sit inside a repeated record because grouping a chart per record is not implemented.</gap>
+<gap>A `Table`, `Thread`, `Chart`, `RecordCards` or `RecordRow` cannot start its read when the page opens because drawing those blocks from their planned read is not implemented; each still reads once it draws, under a `Show` or `Match` once its condition holds.</gap> <gap>A read without an ETag cannot read only its fields from the database because skipping ETags in the list API is not implemented; it still sends only its fields.</gap> <gap>A `Chart` cannot sit inside a repeated record because grouping a chart per record is not implemented.</gap>
 
 ## Field values
 
@@ -204,7 +222,7 @@ In the [text form](#text-form) each one reads as its formatted value, a `UrlFiel
 ## Paths and scopes
 
 :::caution[Beta]
-A path cannot read `@root` yet, and a block inside a card or under a condition reads its records only once it draws, as the marked limits below say.
+A path cannot read `@root` yet, as the marked limit below says.
 :::
 
 A `RecordCard`, a `ReferenceField`, each card of a `CardRow` and each entry of a [`RecordsIterator`](#related-records) put their record on a stack of records: an element inside both a task's `RecordCard` and a `CardRow` of its claims sits in a claim, inside the task. A bare name is looked up in the innermost record, then in each record further out, then in the page's own record; the [compatibility page](/features/compatibility/#template-paths) says which template syntax this follows:
@@ -235,8 +253,6 @@ The build checks every path where it sits:
 - **Reads that would wait.** A per-row value in a filter in any other place than a top-level `AND` equality (with `>=`, inside `OR` or `NOT`, a second one), `@index`, `@first`, `@last` or `this` in a filter, key or values, and any placeholder in `resource`, `sort`, `columns` or `limit` fail with "this would wait for the parent's rows": each block's records are one read of their own, and none may wait for another's rows.
 - **Shadowing.** A bare name that more than one record around it has reads the nearest, and the build warns which it read and how to write the others: `"id" resolves to task_claims; write ../id for the one of tasks`. `protobase build --strict` fails on it instead. `this.`, `./`, `../` and `@` paths never warn.
 
-<gap>A block inside a `CardRow` or `RecordCard` cannot read its records at page load, beside the records around it, because running the [read plan](#how-a-page-reads-its-data) on the web is not implemented; it reads once the card around it draws.</gap> <gap>A block under a `Show` or `Match` cannot read its records before its condition holds because running the read plan on the web is not implemented.</gap>
-
 ## Page parameters
 
 :::caution[Beta]
@@ -261,7 +277,7 @@ A `Table` with `select` chooses one of its rows: each row links to the page with
 
 In the [text form](#text-form), a `SelectInput` reads as its label and its choice's name, `**Window**: Last 30 days`, from the `params` you pass, and a `select` table's children as the row `records` gives for it.
 
-<gap>A block reads a page parameter only once it draws, not at page load, because running the [read plan](#how-a-page-reads-its-data) on the web is not implemented.</gap> <gap>A data block other than a `Table`, or a list display such as a map, cannot take `select` because choosing a row there is not implemented.</gap>
+<gap>A data block other than a `Table`, or a list display such as a map, cannot take `select` because choosing a row there is not implemented.</gap>
 
 ## Conditions
 

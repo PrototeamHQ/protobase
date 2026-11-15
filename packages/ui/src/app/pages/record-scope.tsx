@@ -12,6 +12,8 @@ export type LayoutRecord = {
   key: string
   etag?: string
   permissions?: RecordPermissions
+  /** Whether it came from the page's planned read, so the reads planned inside it hold its rows. */
+  planned?: boolean
 }
 
 /** An item of an `ArrayField`'s JSON list, which no model describes: an object read by key, or a text read as `this`. */

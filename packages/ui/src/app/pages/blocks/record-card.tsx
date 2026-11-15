@@ -5,16 +5,19 @@ import { Skeleton } from '../../../primitives/skeleton'
 import { ErrorBanner } from '../../error-banner'
 import { useAdminMeta } from '../../meta-gate'
 import { RecordScope } from '../record-scope'
-import { useFirstRecord } from '../use-layout-data'
+import { usePlanned } from '../plan-reads'
+import { plannedRecord, useFirstRecord } from '../use-layout-data'
 import { cn } from '../../../lib/cn'
 import { propsOf, type BlockProps } from './block-props'
 import { CardFrame, Quiet } from './card-frame'
 import { text } from '../messages'
 
-type LoadedProps = Omit<RecordCardProps, 'resource' | 'actions' | 'children'> & { model: ResourceModel; actions: ReactNode; children: ReactNode[]; className?: string }
+type LoadedProps = Omit<RecordCardProps, 'resource' | 'actions' | 'children'> & { model: ResourceModel; at?: string; actions: ReactNode; children: ReactNode[]; className?: string }
 
-const LoadedRecordCard = ({ model, filter, sort, recordKey, title, description, empty, actions, children, className }: LoadedProps) => {
-  const record = useFirstRecord(model, { filter, sort, key: recordKey })
+const LoadedRecordCard = ({ model, at, filter, sort, recordKey, title, description, empty, actions, children, className }: LoadedProps) => {
+  const planned = usePlanned(at)
+  const own = useFirstRecord(model, { filter, sort, key: recordKey, enabled: !planned })
+  const record = planned ? plannedRecord(model, planned) : own
   const scoped = (content: ReactNode) => (record.data ? <RecordScope value={record.data}>{content}</RecordScope> : undefined)
   const body = record.isPending ? (
     <div className="flex flex-col gap-2">
@@ -36,12 +39,12 @@ const LoadedRecordCard = ({ model, filter, sort, recordKey, title, description, 
 }
 
 /** One record, the one `recordKey` names or the first match: its Fields, Actions and forms inside, actions in the header. */
-export const RecordCardBlock = ({ node, children, slots, className }: BlockProps) => {
+export const RecordCardBlock = ({ node, at, children, slots, className }: BlockProps) => {
   const { resource, filter, sort, recordKey, title, description, empty } = propsOf<RecordCardProps>(node)
   const model = useAdminMeta().resources[resource]
   if (!model) return null
   return (
-    <LoadedRecordCard model={model} filter={filter} sort={sort} recordKey={recordKey} title={title} description={description} empty={empty} actions={slots.actions} className={className}>
+    <LoadedRecordCard model={model} {...(at !== undefined && { at })} filter={filter} sort={sort} recordKey={recordKey} title={title} description={description} empty={empty} actions={slots.actions} className={className}>
       {children}
     </LoadedRecordCard>
   )

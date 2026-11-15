@@ -8,16 +8,20 @@ import { useAdminMeta } from '../../meta-gate'
 import { AppLink } from '../../use-app-address'
 import { LayoutListScope } from '../layout-list'
 import { RecordScope, useScopeStack, valueScopeOf } from '../record-scope'
-import { useFirstRecord } from '../use-layout-data'
+import { usePlanned } from '../plan-reads'
+import { plannedRecord, useFirstRecord } from '../use-layout-data'
 import { propsOf, type BlockProps } from './block-props'
 import { text } from '../messages'
 
-type LoadedProps = { model: ResourceModel; recordKey: string; link: ReferenceFieldProps['link']; children: ReactNode[]; className?: string }
+type LoadedProps = { model: ResourceModel; at?: string; recordKey: string; link: ReferenceFieldProps['link']; children: ReactNode[]; className?: string }
 
-// The record its key names, its children inside it or its title, linked to its page unless `link` is false
-const LoadedReference = ({ model, recordKey, link = 'edit', children, className }: LoadedProps) => {
+// The record its key names, from the page's planned read or one of its own, its children inside it or its title, linked
+// to its page unless `link` is false
+const LoadedReference = ({ model, at, recordKey, link = 'edit', children, className }: LoadedProps) => {
   const { views } = useAdminMeta()
-  const record = useFirstRecord(model, { key: recordKey })
+  const planned = usePlanned(at)
+  const own = useFirstRecord(model, { key: recordKey, enabled: !planned })
+  const record = planned ? plannedRecord(model, planned) : own
   if (record.isPending) return <Skeleton className="h-4 w-24" />
   if (record.error) return <ErrorBanner title={text('couldNotLoad')} error={record.error} />
   if (!record.data) return null
@@ -38,14 +42,14 @@ const LoadedReference = ({ model, recordKey, link = 'edit', children, className 
  * The record of `reference` the record's `source` points at, as react-admin's ReferenceField: its children inside that
  * record, or its title, as a link to the record's page; `empty` when the field holds none.
  */
-export const ReferenceFieldBlock = ({ node, children, className }: BlockProps) => {
+export const ReferenceFieldBlock = ({ node, at, children, className }: BlockProps) => {
   const { reference, source, link, empty } = propsOf<ReferenceFieldProps>(node)
   const model = useAdminMeta().resources[reference]
   const value = scopeValue(valueScopeOf(useScopeStack()), source)
   if (!model) return null
   if (value === null || value === undefined || value === '') return empty === undefined ? null : <span className={className}>{empty}</span>
   return (
-    <LoadedReference model={model} recordKey={String(value)} link={link} className={className}>
+    <LoadedReference model={model} {...(at !== undefined && { at })} recordKey={String(value)} link={link} className={className}>
       {children}
     </LoadedReference>
   )
