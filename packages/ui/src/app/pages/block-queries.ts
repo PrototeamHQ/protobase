@@ -1,10 +1,17 @@
 import { elementAt, fillProps, type LayoutNode, type ReadPlan } from '@protobase/layout'
-import type { BlockQueries, BlockQuery, BlockReader } from './block-query'
+import { blockQuery, type BlockQueries, type BlockQuery, type BlockReader } from './block-query'
 import { tableQueries } from './blocks/table-query'
+import { countQuery } from './use-layout-data'
 
 /** The blocks that read by themselves, by type, each with the queries it makes. */
 const byType: Record<string, BlockQueries> = {
   Table: tableQueries,
+}
+
+// A `<resource>.count` a condition names counts all of the resource's records the reader may see, as `useStackConditions` reads it
+const conditionCount: BlockQueries = (_node, read, { client, resources }) => {
+  const model = resources[read.resource]
+  return model ? [blockQuery(countQuery(client, model))] : []
 }
 
 /**
@@ -16,6 +23,7 @@ export const blockQueries = (reader: BlockReader, tree: LayoutNode, plan: ReadPl
   (plan?.reads ?? []).flatMap((read) => {
     const node = elementAt(tree, read.block)
     if (!node || node.custom) return []
+    if (read.part === 'condition') return conditionCount(node, read, reader)
     if (read.split) return []
     const queries = byType[node.type]
     return queries ? queries(fillProps(node, { stack: [], params: reader.params }), read, reader) : []

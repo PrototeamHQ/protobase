@@ -49,16 +49,17 @@ const startPage = (tree: LayoutNode, params: Record<string, string> = {}) => {
 }
 
 describe('the queries of blocks that read by themselves', () => {
-  it('starts a table under a false Show, and its chosen row before any of them answers', async () => {
+  it('starts a table under a false Show, its chosen row and a condition’s count before any of them answers', async () => {
     const tree = Page({
       title: 'Home',
       children: [
+        Show({ when: 'tasks.count > 0', children: Field({ source: 'title' }) }),
         Show({ when: "status = 'never'", children: Table({ resource: 'tasks', filter: 'status = {{@params.status}}', columns: ['title'], select: 'task', children: Field({ source: 'title' }) }) }),
       ],
     })
     const held = startPage(tree, { status: 'open', task: '7' })
-    await vi.waitFor(() => expect(held.started).toHaveLength(2))
-    expect([...held.started].sort()).toEqual(['/api/v1/tasks/7', '/api/v1/tasks:search'])
+    await vi.waitFor(() => expect(held.started).toHaveLength(3))
+    expect([...held.started].sort()).toEqual(['/api/v1/tasks', '/api/v1/tasks/7', '/api/v1/tasks:search'])
     held.release()
   })
 
