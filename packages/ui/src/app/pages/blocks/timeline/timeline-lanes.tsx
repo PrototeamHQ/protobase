@@ -2,6 +2,8 @@ import type { ResourceModel, ViewModel } from '@protobase/schema'
 import { cn } from '../../../../lib/cn'
 import { RouteLink, type RouteTarget } from '../../../../primitives/route-link'
 import { FieldValue } from '../../field-value'
+import { useAdminMeta } from '../../../meta-gate'
+import { useRelationTitle } from '../../../titles/use-relation-title'
 import type { TimelineBar, TimelineFields, TimelineShape } from './timeline-layout'
 import { TimelineAxis } from './timeline-axis'
 import { SegmentFill } from './segment-fill'
@@ -23,7 +25,10 @@ const barLook = 'absolute inset-y-0 flex overflow-hidden rounded-sm ring-offset-
 // One bar: its segments side by side within it, a link to the page with it chosen under `select`, else a mark that
 // can take focus, so a keyboard and a screen reader reach its times too
 const BarMark = ({ bar, model, view, fields, onPoint, choose }: Omit<LanesProps, 'shape'> & { bar: TimelineBar }) => {
-  const label = barText(bar, model, view, fields)
+  // A bar of a relation is named by the record it points at, as its readout shows it
+  const target = useAdminMeta().resources[model.fields[fields.bar]?.relation?.resource ?? '']
+  const name = useRelationTitle(target ?? model, bar.key, target !== undefined)
+  const label = barText(bar, model, view, fields, target ? name : undefined)
   const point = { onMouseEnter: () => onPoint(bar), onMouseLeave: () => onPoint(null), onFocus: () => onPoint(bar), onBlur: () => onPoint(null) }
   const style = { left: `${bar.left}%`, width: `max(${bar.width}%, 4px)` }
   const segments = <SegmentFill bar={bar} field={model.fields[fields.color]!} hints={view?.fields[fields.color]} />

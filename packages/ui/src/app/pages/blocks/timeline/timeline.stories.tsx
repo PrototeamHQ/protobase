@@ -116,7 +116,7 @@ const play: StoryObj['play'] = async ({ canvasElement }) => {
   const bars = await timeline.findAllByRole('link', { name: /Building/ })
   expect(bars).toHaveLength(6)
   const exportBar = bars.find((bar) => bar.getAttribute('href') === '/work?task=2')!
-  expect(exportBar).toHaveAccessibleName(/^2: .*; Building: .*; Waiting for CI: /)
+  expect(exportBar).toHaveAccessibleName(/^Export to CSV: .*; Building: .*; Waiting for CI: /)
 
   await userEvent.click(exportBar)
   await waitFor(() => expect(timeline.getByText('Streams the rows')).toBeVisible())

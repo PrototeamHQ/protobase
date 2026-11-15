@@ -16,9 +16,9 @@ export const rangeText = (model: ResourceModel, fields: TimelineFields, start: n
 export const segmentText = (segment: TimelineSegment, model: ResourceModel, view: ViewModel | undefined, fields: TimelineFields) =>
   `${displayValue(model.fields[fields.color]!, segment.value, view?.fields[fields.color])}: ${rangeText(model, fields, segment.start, segment.end, segment.open)}`
 
-/** What a bar reads as to a screen reader: its value and times, then each segment's. */
-export const barText = (bar: TimelineBar, model: ResourceModel, view: ViewModel | undefined, fields: TimelineFields) => {
+/** What a bar reads as to a screen reader: its name, its value as shown without one, and times, then each segment's. */
+export const barText = (bar: TimelineBar, model: ResourceModel, view: ViewModel | undefined, fields: TimelineFields, known?: string) => {
   const open = bar.segments.some((segment) => segment.open && segment.end === bar.end)
-  const name = displayValue(model.fields[fields.bar]!, bar.value, view?.fields[fields.bar])
+  const name = known ?? displayValue(model.fields[fields.bar]!, bar.value, view?.fields[fields.bar])
   return [`${name}: ${rangeText(model, fields, bar.start, bar.end, open)}`, ...bar.segments.map((segment) => segmentText(segment, model, view, fields))].join('; ')
 }
