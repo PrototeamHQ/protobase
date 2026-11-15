@@ -37,4 +37,11 @@ describe('recordJsonSchema', () => {
     expect(recordJsonSchema(people, 'read', 'Person', keyType).properties).toEqual({ id: { type: 'string' }, account_id: { type: 'integer' }, contact_id: { type: 'string' }, stage: { type: 'string', enum: ['new', 'won'] } })
     expect(recordJsonSchema(people, 'write', 'Person', keyType).properties).toEqual({ account_id: { type: ['string', 'integer'] }, contact_id: { type: ['string', 'integer', 'null'] }, stage: { type: ['string', 'null'], enum: ['new', 'won', null] } })
   })
+
+  it('reads a file as the file it holds, and writes it as the text of an upload ticket', () => {
+    const notes = resource('notes').table('notes').fields({ id: f.bigint().readOnly().dbDefault(), attachment: f.file().optional() }).primaryKey((r) => r.id).toModel()
+    const field = (use: 'read' | 'write') => (recordJsonSchema(notes, use).properties as Record<string, unknown>).attachment
+    expect(field('read')).toMatchObject({ type: 'object', title: 'File' })
+    expect(field('write')).toEqual({ type: ['string', 'null'] })
+  })
 })

@@ -16,7 +16,8 @@ const relationRead = (field: FieldModel, keyType: KeyType | undefined): JsonSche
 // A field's value as the API gives it, and as a write takes it: a bigint and a decimal come as text and are written as
 // text or a number, as is a relation's key.
 const valueSchema = (field: FieldModel, use: RecordUse, keyType: KeyType | undefined): JsonSchema => {
-  if (field.file) return fileSchema
+  // A file reads as the file it holds, and is written as the text of an upload's ticket
+  if (field.file) return use === 'read' ? fileSchema : { type: 'string' }
   switch (field.type) {
     case 'integer':
       return { type: 'integer' }
