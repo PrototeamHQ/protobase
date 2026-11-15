@@ -1,4 +1,5 @@
 import { QueriesObserver, QueryClient } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { createClient } from '@protobase/client'
@@ -9,6 +10,7 @@ import { MetaContext } from '../../data/meta-context'
 import type { MetaData } from '../../data/meta-data'
 import { planQueries } from './plan-queries'
 import { PlanReadsProvider } from './plan-reads'
+import { RecordScope } from './record-scope'
 import { RenderNode } from './render-node'
 
 const tasks = resource('tasks').table('tasks').fields({ id: f.integer().readOnly(), title: f.text(), status: f.text() }).primaryKey((r) => r.id).toModel()
@@ -42,6 +44,31 @@ const startPage = (tree: LayoutNode) => {
   return held
 }
 
+const rows: Record<string, Record<string, unknown>[]> = {
+  tasks: [{ id: 1, title: 'Ship it' }, { id: 2, title: 'Test it' }],
+  task_claims: [{ id: 11, task_id: 1, status: 'done' }, { id: 12, task_id: 1, status: 'open' }],
+  claim_steps: [{ id: 21, claim_id: 11, name: 'plan' }, { id: 22, claim_id: 11, name: 'build' }],
+}
+
+// The two-level page's element drawn with every planned read already answered
+const drawn = (element: ReactNode) => {
+  const fetch = vi.fn<typeof globalThis.fetch>()
+  const client = createClient({ fetch })
+  const queryClient = new QueryClient()
+  const plan = planOf(twoLevels)
+  for (const { read, queryKey } of planQueries(client, twoLevels, plan, {})) queryClient.setQueryData(queryKey, { rows: rows[read.resource] })
+  const html = renderToStaticMarkup(
+    <ApiProvider client={client} queryClient={queryClient}>
+      <MetaContext.Provider value={meta}>
+        <PlanReadsProvider tree={twoLevels} plan={plan}>
+          {element}
+        </PlanReadsProvider>
+      </MetaContext.Provider>
+    </ApiProvider>,
+  )
+  return { fetch, html }
+}
+
 describe('a page’s planned reads on the web', () => {
   it('starts every read of a two-level page before any of them answers', async () => {
     const held = startPage(twoLevels)
@@ -66,27 +93,18 @@ describe('a page’s planned reads on the web', () => {
   })
 
   it('draws each nested row under its own record, from its read alone, and a record with none as empty', () => {
-    const rows: Record<string, Record<string, unknown>[]> = {
-      tasks: [{ id: 1, title: 'Ship it' }, { id: 2, title: 'Test it' }],
-      task_claims: [{ id: 11, task_id: 1, status: 'done' }, { id: 12, task_id: 1, status: 'open' }],
-      claim_steps: [{ id: 21, claim_id: 11, name: 'plan' }, { id: 22, claim_id: 11, name: 'build' }],
-    }
-    const fetch = vi.fn<typeof globalThis.fetch>()
-    const client = createClient({ fetch })
-    const queryClient = new QueryClient()
-    const plan = planOf(twoLevels)
-    for (const { read, queryKey } of planQueries(client, twoLevels, plan, {})) queryClient.setQueryData(queryKey, { rows: rows[read.resource] })
-    const html = renderToStaticMarkup(
-      <ApiProvider client={client} queryClient={queryClient}>
-        <MetaContext.Provider value={meta}>
-          <PlanReadsProvider tree={twoLevels} plan={plan}>
-            <RenderNode node={twoLevels} at="" />
-          </PlanReadsProvider>
-        </MetaContext.Provider>
-      </ApiProvider>,
-    )
+    const { fetch, html } = drawn(<RenderNode node={twoLevels} at="" />)
     const shown = html.replace(/<[^>]+>/g, ' ').split(/\s+/).filter((word) => /^(Ship|Test|done|open|plan|build|No)$/.test(word))
     expect(shown).toEqual(['Ship', 'done', 'plan', 'build', 'open', 'No', 'Test', 'No'])
     expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('reads a nested list by itself inside a record the plan did not read, such as one of a later page', () => {
+    const { html } = drawn(
+      <RecordScope value={{ model: tasks, record: { id: 1, title: 'Ship it' }, key: '1' }}>
+        <RenderNode node={claims} at="/children/0/children/1" />
+      </RecordScope>,
+    )
+    expect(html).not.toContain('done')
   })
 })

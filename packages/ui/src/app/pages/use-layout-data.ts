@@ -63,7 +63,7 @@ export const useListPage = (model: ResourceModel, { filter = '', sort = '', page
 export const plannedRecord = (model: ResourceModel, planned: Planned): { isPending: boolean; error: Error | null; data: LayoutRecord | null | undefined } => ({
   isPending: planned.isPending,
   error: planned.error,
-  data: planned.rows[0] ? scopeOf(model, planned.rows[0]) : planned.isPending ? undefined : null,
+  data: planned.rows[0] ? { ...scopeOf(model, planned.rows[0]), planned: true } : planned.isPending ? undefined : null,
 })
 
 /** Refetches everything shown of a resource after a write: lists, counts, records, labels and the page's planned reads. */

@@ -25,16 +25,16 @@ export const useRelatedList = ({ model, filter, sort, perPage, more, planned }: 
   const [expanded, setExpanded] = useState(false)
   const query = useList(model.name, { filter, orderBy: sort, pageSize: perPage, enabled: filter !== undefined && (!planned || expanded) })
   const pages = query.data?.pages.length ?? 0
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = query
+  const { hasNextPage, isFetchingNextPage, fetchNextPage, error } = query
   // The first click on a planned list reads its first page and then the one after it
   useEffect(() => {
-    if (planned && expanded && pages === 1 && hasNextPage && !isFetchingNextPage) void fetchNextPage()
-  }, [planned, expanded, pages, hasNextPage, isFetchingNextPage, fetchNextPage])
+    if (planned && expanded && !error && pages === 1 && hasNextPage && !isFetchingNextPage) void fetchNextPage()
+  }, [planned, expanded, error, pages, hasNextPage, isFetchingNextPage, fetchNextPage])
   if (filter === undefined) return { read: { isPending: false, error: null }, list: { model, items: [] } }
   if (planned && !expanded) {
     const items = planned.rows.slice(0, perPage)
     const loadMore = more && items.length === perPage ? () => setExpanded(true) : undefined
-    return { read: planned, list: { model, items, ...(loadMore && { loadMore }) } }
+    return { read: planned, list: { model, items, planned: true, ...(loadMore && { loadMore }) } }
   }
   // While a planned list reads its first two pages, its planned rows stay, the button loading
   if (planned && !query.error && pages < 2 && (pages === 0 || hasNextPage)) return { read: planned, list: { model, items: planned.rows.slice(0, perPage), loadMore: () => {}, loadingMore: true } }

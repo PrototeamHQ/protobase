@@ -17,6 +17,8 @@ export type LayoutList = {
   /** Reads the next page into the same list, while there is one; absent when the list takes no more. */
   loadMore?: () => void
   loadingMore?: boolean
+  /** Whether its records came from the page's planned read, so the reads planned inside them hold their rows. */
+  planned?: boolean
 }
 
 const LayoutListContext = createContext<LayoutList | undefined>(undefined)

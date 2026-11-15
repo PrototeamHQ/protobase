@@ -38,6 +38,10 @@ export const usePlanned = (at: string | undefined): Planned | undefined => {
   const found = at === undefined ? undefined : running.get(at)
   if (!found) return
   const { read, query } = found
+  // A record the page's plan did not read, such as one of a list's later pages, has no rows in a nested read: the
+  // block reads its own
+  const nearest = stack.at(-1)
+  if (read.split && !(nearest && 'model' in nearest && nearest.planned)) return
   const rows = query.data ? plannedRows(read, query.data.rows, { ...valueScopeOf(stack), params }) : []
   return { isPending: query.isPending, error: query.error, rows, ...(query.data?.total !== undefined && { total: query.data.total }) }
 }

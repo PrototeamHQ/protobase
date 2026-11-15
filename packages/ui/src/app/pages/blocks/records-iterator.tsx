@@ -17,9 +17,9 @@ type EachProps = {
 export const RecordsEach = ({ children, wrap = (entry, key) => <Fragment key={key}>{entry}</Fragment> }: EachProps) => {
   const list = useLayoutList()
   if (!list) return null
-  const { model, items } = list
+  const { model, items, planned } = list
   return items.map((item, index) => {
-    const value: LayoutRecord | ItemFrame = model ? scopeOf(model, item as Record<string, unknown>) : { item }
+    const value: LayoutRecord | ItemFrame = model ? { ...scopeOf(model, item as Record<string, unknown>), ...(planned && { planned }) } : { item }
     const key = 'key' in value ? value.key : index
     return wrap(
       <RecordScope value={value} row={{ index, count: items.length }}>

@@ -31,7 +31,7 @@ const LoadedCardRow = ({ model, at, filter, sort, limit = 12, title, description
         <Quiet>{empty ?? text('nothingYet')}</Quiet>
       ) : (
         <ul className="relative -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1">
-          <LayoutListScope value={{ model, items: rows }}>
+          <LayoutListScope value={{ model, items: rows, ...(planned && { planned: true }) }}>
             <RecordsEach
               wrap={(entry, key) => (
                 <li key={key} className="flex w-60 shrink-0 snap-start flex-col gap-2 rounded-lg border border-border bg-surface p-3">
