@@ -10,6 +10,7 @@ import { workflowsSchema, workflowsStorageOn, type WorkflowsOptions } from './op
 import { checkpointsSql, commentVersion, definitionPartsSql, droppedSql, functionsSql, indexesSql, tablesSql, triggersSql, effectsSql, workflowsTriggers, workflowsVersion } from './schema-sql'
 import { statusSql, statusTriggers } from './status-sql'
 import { blockRunsSql } from './block-runs-sql'
+import { taskTokensSql } from './task-tokens-sql'
 
 // Only reads the catalogue: whether the runs and triggers tables are there, the version of the run trigger's function,
 // and whether both database triggers are on their tables, since a trigger can be dropped while its function stays.
@@ -46,7 +47,7 @@ export const workflowsMigration = async (db: Db, options: Pick<WorkflowsOptions,
 
 /** The statements of a migration of the `workflows` schema: its tables only when missing, storage only when on. */
 export const workflowsSql = (schema: string, { tables, storage }: { tables: boolean; storage: boolean }) => {
-  const statements = [`create schema if not exists ${quoteIdent(schema)}`, ...(tables ? [] : [tablesSql(schema)]), definitionPartsSql(schema), checkpointsSql(schema), droppedSql(schema), triggersSql(schema), effectsSql(schema), revocationsSql(schema), hooksSql(schema), stepCacheSql(schema), indexesSql(schema), blockRunsSql(schema), ...(storage ? [storageSql(schema)] : []), functionsSql(schema), statusSql(schema)]
+  const statements = [`create schema if not exists ${quoteIdent(schema)}`, ...(tables ? [] : [tablesSql(schema)]), definitionPartsSql(schema), checkpointsSql(schema), droppedSql(schema), triggersSql(schema), effectsSql(schema), revocationsSql(schema), hooksSql(schema), stepCacheSql(schema), indexesSql(schema), blockRunsSql(schema), taskTokensSql(schema), ...(storage ? [storageSql(schema)] : []), functionsSql(schema), statusSql(schema)]
   return `${statements.join(';\n\n')};`
 }
 

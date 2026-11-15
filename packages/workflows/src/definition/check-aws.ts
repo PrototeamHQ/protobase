@@ -11,7 +11,6 @@ const awsFields: Record<string, string> = {
   ResultWriter: "is a distributed Map's writer, which does not run here",
   ToleratedFailureCount: "is a distributed Map's, which does not run here",
   ToleratedFailurePercentage: "is a distributed Map's, which does not run here",
-  HeartbeatSeconds: 'does not run here: a step type ends or fails within its TimeoutSeconds',
   Credentials: 'does not run here: a step signs in through the connection its type declares',
 }
 
@@ -36,8 +35,8 @@ const stateProblems = (states: unknown, path: string[]): Problem[] => {
 
 /**
  * What a state machine from Step Functions holds that this app does not run, each named: JSONPath (its query
- * language by default), its service tasks, the HTTP task included, Parallel, a distributed Map, heartbeats, credentials and a
- * whole-run timeout. Empty for a machine this app can check further.
+ * language by default), its service tasks, the HTTP task included, Parallel, a distributed Map, credentials and a whole-run
+ * timeout. Empty for a machine this app can check further.
  */
 export const awsProblems = (definition: unknown): Problem[] => {
   const machine = isObject(definition) && isObject(definition.stateMachine) ? definition.stateMachine : undefined

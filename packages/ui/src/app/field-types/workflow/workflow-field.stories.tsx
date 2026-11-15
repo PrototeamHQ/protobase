@@ -301,6 +301,44 @@ export const RemovesBreakChecks: StoryObj = {
   },
 }
 
+/**
+ * A step made to wait for an outside result hands its work off with a token and waits: its node says so, its form asks
+ * how long it waits and how often a heartbeat must come instead of offering the cache, and the save stores the States
+ * Language's `.waitForTaskToken` resource with those times.
+ */
+export const WaitsForResultChecks: StoryObj = {
+  ...NewWorkflow,
+  name: 'A step waits for an outside result (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.type(await canvas.findByRole('textbox', { name: /^Name/ }), 'Approval')
+    await userEvent.click(canvas.getByRole('button', { name: 'Create workflow' }))
+    await addStep(canvasElement, 'HTTP request')
+    const panel = within(await canvas.findByRole('region', { name: 'Chosen step' }))
+    await userEvent.type(await panel.findByRole('textbox', { name: /^URL/ }), 'https://approvals.example.com/ask')
+    const waits = panel.getByRole('switch', { name: 'Wait for an outside result' })
+    expect(waits).toHaveAttribute('aria-checked', 'false')
+    await userEvent.click(waits)
+    await waitFor(() => expect(waits).toHaveAttribute('aria-checked', 'true'))
+    expect(panel.queryByRole('switch', { name: 'Cache results' })).toBeNull()
+    await userEvent.type(panel.getByRole('textbox', { name: /^Wait at most/ }), '86400')
+    await userEvent.type(panel.getByRole('textbox', { name: /^Heartbeat within/ }), '600')
+    expect(await canvas.findByRole('group', { name: /HTTP request, then waits/ })).toBeInTheDocument()
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() =>
+      expect((stored?.state_machine as Definition['stateMachine'] | undefined)?.States['Step 1']).toEqual({
+        Type: 'Task',
+        Resource: 'app:http.waitForTaskToken',
+        Arguments: { url: 'https://approvals.example.com/ask' },
+        TimeoutSeconds: 86400,
+        HeartbeatSeconds: 600,
+        End: true,
+      }),
+    )
+  },
+}
+
 /** Delete removes a chosen edge, and Remove step a step with the edges to it; the save stores the workflow without them. */
 export const RemovesChecks: StoryObj = {
   ...MadeThroughTheApi,

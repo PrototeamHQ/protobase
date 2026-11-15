@@ -27,6 +27,8 @@ import type { TokenAuth } from '../personal-mail/linked-accounts'
 import type { Locale } from '@protobase/schema/internal'
 import { connectionTexts } from './connections/connection-texts'
 import { traceJoining } from './trace-joining'
+import { taskRoute } from './tasks/task-route'
+import { answerTaskAs } from './tasks/answer-as'
 
 /**
  * What `createAdmin` needs for `workflows`: the hooks that check saves and start runs, the check of a run's input before
@@ -50,7 +52,7 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   const cache = postgresStepCache(() => deps().db, schema, secretFingerprints(secrets, env.PROTOBASE_SECRET), roles)
   const files = () => deps().files
   const trace = traceSink({ files, joining: traceJoining(() => deps().db, schema), report: (error) => deps().report(error) })
-  const { runner, job } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail, connections.step, connections.mailbox), secrets, cache, trace, traceMode: workflowsTraceMode(options), roles })
+  const { runner, job, tokens } = workflowsRunner({ schema, tasks: (context) => types.tasks(input, context.mail, connections.step, connections.mailbox), secrets, cache, trace, traceMode: workflowsTraceMode(options), roles })
   const redactor = secretRedactor(Object.values(secrets))
   // Only the types a save takes: a trigger of a type no longer available, as after an app update, does nothing.
   const usable = <T>(found: Map<string, T>) => (type: string) => (types.check.triggers[type] ? found.get(type) : undefined)
@@ -74,10 +76,14 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   })
   const webhooks = usable(types.webhooks)
   const issue = { deps, schema, webhooks, origin: () => auth?.origins[0] }
-  // The public webhook address, and where a caller who may change a workflow issues its URL.
+  // An outside executor's answer to a waiting Task, which its token alone admits, and the same as a signed-in caller. The
+  // answer and the run's wake commit together, so an answer whose wake failed is not kept and may be sent again.
+  const answerTask = (token: string, answer: Parameters<typeof runner.answerTask>[2]) => deps().db.transaction().execute((trx) => runner.answerTask(trx, token, answer))
+  // The public webhook address, where a caller who may change a workflow issues its URL, and the waiting Tasks' answers.
   const routes = {
+    tasks: () => taskRoute({ answer: answerTask, report: (error) => deps().report(error) }),
     hooks: () => hookRoute({ db: deps().db, schema, webhooks, webhookTypes: () => [...types.webhooks.keys()].filter((id) => webhooks(id)), files: () => deps().files, report: (error) => deps().report(error), redact: redactor.text }),
     issue: () => issueRoute(issue),
   }
-  return { routes, issue, hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema), ...(storage ? [storageConfigurationHook(storage)] : [])], writeChecks: [runInputCheck, ...(storage ? [storageEndpointCheck(storage, allowPrivateAddresses)] : [])], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId) }
+  return { routes, issue, answerTask: answerTaskAs(deps, tokens, answerTask), hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema), ...(storage ? [storageConfigurationHook(storage)] : [])], writeChecks: [runInputCheck, ...(storage ? [storageEndpointCheck(storage, allowPrivateAddresses)] : [])], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId) }
 }

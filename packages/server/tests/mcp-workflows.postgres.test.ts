@@ -41,6 +41,8 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
   let base: string
   let folder: Awaited<ReturnType<typeof tempDir>>
   const tokens: Record<string, string> = {}
+  // What an outside executor was handed by a waiting step, as JSON bodies.
+  const handOffs: Array<{ token: string; job: string }> = []
 
   beforeAll(async () => {
     database = await openPostgresDatabase('auth')
@@ -65,6 +67,15 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
     await createUser(served.auth, { email: 'bo@example.com', password, role: 'viewer' })
     for (const email of ['ana@example.com', 'bo@example.com']) tokens[email] = (await served.grant(email)).tokens.access_token
     receiver = createServer((request, response) => {
+      if (request.url === '/hand-off') {
+        let body = ''
+        request.on('data', (chunk) => (body += chunk))
+        request.on('end', () => {
+          handOffs.push(JSON.parse(body))
+          response.writeHead(202, { 'content-type': 'application/json' }).end('{}')
+        })
+        return
+      }
       if (request.url === '/greeting') return void response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ greeting: 'hello' }))
       response.writeHead(500, { 'content-type': 'text/plain' }).end('the notifier is down')
     })
@@ -204,5 +215,30 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('workflows over MCP', ()
     expect(await bo('new_webhook_url', { id })).toMatchObject({ error: 'not-found' })
     expect(await counts()).toEqual(before)
     expect((await ana('get_workflow', { id })).workflow.name).toBe('Private')
+  })
+
+  it('hands a step off to an outside executor over HTTP and goes on with the result sent back with its token', async () => {
+    const hand = {
+      Type: 'Task',
+      Resource: 'app:http.waitForTaskToken',
+      Arguments: { url: `{% $states.context.Execution.Input.base & '/hand-off' %}`, method: 'POST', body: { job: 'resize', token: '{% $states.context.Task.Token %}' } },
+      TimeoutSeconds: 3600,
+      Assign: { done: '{% $states.result %}' },
+      Next: 'Shape',
+    }
+    const created = await ana('create_workflow', { name: 'Hand off', ...definitionFields(definition({ Hand: hand, Shape: { Type: 'Pass', Output: '{% $done %}', End: true } })) })
+    const started = await ana('run_workflow', { id: created.id, input: { base } })
+    await vi.waitFor(() => expect(handOffs).toHaveLength(1), { timeout: 20_000, interval: 100 })
+    const { token } = handOffs[0]!
+    // Someone who may not read the run cannot answer it, and learns nothing of it.
+    expect(await call('bo@example.com', 'send_task_success', { task_token: token, output: '{}' })).toMatchObject({ error: 'TaskDoesNotExist' })
+    expect(await ana('send_task_heartbeat', { task_token: token })).toEqual({ run: started.run_id })
+    expect(await ana('send_task_success', { task_token: token, output: 'not json' })).toMatchObject({ error: 'InvalidOutput' })
+    expect(await ana('send_task_success', { task_token: token, output: JSON.stringify({ width: 640 }) })).toEqual({ run: started.run_id })
+    const { run, steps } = await finished(started.run_id)
+    expect(run).toMatchObject({ status: 'succeeded', output: { width: 640 } })
+    expect(steps[0]).toMatchObject({ state: 'Hand', status: 'succeeded', output: { width: 640 } })
+    expect(JSON.stringify(steps)).not.toContain(token)
+    expect(await ana('send_task_failure', { task_token: token, error: 'Late' })).toMatchObject({ error: 'TaskTimedOut' })
   })
 })

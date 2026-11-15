@@ -9,12 +9,16 @@ const statesFields: Record<ExpressionPlace, string> = { state: '', result: 'resu
 
 const startsWith = (path: readonly string[], prefix: readonly string[]) => prefix.every((name, index) => path[index] === name)
 
-// Why a read of `$states.context` is refused: the input, the start time and a secret by name are all it holds, and in
-// dataflow order each state's status by its name, `steps`.
-const contextProblem = (path: readonly string[], steps: ReadonlySet<string> | undefined) => {
+// Why a read of `$states.context` is refused: the input, the start time and a secret by name are all it holds, in
+// dataflow order each state's status by its name, `steps`, and in a waiting Task's Arguments its try's token, `token`.
+const contextProblem = (path: readonly string[], steps: ReadonlySet<string> | undefined, token: boolean) => {
   const rest = path.slice(1)
   if (startsWith(rest, ['Secrets'])) return rest.length >= 2 ? undefined : 'reads $states.context.Secrets as a whole; read one secret by its name, such as $states.context.Secrets.API_TOKEN'
   if (contextReads.some((read) => startsWith(rest, read))) return undefined
+  if (startsWith(rest, ['Task'])) {
+    if (!token) return "reads $states.context.Task, which only the Arguments of a Task whose Resource ends in .waitForTaskToken read, as $states.context.Task.Token"
+    return startsWith(rest, ['Task', 'Token']) && rest.length === 2 ? undefined : 'reads $states.context.Task, whose only field is Token'
+  }
   if (steps && startsWith(rest, ['Steps'])) {
     if (rest[1] === undefined) return 'reads $states.context.Steps as a whole; read one state\'s status by its name, such as $states.context.Steps.Save.Status'
     return steps.has(rest[1]) ? undefined : `reads $states.context.Steps.${rest[1]}, but there is no state ${rest[1]} here or around it`
@@ -32,10 +36,10 @@ export const expressionParsed = (source: string) => {
 /**
  * Why an expression breaks the named-reads profile, if it does: it must parse, read no implicit input, read
  * `$states.input` only in the first state of a Map's item processor, read of `$states.context` only the run's input,
- * start time and secrets by name (inside a Block, not the start time), and read only variables a state that can run
- * before it assigns.
+ * start time and secrets by name (inside a Block, not the start time), with `token` a waiting Task's token too, and
+ * read only variables a state that can run before it assigns.
  */
-export const readProblems = (source: string, { place, visible, firstOfItem, inBlock = false, steps }: { place: ExpressionPlace; visible: ReadonlySet<string>; firstOfItem: boolean; inBlock?: boolean; steps?: ReadonlySet<string> }) => {
+export const readProblems = (source: string, { place, visible, firstOfItem, inBlock = false, steps, token = false }: { place: ExpressionPlace; visible: ReadonlySet<string>; firstOfItem: boolean; inBlock?: boolean; steps?: ReadonlySet<string>; token?: boolean }) => {
   if (source.length > limits.expressionLength) return [`is ${source.length} characters long, more than the ${limits.expressionLength} an expression may be`]
   const parsed = parse(source)
   if ('error' in parsed) return [`does not parse: ${parsed.error.message}${parsed.error.position === undefined ? '' : ` (at character ${parsed.error.position})`}`]
@@ -48,7 +52,7 @@ export const readProblems = (source: string, { place, visible, firstOfItem, inBl
     if (field !== '' && field === statesFields[place]) continue
     if (field === 'context' && inBlock && startsWith(path, ['context', 'Execution', 'StartTime'])) problems.push("reads $states.context.Execution.StartTime, which inside a Block is its own run's start, not part of what it is cached by")
     else if (field === 'context') {
-      const problem = contextProblem(path, steps)
+      const problem = contextProblem(path, steps, token)
       if (problem) problems.push(problem)
     } else if (field === 'input') problems.push("reads $states.input, which only the first state of a Map's item processor may read (as the item)")
     else if (field === '') problems.push('reads $states as a whole; read one of its fields')

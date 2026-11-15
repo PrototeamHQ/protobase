@@ -8,6 +8,7 @@ import { mergePatch } from './merge-patch'
 import { withStepsToCheck } from '../save-hook'
 import { connectionHeadersParameter, importedFields } from './import-machine-args'
 import { definitionDataOf, definitionFieldsOf, definitionParameters, editParameter, hiddenMergeMessage, hiddenMerges, idOf, idParameter, objectOf, pageSizeOf, textOf } from './workflow-tool-args'
+import type { AnswerTaskAs } from '../tasks/answer-as'
 
 const reads = { readOnlyHint: true, openWorldHint: false }
 const listed = ['id', 'name', 'description', 'version', 'updated_at']
@@ -21,6 +22,8 @@ export type WorkflowCatalog = {
   checkWith: (models: (name: string) => ResourceModel | undefined) => CheckOptions
   /** Issues a workflow's webhook URL as the caller, for `new_webhook_url`. */
   issueWebhook?: IssueWebhook
+  /** Answers a waiting Task as the caller, for `send_task_success`, `send_task_failure` and `send_task_heartbeat`. */
+  answerTask?: AnswerTaskAs
   /** The caller's own connected accounts, for `list_connections`; none without it. */
   listConnections?: ListConnections
   /** The steps of a run's trace, for `get_workflow_run`. */

@@ -127,6 +127,11 @@ describe('create_workflow', () => {
     const unsaved = contextWith({ create })
     expect(JSON.parse(await createWorkflowTool().run({ name: 'Call', state_machine: exported }, unsaved.context)).problems).toEqual([{ state: 'Call', field: 'Arguments.Authentication.ConnectionArn', message: expect.stringMatching(/^names a connection/) }])
     expect(unsaved.approve).not.toHaveBeenCalled()
+    // One that waits for a task token is refused by name: written as app:http.waitForTaskToken, a step waits for an outside result
+    const callback = { QueryLanguage: 'JSONata', StartAt: 'Call', States: { Call: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke.waitForTaskToken', Arguments: { ApiEndpoint: 'https://a.example' }, HeartbeatSeconds: 60, End: true } } }
+    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: callback }, context)).problems).toEqual([
+      { state: 'Call', field: 'Resource', message: "is a Step Functions service (arn:aws:states:::http:invoke.waitForTaskToken), which does not run here: write the step with one of this app's step types, such as app:http for an HTTP request" },
+    ])
     const jsonPath = { StartAt: 'A', States: { A: { Type: 'Pass', ResultPath: '$.x', End: true } } }
     expect(JSON.parse(await validateWorkflowTool.run({ state_machine: jsonPath }, context)).problems).toEqual([
       { field: 'stateMachine.QueryLanguage', message: 'is missing, so the machine is JSONPath, the default of Step Functions; only JSONata machines run here: set "QueryLanguage": "JSONata" and write its states in JSONata' },

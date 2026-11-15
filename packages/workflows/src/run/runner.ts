@@ -1,9 +1,12 @@
 import { limits } from '../limits'
 import type { StepCacheStore } from './cache/cache-port'
 import { blockDefinition } from '../definition/inner'
-import type { BlockRunStore, BlockShare, LoadedRun, RunStore, SegmentQueue, StepRecord, TaskHandlers, TraceMode, TraceSink } from './port'
+import type { BlockRunStore, BlockShare, KeptAnswer, LoadedRun, RunStore, SegmentQueue, StepRecord, TaskAnswer, TaskHandlers, TaskTokenStore, TraceMode, TraceSink } from './port'
 import { blankedMark, secretRedactor } from './redact'
 import { runSegment } from './segment'
+import { taskTokenHash, tokenPattern } from './task-token'
+import { overdue } from './waiting-task'
+import { nestingDepth } from '../nesting'
 
 /**
  * The runner's port: where runs are kept, the queue that runs their segments, the step types, the secrets expressions
@@ -18,6 +21,8 @@ export type RunnerPort<Db> = {
   cache?: StepCacheStore
   /** Where blocks' runs are kept; without it a Block fails. */
   blocks?: BlockRunStore<Db>
+  /** Where waiting Tasks' tokens are kept; without it a Task that waits for an outside result fails. */
+  tokens?: TaskTokenStore<Db>
   secrets?: Readonly<Record<string, string>>
   trace?: TraceSink
   traceMode?: TraceMode
@@ -27,6 +32,34 @@ export type RunnerPort<Db> = {
 }
 
 const ended = new Set(['succeeded', 'failed'])
+
+/**
+ * Why an answer to a waiting Task is refused, by the name Step Functions gives it: a token that is not one
+ * (`InvalidToken`), no try with this token (`TaskDoesNotExist`), a try that ended or whose run ended (`TaskTimedOut`),
+ * and a result or failure too large to keep (`InvalidOutput`).
+ */
+export type AnswerRefusal = { error: 'InvalidToken' | 'TaskDoesNotExist' | 'TaskTimedOut' | 'InvalidOutput'; message: string }
+
+// The answer as a try keeps it, a success's output parsed from its JSON; or why it is refused: an output that is no
+// JSON or more than a step keeps, an error name or cause over Step Functions' limits.
+const keptAnswer = (answer: TaskAnswer): KeptAnswer | AnswerRefusal => {
+  const invalid = (message: string): AnswerRefusal => ({ error: 'InvalidOutput', message })
+  if (answer.kind === 'success') {
+    const bytes = new TextEncoder().encode(answer.output).length
+    if (bytes > limits.valueBytes) return invalid(`The output is ${bytes} bytes, over the ${limits.valueBytes / 1024} KiB a step keeps`)
+    let output: unknown
+    try {
+      output = JSON.parse(answer.output)
+    } catch {
+      return invalid('The output is not JSON: send the result as a string of JSON, as SendTaskSuccess takes it')
+    }
+    if (nestingDepth(output, limits.inputDepth) > limits.inputDepth) return invalid(`The output nests more than ${limits.inputDepth} levels`)
+    return { kind: 'success', output }
+  }
+  if (answer.kind === 'failure' && answer.error.length > limits.taskErrorLength) return invalid(`The error is ${answer.error.length} characters, more than ${limits.taskErrorLength}`)
+  if (answer.kind === 'failure' && answer.cause.length > limits.taskCauseLength) return invalid(`The cause is ${answer.cause.length} characters, more than ${limits.taskCauseLength}`)
+  return answer
+}
 
 // The definition a run runs: a block's run, its Block's processor, which a version without that Block does not have.
 const runDefinition = (run: Pick<LoadedRun, 'definition' | 'blockState'>, definition = run.definition) => (run.blockState ? blockDefinition(definition, run.blockState) : definition)
@@ -39,7 +72,7 @@ const blankedOut = (output: unknown) => (JSON.stringify(output) ?? '').includes(
  * The workflow runner over a port. `start` queues a run's first segment in `db`, which may be the caller's
  * transaction, so the run starts when it commits; `segment` is what the queue's job runs.
  */
-export const createRunner = <Db>({ store, queue, tasks, cache, blocks, secrets = {}, trace, traceMode = 'all', now = () => new Date(), budgetMs = limits.segmentMs, maxSteps = limits.runSteps }: RunnerPort<Db>) => {
+export const createRunner = <Db>({ store, queue, tasks, cache, blocks, tokens, secrets = {}, trace, traceMode = 'all', now = () => new Date(), budgetMs = limits.segmentMs, maxSteps = limits.runSteps }: RunnerPort<Db>) => {
   // Made once here too, so a secret too short to blank out stops the app at startup.
   secretRedactor(Object.values(secrets))
   return {
@@ -47,6 +80,35 @@ export const createRunner = <Db>({ store, queue, tasks, cache, blocks, secrets =
 
     /** The steps an ended run's trace holds, which a re-run from one of them starts from: undefined when it kept none. */
     readTrace: async (runId: string) => (await trace?.read(runId)) ?? undefined,
+
+    /**
+     * Takes an outside executor's answer to the waiting Task a token was given to: its result or failure, which wakes
+     * the run, or a heartbeat. The token is the only proof of who may answer, so it is never kept, only its hash. Gives
+     * the run it answered, or why it was refused.
+     */
+    answerTask: async (db: Db, token: string, answer: TaskAnswer): Promise<{ run: string } | AnswerRefusal> => {
+      if (!tokenPattern.test(token)) return { error: 'InvalidToken', message: 'This is not a task token' }
+      const kept = keptAnswer(answer)
+      // A refusal has no kind; a failure's answer has an error too.
+      if (!('kind' in kept)) return kept
+      const hash = await taskTokenHash(token)
+      const found = tokens && (await tokens.byHash(db, hash))
+      if (!found) return { error: 'TaskDoesNotExist', message: 'No waiting Task was given this token' }
+      const closed: AnswerRefusal = { error: 'TaskTimedOut', message: 'The Task this token was given to has ended' }
+      if (found.status !== 'waiting') return closed
+      const run = await store.load(db, found.run)
+      if (!run || ended.has(run.status)) return { error: 'TaskTimedOut', message: 'The run of the Task this token was given to has ended' }
+      const at = now()
+      const late = overdue(found, at)
+      if (late) {
+        // The run ends the try at once rather than at its next look.
+        await queue.wake(db, found.run)
+        return { error: 'TaskTimedOut', message: `The Task this token was given to has ended: ${late.cause}` }
+      }
+      if (!(await tokens!.answer(db, hash, kept, at))) return closed
+      if (answer.kind !== 'heartbeat') await queue.wake(db, found.run)
+      return { run: found.run }
+    },
 
     /** Puts the steps a re-run from a step keeps of an earlier run at the start of `run`'s trace, as the run keeps one. */
     keepSteps: (run: Pick<LoadedRun, 'id' | 'definition' | 'trace'>, steps: readonly StepRecord[]) => trace?.write(run.id, steps, { mode: run.trace ?? run.definition.trace ?? traceMode }),
@@ -75,7 +137,8 @@ export const createRunner = <Db>({ store, queue, tasks, cache, blocks, secrets =
       // One per segment, so the tokens its steps were given are blanked from all it records, and kept no longer.
       const redactor = secretRedactor(Object.values(secrets))
       const blockRuns = blocks && { find: (visit: string) => blocks.find(db, runId, visit), start: (block: { visit: string; state: string; input: unknown; share?: BlockShare; joinOnly?: true }) => blocks.start(db, { parent: runId, ...block }), count: () => blocks.count(db, runId) }
-      const segment = { runId, definition, input: run.input, startedAt: run.startedAt, secrets, redactor, tasks, ...(cache && { cache }), ...(blockRuns && { blocks: blockRuns }), signal, now, budgetMs, maxSteps }
+      const taskTokens = tokens && { find: (visit: string) => tokens.find(db, runId, visit), begin: (task: Omit<Parameters<TaskTokenStore<Db>['begin']>[1], 'run'>) => tokens.begin(db, { ...task, run: runId }), handedOff: (visit: string, done: Parameters<TaskTokenStore<Db>['handedOff']>[3]) => tokens.handedOff(db, runId, visit, done), close: (visit: string, failure: { error: string; cause: string }, seen?: { heartbeatAt: Date | null }) => tokens.close(db, runId, visit, failure, seen) }
+      const segment = { runId, definition, input: run.input, startedAt: run.startedAt, secrets, redactor, tasks, ...(cache && { cache }), ...(blockRuns && { blocks: blockRuns }), ...(taskTokens && { tokens: taskTokens }), signal, now, budgetMs, maxSteps }
       // A replay takes the steps of the run it replays from that run's trace: none when the run or its trace is gone.
       const replayed = run.replayOf === undefined ? undefined : { definition: runDefinition(run, run.replayOf?.definition) ?? definition, steps: run.replayOf ? ((await trace?.read(run.replayOf.id)) ?? []) : [] }
       const mode = run.trace ?? run.definition.trace ?? traceMode
