@@ -73,7 +73,8 @@ const customStepVersionsResource = (schema: string) =>
   resource('workflow_custom_step_versions')
     .table(`${schema}.custom_step_versions`)
     .fields({
-      custom_step_id: f.relation('workflow_custom_steps').readOnly().filterable(),
+      id: f.uuid().readOnly().dbDefault(),
+      custom_step_id: f.relation('workflow_custom_steps').optional().readOnly().filterable(),
       version: f.integer().readOnly().sortable(),
       name: f.text().readOnly(),
       label: f.text().readOnly(),
@@ -88,7 +89,7 @@ const customStepVersionsResource = (schema: string) =>
       tenant_id: f.text().optional().readOnly(),
       saved_at: f.timestamp().readOnly().dbDefault(),
     })
-    .primaryKey((r) => [r.custom_step_id, r.version])
+    .primaryKey((r) => r.id)
     .tenant((r) => r.tenant_id)
     .explicitGrants()
     .access({ create: () => false, update: () => false, delete: () => false })

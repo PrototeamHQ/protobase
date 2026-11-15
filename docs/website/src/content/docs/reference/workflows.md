@@ -555,7 +555,7 @@ A custom step is a record of `workflow_custom_steps`, which you create and chang
 }
 ```
 
-Each version, its manifest whole with who saved it and when, is a record of `workflow_custom_step_versions`, read-only, listed on its custom step's page; deleting a custom step deletes its versions.
+Each version, its manifest whole with who saved it and when, is a record of `workflow_custom_step_versions`, read-only, listed on its custom step's page. Deleting a custom step keeps its versions, which are then no step types, and a custom step made again under its name goes on from its next version, so `custom:<name>:<version>` always names the one manifest it named first.
 
 A Task names a version in its `Resource`:
 

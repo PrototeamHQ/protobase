@@ -16,10 +16,11 @@ const manifest = ['label', 'description', 'kind', 'container', 'input', 'output'
 export const customStepsTables = ['custom_steps', 'custom_step_versions']
 
 /**
- * The custom steps of each tenant, by a name unique in it, and each version of their manifests as it was saved, which
- * goes with its step. A step numbers its next version as a write changes its manifest, in the row the write returns;
- * the save hook keeps that version, saved by the caller. Each write gives the row a new `updated_at`, its ETag. Every
- * statement is idempotent.
+ * The custom steps of each tenant, by a name unique in it, and each version of their manifests as it was saved. A step
+ * numbers its next version as a write changes its manifest, in the row the write returns; the save hook keeps that
+ * version, saved by the caller. A version outlives its step, so `custom:<name>:<version>` names one manifest only, ever:
+ * a step made again under a deleted one's name goes on from its last version. Each write gives the row a new
+ * `updated_at`, its ETag. Every statement is idempotent.
  */
 export const customStepsSql = (schema: string) => {
   const s = quoteIdent(schema)
@@ -40,23 +41,27 @@ create index if not exists "custom_steps_name_search" on ${s}."custom_steps" usi
 create index if not exists "custom_steps_updated_at" on ${s}."custom_steps" ("updated_at");
 
 create table if not exists ${s}."custom_step_versions" (
-  "custom_step_id" uuid not null references ${s}."custom_steps" ("id") on delete cascade,
+  "id" uuid primary key default gen_random_uuid(),
+  -- None once its step is deleted: the version stays, as what its name and number meant
+  "custom_step_id" uuid references ${s}."custom_steps" ("id") on delete set null,
   "version" integer not null,
   "tenant_id" text,
   "name" text not null,
   ${manifestColumns},
   "saved_by" text,
-  "saved_at" timestamptz not null default now(),
-  primary key ("custom_step_id", "version")
+  "saved_at" timestamptz not null default now()
 );
-create index if not exists "custom_step_versions_tenant" on ${s}."custom_step_versions" ("tenant_id", "name", "version");
+create unique index if not exists "custom_step_versions_name" on ${s}."custom_step_versions" (coalesce("tenant_id", ''), "name", "version");
+create index if not exists "custom_step_versions_step" on ${s}."custom_step_versions" ("custom_step_id", "version");
 create index if not exists "custom_step_versions_version" on ${s}."custom_step_versions" ("version");
 
 create or replace function ${s}."custom_step_version"() returns trigger
 language plpgsql as $$
 begin
   if tg_op = 'INSERT' then
-    new.version := 1;
+    -- After every version a step of this name had, a deleted one's included
+    new.version := coalesce((select max(v.version) from ${s}."custom_step_versions" v
+      where coalesce(v.tenant_id, '') = coalesce(new.tenant_id, '') and v.name = new.name), 0) + 1;
     return new;
   end if;
   -- The write holds the row, so a save in another transaction numbers its version after this one.

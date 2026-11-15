@@ -181,13 +181,21 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('custom steps on the app
     expect(await row()).toEqual({ status: 'failed', error: 'States.Runtime', cause: 'Custom steps do not run yet' })
   })
 
-  it('takes its versions with it when a custom step is deleted, and refuses the workflows that name them from then on', async () => {
+  it('keeps a deleted custom step\'s versions, as no step types, and numbers a new one of its name after them', async () => {
     const step = await created('ada', '/workflow_custom_steps', { name: 'short_lived', ...manifest })
-    const save = () => as('bob', '/workflows', { method: 'POST', body: { name: 'Short lived', ...definitionFields(render('custom:short_lived:1')) } })
-    expect((await save()).status).toBe(201)
+    const save = (version: number) => as('bob', '/workflows', { method: 'POST', body: { name: `Short lived ${version}`, ...definitionFields(render(`custom:short_lived:${version}`)) } })
+    expect((await save(1)).status).toBe(201)
     expect((await as('ada', `/workflow_custom_steps/${String(step.id)}`, { method: 'DELETE' })).status).toBe(204)
-    expect(await versions(String(step.id))).toEqual([])
+    const kept = async () => (await sql<{ custom_step_id: string | null; version: number }>`select custom_step_id, version from workflows.custom_step_versions where name = 'short_lived' order by version`.execute(db)).rows
+    expect(await kept()).toEqual([{ custom_step_id: null, version: 1 }])
     expect((await stepTypes('bob')).map((type) => type.id)).not.toContain('custom:short_lived:1')
-    expect((await save()).status).toBe(400)
+    expect((await save(1)).status).toBe(400)
+    // Made again, it goes on from version 2, so custom:short_lived:1 never names another manifest
+    const again = await created('ada', '/workflow_custom_steps', { name: 'short_lived', ...manifest, label: 'Short lived again' })
+    expect(again.version).toBe(2)
+    expect((await stepTypes('bob')).filter((type) => type.id.startsWith('custom:short_lived:')).map((type) => [type.id, type.label])).toEqual([['custom:short_lived:2', 'Short lived again']])
+    expect(await kept()).toEqual([{ custom_step_id: null, version: 1 }, { custom_step_id: again.id, version: 2 }])
+    expect((await save(1)).status).toBe(400)
+    expect((await save(2)).status).toBe(201)
   })
 })
