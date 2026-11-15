@@ -65,6 +65,7 @@
     "@protobase/cli": "workspace:*",
     "@protobase/client": "workspace:*",
     "@protobase/config": "workspace:*",
+    "@protobase/graph": "workspace:*",
     "@protobase/image-viewer": "workspace:*",
     "@protobase/layout": "workspace:*",
     "@protobase/pdf-viewer": "workspace:*",
