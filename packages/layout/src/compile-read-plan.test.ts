@@ -132,8 +132,8 @@ describe('compileReadPlan', () => {
     const tree = Page({ title: 'Map', children: [Graph({ nodes: 'tasks', edges: 'task_claims', label: 'title', group: 'project_id', from: 'task_id', to: 'worker_id' })] })
     expect(plan(tree).plan).toEqual({
       reads: [
-        { block: '/children/0', part: 'nodes', kind: 'list', resource: 'tasks', fields: ['id', 'project_id', 'title'], etag: false },
-        { block: '/children/0', part: 'edges', kind: 'list', resource: 'task_claims', fields: ['id', 'task_id', 'worker_id'], etag: false },
+        { block: '/children/0', part: 'nodes', kind: 'list', resource: 'tasks', pageSize: 500, fields: ['id', 'project_id', 'title'], etag: false },
+        { block: '/children/0', part: 'edges', kind: 'list', resource: 'task_claims', pageSize: 500, fields: ['id', 'task_id', 'worker_id'], etag: false },
       ],
       outside: [],
     })

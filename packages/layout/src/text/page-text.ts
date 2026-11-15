@@ -58,5 +58,5 @@ export const pageText = async (tree: LayoutNode, plan: ReadPlan, { read, labels,
     return rows && tableOf(node, rows, labels)
   }
   const planned: TextOptions['planned'] = (id, record) => rowsAt(outcomes, reads, id, record, params)
-  return renderText(tree, { ...options, params, records, tables, planned })
+  return renderText(tree, { ...options, ...(labels && { labels }), params, records, tables, planned })
 }
