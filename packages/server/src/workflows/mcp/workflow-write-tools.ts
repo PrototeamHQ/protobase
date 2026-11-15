@@ -8,7 +8,7 @@ import { refused } from '../../assistant/record-tool-args'
 import { defineTool } from '../../assistant/tools'
 import { createApproval, updateApproval } from '../../assistant/write-prompts'
 import { notApproved, onlyNote, outside, type WriteRecordToolsInput } from '../../assistant/write-tool-limits'
-import { notFound } from '../../problem'
+import { forbidden, notFound } from '../../problem'
 import type { Row } from '../../types'
 import { definitionFromParts, definitionWarnings, type DefinitionParts } from '@protobase/workflows'
 import type { WorkflowCatalog } from './workflow-read-tools'
@@ -32,7 +32,7 @@ const saved = (record: Row, etag: string, live: Row = {}) => {
 const unissued = (error: unknown) => `${error instanceof Error ? error.message : String(error)}: the workflow is saved and published; issue its URL with new_webhook_url`
 
 /** What `create_workflow` goes live with: the go-live check and the issuing of URLs, where the app issues them. */
-export type CreateLive = Pick<WorkflowCatalog, 'checkGoLive' | 'issueWebhook'>
+export type CreateLive = Pick<WorkflowCatalog, 'checkGoLive' | 'issueWebhook' | 'mayIssueWebhook'>
 
 /**
  * Creates a workflow once the user approves it; a definition the check refuses saves nothing. With `publish`, version 1
@@ -72,6 +72,8 @@ export const createWorkflowTool = (input: WriteRecordToolsInput = {}, live: Crea
       } catch (error) {
         return refused(error)
       }
+      // Issuing the URL needs the right to change workflows: checked before anything is saved
+      if (hook && live.mayIssueWebhook && !(await live.mayIssueWebhook(context.session))) return refused(forbidden('access-denied', 'Issuing a webhook URL needs the right to change workflows: create it without publish'))
       const data = publish ? { ...fields, enabled_version: 1 } : fields
       const { text, described } = await approvalTexts(context, 'workflows')
       const answer = await context.approve(createApproval(text, described, data))

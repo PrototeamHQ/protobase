@@ -169,6 +169,9 @@ describe('create_workflow', () => {
     const { context, approve } = contextWith({ create })
     const live = { checkGoLive: () => { throw badRequest('invalid-secret', 'A standard_webhooks secret is whsec_ followed by at least 24 bytes in base64') } }
     expect(JSON.parse(await createWorkflowTool({}, live).run({ name: 'Fetch', ...fetchUrl('https://a.example'), publish: true, webhook_secret: 'x' }, context))).toMatchObject({ error: 'invalid-secret' })
+    // Issuing the URL needs the right to change workflows, which a caller who may only create them lacks
+    const createOnly = { checkGoLive: () => ({ type: 'app:webhook' }), mayIssueWebhook: async () => false }
+    expect(JSON.parse(await createWorkflowTool({}, createOnly).run({ name: 'Fetch', ...fetchUrl('https://a.example'), publish: true }, context))).toMatchObject({ error: 'access-denied' })
     expect(approve).not.toHaveBeenCalled()
     expect(create).not.toHaveBeenCalled()
   })

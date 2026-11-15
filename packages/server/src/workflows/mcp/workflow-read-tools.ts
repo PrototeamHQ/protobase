@@ -1,6 +1,7 @@
 import type { ResourceModel } from '@protobase/schema'
 import type { IssueWebhook } from './webhook-tools'
 import type { GoLive } from '../hooks/create-workflow'
+import type { Session } from '../../types'
 import { listConnectionsTool, type ListConnections } from './connection-tools'
 import { checkDefinition, definitionFromParts, definitionWarnings, typeCatalog, withCustomSteps, type DefinitionParts, type CheckOptions, type TypeEntry } from '@protobase/workflows'
 import { refused } from '../../assistant/record-tool-args'
@@ -31,6 +32,8 @@ export type WorkflowCatalog = {
    * with `publish` issues, or none; a refusal throws, as for a secret the trigger's auth mode cannot check.
    */
   checkGoLive?: (trigger: unknown, live: GoLive) => { type: string } | undefined
+  /** Whether the caller may change workflows, which issuing a webhook URL needs, checked before `create_workflow` saves. */
+  mayIssueWebhook?: (session: Session) => Promise<boolean>
   /** Answers a waiting Task as the caller, for `send_task_success`, `send_task_failure` and `send_task_heartbeat`. */
   answerTask?: AnswerTaskAs
   /** The caller's own connected accounts, for `list_connections`; none without it. */
