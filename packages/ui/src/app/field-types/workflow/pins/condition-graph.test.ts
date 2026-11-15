@@ -161,4 +161,39 @@ describe('condition nodes', () => {
     expect(addCondition(workflow(saved), 'Tell', [1], 'and')).toEqual(workflow(saved))
     expect(addCondition(and, 'Tell', [0, 0], 'and')).toEqual(and)
   })
+
+  it('opens a chain of and as one All of, with an empty input after its last that a wire or a node adds to', () => {
+    const chain = "{% $states.context.Steps.Save.Status = 'SUCCEEDED' and $fetch.ok and $states.context.Steps.Fetch.Status = 'SUCCEEDED' %}"
+    const definition = workflow(chain)
+    const all = nodes(definition).find((node) => node.at.length === 0)!
+    expect(all.part).toMatchObject({ kind: 'logic', op: 'and' })
+    expect(all.inputs.map((pin) => [pin.key, pin.state])).toEqual([['0', 'made'], ['1', 'wired'], ['2', 'made'], ['3', 'empty']])
+    const graph = dataGraph(definition, schemas)
+    const next = { node: all.id, handle: inHandle('3') }
+    expect(wireRefusal(definition, graph, { node: 'Fetch', handle: outHandle(['ok']) }, next)).toBeUndefined()
+    expect(conditionOf(connectData(definition, graph, { node: 'Fetch', handle: outHandle(['ok']) }, next))).toBe(chain.replace(' %}', ' and $fetch.ok %}'))
+    expect(conditionOf(addCondition(definition, 'Tell', [3], 'not'))).toBe(chain.replace(' %}', ' and $not(false) %}'))
+    // Of three, a removed input goes; of two, it holds true again
+    expect(conditionOf(clearConditionSide(definition, 'Tell', [1]))).toBe("{% $states.context.Steps.Save.Status = 'SUCCEEDED' and $states.context.Steps.Fetch.Status = 'SUCCEEDED' %}")
+    expect(conditionOf(removePure(definition, graph, graph.pure.find((node) => node.id === conditionId('Tell', [2]))!))).toBe("{% $states.context.Steps.Save.Status = 'SUCCEEDED' and $fetch.ok %}")
+    expect(conditionOf(clearConditionSide(workflow('{% $fetch.ok and true %}'), 'Tell', [0]))).toBe('{% true and true %}')
+    // The empty input holds nothing to clear
+    expect(clearConditionSide(definition, 'Tell', [3])).toEqual(definition)
+  })
+
+  it('opens $contains with a pattern as a Matches node, whose pattern is written on it and never wired', () => {
+    const condition = '{% $contains($states.context.Execution.Input.email, /^[^@\\s]+@[^@\\s]+$/i) %}'
+    const definition = workflow(condition)
+    const [matches] = nodes(definition)
+    expect(matches!.part).toEqual({ kind: 'matches', sides: [{ read: { base: { input: true }, path: ['email'] } }, { pattern: '^[^@\\s]+@[^@\\s]+$', flags: 'i' }] })
+    expect(matches!.inputs.map((pin) => [pin.key, pin.state, pin.value])).toEqual([['0', 'wired', '{% $states.context.Execution.Input.email %}'], ['1', 'literal', '^[^@\\s]+@[^@\\s]+$']])
+    const graph = dataGraph(definition, schemas)
+    expect(wireRefusal(definition, graph, { node: 'Fetch', handle: outHandle(['status']) }, { node: matches!.id, handle: inHandle('1') })).toEqual({ reason: 'notPins' })
+    expect(conditionOf(setConditionSide(definition, 'Tell', [1], { value: 'x+' }))).toBe('{% $contains($states.context.Execution.Input.email, /x+/i) %}')
+    expect(conditionOf(setConditionSide(definition, 'Tell', [1], { value: '' }))).toBe('{% $contains($states.context.Execution.Input.email, /.*/i) %}')
+    expect(conditionOf(clearConditionSide(definition, 'Tell', [0]))).toBe("{% $contains('', /^[^@\\s]+@[^@\\s]+$/i) %}")
+    expect(addCondition(definition, 'Tell', [0], 'and')).toEqual(definition)
+    expect(conditionOf(addCondition(workflow(), 'Tell', [], 'matches'))).toBe("{% $contains('', /.*/) %}")
+  })
 })
+

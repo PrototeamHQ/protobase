@@ -26,12 +26,23 @@ describe('a Condition taken apart into nodes', () => {
       '{% $a or $b and $c %}',
       '{% $not($fetch.status = 200) or $not($ok) %}',
       '{% $not(true) %}',
+      '{% $a and $b and $c and $d %}',
+      '{% $a or $b or $c and $d %}',
+      '{% ($a and $b) and $c %}',
+      '{% $contains($contact.email, /^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/) %}',
+      '{% $contains($states.context.Execution.Input.body.topic, /sales/i) and $states.context.Steps.Save.Status = \'SUCCEEDED\' %}',
+      "{% $contains('fixed text', /a\\/b/m) %}",
     ]
     for (const condition of conditions) {
       const part = conditionParts(condition)
       expect(part, condition).toBeDefined()
       expect(conditionValue(part!)).toBe(condition)
     }
+    // A chain of one operator is one node, however long; one in brackets is a node of its own
+    const read = (variable: string) => ({ read: { base: { variable }, path: [] } })
+    expect(conditionParts('{% $a and $b and $c %}')).toEqual({ kind: 'logic', op: 'and', sides: [read('a'), read('b'), read('c')] })
+    expect(conditionParts('{% $a and ($b and $c) %}')).toEqual({ kind: 'logic', op: 'and', sides: [read('a'), { kind: 'logic', op: 'and', sides: [read('b'), read('c')] }] })
+    expect(conditionParts('{% $contains($contact.email, /^.+@.+$/i) %}')).toEqual({ kind: 'matches', sides: [{ read: { base: { variable: 'contact' }, path: ['email'] } }, { pattern: '^.+@.+$', flags: 'i' }] })
     expect(conditionParts('{% ($a or $b) and $c %}')).toEqual({ kind: 'logic', op: 'and', sides: [{ kind: 'logic', op: 'or', sides: [{ read: { base: { variable: 'a' }, path: [] } }, { read: { base: { variable: 'b' }, path: [] } }] }, { read: { base: { variable: 'c' }, path: [] } }] })
   })
 
@@ -52,6 +63,9 @@ describe('a Condition taken apart into nodes', () => {
       '{% $fetch.status = 1.50 %}',
       '{% $states.context.Steps.Save.Status = null %}',
       '{% $states.context.Steps.Save.Status = %}',
+      '{% $contains($a, "text") %}',
+      '{% $contains($a, /x/, 1) %}',
+      '{% $contains($a, /x/g) %}',
       "$states.context.Steps.Save.Status = 'SUCCEEDED'",
       true,
     ]

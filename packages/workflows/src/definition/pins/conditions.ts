@@ -7,17 +7,25 @@ export type CompareOp = '=' | '!=' | '>' | '<'
 /** A value a condition node takes: one read by name, or a value of its own. */
 export type ConditionOperand = { read: Reference } | { value: string | number | boolean }
 
+/** A regular expression a Matches node tests text against: its source and its flags, `i` and `m`, as JSONata writes `/source/flags`. */
+export type ConditionPattern = { pattern: string; flags: string }
+
 /**
- * A Condition taken apart into the editor's nodes: a Comparison of two values, an And or an Or of two conditions, or a
- * Not of one, where a condition is another of these or a value of its own or read by name.
+ * A Condition taken apart into the editor's nodes: a Comparison of two values, a Matches of text against a pattern
+ * (`$contains`), an All of or an Any of two conditions or more (`and`, `or`), or a Not of one, where a condition is
+ * another of these or a value of its own or read by name.
  */
 export type ConditionPart =
   | { kind: 'compare'; op: CompareOp; sides: [ConditionOperand, ConditionOperand] }
-  | { kind: 'logic'; op: 'and' | 'or'; sides: [ConditionSide, ConditionSide] }
+  | { kind: 'matches'; sides: [ConditionOperand, ConditionPattern] }
+  | { kind: 'logic'; op: 'and' | 'or'; sides: ConditionSide[] }
   | { kind: 'not'; sides: [ConditionSide] }
 
 /** What a condition node's input takes: a node of its own, or a value. */
 export type ConditionSide = ConditionPart | ConditionOperand
+
+/** What any input of a condition node holds: a side, or a Matches node's pattern. */
+export type ConditionInput = ConditionSide | ConditionPattern
 
 /** What a step's status can be, as `$states.context.Steps.<name>.Status` reads it. */
 export const stepStatuses = ['SUCCEEDED', 'FAILED', 'TIMED_OUT', 'ABORTED', 'SKIPPED'] as const
@@ -25,7 +33,7 @@ export const stepStatuses = ['SUCCEEDED', 'FAILED', 'TIMED_OUT', 'ABORTED', 'SKI
 const compareOps: readonly string[] = ['=', '!=', '>', '<']
 
 /** Whether a side is a node of its own rather than a value. */
-export const isConditionPart = (side: ConditionSide): side is ConditionPart => 'kind' in side
+export const isConditionPart = (side: ConditionInput): side is ConditionPart => 'kind' in side
 
 type Node = { type: string; value?: unknown; steps?: Node[]; lhs?: Node; rhs?: Node; expressions?: Node[]; arguments?: Node[]; procedure?: Node; [key: string]: unknown }
 
@@ -51,11 +59,23 @@ const operandOf = (node: Node): ConditionOperand | undefined => {
   return read && { read }
 }
 
+// The conditions a chain of one operator joins, `a and b and c` as three: JSONata takes its left side first, so the
+// chain goes down its left sides; one in brackets is a node of its own
+const chainOf = (node: Node, op: string): Node[] => (node.type === 'binary' && node.value === op ? [...chainOf(node.lhs!, op), node.rhs!] : [node])
+
+const isRegex = (value: unknown): value is RegExp => value instanceof RegExp
+
 const partOf = (node: Node): ConditionPart | undefined => {
   if (node.type === 'block' && node.expressions?.length === 1) return partOf(node.expressions[0]!)
   if (node.type === 'binary' && (node.value === 'and' || node.value === 'or')) {
-    const [lhs, rhs] = [sideOf(node.lhs!), sideOf(node.rhs!)]
-    return lhs && rhs && { kind: 'logic', op: node.value, sides: [lhs, rhs] }
+    const sides = chainOf(node, node.value).map(sideOf)
+    return sides.every((side) => side !== undefined) ? { kind: 'logic', op: node.value, sides: sides as ConditionSide[] } : undefined
+  }
+  const [text, pattern] = node.arguments ?? []
+  if (node.type === 'function' && node.procedure?.type === 'variable' && node.procedure.value === 'contains' && node.arguments?.length === 2 && pattern?.type === 'regex' && isRegex(pattern.value)) {
+    const operand = operandOf(text!)
+    // JSONata gives every regular expression the g flag, which it does not write
+    return operand && { kind: 'matches', sides: [operand, { pattern: pattern.value.source, flags: pattern.value.flags.replace('g', '') }] }
   }
   if (node.type === 'binary' && compareOps.includes(node.value as string)) {
     const [lhs, rhs] = [operandOf(node.lhs!), operandOf(node.rhs!)]
@@ -84,18 +104,19 @@ const operandText = (operand: ConditionOperand) => {
   return typeof operand.value === 'string' ? quoted(operand.value) : String(operand.value)
 }
 
-// JSONata binds a comparison closer than And, and And closer than Or; each takes its left side first
-const sideText = (side: ConditionSide, parent: 'and' | 'or', right: boolean) => {
+// JSONata binds a comparison closer than And, and And closer than Or. A chain of one operator is one node, so a node of
+// that operator inside it was in brackets
+const sideText = (side: ConditionSide, parent: 'and' | 'or') => {
   if (!isConditionPart(side)) return operandText(side)
   const text = partText(side)
   if (side.kind !== 'logic') return text
-  const looser = parent === 'and' && side.op === 'or'
-  return looser || (right && side.op === parent) ? `(${text})` : text
+  return side.op === parent || (parent === 'and' && side.op === 'or') ? `(${text})` : text
 }
 
 const partText = (part: ConditionPart): string => {
   if (part.kind === 'compare') return `${operandText(part.sides[0])} ${part.op} ${operandText(part.sides[1])}`
-  if (part.kind === 'logic') return `${sideText(part.sides[0], part.op, false)} ${part.op} ${sideText(part.sides[1], part.op, true)}`
+  if (part.kind === 'matches') return `$contains(${operandText(part.sides[0])}, /${part.sides[1].pattern}/${part.sides[1].flags})`
+  if (part.kind === 'logic') return part.sides.map((side) => sideText(side, part.op)).join(` ${part.op} `)
   const [side] = part.sides
   return `$not(${isConditionPart(side) ? partText(side) : operandText(side)})`
 }
@@ -104,7 +125,8 @@ const partText = (part: ConditionPart): string => {
 export const conditionValue = (part: ConditionPart) => `{% ${partText(part)} %}`
 
 /**
- * A Condition taken apart into nodes, when it is a Comparison, an And, an Or or a Not of values and reads by name and
+ * A Condition taken apart into nodes, when it is a Comparison, a Matches, an All of, an Any of or a Not of values and
+ * reads by name and
  * writing those nodes back gives it exactly as it is; undefined for any other, such as one that computes, or is spaced
  * or bracketed otherwise, which stays an expression, so no Condition is ever rewritten.
  */

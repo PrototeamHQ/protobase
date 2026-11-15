@@ -112,7 +112,7 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     latest?.onChange(latest.edits.addCondition(current, step, at, choice))
   }
   // A wire from an object pin let go on the empty canvas offers to take that object apart, or to build it, there; one
-  // from an empty Only when pin, or a side of an And, an Or or a Not that holds a value, the condition nodes
+  // from an empty Only when pin, or an input of an All of, an Any of or a Not that holds a value or none, the condition nodes
   const connectEnd = (event: MouseEvent | TouchEvent, state: FinalConnectionState) => {
     if (!data || !editing || state.isValid || state.toHandle || !state.fromHandle?.id || !state.fromNode) return
     const node = graphId(state.fromNode.id)
@@ -134,7 +134,8 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     const condition = data.pure.find((each) => each.id === node)
     if (condition?.kind === 'condition') {
       const side = condition.inputs.find((each) => each.key === key)
-      if (!side || side.state !== 'literal' || condition.part.kind === 'compare' || condition.part.kind === 'expression') return
+      // An input of an All of, an Any of or a Not that holds a value, or the empty one after an All of's or Any of's last
+      if (!side || (side.state !== 'literal' && side.state !== 'empty') || (condition.part.kind !== 'logic' && condition.part.kind !== 'not')) return
       setOffer({ ...at, choices: conditionOffer(editing.edits.conditionChoices(false), (choice) => addCondition(condition.target, [...condition.at, Number(key)], choice)) })
       return
     }

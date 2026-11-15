@@ -8,8 +8,14 @@ import { pinColour, typeLabel } from './pin-text'
 import { expressionTextHeight } from './pin-layout'
 import { conditionOut, inHandle } from './pure-ids'
 
-// A side's name: a Comparison's, an And's or an Or's two are A and B, a Not's one is what it turns round
-const sideName = (node: ConditionNode, key: string) => (node.part.kind === 'not' ? text('conditionNotSide') : key === '0' ? text('conditionSideA') : text('conditionSideB'))
+// An input's name: a Comparison's two are A and B, an All of's and an Any of's A, B, C and on, a Matches node's the text
+// and the pattern, a Not's what it turns round
+const sideName = (node: ConditionNode, key: string) => {
+  if (node.part.kind === 'not') return text('conditionNotSide')
+  if (node.part.kind === 'matches') return key === '0' ? text('conditionMatchesText') : text('conditionMatchesPattern')
+  if (node.part.kind === 'logic') return String.fromCharCode(65 + (Number(key) % 26))
+  return key === '0' ? text('conditionSideA') : text('conditionSideB')
+}
 
 // The text of an Expression, kept as typed while it has the focus and written once the focus leaves, so a Condition
 // typed into a form the nodes stand for turns into them only then
@@ -75,7 +81,10 @@ export const ConditionPins = ({ node, editable }: { node: ConditionNode; editabl
           step={node.target}
           keys={[]}
           name={sideName(node, pin.key)}
-          connectable={editable}
+          // The empty input after an All of's or an Any of's last takes a wire or a node, which adds its next condition
+          bare={node.part.kind === 'logic' && Number(pin.key) === node.part.sides.length}
+          // A Matches node's pattern is written on it, never wired
+          connectable={editable && !(node.part.kind === 'matches' && pin.key === '1')}
           // A value cleared is an empty one: a check box gives true or false, so only text or a number is cleared
           onValue={(value) => actions?.setConditionSide(node.target, [...node.at, Number(pin.key)], (value ?? '') as string | number | boolean)}
         />

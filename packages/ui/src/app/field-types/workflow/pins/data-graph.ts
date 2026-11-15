@@ -13,8 +13,8 @@ import {
   resultRead,
   schemaAt,
   stepStatuses,
+  type ConditionInput,
   type ConditionPart,
-  type ConditionSide,
   type Definition,
   type PinSchemas,
   type PinType,
@@ -62,10 +62,10 @@ const samePath = (a: readonly string[], b: readonly string[]) => a.length === b.
 const booleanType: PinType = { kinds: ['boolean'] }
 
 // The reads a Condition's nodes make, each once for each side that makes it
-const partReads = (part: ConditionPart): Reference[] => part.sides.flatMap((side: ConditionSide) => (isConditionPart(side) ? partReads(side) : 'read' in side ? [side.read] : []))
+const partReads = (part: ConditionPart): Reference[] => (part.sides as ConditionInput[]).flatMap((side) => (isConditionPart(side) ? partReads(side) : 'read' in side ? [side.read] : []))
 
 // A read of a step's Status, which the step's status pin gives
-const readsStatus = (side: ConditionSide) => !isConditionPart(side) && 'read' in side && 'step' in side.read.base && samePath(side.read.path, ['Status'])
+const readsStatus = (side: ConditionInput) => !isConditionPart(side) && 'read' in side && 'step' in side.read.base && samePath(side.read.path, ['Status'])
 
 // The type of a value of a Comparison's own, by the type of what it is compared with, else by its own
 const literalType = (value: unknown, other: PinType | undefined): PinType => {
@@ -167,7 +167,7 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
     return node === undefined || node === null || !outputs.has(node) ? undefined : from(node, reference.path)
   }
   // A read a condition node takes: a step's Status from its status pin, any other as a step's input takes it
-  const sourceOfSide = (side: ConditionSide) => {
+  const sourceOfSide = (side: ConditionInput) => {
     if (isConditionPart(side) || !('read' in side)) return
     if (!readsStatus(side)) return sourceOfReference(side.read)
     const node = pathOfState((side.read.base as { step: string }).step)
@@ -176,20 +176,26 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
   // Each node of a Condition, its output wired to where it goes, and each side wired from its node or what it reads
   const partOf = (target: string, part: ConditionPart, at: number[], into: { node: string; handle: string }) => {
     const id = conditionId(target, at)
-    const sources = part.sides.map(sourceOfSide)
-    const inputs = part.sides.map((side, index): InputPin => {
+    const sides: ConditionInput[] = part.sides
+    const sources = sides.map(sourceOfSide)
+    const inputs = sides.map((side, index): InputPin => {
       const key = String(index)
       if (isConditionPart(side)) return { key, type: booleanType, required: false, value: undefined, state: 'made' }
       if ('read' in side) return { key, type: sources[index]?.type ?? pinType(undefined), required: false, value: referenceValue(side.read), state: 'wired' }
+      // A Matches node's pattern is its own, written on the node; the text it tests is any text
+      if ('pattern' in side) return { key, type: { kinds: ['string'] }, required: false, value: side.pattern, state: 'literal' }
+      if (part.kind === 'matches') return { key, type: { kinds: ['string'] }, required: false, value: side.value, state: 'literal' }
       if (part.kind !== 'compare') return { key, type: booleanType, required: false, value: side.value, state: 'literal' }
       // A value compared with a step's Status is one of the statuses it can be
-      const other = part.sides[1 - index]!
+      const other = sides[1 - index]!
       if (readsStatus(other)) return { key, type: { kinds: ['string'] }, required: false, value: side.value, state: 'literal', options: stepStatuses, statuses: true }
       return { key, type: literalType(side.value, sources[1 - index]?.type), required: false, value: side.value, state: 'literal' }
     })
+    // An All of or an Any of has one input more, empty, which a wire or a node adds as its next condition
+    if (part.kind === 'logic') inputs.push({ key: String(sides.length), type: booleanType, required: false, value: undefined, state: 'empty' })
     conditions.push({ kind: 'condition', id, target, at, part, inputs })
     wire({ node: id, handle: conditionOut, type: booleanType }, into.node, into.handle)
-    part.sides.forEach((side, index) => {
+    sides.forEach((side, index) => {
       if (isConditionPart(side)) partOf(target, side, [...at, index], { node: id, handle: inHandle(String(index)) })
       else if (sources[index]) wire(sources[index], id, inHandle(String(index)))
     })

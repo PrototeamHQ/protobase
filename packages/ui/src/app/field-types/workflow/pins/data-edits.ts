@@ -33,6 +33,8 @@ const destination = (graph: DataGraph, end: PinEnd): { step: string; keys: strin
   if (!pure) return graph.inputs.has(end.node) ? { step: end.node, keys: [key] } : undefined
   if (pure.kind === 'make') return { step: pure.target, keys: [pure.key, key] }
   // An Expression's pins are the values it reads, which only its text changes
+  // A Matches node's pattern is written on it, never wired
+  if (pure.kind === 'condition' && pure.part.kind === 'matches' && key === '1') return
   if (pure.kind === 'condition' && pure.part.kind !== 'expression') return { step: pure.target, keys: [conditionKey], side: { node: pure, at: [...pure.at, Number(key)] } }
   return
 }

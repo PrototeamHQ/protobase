@@ -11,9 +11,9 @@ const pinClass = (pin: { type: InputPin['type'] }) => `pb-pin pb-pin-${pinColour
 /**
  * An input pin's row: its dot on the left edge, which a wire ends at, its name with its type on hover, and what it
  * holds. `step` and `keys` say which argument it sets, such as a Make's field of `data`; `onValue`, what its value
- * changes instead, such as a condition node's side, named `name`.
+ * changes instead, such as a condition node's side, named `name`; `bare`, it takes a wire only and shows no value.
  */
-export const InputRow = ({ pin, step, keys, connectable, name, onValue }: { pin: InputPin; step: string; keys: readonly string[]; connectable: boolean; name?: string; onValue?: (value: unknown) => void }) => {
+export const InputRow = ({ pin, step, keys, connectable, name, onValue, bare = false }: { pin: InputPin; step: string; keys: readonly string[]; connectable: boolean; name?: string; onValue?: (value: unknown) => void; bare?: boolean }) => {
   const actions = usePinActions()
   const label = name ?? inputPinLabel(pin.key)
   return (
@@ -23,7 +23,7 @@ export const InputRow = ({ pin, step, keys, connectable, name, onValue }: { pin:
         {label}
         {pin.required && <span aria-hidden="true" className="text-danger-text">*</span>}
       </span>
-      <PinValue pin={pin} label={label} {...(actions && connectable && { onChange: onValue ?? ((value: unknown) => actions.setArgument(step, keys, value)) })} />
+      {!bare && <PinValue pin={pin} label={label} {...(actions && connectable && { onChange: onValue ?? ((value: unknown) => actions.setArgument(step, keys, value)) })} />}
     </div>
   )
 }
