@@ -26,9 +26,12 @@ export const urlTrigger = (webhooks: IssueInput['webhooks'], trigger: unknown) =
   return found && !found.subscribe ? { type: type!, input: isObject(input) ? input : {} } : undefined
 }
 
+/** Whether the caller may change workflows, which issuing a webhook URL needs, as issuing it later does. */
+export const mayIssueWebhook = async (input: Pick<IssueInput, 'deps'>, session: Session) => (await requestAccess(input.deps(), input.deps().registry.find('workflows')!, session)).resolved.operations.update
+
 /**
  * Whether a create can go live as asked, checked before anything is saved: a secret only for a webhook trigger that is
- * published, and one its auth mode can check; issuing the URL needs the right to change workflows, as issuing it later does.
+ * published, and one its auth mode can check.
  */
 export const checkGoLive = (webhooks: IssueInput['webhooks'], trigger: unknown, live: GoLive) => {
   const hook = live.publish ? urlTrigger(webhooks, trigger) : undefined
@@ -47,9 +50,11 @@ export const checkGoLive = (webhooks: IssueInput['webhooks'], trigger: unknown, 
  * live without one, saying why, which `POST .../workflows/<id>/webhook` issues.
  */
 export const createWorkflow = async (input: IssueInput, session: Session, body: Row, live: GoLive & { origin: string }): Promise<CreatedWorkflow> => {
+  // Only publish publishes here: a create that only saves leaves the workflow off
+  if (!live.publish && body.enabled_version !== undefined && body.enabled_version !== null) throw badRequest('publish-required', 'enabled_version publishes the workflow: send publish: true, or leave enabled_version out to only save it')
   const hook = checkGoLive(input.webhooks, body.trigger, live)
   const entry = input.deps().registry.find('workflows')!
-  if (hook && !(await requestAccess(input.deps(), entry, session)).resolved.operations.update) throw forbidden('access-denied', 'Issuing a webhook URL needs the right to change workflows: create it without publish')
+  if (hook && !(await mayIssueWebhook(input, session))) throw forbidden('access-denied', 'Issuing a webhook URL needs the right to change workflows: create it without publish')
   const created = await runWrite(input.deps(), entry, session, { operation: 'create', body: live.publish ? { ...body, enabled_version: 1 } : body })
   if (!hook) return created
   try {

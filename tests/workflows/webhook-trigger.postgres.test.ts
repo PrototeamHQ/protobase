@@ -383,6 +383,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     expect(await one({ publish: true, webhook_secret: given32() }, { manual: {} })).toMatchObject({ status: 400, body: { type: 'urn:protobase:problem:not-a-webhook' } })
     expect(await one({ webhook_secret: given32() })).toMatchObject({ status: 400, body: { type: 'urn:protobase:problem:not-a-webhook' } })
     expect(await one({ publish: 'yes' })).toMatchObject({ status: 400, body: { type: 'urn:protobase:problem:invalid-body' } })
+    // Only publish publishes on this route: enabled_version without it would leave the workflow live without its URL
+    expect(await one({ enabled_version: 1 })).toMatchObject({ status: 400, body: { type: 'urn:protobase:problem:publish-required' } })
     expect((await as('rita', '/api/workflows', 'POST', { name: 'Refused', ...definitionFields({ trigger: { 'app:webhook': {} }, stateMachine: echo }), publish: true })).status).toBe(403)
     expect(await count()).toBe(0)
   })
