@@ -1,33 +1,23 @@
 import { ArrowRight } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
-import { createWhere, parseFilter, printFilter, type FilterExpr, type ListDisplayModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import type { FilterExpr, ListDisplayModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { useIsXs } from '../../lib/use-media-query'
 import { humanize } from '../../live/naming'
 import { useLiveRows } from '../../live/use-live-rows'
 import { Skeleton } from '../../primitives/skeleton'
-import { displaysOf, loadedFields, type ListDisplayRow } from '../displays/list-displays'
+import { displaysOf, type ListDisplayRow } from '../displays/list-displays'
 import { viewAllAddress } from '../embedded-list/embedded-display'
 import { ErrorBanner } from '../error-banner'
-import { defaultOrderBy } from '../list-order'
 import { useAdminMeta } from '../meta-gate'
 import { FilterChipList } from '../searches/filter-chip-list'
 import { useFilterChips } from '../searches/use-filter-chips'
 import { AppLink } from '../use-app-address'
 import { RecordRow } from './record-row'
+import { recordRowRead } from './record-row-read'
 import { formatTag } from '../../locale/active-locale'
 import { text } from './messages'
 
 type CardsDisplayModel = Extract<ListDisplayModel, { kind: 'cards' }>
-
-const where = createWhere()
-
-// The filter a row loads with: its own, narrowed to `scope`
-const scoped = (filter: string, scope: FilterExpr | undefined) => {
-  if (!scope) return filter
-  const parsed = parseFilter(filter)
-  if (!parsed.ok) throw new Error(`The filter cannot be read: ${parsed.errors.map((error) => error.message).join('; ')}`)
-  return printFilter(parsed.ast ? where.and(parsed.ast, scope) : scope)
-}
 
 export type RecordRowBodyProps = {
   model: ResourceModel
@@ -76,10 +66,9 @@ export const RecordRowBody = ({ model, view, filter, sort = '', display: named, 
   const { resources, views } = useAdminMeta()
   const xs = useIsXs()
   const display = rowDisplay(view, named)
-  const orderBy = sort || defaultOrderBy(model, view)
-  const columns = useMemo(() => loadedFields(model, view, []), [model, view])
-  const loadFilter = useMemo(() => scoped(filter, scope), [filter, scope])
-  const rows = useLiveRows({ resources, views, model, columns, filter: loadFilter, orderBy })
+  const read = useMemo(() => recordRowRead(model, view, { filter, sort, scope }), [model, view, filter, sort, scope])
+  const { orderBy } = read
+  const rows = useLiveRows({ resources, views, model, ...read })
   const chips = useFilterChips(model, filter)
   const singular = (view?.names?.singular ?? humanize(model.name)).toLowerCase()
   const plural = view?.names?.plural ?? humanize(model.name)

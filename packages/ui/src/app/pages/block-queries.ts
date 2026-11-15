@@ -2,6 +2,7 @@ import { elementAt, fillProps, type LayoutNode, type ReadPlan } from '@protobase
 import { blockQuery, type BlockQueries, type BlockQuery, type BlockReader } from './block-query'
 import { chartQueries } from './blocks/chart-query'
 import { recordCardsQueries } from './blocks/record-cards-query'
+import { recordRowQueries } from './blocks/record-row-query'
 import { tableQueries } from './blocks/table-query'
 import { threadQueries } from './blocks/thread-query'
 import { countQuery } from './use-layout-data'
@@ -11,6 +12,7 @@ const byType: Record<string, BlockQueries> = {
   Table: tableQueries,
   Chart: chartQueries,
   RecordCards: recordCardsQueries,
+  RecordRow: recordRowQueries,
   Thread: threadQueries,
 }
 
