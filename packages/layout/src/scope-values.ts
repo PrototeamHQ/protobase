@@ -1,5 +1,6 @@
 import { fillFilter, fillText, parseTemplatePath, valueText, wholePlaceholder, type PathLookup } from '@protobase/schema/internal'
 import type { LayoutNode, LayoutValue } from './node'
+import { readList } from './select-blocks'
 
 // The records around an element as it draws, and the value a path reads from them, by the same Mustache lookup the
 // build checks with: a bare name from the nearest record that has it, `../` and `this` from one record only.
@@ -79,5 +80,21 @@ export const fillProps = (node: LayoutNode, scope: ValueScope): LayoutNode => {
   for (const name of filterProps) if (typeof props[name] === 'string') props[name] = fillFilter(props[name], lookup)
   if (isObject(props.filter)) props.filter = fillFilterObject(props.filter as Record<string, LayoutValue>, lookup)
   if (props.values !== undefined) props.values = fillValues(props.values, lookup)
+  return { ...node, props }
+}
+
+/**
+ * A custom component's element with the `{{path}}`s of the filters its reads name filled from `scope`, as a built-in
+ * block's `filter` is, for a read it makes by itself where the page plans none. Its other props stay as they are.
+ */
+export const fillComponentReads = (node: LayoutNode, scope: ValueScope): LayoutNode => {
+  if (!node.custom || !node.reads) return node
+  const lookup = scopeLookup(scope)
+  const props = { ...node.props }
+  for (const { filter } of readList(node.reads)) {
+    const value = filter === undefined ? undefined : props[filter]
+    if (typeof value === 'string') props[filter!] = fillFilter(value, lookup)
+    else if (isObject(value)) props[filter!] = fillFilterObject(value as Record<string, LayoutValue>, lookup)
+  }
   return { ...node, props }
 }
