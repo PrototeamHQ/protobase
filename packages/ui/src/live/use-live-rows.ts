@@ -4,7 +4,7 @@ import type { ResourceModel, ViewModel } from '@protobase/schema'
 import { useClient } from '../data/api-provider'
 import { keys } from '../data/query-keys'
 import type { RowSource } from '../data-grid'
-import { createGridLoader } from './grid-loader'
+import { createGridLoader, type GridLoaderOptions } from './grid-loader'
 import type { RelatedColumnLoad } from './related-column-rows'
 
 export type LiveRowsParams = {
@@ -18,6 +18,18 @@ export type LiveRowsParams = {
   related?: RelatedColumnLoad[]
 }
 
+/** The first page `useLiveRows` reads, as a query a page can start ahead of it; each fetch makes every page of the list stale first. */
+export const liveFirstPageQuery = (options: GridLoaderOptions) => {
+  const { queryClient, model, columns, filter, orderBy } = options
+  return {
+    queryKey: [...keys.first(model.name, filter, orderBy), columns.join(',')],
+    queryFn: async () => {
+      await queryClient.invalidateQueries({ queryKey: keys.pages(model.name, filter, orderBy), refetchType: 'none' })
+      return createGridLoader(options).page(0)
+    },
+  }
+}
+
 /**
  * A grid row source backed by the API; `total` is the server's estimate from the first page. `page` loads one page of
  * the same rows by number, and `key` names them in the query cache, for list displays that page through them. Each
@@ -29,20 +41,16 @@ export const useLiveRows = ({ resources, views, model, columns, filter, orderBy,
   const queryClient = useQueryClient()
   const columnKey = columns.join(',')
   const relatedKey = JSON.stringify(related ?? [])
-  const loader = useMemo(
-    () => createGridLoader({ queryClient, client, resources, views, model, columns, filter, orderBy, ...(related && { related }) }),
+  const options = useMemo<GridLoaderOptions>(
+    () => ({ queryClient, client, resources, views, model, columns, filter, orderBy, ...(related && { related }) }),
     [queryClient, client, resources, views, model, columnKey, filter, orderBy, relatedKey],
   )
-  const first = useQuery({
-    queryKey: [...keys.first(model.name, filter, orderBy), columnKey],
-    queryFn: async () => {
-      await queryClient.invalidateQueries({ queryKey: keys.pages(model.name, filter, orderBy), refetchType: 'none' })
-      return loader.page(0)
-    },
-  })
+  const loader = useMemo(() => createGridLoader(options), [options])
+  const firstPage = liveFirstPageQuery(options)
+  const first = useQuery(firstPage)
   const source = useMemo<RowSource | undefined>(
     () => (first.data ? { total: first.data.total, loadRows: loader.loadRows, revision: first.dataUpdatedAt } : undefined),
     [first.data, first.dataUpdatedAt, loader],
   )
-  return { source, error: first.error, isLoading: first.isLoading, page: loader.page, key: [...keys.first(model.name, filter, orderBy), columnKey] as const }
+  return { source, error: first.error, isLoading: first.isLoading, page: loader.page, key: firstPage.queryKey }
 }
