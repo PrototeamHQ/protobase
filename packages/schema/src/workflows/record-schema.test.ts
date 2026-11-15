@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource } from '../index'
+import type { ResourceModel } from '../model'
 import { keyTypes, recordJsonSchema } from './record-schema'
 
 const contacts = resource('contacts')
@@ -31,7 +32,8 @@ describe('recordJsonSchema', () => {
       .fields({ id: f.uuid().readOnly().dbDefault(), account_id: f.relation('accounts'), contact_id: f.relation('contacts').optional(), stage: f.enum(['new', 'won']).optional() })
       .primaryKey((r) => r.id)
       .toModel()
-    const keyType = keyTypes((name) => ({ accounts, contacts, people })[name])
+    const models: Record<string, ResourceModel> = { accounts, contacts, people }
+    const keyType = keyTypes((name) => models[name])
     expect(recordJsonSchema(people, 'read', 'Person', keyType).properties).toEqual({ id: { type: 'string' }, account_id: { type: 'integer' }, contact_id: { type: 'string' }, stage: { type: 'string', enum: ['new', 'won'] } })
     expect(recordJsonSchema(people, 'write', 'Person', keyType).properties).toEqual({ account_id: { type: ['string', 'integer'] }, contact_id: { type: ['string', 'integer', 'null'] }, stage: { type: ['string', 'null'], enum: ['new', 'won', null] } })
   })
