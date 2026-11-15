@@ -1,6 +1,7 @@
 import { checkOrderBy, parseOrderBy, type AppAddress, type ResourceModel, type RowButtonModel } from '@protobase/schema'
 import { addressErrors, followableRowButton, pruneByShape, shapes } from '@protobase/schema/internal'
 import { chartFields } from './check-chart'
+import { timelineFields } from './check-timeline'
 import { compileReadPlan } from './compile-read-plan'
 import { threadFields } from './check-conversation'
 import { scopedConditionReadable } from './check-condition'
@@ -81,6 +82,8 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: Rea
       return text(node.props.field) === undefined || readable(String(node.props.field)) ? node : null
     case 'Chart':
       return model && chartFields(node).every((name) => Object.hasOwn(model.fields, name)) ? node : null
+    case 'Timeline':
+      return model && timelineFields(node).every((name) => Object.hasOwn(model.fields, name)) ? node : null
     // A thread needs every field of its messages, and drops a status line, working indicator or tool calls the caller
     // cannot read; a composer needs to create one with its text and values.
     case 'Thread': {

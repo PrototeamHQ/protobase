@@ -6,6 +6,7 @@ export {
   Card,
   CardRow,
   Chart,
+  Timeline,
   Composer,
   ConnectedAccounts,
   PersonalMail,
@@ -50,6 +51,7 @@ export type {
   ChartBucket,
   ChartProps,
   ChartType,
+  TimelineProps,
   ComposerProps,
   DataProps,
   Elements,
@@ -113,6 +115,7 @@ export { page, isPageDefinition, type PageDefinition, type PageModel, type PageO
 export { cardsLayoutOf } from './cards-layout'
 export { maxThreadLimit, messageFieldsProblems, messageStatusProblems, messageTextProblems, threadFields, threadLimitProblems, type MessageFields } from './check-conversation'
 export { threadSort } from './check-time'
+export { timelineFields, timelineSort } from './check-timeline'
 export { threadItemNodes, threadLines, threadMarkdown, type ThreadTextItem, type ToolCallWords } from './thread-text'
 export { pruneToolCalls, toolCallsProblems, toolCallStates, type ToolCallSource, type ToolCallState } from './check-tool-calls'
 export { checkPages, pageFindings } from './check-page'

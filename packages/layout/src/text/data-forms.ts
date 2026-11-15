@@ -28,6 +28,12 @@ const Table: TextForm = (context) => {
   return blocks([headed(context, 3, listHeading(context)), rows, ...context.children])
 }
 
+// A timeline the caller loaded reads as a table of its segments, a row each, then the bar its `select` chose
+const Timeline: TextForm = (context) => {
+  const shown = context.options.tables?.(context.node, context.at, context.options.record, context.around)
+  return blocks([headed(context, 3, listHeading(context)), shown ? tableMarkdown(shown) : '', ...context.children])
+}
+
 // A record card with a key links to that record, and otherwise to the list its filter finds it in
 const RecordCard: TextForm = (context) => {
   const { resource, recordKey } = context.node.props
@@ -48,6 +54,7 @@ export const dataForms: Record<string, TextForm> = {
   RecordRow: listBlock,
   RecordCards: listBlock,
   Chart: listBlock,
+  Timeline,
   Thread,
   Settings,
 }

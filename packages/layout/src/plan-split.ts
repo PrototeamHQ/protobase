@@ -17,12 +17,12 @@ export type SplitFilter = { filter?: FilterExpr; parent?: Draft; field?: string;
 
 const numeric = new Set(['integer', 'bigint', 'decimal'])
 
+/** `field = {{path}}`: the records of `model` whose `field` holds what `path` does, quoted unless the field is a number. */
+export const fieldEquality = (model: ResourceModel, field: string, path: string, context: PlanContext): FilterExpr =>
+  where.eq(field, sentinel(context.slots, path, !numeric.has(model.fields[field]?.type ?? 'text')))
+
 /** `key = {{path}}`: the record of `model` whose key `path` holds, quoted unless the key is a number. */
-export const keyEquality = (model: ResourceModel, path: string, context: PlanContext): FilterExpr => {
-  const key = model.primaryKey[0]!
-  const quoted = !numeric.has(model.fields[key]?.type ?? 'text')
-  return where.eq(key, sentinel(context.slots, path, quoted))
-}
+export const keyEquality = (model: ResourceModel, path: string, context: PlanContext): FilterExpr => fieldEquality(model, model.primaryKey[0]!, path, context)
 
 // The outer read's page. One that keeps the first rows per record further out has no page `related()` can say, so
 // the term reads all of them for those records, a superset of the rows drawn.

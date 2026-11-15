@@ -1,6 +1,7 @@
 import { checkOrderBy, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
 import { addressErrors, fieldRefsIn, rowButtonErrors } from '@protobase/schema/internal'
 import { chartProblems } from './check-chart'
+import { timelineProblems } from './check-timeline'
 import { compileReadPlan } from './compile-read-plan'
 import { conditionFindings } from './check-condition'
 import { listModelProblems } from './check-list-models'
@@ -115,6 +116,9 @@ const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[
       break
     case 'Chart':
       if (model) problems.push(...chartProblems(node, model))
+      break
+    case 'Timeline':
+      if (model) problems.push(...timelineProblems(node, model))
       break
     case 'Progress':
       for (const name of [node.props.value, node.props.max]) if (typeof name === 'string') path(name)

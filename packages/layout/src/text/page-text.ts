@@ -1,4 +1,5 @@
 import type { LayoutNode } from '../node'
+import { timelineFields } from '../check-timeline'
 import { pageParamValues } from '../page-params'
 import { planReadId, type PlanRead, type ReadPlan } from '../read-plan'
 import { plannedRows, runReadPlan, type PlanResult } from '../run-plan'
@@ -28,10 +29,11 @@ const rowsAt = (outcomes: Outcomes, reads: Map<string, PlanRead>, id: string, re
   return plannedRows(read, outcome.value.rows, { stack: record ? [{ record }] : [], params })
 }
 
-// A table without `resource` has no resource to take labels from, so its columns read under their names
+// A table without `resource` has no resource to take labels from, so its columns read under their names; a
+// timeline's are its segments' fields
 const tableOf = (node: LayoutNode, rows: Record<string, unknown>[], labels: PageTextOptions['labels']): TableText => {
   const own = typeof node.props.resource === 'string' ? labels?.[node.props.resource] : undefined
-  const names = (node.props.columns as TableColumn[] | undefined)?.map(columnName) ?? Object.keys(rows[0] ?? {})
+  const names = node.type === 'Timeline' ? timelineFields(node) : ((node.props.columns as TableColumn[] | undefined)?.map(columnName) ?? Object.keys(rows[0] ?? {}))
   const columns = names.map((name) => ({ name, label: own?.[name]?.label ?? name, ...(own?.[name]?.valueLabels && { valueLabels: own[name].valueLabels }) }))
   return { columns, rows }
 }

@@ -154,6 +154,34 @@ export type ChartProps = Heading & {
   empty?: string
   span?: GridSpan
 }
+/**
+ * Records of `resource` matching `filter` as a timeline: a lane per value of `lane`, a bar per value of `bar` in it, and
+ * each record a segment of its bar from `start` to `end`, coloured by its `color` value.
+ */
+export type TimelineProps = Heading & {
+  resource: string
+  filter?: string
+  /** The field whose values each get a lane, such as a project. */
+  lane: string
+  /** The field whose values each get a bar, its records the bar's segments, such as a task. */
+  bar: string
+  /** A date or timestamp field where a segment starts. */
+  start: string
+  /** A date or timestamp field where a segment ends; a record without one runs to now. */
+  end: string
+  /** An enum field that colours each segment by its view's `valueColors`, striped for its `waitingValues`. */
+  color: string
+  /** How many records it reads at most, the earliest first; default 500, the most one read holds. */
+  limit?: number
+  empty?: string
+  span?: GridSpan
+  /**
+   * The page parameter a bar's choice writes its `bar` value into, such as `task` for `?task=42`: each bar links to the
+   * page with it, and the children draw inside the chosen bar's first record, or nothing while none is chosen.
+   */
+  select?: string
+  children?: LayoutChildren
+}
 export type ProgressProps = {
   /** A number, or a field of the record around it. */
   value: number | string
@@ -291,6 +319,7 @@ export const CardRow = builtIn<CardRowProps>('CardRow')
 export const RecordRow = builtIn<RecordRowProps>('RecordRow')
 export const RecordCards = builtIn<RecordCardsProps>('RecordCards')
 export const Chart = builtIn<ChartProps>('Chart')
+export const Timeline = builtIn<TimelineProps>('Timeline')
 export const Progress = builtIn<ProgressProps>('Progress')
 export const ModalForm = builtIn<ModalFormProps>('ModalForm')
 export const Thread = builtIn<ThreadProps>('Thread')
