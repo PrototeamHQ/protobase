@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isReactModule, isVendorModule, libChunkName, npmPackage } from './shell-chunks'
+import { isReactModule, isVendorModule, isWorkflowsModule, libChunkName, npmPackage } from './shell-chunks'
 
 const bun = (name: string, file: string) => `/app/node_modules/.bun/${name.replace('/', '+')}@1.0.0/node_modules/${name}/${file}`
 
@@ -34,6 +34,12 @@ describe('the shell chunk groups', () => {
     expect(isVendorModule('/app/node_modules/clsx/dist/clsx.mjs')).toBe(true)
     expect(isVendorModule(bun('lucide-react', 'dist/esm/icons/map.js'))).toBe(false)
     expect(isReactModule(bun('react-router', 'index.js'))).toBe(false)
+  })
+
+  it("put the workflow engine's modules in workflows, from its folder only", () => {
+    expect(isWorkflowsModule('/app/packages/workflows/src/definition/reads.ts', '/app/packages/workflows')).toBe(true)
+    expect(isWorkflowsModule('/app/packages/workflows-ui/src/index.ts', '/app/packages/workflows')).toBe(false)
+    expect(isWorkflowsModule('/app/packages/ui/src/app/field-types/workflow/flow-nodes.tsx', '/app/packages/workflows')).toBe(false)
   })
 
   it("leave the app's own modules to app", () => {
