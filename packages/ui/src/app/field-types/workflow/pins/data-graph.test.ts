@@ -174,5 +174,9 @@ describe('the data graph', () => {
     ].sort())
     const broken = graph.pure.find((node) => node.id === breakId('Fetch', ['body']))!
     expect(removePure(definition, graph, broken)).toEqual(definition)
+    // Each expression names what it reads, which its pin shows as chips
+    expect(graph.inputs.get('Save')!.find((pin) => pin.key === 'key')!.reads).toEqual(['input.record.id'])
+    const make = graph.pure.find((node) => node.kind === 'make')!
+    expect(make.kind === 'make' && make.inputs.find((pin) => pin.key === 'name')!.reads).toEqual(['fetch.body.ip', 'fetch.status'])
   })
 })

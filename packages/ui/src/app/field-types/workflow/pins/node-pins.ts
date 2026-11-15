@@ -1,4 +1,4 @@
-import { expressionSource, inputSchema, parseReference, pinType, resultSchema, schemaAt, stepStatusSchema, triggerSchema, type Definition, type PinSchemas, type PinType, type State } from '@protobase/workflows'
+import { expressionReferences, expressionSource, inputSchema, parseReference, pinType, resultSchema, schemaAt, stepStatusSchema, triggerSchema, type Definition, type PinSchemas, type PinType, type Reference, type State } from '@protobase/workflows'
 
 type JsonSchema = Record<string, unknown>
 
@@ -10,9 +10,13 @@ export type InputState = 'empty' | 'literal' | 'expression' | 'wired' | 'made'
 
 /**
  * A pin on the left of a step: an argument of its type, with its type, whether the type needs it, and what it holds;
- * `statuses`: its options are what a step's status can be, shown by their names.
+ * `statuses`: its options are what a step's status can be, shown by their names; `reads`: for an expression, the
+ * values it reads, each by a short name, which the pin shows.
  */
-export type InputPin = { key: string; type: PinType; required: boolean; value: unknown; state: InputState; options?: readonly string[]; statuses?: true }
+export type InputPin = { key: string; type: PinType; required: boolean; value: unknown; state: InputState; options?: readonly string[]; statuses?: true; reads?: readonly string[] }
+
+/** A read's short name, as a pin shows it: `contact.name` for `$contact.name`, `input.body.topic`, `Save.Status`. */
+export const readName = ({ base, path }: Reference) => ['input' in base ? 'input' : 'step' in base ? base.step : base.variable, ...path].join('.')
 
 /** A pin on the right of a node: the value at `path` in what it gives, with its type. */
 export type OutputPin = { path: string[]; type: PinType }
@@ -50,7 +54,9 @@ const argumentsOf = (state: State): Record<string, unknown> => ('Arguments' in s
 /** An input pin for the value at `key`, typed by its schema, with the choices an enum offers. */
 export const inputPin = (key: string, schema: JsonSchema, value: unknown, required: boolean): InputPin => {
   const options = Array.isArray(schema.enum) && schema.enum.every((option) => typeof option === 'string') ? (schema.enum as string[]) : undefined
-  return { key, type: pinType(schema), required, value, state: inputState(value), ...(options && { options }) }
+  const state = inputState(value)
+  const reads = state === 'expression' ? expressionReferences(value).map(readName) : []
+  return { key, type: pinType(schema), required, value, state, ...(options && { options }), ...(reads.length > 0 && { reads }) }
 }
 
 /** A step's input pins: one per argument its type takes, in the order its schema declares them. */
