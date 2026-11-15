@@ -22,7 +22,7 @@ import {
   type State,
 } from '@protobase/workflows'
 import { pathOfName, triggerId } from '../definition'
-import { conditionKey, conditionPin, fieldsOf, givenSchema, inputPin, inputPins, readName, statusKey, statusPin, stepOutputs, triggerOutputs, type InputPin, type OutputPin } from './node-pins'
+import { conditionKey, conditionPin, fieldsOf, givenSchema, inputPin, inputPins, statusKey, statusPin, stepOutputs, triggerOutputs, type InputPin, type OutputPin } from './node-pins'
 import { breakId, breakIn, conditionId, conditionOut, inHandle, makeId, makeOut, outHandle } from './pure-ids'
 
 /** A Break node: the fields of the object a node gives at `path`, each a pin of its own. */
@@ -211,7 +211,7 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
       const source = sourceOfSide({ read })
       return source ? [{ read, source }] : []
     })
-    conditions.push({ kind: 'condition', id, target, at: [], part: { kind: 'expression', source: expressionSource(value)! }, inputs: reads.map(({ read, source }) => ({ key: readText(read), type: source.type, required: false, value: referenceValue(read), state: 'wired', reads: [readName(read)] })) })
+    conditions.push({ kind: 'condition', id, target, at: [], part: { kind: 'expression', source: expressionSource(value)! }, inputs: reads.map(({ read, source }) => ({ key: readText(read), type: source.type, required: false, value: referenceValue(read), state: 'wired' })) })
     wire({ node: id, handle: conditionOut, type: booleanType }, into.node, into.handle)
     for (const { read, source } of reads) wire(source, id, inHandle(readText(read)), true)
   }

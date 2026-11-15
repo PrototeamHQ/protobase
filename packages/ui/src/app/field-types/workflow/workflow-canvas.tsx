@@ -18,8 +18,6 @@ import { useGraphView, type GraphView } from './pins/graph-view'
 import { PinActionsContext } from './pins/pin-actions'
 import { PureNodeView } from './pins/pure-nodes'
 import { PureOfferMenu } from './pins/pure-offer'
-import type { DataEdge } from './pins/data-graph'
-import { isConditionId } from './pins/pure-ids'
 import { pureParent } from './pins/pure-parents'
 import { isPinHandle, usePins } from './pins/use-pins'
 import { WireCheckContext, WireLine } from './pins/wire-line'
@@ -160,23 +158,9 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange: 
   const [chosenEdge, setChosenEdge] = useState<string>()
   // In data order with pins, the wires are what the states read, which order them: another line between two states is
   // drawn only where no wire stands for it
-  // The node under the pointer, by its graph id, whose template reads show their wires
-  const [hovered, setHovered] = useState<string>()
-  // A template's reads show as chips on its pin: their wires show only while its node, or the step a Make builds for, is
-  // pointed at or chosen, so a step that composes text from many values does not draw a wire from each
-  const focused = useMemo(() => {
-    const ids = new Set([hovered, selected, chosenPure].filter((id): id is string => id !== undefined))
-    for (const pure of pins.data?.pure ?? []) if (pure.kind === 'make' && ids.has(pure.target)) ids.add(pure.id)
-    return ids
-  }, [hovered, selected, chosenPure, pins.data])
   const edges = useMemo(
-    () =>
-      [...(dataOrder && pins.data ? unwiredOrderEdges(graph, pins.data) : flowEdges(graph, dataOrder)), ...(pins.data ? dataFlowEdges(pins.data) : [])].map((edge) => {
-        const wire = (edge.data as { wire?: DataEdge } | undefined)?.wire
-        const read = wire?.expression && !isConditionId(wire.target)
-        return { ...edge, selected: edge.id === chosenEdge, ...(read && !focused.has(wire.target) && { hidden: true }) }
-      }),
-    [graph, pins.data, chosenEdge, dataOrder, focused],
+    () => [...(dataOrder && pins.data ? unwiredOrderEdges(graph, pins.data) : flowEdges(graph, dataOrder)), ...(pins.data ? dataFlowEdges(pins.data) : [])].map((edge) => ({ ...edge, selected: edge.id === chosenEdge })),
+    [graph, pins.data, chosenEdge, dataOrder],
   )
   const editable = Boolean(editing)
 
@@ -293,8 +277,6 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange: 
                 // A Break or Make chosen by a click is chosen as by the keyboard, in onNodesChange
                 onNodeClick={(_, node) => !isPureFlowId(node.id) && onSelect(graphId(node.id))}
                 onPaneClick={() => onSelect(undefined)}
-                onNodeMouseEnter={(_, node) => setHovered(graphId(node.id))}
-                onNodeMouseLeave={() => setHovered(undefined)}
                 // As in Blueprints: the wheel zooms towards the pointer, as does a pinch, and dragging the empty canvas with
                 // the left, middle or right button pans it; Shift-drag selects a box. A trackpad's two-finger scroll is a
                 // wheel too, so it zooms: telling it from a mouse's wheel would be a guess. Over the canvas the page does

@@ -38,7 +38,7 @@ const saveThenTell: Definition = {
     QueryLanguage: 'JSONata',
     States: {
       Save: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://tickets.example.com/save' } },
-      Tell: { Type: 'Task', Resource: 'app:http', Arguments: { url: "{% 'https://tickets.example.com/tell?saved=' & $states.context.Steps.Save.Status %}" }, Condition: tellWhenSaved },
+      Tell: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://tickets.example.com/tell' }, Condition: tellWhenSaved },
     },
   },
 } as Definition
@@ -594,15 +594,6 @@ export const ConditionNodesChecks: StoryObj = {
     expect(equals).toHaveTextContent('Equals')
     const wires = [...canvasElement.querySelectorAll<HTMLElement>('.react-flow__edge')].map((edge) => edge.dataset.id ?? edge.getAttribute('data-id'))
     expect(wires).toEqual(expect.arrayContaining([expect.stringMatching(/^data:Save\|out:\/%23status->when:Tell\|\|in:0$/), expect.stringMatching(/^data:when:Tell\|\|condition-out->Tell\|in:%23condition$/)]))
-    // Tell's URL reads Save's status in a template: a chip on its pin, whose wire shows only while Tell is pointed at
-    const tell = await nodeOf(canvasElement, 'Tell')
-    expect(within(tell).getByText('Save.Status')).toBeInTheDocument()
-    const readWire = () => canvasElement.querySelector('.react-flow__edge.pb-wire-expression')
-    expect(readWire()).toBeNull()
-    await userEvent.hover(tell)
-    await waitFor(() => expect(readWire()).not.toBeNull())
-    await userEvent.unhover(tell)
-    await waitFor(() => expect(readWire()).toBeNull())
     const status = within(equals).getByRole('combobox', { name: 'B value' })
     expect(status).toHaveValue('SUCCEEDED')
     expect(within(status).getByRole('option', { name: 'Timed out' })).toHaveValue('TIMED_OUT')

@@ -42,6 +42,8 @@ const ExpressionText = ({ node, source }: { node: ConditionNode; source: string 
   )
 }
 
+// A value an Expression reads, by where it comes from: Save.Status, input.record.id or $fetch.body.ip
+const readName = (key: string) => key.replace(/^\$states\.context\.Steps\./, '').replace(/^\$states\.context\.Execution\.Input/, 'input')
 
 /**
  * A condition node's pins and inputs: a Comparison's, an And's or an Or's two sides, a Not's one, each wired or
@@ -61,7 +63,7 @@ export const ConditionPins = ({ node, editable }: { node: ConditionNode; editabl
             <div key={pin.key} className="relative flex h-[26px] items-center pr-2 pl-3">
               <Handle id={inHandle(pin.key)} type="target" position={Position.Left} isConnectable={false} className={`pb-pin pb-pin-${pinColour(pin.type)}`} />
               <span className="min-w-0 truncate font-mono text-xs text-body" title={text('pinTypeTitle', { label: pin.key, type: typeLabel(pin.type) })}>
-                {pin.reads?.[0] ?? pin.key}
+                {readName(pin.key)}
               </span>
             </div>
           ))}

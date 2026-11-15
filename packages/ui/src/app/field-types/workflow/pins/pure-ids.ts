@@ -13,9 +13,6 @@ export const makeId = (target: string, key: string) => `make:${part(target)}|${p
 /** A condition node's id: the step whose Condition it is part of, and where it is among the Condition's nodes. */
 export const conditionId = (target: string, at: readonly number[]) => `when:${part(target)}|${at.join('/')}`
 
-/** Whether a node id is a condition node's. */
-export const isConditionId = (id: string) => id.startsWith('when:')
-
 /** Whether a node id is a Break's, a Make's or a condition node's, which the editor draws and the document holds no state for. */
 export const isPureId = (id: string) => id.startsWith('break:') || id.startsWith('make:') || id.startsWith('when:')
 

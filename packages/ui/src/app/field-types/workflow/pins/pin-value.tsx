@@ -46,24 +46,10 @@ export const PinValue = ({ pin, label, onChange }: { pin: InputPin; label: strin
   if (pin.state === 'wired' || pin.state === 'made') return null
   // A Condition is an expression, which the step's form edits; wired, it reads a yes or no
   if (pin.key === conditionKey && pin.state !== 'expression') return null
-  // An expression shows the values it reads as chips, whose wires show while its node is pointed at or chosen; one that
-  // reads nothing, the ƒ mark. The whole expression is on hover.
   if (pin.state === 'expression') {
-    const title = text('pinExpression', { expression: String(pin.value) })
-    if (!pin.reads?.length) {
-      return (
-        <span className="ml-auto shrink-0 rounded bg-muted px-1 font-mono text-xs text-muted-foreground" title={title}>
-          ƒ
-        </span>
-      )
-    }
     return (
-      <span className="ml-auto flex min-w-0 justify-end gap-0.5 overflow-hidden" title={title}>
-        {pin.reads.map((read) => (
-          <span key={read} className="min-w-0 shrink truncate rounded bg-muted px-1 font-mono text-[10px] leading-4 text-muted-foreground">
-            {read}
-          </span>
-        ))}
+      <span className="ml-auto shrink-0 rounded bg-muted px-1 font-mono text-xs text-muted-foreground" title={text('pinExpression', { expression: String(pin.value) })}>
+        ƒ
       </span>
     )
   }
