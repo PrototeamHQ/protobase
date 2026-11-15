@@ -41,14 +41,15 @@ const machine = async ({ os = 'Linux', arch = 'x86_64', docker = 'rootless' }: {
 describe('the install script', () => {
   it('downloads the runner of the app\'s version for the platform, registers it and runs it as a systemd user unit', async () => {
     const { install, calls, env, root } = await machine()
-    const { stdout, stderr } = await install('--token', 'pbr_once_abc', '--slots', '2', '--work-dir', "/srv/it's jobs")
+    const { stdout, stderr } = await install('--token', 'pbr_once_abc', '--slots', '2', '--work-dir', "/srv/it's jobs", '--cleaner-image', 'mirror.example.com/busybox:1.37.0')
     const made = await calls()
     expect(made).toContain(`curl -fsSL https://github.com/PrototeamHQ/protobase/releases/download/v0.15.0/protobase-runner-linux-x64 -o ${env.HOME}/.local/bin/protobase-runner.download`)
-    expect(made).toContain("protobase-runner register --url https://app.example.com --api-path /backend --token pbr_once_abc --slots 2 --work-dir /srv/it's jobs")
+    expect(made).toContain("protobase-runner register --url https://app.example.com --api-path /backend --token pbr_once_abc --slots 2 --work-dir /srv/it's jobs --cleaner-image mirror.example.com/busybox:1.37.0")
     expect(made).toEqual(expect.arrayContaining(['systemctl --user daemon-reload', 'systemctl --user enable --now protobase-runner.service']))
     const unit = await readFile(path.join(root, 'config', 'systemd', 'user', 'protobase-runner.service'), 'utf8')
     expect(unit).toContain(`ExecStart=${env.HOME}/.local/bin/protobase-runner run`)
     expect(unit).toContain('WantedBy=default.target')
+    expect(unit).toContain('TimeoutStopSec=120')
     expect(stdout).toContain('Installed and started')
     // Rootless Docker needs no advice, but lingering does
     expect(stderr).not.toContain('rootless')

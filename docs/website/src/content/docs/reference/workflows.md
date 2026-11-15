@@ -633,6 +633,7 @@ Its options: `--url` the app's address, by default the one that served it, which
 | `--engine` | `docker` when it works, else `podman` | Which one runs the containers; it is the one checked for builds. |
 | `--build` | `true` when the engine builds | Whether it builds images, so it is sent `prepare` and takes jobs whose image it lacks. `true` or `false`. |
 | `--build-timeout-seconds` | `1800` | The longest a build may take. |
+| `--cleaner-image` | busybox 1.37.0, pinned by its digest | The image that removes what a job's container left, pulled on its first use. A runner with no access to a public registry gives one it can reach, or loads it first, as with `docker load`. |
 
 They are kept in its config file; change them there and restart it.
 
@@ -653,7 +654,9 @@ docker run --rm --name protobase-job-<id> --network none \
 
 So the container has no network, a read-only root with a small `/tmp` that runs nothing, no capabilities and no way to gain any, user 65532 whatever its image says, limits on its processes, memory and CPUs, and of the machine only the job's two folders: its inputs, read-only, and its output folder, both relabelled (`z`) so SELinux lets the container use them. It never gets the engine's socket or the runner's environment. The runner sends its heartbeats throughout, sends its lines of output to the job's logs in batches, and kills it at the job's deadline, or once a heartbeat answers stop, completing nothing then. A line of output is at most 64 KiB, and a longer one is cut into lines; when the app takes them slower than the container writes them, at most 10 batches wait, and the oldest lines past them are dropped and counted in the next batch. A completion the app does not take is sent once more; one it takes neither time leaves the job to its lease, never failed in its place.
 
-It deletes the job's folder after. What the container's user left there in folders of its own, which the runner's user may not remove, a container of the step's image removes with its `rm`, as that same user, hardened and limited as the job was, with only the output folder, named `protobase-clean-<id>`; it is killed and removed after 60 seconds, at the job's deadline or as the runner stops, and the runner says when it is, or when it fails, as in an image with no `rm`.
+It deletes the job's folder after. What the container's user left there that the runner's user may not remove, such as a folder it made unwritable, the runner's own cleaner image removes, never the step's: its `rm` runs as root in the container, which under rootless Docker or Podman is the runner's own user, with every capability dropped but `DAC_OVERRIDE` and `FOWNER`, hardened and limited as a job is, with only the job's folder, named `protobase-clean-<id>`. It is killed and removed after 60 seconds or at the job's deadline, and the runner says so, or when it fails, or when its image cannot be pulled, which leaves the files.
+
+Stopping the runner, as `systemctl --user stop` does, or a refusal of its token, stops its jobs' containers and its build, and waits up to 90 seconds for them to clean up; a stopped build reports no end, so the app may ask for it again.
 
 **For an image's author**, what goes in and out is plain files and variables:
 

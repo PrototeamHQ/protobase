@@ -58,7 +58,7 @@ while [ $# -gt 0 ]; do
     --binary-url) binary_url=$2 ;;
     --bin-dir) bin_dir=$2 ;;
     --service) service=$2 ;;
-    --slots|--cpus|--memory-mb|--pids|--tmp-mb|--work-dir|--engine|--build|--build-timeout-seconds) settings="$settings $1 $(word "$2")" ;;
+    --slots|--cpus|--memory-mb|--pids|--tmp-mb|--work-dir|--engine|--build|--build-timeout-seconds|--cleaner-image) settings="$settings $1 $(word "$2")" ;;
     *) fail "unknown option $1; give --token pbr_once_..., and optionally --url, --api-path, --binary-url, --bin-dir, --service true|false and the runner's settings" ;;
   esac
   shift 2
@@ -116,6 +116,8 @@ mkdir -p "$units"
   echo "Environment=PATH=$PATH"
   [ -z "\${DOCKER_HOST:-}" ] || echo "Environment=DOCKER_HOST=$DOCKER_HOST"
   [ -z "\${XDG_CONFIG_HOME:-}" ] || echo "Environment=XDG_CONFIG_HOME=$XDG_CONFIG_HOME"
+  # Stopping waits for the jobs to clean up, up to 90 seconds
+  echo 'TimeoutStopSec=120'
   echo 'Restart=always'
   echo 'RestartSec=5'
   echo

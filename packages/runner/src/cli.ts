@@ -18,7 +18,8 @@ export const usage = `protobase-runner ${packageJson.version}: runs an app's cus
 
 Settings, kept by register: --slots <jobs at once, default half the CPUs>, --cpus <per job, 2>,
 --memory-mb <per job, 2048>, --pids <per job, 256>, --tmp-mb <per job, 256>, --work-dir <folder>,
---engine docker|podman, --build true|false, --build-timeout-seconds <1800>.`
+--engine docker|podman, --build true|false, --build-timeout-seconds <1800>,
+--cleaner-image <the image that removes jobs' folders, a pinned busybox by default>.`
 
 const loopback = (host: string) => host === 'localhost' || host === '[::1]' || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)
 

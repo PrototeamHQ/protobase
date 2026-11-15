@@ -98,7 +98,7 @@ export const convertJob = (changes: Partial<RunnerJob> = {}): RunnerJob => ({
 export const testSettings = async (): Promise<{ settings: Settings; remove: () => Promise<void> }> => {
   const dir = await mkdtemp(path.join(tmpdir(), 'protobase-runner-test-'))
   return {
-    settings: { slots: 2, cpus: 2, memory_mb: 2048, pids: 256, tmp_mb: 256, work_dir: path.join(dir, 'work'), engine: 'docker', build: true, build_timeout_seconds: 60 },
+    settings: { slots: 2, cpus: 2, memory_mb: 2048, pids: 256, tmp_mb: 256, work_dir: path.join(dir, 'work'), engine: 'docker', build: true, build_timeout_seconds: 60, cleaner_image: 'busybox:test' },
     // Folders a test locked, as a container's user would leave them, are opened first
     remove: async () => {
       const folders = (await readdir(dir, { recursive: true, withFileTypes: true }).catch(() => [])).filter((entry) => entry.isDirectory())

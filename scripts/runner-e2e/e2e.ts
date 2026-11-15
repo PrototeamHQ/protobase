@@ -5,7 +5,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { createWriteStream } from 'node:fs'
-import { chmod, mkdir, stat, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readdir, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { serve } from '@hono/node-server'
 import { Kysely, PostgresDialect, sql } from 'kysely'
@@ -67,6 +67,8 @@ else
   out=video-$height.mp4
   ffmpeg -nostdin -loglevel warning -stats -i "$in" -vf "scale=-2:$height" -c:v libx264 -preset veryfast -c:a aac -movflags +faststart "$PROTOBASE_OUT/$out"
 fi
+# A folder of its own it leaves unwritable, which the runner's cleaner image must remove
+mkdir "$PROTOBASE_OUT/scratch" && echo done > "$PROTOBASE_OUT/scratch/state" && chmod 500 "$PROTOBASE_OUT/scratch"
 duration=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$PROTOBASE_OUT/$out")
 jq -n --arg video "$out" --argjson duration "$duration" '{ video: $video, duration_seconds: $duration }' > "$PROTOBASE_OUT/output.json"
 `
@@ -222,6 +224,9 @@ try {
     const probed = await probe(ended.output!.video!.path)
     say(`ffprobe of the stored output: ${probed}`)
     if (probed !== 'h264,1280,720') throw new Error(`expected h264,1280,720, got ${probed}`)
+    // The job's folder, its unwritable one included, is gone once its cleanup ended
+    await waitFor("the job's folder to be removed", 2, async () => ((await readdir(path.join(dir, 'work'))).filter((name) => name.startsWith('job-')).length === 0 ? true : undefined))
+    say(`the runner's work folder holds no job's folder`)
     say('PASS')
     exitCode = 0
   } finally {

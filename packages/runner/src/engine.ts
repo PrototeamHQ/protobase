@@ -50,20 +50,22 @@ export const runArgs = ({ name, image, command, work, settings, env }: { name: s
 ]
 
 /**
- * The command line that removes what a job's container left in its output folder (`entries`), which the runner's own
- * user may not: the step image's `rm`, run as the job's user, who wrote them, hardened and limited as the job was, with
- * only that folder, so it may do nothing the job itself could not. It is named, so the runner can kill and remove it.
+ * The command line that removes the output folder of a job's folder (`work`), with all a job's container left in it
+ * that the runner's own user may not remove, folders it made unwritable included: the cleaner image's `rm`, as root in
+ * the container, which under rootless Docker or Podman is the runner's own user, with every capability dropped but
+ * the two removing needs, `DAC_OVERRIDE` and `FOWNER`, hardened and limited as a job is, with only that folder. It is
+ * named, so the runner can kill and remove it.
  */
-export const cleanArgs = ({ name, image, out, entries, settings }: { name: string; image: string; out: string; entries: readonly string[]; settings: Pick<Settings, 'cpus' | 'memory_mb' | 'pids'> }) => [
+export const cleanArgs = ({ name, image, work, settings }: { name: string; image: string; work: string; settings: Pick<Settings, 'cpus' | 'memory_mb' | 'pids'> }) => [
   'run', '--rm', '--name', name,
   '--network', 'none', '--read-only',
-  '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+  '--cap-drop', 'ALL', '--cap-add', 'DAC_OVERRIDE', '--cap-add', 'FOWNER', '--security-opt', 'no-new-privileges',
   '--pids-limit', String(settings.pids), '--memory', `${settings.memory_mb}m`, '--memory-swap', `${settings.memory_mb}m`, '--cpus', String(settings.cpus),
-  '--user', '65532:65532',
-  '-v', `${out}:${containerPaths.out}:z`,
+  '--user', '0:0',
+  '-v', `${work}:/protobase/work:z`,
   '--entrypoint', 'rm',
   image,
-  '-rf', '--', ...entries.map((entry) => `${containerPaths.out}/${entry}`),
+  '-rf', '--', '/protobase/work/out',
 ]
 
 /** The command line that builds a version's image from its folder, labelled with its step and its app. */
@@ -90,6 +92,7 @@ export const engine = (exec: Exec, name: EngineName) => ({
   run: (args: readonly string[], options: ExecOptions) => exec(name, args, options),
   kill: (container: string) => exec(name, ['kill', container]),
   remove: (container: string) => exec(name, ['rm', '-f', container]),
+  pull: (image: string, options: ExecOptions) => exec(name, ['pull', image], options),
   /** Removes what a job's container left in its output folder (`cleanArgs`). */
   clean: (given: Parameters<typeof cleanArgs>[0], options: ExecOptions) => exec(name, cleanArgs(given), options),
 })

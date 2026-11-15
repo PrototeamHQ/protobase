@@ -246,76 +246,6 @@ describe("a job's end", () => {
     expect(never.app.calls.filter((call) => call.call === 'complete').map((call) => 'output' in (call.body as object))).toEqual([true, true])
     expect(never.lines.at(-1)).toMatch(/took its completion neither time .* its lease ends it, and it runs again$/)
   })
-
-  it("removes what the container's user left beyond the runner's reach as that user, hardened, named, and stopped at the deadline", async () => {
-    let finish: (() => void) | undefined
-    const { input, ran, lines } = await setUp(async (one) => {
-      if (one.args[0] === 'kill' && one.args[1]!.startsWith('protobase-clean-')) finish?.()
-      if (one.args[0] !== 'run') return {}
-      const out = one.args[one.args.indexOf('-v') + 1]!.split(':')[0]!
-      if (one.args.includes('--entrypoint')) {
-        // The cleaner hangs once, until it is killed; it removes the folder as the job's user would
-        if (!finish) return new Promise((resolve) => (finish = () => resolve({ code: 137 })))
-        await chmod(path.join(out, 'locked'), 0o700)
-        await rm(path.join(out, 'locked'), { recursive: true })
-        return {}
-      }
-      const { out: written } = mounts(one.args)
-      // A folder the runner's user may not empty, as one the container's user made would be
-      await mkdir(path.join(written, 'locked'))
-      await writeFile(path.join(written, 'locked', 'part.bin'), 'x')
-      await chmod(path.join(written, 'locked'), 0o500)
-      return { code: 1 }
-    })
-    // A deadline the job itself meets, however slow the machine, and the cleaner then does not
-    const deadline = Date.now() + 1500
-    await runJob(input, convertJob({ deadline: new Date(deadline).toISOString() }))
-    expect(Date.now()).toBeGreaterThanOrEqual(deadline)
-    const clean = ran.find((one) => one.args.includes('--entrypoint'))!
-    const out = clean.args[clean.args.indexOf('-v') + 1]!.split(':')[0]!
-    expect(clean.args).toEqual([
-      'run', '--rm', '--name', 'protobase-clean-0b6f2f8e-1111-4222-8333-944445555666',
-      '--network', 'none', '--read-only',
-      '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
-      '--pids-limit', '256', '--memory', '2048m', '--memory-swap', '2048m', '--cpus', '2',
-      '--user', '65532:65532',
-      '-v', `${out}:/protobase/out:z`,
-      '--entrypoint', 'rm', tag, '-rf', '--', '/protobase/out/locked',
-    ])
-    // At the job's deadline the hung cleaner is killed and removed by its name, and that is said
-    expect(ran.filter((one) => one.args[0] !== 'run' && one.args.at(-1)!.startsWith('protobase-clean-')).map((one) => one.args)).toEqual([
-      ['kill', 'protobase-clean-0b6f2f8e-1111-4222-8333-944445555666'],
-      ['rm', '-f', 'protobase-clean-0b6f2f8e-1111-4222-8333-944445555666'],
-    ])
-    expect(lines).toContain('job 0b6f2f8e-1111-4222-8333-944445555666: removing its folder was stopped, as it took too long or the runner stops')
-
-    // One that removes them leaves no folder; one that exits otherwise is said
-    const second = await setUp(async (one) => {
-      if (one.args[0] !== 'run') return {}
-      const folder = one.args[one.args.indexOf('-v') + 1]!.split(':')[0]!
-      if (one.args.includes('--entrypoint')) {
-        await chmod(path.join(folder, 'locked'), 0o700)
-        await rm(path.join(folder, 'locked'), { recursive: true })
-        return {}
-      }
-      await mkdir(path.join(mounts(one.args).out, 'locked'))
-      await writeFile(path.join(mounts(one.args).out, 'locked', 'part.bin'), 'x')
-      await chmod(path.join(mounts(one.args).out, 'locked'), 0o500)
-      return { code: 1 }
-    })
-    await runJob(second.input, convertJob())
-    expect(await readdir(second.settings.work_dir)).toEqual([])
-    const third = await setUp(async (one) => {
-      if (one.args[0] !== 'run') return {}
-      if (one.args.includes('--entrypoint')) return { code: 127, stderr: 'exec: "rm": executable file not found in $PATH' }
-      await mkdir(path.join(mounts(one.args).out, 'locked'))
-      await writeFile(path.join(mounts(one.args).out, 'locked', 'part.bin'), 'x')
-      await chmod(path.join(mounts(one.args).out, 'locked'), 0o500)
-      return { code: 1 }
-    })
-    await runJob(third.input, convertJob())
-    expect(third.lines).toContain('job 0b6f2f8e-1111-4222-8333-944445555666: removing its folder\'s files exited with 127: exec: "rm": executable file not found in $PATH')
-  })
 })
 
 describe("a job's log", () => {
@@ -357,24 +287,97 @@ describe("a build's log", () => {
   })
 })
 
-describe("a job's cleanup as the runner stops", () => {
-  it('kills and removes a cleaner still running once the runner stops', async () => {
+// A container that leaves a folder its user made unwritable, as the runner's own user may not remove; and a cleaner,
+// the runner's image, which removes it as the container's root may: `answer` says what else the engine answers.
+const locking = (answer: (one: Ran) => Promise<Partial<{ code: number; stderr: string }>> | Partial<{ code: number; stderr: string }> | undefined = () => undefined) => async (one: Ran) => {
+  const given = await answer(one)
+  if (given) return given
+  if (one.args[0] !== 'run') return {}
+  if (one.args.includes('/protobase/work/out')) {
+    const work = one.args[one.args.indexOf('-v') + 1]!.split(':')[0]!
+    await chmod(path.join(work, 'out', 'locked'), 0o700)
+    await rm(path.join(work, 'out'), { recursive: true })
+    return {}
+  }
+  const { out } = mounts(one.args)
+  await mkdir(path.join(out, 'locked'))
+  await writeFile(path.join(out, 'locked', 'part.bin'), 'x')
+  await chmod(path.join(out, 'locked'), 0o500)
+  return { code: 1 }
+}
+const cleaners = (ran: Ran[]) => ran.filter((one) => one.args.includes('/protobase/work/out'))
+
+describe("a job's folder", () => {
+  it("is removed with the runner's own cleaner image, as root with only the capabilities removing needs, hardened and named, a 0500 folder included", async () => {
+    const { input, ran, settings } = await setUp(locking())
+    await runJob(input, convertJob())
+    const [clean] = cleaners(ran)
+    const work = clean!.args[clean!.args.indexOf('-v') + 1]!.split(':')[0]!
+    expect(clean!.args).toEqual([
+      'run', '--rm', '--name', 'protobase-clean-0b6f2f8e-1111-4222-8333-944445555666',
+      '--network', 'none', '--read-only',
+      '--cap-drop', 'ALL', '--cap-add', 'DAC_OVERRIDE', '--cap-add', 'FOWNER', '--security-opt', 'no-new-privileges',
+      '--pids-limit', '256', '--memory', '2048m', '--memory-swap', '2048m', '--cpus', '2',
+      '--user', '0:0',
+      '-v', `${work}:/protobase/work:z`,
+      '--entrypoint', 'rm', 'busybox:test', '-rf', '--', '/protobase/work/out',
+    ])
+    // Never the step's own image, which may have no rm at all
+    expect(clean!.args).not.toContain(tag)
+    expect(await readdir(settings.work_dir)).toEqual([])
+  })
+
+  it('pulls the cleaner image when it is not here, and leaves the files, saying so, when it cannot be pulled', async () => {
+    const pulled = await setUp(locking((one) => (one.args[0] === 'image' && one.args.includes('busybox:test') ? { code: 1 } : undefined)))
+    await runJob(pulled.input, convertJob())
+    expect(pulled.ran.filter((one) => one.args[0] === 'pull').map((one) => one.args)).toEqual([['pull', 'busybox:test']])
+    expect(cleaners(pulled.ran)).toHaveLength(1)
+    expect(await readdir(pulled.settings.work_dir)).toEqual([])
+    const offline = await setUp(locking((one) => (one.args.includes('busybox:test') && one.args[0] !== 'run' ? { code: 1, stderr: 'no registry' } : undefined)))
+    await runJob(offline.input, convertJob())
+    expect(cleaners(offline.ran)).toEqual([])
+    expect(offline.lines.at(-1)).toMatch(/its folder's files are left in .*, as the cleaner image busybox:test is not here and could not be pulled: load it, or give another with --cleaner-image$/)
+  })
+
+  it('kills and removes a cleaner that hangs, by its name, at the job\'s deadline, and says so; one that fails is said', async () => {
+    let finish: (() => void) | undefined
+    const { input, ran, lines } = await setUp(locking((one) => {
+      if (one.args[0] === 'kill' && one.args[1]!.startsWith('protobase-clean-')) finish?.()
+      if (cleaners([one]).length > 0) return new Promise((resolve) => (finish = () => resolve({ code: 137 })))
+      return undefined
+    }))
+    // A deadline the job itself meets, however slow the machine, and the cleaner then does not
+    const deadline = Date.now() + 1500
+    await runJob(input, convertJob({ deadline: new Date(deadline).toISOString() }))
+    expect(Date.now()).toBeGreaterThanOrEqual(deadline)
+    expect(ran.filter((one) => one.args[0] !== 'run' && one.args.at(-1)!.startsWith('protobase-clean-')).map((one) => one.args)).toEqual([
+      ['kill', 'protobase-clean-0b6f2f8e-1111-4222-8333-944445555666'],
+      ['rm', '-f', 'protobase-clean-0b6f2f8e-1111-4222-8333-944445555666'],
+    ])
+    expect(lines).toContain("job 0b6f2f8e-1111-4222-8333-944445555666: removing its folder was stopped, as it took longer than 60 seconds or the job's deadline")
+    const failing = await setUp(locking((one) => (cleaners([one]).length > 0 ? { code: 125, stderr: 'permission denied' } : undefined)))
+    await runJob(failing.input, convertJob())
+    expect(failing.lines).toContainEqual("job 0b6f2f8e-1111-4222-8333-944445555666: removing its folder's files exited with 125: permission denied")
+  })
+
+  it('is still removed when the runner stops during its job, which kills the container', async () => {
     const stopping = new AbortController()
     let finish: (() => void) | undefined
-    const { input, ran } = await setUp(async (one) => {
-      if (one.args[0] === 'kill' && one.args[1]!.startsWith('protobase-clean-')) finish?.()
-      if (one.args[0] !== 'run') return {}
-      if (one.args.includes('--entrypoint')) {
-        setTimeout(() => stopping.abort(), 10)
-        return new Promise((resolve) => (finish = () => resolve({ code: 137 })))
+    const { input, ran, settings } = await setUp(locking((one) => {
+      if (one.args[0] === 'kill' && one.args[1]!.startsWith('protobase-job-')) finish?.()
+      if (one.args[0] === 'run' && !one.args.includes('/protobase/work/out')) {
+        return (async () => {
+          await locking()(one)
+          setTimeout(() => stopping.abort(), 10)
+          await new Promise<void>((resolve) => (finish = resolve))
+          return { code: 137 }
+        })()
       }
-      const { out } = mounts(one.args)
-      await mkdir(path.join(out, 'locked'))
-      await writeFile(path.join(out, 'locked', 'part.bin'), 'x')
-      await chmod(path.join(out, 'locked'), 0o500)
-      return { code: 1 }
-    })
+      return undefined
+    }))
     await runJob(input, convertJob(), stopping.signal)
-    expect(ran.filter((one) => one.args[0] !== 'run' && one.args.at(-1)!.startsWith('protobase-clean-')).map((one) => one.args[0])).toEqual(['kill', 'rm'])
+    expect(ran.some((one) => one.args[0] === 'kill' && one.args[1]!.startsWith('protobase-job-'))).toBe(true)
+    expect(cleaners(ran)).toHaveLength(1)
+    expect(await readdir(settings.work_dir)).toEqual([])
   })
 })

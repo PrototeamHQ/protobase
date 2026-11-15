@@ -1,4 +1,4 @@
-import { chmod, lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileInputName, jobErrors, type JobCompletion, type RunnerJob } from '@protobase/workflows'
 import type { AppClient } from './app'
@@ -155,7 +155,6 @@ export const runJob = async ({ app, engine, build, settings, identity, say }: Jo
   let deadline: ReturnType<typeof setTimeout> | undefined
   let logs: ReturnType<typeof logLines> | undefined
   let work: string | undefined
-  let tag: string | undefined
   try {
     // Everything that can fail goes on inside, so a failure of its folder or its step ends the job and clears all.
     signal?.addEventListener('abort', stopping, { once: true })
@@ -171,7 +170,7 @@ export const runJob = async ({ app, engine, build, settings, identity, say }: Jo
     let completion: JobCompletion | undefined
     let ran = false
     try {
-      tag = imageTag(identity, job.step)
+      const tag = imageTag(identity, job.step)
       await mkdir(settings.work_dir, { recursive: true, mode: 0o700 })
       work = await mkdtemp(path.join(settings.work_dir, 'job-'))
       completion = await perform(work, tag, logs)
@@ -188,7 +187,7 @@ export const runJob = async ({ app, engine, build, settings, identity, say }: Jo
     clearInterval(heartbeats)
     clearTimeout(deadline)
     await logs?.close()
-    if (work) await removeWork(work, tag)
+    if (work) await removeWork(work)
   }
 
   // Sends the completion, and once more after a moment when the app did not take it: a step that ran is never failed
@@ -254,28 +253,30 @@ export const runJob = async ({ app, engine, build, settings, identity, say }: Jo
     return { output }
   }
 
-  // Files the container's user left in folders of its own cannot be removed by the runner's user: a container of the
-  // step's image removes them as that same user, hardened as the job was, named, within `cleanMs`, the job's deadline
-  // and the runner's stop, and killed and removed once any passes. Every way it fails is said.
-  async function removeWork(work: string, tag: string | undefined) {
+  // Files the container's user left in folders of its own cannot be removed by the runner's user: the runner's cleaner
+  // image removes them (`cleanArgs`), pulled first if it is not here, named, within `cleanMs` and the job's deadline,
+  // and killed and removed once either passes. It runs as the runner stops too, which waits for it. Every way it fails
+  // is said.
+  async function removeWork(work: string) {
     const removed = await rm(work, { recursive: true, force: true }).then(() => true, () => false)
     if (removed) return
-    const out = path.join(work, 'out')
-    const entries = await readdir(out).catch(() => [])
-    if (tag && entries.length > 0 && signal?.aborted) say(`job ${job.id}: its folder's files are left in ${work}, as the runner stops`)
-    else if (tag && entries.length > 0) {
-      const cleaner = `protobase-clean-${job.id}`
-      const left = Date.parse(job.deadline) - Date.now()
-      const limit = AbortSignal.any([AbortSignal.timeout(cleanMs), ...(left > 0 ? [AbortSignal.timeout(left)] : []), ...(signal ? [signal] : [])])
-      const end = () => void engine.kill(cleaner)
-      limit.addEventListener('abort', end, { once: true })
-      const cleaned = await engine.clean({ name: cleaner, image: tag, out, entries, settings }, { signal: limit })
-      limit.removeEventListener('abort', end)
-      if (limit.aborted) {
-        await engine.remove(cleaner)
-        say(`job ${job.id}: removing its folder was stopped, as it took too long or the runner stops`)
-      } else if (cleaned.code !== 0) say(`job ${job.id}: removing its folder's files exited with ${cleaned.code}: ${cleaned.stderr.trim().slice(-500)}`)
+    const cleaner = `protobase-clean-${job.id}`
+    const left = Date.parse(job.deadline) - Date.now()
+    const limit = AbortSignal.any([AbortSignal.timeout(cleanMs), ...(left > 0 ? [AbortSignal.timeout(left)] : [])])
+    const image = settings.cleaner_image
+    const pulled = (await engine.has(image)) || (await engine.pull(image, { signal: limit })).code === 0
+    if (!pulled) {
+      say(`job ${job.id}: its folder's files are left in ${work}, as the cleaner image ${image} is not here and could not be pulled: load it, or give another with --cleaner-image`)
+      return
     }
+    const end = () => void engine.kill(cleaner)
+    limit.addEventListener('abort', end, { once: true })
+    const cleaned = await engine.clean({ name: cleaner, image, work, settings }, { signal: limit })
+    limit.removeEventListener('abort', end)
+    if (limit.aborted) {
+      await engine.remove(cleaner)
+      say(`job ${job.id}: removing its folder was stopped, as it took longer than ${cleanMs / 1000} seconds or the job's deadline`)
+    } else if (cleaned.code !== 0) say(`job ${job.id}: removing its folder's files exited with ${cleaned.code}: ${cleaned.stderr.trim().slice(-500)}`)
     await rm(work, { recursive: true, force: true }).catch((error: unknown) => say(`job ${job.id}: could not remove ${work}: ${String(error)}`))
   }
 }

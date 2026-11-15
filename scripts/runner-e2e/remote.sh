@@ -15,6 +15,8 @@ name=$(basename "$E2E")
 postgres_image=postgres:17-alpine
 bases="debian:bookworm-slim mwader/static-ffmpeg:7.1.1"
 bun_version=1.4.4
+# The runner's cleaner image, which the test's job pulls when it is not here
+cleaner=busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
 
 # The Docker CLI's state, Bun's caches and everything else of the test stay in the folder; jobs run under rootless Docker.
 export DOCKER_HOST="${DOCKER_HOST:-unix://${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/docker.sock}"
@@ -26,8 +28,9 @@ mkdir -p "$DOCKER_CONFIG" "$BUN_INSTALL" "$BUN_INSTALL_CACHE_DIR" "$XDG_CACHE_HO
 images_before=$(docker image ls --format '{{.Repository}}:{{.Tag}}')
 step_images_before=$(docker image ls -q --filter label=org.protobase.step)
 containers_before=$(docker ps -a --format '{{.Names}}')
+cleaner_before=$(docker image inspect "$cleaner" >/dev/null 2>&1 && echo here || echo none)
 was_here() { printf '%s\n' "$images_before" | grep -qxF "$1"; }
-echo "== before: images [$(printf '%s' "$images_before" | tr '\n' ' ')], containers [$(printf '%s' "$containers_before" | tr '\n' ' ')]"
+echo "== before: cleaner image $cleaner_before, images [$(printf '%s' "$images_before" | tr '\n' ' ')], containers [$(printf '%s' "$containers_before" | tr '\n' ' ')]"
 
 cleanup() {
   status=$?
@@ -53,6 +56,7 @@ cleanup() {
       printf '%s\n' "$step_images_before" | grep -qxF "$image" || docker image rm -f "$image" >/dev/null
     done
   fi
+  [ "$cleaner_before" = here ] || docker image rm "$cleaner" >/dev/null 2>&1
   for image in $postgres_image $bases; do
     was_here "$image" || docker image rm "$image" >/dev/null 2>&1
   done

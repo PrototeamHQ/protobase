@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { RunnerOrder } from '@protobase/workflows'
@@ -101,6 +101,59 @@ describe("the runner's loop", () => {
     await runLoop({ app: appClient({ url: identity.url, token: 'pbr_own', fetch }), engine: engine(exec, 'docker'), settings: { ...settings, work_dir: path.join(blocked, 'work') }, identity, say: (line) => said.push(line), signal: stopping.signal })
     expect(claims).toBe(2)
     expect(said).toContainEqual(expect.stringMatching(/^prepare custom:ffmpeg_convert:1 failed, claiming again after a pause: ENOTDIR/))
+  })
+
+  it('stops the jobs it runs when the app refuses its token, and waits for them to clean up before it ends', async () => {
+    const { settings, remove } = await testSettings()
+    removals.push(remove)
+    const job = convertJob()
+    let finish: (() => void) | undefined
+    let claims = 0
+    const order: string[] = []
+    const { exec } = fakeExec(async (one) => {
+      if (one.args[0] === 'kill') finish?.()
+      if (one.args[0] !== 'run') return {}
+      order.push('container running')
+      // The second claim is refused while the job runs
+      await new Promise<void>((resolve) => (finish = resolve))
+      order.push('container killed')
+      return { code: 137 }
+    })
+    const fetch: Fetch = async (url) => {
+      if (url.endsWith('/claim')) {
+        claims++
+        if (claims === 1) return Response.json({ order: 'job', job })
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        return new Response('{"title":"Unauthorized"}', { status: 401 })
+      }
+      if (url.includes('/inputs/')) return new Response('input bytes')
+      return Response.json({ stop: false })
+    }
+    const ended = runLoop({ app: appClient({ url: identity.url, token: 'pbr_gone', fetch }), engine: engine(exec, 'docker'), settings, identity, say: () => {}, signal: new AbortController().signal }).finally(() => order.push('loop ended'))
+    await expect(ended).rejects.toThrow(/revoked or deleted/)
+    // Its container was killed, and its folder removed, before the loop ended
+    expect(order).toEqual(['container running', 'container killed', 'loop ended'])
+    expect(await readdir(settings.work_dir)).toEqual([])
+  })
+
+  it('stops a prepare build as the runner stops, reporting no end, and ends once it cleaned up', async () => {
+    const { settings, remove } = await testSettings()
+    removals.push(remove)
+    const job = convertJob()
+    const stopping = new AbortController()
+    const server = fakeServer([{ order: 'prepare', step: job.step, build: job.build }], () => {})
+    const { exec } = fakeExec((one, options) => {
+      if (one.args[0] === 'image' && one.args[1] === 'inspect') return { code: 1 }
+      if (one.args[0] !== 'build') return {}
+      setTimeout(() => stopping.abort(), 20)
+      // A build that would run for its whole time limit, until its signal kills it
+      return new Promise((resolve) => options.signal?.addEventListener('abort', () => resolve({ code: 137 }), { once: true }))
+    })
+    const started = Date.now()
+    await runLoop({ app: appClient({ url: identity.url, token: 'pbr_own', fetch: server.fetch }), engine: engine(exec, 'docker'), settings: { ...settings, build_timeout_seconds: 600 }, identity, say: () => {}, signal: stopping.signal })
+    expect(Date.now() - started).toBeLessThan(5000)
+    expect(server.sent.filter((one) => one.path.endsWith('/builds')).map((one) => JSON.parse(one.body).status)).toEqual(['building'])
+    expect(await readdir(settings.work_dir)).toEqual([])
   })
 
   it('says it builds only when its settings say so, and stops when the app refuses its token', async () => {

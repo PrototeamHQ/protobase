@@ -2,13 +2,19 @@ import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 
+/**
+ * The image the runner removes a job's folder with, busybox pinned by its digest: the runner's own, never the step's,
+ * pulled once, on its first use. A runner with no registry access gives one it has (`--cleaner-image`).
+ */
+export const cleanerImage = 'busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec'
+
 export const engines = ['docker', 'podman'] as const
 export type EngineName = (typeof engines)[number]
 
 /**
  * How the runner runs jobs: how many at once (`slots`), what each container may use (`cpus`, `memory_mb` with no swap
  * beyond it, `pids`, and `tmp_mb` of `/tmp`), where jobs' folders go (`work_dir`), which engine runs them, whether it
- * builds images, and how long a build may take.
+ * builds images, how long a build may take, and the image it removes jobs' folders with.
  */
 export type Settings = {
   slots: number
@@ -20,6 +26,7 @@ export type Settings = {
   engine: EngineName
   build: boolean
   build_timeout_seconds: number
+  cleaner_image: string
 }
 
 /**
@@ -53,6 +60,7 @@ export const settingFlags: Record<string, keyof Settings> = {
   '--engine': 'engine',
   '--build': 'build',
   '--build-timeout-seconds': 'build_timeout_seconds',
+  '--cleaner-image': 'cleaner_image',
 }
 
 const wholeSettings = ['slots', 'memory_mb', 'pids', 'tmp_mb', 'build_timeout_seconds'] as const
@@ -60,8 +68,9 @@ const wholeSettings = ['slots', 'memory_mb', 'pids', 'tmp_mb', 'build_timeout_se
 /**
  * The settings, from what the flags give (`given`, by setting) over the defaults: slots half the machine's CPUs, at
  * least 1; 2 CPUs, 2048 MB, 256 processes and 256 MB of `/tmp` per job; the engine found and whether it builds; builds
- * up to 30 minutes. A value that is not one is refused, naming its flag: whole numbers above 0, CPUs a number above 0,
- * an engine `docker` or `podman`, and `build` `true` or `false` only.
+ * up to 30 minutes; the cleaner image `cleanerImage`. A value that is not one is refused, naming its flag: whole
+ * numbers above 0, CPUs a number above 0, an engine `docker` or `podman`, an image name, and `build` `true` or `false`
+ * only.
  */
 export const settingsOf = (given: Partial<Record<keyof Settings, string>>, found: { cpus: number; engine: EngineName; builds: boolean; workDir: string }): Settings => {
   const flag = (key: keyof Settings) => Object.keys(settingFlags).find((name) => settingFlags[name] === key)!
@@ -75,6 +84,7 @@ export const settingsOf = (given: Partial<Record<keyof Settings, string>>, found
     engine: found.engine,
     build: found.builds,
     build_timeout_seconds: 1800,
+    cleaner_image: cleanerImage,
   }
   for (const key of wholeSettings) {
     const value = given[key]
@@ -91,6 +101,10 @@ export const settingsOf = (given: Partial<Record<keyof Settings, string>>, found
   if (given.engine !== undefined) {
     if (!engines.includes(given.engine as EngineName)) throw new Error(`--engine is docker or podman, not ${JSON.stringify(given.engine)}`)
     settings.engine = given.engine as EngineName
+  }
+  if (given.cleaner_image !== undefined) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._\/:@-]*$/.test(given.cleaner_image)) throw new Error(`--cleaner-image is an image, such as busybox:1.37.0, not ${JSON.stringify(given.cleaner_image)}`)
+    settings.cleaner_image = given.cleaner_image
   }
   if (given.build !== undefined) {
     if (given.build !== 'true' && given.build !== 'false') throw new Error(`--build is true or false, not ${JSON.stringify(given.build)}`)

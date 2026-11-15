@@ -18,9 +18,10 @@ const insideContext = (file: string) => file !== '' && !path.isAbsolute(file) &&
  * The runner's builds of custom step versions' images: each from its version's Dockerfile and files alone, written into
  * a fresh folder, on the engine's default network, within the build time limit, labelled with its step and app. A
  * build reports its start and its end to the app, with its digest or the end of its log. An image already here is not
- * built again, and two builds of one image at once are one.
+ * built again, and two builds of one image at once are one. Once `signal` aborts, as the runner stops, a build is
+ * stopped and its folder removed, and it reports no end: it did not fail, so the app may ask for it again.
  */
-export const builder = ({ app, engine, settings, identity, say }: { app: AppClient; engine: Engine; settings: Pick<Settings, 'work_dir' | 'build_timeout_seconds'>; identity: Identity; say: (line: string) => void }) => {
+export const builder = ({ app, engine, settings, identity, say, signal }: { app: AppClient; engine: Engine; settings: Pick<Settings, 'work_dir' | 'build_timeout_seconds'>; identity: Identity; say: (line: string) => void; signal?: AbortSignal }) => {
   const building = new Map<string, Promise<Built>>()
 
   const build = async (tag: string, step: string, version: JobBuild): Promise<Built> => {
@@ -42,7 +43,7 @@ export const builder = ({ app, engine, settings, identity, say }: { app: AppClie
       await writeFile(dockerfile, version.dockerfile)
       const started = Date.now()
       const result = await engine.build(buildArgs({ tag, step, app: appKey(identity), dockerfile, context }), {
-        signal: AbortSignal.timeout(settings.build_timeout_seconds * 1000),
+        signal: AbortSignal.any([AbortSignal.timeout(settings.build_timeout_seconds * 1000), ...(signal ? [signal] : [])]),
         line: (line) => (tail = (tail === '' ? line : `${tail}\n${line}`).slice(-buildLogChars)),
       })
       const log = tail
@@ -57,6 +58,10 @@ export const builder = ({ app, engine, settings, identity, say }: { app: AppClie
       ended = { built: false, log: `${tail}\n${error instanceof Error ? error.message : String(error)}`.slice(-buildLogChars) }
     } finally {
       await rm(folder, { recursive: true, force: true })
+    }
+    if (signal?.aborted && !ended.built) {
+      say(`build ${step}: stopped, as the runner stops`)
+      return { built: false, log: `${ended.log}\nThe build was stopped, as the runner stops`.slice(-buildLogChars) }
     }
     say(`build ${step}: ${ended.built ? 'ready' : 'failed'}`)
     await app.build({ step, status: ended.built ? 'ready' : 'failed', ...(ended.built && ended.digest && { digest: ended.digest }), log: ended.log }).catch((error: unknown) => say(`build ${step}: could not report its end: ${String(error)}`))

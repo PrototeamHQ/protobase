@@ -3,7 +3,7 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Fetch } from './app'
 import { cli } from './cli'
-import { configPath, readConfig, settingsOf } from './config'
+import { cleanerImage, configPath, readConfig, settingsOf } from './config'
 import { appKey, buildArgs, engine, findEngine, imageTag } from './engine'
 import { fakeExec, testSettings } from './testing/fakes'
 
@@ -16,7 +16,10 @@ const found = { cpus: 8, engine: 'docker' as const, builds: true, workDir: '/var
 
 describe("the runner's settings", () => {
   it('default to half the CPUs in slots, and per job 2 CPUs, 2048 MB, 256 processes and 256 MB of /tmp', () => {
-    expect(settingsOf({}, found)).toEqual({ slots: 4, cpus: 2, memory_mb: 2048, pids: 256, tmp_mb: 256, work_dir: '/var/cache/runner', engine: 'docker', build: true, build_timeout_seconds: 1800 })
+    expect(settingsOf({}, found)).toEqual({ slots: 4, cpus: 2, memory_mb: 2048, pids: 256, tmp_mb: 256, work_dir: '/var/cache/runner', engine: 'docker', build: true, build_timeout_seconds: 1800, cleaner_image: cleanerImage })
+    expect(cleanerImage).toMatch(/^busybox:[0-9.]+@sha256:[0-9a-f]{64}$/)
+    expect(settingsOf({ cleaner_image: 'registry.example.com/busybox:1.37.0' }, found).cleaner_image).toBe('registry.example.com/busybox:1.37.0')
+    expect(() => settingsOf({ cleaner_image: 'busy box' }, found)).toThrow('--cleaner-image is an image')
     expect(settingsOf({}, { ...found, cpus: 1 }).slots).toBe(1)
     expect(settingsOf({ slots: '3', cpus: '0.5', memory_mb: '512', engine: 'podman', build: 'false' }, found)).toMatchObject({ slots: 3, cpus: 0.5, memory_mb: 512, engine: 'podman', build: false })
   })
