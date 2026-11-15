@@ -52,7 +52,8 @@
     "config:schema": "bun scripts/config-schema/write.ts",
     "features:check": "bun scripts/features-check.ts",
     "release": "bun scripts/release.mjs",
-    "release:speed": "bun scripts/release-speed/main.ts"
+    "release:speed": "bun scripts/release-speed/main.ts",
+    "runner:build": "bun run --cwd packages/runner build"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

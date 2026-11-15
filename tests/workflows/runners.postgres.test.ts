@@ -146,7 +146,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("custom steps' runners o
     const machine = testRunner(fetch)
     const answer = await machine.register(token)
     expect(answer.status).toBe(200)
-    expect(await answer.json()).toEqual({ runner: { id, name: 'Builder', labels: ['linux'] }, token: expect.stringMatching(/^pbr_[A-Za-z0-9_-]{43}$/) })
+    expect(await answer.json()).toEqual({ runner: { id, name: 'Builder', labels: ['linux'], tenant: '1' }, token: expect.stringMatching(/^pbr_[A-Za-z0-9_-]{43}$/) })
     const kept = (await sql<Record<string, unknown>>`select registration_hash, token_hash, platform, kinds, registered_at from workflows.runners where id = ${id}`.execute(db)).rows[0]!
     expect(kept).toMatchObject({ platform: 'linux/amd64', kinds: ['container'], registered_at: expect.any(Date) })
     expect(JSON.stringify(kept)).not.toContain(token.slice(9))
@@ -175,7 +175,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("custom steps' runners o
     const id = await start('page one')
     const claimed = await claim
     // Only the claim answer opens the arguments; the runner gets no task token, as it proves itself with its own
-    expect(claimed).toEqual({ id: expect.any(String), step, input: { page: 'page one', key: secret }, deadline: expect.any(String), heartbeat_seconds: 1 / 3, lease_seconds: 1 })
+    expect(claimed).toEqual({ id: expect.any(String), step, input: { page: 'page one', key: secret }, deadline: expect.any(String), heartbeat_seconds: 1 / 3, lease_seconds: 1, files: [], output_files: [], build: { dockerfile: 'FROM alpine', files: {} } })
     expect(await run(id)).toMatchObject({ status: 'waiting' })
     const kept = await job(claimed!.id)
     expect(kept).toMatchObject({ status: 'running', runner_id: machine.id, input: { page: 'page one', key: '[redacted]' } })

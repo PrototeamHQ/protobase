@@ -8,6 +8,7 @@ import { syncTrigger } from './triggers/trigger-sync'
 import { saveConsent, type ConnectionConsent } from './connections/connection-consent'
 import { definitionColumns, definitionOfRow } from './definition-columns'
 import type { CustomStepTypes } from './custom-steps/custom-step-types'
+import { wantCustomSteps } from './custom-steps/wanted-steps'
 
 // The definition of a saved version, or nothing when the workflow has no such version.
 const savedDefinition = async (trx: Db, schema: string, workflow: string, version: number) => {
@@ -44,7 +45,8 @@ const refuseProblems = (definition: unknown, types: CheckOptions) => {
  * workflow off, which never depends on a definition still checking, as after an app update removed a plugin. A refusal is a 400
  * problem naming each state and field, also listed as `problems`, and as the `definition` field's `errors` with the
  * state and field in their `params`, for a form to show each on its step; the write rolls back. With `custom`, the
- * workflow's tenant's custom steps are step types too, read in the write's transaction.
+ * workflow's tenant's custom steps are step types too, read in the write's transaction, and the custom step versions
+ * a published version uses are kept as wanted, for runners to prepare, until another is published or it is turned off.
  */
 export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick<TriggerJobs, 'start' | 'stop'>, consent: ConnectionConsent, custom?: CustomStepTypes): PipelineHook => async (event, trx) => {
   if (event.resource.name !== 'workflows' || !event.after) return
@@ -68,6 +70,7 @@ export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick
   if (enabled === null) {
     await saveConsent(trx, schema, id, null, null)
     await syncTrigger(trx, schema, jobs, event.after, undefined, null, types.connections)
+    if (custom) await wantCustomSteps(trx, schema, id, undefined)
     return
   }
   const definition = await savedDefinition(trx, schema, id, enabled)
@@ -76,4 +79,5 @@ export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick
   const enabledBy = await consent(event.session, definition)
   await saveConsent(trx, schema, id, enabled, enabledBy)
   await syncTrigger(trx, schema, jobs, event.after, definition, enabledBy, types.connections)
+  if (custom) await wantCustomSteps(trx, schema, id, definition)
 }

@@ -92,4 +92,13 @@ describe('workflowResources', () => {
     expect(Object.keys(jobs.fields)).not.toContain('token')
     expect(Object.keys(jobs.fields)).not.toContain('arguments')
   })
+
+  it("adds the builds of custom steps' images, read-only and granted by name, listed on each version's page", () => {
+    const parts = workflowResources('workflows', { customSteps: true })
+    const builds = parts.customStepBuilds!.toModel()
+    expect([builds.name, builds.tenant, builds.explicitGrants]).toEqual(['workflow_custom_step_builds', 'tenant_id', true])
+    expect(Object.values(builds.fields).every((field) => field.readOnly)).toBe(true)
+    expect(parts.customStepBuildsView!.toModel().nav?.hidden).toBe(true)
+    expect(parts.customStepVersionsView!.toModel(parts.customStepVersions!.toModel()).layout.at(-1)).toMatchObject({ kind: 'related', resource: 'workflow_custom_step_builds', field: 'version_id' })
+  })
 })

@@ -7,7 +7,9 @@ import { badRequest, HttpProblem, problemResponse } from '../../problem'
 import { readBody } from '../hooks/read-body'
 import { register } from './registration'
 import { completionOf, logLinesOf, registrationOf, runnerStateOf } from './runner-bodies'
+import { buildReportOf, reportBuild } from './runner-builds'
 import type { runnerBroker } from './runner-broker'
+import type { runnerFiles } from './runner-files'
 import type { Runner, runnerJobs } from './runner-jobs'
 import { runnerTokenHash, runnerTokenPattern } from './runner-tokens'
 
@@ -22,6 +24,7 @@ export type RunnerRouteInput = {
   schema: string
   broker: ReturnType<typeof runnerBroker>
   jobs: ReturnType<typeof runnerJobs>
+  files: ReturnType<typeof runnerFiles>
   /** Reports an error the route did not expect, without the request: its headers hold the runner's token. */
   report: (error: unknown) => void
 }
@@ -34,9 +37,12 @@ const path = '/runners/v1'
  * a revoked or deleted runner's no longer opens. `.../claim` with what the runner says of itself is held open until a
  * job is placed with it (`{ order: "job", job }`) or its time runs out (`{ order: "none" }`); `.../jobs/<id>/heartbeat`
  * extends its hold of a job (`{ stop }`), `.../log` with `{ lines }` adds to its logs, and `.../complete` with
- * `{ output }` or `{ error, cause }` ends it. An address refused 30 times this minute waits, before any lookup.
+ * `{ output }` or `{ error, cause }` ends it. While it holds a job, `GET .../jobs/<id>/inputs/<name>` streams it an input
+ * file, and `PUT .../jobs/<id>/outputs/<path>` stores a file it gave, answering the stored file. `.../builds` with
+ * `{ step, status, digest?, log? }` reports a build of a step's image as it starts and ends. An address refused 30
+ * times this minute waits, before any lookup.
  */
-export const runnerRoute = ({ db, schema, broker, jobs, report }: RunnerRouteInput) => {
+export const runnerRoute = ({ db, schema, broker, jobs, files, report }: RunnerRouteInput) => {
   const refusals = createRateLimit()
   const app = new Hono()
 
@@ -114,6 +120,26 @@ export const runnerRoute = ({ db, schema, broker, jobs, report }: RunnerRouteInp
     const refused = guard(c)
     const runner = await runnerOf(c, refused)
     return c.json(await jobs.complete(runner, c.req.param('id'), parsed(completionOf(await bodyOf(c, refused)), refused)))
+  })
+
+  app.get('/jobs/:id/inputs/:name', async (c) => {
+    const runner = await runnerOf(c, guard(c))
+    return files.input(runner, c.req.param('id'), c.req.param('name'))
+  })
+
+  app.put('/jobs/:id/outputs/*', async (c) => {
+    const runner = await runnerOf(c, guard(c))
+    const prefix = `/jobs/${c.req.param('id')}/outputs/`
+    const at = c.req.path.indexOf(prefix)
+    const path = at < 0 ? '' : decodeURIComponent(c.req.path.slice(at + prefix.length))
+    const body = c.req.raw.body ?? new Blob([]).stream()
+    return c.json(await files.output(runner, c.req.param('id'), path, body, c.req.header('content-type') ?? ''))
+  })
+
+  app.post('/builds', async (c) => {
+    const refused = guard(c)
+    const runner = await runnerOf(c, refused)
+    return c.json(await reportBuild(db(), schema, runner, parsed(buildReportOf(await bodyOf(c, refused)), refused)))
   })
 
   return app

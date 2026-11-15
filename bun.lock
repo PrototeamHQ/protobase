@@ -235,6 +235,13 @@
         "kysely": "^0.29.6",
       },
     },
+    "packages/runner": {
+      "name": "@protobase/runner",
+      "version": "0.14.2",
+      "dependencies": {
+        "@protobase/workflows": "workspace:*",
+      },
+    },
     "packages/schema": {
       "name": "@protobase/schema",
       "version": "0.14.2",
@@ -1104,6 +1111,8 @@
     "@protobase/presets": ["@protobase/presets@workspace:packages/presets"],
 
     "@protobase/query": ["@protobase/query@workspace:packages/query"],
+
+    "@protobase/runner": ["@protobase/runner@workspace:packages/runner"],
 
     "@protobase/schema": ["@protobase/schema@workspace:packages/schema"],
 

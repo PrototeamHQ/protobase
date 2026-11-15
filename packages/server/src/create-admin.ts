@@ -510,10 +510,11 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     }
   }
   // Before the live stream's guard, which wants a token for everything under the system path: the webhook address, the
-  // waiting Tasks' answers and the runners' calls take none.
+  // waiting Tasks' answers, the runners' calls and their install script take none.
   if (engine) app.route(hooksBase(systemPath), engine.routes.hooks())
   if (engine) app.route(`${systemPath}/workflows/tasks`, engine.routes.tasks())
   if (engine?.routes.runners) app.route(`${systemPath}/runners/v1`, engine.routes.runners())
+  if (engine?.routes.runnerInstall) app.route(`${systemPath}/runners/install.sh`, engine.routes.runnerInstall())
   // After `/api/sb`, which the guard's token check under the system path would otherwise stand before.
   // Anyone who may read a live resource hears of its changes, a visitor of what the anonymous role reads too.
   // With calls, the stream also tells each user's pages of the calls that ring them.

@@ -3,6 +3,7 @@ import type { CheckOptions } from '../definition/check-definition'
 import type { JsonSchema } from './context'
 import type { TypeEntry } from './type-list'
 import { customPlugin, customStepOf } from './custom-step-id'
+import { fileInputName, fileProperties } from '../runners/job-contract'
 
 export { customPlugin, customStepOf }
 
@@ -108,7 +109,16 @@ const schemaProblems = (field: 'input' | 'output', schema: unknown): ManifestPro
     problems.push({ field, message: `is no JSON Schema that compiles: ${error instanceof Error ? error.message : String(error)}` })
   }
   for (const mark of fileMarks(schema)) {
-    if (mark.value !== true) problems.push({ field: [field, ...mark.path, 'x-file'].join('.'), message: 'is true for a stored file, or left out' })
+    const at = [field, ...mark.path, 'x-file'].join('.')
+    if (mark.value !== true) problems.push({ field: at, message: 'is true for a stored file, or left out' })
+    // The runner gives and takes files by the schema's own properties alone, so a mark anywhere else would be lost.
+    else if (mark.path.length !== 2 || mark.path[0] !== 'properties') problems.push({ field: at, message: `is taken only on a property of ${field} itself, such as ${field}.properties.video, not inside another schema` })
+  }
+  // The runner gives each input file in a folder named after it, so its name must be one a folder can have.
+  if (field === 'input') {
+    for (const name of fileProperties(schema).filter((one) => !fileInputName.test(one))) {
+      problems.push({ field: `input.properties.${name}`, message: 'is a file, which the container gets in a folder of its name: use letters, digits, "_", "." and "-", starting with a letter, a digit or "_"' })
+    }
   }
   if (field === 'input' && isObject(schema.properties) && Object.hasOwn(schema.properties, 'store')) {
     problems.push({ field: 'input.properties.store', message: 'is the argument Protobase gives every custom step, where it stores the files it gives; name yours otherwise' })
@@ -142,10 +152,10 @@ export const manifestProblems = (manifest: CustomStepManifest): ManifestProblem[
 }
 
 const configuration = { type: 'string', description: 'the name of a storage configuration, such as "archive"' }
-const path = { type: 'string', description: 'where in it; default a path of this step in this run' }
+const path = { type: 'string', description: 'the folder in it the files go in, each by its path in the step\'s output folder; default a folder of this step in this run' }
 
 // Where every custom step stores the files it gives, as app:http's `store` takes it.
-const storeArgument = { type: 'object', required: ['configuration'], description: 'where the step stores the files it gives: a storage configuration and, when given, a path in it', properties: { configuration, path } }
+const storeArgument = { type: 'object', required: ['configuration'], description: 'where the step stores the files it gives: a storage configuration and, when given, a folder in it', properties: { configuration, path } }
 
 const givesFile = (schema: JsonSchema) => fileMarks(schema).some((mark) => mark.value === true)
 

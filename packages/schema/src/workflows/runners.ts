@@ -4,6 +4,7 @@ import { resource } from '../resource'
 import { view } from '../view'
 
 export const customStepJobStatuses = ['queued', 'running', 'succeeded', 'failed', 'timed_out'] as const
+export const customStepBuildStatuses = ['building', 'ready', 'failed'] as const
 
 /**
  * A machine that runs the app's custom steps: made here, it registers once with a one-time token, then claims its
@@ -125,10 +126,56 @@ const customStepJobsView = view<ReturnType<typeof customStepJobsResource>>('work
   }))
   .list((r) => ({ columns: [r.step, r.status, r.runner_id, r.queued_at, r.finished_at], sort: [[r.queued_at, 'desc']] }))
 
-/** The runners of the custom steps of the workflows over `schema`, with the jobs they claim, offered with custom steps. */
+/**
+ * Each build of a custom step version's image on a runner, as the runner reports it: building, then ready with the
+ * image's digest, or failed, with the tail of its log. Only the server writes them.
+ */
+const customStepBuildsResource = (schema: string) =>
+  resource('workflow_custom_step_builds')
+    .table(`${schema}.custom_step_builds`)
+    .fields({
+      id: f.uuid().readOnly().dbDefault(),
+      runner_id: f.relation('workflow_runners').optional().readOnly().filterable(),
+      version_id: f.relation('workflow_custom_step_versions').readOnly().filterable(),
+      step: f.text().readOnly(),
+      status: f.enum(customStepBuildStatuses).readOnly().filterable(),
+      digest: f.text().optional().readOnly(),
+      log: f.text().optional().readOnly(),
+      started_at: f.timestamp().readOnly().sortable(),
+      finished_at: f.timestamp().optional().readOnly(),
+      tenant_id: f.text().optional().readOnly(),
+    })
+    .primaryKey((r) => r.id)
+    .tenant((r) => r.tenant_id)
+    .explicitGrants()
+    .access({ create: () => false, update: () => false, delete: () => false })
+
+const customStepBuildsView = view<ReturnType<typeof customStepBuildsResource>>('workflow_custom_step_builds')
+  .names({ singular: 'Custom step build', plural: 'Custom step builds' })
+  .icon('hammer')
+  .nav({ hidden: true })
+  .title((r) => r.step)
+  .fields((r) => ({
+    runner_id: r.runner_id.label('Runner'),
+    version_id: r.version_id.label('Version'),
+    step: r.step.label('Step'),
+    status: r.status.label('Status').valueLabels({ building: 'Building', ready: 'Ready', failed: 'Failed' }),
+    digest: r.digest.label('Image digest'),
+    log: r.log.label('Log').help('The end of the build\'s log, as its runner reported it'),
+    started_at: r.started_at.label('Started'),
+    finished_at: r.finished_at.label('Finished'),
+  }))
+  .list((r) => ({ columns: [r.step, r.status, r.runner_id, r.started_at, r.finished_at], sort: [[r.started_at, 'desc']] }))
+
+/**
+ * The runners of the custom steps of the workflows over `schema`, with the jobs they claim and the images they build,
+ * offered with custom steps.
+ */
 export const runnerResources = (schema: string) => ({
   runners: runnersResource(schema),
   runnersView,
   customStepJobs: customStepJobsResource(schema),
   customStepJobsView,
+  customStepBuilds: customStepBuildsResource(schema),
+  customStepBuildsView,
 })

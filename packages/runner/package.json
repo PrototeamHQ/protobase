@@ -1,0 +1,14 @@
+{
+  "name": "@protobase/runner",
+  "version": "0.14.2",
+  "private": true,
+  "description": "protobase-runner: claims an app's custom steps' jobs and runs each in a hardened container under Docker or Podman, in one executable per platform.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "bun scripts/build.ts"
+  },
+  "dependencies": {
+    "@protobase/workflows": "workspace:*"
+  }
+}

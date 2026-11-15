@@ -59,6 +59,15 @@ describe("a custom step's manifest", () => {
     expect(fields({ input: { type: 'string' } })).toEqual(['input'])
     expect(fields({ output: { type: 'object', properties: { n: { type: 'integr' } } } })).toEqual(['output'])
     expect(fields({ output: { type: 'object', properties: { pdf: { 'x-file': 'yes' } } } })).toEqual(['output.properties.pdf.x-file'])
+    // A file is a property of the schema itself, where the runner looks for it, never one inside another schema
+    expect(fields({ output: { type: 'object', properties: { pdf: { allOf: [{ 'x-file': true }] } } } })).toEqual(['output.properties.pdf.allOf.0.x-file'])
+    expect(fields({ input: { type: 'object', properties: { pages: { type: 'array', items: { 'x-file': true } } } } })).toEqual(['input.properties.pages.items.x-file'])
+    expect(fields({ input: { type: 'object', anyOf: [{ properties: { a: { 'x-file': true } } }], oneOf: [{ 'x-file': true }] } })).toEqual(['input.anyOf.0.properties.a.x-file', 'input.oneOf.0.x-file'])
+    expect(fields({ output: { type: 'object', 'x-file': true } })).toEqual(['output.x-file'])
+    // A file input's name is a folder's in the container, by the runner's own rule; an output's or another input's is not
+    for (const name of ['video file', '.hidden', '-v', 'a/b', '']) expect(fields({ input: { type: 'object', properties: { [name]: { 'x-file': true } } } })).toEqual([`input.properties.${name}`])
+    expect(fields({ input: { type: 'object', properties: { 'video_1.mp4-in': { 'x-file': true }, 'page count': { type: 'integer' } } }, output: { type: 'object', properties: { 'the pdf': { 'x-file': true } } } })).toEqual([])
+    expect(manifestProblems({ ...manifest, output: { type: 'object', properties: { pdf: { allOf: [{ 'x-file': true }] } } } })[0]!.message).toBe('is taken only on a property of output itself, such as output.properties.video, not inside another schema')
     expect(fields({ input: { type: 'object', properties: { store: { type: 'string' } } } })).toEqual(['input.properties.store'])
     for (const prefix of ['invoice', 'States', 'In voice']) expect(fields({ error_prefix: prefix })).toEqual(['error_prefix'])
     expect(fields({ errors: { refused: 'no', Gone: 3 } as never })).toEqual(['errors', 'errors'])
