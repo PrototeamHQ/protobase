@@ -96,7 +96,7 @@ The build checks that each of those props names a resource and each field prop a
 
 | From `@protobase/ui` | |
 | --- | --- |
-| `useComponentReads()` | Each read the component declares, by the prop of its resource (`resource`, `cards`): `{ model, view, rows, isPending, error }`. A read comes from the page's plan; where the page plans none, such as in a record view, it is read here. |
+| `useComponentReads()` | Each read the component declares, by the prop of its resource (`resource`, `cards`): `{ model, view, rows, isPending, error }`. A read comes from the page's plan; where the page plans none, such as in a record view, it is read here, its filter's `{{path}}`s filled from the records around it. |
 | `useComponentSelect()` | `{ chosen, linkTo }` for the component's `select`: the chosen record's key as the address holds it, and `linkTo(key)`, the page with another chosen, for a `RouteLink`; `undefined` without `select` or outside a composed page. |
 
 A component without `reads` is outside the plan, which lists it as such (`page.reads.outside`), and doctor does not check its reads.

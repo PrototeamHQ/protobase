@@ -1,13 +1,14 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { useQueries } from '@tanstack/react-query'
-import { filterText, maxPerPage, planReadId, readsOf, selectOf, sortText, type LayoutNode, type LayoutValue } from '@protobase/layout'
+import { fillComponentReads, filterText, maxPerPage, planReadId, readsOf, selectOf, sortText, type LayoutNode, type LayoutValue } from '@protobase/layout'
 import type { ResourceModel, ViewModel } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
 import { keys } from '../../data/query-keys'
 import type { RouteTarget } from '../../primitives/route-link'
 import { useAdminMeta } from '../meta-gate'
-import { usePageParamsIfAny } from './page-params'
+import { usePageParamsIfAny, usePageParamValues } from './page-params'
 import { usePlannedReads } from './plan-reads'
+import { useScopeStack, valueScopeOf } from './record-scope'
 
 // A custom component that declares its reads draws them from the page's plan, which started them as the page opened:
 // the component only draws. Outside a page's plan, such as in a record view, each read is made here instead.
@@ -44,9 +45,13 @@ const useElement = (hook: string) => {
  * read, or read here where the page plans none. Only a custom component in a layout may call it.
  */
 export const useComponentReads = (): ComponentReads => {
-  const { node, at } = useElement('useComponentReads')
+  const { node: written, at } = useElement('useComponentReads')
   const { resources, views } = useAdminMeta()
   const client = useClient()
+  const stack = useScopeStack()
+  const params = usePageParamValues()
+  // A read it makes by itself fills its filter's `{{path}}`s from the records around it, as the plan's reads are
+  const node = useMemo(() => fillComponentReads(written, { ...valueScopeOf(stack), params }), [written, stack, params])
   const declared = readsOf(node).flatMap(({ reads, part }) => {
     const model = resources[String(prop(node, reads.resource))]
     return model ? [{ reads, part, model }] : []

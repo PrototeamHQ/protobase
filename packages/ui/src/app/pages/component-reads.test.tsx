@@ -11,6 +11,7 @@ import { useComponentReads } from './component-reads'
 import { planQueries } from './plan-queries'
 import { PlanReadsProvider } from './plan-reads'
 import { ProjectUiContext } from './project-ui'
+import { RecordScope } from './record-scope'
 import { RenderNode } from './render-node'
 
 const tasks = resource('tasks').table('tasks').fields({ id: f.integer().readOnly(), title: f.text() }).primaryKey((r) => r.id).toModel()
@@ -50,5 +51,29 @@ describe("a custom component's declared reads", () => {
     )
     expect(html).toContain('nodes:tasks:2 edges:links:1')
     expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('read by itself where the page plans none, with the record around it filled into its filter', () => {
+    const Links = component<{ edges: string; filter: string }>('Links', { reads: { resource: 'edges', filter: 'filter' } })
+    const client = createClient({ fetch: vi.fn<typeof globalThis.fetch>() })
+    const queryClient = new QueryClient()
+    const DrawnLinks = () => {
+      useComponentReads()
+      return null
+    }
+    renderToStaticMarkup(
+      <ApiProvider client={client} queryClient={queryClient}>
+        <MetaContext.Provider value={meta}>
+          <ProjectUiContext.Provider value={{ components: { Links: DrawnLinks } }}>
+            <RecordScope value={{ model: tasks, record: { id: 7 }, key: '7' }}>
+              <RenderNode node={Links({ edges: 'links', filter: 'from_id = {{this.id}}' })} />
+            </RecordScope>
+          </ProjectUiContext.Provider>
+        </MetaContext.Provider>
+      </ApiProvider>,
+    )
+    const read = queryClient.getQueryCache().getAll().map((query) => JSON.stringify(query.queryKey))
+    expect(read.filter((key) => key.includes('from_id = 7'))).toHaveLength(1)
+    expect(read.filter((key) => key.includes('{{'))).toEqual([])
   })
 })
