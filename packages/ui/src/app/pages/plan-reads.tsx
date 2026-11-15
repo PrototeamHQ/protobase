@@ -27,15 +27,9 @@ export const PlanReadsProvider = ({ tree, plan, children }: { tree: LayoutNode; 
 /** What a block's planned read holds where it draws: its rows, or a count's total, while it loads or once it failed. */
 export type Planned = { isPending: boolean; error: Error | null; rows: Record<string, unknown>[]; total?: number }
 
-/**
- * The planned read of the block at `at`, its place in the page's tree, with the rows of the record around it; `undefined`
- * when the page plans no read for it, so it reads by itself.
- */
-export const usePlanned = (at: string | undefined): Planned | undefined => {
-  const running = useContext(PlanReadsContext)
-  const stack = useScopeStack()
-  const params = usePageParamValues()
-  const found = at === undefined ? undefined : running.get(at)
+// What the read `id` holds where it draws, with the rows of the record around it; `undefined` when the page plans none
+const plannedAt = (running: ReadonlyMap<string, Running>, stack: ReturnType<typeof useScopeStack>, params: Readonly<Record<string, string>>, id: string | undefined): Planned | undefined => {
+  const found = id === undefined ? undefined : running.get(id)
   if (!found) return
   const { read, query } = found
   // A record the page's plan did not read, such as one of a list's later pages, has no rows in a nested read: the
@@ -44,4 +38,23 @@ export const usePlanned = (at: string | undefined): Planned | undefined => {
   if (read.split && !(nearest && 'model' in nearest && nearest.planned)) return
   const rows = query.data ? plannedRows(read, query.data.rows, { ...valueScopeOf(stack), params }) : []
   return { isPending: query.isPending, error: query.error, rows, ...(query.data?.total !== undefined && { total: query.data.total }) }
+}
+
+/**
+ * The planned read of the block at `at`, its place in the page's tree, with the rows of the record around it; `undefined`
+ * when the page plans no read for it, so it reads by itself.
+ */
+export const usePlanned = (at: string | undefined): Planned | undefined => {
+  const running = useContext(PlanReadsContext)
+  const stack = useScopeStack()
+  const params = usePageParamValues()
+  return plannedAt(running, stack, params, at)
+}
+
+/** The planned reads `ids` names, by `planReadId`, each as `usePlanned` gives it. */
+export const usePlannedReads = (ids: readonly string[]): Array<Planned | undefined> => {
+  const running = useContext(PlanReadsContext)
+  const stack = useScopeStack()
+  const params = usePageParamValues()
+  return ids.map((id) => plannedAt(running, stack, params, id))
 }

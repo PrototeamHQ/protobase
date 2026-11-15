@@ -47,6 +47,8 @@ import { PasskeysBlock } from '../../account/blocks/passkeys-block'
 import { PasswordBlock } from '../../account/blocks/password-block'
 import { ProfileBlock } from '../../account/blocks/profile-block'
 import { TwoFactorBlock } from '../../account/blocks/two-factor-block'
+import { ComponentElement } from './component-reads'
+import { CustomChosen } from './custom-chosen'
 import { CustomOrFallback } from './custom-or-fallback'
 import { Problem } from './problem'
 import { useProjectUi } from './project-ui'
@@ -166,10 +168,16 @@ export const RenderNode = ({ node: written, at }: { node: LayoutNode; at?: strin
   const node = useMemo(() => fillProps(written, { ...valueScopeOf(stack), params }), [written, stack, params])
   if (node.custom) {
     const Custom = components?.[node.type]
-    // Field references reach the component as the names they reference
+    // Field references reach the component as the names they reference; its children draw in the record its
+    // `select` chose, and its declared reads reach it through useComponentReads
+    const children = node.children.length > 0 ? <CustomChosen node={node}>{renderChildren(placed(node.children, at, 'children'))}</CustomChosen> : undefined
     return (
       <CustomOrFallback name={node.type} registered={Boolean(Custom)} fallback={node.fallback && <>{renderChildren(placed(node.fallback, at, 'fallback'))}</>}>
-        {Custom && <Custom {...unmarkFieldRefs(node.props)}>{node.children.length > 0 ? renderChildren(placed(node.children, at, 'children')) : undefined}</Custom>}
+        {Custom && (
+          <ComponentElement node={node} {...(at !== undefined && { at })}>
+            <Custom {...unmarkFieldRefs(node.props)}>{children}</Custom>
+          </ComponentElement>
+        )}
       </CustomOrFallback>
     )
   }
