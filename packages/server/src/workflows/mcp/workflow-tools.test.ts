@@ -148,6 +148,18 @@ describe('update_workflow', () => {
     expect(update).toHaveBeenCalledWith('workflows', 'w1', expect.objectContaining({ connections: null }), { etag: '"v1"' })
   })
 
+  it('refuses to merge an edit into connections the caller may not read, which would drop what is saved there', async () => {
+    const update = vi.fn()
+    const { context } = contextWith({ update })
+    const edit = { connections: { 'mail:oauth': 'c1' } }
+    expect(await updateWorkflowTool().run({ id: 'w1', edit }, context)).toBe('connections cannot be edited, as you may not read what is saved there: write it whole, or remove it with null; nothing was saved.')
+    expect(update).not.toHaveBeenCalled()
+    expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit }, context))).toEqual({
+      valid: false,
+      problems: [{ field: 'connections', message: 'cannot be edited, as you may not read what is saved there: write it whole, or remove it with null' }],
+    })
+  })
+
   it('replaces the whole definition, or only the name, and takes either an edit or a definition', async () => {
     const update = vi.fn(async () => saved)
     const { context } = contextWith({ update })

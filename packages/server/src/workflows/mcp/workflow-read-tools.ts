@@ -6,7 +6,7 @@ import { refused } from '../../assistant/record-tool-args'
 import { defineTool, type ToolContext } from '../../assistant/tools'
 import { mergePatch } from './merge-patch'
 import { withStepsToCheck } from '../save-hook'
-import { definitionDataOf, definitionFieldsOf, definitionParameters, editParameter, idOf, idParameter, objectOf, pageSizeOf, textOf } from './workflow-tool-args'
+import { definitionDataOf, definitionFieldsOf, definitionParameters, editParameter, hiddenMergeMessage, hiddenMerges, idOf, idParameter, objectOf, pageSizeOf, textOf } from './workflow-tool-args'
 
 const reads = { readOnlyHint: true, openWorldHint: false }
 const listed = ['id', 'name', 'description', 'version', 'updated_at']
@@ -97,7 +97,13 @@ const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
     const kept = id && edit ? ['state_machine', 'execution_order'].filter((key) => edit[key] === null) : []
     if (kept.length > 0) return JSON.stringify({ valid: false, problems: kept.map((field) => ({ field, message: 'cannot be removed: a workflow keeps one' })) })
     // An edit is checked as update_workflow saves it: a field it removes, the trigger included, is null
-    if (!machine && id && edit) return context.records.get('workflows', id).then(({ record }) => checked({ trigger: null, ...(mergePatch(definitionFieldsOf(record), edit) as Record<string, unknown>) }, catalog, context), refused)
+    if (!machine && id && edit) {
+      return context.records.get('workflows', id).then(({ record }) => {
+        const hidden = hiddenMerges(record, edit)
+        if (hidden.length > 0) return JSON.stringify({ valid: false, problems: hidden.map((field) => ({ field, message: hiddenMergeMessage })) })
+        return checked({ trigger: null, ...(mergePatch(definitionFieldsOf(record), edit) as Record<string, unknown>) }, catalog, context)
+      }, refused)
+    }
     return 'Pass either { "state_machine": { ... } } or { "id": "<id>", "edit": { ... } }.'
   },
 })

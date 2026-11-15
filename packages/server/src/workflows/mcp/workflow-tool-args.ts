@@ -26,12 +26,21 @@ export const definitionFieldsOf = (record: Record<string, unknown>) => Object.fr
 export const editParameter = {
   type: 'object',
   description:
-    'A small edit of the saved definition fields as a JSON Merge Patch (RFC 7396) of { state_machine, trigger, execution_order, connections, trace }: only what changes, at its place. An object merges into the object there, null removes a member, and any other value, a list included, replaces it. Such as { "state_machine": { "States": { "Fetch": { "Arguments": { "url": "https://..." } }, "Old": null } } }.',
+    'A small edit of the saved definition fields as a JSON Merge Patch (RFC 7396) of { state_machine, trigger, execution_order, connections, trace }: only what changes, at its place. An object merges into the object there, null removes a member, and any other value, a list included, replaces it. Such as { "state_machine": { "States": { "Fetch": { "Arguments": { "url": "https://..." } }, "Old": null } } }. A field you may not read cannot be merged into: write it whole, or remove it with null.',
 }
 
 export const idOf = (args: Record<string, unknown>) => (typeof args.id === 'string' && args.id ? args.id : undefined)
 
 export const objectOf = (value: unknown) => (typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined)
+
+/**
+ * The definition fields an edit merges an object into whose saved value the caller may not read: merged against
+ * nothing, the edit would replace all that is saved there. Such a field is written whole, or removed with null.
+ */
+export const hiddenMerges = (record: Record<string, unknown>, edit: Record<string, unknown>) =>
+  Object.keys(definitionParameters).filter((key) => objectOf(edit[key]) !== undefined && record[key] === undefined)
+
+export const hiddenMergeMessage = 'cannot be edited, as you may not read what is saved there: write it whole, or remove it with null'
 
 export const textOf = (value: unknown) => (typeof value === 'string' ? value : undefined)
 

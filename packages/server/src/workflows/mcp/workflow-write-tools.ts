@@ -12,7 +12,7 @@ import { notFound } from '../../problem'
 import type { Row } from '../../types'
 import { definitionFromParts, definitionWarnings, type DefinitionParts } from '@protobase/workflows'
 import { mergePatch } from './merge-patch'
-import { definitionDataOf, definitionFieldsOf, definitionParameters, editParameter, idOf, idParameter, objectOf, textOf, workflowRefused } from './workflow-tool-args'
+import { definitionDataOf, definitionFieldsOf, definitionParameters, editParameter, hiddenMergeMessage, hiddenMerges, idOf, idParameter, objectOf, textOf, workflowRefused } from './workflow-tool-args'
 
 const writes = { readOnlyHint: false, destructiveHint: false, openWorldHint: false }
 const nameParameter = { type: 'string', description: 'A name, 1 to 100 characters.' }
@@ -68,6 +68,8 @@ export const updateWorkflowTool = (input: WriteRecordToolsInput = {}) =>
       const before = await recordBefore(context, 'workflows', id, textOf(args.etag) || undefined)
       if (typeof before === 'string') return before
       if (edit && !before) return refused(notFound('No workflows with this key that you may read'))
+      const hidden = edit ? hiddenMerges(before!.record, edit) : []
+      if (hidden.length > 0) return `${hidden.join(', ')} ${hiddenMergeMessage}; nothing was saved.`
       // Only the fields the edit names are sent, each as it merges, or null where the edit removes it, so a field the
       // caller may read but not write is not sent back; a state machine imports as create_workflow imports one.
       const patched = edit && (mergePatch(definitionFieldsOf(before!.record), edit) as Row)
