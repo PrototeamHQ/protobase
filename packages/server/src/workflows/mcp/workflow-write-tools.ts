@@ -8,9 +8,10 @@ import { refused } from '../../assistant/record-tool-args'
 import { defineTool } from '../../assistant/tools'
 import { createApproval, updateApproval } from '../../assistant/write-prompts'
 import { notApproved, onlyNote, outside, type WriteRecordToolsInput } from '../../assistant/write-tool-limits'
-import { notFound } from '../../problem'
+import { forbidden, notFound } from '../../problem'
 import type { Row } from '../../types'
 import { definitionFromParts, definitionWarnings, type DefinitionParts } from '@protobase/workflows'
+import type { WorkflowCatalog } from './workflow-read-tools'
 import { mergePatch } from './merge-patch'
 import { connectionHeadersParameter, importedFields } from './import-machine-args'
 import { definitionDataOf, definitionFieldsOf, definitionParameters, editParameter, hiddenMergeMessage, hiddenMerges, idOf, idParameter, invalidWorkflow, layoutDataOf, layoutParameter, objectOf, textOf, workflowRefused } from './workflow-tool-args'
@@ -20,19 +21,40 @@ const nameParameter = { type: 'string', description: 'A name, 1 to 100 character
 const descriptionParameter = { type: 'string', description: 'What it does, for people; at most 2000 characters.' }
 
 // With the checker's warnings on the saved definition, which a save goes through with; none where a field rule hides
-// the definition from the caller.
-const saved = (record: Row, etag: string) => {
+// the definition from the caller. `live`: what going live gave, the published version and a webhook's URL and secret.
+const saved = (record: Row, etag: string, live: Row = {}) => {
   const readable = typeof record.state_machine === 'object' && record.state_machine !== null && typeof record.trigger === 'object' && record.trigger !== null
   const warnings = readable ? definitionWarnings(definitionFromParts(record as DefinitionParts)) : []
-  return JSON.stringify({ id: record.id, version: record.version, etag, ...(warnings.length > 0 && { warnings }) })
+  return JSON.stringify({ id: record.id, version: record.version, etag, ...live, ...(warnings.length > 0 && { warnings }) })
 }
 
-/** Creates a workflow once the user approves it; a definition the check refuses saves nothing. */
-export const createWorkflowTool = (input: WriteRecordToolsInput = {}) =>
+// Why a URL could not be issued once the workflow was saved, which new_webhook_url issues instead
+const unissued = (error: unknown) => `${error instanceof Error ? error.message : String(error)}: the workflow is saved and published; issue its URL with new_webhook_url`
+
+/** What `create_workflow` goes live with: the go-live check and the issuing of URLs, where the app issues them. */
+export type CreateLive = Pick<WorkflowCatalog, 'checkGoLive' | 'issueWebhook' | 'mayIssueWebhook'>
+
+/**
+ * Creates a workflow once the user approves it; a definition the check refuses saves nothing. With `publish`, version 1
+ * goes live in the same save, and a webhook trigger's URL and secret are issued and answered once.
+ */
+export const createWorkflowTool = (input: WriteRecordToolsInput = {}, live: CreateLive = {}) =>
   defineTool({
     name: 'create_workflow',
-    description: `Creates a workflow from its name and its state machine, with its trigger (manual when absent) and execution order (sequence when absent), checked as validate_workflow checks it, and its layout (none when absent, so the editor lays out every node), and returns JSON { id, version, etag }, with warnings as validate_workflow gives them. A state machine exported from AWS Step Functions in JSONata imports, each HTTP task as an app:http step that sends the same request and gives the same result, its connection as the header connection_headers names, and what this app cannot run exactly, its other service tasks included, is refused by name; it comes with no layout. A definition that does not fit is refused with { error, problems }, each problem naming the state, the field and what was expected; nothing is saved then. The user approves each save in their client first.${onlyNote(input)}`,
-    parameters: { type: 'object', properties: { name: nameParameter, description: descriptionParameter, ...definitionParameters, layout: layoutParameter, connection_headers: connectionHeadersParameter }, required: ['name', 'state_machine'] },
+    description: `Creates a workflow from its name and its state machine, with its trigger (manual when absent) and execution order (sequence when absent), checked as validate_workflow checks it, and its layout (none when absent, so the editor lays out every node), and returns JSON { id, version, etag }, with warnings as validate_workflow gives them. With publish: true, version 1 is published in the same save, so its trigger starts runs at once, and the answer has enabled_version 1; a webhook trigger whose sender is given a URL, such as app:webhook, also gets its URL and secret in the answer, webhook: { url, secret }, shown this once, the sender's own secret with webhook_secret. Without publish it is saved only: enable_workflow and new_webhook_url make it live later. A workflow that signs in through a connected account is published only by that account's owner, so publish refuses it and saves nothing. A state machine exported from AWS Step Functions in JSONata imports, each HTTP task as an app:http step that sends the same request and gives the same result, its connection as the header connection_headers names, and what this app cannot run exactly, its other service tasks included, is refused by name; it comes with no layout. A definition that does not fit is refused with { error, problems }, each problem naming the state, the field and what was expected; nothing is saved then. The user approves each save in their client first.${onlyNote(input)}`,
+    parameters: {
+      type: 'object',
+      properties: {
+        name: nameParameter,
+        description: descriptionParameter,
+        ...definitionParameters,
+        layout: layoutParameter,
+        connection_headers: connectionHeadersParameter,
+        publish: { type: 'boolean', description: 'true to publish version 1 in the same save, and to issue a webhook trigger\'s URL and secret; false (the default) only saves it.' },
+        webhook_secret: { type: 'string', description: "With publish, the webhook sender's own secret, when it makes one; omit it to have the app make one." },
+      },
+      required: ['name', 'state_machine'],
+    },
     annotations: writes,
     run: async (args, context) => {
       const name = textOf(args.name)
@@ -40,12 +62,29 @@ export const createWorkflowTool = (input: WriteRecordToolsInput = {}) =>
       if (!name || !machine) return 'Pass { "name": "<name>", "state_machine": { "QueryLanguage": "JSONata", ... } }, with a trigger and an execution_order when they are not manual and sequence.'
       const refusal = outside(input, 'workflows')
       if (refusal) return refusal
-      const { fields: data, problems } = importedFields({ name, trigger: { manual: {} }, ...definitionDataOf(args), state_machine: machine, ...layoutDataOf(args), ...(textOf(args.description) !== undefined && { description: textOf(args.description) }) }, args)
+      const { fields, problems } = importedFields({ name, trigger: { manual: {} }, ...definitionDataOf(args), state_machine: machine, ...layoutDataOf(args), ...(textOf(args.description) !== undefined && { description: textOf(args.description) }) }, args)
       if (problems.length > 0) return invalidWorkflow(problems)
+      const publish = args.publish === true
+      const secret = textOf(args.webhook_secret) || undefined
+      let hook: { type: string } | undefined
+      try {
+        hook = live.checkGoLive?.(fields.trigger, { publish, ...(secret !== undefined && { secret }) })
+      } catch (error) {
+        return refused(error)
+      }
+      // Issuing the URL needs the right to change workflows: checked before anything is saved
+      if (hook && live.mayIssueWebhook && !(await live.mayIssueWebhook(context.session))) return refused(forbidden('access-denied', 'Issuing a webhook URL needs the right to change workflows: create it without publish'))
+      const data = publish ? { ...fields, enabled_version: 1 } : fields
       const { text, described } = await approvalTexts(context, 'workflows')
       const answer = await context.approve(createApproval(text, described, data))
       if (answer !== 'approved') return notApproved(answer)
-      return context.records.create('workflows', data).then(({ record, etag }) => saved(record, etag), workflowRefused)
+      const created = await context.records.create('workflows', data).catch((error: unknown) => ({ error }))
+      if ('error' in created) return workflowRefused(created.error)
+      const { record, etag } = created
+      const published = publish ? { enabled_version: record.enabled_version } : {}
+      if (!hook || !live.issueWebhook) return saved(record, etag, { ...published, ...(hook && { webhook_error: unissued('This app issues no webhook URLs here') }) })
+      const issued = await live.issueWebhook(context.session, String(record.id), secret).then((webhook) => ({ webhook }), (error: unknown) => ({ webhook_error: unissued(error) }))
+      return saved(record, etag, { ...published, ...issued })
     },
   })
 
@@ -128,4 +167,4 @@ export const runWorkflowTool = (input: WriteRecordToolsInput = {}) =>
   })
 
 /** The tools that save and run workflows, on the resources `input` allows. */
-export const workflowWriteTools = (input: WriteRecordToolsInput = {}) => [createWorkflowTool(input), updateWorkflowTool(input), runWorkflowTool(input)]
+export const workflowWriteTools = (input: WriteRecordToolsInput = {}, live: CreateLive = {}) => [createWorkflowTool(input, live), updateWorkflowTool(input), runWorkflowTool(input)]

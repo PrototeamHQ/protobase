@@ -71,7 +71,7 @@ export const mcpTools = ({ db, sql, writes, commented = [], workflows, own = [] 
   const limits = writes === false ? false : writes === true || !writes.resources ? {} : { resources: writes.resources }
   const write = limits === false ? [] : writeTools(limits)
   const comments = commentTools({ commented }, limits)
-  const flows = workflows ? [...workflowReadTools(workflows), ...(limits === false ? [] : [...workflowWriteTools(limits), ...webhookTools(limits, workflows.issueWebhook), ...(workflows.answerTask ? taskTools(limits, workflows.answerTask) : []), ...(workflows.customSteps ? customStepWriteTools(workflows.customSteps, limits) : [])])] : []
+  const flows = workflows ? [...workflowReadTools(workflows), ...(limits === false ? [] : [...workflowWriteTools(limits, workflows), ...webhookTools(limits, workflows.issueWebhook), ...(workflows.answerTask ? taskTools(limits, workflows.answerTask) : []), ...(workflows.customSteps ? customStepWriteTools(workflows.customSteps, limits) : [])])] : []
   const query = sql ? [readOnlyQueryTool(db)] : []
   return (session: Session): AssistantTool[] => [...read, ...write, ...comments, ...flows, ...(seesAssistant(session.user.roles) ? query : []), ...ownTools]
 }

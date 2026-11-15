@@ -145,6 +145,37 @@ describe('create_workflow', () => {
     expect(JSON.parse(result)).toEqual({ id: 'w1', version: 1, etag: '"v1"' })
   })
 
+  it('with publish, saves version 1 published and issues a webhook trigger\'s URL and secret in the same answer', async () => {
+    const hooked = { trigger: { 'app:webhook': {} }, state_machine: machine({ Done: { Type: 'Pass', End: true } }) }
+    const create = vi.fn(async (_: string, data: Record<string, unknown>) => ({ record: { id: 'w1', name: 'Hook', version: 1, execution_order: 'sequence', ...data }, etag: '"v1"' }))
+    const issue = vi.fn(async () => ({ url: 'https://app.example/api/workflows/hooks/k', secret: 'whsec_s' }))
+    const live = { issueWebhook: issue, checkGoLive: (trigger: unknown, go: { publish?: boolean }) => (go.publish && JSON.stringify(trigger).includes('app:webhook') ? { type: 'app:webhook' } : undefined) }
+    const { context } = contextWith({ create })
+    const result = JSON.parse(await createWorkflowTool({}, live).run({ name: 'Hook', ...hooked, publish: true, webhook_secret: 'whsec_mine' }, context))
+    expect(create).toHaveBeenCalledWith('workflows', { name: 'Hook', ...hooked, enabled_version: 1 })
+    expect(issue).toHaveBeenCalledWith(context.session, 'w1', 'whsec_mine')
+    expect(result).toEqual({ id: 'w1', version: 1, etag: '"v1"', enabled_version: 1, webhook: { url: 'https://app.example/api/workflows/hooks/k', secret: 'whsec_s' } })
+    // Without publish it only saves, as before; a manual trigger published gets no URL
+    expect(JSON.parse(await createWorkflowTool({}, live).run({ name: 'Hook', ...hooked }, context))).toEqual({ id: 'w1', version: 1, etag: '"v1"' })
+    expect(JSON.parse(await createWorkflowTool({}, live).run({ name: 'Fetch', ...fetchUrl('https://a.example'), publish: true }, context))).toEqual({ id: 'w1', version: 1, etag: '"v1"', enabled_version: 1 })
+    expect(issue).toHaveBeenCalledOnce()
+    // A URL the app could not issue once it was saved says so, and where to issue it
+    const failing = { ...live, issueWebhook: async () => Promise.reject(new Error('the hooks table was locked')) }
+    expect(JSON.parse(await createWorkflowTool({}, failing).run({ name: 'Hook', ...hooked, publish: true }, context))).toMatchObject({ enabled_version: 1, webhook_error: expect.stringContaining('issue its URL with new_webhook_url') })
+  })
+
+  it('refuses before asking or saving a create that cannot go live as asked', async () => {
+    const create = vi.fn(async () => saved)
+    const { context, approve } = contextWith({ create })
+    const live = { checkGoLive: () => { throw badRequest('invalid-secret', 'A standard_webhooks secret is whsec_ followed by at least 24 bytes in base64') } }
+    expect(JSON.parse(await createWorkflowTool({}, live).run({ name: 'Fetch', ...fetchUrl('https://a.example'), publish: true, webhook_secret: 'x' }, context))).toMatchObject({ error: 'invalid-secret' })
+    // Issuing the URL needs the right to change workflows, which a caller who may only create them lacks
+    const createOnly = { checkGoLive: () => ({ type: 'app:webhook' }), mayIssueWebhook: async () => false }
+    expect(JSON.parse(await createWorkflowTool({}, createOnly).run({ name: 'Fetch', ...fetchUrl('https://a.example'), publish: true }, context))).toMatchObject({ error: 'access-denied' })
+    expect(approve).not.toHaveBeenCalled()
+    expect(create).not.toHaveBeenCalled()
+  })
+
   it('saves the layout it is given beside the definition, and only an object as one', async () => {
     const create = vi.fn(async () => saved)
     const { context } = contextWith({ create })
