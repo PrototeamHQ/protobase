@@ -1,5 +1,5 @@
 import type { Connection, Edge, FinalConnectionState } from '@xyflow/react'
-import { useMemo, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import type { Definition, PinSchemas } from '@protobase/workflows'
 import type { Graph } from '../definition-graph'
 import type { CanvasEdits } from '../canvas-edits'
@@ -51,6 +51,11 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
   const [local, setLocal] = useState<LocalPure[]>([])
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set())
   const [offer, setOffer] = useState<PureOffer>()
+  // The definition and editing as they are now, which a choice made in an offer opened before an edit applies to
+  const now = useRef({ definition, editing })
+  useEffect(() => {
+    now.current = { definition, editing }
+  })
   const data = useMemo(() => schemas && dataGraph(definition, schemas, local), [definition, schemas, local])
   const layout = useMemo(() => {
     if (!data) return
@@ -101,6 +106,11 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     if (gone.length > 0) setLocal((current) => localsLeft(current, gone.flatMap((node) => data.pure.filter((each) => each.id === node.id))))
     return after
   }
+  // A condition node chosen in an offer, added to the definition as it is when it is chosen
+  const addCondition = (step: string, at: readonly number[], choice: ConditionChoice) => {
+    const { definition: current, editing: latest } = now.current
+    latest?.onChange(latest.edits.addCondition(current, step, at, choice))
+  }
   // A wire from an object pin let go on the empty canvas offers to take that object apart, or to build it, there; one
   // from an empty Only when pin, or a side of an And, an Or or a Not that holds a value, the condition nodes
   const connectEnd = (event: MouseEvent | TouchEvent, state: FinalConnectionState) => {
@@ -125,12 +135,12 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
     if (condition?.kind === 'condition') {
       const side = condition.inputs.find((each) => each.key === key)
       if (!side || side.state !== 'literal' || condition.part.kind === 'compare' || condition.part.kind === 'expression') return
-      setOffer({ ...at, choices: conditionOffer(editing.edits.conditionChoices(false), (choice) => editing.onChange(editing.edits.addCondition(definition, condition.target, [...condition.at, Number(key)], choice))) })
+      setOffer({ ...at, choices: conditionOffer(editing.edits.conditionChoices(false), (choice) => addCondition(condition.target, [...condition.at, Number(key)], choice)) })
       return
     }
     const pin = key === undefined ? undefined : data.inputs.get(node)?.find((each) => each.key === key)
     if (pin?.key === conditionKey && pin.state === 'empty') {
-      setOffer({ ...at, choices: conditionOffer(editing.edits.conditionChoices(true), (choice) => editing.onChange(editing.edits.addCondition(definition, node, [], choice))) })
+      setOffer({ ...at, choices: conditionOffer(editing.edits.conditionChoices(true), (choice) => addCondition(node, [], choice)) })
       return
     }
     if (!pin || !isObjectType(pin.type.kinds) || pin.state === 'wired' || pin.state === 'expression') return
