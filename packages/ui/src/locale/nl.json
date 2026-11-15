@@ -1287,7 +1287,10 @@
     "atMost": "Hoogstens {max} tekens",
     "tickEvery": "{count, plural, one {Vink het laatste vakje aan} other {Vink de # overige vakjes aan}}",
     "nothingToTick": "Er is niets om aan te vinken.",
-    "forRecords": "Voor {records}."
+    "forRecords": "Voor {records}.",
+    "timelineRange": "{from} – {to}",
+    "timelineNow": "nu",
+    "timelinePoint": "Wijs een balk aan om de tijden te zien."
   },
   "app/rank-after": {
     "dependsOn": "{record} hangt af van {other}."
