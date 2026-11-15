@@ -160,7 +160,7 @@ Each entry is a record of the stack while its children draw, so `Field`, `Show`,
 ## How a page reads its data
 
 :::caution[Beta]
-On the web, a `RecordRow` of a view with `listOf` or `searchesOf`, and a `Table`, `Thread` or `RecordCards` inside the records of another block, still read once they draw, as the marked limits below say.
+On the web, a `RecordRow` of a view with `listOf` or `searchesOf`, and a `Table`, `Thread`, `RecordCards` or `RecordRow` inside the records of another block, still read once they draw, as the marked limits below say.
 :::
 
 The build compiles each page into a read plan: one ordinary API read per data block, each known before any record is read, so all of them start together when the page opens and none waits for another's rows. There is no combined page query: each read is a request of its own. `/api/meta` sends each user the plan of the page as they see it, so it holds no read of a resource they cannot read and no field they cannot read.
@@ -178,7 +178,7 @@ Each read in the plan (`page.reads.reads`) names its block by a JSON Pointer int
 
 A [custom component](/reference/custom-components/#reads) is planned when it declares its reads: the page starts them with the others, each of several a part of its own named by its resource prop (`/children/0#edges`), and the component draws from them. One that declares none is outside the plan (`page.reads.outside`): whatever it reads, it reads by itself once it draws, and `protobase doctor` lists it.
 
-<gap>A `RecordRow` of a view with `listOf` or `searchesOf` cannot start its read when the page opens because starting the user's saved records or searches ahead of it is not implemented, so it reads once it draws, under a `Show` or `Match` once its condition holds.</gap> <gap>A `Table`, `Thread` or `RecordCards` inside the records of another block cannot start its read when the page opens because a planned read with per-record labels, photos and totals is not implemented, so it reads once it draws.</gap> <gap>A `Chart` cannot sit inside a repeated record because grouping a chart per record is not implemented.</gap>
+<gap>A `RecordRow` of a view with `listOf` or `searchesOf` cannot start its read when the page opens because starting the user's saved records or searches ahead of it is not implemented, so it reads once it draws, under a `Show` or `Match` once its condition holds.</gap> <gap>A `Table`, `Thread`, `RecordCards` or `RecordRow` inside the records of another block cannot start its read when the page opens because a planned read with per-record labels, photos and totals is not implemented, so it reads once it draws.</gap> <gap>A `Chart` cannot sit inside a repeated record because grouping a chart per record is not implemented.</gap>
 
 ## Field values
 
