@@ -34,7 +34,7 @@ export const overdue = (task: WaitingTask, at: Date, timeoutSeconds = Math.round
  * One try of a Task that waits for an outside result (`<type>.waitForTaskToken`). The first segment to reach it gives
  * the try a token, runs the step type on Arguments that read it as `$states.context.Task.Token`, and marks the token
  * handed off, so a segment after a restart only waits and never hands the work off again. The run then waits, holding
- * no segment, until an answer wakes it, its `TimeoutSeconds` pass (`States.Timeout`, from the hand-off's start) or a
+ * no segment, until an answer wakes it, its `TimeoutSeconds` pass (`States.Timeout`, from the try's start) or a
  * heartbeat is overdue (`States.HeartbeatTimeout`). The answer is the Task's result, which `Output` and `Assign` read as
  * `$states.result`, or its failure, under the error the answer names. The token is blanked out of all the run keeps.
  */
