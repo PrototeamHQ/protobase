@@ -24,8 +24,8 @@ const conditionCount: BlockQueries = (_node, read, { client, resources }) => {
 
 /**
  * The queries of the blocks that read by themselves, started as the page opens with the queries of its planned reads,
- * whatever a condition says. A block inside the records of another (a read that splits) reads its own rows per record
- * as it draws, since its labels, photos and total are per record.
+ * whatever a condition says. A block inside the records of another (a read that splits) draws from the page's planned
+ * reads instead, which `planQueries` starts.
  */
 export const blockQueries = (reader: BlockReader, tree: LayoutNode, plan: ReadPlan | undefined): BlockQuery[] =>
   (plan?.reads ?? []).flatMap((read) => {

@@ -35,7 +35,7 @@ describe("a custom component's declared reads", () => {
     const client = createClient({ fetch })
     const queryClient = new QueryClient()
     const plan = compileReadPlan(tree, { models }).plan
-    const started = planQueries(client, tree, plan, {})
+    const started = planQueries({ client, queryClient, resources: meta.resources, views: meta.views, fieldTypes: undefined, xs: false, params: {} }, tree, plan)
     expect(started.map(({ read }) => [read.part, read.resource])).toEqual([['nodes', 'tasks'], ['edges', 'links']])
     for (const { read, queryKey } of started) queryClient.setQueryData(queryKey, { rows: read.resource === 'tasks' ? [{ id: 1 }, { id: 2 }] : [{ id: 7 }] })
     const html = renderToStaticMarkup(

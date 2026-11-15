@@ -1,6 +1,6 @@
 import type { ResourceModel } from '@protobase/schema'
 import type { LayoutList } from './layout-list'
-import type { Planned } from './plan-reads'
+import type { Planned } from './planned'
 
 /** Where a list's own read stands: the pages it read so far, their records, and whether one more is there. */
 export type OwnRead = {

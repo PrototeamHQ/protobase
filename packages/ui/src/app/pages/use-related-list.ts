@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ResourceModel } from '@protobase/schema'
 import { useList } from '../../data/use-list'
 import type { LayoutList } from './layout-list'
-import type { Planned } from './plan-reads'
+import type { Planned } from './planned'
 import { relatedListOf } from './related-list-of'
 
 type Request = {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Action, CardRow, Chart, Field, Page, RecordCard, Show, Stat, Table } from './blocks'
+import { Action, CardRow, Chart, Field, Page, RecordCard, RecordCards, Show, Stat, Table } from './blocks'
 import { component } from './component'
 import { compileReadPlan } from './compile-read-plan'
 import { elementAt } from './element-at'
@@ -97,6 +97,16 @@ describe('compileReadPlan', () => {
   it('counts under a repeat with one aggregate grouped by the field it splits on', () => {
     const tree = Page({ title: 'Tasks', children: [openTasks(Stat({ label: 'Claims', resource: 'task_claims', filter: 'task_id = {{id}}' }))] })
     expect(reads(tree)[1]).toEqual({ block: '/children/0/children/0', kind: 'aggregate', resource: 'task_claims', filter: taskClaims, groupBy: ['task_id'], pageSize: 10, split: { field: 'task_id', source: 'id', parent: '/children/0' }, etag: false })
+  })
+
+  it('reads the total of each record’s rows beside a Table under a repeat, grouped by the field it splits on', () => {
+    const tree = Page({ title: 'Tasks', children: [openTasks(Table({ resource: 'task_claims', filter: 'task_id = {{id}}', columns: ['claimed_at'] }))] })
+    expect(reads(tree)[2]).toEqual({ block: '/children/0/children/0', part: 'total', kind: 'aggregate', resource: 'task_claims', filter: taskClaims, groupBy: ['task_id'], pageSize: 10, split: { field: 'task_id', source: 'id', parent: '/children/0' }, etag: false })
+  })
+
+  it('counts the rows of a RecordCards list inside one record beside its read', () => {
+    const tree = Page({ title: 'Task', children: [RecordCard({ resource: 'tasks', recordKey: '7', children: RecordCards({ resource: 'task_claims', filter: 'task_id = {{id}}' }) })] })
+    expect(reads(tree)[2]).toMatchObject({ block: '/children/0/children/0', part: 'total', kind: 'count', resource: 'task_claims', split: { field: 'task_id', source: 'id', parent: '/children/0' } })
   })
 
   it('asks for ETags only for a read whose records an Action changes, reading every field', () => {

@@ -5,7 +5,8 @@ import { useAdminMeta } from '../../meta-gate'
 import { filteredListAddress } from '../../list-link'
 import { AppLink } from '../../use-app-address'
 import { FieldValue } from '../field-value'
-import { usePlanned, type Planned } from '../plan-reads'
+import { usePlanned } from '../plan-reads'
+import { plannedCount } from '../planned-count'
 import { useCount } from '../use-layout-data'
 import { useScopedPathValue } from '../use-path-value'
 import { cn } from '../../../lib/cn'
@@ -16,9 +17,6 @@ import { formatTag } from '../../../locale/active-locale'
 import { text } from '../messages'
 
 const big = 'text-2xl font-semibold tracking-tight tabular-nums'
-
-// A planned count is the total of its read, or inside a repeated record the count of that record's group
-const plannedCount = (planned: Planned) => planned.total ?? Number(planned.rows[0]?.count ?? 0)
 
 const Count = ({ model, at, filter }: { model: ResourceModel; at?: string; filter?: string }) => {
   const { views } = useAdminMeta()

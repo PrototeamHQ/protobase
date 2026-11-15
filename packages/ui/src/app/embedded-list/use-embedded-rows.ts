@@ -46,8 +46,8 @@ export const embeddedRowsQuery = ({ client, queryClient, resources, views }: Rea
   },
 })
 
-/** The rows of `embeddedRowsQuery`, the page before staying while the next loads. */
-export const useEmbeddedRows = (request: EmbeddedRowsRequest) => {
+/** The rows of `embeddedRowsQuery`, the page before staying while the next loads; nothing is read while not `enabled`. */
+export const useEmbeddedRows = (request: EmbeddedRowsRequest, enabled = true) => {
   const { resources, views } = useAdminMeta()
-  return useQuery({ ...embeddedRowsQuery({ client: useClient(), queryClient: useQueryClient(), resources, views }, request), placeholderData: keepPreviousData })
+  return useQuery({ ...embeddedRowsQuery({ client: useClient(), queryClient: useQueryClient(), resources, views }, request), placeholderData: keepPreviousData, enabled })
 }

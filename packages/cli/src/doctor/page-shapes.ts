@@ -36,7 +36,7 @@ const relatedShapes = (term: RelatedFilter, models: Record<string, ResourceModel
 const title = (page: PageModel, read: PlanRead) => {
   const node = elementAt(page.tree, read.block)
   const named = node && (text(node.props.title) ?? text(node.props.label))
-  const part = read.part === 'calls' ? ' calls' : read.part === 'chosen' ? ' chosen row' : read.part === 'condition' ? ' condition' : ''
+  const part = read.part === 'calls' ? ' calls' : read.part === 'chosen' ? ' chosen row' : read.part === 'condition' ? ' condition' : read.part === 'total' ? ' total' : ''
   return `page "${page.name}", <${node?.type ?? 'Page'}${named ? ` "${named}"` : ''}>${part}`
 }
 

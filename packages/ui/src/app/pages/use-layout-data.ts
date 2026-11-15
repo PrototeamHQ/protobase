@@ -6,7 +6,7 @@ import { encodeKey } from '@protobase/schema/internal'
 import { useClient } from '../../data/api-provider'
 import { keys, readsResource } from '../../data/query-keys'
 import { recordKey } from '../../live/model-helpers'
-import type { Planned } from './plan-reads'
+import type { Planned } from './planned'
 import type { LayoutRecord } from './record-scope'
 
 type Row = Record<string, unknown>

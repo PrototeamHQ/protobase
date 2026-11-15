@@ -1,29 +1,34 @@
+import { useMemo } from 'react'
 import { cardsLayoutOf, type CardWidth, type RecordCardsProps } from '@protobase/layout'
 import { listColumnNames } from '../../../live/columns-from-model'
 import { SectionContent } from '../../../record-view/section'
 import { useAdminMeta } from '../../meta-gate'
 import { RelatedCards } from '../../related-cards/related-cards'
 import { cn } from '../../../lib/cn'
+import { usePlannedReads } from '../plan-reads'
 import { propsOf, type BlockProps } from './block-props'
 
 const shares: Record<CardWidth, number> = { '1/4': 1 / 4, '1/3': 1 / 3, '1/2': 1 / 2, '2/3': 2 / 3 }
 
 /**
  * What a filter finds as the record page's related cards, stacked full width or in a row that scrolls sideways, under
- * a heading like a record page section's, with no card frame around them, so no card sits in another.
+ * a heading like a record page section's, with no card frame around them, so no card sits in another. Inside the
+ * records of another block, its records and total per record come from the page's planned reads.
  */
-export const RecordCardsBlock = ({ node, slots, className }: BlockProps) => {
+export const RecordCardsBlock = ({ node, at, slots, className }: BlockProps) => {
   const props = propsOf<RecordCardsProps>(node)
   const { resource, filter = '', sort = '', fields, cardActions = [], limit = 10, display, title, description, empty } = props
   const { layout, cardWidth } = cardsLayoutOf(props)
   const { resources, views } = useAdminMeta()
+  const [rows, total] = usePlannedReads([at, at === undefined ? undefined : `${at}#total`])
+  const planned = useMemo(() => rows && { rows, total }, [rows, total])
   const model = resources[resource]
   if (!model) return null
   const view = views[model.name]
   return (
     <section className={cn('min-w-0', className)} aria-label={title}>
       <SectionContent title={title} help={description} actions={slots.actions}>
-        <RelatedCards model={model} view={view} filter={filter} sort={sort} fields={fields ?? listColumnNames(model, view)} actions={cardActions} limit={limit} display={display} empty={empty} carousel={layout === 'carousel' ? shares[cardWidth] : undefined} />
+        <RelatedCards model={model} view={view} filter={filter} sort={sort} fields={fields ?? listColumnNames(model, view)} actions={cardActions} limit={limit} display={display} empty={empty} carousel={layout === 'carousel' ? shares[cardWidth] : undefined} {...(planned && { planned })} />
       </SectionContent>
     </section>
   )
