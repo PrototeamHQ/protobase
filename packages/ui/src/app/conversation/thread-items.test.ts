@@ -14,13 +14,26 @@ describe('threadItems', () => {
       { id: 2, author: { id: '1', name: 'Ann' }, sent_at: '2026-11-08T10:05:00Z', body: null },
       { id: 1, author: { id: '1', name: 'Ann' }, sent_at: '2026-11-08T10:00:00Z', body: 'First' },
     ]
-    expect(threadItems(messages(rows), fields, now).map((item) => (item.kind === 'day' ? `— ${item.label}` : item.kind === 'call' ? item.name : `${item.author.name}${item.continued ? ' (cont.)' : ''}: ${item.text}`))).toEqual([
+    expect(threadItems(messages(rows), fields, now).map((item) => (item.kind === 'day' ? `— ${item.label}` : item.kind === 'call' ? item.name : `${item.author?.name}${item.continued ? ' (cont.)' : ''}: ${item.text}`))).toEqual([
       '— Sunday, 8 Nov 2026',
       'Ann: First',
       'Ann (cont.): ',
       '— Today',
       'Bo: Hi',
       'Ann: Morning',
+    ])
+  })
+
+  it("draws one author's messages without a sender, each after another that day continued", () => {
+    const rows = [
+      { id: 2, sent_at: '2026-11-10T09:05:00Z', body: 'Green' },
+      { id: 1, sent_at: '2026-11-10T09:00:00Z', body: 'Started' },
+    ]
+    const { sender: _sender, ...alone } = fields
+    expect(threadItems(messages(rows), alone, now).map((item) => (item.kind === 'message' ? { author: item.author, text: item.text, continued: item.continued } : item.kind))).toEqual([
+      'day',
+      { author: undefined, text: 'Started', continued: false },
+      { author: undefined, text: 'Green', continued: true },
     ])
   })
 

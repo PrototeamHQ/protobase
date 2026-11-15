@@ -13,6 +13,6 @@ export const threadQueries: BlockQueries = (node, read, { client, resources, vie
   }
   const model = resources[resource]
   if (!model) return []
-  const labels = listLabels(resources, views, model, [sender])
+  const labels = listLabels(resources, views, model, sender === undefined ? [] : [sender])
   return [blockPages(listPagesQuery(client, model.name, { filter, orderBy: threadSort(time), pageSize: limit, labels }))]
 }

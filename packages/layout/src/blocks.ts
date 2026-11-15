@@ -211,8 +211,8 @@ export type ModalFormProps = {
 export type ThreadProps = Heading & {
   resource: string
   filter?: string
-  /** Who wrote each message: a relation, named as the record it points at, or a text field. */
-  sender: string
+  /** Who wrote each message: a relation, named as the record it points at, or a text field. Without it, the messages are one author's and show under no name. */
+  sender?: string
   /** When each message was sent: a date or timestamp field the API can sort by. */
   time: string
   /** The message itself. */

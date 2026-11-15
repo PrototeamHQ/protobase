@@ -15,6 +15,10 @@ describe('threadLines', () => {
     expect(threadLines(items)).toEqual(['Ann: Find my open tasks', 'list_tasks · Done', 'close_task · Error', 'Assistant: Task 7 is locked.'])
   })
 
+  it("gives one author's message by its first line alone", () => {
+    expect(threadLines([{ kind: 'message', text: 'Build started\nat 10:00' }])).toEqual(['Build started'])
+  })
+
   it('gives a tool call whose status is unknown by its name alone', () => {
     expect(threadLines([{ kind: 'call', name: 'list_tasks' }])).toEqual(['list_tasks'])
   })
@@ -30,6 +34,10 @@ describe('threadMarkdown', () => {
         '**Assistant** (2026-11-10T09:00:12Z) · Sent\n\nTask 7 is locked.',
       ].join('\n\n---\n\n'),
     )
+  })
+
+  it("writes one author's messages under their time and status alone", () => {
+    expect(threadMarkdown([{ kind: 'message', time: '2026-11-10T09:00:00Z', text: 'Build started.' }, { kind: 'message', text: 'Green.', status: 'Sent' }], words)).toBe('(2026-11-10T09:00:00Z)\n\nBuild started.\n\n---\n\nSent\n\nGreen.')
   })
 
   it('leaves out what a running call does not have yet', () => {

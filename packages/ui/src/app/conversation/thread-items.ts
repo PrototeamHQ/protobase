@@ -4,7 +4,7 @@ import type { ToolCall } from './tool-calls'
 
 type Row = Record<string, unknown>
 
-export type ThreadFields = { key: (row: Row) => string; sender: string; time: string; text: string; status?: string }
+export type ThreadFields = { key: (row: Row) => string; sender?: string; time: string; text: string; status?: string }
 
 /** A message record of a thread with its time, read to order it among the thread's tool calls. */
 export type MessageRow = { kind: 'message'; row: Row; time: string | undefined }
@@ -13,12 +13,12 @@ export type MessageRow = { kind: 'message'; row: Row; time: string | undefined }
 export const messageRows = (rows: Row[], time: string): MessageRow[] => rows.map((row) => ({ kind: 'message', row, time: typeof row[time] === 'string' ? (row[time] as string) : undefined }))
 
 /**
- * One line of a thread: a day's divider, a message under its sender, `continued` after one of theirs that day, with its
- * status when it has one, or a tool call.
+ * One line of a thread: a day's divider, a message under its sender, or with no `author` one author's, `continued`
+ * after one of theirs that day, with its status when it has one, or a tool call.
  */
 export type ThreadItem =
   | { kind: 'day'; key: string; label: string }
-  | { kind: 'message'; key: string; author: ChatAuthor; time: string | undefined; text: string; status?: string; continued: boolean }
+  | { kind: 'message'; key: string; author?: ChatAuthor; time: string | undefined; text: string; status?: string; continued: boolean }
   | ToolCall
 
 // A relation comes named as `{ id, name }` (`withLabels`); any other sender is its own name
@@ -47,10 +47,12 @@ export const threadItems = (newestFirst: (MessageRow | ToolCall)[], { key, sende
       continue
     }
     const { row } = entry
-    const author = authorOf(row[sender])
+    // A thread without a sender is one author's, whose messages all follow each other
+    const author = sender === undefined ? undefined : authorOf(row[sender])
+    const id = author?.id ?? ''
     const state = status === undefined || row[status] == null || row[status] === '' ? undefined : String(row[status])
-    items.push({ kind: 'message', key: key(row), author, time: sent, text: row[text] == null ? '' : String(row[text]), ...(state !== undefined && { status: state }), continued: sameDay && previous?.author === author.id })
-    previous = { author: author.id, time: sent }
+    items.push({ kind: 'message', key: key(row), ...(author && { author }), time: sent, text: row[text] == null ? '' : String(row[text]), ...(state !== undefined && { status: state }), continued: sameDay && previous?.author === id })
+    previous = { author: id, time: sent }
   }
   return items
 }

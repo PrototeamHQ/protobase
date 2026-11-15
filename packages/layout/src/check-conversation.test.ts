@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Composer, Page, RecordCard, Thread } from './blocks'
 import { pageProblems } from './check-page'
+import { compileReadPlan } from './compile-read-plan'
 import { structureProblems } from './check-structure'
 import type { LayoutNode } from './node'
 import { models } from './testing/models'
@@ -20,8 +21,15 @@ describe('a conversation', () => {
     expect(problems(...tree.children.filter((child) => typeof child !== 'string'))).toEqual([])
   })
 
-  it('needs the fields that give the sender, time and text', () => {
-    expect(structureProblems(Page({ title: 'Chat', children: [Thread({ resource: 'messages' } as never)] }))).toEqual([`${thread}: "sender" is required`, `${thread}: "time" is required`, `${thread}: "text" is required`])
+  it('needs the fields that give the time and text', () => {
+    expect(structureProblems(Page({ title: 'Chat', children: [Thread({ resource: 'messages' } as never)] }))).toEqual([`${thread}: "time" is required`, `${thread}: "text" is required`])
+  })
+
+  it("takes one author's thread without a sender, reading only its time and text", () => {
+    const log = Thread({ resource: 'messages', filter: "room = 'general'", time: 'sentAt', text: 'body' })
+    expect(structureProblems(Page({ title: 'Log', children: [log] }))).toEqual([])
+    expect(problems(log)).toEqual([])
+    expect(compileReadPlan(Page({ title: 'Log', children: [log] }), { models }).plan.reads[0]!.fields).toEqual(['body', 'id', 'sentAt'])
   })
 
   it('reads at most one page of the API at once', () => {

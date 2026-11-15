@@ -546,7 +546,7 @@ Only a caller without a token gets the prompts, in `/api/meta` as `signIn`, for 
 | `l.custom(Component, { title?, props?, sidebar?, when?, fallback? })` | A [custom component](/reference/custom-components/#record-sections) where it is listed: in the main column under `title`, or with `sidebar: true` as a sidebar card. [`fallback`](/reference/custom-components/#record-section-fallbacks) shows in its place where it cannot be drawn. |
 | `l.map(title, { latitude, longitude, zoom?, sidebar?, when? })` | A map with a pin at the record's position, in the main column or with `sidebar: true` as a sidebar card. See [Maps](#maps). |
 | `l.chart(title, { resource, field, at, series, range?, help?, when? })` | Line graphs of numbers of the records that point at this one, such as a machine's samples, over the last hour, day or week. See [Charts of related records](#charts-of-related-records). |
-| `l.thread(title, { resource, field, sender, time, text, status?, working?, limit?, empty?, help?, when? })` | The record's conversation: the latest messages that point at it, oldest first, under each sender's name and time. See [Conversations](#conversations). |
+| `l.thread(title, { resource, field, sender?, time, text, status?, working?, limit?, empty?, help?, when? })` | The record's conversation: the latest messages that point at it, oldest first, under each sender's name and time. See [Conversations](#conversations). |
 | `l.composer({ resource, field, text, placeholder?, when? })` | A box that sends a message about the record, which the thread then shows. See [Conversations](#conversations). |
 | `l.gallery(title, { image?, photos?, when? })` | The record's photos as tiles, opening a lightbox. See [Galleries](#galleries). |
 | `l.history(title?, { limit?, when? })` | The record's changes, newest first, with who made each and the fields before and after; needs `.history()` on the resource, and a view without a layout shows it last by itself. See [Record history](/reference/history/#on-the-record-page). |
@@ -1050,7 +1050,7 @@ The thread shows the latest messages oldest first, each under its sender's name 
 | --- | --- |
 | `resource` | The message resource, such as `task_messages`. Required. |
 | `field` | The filterable relation of `resource` that holds this record's key. Required. |
-| `sender` | Who wrote each message: a relation, named as the record it points at, or a text field. Required. |
+| `sender` | Who wrote each message: a relation, named as the record it points at, or a text field. Without it, the thread is one author's, such as a log: each message shows under the time it was sent, with no name or avatar. |
 | `time` | When each was sent: a date or timestamp field the API can sort by, which orders them. Required. |
 | `text` | The message, a text field. Required. |
 | `status` | A short line under each message, such as whether it was delivered: a text or enum field. See [Message status and a working indicator](#message-status-and-a-working-indicator). |

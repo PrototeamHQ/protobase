@@ -5,11 +5,26 @@ import type { LayoutNode } from './node'
 
 const fieldOf = (model: ResourceModel, name: string) => (Object.hasOwn(model.fields, name) ? model.fields[name] : undefined)
 
-/** The fields a thread reads of each message: who wrote it, when, the message itself, and a short line under it. */
-export type MessageFields = { sender: string; time: string; text: string; status?: string }
+/**
+ * The fields a thread reads of each message: who wrote it, when, the message itself, and a short line under it. A
+ * thread without `sender` is one author's.
+ */
+export type MessageFields = { sender?: string; time: string; text: string; status?: string }
 
-/** The fields a thread needs of each message: its sender, its time and its text; its status line is left out without one. */
-export const threadFields = (node: LayoutNode) => [String(node.props.sender), String(node.props.time), String(node.props.text)]
+const textOf = (value: unknown) => (typeof value === 'string' ? value : undefined)
+
+/** A thread's message fields, as its props name them. */
+export const messageFieldsOf = (node: LayoutNode): MessageFields => {
+  const sender = textOf(node.props.sender)
+  const status = textOf(node.props.status)
+  return { ...(sender !== undefined && { sender }), time: String(node.props.time), text: String(node.props.text), ...(status !== undefined && { status }) }
+}
+
+/** The fields a thread needs of each message: its sender when it names one, its time and its text; its status line is left out without one. */
+export const threadFields = (node: LayoutNode) => {
+  const { sender, time, text } = messageFieldsOf(node)
+  return [...(sender === undefined ? [] : [sender]), time, text]
+}
 
 const statusTypes = ['text', 'enum']
 
@@ -23,7 +38,10 @@ export const messageStatusProblems = (status: string | undefined, model: Resourc
 
 /** What a thread's message fields name that the message resource does not have, or cannot order the messages by. */
 export const messageFieldsProblems = (fields: MessageFields, model: ResourceModel): string[] => {
-  const unknown = (['sender', 'time', 'text'] as const).flatMap((prop) => (fieldOf(model, fields[prop]) ? [] : [`${prop}: unknown field "${fields[prop]}" on ${model.name}`]))
+  const unknown = (['sender', 'time', 'text'] as const).flatMap((prop) => {
+    const name = fields[prop]
+    return name === undefined || fieldOf(model, name) ? [] : [`${prop}: unknown field "${name}" on ${model.name}`]
+  })
   if (unknown.length > 0) return unknown
   return timeProblems(fields.time, model)
 }
@@ -40,7 +58,7 @@ export const threadLimitProblems = (limit: unknown): string[] =>
  * limit it cannot read, and what its tool calls name that their resource does not have.
  */
 export const threadProblems = (node: LayoutNode, models: Record<string, ResourceModel>, model: ResourceModel): string[] => [
-  ...messageFieldsProblems({ sender: String(node.props.sender), time: String(node.props.time), text: String(node.props.text) }, model),
+  ...messageFieldsProblems(messageFieldsOf(node), model),
   ...messageStatusProblems(typeof node.props.status === 'string' ? node.props.status : undefined, model),
   ...threadLimitProblems(node.props.limit),
   ...(node.props.calls === undefined ? [] : toolCallsProblems(node.props.calls as unknown as ToolCallSource, models).map((problem) => `calls: ${problem}`)),

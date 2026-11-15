@@ -49,7 +49,7 @@ const threadRead = (node: LayoutNode, read: PlanRead, reader: PlanReader): Neste
   const { resource, sender } = propsOf<ThreadProps>(node)
   const model = reader.resources[resource]
   if (!model) return
-  return { read, extras: { labels: listLabels(reader.resources, reader.views, model, [sender]) } }
+  return { read, extras: { labels: listLabels(reader.resources, reader.views, model, sender === undefined ? [] : [sender]) } }
 }
 
 const byType: Record<string, (node: LayoutNode, read: PlanRead, reader: PlanReader) => NestedRead | undefined> = { Table: tableRead, RecordCards: cardsRead, Thread: threadRead }

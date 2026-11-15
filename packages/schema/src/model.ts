@@ -1140,8 +1140,8 @@ export type ThreadSectionModel = {
   resource: string
   /** The filterable relation of `resource` that holds this record's key. */
   field: string
-  /** Who wrote each message: a relation, named as the record it points at, or a text field. */
-  sender: string
+  /** Who wrote each message: a relation, named as the record it points at, or a text field. Without it, the messages are one author's and show under no name. */
+  sender?: string
   /** When each message was sent: a date or timestamp field the API can sort by. */
   time: string
   /** The message itself: a text field. */

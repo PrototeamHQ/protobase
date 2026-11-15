@@ -2,6 +2,7 @@ import { where, type FilterExpr, type ResourceModel } from '@protobase/schema'
 import { templatePlaceholders } from '@protobase/schema/internal'
 import { blockSpecs, type BlockReads } from './block-specs'
 import { threadSort } from './check-time'
+import { threadFields } from './check-conversation'
 import { timelineFields, timelineSort } from './check-timeline'
 import { defaultPerPage, defaultSort, defaultSource, maxPerPage } from './list-blocks'
 import { filterLiteral, filterText, sortText } from './list-query'
@@ -93,7 +94,7 @@ const ownFields = (node: LayoutNode, reads: BlockReads, model: ResourceModel): S
       return columns ? names([...columns.map(columnName), ...placeholders(node.props.button)]) : undefined
     }
     case 'Thread':
-      return names([String(node.props.sender), String(node.props.time), String(node.props.text), ...(text(node.props.status) ? [String(node.props.status)] : [])])
+      return names([...threadFields(node), ...(text(node.props.status) ? [String(node.props.status)] : [])])
     case 'Timeline':
       return names(timelineFields(node))
     case 'RecordRow':

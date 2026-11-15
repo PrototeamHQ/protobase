@@ -19,16 +19,28 @@ export type ChatMessageProps = Common &
         /** An assistant chat's side: the user's message as a bubble on the right, the other side's as plain content. */
         from: 'user' | 'assistant'
         author?: never
+        alone?: never
       }
     | {
         /** A chat between people: the message on the left under its author's name and time, beside their avatar. */
         author: ChatAuthor
         from?: never
+        alone?: never
         /** When it was sent, as an ISO timestamp, shown as the time of day. */
         time?: string
         /** Drawn instead of the author's initials, such as their photo. */
         avatar?: ReactNode
         /** It follows a message by the same author, so it leaves out their avatar, name and time. */
+        continued?: boolean
+      }
+    | {
+        /** A chat of one author, such as a log: the message on the left under its time, with no avatar or name. */
+        alone: true
+        from?: never
+        author?: never
+        /** When it was sent, as an ISO timestamp, shown as the time of day. */
+        time?: string
+        /** It follows a message sent the same day, so it leaves out its time. */
         continued?: boolean
       }
   )
@@ -63,6 +75,16 @@ export const ChatMessage = (props: ChatMessageProps) => {
           <div className="flex min-w-0 flex-col gap-2 whitespace-pre-wrap break-words text-foreground">{children}</div>
           {footer && <Footer>{footer}</Footer>}
         </div>
+      </div>
+    )
+  }
+  if (props.alone) {
+    const { time, continued } = props
+    return (
+      <div data-from="person" className={cn('flex min-w-0 flex-col gap-0.5', continued && '-mt-3')}>
+        {!continued && time && <Sent time={time} />}
+        <div className="flex min-w-0 flex-col gap-2 whitespace-pre-wrap break-words text-foreground">{children}</div>
+        {footer && <Footer>{footer}</Footer>}
       </div>
     )
   }
