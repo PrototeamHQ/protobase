@@ -12,7 +12,7 @@ import { nodeStatusLabel } from './labels'
 import { nodeTones, type NodeTrace } from './node-trace'
 import { holdsSteps } from './definition'
 import { text } from './messages'
-import { PinColumns } from './pins/pin-rows'
+import { GroupPins, PinColumns } from './pins/pin-rows'
 
 type Source = { kind: EdgeKind; top: number; label?: string }
 
@@ -138,6 +138,7 @@ export const StateNode = ({ data, selected, isConnectable }: NodeProps<FlowNode>
         {dataOrder && <OnlyWhen condition={node.state.Condition} />}
         <Title name={node.name} kind={kind} problems={problems.length} first={node.first && node.parent !== undefined} trace={trace} warnings={[...(cacheWarning ? [text('cacheForcedAgainst')] : []), ...warnings.map((warning) => warning.message)]} />
         {!dataOrder && <Sources state={node.state} path={node.id} editable={isConnectable} />}
+        {pins && holdsSteps(node.state) && <GroupPins inputs={pins.inputs} outputs={pins.outputs} connectable={isConnectable} />}
       </div>
       {pins && !holdsSteps(node.state) && <PinColumns node={node.id} inputs={pins.inputs} outputs={pins.outputs} folded={pins.folded} open={pins.open} editable={isConnectable} />}
     </div>

@@ -8,5 +8,7 @@ describe('fieldsOf', () => {
       ['value', { anyOf: [{ type: 'string' }, { type: 'integer' }] }],
       ['unit', { type: 'string' }],
     ])
+    // Fields of its own and fields its branches add, together
+    expect(fieldsOf({ properties: { common: { type: 'string' } }, anyOf: [{ properties: { left: { type: 'integer' } } }, { properties: { right: { type: 'integer' } } }] }).map(([name]) => name)).toEqual(['common', 'left', 'right'])
   })
 })

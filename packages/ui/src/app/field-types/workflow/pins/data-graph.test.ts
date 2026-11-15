@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { Definition, PinSchemas } from '@protobase/workflows'
 import { connectData, disconnectData, removePure, wireRefusal } from './data-edits'
 import { dataGraph } from './data-graph'
+import { definitionGraph } from '../definition-graph'
+import { unwiredOrderEdges } from '../flow-elements'
+import { conditionKey, statusKey } from './node-pins'
 import { breakId, breakIn, inHandle, makeId, makeOut, outHandle } from './pure-ids'
 
 const contact = { type: 'object', title: 'Contact', properties: { id: { type: 'string' }, name: { type: 'string' }, visits: { type: 'integer' } } }
@@ -67,6 +70,47 @@ describe('the data graph', () => {
     const shaped = structuredClone(definition)
     Object.assign(shaped.stateMachine.States.Fetch!, { Output: '{% $states.result.body %}' })
     expect(wireRefusal(shaped, dataGraph(shaped, schemas), { node: 'Fetch', handle: outHandle(['body']) }, { node: 'Save', handle: inHandle('key') })).toEqual({ reason: 'shapesOutput', step: 'Fetch' })
+  })
+
+  it("marks a Make's fields its schema requires, and drops a Make made on the canvas once its input is read whole", () => {
+    const required: PinSchemas = { ...schemas, records: (resource) => (resource === 'contacts' ? { ...contact, required: ['name'] } : undefined) }
+    const make = { kind: 'make' as const, target: 'Save', key: 'data' }
+    const made = dataGraph(workflow({}, { data: {} }), required, [make]).pure.find((pure) => pure.id === makeId('Save', 'data'))
+    expect(made?.kind === 'make' && made.inputs.map((input) => [input.key, input.required])).toEqual([['id', false], ['name', true], ['visits', false]])
+    expect(dataGraph(workflow({}, { data: '{% $fetch.body %}' }), schemas, [make]).pure.some((pure) => pure.id === makeId('Save', 'data'))).toBe(false)
+  })
+
+  it("refuses in data order a wire from a step inside a Map to a step outside it, whose status only the Map reads", () => {
+    const definition = {
+      trigger: { manual: {} },
+      order: 'data',
+      stateMachine: {
+        QueryLanguage: 'JSONata',
+        States: {
+          Each: { Type: 'Map', Items: '{% [1] %}', ItemProcessor: { States: { Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://example.com' } } } } },
+          Save: { Type: 'Task', Resource: 'app:records.update', Arguments: { resource: 'contacts' } },
+        },
+      },
+    } as unknown as Definition
+    const graph = dataGraph(definition, schemas)
+    expect(wireRefusal(definition, graph, { node: 'Each/Fetch', handle: outHandle([statusKey]) }, { node: 'Save', handle: inHandle(conditionKey) })).toEqual({ reason: 'otherScope', step: 'Fetch' })
+  })
+
+  it('keeps in data order the line between two steps that no wire stands for', () => {
+    const definition = {
+      trigger: { manual: {} },
+      order: 'data',
+      stateMachine: {
+        QueryLanguage: 'JSONata',
+        States: {
+          Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://example.com' }, Assign: { fetch: '{% $states.result %}', total: '{% 1 %}' } },
+          Save: { Type: 'Task', Resource: 'app:records.update', Arguments: { resource: 'contacts', key: '{% $total %}' } },
+          Tell: { Type: 'Task', Resource: 'app:http', Arguments: { url: '{% $fetch.body.ip %}' } },
+        },
+      },
+    } as unknown as Definition
+    const kept = unwiredOrderEdges(definitionGraph(definition), dataGraph(definition, schemas))
+    expect(kept.map((edge) => [edge.source, edge.target])).toEqual([['state:Fetch', 'state:Save']])
   })
 
   it('clears an input when its wire goes, and every read through a Break when the Break goes', () => {

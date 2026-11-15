@@ -10,7 +10,7 @@ import { inKey, outPath } from './pure-ids'
 export type PinEnd = { node: string; handle: string }
 
 /** Why a wire cannot be drawn: its source does not run before its target, gives a shaped output, or has a type the input does not take. */
-export type WireRefusal = { reason: 'notBefore'; step: string } | { reason: 'shapesOutput'; step: string } | { reason: 'type'; source: OutputPin['type']; target: OutputPin['type'] } | { reason: 'notPins' }
+export type WireRefusal = { reason: 'notBefore'; step: string } | { reason: 'otherScope'; step: string } | { reason: 'shapesOutput'; step: string } | { reason: 'type'; source: OutputPin['type']; target: OutputPin['type'] } | { reason: 'notPins' }
 
 const pureOf = (graph: DataGraph, id: string) => graph.pure.find((node) => node.id === id)
 
@@ -70,7 +70,10 @@ export const wireRefusal = (definition: Definition, graph: DataGraph, from: PinE
   const target = destination(graph, to)
   if (!source || !target) return { reason: 'notPins' }
   if (orderOf(definition) === 'data' && source.node !== triggerId) {
-    // In data order a read is what orders the states: any state may read another that does not run after it
+    // In data order a read is what orders the states: any state may read another that does not run after it, of its
+    // own machine or one around it, never of a Map's or Block's inside, whose states only that one runs
+    const [from, into] = [splitPath(source.node).scope.join('/'), splitPath(target.step).scope.join('/')]
+    if (from !== '' && from !== into && !into.startsWith(`${from}/`)) return { reason: 'otherScope', step: splitPath(source.node).name }
     if (runsAfter(definition, source.node, target.step)) return { reason: 'notBefore', step: splitPath(source.node).name }
     if (source.path[0] !== statusKey && shapesItsOutput(definition, source.node)) return { reason: 'shapesOutput', step: splitPath(source.node).name }
   } else if (source.node === triggerId) {

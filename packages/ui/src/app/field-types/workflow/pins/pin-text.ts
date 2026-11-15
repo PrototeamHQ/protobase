@@ -43,7 +43,8 @@ export const outputLabel = (path: readonly string[], trigger = false, field = fa
   if (path.length === 0) return trigger ? text('pinRunInput') : text('pinResult')
   if (path.length === 1 && path[0] === statusKey) return text('stepStatusType')
   const name = path.at(-1)!
-  return field ? name : (outputLabels[name]?.() ?? name)
+  // Only a label of its own: a field named as an object's member, such as __proto__, is shown by its name
+  return field || !Object.hasOwn(outputLabels, name) ? name : outputLabels[name]!()
 }
 
 /** An input pin's name: a built-in argument by its label, else its name. */

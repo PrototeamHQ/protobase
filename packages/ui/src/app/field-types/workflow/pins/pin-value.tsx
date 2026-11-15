@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Checkbox } from '../../../../primitives/checkbox'
 import { Input } from '../../../../primitives/input'
 import { Select } from '../../../../primitives/select'
@@ -15,6 +16,26 @@ const inlineKind = (pin: InputPin) => {
 }
 
 const numberOf = (typed: string) => (typed.trim() === '' ? undefined : Number.isNaN(Number(typed)) ? typed : Number(typed))
+
+// A number's editor shows what was typed while it has the focus, such as "1." on the way to 1.5, which the value it
+// gives, 1, would not; once the focus leaves, it shows the value again.
+const NumberInput = ({ name, className, value, onChange }: { name: string; className: string; value: unknown; onChange: (value: unknown) => void }) => {
+  const [typed, setTyped] = useState<string>()
+  return (
+    <Input
+      aria-label={name}
+      wrapperClassName={`${className} h-6 w-[55%] px-1.5`}
+      className="text-xs"
+      inputMode="decimal"
+      value={typed ?? (value === undefined ? '' : String(value))}
+      onChange={(event) => {
+        setTyped(event.target.value)
+        onChange(numberOf(event.target.value))
+      }}
+      onBlur={() => setTyped(undefined)}
+    />
+  )
+}
 
 /**
  * What an input pin holds, on its row: an editor of its own value where it is text, a number, true or false or a
@@ -51,14 +72,14 @@ export const PinValue = ({ pin, label, onChange }: { pin: InputPin; label: strin
       </Select>
     )
   }
+  if (kind === 'number') return <NumberInput name={name} className={editor} value={pin.value} onChange={onChange} />
   return (
     <Input
       aria-label={name}
       wrapperClassName={`${editor} h-6 w-[55%] px-1.5`}
       className="text-xs"
-      inputMode={kind === 'number' ? 'decimal' : undefined}
       value={pin.value === undefined ? '' : String(pin.value)}
-      onChange={(event) => onChange(kind === 'number' ? numberOf(event.target.value) : event.target.value === '' ? undefined : event.target.value)}
+      onChange={(event) => onChange(event.target.value === '' ? undefined : event.target.value)}
     />
   )
 }

@@ -22,9 +22,10 @@ const propertiesOf = (schema: JsonSchema | undefined): [string, JsonSchema][] =>
   if (!schema) return []
   const branches = [schema.anyOf, schema.oneOf].find(Array.isArray) as unknown[] | undefined
   const own = isObject(schema.properties) ? Object.entries(schema.properties).filter((entry): entry is [string, JsonSchema] => isObject(entry[1])) : []
-  if (own.length > 0 || !branches) return own
-  const merged = new Map<string, JsonSchema[]>()
-  for (const [name, field] of branches.filter(isObject).flatMap((branch) => propertiesOf(branch as JsonSchema))) merged.set(name, [...(merged.get(name) ?? []), field])
+  if (!branches) return own
+  // The schema's own fields first, then each the branches add
+  const merged = new Map<string, JsonSchema[]>(own.map(([name, field]) => [name, [field]]))
+  for (const [name, field] of branches.filter(isObject).flatMap((branch) => propertiesOf(branch as JsonSchema))) if (!own.some(([known]) => known === name)) merged.set(name, [...(merged.get(name) ?? []), field])
   return [...merged].map(([name, fields]) => [name, fields.length === 1 ? fields[0]! : { anyOf: fields }])
 }
 

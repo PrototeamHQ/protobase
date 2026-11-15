@@ -7,7 +7,7 @@ import { orderOf, type Definition, type PinSchemas } from '@protobase/workflows'
 import { triggerId } from './definition'
 import { connect, disconnect, removeState, type AddAt } from './definition-edits'
 import { definitionGraph, type EdgeKind, type GraphNode } from './definition-graph'
-import { dataFlowEdges, flowEdges, flowNodes, graphId, pureFlowNodes, type FlowNode } from './flow-elements'
+import { dataFlowEdges, flowEdges, flowNodes, graphId, isPureFlowId, pureFlowNodes, unwiredOrderEdges, type FlowNode } from './flow-elements'
 import { AddAtContext } from './add-at-context'
 import { StateNode, TriggerNode } from './flow-nodes'
 import { Segmented } from '../../../primitives/segmented'
@@ -15,7 +15,6 @@ import { useGraphView, type GraphView } from './pins/graph-view'
 import { PinActionsContext } from './pins/pin-actions'
 import { PureNodeView } from './pins/pure-nodes'
 import { PureOfferMenu } from './pins/pure-offer'
-import { isPureId } from './pins/pure-ids'
 import { isPinHandle, usePins } from './pins/use-pins'
 import { WireCheckContext, WireLine } from './pins/wire-line'
 import type { NodeTrace } from './node-trace'
@@ -105,9 +104,10 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
   )
   // The edge chosen, which Delete removes
   const [chosenEdge, setChosenEdge] = useState<string>()
-  // In data order with pins, the wires are what the states read, which order them: no other line between them is drawn
+  // In data order with pins, the wires are what the states read, which order them: another line between two states is
+  // drawn only where no wire stands for it
   const edges = useMemo(
-    () => [...(dataOrder && pins.data ? [] : flowEdges(graph, dataOrder)), ...(pins.data ? dataFlowEdges(pins.data) : [])].map((edge) => ({ ...edge, selected: edge.id === chosenEdge })),
+    () => [...(dataOrder && pins.data ? unwiredOrderEdges(graph, pins.data) : flowEdges(graph, dataOrder)), ...(pins.data ? dataFlowEdges(pins.data) : [])].map((edge) => ({ ...edge, selected: edge.id === chosenEdge })),
     [graph, pins.data, chosenEdge, dataOrder],
   )
   const byId = useMemo(() => new Map(graph.nodes.map((node) => [node.id, node])), [graph])
@@ -124,7 +124,7 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
   }
   const onNodesChange = (changes: NodeChange<FlowNode>[]) => {
     for (const change of changes) {
-      if (change.type !== 'select' || !isPureId(change.id)) continue
+      if (change.type !== 'select' || !isPureFlowId(change.id)) continue
       if (change.selected) setChosenPure(change.id)
       else setChosenPure((current) => (current === change.id ? undefined : current))
     }
@@ -132,7 +132,7 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
     // step chosen, by the keyboard as by a click, opens its form and leaves no Break or Make chosen
     const picked = changes.find((change) => change.type === 'select' && change.selected)
     if (picked?.type !== 'select') return
-    if (isPureId(picked.id)) return onSelect(undefined)
+    if (isPureFlowId(picked.id)) return onSelect(undefined)
     setChosenPure(undefined)
     onSelect(graphId(picked.id))
   }
@@ -151,7 +151,7 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
   // Deleting a state takes the edges to it along: its own removal does that, so they are left alone here.
   const onDelete = ({ nodes: gone, edges: cut }: { nodes: { id: string }[]; edges: Edge[] }) => {
     if (!onChange) return
-    const removed = gone.map((node) => graphId(node.id)).filter((id) => id !== triggerId && !isPureId(id))
+    const removed = gone.filter((node) => !isPureFlowId(node.id)).map((node) => graphId(node.id)).filter((id) => id !== triggerId)
     let next = pins.remove(definition, gone, cut)
     for (const edge of cut) {
       const data = edge.data as { kind: EdgeKind; field: string; source: string }
@@ -189,7 +189,7 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange, 
               connectionLineComponent={WireLine}
               onDelete={onDelete}
               // A Break or Make chosen by a click is chosen as by the keyboard, in onNodesChange
-              onNodeClick={(_, node) => !isPureId(node.id) && onSelect(graphId(node.id))}
+              onNodeClick={(_, node) => !isPureFlowId(node.id) && onSelect(graphId(node.id))}
               onPaneClick={() => onSelect(undefined)}
               // As in Blueprints: the wheel zooms towards the pointer, as does a pinch, and dragging the empty canvas with
               // the left, middle or right button pans it; Shift-drag selects a box. A trackpad's two-finger scroll is a

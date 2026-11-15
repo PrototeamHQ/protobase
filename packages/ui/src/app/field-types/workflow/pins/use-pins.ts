@@ -2,7 +2,7 @@ import type { Connection, Edge, FinalConnectionState } from '@xyflow/react'
 import { useMemo, useState, type RefObject } from 'react'
 import type { Definition, PinSchemas } from '@protobase/workflows'
 import type { Graph } from '../definition-graph'
-import { graphId } from '../flow-elements'
+import { graphId, isPureFlowId } from '../flow-elements'
 import { text } from '../messages'
 import { setArgument } from './argument-edits'
 import { connectData, disconnectData, removePure, wireRefusal, type PinEnd } from './data-edits'
@@ -11,7 +11,7 @@ import { nodeSizes } from './node-sizes'
 import type { PinActions } from './pin-actions'
 import { typeLabel } from './pin-text'
 import type { PureOffer } from './pure-offer'
-import { breakId, inKey, isPureId, makeId, outPath } from './pure-ids'
+import { breakId, inKey, makeId, outPath } from './pure-ids'
 import { pureParent } from './pure-parents'
 import { refusalText } from './refusal-text'
 import type { WireCheck } from './wire-line'
@@ -78,7 +78,7 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
       const pure = wire && data.pure.find((each) => (each.kind === 'break' && each.id === wire.target) || (each.kind === 'make' && each.id === wire.source))
       return pure ? [{ id: pure.id }] : []
     })
-    const gone = [...nodes.filter((node) => isPureId(node.id)), ...bound.filter((node) => !nodes.some((other) => other.id === node.id))]
+    const gone = [...nodes.filter((node) => isPureFlowId(node.id)), ...bound.filter((node) => !nodes.some((other) => other.id === node.id))]
     for (const edge of edges) {
       const wire = (edge.data as { kind?: string; wire?: DataEdge } | undefined)?.wire
       if (wire && !gone.some((node) => node.id === wire.source || node.id === wire.target)) after = disconnectData(after, data, wire)

@@ -40,6 +40,24 @@ export const OutputRow = ({ pin, connectable, trigger = false, field = false }: 
   )
 }
 
+/**
+ * The pins of a Map or a Block, whose box holds its own steps: a dot on its header's edge for each, its name and type on
+ * hover, so the wires to and from the step have their ends, as its steps fill the rest.
+ */
+export const GroupPins = ({ inputs, outputs, connectable }: { inputs: readonly InputPin[]; outputs: readonly OutputPin[]; connectable: boolean }) => {
+  const top = (index: number, count: number) => ({ top: `${((index + 1) * 100) / (count + 1)}%` })
+  return (
+    <>
+      {inputs.map((pin, index) => (
+        <Handle key={pin.key} id={inHandle(pin.key)} type="target" position={Position.Left} isConnectable={connectable} className={pinClass(pin)} style={top(index, inputs.length)} title={text('pinTypeTitle', { label: inputPinLabel(pin.key), type: typeLabel(pin.type) })} />
+      ))}
+      {outputs.map((pin, index) => (
+        <Handle key={pin.path.join('/')} id={outHandle(pin.path)} type="source" position={Position.Right} isConnectable={connectable} className={pinClass(pin)} style={top(index, outputs.length)} title={text('pinTypeTitle', { label: outputLabel(pin.path), type: typeLabel(pin.type) })} />
+      ))}
+    </>
+  )
+}
+
 /** The button that opens a node's optional inputs, or folds them again. */
 export const FoldRow = ({ node, folded, open }: { node: string; folded: number; open: boolean }) => {
   const actions = usePinActions()

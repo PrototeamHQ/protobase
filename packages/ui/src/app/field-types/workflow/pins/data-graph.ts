@@ -122,7 +122,8 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
     const state = states.get(target)!
     const schema = schemaAt(inputSchema(state, schemas), [key])
     const value = isObject(pin?.value) ? pin.value : {}
-    const declared = fieldsOf(schema).map(([field, fieldSchema]) => inputPin(field, fieldSchema, value[field], false))
+    const required = new Set(Array.isArray(schema?.required) ? (schema.required as string[]) : [])
+    const declared = fieldsOf(schema).map(([field, fieldSchema]) => inputPin(field, fieldSchema, value[field], required.has(field)))
     const extra = Object.keys(value).filter((field) => !declared.some((each) => each.key === field)).map((field) => inputPin(field, schemaAt(schema, [field]) ?? {}, value[field], false))
     const made: MakeNode = { kind: 'make', id, target, key, type: pin?.type ?? pinType(schema), inputs: [...declared, ...extra] }
     makes.set(id, made)
@@ -139,7 +140,8 @@ export const dataGraph = (definition: Definition, schemas: PinSchemas, local: re
   }
   for (const each of local) {
     if (each.kind === 'break' && outputs.has(each.source)) breakOf(each.source, each.path)
-    if (each.kind === 'make' && inputs.get(each.target)?.some((pin) => pin.key === each.key)) makeOf(each.target, each.key)
+    // A Make made on the canvas stays only while its input holds no read or expression, which a wire would have put there
+    if (each.kind === 'make' && inputs.get(each.target)?.some((pin) => pin.key === each.key && pin.state !== 'wired' && pin.state !== 'expression')) makeOf(each.target, each.key)
   }
   return { inputs, outputs, pure: [...breaks.values(), ...makes.values()], edges: [...edges.values()] }
 }

@@ -13,7 +13,6 @@ import type { InputPin, OutputPin } from './pins/node-pins'
 import { shownInputs } from './pins/pin-layout'
 import { pinColour } from './pins/pin-text'
 import { pureInputs } from './pins/node-sizes'
-import { isPureId } from './pins/pure-ids'
 import { pureParent } from './pins/pure-parents'
 
 /**
@@ -35,8 +34,14 @@ export type FlowNode = Node<NodeData, 'trigger' | 'state' | 'pure'>
 // React Flow's ids: no state is named by an empty path, but React Flow wants every id to say something.
 const triggerFlowId = 'trigger'
 // A Break's or a Make's id is its own, as no state has it.
-export const flowId = (id: string) => (id === triggerId ? triggerFlowId : isPureId(id) ? id : `state:${id}`)
-export const graphId = (id: string) => (id === triggerFlowId ? triggerId : isPureId(id) ? id : id.slice('state:'.length))
+/** A trigger's or a state's node id on the canvas: a state's always prefixed, whatever it is named, such as make:Report. */
+export const flowId = (id: string) => (id === triggerId ? triggerFlowId : `state:${id}`)
+
+/** Whether a canvas node is a Break or a Make: neither the trigger nor a state, whose ids flowId gives. */
+export const isPureFlowId = (id: string) => id !== triggerFlowId && !id.startsWith('state:')
+
+/** The graph's id of a canvas node: a state's name, the trigger's, or a Break's or a Make's id as it is. */
+export const graphId = (id: string) => (id === triggerFlowId ? triggerId : id.startsWith('state:') ? id.slice('state:'.length) : id)
 
 /** The pins of a node, as the data graph gives them and its optional inputs are open or folded. */
 export const nodePins = (data: DataGraph, id: string, open: boolean): NodePins => {
@@ -141,15 +146,34 @@ export const pureFlowNodes = (graph: Graph, data: DataGraph, boxes: ReadonlyMap<
   })
 
 /** The wires between pins, each coloured by the type of what it carries. */
-export const dataFlowEdges = (data: DataGraph): Edge[] =>
-  data.edges.map((edge) => ({
+/**
+ * In data order with pins, the lines between steps that no wire stands for: a step that reads another only in a way no
+ * pin shows, such as a variable assigned part of its result, still shows that it runs after it.
+ */
+export const unwiredOrderEdges = (graph: Graph, data: DataGraph): Edge[] => {
+  // The step a wire's end belongs to, through the Break or Make it passes
+  const step = (node: string) => {
+    const pure = data.pure.find((each) => each.id === node)
+    return pure ? (pure.kind === 'break' ? pure.source : pure.target) : node
+  }
+  const wired = new Set(data.edges.map((edge) => `${step(edge.source)}\n${step(edge.target)}`))
+  // The trigger's lines start the states that read nothing, which the run's input pins show
+  return flowEdges({ ...graph, edges: graph.edges.filter((edge) => edge.source !== triggerId && !wired.has(`${edge.source}\n${edge.target}`)) }, true)
+}
+
+export const dataFlowEdges = (data: DataGraph): Edge[] => {
+  // A wire's end is a Break's or a Make's, as the graph lists them, else a step's or the trigger's
+  const pure = new Set(data.pure.map((node) => node.id))
+  const end = (id: string) => (pure.has(id) ? id : flowId(id))
+  return data.edges.map((edge) => ({
     id: edge.id,
-    source: flowId(edge.source),
+    source: end(edge.source),
     sourceHandle: edge.sourceHandle,
-    target: flowId(edge.target),
+    target: end(edge.target),
     targetHandle: edge.targetHandle,
     // A read inside an expression goes only as the expression changes
     deletable: !edge.expression,
     data: { kind: 'data', wire: edge },
     className: `pb-wire pb-wire-${pinColour(edge.type)}${edge.expression ? ' pb-wire-expression' : ''}`,
   }))
+}
