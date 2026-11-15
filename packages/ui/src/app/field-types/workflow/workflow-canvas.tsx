@@ -9,7 +9,7 @@ import { triggerId } from './definition'
 import type { CanvasEdits } from './canvas-edits'
 import type { AddAt } from './definition-edits'
 import { definitionGraph, type EdgeKind, type GraphNode } from './definition-graph'
-import { dataFlowEdges, flowEdges, flowNodes, graphId, isPureFlowId, pureFlowNodes, unwiredOrderEdges, type FlowNode } from './flow-elements'
+import { dataFlowEdges, flowEdges, flowId, flowNodes, graphId, isPureFlowId, pureFlowNodes, unwiredOrderEdges, type FlowNode } from './flow-elements'
 import { AddAtContext } from './add-at-context'
 import { StateNode, TriggerNode } from './flow-nodes'
 import { Button } from '../../../primitives/button'
@@ -135,24 +135,33 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange: 
   const [dragged, setDragged] = useState(notDragged)
   const [tidied, setTidied] = useState(0)
   const dataOrder = orderOf(definition) === 'data'
-  // The Break or Make chosen, which Delete removes: no panel opens for one, so the canvas keeps the choice itself
-  const [chosenPure, setChosenPure] = useState<string>()
+  // The nodes chosen, by their canvas ids, which move together and which Delete removes: Shift-click adds or takes one
+  // out, and a Shift-drag box chooses every node it covers. A step's form opens only while it is the one node chosen.
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(() => new Set(selected === undefined ? [] : [flowId(selected)]))
+  // A step chosen from outside, such as one just added, is the one node chosen; its form closed from outside, it no longer is
+  useEffect(() => {
+    setChosen((current) => {
+      if (selected !== undefined) return current.has(flowId(selected)) ? current : new Set([flowId(selected)])
+      return current.size === 1 && !isPureFlowId([...current][0]!) ? new Set() : current
+    })
+  }, [selected])
   const nodes = useMemo(
     () =>
       [
         ...flowNodes(graph, boxes, problems, selected, traces, types, warnings, pins.data && { data: pins.data, open: pins.open }, dataOrder),
-        ...(pins.data ? pureFlowNodes(graph, pins.data, boxes, pins.open).map((node) => ({ ...node, selected: node.id === chosenPure })) : []),
+        ...(pins.data ? pureFlowNodes(graph, pins.data, boxes, pins.open) : []),
       ].map((node) => {
         const at = dragged.get(node.id)
         const pinned = moved.has(graphId(node.id))
         return {
           ...node,
+          selected: chosen.has(node.id),
           draggable: movable,
           ...(at && { position: at }),
           ...(pinned && { data: { ...node.data, moved: true }, ...(node.ariaLabel && { ariaLabel: `${node.ariaLabel}, ${text('movedByHand')}` }) }),
         }
       }),
-    [graph, boxes, problems, selected, traces, types, warnings, pins.data, pins.open, dataOrder, chosenPure, dragged, moved, movable],
+    [graph, boxes, problems, selected, traces, types, warnings, pins.data, pins.open, dataOrder, chosen, dragged, moved, movable],
   )
   // The edge chosen, which Delete removes
   const [chosenEdge, setChosenEdge] = useState<string>()
@@ -204,18 +213,19 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange: 
       else dropped.set(change.id, at)
     }
     if (dropped.size > 0) drop(dropped)
-    for (const change of changes) {
-      if (change.type !== 'select' || !isPureFlowId(change.id)) continue
-      if (change.selected) setChosenPure(change.id)
-      else setChosenPure((current) => (current === change.id ? undefined : current))
+    const choices = changes.filter((change) => change.type === 'select')
+    if (choices.length === 0) return
+    const next = new Set(chosen)
+    for (const change of choices) {
+      if (change.selected) next.add(change.id)
+      else next.delete(change.id)
     }
-    // One choice at a time, so Delete removes only what is chosen: a Break or Make chosen leaves no step chosen, and a
-    // step chosen, by the keyboard as by a click, opens its form and leaves no Break or Make chosen
-    const picked = changes.find((change) => change.type === 'select' && change.selected)
-    if (picked?.type !== 'select') return
-    if (isPureFlowId(picked.id)) return onSelect(undefined)
-    setChosenPure(undefined)
-    onSelect(graphId(picked.id))
+    setChosen(next)
+    // A step's form opens while it is the one node chosen, by the keyboard as by a click; a Break, a Make or several
+    // nodes chosen open none
+    const [only] = next.size === 1 ? [...next] : []
+    const step = only === undefined || isPureFlowId(only) ? undefined : graphId(only)
+    if (step !== selected) onSelect(step)
   }
   const onEdgesChange = (changes: EdgeChange[]) => {
     for (const change of changes) {
@@ -274,8 +284,10 @@ const Canvas = ({ definition, problems, warnings, selected, onSelect, onChange: 
                 onConnectEnd={pins.connectEnd}
                 connectionLineComponent={WireLine}
                 onDelete={onDelete}
-                // A Break or Make chosen by a click is chosen as by the keyboard, in onNodesChange
-                onNodeClick={(_, node) => !isPureFlowId(node.id) && onSelect(graphId(node.id))}
+                // Shift adds a node to the choice or takes it out, as a Shift-drag box adds every node it covers
+                multiSelectionKeyCode="Shift"
+                // A click on a step chooses it alone, opening its form; with Shift it only adds to the choice, in onNodesChange
+                onNodeClick={(event, node) => !event.shiftKey && !isPureFlowId(node.id) && onSelect(graphId(node.id))}
                 onPaneClick={() => onSelect(undefined)}
                 // As in Blueprints: the wheel zooms towards the pointer, as does a pinch, and dragging the empty canvas with
                 // the left, middle or right button pans it; Shift-drag selects a box. A trackpad's two-finger scroll is a
