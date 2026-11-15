@@ -13,16 +13,18 @@ const blocked = () => {
 describe('the graph view choice', () => {
   it('remembers simple, and pins by forgetting the choice, which is also what nothing chosen reads as', () => {
     const storage = memory()
-    expect(readGraphView(storage)).toBe('pins')
-    writeGraphView(storage, 'simple')
+    expect(readGraphView(() => storage)).toBe('pins')
+    writeGraphView(() => storage, 'simple')
     expect(storage.data.get(graphViewStorageKey)).toBe('simple')
-    expect(readGraphView(storage)).toBe('simple')
-    writeGraphView(storage, 'pins')
+    expect(readGraphView(() => storage)).toBe('simple')
+    writeGraphView(() => storage, 'pins')
     expect(storage.data.size).toBe(0)
   })
 
-  it('reads as pins when storage is unavailable', () => {
-    expect(readGraphView({ getItem: blocked })).toBe('pins')
-    expect(() => writeGraphView({ setItem: blocked, removeItem: blocked }, 'simple')).not.toThrow()
+  it('reads as pins when storage is unavailable, or reaching it throws', () => {
+    expect(readGraphView(() => ({ getItem: blocked }))).toBe('pins')
+    expect(() => writeGraphView(() => ({ setItem: blocked, removeItem: blocked }), 'simple')).not.toThrow()
+    expect(readGraphView(blocked)).toBe('pins')
+    expect(() => writeGraphView(blocked, 'simple')).not.toThrow()
   })
 })
