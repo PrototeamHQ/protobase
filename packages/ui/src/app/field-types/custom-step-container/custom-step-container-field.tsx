@@ -8,7 +8,7 @@ import { Input } from '../../../primitives/input'
 import { Textarea } from '../../../primitives/textarea'
 import { TruncatedText } from '../../../data-grid/truncated-text'
 import type { FieldWidget, FieldWidgetEditorProps, FieldWidgetProps } from '../field-widget'
-import { commandOf, containerOf, storedContainer, type Container } from './container'
+import { commandOf, commandText, containerOf, storedContainer, type Container } from './container'
 import { text } from './messages'
 
 const Part = ({ title, children }: { title: ReactNode; children: ReactNode }) => (
@@ -44,18 +44,19 @@ const ContainerCell = ({ value }: FieldWidgetProps) => {
 }
 
 // The Dockerfile takes the field's own label; each file's path and text and the command are labelled on their own. The
-// files and the command are held as typed, so a file without a path yet, or an empty line of the command, stays; a
-// value from elsewhere, as the record loads, replaces them.
+// files and the command's text are held as typed, so a file without a path yet, or an empty line of the command, stays;
+// a value from elsewhere, as the record loads, replaces them. Only an edit of the command's box reads it again: any other
+// edit keeps the stored command as it is.
 const ContainerEditor = ({ value, onChange, invalid }: FieldWidgetEditorProps) => {
   const stored = containerOf(value)
   const seen = JSON.stringify(value ?? null)
-  const [held, setHeld] = useState(() => ({ seen, files: stored.files, command: stored.command.join('\n') }))
-  if (held.seen !== seen) setHeld({ seen, files: stored.files, command: stored.command.join('\n') })
+  const [held, setHeld] = useState(() => ({ seen, files: stored.files, command: commandText(stored.command) }))
+  if (held.seen !== seen) setHeld({ seen, files: stored.files, command: commandText(stored.command) })
   const { files, command } = held
   const id = useId()
   const save = (next: { files?: Container['files']; command?: string; dockerfile?: string }) => {
     const kept = { files: next.files ?? files, command: next.command ?? command }
-    const container = storedContainer({ dockerfile: next.dockerfile ?? stored.dockerfile, files: kept.files, command: commandOf(kept.command) })
+    const container = storedContainer({ dockerfile: next.dockerfile ?? stored.dockerfile, files: kept.files, command: next.command === undefined ? stored.command : commandOf(next.command) })
     setHeld({ seen: JSON.stringify(container), ...kept })
     onChange(container)
   }

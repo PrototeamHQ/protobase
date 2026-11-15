@@ -1239,7 +1239,7 @@
     "removeFile": "{path} verwijderen",
     "fileText": "Tekst van {path}",
     "addFile": "Bestand toevoegen",
-    "commandLines": "Commando, één argument per regel; leeg voor dat van de image"
+    "commandLines": "Commando, één argument per regel, of een JSON-lijst zoals [\"sh\", \"-c\", \"...\"]; leeg voor dat van de image"
   },
   "app/field-types/runner-install": {
     "issue": "Nieuw installatiecommando",

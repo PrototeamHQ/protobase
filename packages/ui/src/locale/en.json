@@ -1239,7 +1239,7 @@
     "removeFile": "Remove {path}",
     "fileText": "Text of {path}",
     "addFile": "Add a file",
-    "commandLines": "Command, one argument a line; the image's own when empty"
+    "commandLines": "Command, one argument a line, or a JSON list such as [\"sh\", \"-c\", \"...\"]; the image's own when empty"
   },
   "app/field-types/runner-install": {
     "issue": "New install command",

@@ -78,9 +78,9 @@ const testTrace = async () => ({
 /** The rows the fake server holds, so a play can check what a save stored. */
 let stored: Record<string, Array<Record<string, unknown>>> = {}
 
-const Pages = ({ path, registration, granted = permissions }: { path: string; registration?: Parameters<typeof fakeApi>[0]['runnerRegistration']; granted?: Record<string, ResourcePermissions> }) => {
+const Pages = ({ path, registration, granted = permissions, seeded = rows }: { path: string; registration?: Parameters<typeof fakeApi>[0]['runnerRegistration']; granted?: Record<string, ResourcePermissions>; seeded?: typeof rows }) => {
   const [api] = useState(() => {
-    const created = fakeApi({ resources, views, rows: structuredClone(rows), permissions: granted, workflowRunTrace: testTrace, ...(registration && { runnerRegistration: registration }) })
+    const created = fakeApi({ resources, views, rows: structuredClone(seeded), permissions: granted, workflowRunTrace: testTrace, ...(registration && { runnerRegistration: registration }) })
     stored = created.rows
     return created
   })
@@ -126,6 +126,26 @@ export const EditContainer: StoryObj = {
     await waitFor(() => expect(saved().files).toEqual({ 'presets/720.txt': 'scale=-2:720' }))
     expect(saved().command).toEqual(['convert', '--preset', '720'])
     expect(saved().dockerfile.slice(container.dockerfile.length)).toBe('\nRUN apt-get install -y jq')
+  },
+}
+
+// A step whose command's last argument is a script of two lines.
+const script = ['sh', '-c', 'echo first\necho second']
+const scripted = { ...rows, workflow_custom_steps: [{ ...rows.workflow_custom_steps[0]!, container: { ...container, command: script } }] }
+
+/** A command with an argument of two lines shows as a JSON list, and an edit of the Dockerfile alone keeps it exactly. */
+export const EditKeepsCommand: StoryObj = {
+  tags: ['play'],
+  render: () => <Pages path={`/workflow_custom_steps/${step}`} seeded={scripted} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const dockerfile = await canvas.findByDisplayValue(/FROM mwader\/static-ffmpeg/)
+    expect(canvas.getByRole('textbox', { name: /Command, one argument a line, or a JSON list/ })).toHaveValue(JSON.stringify(script))
+    await userEvent.type(dockerfile, '\nRUN true')
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    const saved = () => stored.workflow_custom_steps![0]!.container as typeof container
+    await waitFor(() => expect(saved().dockerfile.endsWith('\nRUN true')).toBe(true))
+    expect(saved().command).toEqual(script)
   },
 }
 

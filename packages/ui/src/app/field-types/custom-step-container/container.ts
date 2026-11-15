@@ -13,8 +13,22 @@ export const containerOf = (value: unknown): Container => {
   }
 }
 
-/** The command typed one argument a line, without its empty lines. */
-export const commandOf = (typed: string) => typed.split('\n').filter((line) => line !== '')
+// Text that is a JSON list of texts, as that list.
+const jsonList = (typed: string): string[] | undefined => {
+  if (!typed.trimStart().startsWith('[')) return
+  try {
+    const parsed: unknown = JSON.parse(typed)
+    return Array.isArray(parsed) && parsed.every((part) => typeof part === 'string') ? parsed : undefined
+  } catch {
+    return
+  }
+}
+
+/** The command as typed: a JSON list of texts, such as `["sh", "-c", "..."]`, as that list, else one argument a line without its empty lines. */
+export const commandOf = (typed: string) => jsonList(typed) ?? typed.split('\n').filter((line) => line !== '')
+
+/** The command as its box shows it: one argument a line, or as a JSON list when an argument holds a line break of its own. */
+export const commandText = (command: readonly string[]) => (command.some((part) => part.includes('\n')) ? JSON.stringify(command) : command.join('\n'))
 
 /**
  * The container as it is stored: its files by path, a later file of the same path in place of an earlier one, and the
