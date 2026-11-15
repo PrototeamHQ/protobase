@@ -95,4 +95,4 @@ const playAt =
 
 export const DesktopChecks: StoryObj = { ...Desktop, name: 'A two-file patch, side by side (checks)', tags: ['play', '!dev'], play: playAt('grid') }
 
-export const PhoneChecks: StoryObj = { ...Phone, name: 'A two-file patch, on a phone (checks)', tags: ['play', '!dev', 'phone'], play: playAt('block') }
+export const PhoneChecks: StoryObj = { ...Phone, name: 'A two-file patch, on a phone (checks)', tags: ['play', '!dev', 'touch'], play: playAt('block') }
