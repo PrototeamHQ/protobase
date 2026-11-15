@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { WorkflowTypeList } from '@protobase/client'
-import { stateLabel, stepTypeLabel, triggerLabel, triggerTypeLabel } from './labels'
+import { stateLabel, stepTypeLabel, stepTypeOption, triggerLabel, triggerTypeLabel } from './labels'
 
 describe('type labels', () => {
   it("names a built-in type by its own label, and a plugin's by the label the type list gives, else by its id", () => {
@@ -11,6 +11,13 @@ describe('type labels', () => {
     expect(stepTypeLabel('app:http', 'HTTP request (listed)')).toBe('HTTP request')
     expect(stepTypeLabel('acme:shout', 'Shout')).toBe('Shout')
     expect(stepTypeLabel('acme:shout')).toBe('acme:shout')
+  })
+
+  it("names a custom step's version beside its label where step types are chosen, so two versions read apart", () => {
+    expect(stepTypeOption('custom:invoice_pdf:1', 'Invoice PDF')).toBe('Invoice PDF, version 1')
+    expect(stepTypeOption('custom:invoice_pdf:2', 'Invoice PDF')).toBe('Invoice PDF, version 2')
+    expect(stepTypeOption('app:http', 'HTTP (listed)')).toBe('HTTP request')
+    expect(stepTypeOption('acme:shout', 'Shout')).toBe('Shout')
   })
 
   it('names a state and a trigger by the label the type list gives, a built-in by its own', () => {

@@ -1,5 +1,5 @@
 import type { WorkflowTypeList } from '@protobase/client'
-import { taskResource, type State, type Trigger } from '@protobase/workflows'
+import { customStepOf, taskResource, type State, type Trigger } from '@protobase/workflows'
 import type { NodeStatus } from './node-trace'
 import { text } from './messages'
 
@@ -18,6 +18,13 @@ const stepTypeLabels: Record<string, () => string> = {
 }
 
 export const stepTypeLabel = (resource: string, listed?: string) => stepTypeLabels[resource]?.() ?? listed ?? resource
+
+/** A step type as a list to choose from names it: a custom step's version beside its label, as each version is a type of its own. */
+export const stepTypeOption = (resource: string, listed?: string) => {
+  const label = stepTypeLabel(resource, listed)
+  const custom = customStepOf(resource)
+  return custom ? text('stepTypeVersion', { type: label, version: custom.version }) : label
+}
 
 /** The states' types other than Task, which shows its step type's name. */
 const stateTypeLabels: Record<Exclude<State['Type'], 'Task'>, () => string> = {
