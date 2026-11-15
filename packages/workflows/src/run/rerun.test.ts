@@ -224,7 +224,7 @@ describe('a re-run from a step', () => {
     ]
     const at = new Date('2026-11-08T12:00:00Z')
     const found = rerunFrom(flow.stateMachine, flow.stateMachine, JSON.parse(JSON.stringify(steps)), 'Store', at)
-    expect(found).toMatchObject({ checkpoint: { scope: '', seq: 1, next: 'Store', value: [1, 2], variables: { id: 7 }, attempt: 1, failures: [], visits: { Fetch: 1, Each: 1 }, clock: at, after: -1 } })
+    expect(found).toMatchObject({ checkpoints: [{ scope: '', seq: 1, next: 'Store', value: [1, 2], variables: { id: 7 }, attempt: 1, failures: [], visits: { Fetch: 1, Each: 1 }, clock: at, after: -1 }] })
     // A step a crash made run again is kept once
     expect('kept' in found && found.kept.map((step) => step.seq)).toEqual([0, 1])
   })

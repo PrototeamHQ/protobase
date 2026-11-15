@@ -88,4 +88,128 @@ describe('dataflow order', () => {
     expect(port.run('r1')).toMatchObject({ status: 'failed', error: 'Remote.Down', cause: 'down' })
     expect(ran).toEqual([])
   })
+
+  it("runs a state whose Condition reads a state that is skipped later in the list, once that one is skipped", async () => {
+    const ran: string[] = []
+    const port = memoryRunner({ note: async (args) => void ran.push((args as { name: string }).name) })
+    await port.start('rescan', flow({
+      Handle: { Type: 'Task', Resource: 'note', Arguments: { name: 'handle' }, Condition: "{% $states.context.Steps.Gate.Status = 'SKIPPED' %}" },
+      Gate: { Type: 'Task', Resource: 'note', Arguments: { name: 'gate' }, Condition: '{% false %}' },
+    }), {})
+    await port.drain()
+    expect(port.run('rescan').status).toBe('succeeded')
+    expect(ran).toEqual(['handle'])
+  })
+
+  it("lets a Map item's states read the statuses of the states around the Map", async () => {
+    const port = memoryRunner({ save: async () => ({ saved: true }), note: async (args) => args })
+    await port.start('outer', flow({
+      Save: { Type: 'Task', Resource: 'save' },
+      Each: {
+        Type: 'Map',
+        Items: '{% [1, 2] %}',
+        Condition: "{% $states.context.Steps.Save.Status = 'SUCCEEDED' %}",
+        ItemProcessor: { States: { Tell: { Type: 'Task', Resource: 'note', Arguments: { item: '{% $states.input %}' }, Condition: "{% $states.context.Steps.Save.Status = 'SUCCEEDED' %}" } } },
+      },
+    }), {})
+    await port.drain()
+    expect(port.run('outer')).toMatchObject({ status: 'succeeded', output: [{ item: 1 }, { item: 2 }] })
+  })
+
+  it("stops a Map item's states too when a state around the Map fails, before they take another step", async () => {
+    const first = deferred()
+    const ran: string[] = []
+    const port = memoryRunner({
+      slow: async () => {
+        await first.promise
+        ran.push('slow')
+        return 1
+      },
+      mail: async () => void ran.push('mail'),
+      boom: async () => {
+        throw new StepError('Broken', 'no')
+      },
+    })
+    await port.start('stop', flow({
+      Boom: { Type: 'Task', Resource: 'boom' },
+      Each: {
+        Type: 'Map',
+        Items: '{% [1] %}',
+        ItemProcessor: { States: { Slow: { Type: 'Task', Resource: 'slow', Assign: { got: '{% $states.result %}' } }, Mail: { Type: 'Task', Resource: 'mail', Arguments: { got: '{% $got %}' } } } },
+      },
+    }), {})
+    const segment = port.step()
+    // Boom fails while Slow is under way; Slow then ends, and Mail, which reads it, must not start
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    first.resolve()
+    await segment
+    await port.drain()
+    expect(port.run('stop')).toMatchObject({ status: 'failed', error: 'Broken' })
+    expect(ran).toEqual(['slow'])
+  })
+
+  it('lets the states still running end before a failed save stops the segment', async () => {
+    let slowEnded = false
+    const port = memoryRunner({
+      write: async () => 'written',
+      slow: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        slowEnded = true
+        return 'slow'
+      },
+    })
+    await port.start('save', flow({ Write: { Type: 'Task', Resource: 'write' }, Slow: { Type: 'Task', Resource: 'slow', Arguments: { readonly: true } } }), {})
+    port.store.save = async () => {
+      throw new Error('the database went away')
+    }
+    await expect(port.step()).rejects.toThrow('the database went away')
+    expect(slowEnded).toBe(true)
+  })
+
+  it('re-runs a failed run from the checkpoint of the state that failed, the states that ended kept', async () => {
+    const calls: string[] = []
+    let fixed = false
+    const port = memoryRunner({
+      get: async (args) => (calls.push((args as { name: string }).name), { value: (args as { name: string }).name }),
+      fetch: async () => {
+        calls.push('fetch')
+        if (!fixed) throw new StepError('Http.Status', '503')
+        return { value: 'fetched' }
+      },
+    })
+    const machine = flow({
+      A: { Type: 'Task', Resource: 'get', Arguments: { name: 'a' }, Assign: { a: '{% $states.result %}' } },
+      Fetch: { Type: 'Task', Resource: 'fetch', Retry: [{ ErrorEquals: ['Http.Status'], MaxAttempts: 1, IntervalSeconds: 1 }], Assign: { f: '{% $states.result %}' } },
+      Save: { Type: 'Pass', Output: '{% $a.value & "+" & $f.value %}' },
+    })
+    await port.start('failed', machine, {})
+    await port.drain()
+    expect(port.run('failed')).toMatchObject({ status: 'failed', error: 'Http.Status' })
+    fixed = true
+    calls.length = 0
+    await port.rerun('again', 'failed', machine)
+    await port.drain()
+    expect(port.run('again')).toMatchObject({ status: 'succeeded', output: 'a+fetched' })
+    expect(calls).toEqual(['fetch'])
+  })
+
+  it('re-runs an ended run from a state: it and the states after it run again, the others stay as they ran', async () => {
+    const calls: string[] = []
+    const port = memoryRunner({ get: async (args) => (calls.push((args as { name: string }).name), { value: (args as { name: string }).name }) })
+    const machine = (suffix: string) =>
+      flow({
+        A: { Type: 'Task', Resource: 'get', Arguments: { name: 'a' }, Assign: { a: '{% $states.result %}' } },
+        B: { Type: 'Task', Resource: 'get', Arguments: { name: `b${suffix}` }, Assign: { b: '{% $states.result %}' } },
+        Save: { Type: 'Pass', Output: '{% $a.value & "+" & $b.value %}' },
+      })
+    await port.start('done', machine(''), {})
+    await port.drain()
+    expect(port.run('done')).toMatchObject({ status: 'succeeded', output: 'a+b' })
+    calls.length = 0
+    await port.rerun('from-b', 'done', machine('2'), 'B')
+    await port.drain()
+    expect(port.run('from-b')).toMatchObject({ status: 'succeeded', output: 'a+b2' })
+    expect(calls).toEqual(['b2'])
+    await expect(port.rerun('never', 'done', machine(''), 'Gone')).rejects.toThrow('The workflow no longer has state "Gone"')
+  })
 })

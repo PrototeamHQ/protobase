@@ -1,6 +1,6 @@
 import type { WorkflowRunTrace, WorkflowTraceStep } from '@protobase/client'
 import { recordDefinition } from '../field-types/workflow/definition'
-import { createRunner, findBlock, rerunCheckpoint, rerunFrom, rerunProblem, type BlockRun, type BlockRunStore, type Checkpoint, type Definition, type RunStore, type StepCacheStore, type StepRecord, type TaskHandlers, type TraceSink } from '@protobase/workflows'
+import { createRunner, findBlock, orderOf, rerunCheckpoint, rerunFrom, rerunProblem, type BlockRun, type BlockRunStore, type Checkpoint, type Definition, type RunStore, type StepCacheStore, type StepRecord, type TaskHandlers, type TraceSink } from '@protobase/workflows'
 
 type Row = Record<string, unknown>
 
@@ -139,15 +139,15 @@ export const fakeWorkflowEngine = ({ tables, tasks, secrets }: { tables: () => R
         const earlier = String(row.rerun_of)
         if (row.rerun_from == null) {
           const kept = checkpoints.get(earlier) ?? []
-          const problem = rerunProblem(definitionOf(row).stateMachine, kept)
+          const problem = rerunProblem(definitionOf(row).stateMachine, kept, orderOf(definitionOf(row)))
           if (problem) throw new Error(problem)
           checkpoints.set(id, kept.map((checkpoint) => rerunCheckpoint(structuredClone(checkpoint), new Date(String(row.created_at)))))
         } else {
           // As the server does: the steps before the state stay, folded into the checkpoint the re-run goes on from
           const steps = (traces.get(earlier) ?? []) as unknown as StepRecord[]
-          const from = rerunFrom(definitionOf(row).stateMachine, definitionOf(runOf(earlier)).stateMachine, steps, String(row.rerun_from), new Date(String(row.created_at)))
+          const from = rerunFrom(definitionOf(row).stateMachine, definitionOf(runOf(earlier)).stateMachine, steps, String(row.rerun_from), new Date(String(row.created_at)), orderOf(definitionOf(row)))
           if ('problem' in from) throw new Error(from.problem)
-          if (from.checkpoint) checkpoints.set(id, [from.checkpoint])
+          if (from.checkpoints.length > 0) checkpoints.set(id, from.checkpoints)
           traces.set(id, JSON.parse(JSON.stringify(from.kept)) as WorkflowTraceStep[])
         }
       }

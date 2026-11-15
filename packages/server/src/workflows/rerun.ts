@@ -1,6 +1,6 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
-import { blockDefinition, rerunFrom, rerunProblem, type EarlierCheckpoint, type Runner, type TraceMode } from '@protobase/workflows'
+import { blockDefinition, orderOf, rerunFrom, rerunProblem, type EarlierCheckpoint, type Runner, type TraceMode } from '@protobase/workflows'
 import type { Deps } from '../deps'
 import { fetchReadable } from '../fetch-readable'
 import { deletedRows } from '../params'
@@ -49,7 +49,7 @@ export const keepEarlierCheckpoints = async (trx: Db, deps: Deps, runner: Runner
   const checkpoints = sql.id(schema, 'checkpoints')
   if (!from) {
     const { rows } = await sql<EarlierCheckpoint>`select scope, next from ${checkpoints} where run_id = ${earlier}`.execute(trx)
-    const problem = rerunProblem(definition.stateMachine, rows)
+    const problem = rerunProblem(definition.stateMachine, rows, orderOf(definition))
     if (problem) throw refused(problem)
     await sql`insert into ${checkpoints} (run_id, scope, seq, follows, state, type, status, fetched_at, next, value, variables, attempt, failures, visits, resume_at, clock)
       select ${run}, scope, seq, follows, state, type, status, fetched_at, next, value, variables, 1, '[]'::jsonb, visits, null, now()
@@ -58,8 +58,8 @@ export const keepEarlierCheckpoints = async (trx: Db, deps: Deps, runner: Runner
   }
   const steps = await runner.readTrace(earlier)
   if (!steps) throw badRequest('rerun-no-trace', 'This run did not keep its trace, so it cannot be re-run from a step')
-  const kept = rerunFrom(definition.stateMachine, (await version(earlier)).stateMachine, steps, from, new Date())
+  const kept = rerunFrom(definition.stateMachine, (await version(earlier)).stateMachine, steps, from, new Date(), orderOf(definition))
   if ('problem' in kept) throw refused(kept.problem)
-  if (kept.checkpoint) await postgresRunStore(schema).save(trx, run, [kept.checkpoint])
+  if (kept.checkpoints.length > 0) await postgresRunStore(schema).save(trx, run, kept.checkpoints)
   await runner.keepSteps({ id: run, definition, trace: (event.after.trace as TraceMode | null | undefined) ?? null }, kept.kept)
 }
