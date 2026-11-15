@@ -13,8 +13,8 @@ export type TextOptions = {
   /** The record's fields by path (`plan.name`); a field without a label reads under its path. */
   fields?: Record<string, TextFieldLabels>
   /**
-   * What a `Table` shows, which the caller loaded, so it reads as a Markdown table; a table without it reads as its
-   * heading. `at` is the element's place in the tree, the JSON Pointer the read plan names its block by; `record` the
+   * What a `Table` or a `Timeline` shows, which the caller loaded, so it reads as a Markdown table, a timeline's a row per
+   * segment; one without it reads as its heading. `at` is the element's place in the tree, the JSON Pointer the read plan names its block by; `record` the
    * record around it, and `around` the records of the list around it, which a table without `resource` shows.
    */
   tables?: (node: LayoutNode, at: string, record: Record<string, unknown> | undefined, around: unknown[] | undefined) => TableText | undefined

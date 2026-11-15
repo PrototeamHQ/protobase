@@ -41,6 +41,15 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [stale])).toThrow('value colours of "reference" need an enum field')
   })
 
+  it('takes waiting values of an enum, and refuses values it does not have or another field', () => {
+    const waiting = view<typeof payments>('payments').fields((r) => ({ method: r.method.waitingValues(['bank_transfer']) }))
+    expect(() => checkViews(registry, [waiting.toModel()])).not.toThrow()
+    const stale = view<typeof payments>('payments').toModel()
+    stale.fields = { method: { waitingValues: ['cash'] }, reference: { waitingValues: ['x'] } }
+    expect(() => checkViews(registry, [stale])).toThrow('waiting value "cash" is not a value of "method"')
+    expect(() => checkViews(registry, [stale])).toThrow('waiting values of "reference" need an enum field')
+  })
+
   it('takes a currency on a decimal field and a sign on an integer field only', () => {
     const priced = resource('prices').table('prices').fields({ id: f.integer(), amount: f.decimal({ precision: 10, scale: 2 }), change: f.integer(), note: f.text() }).primaryKey((r) => r.id)
     const prices = { entries: [{ name: 'prices', model: priced.toModel() }] } as unknown as Registry

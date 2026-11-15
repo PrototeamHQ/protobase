@@ -26,6 +26,7 @@ description: Pages of your own, built from blocks in a JSX layout.
 - [Diff block](/reference/blocks/#diff) (beta): A `Diff` block shows a unified patch the record holds, side by side on wide screens and in one column on a phone; it shows stored patches and does not compute them.
 - [Image block](/reference/blocks/#image): A picture one of the app's API functions draws for the reader, such as a system map, at the size and theme the client asks, refreshed on a timer; a client that draws no images shows its alt text, or nothing.
 - [Chart block](/reference/blocks/#chart): Counts, sums or averages by value or by date, as bars, lines or a donut, and over time split by a second field.
+- [Timeline block](/reference/blocks/#timeline) (beta): A `Timeline` block draws records as bars in lanes over time, each bar's parts coloured by a status field and its waits striped, with the chosen bar's details under it.
 - [Conversations](/reference/blocks/#conversation): A chat declared in the layout: a thread of a resource's messages under each sender's name and time, following new ones as they arrive, and a box that sends one as the signed-in user.
 - [Tool calls in threads](/reference/blocks/#tool-calls): Conversation threads show tool calls in time order, with a status and an expandable input and result.
 - [Buttons and forms](/reference/blocks/#behaviour): Buttons for named actions, and create or edit forms in a dialog.

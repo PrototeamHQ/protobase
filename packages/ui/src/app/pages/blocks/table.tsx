@@ -76,6 +76,6 @@ const SelectTable = ({ select, children, ...props }: Omit<LoadedProps, 'chosen'>
   const rowTo = (key: string) => linkTo({ [select]: key })
   const key = given[select]
   // A form under the chosen row asks before another row replaces it
-  const details = key === undefined ? null : <GuardedParams name={select}><ChosenRecord key={key} model={props.model} recordKey={key}>{children}</ChosenRecord></GuardedParams>
+  const details = key === undefined ? null : <GuardedParams name={select}><ChosenRecord key={key} model={props.model} query={{ key }}>{children}</ChosenRecord></GuardedParams>
   return <LoadedTable {...props} chosen={{ rowTo, key, details }} />
 }

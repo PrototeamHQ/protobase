@@ -1287,7 +1287,10 @@
     "atMost": "At most {max} characters",
     "tickEvery": "{count, plural, one {Tick the last box} other {Tick the # remaining boxes}}",
     "nothingToTick": "Nothing to tick.",
-    "forRecords": "For {records}."
+    "forRecords": "For {records}.",
+    "timelineRange": "{from} – {to}",
+    "timelineNow": "now",
+    "timelinePoint": "Point at a bar to see its times."
   },
   "app/rank-after": {
     "dependsOn": "{record} depends on {other}."

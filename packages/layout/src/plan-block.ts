@@ -1,12 +1,13 @@
-import type { ResourceModel } from '@protobase/schema'
+import { where, type FilterExpr, type ResourceModel } from '@protobase/schema'
 import { templatePlaceholders } from '@protobase/schema/internal'
 import { blockSpecs, type BlockReads } from './block-specs'
 import { threadSort } from './check-time'
+import { timelineFields, timelineSort } from './check-timeline'
 import { defaultPerPage, defaultSort, defaultSource, maxPerPage } from './list-blocks'
 import { filterLiteral, filterText, sortText } from './list-query'
 import type { LayoutNode, LayoutValue } from './node'
 import type { Draft, PlanContext, Rows } from './plan-draft'
-import { keyEquality, splitFilter, type ImpliedSplit, type SplitFilter } from './plan-split'
+import { fieldEquality, keyEquality, splitFilter, type ImpliedSplit, type SplitFilter } from './plan-split'
 import { planReadId } from './read-plan'
 import { columnName, type TableColumn } from './table-columns'
 import { selectBlocks } from './select-blocks'
@@ -33,6 +34,8 @@ const pageSizeOf = (node: LayoutNode, reads: BlockReads): number | undefined => 
       return number(limit) ?? 10
     case 'Thread':
       return number(limit) ?? 50
+    case 'Timeline':
+      return number(limit) ?? maxPerPage
     case 'ReferenceManyField':
       return number(perPage) ?? defaultPerPage
     case 'ReferenceArrayField':
@@ -55,6 +58,7 @@ const ownFilter = (node: LayoutNode, reads: BlockReads) => filterText(reads.filt
 
 const ownSort = (node: LayoutNode, reads: BlockReads, model: ResourceModel) => {
   if (node.type === 'Thread') return threadSort(String(node.props.time))
+  if (node.type === 'Timeline') return timelineSort(node)
   const given = sortText(reads.sort === undefined ? undefined : (node.props[reads.sort] as LayoutValue | undefined))
   if (given !== undefined || !['ReferenceManyField', 'ReferenceArrayField'].includes(node.type)) return given
   return defaultSort(keyOf(model))
@@ -78,6 +82,8 @@ const ownFields = (node: LayoutNode, reads: BlockReads, model: ResourceModel): S
     }
     case 'Thread':
       return names([String(node.props.sender), String(node.props.time), String(node.props.text), ...(text(node.props.status) ? [String(node.props.status)] : [])])
+    case 'Timeline':
+      return names(timelineFields(node))
     case 'RecordRow':
       return undefined
     // Without children, it draws the record's title
@@ -143,17 +149,23 @@ const shapeOf = (node: LayoutNode, n: number | undefined, parent: Draft | undefi
 // How each record around it finds its rows in the read
 const splitOf = ({ parent, field, path }: SplitFilter): Pick<Draft, 'split'> => (parent && field && path !== undefined ? { split: { field, source: path, parent: planReadId(parent) } } : {})
 
-/** The reads a block makes: its own, the row a `Table`'s `select` chose, and any others it makes beside it. */
+/** The reads a block makes: its own, the row a `Table`'s or bar a `Timeline`'s `select` chose, and any others it makes beside it. */
 export type BlockDrafts = { own?: Draft; chosen?: Draft; extra: Draft[] }
 
 /** The props a block's reads take: its built-in spec's, or what a custom component declares. */
 export const readsOf = (node: LayoutNode): BlockReads | undefined => (node.custom ? node.reads : blockSpecs[node.type]?.reads)
 
 // The record a `select` chose is read by its key, which the page's address holds
-const chosenOf = (node: LayoutNode, block: string, model: ResourceModel, context: PlanContext): Draft | undefined => {
+const chosenOf = (node: LayoutNode, block: string, model: ResourceModel, own: FilterExpr | undefined, context: PlanContext): Draft | undefined => {
   const select = text(node.props.select)
   // A custom component's `select` is its own prop, which names no page parameter
   if (select === undefined || node.custom || !selectBlocks.has(node.type)) return
+  // A timeline's bar is its `bar` value, whose first record the timeline shows its children draw
+  if (node.type === 'Timeline') {
+    const bar = fieldEquality(model, String(node.props.bar), `@params.${select}`, context)
+    const filter = own ? where.and(own, bar) : bar
+    return { block, part: 'chosen', kind: 'list', resource: model.name, filter, orderBy: timelineSort(node), pageSize: 1, fields: new Set([keyOf(model)]), etag: false }
+  }
   return { block, part: 'chosen', kind: 'list', resource: model.name, filter: keyEquality(model, `@params.${select}`, context), pageSize: 1, fields: new Set([keyOf(model)]), etag: false }
 }
 
@@ -186,6 +198,6 @@ export const blockDrafts = (node: LayoutNode, block: string, scope: Scope, rows:
     fields: shape.kind === 'list' ? ownFields(node, reads, model) : shape.kind === 'count' ? new Set([keyOf(model)]) : undefined,
     etag: changesOwn(node),
   }
-  const chosen = chosenOf(node, block, model, context)
+  const chosen = chosenOf(node, block, model, split.filter, context)
   return { own, ...(chosen && { chosen }), extra: callsOf(node, block, scope, rows, context) }
 }

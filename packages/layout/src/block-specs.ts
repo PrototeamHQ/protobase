@@ -74,6 +74,25 @@ const specs: Record<string, BlockSpec> = {
       span: optional('span'),
     },
   },
+  // Its children draw the bar `select` chose
+  Timeline: {
+    children: true,
+    reads: { resource: 'resource', filter: 'filter' },
+    props: {
+      ...heading,
+      resource: required('text'),
+      filter: optional('text'),
+      lane: required('text'),
+      bar: required('text'),
+      start: required('text'),
+      end: required('text'),
+      color: required('text'),
+      limit: optional('integer'),
+      empty: optional('text'),
+      span: optional('span'),
+      select: optional('text'),
+    },
+  },
   Progress: { children: false, props: { value: required('amount'), max: optional('amount'), label: optional('text'), span: optional('span') } },
   ModalForm: {
     children: false,
