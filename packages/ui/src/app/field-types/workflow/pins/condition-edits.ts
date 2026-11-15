@@ -52,11 +52,20 @@ export const setConditionSide = (definition: Definition, step: string, at: reado
 
 /**
  * The definition with a new condition node chosen for the side at `at` of the Condition of the step at `step`, or for
- * its Only when pin with `[]`, where an Expression may be chosen too.
+ * its Only when pin with `[]`, where an Expression may be chosen too. Only where the offer still stands, as the
+ * Condition is now: an empty Only when pin, or a side of an And, an Or or a Not that holds a value; else as it was.
  */
 export const addCondition = (definition: Definition, step: string, at: readonly number[], choice: ConditionChoice): Definition => {
-  if (at.length === 0) return setArgument(definition, step, [conditionKey], choice === 'expression' ? newExpression : conditionValue(newPart(choice)))
-  return choice === 'expression' ? definition : setConditionSide(definition, step, at, newPart(choice))
+  const condition = stateAt(definition, step)?.Condition
+  if (at.length === 0) {
+    if (condition !== undefined && condition !== '') return definition
+    return setArgument(definition, step, [conditionKey], choice === 'expression' ? newExpression : conditionValue(newPart(choice)))
+  }
+  const root = conditionParts(condition)
+  const parent = root && partAt(root, at.slice(0, -1))
+  const held = parent?.sides[at.at(-1)!]
+  if (choice === 'expression' || !parent || parent.kind === 'compare' || !held || isConditionPart(held) || !('value' in held)) return definition
+  return setConditionSide(definition, step, at, newPart(choice))
 }
 
 /** The definition with the side at `at` holding nothing, and the node there removed with all it takes; the whole Condition for `[]`. */

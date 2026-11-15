@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Definition, PinSchemas } from '@protobase/workflows'
 import { layoutKey } from '../manual-layout'
-import { clearConditionSide, newPart, setConditionSide } from './condition-edits'
+import { addCondition, clearConditionSide, newPart, setConditionSide } from './condition-edits'
 import { connectData, disconnectData, removePure, wireRefusal } from './data-edits'
 import { dataGraph, type ConditionNode } from './data-graph'
 import { conditionKey, statusKey } from './node-pins'
@@ -146,5 +146,19 @@ describe('condition nodes', () => {
     expect(setConditionSide(definition, 'Tell', [0], { value: 1 })).toEqual(definition)
     // A Condition that reads a value no pin gives is an Expression too, so that read is not hidden
     expect(nodes(workflow('{% $unknown = 1 %}')).map((node) => [node.part.kind, node.inputs.length])).toEqual([['expression', 0]])
+  })
+
+  it('adds a node chosen in an offer only where the offer still stands in the Condition as it is now', () => {
+    expect(conditionOf(addCondition(workflow(), 'Tell', [], '='))).toBe("{% '' = '' %}")
+    expect(conditionOf(addCondition(workflow(), 'Tell', [], 'expression'))).toBe('{% true %}')
+    // The Only when pin took a Condition since the offer opened
+    expect(addCondition(workflow(saved), 'Tell', [], 'and')).toEqual(workflow(saved))
+    const and = workflow('{% true and $fetch.ok %}')
+    expect(conditionOf(addCondition(and, 'Tell', [0], 'not'))).toBe('{% $not(false) and $fetch.ok %}')
+    // A side that is wired, a node's own, or a Comparison's takes no node; nor does a side the Condition no longer has
+    expect(addCondition(and, 'Tell', [1], 'not')).toEqual(and)
+    expect(addCondition(workflow("{% $not(true) and $fetch.ok %}"), 'Tell', [0], 'or')).toEqual(workflow("{% $not(true) and $fetch.ok %}"))
+    expect(addCondition(workflow(saved), 'Tell', [1], 'and')).toEqual(workflow(saved))
+    expect(addCondition(and, 'Tell', [0, 0], 'and')).toEqual(and)
   })
 })
