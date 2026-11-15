@@ -4,6 +4,7 @@ import { defineJob } from '../jobs/define-job'
 import type { JobContext, JobDefinition } from '../jobs/job-types'
 import { postgresRunStore } from './store'
 import { postgresBlockRuns } from './block-runs'
+import { postgresTaskTokens } from './task-tokens'
 import { failAfterLastTry } from './last-try'
 import type { SaverRoles } from './plugin-records'
 
@@ -38,11 +39,12 @@ export const workflowsRunner = ({ schema, tasks, secrets, cache, trace, traceMod
     wake: async (db, run) => void (await job!.enqueue(db, { run }, { key: run, mode: 'replace', runAt: new Date() })),
   }
   const blocks = postgresBlockRuns(schema, () => job, roles)
-  const runner = createRunner({ store, queue, tasks: {}, secrets, trace, traceMode })
+  const tokens = postgresTaskTokens(schema)
+  const runner = createRunner({ store, queue, tokens, tasks: {}, secrets, trace, traceMode })
   job = defineJob<{ run: string }>({
     name: segmentJobName,
     run: ({ run }, context) =>
-      createRunner({ store, queue, blocks, tasks: tasks(context), secrets, trace, traceMode, ...(cache && { cache }) })
+      createRunner({ store, queue, blocks, tokens, tasks: tasks(context), secrets, trace, traceMode, ...(cache && { cache }) })
         .segment(context.db, run, context.signal)
         .catch(async (error: unknown) => {
           // No segment comes after the job's last try, so that try ends the run rather than leaving it running.
@@ -54,5 +56,5 @@ export const workflowsRunner = ({ schema, tasks, secrets, cache, trace, traceMod
     timeout: '10 minutes',
     concurrency: 5,
   })
-  return { runner, job }
+  return { runner, job, tokens }
 }

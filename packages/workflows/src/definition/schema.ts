@@ -47,7 +47,7 @@ const schemaFor = (order: Order) => {
   const machineFields = { ...(sequence && { StartAt: {} }), States: {}, Comment: {}, Version: { type: 'string' } }
   const flowStates = [
     state('Pass', flow, nextOrEnd),
-    state('Task', { ...flow, ...recovery, Resource: name, Arguments: {}, TimeoutSeconds: { type: 'integer', minimum: 1, maximum: limits.taskTimeoutSeconds }, Cache: { type: 'boolean' } }, { required: ['Resource'], ...nextOrEnd }),
+    state('Task', { ...flow, ...recovery, Resource: name, Arguments: {}, TimeoutSeconds: { type: 'integer', minimum: 1, maximum: limits.waitingTaskTimeoutSeconds }, HeartbeatSeconds: { type: 'integer', minimum: 1, maximum: limits.waitingTaskTimeoutSeconds }, Cache: { type: 'boolean' } }, { required: ['Resource'], ...nextOrEnd }),
     state('Wait', { ...flow, Seconds: { anyOf: [{ type: 'integer', minimum: 0, maximum: limits.waitSeconds }, expression] }, Timestamp: { type: 'string' } }, {
       allOf: [nextOrEnd, { oneOf: [{ required: ['Seconds'] }, { required: ['Timestamp'] }] }],
     }),

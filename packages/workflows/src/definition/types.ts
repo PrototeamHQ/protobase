@@ -18,10 +18,11 @@ type Flow = { Next?: string; End?: boolean }
 
 export type PassState = Common & Flow & { Type: 'Pass' }
 /**
- * `Cache` turns its step type's result cache on (`true`, forced when the type does not offer it) or off (`false`);
- * without it, the type decides.
+ * A Task runs its step type, `Resource`; one whose Resource ends in `.waitForTaskToken` then waits for an outside
+ * result, with heartbeats at most `HeartbeatSeconds` apart. `Cache` turns its step type's result cache on (`true`,
+ * forced when the type does not offer it) or off (`false`); without it, the type decides.
  */
-export type TaskState = Common & Flow & { Type: 'Task'; Resource: string; Arguments?: Template; TimeoutSeconds?: number; Cache?: boolean; Retry?: Retrier[]; Catch?: Catcher[] }
+export type TaskState = Common & Flow & { Type: 'Task'; Resource: string; Arguments?: Template; TimeoutSeconds?: number; HeartbeatSeconds?: number; Cache?: boolean; Retry?: Retrier[]; Catch?: Catcher[] }
 export type ChoiceRule = { Condition: string; Next: string; Comment?: string; Output?: Template; Assign?: Record<string, Template> }
 export type ChoiceState = Common & { Type: 'Choice'; Choices: ChoiceRule[]; Default?: string }
 export type WaitState = Common & Flow & { Type: 'Wait'; Seconds?: number | string; Timestamp?: string }

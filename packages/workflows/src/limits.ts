@@ -10,6 +10,14 @@ export const limits = {
   /** The longest a Task may run before it fails with `States.Timeout`, and its default. */
   taskTimeoutSeconds: 300,
   defaultTaskTimeoutSeconds: 300,
+  /**
+   * The longest a Task that waits for an outside result (`.waitForTaskToken`) waits, from its hand-off, and its default:
+   * 366 days, as a Wait. Its `HeartbeatSeconds` is less.
+   */
+  waitingTaskTimeoutSeconds: 366 * 24 * 3600,
+  /** An outside failure's error name and cause, as Step Functions' SendTaskFailure takes them. */
+  taskErrorLength: 256,
+  taskCauseLength: 32_768,
   /** The longest wait one Wait state may give in seconds: 366 days. */
   waitSeconds: 366 * 24 * 3600,
   /** Retries of one retrier after the first try, and the longest wait between two. */

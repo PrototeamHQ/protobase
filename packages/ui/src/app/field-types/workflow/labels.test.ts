@@ -18,6 +18,8 @@ describe('type labels', () => {
     const types: WorkflowTypeList = { step_types: [entry('acme:shout', 'Shout'), entry('app:http', 'HTTP (listed)')], triggers: [entry('acme:overdue', 'Overdue invoice')] }
     expect(stateLabel({ Type: 'Task', Resource: 'acme:shout', End: true }, types)).toBe('Shout')
     expect(stateLabel({ Type: 'Task', Resource: 'app:http', End: true }, types)).toBe('HTTP request')
+    expect(stateLabel({ Type: 'Task', Resource: 'app:http.waitForTaskToken', End: true }, types)).toBe('HTTP request, then waits')
+    expect(stateLabel({ Type: 'Task', Resource: 'acme:shout.waitForTaskToken', End: true }, types)).toBe('Shout, then waits')
     expect(stateLabel({ Type: 'Task', Resource: 'acme:gone', End: true }, types)).toBe('acme:gone')
     expect(stateLabel({ Type: 'Pass', End: true }, types)).toBe('Set values')
     expect(triggerLabel({ 'acme:overdue': {} }, types)).toBe('Overdue invoice')

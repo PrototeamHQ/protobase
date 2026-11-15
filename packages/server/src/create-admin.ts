@@ -436,7 +436,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   else if (auth?.mcp && mcpAuthenticate) {
     const writes = (options.mcp !== false && options.mcp?.writes) || false
     const commented = registry.entries.filter((entry) => entry.model.comments).map((entry) => entry.name)
-    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, readTrace: engine.readTrace, listConnections: auth.connections.list, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }) } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes, commented, ...(engine && { workflows: { ...engine.types, readTrace: engine.readTrace, listConnections: auth.connections.list, issueWebhook: (session, id, secret) => issueWebhook(engine.issue, session, id, { ...(secret !== undefined && { secret }), origin: new URL(auth.mcp!.resource).origin }), answerTask: engine.answerTask } }), own: (options.mcp !== false && options.mcp?.tools) || [] })
     const instructions = mcpServerInstructions(options.mcp ? options.mcp.instructions : undefined, engine ? workflowInstructions : undefined)
     const approvals = mcpApprovals()
     const { resource } = auth.mcp
@@ -506,8 +506,10 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
       app.route(storagePath, storageRoutes({ deps: storage, report }))
     }
   }
-  // Before the live stream's guard, which wants a token for everything under the system path: the webhook address takes none.
+  // Before the live stream's guard, which wants a token for everything under the system path: the webhook address and
+  // the waiting Tasks' answers take none.
   if (engine) app.route(hooksBase(systemPath), engine.routes.hooks())
+  if (engine) app.route(`${systemPath}/workflows/tasks`, engine.routes.tasks())
   // After `/api/sb`, which the guard's token check under the system path would otherwise stand before.
   // Anyone who may read a live resource hears of its changes, a visitor of what the anonymous role reads too.
   // With calls, the stream also tells each user's pages of the calls that ring them.
