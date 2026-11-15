@@ -55,7 +55,7 @@ Every state reads the run's input as `$states.context.Execution.Input`:
 | Try it | `run_workflow` with an input shaped as the trigger gives it, such as `{ "body": { ... } }` for a webhook | `POST /api/v1/workflow_runs` `{ workflow_id, input }` |
 | Read the run | `get_workflow_run`, again until `succeeded` or `failed` | `GET /api/v1/workflow_runs/<id>`, steps at `GET /api/workflows/runs/<id>/trace` |
 | Fix | `update_workflow` (a JSON Merge Patch in `edit`), then run again | `PATCH /api/v1/workflows/<id>` with `If-Match` |
-| Publish | `enable_workflow` `{ id, enabled: true, version }` | `PATCH /api/v1/workflows/<id>` `{ "enabled_version": 1 }` with `If-Match` |
+| Publish | `enable_workflow` `{ id, enabled: true, version }` | `PATCH /api/v1/workflows/<id>` `{ "enabled_version": 1 }` with `If-Match`, or `"enabled_version": 1` in the create itself |
 | Webhook URL | `new_webhook_url` `{ id, secret? }` | `POST /api/workflows/<id>/webhook` `{ "secret": "..." }` |
 
 A REST `PATCH` needs `If-Match`: the ETag the record was read with, or `*`; without it the answer is 428. A save
