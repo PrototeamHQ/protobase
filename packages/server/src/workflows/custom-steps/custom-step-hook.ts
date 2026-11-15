@@ -1,16 +1,29 @@
 import { sql } from 'kysely'
+import type { Db } from '@protobase/query'
 import { manifestProblems, type CustomStepManifest } from '@protobase/workflows'
-import { badRequest } from '../../problem'
+import { isDatabaseError } from '../../error-handler'
+import { badRequest, HttpProblem } from '../../problem'
 import type { PipelineHook } from '../../types'
 
 /** The resource of the custom steps, whose writes the hook checks. */
 export const customStepsResource = 'workflow_custom_steps'
 
+const versionTaken = () =>
+  new HttpProblem(409, 'conflict', 'Conflict', 'The custom step was saved at the same time as another write of its name, which took its version; send it again')
+
+// Keeps the step's manifest as the version its row holds, saved by `user`.
+const saveVersion = async (schema: string, id: string, user: string, trx: Db) => {
+  await sql`insert into ${sql.id(schema, 'custom_step_versions')} (custom_step_id, version, tenant_id, name, label, description, kind, container, input, output, error_prefix, errors, saved_by)
+    select c.id, c.version, c.tenant_id, c.name, c.label, c.description, c.kind, c.container, c.input, c.output, c.error_prefix, c.errors, ${user}
+    from ${sql.id(schema, 'custom_steps')} c where c.id = ${id}`.execute(trx)
+}
+
 /**
  * Checks a custom step's manifest on every create and update (`manifestProblems`), and keeps a changed manifest as the
  * version the table's trigger numbered, saved by the caller, in the write's transaction. A refusal is a 400 problem
  * naming each field, also listed as `problems`, and as `errors` by the record's field with the part in their `params`,
- * as a refused workflow is; the write rolls back.
+ * as a refused workflow is; a version another write of its name took meanwhile is a 409 to send again. Either way the
+ * write rolls back.
  */
 export const customStepSaveHook = (schema: string): PipelineHook => async (event, trx) => {
   if (event.resource.name !== customStepsResource || !event.after) return
@@ -23,7 +36,12 @@ export const customStepSaveHook = (schema: string): PipelineHook => async (event
   }
   // The trigger numbers a new version only when the manifest changed.
   if (event.operation === 'update' && event.after.version === event.before?.version) return
-  await sql`insert into ${sql.id(schema, 'custom_step_versions')} (custom_step_id, version, tenant_id, name, label, description, kind, container, input, output, error_prefix, errors, saved_by)
-    select c.id, c.version, c.tenant_id, c.name, c.label, c.description, c.kind, c.container, c.input, c.output, c.error_prefix, c.errors, ${String(event.user.id)}
-    from ${sql.id(schema, 'custom_steps')} c where c.id = ${String(event.after.id)}`.execute(trx)
+  try {
+    await saveVersion(schema, String(event.after.id), String(event.user.id), trx)
+  } catch (error) {
+    // A write of the same name took the version the trigger numbered: a re-create numbered it before an update of the
+    // step it replaces kept that version, and saved it once that step was deleted. Sent again, it numbers the next one.
+    if (isDatabaseError(error) && error.code === '23505' && error.constraint === 'custom_step_versions_name') throw versionTaken()
+    throw error
+  }
 }

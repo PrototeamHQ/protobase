@@ -25,6 +25,13 @@ describe('definitionProblems', () => {
     expect(check(withStep({ Resource: 'other:step' })).map((problem) => [problem.state, problem.field])).toEqual([['Step', 'Resource']])
   })
 
+  it('refuses a custom step without a version naming its latest, as a save does', () => {
+    const step = (version: number) => ({ id: `custom:invoice_pdf:${version}`, kind: 'step', plugin: 'custom', label: 'Invoice PDF', description: '', input: { type: 'object' }, available: true })
+    const types = { ...exampleWorkflowTypes, step_types: [...exampleWorkflowTypes.step_types, step(1), step(2)] }
+    expect(definitionProblems(withStep({ Resource: 'custom:invoice_pdf' }), types)).toEqual([{ state: 'Step', field: 'Resource', message: '"custom:invoice_pdf" names no version: write custom:invoice_pdf:2' }])
+    expect(definitionProblems(withStep({ Resource: 'custom:invoice_pdf:1' }), types)).toEqual([])
+  })
+
   it('refuses a type the list marks not available, with its reason', () => {
     expect(check(withTrigger({ 'acme:inbox': {} } as Definition['trigger']))).toEqual([{ field: 'trigger', message: '"acme:inbox" cannot run in this app: It signs in through acme:mail, whose OAuth client this app does not set in auth.connections' }])
   })
