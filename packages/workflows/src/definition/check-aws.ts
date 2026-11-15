@@ -23,11 +23,13 @@ export const isHttpInvoke = (resource: unknown) => resource === httpInvoke || re
 const httpArgumentNames = new Set(['ApiEndpoint', 'Method', 'Headers', 'QueryParameters', 'RequestBody', 'Authentication', 'InvocationConfig'])
 
 /**
- * What an HTTP task of Step Functions holds that app:http cannot do the same way, each named: an argument it does not
- * carry over, such as `Transform`, which encodes the body otherwise, and a retrier or catcher of a status's own error
+ * What an HTTP task of Step Functions holds that app:http cannot do the same way, each named: Arguments that are one
+ * expression, an argument it does not carry over, such as `Transform`, which encodes the body otherwise, and a retrier or catcher of a status's own error
  * (`States.Http.StatusCode.<code>`), as app:http fails with `Http.Status` for every status. Empty for one that imports.
  */
 export const httpImportProblems = (state: Record<string, unknown>): Omit<Problem, 'state'>[] => {
+  // One expression gives its argument names only when it runs, so they cannot be carried over
+  if (typeof state.Arguments === 'string') return [{ field: 'Arguments', message: "is one expression, whose argument names the import cannot carry over to app:http's; write ApiEndpoint, Method, Headers, QueryParameters and RequestBody as fields, each of which may be an expression" }]
   const args = isObject(state.Arguments) ? state.Arguments : {}
   const found: Omit<Problem, 'state'>[] = Object.keys(args)
     .filter((name) => !httpArgumentNames.has(name))

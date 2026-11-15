@@ -113,6 +113,11 @@ describe('create_workflow', () => {
       { state: 'Call', field: 'Arguments.Transform', message: "is an HTTP task's Transform, which does not import: app:http takes only ApiEndpoint, Method, Headers, QueryParameters and RequestBody" },
       { state: 'Call', field: 'Retry[0].ErrorEquals', message: "names States.Http.StatusCode.429, a status's own error, which does not import: app:http fails with Http.Status for every status, which its error's cause names" },
     ])
+    // Arguments that are one expression give their names only when they run
+    const computed = { QueryLanguage: 'JSONata', StartAt: 'Call', States: { Call: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: "{% {'ApiEndpoint': 'https://a.example', 'Method': 'GET'} %}", End: true } } }
+    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: computed }, context)).problems).toEqual([
+      { state: 'Call', field: 'Arguments', message: "is one expression, whose argument names the import cannot carry over to app:http's; write ApiEndpoint, Method, Headers, QueryParameters and RequestBody as fields, each of which may be an expression" },
+    ])
   })
 
   it("gives back the save check's problems, and saves nothing unapproved", async () => {
