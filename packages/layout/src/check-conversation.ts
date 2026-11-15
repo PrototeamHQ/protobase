@@ -1,6 +1,6 @@
 import type { ResourceModel } from '@protobase/schema'
 import { timeProblems } from './check-time'
-import { toolCallsProblems, type ToolCallSource } from './check-tool-calls'
+import { toolCallsProblems, type ToolCallSource, type ToolCallsPage } from './check-tool-calls'
 import type { LayoutNode } from './node'
 
 const fieldOf = (model: ResourceModel, name: string) => (Object.hasOwn(model.fields, name) ? model.fields[name] : undefined)
@@ -55,13 +55,13 @@ export const threadLimitProblems = (limit: unknown): string[] =>
 
 /**
  * What a thread names that its message resource does not have, or cannot order the messages by or show as a status, a
- * limit it cannot read, and what its tool calls name that their resource does not have.
+ * limit it cannot read, and what its tool calls name that their resource, or on a `page` the records around it, do not have.
  */
-export const threadProblems = (node: LayoutNode, models: Record<string, ResourceModel>, model: ResourceModel): string[] => [
+export const threadProblems = (node: LayoutNode, models: Record<string, ResourceModel>, model: ResourceModel, page?: ToolCallsPage): string[] => [
   ...messageFieldsProblems(messageFieldsOf(node), model),
   ...messageStatusProblems(typeof node.props.status === 'string' ? node.props.status : undefined, model),
   ...threadLimitProblems(node.props.limit),
-  ...(node.props.calls === undefined ? [] : toolCallsProblems(node.props.calls as unknown as ToolCallSource, models).map((problem) => `calls: ${problem}`)),
+  ...(node.props.calls === undefined ? [] : toolCallsProblems(node.props.calls as unknown as ToolCallSource, models, page).map((problem) => `calls: ${problem}`)),
 ]
 
 /** Whether a message may set the field `name`: not one the server sets, such as its tenant or author. */
