@@ -9,6 +9,7 @@ describe('valueProblems', () => {
     // The same schema object again compiles again rather than from a cache that would keep every one
     expect(valueProblems(schema, { ip: 5 }, 'body')).toEqual(['body.ip must be string'])
     expect(valueProblems({ type: 'nonsense' }, {})[0]).toMatch(/^the schema is not valid JSON Schema/)
+    expect(valueProblems({ $id: 1, type: 'string' }, 'ok')[0]).toMatch(/^the schema is not valid JSON Schema/)
   })
 
   it('refuses an asynchronous schema, whose answer would come later, without running it', () => {
