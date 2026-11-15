@@ -1,5 +1,5 @@
 import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from './node'
-import { selectBlocks } from './select-blocks'
+import { selectOf } from './select-blocks'
 
 /**
  * One context of the stack, as Mustache calls it: the record of a `RecordCard` or `ReferenceField`, or one of the rows
@@ -34,14 +34,15 @@ const pushed = (scope: Scope, frame: Frame): Scope => ({ stack: [...scope.stack,
 const listed = (scope: Scope, list: ListFrame): Scope => ({ ...scope, list })
 
 /**
- * The scope of an element's children: a `RecordCard` and a `ReferenceField` push their record, a block with `select`
- * the row chosen, a `CardRow` each of its rows, a `RecordsIterator` each record or item of the list around it; a list context puts its list around them.
+ * The scope of an element's children: a `RecordCard` and a `ReferenceField` push their record, a block or custom
+ * component with `select` the row chosen, a `CardRow` each of its rows, a `RecordsIterator` each record or item of the list around it; a list context puts its list around them.
  */
 export const childScope = (node: LayoutNode, scope: Scope): Scope => {
-  if (node.custom) return scope
   const block = label(node)
-  // A block's `select` draws its children inside the one row chosen
-  if (selectBlocks.has(node.type) && typeof node.props.select === 'string') return pushed(scope, { resource: text(node.props.resource), repeated: false, block })
+  // A block's `select` draws its children inside the one row chosen, a custom component's too
+  const selection = selectOf(node)
+  if (selection) return pushed(scope, { resource: selection.resource, repeated: false, block })
+  if (node.custom) return scope
   switch (node.type) {
     case 'RecordCard':
     case 'CardRow':

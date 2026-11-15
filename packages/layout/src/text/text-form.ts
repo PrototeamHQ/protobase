@@ -25,6 +25,12 @@ export type TextOptions = {
    */
   records?: (node: LayoutNode, record: Record<string, unknown> | undefined, at: string) => unknown[] | undefined
   /**
+   * The rows of the read the page's plan names `id`, a block's place in the tree with `#<part>` for its other reads
+   * (`/children/0#edges`), for `record`, the record around it, which the caller read; a custom component's text form
+   * reads its own records with it.
+   */
+  planned?: (id: string, record: Record<string, unknown> | undefined) => Record<string, unknown>[] | undefined
+  /**
    * The page's parameters as its address gives them, such as `{ window: '30d' }`, which `@params` and its
    * `SelectInput`s read; a block's `select` children read the row `records` gives for that block.
    */

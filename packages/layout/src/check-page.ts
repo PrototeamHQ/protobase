@@ -3,6 +3,7 @@ import { addressErrors, fieldRefsIn, rowButtonErrors } from '@protobase/schema/i
 import { chartProblems } from './check-chart'
 import { timelineProblems } from './check-timeline'
 import { compileReadPlan } from './compile-read-plan'
+import { readsOf } from './plan-block'
 import { conditionFindings } from './check-condition'
 import { listModelProblems } from './check-list-models'
 import { composerProblems, threadProblems } from './check-conversation'
@@ -185,8 +186,25 @@ const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[
   return problems
 }
 
+// The props a custom component's reads name: each resource a resource, and each field one of its fields
+const customReadProblems = (node: LayoutNode, models: Record<string, ResourceModel>): string[] =>
+  readsOf(node).flatMap(({ reads }) => {
+    const resource = node.props[reads.resource]
+    if (resource === undefined) return []
+    if (typeof resource !== 'string' || !models[resource]) return [`"${reads.resource}" names no resource: ${JSON.stringify(resource)}`]
+    const model = models[resource]
+    const props = reads.fields === undefined ? [] : Array.isArray(reads.fields) ? reads.fields : [reads.fields]
+    return props.flatMap((prop) => {
+      const value = node.props[prop]
+      const names = typeof value === 'string' ? [value] : Array.isArray(value) ? value : []
+      return names.flatMap((name) => (typeof name === 'string' && Object.hasOwn(model.fields, name) ? [] : [`"${prop}" names no field of ${resource}: ${JSON.stringify(name)}`]))
+    })
+  })
+
 // A custom component's `resource` names a resource, and its field references fields of that or the record around it.
 const customProblems = (node: LayoutNode, scope: Scope, { models }: PageCheckInput): string[] => {
+  const declared = customReadProblems(node, models)
+  if (declared.length > 0) return declared
   const own = text(node.props.resource)
   if (own !== undefined && !models[own]) return [`unknown resource "${own}"`]
   const resource = elementResource(node, scope)

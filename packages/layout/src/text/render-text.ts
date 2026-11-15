@@ -3,7 +3,7 @@ import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } fro
 import { isInlineChild } from '../inline-fields'
 import { pageParamValues } from '../page-params'
 import { fillProps } from '../scope-values'
-import { selectBlocks } from '../select-blocks'
+import { selectOf } from '../select-blocks'
 import { childScope, pageScope, propScope } from '../walk'
 import { textForms } from './forms'
 import { itemRecord, listOf, referencedRecord } from './list-records'
@@ -55,7 +55,7 @@ const cardsOf = (node: LayoutNode, options: TextOptions, at: string) => (!node.c
 
 // The record the children of a ReferenceField, a RecordCard or a block's `select` read, when the caller read it; none otherwise
 const childOptions = (node: LayoutNode, options: TextOptions, at: string): TextOptions => {
-  if (!node.custom && (node.type === 'ReferenceField' || node.type === 'RecordCard' || (selectBlocks.has(node.type) && typeof node.props.select === 'string'))) {
+  if (selectOf(node) || (!node.custom && (node.type === 'ReferenceField' || node.type === 'RecordCard'))) {
     const record = referencedRecord(node, options, at)
     return { ...options, record, fields: undefined }
   }
@@ -80,7 +80,7 @@ const render = (unfilled: LayoutNode, options: TextOptions, around: unknown[] | 
   const all = placed(node.children, at, 'children')
   const own = !node.custom && node.type === 'Switch' ? all.filter(({ child }) => typeof child !== 'string') : all
   // A block's `select` children draw nothing while no row is chosen, or the text does not have it
-  const drawn = selectBlocks.has(node.type) && typeof node.props.select === 'string' && !inner.record ? [] : own
+  const drawn = selectOf(node) && !inner.record ? [] : own
   const cards = cardsOf(node, options, at)
   const children = cards ? cards.map((card) => iterate(drawn, options, [card])) : partsOf(drawn, inner, holdsOneLine(node), list)
   return formOf(node, options)({ node, at, children, slots, ...(fallback && { fallback }), ...(around && { around }), options }).trim()

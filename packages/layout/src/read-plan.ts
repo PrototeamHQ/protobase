@@ -6,10 +6,10 @@
 export type PlanReadKind = 'list' | 'count' | 'aggregate'
 
 /**
- * Which of a block's reads it is, when it makes more than one: a `Thread`'s tool calls, the row a `Table`'s `select`
- * chose, or a `<resource>.count` a condition names.
+ * Which of a block's reads it is, when it makes more than one: a `Thread`'s tool calls, the row a `select` chose, a
+ * `<resource>.count` a condition names, or one of a custom component's several reads, by the prop of its resource.
  */
-export type PlanReadPart = 'calls' | 'chosen' | 'condition'
+export type PlanReadPart = 'calls' | 'chosen' | 'condition' | (string & {})
 
 export type PlanRead = {
   /** The element that draws it, as a JSON Pointer (RFC 6901) into the page's tree, such as `/children/0/children/2`. */

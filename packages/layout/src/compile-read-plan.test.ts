@@ -122,6 +122,33 @@ describe('compileReadPlan', () => {
     expect(reads(Page({ title: 'Home', children: [Board({ resource: 'tasks', select: 'compact' })] })).map((read) => read.part)).toEqual([undefined])
   })
 
+  it("plans each of a custom component's several reads as a part named by its resource prop, with the fields its props name", () => {
+    const Graph = component<{ nodes: string; edges: string; label: string; group: string; from: string; to: string }>('Graph', {
+      reads: [
+        { resource: 'nodes', fields: ['label', 'group'] },
+        { resource: 'edges', fields: ['from', 'to'] },
+      ],
+    })
+    const tree = Page({ title: 'Map', children: [Graph({ nodes: 'tasks', edges: 'task_claims', label: 'title', group: 'project_id', from: 'task_id', to: 'worker_id' })] })
+    expect(plan(tree).plan).toEqual({
+      reads: [
+        { block: '/children/0', part: 'nodes', kind: 'list', resource: 'tasks', fields: ['id', 'project_id', 'title'], etag: false },
+        { block: '/children/0', part: 'edges', kind: 'list', resource: 'task_claims', fields: ['id', 'task_id', 'worker_id'], etag: false },
+      ],
+      outside: [],
+    })
+  })
+
+  it("reads the record a custom component's declared select chose by its key, and its children's fields there", () => {
+    const Graph = component<{ nodes: string; label: string; select: string }>('Graph', { reads: [{ resource: 'nodes', fields: 'label', select: 'select' }] })
+    const tree = Page({ title: 'Map', children: [Graph({ nodes: 'tasks', label: 'title', select: 'task', children: Field({ source: 'status' }) })] })
+    const planned = reads(tree)
+    const own = planned.find((read) => read.part === 'nodes')
+    const chosen = planned.find((read) => read.part === 'chosen')
+    expect(own).toMatchObject({ part: 'nodes', fields: ['id', 'title'] })
+    expect(chosen).toMatchObject({ block: '/children/0', part: 'chosen', resource: 'tasks', filter: 'id = {{@params.task}}', pageSize: 1, fields: ['id', 'status'] })
+  })
+
   it('warns when the records around a nested list times its page are more than one read holds', () => {
     const steps = ReferenceManyField({ reference: 'claim_steps', target: 'claim_id', children: RecordsIterator({ children: Field({ source: 'name' }) }) })
     const tree = Page({ title: 'Tasks', children: [openTasks(ReferenceManyField({ reference: 'task_claims', target: 'task_id', perPage: 5, children: RecordsIterator({ children: steps }) }))] })

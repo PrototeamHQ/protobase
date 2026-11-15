@@ -1,6 +1,6 @@
 import type { LayoutNode } from './node'
 import { paramNamePattern, type Choice } from './page-params'
-import { selectBlocks } from './select-blocks'
+import { selectBlocks, selectOf } from './select-blocks'
 import { walkTree } from './walk'
 
 // Where a page's parameters are declared, checked without the models: each name once, as a plain name, and a
@@ -32,11 +32,13 @@ export const pageParamProblems = (tree: LayoutNode): string[] => {
   const problems: string[] = []
   const seen = new Set<string>()
   walkTree(tree, (node, { path }) => {
-    if (node.custom) return
     const report = (problem: string) => problems.push(`${path}: ${problem}`)
-    const declared = node.type === 'SelectInput' ? node.props.source : selectBlocks.has(node.type) ? node.props.select : undefined
-    if (node.type === 'SelectInput') inputProblems(node).forEach(report)
-    if (selectBlocks.has(node.type)) selectProblems(node).forEach(report)
+    const builtIn = !node.custom
+    const declared = builtIn && node.type === 'SelectInput' ? node.props.source : selectOf(node)?.param
+    if (builtIn && node.type === 'SelectInput') inputProblems(node).forEach(report)
+    if (builtIn && selectBlocks.has(node.type)) selectProblems(node).forEach(report)
+    // A custom component's `select` is a name of the address as a built-in block's is
+    if (!builtIn && typeof declared === 'string') nameProblem('select', declared).forEach(report)
     if (typeof declared !== 'string') return
     if (seen.has(declared)) report(`the page parameter "${declared}" is set twice on the page; give each SelectInput and select a name of its own`)
     seen.add(declared)
