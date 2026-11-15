@@ -2,7 +2,6 @@ import { threadSort, type MessageFields } from '@protobase/layout'
 import type { ResourceModel, ToolCallFields } from '@protobase/schema'
 import { ChatDivider, ChatMessage, ChatThread } from '../../chat'
 import { useOptionalAuth } from '../../auth/auth-provider'
-import { useList } from '../../data/use-list'
 import { recordKey } from '../../live/model-helpers'
 import { listLabels, withLabels } from '../../live/relation-labels'
 import { Markdown } from '../../markdown/markdown'
@@ -15,6 +14,8 @@ import { MessageStatus } from './message-status'
 import { ToolCallItem } from './tool-call-item'
 import { messageRows, threadItems } from './thread-items'
 import { useToolCalls } from './use-tool-calls'
+import { useThreadList } from './use-thread-list'
+import type { Planned } from '../pages/planned'
 import { emptyLine, retryOf, showsErrorAbove, threadState } from './thread-state'
 import { text } from './messages'
 
@@ -33,20 +34,23 @@ export type MessageThreadProps = MessageFields & {
   working?: boolean
   /** The tool calls drawn between the messages in time order: records of `calls.model` matching `calls.filter`, read by `calls.fields`. */
   calls?: { model: ResourceModel; filter?: string; fields: ToolCallFields }
+  /** Its latest messages and tool calls from the page's planned reads, inside the records of another block. */
+  planned?: { messages: Planned | undefined; calls: Planned | undefined }
 }
 
 /**
  * The latest `limit` messages of `model` matching `filter`, oldest first, each under its sender's name and time, with
  * earlier ones on request, and its `status` under it in the view's enum labels; a text the message resource's view marks
- * `.markdown()` shows rendered. The latest `limit` of its `calls` show between them in time order.
+ * `.markdown()` shows rendered. The latest `limit` of its `calls` show between them in time order. Planned, it reads
+ * only its earlier ones itself.
  */
-export const MessageThread = ({ model, filter, sender, time, text: body, status, limit = 50, empty, working, calls }: MessageThreadProps) => {
+export const MessageThread = ({ model, filter, sender, time, text: body, status, limit = 50, empty, working, calls, planned }: MessageThreadProps) => {
   const { resources, views } = useAdminMeta()
   const auth = useOptionalAuth()
   const reader = auth?.state.kind === 'signed-in' ? auth.state.user.id : undefined
   const labels = listLabels(resources, views, model, [sender])
-  const list = useList(model.name, { filter, orderBy: threadSort(time), pageSize: limit, labels })
-  const callList = useToolCalls(calls, limit)
+  const list = useThreadList(model.name, { filter, orderBy: threadSort(time), pageSize: limit, labels }, planned?.messages)
+  const callList = useToolCalls(calls, limit, planned?.calls)
   const state = threadState(list)
   if (state === 'error') return <ErrorBanner title={text('couldNotLoad')} error={list.error} onRetry={retryOf(list)} />
   // The live region mounts with the messages it opens on, so a screen reader announces only those that arrive later
