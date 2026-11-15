@@ -20,8 +20,11 @@ export type LayoutRecord = {
 /** An item of an `ArrayField`'s JSON list, which no model describes: an object read by key, or a text read as `this`. */
 export type ItemFrame = { item: unknown }
 
-/** A record or an item of the stack, with its place among its rows when it is one card of a CardRow or RecordsIterator. */
-export type ScopeFrame = (LayoutRecord | ItemFrame) & { row?: { index: number; count: number } }
+/**
+ * A record or an item of the stack, with its place among its rows when it is one card of a CardRow or RecordsIterator;
+ * `root` marks the record page's own record at the bottom of the stack, which `@root` reads.
+ */
+export type ScopeFrame = (LayoutRecord | ItemFrame) & { row?: { index: number; count: number }; root?: true }
 
 const isItem = (frame: LayoutRecord | ItemFrame): frame is ItemFrame => 'item' in frame
 
@@ -39,6 +42,17 @@ export const RecordScope = ({ value, row, children }: { value: LayoutRecord | It
   const index = row?.index
   const count = row?.count
   const stack = useMemo(() => [...below, index === undefined || count === undefined ? value : { ...value, row: { index, count } }], [below, value, index, count])
+  return <ScopeStack stack={stack}>{children}</ScopeStack>
+}
+
+/** Puts the record page's own record around a block tree: `@root`, and the record its bare names reach last. */
+export const RootRecordScope = ({ value, children }: { value: LayoutRecord; children: ReactNode }) => {
+  const stack = useMemo((): ScopeFrame[] => [{ ...value, root: true }], [value])
+  return <ScopeStack stack={stack}>{children}</ScopeStack>
+}
+
+const ScopeStack = ({ stack, children }: { stack: readonly ScopeFrame[]; children: ReactNode }) => {
+  const value = stack.at(-1)!
   return (
     <ScopeStackContext.Provider value={stack}>
       <RecordScopeContext.Provider value={isItem(value) ? undefined : value}>
@@ -54,8 +68,18 @@ export const useLayoutRecord = () => useContext(RecordScopeContext)
 /** Every record around an element, outermost first. */
 export const useScopeStack = () => useContext(ScopeStackContext)
 
-/** The records around an element as the layout's fillers read them. */
-export const valueScopeOf = (stack: readonly ScopeFrame[]): ValueScope => ({ stack: stack.map((frame) => ({ record: isItem(frame) ? frame.item : frame.record, ...(frame.row && { row: frame.row }) })) })
+/** The record page's own record at the bottom of the stack, which `@root` reads; `undefined` elsewhere. */
+export const rootRecordOf = (stack: readonly ScopeFrame[]): Record<string, unknown> | undefined => {
+  const first = stack[0]
+  return first?.root && !isItem(first) ? first.record : undefined
+}
+
+/** The records around an element as the layout's fillers read them, the record page's own as their root. */
+export const valueScopeOf = (stack: readonly ScopeFrame[]): ValueScope => {
+  const root = rootRecordOf(stack)
+  const frames = root ? stack.slice(1) : stack
+  return { stack: frames.map((frame) => ({ record: isItem(frame) ? frame.item : frame.record, ...(frame.row && { row: frame.row }) })), ...(root && { root }) }
+}
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
 
@@ -67,17 +91,19 @@ export type PathSource = { frame: LayoutRecord; path: string } | { item: unknown
 
 /**
  * The record a field path reads from, by the Mustache lookup: a bare name's first part from the nearest record whose
- * resource has that field, or item that holds that key, `../` and `this.` from one; and the path from there. An item
- * gives the value itself, `this` alone too. `undefined` for a data variable or a path that is none.
+ * resource has that field, or item that holds that key, `../` and `this.` from one, `@root.` from the record page's own;
+ * and the path from there. An item gives the value itself, `this` alone too. `undefined` for another data variable or
+ * a path that is none.
  */
 export const frameFor = (stack: readonly ScopeFrame[], path: string): PathSource | undefined => {
   const parsed = parseTemplatePath(path)
-  if (!parsed || parsed.kind === 'data') return
+  if (!parsed) return
   const at = (frame: ScopeFrame | undefined): PathSource | undefined => {
     if (!frame) return
     if (isItem(frame)) return { item: readItem(frame.item, parsed.names) }
     return parsed.names.length === 0 ? undefined : { frame, path: parsed.names.join('.') }
   }
+  if (parsed.kind === 'data') return parsed.variable === 'root' && stack[0]?.root ? at(stack[0]) : undefined
   if (parsed.explicit) return at(stack[stack.length - 1 - parsed.up])
   const first = parsed.names[0]!
   return at(stack.findLast((entry) => (isItem(entry) ? isObject(entry.item) && Object.hasOwn(entry.item, first) : Object.hasOwn(entry.model.fields, first))) ?? stack.at(-1))

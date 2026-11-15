@@ -1,5 +1,10 @@
-import { checkFilter, parseFilter, type ResourceModel, type ToolCallFields } from '@protobase/schema'
+import type { ResourceModel, ToolCallFields } from '@protobase/schema'
+import { choiceFilterProblems } from './check-param-filters'
+import { pathFindings, type PathCheckInput } from './check-paths'
 import { timeProblems } from './check-time'
+import type { SelectInputProps } from './page-params'
+import { sampledFilterErrors } from './sampled-filter'
+import type { Scope } from './walk'
 
 /** The tool calls a thread draws between its messages: records of `resource`, by the fields it reads of each, narrowed by `filter` on a page. */
 export type ToolCallSource = ToolCallFields & { resource: string; filter?: string }
@@ -29,20 +34,34 @@ const typeProblems = (source: ToolCallSource, model: ResourceModel): string[] =>
   ]
 }
 
-const filterProblems = (filter: string | undefined, model: ResourceModel): string[] => {
-  if (filter === undefined) return []
-  const parsed = parseFilter(filter)
-  const checked = parsed.ok ? (parsed.ast === undefined ? { ok: true as const } : checkFilter(model, parsed.ast)) : parsed
-  return checked.ok ? [] : [`filter: ${checked.errors.map((error) => error.message).join('; ')}`]
+/** Where on a page a thread sits: the records around it, its page parameters and their inputs, and where a warning goes. */
+export type ToolCallsPage = PathCheckInput & { scope: Scope; inputs: ReadonlyMap<string, SelectInputProps>; warn: (warning: string) => void }
+
+const sampledProblems = (filter: string, model: ResourceModel) => {
+  const errors = sampledFilterErrors(model, filter)
+  return errors.length === 0 ? [] : [`filter: ${errors.join('; ')}`]
 }
 
-/** What a thread's tool calls name that their resource does not have, cannot order them by, or cannot show as their name, status or error. */
-export const toolCallsProblems = (source: ToolCallSource, models: Record<string, ResourceModel>): string[] => {
+// A filter is checked as a block's own filter is: its `{{path}}` slots through the records around the thread, then with
+// each value of the page parameters it reads, or else with a stand-in for each slot, such as `task_id = {{@root.id}}`
+const filterProblems = (filter: string | undefined, model: ResourceModel, page: ToolCallsPage | undefined): string[] => {
+  if (filter === undefined) return []
+  if (!page) return sampledProblems(filter, model)
+  const placed = pathFindings({ type: 'Thread', props: { filter }, children: [] }, page.scope, page)
+  placed.warnings.forEach(page.warn)
+  return [...placed.problems, ...(choiceFilterProblems(model, filter, page.inputs) ?? sampledProblems(filter, model))]
+}
+
+/**
+ * What a thread's tool calls name that their resource does not have, cannot order them by, or cannot show as their
+ * name, status or error; on a `page`, also what their filter reads that the records around the thread do not have.
+ */
+export const toolCallsProblems = (source: ToolCallSource, models: Record<string, ResourceModel>, page?: ToolCallsPage): string[] => {
   const model = Object.hasOwn(models, source.resource) ? models[source.resource] : undefined
   if (!model) return [`unknown resource "${source.resource}"`]
   const unknown = namedFields(source).flatMap(([prop, name]) => (fieldOf(model, name) ? [] : [`${prop}: unknown field "${name}" on ${model.name}`]))
   if (unknown.length > 0) return unknown
-  return [...timeProblems(source.time, model, 'tool calls'), ...typeProblems(source, model), ...filterProblems(source.filter, model)]
+  return [...timeProblems(source.time, model, 'tool calls'), ...typeProblems(source, model), ...filterProblems(source.filter, model, page)]
 }
 
 /**

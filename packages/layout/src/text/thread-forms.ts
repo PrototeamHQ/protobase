@@ -8,21 +8,26 @@ export const threadRule = '\n\n---\n\n'
 
 const textProp = (value: unknown) => (typeof value === 'string' ? value : undefined)
 
-// The item's head, its time in brackets and its status after a dot
-const head = (title: string, props: Record<string, unknown>) => {
+// The item's head, its time in brackets and its status after a dot; without a title, its time and status alone
+const head = (title: string | undefined, props: Record<string, unknown>) => {
   const time = textProp(props.time)
   const status = textProp(props.status)
-  const timed = time === undefined ? title : `${title} (${escapeMarkdown(time)})`
-  return status === undefined ? timed : `${timed} · ${escapeMarkdown(status)}`
+  const timed = time === undefined ? title : title === undefined ? `(${escapeMarkdown(time)})` : `${title} (${escapeMarkdown(time)})`
+  if (status === undefined) return timed ?? ''
+  return timed === undefined ? escapeMarkdown(status) : `${timed} · ${escapeMarkdown(status)}`
 }
 
 const part = (label: string, body: string) => `${escapeMarkdown(label)}:\n\n${body}`
 
-/** A message under its sender in bold; its text as written when it is Markdown, else escaped so it reads the same. */
+/**
+ * A message under its sender in bold, or one author's under its time alone; its text as written when it is Markdown,
+ * else escaped so it reads the same.
+ */
 const ThreadMessage: TextForm = ({ node }) => {
-  const { sender, text, markdown } = node.props
+  const { text, markdown } = node.props
+  const sender = textProp(node.props.sender)
   const body = String(text)
-  return blocks([head(strong(escapeMarkdown(String(sender))), node.props), markdown === true ? body : escapeMarkdown(body)])
+  return blocks([head(sender === undefined ? undefined : strong(escapeMarkdown(sender)), node.props), markdown === true ? body : escapeMarkdown(body)])
 }
 
 /** A tool call as its name and status, with its input and result, JSON text, and its error in fenced code blocks. */

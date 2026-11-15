@@ -19,7 +19,7 @@ import { columnName, type TableColumn } from './table-columns'
 import { inlineFieldTypes } from './inline-fields'
 import { dataProps, type LayoutNode } from './node'
 import type { PageModel } from './page'
-import { actsOnList, innermost, walkTree, type Scope } from './walk'
+import { actsOnList, innermost, label, walkTree, type Scope } from './walk'
 
 export type PageCheckInput = {
   models: Record<string, ResourceModel>
@@ -52,10 +52,10 @@ const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
 
 /**
  * The resource an element reads or writes: its own `resource` prop, the list around a `Table` or an `Action` without
- * one, or the record nearest around it.
+ * one, or the record nearest around it, the record page's own at the bottom.
  */
 export const elementResource = (node: LayoutNode, scope: Scope) =>
-  text(node.props.resource) ?? ((!node.custom && node.type === 'Table') || actsOnList(node, scope) ? scope.list?.resource : innermost(scope)?.resource)
+  text(node.props.resource) ?? ((!node.custom && node.type === 'Table') || actsOnList(node, scope) ? scope.list?.resource : (innermost(scope)?.resource ?? scope.root))
 
 /** Why a link's `{{path}}` cannot be filled where it sits, through the records around it; `undefined` when it can. */
 export const linkPlaceholderError = (models: Record<string, ResourceModel>, scope: Scope, params: ReadonlySet<string>) => (path: string) => {
@@ -86,7 +86,7 @@ const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[
   placed.warnings.forEach(warn)
   // A field a block shows is found through the records around it, as a bare name in Mustache is
   const path = (name: string) => {
-    if (innermost(scope) === undefined) return
+    if (innermost(scope) === undefined && scope.root === undefined) return
     const resolved = resolveScopePath(name, { models, scope, params, mode: 'relations' })
     if (!resolved.ok) problems.push(resolved.message)
     else if (resolved.kind === 'field' && resolved.shadows) warn(resolved.shadows)
@@ -153,7 +153,7 @@ const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[
       }
       break
     case 'Thread':
-      if (model) problems.push(...threadProblems(node, models, model))
+      if (model) problems.push(...threadProblems(node, models, model, { models, scope, params, chosen, inputs, warn: (warning) => warn(`calls: ${warning}`) }))
       if (node.props.working !== undefined) condition(String(node.props.working), 'working: ')
       break
     case 'Composer':
@@ -225,29 +225,38 @@ const customProblems = (node: LayoutNode, scope: Scope, { models }: PageCheckInp
   })
 }
 
+export type Findings = { problems: string[]; warnings: string[] }
+
 /**
- * Everything a page names that the models do not have: resources, fields, filters, sorts, actions, conditions and
- * placeholders, and what keeps its reads from being planned; and the warnings of bare names a nearer record shadows.
+ * Everything a tree names that the models do not have, and what keeps its reads from being planned, inside the page's
+ * own record of resource `root` on a record page; and the warnings of bare names a nearer record shadows.
  */
-export const pageFindings = (page: PageModel, input: PageCheckInput): { problems: string[]; warnings: string[] } => {
+export const treeFindings = (tree: LayoutNode, input: PageCheckInput & { root?: string }): Findings => {
   const problems: string[] = []
   const warnings: string[] = []
-  const params = pageParams(page.tree)
-  const inputs = pageInputs(page.tree)
-  const chosen = chosenParams(page.tree)
-  walkTree(page.tree, (node, { path, scope }) => {
+  const params = pageParams(tree)
+  const inputs = pageInputs(tree)
+  const chosen = chosenParams(tree)
+  const scope: Scope = { stack: [], ...(input.root !== undefined && { root: input.root }) }
+  walkTree(tree, (node, { path, scope }) => {
     const warn = (warning: string) => warnings.push(`${path}: ${warning}`)
     const found = node.custom ? customProblems(node, scope, input) : nodeProblems(node, scope, { ...input, params, inputs, chosen, warn })
     for (const problem of found) problems.push(`${path}: ${problem}`)
-  })
+  }, { path: label(tree), scope })
   // The plan reads a tree the checks above accept
   if (problems.length === 0) {
-    const planned = compileReadPlan(page.tree, { models: input.models })
+    const planned = compileReadPlan(tree, { models: input.models, ...(input.root !== undefined && { root: input.root }) })
     problems.push(...planned.problems)
     warnings.push(...planned.warnings)
   }
   return { problems, warnings }
 }
+
+/**
+ * Everything a page names that the models do not have: resources, fields, filters, sorts, actions, conditions and
+ * placeholders, and what keeps its reads from being planned; and the warnings of bare names a nearer record shadows.
+ */
+export const pageFindings = (page: PageModel, input: PageCheckInput): Findings => treeFindings(page.tree, input)
 
 /** The problems of a page, as `pageFindings` gives them. */
 export const pageProblems = (page: PageModel, input: PageCheckInput): string[] => pageFindings(page, input).problems

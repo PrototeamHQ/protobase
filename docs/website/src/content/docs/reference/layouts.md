@@ -223,10 +223,6 @@ In the [text form](#text-form) each one reads as its formatted value, a `UrlFiel
 
 ## Paths and scopes
 
-:::caution[Beta]
-A path cannot read `@root` yet, as the marked limit below says.
-:::
-
 A `RecordCard`, a `ReferenceField`, each card of a `CardRow` and each entry of a [`RecordsIterator`](#related-records) put their record on a stack of records: an element inside both a task's `RecordCard` and a `CardRow` of its claims sits in a claim, inside the task. A bare name is looked up in the innermost record, then in each record further out, then in the page's own record; the [compatibility page](/features/compatibility/#template-paths) says which template syntax this follows:
 
 | Path | Reads |
@@ -236,7 +232,7 @@ A `RecordCard`, a `ReferenceField`, each card of a `CardRow` and each entry of a
 | `../id`, `../../id` | The record one, or two, out from the nearest. |
 | `this.id`, `./id` | The nearest record only. |
 | `@index`, `@first`, `@last` | The card's place among a `CardRow`'s cards, or the entry's among a `RecordsIterator`'s, from 0, and whether it is the first or the last. |
-| `@root.id` | The page's own record. <gap>A path cannot read `@root` because pages with a record of their own are not implemented.</gap> |
+| `@root.id` | The page's own record, in a [block tree on a record page](#record-pages). |
 | `@params.window` | The [page parameter](#page-parameters) `window`, which a `SelectInput source="window"` on the page sets. |
 
 `Field source`, a field component's `source`, `Diff source`, `Stat field`, `Progress`, and the names in a [condition](#conditions) take a path. A string prop takes `{{path}}` placeholders in double braces, filled with the path's value where the element draws, and empty when it has none:
@@ -254,6 +250,36 @@ The build checks every path where it sits:
 - **Bad roots.** `../` past the outermost record, `@root` on a page without a record, `@index` outside a `CardRow` or `RecordsIterator`, and `@params.x` without a `SelectInput source="x"` on the page fail.
 - **Reads that would wait.** A per-row value in a filter in any other place than a top-level `AND` equality (with `>=`, inside `OR` or `NOT`, a second one), `@index`, `@first`, `@last` or `this` in a filter, key or values, and any placeholder in `resource`, `sort`, `columns` or `limit` fail with "this would wait for the parent's rows": each block's records are one read of their own, and none may wait for another's rows.
 - **Shadowing.** A bare name that more than one record around it has reads the nearest, and the build warns which it read and how to write the others: `"id" resolves to task_claims; write ../id for the one of tasks`. `protobase build --strict` fails on it instead. `this.`, `./`, `../` and `@` paths never warn.
+
+## Record pages
+
+:::caution[Beta]
+A block tree on a record page sets no page parameters, chosen rows or tabs of its own, and may still change.
+:::
+
+A record page holds a tree of blocks among its items with `l.blocks(tree)`, in a [tab](/reference/ui-config/#tabs) or in the main column, beside its sections and related tables. The tree is written in JSX like a composed page's, and checked and read like one, inside the page's own record: `@root` is the record, and it is the last record a bare name reaches, so `{{title}}` and `{{@root.title}}` both read the record's title where no record nearer has one. The page keeps its address, `/<resource>/<key>`, its breadcrumbs, its place among the recent records and its actions.
+
+```tsx
+/** @jsxImportSource @protobase/layout */
+import { Thread } from '@protobase/layout'
+import { l, view } from '@protobase/schema'
+
+export const tasksView = view<typeof tasks>('tasks').layout((r) => [
+  l.tab('Task', [l.section('Task', [r.title, r.status])]),
+  l.tab('Log', [l.blocks(<Thread title="Log of {{@root.title}}" resource="task_notes" filter="task_id = {{@root.id}}" time="noted_at" text="body" />)]),
+])
+```
+
+The view's file is then `.tsx` and starts with the JSX import source, as a [layout file](#setup) does, or it imports the tree from a layout file of its own.
+
+| | |
+| --- | --- |
+| `tree` | One element: any block or custom component but a `<Page>`. |
+| `when` | `'editing'` or `'reading'` to show it only on the form or only on the read view, as other items take. |
+
+Every block reads as it does on a composed page, all its reads started at once as the record page opens. The record's key comes from the address, so a filter that takes `{{@root.id}}` reads at once. A filter that takes another field of the record, such as `id = {{@root.owner_id}}`, reads with a [`related()`](/reference/api/#filtering-through-related-records) filter on the record by its key, so it does not wait for the record either. Blocks that work on a record, such as a `Field`, an `Action` or a custom component's `useLayoutRecord()`, work on the page's record where no record nearer is around them.
+
+The server checks each tree against the resources when it starts, as it checks pages: a name the record does not have fails, naming the record's resource, `"titel" is no field of tasks (@root); did you mean title?`, and a name a nearer record shadows warns as [above](#paths-and-scopes). A `<Page>`, a `SelectInput`, `Tabs` or a block that chooses a row with `select` in the tree fails too, since the record page's address is the record's. <gap>A block tree on a record page cannot hold a `SelectInput`, `Tabs` or a `select` because page parameters, block tabs and chosen rows in a record page's address are not implemented.</gap> Each reader gets the tree without what they cannot read, and no tree when nothing of it is left.
 
 ## Page parameters
 
@@ -317,7 +343,7 @@ Record pages take the same conditions in the `when` of `l.section`, `l.related` 
 It runs only on the records the list has loaded, up to its `perPage` and any pages read with `pagination="more"`, and its dialog shows no progress, as for [signing several records off](/reference/blocks/#signing-several-records-off).
 :::
 
-Where an `Action` sits decides what it runs on. Directly in a `ReferenceManyField` or `ReferenceArrayField`, outside its `RecordsIterator`, it runs on every record of that list; inside the `RecordsIterator`, it runs on the one record of its entry:
+Where an `Action` sits decides what it runs on. Directly in a `ReferenceManyField` or `ReferenceArrayField`, outside its `RecordsIterator`, it runs on every loaded record of that list; inside the `RecordsIterator`, it runs on the one record of its entry:
 
 ```tsx
 <ReferenceManyField reference="approvals" target="release_id">
@@ -328,7 +354,7 @@ Where an `Action` sits decides what it runs on. Directly in a `ReferenceManyFiel
 </ReferenceManyField>
 ```
 
-The list's button counts the records the action applies to, such as **Approve (3)**, and runs as a [selection in a list](/reference/blocks/#signing-several-records-off) does, whether or not the action has `bulk`: it asks its question or inputs once, a checklist shows each box once however many records hold it, and a record the person may not change is refused and named while the others run. It is not offered when the list holds no record the action applies to, and an `a.link` is not offered there. An `Action` with `resource` naming another resource keeps working as outside the list. In the [text form](#text-form), the list's action reads as its label with the count, `Approve (3)`.
+The list's button counts the records the action applies to, such as **Approve (3)**, and runs as a [selection in a list](/reference/blocks/#signing-several-records-off) does, whether or not the action has `bulk`: it asks its question or inputs once, a checklist shows each box once however many records hold it, and a record the person may not change is refused and named while the others run. It is not offered when the list holds no record the action applies to, and an `a.link` is not offered there. An `Action` with `resource` naming another resource keeps working as outside the list. In the [text form](#text-form), the list's action reads as its label alone, `Approve`. <gap>The text form cannot count the records a list's action applies to because the layout package has no resolver for whether an action applies to a record.</gap>
 
 <gap>An `Action` in a list cannot run on records past the pages the list has loaded because reading the rest of a list for an action is not implemented.</gap>
 

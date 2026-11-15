@@ -34,5 +34,5 @@ export const blockQueries = (reader: BlockReader, tree: LayoutNode, plan: ReadPl
     if (read.part === 'condition') return conditionCount(node, read, reader)
     if (read.split) return []
     const queries = byType[node.type]
-    return queries ? queries(fillProps(node, { stack: [], params: reader.params }), read, reader) : []
+    return queries ? queries(fillProps(node, { stack: [], params: reader.params, ...(reader.root && { root: reader.root }) }), read, reader) : []
   })

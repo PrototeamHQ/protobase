@@ -376,6 +376,13 @@ describe('view builder', () => {
     expect(() => view<typeof article>('article').layout(() => [l.custom(Card)])).toThrow('l.custom takes a component declared with component(...), not the built-in block Card')
   })
 
+  it('puts a tree of layout blocks in a tab of the record layout, and refuses anything but an element', () => {
+    const tree = { type: 'Thread', props: { resource: 'notes', filter: 'article_id = {{@root.id}}', time: 'at', text: 'body' }, children: [] }
+    const model = view<typeof article>('article').layout(() => [l.tab('Notes', [l.blocks(tree, { when: 'reading' })])]).toModel()
+    expect(model.layout).toEqual([{ kind: 'tab', title: 'Notes', items: [{ kind: 'blocks', tree, when: 'reading' }] }])
+    expect(() => l.blocks('Thread' as never)).toThrow('l.blocks takes one layout element')
+  })
+
   it('gives a custom section a fallback of the items that fit where it stands', () => {
     const Plan = Object.assign(() => null, { blockName: 'Plan', custom: true })
     const model = view<typeof article>('article')
