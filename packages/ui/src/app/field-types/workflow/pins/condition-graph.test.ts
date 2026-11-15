@@ -6,6 +6,7 @@ import { connectData, disconnectData, removePure, wireRefusal } from './data-edi
 import { dataGraph, type ConditionNode } from './data-graph'
 import { conditionKey, statusKey } from './node-pins'
 import { conditionId, conditionOut, inHandle, outHandle } from './pure-ids'
+import { lastPlaceFirst, nodePlace } from './removal-order'
 
 const schemas: PinSchemas = {
   inputs: { 'app:http': { type: 'object', properties: { url: { type: 'string' } } } },
@@ -194,6 +195,19 @@ describe('condition nodes', () => {
     expect(conditionOf(clearConditionSide(definition, 'Tell', [0]))).toBe("{% $contains('', /^[^@\\s]+@[^@\\s]+$/i) %}")
     expect(addCondition(definition, 'Tell', [0], 'and')).toEqual(definition)
     expect(conditionOf(addCondition(workflow(), 'Tell', [], 'matches'))).toBe("{% $contains('', /.*/) %}")
+  })
+
+  it('removes every input a removed Break gave an All of, each where it was, whatever their order', () => {
+    const definition = workflow('{% true and $states.context.Execution.Input.flags.a and $states.context.Execution.Input.flags.b and false %}')
+    const graph = dataGraph(definition, schemas)
+    const flags = graph.pure.find((node) => node.kind === 'break' && node.path.join('/') === 'flags')!
+    expect(conditionOf(removePure(definition, graph, flags))).toBe('{% true and false %}')
+    // Two condition nodes removed at once, the earlier first, as the canvas hands them over
+    const nested = workflow('{% $not($fetch.ok) and $fetch.ok and $not(true) %}')
+    const drawn = dataGraph(nested, schemas)
+    const nots = [conditionId('Tell', [0]), conditionId('Tell', [2])].map((id) => drawn.pure.find((node) => node.id === id)!)
+    const ordered = lastPlaceFirst(drawn, nots, nodePlace).reduce((next, node) => removePure(next, drawn, node), nested)
+    expect(conditionOf(ordered)).toBe('{% true and $fetch.ok %}')
   })
 })
 

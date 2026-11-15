@@ -7,6 +7,7 @@ import { graphId, isPureFlowId } from '../flow-elements'
 import { text } from '../messages'
 import type { ConditionChoice } from './condition-edits'
 import type { PinEnd } from './data-edits'
+import { lastPlaceFirst, nodePlace, wirePlace } from './removal-order'
 import { dataGraph, type DataEdge, type LocalPure, type PureNode } from './data-graph'
 import { conditionKey } from './node-pins'
 import { nodeSizes, pinPorts } from './node-sizes'
@@ -98,13 +99,15 @@ export const usePins = (definition: Definition, graph: Graph, schemas: PinSchema
       return pure ? [{ id: pure.id }] : []
     })
     const gone = [...nodes.filter((node) => isPureFlowId(node.id)), ...bound.filter((node) => !nodes.some((other) => other.id === node.id))]
-    for (const edge of edges) {
+    // Wires cut and nodes removed, the last inputs of a Condition's nodes first, so none moves another's place
+    const cut = edges.flatMap((edge) => {
       const wire = (edge.data as { kind?: string; wire?: DataEdge } | undefined)?.wire
-      if (wire && !gone.some((node) => node.id === wire.source || node.id === wire.target)) after = edits.disconnectData(after, data, wire)
-    }
-    for (const node of gone) {
-      const pure = data.pure.find((each) => each.id === node.id)
-      if (pure) after = edits.removePure(after, data, pure)
+      return wire && !gone.some((node) => node.id === wire.source || node.id === wire.target) ? [{ wire }] : []
+    })
+    const removed = gone.flatMap((node) => data.pure.filter((each) => each.id === node.id).map((pure) => ({ pure })))
+    const removals: ({ wire: DataEdge } | { pure: PureNode })[] = [...cut, ...removed]
+    for (const removal of lastPlaceFirst(data, removals, (each) => ('wire' in each ? wirePlace(data, each.wire) : nodePlace(each.pure)))) {
+      after = 'wire' in removal ? edits.disconnectData(after, data, removal.wire) : edits.removePure(after, data, removal.pure)
     }
     if (gone.length > 0) setLocal((current) => localsLeft(current, gone.flatMap((node) => data.pure.filter((each) => each.id === node.id))))
     return after

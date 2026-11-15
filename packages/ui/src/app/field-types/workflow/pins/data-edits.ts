@@ -6,6 +6,7 @@ import { clearConditionSide, setConditionSide } from './condition-edits'
 import type { ConditionNode, DataEdge, DataGraph, PureNode, SelectNode } from './data-graph'
 import { conditionKey, statusKey, type OutputPin } from './node-pins'
 import { inKey, outPath } from './pure-ids'
+import { lastPlaceFirst, wirePlace } from './removal-order'
 
 /** One end of a wire: a node and its handle. */
 export type PinEnd = { node: string; handle: string }
@@ -161,7 +162,7 @@ export const disconnectData = (definition: Definition, graph: DataGraph, edge: P
 export const removePure = (definition: Definition, graph: DataGraph, node: PureNode): Definition => {
   if (node.kind === 'make' || node.kind === 'select') return setArgument(definition, node.target, [node.key], undefined)
   if (node.kind === 'condition') return clearConditionSide(definition, node.target, node.at)
-  return graph.edges.filter((edge) => edge.source === node.id && !edge.expression).reduce((next, edge) => {
+  return lastPlaceFirst(graph, graph.edges.filter((edge) => edge.source === node.id && !edge.expression), (edge) => wirePlace(graph, edge)).reduce((next, edge) => {
     const after = pureOf(graph, edge.target)
     if (after?.kind === 'break') return removePure(next, graph, after)
     return disconnectData(next, graph, edge)
