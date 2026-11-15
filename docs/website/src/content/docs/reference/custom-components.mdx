@@ -92,7 +92,7 @@ export const Board = component<{ cards: string; lanes: string; title: string; la
 })
 ```
 
-The build checks that each of those props names a resource and each field prop a field of it. `select`, in one read at most, is the prop naming the [page parameter](/reference/layouts/#page-parameters) that holds the key of the record chosen among that read's records, as a `Table`'s `select` does: the element's children draw inside that record, and nothing while none is chosen.
+The build checks that each of those props names a resource and each field prop a field of it, and refuses a `{{path}}` in any of them, or in `sort` or `limit`: a read's shape is fixed in the layout, and only its `filter` takes values from the records around it. `select`, in one read at most, is the prop naming the [page parameter](/reference/layouts/#page-parameters) that holds the key of the record chosen among that read's records, as a `Table`'s `select` does: the element's children draw inside that record, and nothing while none is chosen.
 
 | From `@protobase/ui` | |
 | --- | --- |

@@ -4,6 +4,7 @@ import { chartProblems } from './check-chart'
 import { timelineProblems } from './check-timeline'
 import { compileReadPlan } from './compile-read-plan'
 import { readsOf } from './plan-block'
+import type { BlockReads } from './block-specs'
 import { conditionFindings } from './check-condition'
 import { listModelProblems } from './check-list-models'
 import { composerProblems, threadProblems } from './check-conversation'
@@ -187,8 +188,17 @@ const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[
 }
 
 // The props a custom component's reads name: each resource a resource, and each field one of its fields
+// A read's shape is known before any record is read, so its resource, sort, limit and field props hold no `{{path}}`
+const slotProblems = (node: LayoutNode, reads: BlockReads): string[] => {
+  const fields = reads.fields === undefined ? [] : Array.isArray(reads.fields) ? reads.fields : [reads.fields]
+  const shape = [reads.resource, reads.sort, reads.limit, ...fields].filter((prop): prop is string => prop !== undefined)
+  return shape.flatMap((prop) => (JSON.stringify(node.props[prop] ?? null).includes('{{') ? [`"${prop}" holds a {{path}}; a read's resource, sort, limit and fields are fixed in the layout, and only its filter takes one`] : []))
+}
+
 const customReadProblems = (node: LayoutNode, models: Record<string, ResourceModel>): string[] =>
   readsOf(node).flatMap(({ reads }) => {
+    const slots = slotProblems(node, reads)
+    if (slots.length > 0) return slots
     const resource = node.props[reads.resource]
     if (resource === undefined) return []
     if (typeof resource !== 'string' || !models[resource]) return [`"${reads.resource}" names no resource: ${JSON.stringify(resource)}`]

@@ -172,6 +172,14 @@ describe('custom components', () => {
     const tree = Page({ title: 'x', children: [Graph({ nodes: 'invoices', label: 'total' }), Graph({ nodes: 'invoice', label: 'total' }), Graph({ nodes: 'invoices', label: 'totl' })] })
     expect(pageProblems(model(tree), input)).toEqual(['<Page> › <Graph>: "nodes" names no resource: "invoice"', '<Page> › <Graph>: "label" names no field of invoices: "totl"'])
   })
+
+  it('refuses a {{path}} in the resource, sort, limit or field props a component declares it reads, as only a filter takes one', () => {
+    const Board = component<{ resource: string; sort: string; filter: string }>('Board', { reads: { resource: 'resource', sort: 'sort', filter: 'filter' } })
+    const tree = RecordCard({ resource: 'invoices', children: [Board({ resource: 'invoices', sort: '{{number}}', filter: 'number = "{{number}}"' })] })
+    expect(pageProblems(model(Page({ title: 'x', children: tree })), input)).toEqual([
+      '<Page> › <RecordCard resource="invoices"> › <Board resource="invoices">: "sort" holds a {{path}}; a read\'s resource, sort, limit and fields are fixed in the layout, and only its filter takes one',
+    ])
+  })
 })
 
 describe('checkPages', () => {
