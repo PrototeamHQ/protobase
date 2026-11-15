@@ -47,14 +47,22 @@ const writesDefinitions = (request: Request, path: string) =>
  * with. An admin that does not build with the new definitions is reported, and the one before keeps serving.
  * A write to a definition that succeeded rebuilds it at once, before it is answered, so the next request of the writer
  * finds the change. `reload()` reads the version at once, for the process that changed a definition another way. The
- * jobs, the realtime prune and the field decrypter are those of `first`.
+ * jobs, the realtime prune and the field decrypter are those of `first`; `stopHolding` answers the requests every admin
+ * it built holds open.
  */
 export const reloadingAdmin = ({ first, version, readVersion, readTables, build, report, statementTimeoutMs, now }: ReloadingAdminInput) => {
+  // Every admin built that something still holds, such as a request held open on it, which `stopHolding` answers.
+  const built = new Set([new WeakRef(first)])
+  const keep = (admin: Admin) => {
+    for (const ref of built) if (!ref.deref()) built.delete(ref)
+    built.add(new WeakRef(admin))
+    return admin
+  }
   const rebuild = async (current: Admin) => {
     const tables = await readTables()
     // Any error of the build: the checks of createAdmin throw plain errors, each naming what it refused.
     try {
-      return build(tables)
+      return keep(build(tables))
     } catch (error) {
       report?.(new Error('The tables users add changed, but the app does not build with them, so it serves the tables it served before', { cause: error }))
       return current
@@ -84,5 +92,6 @@ export const reloadingAdmin = ({ first, version, readVersion, readTables, build,
   app.onError(createErrorHandler(report, statementTimeoutMs))
   app.all('*', (c) => answer(c.req.raw, c.env))
   const reload = async () => void (await latest.get(true))
-  return Object.assign(app, { jobs: first.jobs, startRealtimePrune: first.startRealtimePrune, decryptField: first.decryptField, metaPath: first.metaPath, reload })
+  const stopHolding = async () => void (await Promise.all([...built].map((ref) => ref.deref()?.stopHolding())))
+  return Object.assign(app, { jobs: first.jobs, startRealtimePrune: first.startRealtimePrune, stopHolding, decryptField: first.decryptField, metaPath: first.metaPath, reload })
 }

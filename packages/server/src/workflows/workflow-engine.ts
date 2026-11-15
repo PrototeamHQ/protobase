@@ -44,7 +44,7 @@ import type { CustomStepService } from './mcp/custom-step-tools'
  * (`customTypes`), which its saves, its type list and its checks take, and the runners that run them: their calls
  * (`routes.runners`) and install script (`routes.runnerInstall`), the registration tokens a runner's editor issues, and
  * the job that ends a runner's lease, with what the MCP tools of custom steps need beside their records
- * (`customSteps`): a version's test run, the runners online and a runner's registration token.
+ * (`customSteps`): a version's test run, the runners online and a runner's registration token; `stop` answers the runners' claims held open, as the process closes.
  */
 export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth?: AdminAuth, locale?: Locale) => {
   const schema = workflowsSchema(options)
@@ -117,5 +117,5 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
     online: (tenant) => runnersOnline(deps().db, schema, tenant),
     register: (session, id, origin) => runners.issue(session, id, origin),
   }
-  return { routes, issue, answerTask: answerTaskAs(deps, tokens, answerTask), customTypes, customSteps, hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent, custom), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema), ...(storage ? [storageConfigurationHook(storage)] : []), ...(custom ? [customStepSaveHook(schema)] : []), ...(runners ? runners.hooks : [])], writeChecks: [runInputCheck, ...(storage ? [storageEndpointCheck(storage, allowPrivateAddresses)] : [])], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : []), ...(runners ? runners.jobs : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId) }
+  return { routes, issue, answerTask: answerTaskAs(deps, tokens, answerTask), customTypes, customSteps, hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent, custom), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema), ...(storage ? [storageConfigurationHook(storage)] : []), ...(custom ? [customStepSaveHook(schema)] : []), ...(runners ? runners.hooks : [])], writeChecks: [runInputCheck, ...(storage ? [storageEndpointCheck(storage, allowPrivateAddresses)] : [])], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : []), ...(runners ? runners.jobs : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId), stop: async () => void (runners && (await runners.stop())) }
 }

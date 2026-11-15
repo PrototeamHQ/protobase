@@ -23,7 +23,7 @@ import { runnerRoute } from './runner-route'
  * Task is answered by its token's hash through `answer`, the waiting Tasks' own path, and its arguments are sealed with
  * the app's secret (`key`) while it waits. Its files are read and stored through `storage`, as the run's storage steps
  * do. The app's address, for the install script and its command, is `origin`, else the request's, with the path of its
- * system endpoints, as the app's `basePath` sets it.
+ * system endpoints, as the app's `basePath` sets it. `stop` answers the claims held open as the process closes.
  */
 export const customStepRunners = ({ deps, schema, settings, secrets, key, answer, storage, origin }: { deps: () => Deps; schema: string; settings: RunnerSettings; secrets: readonly string[]; key: () => Promise<SecretKey>; answer: AnswerByHash; storage: StorageInput; origin: () => string | undefined }) => {
   const db = (): Db => deps().db
@@ -51,5 +51,6 @@ export const customStepRunners = ({ deps, schema, settings, secrets, key, answer
     issue: (session: Session, id: string, fallback: string) => issueRegistration(deps, schema, session, id, { origin: origin() ?? fallback, apiPath: deps().systemPath }),
     jobs: [lease],
     hooks: [runnerSaveHook],
+    stop: broker.stop,
   }
 }

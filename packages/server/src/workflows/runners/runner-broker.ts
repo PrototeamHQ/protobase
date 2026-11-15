@@ -106,7 +106,8 @@ export const matchPass = (db: Db, schema: string, settings: RunnerSettings, leas
  * held. One process needs nothing more; several share only the database. A job's sealed arguments are opened only into
  * its claim's answer, with its input files' job-scoped addresses under `path` and how its image is built; a job whose
  * arguments no longer open, as after the app's secret was retired, fails its Task. A claim that no job reached after
- * a pass is answered `prepare` for a version it should build (`preparePass`).
+ * a pass is answered `prepare` for a version it should build (`preparePass`). `stop`, as the process closes, answers
+ * every claim held here with none, and each claim made after it at once.
  */
 export const runnerBroker = ({ db, schema, path, settings, lease, sealer, answer, report }: { db: () => Db; schema: string; path: () => string; settings: RunnerSettings; lease: () => JobDefinition<{ job: string }>; sealer: JobSealer; answer: AnswerByHash; report: (error: unknown) => void }) => {
   const runners = sql.id(schema, 'runners')
@@ -115,6 +116,7 @@ export const runnerBroker = ({ db, schema, path, settings, lease, sealer, answer
   // Until when each claim held here is held, so one whose job failed before it was sent can take the next.
   const untils = new WeakMap<(order: Order) => void, Date>()
   let ticking: ReturnType<typeof setInterval> | undefined
+  let stopped = false
   // Passes and sends run one at a time, so a claim whose time runs out never misses a job sent to it meanwhile.
   let line: Promise<unknown> = Promise.resolve()
   const inLine = <T>(work: () => Promise<T>) => {
@@ -218,6 +220,7 @@ export const runnerBroker = ({ db, schema, path, settings, lease, sealer, answer
      * itself is kept on its record.
      */
     claim: async (runner: Runner, state: RunnerState, signal: AbortSignal): Promise<Order> => {
+      if (stopped) return { order: 'none' }
       const until = new Date(Date.now() + settings.claimMs)
       await sql`update ${runners} set state = ${JSON.stringify(state)}::jsonb, polled_at = now(), polling_until = ${until} where id = ${runner.id}`.execute(db())
       return new Promise<Order>((resolve) => {
@@ -244,11 +247,29 @@ export const runnerBroker = ({ db, schema, path, settings, lease, sealer, answer
         const timer = setTimeout(close, settings.claimMs)
         untils.set(reply, until)
         held.set(runner.id, reply)
-        if (signal.aborted) close()
+        // A claim made while the broker stopped ends as one whose runner went.
+        if (signal.aborted || stopped) close()
         else signal.addEventListener('abort', close, { once: true })
         void round()
         tick()
       })
+    },
+
+    /**
+     * Answers every claim held here with none, once a pass under way has sent what it placed, and holds no claim from
+     * now on, so a closing process need not wait for their time; their runners hold no claim open until they claim
+     * again, of another process.
+     */
+    stop: async () => {
+      stopped = true
+      clearInterval(ticking)
+      ticking = undefined
+      await inLine(async () => {
+        const ids = [...held.keys()]
+        for (const reply of held.values()) reply({ order: 'none' })
+        held.clear()
+        if (ids.length > 0) await sql`update ${runners} set polling_until = null where id = any(${ids})`.execute(db())
+      }).catch(report)
     },
   }
 }
