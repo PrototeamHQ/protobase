@@ -93,8 +93,8 @@ describe('the queries of blocks that read by themselves', () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } })
     const tree = Page({ title: 'Home', children: block })
     // The page's parameters hold only its SelectInputs' values, so a `select`'s key is in its address alone
-    const reader = readerOf(async (url) => answer(url), queryClient, {}, given)
-    await Promise.all(blockQueries(reader, tree, planOf(tree)).map((query) => query.start(queryClient)))
+    const started = vi.fn(async (url: string | URL | Request) => answer(url))
+    await Promise.all(blockQueries(readerOf(started, queryClient, {}, given), tree, planOf(tree)).map((query) => query.start(queryClient)))
     const fetch = vi.fn<typeof globalThis.fetch>()
     const html = renderToStaticMarkup(
       <ApiProvider client={createClient({ fetch })} queryClient={queryClient}>
@@ -109,7 +109,7 @@ describe('the queries of blocks that read by themselves', () => {
         </MetaContext.Provider>
       </ApiProvider>,
     )
-    return { html, fetch }
+    return { html, fetch, started: started.mock.calls.map(([url]) => new URL(String(url), 'http://x').pathname) }
   }
 
   it('draws a table from the query the page started, reading nothing more', async () => {
@@ -122,8 +122,9 @@ describe('the queries of blocks that read by themselves', () => {
 
   it('draws a table’s chosen row from the query the page started with the key its address holds, reading nothing more', async () => {
     vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined })
-    const { html, fetch } = await drawnAfterStart(Table({ resource: 'tasks', columns: ['title'], select: 'task', children: Field({ source: 'title' }) }), { task: '7' })
+    const { html, fetch, started } = await drawnAfterStart(Table({ resource: 'tasks', columns: ['title'], select: 'task', children: Field({ source: 'title' }) }), { task: '7' })
     expect(html).toContain('Chosen one')
+    expect(started.filter((path) => path === '/api/v1/tasks/7')).toHaveLength(1)
     expect(fetch).not.toHaveBeenCalled()
   })
 
