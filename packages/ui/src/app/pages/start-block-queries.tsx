@@ -5,7 +5,7 @@ import { useClient } from '../../data/api-provider'
 import { useIsXs } from '../../lib/use-media-query'
 import { useAdminMeta } from '../meta-gate'
 import { blockQueries } from './block-queries'
-import { usePageParamValues } from './page-params'
+import { usePageParamsGiven, usePageParamValues } from './page-params'
 import { useProjectUi } from './project-ui'
 
 /**
@@ -19,7 +19,8 @@ export const StartBlockQueries = ({ tree, plan }: { tree: LayoutNode; plan: Read
   const fieldTypes = useProjectUi().fields
   const xs = useIsXs()
   const params = usePageParamValues()
-  const started = useMemo(() => blockQueries({ client, queryClient, resources, views, fieldTypes, xs, params }, tree, plan), [client, queryClient, resources, views, fieldTypes, xs, params, tree, plan])
+  const given = usePageParamsGiven()
+  const started = useMemo(() => blockQueries({ client, queryClient, resources, views, fieldTypes, xs, params, given }, tree, plan), [client, queryClient, resources, views, fieldTypes, xs, params, given, tree, plan])
   useEffect(() => {
     for (const query of started) void query.start(queryClient)
   }, [started, queryClient])

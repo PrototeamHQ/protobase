@@ -16,7 +16,8 @@ export const tableQueries: BlockQueries = (node, read, reader) => {
   const model = resource === undefined ? undefined : reader.resources[resource]
   if (!model) return []
   if (read.part === 'chosen') {
-    const key = select === undefined ? undefined : reader.params[select]
+    // The key `SelectTable` reads: the address's, not a SelectInput's value
+    const key = select === undefined ? undefined : reader.given[select]
     return key ? [blockQuery(firstRecordQuery(reader.client, model, { key }))] : []
   }
   const view = reader.views[model.name]
