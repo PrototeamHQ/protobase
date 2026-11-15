@@ -104,9 +104,10 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
       waiting.set(`${run}|${visit}`, { run, visit, hash, status: 'waiting', startedAt, handedOffAt: null, deadline, heartbeatSeconds, heartbeatAt: null, logs: [] })
     },
     handedOff: async (_, run, visit, { at, input, logs }) => void Object.assign(tryOf(run, visit)!, { handedOffAt: at, input: structuredClone(input), logs: structuredClone(logs) }),
-    close: async (_, run, visit, { error, cause }) => {
+    close: async (_, run, visit, { error, cause }, seen) => {
       const found = tryOf(run, visit)
       if (found?.status !== 'waiting') return false
+      if (seen && found.heartbeatAt?.getTime() !== seen.heartbeatAt?.getTime()) return false
       Object.assign(found, { status: 'failed', error, cause })
       return true
     },
@@ -133,6 +134,7 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
     run: (id: string) => runs.get(id)!,
     /** Each waiting Task's try, as its token keeps it. */
     waiting,
+    tokens,
     /** Answers the waiting Task a token was given to, as an outside executor does. */
     answer: (token: string, answer: TaskAnswer) => runner.answerTask(null, token, answer),
     /** Whether a segment of the run is queued, and for when. */

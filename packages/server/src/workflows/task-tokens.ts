@@ -36,8 +36,9 @@ const waitingTask = (row: Row): WaitingTask => ({
 /**
  * Waiting Tasks' tokens in the `task_tokens` table, by run and try. A try that began but was never handed off begins
  * again with a new token's hash, so the token it never handed off answers nothing; once handed off, or settled, it keeps
- * the one it has. An answer or an end settles only a try still waiting, in one statement, so of an answer and a timeout
- * that come together exactly one counts.
+ * the one it has, and a heartbeat the old token took goes with it. An answer or an end settles only a try still waiting,
+ * in one statement, so of an answer and a timeout that come together exactly one counts, and a timeout ends a try only
+ * while its last heartbeat is the one that made it overdue.
  */
 export const postgresTaskTokens = (schema: string): TaskTokenStore<Db> => {
   const tokens = sql.id(schema, 'task_tokens')
@@ -50,16 +51,17 @@ export const postgresTaskTokens = (schema: string): TaskTokenStore<Db> => {
     begin: async (db, { run, visit, state, hash, startedAt, deadline, heartbeatSeconds }) => {
       await sql`insert into ${tokens} (run_id, visit, state, token_hash, started_at, deadline, heartbeat_seconds)
         values (${run}, ${visit}, ${state}, ${hash}, ${startedAt}, ${deadline}, ${heartbeatSeconds})
-        on conflict (run_id, visit) do update set token_hash = excluded.token_hash, started_at = excluded.started_at, deadline = excluded.deadline, heartbeat_seconds = excluded.heartbeat_seconds
+        on conflict (run_id, visit) do update set token_hash = excluded.token_hash, started_at = excluded.started_at, deadline = excluded.deadline, heartbeat_seconds = excluded.heartbeat_seconds, heartbeat_at = null
         where ${tokens}.handed_off_at is null and ${tokens}.status = 'waiting'`.execute(db)
     },
     handedOff: async (db, run, visit, { at, input, logs }) => {
       await sql`update ${tokens} set handed_off_at = ${at}, input = ${JSON.stringify(input) ?? null}::jsonb, logs = ${JSON.stringify(logs)}::jsonb
         where run_id = ${run} and visit = ${visit}`.execute(db)
     },
-    close: async (db, run, visit, { error, cause }) => {
+    close: async (db, run, visit, { error, cause }, seen) => {
+      const heartbeat = seen ? sql`and heartbeat_at is not distinct from ${seen.heartbeatAt}` : sql``
       const { rows } = await sql`update ${tokens} set status = 'failed', error = ${error}, cause = ${cause}
-        where run_id = ${run} and visit = ${visit} and status = 'waiting' returning 1`.execute(db)
+        where run_id = ${run} and visit = ${visit} and status = 'waiting' ${heartbeat} returning 1`.execute(db)
       return rows.length > 0
     },
     byHash: async (db, hash) => {

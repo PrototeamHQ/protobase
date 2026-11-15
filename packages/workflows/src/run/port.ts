@@ -236,8 +236,11 @@ export type TaskTokenStore<Db> = {
   begin(db: Db, task: { run: string; visit: string; state: string; hash: string; startedAt: Date; deadline: Date; heartbeatSeconds: number | null }): Promise<void>
   /** Marks the try handed off, with what its hand-off recorded: from now on a segment only waits for its answer. */
   handedOff(db: Db, run: string, visit: string, done: { at: Date; input: unknown; logs: StepLog[] }): Promise<void>
-  /** Ends a waiting try without an answer, with its failure: false when an answer settled it first. */
-  close(db: Db, run: string, visit: string, failure: { error: string; cause: string }): Promise<boolean>
+  /**
+   * Ends a waiting try without an answer, with its failure: false when an answer settled it first, or, with `seen`, when
+   * a heartbeat came since the one `seen` holds, so that a timeout never ends a try a heartbeat just renewed.
+   */
+  close(db: Db, run: string, visit: string, failure: { error: string; cause: string }, seen?: { heartbeatAt: Date | null }): Promise<boolean>
   /** The try a token opens, by the token's hash, with its run. */
   byHash(db: Db, hash: string): Promise<(WaitingTask & { run: string }) | undefined>
   /** Takes an answer for a try still waiting: a heartbeat marks its time, a success or failure settles it; false when it no longer waits. */

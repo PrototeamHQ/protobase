@@ -53,24 +53,32 @@ export const runWaitingTask = async (state: TaskState, call: StateCall): Promise
   call.context.redactor.add(token)
   const startedAt = call.context.now()
   const timeout = state.TimeoutSeconds ?? limits.waitingTaskTimeoutSeconds
-  await tokens.begin({ visit, state: call.name, hash: await taskTokenHash(token), startedAt, deadline: new Date(startedAt.getTime() + timeout * 1000), heartbeatSeconds: state.HeartbeatSeconds ?? null })
+  const hash = await taskTokenHash(token)
+  await tokens.begin({ visit, state: call.name, hash, startedAt, deadline: new Date(startedAt.getTime() + timeout * 1000), heartbeatSeconds: state.HeartbeatSeconds ?? null })
   const args = await evaluateTemplate(template, withToken(call.bindings, token), 'Arguments')
   const input = call.context.redactor.value(redacted(recordedArguments(template, args)))
-  // Each try of a visit hands off under the same key, as any Task's retries do; the hand-off runs as long as a step
-  // type may, and caches nothing.
-  const key = `${call.context.runId}/${call.scope}/${call.position.seq - call.position.attempt + 1}`
+  // Each token hands off under a key of its own, from its hash, so a receiver that drops a repeated key never drops the
+  // only token that can still answer: a retry's, or one given again after a restart before its hand-off was marked.
+  // The hand-off runs as long as a step type may, and caches nothing.
+  const key = `${call.context.runId}/${call.scope}/${call.position.seq}/${hash.slice(0, 16)}`
   const handOff = { ...state, Resource: type, TimeoutSeconds: Math.min(timeout, limits.taskTimeoutSeconds), Cache: false }
   try {
     await runTask(call.context, handOff, args, key, call.logs)
   } catch (error) {
     if (!(error instanceof StepError)) throw error
     const failure = errorOutput(error)
-    await tokens.close(visit, { error: failure.Error, cause: failure.Cause })
-    return { failure, input, recorded: true }
+    if (await tokens.close(visit, { error: failure.Error, cause: failure.Cause })) return { failure, input, recorded: true }
+    // The receiver answered before its hand-off failed, so that answer is the try's
+    return handedOff(visit, call, input)
   }
-  const at = call.context.now()
-  call.logs.push({ at: at.toISOString(), message: `Handed off; waits for an outside result until ${new Date(startedAt.getTime() + timeout * 1000).toISOString()}` })
-  await tokens.handedOff(visit, { at, input, logs: call.logs.map((line) => ({ ...line, message: call.context.redactor.text(line.message) })) })
+  call.logs.push({ at: call.context.now().toISOString(), message: `Handed off; waits for an outside result until ${new Date(startedAt.getTime() + timeout * 1000).toISOString()}` })
+  return handedOff(visit, call, input)
+}
+
+// Marks a try handed off, with its input and its logs so far, and settles it as it stands.
+const handedOff = async (visit: string, call: StateCall, input: unknown): Promise<Ran> => {
+  const tokens = call.context.tokens!
+  await tokens.handedOff(visit, { at: call.context.now(), input, logs: call.logs.map((line) => ({ ...line, message: call.context.redactor.text(line.message) })) })
   return settle((await tokens.find(visit))!, visit, call)
 }
 
@@ -86,8 +94,9 @@ const settle = async (task: WaitingTask, visit: string, call: StateCall): Promis
   if (task.status === 'failed') return { failure: { Error: task.error ?? 'States.TaskFailed', Cause: task.cause ?? '' }, input, recorded: true }
   const late = overdue(task, call.context.now())
   if (late) {
-    // An answer that came meanwhile settled the try first, and is taken instead.
-    if (!(await call.context.tokens!.close(visit, late))) return settle((await call.context.tokens!.find(visit))!, visit, call)
+    // An answer that came meanwhile settled the try first, and is taken instead; a heartbeat that came meanwhile renewed
+    // it, so it waits on.
+    if (!(await call.context.tokens!.close(visit, late, { heartbeatAt: task.heartbeatAt }))) return settle((await call.context.tokens!.find(visit))!, visit, call)
     return { failure: { Error: late.error, Cause: late.cause }, input, recorded: true }
   }
   const due = heartbeatDue(task)

@@ -84,7 +84,7 @@ export type SegmentTokens = {
   find: (visit: string) => Promise<WaitingTask | undefined>
   begin: (task: Omit<Parameters<TaskTokenStore<unknown>['begin']>[1], 'run'>) => Promise<void>
   handedOff: (visit: string, done: Parameters<TaskTokenStore<unknown>['handedOff']>[3]) => Promise<void>
-  close: (visit: string, failure: { error: string; cause: string }) => Promise<boolean>
+  close: (visit: string, failure: { error: string; cause: string }, seen?: { heartbeatAt: Date | null }) => Promise<boolean>
 }
 
 /** A run's blocks' runs, as its segment reaches them. */

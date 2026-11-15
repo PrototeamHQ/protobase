@@ -64,10 +64,12 @@ describe('a Task that waits for an outside result', () => {
 
   it('hands off again with a new token when the worker stopped during the hand-off, and the first token answers nothing', async () => {
     const tokens: string[] = []
+    const keys: string[] = []
     const stop = new AbortController()
     // The first hand-off is still under way when the worker stops.
-    const { port } = setup(async (args) => {
+    const { port } = setup(async (args, context) => {
       tokens.push((args as { token: string }).token)
+      keys.push(context.idempotencyKey)
       if (tokens.length > 1) return
       queueMicrotask(() => stop.abort(new Error('the worker stopped')))
       await new Promise(() => {})
@@ -77,6 +79,8 @@ describe('a Task that waits for an outside result', () => {
     await port.runner.segment(null, 'a', new AbortController().signal)
     expect(tokens).toHaveLength(2)
     expect(tokens[0]).not.toBe(tokens[1])
+    // Under a key of its own, so a receiver that drops a repeated key still takes the only token that can answer
+    expect(keys[0]).not.toBe(keys[1])
     expect(await port.answer(tokens[0]!, { kind: 'success', output: JSON.stringify({}) })).toMatchObject({ error: 'TaskDoesNotExist' })
     expect(await port.answer(tokens[1]!, { kind: 'success', output: JSON.stringify({ answer: 'yes' }) })).toEqual({ run: 'a' })
   })
@@ -149,6 +153,34 @@ describe('a Task that waits for an outside result', () => {
     await port.drain()
     expect(port.run('a')).toMatchObject({ status: 'failed', error: 'Outside.Unreachable' })
     expect(await port.answer(token, { kind: 'success', output: JSON.stringify({}) })).toMatchObject({ error: 'TaskTimedOut' })
+  })
+
+  it('takes the answer that came while its hand-off ran, though the hand-off then failed', async () => {
+    const { port } = setup(async (args) => {
+      // The receiver answers at once, then the hand-off's own answer is lost
+      expect(await port.answer((args as { token: string }).token, { kind: 'success', output: JSON.stringify({ answer: 'yes' }) })).toEqual({ run: 'a' })
+      throw new StepError('Outside.Unreachable', 'The connection dropped')
+    })
+    await port.start('a', flow(), { question: 'Ship it?' })
+    await port.drain()
+    expect(port.run('a')).toMatchObject({ status: 'succeeded', output: { answer: 'yes' } })
+    expect(port.steps.find((one) => one.state === 'Approve')).toMatchObject({ status: 'succeeded', input: { question: 'Ship it?', token: '[redacted]' } })
+  })
+
+  it('ends a try for its timeout only while its last heartbeat is the one that made it overdue', async () => {
+    const { port, handedOff } = setup()
+    await port.start('a', flow(approve({ TimeoutSeconds: 3600, HeartbeatSeconds: 60 })), { question: 'Ship it?' })
+    await port.step()
+    const [visit] = [...port.waiting.values()].map((one) => one.visit)
+    const seen = { heartbeatAt: (await port.tokens.find(null, 'a', visit!))!.heartbeatAt }
+    // A heartbeat that comes after the try was read as overdue, and before it is closed, keeps it waiting
+    port.tick(30_000)
+    expect(await port.answer(handedOff[0]!.token, { kind: 'heartbeat' })).toEqual({ run: 'a' })
+    const late = { error: 'States.HeartbeatTimeout', cause: 'No heartbeat came within 60 seconds' }
+    expect(await port.tokens.close(null, 'a', visit!, late, seen)).toBe(false)
+    expect((await port.tokens.find(null, 'a', visit!))!.status).toBe('waiting')
+    const now = { heartbeatAt: (await port.tokens.find(null, 'a', visit!))!.heartbeatAt }
+    expect(await port.tokens.close(null, 'a', visit!, late, now)).toBe(true)
   })
 
   it("refuses an answer once the run ended, as when another Map item's failure ended it", async () => {

@@ -10,6 +10,7 @@ import { workflowsModule } from '@protobase/server/internal'
 import type { Plugin } from '@protobase/workflows/plugin'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { traceFiles } from './support/run-trace'
+import { postgresTaskTokens } from '../../packages/server/src/workflows/task-tokens'
 import { definitionFields } from '../../test-support/workflow-fields'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -124,6 +125,43 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("waiting Tasks on the ap
     const { id, token } = await handedOff(approval({ TimeoutSeconds: 30, HeartbeatSeconds: 1 }), 'Still there?')
     expect(await ended(id)).toMatchObject({ status: 'failed', error: 'States.HeartbeatTimeout', cause: 'No heartbeat came within 1 seconds' })
     expect((await send('success', { taskToken: token, output: '{}' })).status).toBe(409)
+  })
+
+  it('keeps no answer whose wake of the run failed, so the caller may send it again', async () => {
+    const { id, token } = await handedOff(approval(), 'Ship 2.0?')
+    // The wake's job cannot be written, as when the database refuses it
+    await sql.raw(`create function workflows_refuse_wake() returns trigger language plpgsql as $$ begin if new.data->>'run' = '${id}' then raise exception 'no wake'; end if; return new; end $$`).execute(db)
+    await sql`create trigger refuse_wake before insert or update on jobs.job for each row execute function workflows_refuse_wake()`.execute(db)
+    try {
+      expect((await send('success', { taskToken: token, output: JSON.stringify({ approved: true }) })).status).toBe(500)
+    } finally {
+      await sql`drop trigger refuse_wake on jobs.job`.execute(db)
+      await sql`drop function workflows_refuse_wake()`.execute(db)
+    }
+    expect((await sql<{ status: string }>`select status from workflows.task_tokens where run_id = ${id}`.execute(db)).rows[0]).toEqual({ status: 'waiting' })
+    expect((await send('success', { taskToken: token, output: JSON.stringify({ approved: true }) })).status).toBe(200)
+    expect(await ended(id)).toMatchObject({ status: 'succeeded', output: { approved: true } })
+  })
+
+  it("gives a try begun again a heartbeat of its own, and ends it for its timeout only while no heartbeat renewed it", async () => {
+    const tokens = postgresTaskTokens('workflows')
+    const { id } = await handedOff(approval(), 'Ship 3.0?')
+    const visit = 'other|1'
+    const startedAt = new Date()
+    const deadline = new Date(startedAt.getTime() + 3600_000)
+    await tokens.begin(db, { run: id, visit, state: 'Ask', hash: 'a'.repeat(64), startedAt, deadline, heartbeatSeconds: 60 })
+    expect(await tokens.answer(db, 'a'.repeat(64), { kind: 'heartbeat' }, new Date(startedAt.getTime() + 10_000))).toBe(true)
+    // The worker stopped before the hand-off was marked: the new token starts with no heartbeat of the old one's
+    await tokens.begin(db, { run: id, visit, state: 'Ask', hash: 'b'.repeat(64), startedAt: new Date(startedAt.getTime() + 80_000), deadline, heartbeatSeconds: 60 })
+    const begun = (await tokens.find(db, id, visit))!
+    expect(begun.heartbeatAt).toBeNull()
+    // A heartbeat after the try was read as overdue keeps it waiting
+    const late = { error: 'States.HeartbeatTimeout', cause: 'No heartbeat came within 60 seconds' }
+    expect(await tokens.answer(db, 'b'.repeat(64), { kind: 'heartbeat' }, new Date(startedAt.getTime() + 90_000))).toBe(true)
+    expect(await tokens.close(db, id, visit, late, { heartbeatAt: begun.heartbeatAt })).toBe(false)
+    const renewed = (await tokens.find(db, id, visit))!
+    expect(renewed.status).toBe('waiting')
+    expect(await tokens.close(db, id, visit, late, { heartbeatAt: renewed.heartbeatAt })).toBe(true)
   })
 
   it('refuses what is no token, a token no Task was given, and a body that is no answer', async () => {

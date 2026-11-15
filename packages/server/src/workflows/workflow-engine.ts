@@ -76,8 +76,9 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   })
   const webhooks = usable(types.webhooks)
   const issue = { deps, schema, webhooks, origin: () => auth?.origins[0] }
-  // An outside executor's answer to a waiting Task, which its token alone admits, and the same as a signed-in caller.
-  const answerTask = (token: string, answer: Parameters<typeof runner.answerTask>[2]) => runner.answerTask(deps().db, token, answer)
+  // An outside executor's answer to a waiting Task, which its token alone admits, and the same as a signed-in caller. The
+  // answer and the run's wake commit together, so an answer whose wake failed is not kept and may be sent again.
+  const answerTask = (token: string, answer: Parameters<typeof runner.answerTask>[2]) => deps().db.transaction().execute((trx) => runner.answerTask(trx, token, answer))
   // The public webhook address, where a caller who may change a workflow issues its URL, and the waiting Tasks' answers.
   const routes = {
     tasks: () => taskRoute({ answer: answerTask, report: (error) => deps().report(error) }),
