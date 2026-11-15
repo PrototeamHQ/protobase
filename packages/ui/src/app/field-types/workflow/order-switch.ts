@@ -16,6 +16,21 @@ const assignedTwice = (machine: Machine) => {
   return
 }
 
+// A Pass or Succeed without Output gives the input it got: in sequence order the output of the state before it, in data
+// order the run's input. The first one whose output would change, of the machine or a Map's or Block's inside it, which
+// the switch cannot keep: in sequence one that a Next leads to, in data order any but the one that would come first.
+const givesItsInput = (state: State) => (state.Type === 'Pass' || state.Type === 'Succeed') && state.Output === undefined
+const passThrough = (machine: Machine, toData: boolean, first?: string): string | undefined => {
+  const led = new Set(Object.values(machine.States).flatMap((state) => ((state as { Next?: string }).Next === undefined ? [] : [(state as { Next: string }).Next])))
+  for (const [name, state] of Object.entries(machine.States)) {
+    if (givesItsInput(state) && (toData ? led.has(name) : name !== first)) return name
+    const inner = innerMachine(state)
+    const found = inner && passThrough(inner, toData, toData ? undefined : machineToSequence(inner).StartAt)
+    if (found) return found
+  }
+  return
+}
+
 const statusCondition = (names: string[]) => `{% ${names.map((name) => `$states.context.Steps.${/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `\`${name}\``}.Status = 'SUCCEEDED'`).join(' and ')} %}`
 
 // A sequence machine in data order: each Next a dependency of the state it names, the read of the earlier state's
@@ -68,7 +83,8 @@ const machineToSequence = (machine: Machine): Machine => {
 /**
  * The definition in data order: each Next becomes what the state it names runs after, by its data or, where it reads
  * none of it, by a Condition on the earlier state's Status, so the states run in the same order; Succeed becomes Pass.
- * Refused with a Choice, a catcher with Next, or a variable two states assign.
+ * Refused with a Choice, a catcher with Next, a variable two states assign, or a Pass or Succeed without Output that
+ * gives on the output of the state before it.
  */
 export const toDataOrder = (definition: Definition): Switched => {
   const states = allStates(definition.stateMachine)
@@ -78,12 +94,15 @@ export const toDataOrder = (definition: Definition): Switched => {
   if (caught) return { refused: `${caught[0]} has an error path to another state; in data order a catcher has no Next` }
   const twice = assignedTwice(definition.stateMachine)
   if (twice !== undefined) return { refused: `two states assign $${twice}; in data order each variable has one state that assigns it` }
+  const passing = passThrough(definition.stateMachine, true)
+  if (passing !== undefined) return { refused: `${passing} has no Output, so it gives the output of the state before it, which in data order it does not get; give it an Output that reads what it needs` }
   return { definition: { ...definition, order: 'data', stateMachine: { ...machineToData(definition.stateMachine), QueryLanguage: 'JSONata' } as Definition['stateMachine'] } }
 }
 
 /**
  * The definition in sequence: its states in one chain in an order every dependency keeps, so parallel states run one
- * after another. Refused with a Condition or a catcher without Next, which sequence order has no place for.
+ * after another. Refused with a Condition or a catcher without Next, which sequence order has no place for, or a Pass
+ * or Succeed without Output after the first state, which would give the output before it instead of the run's input.
  */
 export const toSequenceOrder = (definition: Definition): Switched => {
   const states = allStates(definition.stateMachine)
@@ -91,7 +110,10 @@ export const toSequenceOrder = (definition: Definition): Switched => {
   if (conditioned) return { refused: `${conditioned[0]} has a Condition; in sequence order a Choice decides` }
   const caught = states.find(([, state]) => 'Catch' in state && (state.Catch ?? []).some((catcher) => catcher.Next === undefined))
   if (caught) return { refused: `${caught[0]} has a catcher without Next, which sequence order needs` }
-  return { definition: { ...definition, order: 'sequence', stateMachine: { ...machineToSequence(definition.stateMachine), QueryLanguage: 'JSONata' } as Definition['stateMachine'] } }
+  const chain = machineToSequence(definition.stateMachine)
+  const passing = passThrough(definition.stateMachine, false, chain.StartAt)
+  if (passing !== undefined) return { refused: `${passing} has no Output, so it gives the run's input, which in sequence order would be the output of the state before it; give it an Output that reads what it needs` }
+  return { definition: { ...definition, order: 'sequence', stateMachine: { ...chain, QueryLanguage: 'JSONata' } as Definition['stateMachine'] } }
 }
 
 /** The definition switched to the other order. */
