@@ -40,6 +40,13 @@ describe('Diff on the web', () => {
     expect(drawn.match(/md:hidden/g)).toHaveLength(2)
   })
 
+  it('draws a quoted rename-only file before an ordinary one under its decoded name', () => {
+    const drawn = html('diff --git "a/old name.txt" "b/caf\\303\\251 menu.txt"\nsimilarity index 100%\nrename from "old name.txt"\nrename to "caf\\303\\251 menu.txt"\n' + twoFiles)
+    expect(drawn).toContain('café menu.txt</span>')
+    expect(drawn.match(/<span class="min-w-0 flex-1 truncate[^>]*>([^<]*)<\/span>/g)).toHaveLength(3)
+    expect(drawn).toContain('a.ts</span>')
+  })
+
   it('shows text that is no patch as it is', () => {
     expect(html('Ship <it>')).toMatch(/^<pre [^>]*>Ship &lt;it&gt;<\/pre>$/)
   })
