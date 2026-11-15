@@ -6,6 +6,7 @@ import { RouteLink } from '../primitives/route-link'
 import { text as appText } from './messages'
 import { useGuardedParams } from './guarded-params'
 import { leavesPage } from './leaves-page'
+import { followLink, pendingLink, type NavigateOptions, type PendingLink } from './pending-link'
 import { createPagePlaces } from './page-places'
 import { restoreScroll } from './restore-scroll'
 
@@ -42,7 +43,7 @@ type RouterValue = {
  */
 export type GuardKind = 'draft-kept' | 'input-lost'
 
-export type NavigateOptions = { replace?: boolean; keepScroll?: boolean }
+export type { NavigateOptions }
 
 const RouterContext = createContext<RouterValue | null>(null)
 
@@ -62,7 +63,7 @@ export type RouterProps = {
 const browserUrl = () => `${window.location.pathname}${window.location.search}`
 
 /** A change of page waiting for the person's answer; `inputLost` when a guard's input would be gone, not kept. */
-type Pending = ({ kind: 'link'; full: string; replace: boolean } | { kind: 'history'; delta: number } | { kind: 'reload' }) & { inputLost: boolean }
+type Pending = (PendingLink | { kind: 'history'; delta: number } | { kind: 'reload' }) & { inputLost: boolean }
 
 const pathOf = (url: string) => new URL(url, 'http://local').pathname
 
@@ -166,10 +167,10 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   )
 
   const navigate = useCallback(
-    (to: string, { replace = false, keepScroll = false }: NavigateOptions = {}) => {
-      const full = `${basePath}${to}`
-      if (guards.current.size > 0 && leavesPage(current.current.url, full, guards.current.values())) return setPending({ kind: 'link', full, replace, inputLost: losesInput() })
-      go(full, replace, keepScroll)
+    (to: string, options?: NavigateOptions) => {
+      const link = pendingLink(`${basePath}${to}`, options)
+      if (guards.current.size > 0 && leavesPage(current.current.url, link.full, guards.current.values())) return setPending({ ...link, inputLost: losesInput() })
+      followLink(link, go)
     },
     [basePath, go],
   )
@@ -200,7 +201,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   const leave = () => {
     if (!pending) return
     setPending(undefined)
-    if (pending.kind === 'link') return go(pending.full, pending.replace)
+    if (pending.kind === 'link') return followLink(pending, go)
     if (pending.kind === 'reload') {
       reloading.current = true
       return window.location.reload()
