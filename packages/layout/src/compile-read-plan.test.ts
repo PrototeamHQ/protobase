@@ -109,6 +109,12 @@ describe('compileReadPlan', () => {
     expect(reads(tree)[2]).toMatchObject({ part: 'total', kind: 'aggregate', groupBy: ['id'], pageSize: 500, split: { field: 'id', source: 'waits', parent: '/children/0' } })
   })
 
+  it('reads the API’s largest page for a Table split on a JSON list of keys, each key’s first rows, and warns', () => {
+    const tree = Page({ title: 'Tasks', children: [openTasks(Table({ resource: 'tasks', filter: 'id = {{waits}}', columns: ['title'] }))] })
+    expect(reads(tree)[1]).toMatchObject({ kind: 'list', pageSize: 500, limitPer: { field: 'id', count: 10 }, split: { field: 'id', source: 'waits', parent: '/children/0' } })
+    expect(plan(tree).warnings).toEqual(['<Table resource="tasks">: the JSON lists of keys of the 10 records around it may hold more than the 500 records one read holds at 10 each, so some may show fewer; lower its limit or the one around it'])
+  })
+
   it('counts the rows of a RecordCards list inside one record beside its read', () => {
     const tree = Page({ title: 'Task', children: [RecordCard({ resource: 'tasks', recordKey: '7', children: RecordCards({ resource: 'task_claims', filter: 'task_id = {{id}}' }) })] })
     expect(reads(tree)[2]).toMatchObject({ block: '/children/0/children/0', part: 'total', kind: 'count', resource: 'task_claims', split: { field: 'task_id', source: 'id', parent: '/children/0' } })
