@@ -9,6 +9,7 @@ import { workflowsModule } from '@protobase/server/internal'
 import { ConnectionError, definePlugin } from '@protobase/workflows/plugin'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { traceFiles } from './support/run-trace'
+import { definitionFields } from '../../test-support/workflow-fields'
 
 // Workers poll on real timers, which a busy machine stretches.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -97,7 +98,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('polling triggers, turne
     return { status: response.status, body: (await response.json().catch(() => null)) as Record<string, any> }
   }
   const machine = { QueryLanguage: 'JSONata', StartAt: 'Done', States: { Done: { Type: 'Succeed' } } }
-  const save = async (trigger: unknown) => (await as('/workflows', 'POST', { name: 'Feed', definition: { trigger, stateMachine: machine } })).body as { id: string; version: number }
+  const save = async (trigger: unknown) => (await as('/workflows', 'POST', { name: 'Feed', ...definitionFields({ trigger, stateMachine: machine }) })).body as { id: string; version: number }
   const enable = (id: string, version: number | null) => as(`/workflows/${id}`, 'PATCH', { enabled_version: version })
   const runsOf = async (workflow: string) => (await sql<{ key: string; input: unknown }>`select key, input from workflows.runs where workflow_id = ${workflow} order by key`.execute(db)).rows
   const triggerOf = async (workflow: string) =>
@@ -197,7 +198,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('polling triggers, turne
     await until(async () => polls('i'), (count) => count >= 2)
     const cursor = (await triggerOf(workflow.id))!.cursor as number
     expect(started.filter((name) => name === 'i')).toHaveLength(1)
-    await as(`/workflows/${workflow.id}`, 'PATCH', { definition: { trigger: { 'feed:items': { feed: 'i' } }, stateMachine: { ...machine, Comment: 'v2' } } })
+    await as(`/workflows/${workflow.id}`, 'PATCH', { ...definitionFields({ trigger: { 'feed:items': { feed: 'i' } }, stateMachine: { ...machine, Comment: 'v2' } }) })
     await until(async () => polls('i'), (count) => count >= 4)
     expect(started.filter((name) => name === 'i')).toHaveLength(1)
     expect((await triggerOf(workflow.id))!.cursor).toBeGreaterThan(cursor)
@@ -245,7 +246,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('polling triggers, turne
       (found) => Boolean(found?.poll_job_id),
     )
     expect(row?.poll_job_id).toBeTruthy()
-    const bad = await as('/workflows', 'POST', { name: 'Bad', definition: { trigger: { 'app:schedule': { cron: '0 6 * *' } }, stateMachine: machine } })
+    const bad = await as('/workflows', 'POST', { name: 'Bad', ...definitionFields({ trigger: { 'app:schedule': { cron: '0 6 * *' } }, stateMachine: machine }) })
     expect(bad.status).toBe(400)
     await enable(workflow.id, null)
   })

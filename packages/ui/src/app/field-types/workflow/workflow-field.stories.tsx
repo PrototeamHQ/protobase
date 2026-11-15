@@ -8,7 +8,7 @@ import { App } from '../../app'
 import { fakeApi } from '../../testing/fake-api'
 import { ticketsWorkflow } from '../../testing/workflow-fixtures'
 import { exampleWorkflowTypes } from '../../../../../../test-support/workflow-types'
-import { definitionOf } from './definition'
+import { definitionRecord, recordDefinition } from './definition'
 import { definitionProblems } from './problems'
 
 const meta = { title: 'Plugins/Field types/Workflow', parameters: { layout: 'fullscreen' } } satisfies Meta
@@ -25,8 +25,8 @@ const fetchOnly: Definition = {
 
 const rows = {
   workflows: [
-    { id: 1, name: 'Open tickets', description: null, definition: ticketsWorkflow, version: 1 },
-    { id: 2, name: 'Fetch tickets', description: null, definition: fetchOnly, version: 1 },
+    { id: 1, name: 'Open tickets', description: null, ...definitionRecord(ticketsWorkflow), version: 1 },
+    { id: 2, name: 'Fetch tickets', description: null, ...definitionRecord(fetchOnly), version: 1 },
   ],
   workflow_versions: [],
   workflow_runs: [],
@@ -38,13 +38,15 @@ let stored: Record<string, unknown> | undefined
 // A save is checked as the server checks it, and refused as it is: a 400 naming each problem on the definition.
 const checkSave = (resource: string, row: Record<string, unknown>) => {
   if (resource !== 'workflows') return
+  // A workflow created without a trigger runs by hand, as the database's default fills it in
+  row.trigger ??= { manual: {} }
   // A workflow starts with no steps, which the server keeps
-  const definition = definitionOf(row.definition)
+  const definition = recordDefinition(row)
   if (Object.keys(definition.stateMachine.States).length === 0) return
   const problems = definitionProblems(definition, exampleWorkflowTypes)
   if (problems.length === 0) return
   const detail = `The workflow cannot be saved: ${problems.map(problemText).join('; ')}`
-  const errors = problems.map((problem) => ({ code: 'invalid-workflow', field: 'definition', message: problemText(problem), params: { state: problem.state, field: problem.field } }))
+  const errors = problems.map((problem) => ({ code: 'invalid-workflow', field: problem.field?.startsWith('trigger') ? 'trigger' : 'state_machine', message: problemText(problem), params: { state: problem.state, field: problem.field } }))
   throw new ApiError({ type: 'urn:protobase:problem:invalid-workflow', title: 'Bad Request', status: 400, detail, errors })
 }
 
@@ -113,16 +115,17 @@ export const CreatesAndConnectsChecks: StoryObj = {
     await userEvent.type(panel().getByRole('textbox', { name: /^Subject/ }), 'Today')
     await userEvent.type(panel().getByRole('textbox', { name: /^Text/ }), "{{% $states.context.Execution.Input.body %}")
     await addStep(canvasElement, 'Succeed')
-    await laidOut(canvasElement, 4)
-    await waitFor(() => expect(canvasElement.querySelectorAll('.react-flow__edge')).toHaveLength(3))
-    // A connection redrawn by a tap on a handle, then on the step it leads to, as the form's Goes on to can too
+    // The trigger, three steps, and a Break of the run's input, whose body Step 2's text reads: three execution edges
+    // and that read's two wires
+    await laidOut(canvasElement, 5)
+    await waitFor(() => expect(canvasElement.querySelectorAll('.react-flow__edge')).toHaveLength(5))
+    // A connection redrawn by the form's Goes on to, away and back
     await userEvent.click(await nodeOf(canvasElement, 'Step 1'))
     await userEvent.selectOptions(await panel().findByRole('combobox', { name: 'Goes on to' }), 'Step 3')
-    await userEvent.click((await nodeOf(canvasElement, 'Step 1')).querySelector('[data-handleid="next"]')!)
-    await userEvent.click((await nodeOf(canvasElement, 'Step 2')).querySelector('[data-handleid="in"]')!)
+    await userEvent.selectOptions(await panel().findByRole('combobox', { name: 'Goes on to' }), 'Step 2')
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
-      expect(stored?.definition).toEqual({
+      expect({ trigger: stored?.trigger, stateMachine: stored?.state_machine }).toEqual({
         trigger: { manual: {} },
         stateMachine: {
           QueryLanguage: 'JSONata',
@@ -217,6 +220,25 @@ export const PluginTypesChecks: StoryObj = {
   },
 }
 
+/** A trigger chosen on the graph is saved as the JSON object it is, as every definition field the graph changes. */
+export const SavesTriggerChecks: StoryObj = {
+  ...NewWorkflow,
+  name: 'Saves a trigger chosen on the graph (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.type(await canvas.findByRole('textbox', { name: /^Name/ }), 'Morning digest')
+    await userEvent.click(canvas.getByRole('button', { name: 'Create workflow' }))
+    await addStep(canvasElement, 'Succeed')
+    await userEvent.click(canvasElement.querySelector<HTMLElement>('.react-flow__node[data-id="trigger"]')!)
+    const panel = within(await canvas.findByRole('region', { name: 'Chosen step' }))
+    await userEvent.selectOptions(await panel.findByRole('combobox', { name: 'Starts a run' }), 'Invoice overdue')
+    await userEvent.type(await panel.findByRole('textbox', { name: /^days/ }), '3')
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(stored?.trigger).toEqual({ 'acme:overdue': { days: 3 } }))
+  },
+}
+
 /**
  * A step whose type advises against forcing its cache on shows the type's disclaimer, as text, before the switch turns
  * on; once on, its node carries the warning mark.
@@ -245,6 +267,33 @@ export const CacheForcedChecks: StoryObj = {
   },
 }
 
+/** A Break chosen on the canvas is marked chosen, and Delete removes it as it does a step, with the reads it gave. */
+export const RemovesBreakChecks: StoryObj = {
+  ...NewWorkflow,
+  name: 'Removes a Break node chosen on the canvas (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.type(await canvas.findByRole('textbox', { name: /^Name/ }), 'Fetch by input')
+    await userEvent.click(canvas.getByRole('button', { name: 'Create workflow' }))
+    await addStep(canvasElement, 'HTTP request')
+    const panel = within(await canvas.findByRole('region', { name: 'Chosen step' }))
+    await userEvent.type(await panel.findByRole('textbox', { name: /^URL/ }), '{{% $states.context.Execution.Input.url %}')
+    const pure = await waitFor(() => {
+      const node = canvasElement.querySelector<HTMLElement>('.react-flow__node-pure')
+      if (!node) throw new Error('No Break node yet')
+      return node
+    })
+    // The step chosen before stays when the Break is chosen and removed
+    await userEvent.click(pure)
+    await waitFor(() => expect(pure).toHaveClass('selected'))
+    expect(canvasElement.querySelectorAll('.react-flow__node.selected')).toHaveLength(1)
+    await userEvent.keyboard('{Delete}')
+    await waitFor(() => expect(canvasElement.querySelector('.react-flow__node-pure')).toBeNull())
+    expect(canvasElement.querySelector('.react-flow__node[data-id="state:Step 1"]')).not.toBeNull()
+  },
+}
+
 /** Delete removes a chosen edge, and Remove step a step with the edges to it; the save stores the workflow without them. */
 export const RemovesChecks: StoryObj = {
   ...MadeThroughTheApi,
@@ -265,7 +314,7 @@ export const RemovesChecks: StoryObj = {
     await userEvent.click(await within(await canvas.findByRole('region', { name: 'Chosen step' })).findByRole('button', { name: 'Remove step' }))
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(stored).toBeDefined())
-    const states = (stored!.definition as Definition).stateMachine.States
+    const states = (stored!.state_machine as Definition['stateMachine']).States
     expect(Object.keys(states)).toEqual(['Fetch', 'Any', 'Each', 'Done'])
     expect(states.Any).toEqual({ Type: 'Choice', Choices: [{ Condition: '{% $count($tickets) > 0 %}', Next: 'Each' }] })
     expect(states.Fetch).not.toHaveProperty('Catch')

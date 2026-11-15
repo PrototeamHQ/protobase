@@ -8,7 +8,7 @@ export const edges = (state: State): { field: string; target: string }[] => {
     state.Choices.forEach((rule, index) => found.push({ field: `Choices[${index}].Next`, target: rule.Next }))
     if (state.Default !== undefined) found.push({ field: 'Default', target: state.Default })
   }
-  if ('Catch' in state) state.Catch?.forEach((catcher, index) => found.push({ field: `Catch[${index}].Next`, target: catcher.Next }))
+  if ('Catch' in state) state.Catch?.forEach((catcher, index) => catcher.Next !== undefined && found.push({ field: `Catch[${index}].Next`, target: catcher.Next }))
   return found
 }
 

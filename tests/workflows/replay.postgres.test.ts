@@ -11,6 +11,7 @@ import { workflowsModule } from '@protobase/server/internal'
 import type { Plugin } from '@protobase/workflows/plugin'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { traceFiles } from './support/run-trace'
+import { definitionFields } from '../../test-support/workflow-fields'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -141,7 +142,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
   })
 
   const ranOrder = async (user = 'ada') => {
-    const workflow = await created(await as(user, '/workflows', { method: 'POST', body: { name: 'Order', definition: order('Hello') } }))
+    const workflow = await created(await as(user, '/workflows', { method: 'POST', body: { name: 'Order', ...definitionFields(order('Hello')) } }))
     const run = await created(await as(user, '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: { sku: 'A1' } } }))
     await finished(run)
     expect(await runRow(run)).toMatchObject({ status: 'succeeded' })
@@ -155,7 +156,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
     // The secret the price lookup was given changes since its result was kept, as a new value's fingerprint would.
     await sql`update workflows.step_cache set secrets = jsonb_set(secrets, '{REPLAY_TOKEN}', '"an-older-fingerprint"') where secrets ? 'REPLAY_TOKEN'`.execute(db)
     // The fix: a later version that greets otherwise and reads the stock of another warehouse.
-    await as('ada', `/workflows/${workflow}`, { method: 'PATCH', body: { definition: order('Bye', '/stock?warehouse=2') } })
+    await as('ada', `/workflows/${workflow}`, { method: 'PATCH', body: { ...definitionFields(order('Bye', '/stock?warehouse=2')) } })
     const current = (await sql<{ version: number }>`select version from workflows.workflows where id = ${workflow}`.execute(db)).rows[0]!.version
     expect(current).toBe((await runRow(run)).version + 1)
 
@@ -184,7 +185,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
 
   it('refuses a caller who may not read the trace or start runs, another tenant, and a run that is not one of the workflow', async () => {
     const { workflow, run } = await ranOrder()
-    const other = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Other', definition: order('Hi') } }))
+    const other = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Other', ...definitionFields(order('Hi')) } }))
     const runs = await count()
     const replay = (user: string, body: Record<string, unknown>) => as(user, '/workflow_runs', { method: 'POST', body: { replay: true, ...body } })
     expect((await replay('rita', { workflow_id: workflow, rerun_of: run })).status).toBe(404)
@@ -212,7 +213,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
 
   it('refuses to replay a run that has not ended', async () => {
     const waits = { trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Hold', States: { Hold: { Type: 'Wait', Seconds: 3600, Next: 'Done' }, Done: { Type: 'Succeed' } } } }
-    const workflow = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Waits', definition: waits } }))
+    const workflow = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Waits', ...definitionFields(waits) } }))
     const run = await created(await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: {} } }))
     await vi.waitFor(async () => expect((await runRow(run)).status).toBe('waiting'), { timeout: 20_000, interval: 50 })
     const response = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, rerun_of: run, replay: true } })

@@ -11,7 +11,7 @@ const passedOn = (state: State) => {
     for (const rule of state.Choices) along.push({ target: rule.Next, names: Object.keys(rule.Assign ?? state.Assign ?? {}) })
     if (state.Default !== undefined) along.push({ target: state.Default, names: own })
   }
-  if ('Catch' in state) for (const catcher of state.Catch ?? []) along.push({ target: catcher.Next, names: Object.keys(catcher.Assign ?? {}) })
+  if ('Catch' in state) for (const catcher of state.Catch ?? []) if (catcher.Next !== undefined) along.push({ target: catcher.Next, names: Object.keys(catcher.Assign ?? {}) })
   return along
 }
 

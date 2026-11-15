@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { checkDefinition } from '@protobase/workflows'
+import { checkDefinition, type Definition } from '@protobase/workflows'
 import { ticketsWorkflow } from '../../testing/workflow-fixtures'
 import { emptyDefinition } from './definition'
-import { addState, addStateAfter, addStateFirst, connect, disconnect, freeName, placeAfter, removeState, renameState, startAt } from './definition-edits'
+import { addState, addStateAfter, addStateAt, addStateFirst, connect, disconnect, freeName, ledTo, placeAfter, removeState, renameState, replaceState, scopeAt, startAt } from './definition-edits'
 
 describe('workflow edits', () => {
   it('adds a first state, which the workflow starts at, and later ones not yet connected', () => {
@@ -25,6 +25,50 @@ describe('workflow edits', () => {
     expect(last.stateMachine.States.B).toEqual({ Type: 'Pass', Next: 'Stop' })
     expect(addStateFirst(two, { type: 'Succeed' }, 'Done', 'Step').stateMachine.StartAt).toBe('A')
     expect(addStateFirst(emptyDefinition(), { type: 'Succeed' }, 'Done', 'Step').stateMachine.StartAt).toBe('Done')
+  })
+
+  it('adds a state at a handle, in between where the handle led somewhere, the trigger\'s first', () => {
+    const fetch = addState(emptyDefinition(), [], { task: 'app:http' }, 'Fetch', 'Step')
+    const after = addStateAt(fetch, { type: 'Pass' }, 'Shape', 'Step', { kind: 'next', source: 'Fetch' })
+    expect(after.stateMachine.States.Fetch).toMatchObject({ Next: 'Shape' })
+    expect(after.stateMachine.States.Shape).toEqual({ Type: 'Pass', End: true })
+    expect(ledTo(after, { kind: 'start', source: '' })).toBe('Fetch')
+    const first = addStateAt(after, { type: 'Wait' }, 'Hold', 'Step', { kind: 'start', source: '' })
+    expect(first.stateMachine).toMatchObject({ StartAt: 'Hold', States: { Hold: { Type: 'Wait', Next: 'Fetch' } } })
+    expect(scopeAt({ kind: 'start', source: '' })).toEqual([])
+  })
+
+  it('adds a state on the error path of every error, taking over the catcher of every error and leaving the others', () => {
+    const fetch = addState(emptyDefinition(), [], { task: 'app:http' }, 'Fetch', 'Step')
+    const caught = addStateAt(fetch, { task: 'app:mail.send' }, 'Tell', 'Step', { kind: 'catch', source: 'Fetch' })
+    expect(caught.stateMachine.States.Fetch).toMatchObject({ Catch: [{ ErrorEquals: ['States.ALL'], Next: 'Tell' }] })
+    const between = addStateAt(caught, { type: 'Pass' }, 'Note', 'Step', { kind: 'catch', source: 'Fetch' })
+    expect(between.stateMachine.States.Fetch).toMatchObject({ Catch: [{ ErrorEquals: ['States.ALL'], Next: 'Note' }] })
+    expect(between.stateMachine.States.Note).toEqual({ Type: 'Pass', Next: 'Tell' })
+    const specific = replaceState(addState(fetch, [], { type: 'Fail' }, 'Gone', 'Step'), 'Fetch', { Type: 'Task', Resource: 'app:http', Arguments: {}, End: true, Catch: [{ ErrorEquals: ['Http.Status'], Next: 'Gone' }] })
+    expect(ledTo(specific, { kind: 'catch', source: 'Fetch' })).toBeUndefined()
+    const added = addStateAt(specific, { type: 'Pass' }, 'Else', 'Step', { kind: 'catch', source: 'Fetch' })
+    expect(added.stateMachine.States.Fetch).toMatchObject({ Catch: [{ ErrorEquals: ['Http.Status'], Next: 'Gone' }, { ErrorEquals: ['States.ALL'], Next: 'Else' }] })
+  })
+
+  it('adds a state at a Choice\'s handles: a new rule to write, or in place of its Default, going on to it', () => {
+    const choice = addState(addState(emptyDefinition(), [], { type: 'Choice' }, 'Pick', 'Step'), [], { type: 'Succeed' }, 'Done', 'Step')
+    const ruled = addStateAt(choice, { type: 'Pass' }, 'Big', 'Step', { kind: 'rule', source: 'Pick' })
+    expect(ruled.stateMachine.States.Pick).toEqual({ Type: 'Choice', Choices: [{ Condition: '', Next: 'Big' }] })
+    const defaulted = addStateAt(connect(ruled, 'default', 'Pick', 'Done'), { type: 'Pass' }, 'Small', 'Step', { kind: 'default', source: 'Pick' })
+    expect(defaulted.stateMachine.States.Pick).toMatchObject({ Default: 'Small' })
+    expect(defaulted.stateMachine.States.Small).toEqual({ Type: 'Pass', Next: 'Done' })
+  })
+
+  it('leaves a state that ends the run unconnected at a handle that led somewhere, and adds it inside a Map at a handle there', () => {
+    const two = addStateAfter(addState(emptyDefinition(), [], { type: 'Pass' }, 'A', 'Step'), [], { type: 'Pass' }, 'B', 'Step', 'A')
+    const ended = addStateAt(two, { type: 'Succeed' }, 'Done', 'Step', { kind: 'next', source: 'A' })
+    expect(ended.stateMachine.States.A).toEqual({ Type: 'Pass', Next: 'B' })
+    const map = addState(emptyDefinition(), [], { type: 'Map' }, 'Each', 'Item')
+    const at = { kind: 'next' as const, source: 'Each/Item 1' }
+    expect(scopeAt(at)).toEqual(['Each'])
+    const inside = addStateAt(map, { type: 'Pass' }, 'Step 1', 'Step', at)
+    expect(inside.stateMachine.States.Each).toMatchObject({ ItemProcessor: { States: { 'Item 1': { Next: 'Step 1' }, 'Step 1': { Type: 'Pass', End: true } } } })
   })
 
   it('builds a Block by hand, with a step of its own and one added inside it, that a save takes', () => {
@@ -105,5 +149,30 @@ describe('workflow edits', () => {
     expect(renamed.stateMachine.States.Any).toMatchObject({ Default: 'Finished' })
     expect(renamed.stateMachine.States.Each).toMatchObject({ Next: 'Finished' })
     expect(startAt(ticketsWorkflow, 'Each/Sent').stateMachine.States.Each).toMatchObject({ ItemProcessor: { StartAt: 'Sent' } })
+  })
+
+  it("rewrites the reads of a renamed state's status, inside Maps too, and leaves other names and plain text alone", () => {
+    const flow = {
+      trigger: { manual: {} },
+      order: 'data',
+      stateMachine: {
+        QueryLanguage: 'JSONata',
+        States: {
+          A: { Type: 'Pass' },
+          AB: { Type: 'Pass' },
+          Tell: { Type: 'Pass', Condition: "{% $states.context.Steps.A.Status = 'SUCCEEDED' and $states.context.Steps.AB.Status = 'SUCCEEDED' %}", Output: 'Steps.A is plain text' },
+          Each: { Type: 'Map', Items: '{% [1] %}', ItemProcessor: { States: { Item: { Type: 'Pass', Condition: '{% $states.context.Steps.`A`.Error = null %}' } } } },
+        },
+      },
+    } as unknown as Definition
+    const renamed = renameState(flow, 'A', 'Save it')
+    expect(renamed.stateMachine.States.Tell).toEqual({ Type: 'Pass', Condition: "{% $states.context.Steps.`Save it`.Status = 'SUCCEEDED' and $states.context.Steps.AB.Status = 'SUCCEEDED' %}", Output: 'Steps.A is plain text' })
+    expect(renamed.stateMachine.States.Each).toMatchObject({ ItemProcessor: { States: { Item: { Condition: '{% $states.context.Steps.`Save it`.Error = null %}' } } } })
+    // Text in quotes and comments is no read
+    const quoted = structuredClone(flow)
+    ;(quoted.stateMachine.States.Tell as { Output: string }).Output = "{% '$states.context.Steps.A.Status' & /* $states.context.Steps.A */ $states.context.Steps.A.Error %}"
+    expect((renameState(quoted, 'A', 'B').stateMachine.States.Tell as { Output: string }).Output).toBe("{% '$states.context.Steps.A.Status' & /* $states.context.Steps.A */ $states.context.Steps.B.Error %}")
+    // A name JSONata reads as a value is backticked too
+    expect(renameState(flow, 'A', 'true').stateMachine.States.Tell).toMatchObject({ Condition: "{% $states.context.Steps.`true`.Status = 'SUCCEEDED' and $states.context.Steps.AB.Status = 'SUCCEEDED' %}" })
   })
 })

@@ -2,7 +2,7 @@
 import ELK, { type ELK as Engine } from 'elkjs/lib/elk-api.js'
 import { useEffect, useMemo, useState } from 'react'
 import type { Graph } from './definition-graph'
-import { elkGraph, layoutElk, type Box } from './graph-layout'
+import { elkGraph, layoutElk, type Box, type LayoutExtras } from './graph-layout'
 
 // ELK in a worker of its own, so laying out a graph never holds up the page; the editor's page alone loads it.
 const workerEngine = () => new ELK({ workerFactory: () => new Worker(new URL('./elk-worker.ts', import.meta.url), { type: 'module', name: 'protobase-workflow-layout' }) })
@@ -22,13 +22,13 @@ const useEngine = () => {
 }
 
 /**
- * The boxes of the graph's nodes, laid out again each time its nodes or edges change, not when only what a state does
- * changes; until the first layout is done, undefined. A layout that a newer one overtook is dropped.
+ * The boxes of the graph's nodes, laid out again each time its nodes, edges, sizes or wires change, not when only what
+ * a state does changes; until the first layout is done, undefined. A layout that a newer one overtook is dropped.
  */
-export const useLayout = (graph: Graph) => {
+export const useLayout = (graph: Graph, extras?: LayoutExtras) => {
   const engine = useEngine()
   const [boxes, setBoxes] = useState<Map<string, Box>>()
-  const shape = useMemo(() => JSON.stringify(elkGraph(graph)), [graph])
+  const shape = useMemo(() => JSON.stringify(elkGraph(graph, extras)), [graph, extras])
   useEffect(() => {
     if (!engine) return
     let current = true

@@ -44,6 +44,11 @@ describe('the app:http step, run through the plugin interface', () => {
         if (request.url === '/report.pdf') return response.writeHead(200, { 'content-type': 'application/pdf' }).end('%PDF-1.4 report')
         if (request.url === '/files/a%zz') return response.writeHead(200, { 'content-type': 'application/octet-stream' }).end('bytes')
         if (request.url === '/text') return response.writeHead(200, { 'content-type': 'text/plain' }).end('plain words')
+        if (request.url === '/problem') return response.writeHead(200, { 'content-type': 'application/problem+json; charset=utf-8' }).end('{"title":"late"}')
+        if (request.url === '/feed') return response.writeHead(200, { 'content-type': 'Application/Atom+XML' }).end('<feed/>')
+        if (request.url === '/untyped') return response.writeHead(200).end('raw')
+        if (request.url === '/empty') return response.writeHead(200, { 'content-type': 'application/json' }).end()
+        if (request.url === '/not-json') return response.writeHead(200, { 'content-type': 'application/json' }).end('nope')
         response.writeHead(200, { 'content-type': 'application/json', 'set-cookie': 'session=1' }).end(JSON.stringify({ ok: true }))
       })
     })
@@ -66,15 +71,41 @@ describe('the app:http step, run through the plugin interface', () => {
     expect(logs.at(-1)).toMatch(new RegExp(`^POST ${base}/items: 200 in \\d+ ms$`))
   })
 
+  it('sends any body as JSON with body_encoding json, a text as a JSON string, keeping a Content-Type the headers give', async () => {
+    await local()({ url: `${base}/items`, method: 'POST', body: 'hello', body_encoding: 'json' }, context())
+    expect(seen.at(-1)).toMatchObject({ body: '"hello"', type: 'application/json' })
+    await local()({ url: `${base}/items`, method: 'POST', body: [1, 2], body_encoding: 'json' }, context())
+    expect(seen.at(-1)).toMatchObject({ body: '[1,2]', type: 'application/json' })
+    await local()({ url: `${base}/items`, method: 'POST', headers: { 'Content-Type': 'application/vnd.acme+json' }, body: 'hello', body_encoding: 'json' }, context())
+    expect(seen.at(-1)).toMatchObject({ body: '"hello"', type: 'application/vnd.acme+json' })
+  })
+
   it('reads the answer as text or as a file of the run, and sends such a file as its bytes with its type', async () => {
     expect(await local()({ url: `${base}/text`, response: 'text' }, context())).toMatchObject({ body: 'plain words' })
-    expect(await failure(local()({ url: `${base}/text` }, context()))).toEqual(['Http.InvalidBody', `127.0.0.1:${(server.address() as AddressInfo).port} answered with a body that is not JSON; read it with "response": "text"`])
+    expect(await failure(local()({ url: `${base}/text`, response: 'json' }, context()))).toEqual(['Http.InvalidBody', `127.0.0.1:${(server.address() as AddressInfo).port} answered with a body that is not JSON; read it with "response": "text"`])
     const { body: pdf } = (await local()({ url: `${base}/report.pdf`, response: 'file' }, context())) as { body: { uri: string; name: string; type: string; size: number } }
     expect(pdf).toEqual({ uri: expect.stringMatching(/^private:workflows\/run-1\/[0-9a-f-]{36}\?name=report.pdf&size=15$/), name: 'report.pdf', type: 'application/pdf', size: 15 })
     await local()({ url: `${base}/upload`, method: 'PUT', body: pdf }, context())
     expect(seen.at(-1)).toEqual({ method: 'PUT', url: '/upload', body: '%PDF-1.4 report', type: 'application/pdf' })
     expect(await failure(local()({ url: `${base}/upload`, method: 'PUT', body: pdf }, context('run-2')))).toEqual(['States.TaskFailed', 'body is not a file this run stored; a step takes only the files of its own run'])
     expect(await failure(httpStep({ allowPrivateAddresses: true })({ url: `${base}/report.pdf`, response: 'file' }, context()))).toEqual(['States.TaskFailed', 'The app keeps no files: workflows store theirs with the "private" file provider'])
+  })
+
+  it('reads the answer by its Content-Type without a response: JSON, text, else a file, an empty body as null', async () => {
+    const body = async (path: string) => ((await local()({ url: `${base}${path}` }, context())) as { body: unknown }).body
+    expect(await body('/text')).toBe('plain words')
+    expect(await body('/problem')).toEqual({ title: 'late' })
+    expect(await body('/feed')).toBe('<feed/>')
+    expect(await body('/report.pdf')).toMatchObject({ name: 'report.pdf', type: 'application/pdf', size: 15 })
+    expect(await body('/untyped')).toMatchObject({ name: 'untyped', type: 'application/octet-stream', size: 3 })
+    expect(await body('/empty')).toBeNull()
+    expect(await failure(local()({ url: `${base}/not-json` }, context()))).toEqual(['Http.InvalidBody', `127.0.0.1:${(server.address() as AddressInfo).port} answered application/json with a body that is not JSON; read it with "response": "text"`])
+  })
+
+  it('checks the body against the schema the step declares for it, failing one that does not fit', async () => {
+    const schema = { type: 'object', properties: { ok: { type: 'boolean' } } }
+    expect(await local()({ url: `${base}/items`, body_schema: schema }, context())).toMatchObject({ body: { ok: true } })
+    expect(await failure(local()({ url: `${base}/items`, body_schema: { type: 'object', properties: { ok: { type: 'string' } } } }, context()))).toEqual(['Http.InvalidBody', `127.0.0.1:${(server.address() as AddressInfo).port} answered with a body that does not fit body_schema: body.ok must be string`])
   })
 
   it('fails on a status outside 2xx, with the start of the body blanked of secrets before it is cut, and on arguments that make no request', async () => {
@@ -86,6 +117,7 @@ describe('the app:http step, run through the plugin interface', () => {
     expect(await failure(local()({ url: 'ftp:/nowhere' }, context()))).toEqual(['Http.AddressRefused', 'ftp: URLs are not requested; use http or https'])
     expect(await failure(local()({ url: base, method: 'HEAD' }, context()))).toEqual(['Http.InvalidArguments', 'method must be one of GET, POST, PUT, PATCH, DELETE'])
     expect(await failure(local()({ url: base, response: 'xml' }, context()))).toEqual(['Http.InvalidArguments', 'response must be equal to one of the allowed values'])
+    expect(await failure(local()({ url: base, store: { configuration: 'files' }, body_schema: { type: 'string' } }, context()))).toEqual(['Http.InvalidArguments', 'store keeps the body as a stored file, which no body_schema describes: give none with it'])
   })
 
   it('fails when no answer comes as Http.Network', async () => {

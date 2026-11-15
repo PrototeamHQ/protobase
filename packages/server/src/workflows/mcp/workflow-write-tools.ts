@@ -10,9 +10,9 @@ import { createApproval, updateApproval } from '../../assistant/write-prompts'
 import { notApproved, onlyNote, outside, type WriteRecordToolsInput } from '../../assistant/write-tool-limits'
 import { notFound } from '../../problem'
 import type { Row } from '../../types'
-import { definitionWarnings, type Definition } from '@protobase/workflows'
+import { definitionFromParts, definitionWarnings, type DefinitionParts } from '@protobase/workflows'
 import { mergePatch } from './merge-patch'
-import { definitionParameter, editParameter, idOf, idParameter, objectOf, textOf, workflowRefused } from './workflow-tool-args'
+import { definitionDataOf, definitionFieldsOf, definitionParameters, editParameter, hiddenMergeMessage, hiddenMerges, idOf, idParameter, objectOf, textOf, workflowRefused } from './workflow-tool-args'
 
 const writes = { readOnlyHint: false, destructiveHint: false, openWorldHint: false }
 const nameParameter = { type: 'string', description: 'A name, 1 to 100 characters.' }
@@ -21,8 +21,8 @@ const descriptionParameter = { type: 'string', description: 'What it does, for p
 // With the checker's warnings on the saved definition, which a save goes through with; none where a field rule hides
 // the definition from the caller.
 const saved = (record: Row, etag: string) => {
-  const definition = record.definition
-  const warnings = definition !== null && typeof definition === 'object' ? definitionWarnings(definition as Definition) : []
+  const readable = typeof record.state_machine === 'object' && record.state_machine !== null && typeof record.trigger === 'object' && record.trigger !== null
+  const warnings = readable ? definitionWarnings(definitionFromParts(record as DefinitionParts)) : []
   return JSON.stringify({ id: record.id, version: record.version, etag, ...(warnings.length > 0 && { warnings }) })
 }
 
@@ -30,16 +30,16 @@ const saved = (record: Row, etag: string) => {
 export const createWorkflowTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'create_workflow',
-    description: `Creates a workflow from its name and whole definition, checked as validate_workflow checks it, and returns JSON { id, version, etag }, with warnings as validate_workflow gives them. A definition that does not fit is refused with { error, problems }, each problem naming the state, the field and what was expected; nothing is saved then. The user approves each save in their client first.${onlyNote(input)}`,
-    parameters: { type: 'object', properties: { name: nameParameter, description: descriptionParameter, definition: definitionParameter }, required: ['name', 'definition'] },
+    description: `Creates a workflow from its name and its state machine, with its trigger (manual when absent) and execution order (sequence when absent), checked as validate_workflow checks it, and returns JSON { id, version, etag }, with warnings as validate_workflow gives them. A state machine exported from AWS Step Functions in JSONata imports as it is, and what this app cannot run, its service tasks included (an HTTP task is written as app:http), is refused by name. A definition that does not fit is refused with { error, problems }, each problem naming the state, the field and what was expected; nothing is saved then. The user approves each save in their client first.${onlyNote(input)}`,
+    parameters: { type: 'object', properties: { name: nameParameter, description: descriptionParameter, ...definitionParameters }, required: ['name', 'state_machine'] },
     annotations: writes,
     run: async (args, context) => {
       const name = textOf(args.name)
-      const definition = objectOf(args.definition)
-      if (!name || !definition) return 'Pass { "name": "<name>", "definition": { "trigger": ..., "stateMachine": ... } }.'
+      const machine = objectOf(args.state_machine)
+      if (!name || !machine) return 'Pass { "name": "<name>", "state_machine": { "QueryLanguage": "JSONata", ... } }, with a trigger and an execution_order when they are not manual and sequence.'
       const refusal = outside(input, 'workflows')
       if (refusal) return refusal
-      const data = { name, definition, ...(textOf(args.description) !== undefined && { description: textOf(args.description) }) }
+      const data = { name, trigger: { manual: {} }, ...definitionDataOf(args), state_machine: machine, ...(textOf(args.description) !== undefined && { description: textOf(args.description) }) }
       const { text, described } = await approvalTexts(context, 'workflows')
       const answer = await context.approve(createApproval(text, described, data))
       if (answer !== 'approved') return notApproved(answer)
@@ -51,26 +51,32 @@ export const createWorkflowTool = (input: WriteRecordToolsInput = {}) =>
 export const updateWorkflowTool = (input: WriteRecordToolsInput = {}) =>
   defineTool({
     name: 'update_workflow',
-    description: `Changes a workflow: its definition by a small edit (edit, a JSON Merge Patch of the saved definition) or whole (definition), and its name or description. The changed definition is checked as validate_workflow checks it and saved as the workflow's next version; runs started before keep theirs. Returns JSON { id, version, etag }, with warnings as validate_workflow gives them. A definition that does not fit is refused with { error, problems }, each naming the state, the field and what was expected; nothing is saved then. Pass the etag get_workflow gave to fail when someone changed it since. The user approves each save in their client first.${onlyNote(input)}`,
+    description: `Changes a workflow: its definition fields by a small edit (edit, a JSON Merge Patch of the saved state_machine, trigger, execution_order, connections and trace) or each one whole, and its name or description. The changed definition is checked as validate_workflow checks it and saved as the workflow's next version; runs started before keep theirs. Returns JSON { id, version, etag }, with warnings as validate_workflow gives them. A definition that does not fit is refused with { error, problems }, each naming the state, the field and what was expected; nothing is saved then. Pass the etag get_workflow gave to fail when someone changed it since. The user approves each save in their client first.${onlyNote(input)}`,
     parameters: {
       type: 'object',
-      properties: { id: idParameter, edit: editParameter, definition: definitionParameter, name: nameParameter, description: descriptionParameter, etag: { type: 'string', description: 'The etag get_workflow gave, to fail when the workflow changed since.' } },
+      properties: { id: idParameter, edit: editParameter, ...definitionParameters, name: nameParameter, description: descriptionParameter, etag: { type: 'string', description: 'The etag get_workflow gave, to fail when the workflow changed since.' } },
       required: ['id'],
     },
     annotations: writes,
     run: async (args, context) => {
       const id = idOf(args)
       const edit = objectOf(args.edit)
-      const whole = objectOf(args.definition)
-      if (!id || (edit && whole)) return 'Pass { "id": "<id>" } with either an edit or a whole definition, and any name or description to change.'
+      const whole = definitionDataOf(args)
+      if (!id || (edit && Object.keys(whole).length > 0)) return 'Pass { "id": "<id>" } with either an edit or whole definition fields, and any name or description to change.'
       const refusal = outside(input, 'workflows')
       if (refusal) return refusal
       const before = await recordBefore(context, 'workflows', id, textOf(args.etag) || undefined)
       if (typeof before === 'string') return before
       if (edit && !before) return refused(notFound('No workflows with this key that you may read'))
-      const definition = edit ? mergePatch(before!.record.definition, edit) : whole
-      const data: Row = { ...(definition !== undefined && { definition }), ...(textOf(args.name) !== undefined && { name: textOf(args.name) }), ...(textOf(args.description) !== undefined && { description: textOf(args.description) }) }
-      if (Object.keys(data).length === 0) return 'Pass an edit, a definition, a name or a description to change; nothing was saved.'
+      const hidden = edit ? hiddenMerges(before!.record, edit) : []
+      if (hidden.length > 0) return `${hidden.join(', ')} ${hiddenMergeMessage}; nothing was saved.`
+      // Only the fields the edit names are sent, each as it merges, or null where the edit removes it, so a field the
+      // caller may read but not write is not sent back; a state machine imports as create_workflow imports one.
+      const patched = edit && (mergePatch(definitionFieldsOf(before!.record), edit) as Row)
+      const changed = patched ? Object.fromEntries(Object.keys(definitionParameters).filter((key) => Object.hasOwn(edit, key)).map((key) => [key, edit[key] === null ? null : patched[key]])) : whole
+      const fields = changed
+      const data: Row = { ...fields, ...(textOf(args.name) !== undefined && { name: textOf(args.name) }), ...(textOf(args.description) !== undefined && { description: textOf(args.description) }) }
+      if (Object.keys(data).length === 0) return 'Pass an edit, definition fields, a name or a description to change; nothing was saved.'
       const { text, described } = await approvalTexts(context, 'workflows')
       const answer = await context.approve(updateApproval(text, described, id, before?.record ?? {}, data))
       if (answer !== 'approved') return notApproved(answer)

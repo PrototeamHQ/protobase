@@ -57,7 +57,7 @@ export const postgresBlockRuns = (schema: string, job: () => JobDefinition<{ run
     // A Block named `state` anywhere in the parent's version, as a key of some `States` whose value is a Block.
     const values = sql`select p.workflow_id, p.version, ${JSON.stringify(input) ?? null}::jsonb as input, p.tenant_id, 'run:' || p.id as started_by, p.trace, p.id as block_of, ${state}::text as block_state, ${visit}::text as block_visit
         from ${runs} p join ${versions} v on v.workflow_id = p.workflow_id and v.version = p.version
-        where p.id = ${parent} and jsonb_path_exists(v.definition -> 'stateMachine', '$.**.States ? (@.type() == "object").keyvalue() ? (@.key == $name && @.value.Type == "Block")', jsonb_build_object('name', ${state}::text), true)`
+        where p.id = ${parent} and jsonb_path_exists(v.state_machine, '$.**.States ? (@.type() == "object").keyvalue() ? (@.key == $name && @.value.Type == "Block")', jsonb_build_object('name', ${state}::text), true)`
     const returning = sql`returning id, status, output, error, cause, finished_at, output_blanked`
     if (!who || key === undefined) {
       const { rows } = await sql<Row>`insert into ${runs} (workflow_id, version, input, tenant_id, started_by, trace, block_of, block_state, block_visit)

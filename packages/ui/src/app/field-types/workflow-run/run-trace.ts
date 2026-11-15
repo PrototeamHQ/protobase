@@ -27,7 +27,7 @@ const weight: Record<NodeStatus, number> = { succeeded: 0, caught: 1, retrying: 
  * for a Map's items, and while the run goes on, `current` on the state each scope goes on to, or on the first state when
  * nothing ran yet. A block's run marks the states inside its Block, whose path is `within`.
  */
-export const nodeTraces = (steps: readonly TraceStep[], { inProgress, startAt, within = [] }: { inProgress: boolean; startAt: string; within?: readonly string[] }) => {
+export const nodeTraces = (steps: readonly TraceStep[], { inProgress, startAt, within = [] }: { inProgress: boolean; startAt?: string | undefined; within?: readonly string[] }) => {
   const placed = (scope: string, state: string) => [...within, statePath(scope, state)].join('/')
   const counts = new Map<string, number>()
   const lastOfState = new Map<string, TraceStep>()

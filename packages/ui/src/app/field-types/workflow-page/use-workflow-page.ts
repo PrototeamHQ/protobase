@@ -3,6 +3,7 @@ import { useRecord } from '../../../data/use-record'
 import { useFocusRecord } from '../../focus/focus-record'
 import { useAppAddress } from '../../use-app-address'
 import { useRunTrace } from '../workflow-run/use-run-trace'
+import { recordDefinition } from '../workflow/definition'
 import { workflowsResource, type WorkflowView } from './workflow-view'
 
 /** The most versions the version selector offers, the latest first: one page of the API. */
@@ -44,7 +45,7 @@ export const useWorkflowPage = (view: WorkflowView) => {
     runs: runs.items,
     trace,
     shown,
-    pastDefinition: past.data?.record.definition,
+    pastDefinition: past.data && recordDefinition(past.data.record),
     versionsError: versions.error,
     runsError: runs.error,
     pastError: past.error,

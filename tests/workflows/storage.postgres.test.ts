@@ -9,6 +9,7 @@ import { configExports, createAdmin, startJobs, workflowsMigration, type AuditEv
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
+import { definitionFields } from '../../test-support/workflow-fields'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -142,7 +143,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('storage configurations 
     const base = `http://127.0.0.1:${(receiver.address() as AddressInfo).port}`
     const workflow = await created('bob', '/workflows', {
       name: 'Keep the report',
-      definition: definition({
+      ...definitionFields(definition({
         Fetch: { Type: 'Task', Resource: 'app:http', Arguments: { url: `${base}/files/report.pdf`, store: { configuration: 'reports', path: 'in/report.pdf' } }, Assign: { stored: '{% $states.result.body %}' }, Next: 'Hold' },
         Hold: { Type: 'Wait', Seconds: 2, Next: 'Read' },
         Read: { Type: 'Task', Resource: 'app:storage.get', Arguments: { file: '{% $stored %}' }, Assign: { size: '{% $states.result.size %}' }, Next: 'Missing' },
@@ -154,7 +155,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('storage configurations 
           Next: 'Done',
         },
         Done: { Type: 'Succeed', Output: '{% {"stored": $stored, "size": $size, "gone": $gone} %}' },
-      }),
+      })),
     })
     // Switched to a local folder after the workflow was saved: the workflow names the configuration, never where it points.
     expect((await as('ada', `/storage_configurations/${config}`, { method: 'PATCH', body: { kind: 'local', dir: 'reports', bucket: null, region: null, endpoint: null, access_key_id: null, secret_access_key: null } })).status).toBe(200)

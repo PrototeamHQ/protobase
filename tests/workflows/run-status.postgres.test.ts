@@ -5,6 +5,7 @@ import { configExports, createAdmin, startJobs, unauthorized, workflowsMigration
 import { workflowsModule } from '@protobase/server/internal'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { traceFiles } from './support/run-trace'
+import { definitionFields } from '../../test-support/workflow-fields'
 
 vi.setConfig({ testTimeout: 60_000, hookTimeout: 30_000 })
 
@@ -79,7 +80,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("a workflow's status fro
     return (await response.json()).id as string
   }
   const runStatus = async (id: string) => (await sql<{ status: string }>`select status from workflows.runs where id = ${id}`.execute(db)).rows[0]!.status
-  const newWorkflow = async (name: string) => created(await as('ada', '/workflows', { method: 'POST', body: { name, definition: definition() } }))
+  const newWorkflow = async (name: string) => created(await as('ada', '/workflows', { method: 'POST', body: { name, ...definitionFields(definition()) } }))
   // Starts a run and waits until it reaches `until`: an ended status, or waiting.
   const run = async (workflow: string, input: Record<string, unknown>, until: string[] = ['succeeded', 'failed']) => {
     const id = await created(await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input } }))
@@ -122,7 +123,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("a workflow's status fro
     const again = await run(workflow, { fail: true })
     expect(await status(workflow)).toEqual({ status: 'failing', run: again, failures: 1 })
     const { updated_at: before } = await (await as('ada', `/workflows/${workflow}`)).json()
-    expect((await as('ada', `/workflows/${workflow}`, { method: 'PATCH', body: { definition: definition('Finished') } })).status).toBe(200)
+    expect((await as('ada', `/workflows/${workflow}`, { method: 'PATCH', body: { ...definitionFields(definition('Finished')) } })).status).toBe(200)
     const saved = await (await as('ada', `/workflows/${workflow}`)).json()
     expect([saved.run_status, saved.version, saved.updated_at > before]).toEqual(['new_version', 2, true])
   })

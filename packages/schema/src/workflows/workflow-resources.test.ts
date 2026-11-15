@@ -16,7 +16,7 @@ describe('workflowResources', () => {
     expect(hidden).toEqual([false, true, true, true, true])
     const workflows = parts.workflowsView.toModel()
     expect(workflows.recordWidth).toBe('full')
-    expect(workflows.record).toEqual({ surface: 'definition' })
+    expect(workflows.record).toEqual({ surface: 'state_machine' })
     expect(workflows.layout.some((item) => item.kind === 'section' && item.fields.includes('definition'))).toBe(false)
     expect(parts.workflowRunsView.toModel(parts.workflowRuns.toModel()).recordOpens).toEqual({ kind: 'record', resource: 'workflows', key: '{{workflow_id}}', run: '{{id}}' })
   })

@@ -1,6 +1,6 @@
 import { Flag, Trash2 } from 'lucide-react'
 import type { WorkflowTypeList } from '@protobase/client'
-import type { Definition, State } from '@protobase/workflows'
+import { orderOf, type Definition, type State } from '@protobase/workflows'
 import { Button } from '../../../primitives/button'
 import { allNames, machineAt, pathOf, splitPath, stateAt, triggerId, type StatePath } from './definition'
 import { removeState, renameState, replaceState, setTrigger, startAt } from './definition-edits'
@@ -58,7 +58,7 @@ const StatePanel = ({ definition, types, selected: path, problems, warnings = []
           onSelect(pathOf(scope, to))
         }}
       />
-      <StateFields state={state} types={types} names={Object.keys(machine.States)} problems={problems} disabled={disabled} onChange={(next) => change(replaceState(definition, path, next))} />
+      <StateFields state={state} types={types} names={Object.keys(machine.States)} problems={problems} disabled={disabled} data={orderOf(definition) === 'data'} onChange={(next) => change(replaceState(definition, path, next))} />
       <details>
         <summary className="cursor-pointer text-body font-medium text-muted-foreground">{text('asJson')}</summary>
         <div className="mt-3">
@@ -77,7 +77,7 @@ const StatePanel = ({ definition, types, selected: path, problems, warnings = []
       </details>
       {onChange && (
         <div className="flex flex-wrap gap-2">
-          {machine.StartAt !== name && (
+          {orderOf(definition) === 'sequence' && machine.StartAt !== name && (
             <Button size="sm" onClick={() => change(startAt(definition, path))}>
               <Flag className="size-3.5" />
               {text('startHere')}

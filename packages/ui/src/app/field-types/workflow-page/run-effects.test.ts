@@ -34,6 +34,34 @@ describe('stepsThatAct', () => {
   it('starts where it is told', () => {
     expect(stepsThatAct(definition, types, 'Each').map((step) => step.name)).toEqual(['Store'])
   })
+
+  it('names every step that writes in data order, which has no start, in a Map too', () => {
+    const data: Definition = {
+      order: 'data',
+      trigger: { manual: {} },
+      stateMachine: {
+        QueryLanguage: 'JSONata',
+        States: { Post: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://a.example', method: 'POST' } }, Each: { Type: 'Map', Items: '{% [] %}', ItemProcessor: { States: { Mail: { Type: 'Task', Resource: 'app:mail.send' } } } } },
+      },
+    }
+    expect(stepsThatAct(data, types).map((step) => step.name)).toEqual(['Post', 'Mail'])
+  })
+
+  it('names, for a re-run from a step in data order, that step and those that depend on it', () => {
+    const data: Definition = {
+      order: 'data',
+      trigger: { manual: {} },
+      stateMachine: {
+        QueryLanguage: 'JSONata',
+        States: {
+          Read: { Type: 'Task', Resource: 'app:records.get', Assign: { got: '{% $states.result %}' } },
+          Post: { Type: 'Task', Resource: 'app:http', Arguments: { url: '{% $got.url %}', method: 'POST' } },
+          Other: { Type: 'Task', Resource: 'app:mail.send' },
+        },
+      },
+    }
+    expect(stepsThatAct(data, types, 'Read').map((step) => step.name)).toEqual(['Post'])
+  })
 })
 
 describe('changedSinceRun', () => {

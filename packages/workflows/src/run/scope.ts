@@ -64,7 +64,7 @@ export const runScope = async (context: SegmentContext, machine: Machine, where:
     if (position.kind === 'ended') {
       // A scope whose last state was a Wait ends only once that time has passed.
       if (position.resumeAt && position.resumeAt > context.now()) return { kind: 'blocked', until: position.resumeAt }
-      return { kind: 'ended', output: position.output }
+      return { kind: 'ended', output: position.output, variables: position.variables }
     }
     // Another Map item found the run gone on without this segment: this item stops too, before its next step.
     if (context.superseded()) throw new SupersededError(`Scope "${scope}" stopped: another segment saved a step of this run first`)
@@ -77,7 +77,7 @@ export const runScope = async (context: SegmentContext, machine: Machine, where:
     const from = position
     const visit = visitOf(position)
     const item = (index: number) => ({ scope: innerScope(scope, name, from.seq, index), logical: itemScope(logical, name, visit, index) })
-    const runItem = (inner: Machine, index: number, value: unknown, seen: Record<string, unknown>) => runScope(context, inner, item(index), value, seen, from.clock)
+    const runItem = (inner: Machine, index: number, value: unknown, seen: Record<string, unknown>) => context.runMachine(context, inner, item(index), value, seen, from.clock)
     const call: StateCall = { context, name, scope, logical, position, visit, bindings: bindingsOf(context, outer, scope, position), logs: [], runScope: runItem }
     // The step's place under the cap is taken before it runs, so Map items running at once cannot pass the cap together;
     // a state that saves no step gives it back. One that throws ends the segment, whose count goes with it.

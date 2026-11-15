@@ -21,8 +21,8 @@ It adds five resources, over a `workflows` schema that [`protobase migration`](/
 
 | Resource | |
 | --- | --- |
-| `workflows` | A name, a description and the definition. Each save that changes the definition is checked, and kept as the workflow's next version, saved by the caller. |
-| `workflow_versions` | Every version of every definition as it was saved, with who saved it and when. Read-only. |
+| `workflows` | A name, a description and the definition, in fields of its own: `state_machine`, `trigger`, `execution_order`, `connections` and `trace`. Each save that changes one of them is checked, and kept as the workflow's next version, saved by the caller. |
+| `workflow_versions` | Every version of every definition as it was saved, its five fields together, with who saved it and when. Read-only. |
 | `workflow_runs` | A run, started by creating it with `workflow_id`, an `input` and, if it says, its own `trace`, and a saved `version` to run another than the published one, or on a workflow that is off the one saved last, or with `rerun_of` to [re-run a failed run](#re-running-a-failed-run), and `replay: true` too to [replay a run](#replaying-a-run); it runs the version its workflow had then, and a re-run or a replay the input of the run it names. Its status, output, error, timing and trace file are written by the runner. |
 | `workflow_triggers` | The trigger of each enabled workflow that has one besides `manual`: its type, status and last error. Read-only. |
 | `workflow_resolutions` | Each time someone [marked a workflow resolved](#run-status), by whom and when. Created only. |
@@ -44,7 +44,17 @@ Records steps act as the user who saved the run's version, with the roles the pr
 
 ## The document
 
-A definition is one JSON document: the workflow's trigger, and the state machine a run runs from `StartAt`. Every state names where the run goes next, and every value in it is JSON; a string written as `{% ... %}` is a JSONata expression, evaluated when the state runs, and keeps its value's type.
+A workflow's definition is kept in fields of its own, saved together as one version:
+
+| Field | |
+| --- | --- |
+| `state_machine` | The States Language with JSONata, as its specification writes it: in sequence order every state names where the run goes next. |
+| `trigger` | What starts its runs, as [Triggers](#triggers) says. |
+| `execution_order` | `sequence` (the default), the States Language's own order, or `data`, where [the data orders the states](#execution-order-from-the-data). Filterable. |
+| `connections` | The account each connection of its types signs in with, as [Connecting an account](#connecting-an-account) says. |
+| `trace` | Which of its runs keep a [trace](#traces). |
+
+Every value in the state machine is JSON; a string written as `{% ... %}` is a JSONata expression, evaluated when the state runs, and keeps its value's type. The example below shows the trigger and the state machine as one document, `{ "trigger", "stateMachine" }`, the shape the runner and the check read them in.
 
 ```json
 {
@@ -87,6 +97,44 @@ A definition is one JSON document: the workflow's trigger, and the state machine
 ```
 
 The document holds no layout: the [editor](#the-editor) lays the graph out from its edges.
+
+### Execution order from the data
+
+:::caution[Beta]
+A step skipped in a run is not in its trace yet, and the editor has no condition nodes yet: a Condition is written as an expression.
+:::
+
+With `execution_order` `data`, the state machine has no `StartAt` and its states no `Next` or `End`: a state runs once every state it reads from has ended, and states that read nothing of each other run at once, at most 20 of a run at a time.
+
+```json
+{
+  "QueryLanguage": "JSONata",
+  "States": {
+    "Rate": { "Type": "Task", "Resource": "app:http", "Arguments": { "url": "https://rates.example.com/eur" }, "Assign": { "rate": "{% $states.result.body %}" } },
+    "Stock": { "Type": "Task", "Resource": "app:http", "Arguments": { "url": "https://stock.example.com/42" }, "Assign": { "stock": "{% $states.result.body %}" } },
+    "Save": { "Type": "Task", "Resource": "app:records.update", "Arguments": { "resource": "products", "key": "42", "data": { "price": "{% $rate.value * 10 %}", "stock": "{% $stock.count %}" } } },
+    "Tell": { "Type": "Task", "Resource": "app:mail.send", "Condition": "{% $states.context.Steps.Save.Status = 'SUCCEEDED' %}", "Arguments": { "to": "ops@example.com", "subject": "Product 42 updated", "text": "Done" } }
+  }
+}
+```
+
+- **What a state runs after:** each state whose variables it reads, and each whose status it reads as `$states.context.Steps.<state>`: `{ Status, Error, Cause }`, the status one of `SUCCEEDED`, `FAILED`, `TIMED_OUT` (its error was `States.Timeout`), `ABORTED` and `SKIPPED`. Each variable has one state that assigns it, and a state that would run after itself is refused.
+- **Condition:** an expression a state runs under, evaluated once what it runs after has ended; false skips it. Choice and Succeed are not used in this order: a Condition decides, and the run ends once no state is left to run.
+- **Skips pass on:** a state one of whose dependencies did not succeed is skipped, unless its Condition reads that dependency's `$states.context.Steps` entry, which takes the outcome in hand: a failure skips what depends on it unless a step says it handles it.
+- **Order without data:** a Condition that reads the earlier state's status, such as Tell above, which runs only once Save succeeded.
+- **Failures:** an uncaught failure fails the run at once, and the states running then take no step after the one they are in, as a failing Parallel branch stops the others. A catcher without `Next` keeps the run going: the state's status is `FAILED`, with its `Error` and `Cause`, and the catcher's `Output` and `Assign` take effect. `Retry` works as in sequence order. Any `FAILED` a state can read was caught, since an uncaught one ends the run.
+- **The run's output:** the output of the states nothing reads from, by name, or that one state's alone. A Map's or a Block's states run in the workflow's order.
+
+A workflow switches order in the editor (see [The editor](#the-editor)), or by saving its fields in the other order.
+
+### Importing from Step Functions
+
+:::caution[Beta]
+- <gap>A JSONPath state machine cannot import because converting JSONPath to JSONata is not implemented.</gap>
+- <gap>A state machine with a service task, the HTTP task (`arn:aws:states:::http:invoke`) included, a `Parallel` or a distributed Map cannot import because running them, or turning an HTTP task into an `app:http` step, is not implemented: write such a task with one of this app's step types, such as `app:http`.</gap>
+:::
+
+A JSONata state machine exported from AWS Step Functions saves and runs as it is, in sequence order: `create_workflow` over MCP takes it as `state_machine`, with a manual trigger unless one is given. Refused, each by name: a JSONPath state machine (`QueryLanguage` missing or `JSONPath`, or a state with `InputPath`, `Parameters`, `ResultSelector`, `ResultPath`, `OutputPath` or `ItemsPath`), every service task (`arn:aws:...`, the HTTP task, `.sync` and `.waitForTaskToken` included), Parallel, a distributed Map, `HeartbeatSeconds`, `Credentials` and a whole-run `TimeoutSeconds`.
 
 ### Triggers
 
@@ -191,7 +239,8 @@ The save is refused, naming each state and field, when the document does not fit
 - a `Next`, `Default` or catcher names no state, a state is never reached, or a state name is used twice, Maps included;
 - a Task names a step type the app does not have, or the state type is not one of Task, Choice, Pass, Map, Wait, Succeed and Fail;
 - an expression does not parse, or reads anything but the names above: the state's input as JSONata's context (a bare field name, `$`, `$$`), `$states.input` outside an item's first state, `$states.context` but for the three reads above, a variable no state that can run before it assigns, or `$eval`;
-- a limit below is passed.
+- a limit below is passed;
+- an argument, or a field of an argument written as an object, is one read by name of a value whose type its step type does not take there, such as `{% $fetch.status %}`, a whole number, for a records step's text field: the types come from each type's input and output schemas, the trigger's and the steps' records typed by the resource they name.
 
 The problem's `problems` lists them as `{ state, field, message }`, where a state inside a Map is named by its path, such as `Each/Total`. The document's JSON Schema is `definitionSchema` of `@protobase/workflows`, and `checkDefinition` runs the whole check.
 
@@ -258,7 +307,7 @@ A workflow's record page in the admin app, `/workflows/<id>`, is a [focus page](
 A version can be published or looked at, not compared with another beyond a count of its changes, the version selector lists only the latest 100, the Runs panel the latest 20, and the graph has no undo.
 :::
 
-The bar under the breadcrumb holds what is live, the version shown, *Add step*, *Runs*, how the work stands, *Test run*, *Save* and *Publish*, with the rest behind "...": *Discard changes*, *Workflow details*, *Turn off* and *Delete*. The graph takes the rest of the page; the wheel pans it, and pinching zooms it. Choosing a step opens its form in the panel beside the graph, and the graph makes room. *Workflow details* leads to the workflow's standard form at `?standard=true`, with its name, description and published version and the Trigger, Runs and Versions tables.
+The bar under the breadcrumb holds what is live, the version shown, *Add step*, *Runs*, how the work stands, *Test run*, *Save* and *Publish*, with the rest behind "...": *Discard changes*, *Workflow details*, *Turn off* and *Delete*. The graph takes the rest of the page; the wheel and a pinch zoom it towards the pointer, and dragging its empty space with any mouse button pans it, with Shift-drag selecting a box; a trackpad's two-finger scroll zooms too. Choosing a step opens its form in the panel beside the graph, and the graph makes room. *Workflow details* leads to the workflow's standard form at `?standard=true`, with its name, description and published version and the Trigger, Runs and Versions tables.
 
 - **Save and Publish.** *Save* makes a new version and changes nothing that is live, so a change can be tried first. *Publish* asks in the panel, says what changes and how many steps differ, warns about a version with no test run, and names the trigger it starts. With unsaved changes it saves them first, and a refused save stops there. *Turn off* stops the workflow; runs in progress stay on their version.
 - **Versions.** *Version* chooses which saved version the graph shows, each marked as the latest and as live; it lists the latest 100. <gap>The version selector cannot offer a version older than the latest 100 because loading more of them into it is not implemented.</gap> Such a version still opens by its address. The latest version is the one you edit. An older one is read-only, with *Edit latest version* in the notice, and publishing it goes back to it. The version is in the address, `/workflows/<id>?version=<number>`, so a link opens it.
@@ -271,9 +320,13 @@ The bar under the breadcrumb holds what is live, the version shown, *Add step*, 
 
 A user who may read a workflow but not change it gets the same page, its fields and graph locked, without Save or Publish. On a mobile screen the bar holds what is live, *Runs* and *Test run*, or *Save* with unsaved changes, and the rest behind "..."; a step's form can be changed, and steps are added on a wider screen.
 
-- **The graph lays itself out.** The trigger is on top, each state is a box, a Map is a box around the states it runs for each item, and each edge is drawn from the field that names it: a state's `Next`, a Choice's rules (labelled with their condition) and its `Default` ("Otherwise"), and a Task's or Map's catchers ("On error", dashed). The graph is laid out by ELK's layered algorithm, from top to bottom, each time a state or edge is added, removed or renamed; the document keeps no positions, so the graph a person sees is the one a model or the API wrote, and the one they edit is what a model reads back. The canvas zooms with its buttons and by pinching.
-- **Adding a step.** *Add step* opens a searchable picker in the panel: every step type the app can run, its plugins' included, each with what it does, then Choice, For each item, Wait, Set values, Succeed and Fail. Search finds other words too, such as *email* for Send mail. It says where the step lands, and choosing a step on the graph changes that. A new step is named `Step 1`, `Step 2` and so on, and goes after the chosen step, taking over where it went on to, or after the last step; into the Map chosen; or first, with the trigger chosen. After a Choice or a step that ends the run it stays unconnected, and so does a Succeed or Fail that would cut off the steps after it, such as one added between two steps or first in a workflow that has steps.
-- **Connecting steps.** Drag from a step's handle to another step, or tap one handle and then the other: the bottom handle sets `Next`, a Choice's *When* handle adds a rule and its *Otherwise* handle sets `Default`, a Task's or Map's *On error* handle adds a catcher of `States.ALL`, and the trigger's handle sets `StartAt`. A step leads only to steps of its own machine, so an edge into or out of a Map is refused. The chosen step's form sets the same edges with menus: *Goes on to*, each rule's and catcher's *Then goes to*, and *Otherwise goes to*.
+- **The graph lays itself out.** The trigger is on the left, each state is a box, a Map is a box around the states it runs for each item, and each edge is drawn from the field that names it: a state's `Next`, a Choice's rules (labelled with their condition) and its `Default` ("Otherwise"), and a Task's or Map's catchers ("On error", dashed). The graph is laid out in layers, from left to right, each time a state, an edge, a pin or a wire is added, removed or renamed; the document keeps no positions, so the graph a person sees is the one a model or the API wrote, and the one they edit is what a model reads back. The canvas zooms with the wheel, a pinch and its buttons, and pans by dragging.
+- **Adding a step.** *Add step* opens a searchable picker in the panel: every step type the app can run, its plugins' included, each with what it does, then Choice, For each item, Wait, Set values, Succeed and Fail. Search finds other words too, such as *email* for Send mail. It says where the step lands, and choosing a step on the graph changes that. Clicking or tapping one of a step's handles, which grows into a plus under the pointer, opens the same picker for a step right there: at the bottom handle after the step, at a Choice's *When* as a new rule and at its *Otherwise* as its `Default`, at *On error* on the path of every error, and at the trigger's as the first step. Where the handle led to a step already, the new one goes in between and goes on to that step, such as between the trigger and the first step; a Succeed or Fail there stays unconnected. A new step is named `Step 1`, `Step 2` and so on, and goes after the chosen step, taking over where it went on to, or after the last step; into the Map chosen; or first, with the trigger chosen. After a Choice or a step that ends the run it stays unconnected, and so does a Succeed or Fail that would cut off the steps after it, such as one added between two steps or first in a workflow that has steps.
+- **Pins and wires.** Execution runs along the square handles in a box's header, and data along round pins below it, coloured by type: each argument of a Task's step type is a pin on the left, with its type on hover, and each value a step returns, or the trigger gives the run, is a pin on the right, such as an HTTP request's *Status*, *Headers* and *Body* and a record trigger's *Record*. A record, an HTTP body with a `body_schema`, headers and any other object with a title are one pin each. Dragging an output pin to an input pin wires them: the input reads that value by name, the step it comes from gets a variable keeping its result when it has none, and taking the wire away empties the input. A wire is refused over a pin that does not take it, saying why, such as *Whole number does not fit Text*, or that the step does not run before. An input no wire reads shows its value on its row, to type there where it is text, a number, true or false or a choice; an expression shows as ƒ and an object as {…}, both edited in the step's form. Inputs a type does not need and that hold nothing fold away behind *N more inputs*.
+- **Break and Make.** Letting go of a wire from an object pin on the empty canvas offers *Break <Type>*, a node with a pin for each field of the object, such as a record's fields; from an object input, *Make <Type>*, which builds it from a pin per field, such as the fields a records step writes. They are the editor's own: they run no step and leave no trace, the inputs that use them read `$fetch.body.ip` and hold `{ "name": "{% $fetch.body.ip %}" }`, and opening a workflow draws a Break for each object a read goes into and a Make for each argument written as an object whose fields read values. One that nothing reads yet goes with a reload.
+- **Execution order.** "Run the steps from the data" or "in sequence" under "..." switches the draft's order. To data, each `Next` becomes what the state it names runs after, by its data or, where it reads none of it, by a Condition on the earlier state's status, so the states run in the same order; refused with a Choice, an error path to another state or a variable two states assign. To sequence, the states form one chain in an order every dependency keeps; refused with a Condition or a catcher without `Next`. In data order the graph has no execution handles: in Pins the wires order the steps, each step has an Only when pin (its Condition) first and a Step status pin last, and in Simple an arrow joins each pair of steps where one reads the other, dashed where it reads only the other's status; a step with a Condition shows an "only when" badge.
+- **Pins or Simple.** *Pins* and *Simple* above the graph switch how it is drawn: Simple shows the steps and the lines between them alone, with every input edited in the step's form, where a wire made in Pins shows as the read it wrote. Both draw the same document, so switching changes nothing saved; the browser remembers the choice, Pins by default.
+- **Connecting steps.** Drag from a step's execution handle to another step; a click or tap without a drag adds a step there instead. The first handle sets `Next`, a Choice's *When* handle adds a rule and its *Otherwise* handle sets `Default`, a Task's or Map's *On error* handle adds a catcher of `States.ALL`, and the trigger's handle sets `StartAt`. A step leads only to steps of its own machine, so an edge into or out of a Map is refused. The chosen step's form sets the same edges with menus: *Goes on to*, each rule's and catcher's *Then goes to*, and *Otherwise goes to*.
 - **Removing.** Delete or Backspace removes the chosen step or edge, as does the form's *Remove step*. Removing a step removes the edges to it: a `Next` to it becomes `End`, and a rule, `Default` or catcher naming it goes. Removing the first step of a workflow or Map makes the first step left in it the first.
 - **A step's form.** Choosing a step opens its form in the side panel beside the graph: its name, which renames every edge to it, then what its type takes. A Task's form has a field for each argument of its step type's input schema, the ones it needs marked, as listed under [Step types](#step-types) or by its plugin: one line of text for a string, one line for a number or `true` and `false`, a menu for an `enum`, names separated by commas for a list of strings, and JSON for anything else; a Choice's its rules and `Default`; a Map's `Items` and `MaxConcurrency`; a Wait's `Seconds`; a Pass's and a Succeed's `Output`; a Fail's `Error` and `Cause`. A field takes text, an expression (`{% ... %}`) or JSON; an emptied field is left out. *The step as JSON* edits every field of the step, such as `Retry`, `Assign` and `TimeoutSeconds`. The trigger's form picks among the app's triggers, its plugins' included, and draws a field for each input of its schema the same way, such as a record trigger's resource, `when` and `key`.
 - **Problems on their step.** The editor runs the same check as a save on every change, and shows each problem on the step it names, as a count on its box and a list and a marked field in its form; a problem with the trigger or the first step shows on the trigger, and the bar counts them all, with the list in the panel. A field left to fill in is not a fault yet: a new step shows no red, and the bar says how many fields are left. Save, Test run and Publish then go to the first of them, which says so. A warning of the check, such as a [Wait after a Block](#blocks), shows on its step as a mark and in its form as something to check, and never stops a save. Until then the draft stays on this browser, through a reload. Saving writes the definition through the API, where the save hook checks it again: a definition with a problem is refused with the 400 above, whose `errors` hold each problem for the `definition` field, with its state and field in `params`.
@@ -320,8 +373,10 @@ One request to a URL built at run time:
 | `method` | `GET` (default), `POST`, `PUT`, `PATCH` or `DELETE`. |
 | `headers`, `query` | Objects of text values; `query` is added to the URL's query. |
 | `body` | Text is sent as it is, a file value as its bytes with its type, any other value as JSON; a `GET` sends none. |
-| `response` | How the answer's body is read: `json` (default, parsed; empty is `null`), `text`, or `file`, kept as a file of the run. |
-| `store` | `{ configuration, path? }`: streams the answer's body, of any size, into a [storage configuration](#storing-files), and gives the stored file as `body`. Takes no `response`. |
+| `body_encoding` | `json` sends the body as JSON whatever it holds, a text as a JSON string, with `Content-Type: application/json` unless the headers give one. |
+| `response` | How the answer's body is read: `json`, parsed (empty is `null`), `text`, or `file`, kept as a file of the run. Without it, by the answer's `Content-Type`: JSON for `application/json` and any `+json` type, text for `text/*` and other textual types (XML, JavaScript, YAML, TOML, NDJSON, form data), a file for any other type or none, and `null` for an empty body. |
+| `body_schema` | The JSON Schema of the answer's body as it is read, such as `{ "type": "object", "properties": { "ip": { "type": "string" } } }`: a body that does not fit it fails the step with `Http.InvalidBody`, and the editor offers the body's fields by it. |
+| `store` | `{ configuration, path? }`: streams the answer's body, of any size, into a [storage configuration](#storing-files), and gives the stored file as `body`. Takes no `response` or `body_schema`. |
 
 A `GET` only reads; every other method is recorded. The result is `{ status, headers, body }`, without the cookies the answer sets. A status outside 2xx fails the step with `Http.Status`, whose cause names the status and holds at most the first 200 characters of the body, secrets blanked out first; a redirect is never followed. `Http.Network` is a request that got no answer. The step resolves the URL's host when it runs and refuses it with `Http.AddressRefused` unless every address is public, then connects to the very address it checked, so a URL built from a webhook's payload cannot reach the app's own network. It reads at most 10 MiB of the answer's body: a larger one fails the step with `Http.ResponseTooLarge`, rather than being cut short. With `store`, the body streams straight into the store, so its size is limited only by what the store takes, and the step is recorded, a `GET` too: a run taken up again keeps the stored file and does not fetch it again, from a link that may have expired by then.
 
@@ -334,7 +389,7 @@ A `GET` only reads; every other method is recorded. The result is `{ status, hea
 | `app:records.get` | `resource`, `key` | the record |
 | `app:records.list` | `resource`, optional `filter` (the API's filter syntax), `order_by`, `limit` | `{ records }` |
 
-A get and a list only read; a create and an update are recorded. They go through the app's API as the user who saved the run's version, with the roles that user holds now in the run's tenant, so its access rules, tenant scope, validation and write hooks apply as they do to that user's own requests. Whoever may start a run (`workflow_runs.create`) thus has it do what the workflow's last editor may do; a workflow never does more. When that user holds no role any more, or the version was saved by the app's code, the step fails with `Records.Refused`, as it does for a refusal of the API, its status and message in the cause. A number for a decimal field is written as its text; a file field takes a file value the run keeps.
+A get and a list only read; a create and an update are recorded. They go through the app's API as the user who saved the run's version, with the roles that user holds now in the run's tenant, so its access rules, tenant scope, validation and write hooks apply as they do to that user's own requests. Whoever may start a run (`workflow_runs.create`) thus has it do what the workflow's last editor may do; a workflow never does more. When that user holds no role any more, or the version was saved by the app's code, the step fails with `Records.Refused`, as it does for a refusal of the API, its status and message in the cause. A number for a decimal field is written as its text; a file field takes a file value the run keeps. Their records, and a record trigger's, are typed by the resource's fields, as the editor's pins and the save's check read them.
 
 ### app:mail.send
 

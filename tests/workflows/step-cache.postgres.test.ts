@@ -9,6 +9,7 @@ import { workflowsModule } from '@protobase/server/internal'
 import type { Plugin } from '@protobase/workflows/plugin'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { traceFiles } from './support/run-trace'
+import { definitionFields } from '../../test-support/workflow-fields'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -69,7 +70,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the step cache on the a
     return (await response.json()).id as string
   }
   const runOf = async (tenant: string, args: Record<string, unknown>) => {
-    const workflow = await as(tenant, '/workflows', { name: 'Lookup', definition: definition(args) })
+    const workflow = await as(tenant, '/workflows', { name: 'Lookup', ...definitionFields(definition(args)) })
     const id = await as(tenant, '/workflow_runs', { workflow_id: workflow })
     await vi.waitFor(async () => expect((await sql<{ status: string }>`select status from workflows.runs where id = ${id}`.execute(db)).rows[0]!.status).toBe('succeeded'), { timeout: 20_000, interval: 50 })
     return (await trace.steps(db, id))[0] as unknown as { output: { n: number }; logs: { message: string }[] }

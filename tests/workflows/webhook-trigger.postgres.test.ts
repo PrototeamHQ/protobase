@@ -12,6 +12,7 @@ import { definePlugin, webhookInputProperties } from '@protobase/workflows/plugi
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { traceFiles } from './support/run-trace'
+import { definitionFields } from '../../test-support/workflow-fields'
 
 // Workers poll on real timers, which a busy machine stretches.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -118,7 +119,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     return { status: response.status, body: (await response.json().catch(() => null)) as Record<string, any> }
   }
   const echo = { QueryLanguage: 'JSONata', StartAt: 'Done', States: { Done: { Type: 'Pass', Output: '{% $states.context.Execution.Input %}', End: true } } }
-  const save = async (user: string, trigger: unknown) => (await as(user, '/api/v1/workflows', 'POST', { name: 'Hook', definition: { trigger, stateMachine: echo } })).body as { id: string; version: number }
+  const save = async (user: string, trigger: unknown) => (await as(user, '/api/v1/workflows', 'POST', { name: 'Hook', ...definitionFields({ trigger, stateMachine: echo }) })).body as { id: string; version: number }
   const enable = (user: string, id: string, version: number | null) => as(user, `/api/v1/workflows/${id}`, 'PATCH', { enabled_version: version })
   const issue = (user: string, id: string, secret?: string) => as(user, `/api/workflows/${id}/webhook`, 'POST', secret === undefined ? undefined : { secret })
   // A workflow on `trigger`, turned on, with its URL issued.
@@ -187,7 +188,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
       expect((await signed(hook.url, hook.secret)).status).toBe(404)
     }
     const moved = await hooked()
-    await as('ada', `/api/v1/workflows/${moved.id}`, 'PATCH', { definition: { trigger: { manual: {} }, stateMachine: echo } })
+    await as('ada', `/api/v1/workflows/${moved.id}`, 'PATCH', { ...definitionFields({ trigger: { manual: {} }, stateMachine: echo }) })
     await as('ada', `/api/v1/workflows/${moved.id}`, 'PATCH', { enabled_version: 2 })
     expect((await signed(moved.url, moved.secret)).status).toBe(404)
     expect(await runsOf(hook.id)).toEqual([])
@@ -202,7 +203,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     await sql`update workflows.triggers set input = '{"auth":{"mode":"url_only"}}' where workflow_id = ${unknown.id}`.execute(db)
     expect((await call(unknown.url, { body: '{}' })).status).toBe(401)
     expect((await signed(unknown.url, unknown.secret)).status).toBe(401)
-    const saved = await as('ada', '/api/v1/workflows', 'POST', { name: 'Open', definition: { trigger: { 'app:webhook': { auth: { mode: 'url_only' } } }, stateMachine: echo } })
+    const saved = await as('ada', '/api/v1/workflows', 'POST', { name: 'Open', ...definitionFields({ trigger: { 'app:webhook': { auth: { mode: 'url_only' } } }, stateMachine: echo }) })
     expect(saved.status).toBe(400)
     expect(await runsOf(hook.id)).toEqual([])
     expect(await runsOf(unknown.id)).toEqual([])
@@ -246,7 +247,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     expect((await call(hook.url, { body: stream, duplex: 'half' } as RequestInit)).status).toBe(413)
     expect((await call(hook.url, { body: 'x'.repeat(1024 * 1024 + 1) })).status).toBe(413)
     expect(await runsOf(hook.id)).toEqual([])
-    const tooLarge = await as('ada', '/api/v1/workflows', 'POST', { name: 'Big', definition: { trigger: { 'app:webhook': { body_limit: 10 * 1024 * 1024 + 1 } }, stateMachine: echo } })
+    const tooLarge = await as('ada', '/api/v1/workflows', 'POST', { name: 'Big', ...definitionFields({ trigger: { 'app:webhook': { body_limit: 10 * 1024 * 1024 + 1 } }, stateMachine: echo }) })
     expect(tooLarge.status).toBe(400)
   })
 

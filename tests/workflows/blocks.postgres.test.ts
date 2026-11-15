@@ -10,6 +10,7 @@ import { workflowRunTracePath } from '@protobase/schema/internal'
 import type { Plugin } from '@protobase/workflows/plugin'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { traceFiles } from './support/run-trace'
+import { definitionFields } from '../../test-support/workflow-fields'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -109,7 +110,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("blocks on the app's dat
   const blockRuns = async (parent: string) => (await sql<{ id: string; tenant_id: string; started_by: string; block_state: string; input: unknown }>`select id, tenant_id, started_by, block_state, input from workflows.runs where block_of = ${parent}`.execute(db)).rows
 
   it('runs a block reached from two runs with the same key once, as a run of its own with its own trace', async () => {
-    const workflow = await create('1', '/workflows', { name: 'Fetch once', definition: blockOf('acme:fetch') })
+    const workflow = await create('1', '/workflows', { name: 'Fetch once', ...definitionFields(blockOf('acme:fetch')) })
     const before = fetched.length
     const first = await run('1', workflow, { url: 'https://files.test/a?sig=1' })
     const second = await run('1', workflow, { url: 'https://files.test/a?sig=1' })
@@ -128,18 +129,18 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("blocks on the app's dat
   })
 
   it("keeps an empty result, and never serves one tenant's entry to another", async () => {
-    const workflow = await create('1', '/workflows', { name: 'Nothing', definition: blockOf('acme:nothing') })
+    const workflow = await create('1', '/workflows', { name: 'Nothing', ...definitionFields(blockOf('acme:nothing')) })
     const before = fetched.length
     await run('1', workflow, { url: 'u' })
     expect((await run('1', workflow, { url: 'u' })).status).toBe('succeeded')
     expect(fetched.length - before).toBe(1)
-    const other = await create('2', '/workflows', { name: 'Nothing', definition: blockOf('acme:nothing') })
+    const other = await create('2', '/workflows', { name: 'Nothing', ...definitionFields(blockOf('acme:nothing')) })
     await run('2', other, { url: 'u' })
     expect(fetched.length - before).toBe(2)
   })
 
   it("reuses no result once the saver's roles change, and none while the saver holds no role", async () => {
-    const workflow = await create('1', '/workflows', { name: 'Roles', definition: blockOf('acme:fetch') })
+    const workflow = await create('1', '/workflows', { name: 'Roles', ...definitionFields(blockOf('acme:fetch')) })
     const before = fetched.length
     await run('1', workflow, { url: 'https://files.test/roles' })
     await run('1', workflow, { url: 'https://files.test/roles' })
@@ -157,7 +158,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("blocks on the app's dat
   })
 
   it('keeps no secret in the cache, and none of its read values in the key', async () => {
-    const workflow = await create('1', '/workflows', { name: 'Signed', definition: blockOf('acme:fetch', { token: '{% $states.context.Secrets.BLOCK_KEY %}' }) })
+    const workflow = await create('1', '/workflows', { name: 'Signed', ...definitionFields(blockOf('acme:fetch', { token: '{% $states.context.Secrets.BLOCK_KEY %}' })) })
     await run('1', workflow, { url: 'https://files.test/b?sig=readable' })
     const { rows } = await sql<{ key: string; text: string }>`select key, (key || who::text || output::text || secrets::text) as text from workflows.step_cache where type like 'block:%'`.execute(db)
     expect(rows.length).toBeGreaterThan(0)
@@ -185,7 +186,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("blocks on the app's dat
     }
 
     it('runs the block once, and the run that joined it takes its result and links to it', async () => {
-      const workflow = await create('1', '/workflows', { name: 'Fetch together', definition: blockOf('acme:slow') })
+      const workflow = await create('1', '/workflows', { name: 'Fetch together', ...definitionFields(blockOf('acme:slow')) })
       const before = fetched.length
       const [first, second] = await together([['1', workflow], ['1', workflow]], { url: 'https://files.test/together?sig=1' })
       expect(fetched.length - before).toBe(1)
@@ -207,8 +208,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("blocks on the app's dat
     })
 
     it("never joins another tenant's run of it, nor one while the saver holds no role", async () => {
-      const ours = await create('1', '/workflows', { name: 'Ours', definition: blockOf('acme:slow') })
-      const theirs = await create('2', '/workflows', { name: 'Theirs', definition: blockOf('acme:slow') })
+      const ours = await create('1', '/workflows', { name: 'Ours', ...definitionFields(blockOf('acme:slow')) })
+      const theirs = await create('2', '/workflows', { name: 'Theirs', ...definitionFields(blockOf('acme:slow')) })
       const before = fetched.length
       const [first, second] = await together([['1', ours], ['2', theirs]], { url: 'https://files.test/tenants' })
       expect(fetched.length - before).toBe(2)
@@ -224,7 +225,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("blocks on the app's dat
     })
 
     it('fails the run that joined a run that failed, with its error, and keeps nothing', async () => {
-      const workflow = await create('1', '/workflows', { name: 'Expired', definition: blockOf('acme:slow', { fail: true }) })
+      const workflow = await create('1', '/workflows', { name: 'Expired', ...definitionFields(blockOf('acme:slow', { fail: true })) })
       const before = fetched.length
       const [first, second] = await together([['1', workflow], ['1', workflow]], { url: 'https://files.test/expired' })
       expect(fetched.length - before).toBe(1)
@@ -239,7 +240,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("blocks on the app's dat
   })
 
   it("refuses the block fields on a run's create, and another tenant cannot read or replay a block's run", async () => {
-    const workflow = await create('1', '/workflows', { name: 'Guarded', definition: blockOf('acme:fetch') })
+    const workflow = await create('1', '/workflows', { name: 'Guarded', ...definitionFields(blockOf('acme:fetch')) })
     const parent = await run('1', workflow, { url: 'https://files.test/c' })
     const [child] = await blockRuns(parent.id)
     for (const field of [{ block_of: parent.id }, { block_state: 'Keep' }, { block_visit: '|0' }]) {

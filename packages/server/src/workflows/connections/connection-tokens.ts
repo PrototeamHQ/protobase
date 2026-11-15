@@ -56,7 +56,7 @@ export const connectionTokens = ({ deps, schema, roles, accounts, refresh, text 
         const ref = await use.version()
         if (!ref) throw notConnected()
         const db = deps().db
-        const { rows } = await sql<Consent>`select v.definition -> 'connections' ->> ${key} as account, v.enabled_by, v.tenant_id
+        const { rows } = await sql<Consent>`select v.connections ->> ${key} as account, v.enabled_by, v.tenant_id
           from ${sql.id(schema, 'versions')} v where v.workflow_id = ${ref.workflowId} and v.version = ${ref.version}`.execute(db)
         const consent = rows[0]
         if (!consent?.account || !consent.enabled_by) throw notConnected()

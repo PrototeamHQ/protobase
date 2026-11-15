@@ -1,6 +1,7 @@
 import type { JsonSchema, Plugin, PollingTrigger, ReadyTrigger, TriggerType, WebhookTrigger } from '@protobase/workflows/plugin'
 import { connectionUnavailable, loadPlugins, stepHandlers, triggerChecks, typeList, type CheckOptions, type ConnectionSupport, type LoadedPlugin, type StepWiring, type TaskHandlers, type TriggerCheck } from '@protobase/workflows'
 import type { ResourceModel } from '@protobase/schema'
+import { keyTypes, recordJsonSchema } from '@protobase/schema/internal'
 import type { Mailer } from '../mail/mail-message'
 import { workflowPlugins } from './default-plugins'
 import { pluginServices, type ServicesInput } from './plugin-services'
@@ -53,6 +54,15 @@ export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Mode
       triggers: Object.fromEntries(checks.filter(([id]) => available.has(id))),
       unavailable: reasons,
       connections,
+      // An argument that reads a value by name takes its type, by the types' schemas and the records of `against`
+      pins: {
+        inputs: Object.fromEntries(steps.map((type) => [type.id, type.input])),
+        outputs: Object.fromEntries(types.flatMap((type) => (type.output ? [[type.id, type.output]] : []))),
+        records: (resource, use) => {
+          const model = against(resource)
+          return model && recordJsonSchema(model, use, model.name, keyTypes(against))
+        },
+      },
     }
   }
   const check = checkWith(models)

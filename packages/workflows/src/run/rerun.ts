@@ -1,19 +1,27 @@
 import { expressionSource } from '../definition/expressions'
-import type { Machine } from '../definition/types'
+import type { Machine, Order } from '../definition/types'
 import type { Checkpoint } from './port'
 
 /** What a re-run reads of a failed run's checkpoint to know where its scope goes on. */
 export type EarlierCheckpoint = Pick<Checkpoint, 'scope' | 'next'>
 
-// The machine a scope runs: the run's own, or the item processor of each Map its scope names, as `innerScope` writes it.
-const machineOf = (machine: Machine, scope: string): Machine | string => {
+// The machine a scope runs: the run's own, the item processor of each Map its scope names, as `innerScope` writes it,
+// or in data order a state of its own, its name as `scopeOf` writes it, which no Map item's part can be, since a name
+// is written URI-encoded, without brackets.
+const itemPart = /^(.*)\.\d+\[\d+\]$/
+const machineOf = (machine: Machine, scope: string, order: Order): Machine | string => {
   if (scope === '') return machine
   let inner = machine
   for (const part of scope.split('/')) {
-    const match = /^(.*)\.\d+\[\d+\]$/.exec(part)
-    if (!match) throw new Error(`"${scope}" is not the scope of a Map item`)
-    const name = decodeURIComponent(match[1]!)
+    const item = itemPart.exec(part)
+    const name = decodeURIComponent(item ? item[1]! : part)
     const state = inner.States[name]
+    if (!item) {
+      if (order !== 'data') return `The run goes on at state "${name}" as data order runs it, and the workflow now runs in sequence`
+      if (!state) return `The run goes on at state "${name}", which the workflow no longer has`
+      inner = { States: { [name]: state } }
+      continue
+    }
     if (state?.Type !== 'Map') return `The run goes on in the Map "${name}"${scope.includes('/') ? ` of ${scope}` : ''}, which the workflow no longer has`
     inner = state.ItemProcessor
   }
@@ -22,16 +30,21 @@ const machineOf = (machine: Machine, scope: string): Machine | string => {
 
 /**
  * The problem with re-running a failed run whose scopes stand at `checkpoints` on `machine`, the workflow's version
- * now: a scope that would go on at a state, or in a Map, the version does not have; undefined when there is none.
+ * now, in `order`: a scope that would go on at a state, or in a Map, the version does not have, or one of the other
+ * order; undefined when there is none.
  * Scopes that ended stay as they ran.
  * A re-run goes on from each scope's last checkpoint, as a run does after a crash: the steps since run again, the
  * recorded ones before it never.
  */
-export const rerunProblem = (machine: Machine, checkpoints: readonly EarlierCheckpoint[]) => {
+export const rerunProblem = (machine: Machine, checkpoints: readonly EarlierCheckpoint[], order: Order = 'sequence') => {
+  // The order a run ran in, which its scopes tell: the run's own scope and a Map item's outermost run in sequence, a
+  // state's name in data order. A run of the other order would start its states anew, running their writes again.
+  const ranIn = checkpoints.some(({ scope }) => scope !== '' && !itemPart.test(scope.split('/')[0]!)) ? 'data' : 'sequence'
+  if (checkpoints.length > 0 && ranIn !== order) return `The run ran in ${ranIn} order, and the workflow now runs in ${order} order; switch it back to re-run it`
   for (const { scope, next } of checkpoints) {
     // A scope that ended, such as a finished Map item, is history and stays as it ran.
     if (next === null) continue
-    const inner = machineOf(machine, scope)
+    const inner = machineOf(machine, scope, order)
     if (typeof inner === 'string') return inner
     if (!Object.hasOwn(inner.States, next)) return `The run goes on at state "${next}"${scope ? ` in ${scope}` : ''}, which the workflow no longer has`
   }

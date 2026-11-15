@@ -112,6 +112,15 @@ describe('a re-run', () => {
     expect(rerunProblem(flow, [{ scope: 'Each.0[1]', next: 'Handle' }])).toBe('The run goes on in the Map "Each", which the workflow no longer has')
     expect(rerunProblem(flow, [{ scope: 'Each.0[0]', next: null }])).toBeUndefined()
   })
+
+  it('refuses a run of the other order, its ended states included, whose writes would run again', () => {
+    const machine = definition({ Save: { Type: 'Task', Resource: 'save', Next: 'Fetch' }, Fetch: { Type: 'Task', Resource: 'fetch', End: true } }).stateMachine
+    // A data-order run whose Save ended and whose Fetch failed, now that the workflow runs in sequence
+    expect(rerunProblem(machine, [{ scope: 'Save', next: null }, { scope: 'Fetch', next: 'Fetch' }], 'sequence')).toBe('The run ran in data order, and the workflow now runs in sequence order; switch it back to re-run it')
+    expect(rerunProblem(machine, [{ scope: 'Save', next: null }], 'sequence')).toBe('The run ran in data order, and the workflow now runs in sequence order; switch it back to re-run it')
+    expect(rerunProblem(machine, [{ scope: '', next: 'Fetch' }], 'data')).toBe('The run ran in sequence order, and the workflow now runs in data order; switch it back to re-run it')
+    expect(rerunProblem(machine, [{ scope: 'Save', next: null }, { scope: 'Fetch', next: 'Fetch' }], 'data')).toBeUndefined()
+  })
 })
 
 const byPlace = (a: { scope: string; seq: number }, b: { scope: string; seq: number }) => a.scope.localeCompare(b.scope) || a.seq - b.seq
@@ -215,6 +224,14 @@ describe('a re-run from a step', () => {
     expect(rerunFrom(flow.stateMachine, flow.stateMachine, steps, 'Store', new Date())).toEqual({ problem: 'The run\'s trace does not hold every step before state "Store"' })
   })
 
+  it('runs again a Wait of data order that had not run out, rather than keeping its old time', () => {
+    const machine = { States: { A: { Type: 'Pass' }, W: { Type: 'Wait', Seconds: 120 } } } as never
+    const at = new Date('2026-11-04T12:00:00Z')
+    const step = (scope: string, state: string, type: string, resumeAt?: Date) => ({ scope, seq: 0, state, type, status: 'succeeded' as const, attempt: 1, next: null, logs: [], startedAt: at, finishedAt: at, recorded: false, ...(resumeAt && { resumeAt }) })
+    const found = rerunFrom(machine, machine, [step('A', 'A', 'Pass'), step('W', 'W', 'Wait', new Date(at.getTime() + 60_000))], 'A', at, 'data')
+    expect(found).toEqual({ checkpoints: [], kept: [] })
+  })
+
   it("starts at the state with the kept steps' variables and output, at the re-run's time, from its first try", () => {
     const steps = [
       traced({ seq: 0, state: 'Fetch', next: 'Each', output: { id: 7 }, assigned: { id: 7 }, recorded: true }),
@@ -224,7 +241,7 @@ describe('a re-run from a step', () => {
     ]
     const at = new Date('2026-11-08T12:00:00Z')
     const found = rerunFrom(flow.stateMachine, flow.stateMachine, JSON.parse(JSON.stringify(steps)), 'Store', at)
-    expect(found).toMatchObject({ checkpoint: { scope: '', seq: 1, next: 'Store', value: [1, 2], variables: { id: 7 }, attempt: 1, failures: [], visits: { Fetch: 1, Each: 1 }, clock: at, after: -1 } })
+    expect(found).toMatchObject({ checkpoints: [{ scope: '', seq: 1, next: 'Store', value: [1, 2], variables: { id: 7 }, attempt: 1, failures: [], visits: { Fetch: 1, Each: 1 }, clock: at, after: -1 }] })
     // A step a crash made run again is kept once
     expect('kept' in found && found.kept.map((step) => step.seq)).toEqual([0, 1])
   })

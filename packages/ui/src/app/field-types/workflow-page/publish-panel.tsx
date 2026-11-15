@@ -9,7 +9,7 @@ import { FocusPanel } from '../../../focus-page'
 import { Button } from '../../../primitives/button'
 import { ErrorBanner } from '../../error-banner'
 import { useFocusRecord } from '../../focus/focus-record'
-import { definitionOf } from '../workflow/definition'
+import { recordDefinition } from '../workflow/definition'
 import { triggerLabel, triggerType } from '../workflow/labels'
 import type { WorkflowPage } from './use-workflow-page'
 import { versionDiff } from './version-diff'
@@ -49,7 +49,7 @@ export const PublishPanel = ({ view, page, definition, types, onClose }: Publish
   const live = useRecord('workflow_versions', [view.workflow, enabled ?? 0], enabled !== undefined)
   const rollback = !unsaved && latest !== undefined && version < latest
   const tested = page.runs.some((run) => Number(run.version) === version)
-  const diff = live.data ? versionDiff(definitionOf(live.data.record.definition), definition) : undefined
+  const diff = live.data ? versionDiff(recordDefinition(live.data.record), definition) : undefined
   const trigger = triggerType(definition.trigger)
   const run = async () => {
     setBusy(true)

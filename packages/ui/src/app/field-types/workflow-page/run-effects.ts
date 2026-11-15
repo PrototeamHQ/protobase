@@ -1,5 +1,5 @@
 import type { WorkflowTypeList } from '@protobase/client'
-import { innerMachine, resultRead, type Definition, type Machine, type State, type TaskState } from '@protobase/workflows'
+import { dependsOn, innerMachine, machineDependencies, orderOf, resultRead, type Definition, type Machine, type State, type TaskState } from '@protobase/workflows'
 import { stateLabel } from '../workflow/labels'
 
 const nextOf = (state: State): string[] => {
@@ -9,7 +9,7 @@ const nextOf = (state: State): string[] => {
     for (const rule of state.Choices ?? []) along.push(rule.Next)
     if (state.Default !== undefined) along.push(state.Default)
   }
-  if ('Catch' in state) for (const catcher of state.Catch ?? []) along.push(catcher.Next)
+  if ('Catch' in state) for (const catcher of state.Catch ?? []) if (catcher.Next !== undefined) along.push(catcher.Next)
   return along
 }
 
@@ -27,6 +27,10 @@ export const reachedStates = (machine: Machine, start: string) => {
   return [...seen]
 }
 
+// The states a run of a machine may run: those reached from its start, or every one of a machine in data order, which
+// has no start and follows no edges.
+const statesRun = (machine: Machine) => (machine.StartAt === undefined ? Object.keys(machine.States) : reachedStates(machine, machine.StartAt))
+
 // A request whose method is GET or left out only reads, as the HTTP step's own `writes` decides; an expression could be anything
 const readsOnly = (state: TaskState) => {
   if (state.Resource !== 'app:http' || typeof state.Arguments !== 'object' || state.Arguments === null) return false
@@ -39,7 +43,7 @@ const actingSteps = (machine: Machine, names: readonly string[], types: Workflow
     const state = machine.States[name]
     if (!state) return []
     const steps = innerMachine(state)
-    const inside = steps ? actingSteps(steps, reachedStates(steps, steps.StartAt), types) : []
+    const inside = steps ? actingSteps(steps, statesRun(steps), types) : []
     if (state.Type !== 'Task') return inside
     // A step type the app no longer lists writes as far as anyone can tell
     const writes = types?.step_types.find((type) => type.id === state.Resource)?.writes ?? true
@@ -62,5 +66,28 @@ export const changedSinceRun = (ran: Definition | undefined, definition: Definit
   return JSON.stringify(withoutResultVariables(before, shaped)) !== JSON.stringify(withoutResultVariables(definition.stateMachine.States[state], shaped))
 }
 
-/** The steps that act on the world among those a run of `definition` reaches from `start`, its first state by default, Maps and Blocks looked into. */
-export const stepsThatAct = (definition: Definition, types: WorkflowTypeList | undefined, start = definition.stateMachine.StartAt) => actingSteps(definition.stateMachine, reachedStates(definition.stateMachine, start), types)
+// In data order, a state and every state that depends on it, through others too: those a re-run from it runs again
+const dependents = (machine: Machine, start: string) => {
+  const dependencies = machineDependencies(machine)
+  const after = new Set([start])
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const [name, own] of dependencies) {
+      if (after.has(name) || ![...dependsOn(own)].some((other) => after.has(other))) continue
+      after.add(name)
+      grew = true
+    }
+  }
+  return Object.keys(machine.States).filter((name) => after.has(name))
+}
+
+/**
+ * The steps that act on the world among those a run of `definition` runs from `start`, its first state by default,
+ * Maps and Blocks looked into: in sequence order those reached along its edges; in data order, which follows none,
+ * every step, or from `start` the steps that depend on it, as a re-run from it runs them again.
+ */
+export const stepsThatAct = (definition: Definition, types: WorkflowTypeList | undefined, start = definition.stateMachine.StartAt) => {
+  const machine = definition.stateMachine
+  const from = orderOf(definition) === 'data' ? (start === undefined ? statesRun(machine) : dependents(machine, start)) : start === undefined ? statesRun(machine) : reachedStates(machine, start)
+  return actingSteps(machine, from, types)
+}

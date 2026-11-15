@@ -6,6 +6,7 @@ import { findBlock } from '../definition/inner'
 import type { BlockRun, BlockRunStore, Checkpoint, LoadedRun, RunStore, StepRecord, TaskHandlers, TraceMode, TraceSink } from './port'
 import { rerunCheckpoint, rerunProblem } from './rerun'
 import { rerunFrom } from './rerun-from'
+import { orderOf } from '../definition/types'
 
 type MemoryOptions = { budgetMs?: number; secrets?: Record<string, string>; maxSteps?: number; traceMode?: TraceMode; cache?: StepCacheStore; whoOf?: (runId: string, identity: CacheIdentity) => unknown }
 
@@ -116,15 +117,15 @@ export const memoryRunner = (tasks: TaskHandlers, { budgetMs, secrets, maxSteps,
     rerun: async (id: string, earlier: string, definition: Definition, from?: string) => {
       if (from === undefined) {
         const kept = checkpoints.filter((saved) => saved.runId === earlier)
-        const problem = rerunProblem(definition.stateMachine, kept)
+        const problem = rerunProblem(definition.stateMachine, kept, orderOf(definition))
         if (problem) throw new Error(problem)
         checkpoints.push(...kept.map((saved) => ({ ...rerunCheckpoint(structuredClone(saved), clock), runId: id })))
       } else {
         const ran = await trace.read(earlier)
         if (!ran) throw new Error('The run kept no trace')
-        const found = rerunFrom(definition.stateMachine, runs.get(earlier)!.definition.stateMachine, structuredClone(ran), from, clock)
+        const found = rerunFrom(definition.stateMachine, runs.get(earlier)!.definition.stateMachine, structuredClone(ran), from, clock, orderOf(definition))
         if ('problem' in found) throw new Error(found.problem)
-        if (found.checkpoint) checkpoints.push({ ...found.checkpoint, runId: id })
+        checkpoints.push(...found.checkpoints.map((checkpoint) => ({ ...checkpoint, runId: id })))
         trace.write(id, found.kept, { mode: traceMode ?? 'all' })
       }
       runs.set(id, { id, definition, input: runs.get(earlier)!.input, status: 'queued', startedAt: clock })

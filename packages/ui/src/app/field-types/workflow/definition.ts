@@ -1,4 +1,4 @@
-import { innerMachine, type Definition, type Machine, type State } from '@protobase/workflows'
+import { innerMachine, orderOf, type Definition, type Machine, type State } from '@protobase/workflows'
 
 /** A state's path: its name, after the names of the Maps and Blocks it is inside, joined by `/` as the definition check names it. */
 export type StatePath = string
@@ -15,7 +15,35 @@ export const definitionOf = (value: unknown): Definition => {
   const given = value as Partial<Definition>
   const machine = given.stateMachine
   const States = typeof machine?.States === 'object' && machine.States !== null && !Array.isArray(machine.States) ? machine.States : {}
-  return { ...given, trigger: given.trigger ?? { manual: {} }, stateMachine: { ...machine, QueryLanguage: 'JSONata', StartAt: machine?.StartAt ?? '', States } } as Definition
+  // In data order a machine has no start, as it is saved
+  const start = given.order === 'data' ? {} : { StartAt: machine?.StartAt ?? '' }
+  return { ...given, trigger: given.trigger ?? { manual: {} }, stateMachine: { ...machine, QueryLanguage: 'JSONata', ...start, States } } as Definition
+}
+
+/**
+ * A workflow's or a version's record as the definition to draw and edit, from the fields it keeps it in: its state
+ * machine, trigger, execution order, connections and trace. One in data order is drawn with an empty `StartAt`, which
+ * it is saved without.
+ */
+export const recordDefinition = (record: Record<string, unknown>): Definition =>
+  definitionOf({
+    trigger: record.trigger,
+    order: record.execution_order ?? 'sequence',
+    stateMachine: record.state_machine,
+    ...(record.connections ? { connections: record.connections } : {}),
+    ...(record.trace ? { trace: record.trace } : {}),
+  })
+
+/** The fields a definition is saved in, as `recordDefinition` reads them: a state machine in data order has no `StartAt`. */
+export const definitionRecord = (definition: Definition) => {
+  const { StartAt: _, ...withoutStart } = definition.stateMachine
+  return {
+    state_machine: orderOf(definition) === 'data' ? withoutStart : definition.stateMachine,
+    trigger: definition.trigger,
+    execution_order: orderOf(definition),
+    connections: definition.connections ?? null,
+    trace: definition.trace ?? null,
+  }
 }
 
 /** The names of a path, outermost first. */

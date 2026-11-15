@@ -45,6 +45,19 @@ const boundIn = (value: unknown, names = new Set<string>(), root = true): Set<st
   return names
 }
 
+/**
+ * The names bound inside a node of an expression's syntax tree, given those bound around it: a block or a function adds
+ * what it binds, and a function its parameters; any other node binds nothing of its own.
+ */
+export const boundWithin = (value: unknown, outer: ReadonlySet<string>): ReadonlySet<string> => {
+  if (!isNode(value) || !opensScope(value)) return outer
+  const parameters = value.type === 'lambda' && Array.isArray(value.arguments) ? (value.arguments as Node[]).map((argument) => String(argument.value)) : []
+  return new Set([...outer, ...parameters, ...boundIn(value)])
+}
+
+/** The names the whole expression binds outside any block or function in it. */
+export const boundAtRoot = (ast: unknown): ReadonlySet<string> => boundIn(ast)
+
 /** The reads of a compiled expression, from its syntax tree, each name read where it is bound counted as no read. */
 export const expressionReads = (expression: Expression): Reads => {
   const variables = new Set<string>()
@@ -56,11 +69,7 @@ export const expressionReads = (expression: Expression): Reads => {
   const visit = (value: unknown, rooted: boolean, outer: ReadonlySet<string>): void => {
     if (Array.isArray(value)) return value.forEach((item) => visit(item, rooted, outer))
     if (!isNode(value)) return
-    let bound = outer
-    if (opensScope(value)) {
-      const parameters = value.type === 'lambda' && Array.isArray(value.arguments) ? (value.arguments as Node[]).map((argument) => String(argument.value)) : []
-      bound = new Set([...outer, ...parameters, ...boundIn(value)])
-    }
+    const bound = boundWithin(value, outer)
     if (value.type === 'variable') {
       const name = String(value.value)
       if (name === '' || name === '$') input ||= rooted

@@ -1,11 +1,13 @@
-import { innerMachine, type Definition, type Machine, type State, type Trigger } from '@protobase/workflows'
+import { dependsOn, innerMachine, machineDependencies, orderOf, type Definition, type Machine, type State, type Trigger } from '@protobase/workflows'
 import { pathOf, triggerId, type StatePath } from './definition'
 
 /**
  * Where an edge leaves its node, and so what it sets when drawn: `next` a state's Next, `rule` a Choice rule's Next,
- * `default` a Choice's Default, `catch` a catcher's Next, `start` the StartAt of the machine the trigger starts.
+ * `default` a Choice's Default, `catch` a catcher's Next, `start` the StartAt of the machine the trigger starts. In data
+ * order an edge is drawn from what a state reads instead: `reads`, some of its variables, or `status`, its status
+ * alone; and `start` from the trigger to each state that reads from no other.
  */
-export type EdgeKind = 'next' | 'rule' | 'default' | 'catch' | 'start'
+export type EdgeKind = 'next' | 'rule' | 'default' | 'catch' | 'start' | 'reads' | 'status'
 
 export type GraphNode =
   | { kind: 'trigger'; id: typeof triggerId; trigger: Trigger }
@@ -30,7 +32,7 @@ const stateEdges = (machine: Machine, scope: string[], name: string, state: Stat
     ...('Next' in state && typeof state.Next === 'string' ? edge('next', 'Next', state.Next) : []),
     ...rulesOf(state).flatMap((rule, index) => edge('rule', `Choices[${index}].Next`, rule.Next, rule.Condition)),
     ...(state.Type === 'Choice' && typeof state.Default === 'string' ? edge('default', 'Default', state.Default) : []),
-    ...catchersOf(state).flatMap((catcher, index) => edge('catch', `Catch[${index}].Next`, catcher.Next, Array.isArray(catcher.ErrorEquals) ? catcher.ErrorEquals.join(', ') : undefined)),
+    ...catchersOf(state).flatMap((catcher, index) => (catcher.Next === undefined ? [] : edge('catch', `Catch[${index}].Next`, catcher.Next, Array.isArray(catcher.ErrorEquals) ? catcher.ErrorEquals.join(', ') : undefined))),
   ]
 }
 
@@ -45,6 +47,23 @@ const machineGraph = (machine: Machine, scope: string[]): Graph => {
   return { nodes: parts.flatMap((part) => part.nodes), edges: parts.flatMap((part) => part.edges) }
 }
 
+// In data order, an edge from each state to each one that reads from it: its variables, or only its status, which runs
+// after it all the same; and from the trigger to each state that reads from none.
+const dataEdges = (machine: Machine, scope: string[], fromTrigger: boolean): GraphEdge[] => {
+  const dependencies = machineDependencies(machine)
+  return [...dependencies].flatMap(([name, own]): GraphEdge[] => {
+    const target = pathOf(scope, name)
+    const edges = [...dependsOn(own)].map((from): GraphEdge => {
+      const kind = own.data.has(from) ? 'reads' : 'status'
+      return { id: `${pathOf(scope, from)}\n${kind}\n${target}`, kind, source: pathOf(scope, from), target, field: kind }
+    })
+    const inner = innerMachine(machine.States[name])
+    const nested = inner?.States ? dataEdges(inner, [...scope, name], false) : []
+    const root: GraphEdge[] = fromTrigger && edges.length === 0 ? [{ id: `\nStart\n${target}`, kind: 'start', source: triggerId, target, field: 'StartAt' }] : []
+    return [...root, ...edges, ...nested]
+  })
+}
+
 /**
  * The definition as a graph: the trigger, each state a node in the order the definition lists them, a Map's or a
  * Block's states inside it, and an edge for each state a state names. A Map or Block comes before the states inside it. The definition holds
@@ -53,6 +72,7 @@ const machineGraph = (machine: Machine, scope: string[]): Graph => {
 export const definitionGraph = (definition: Definition): Graph => {
   const machine = definition.stateMachine
   const states = machineGraph(machine, [])
-  const start: GraphEdge[] = Object.hasOwn(machine.States, machine.StartAt) ? [{ id: '\nStartAt', kind: 'start', source: triggerId, target: machine.StartAt, field: 'StartAt' }] : []
+  if (orderOf(definition) === 'data') return { nodes: [{ kind: 'trigger', id: triggerId, trigger: definition.trigger }, ...states.nodes.map((node) => (node.kind === 'state' ? { ...node, first: false } : node))], edges: dataEdges(machine, [], true) }
+  const start: GraphEdge[] = machine.StartAt !== undefined && Object.hasOwn(machine.States, machine.StartAt) ? [{ id: '\nStartAt', kind: 'start', source: triggerId, target: machine.StartAt, field: 'StartAt' }] : []
   return { nodes: [{ kind: 'trigger', id: triggerId, trigger: definition.trigger }, ...states.nodes], edges: [...start, ...states.edges] }
 }

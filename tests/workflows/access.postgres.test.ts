@@ -8,6 +8,7 @@ import { configExports, createAdmin, startJobs, unauthorized, workflowsMigration
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
+import { definitionFields } from '../../test-support/workflow-fields'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -94,7 +95,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
   const echo = () => definition({ Echo: { Type: 'Succeed', Output: '{% {"echo": $states.context.Execution.Input} %}' } })
 
   it("keeps a tenant's runs and workflows from another tenant: no reading, starting or editing them", async () => {
-    const workflow = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Mine', definition: echo() } }))
+    const workflow = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Mine', ...definitionFields(echo()) } }))
     const run = await created(await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: { card: 'private-input-31' } } }))
     await finished(run)
     for (const path of [`/workflow_runs/${run}`, `/workflows/${workflow}`]) {
@@ -108,12 +109,12 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
     // Refused as a workflow that is not there: the same answer as for an id no tenant has.
     expect([start.status, (await start.json()).detail.replace(workflow, '<id>')]).toEqual([missing.status, (await missing.json()).detail.replace(/[0-9a-f-]{36}/, '<id>')])
     expect(start.status).toBe(409)
-    expect((await as('bob', `/workflows/${workflow}`, { method: 'PATCH', body: { definition: definition({ Other: { Type: 'Succeed' } }) } })).status).toBe(404)
+    expect((await as('bob', `/workflows/${workflow}`, { method: 'PATCH', body: { ...definitionFields(definition({ Other: { Type: 'Succeed' } })) } })).status).toBe(404)
     expect([await count('workflows.runs'), await count('workflows.versions')]).toEqual([runs, versions])
   })
 
   it('starts runs only for a caller who may start and read them and read the workflow', async () => {
-    const workflow = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Split', definition: echo() } }))
+    const workflow = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Split', ...definitionFields(echo()) } }))
     const runs = await count('workflows.runs')
     expect([403, 404]).toContain((await as('reed', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: {} } })).status)
     expect((await as('bella', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: {} } })).status).toBe(404)
@@ -128,7 +129,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
   })
 
   it('refuses a run with no caller, or with an input too large or too deep, creating no run', async () => {
-    const workflow = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Limits', definition: echo() } }))
+    const workflow = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Limits', ...definitionFields(echo()) } }))
     const runs = await count('workflows.runs')
     expect((await as(undefined, '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: {} } })).status).toBe(401)
     const large = await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: { text: 'x'.repeat(1024 * 1024) } } })
@@ -145,7 +146,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
   it("acts on records as the workflow's last editor with the roles they hold now, whoever starts the run", async () => {
     const workflow = await created(await as('ada', '/workflows', {
       method: 'POST',
-      body: { name: 'Note', definition: definition({ Write: { Type: 'Task', Resource: 'app:records.create', Arguments: { resource: 'notes', data: { text: '{% $states.context.Execution.Input.text %}' } }, End: true } }) },
+      body: { name: 'Note', ...definitionFields(definition({ Write: { Type: 'Task', Resource: 'app:records.create', Arguments: { resource: 'notes', data: { text: '{% $states.context.Execution.Input.text %}' } }, End: true } })) },
     }))
     // Rita may not write notes herself, but the run writes as Ada, who saved the workflow.
     expect([403, 404]).toContain((await as('rita', '/notes', { method: 'POST', body: { text: 'direct' } })).status)
@@ -165,7 +166,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
   it("acts on records inside a block as the workflow's last editor too, and no more", async () => {
     const write = { Type: 'Task', Resource: 'app:records.create', Arguments: { resource: 'notes', data: { text: '{% $states.context.Execution.Input.text %}' } }, End: true }
     const block = { Type: 'Block', Arguments: { text: '{% $states.context.Execution.Input.text %}' }, Processor: { StartAt: 'Write', States: { Write: write } }, Cache: { Ttl: 60 }, End: true }
-    const workflow = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Block note', definition: definition({ Keep: block }) } }))
+    const workflow = await created(await as('ada', '/workflows', { method: 'POST', body: { name: 'Block note', ...definitionFields(definition({ Keep: block })) } }))
     const before = await count('notes')
     people.ada = { tenant: '1', roles: [] }
     const run = await created(await as('rita', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: { text: 'in a block' } } }))
@@ -178,7 +179,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
   it('creates a list of records all together or none, so a retry after one is refused creates none twice', async () => {
     const workflow = await created(await as('ada', '/workflows', {
       method: 'POST',
-      body: { name: 'Notes', definition: definition({ Write: { Type: 'Task', Resource: 'app:records.create', Arguments: { resource: 'notes', data: '{% $states.context.Execution.Input.notes %}' }, Retry: [{ ErrorEquals: ['States.ALL'], IntervalSeconds: 1, MaxAttempts: 1 }], End: true } }) },
+      body: { name: 'Notes', ...definitionFields(definition({ Write: { Type: 'Task', Resource: 'app:records.create', Arguments: { resource: 'notes', data: '{% $states.context.Execution.Input.notes %}' }, Retry: [{ ErrorEquals: ['States.ALL'], IntervalSeconds: 1, MaxAttempts: 1 }], End: true } })) },
     }))
     const before = await count('notes')
     const refused = await created(await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: { notes: [{ text: 'first' }, { text: null }] } } }))
@@ -202,7 +203,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
       create trigger crash_once before insert on workflows.checkpoints for each row execute function crash_once()`)
     const workflow = await created(await as('ada', '/workflows', {
       method: 'POST',
-      body: { name: 'Once', definition: definition({ WriteOnce: { Type: 'Task', Resource: 'app:records.create', Arguments: { resource: 'notes', data: { text: 'once' } }, End: true } }) },
+      body: { name: 'Once', ...definitionFields(definition({ WriteOnce: { Type: 'Task', Resource: 'app:records.create', Arguments: { resource: 'notes', data: { text: 'once' } }, End: true } })) },
     }))
     const run = await created(await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: {} } }))
     await finished(run)
@@ -218,7 +219,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
       method: 'POST',
       body: {
         name: 'Secret',
-        definition: definition({
+        ...definitionFields(definition({
           Keep: { Type: 'Pass', Assign: { header: '{% "Bearer " & $states.context.Secrets.WF_ACCESS_TOKEN %}' }, Next: 'Pause' },
           Pause: { Type: 'Wait', Seconds: 1, Next: 'Call' },
           Call: {
@@ -229,7 +230,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('who may run workflows a
             End: true,
           },
           Report: { Type: 'Fail', Error: 'Reported', Cause: '{% $failure.Cause & " / " & $states.context.Secrets.WF_ACCESS_TOKEN %}' },
-        }),
+        })),
       },
     }))
     const run = await created(await as('ada', '/workflow_runs', { method: 'POST', body: { workflow_id: workflow, input: {} } }))

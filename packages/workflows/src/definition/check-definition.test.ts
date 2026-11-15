@@ -34,13 +34,13 @@ describe('checkDefinition', () => {
       'State "A": Resource is missing',
       'State "A", field "Retry[0].IntervalSeconds": must be integer',
     ])
-    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Pass', InputPath: '$.x', End: true } } })).toEqual(['State "A": InputPath is not a field here'])
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Pass', InputPath: '$.x', End: true } } })).toEqual(['State "A", field "InputPath": is JSONPath, which does not run here; write the state in JSONata, with Arguments, Output and Assign'])
     expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Sleep' } } })).toEqual(['State "A", field "Type": must be one of Task, Choice, Pass, Map, Block, Wait, Succeed and Fail'])
   })
 
   it('refuses a state that neither goes on nor ends, and the JSONPath language', () => {
     expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Pass' } } })).toEqual(['State "A": needs either Next or End'])
-    expect(check({ QueryLanguage: 'JSONPath', StartAt: 'A', States: { A: { Type: 'Pass', End: true } } })).toEqual(['Field "stateMachine.QueryLanguage": must be "JSONata"'])
+    expect(check({ QueryLanguage: 'JSONPath', StartAt: 'A', States: { A: { Type: 'Pass', End: true } } })).toEqual(['Field "stateMachine.QueryLanguage": is "JSONPath"; only JSONata machines run here: set "QueryLanguage": "JSONata" and write its states in JSONata'])
   })
 
   it('refuses an edge to no state, an unreached state and an unknown step type', () => {
@@ -195,7 +195,7 @@ describe('checkDefinition, the rules of the decided profile', () => {
   })
 
   it('refuses Parallel, more than 19 retries, more than 20 at once and a state name used twice', () => {
-    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Parallel', Branches: [], End: true } } })).toEqual(['State "A", field "Type": must be one of Task, Choice, Pass, Map, Block, Wait, Succeed and Fail'])
+    expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Parallel', Branches: [], End: true } } })).toEqual(['State "A", field "Type": is Parallel, which does not run here yet; in data order, states that read nothing of each other run at once'])
     expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: { Type: 'Task', Resource: 'http', Retry: [{ ErrorEquals: ['States.ALL'], MaxAttempts: 20 }], End: true } } })).toEqual(['State "A", field "Retry[0].MaxAttempts": must be <= 19'])
     const map = (concurrency: number, inner: string) => ({ Type: 'Map', Items: '{% [1] %}', MaxConcurrency: concurrency, ItemProcessor: { StartAt: inner, States: { [inner]: pass } }, End: true })
     expect(check({ QueryLanguage: 'JSONata', StartAt: 'A', States: { A: map(21, 'B') } })).toEqual(['State "A", field "MaxConcurrency": must be <= 20'])

@@ -1,4 +1,4 @@
-import type { Definition, Machine, State, Trigger } from '@protobase/workflows'
+import { orderOf, type Catcher, type Definition, type Machine, type State, type Trigger } from '@protobase/workflows'
 import { allNames, machineAt, splitPath, type StatePath } from './definition'
 import type { EdgeKind, GraphEdge } from './definition-graph'
 
@@ -55,12 +55,15 @@ const freshState = (kind: NewState): State => {
 export const addState = (definition: Definition, scope: readonly string[], kind: NewState, name: string, base: string) =>
   edited(definition, (copy) => {
     const machine = machineOf(copy, scope)
+    // In data order a state names no Next or End, and a machine has no start: it runs once what it reads has ended
+    const data = orderOf(copy) === 'data'
     const state = freshState(kind)
+    if (data) delete (state as { End?: boolean }).End
     machine.States[name] = state
-    if (!Object.hasOwn(machine.States, machine.StartAt)) machine.StartAt = name
+    if (!data && (machine.StartAt === undefined || !Object.hasOwn(machine.States, machine.StartAt))) machine.StartAt = name
     if (state.Type !== 'Map' && state.Type !== 'Block') return
     const first = freeName(copy, base)
-    const inner: Machine = { StartAt: first, States: { [first]: { Type: 'Pass', End: true } } }
+    const inner = (data ? { States: { [first]: { Type: 'Pass' } } } : { StartAt: first, States: { [first]: { Type: 'Pass', End: true } } }) as Machine
     if (state.Type === 'Map') state.ItemProcessor = inner
     else state.Processor = inner
   })
@@ -96,10 +99,63 @@ export const placeAfter = (definition: Definition, scope: readonly string[], cho
   return Object.keys(machine.States).reverse().find((name) => (machine.States[name] as { End?: boolean }).End === true)
 }
 
+/** A handle of the canvas a new state is added at: the trigger's `start`, or the handle `kind` of the state at `source`. */
+export type AddAt = { kind: EdgeKind; source: StatePath }
+
+/** The machine a state added at `at` goes into: its source's, or the workflow's for the trigger's handle. */
+export const scopeAt = (at: AddAt) => (at.kind === 'start' ? [] : splitPath(at.source).scope)
+
+const isCatchAll = (catcher: Catcher) => catcher.ErrorEquals.length === 1 && catcher.ErrorEquals[0] === 'States.ALL'
+
+/**
+ * The state a handle leads to now, which a state added at it goes on to: the state's Next, a Choice's Default, the
+ * catcher of every error's Next, or the first state for the trigger's. A rule's handle adds a rule, so leads nowhere yet.
+ */
+export const ledTo = (definition: Definition, at: AddAt): string | undefined => {
+  if (at.kind === 'start') return definition.stateMachine.StartAt || undefined
+  const { scope, name } = splitPath(at.source)
+  const state = machineAt(definition, scope)?.States[name]
+  if (!state) return
+  if (at.kind === 'next') return (state as { Next?: string }).Next
+  if (at.kind === 'default') return state.Type === 'Choice' ? state.Default : undefined
+  if (at.kind === 'catch') return 'Catch' in state ? state.Catch?.find(isCatchAll)?.Next : undefined
+  return
+}
+
+/**
+ * Adds a state as `addState` does, connected from the handle `at`: as the first state for the trigger's, after the
+ * state for its Next, as a Choice's Default or new rule, or on the path of every error. Where the handle led to a
+ * state already, the new one goes in between and goes on to it; one that ends the run then stays unconnected, so it
+ * never cuts off the states after it.
+ */
+export const addStateAt = (definition: Definition, kind: NewState, name: string, base: string, at: AddAt) => {
+  if (at.kind === 'start') return addStateFirst(definition, kind, name, base)
+  const { scope, name: from } = splitPath(at.source)
+  if (at.kind === 'next') return addStateAfter(definition, scope, kind, name, base, from)
+  const next = ledTo(definition, at)
+  const added = addState(definition, scope, kind, name, base)
+  return edited(added, (copy) => {
+    const machine = machineOf(copy, scope)
+    const source = machine.States[from]
+    const state = machine.States[name]!
+    if (!source || (next !== undefined && !goesOn(state))) return
+    if (at.kind === 'rule' && source.Type === 'Choice') source.Choices = [...(source.Choices ?? []), { Condition: '', Next: name }]
+    if (at.kind === 'default' && source.Type === 'Choice') source.Default = name
+    if (at.kind === 'catch' && (source.Type === 'Task' || source.Type === 'Map' || source.Type === 'Block')) {
+      const catchAll = source.Catch?.find(isCatchAll)
+      if (catchAll) catchAll.Next = name
+      else source.Catch = [...(source.Catch ?? []), { ErrorEquals: ['States.ALL'], Next: name }]
+    }
+    if (next === undefined) return
+    if (state.Type === 'Choice') state.Default = next
+    else if (flowing.has(state.Type)) withNext(state, next)
+  })
+}
+
 /** Adds a state as `addState` does, and connects it after the state named `after` in its machine. */
 export const addStateAfter = (definition: Definition, scope: readonly string[], kind: NewState, name: string, base: string, after: string | undefined) => {
   const added = addState(definition, scope, kind, name, base)
-  if (after === undefined) return added
+  if (after === undefined || orderOf(definition) === 'data') return added
   return edited(added, (copy) => follow(machineOf(copy, scope), after, name))
 }
 
@@ -108,8 +164,9 @@ export const addStateAfter = (definition: Definition, scope: readonly string[], 
  * unconnected when the workflow has a first state, so it never cuts off the states after it.
  */
 export const addStateFirst = (definition: Definition, kind: NewState, name: string, base: string) => {
-  const first = definition.stateMachine.StartAt
+  const first = definition.stateMachine.StartAt ?? ''
   const added = addState(definition, [], kind, name, base)
+  if (orderOf(definition) === 'data') return added
   return edited(added, (copy) => {
     const state = copy.stateMachine.States[name]!
     if (first !== '' && !goesOn(state)) return
@@ -208,11 +265,36 @@ const renamedIn = (machine: Machine, from: string, to: string) => {
   }
 }
 
-/** Renames the state at `path`, and every edge and the StartAt naming it. */
+// A state's name as an expression reads it after `$states.context.Steps.`: bare, or in backticks when it is no
+// identifier or one JSONata reads as a value
+export const stepName = (name: string) => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !['true', 'false', 'null'].includes(name) ? name : `\`${name}\``)
+const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// Every expression of `value` with its reads of `from`'s status read from `to`'s instead, the backticked form too.
+const renamedReads = (value: unknown, from: string, to: string): unknown => {
+  if (typeof value === 'string') {
+    if (!value.trimStart().startsWith('{%')) return value
+    const read = new RegExp(`\\$states\\.context\\.Steps\\.(?:${escaped(from)}(?![A-Za-z0-9_])|\`${escaped(from)}\`)`, 'g')
+    // Text in quotes and comments is no read, and stays as it is
+    return value
+      .split(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\/\*[\s\S]*?\*\/)/)
+      .map((part, index) => (index % 2 === 1 ? part : part.replace(read, () => `$states.context.Steps.${stepName(to)}`)))
+      .join('')
+  }
+  if (Array.isArray(value)) return value.map((item) => renamedReads(item, from, to))
+  if (typeof value === 'object' && value !== null) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, renamedReads(item, from, to)]))
+  return value
+}
+
+/**
+ * Renames the state at `path`, and every edge and the StartAt naming it, and every read of its status,
+ * `$states.context.Steps.<name>`, anywhere in the workflow, as Maps' and Blocks' states read the statuses around them.
+ */
 export const renameState = (definition: Definition, path: StatePath, to: string) =>
   edited(definition, (copy) => {
     const { scope, name } = splitPath(path)
     renamedIn(machineOf(copy, scope), name, to)
+    copy.stateMachine = renamedReads(copy.stateMachine, name, to) as Definition['stateMachine']
   })
 
 /** Makes the state at `path` the first of its machine. */

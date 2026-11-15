@@ -236,7 +236,7 @@ const ComponentSurface = ({ name, model, stored, recordKey }: { name: string; mo
 export const RecordFocusPage = ({ model, recordKey, stored, page, standard }: RecordFocusPageProps) => {
   const title = useRecordTitle()(model, useAdminMeta().views[model.name], stored.record, recordKey)
   return (
-    <CustomBoundary name={'surface' in page ? page.surface : page.component} fallback={standard}>
+    <CustomBoundary name={'surface' in page ? page.surface : page.component} fallback={standard} resetKey={model}>
       <FocusPage label={title}>
         <RecordFocus model={model} recordKey={recordKey} stored={stored} page={page} />
       </FocusPage>

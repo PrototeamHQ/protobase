@@ -1,0 +1,18 @@
+import { describe, expect, it } from 'vitest'
+import { valueProblems } from './value-check'
+
+describe('valueProblems', () => {
+  it('names where a value does not fit a schema, and says so of a schema that does not compile', () => {
+    const schema = { type: 'object', properties: { ip: { type: 'string' } } }
+    expect(valueProblems(schema, { ip: '1.2.3.4' }, 'body')).toEqual([])
+    expect(valueProblems(schema, { ip: 4 }, 'body')).toEqual(['body.ip must be string'])
+    // The same schema object again compiles again rather than from a cache that would keep every one
+    expect(valueProblems(schema, { ip: 5 }, 'body')).toEqual(['body.ip must be string'])
+    expect(valueProblems({ type: 'nonsense' }, {})[0]).toMatch(/^the schema is not valid JSON Schema/)
+    expect(valueProblems({ $id: 1, type: 'string' }, 'ok')[0]).toMatch(/^the schema is not valid JSON Schema/)
+  })
+
+  it('refuses an asynchronous schema, whose answer would come later, without running it', () => {
+    expect(valueProblems({ $async: true, type: 'string' }, 4)).toEqual(['the schema is asynchronous ($async), which a value is not checked against'])
+  })
+})

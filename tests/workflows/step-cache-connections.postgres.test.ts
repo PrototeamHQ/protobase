@@ -10,6 +10,7 @@ import { definePlugin } from '@protobase/workflows/plugin'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { fakeOAuthServer } from '../../packages/server/src/better-auth/connections/testing/fake-oauth-server'
 import { traceFiles } from './support/run-trace'
+import { definitionFields } from '../../test-support/workflow-fields'
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
@@ -124,7 +125,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("the step cache of a ste
       stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Look', States: { Look: { Type: 'Task', Resource: step, Arguments: { word }, ...extra, End: true } } },
       ...(account && { connections: { 'acme:account': account } }),
     }
-    const saved = (await as(user, '/workflows', 'POST', { name: 'Lookup', definition })).body as { id: string; version: number }
+    const saved = (await as(user, '/workflows', 'POST', { name: 'Lookup', ...definitionFields(definition) })).body as { id: string; version: number }
     if (enable) expect((await as(user, `/workflows/${saved.id}`, 'PATCH', { enabled_version: saved.version })).status).toBe(200)
     return saved.id
   }

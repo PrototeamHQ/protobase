@@ -62,7 +62,7 @@ Two plugins of one name stop startup, naming both. The exception is an app's own
 | --- | --- |
 | `label`, `description` | What the type list shows, to a person and to a model. |
 | `input` | The JSON Schema of the Task's `Arguments`, checked before `run`: arguments that do not fit fail the step as `<errorPrefix>.InvalidArguments`, naming the field. |
-| `output` | The JSON Schema of what `run` returns, for the type list. |
+| `output` | The JSON Schema of what `run` returns, for the type list, which types the step's pins in the editor and what the save checks reading it. A property of an untitled object is a pin of its own, and an object with a `title` one pin a Break takes apart. `{ "x-record-of": "<argument>" }` is the record of the resource that argument names, and `{ "x-schema-of": "<argument>" }` the schema that argument holds, and `{ "x-one-or-many-of": "<argument>", "anyOf": [<one>, <list>] }` the one or the list as that argument holds an object or a list; in `input`, `"x-record-use": "write"` beside `x-record-of` types the fields a write takes. |
 | `errorPrefix`, `errors` | The prefix of its error names, `Step` by default, and the errors it fails with by name, each with what it means. |
 | `connection` | The connection it signs in with, by the name the plugin declares it under. |
 | `cache` | Reuses the result of an identical earlier call: see [Caching results](#caching-results). Without it the engine looks up and keeps nothing for the type, unless a workflow forces it on. |
