@@ -32,7 +32,8 @@ export const graphShape = ({ nodes, edges, key, edgeKey, fields }: { nodes: Row[
   }
   const linked = edges.flatMap((row) => {
     const parts = edgeKey.map((name) => keyText(row[name]))
-    const id = parts.includes(undefined) ? undefined : parts.join(',')
+    // A JSON list keeps the parts apart, so `['a,b', 'c']` and `['a', 'b,c']` stay two edges
+    const id = parts.includes(undefined) ? undefined : parts.length === 1 ? parts[0] : JSON.stringify(parts)
     const source = keyText(row[fields.source])
     const target = keyText(row[fields.target])
     if (id === undefined || source === undefined || target === undefined || !byKey.has(source) || !byKey.has(target)) return []

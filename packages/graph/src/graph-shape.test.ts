@@ -19,6 +19,13 @@ describe('a graph’s shape', () => {
     expect(shape.edges.map((edge) => edge.id)).not.toContain('113')
   })
 
+  it('keeps apart two edges whose key fields differ only in where a comma falls', () => {
+    const nodes = [{ id: 1 }, { id: 2 }]
+    const edges = [{ a: 'a,b', b: 'c', from_id: 1, to_id: 2 }, { a: 'a', b: 'b,c', from_id: 1, to_id: 2 }]
+    const shape = graphShape({ nodes, edges, key: 'id', edgeKey: ['a', 'b'], fields: sampleFields })
+    expect(new Set(shape.edges.map((edge) => edge.id)).size).toBe(2)
+  })
+
   it('leaves a node without a group value outside every group', () => {
     const shape = shapeOf([...serviceRows, { id: 11, name: 'Cron', area: null, health: 'up' }], [])
     expect(shape.nodes.find((node) => node.id === '11')).toEqual({ id: '11', row: { id: 11, name: 'Cron', area: null, health: 'up' } })
