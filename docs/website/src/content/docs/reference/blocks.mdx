@@ -491,6 +491,8 @@ view<typeof phases>('phases').fields((r) => ({
 }))
 ```
 
+<gap>A bar whose `bar` field is a relation cannot read to a screen reader by the related record's title because naming it there is not implemented; it reads the key, while the times under the lanes show the title.</gap>
+
 <StoryFrame id="composed-pages-timeline--desktop" title="Projects, their tasks and a chosen task" height={520} />
 
 Its [text form](/reference/layouts/#text-form) is a Markdown table with a row per segment: its lane, bar, value, start and end under the fields' labels. A timeline whose fields the user cannot read is left out of their page, and a field it cannot draw, such as a `start` that is no date, stops the server at startup.
