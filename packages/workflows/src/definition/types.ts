@@ -44,7 +44,7 @@ export type BlockState = Common & Flow & { Type: 'Block'; Arguments?: Template; 
 export type State = PassState | TaskState | ChoiceState | WaitState | SucceedState | FailState | MapState | BlockState
 
 /** States and where they start: a whole state machine, or a Map's item processor. A dataflow machine has no `StartAt`. */
-export type Machine = { StartAt: string; States: Record<string, State>; Comment?: string }
+export type Machine = { StartAt?: string; States: Record<string, State>; Comment?: string }
 
 /** The state machine of a workflow: the States Language with JSONata expressions, in the named-reads profile. */
 export type StateMachine = Machine & { QueryLanguage: 'JSONata' }

@@ -57,14 +57,15 @@ const machineProblems = (machine: Machine, scope: Scope, options: CheckOptions):
   const names = Object.keys(machine.States)
   const { data } = scope
   // In dataflow order a machine has no start: each state starts once the states it reads from have ended
-  if (!data && !machine.States[machine.StartAt]) problems.push({ ...prefix, field: 'StartAt', message: `names "${machine.StartAt}", which is not a state here` })
+  const start = machine.StartAt === undefined ? undefined : machine.States[machine.StartAt]
+  if (!data && !start) problems.push({ ...prefix, field: 'StartAt', message: `names "${machine.StartAt}", which is not a state here` })
   const visible = data ? dataflowVisible(machine, scope.outer) : visibleVariables(machine, scope.outer)
   const reached = data ? undefined : reachable(machine)
   const steps = new Set([...scope.steps, ...names])
 
   for (const name of names) {
     const state = machine.States[name]!
-    if (reached && !reached.has(name) && machine.States[machine.StartAt]) problems.push({ state: where(name), message: `is never reached from "${machine.StartAt}"` })
+    if (reached && !reached.has(name) && start) problems.push({ state: where(name), message: `is never reached from "${machine.StartAt}"` })
     for (const edge of edges(state)) {
       if (!machine.States[edge.target]) problems.push({ state: where(name), field: edge.field, message: `names "${edge.target}", which is not a state here` })
     }

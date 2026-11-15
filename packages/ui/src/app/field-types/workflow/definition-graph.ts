@@ -73,6 +73,6 @@ export const definitionGraph = (definition: Definition): Graph => {
   const machine = definition.stateMachine
   const states = machineGraph(machine, [])
   if (orderOf(definition) === 'data') return { nodes: [{ kind: 'trigger', id: triggerId, trigger: definition.trigger }, ...states.nodes.map((node) => (node.kind === 'state' ? { ...node, first: false } : node))], edges: dataEdges(machine, [], true) }
-  const start: GraphEdge[] = Object.hasOwn(machine.States, machine.StartAt) ? [{ id: '\nStartAt', kind: 'start', source: triggerId, target: machine.StartAt, field: 'StartAt' }] : []
+  const start: GraphEdge[] = machine.StartAt !== undefined && Object.hasOwn(machine.States, machine.StartAt) ? [{ id: '\nStartAt', kind: 'start', source: triggerId, target: machine.StartAt, field: 'StartAt' }] : []
   return { nodes: [{ kind: 'trigger', id: triggerId, trigger: definition.trigger }, ...states.nodes], edges: [...start, ...states.edges] }
 }

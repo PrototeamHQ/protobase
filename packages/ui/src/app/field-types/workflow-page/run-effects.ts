@@ -27,6 +27,10 @@ export const reachedStates = (machine: Machine, start: string) => {
   return [...seen]
 }
 
+// The states a run of a machine may run: those reached from its start, or every one of a machine in data order, which
+// has no start and follows no edges.
+const statesRun = (machine: Machine) => (machine.StartAt === undefined ? Object.keys(machine.States) : reachedStates(machine, machine.StartAt))
+
 // A request whose method is GET or left out only reads, as the HTTP step's own `writes` decides; an expression could be anything
 const readsOnly = (state: TaskState) => {
   if (state.Resource !== 'app:http' || typeof state.Arguments !== 'object' || state.Arguments === null) return false
@@ -39,7 +43,7 @@ const actingSteps = (machine: Machine, names: readonly string[], types: Workflow
     const state = machine.States[name]
     if (!state) return []
     const steps = innerMachine(state)
-    const inside = steps ? actingSteps(steps, reachedStates(steps, steps.StartAt), types) : []
+    const inside = steps ? actingSteps(steps, statesRun(steps), types) : []
     if (state.Type !== 'Task') return inside
     // A step type the app no longer lists writes as far as anyone can tell
     const writes = types?.step_types.find((type) => type.id === state.Resource)?.writes ?? true
@@ -62,5 +66,8 @@ export const changedSinceRun = (ran: Definition | undefined, definition: Definit
   return JSON.stringify(withoutResultVariables(before, shaped)) !== JSON.stringify(withoutResultVariables(definition.stateMachine.States[state], shaped))
 }
 
-/** The steps that act on the world among those a run of `definition` reaches from `start`, its first state by default, Maps and Blocks looked into. */
-export const stepsThatAct = (definition: Definition, types: WorkflowTypeList | undefined, start = definition.stateMachine.StartAt) => actingSteps(definition.stateMachine, reachedStates(definition.stateMachine, start), types)
+/**
+ * The steps that act on the world among those a run of `definition` reaches from `start`, its first state by default,
+ * Maps and Blocks looked into; in data order, which follows no edges, all of them.
+ */
+export const stepsThatAct = (definition: Definition, types: WorkflowTypeList | undefined, start = definition.stateMachine.StartAt) => actingSteps(definition.stateMachine, start === undefined ? statesRun(definition.stateMachine) : reachedStates(definition.stateMachine, start), types)

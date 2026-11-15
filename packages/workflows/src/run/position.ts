@@ -1,3 +1,4 @@
+import { StepError } from './errors'
 import type { Machine } from '../definition/types'
 import type { Checkpoint, StepRecord } from './port'
 
@@ -32,7 +33,11 @@ export type Position =
     }
   | { kind: 'failed'; seq: number; error: string; cause: string }
 
-export const startPosition = (machine: Machine, input: unknown, clock: Date): Position => ({ kind: 'at', seq: 0, state: machine.StartAt, input, variables: {}, attempt: 1, failures: [], visits: {}, clock })
+/** Where a machine in sequence order starts, which a save made sure it names; one in data order starts each state alone. */
+export const startPosition = (machine: Machine, input: unknown, clock: Date): Position => {
+  if (machine.StartAt === undefined) throw new StepError('States.Runtime', 'The state machine names no StartAt to start from')
+  return { kind: 'at', seq: 0, state: machine.StartAt, input, variables: {}, attempt: 1, failures: [], visits: {}, clock }
+}
 
 /**
  * The position after a step. A recorded step moves the clock to when it ended, and a step with a time to go on at moves

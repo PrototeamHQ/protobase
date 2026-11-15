@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checkDefinition } from '../check-definition'
+import type { Definition } from '../types'
 import { machineDependencies } from './dependencies'
 
 const options = { resources: ['app:http', 'app:records.update', 'app:mail.send'], triggers: {} }
@@ -48,5 +49,10 @@ describe('dataflow order', () => {
     expect(checkDefinition(unknown, options)).toContainEqual({ state: 'Mail', field: 'Condition', message: 'reads $states.context.Steps.Nope, but there is no state Nope here or around it' })
     const input = flow({ Ip: http('{% $states.input.url %}', 'ip') })
     expect(checkDefinition(input, options)).toContainEqual({ state: 'Ip', field: 'Arguments.url', message: "reads $states.input, which only the first state of a Map's item processor may read (as the item)" })
+  })
+
+  it('is a Definition as the types say, with no StartAt', () => {
+    const definition: Definition = { order: 'data', trigger: { manual: {} }, stateMachine: { QueryLanguage: 'JSONata', States: { Done: { Type: 'Pass' } } } }
+    expect(checkDefinition(definition, options)).toEqual([])
   })
 })
