@@ -86,8 +86,8 @@ describe('axisTicks limits', () => {
     const change = Date.parse('2026-03-29T01:00:00Z')
     const offsetOf = (ms: number) => (ms < change ? hour : 2 * hour)
     const { ticks } = axisTicks(change - 1.5 * hour, change + 1.5 * hour, offsetOf)
-    expect(ticks.map((tick) => tick.at)).toEqual([change - hour, change])
-    expect(ticks.map((tick) => (tick.at + offsetOf(tick.at)) / hour % 24)).toEqual([1, 3])
+    expect(ticks.map((tick) => tick.at)).toEqual([change - hour, change, change + hour])
+    expect(ticks.map((tick) => (tick.at + offsetOf(tick.at)) / hour % 24)).toEqual([1, 3, 4])
   })
 })
 
