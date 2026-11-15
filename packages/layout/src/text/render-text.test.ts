@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Card, Field, Grid, Link, Page, Progress, RecordCard, Show, Stat } from '../blocks'
 import { component } from '../component'
 import { Box, Column, Row, Text } from '../elements'
+import { RecordsIterator, ReferenceManyField } from '../list-blocks'
 import { blocks } from './markdown'
 import { renderText } from './render-text'
 import { textForms } from './forms'
@@ -67,6 +68,13 @@ describe('renderText', () => {
     const Panel = component<object>('Panel')
     expect(renderText(Chart({}))).toBe('**Seats**: 3')
     expect(renderText(Panel({ children: Text({ children: 'Inside' }) }))).toBe('Inside')
+  })
+
+  it('reads a custom component’s fallback in the list around it, even where its select gives its children a record', () => {
+    const Picker = component<{ nodes: string; select: string }>('Picker', { reads: [{ resource: 'nodes', select: 'select' }], fallback: RecordsIterator({ children: Field({ source: 'title', label: false }) }) })
+    const tree = ReferenceManyField({ reference: 'tasks', target: 'project_id', children: Picker({ nodes: 'tasks', select: 'task' }) })
+    const records = () => [{ title: 'Roof' }, { title: 'Walls' }]
+    expect(renderText(tree, { record: { id: 1 }, records })).toBe('Roof\n\nWalls')
   })
 
   it('takes a form of its own for a custom component', () => {

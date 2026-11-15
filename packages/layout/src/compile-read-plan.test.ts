@@ -117,6 +117,11 @@ describe('compileReadPlan', () => {
     })
   })
 
+  it('reads as many records as one read holds for a custom component whose reads name no limit, whatever props it has', () => {
+    const Board = component<{ resource: string; limit: number }>('Board', { reads: { resource: 'resource' } })
+    expect(reads(Page({ title: 'Home', children: [Board({ resource: 'tasks', limit: 1 })] }))[0]!.pageSize).toBe(500)
+  })
+
   it("takes no chosen row from a custom component's own select prop", () => {
     const Board = component<{ resource: string; select: string }>('Board', { reads: { resource: 'resource' } })
     expect(reads(Page({ title: 'Home', children: [Board({ resource: 'tasks', select: 'compact' })] })).map((read) => read.part)).toEqual([undefined])

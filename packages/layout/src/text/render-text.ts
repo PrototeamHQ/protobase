@@ -67,15 +67,17 @@ const render = (unfilled: LayoutNode, options: TextOptions, around: unknown[] | 
   const node = fillProps(unfilled, { stack: options.record ? [{ record: options.record }] : [], ...(options.params && { params: options.params }) })
   if (!node.custom && node.type === 'RecordsIterator') return iterate(placed(node.children, at, 'children'), options, around).trim()
   // A list context puts its list around its children; other elements pass on the one around them
-  const list = listOf(node, options, at) ?? (childScope(node, pageScope).stack.length > 0 ? undefined : around)
+  const listed = listOf(node, options, at)
+  const list = listed ?? (childScope(node, pageScope).stack.length > 0 ? undefined : around)
   const inner = childOptions(node, options, at)
   // A RecordCard's header actions sit in its record, as its children do
   const slotOptions = !node.custom && node.type === 'RecordCard' ? inner : scoped(options, propScope(node, pageScope).stack.length > 0)
   const slots = Object.fromEntries(
     Object.entries(node.props).flatMap(([name, value]) => (isElements(value) ? [[name, (Array.isArray(value) ? value : [value]).map((element, index) => render(element, slotOptions, undefined, pointerOf(at, 'props', name, ...(Array.isArray(value) ? [index] : []))))]] : [])),
   )
-  // A custom component's fallback draws in its place, so it reads the list around it as its children do
-  const fallback = node.fallback && partsOf(placed(node.fallback, at, 'fallback'), options, false, list)
+  // A custom component's fallback draws in its place, so it reads the list around it, even where its `select` gives its
+  // children a record of their own
+  const fallback = node.fallback && partsOf(placed(node.fallback, at, 'fallback'), options, false, listed ?? around)
   // A Switch's children are Matches, one part each, so its text form finds the one it draws by its place
   const all = placed(node.children, at, 'children')
   const own = !node.custom && node.type === 'Switch' ? all.filter(({ child }) => typeof child !== 'string') : all

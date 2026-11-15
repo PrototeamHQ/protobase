@@ -41,9 +41,10 @@ const pageSizeOf = (node: LayoutNode, reads: BlockReads): number | undefined => 
     case 'ReferenceArrayField':
       return number(perPage) ?? maxPerPage
     default: {
-      const given = reads.limit === undefined ? number(limit) : number(node.props[reads.limit])
-      // A custom component draws what its read holds, so without a limit it reads as many as one read holds
-      return node.custom ? (given ?? maxPerPage) : given
+      // A custom component's limit is only the prop its reads name, as where it reads by itself; it draws what its read
+      // holds, so without one it reads as many as one read holds
+      if (node.custom) return (reads.limit === undefined ? undefined : number(node.props[reads.limit])) ?? maxPerPage
+      return reads.limit === undefined ? number(limit) : number(node.props[reads.limit])
     }
   }
 }
