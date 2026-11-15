@@ -72,9 +72,9 @@ renderText(<Page title="Order"><Field source="status" /></Page>, {
 | --- | --- |
 | `record` | The record around the tree. `Field`, the [field components](#field-values), `Stat field`, `Progress`, `Show` conditions and the `{{field}}`s of addresses read it, through relations as nested objects (`plan.name`); a count a condition names, such as `billing_profiles.count`, is a key of its own. The `{{path}}`s of props read it too. Without it, a field reads as its label alone, a condition as holding (a `Show` reads as its children, a `Switch` as its first `Match`), a prop's `{{path}}`s as empty, and addresses keep their `{{field}}`s. |
 | `fields` | Per field path, its `label` and the `valueLabels` its enum values read as; a field without a label reads under its path. |
-| `records` | Per `ReferenceManyField`, `ReferenceArrayField` or `ReferenceField` element and the record around it, the records it holds, which you loaded; its `RecordsIterator` then reads as its children once per record, in that record, and an empty list as its `empty`. Without it, the block reads as a link to its records. An `ArrayField` reads its items from the record around it. For a `Table` with `select`, the row chosen, whose record its children read; without it they read as nothing. |
+| `records` | Per `ReferenceManyField`, `ReferenceArrayField` or `ReferenceField` element and the record around it, the records it holds, which you loaded; its `RecordsIterator` then reads as its children once per record, in that record, and an empty list as its `empty`. Without it, the block reads as a link to its records. An `ArrayField` reads its items from the record around it. For a `RecordCard`, its record, which its children read; for a `CardRow`, its records, its children once per record. For a `Table` with `select`, the row chosen, whose record its children read; without it they read as nothing. It gets the element, the record around it and the element's place in the tree, the pointer the [read plan](#how-a-page-reads-its-data) names its block by. |
 | `params` | The [page parameters](#page-parameters) the page's address holds, such as `{ window: '30d' }`, which `@params` and the `SelectInput`s read, each held to its choices. |
-| `tables` | Per `Table` element, the records it shows and its columns (`{ columns: [{ name, label, title?, badge?, valueLabels? }], rows }`), which you loaded; the table then reads as its heading and a Markdown table. Without it, a table reads as its heading. |
+| `tables` | Per `Table` element and its place in the tree, the records it shows and its columns (`{ columns: [{ name, label, title?, badge?, valueLabels? }], rows }`), which you loaded; the table then reads as its heading and a Markdown table. Without it, a table reads as its heading. |
 | `locale` | The reader's locale, such as `nl-NL`, in which [field components](#field-values) without `locales` format numbers and dates; the runtime's default when omitted. |
 | `basePath` | What links start with, such as `https://example.com/admin`. |
 | `forms` | Text forms by block type, over the built-in ones. |
@@ -94,7 +94,23 @@ renderText(tree, { forms: { Grid: ruled, Card: noted, SeatChart: childrenText } 
 
 A custom component reads as its [fallback](/reference/custom-components/#fallbacks) when it declares one, and otherwise as what it holds, unless `forms` names it.
 
-<gap>A data block's text form cannot read its records itself, such as a table's rows, because reading records for the text form is not implemented.</gap> A `Thread` holding the elements of [`threadItemNodes`](/reference/blocks/#tool-calls) reads as its messages and calls. <gap>A data block other than a `Table`, a `Thread` or a list block cannot list records you pass because its text form for records is not implemented.</gap> <gap>A field's text form cannot apply its `format`, such as a relative time, because formatting in the text form is not implemented.</gap> <gap>MCP clients cannot read a page's text form because a tool that serves it is not implemented.</gap>
+### A page's text with its records
+
+`pageText` reads a page's records itself: it starts every read of the page's [read plan](#how-a-page-reads-its-data) at once through the `read` you give it, which makes one read as the reader, such as a list or an `:aggregate` of the API, and once they are all back renders the text form with them. A `RecordCard` reads as its record, a `CardRow` as its records, a `Table` as a Markdown table of its rows, and a related list as its records, each nested list under its own record. A read that fails leaves its block as it reads without records, a link to them.
+
+```ts
+import { pageText } from '@protobase/layout'
+
+const text = await pageText(page.tree, page.reads, {
+  read: async (read) => ({ rows: (await client.list(read.resource, { filter: read.filter, orderBy: read.orderBy, pageSize: read.pageSize, fields: read.fields, limitPer: read.limitPer })).items }),
+  labels: { workers: { name: { label: 'Name' } } },
+  params: { window: '30d' },
+})
+```
+
+It takes the options of `renderText` but `records` and `tables`, and `labels`: per resource, its fields' labels and value labels, which its tables' headers and cells read. A count's `read` gives `{ rows: [], total }`, and a count per record around it, an `:aggregate`, its groups as rows `{ value, count }`.
+
+<gap>A `Stat` count, a `Chart`, a `RecordCards`, a `RecordRow` or a `Thread` cannot read its records in `pageText` because their text forms for planned records are not implemented.</gap> <gap>A path in the text form cannot read a record further out than the nearest, such as `../id`, because a stack of records in the text form is not implemented.</gap> A `Thread` holding the elements of [`threadItemNodes`](/reference/blocks/#tool-calls) reads as its messages and calls. <gap>A data block other than a `Table`, a `RecordCard`, a `CardRow`, a `Thread` or a list block cannot list records you pass because its text form for records is not implemented.</gap> <gap>A field's text form cannot apply its `format`, such as a relative time, because formatting in the text form is not implemented.</gap> <gap>MCP clients cannot read a page's text form because a tool that serves it is not implemented.</gap>
 
 ## What a layout may hold
 
@@ -114,7 +130,7 @@ A `RecordCard` (its first match), a `ReferenceField`, each card of a `CardRow` a
 ## Related records
 
 :::caution[Beta]
-The build plans every list's read beside the page's other reads, as [how a page reads its data](#how-a-page-reads-its-data) says. Coming soon: the web starts those reads at page load; until then each list block reads its records once the record around it has drawn.
+A list's next pages, with `pagination="more"`, are a read of the list's own. A `Table` inside a list's records still reads once it draws, as [how a page reads its data](#how-a-page-reads-its-data) says.
 :::
 
 A record's related records repeat under it as a list: a `ReferenceManyField` holds the records of another resource that point at it, a `ReferenceArrayField` the records whose keys a JSON field of it lists, and an `ArrayField` the items of a JSON list it holds. A `RecordsIterator` inside one draws its children once for each entry, with nothing around them, and a `Table` without `resource` draws the list as a table. A `ReferenceField` draws the one record a field points at. They take the names, props and defaults of the [react-admin](/features/compatibility/#react-admin) components of the same names.
