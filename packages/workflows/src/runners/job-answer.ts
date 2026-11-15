@@ -14,7 +14,9 @@ export const jobErrors = { invalidOutput: 'Custom.InvalidOutput', failed: 'Custo
 /**
  * The answer a custom step's Task takes from its runner's completion: its output, once it fits the version's output
  * schema, else `Custom.InvalidOutput` with what does not fit; a failure under `<error_prefix>.<Name>` when the runner
- * names one of the version's errors, by its name or in full, else `Custom.Failed`, with the name it gave in the cause.
+ * names one of the version's errors, by its name or in full, or one of the custom steps' own, `Custom.InvalidOutput` or
+ * `Custom.Failed`, as a runner names an output it could not read or a container that failed; else `Custom.Failed`, with
+ * the name it gave in the cause.
  */
 export const jobAnswer = (version: CompletedVersion, completion: JobCompletion): TaskAnswer => {
   if ('output' in completion) {
@@ -28,5 +30,6 @@ export const jobAnswer = (version: CompletedVersion, completion: JobCompletion):
   const prefix = `${version.error_prefix}.`
   const name = error.startsWith(prefix) ? error.slice(prefix.length) : error
   if (Object.hasOwn(version.errors, name)) return { kind: 'failure', error: `${prefix}${name}`, cause }
+  if (error === jobErrors.invalidOutput || error === jobErrors.failed) return { kind: 'failure', error, cause }
   return { kind: 'failure', error: jobErrors.failed, cause: error === '' ? cause : `${error}${cause === '' ? '' : `: ${cause}`}` }
 }

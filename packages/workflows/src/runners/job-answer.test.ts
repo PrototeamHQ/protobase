@@ -24,4 +24,9 @@ describe("the answer a custom step's completion gives its Task", () => {
     expect(jobAnswer(version, { error: 'Other.Refused' })).toEqual({ kind: 'failure', error: 'Custom.Failed', cause: 'Other.Refused' })
     expect(jobAnswer(version, { error: '', cause: 'it broke' })).toEqual({ kind: 'failure', error: 'Custom.Failed', cause: 'it broke' })
   })
+
+  it("passes the custom steps' own errors on as a runner names them", () => {
+    expect(jobAnswer(version, { error: 'Custom.Failed', cause: 'exit code 2' })).toEqual({ kind: 'failure', error: 'Custom.Failed', cause: 'exit code 2' })
+    expect(jobAnswer(version, { error: 'Custom.InvalidOutput', cause: 'output.json is no JSON' })).toEqual({ kind: 'failure', error: 'Custom.InvalidOutput', cause: 'output.json is no JSON' })
+  })
 })

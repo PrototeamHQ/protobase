@@ -142,10 +142,10 @@ export const manifestProblems = (manifest: CustomStepManifest): ManifestProblem[
 }
 
 const configuration = { type: 'string', description: 'the name of a storage configuration, such as "archive"' }
-const path = { type: 'string', description: 'where in it; default a path of this step in this run' }
+const path = { type: 'string', description: 'the folder in it the files go in, each by its path in the step\'s output folder; default a folder of this step in this run' }
 
 // Where every custom step stores the files it gives, as app:http's `store` takes it.
-const storeArgument = { type: 'object', required: ['configuration'], description: 'where the step stores the files it gives: a storage configuration and, when given, a path in it', properties: { configuration, path } }
+const storeArgument = { type: 'object', required: ['configuration'], description: 'where the step stores the files it gives: a storage configuration and, when given, a folder in it', properties: { configuration, path } }
 
 const givesFile = (schema: JsonSchema) => fileMarks(schema).some((mark) => mark.value === true)
 

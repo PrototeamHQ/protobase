@@ -1,0 +1,220 @@
+import { mkdir, readdir, readFile, symlink, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
+import { builder } from './builds'
+import { engine, imageTag } from './engine'
+import { containerInput, fileName, inputVariable, outputFile, runJob } from './job'
+import { convertJob, fakeApp, fakeExec, mounts, testSettings, type Ran } from './testing/fakes'
+
+const identity = { url: 'https://app.example.com', tenant: '1' }
+const tag = imageTag(identity, 'custom:ffmpeg_convert:1')
+const removals: (() => Promise<void>)[] = []
+afterEach(async () => {
+  for (const remove of removals.splice(0)) await remove()
+})
+
+// A runner's parts around the fake engine and app.
+const setUp = async (answer: Parameters<typeof fakeExec>[0], app = fakeApp()) => {
+  const { settings, remove } = await testSettings()
+  removals.push(remove)
+  const { exec, ran } = fakeExec(answer)
+  const docker = engine(exec, 'docker')
+  const lines: string[] = []
+  const say = (line: string) => lines.push(line)
+  const input = { app: app.app, engine: docker, build: builder({ app: app.app, engine: docker, settings, identity, say }), settings, identity, say }
+  return { input, ran, app, settings, lines }
+}
+
+const runs = (ran: Ran[]) => ran.filter((one) => one.args[0] === 'run')
+
+// A container that converts as the FFmpeg step's does: it reads input.json and writes its file and output.json.
+const converting = async (ran: Ran) => {
+  if (ran.args[0] !== 'run') return {}
+  const { into, out } = mounts(ran.args)
+  const input = JSON.parse(await readFile(path.join(into, 'input.json'), 'utf8')) as { video: { path: string } }
+  const video = await readFile(path.join(into, input.video.path.replace('/protobase/in/', '')), 'utf8')
+  await mkdir(path.join(out, 'converted'))
+  await writeFile(path.join(out, 'converted', 'clip-720.mp4'), `720p of ${video}`)
+  await writeFile(path.join(out, 'output.json'), JSON.stringify({ video: 'converted/clip-720.mp4', duration_seconds: 2 }))
+  return { stdout: 'frame=60\n' }
+}
+
+describe("a job's container", () => {
+  it('runs hardened, exactly so, with only its folders mounted and its inputs as variables named on the command line', async () => {
+    const { input, ran } = await setUp(converting)
+    await runJob(input, convertJob())
+    const [run] = runs(ran)
+    const { work } = mounts(run!.args)
+    expect(run).toEqual({
+      command: 'docker',
+      args: [
+        'run', '--rm', '--name', 'protobase-job-0b6f2f8e-1111-4222-8333-944445555666',
+        '--network', 'none',
+        '--read-only', '--tmpfs', '/tmp:rw,noexec,nosuid,size=256m',
+        '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+        '--pids-limit', '256', '--memory', '2048m', '--memory-swap', '2048m', '--cpus', '2',
+        '--user', '65532:65532',
+        '-v', `${work}/in:/protobase/in:ro`, '-v', `${work}/out:/protobase/out`,
+        '-e', 'PROTOBASE_INPUT=/protobase/in/input.json', '-e', 'PROTOBASE_IN=/protobase/in', '-e', 'PROTOBASE_OUT=/protobase/out',
+        '-e', 'INPUT_HEIGHT', '-e', 'INPUT_CODEC',
+        tag, 'convert',
+      ],
+      // The values reach the engine through its environment, never its command line
+      env: { INPUT_HEIGHT: '720', INPUT_CODEC: 'h264' },
+    })
+  })
+
+  it("gets input.json with each file as where it is in the container, without Protobase's own store argument", () => {
+    const { json, files, env } = containerInput(convertJob())
+    expect(json).toEqual({ video: { path: '/protobase/in/video/sample.mp4', name: 'sample.mp4', type: 'video/mp4', size: 11 }, height: 720, codec: 'h264' })
+    expect(files.map((file) => file.at)).toEqual(['video/sample.mp4'])
+    expect(env).toEqual({ INPUT_HEIGHT: '720', INPUT_CODEC: 'h264' })
+    expect([inputVariable('frame-rate'), fileName('../../etc/passwd'), fileName('..'), fileName('a\u0000b.mp4')]).toEqual(['INPUT_FRAME_RATE', 'passwd', 'file', 'ab.mp4'])
+    expect(() => containerInput(convertJob({ files: [{ input: '../x', name: 'x', type: 'text/plain', size: 1, url: '/x' }] }))).toThrow(/cannot be a folder/)
+  })
+
+  it('completes with its output, each file it names uploaded and replaced by the stored file, and its lines logged, then leaves no folder', async () => {
+    const { input, app, settings } = await setUp(converting)
+    await runJob(input, convertJob())
+    expect(app.calls.find((call) => call.call === 'download')).toEqual({ call: 'download', body: '/api/runners/v1/jobs/0b6f2f8e-1111-4222-8333-944445555666/inputs/video' })
+    expect(app.uploads).toEqual([{ job: convertJob().id, path: 'converted/clip-720.mp4', type: 'video/mp4', text: '720p of input bytes' }])
+    expect(app.calls.filter((call) => call.call === 'complete')).toEqual([
+      { call: 'complete', job: convertJob().id, body: { output: { video: { configuration: 'videos', path: 'converted/converted/clip-720.mp4', name: 'clip-720.mp4', type: 'video/mp4', size: 19 }, duration_seconds: 2 } } },
+    ])
+    expect(app.calls.filter((call) => call.call === 'log').flatMap((call) => call.body as string[])).toEqual(['frame=60'])
+    // Uploads come before the completion, which ends the job and its files' addresses
+    expect(app.calls.map((call) => call.call).filter((call) => call !== 'log')).toEqual(['download', 'upload', 'complete'])
+    // Its lines reach the app before its completion, after which the job takes none
+    const order = app.calls.map((call) => call.call)
+    expect(order.lastIndexOf('log')).toBeLessThan(order.indexOf('complete'))
+    expect(await readdir(settings.work_dir)).toEqual([])
+  })
+
+  it('fails with the error error.json names, whatever its exit code', async () => {
+    const { input, app } = await setUp(async (ran) => {
+      if (ran.args[0] !== 'run') return {}
+      await writeFile(path.join(mounts(ran.args).out, 'error.json'), JSON.stringify({ error: 'UnsupportedInput', cause: 'no video stream' }))
+      return { code: 3 }
+    })
+    await runJob(input, convertJob())
+    expect(app.calls.find((call) => call.call === 'complete')?.body).toEqual({ error: 'UnsupportedInput', cause: 'no video stream' })
+  })
+
+  it('fails any other exit with Custom.Failed and the last 2000 characters of stderr', async () => {
+    const { input, app } = await setUp((ran, options) => {
+      if (ran.args[0] !== 'run') return {}
+      options.line?.('x'.repeat(3000), 'stderr')
+      options.line?.('Conversion failed!', 'stderr')
+      return { code: 1 }
+    })
+    await runJob(input, convertJob())
+    const { error, cause } = app.calls.find((call) => call.call === 'complete')!.body as { error: string; cause: string }
+    expect(error).toBe('Custom.Failed')
+    expect(cause).toHaveLength(2000)
+    expect(cause.endsWith('Conversion failed!\n')).toBe(true)
+    const silent = await setUp((ran) => (ran.args[0] === 'run' ? { code: 137 } : {}))
+    await runJob(silent.input, convertJob())
+    expect(silent.app.calls.find((call) => call.call === 'complete')?.body).toEqual({ error: 'Custom.Failed', cause: 'The container exited with 137' })
+  })
+
+  it('fails as Custom.InvalidOutput without output.json, with one that is no JSON, or one naming a file outside its folder, uploading nothing', async () => {
+    const outputs: ((out: string) => Promise<void>)[] = [
+      async () => {},
+      (out) => writeFile(path.join(out, 'output.json'), '{ nope'),
+      async (out) => {
+        await symlink('/etc/passwd', path.join(out, 'passwd'))
+        await writeFile(path.join(out, 'output.json'), JSON.stringify({ video: 'passwd' }))
+      },
+      (out) => writeFile(path.join(out, 'output.json'), JSON.stringify({ video: '../in/input.json' })),
+      async (out) => {
+        await symlink('/etc', path.join(out, 'etc'))
+        await writeFile(path.join(out, 'output.json'), JSON.stringify({ video: 'etc/passwd' }))
+      },
+    ]
+    for (const write of outputs) {
+      const { input, app } = await setUp(async (ran) => {
+        if (ran.args[0] === 'run') await write(mounts(ran.args).out)
+        return {}
+      })
+      await runJob(input, convertJob())
+      expect(app.calls.find((call) => call.call === 'complete')?.body).toMatchObject({ error: 'Custom.InvalidOutput' })
+      expect(app.uploads).toEqual([])
+    }
+  })
+
+  it('reads only a plain file inside the output folder as an output file', async () => {
+    const { settings, remove } = await testSettings()
+    removals.push(remove)
+    const out = path.join(settings.work_dir, 'out')
+    await mkdir(path.join(out, 'a'), { recursive: true })
+    await writeFile(path.join(out, 'a', 'b.mp4'), 'x')
+    expect(await outputFile(out, 'a/b.mp4')).toBe(path.join(out, 'a', 'b.mp4'))
+    for (const given of ['a', '/etc/passwd', '../out/a/b.mp4', 'missing.mp4', 3, '']) expect(await outputFile(out, given)).toBeUndefined()
+  })
+
+  it('is killed at its deadline, completing nothing', async () => {
+    let finish: (() => void) | undefined
+    const { input, ran, app } = await setUp((one) => {
+      if (one.args[0] === 'kill') finish?.()
+      if (one.args[0] !== 'run') return {}
+      return new Promise((resolve) => (finish = () => resolve({ code: 137 })))
+    })
+    await runJob(input, convertJob({ deadline: new Date(Date.now() + 200).toISOString() }))
+    expect(ran.filter((one) => one.args[0] === 'kill').map((one) => one.args)).toEqual([['kill', 'protobase-job-0b6f2f8e-1111-4222-8333-944445555666']])
+    expect(app.calls.filter((call) => call.call === 'complete')).toEqual([])
+  })
+
+  it('is killed once a heartbeat answers stop, completing nothing', async () => {
+    let finish: (() => void) | undefined
+    const { input, ran, app } = await setUp(
+      (one) => {
+        if (one.args[0] === 'kill') finish?.()
+        if (one.args[0] !== 'run') return {}
+        return new Promise((resolve) => (finish = () => resolve({ code: 137 })))
+      },
+      fakeApp({ stop: () => true }),
+    )
+    await runJob(input, convertJob({ heartbeat_seconds: 0.05 }))
+    expect(app.calls.filter((call) => call.call === 'heartbeat').length).toBeGreaterThan(0)
+    expect(ran.some((one) => one.args[0] === 'kill')).toBe(true)
+    expect(app.calls.filter((call) => call.call === 'complete')).toEqual([])
+  })
+})
+
+describe("a job's image", () => {
+  it('is built first when the runner has not got it, labelled with its step and app, from its version alone, and reported', async () => {
+    let built = false
+    const { input, ran, app } = await setUp(async (one) => {
+      if (one.args[0] === 'image' && one.args[1] === 'inspect') return built ? { stdout: 'sha256:abc\n' } : { code: 1 }
+      if (one.args[0] === 'build') {
+        const dockerfile = one.args[one.args.indexOf('--file') + 1]!
+        const context = one.args.at(-1)!
+        expect(await readFile(dockerfile, 'utf8')).toBe(convertJob().build.dockerfile)
+        expect(await readdir(context)).toEqual(['convert.sh'])
+        built = true
+        return { stdout: '#1 DONE\n' }
+      }
+      return converting(one)
+    })
+    await runJob(input, convertJob())
+    const build = ran.find((one) => one.args[0] === 'build')!
+    expect(build.args.slice(0, 6)).toEqual(['build', '--tag', tag, '--label', 'org.protobase.step=custom:ffmpeg_convert:1', '--label'])
+    expect(build.args[6]).toMatch(/^org\.protobase\.app=[0-9a-f]{16}$/)
+    expect(app.calls.filter((call) => call.call === 'build').map((call) => call.body)).toEqual([
+      { step: 'custom:ffmpeg_convert:1', status: 'building' },
+      { step: 'custom:ffmpeg_convert:1', status: 'ready', digest: 'sha256:abc', log: '#1 DONE' },
+    ])
+    expect(runs(ran)).toHaveLength(1)
+  })
+
+  it('fails the job with Custom.Failed and the log when it does not build, running nothing', async () => {
+    const { input, ran, app } = await setUp((one, options) => {
+      if (one.args[0] === 'build') options.line?.('E: Unable to locate package nope', 'stdout')
+      return one.args[0] === 'run' ? {} : { code: 1 }
+    })
+    await runJob(input, convertJob())
+    expect(app.calls.find((call) => call.call === 'complete')?.body).toEqual({ error: 'Custom.Failed', cause: "The step's image did not build: E: Unable to locate package nope" })
+    expect(app.calls.filter((call) => call.call === 'build').at(-1)?.body).toEqual({ step: 'custom:ffmpeg_convert:1', status: 'failed', log: 'E: Unable to locate package nope' })
+    expect(runs(ran)).toEqual([])
+  })
+})

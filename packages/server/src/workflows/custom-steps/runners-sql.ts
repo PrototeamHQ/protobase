@@ -1,10 +1,11 @@
 import { quoteIdent } from '../../changes/capture-sql'
 
 /** The tables `runnersSql` makes, which the startup check finds with custom steps on. */
-export const runnersTables = ['runners', 'custom_step_jobs']
+export const runnersTables = ['runners', 'custom_step_jobs', 'custom_step_builds', 'custom_step_wanted']
 
 /**
- * The runners of each tenant, and the jobs of its custom steps they claim.
+ * The runners of each tenant, the jobs of its custom steps they claim, the images they build, and the custom step
+ * versions its published workflows use.
  *
  * A runner keeps only the SHA-256 of its one-time registration token and of its own token. Its admin fields (name,
  * labels, revoked) give the row a new `updated_at`, its ETag, which what it says with each claim leaves as it is.
@@ -15,6 +16,14 @@ export const runnersTables = ['runners', 'custom_step_jobs']
  * job ends; `input` is what the step records, its secrets blanked out. Of the try's task token it keeps only the
  * hash, by which the app answers the try for the runner. As the try is answered or ends, the job ends with it:
  * succeeded, failed, or timed out when its time or heartbeat ran out; as its run ends, the jobs it left are timed out.
+ *
+ * A build is one runner's build of a version's image, as the runner reports it: building, then ready with the image's
+ * digest, or failed, with its log's tail. A runner sent `prepare` for a version has a build of it from then on, which
+ * its report of the start takes up.
+ *
+ * The wanted custom step versions are the ones each workflow's published version uses, written as it is published and
+ * dropped as it is turned off, which runners that build are sent `prepare` for.
+ *
  * Every statement is idempotent.
  */
 export const runnersSql = (schema: string) => {
@@ -78,6 +87,33 @@ create index if not exists "custom_step_jobs_queued_at" on ${s}."custom_step_job
 create index if not exists "custom_step_jobs_status" on ${s}."custom_step_jobs" ("status", "queued_at");
 create index if not exists "custom_step_jobs_runner" on ${s}."custom_step_jobs" ("runner_id", "queued_at");
 create index if not exists "custom_step_jobs_token" on ${s}."custom_step_jobs" ("token_hash");
+
+create table if not exists ${s}."custom_step_builds" (
+  "id" uuid primary key default gen_random_uuid(),
+  "runner_id" uuid references ${s}."runners" ("id") on delete set null,
+  "version_id" uuid not null references ${s}."custom_step_versions" ("id") on delete cascade,
+  "step" text not null,
+  "status" text not null default 'building' check ("status" in ('building', 'ready', 'failed')),
+  "digest" text,
+  "log" text,
+  "started_at" timestamptz not null default now(),
+  "finished_at" timestamptz,
+  "tenant_id" text
+);
+create index if not exists "custom_step_builds_tenant" on ${s}."custom_step_builds" ("tenant_id");
+create index if not exists "custom_step_builds_version" on ${s}."custom_step_builds" ("version_id", "started_at");
+create index if not exists "custom_step_builds_runner" on ${s}."custom_step_builds" ("runner_id", "version_id");
+create index if not exists "custom_step_builds_started_at" on ${s}."custom_step_builds" ("started_at");
+create index if not exists "custom_step_builds_status" on ${s}."custom_step_builds" ("status", "started_at");
+
+create table if not exists ${s}."custom_step_wanted" (
+  "workflow_id" uuid not null references ${s}."workflows" ("id") on delete cascade,
+  "version_id" uuid not null references ${s}."custom_step_versions" ("id") on delete cascade,
+  "tenant_id" text,
+  primary key ("workflow_id", "version_id")
+);
+create index if not exists "custom_step_wanted_version" on ${s}."custom_step_wanted" ("version_id");
+create index if not exists "custom_step_wanted_tenant" on ${s}."custom_step_wanted" ("tenant_id");
 
 create or replace function ${s}."runner_written"() returns trigger
 language plpgsql as $$

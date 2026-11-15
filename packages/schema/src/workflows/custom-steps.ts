@@ -107,6 +107,12 @@ const customStepVersionsView = view<ReturnType<typeof customStepVersionsResource
     saved_at: r.saved_at.label('Saved'),
   }))
   .list((r) => ({ columns: [r.custom_step_id, r.version, r.saved_by, r.saved_at], sort: [[r.version, 'desc']] }))
+  .layout((r) => [
+    l.section('Custom step version', [r.custom_step_id, r.version, r.name, r.label, r.description, r.kind]),
+    l.section('Manifest', [r.container, r.input, r.output, r.error_prefix, r.errors]),
+    l.sidebar([r.saved_by, r.saved_at]),
+    l.related('Builds', { resource: 'workflow_custom_step_builds', field: 'version_id', columns: ['status', 'runner_id', 'started_at', 'finished_at'] }),
+  ])
 
 /** The custom steps of the workflows over `schema`, with their versions, offered when the app turns custom steps on. */
 export const customStepResources = (schema: string) => ({

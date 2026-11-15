@@ -40,7 +40,8 @@ import { customStepRunners } from './runners/runners'
  * Auth unless the options say otherwise), and which keeps runs' traces in the private file provider. With custom steps
  * on, the hook that checks their manifests and keeps their versions, each tenant's custom step types
  * (`customTypes`), which its saves, its type list and its checks take, and the runners that run them: their calls
- * (`routes.runners`), the registration tokens a runner's editor issues, and the job that ends a runner's lease.
+ * (`routes.runners`) and install script (`routes.runnerInstall`), the registration tokens a runner's editor issues, and
+ * the job that ends a runner's lease.
  */
 export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth?: AdminAuth, locale?: Locale) => {
   const schema = workflowsSchema(options)
@@ -59,9 +60,10 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   const sealKey = auth ? auth.secretKey : env.PROTOBASE_SECRET ? async () => env.PROTOBASE_SECRET! : undefined
   if (custom && !sealKey) throw new Error("workflows.customSteps seals the arguments of custom steps' jobs with the app's secret: give the config `auth`, or set PROTOBASE_SECRET")
   // A runner's completion answers its job's Task by its token's hash, as an outside executor's answer by its token.
-  const runners = custom && customStepRunners({ deps, schema, settings: runnerSettings, secrets: Object.values(secrets), key: sealKey!, answer: (hash, answer) => answerTaskByHash(hash, answer) })
   const allowPrivateAddresses = Boolean(options.allowPrivateAddresses)
   const input = { deps, schema, roles, allowPrivateAddresses, storage, connect: connections.trigger }
+  // Its files are read and stored as the run's storage steps do, as the run's last editor.
+  const runners = custom && customStepRunners({ deps, schema, settings: runnerSettings, secrets: Object.values(secrets), key: sealKey!, answer: (hash, answer) => answerTaskByHash(hash, answer), storage: input, origin: () => auth?.origins[0] })
   const cache = postgresStepCache(() => deps().db, schema, secretFingerprints(secrets, env.PROTOBASE_SECRET), roles)
   const files = () => deps().files
   const trace = traceSink({ files, joining: traceJoining(() => deps().db, schema), report: (error) => deps().report(error) })
@@ -103,7 +105,7 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
       if (runners) app.route('/runners', runners.registration())
       return app
     },
-    ...(runners && { runners: runners.route }),
+    ...(runners && { runners: runners.route, runnerInstall: runners.install }),
   }
   const customTypes = custom && ((tenant: unknown) => custom(deps().db, tenant))
   return { routes, issue, answerTask: answerTaskAs(deps, tokens, answerTask), customTypes, hooks: [workflowSaveHook(schema, types.check, triggers, connections.consent, custom), workflowDeleteHook(schema, triggers), runStartHook(runner, deps, schema), ...(storage ? [storageConfigurationHook(storage)] : []), ...(custom ? [customStepSaveHook(schema)] : []), ...(runners ? runners.hooks : [])], writeChecks: [runInputCheck, ...(storage ? [storageEndpointCheck(storage, allowPrivateAddresses)] : [])], jobs: [job, ...triggers.jobs, ...(revocations ? [revocations.job] : []), ...(runners ? runners.jobs : [])], onChanges: triggers.onChanges, types, readTrace: (runId: string) => readTrace(files(), runId) }

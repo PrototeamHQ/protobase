@@ -74,6 +74,13 @@ module.exports = {
       to: { path: '^packages/', pathNot: '^packages/(server|schema|layout|query|workflows|workflow-plugins)/' },
     },
     {
+      name: 'runner-imports',
+      comment: '@protobase/runner imports only workflows, whose job contract it shares with the app: it reaches the app over HTTP alone.',
+      severity: 'error',
+      from: { path: '^packages/runner/' },
+      to: { path: '^packages/', pathNot: '^packages/(runner|workflows)/' },
+    },
+    {
       name: 'config-types-only',
       comment: '@protobase/config runs nothing besides defineConfig: reading a config loads it and the config alone, so it imports types only.',
       severity: 'error',

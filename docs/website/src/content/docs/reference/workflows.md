@@ -526,7 +526,7 @@ A stored file is read from where its configuration points now. <gap>Changing a c
 ## Custom workflow steps
 
 :::caution[In development]
-A custom step is saved, listed and checked, and a run hands it to a registered runner, but no runner program ships yet: Protobase neither builds its image nor runs its container. It cannot yet take or give files through its runner, be tested, or be given limits on its resources and network.
+A custom step is saved, listed and checked, and a run hands it to a registered [runner](#runners), which builds its image and runs its container. Each runner builds its own images, as there is no image registry; a job's container has no network; and a step cannot yet be tested on its own, or given limits on its resources in its manifest.
 :::
 
 A **custom step** is a step type the app's authors keep as a record: a container built from a Dockerfile, with the input it takes and the output it gives as JSON Schema. Each save that changes its manifest is a new version, and every version is a step type of its own, `custom:<name>:<version>`, such as `custom:invoice_pdf:2`, so changing a custom step never changes a workflow that names an earlier version.
@@ -537,7 +537,7 @@ Turn them on with `customSteps` in `workflows`:
 export default defineConfig({ workflows: { customSteps: true } })
 ```
 
-Their jobs' arguments are sealed with the app's secret, its sign-in's, else `PROTOBASE_SECRET`; without either, startup stops. Their tables, `workflows.custom_steps` and `workflows.custom_step_versions`, come with the next [`protobase migration`](/reference/cli/#migration) after you turn them on.
+Their jobs' arguments are sealed with the app's secret, its sign-in's, else `PROTOBASE_SECRET`; without either, startup stops. Their tables, `workflows.custom_steps` and `workflows.custom_step_versions` with those of their runners, jobs and builds, come with the next [`protobase migration`](/reference/cli/#migration) after you turn them on.
 
 A custom step is a record of `workflow_custom_steps`, which you create and change on its standard pages, linked from each workflow's page, through the API or over MCP. Each save is checked, and refused with a 400 problem whose `problems` name each field, such as `container.dockerfile`:
 
@@ -581,7 +581,7 @@ A Task names a version in its `Resource`:
 }
 ```
 
-Its arguments are the manifest's `input` and `store`, `{ configuration, path? }`, the [storage configuration](#storing-files) it stores the files it gives in, as `app:http` takes it; a version whose `output` gives a file needs it. The save checks the arguments it needs and types its pins from the manifest, as it does any step type's, and its errors are `<error_prefix>.<Name>`. A `Resource` that names no version, such as `custom:invoice_pdf`, is refused, naming the latest: `"custom:invoice_pdf" names no version: write custom:invoice_pdf:2`. A version of another tenant's custom step, or one deleted, is refused as an unknown step type.
+Its arguments are the manifest's `input` and `store`, `{ configuration, path? }`, the [storage configuration](#storing-files) it stores the files it gives in, as `app:http` takes it; a version whose `output` gives a file needs it. Each file goes under the folder `path` names, else a folder of the step in its run, by its path in the container's output folder: `{ "configuration": "videos", "path": "converted" }` keeps a container's `clip-720.mp4` as `converted/clip-720.mp4` in `videos`. The save checks the arguments it needs and types its pins from the manifest, as it does any step type's, and its errors are `<error_prefix>.<Name>`. A `Resource` that names no version, such as `custom:invoice_pdf`, is refused, naming the latest: `"custom:invoice_pdf" names no version: write custom:invoice_pdf:2`. A version of another tenant's custom step, or one deleted, is refused as an unknown step type.
 
 The editor's step picker lists each custom step at its latest version under *Custom steps*, and a Task's form takes any version, naming each by its label and number, such as *Invoice PDF, version 2*, and `GET /api/workflows/types`, `list_workflow_types` and `validate_workflow` take them, each with the custom steps of the caller's tenant: whoever may read workflows reads them, as they do a plugin's types, and only creating, changing and deleting them is granted.
 
@@ -590,10 +590,10 @@ A run hands a custom step to one of its tenant's [runners](#runners) as a [waiti
 ### Runners
 
 :::caution[In development]
-No runner program ships yet, so a runner is a program of your own that makes these calls. Its jobs take and give no files, and a claim is answered only with a job, no order to prepare an image or keep instances warm.
+A runner builds every image it runs itself, from the version's Dockerfile, as there is no image registry to pull one from. A job's container has no network, and a claim is answered with a job or an order to prepare an image, never one to keep instances warm, drain or stop.
 :::
 
-A **runner** is a machine that runs custom steps' jobs: a record of `workflow_runners`, linked from each workflow's page, of one tenant, whose jobs it alone takes. It connects out to the app and claims work; the app never connects to it.
+A **runner** is a machine that runs custom steps' jobs: a record of `workflow_runners`, linked from each workflow's page, of one tenant, whose jobs it alone takes. It connects out to the app and claims work; the app never connects to it. Protobase's runner program, `protobase-runner`, is one executable for Linux on x86_64 or arm64 that runs each job in a container under Docker or Podman, and builds the images.
 
 | Field | |
 | --- | --- |
@@ -605,27 +605,118 @@ A **runner** is a machine that runs custom steps' jobs: a record of `workflow_ru
 
 Deleting a runner refuses its token as revoking it does.
 
-**Registering one.** Make the runner, then issue its one-time registration token with `POST /api/workflows/runners/<id>/registration`, which needs the right to change that runner in your tenant; anyone else gets 404. It answers `{ token, expires_at }` once, a `pbr_once_...` token valid one hour, and the app keeps only its SHA-256, so it cannot show it again; a token issued again replaces the earlier one, until the runner registers. The machine then exchanges it, with no sign-in, for its own token:
+#### Installing a runner
+
+Make the runner, then issue its one-time registration token with `POST /api/workflows/runners/<id>/registration`, which needs the right to change that runner in your tenant; anyone else gets 404. It answers `{ token, expires_at, command }` once: a `pbr_once_...` token valid one hour, of which the app keeps only the SHA-256, so it cannot show it again, and the one command that installs the runner with it. A token issued again replaces the earlier one, until the runner registers. Run the command on the machine, as the user the runner runs as:
+
+```sh
+curl -fsSL https://app.example.com/api/runners/install.sh | sh -s -- --token pbr_once_...
+```
+
+`GET /api/runners/install.sh` serves the install script to anyone, written for the app that serves it. It:
+
+1. finds the machine's platform, and downloads `protobase-runner` of the app's own Protobase version for it to `~/.local/bin`;
+2. checks that `docker` or `podman` works for the user, and recommends rootless mode when it runs as root, as a job that escaped its container would then be root on the machine;
+3. registers the runner with the token, keeping its own token and its settings in `~/.config/protobase-runner/config.json`, readable by that user only;
+4. writes a systemd user unit, `protobase-runner.service`, running `protobase-runner run`, and enables and starts it with `systemctl --user`. To keep it running while the user is logged out, run `loginctl enable-linger <user>`, as the script says when it is needed.
+
+Its options: `--url` the app's address, by default the one that served it; `--bin-dir` the folder of the executable; `--binary-url` another download of the executable, such as a `file://` one; `--service false` to start the runner yourself, `true` by default; and the runner's settings, which it passes on to `protobase-runner register --url <app> --token pbr_once_...`. That command, and `protobase-runner run`, are also how you install a runner by hand.
+
+| Setting | Default | |
+| --- | --- | --- |
+| `--slots` | half the machine's CPUs, at least 1 | How many jobs it runs at once. |
+| `--cpus` | `2` | The CPUs a job's container may use. |
+| `--memory-mb` | `2048` | The memory a job's container may use, with no swap beyond it. |
+| `--pids` | `256` | The processes a job's container may run. |
+| `--tmp-mb` | `256` | The size of a job's `/tmp`. |
+| `--work-dir` | `~/.cache/protobase-runner` | Where each job's and build's folder goes, deleted after it. |
+| `--engine` | `docker` when it works, else `podman` | Which one runs the containers. |
+| `--build` | `true` when the engine builds | Whether it builds images, so it is sent `prepare` and takes jobs whose image it lacks. `true` or `false`. |
+| `--build-timeout-seconds` | `1800` | The longest a build may take. |
+
+They are kept in its config file; change them there and restart it.
+
+#### How a job runs
+
+For each job it claims, the runner downloads the job's input files into a fresh folder, builds the step's image when it has not got it, and runs the container hardened:
+
+```sh
+docker run --rm --name protobase-job-<id> --network none \
+  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=256m \
+  --cap-drop ALL --security-opt no-new-privileges \
+  --pids-limit 256 --memory 2048m --memory-swap 2048m --cpus 2 \
+  --user 65532:65532 \
+  -v <job folder>/in:/protobase/in:ro -v <job folder>/out:/protobase/out \
+  -e PROTOBASE_INPUT=/protobase/in/input.json -e PROTOBASE_IN=/protobase/in -e PROTOBASE_OUT=/protobase/out \
+  -e INPUT_<NAME> ... <image> <command>
+```
+
+So the container has no network, a read-only root with a small `/tmp` that runs nothing, no capabilities and no way to gain any, user 65532 whatever its image says, limits on its processes, memory and CPUs, and of the machine only the job's two folders: its inputs, read-only, and its output folder. It never gets the engine's socket or the runner's environment. The runner sends its heartbeats throughout, sends its lines of output to the job's logs in batches, and kills it at the job's deadline, or once a heartbeat answers stop, completing nothing then. It deletes the job's folder after.
+
+**For an image's author**, what goes in and out is plain files and variables:
+
+| | |
+| --- | --- |
+| `$PROTOBASE_INPUT` | The path of `input.json`: the step's arguments, without `store`, each file replaced by `{ "path", "name", "type", "size" }`, its `path` where it is in the container. |
+| `$PROTOBASE_IN` | The input folder, read-only, holding each input file at `<input>/<file name>`, such as `/protobase/in/video/sample.mp4`. |
+| `INPUT_<NAME>` | Each argument that is text, a number or `true` or `false`, also as a variable named by its name in capitals, other characters as `_`: `height` is `INPUT_HEIGHT`. |
+| `$PROTOBASE_OUT` | The output folder, the one place the container writes to besides `/tmp`. |
+| `$PROTOBASE_OUT/output.json` | What the step gives, its `output`, read once the container exits with 0. Each output the manifest marks `x-file` is a path relative to `$PROTOBASE_OUT`, such as `"video": "clip-720.mp4"`: the runner stores that file through `store` and gives the [stored file](#storing-files) in its place. A file that is not there, is reached through a link or leaves the folder fails the step as `Custom.InvalidOutput`, and so do a missing `output.json` and one that is not JSON. |
+| `$PROTOBASE_OUT/error.json` | `{ "error": "UnsupportedInput", "cause": "..." }` fails the step with that error, whatever the exit code: one of the manifest's `errors` as `<error_prefix>.<Name>`, such as `Ffmpeg.UnsupportedInput`. |
+| Any other exit | Fails the step as `Custom.Failed`, the last 2,000 characters of its stderr the cause. |
+
+A step that counts the lines of a text file, for example:
+
+```json
+{
+  "name": "count_lines",
+  "label": "Count lines",
+  "container": {
+    "dockerfile": "FROM debian:bookworm-slim\nCOPY count.sh /usr/local/bin/count\nRUN chmod 755 /usr/local/bin/count\n",
+    "files": { "count.sh": "#!/bin/sh\nset -eu\nfile=$(ls \"$PROTOBASE_IN\"/text/*)\nlines=$(wc -l < \"$file\")\necho \"$lines lines\" > \"$PROTOBASE_OUT/report.txt\"\nprintf '{ \"lines\": %d, \"report\": \"report.txt\" }' \"$lines\" > \"$PROTOBASE_OUT/output.json\"\n" },
+    "command": ["count"]
+  },
+  "input": { "type": "object", "required": ["text"], "properties": { "text": { "x-file": true } } },
+  "output": { "type": "object", "required": ["lines"], "properties": { "lines": { "type": "integer" }, "report": { "x-file": true } } }
+}
+```
+
+#### Builds
+
+A runner builds a version's image from its `dockerfile` and `files` alone, in a fresh folder, on the engine's default network so its `FROM` and `RUN` lines can fetch what they need, within its build time limit. Under rootless Docker or Podman a build's `RUN` lines are not root on the machine. It tags the image `protobase-custom-<hash of the app, tenant and step>:<version>` and labels it `org.protobase.step=custom:<name>:<version>`, so runners of other apps on the same machine never take it for theirs, and each claim lists the images it has from those labels.
+
+Each build is a record of `workflow_custom_step_builds`, read-only, listed on its version's page: its runner and step version, its `status` (`building`, `ready` or `failed`), its image's `digest` once ready, the last 10,000 characters of its `log`, and when it started and finished. A job whose image does not build fails as `Custom.Failed`, the end of the log its cause.
+
+**Prepare on publish.** Publishing a workflow's version keeps the custom step versions it uses as wanted, until another version is published or the workflow is turned off. A claim that no job reaches is then answered `{ "order": "prepare", "step", "build" }` for a wanted version whose image the runner lacks, when the runner builds: it builds the image before it claims again, so the first run finds it ready. Each runner is sent it once per version, until it lists the image or its build failed.
+
+#### The runner's calls
+
+`protobase-runner` makes these calls, and any program of your own may make them instead. The registration, with no sign-in, exchanges the one-time token for the runner's own:
 
 ```http
 POST /api/runners/v1/register
-{ "token": "pbr_once_...", "platform": "linux/amd64", "kinds": ["container"] }
+{ "token": "pbr_once_...", "platform": "linux/amd64", "kinds": ["container", "build"] }
 ```
 
-It answers `{ runner: { id, name, labels }, token }`, the runner's own `pbr_...` token, also given once and kept only as its SHA-256. A registration token is used once: used again it is refused as `RegistrationTokenUsed` (409), more than an hour old as `RegistrationTokenExpired` (410), and one of no runner, or of a revoked one, as `InvalidRegistrationToken` (401), each the problem's title.
+It answers `{ runner: { id, name, labels, tenant }, token }`, the runner's own `pbr_...` token, also given once and kept only as its SHA-256. A registration token is used once: used again it is refused as `RegistrationTokenUsed` (409), more than an hour old as `RegistrationTokenExpired` (410), and one of no runner, or of a revoked one, as `InvalidRegistrationToken` (401), each the problem's title.
 
-**The runner's calls.** Every other call carries the runner's own token as `Authorization: Bearer pbr_...`; a revoked or deleted runner's is refused with 401. An address refused 30 times in a minute waits a minute.
+Every other call carries the runner's own token as `Authorization: Bearer pbr_...`; a revoked or deleted runner's is refused with 401. An address refused 30 times in a minute waits a minute.
 
 | Call | Body | Answer |
 | --- | --- | --- |
-| `POST /api/runners/v1/claim` | What the runner says of itself: `{ "platform": "linux/amd64", "kinds": ["container"], "labels": [], "capacity": { "slots": 2 }, "images": [{ "step": "custom:ocr:4", "snapshot": true }], "instances": [{ "step": "custom:ocr:4", "free": 3 }] }` | Held open up to 50 seconds until a job is placed with the runner: `{ "order": "job", "job": { "id", "step", "input", "deadline", "heartbeat_seconds", "lease_seconds" } }`, or `{ "order": "none" }` when its time ran out. Claim again at once. |
+| `POST /api/runners/v1/claim` | What the runner says of itself: `{ "platform": "linux/amd64", "kinds": ["container", "build"], "labels": [], "capacity": { "slots": 2 }, "images": [{ "step": "custom:ocr:4", "snapshot": true }], "instances": [{ "step": "custom:ocr:4", "free": 3 }] }` | Held open up to 50 seconds until a job is placed with the runner: `{ "order": "job", "job": { "id", "step", "input", "deadline", "heartbeat_seconds", "lease_seconds", "files", "output_files", "build", "command" } }`; `{ "order": "prepare", "step", "build" }`; or `{ "order": "none" }` when its time ran out. Claim again at once. |
 | `POST /api/runners/v1/jobs/<id>/heartbeat` | `{}` | `{ "stop": false }`, extending the runner's hold of the job and counting as a heartbeat of its Task; `{ "stop": true }` once the runner no longer holds it, as when its try timed out, its run ended or its lease ran out: stop the job. |
 | `POST /api/runners/v1/jobs/<id>/log` | `{ "lines": ["..."] }`, at most 100 | `{}`; the job keeps its last 100 lines, each up to 1,000 characters, with the workflows' secrets and the token blanked out. |
+| `GET /api/runners/v1/jobs/<id>/inputs/<input>` | | The bytes of the job's input file `<input>`, streamed from its storage configuration or the run's files. |
+| `PUT /api/runners/v1/jobs/<id>/outputs/<path>` | A file the container gave, its type as `Content-Type` | The stored file, `{ configuration, path, name, type, size }`, streamed into the step's `store` under its folder at `<path>`. |
 | `POST /api/runners/v1/jobs/<id>/complete` | `{ "output": { ... } }`, or `{ "error": "Unreadable", "cause": "..." }` | `{}`, ending the job and its Task. |
+| `POST /api/runners/v1/builds` | `{ "step": "custom:ocr:4", "status": "building" }` as a build starts, then `{ "step", "status": "ready", "digest", "log" }` or `{ "step", "status": "failed", "log" }` | `{ id }`, the build. |
 
 A claim's `images` are the steps whose images the runner holds, by step version, each with whether a snapshot of it is ready, and its `instances` the warm instances it keeps, each with how many more jobs it takes now; all three lists may be left out when empty. A claim is also the runner's sign of life: a runner whose claim is no longer held is given no job.
 
-A job's `input` is the Task's arguments as given, secrets included, and `deadline` when its `TimeoutSeconds` pass. The runner gets no task token: its own token and its hold of the job prove it may answer, and the app answers the Task for it. Send a heartbeat every `heartbeat_seconds`, a third of the shorter of `lease_seconds` and the Task's `HeartbeatSeconds`. A completion's `output` must fit the custom step's `output` schema, or the Task fails with `Custom.InvalidOutput` and what does not fit as its cause; an output over 256 KiB fails it the same way. An `error` that is one of the step's `errors`, by its name or in full, fails the Task as `<error_prefix>.<Name>`, such as `Ocr.Unreadable`, which a `Catch` takes; any other fails it as `Custom.Failed`, the name given in the cause. A completion of a job whose Task ended already is refused with 409 and the title `TaskTimedOut`.
+A job's `input` is the Task's arguments as given, secrets included, and `deadline` when its `TimeoutSeconds` pass. Its `files` are its input files, each `{ input, name, type, size, url }`: an argument the version's `input` marks `x-file` that the Task gave, a stored file or a file of the run, and `url` the path on the app it streams from. An argument so marked that is neither fails the Task as `Storage.InvalidArguments` before any runner gets it. `output_files` are the outputs the version marks `x-file`, `build` is `{ dockerfile, files, command }` and `command` the version's command. A job's file routes answer only the runner that holds it, and only while it runs: once it ended, went back to the queue or to another runner they are refused with 409, and they read and store as the run's last editor, so a runner reaches no storage configuration the workflow could not, and holds no storage key itself. Upload a job's files before you complete it.
+
+The runner gets no task token: its own token and its hold of the job prove it may answer, and the app answers the Task for it. Send a heartbeat every `heartbeat_seconds`, a third of the shorter of `lease_seconds` and the Task's `HeartbeatSeconds`. A completion's `output` must fit the custom step's `output` schema, or the Task fails with `Custom.InvalidOutput` and what does not fit as its cause; an output over 256 KiB fails it the same way. An `error` that is one of the step's `errors`, by its name or in full, fails the Task as `<error_prefix>.<Name>`, such as `Ocr.Unreadable`, which a `Catch` takes; `Custom.InvalidOutput` and `Custom.Failed` fail it as themselves; any other fails it as `Custom.Failed`, the name given in the cause. A completion of a job whose Task ended already is refused with 409 and the title `TaskTimedOut`.
 
 A runner that holds a job sends heartbeats within `lease_seconds`, 30 by default. When none comes, the job goes back to the queue, once, for any runner; the second time, its Task fails with `States.HeartbeatTimeout`, which a `Retry` can take up with a new job.
 
@@ -646,11 +737,12 @@ Placing runs as a job is queued, as a claim comes, and every second while a serv
 
 Each job is a record of `workflow_custom_step_jobs`, read-only, listed on its runner's page: its run and state, its step and version, its `input` with the workflows' secrets blanked out, its `status` (`queued`, `running`, `succeeded`, `failed` or `timed_out`), the runner that holds or held it and until when (`lease_until`), how often it went back to the queue (`requeues`), when it was queued, claimed and finished, and its `output`, `error`, `cause` and `logs`. Its arguments as given are not among its fields: while it waits they are kept sealed with the app's secret, opened only into the claim answer, and dropped once it ends. Of its try's token it keeps only the hash. A job whose try ends without it, by its time or its run's end, is `timed_out`.
 
-- <gap>A custom step cannot run without a runner program of your own because Protobase's runner, which builds a step's image and runs its container, is not implemented.</gap>
-- <gap>A custom step's runner cannot take or give files because the runners' file routes are not implemented.</gap>
-- <gap>A runner cannot be told to prepare an image, keep warm instances, drain or stop because those orders are not implemented; a claim is answered only with a job or none.</gap>
+- <gap>A runner cannot pull a custom step's image another runner built because an image registry is not implemented; each runner builds the images it runs.</gap>
+- <gap>A custom step's container cannot reach the network because network access for jobs is not implemented.</gap>
+- <gap>A runner cannot keep warm instances of a custom step, or be told to drain or stop, because those orders are not implemented; a claim is answered with a job, `prepare` or none.</gap>
+- <gap>A runner cannot be installed on macOS or Windows because only Linux executables are built.</gap>
 - <gap>A runner's registration token cannot be issued in the admin app because its action is not implemented; `POST /api/workflows/runners/<id>/registration` issues it.</gap>
-- <gap>A custom step cannot limit its memory, CPU, time or network because those fields of its manifest are not implemented.</gap>
+- <gap>A custom step cannot set its own memory, CPU or disk because those fields of its manifest are not implemented; its runner's settings limit every job alike.</gap>
 - <gap>A custom step cannot be saved or tested over MCP with tools of its own because those tools are not implemented; `create_record` and `update_record` save it.</gap>
 
 ## Runs and their steps

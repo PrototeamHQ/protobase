@@ -33,7 +33,7 @@ const earlierWebhooks = `
 
 describe('doctor on the resources Protobase adds', () => {
   it('checks the webhook, workflow, activity and comments resources the config enables', () => {
-    expect(builtIn.models.map((model) => model.name)).toEqual(['webhook_subscriptions', 'webhook_deliveries', 'webhook_delivery_log', 'workflows', 'workflow_versions', 'workflow_runs', 'workflow_triggers', 'workflow_resolutions', 'storage_configurations', 'workflow_custom_steps', 'workflow_custom_step_versions', 'workflow_runners', 'workflow_custom_step_jobs', 'failed_jobs', 'record_history', 'record_comments'])
+    expect(builtIn.models.map((model) => model.name)).toEqual(['webhook_subscriptions', 'webhook_deliveries', 'webhook_delivery_log', 'workflows', 'workflow_versions', 'workflow_runs', 'workflow_triggers', 'workflow_resolutions', 'storage_configurations', 'workflow_custom_steps', 'workflow_custom_step_versions', 'workflow_runners', 'workflow_custom_step_jobs', 'workflow_custom_step_builds', 'failed_jobs', 'record_history', 'record_comments'])
     expect(builtInModels({ jobs: {} } as unknown as MergedConfig, []).models).toEqual([])
   })
 

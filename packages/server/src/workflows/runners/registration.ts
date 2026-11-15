@@ -7,6 +7,7 @@ import { HttpProblem, notFound } from '../../problem'
 import { requestAccess } from '../../request-access'
 import type { Session } from '../../types'
 import { mayUpdateWorkflow } from '../may-update-workflow'
+import { installCommand } from './runner-install'
 import { newRegistrationToken, newRunnerToken, registrationMs, registrationPattern, runnerTokenHash } from './runner-tokens'
 
 /** The resource of the runners. */
@@ -18,10 +19,11 @@ const missing = () => notFound('No runner with this key that you may change')
 /**
  * Gives a runner that never registered a new one-time registration token, valid one hour, as
  * `POST .../workflows/runners/<id>/registration` does: only for a caller who may change that runner in their tenant, as
- * its update access decides, and 404 for anyone else. The token comes back once and only its hash is kept; a token
- * issued before stops. A runner that registered, or was revoked, takes none.
+ * its update access decides, and 404 for anyone else. The token comes back once, with the one command that installs a
+ * runner with it on a machine for the app at `origin`, and only its hash is kept; a token issued before stops. A runner
+ * that registered, or was revoked, takes none.
  */
-export const issueRegistration = async (deps: () => Deps, schema: string, session: Session, id: string) => {
+export const issueRegistration = async (deps: () => Deps, schema: string, session: Session, id: string, origin: string) => {
   if (!uuid.test(id)) throw missing()
   const access = await requestAccess(deps(), deps().registry.find(runnersResource)!, session)
   if (!access.resolved.operations.update) throw missing()
@@ -33,7 +35,7 @@ export const issueRegistration = async (deps: () => Deps, schema: string, sessio
     const token = newRegistrationToken()
     const expires = new Date(Date.now() + registrationMs)
     await sql`update ${sql.id(schema, 'runners')} set registration_hash = ${await runnerTokenHash(token)}, registration_expires_at = ${expires} where id = ${id}`.execute(trx)
-    return { token, expires_at: expires.toISOString() }
+    return { token, expires_at: expires.toISOString(), command: installCommand(origin, token) }
   })
 }
 
@@ -44,18 +46,19 @@ export const registrationRefusals = {
   expired: () => new HttpProblem(410, 'registration-token-expired', 'RegistrationTokenExpired', 'This registration token is more than an hour old; issue a new one'),
 }
 
-type Registered = { runner: { id: string; name: string; labels: unknown }; token: string }
+type Registered = { runner: { id: string; name: string; labels: unknown; tenant: string | null }; token: string }
 
 /**
  * Exchanges a runner's one-time registration token for its own token, once: the runner keeps the platform and kinds
- * it gives, and only the new token's hash is kept. A token used already, or more than an hour old, is refused by name;
- * so is one of a revoked or deleted runner, as no token.
+ * it gives, and only the new token's hash is kept; the answer names its tenant, which the runner keeps its images apart
+ * by. A token used already, or more than an hour old, is refused by name; so is one of a revoked or deleted runner, as
+ * no token.
  */
 export const register = async (db: Db, schema: string, given: { token: string; platform: string; kinds: string[] }): Promise<Registered> => {
   if (!registrationPattern.test(given.token)) throw registrationRefusals.invalid()
   const hash = await runnerTokenHash(given.token)
   return db.transaction().execute(async (trx) => {
-    const { rows } = await sql<{ id: string; name: string; labels: unknown; revoked: boolean; registered_at: Date | null; registration_expires_at: Date }>`select id, name, labels, revoked, registered_at, registration_expires_at
+    const { rows } = await sql<{ id: string; name: string; labels: unknown; tenant_id: string | null; revoked: boolean; registered_at: Date | null; registration_expires_at: Date }>`select id, name, labels, tenant_id, revoked, registered_at, registration_expires_at
       from ${sql.id(schema, 'runners')} where registration_hash = ${hash} for update`.execute(trx)
     const runner = rows[0]
     if (!runner || runner.revoked) throw registrationRefusals.invalid()
@@ -64,6 +67,6 @@ export const register = async (db: Db, schema: string, given: { token: string; p
     const token = newRunnerToken()
     await sql`update ${sql.id(schema, 'runners')} set token_hash = ${await runnerTokenHash(token)}, registered_at = now(), platform = ${given.platform}, kinds = ${JSON.stringify(given.kinds)}::jsonb
       where id = ${runner.id}`.execute(trx)
-    return { runner: { id: runner.id, name: runner.name, labels: runner.labels }, token }
+    return { runner: { id: runner.id, name: runner.name, labels: runner.labels, tenant: runner.tenant_id }, token }
   })
 }
