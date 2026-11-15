@@ -6,10 +6,24 @@ import type { CommitPull } from './target'
 
 const api = 'https://api.github.com'
 
+// A GET GitHub answers with a server error is asked again, a fixed number of times after a fixed pause, as GitHub's
+// REST docs ask: the run of an approval of a green head is the last one that would merge it.
+export const getRetries = 2
+export const retryPauseMs = 5_000
+
 export function gitHub(token: string, repository: string) {
   const repo = `/repos/${repository}`
   const headers = { accept: 'application/vnd.github+json', authorization: `Bearer ${token}`, 'x-github-api-version': '2022-11-28' }
-  const send = (path: string, init: RequestInit = {}) => fetch(`${api}${path}`, { ...init, headers })
+  async function send(path: string, init: RequestInit = {}) {
+    const ask = () => fetch(`${api}${path}`, { ...init, headers })
+    let response = await ask()
+    if (init.method !== undefined) return response
+    for (let retry = 0; retry < getRetries && response.status >= 500; retry++) {
+      await new Promise((resolve) => setTimeout(resolve, retryPauseMs))
+      response = await ask()
+    }
+    return response
+  }
 
   async function request(path: string, init: RequestInit = {}) {
     const response = await send(path, init)
