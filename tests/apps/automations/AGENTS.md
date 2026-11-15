@@ -7,7 +7,7 @@ resources: the first change adds its first tables and resources.
 
 ## Database changes
 
-- Every schema change is a new migration file in `db/migrations/`, numbered after the last one (`012_customers.sql`
+- Every schema change is a new migration file in `db/migrations/`, numbered after the last one (`013_customers.sql`
   after the auth, jobs and workflows migrations). Never edit or remove a migration that exists: it has already run on
   the live database.
 - Expand only, where possible: add tables, columns and indexes, and keep what the running app still reads. Rename or
