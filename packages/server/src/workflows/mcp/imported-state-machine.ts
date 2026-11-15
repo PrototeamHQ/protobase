@@ -1,17 +1,34 @@
-import { httpImportProblems, isHttpInvoke } from '@protobase/workflows'
+import { expressionSource, httpImportProblems, isHttpInvoke } from '@protobase/workflows'
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+
+// Step Functions sends RequestBody as JSON, a text included, quotes and all, where app:http sends a text as it is and
+// anything else as JSON. So a text, or an expression that may give one, becomes its JSON text, sent as JSON unless the
+// task's headers say otherwise.
+const jsonText = (body: string) => {
+  const source = expressionSource(body)
+  if (source === undefined) return JSON.stringify(body)
+  return `{% ($body := (${source.trim()}); $json := $string([$body]); $substring($json, 1, $length($json) - 2)) %}`
+}
+
+const jsonHeaders = (headers: unknown) => {
+  if (headers !== undefined && !isObject(headers)) return headers
+  const given = headers ?? {}
+  return Object.keys(given).some((name) => name.toLowerCase() === 'content-type') ? given : { ...given, 'Content-Type': 'application/json' }
+}
 
 // Step Functions' HTTP task's arguments as app:http takes them; its EventBridge connection has no counterpart here.
 const httpArguments = (args: unknown) => {
   if (!isObject(args)) return args
   const { ApiEndpoint, Method, Headers, QueryParameters, RequestBody } = args
+  const text = typeof RequestBody === 'string'
+  const headers = text ? jsonHeaders(Headers) : Headers
   return {
     url: ApiEndpoint,
     ...(Method !== undefined && { method: Method }),
-    ...(Headers !== undefined && { headers: Headers }),
+    ...(headers !== undefined && { headers }),
     ...(QueryParameters !== undefined && { query: QueryParameters }),
-    ...(RequestBody !== undefined && { body: RequestBody }),
+    ...(RequestBody !== undefined && { body: text ? jsonText(RequestBody) : RequestBody }),
   }
 }
 

@@ -12,8 +12,8 @@ export const definitionParameters = {
   },
   trigger: { type: 'object', description: 'What starts its runs: { "manual": {} } (the default on create), or one trigger type with its input, such as { "app:record": { "resource": "orders" } }.' },
   execution_order: { type: 'string', enum: ['sequence', 'data'], description: 'sequence (the default): each state names its Next, as the States Language orders them. data: a state runs once the states it reads from have ended, states that read nothing of each other run at once, and a Condition decides whether one runs.' },
-  connections: { type: 'object', description: 'The account each connection <plugin>:<connection> of its types signs in with, by the account id.' },
-  trace: { type: 'string', enum: ['all', 'failed', 'none'], description: 'Which of its runs keep a trace; the app decides when absent.' },
+  connections: { type: ['object', 'null'], description: 'The account each connection <plugin>:<connection> of its types signs in with, by the account id; null clears them.' },
+  trace: { type: ['string', 'null'], enum: ['all', 'failed', 'none', null], description: 'Which of its runs keep a trace; the app decides when absent or null.' },
 }
 
 /** The definition's fields an MCP call gives, as a workflow record's data; null clears connections and trace. */

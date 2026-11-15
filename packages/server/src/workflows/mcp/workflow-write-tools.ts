@@ -69,9 +69,10 @@ export const updateWorkflowTool = (input: WriteRecordToolsInput = {}) =>
       const before = await recordBefore(context, 'workflows', id, textOf(args.etag) || undefined)
       if (typeof before === 'string') return before
       if (edit && !before) return refused(notFound('No workflows with this key that you may read'))
-      // A field the edit removes, such as connections set to null, is cleared
+      // A field the edit removes, such as connections set to null, is cleared, whether or not the caller may read it
       const patched = edit && (mergePatch(definitionFieldsOf(before!.record), edit) as Row)
-      const fields = patched ? { ...Object.fromEntries(Object.keys(definitionFieldsOf(before!.record)).map((key) => [key, null])), ...patched } : whole
+      const removed = edit ? Object.keys(definitionParameters).filter((key) => edit[key] === null || (Object.hasOwn(before!.record, key) && !Object.hasOwn(patched!, key))) : []
+      const fields = patched ? { ...Object.fromEntries(removed.map((key) => [key, null])), ...patched } : whole
       const data: Row = { ...fields, ...(textOf(args.name) !== undefined && { name: textOf(args.name) }), ...(textOf(args.description) !== undefined && { description: textOf(args.description) }) }
       if (Object.keys(data).length === 0) return 'Pass an edit, definition fields, a name or a description to change; nothing was saved.'
       const { text, described } = await approvalTexts(context, 'workflows')

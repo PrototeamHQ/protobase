@@ -72,7 +72,7 @@ export const getWorkflowTool = defineTool({
 // resource or field hidden from them: one they cannot read is "not a resource of this app".
 const checked = async (fields: Record<string, unknown>, catalog: WorkflowCatalog, context: ToolContext) => {
   const { models } = await context.resources()
-  const definition = definitionFromParts({ trigger: { manual: {} }, ...fields } as DefinitionParts)
+  const definition = definitionFromParts(fields as DefinitionParts)
   // As a save checks it: a definition with no steps yet is checked but for that
   const problems = checkDefinition(withStepsToCheck(definition), catalog.checkWith((name) => models.find((model) => model.name === name)))
   if (problems.length > 0) return JSON.stringify({ valid: false, problems })
@@ -90,8 +90,10 @@ const validateWorkflowTool = (catalog: WorkflowCatalog) => defineTool({
     const id = idOf(args)
     const edit = objectOf(args.edit)
     const machine = objectOf(args.state_machine)
-    if (machine && id === undefined && edit === undefined) return checked({ ...definitionDataOf(args), state_machine: importedStateMachine(machine) }, catalog, context)
-    if (!machine && id && edit) return context.records.get('workflows', id).then(({ record }) => checked(mergePatch(definitionFieldsOf(record), edit) as Record<string, unknown>, catalog, context), refused)
+    // A definition on its own runs by hand unless it says otherwise, as create_workflow saves it
+    if (machine && id === undefined && edit === undefined) return checked({ trigger: { manual: {} }, ...definitionDataOf(args), state_machine: importedStateMachine(machine) }, catalog, context)
+    // An edit is checked as update_workflow saves it: a field it removes, the trigger included, is null
+    if (!machine && id && edit) return context.records.get('workflows', id).then(({ record }) => checked({ trigger: null, ...(mergePatch(definitionFieldsOf(record), edit) as Record<string, unknown>) }, catalog, context), refused)
     return 'Pass either { "state_machine": { ... } } or { "id": "<id>", "edit": { ... } }.'
   },
 })

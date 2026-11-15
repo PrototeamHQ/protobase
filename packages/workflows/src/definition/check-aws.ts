@@ -15,9 +15,9 @@ const awsFields: Record<string, string> = {
   Credentials: 'does not run here: a step signs in through the connection its type declares',
 }
 
-/** Step Functions' HTTP task, which imports as app:http, waiting for a task token or not. */
+/** Step Functions' HTTP task, which imports as app:http; one that waits for a task token is a service integration pattern this app does not run. */
 export const httpInvoke = 'arn:aws:states:::http:invoke'
-export const isHttpInvoke = (resource: unknown) => resource === httpInvoke || resource === `${httpInvoke}.waitForTaskToken`
+export const isHttpInvoke = (resource: unknown) => resource === httpInvoke
 
 // The HTTP task's arguments the import carries over, or, for its connection, leaves out
 const httpArgumentNames = new Set(['ApiEndpoint', 'Method', 'Headers', 'QueryParameters', 'RequestBody', 'Authentication', 'InvocationConfig'])
@@ -56,7 +56,7 @@ const stateProblems = (states: unknown, path: string[]): Problem[] => {
     if (isHttpInvoke(state.Resource)) {
       const http = httpImportProblems(state)
       // One that would import is written as app:http where no import converts it, such as a save through the API
-      if (http.length === 0) found.push({ state: where, field: 'Resource', message: `is Step Functions' HTTP task, which create_workflow and update_workflow import as app:http; write app:http${state.Resource === httpInvoke ? '' : '.waitForTaskToken'} here` })
+      if (http.length === 0) found.push({ state: where, field: 'Resource', message: "is Step Functions' HTTP task, which create_workflow and update_workflow import as app:http; write app:http here" })
       found.push(...http.map((problem) => ({ state: where, ...problem })))
     } else if (typeof state.Resource === 'string' && state.Resource.startsWith('arn:')) {
       found.push({ state: where, field: 'Resource', message: `is a Step Functions service (${state.Resource}), which does not run here; of them, only the HTTP task (arn:aws:states:::http:invoke) imports, as app:http` })

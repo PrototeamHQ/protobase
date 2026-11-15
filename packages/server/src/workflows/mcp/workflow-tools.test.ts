@@ -50,6 +50,8 @@ describe('validate_workflow', () => {
     const { context } = contextWith({})
     const edit = { state_machine: { States: { Fetch: { Resource: 'app:nope' } } } }
     expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit }, context)).problems).toEqual([expect.objectContaining({ state: 'Fetch', field: 'Resource' })])
+    // An edit that removes the trigger is checked as update_workflow saves it, with none, not with a manual one
+    expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit: { trigger: null } }, context))).toMatchObject({ valid: false })
     const refusing = contextWith({ get: () => Promise.reject(forbidden('forbidden', 'You may not read workflows')) })
     expect(JSON.parse(await validateWorkflowTool.run({ id: 'w1', edit }, refusing.context))).toEqual({ error: 'forbidden', message: 'You may not read workflows' })
   })
@@ -113,6 +115,30 @@ describe('create_workflow', () => {
       { state: 'Call', field: 'Arguments.Transform', message: "is an HTTP task's Transform, which does not import: app:http takes only ApiEndpoint, Method, Headers, QueryParameters and RequestBody" },
       { state: 'Call', field: 'Retry[0].ErrorEquals', message: "names States.Http.StatusCode.429, a status's own error, which does not import: app:http fails with Http.Status for every status, which its error's cause names" },
     ])
+    // A text body goes out as JSON, quotes and all, as Step Functions sends it, and so does what an expression gives
+    const texts = {
+      QueryLanguage: 'JSONata',
+      StartAt: 'Hello',
+      States: {
+        Hello: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: { ApiEndpoint: 'https://a.example', Method: 'POST', RequestBody: 'hello' }, Next: 'Echo' },
+        Echo: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: { ApiEndpoint: 'https://a.example', Method: 'POST', Headers: { 'content-type': 'text/plain' }, RequestBody: '{% $states.context.Execution.Input.message %}' }, End: true },
+      },
+    }
+    await createWorkflowTool().run({ name: 'Texts', state_machine: texts }, context)
+    expect(create).toHaveBeenLastCalledWith('workflows', expect.objectContaining({
+      state_machine: expect.objectContaining({
+        States: {
+          Hello: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://a.example', method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '"hello"' }, Next: 'Echo' },
+          Echo: { Type: 'Task', Resource: 'app:http', Arguments: { url: 'https://a.example', method: 'POST', headers: { 'content-type': 'text/plain' }, body: '{% ($body := ($states.context.Execution.Input.message); $json := $string([$body]); $substring($json, 1, $length($json) - 2)) %}' }, End: true },
+        },
+      }),
+    }))
+    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: texts }, context))).toMatchObject({ valid: true })
+    // A task that waits for a task token is a pattern this app does not run, so it is not turned into a plain request
+    const callback = { QueryLanguage: 'JSONata', StartAt: 'Call', States: { Call: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke.waitForTaskToken', Arguments: { ApiEndpoint: 'https://a.example' }, End: true } } }
+    expect(JSON.parse(await validateWorkflowTool.run({ state_machine: callback }, context)).problems).toEqual([
+      { state: 'Call', field: 'Resource', message: 'is a Step Functions service (arn:aws:states:::http:invoke.waitForTaskToken), which does not run here; of them, only the HTTP task (arn:aws:states:::http:invoke) imports, as app:http' },
+    ])
     // Arguments that are one expression give their names only when they run
     const computed = { QueryLanguage: 'JSONata', StartAt: 'Call', States: { Call: { Type: 'Task', Resource: 'arn:aws:states:::http:invoke', Arguments: "{% {'ApiEndpoint': 'https://a.example', 'Method': 'GET'} %}", End: true } } }
     expect(JSON.parse(await validateWorkflowTool.run({ state_machine: computed }, context)).problems).toEqual([
@@ -147,6 +173,13 @@ describe('update_workflow', () => {
     const result = await updateWorkflowTool().run({ id: 'w1', edit: { state_machine: { States: { Fetch: { Arguments: { url: 'https://b.example' } } } } } }, context)
     expect(update).toHaveBeenCalledWith('workflows', 'w1', { execution_order: 'sequence', ...fetchUrl('https://b.example') }, { etag: '"v1"' })
     expect(JSON.parse(result)).toEqual({ id: 'w1', version: 2, etag: '"v2"' })
+  })
+
+  it("clears the connections an edit sets to null, though the caller may not read them", async () => {
+    const update = vi.fn(async () => ({ record: { ...saved.record, version: 2 }, etag: '"v2"' }))
+    const { context } = contextWith({ update })
+    await updateWorkflowTool().run({ id: 'w1', edit: { connections: null } }, context)
+    expect(update).toHaveBeenCalledWith('workflows', 'w1', expect.objectContaining({ connections: null }), { etag: '"v1"' })
   })
 
   it('replaces the whole definition, or only the name, and takes either an edit or a definition', async () => {
