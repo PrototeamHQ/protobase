@@ -13,7 +13,7 @@ description: The API every resource gets, with filters, writes, errors and the t
 - [Map queries](/reference/api/#maps): The records inside a map's view, or counts per area when there are many.
 - [Related names and photos](/reference/api/#related-names): A list response can carry the names of related records and each record's first photos.
 - [ETags](/reference/api/#writes): Every record has a version, and a write based on an old version is refused.
-- [Lists without ETags](/reference/api/#writes) (beta): A list can leave out each record's version, so it reads only the fields it asks for.
+- [Lists without ETags](/reference/api/#writes): A list can leave out each record's version, so it reads only the fields it asks for.
 - [Minimal responses](/reference/api/#writes): A create or update can answer without the record, to save the transfer.
 - [Batch writes](/reference/api/#batch-writes): Up to 500 creates, updates, deletes, reorders and moves across resources in one transaction.
 - [Record permissions](/reference/api/#record-permissions): Responses say which records and fields the caller may change.
