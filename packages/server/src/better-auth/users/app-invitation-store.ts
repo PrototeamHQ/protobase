@@ -2,7 +2,7 @@ import type { AuthContext } from '../organizations/store'
 
 // An invitation to the app itself, for apps without organizations or for people outside them: a row of Better Auth's
 // verification table, its own store for short-lived tokens, so no table of Protobase's. The identifier carries the id,
-// the value the address, the roles and who invited, as JSON. Written against better-auth 1.7.7.
+// the value the address, the roles and who invited, as JSON, the address first. Written against better-auth 1.7.7.
 
 export type AppInvitation = { id: string; email: string; roles: string[]; inviterId: string; expiresAt: Date }
 
@@ -27,6 +27,21 @@ const allAppInvitations = async (context: AuthContext) => {
   return rows.map(invitationOf)
 }
 
+// Postgres's LIKE takes `%` and `_` as wildcards and a backslash before one as itself; Better Auth's `starts_with` escapes none.
+const likeLiteral = (text: string) => text.replace(/[\\%_]/g, (char) => `\\${char}`)
+
+/** Every app invitation of `email`, expired ones too: the rows whose value starts with its address, which is written first. */
+const invitationsOf = async (context: AuthContext, email: string) => {
+  const rows = await context.adapter.findMany<Row>({
+    model: 'verification',
+    where: [
+      { field: 'identifier', operator: 'starts_with', value: prefix },
+      { field: 'value', operator: 'starts_with', value: likeLiteral(`{"email":${JSON.stringify(email)},`) },
+    ],
+  })
+  return rows.map(invitationOf).filter((invitation) => invitation.email === email)
+}
+
 /** The pending app invitations, oldest first; expired ones are left out. */
 export const listAppInvitations = async (context: AuthContext) => (await allAppInvitations(context)).filter(pending)
 
@@ -38,17 +53,14 @@ export const findAppInvitation = async (context: AuthContext, id: string) => {
 }
 
 /** The pending app invitation of `email`, or `undefined`; inviting an address again replaces its invitation, so it has one at most. */
-export const findAppInvitationOf = async (context: AuthContext, email: string) => {
-  const address = email.toLowerCase()
-  return (await listAppInvitations(context)).find((invitation) => invitation.email === address)
-}
+export const findAppInvitationOf = async (context: AuthContext, email: string) => (await invitationsOf(context, email.toLowerCase())).find(pending)
 
-export const deleteAppInvitation =(context: AuthContext, id: string) => context.internalAdapter.deleteVerificationByIdentifier(`${prefix}${id}`)
+export const deleteAppInvitation = (context: AuthContext, id: string) => context.internalAdapter.deleteVerificationByIdentifier(`${prefix}${id}`)
 
 /** Invites `email` with `roles` for `lifetimeSeconds`; an earlier invitation of the same address is replaced, so its link stops working. */
 export const createAppInvitation = async (context: AuthContext, input: { email: string; roles: string[]; inviterId: string }, lifetimeSeconds: number) => {
   const email = input.email.toLowerCase()
-  const earlier = (await allAppInvitations(context)).filter((invitation) => invitation.email === email)
+  const earlier = await invitationsOf(context, email)
   for (const invitation of earlier) await deleteAppInvitation(context, invitation.id)
   const invitation = { id: crypto.randomUUID(), email, roles: input.roles, inviterId: input.inviterId, expiresAt: new Date(Date.now() + lifetimeSeconds * 1000) }
   await context.internalAdapter.createVerificationValue({

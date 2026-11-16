@@ -36,8 +36,17 @@ export const signUpServer = () => {
     await (await import('../../src/better-auth/auth-mail/auth-emails')).accountExistsEmail.render({ app: { name: 'Protobase', url: `${origin}/` } })
   }, 60_000)
 
-  // Better Auth's rate limits are per client address and kept in memory, so every app gets an address of its own.
-  let client = 0
+  // Better Auth's rate limits are per client address and kept in memory, so every app gets an address of its own: from
+  // its test's name and how many apps that test made before, so a test sends the same one however many others run.
+  const apps = new Map<string, number>()
+  const clientAddress = () => {
+    const test = expect.getState().currentTestName ?? ''
+    const count = (apps.get(test) ?? 0) + 1
+    apps.set(test, count)
+    let hash = 0x811c9dc5
+    for (const char of test) hash = Math.imul(hash ^ char.charCodeAt(0), 0x01000193) >>> 0
+    return `10.${hash >>> 24}.${(hash >>> 16) & 0xff}.${count}`
+  }
 
   // Every app gets a copy of the store with an admin and a member, or of the empty one, and keeps the mail it sends.
   const serve = async (options: Partial<CreateAuthOptions> = {}, { users = true } = {}) => {
@@ -45,7 +54,7 @@ export const signUpServer = () => {
     const sent: MailMessage[] = []
     const auth = authOf(store, { mailer: { send: async (message) => void sent.push(message) }, ...options })
     const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })
-    const address = `192.0.2.${++client}`
+    const address = clientAddress()
     const request = (path: string, init: { body?: unknown; cookie?: string } = {}) =>
       app.request(`${origin}/api/auth${path}`, {
         method: init.body === undefined ? 'GET' : 'POST',
