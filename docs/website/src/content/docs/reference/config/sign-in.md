@@ -166,11 +166,11 @@ export default defineConfig(({ env }) => ({
 
 ## auth.signInProvider
 
-- **Type:** `{ issuer: string; clientId: string; clientSecret: string; provider?: string; name?: string; scopes?: string[]; tokenSignIn?: boolean } | false`
+- **Type:** `{ issuer: string; clientId?: string; clientSecret?: string; provider?: string; name?: string; scopes?: string[]; tokenSignIn?: boolean } | false`
 - **Default:** the provider of the environment variables below, when set
 - **Environment variables:** `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and optionally `PROTOBASE_SIGN_IN_PROVIDER`, `PROTOBASE_SIGN_IN_NAME` and `PROTOBASE_SIGN_IN_TOKENS` (`true` or `false`)
 
-An OpenID Connect provider the platform adds for people who already have an account; it never signs anyone up. `provider` is its id (default `oidc`), `name` its button's name, and `tokenSignIn: true` lets a client sign in with a fresh ID token the provider issued for this app ([Token sign-in](/reference/auth/#token-sign-in), default off). `false` turns it off whatever the environment says. Left out when `socialProviders` has a provider with the same id. See [Platform sign-in provider](/reference/auth/#platform-sign-in-provider).
+An OpenID Connect provider the platform adds for people who already have an account; it never signs anyone up. `provider` is its id (default `oidc`), `name` its button's name, and `tokenSignIn: true` lets a client sign in with a fresh ID token the provider issued for this app ([Token sign-in](/reference/auth/#token-sign-in), default off). `false` turns it off whatever the environment says. Left out when `socialProviders` has a provider with the same id. Without `clientSecret` it signs in by token sign-in alone, which `tokenSignIn: true` must then turn on, with tokens for the origin of `url` unless `clientId` names another. See [Platform sign-in provider](/reference/auth/#platform-sign-in-provider).
 
 ```ts
 export default defineConfig({ auth: { signInProvider: false } })
@@ -314,6 +314,17 @@ What the OAuth provider of [`auth.mcp`](#authmcp) serves besides MCP. `api: true
 
 ```ts
 export default defineConfig({ auth: { mcp: true, oauth: { api: true } } })
+```
+
+## auth.openIdProvider
+
+- **Type:** `true | { connectPage?: string; audiences?: string[] }`
+- **Default:** off
+
+Makes the app an OpenID provider for the clients its admins register at `/api/auth/openid-provider/clients`, such as other apps that sign people in with it: they get an ID token with the person's `sub`, `email` and `email_verified`, without asking the person to allow them, and nothing else can register. A client allowed to exchange gets ID tokens for the other clients, and for the origins `audiences` names as patterns such as `https://*.example.app`, without a browser. `connectPage` is the page people sign in on (default `/-/connect`). Not with [`auth.mcp`](#authmcp); the server refuses to start with both. See [OpenID provider for other apps](/reference/auth/#openid-provider-for-other-apps).
+
+```ts
+export default defineConfig({ auth: { openIdProvider: true } })
 ```
 
 ## auth.personalAccessTokens

@@ -37,6 +37,8 @@ import { selfDeletionCallbackPath, selfDeletionOptions, selfDeletionPath } from 
 import { userDeletion, type UserDeletion } from './user-deletion'
 import { revokeMcpGrants } from './mcp/revoke-grants'
 import type { mcpAuthPlugins } from './mcp/mcp-auth-plugins'
+import { openIdUnusedPaths, resolveOpenIdProvider, type OpenIdProviderOptions, type ResolvedOpenIdProvider } from './openid-provider/openid-provider-options'
+import type { openIdProviderPlugins } from './openid-provider/openid-provider-plugins'
 import { resolveOAuthApi, type OAuthApiOptions, type OAuthApiResource } from './oauth-api'
 import { mcpScope, mcpUnusedPaths, resolveMcp, type McpAuthOptions, type ResolvedMcp } from './mcp/mcp-plugins'
 import { lastOrganizationField, sessionOrganizationHooks } from './organizations/session-organization'
@@ -59,7 +61,7 @@ import { versionedSecrets } from './secret-versions'
 import { signingKeyRotation, signingKeys } from './signing-keys'
 import type { RoleSession, RoleUser } from './roles/session-role'
 import type { Session } from '../types'
-import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
+import { platformSignInFor, platformSignInProvider, providerPagesOffPlugin, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
 import { appSignInPolicy } from './app-sign-in-policy'
 import { signInPolicyPlugin } from './policy-plugin'
 import { defaultSignInPolicy, type SignInPolicy } from './sign-in-policy'
@@ -234,7 +236,8 @@ export type CreateAuthOptions = {
    * A sign-in provider the platform adds for people who already have an account: an OpenID Connect provider that never
    * signs anyone up. Defaults to the one the platform passes in `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`
    * and `PROTOBASE_SIGN_IN_CLIENT_SECRET` (see `readPlatformSignIn`), when set; `false` turns it off whatever the
-   * environment says. Left out when `socialProviders` has a provider with the same id.
+   * environment says. Left out when `socialProviders` has a provider with the same id. Without `clientSecret`, it
+   * signs in by token sign-in alone, with tokens for the origin of `baseURL` unless `clientId` names another.
    */
   signInProvider?: PlatformSignIn | false
   /**
@@ -259,6 +262,15 @@ export type CreateAuthOptions = {
   mcp?: true | McpAuthOptions
   /** What the OAuth provider of `mcp` serves besides MCP: `api` lets clients get tokens for the app's API (see `OAuthApiOptions`). Needs `mcp`. */
   oauth?: OAuthApiOptions
+  /**
+   * Turns the app into an OpenID provider for the clients its admins register (`/api/auth/openid-provider/clients`),
+   * such as other apps that let people sign in with it: a person signs in on the app's own pages and the client gets
+   * an ID token with their `sub`, `email` and `email_verified`, without being asked to allow it. Nothing registers
+   * itself, and any other client or redirect URI is refused. A client allowed to exchange gets ID tokens for the other
+   * clients from its own access token (RFC 8693), without a browser. `true` for the defaults, or the `connectPage`
+   * (default `/-/connect`). Not with `mcp`. Off by default.
+   */
+  openIdProvider?: true | OpenIdProviderOptions
   /**
    * Turns on personal access tokens: a signed-in person makes long-lived tokens on their account page, for a script to
    * call the app's API as them with `Authorization: Bearer <token>`. `prefix` starts every token, lowercase letters,
@@ -351,6 +363,8 @@ type Resolved = {
   mcp?: ResolvedMcp
   /** The app's API as an OAuth resource of the MCP provider, resolved (`resolveOAuthApi`), when `oauth.api` is on. */
   api?: OAuthApiResource
+  /** The OpenID provider's options, resolved (`resolveOpenIdProvider`), when it is on. */
+  openId?: ResolvedOpenIdProvider
   /** The personal access tokens' options, checked (`resolvePersonalAccessTokens`), when they are on. */
   personalAccessTokens?: PersonalAccessTokensOptions
   /** The auth context once the instance exists, for the organization hooks and claims and the MCP provider. */
@@ -369,14 +383,15 @@ type Resolved = {
 
 /**
  * The plugins only some apps use, which `loadAuthPlugins` imports when the options turn them on: the SSO plugin of
- * `sso.saml` and the OAuth provider of `mcp`.
+ * `sso.saml`, the OAuth provider of `mcp` and the OpenID provider of `openIdProvider`.
  */
-export type AuthPlugins = { samlPlugin?: typeof samlPlugin; mcpAuthPlugins?: typeof mcpAuthPlugins }
+export type AuthPlugins = { samlPlugin?: typeof samlPlugin; mcpAuthPlugins?: typeof mcpAuthPlugins; openIdProviderPlugins?: typeof openIdProviderPlugins }
 
-/** The optional plugins `options` turns on, imported: an app without SAML or MCP loads neither. */
-export const loadAuthPlugins = async (options: Pick<CreateAuthOptions, 'sso' | 'mcp'>): Promise<AuthPlugins> => ({
+/** The optional plugins `options` turns on, imported: an app without SAML, MCP or the OpenID provider loads none of them. */
+export const loadAuthPlugins = async (options: Pick<CreateAuthOptions, 'sso' | 'mcp' | 'openIdProvider'>): Promise<AuthPlugins> => ({
   ...((options.sso?.saml.length ?? 0) > 0 && { samlPlugin: (await import('./saml-plugin')).samlPlugin }),
   ...(options.mcp && { mcpAuthPlugins: (await import('./mcp/mcp-auth-plugins')).mcpAuthPlugins }),
+  ...(options.openIdProvider && { openIdProviderPlugins: (await import('./openid-provider/openid-provider-plugins')).openIdProviderPlugins }),
 })
 
 const loaded = <T>(plugin: T | undefined, option: string): T => {
@@ -399,7 +414,7 @@ const pageLoadReads = ['/get-session', '/role/current', '/token']
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn, saml = [], organizations, mcp, api, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, ...plugins }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn, saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, ...plugins }: Resolved) => {
   const mailProviders = resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true)
   const connectionHooks = connections && connections.resolved.length > 0 ? connectionAccountHooks(connections.resolved, connections.events) : undefined
   const ownProviders = (connections?.resolved ?? []).filter(({ declaration }) => 'oauth' in declaration).map(({ providerId }) => providerId)
@@ -500,6 +515,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(mail ? [emailOTP(emailCodeOptions(mail)), noAccountMailPlugin(mail, codeSignUp ? (context, email) => codeSignsUp(context, email, signUpDomains) : undefined), confirmationCodePlugin(mail)] : []),
       ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, ...(signUpDomains && { domains: signUpDomains }), fields: signUpFields, mail, defaultPolicy: signInPolicy })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
+      ...(signIn && !signIn.pages ? [providerPagesOffPlugin(signIn.provider)] : []),
       ...(connections && connections.resolved.length > 0
         ? [connectionProvidersPlugin(connections.resolved, { allowPrivateAddresses: connections.allowPrivateAddresses }), connectionsPlugin({ connections: connections.resolved, events: connections.events, allowPrivateAddresses: connections.allowPrivateAddresses })]
         : []),
@@ -536,8 +552,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(mailProviders.length > 0 ? [mailSendersPlugin(mailProviders)] : []),
       // Last, so the staff plugin refuses staff sessions on the provider's paths before its own hooks run.
       ...(mcp ? loaded(plugins.mcpAuthPlugins, 'mcp')({ mcp, ...(api && { api }), organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context }) : []),
+      ...(openId ? loaded(plugins.openIdProviderPlugins, 'openIdProvider')({ openId, mail: Boolean(mailer), defaultPolicy: signInPolicy }) : []),
     ].map((plugin) => withUserColumns(plugin, users)),
-    disabledPaths: [selfDeletionCallbackPath, ...(accountDeletion ? [] : [selfDeletionPath]), ...unusedEmailCodePaths, ...adminImpersonationPaths, ...providerTokenPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : []), ...(mcp ? mcpUnusedPaths : [])],
+    disabledPaths: [selfDeletionCallbackPath, ...(accountDeletion ? [] : [selfDeletionPath]), ...unusedEmailCodePaths, ...adminImpersonationPaths, ...providerTokenPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : []), ...(mcp ? mcpUnusedPaths : []), ...(openId ? openIdUnusedPaths : [])],
     databaseHooks: {
       user: {
         create: {
@@ -636,7 +653,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const operator = provider && resolveOperator(provider)
   const signInSettings = options.signInProvider === undefined ? platformSignInSettings() : options.signInProvider || undefined
   const socialProviders = Object.keys(options.socialProviders ?? {})
-  const platformSignIn = platformSignInFor(signInSettings && resolvePlatformSignIn(signInSettings), socialProviders)
+  const platformSignIn = platformSignInFor(signInSettings && resolvePlatformSignIn(signInSettings, options.baseURL), socialProviders)
   const saml = resolveSamlProviders(options.sso?.saml ?? [], [...socialProviders, ...(platformSignIn ? [platformSignIn.provider] : [])])
   const personalMail = resolvePersonalMail(options.personalMail ?? [], socialProviders, options.encryptOAuthTokens === true)
   if (Object.keys(options.connections ?? {}).length > 0 && options.encryptOAuthTokens !== true) throw new Error("auth.connections: the connected accounts' tokens would be stored in plain text; turn on auth.encryptOAuthTokens")
@@ -651,6 +668,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const organizations = options.organizations && resolveOrganizations(options.organizations, definitions)
   const mcp = options.mcp && resolveMcp(options.baseURL, options.mcp)
   const api = resolveOAuthApi(options.baseURL, options.oauth, mcp || undefined)
+  const openId = options.openIdProvider && resolveOpenIdProvider(options.openIdProvider, mcp || undefined)
   const personalAccessTokens = options.personalAccessTokens === undefined ? undefined : resolvePersonalAccessTokens(options.personalAccessTokens)
   // The organization hooks and the MCP provider read the store through the instance made below; they run only once it exists.
   let instance: { $context: Promise<AuthContext> } | undefined
@@ -660,7 +678,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   // Deleting a user revokes their connected accounts and parks the triggers on them, as disconnecting each would.
   if (resolvedConnections.length > 0) deletion.set('connections', releaseUserConnections({ connections: resolvedConnections, events, allowPrivateAddresses, context }))
   const lockedAccounts = platformLockedAccounts()
-  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
+  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
@@ -718,7 +736,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     /** The app's name it signs in and mails as: `PROTOBASE_APP_NAME`, else `appName`, else `Protobase`. */
     appName: appName ?? defaultAppName,
     operator: operator?.name,
-    platformSignIn: platformSignIn && { provider: platformSignIn.provider, name: platformSignIn.name },
+    platformSignIn: platformSignIn && { provider: platformSignIn.provider, name: platformSignIn.name, pages: platformSignIn.pages },
     /** The id and name of each SAML provider, for the sign-in page. */
     samlProviders: saml.map(({ id, name }) => ({ id, name })),
     /** The mail providers people link their own mailbox with (`personalMail`). */
@@ -744,6 +762,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     mcp: mcp && { resource: mcp.resource, path: mcp.path, scope: mcpScope },
     /** The OAuth resource of the app's API, when clients may get tokens for it (`oauth.api`): the audience the API takes them with. */
     oauthApi: api,
+    /** The app is an OpenID provider for the clients its admins register (`openIdProvider`). */
+    openIdProvider: Boolean(openId),
     /** Personal access tokens, when on: the prefix every token starts with. */
     personalAccessTokens,
   })

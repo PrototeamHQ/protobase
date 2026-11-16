@@ -111,7 +111,7 @@ describe('betterAuthOptions', () => {
   })
 
   it('adds the platform sign-in provider, unless the app has its own provider with the same id', () => {
-    const platformSignIn = resolvePlatformSignIn({ issuer: 'https://auth.example.com', clientId: 'app', clientSecret: 'secret', provider: 'github' })
+    const platformSignIn = resolvePlatformSignIn({ issuer: 'https://auth.example.com', clientId: 'app', clientSecret: 'secret', provider: 'github' }, 'https://app.example.com')
     const plugins = (options: CreateAuthOptions) => betterAuthOptions(options, { ...resolved, platformSignIn }).plugins.map((plugin) => plugin.id)
     expect(plugins(base)).toContain('generic-oauth')
     expect(plugins({ ...base, socialProviders: github })).not.toContain('generic-oauth')

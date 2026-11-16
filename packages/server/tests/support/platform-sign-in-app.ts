@@ -19,16 +19,17 @@ export const cookiesOf = (response: Response) => response.headers.getSetCookie()
 /** The claims of a person as the platform's provider vouches for them. */
 export const octo = (changes: Record<string, unknown> = {}) => ({ sub: '4242', email: 'octo@example.com', email_verified: true, name: 'Octo Cat', ...changes })
 
-export type PlatformApp = Partial<CreateAuthOptions> & { provider?: string; discoveredIssuer?: string; tokenSignIn?: boolean }
+export type PlatformApp = Partial<CreateAuthOptions> & { provider?: string; discoveredIssuer?: string; tokenSignIn?: boolean; tokensOnly?: boolean }
 
 // Better Auth's rate limits are per client address and kept in memory, so every app gets an address of its own.
 let address = 0
 
 /**
  * An app on a copy of `shared`'s migrated store with an admin (`root@example.com`) and the platform's provider, with
- * token sign-in when `tokenSignIn` asks for it, and a client address of its own.
+ * token sign-in when `tokenSignIn` asks for it, or token sign-in alone, without a client of the provider's, with
+ * `tokensOnly`, and a client address of its own.
  */
-export const servePlatformApp = async (shared: SnapshotDb, appDb: Kysely<any>, { provider = 'github', discoveredIssuer, tokenSignIn, ...options }: PlatformApp = {}) => {
+export const servePlatformApp = async (shared: SnapshotDb, appDb: Kysely<any>, { provider = 'github', discoveredIssuer, tokenSignIn, tokensOnly, ...options }: PlatformApp = {}) => {
   const platform = await startFakeOidcProvider({ issuer, client, ...(discoveredIssuer && { discoveredIssuer }) })
   const store = await shared.clone()
   const auth = createAuth({
@@ -37,7 +38,7 @@ export const servePlatformApp = async (shared: SnapshotDb, appDb: Kysely<any>, {
     secret,
     mailer: false,
     operator: false,
-    signInProvider: { issuer, ...client, provider, ...(tokenSignIn && { tokenSignIn }) },
+    signInProvider: tokensOnly ? { issuer, provider, tokenSignIn: true } : { issuer, ...client, provider, ...(tokenSignIn && { tokenSignIn }) },
     ...options,
   })
   await createUser(auth, { email: 'root@example.com', password })
