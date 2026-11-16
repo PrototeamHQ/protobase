@@ -12,8 +12,8 @@ const tasks = resource('tasks')
   .primaryKey((r) => r.id)
 
 const texts = translations({
-  en: { today: { title: 'Today', open: '{count, plural, one {# open task} other {# open tasks}}', unused: 'Unused' }, resources: { tasks: { names: { singular: 'Task', plural: 'Tasks' }, fields: { status: { label: 'Status', values: { done: 'Done' } } } } } },
-  nl: { today: { title: 'Vandaag', open: '{count, plural, one {# open taak} other {# open taken}}', unused: 'Ongebruikt' }, resources: { tasks: { names: { singular: 'Taak', plural: 'Taken' }, fields: { status: { label: 'Staat', values: { done: 'Klaar' } } } } } },
+  en: { today: { title: 'Today', named: 'Today for {who}', open: '{count, plural, one {# open task} other {# open tasks}}', unused: 'Unused' }, resources: { tasks: { names: { singular: 'Task', plural: 'Tasks' }, fields: { status: { label: 'Status', values: { done: 'Done' } } } } } },
+  nl: { today: { title: 'Vandaag', named: 'Vandaag voor {who}', open: '{count, plural, one {# open taak} other {# open taken}}', unused: 'Ongebruikt' }, resources: { tasks: { names: { singular: 'Taak', plural: 'Taken' }, fields: { status: { label: 'Staat', values: { done: 'Klaar' } } } } } },
 })
 
 const today = page('today', Page({ title: Trans({ i18nKey: 'today.title' }), children: Card({ title: Trans({ i18nKey: 'today.open', values: { count: 2 } }) }) }))
@@ -51,6 +51,12 @@ describe("the app's texts in /meta", () => {
     expect((await metaIn(admin('en'), 'nl')).body.texts.locale).toBe('en')
     const app = admin()
     expect((await metaIn(app, 'nl')).version).not.toBe((await metaIn(app, 'en')).version)
+  })
+
+  it("name a page by its title's message with the title's values", async () => {
+    const named = page('named', Page({ title: Trans({ i18nKey: 'today.named', values: { who: 'Sam' } }) }))
+    const app = createAdmin({ resources: [tasks], pages: [named], translations: texts, db, authenticate: testAuthenticator })
+    expect((await metaIn(app as never, 'nl')).body.pages[0].title).toBe('Vandaag voor Sam')
   })
 
   it('refuse to start when a page names a key the texts lack', () => {

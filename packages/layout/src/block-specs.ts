@@ -202,7 +202,11 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
   text: [(value) => typeof value === 'string', 'text'],
   shown: [(value) => typeof value === 'string' || isTrans(value), 'text, or a <Trans i18nKey="..." />'],
   transValues: [(value) => isObject(value) && !isLayoutNode(value) && Object.values(value).every((item) => item === null || ['string', 'number', 'boolean'].includes(typeof item)), "values by name, such as { name: '{{title}}', count: 3 }"],
-  transComponents: [(value) => isObject(value) && !isLayoutNode(value) && Object.values(value).every(isLayoutNode), 'elements by tag name, such as { b: <Text as="strong" /> }'],
+  // A tag's element holds the message's text inside the tag and nothing of its own, so it reads no data
+  transComponents: [
+    (value) => isObject(value) && !isLayoutNode(value) && Object.values(value).every((item) => isLayoutNode(item) && !item.custom && ['Text', 'Link', 'Button'].includes(item.type) && item.children.length === 0),
+    'empty elements by tag name, each a <Text>, <Link> or <Button>, such as { b: <Text as="strong" /> }',
+  ],
   content: [(value) => typeof value === 'string' || isLayoutNode(value) || (Array.isArray(value) && value.every(isLayoutNode)), 'text, an element or a list of elements'],
   boolean: [(value) => typeof value === 'boolean', 'true or false'],
   texts: [(value) => Array.isArray(value) && value.every((item) => typeof item === 'string'), 'a list of names'],

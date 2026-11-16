@@ -40,12 +40,13 @@ const fill = (text: string, lookup: PathLookup) => fillText(text, (path) => valu
 
 const filterPlaceholder = /(["'])\{\{\s*([^{}]*?)\s*\}\}\1|\{\{\s*([^{}]*?)\s*\}\}/g
 
-// A bare placeholder that is a comparison's value, as a typed layout writes `f.title.eq(data.title)`: one bare word, such
+// A bare placeholder that is a comparison's value, as a typed layout writes `f.title.eq(data.title)`, or a function's
+// argument after the first, as in `in(title, {{title}})`: one bare word, such
 // as a number, a key or true, as it is; text that would break into more, such as a name with a space, quoted, so it
 // stays one value. Any other bare placeholder, a whole filter or a duration, goes in as it is.
 const comparedValue = (value: unknown) => (typeof value === 'string' && value !== '' && !/^[\w.:+-]+$/.test(value) ? JSON.stringify(value) : valueText(value))
 
-const afterComparison = /(?:[=<>:]|!=)\s*$/
+const afterComparison = /(?:[=<>:,]|!=)\s*$/
 
 /**
  * `filter` with every `{{path}}` replaced by its value. A quoted `'{{path}}'` takes the value as a string, its

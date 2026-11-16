@@ -1,14 +1,17 @@
 import { normalizeChildren } from '../create-node'
 import { Fragment } from '../jsx-runtime'
 import type { LayoutChildren, LayoutNode } from '../node'
-import { recorder, resourcesRecorder } from './record'
+import { childScope, pageScope, propScope, type Scope } from '../walk'
+import { recorder, resolveScopes, resourcesRecorder, whileBuilding } from './record'
 import type { RecordOf, Recorded, ResourceName, Resources } from './types'
 
-// One element for what a layout function returns: itself, or a fragment around several
-const oneNode = (children: LayoutChildren, where: string): LayoutNode => {
-  const nodes = normalizeChildren(children, where)
+// One element for what a layout function returns: itself, or a fragment around several, with each recorded path
+// written as it reads where it ends up
+const oneNode = (build: () => LayoutChildren, where: string, root: Scope = pageScope): LayoutNode => {
+  const nodes = whileBuilding(() => normalizeChildren(build(), where))
   const [only] = nodes
-  return nodes.length === 1 && typeof only === 'object' ? only : Fragment({ children: nodes })
+  const tree = nodes.length === 1 && typeof only === 'object' ? only : Fragment({ children: nodes })
+  return resolveScopes(tree, root, (node, scope: Scope) => ({ children: childScope(node as LayoutNode, scope), slots: propScope(node as LayoutNode, scope), depth: (at: Scope) => at.stack.length }))
 }
 
 /**
@@ -17,7 +20,7 @@ const oneNode = (children: LayoutChildren, where: string): LayoutNode => {
  * condition, such as `<Show when={resources.loop_held.count.gt(0)}>`.
  */
 export const layout = (build: (scope: { resources: Resources; data: Recorded<Record<string, unknown>> }) => LayoutChildren): LayoutNode =>
-  oneNode(build({ resources: resourcesRecorder() as Resources, data: recorder() as Recorded<Record<string, unknown>> }), '<layout>')
+  oneNode(() => build({ resources: resourcesRecorder() as Resources, data: recorder() as Recorded<Record<string, unknown>> }), '<layout>')
 
 /**
  * Blocks for the record page of `resource`, written with its record in hand: `data.title` is `{{title}}` where it
@@ -29,5 +32,5 @@ export const recordLayout = <R extends ResourceName>(
   build: (scope: { data: Recorded<RecordOf<R>>; resources: Resources }) => LayoutChildren,
 ): LayoutNode => {
   if (typeof resource !== 'string' || (resource as string) === '') throw new Error('recordLayout(resource, build) takes the name of the resource whose record page it draws')
-  return oneNode(build({ data: recorder() as Recorded<RecordOf<R>>, resources: resourcesRecorder() as Resources }), `<recordLayout ${resource}>`)
+  return oneNode(() => build({ data: recorder() as Recorded<RecordOf<R>>, resources: resourcesRecorder() as Resources }), `<recordLayout ${resource}>`, { stack: [], root: resource })
 }

@@ -77,6 +77,12 @@ describe('a <Trans> in a layout', () => {
     expect(fillProps(card, { stack: [{ record: { owner: 'Sam' } }] }).props.title).toMatchObject({ props: { values: { name: 'Sam' } } })
   })
 
+  it('takes only empty text, link or button elements for its tags, which read nothing of their own', () => {
+    const tagged = (b: ReturnType<typeof Text>) => page('tagged', <Page title="x"><Trans i18nKey="today.owner" values={{ name: 'x' }} components={{ b }} /></Page>)
+    expect(() => tagged(<Text as="strong" />)).not.toThrow()
+    expect(() => tagged(<Text as="strong">{'{{title}}'}</Text>)).toThrow(/empty elements by tag name/)
+  })
+
   it("takes a typed layout's recorded path as a value", () => {
     const typed = recordLayout('tasks', ({ data }) => <Table title={<Trans i18nKey="today.owner" values={{ name: data.owner }} />} resource="tasks" />)
     expect(typed.props.title).toMatchObject({ props: { values: { name: '{{owner}}' } } })

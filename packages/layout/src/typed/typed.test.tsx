@@ -1,9 +1,9 @@
 /** @jsxImportSource @protobase/layout */
 import { f, resource } from '@protobase/schema'
 import { describe, expect, expectTypeOf, it } from 'vitest'
-import { Card, RecordCard, Show, Table } from '../blocks'
+import { Card, CardRow, RecordCard, Show, Table } from '../blocks'
 import { parseCondition, evaluateCondition } from '../condition'
-import { RecordsIterator, ReferenceManyField } from '../list-blocks'
+import { RecordsIterator, ReferenceField, ReferenceManyField } from '../list-blocks'
 import { layout, recordLayout } from './layout'
 import { fieldRecorder, not, now } from './record'
 import type { RecordIn, ResourceNameIn } from './types'
@@ -95,5 +95,53 @@ describe('the types of a config module', () => {
     expectTypeOf<ResourceNameIn<App>>().toEqualTypeOf<'tasks' | 'notes'>()
     expectTypeOf<keyof RecordIn<App, 'tasks'>>().toEqualTypeOf<'id' | 'title' | 'done'>()
     expectTypeOf<ResourceNameIn<{ other: string }>>().toEqualTypeOf<string>()
+  })
+})
+
+describe('the records a recorded path reads from', () => {
+  it("count the records element children draw in too, so a path reads the record it came from", () => {
+    const tree = recordLayout('tasks', ({ data }) => (
+      <CardRow resource="task_runs" filter={(f) => f.task_id.eq(data.id)}>
+        {(run) => (
+          <ReferenceField source="worker_id" reference="workers">
+            <ReferenceField source="team_id" reference="teams">
+              {(team) => <Card title={`${team.name}: ${run.outcome} of ${data.title}`} />}
+            </ReferenceField>
+          </ReferenceField>
+        )}
+      </CardRow>
+    ))
+    const card = (tree as any).children[0].children[0].children[0]
+    expect(card.props.title).toBe('{{name}}: {{../../outcome}} of {{@root.title}}')
+  })
+
+  it('takes a path a child function returns as text, and quotes a recorded value in a list of a filter', () => {
+    const tree = layout(() => (
+      <RecordCard resource="tasks" filter="id = 1">
+        {(task) => <Table resource="tasks" filter={(f) => f.title.in([task.title])} />}
+      </RecordCard>
+    ))
+    expect((tree as any).children[0].props.filter).toBe('in(title, {{title}})')
+    const iterated = layout(() => (
+      <ReferenceManyField reference="task_runs" target="task_id">
+        <RecordsIterator>{(run) => run.outcome}</RecordsIterator>
+      </ReferenceManyField>
+    ))
+    expect((iterated as any).children[0].children).toEqual(['{{outcome}}'])
+  })
+
+  it('refuses a condition on a record further out than the nearest, and a child function outside a typed layout', () => {
+    expect(() =>
+      recordLayout('tasks', ({ data }) => (
+        <RecordCard resource="task_runs" filter="id = 1">
+          {() => (
+            <Show when={data.status.eq('open')}>
+              <Card title="x" />
+            </Show>
+          )}
+        </RecordCard>
+      )),
+    ).toThrow(/further out than the nearest/)
+    expect(() => RecordCard({ resource: 'tasks', children: (() => null) as any })).toThrow(/only inside a typed layout/)
   })
 })

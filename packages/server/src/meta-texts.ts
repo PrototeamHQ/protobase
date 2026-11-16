@@ -21,7 +21,9 @@ export const readerTexts = (translations: Translations, language: string, pages:
 /** A page with its title in the reader's language, when the tree's title is a `<Trans>`, so the sidebar names it so too. */
 export const translatedPage = (page: PageModel, texts: ReaderTexts): PageModel => {
   const title = page.tree.props.title
-  return isTrans(title) && typeof title.props.i18nKey === 'string' ? { ...page, title: formatText(texts, title.props.i18nKey) } : page
+  if (!isTrans(title) || typeof title.props.i18nKey !== 'string') return page
+  const values = title.props.values
+  return { ...page, title: formatText(texts, title.props.i18nKey, typeof values === 'object' && values !== null && !Array.isArray(values) ? values : {}) }
 }
 
 const keyed = (all: Readonly<Record<string, string>>, locale: string) => (key: string, given: string) => (Object.hasOwn(all, key) ? formatText({ locale, messages: all }, key) : given)

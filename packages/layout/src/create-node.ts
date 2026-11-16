@@ -1,5 +1,5 @@
 import { isLayoutNode, type Block, type ComponentReads, type LayoutChild, type LayoutNode, type LayoutValue } from './node'
-import { Condition, Now, currentDepth, fieldRecorder, inList, isRecorded, placeholder, recorder } from './typed/record'
+import { Condition, Now, fieldRecorder, inScope, isRecorded, markScope, placeholder, recorder } from './typed/record'
 
 const advice = 'Layouts are static data, sent to the browser as JSON: use <Action name="..."> for behaviour, or register a custom component for React code.'
 
@@ -65,11 +65,13 @@ const builtProps = (name: string, props: Record<string, unknown>) => {
   return built
 }
 
-// A record block's children: a function of its record, called once with a recorder one list deeper, or the elements
-const builtChildren = (name: string, children: unknown) => {
-  if (typeof children !== 'function') return children
+// A record block's children: a function of its record, called once with a recorder of a scope of its own, which the
+// element is marked with, or the elements
+const builtChildren = (name: string, children: unknown, where: string): { children: LayoutChild[]; scope?: number } => {
+  if (typeof children !== 'function') return { children: normalizeChildren(children, where) }
   if (!recordChildBlocks.includes(name)) throw new Error(`<${name}> takes elements as children; only ${recordChildBlocks.join(', ')} take a function of their record`)
-  return inList(() => (children as (record: unknown) => unknown)(recorder([], currentDepth(), false)))
+  const { scope, built } = inScope((own) => normalizeChildren((children as (record: unknown) => unknown)(recorder([], own)), where))
+  return { children: built, scope }
 }
 
 /** The element for `<type {...props} />`: checks that every prop and child is static and returns plain data. */
@@ -81,11 +83,13 @@ export const createNode = (type: unknown, props: Record<string, unknown>): Layou
   const name = type.blockName
   const { children, ...given } = props
   const rest = type.custom ? given : builtProps(name, given)
+  const built = type.custom ? { children: normalizeChildren(children, `<${name}>`) } : builtChildren(name, children, `<${name}>`)
   const node: LayoutNode = {
     type: name,
     props: Object.fromEntries(Object.entries(rest).flatMap(([key, value]) => (value === undefined ? [] : [[key, staticValue(value, `<${name} ${key}>`)]]))),
-    children: normalizeChildren(type.custom ? children : builtChildren(name, children), `<${name}>`),
+    children: built.children,
   }
+  if (built.scope !== undefined) markScope(node, built.scope)
   if (type.custom) node.custom = true
   if (type.fallback) node.fallback = type.fallback
   if (type.reads) node.reads = type.reads
