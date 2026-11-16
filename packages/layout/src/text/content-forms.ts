@@ -77,4 +77,14 @@ const ModalForm: TextForm = ({ node }) => textOf(node.props.label)
 
 const Composer: TextForm = ({ node }) => textOf(node.props.placeholder)
 
-export const contentForms: Record<string, TextForm> = { Field, Stat, Progress, Text, Link, Image, Action, ModalForm, Composer }
+// An email's own blocks: its root as what it holds, a button as its label and address, and a rule
+const Email: TextForm = ({ children }) => blocks(children)
+
+const Button: TextForm = ({ node, children }) => {
+  const label = blocks(children)
+  return typeof node.props.href === 'string' ? link(label, node.props.href) : label
+}
+
+const Divider: TextForm = () => '---'
+
+export const contentForms: Record<string, TextForm> = { Field, Stat, Progress, Text, Link, Image, Action, ModalForm, Composer, Email, Button, Divider }

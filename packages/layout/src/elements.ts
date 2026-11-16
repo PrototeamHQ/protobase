@@ -21,3 +21,14 @@ export const Box = defineBlock<BoxProps>('Box', false)
 export const Row = defineBlock<RowProps>('Row', false)
 export const Column = defineBlock<ColumnProps>('Column', false)
 export const Text = defineBlock<TextProps>('Text', false)
+
+/** An email's own root: its text, drawn on the app's mail card. `defineTemplate` puts the template's body in one. */
+export type EmailProps = { children?: LayoutChildren }
+/** An email's action: a button that opens `href`, a full address, which the plain-text part writes beside its label. */
+export type ButtonProps = Styled & { href: string; children?: LayoutChildren }
+/** A rule across an email, between its parts. */
+export type DividerProps = Styled
+
+export const Email = defineBlock<EmailProps>('Email', false)
+export const Button = defineBlock<ButtonProps>('Button', false)
+export const Divider = defineBlock<DividerProps>('Divider', false)

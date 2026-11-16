@@ -4,7 +4,7 @@ import * as lists from '../list-blocks'
 import { blockSpecs } from '../block-specs'
 import { Details, Summary } from '../details'
 import { Diff } from '../diff'
-import { Box, Column, Row, Text } from '../elements'
+import { Box, Button, Column, Divider, Email, Row, Text } from '../elements'
 import { SelectInput } from '../page-params'
 import * as fields from '../inline-fields'
 import type { LayoutNode } from '../node'
@@ -58,6 +58,9 @@ const samples: Record<string, LayoutNode> = {
   Column: Column({ children: text }),
   Text: text,
   Trans: Trans({ i18nKey: 'today.title' }),
+  Email: Email({ children: text }),
+  Button: Button({ href: 'https://example.com', children: 'Open' }),
+  Divider: Divider({}),
   ReferenceManyField: lists.ReferenceManyField({ reference: 'claims', target: 'task_id', children: lists.RecordsIterator({ children: text }) }),
   ReferenceArrayField: lists.ReferenceArrayField({ source: 'tag_ids', reference: 'tags', children: lists.RecordsIterator({ children: text }) }),
   ArrayField: lists.ArrayField({ source: 'labels', children: lists.RecordsIterator({ children: text }) }),
