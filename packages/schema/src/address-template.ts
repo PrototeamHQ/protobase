@@ -40,20 +40,26 @@ const fill = (text: string, lookup: PathLookup) => fillText(text, (path) => valu
 
 const filterPlaceholder = /(["'])\{\{\s*([^{}]*?)\s*\}\}\1|\{\{\s*([^{}]*?)\s*\}\}/g
 
-// A bare placeholder's value in a filter: one bare word, such as a number, a key, true or a duration, as it is, as a key
-// from the address is written; text that would break into more, such as a name with a space, quoted, so it stays one value
-const bareValue = (value: unknown) => (typeof value === 'string' && value !== '' && !/^[\w.:+-]+$/.test(value) ? JSON.stringify(value) : valueText(value))
+// A bare placeholder that is a comparison's value, as a typed layout writes `f.title.eq(data.title)`: one bare word, such
+// as a number, a key or true, as it is; text that would break into more, such as a name with a space, quoted, so it
+// stays one value. Any other bare placeholder, a whole filter or a duration, goes in as it is.
+const comparedValue = (value: unknown) => (typeof value === 'string' && value !== '' && !/^[\w.:+-]+$/.test(value) ? JSON.stringify(value) : valueText(value))
+
+const afterComparison = /(?:[=<>:]|!=)\s*$/
 
 /**
  * `filter` with every `{{path}}` replaced by its value. A quoted `'{{path}}'` takes the value as a string, its
  * backslashes and quotes escaped, so any text stays one value; Handlebars escapes for HTML instead, where this lands in
- * a filter or condition. A bare `{{path}}`, as a typed layout writes `f.task_id.eq(data.id)`, takes one bare word as it
- * is, such as a number, a key or a duration, and text with spaces or quotes quoted.
+ * a filter or condition. A bare `{{path}}` that is a comparison's value, as a typed layout writes `f.title.eq(data.title)`,
+ * takes one bare word as it is, such as a number or a key, and text with spaces or quotes quoted; any other bare one,
+ * such as a whole filter or a duration, goes in as it is.
  */
 export const fillFilter = (filter: string, lookup: PathLookup) =>
-  filter.replace(filterPlaceholder, (_, quote: string | undefined, quoted: string | undefined, bare: string | undefined) =>
-    quote ? `${quote}${valueText(lookup(quoted!)).replace(/\\/g, '\\\\').replaceAll(quote, `\\${quote}`)}${quote}` : bareValue(lookup(bare!)),
-  )
+  filter.replace(filterPlaceholder, (_, quote: string | undefined, quoted: string | undefined, bare: string | undefined, at: number) => {
+    if (quote) return `${quote}${valueText(lookup(quoted!)).replace(/\\/g, '\\\\').replaceAll(quote, `\\${quote}`)}${quote}`
+    const value = lookup(bare!)
+    return afterComparison.test(filter.slice(0, at)) ? comparedValue(value) : valueText(value)
+  })
 
 /**
  * `to` with every `{{path}}` in its page parameters, resource, key, tab, run, panel, filter, order or values replaced by the value
