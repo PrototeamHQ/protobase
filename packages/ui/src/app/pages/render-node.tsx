@@ -1,12 +1,13 @@
 import { Fragment, useMemo, type ComponentType } from 'react'
-import { fillProps, formatMessage, isInlineChild, isLayoutNode, pointerOf, type LayoutChild, type LayoutNode, type LayoutValue, type ReaderTexts } from '@protobase/layout'
-import { unmarkFieldRefs } from '@protobase/schema/internal'
+import { fillProps, formatMessage, isInlineChild, isLayoutNode, pointerOf, scopeValue, type LayoutChild, type LayoutNode, type LayoutValue, type ReaderTexts } from '@protobase/layout'
+import { fillText, unmarkFieldRefs, valueText } from '@protobase/schema/internal'
 import { ActionBlock } from './blocks/action'
 import type { BlockProps } from './blocks/block-props'
 import { CardBlock } from './blocks/card'
 import { CardRowBlock } from './blocks/card-row'
 import { ChartBlock } from './blocks/chart'
 import { TimelineBlock } from './blocks/timeline/timeline'
+import { GraphBlock } from './blocks/graph/graph-block'
 import { ComposerBlock } from './blocks/composer'
 import { DetailsBlock, SummaryBlock } from './blocks/details'
 import { DiffBlock } from './blocks/diff'
@@ -48,6 +49,7 @@ import { PasswordBlock } from '../../account/blocks/password-block'
 import { ProfileBlock } from '../../account/blocks/profile-block'
 import { TwoFactorBlock } from '../../account/blocks/two-factor-block'
 import { ComponentElement } from './component-reads'
+import { CustomBoundary } from './custom-boundary'
 import { CustomChosen } from './custom-chosen'
 import { CustomOrFallback } from './custom-or-fallback'
 import { Problem } from './problem'
@@ -71,6 +73,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   RecordCards: RecordCardsBlock,
   Chart: ChartBlock,
   Timeline: TimelineBlock,
+  Graph: GraphBlock,
   Progress: ProgressBlock,
   Image: ImageBlock,
   ModalForm: ModalFormBlock,
@@ -117,7 +120,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
 }
 
 // The blocks that put their classes on an element of their own; the others draw none, or several, and get a <div> for them.
-const ownClasses = new Set(['Page', 'Grid', 'Card', 'Stat', 'RecordCard', 'Field', 'Diff', 'Table', 'CardRow', 'RecordRow', 'RecordCards', 'Chart', 'Timeline', 'Progress', 'Image', 'Thread', 'Link', 'Tabs', 'Settings', 'Show', 'Switch', 'Action', 'Box', 'Row', 'Column', 'Text', 'ReferenceField', 'SelectInput', 'Details', 'Summary', 'TextField', 'NumberField', 'DateField', 'BooleanField', 'UrlField', 'ChipField'])
+const ownClasses = new Set(['Page', 'Grid', 'Card', 'Stat', 'RecordCard', 'Field', 'Diff', 'Table', 'CardRow', 'RecordRow', 'RecordCards', 'Chart', 'Timeline', 'Graph', 'Progress', 'Image', 'Thread', 'Link', 'Tabs', 'Settings', 'Show', 'Switch', 'Action', 'Box', 'Row', 'Column', 'Text', 'ReferenceField', 'SelectInput', 'Details', 'Summary', 'TextField', 'NumberField', 'DateField', 'BooleanField', 'UrlField', 'ChipField'])
 
 /** A child and its place in the page's tree, the JSON Pointer its planned read names it by; none outside a page. */
 type Placed = { child: LayoutChild; at?: string }
@@ -125,8 +128,18 @@ type Placed = { child: LayoutChild; at?: string }
 const placed = (children: LayoutChild[], at: string | undefined, ...steps: string[]): Placed[] =>
   children.map((child, index) => ({ child, ...(at !== undefined && { at: pointerOf(at, ...steps, index) }) }))
 
+/** A text child with its `{{path}}`s filled from the records around it and the page's parameters, as a prop's are. */
+const FilledText = ({ text }: { text: string }) => {
+  const stack = useScopeStack()
+  const params = usePageParamValues()
+  const scope = { ...valueScopeOf(stack), params }
+  return <>{fillText(text, (path) => valueText(scopeValue(scope, path)))}</>
+}
+
+const textChild = (text: string, key: number) => (text.includes('{{') ? <FilledText key={key} text={text} /> : <Fragment key={key}>{text}</Fragment>)
+
 /** Text and links as they run in one line. */
-const renderInline = (run: Placed[]) => run.map(({ child, at }, position) => (typeof child === 'string' ? <Fragment key={position}>{child}</Fragment> : <RenderNode key={position} node={child} at={at} />))
+const renderInline = (run: Placed[]) => run.map(({ child, at }, position) => (typeof child === 'string' ? textChild(child, position) : <RenderNode key={position} node={child} at={at} />))
 
 /** Text, links and field components run together as one paragraph, like a sentence with a link in it; other elements stand alone. */
 const renderChildren = (children: Placed[]) => {
@@ -205,6 +218,13 @@ export const RenderNode = ({ node: written, at }: { node: LayoutNode; at?: strin
       {node.type === 'Text' || node.type === 'Link' || node.type === 'Summary' ? renderInline(children) : renderChildren(node.type === 'Switch' ? children.filter(({ child }) => typeof child !== 'string') : children)}
     </Block>
   )
-  return className === undefined || ownClasses.has(node.type) ? block : <div className={className}>{block}</div>
+  const classed = className === undefined || ownClasses.has(node.type) ? block : <div className={className}>{block}</div>
+  // A block with a fallback, such as a Graph's, draws it where the block cannot draw, as a custom component's does
+  if (!node.fallback) return classed
+  return (
+    <CustomBoundary name={node.type} resetKey={node} fallback={<>{renderChildren(placed(node.fallback, at, 'fallback'))}</>}>
+      {classed}
+    </CustomBoundary>
+  )
 
 }

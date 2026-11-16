@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { compileReadPlan, Page, pageText, Text, type PlanRead } from '@protobase/layout'
-import { Graph, graphText } from './layout'
-import { linkRows, models, sampleFields, serviceRows } from './testing/sample-graph'
+import { Graph, Page } from '../blocks'
+import { compileReadPlan } from '../compile-read-plan'
+import { Text } from '../elements'
+import type { PlanRead } from '../read-plan'
+import { linkRows, models, sampleFields, serviceRows } from '../testing/sample-graph'
+import { pageText } from './page-text'
 
 const labels = { services: { health: { valueLabels: { up: 'Up', degraded: 'Degraded', down: 'Down' } }, area: { valueLabels: { edge: 'Edge', core: 'Core', data: 'Data' } } } }
 
@@ -9,7 +12,7 @@ const textOf = async (rows: Record<string, Record<string, unknown>[]>, props: Pa
   const tree = Page({ title: 'Map', children: Graph({ nodes: 'services', edges: 'links', ...sampleFields, ...props }) })
   const { plan } = compileReadPlan(tree, { models })
   const read = async ({ resource }: PlanRead) => ({ rows: rows[resource] ?? [] })
-  return pageText(tree, plan, { read, models, labels, forms: { Graph: graphText } })
+  return pageText(tree, plan, { read, models, labels })
 }
 
 describe('a graph’s text form', () => {
@@ -29,6 +32,6 @@ describe('a graph’s text form', () => {
     expect(await textOf({}, { empty: 'Nothing runs yet' })).toBe('# Map\n\nNothing runs yet')
     const tree = Page({ title: 'Map', children: [Graph({ nodes: 'services', edges: 'links', ...sampleFields }), Text({ children: 'After' })] })
     const { plan } = compileReadPlan(tree, { models })
-    expect(await pageText(tree, plan, { read: async () => ({ rows: [] }), forms: { Graph: graphText } })).toBe('# Map\n\nAfter')
+    expect(await pageText(tree, plan, { read: async () => ({ rows: [] }) })).toBe('# Map\n\nAfter')
   })
 })

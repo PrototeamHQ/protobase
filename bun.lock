@@ -14,7 +14,6 @@
         "@protobase/cli": "workspace:*",
         "@protobase/client": "workspace:*",
         "@protobase/config": "workspace:*",
-        "@protobase/graph": "workspace:*",
         "@protobase/image-viewer": "workspace:*",
         "@protobase/layout": "workspace:*",
         "@protobase/pdf-viewer": "workspace:*",
@@ -159,19 +158,6 @@
       },
       "devDependencies": {
         "@protobase/cli": "workspace:*",
-      },
-    },
-    "packages/graph": {
-      "name": "@protobase/graph",
-      "version": "0.14.2",
-      "dependencies": {
-        "@dagrejs/dagre": "^3.1.3",
-        "@xyflow/react": "^12.12.1",
-      },
-      "peerDependencies": {
-        "@protobase/layout": "workspace:^",
-        "@protobase/ui": "workspace:^",
-        "react": "^19.3.0",
       },
     },
     "packages/image-viewer": {
@@ -721,10 +707,6 @@
 
     "@ctrl/tinycolor": ["@ctrl/tinycolor@4.2.1", "", {}, "sha512-Vh5uy9Y1JBMId6J1f68TMXnZrTCvNdo9Fu2k0d1YnJngR+sM5kWTKl441c/3TFs+cG0NWOjRWgQ/iaWhbYx+7A=="],
 
-    "@dagrejs/dagre": ["@dagrejs/dagre@3.1.3", "", { "dependencies": { "@dagrejs/graphlib": "4.0.6" } }, "sha512-X4aUTwOReZvthaZWOVHqlJ52/ZdhZFEM4+Lh/uR4XooUSLE6p71bcy7MPGzYnNUcNh+nj+i/qJQpCMIdQnSmrg=="],
-
-    "@dagrejs/graphlib": ["@dagrejs/graphlib@4.0.6", "", {}, "sha512-Hjv7hbfmSBMP4nVXMFt4gusqWWHghQF0qNT4V5KHo4Jatvd+2L5VHKFnnIjXVuDnaHIRz7ZuHSnlf0RuZkOwWA=="],
-
     "@dnd-kit/accessibility": ["@dnd-kit/accessibility@3.1.1", "", { "dependencies": { "tslib": "2.8.1" }, "peerDependencies": { "react": ">=16.8.0" } }, "sha512-2P+YgaXF+gRsIihwwY1gCsQSYnu9Zyj2py8kY5fFvUM1qm2WA2u639R6YNVfU4GWr+ZM5mqEsfHZZLoRONbemw=="],
 
     "@dnd-kit/core": ["@dnd-kit/core@6.3.1", "", { "dependencies": { "@dnd-kit/accessibility": "3.1.1", "@dnd-kit/utilities": "3.2.2", "tslib": "2.8.1" }, "peerDependencies": { "react": ">=16.8.0", "react-dom": ">=16.8.0" } }, "sha512-xkGBRQQab4RLwgXxoqETICr6S5JlogafbhNsidmrkVv2YRs5MLwpjoF2qpiGjQt8S9AoxtIV603s0GIUpY5eYQ=="],
@@ -1098,8 +1080,6 @@
     "@protobase/client": ["@protobase/client@workspace:packages/client"],
 
     "@protobase/config": ["@protobase/config@workspace:packages/config"],
-
-    "@protobase/graph": ["@protobase/graph@workspace:packages/graph"],
 
     "@protobase/image-viewer": ["@protobase/image-viewer@workspace:packages/image-viewer"],
 

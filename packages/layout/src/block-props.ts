@@ -181,6 +181,63 @@ export type TimelineProps = Heading & {
   select?: string
   children?: LayoutChildren
 }
+/** How a graph is laid out: in layers along its edges, or by force, linked nodes near each other. */
+export type GraphLayoutName = 'layered' | 'force'
+
+/**
+ * The records of `nodes` as boxes and the records of `edges` as arrows between them, from the node an edge's `source`
+ * holds the key of to the one its `target` holds, each node in the region of its `group` and coloured by its `status`.
+ */
+export type GraphProps = {
+  /** The resource whose records are the nodes, each by its key, which is one field. */
+  nodes: string
+  /** The resource whose records are the edges. */
+  edges: string
+  /** The field of an edge that holds the key of the node it starts at. */
+  source: string
+  /** The field of an edge that holds the key of the node it ends at. */
+  target: string
+  /** The field of a node that names it: its text where it has no `node`, its link's name, and its line in the text form. */
+  label: string
+  /** The field of a node whose value puts it in a region with the nodes that hold the same. */
+  group?: string
+  /** An enum field of a node that colours it, as its view's `valueColors` give each value. */
+  status?: string
+  /** What each node shows, drawn inside its record: `{{path}}`s, fields and conditions of it, but no data blocks. */
+  node?: LayoutNode | LayoutNode[]
+  /** Which of the nodes it shows, AIP-160. */
+  filter?: string
+  /** Which of the edges it shows, AIP-160; an edge to a node it does not show is left out. */
+  edgeFilter?: string
+  /** The field of an edge shown on its middle. */
+  edgeLabel?: string
+  /** An enum field of an edge that colours its line, as the edges view's `valueColors` give each value. */
+  edgeStatus?: string
+  /** A condition on an edge, AIP-160, under which its line moves, as for work that runs along it. */
+  animated?: string
+  /** A condition on an edge under which its line is dashed. */
+  dashed?: string
+  /** A condition on an edge under which its line is dotted, over `dashed`. */
+  dotted?: string
+  /** `layered` (the default), or `force`. */
+  layout?: GraphLayoutName
+  /** Which way a layered graph's edges run: `down` (the default), which keeps it narrow on a phone, or `right`. */
+  direction?: 'down' | 'right'
+  /** Two number fields of a node that place it, its top left corner: a node without them is laid out under the placed ones. */
+  x?: string
+  y?: string
+  /**
+   * The page parameter that holds the chosen node's key: each node links to the page with it chosen, and the children
+   * draw inside the chosen node's record, beside the graph, or under it on a narrow screen.
+   */
+  select?: string
+  /** What it shows without nodes. */
+  empty?: string
+  /** What draws in its place where it cannot draw, as when its records cannot be read, such as an `<Image function>` of the same graph. */
+  fallback?: LayoutNode | LayoutNode[]
+  children?: LayoutChildren
+}
+
 export type ProgressProps = {
   /** A number, or a field of the record around it. */
   value: number | string

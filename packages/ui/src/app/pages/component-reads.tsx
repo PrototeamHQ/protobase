@@ -46,12 +46,20 @@ const useElement = (hook: string) => {
  */
 export const useComponentReads = (): ComponentReads => {
   const { node: written, at } = useElement('useComponentReads')
-  const { resources, views } = useAdminMeta()
-  const client = useClient()
   const stack = useScopeStack()
   const params = usePageParamValues()
   // A read it makes by itself fills its filter's `{{path}}`s from the records around it, as the plan's reads are
   const node = useMemo(() => fillComponentReads(written, { ...valueScopeOf(stack), params }), [written, stack, params])
+  return useElementReads(node, at)
+}
+
+/**
+ * The records each read an element declares holds, by the prop that names its resource: a custom component's, or a
+ * built-in block's of several, such as a `Graph`'s `nodes` and `edges`. `node` has its filters filled.
+ */
+export const useElementReads = (node: LayoutNode, at: string | undefined): ComponentReads => {
+  const { resources, views } = useAdminMeta()
+  const client = useClient()
   const declared = readsOf(node).flatMap(({ reads, part }) => {
     const model = resources[String(prop(node, reads.resource))]
     return model ? [{ reads, part, model }] : []

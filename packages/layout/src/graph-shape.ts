@@ -5,7 +5,7 @@ export type GraphFields = { label: string; group?: string; status?: string; sour
 
 export type ShapeNode = { id: string; row: Row; group?: string }
 export type ShapeGroup = { id: string; value: unknown }
-export type ShapeEdge = { id: string; source: string; target: string }
+export type ShapeEdge = { id: string; source: string; target: string; row: Row }
 
 /** What a graph shows: its groups, its nodes, each in its group, and the edges between them, each in one fixed order. */
 export type GraphShape = { groups: ShapeGroup[]; nodes: ShapeNode[]; edges: ShapeEdge[] }
@@ -37,7 +37,7 @@ export const graphShape = ({ nodes, edges, key, edgeKey, fields }: { nodes: Row[
     const source = keyText(row[fields.source])
     const target = keyText(row[fields.target])
     if (id === undefined || source === undefined || target === undefined || !byKey.has(source) || !byKey.has(target)) return []
-    return [{ id, source, target }]
+    return [{ id, source, target, row }]
   })
   return {
     groups: [...groups.values()].sort((a, b) => byText(a.id, b.id)),

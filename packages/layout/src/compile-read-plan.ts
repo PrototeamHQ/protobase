@@ -82,7 +82,9 @@ export const compileReadPlan = (tree: LayoutNode, { models, root }: ReadPlanInpu
     }
     node.children.forEach((child, index) => walk(child, inner, innerRows, innerList, pointerOf(pointer, 'children', index), typeof child === 'string' ? at : `${at} › ${label(child)}`))
     const slot = propScope(node, scope)
-    const slotted = slot === scope ? { rows, list } : { rows: innerRows, list: innerList }
+    // A graph's `node` draws in each record of its nodes read, a RecordCard's actions in its record
+    const slotRead = !node.custom && node.type === 'Graph' ? made.extra.find((draft) => draft.part === 'nodes') : undefined
+    const slotted = slot === scope ? { rows, list } : slotRead ? { rows: [...rows, slotRead], list: undefined } : { rows: innerRows, list: innerList }
     for (const [name, value] of Object.entries(node.props)) {
       const elements = elementsOf(value)
       elements.forEach((element, index) => walk(element, slot, slotted.rows, slotted.list, pointerOf(pointer, 'props', name, ...(Array.isArray(value) ? [index] : [])), `${at} ${name}={${label(element)}}`))

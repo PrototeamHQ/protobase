@@ -1,6 +1,6 @@
 import type { LayoutNode } from './node'
 import { paramNamePattern, type Choice } from './page-params'
-import { selectBlocks, selectOf } from './select-blocks'
+import { selectBlocks, selectOf, selectResourceProp } from './select-blocks'
 import { walkTree } from './walk'
 
 // Where a page's parameters are declared, checked without the models: each name once, as a plain name, and a
@@ -22,8 +22,9 @@ const inputProblems = ({ props }: LayoutNode): string[] => {
   return problems
 }
 
-const selectProblems = ({ props, children }: LayoutNode): string[] => {
-  if (typeof props.select === 'string') return [...nameProblem('select', props.select), ...(props.resource === undefined ? ['"select" needs "resource", the records it chooses from'] : [])]
+const selectProblems = ({ type, props, children }: LayoutNode): string[] => {
+  const among = selectResourceProp(type)
+  if (typeof props.select === 'string') return [...nameProblem('select', props.select), ...(props[among] === undefined ? [`"select" needs "${among}", the records it chooses from`] : [])]
   return children.length > 0 ? ['takes children only with "select": they draw the row it chooses'] : []
 }
 

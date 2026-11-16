@@ -2,6 +2,7 @@ import { checkOrderBy, parseOrderBy, type AppAddress, type ResourceModel, type R
 import { addressErrors, followableRowButton, pruneByShape, shapes } from '@protobase/schema/internal'
 import { chartFields } from './check-chart'
 import { timelineFields } from './check-timeline'
+import { edgeConditionFields, edgeConditions } from './graph-edges'
 import { compileReadPlan } from './compile-read-plan'
 import { threadFields } from './check-conversation'
 import { scopedConditionReadable } from './check-condition'
@@ -45,6 +46,27 @@ const sortFits = (model: ResourceModel, source: string | undefined) => {
 
 const writable = (model: ResourceModel, name: string) => Object.hasOwn(model.fields, name) && !model.fields[name]!.readOnly
 
+// A graph needs its nodes and edges, a node's label and an edge's ends; what else names a field the caller cannot read
+// is left out, a node's position whole
+const pruneGraph = (node: LayoutNode, { models }: CallerAccess): LayoutNode | null => {
+  const nodes = models[String(node.props.nodes)]
+  const edges = models[String(node.props.edges)]
+  if (!nodes || !edges) return null
+  const has = (model: ResourceModel, prop: string) => {
+    const name = text(node.props[prop])
+    return name === undefined || Object.hasOwn(model.fields, name)
+  }
+  if (!has(nodes, 'label') || !has(edges, 'source') || !has(edges, 'target')) return null
+  if (!filterFits(nodes, text(node.props.filter)) || !filterFits(edges, text(node.props.edgeFilter))) return null
+  const dropped = new Set([
+    ...['group', 'status'].filter((prop) => !has(nodes, prop)),
+    ...(has(nodes, 'x') && has(nodes, 'y') ? [] : ['x', 'y']),
+    ...['edgeLabel', 'edgeStatus'].filter((prop) => !has(edges, prop)),
+    ...edgeConditions.filter((prop) => !edgeConditionFields({ ...node, props: { [prop]: node.props[prop] ?? null } }).every((name) => Object.hasOwn(edges.fields, name))),
+  ])
+  return dropped.size === 0 ? node : { ...node, props: Object.fromEntries(Object.entries(node.props).filter(([name]) => !dropped.has(name))) }
+}
+
 // A custom component's props are the project's; the resource it names and the field references in them are the
 // framework's, read through the same walker as a view's custom props.
 const pruneCustom = (node: LayoutNode, scope: Scope, { models }: CallerAccess): LayoutNode | null => {
@@ -85,6 +107,8 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess, params: Rea
       return model && chartFields(node).every((name) => Object.hasOwn(model.fields, name)) ? node : null
     case 'Timeline':
       return model && timelineFields(node).every((name) => Object.hasOwn(model.fields, name)) ? node : null
+    case 'Graph':
+      return pruneGraph(node, access)
     // A thread needs every field of its messages, and drops a status line, working indicator or tool calls the caller
     // cannot read; a composer needs to create one with its text and values.
     case 'Thread': {

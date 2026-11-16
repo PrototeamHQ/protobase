@@ -50,10 +50,10 @@ describe('recordBlocksFindings', () => {
   })
 
   it('refuses a block or custom component that chooses a row into the address', () => {
-    const Graph = component<{ nodes: string; chosen: string }>('Graph', { reads: { resource: 'nodes', select: 'chosen' } })
-    expect(findings(Card({ children: [Table({ resource: 'owners', select: 'owner' }), Graph({ nodes: 'owners', chosen: 'owner' })] })).problems).toEqual([
+    const Network = component<{ nodes: string; chosen: string }>('Network', { reads: { resource: 'nodes', select: 'chosen' } })
+    expect(findings(Card({ children: [Table({ resource: 'owners', select: 'owner' }), Network({ nodes: 'owners', chosen: 'owner' })] })).problems).toEqual([
       `<Card> › <Table resource="owners">: <Table> chooses a row into the page's own address with "select", and a record page's address is the record's`,
-      `<Card> › <Graph>: <Graph> chooses a row into the page's own address with "select", and a record page's address is the record's`,
+      `<Card> › <Network>: <Network> chooses a row into the page's own address with "select", and a record page's address is the record's`,
     ])
   })
 

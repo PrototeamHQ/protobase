@@ -2,7 +2,8 @@ import { pointerOf } from '../element-at'
 import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from '../node'
 import { isInlineChild } from '../inline-fields'
 import { pageParamValues } from '../page-params'
-import { fillProps } from '../scope-values'
+import { fillText, valueText } from '@protobase/schema/internal'
+import { fillProps, scopeValue } from '../scope-values'
 import { formatMessage, formatText, isTrans } from '../translations'
 import { selectOf } from '../select-blocks'
 import { childScope, pageScope, propScope } from '../walk'
@@ -29,12 +30,19 @@ type Placed = { child: LayoutChild; at: string }
 
 const placed = (children: LayoutChild[], at: string, place: string): Placed[] => children.map((child, index) => ({ child, at: pointerOf(at, place, index) }))
 
+// A text child with its `{{path}}`s filled from the record around the tree and the page's parameters, as a prop's are
+const filledText = (text: string, options: TextOptions) => {
+  if (!text.includes('{{')) return text
+  const scope = { stack: options.record ? [{ record: options.record }] : [], ...(options.params && { params: options.params }) }
+  return fillText(text, (path) => valueText(scopeValue(scope, path)))
+}
+
 /** The text of each child, a run of inline children joined into one part; `list` is the list around them, if any. */
 const partsOf = (children: Placed[], options: TextOptions, oneLine: boolean, list?: unknown[]): string[] => {
   const parts: string[] = []
   let runOn = false
   for (const { child, at } of children) {
-    const text = typeof child === 'string' ? escapeMarkdown(child) : render(child, options, list, at)
+    const text = typeof child === 'string' ? escapeMarkdown(filledText(child, options)) : render(child, options, list, at)
     // Text, links, `Text as="span"` and field components run on in one line, as the web draws them; other elements stand alone
     const inline = oneLine || isInlineChild(child)
     if (inline && runOn) parts[parts.length - 1] += text

@@ -177,9 +177,9 @@ describe('custom components', () => {
   })
 
   it('names a resource or field that the props a component declares it reads name and the models do not have', () => {
-    const Graph = component<{ nodes: string; label: string }>('Graph', { reads: [{ resource: 'nodes', fields: 'label' }] })
-    const tree = Page({ title: 'x', children: [Graph({ nodes: 'invoices', label: 'total' }), Graph({ nodes: 'invoice', label: 'total' }), Graph({ nodes: 'invoices', label: 'totl' })] })
-    expect(pageProblems(model(tree), input)).toEqual(['<Page> › <Graph>: "nodes" names no resource: "invoice"', '<Page> › <Graph>: "label" names no field of invoices: "totl"'])
+    const Network = component<{ nodes: string; label: string }>('Network', { reads: [{ resource: 'nodes', fields: 'label' }] })
+    const tree = Page({ title: 'x', children: [Network({ nodes: 'invoices', label: 'total' }), Network({ nodes: 'invoice', label: 'total' }), Network({ nodes: 'invoices', label: 'totl' })] })
+    expect(pageProblems(model(tree), input)).toEqual(['<Page> › <Network>: "nodes" names no resource: "invoice"', '<Page> › <Network>: "label" names no field of invoices: "totl"'])
   })
 
   it('refuses a {{path}} in the resource, sort, limit or field props a component declares it reads, as only a filter takes one', () => {

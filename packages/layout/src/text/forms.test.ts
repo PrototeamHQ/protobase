@@ -27,6 +27,7 @@ const samples: Record<string, LayoutNode> = {
   RecordCards: built.RecordCards({ resource: 'tasks' }),
   Chart: built.Chart({ resource: 'tasks', groupBy: 'state', title: 'By state' }),
   Timeline: built.Timeline({ resource: 'tasks', lane: 'owner', bar: 'id', start: 'started_at', end: 'ended_at', color: 'state', title: 'Work' }),
+  Graph: built.Graph({ nodes: 'tasks', edges: 'links', source: 'from_id', target: 'to_id', label: 'title', fallback: text }),
   Progress: built.Progress({ label: 'Done', value: 40 }),
   ModalForm: built.ModalForm({ mode: 'create', label: 'New task', fields: ['title'] }),
   Thread: built.Thread({ resource: 'messages', sender: 'author', time: 'sent_at', text: 'body' }),
