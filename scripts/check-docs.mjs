@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { chromium } from 'playwright'
+import { chromium, errors } from 'playwright'
 import { serveStatic } from './static-server.mjs'
 
 /**
@@ -24,55 +24,57 @@ const report = (label, found) => {
 
 // Four pages at a time, in one context so they share its cache: a page mostly waits for the network to go idle. Each
 // url gets the problems its page met and what `inspect` returns once the network is idle, in the order of `urls`;
-// `prepare` sets a page up before its first visit. A visit during which the host's network changed (other jobs on a
+// `prepare` sets each page up before it navigates. A visit during which the host's network changed (other jobs on a
 // shared runner add and drop Docker networks, and Chromium then aborts every request in flight, even to localhost)
 // says nothing about the site, so it is made again.
 const pages = 4
 const visitsPerUrl = 3
 const networkChangedError = 'net::ERR_NETWORK_CHANGED'
 
-// Whether the page loaded: false when the network changed under the navigation itself, which Playwright throws rather
-// than reports as a failed request. Every other navigation error is rethrown.
+// Why the page did not load, or nothing when it did: the network changed under the navigation itself, which
+// Playwright throws rather than reports as a failed request, or the page never went idle, which fails that page alone
+// so every other page is still reported. Every other navigation error is rethrown.
 const navigate = async (page, url) => {
   try {
     await page.goto(url, { waitUntil: 'networkidle' })
-    return true
+    return
   } catch (error) {
-    if (!error.message.includes(networkChangedError)) throw error
-    return false
+    if (error.message.includes(networkChangedError)) return networkChangedError
+    if (error instanceof errors.TimeoutError) return 'the page did not go network-idle in time'
+    throw error
   }
+}
+// One visit of `url` in a page of its own, so a navigation that timed out and goes on cannot reach the next visit.
+const visit = async (context, url, inspect, prepare) => {
+  const page = await context.newPage()
+  await prepare?.(page)
+  const problems = []
+  let networkChanged = false
+  page.on('console', (message) => message.type() === 'error' && problems.push(`console: ${message.text()}`))
+  page.on('pageerror', (error) => problems.push(`exception: ${error.message}`))
+  page.on('requestfailed', (request) => {
+    if (request.failure()?.errorText === networkChangedError) networkChanged = true
+    problems.push(`request failed: ${request.url()}`)
+  })
+  page.on('response', (response) => response.status() >= 400 && problems.push(`${response.status()}: ${response.url()}`))
+  const failure = await navigate(page, new URL(url, base).href)
+  if (failure === networkChangedError) networkChanged = true
+  if (failure) problems.push(`navigation failed: ${failure}`)
+  const found = failure ? [] : await inspect(page, problems)
+  await page.close()
+  return { problems, found, networkChanged }
 }
 const visitAll = async (context, urls, inspect, prepare) => {
   const visits = new Array(urls.length)
   let next = 0
   await Promise.all(Array.from({ length: pages }, async () => {
-    const page = await context.newPage()
-    await prepare?.(page)
-    const problems = []
-    let networkChanged = false
-    page.on('console', (message) => message.type() === 'error' && problems.push(`console: ${message.text()}`))
-    page.on('pageerror', (error) => problems.push(`exception: ${error.message}`))
-    page.on('requestfailed', (request) => {
-      if (request.failure()?.errorText === networkChangedError) networkChanged = true
-      problems.push(`request failed: ${request.url()}`)
-    })
-    page.on('response', (response) => response.status() >= 400 && problems.push(`${response.status()}: ${response.url()}`))
     while (next < urls.length) {
       const i = next++
-      for (let visit = 1; visit <= visitsPerUrl; visit++) {
-        problems.length = 0
-        networkChanged = false
-        const loaded = await navigate(page, new URL(urls[i], base).href)
-        if (!loaded) {
-          networkChanged = true
-          problems.push(`navigation failed: ${networkChangedError}`)
-        }
-        const found = loaded ? await inspect(page, problems) : []
-        visits[i] = { problems: [...problems], found }
-        if (!networkChanged) break
+      for (let attempt = 1; attempt <= visitsPerUrl; attempt++) {
+        visits[i] = await visit(context, urls[i], inspect, prepare)
+        if (!visits[i].networkChanged) break
       }
     }
-    await page.close()
   }))
   return visits
 }
