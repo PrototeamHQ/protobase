@@ -83,7 +83,7 @@ program
 
 program
   .command('doctor')
-  .description('Check a config folder against the database')
+  .description("Check a config folder against the database, and the database against the server's startup checks")
   .argument('[connection]', 'connection string (default: DATABASE_URL from the environment or .env)')
   .option('--env <variable>', 'read the connection string from this environment variable')
   .option('--config <dir>', 'config folder', 'config')
@@ -91,7 +91,7 @@ program
     loadNearestEnvFile(process.cwd())
     const url = resolveConnectionUrl(connection, opts.env)
     const { runDoctor } = await import('./doctor/run')
-    const { errors } = await runDoctor({ url, configDir: path.resolve(opts.config), projectDir: process.cwd() }, out)
+    const { errors } = await runDoctor({ url, configDir: path.resolve(opts.config), projectDir: process.cwd(), startupChecks: true }, out)
     if (errors > 0) process.exitCode = 1
   })
 
