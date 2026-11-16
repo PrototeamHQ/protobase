@@ -19,8 +19,8 @@ import type {
   TableProps,
   ThreadProps,
   TimelineProps,
-} from '../blocks'
-import type { ArrayFieldProps, ReferenceArrayFieldProps, ReferenceFieldProps, ReferenceManyFieldProps } from '../list-blocks'
+} from '../block-props'
+import type { ArrayFieldProps, ReferenceArrayFieldProps, ReferenceFieldProps, ReferenceManyFieldProps } from '../list-block-props'
 import type { LayoutChildren, LayoutNode } from '../node'
 import type { Condition } from './record'
 import type { FieldName, Filter, RecordOf, Recorded, Sort } from './types'
