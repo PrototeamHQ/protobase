@@ -72,7 +72,7 @@ describe('the app:mail.template step', () => {
   it('sends the template named in the language closest to locale, from the app, with a Message-ID the same for each try', async () => {
     expect(await step({ template: 'welcome', to: 'sam@example.com', locale: 'nl-BE', data: { name: 'Sam', plan: { seats: 3 } } }, context())).toEqual({ message_id: '<run-1..3@workflows.invalid>', locale: 'nl' })
     expect(sent.at(-1)).toMatchObject({ to: 'sam@example.com', subject: 'Welcome to Acme, Sam', headers: { 'Message-ID': '<run-1..3@workflows.invalid>' } })
-    expect(sent.at(-1)!.text).toContain('3 seats at https://acme.test/')
+    expect(sent.at(-1)!.text).toContain('3 seats at https://acme.test\n')
     expect(await step({ template: 'welcome', to: 'sam@example.com', data: { name: 'Sam', plan: { seats: 3 } } }, context())).toMatchObject({ locale: 'en' })
   })
 
