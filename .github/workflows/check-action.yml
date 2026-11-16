@@ -8,8 +8,10 @@ on:
     paths:
       - actions/check/**
       - scripts/check-action/**
-      - packages/cli/src/doctor/**
-      - packages/cli/src/serve/startup-checks.ts
+      - packages/cli/**
+      - packages/presets/src/**
+      - scripts/publish.mjs
+      - scripts/publish/**
       - tests/apps/property-portal/**
       - .github/workflows/check-action.yml
   workflow_dispatch:
