@@ -1,0 +1,51 @@
+name: check action
+
+# The check action (actions/check) as an app's workflow uses it, on the property-portal preset written out as an app has
+# it, with its @protobase packages packed from this checkout (scripts/check-action/write-app.ts): it passes on the
+# preset, and fails at Doctor, naming it, once a resource has events whose triggers no migration made.
+on:
+  pull_request:
+    paths:
+      - actions/check/**
+      - scripts/check-action/**
+      - packages/cli/src/doctor/**
+      - packages/cli/src/serve/startup-checks.ts
+      - tests/apps/property-portal/**
+      - .github/workflows/check-action.yml
+  workflow_dispatch:
+
+jobs:
+  check-action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - name: Pack the packages
+        run: node scripts/publish.mjs --pack --out "$RUNNER_TEMP/packages"
+      - name: Write the app
+        run: bun scripts/check-action/write-app.ts "$RUNNER_TEMP/packages" "$RUNNER_TEMP/app"
+      - uses: ./actions/check
+        with:
+          working-directory: ${{ runner.temp }}/app
+          bun-version: 1.4.4
+      - name: Give the notes events that no migration captures
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          sed -i 's/^  \.primaryKey((r) => r\.id)$/&\n  .events((e) => e.crud())/' config/notes/data.ts
+          grep -q 'events((e) => e.crud())' config/notes/data.ts
+      - id: broken
+        uses: ./actions/check
+        continue-on-error: true
+        with:
+          working-directory: ${{ runner.temp }}/app
+          bun-version: 1.4.4
+      - name: The check failed at Doctor
+        env:
+          FAILED: ${{ steps.broken.outputs.failed }}
+        run: test "$FAILED" = Doctor
