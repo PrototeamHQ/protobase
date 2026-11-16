@@ -50,7 +50,7 @@ export const emailCodeRoutes = ({ auth, context, sessionOf }: GoTrueDeps) => {
   // The right code makes the account with what the sign-up gave, and signs it in.
   const signUpWithCode = async (request: Request, email: string, code: string) => {
     const ctx = await context()
-    if (!auth.signUpRole || !(await hasPendingSignUp(ctx, email))) throw new GoTrueError(403, 'otp_expired', 'Token has expired or is invalid')
+    if (!auth.signUpRole || !auth.signUpTakes(email) || !(await hasPendingSignUp(ctx, email))) throw new GoTrueError(403, 'otp_expired', 'Token has expired or is invalid')
     const { json } = await callBetterAuth(auth, request, '/sign-up/verify-code', { email, code })
     await consumeSignUpTicket(ctx, String(json.ticket))
     const pending = await takePendingSignUp(ctx, email)
@@ -71,7 +71,7 @@ export const emailCodeRoutes = ({ auth, context, sessionOf }: GoTrueDeps) => {
       /** `POST /signup`: mails a code to prove the address; `verify` with it makes the account. No session until then. */
       .post('/signup', async (c) => {
         const { email, password, data } = await readBody(c.req.raw, signUpBody)
-        if (!auth.signUp) throw signUpDisabled()
+        if (!auth.signUpTakes(email)) throw signUpDisabled()
         checkMetadata(data)
         checkNewAccountPassword(await signUpPolicy(), password)
         if (auth.leakedPasswords) await rejectLeakedPassword(password)
@@ -79,10 +79,10 @@ export const emailCodeRoutes = ({ auth, context, sessionOf }: GoTrueDeps) => {
         await savePendingSignUp(await context(), email, { passwordHash: await (await context()).password.hash(password), metadata: data })
         return c.json({})
       })
-      /** `POST /otp`: mails a sign-in code; to an address without an account, a sign-up code when sign-up is open and asked for. */
+      /** `POST /otp`: mails a sign-in code; to an address without an account, a sign-up code when sign-up is open to it and asked for. */
       .post('/otp', async (c) => {
         const { email, create_user, data } = await readBody(c.req.raw, otpBody)
-        const signsUp = create_user && auth.signUp && !(await (await context()).internalAdapter.findUserByEmail(email))
+        const signsUp = create_user && auth.signUpTakes(email) && !(await (await context()).internalAdapter.findUserByEmail(email))
         if (!signsUp) {
           await sendSignInCode(c.req.raw, email)
           return c.json({})
@@ -117,7 +117,7 @@ export const emailCodeRoutes = ({ auth, context, sessionOf }: GoTrueDeps) => {
       .post('/resend', async (c) => {
         const { email, type } = await readBody(c.req.raw, resendBody)
         if (type !== 'signup') throw new GoTrueError(400, 'validation_failed', `Resend type ${type} is not offered: use signup`)
-        if (auth.signUp && (await hasPendingSignUp(await context(), email))) await sendSignUpCode(c.req.raw, email)
+        if (auth.signUpTakes(email) && (await hasPendingSignUp(await context(), email))) await sendSignUpCode(c.req.raw, email)
         return c.json({})
       })
   )

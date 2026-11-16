@@ -27,7 +27,7 @@ export type SamlProvider = {
 export type SsoOptions = { saml: SamlProvider[] }
 
 // A bare host name, lowercased: no address, scheme, port, path or spaces.
-const domainPattern = /^[a-z0-9-]+(\.[a-z0-9-]+)*$/
+export const domainPattern = /^[a-z0-9-]+(\.[a-z0-9-]+)*$/
 
 const checkIdp = (id: string, idp: SamlProvider['idp']) => {
   if ('metadata' in idp && typeof idp.metadata === 'string' && idp.metadata.trim()) return
