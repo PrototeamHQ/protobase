@@ -142,7 +142,7 @@ A record's related records repeat under it as a list: a `ReferenceManyField` hol
   <ArrayField source="labels">
     <RecordsIterator><Field source="this" label={false} /></RecordsIterator>
   </ArrayField>
-  <ReferenceManyField reference="task_claims" target="task_id" sort={{ field: 'claimed_at', order: 'DESC' }}>
+  <ReferenceManyField reference="task_claims" target="task_id" sort={['claimed_at desc']}>
     <RecordsIterator>
       <Card title="Claim {{@index}}">
         <ReferenceField source="worker_id" reference="workers" />

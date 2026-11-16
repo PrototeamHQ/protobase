@@ -40,14 +40,19 @@ const fill = (text: string, lookup: PathLookup) => fillText(text, (path) => valu
 
 const filterPlaceholder = /(["'])\{\{\s*([^{}]*?)\s*\}\}\1|\{\{\s*([^{}]*?)\s*\}\}/g
 
+// A bare placeholder's value in a filter: one bare word, such as a number, a key, true or a duration, as it is, as a key
+// from the address is written; text that would break into more, such as a name with a space, quoted, so it stays one value
+const bareValue = (value: unknown) => (typeof value === 'string' && value !== '' && !/^[\w.:+-]+$/.test(value) ? JSON.stringify(value) : valueText(value))
+
 /**
  * `filter` with every `{{path}}` replaced by its value. A quoted `'{{path}}'` takes the value as a string, its
  * backslashes and quotes escaped, so any text stays one value; Handlebars escapes for HTML instead, where this lands in
- * a filter or condition.
+ * a filter or condition. A bare `{{path}}`, as a typed layout writes `f.task_id.eq(data.id)`, takes one bare word as it
+ * is, such as a number, a key or a duration, and text with spaces or quotes quoted.
  */
 export const fillFilter = (filter: string, lookup: PathLookup) =>
   filter.replace(filterPlaceholder, (_, quote: string | undefined, quoted: string | undefined, bare: string | undefined) =>
-    quote ? `${quote}${valueText(lookup(quoted!)).replace(/\\/g, '\\\\').replaceAll(quote, `\\${quote}`)}${quote}` : valueText(lookup(bare!)),
+    quote ? `${quote}${valueText(lookup(quoted!)).replace(/\\/g, '\\\\').replaceAll(quote, `\\${quote}`)}${quote}` : bareValue(lookup(bare!)),
   )
 
 /**

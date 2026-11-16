@@ -42,8 +42,8 @@ describe('pathFindings', () => {
   it('refuses a slot in what shapes a read, and takes one in a link, which reads nothing', () => {
     const shapes = (prop: string) => `"${prop}" shapes the read and takes no {{…}}; this would wait for the parent's rows`
     expect(findings(Table({ resource: '{{title}}' })).problems).toContain(shapes('resource'))
-    expect(findings(Table({ resource: 'task_claims', sort: '{{status}}' })).problems).toEqual([shapes('sort')])
-    expect(findings(Table({ resource: 'task_claims', sort: '{{@params.order}}' }), inTask, ['order']).problems).toEqual([shapes('sort')])
+    expect(findings(Table({ resource: 'task_claims', sort: ['{{status}}'] })).problems).toEqual([shapes('sort')])
+    expect(findings(Table({ resource: 'task_claims', sort: ['{{@params.order}}'] }), inTask, ['order']).problems).toEqual([shapes('sort')])
     expect(findings(Table({ resource: 'task_claims', columns: ['{{title}}'] })).problems).toEqual([shapes('columns')])
     expect(findings(Link({ to: { kind: 'list', resource: '{{title}}' }, children: 'Open' })).problems).toEqual([])
   })

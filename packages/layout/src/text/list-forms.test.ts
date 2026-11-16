@@ -42,7 +42,7 @@ describe('text forms of lists', () => {
 
   it('links to the related records while the text does not have them', () => {
     expect(renderText(nestedList, { record: task })).toBe('[task\\_claims](/task_claims?filter=task_id+%3D+7)')
-    expect(renderText(ReferenceManyField({ reference: 'task_claims', target: 'task_id', sort: { field: 'id', order: 'DESC' } }))).toBe('[task\\_claims](/task_claims?order_by=id+desc)')
+    expect(renderText(ReferenceManyField({ reference: 'task_claims', target: 'task_id', sort: ['id desc'] }))).toBe('[task\\_claims](/task_claims?order_by=id+desc)')
   })
 
   it('reads an ArrayField’s text items as this, and its object items by key', () => {

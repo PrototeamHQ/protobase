@@ -28,7 +28,7 @@ const board = page(
         title: 'Open',
         resource: 'tasks',
         filter: "status = 'open'",
-        children: ReferenceManyField({ reference: 'task_claims', target: 'task_id', sort: 'claimed_at desc', perPage: 3, children: RecordsIterator({ children: Field({ source: 'claimed_at' }) }) }),
+        children: ReferenceManyField({ reference: 'task_claims', target: 'task_id', sort: ['claimed_at desc'], perPage: 3, children: RecordsIterator({ children: Field({ source: 'claimed_at' }) }) }),
       }),
       Clock({}),
     ],

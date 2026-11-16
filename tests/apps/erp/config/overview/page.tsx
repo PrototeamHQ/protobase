@@ -22,7 +22,7 @@ export const salesOverview = page(
         title="Biggest unpaid delivery"
         resource="orders"
         filter="status = 'delivered' AND paid = false"
-        sort="total desc"
+        sort={['total desc']}
         empty="Every delivered order is paid."
         actions={<Action name="markPaid" variant="primary" />}
       >
@@ -38,7 +38,7 @@ export const salesOverview = page(
         title="Oldest overdue invoice"
         resource="invoices"
         filter="status = 'overdue'"
-        sort="issued_at"
+        sort={['issued_at']}
         empty="Nothing is overdue."
         actions={[<Action name="send" label="Send reminder" />, <Action name="recordPayment" variant="primary" />]}
       >
@@ -58,15 +58,15 @@ export const salesOverview = page(
       <Chart title="Revenue by customer" description="Orders not cancelled." resource="orders" groupBy="company_id" sum="total" filter="status != 'cancelled'" limit={5} />
     </Grid>
     <Grid columns={2}>
-      <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} limit={5} empty="Nothing is overdue." />
-      <Table title="Latest orders" resource="orders" sort="created_at desc" columns={['number', 'company_id', 'status', 'total']} limit={5} />
+      <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort={['issued_at']} columns={['number', 'company_id', 'due_at', 'total']} limit={5} empty="Nothing is overdue." />
+      <Table title="Latest orders" resource="orders" sort={['created_at desc']} columns={['number', 'company_id', 'status', 'total']} limit={5} />
     </Grid>
     <CardRow
       title="New leads"
       description="Companies that have not ordered yet."
       resource="companies"
       filter="status = 'lead'"
-      sort="created_at desc"
+      sort={['created_at desc']}
       limit={8}
       actions={<ModalForm mode="create" label="Add lead" resource="companies" fields={['name', 'city', 'country_code', 'email']} values={{ status: 'lead' }} />}
     >

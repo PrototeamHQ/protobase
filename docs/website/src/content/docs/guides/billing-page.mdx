@@ -49,7 +49,7 @@ Ada's company moved offices. The details card gets an edit button:
 
 <Code code={step3} lang="tsx" title="config/billing/page.tsx" />
 
-The cards sit side by side in a `CardRow`, the default card first (`sort="is_default desc, id"`). Two `Show` blocks split the card on its own `is_default` field: the default card says so, the others get "Make default" and "Remove". Those are again view actions, `a.update('makeDefault', ...)` and `a.remove('remove', ...)` in the views above.
+The cards sit side by side in a `CardRow`, the default card first (`sort={['is_default desc', 'id']}`). Two `Show` blocks split the card on its own `is_default` field: the default card says so, the others get "Make default" and "Remove". Those are again view actions, `a.update('makeDefault', ...)` and `a.remove('remove', ...)` in the views above.
 
 Making a card the default unsets the others in the database (a trigger or a write hook); the row reloads after every action, so the order follows. "Add card" is a `ModalForm mode="create"` in the row's header. In the story, make the Mastercard the default, remove the Visa and add a card.
 

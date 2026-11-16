@@ -34,12 +34,13 @@ describe('list blocks', () => {
     expect(findings(claims(RecordsIterator({ children: [Field({ source: 'claimed_at' }), steps] })))).toEqual({ problems: [], warnings: [] })
   })
 
-  it('take react-admin sort and filter objects, and AIP text', () => {
+  it('take a sort list and a filter as AIP text or the builder, and refuse the object forms', () => {
     const block = (props: Record<string, unknown>) => ReferenceManyField({ reference: 'task_claims', target: 'task_id', ...props })
-    expect(findings(block({ sort: { field: 'claimed_at', order: 'DESC' }, filter: { status: 'open' } })).problems).toEqual([])
-    expect(findings(block({ sort: 'claimed_at desc', filter: "status = 'open' OR status = 'held'" })).problems).toEqual([])
-    expect(structureProblems(page(block({ sort: { field: 'claimed_at', order: 'down' } })).tree)[0]).toContain('"sort" must be an AIP-132 order')
-    expect(findings(block({ filter: { colour: 'red' } })).problems[0]).toContain('filter:')
+    expect(findings(block({ sort: ['claimed_at desc'], filter: "status = 'open' OR status = 'held'" })).problems).toEqual([])
+    expect(block({ filter: (f: any) => f.status.eq('open') }).props.filter).toBe('status = "open"')
+    expect(() => block({ sort: { field: 'claimed_at', order: 'DESC' } })).toThrow(/sort> takes a list of fields/)
+    expect(() => block({ sort: 'claimed_at desc' })).toThrow(/sort> takes a list of fields/)
+    expect(() => block({ filter: { status: 'open' } })).toThrow(/filter> is an object/)
   })
 
   it('read at most the API’s largest page, and sort by a key that sorts unless told otherwise', () => {
@@ -47,7 +48,7 @@ describe('list blocks', () => {
     const unsorted = { ...models, task_claims: { ...models.task_claims!, fields: { ...models.task_claims!.fields, id: { ...models.task_claims!.fields.id!, sortable: false } } } }
     const tree = page(ReferenceManyField({ reference: 'task_claims', target: 'task_id' }))
     expect(pageFindings(tree, { ...input, models: unsorted }).problems[0]).toContain('sort:')
-    expect(pageFindings(page(ReferenceManyField({ reference: 'task_claims', target: 'task_id', sort: 'claimed_at' })), { ...input, models: unsorted }).problems).toEqual([])
+    expect(pageFindings(page(ReferenceManyField({ reference: 'task_claims', target: 'task_id', sort: ['claimed_at'] })), { ...input, models: unsorted }).problems).toEqual([])
   })
 
   it('name a target that is no field of the resource it reads', () => {

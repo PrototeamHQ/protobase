@@ -56,7 +56,7 @@ const board = page(
         ReferenceManyField({
           reference: 'task_claims',
           target: 'task_id',
-          sort: { field: 'claimed_at', order: 'ASC' },
+          sort: ['claimed_at asc'],
           children: RecordsIterator({
             children: Card({
               title: 'Claim {{@index}}',

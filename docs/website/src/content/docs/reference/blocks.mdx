@@ -173,7 +173,7 @@ The first records of a list, drawn the way the resource's list page draws them: 
 | `span` | Width in a grid. |
 
 ```tsx
-<Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} limit={5} empty="Nothing is overdue." />
+<Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort={['issued_at']} columns={['number', 'company_id', 'due_at', 'total']} limit={5} empty="Nothing is overdue." />
 ```
 
 #### Columns on a phone
@@ -273,7 +273,7 @@ One record and what is inside it: the one `recordKey` names (the key as the reco
 | `span` | Width in a grid. |
 
 ```tsx
-<RecordCard title="Biggest unpaid delivery" resource="orders" filter="status = 'delivered' AND paid = false" sort="total desc" actions={<Action name="markPaid" variant="primary" />}>
+<RecordCard title="Biggest unpaid delivery" resource="orders" filter="status = 'delivered' AND paid = false" sort={['total desc']} actions={<Action name="markPaid" variant="primary" />}>
   <Field source="number" />
   <Field source="company_id.city" label="City" />
 </RecordCard>
@@ -307,7 +307,7 @@ It follows the resource's view as its list page does. Of a resource whose view h
 | `span` | Width in a grid. |
 
 ```tsx
-<RecordRow title="For rent" resource="listings" filter="for_rent = true AND status = 'available'" sort="published_at desc" />
+<RecordRow title="For rent" resource="listings" filter="for_rent = true AND status = 'available'" sort={['published_at desc']} />
 ```
 
 ### RecordCards
@@ -515,7 +515,7 @@ The records of `reference` whose `target` holds the record's `source`, as [react
 | `empty` | Text instead of the children when no record matches. |
 
 ```tsx
-<ReferenceManyField reference="task_claims" target="task_id" filter={{ status: 'open' }} sort={{ field: 'claimed_at', order: 'DESC' }} pagination="more">
+<ReferenceManyField reference="task_claims" target="task_id" filter={{ status: 'open' }} sort={['claimed_at desc']} pagination="more">
   <Table title="Open claims" columns={['worker_id', 'claimed_at']} />
 </ReferenceManyField>
 ```

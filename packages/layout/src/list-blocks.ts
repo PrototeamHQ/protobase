@@ -1,6 +1,8 @@
 import type { Styled } from './blocks'
 import { defineBlock } from './create-node'
-import type { LayoutChildren } from './node'
+import type { LayoutChildren, LayoutNode } from './node'
+import type { ArrayFieldInput, RecordsIteratorInput, ReferenceArrayFieldInput, ReferenceFieldInput, ReferenceManyFieldInput } from './typed/inputs'
+import type { ResourceName } from './typed/types'
 
 // The blocks that put a list of records in context, and the one that draws its children once per record, after
 // react-admin's ReferenceManyField, ReferenceArrayField, ArrayField, RecordsIterator and ReferenceField: the same
@@ -53,11 +55,14 @@ export type ReferenceFieldProps = { source: string; reference: string; link?: 'e
 
 const builtIn = <P>(name: string) => defineBlock<P & Styled>(name, false)
 
-export const ReferenceManyField = builtIn<ReferenceManyFieldProps>('ReferenceManyField')
-export const ReferenceArrayField = builtIn<ReferenceArrayFieldProps>('ReferenceArrayField')
-export const ArrayField = builtIn<ArrayFieldProps>('ArrayField')
-export const RecordsIterator = builtIn<RecordsIteratorProps>('RecordsIterator')
-export const ReferenceField = builtIn<ReferenceFieldProps>('ReferenceField')
+// A block whose props name a resource: its type follows the `reference` it is given, so its fields and sort autocomplete
+const typed = <B>(name: string) => builtIn<any>(name) as unknown as B & { readonly blockName: string; readonly custom: boolean }
+
+export const ReferenceManyField = typed<<R extends ResourceName>(props: ReferenceManyFieldInput<R>) => LayoutNode>('ReferenceManyField')
+export const ReferenceArrayField = typed<<R extends ResourceName>(props: ReferenceArrayFieldInput<R>) => LayoutNode>('ReferenceArrayField')
+export const ArrayField = builtIn<ArrayFieldInput>('ArrayField')
+export const RecordsIterator = typed<<R extends string = string>(props: RecordsIteratorInput<R>) => LayoutNode>('RecordsIterator')
+export const ReferenceField = typed<<R extends ResourceName>(props: ReferenceFieldInput<R>) => LayoutNode>('ReferenceField')
 
 /** The blocks that put a list in context, which a `RecordsIterator` or a `Table` without `resource` draws. */
 export const listContexts = ['ReferenceManyField', 'ReferenceArrayField', 'ArrayField']

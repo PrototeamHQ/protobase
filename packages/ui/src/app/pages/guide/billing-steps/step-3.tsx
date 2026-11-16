@@ -35,7 +35,7 @@ export const billing = page(
     <CardRow
       title="Payment methods"
       resource="payment_methods"
-      sort="is_default desc, id"
+      sort={['is_default desc', 'id']}
       actions={<ModalForm mode="create" label="Add card" resource="payment_methods" fields={['brand', 'last4', 'expires']} />}
     >
       <Field source="brand" label={false} />

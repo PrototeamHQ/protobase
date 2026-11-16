@@ -2,6 +2,8 @@ import type { AppAddress, FieldFormat, PageWidth, RowButtonModel, ToolCallFields
 import { defineBlock } from './create-node'
 import type { TableColumn } from './table-columns'
 import type { LayoutChildren, LayoutNode, LayoutValue } from './node'
+import type { ActionInput, CardInput, CardRowInput, ChartInput, ComposerInput, FieldInput, MatchInput, ModalFormInput, PageInput, RecordCardInput, RecordCardsInput, RecordRowInput, SettingsInput, ShowInput, StatInput, TabInput, TableInput, ThreadInput, TimelineInput } from './typed/inputs'
+import type { ResourceName } from './typed/types'
 
 /** One element or several, for slots such as a card's header `actions`. */
 export type Elements = LayoutNode | LayoutNode[]
@@ -308,31 +310,34 @@ export type UsersProps = Styled
  */
 export type AccountBlockProps = Styled
 
-export const Page = builtIn<PageProps>('Page')
+// A block whose props name a resource: its type follows the `resource` it is given, so its fields and sort autocomplete
+const typed = <B>(name: string) => builtIn<any>(name) as unknown as B & { readonly blockName: string; readonly custom: boolean }
+
+export const Page = builtIn<PageInput>('Page')
 export const Grid = builtIn<GridProps>('Grid')
-export const Card = builtIn<CardProps>('Card')
-export const Stat = builtIn<StatProps>('Stat')
-export const RecordCard = builtIn<RecordCardProps>('RecordCard')
-export const Field = builtIn<FieldProps>('Field')
-export const Table = builtIn<TableProps>('Table')
-export const CardRow = builtIn<CardRowProps>('CardRow')
-export const RecordRow = builtIn<RecordRowProps>('RecordRow')
-export const RecordCards = builtIn<RecordCardsProps>('RecordCards')
-export const Chart = builtIn<ChartProps>('Chart')
-export const Timeline = builtIn<TimelineProps>('Timeline')
+export const Card = builtIn<CardInput>('Card')
+export const Stat = typed<<R extends ResourceName>(props: StatInput<R>) => LayoutNode>('Stat')
+export const RecordCard = typed<<R extends ResourceName>(props: RecordCardInput<R>) => LayoutNode>('RecordCard')
+export const Field = builtIn<FieldInput>('Field')
+export const Table = typed<<R extends ResourceName>(props: TableInput<R>) => LayoutNode>('Table')
+export const CardRow = typed<<R extends ResourceName>(props: CardRowInput<R>) => LayoutNode>('CardRow')
+export const RecordRow = typed<<R extends ResourceName>(props: RecordRowInput<R>) => LayoutNode>('RecordRow')
+export const RecordCards = typed<<R extends ResourceName>(props: RecordCardsInput<R>) => LayoutNode>('RecordCards')
+export const Chart = typed<<R extends ResourceName>(props: ChartInput<R>) => LayoutNode>('Chart')
+export const Timeline = typed<<R extends ResourceName>(props: TimelineInput<R>) => LayoutNode>('Timeline')
 export const Progress = builtIn<ProgressProps>('Progress')
-export const ModalForm = builtIn<ModalFormProps>('ModalForm')
-export const Thread = builtIn<ThreadProps>('Thread')
-export const Composer = builtIn<ComposerProps>('Composer')
+export const ModalForm = typed<<R extends ResourceName>(props: ModalFormInput<R>) => LayoutNode>('ModalForm')
+export const Thread = typed<<R extends ResourceName>(props: ThreadInput<R>) => LayoutNode>('Thread')
+export const Composer = typed<<R extends ResourceName>(props: ComposerInput<R>) => LayoutNode>('Composer')
 export const Image = builtIn<ImageProps>('Image')
-export const Action = builtIn<ActionProps>('Action')
-export const Show = builtIn<ShowProps>('Show')
+export const Action = typed<<R extends ResourceName>(props: ActionInput<R>) => LayoutNode>('Action')
+export const Show = builtIn<ShowInput>('Show')
 export const Switch = builtIn<SwitchProps>('Switch')
-export const Match = builtIn<MatchProps>('Match')
+export const Match = builtIn<MatchInput>('Match')
 export const Link = builtIn<LinkProps>('Link')
 export const Tabs = builtIn<TabsProps>('Tabs')
-export const Tab = builtIn<TabProps>('Tab')
-export const Settings = builtIn<SettingsProps>('Settings')
+export const Tab = builtIn<TabInput>('Tab')
+export const Settings = typed<<R extends ResourceName>(props: SettingsInput<R>) => LayoutNode>('Settings')
 export const Users = builtIn<UsersProps>('Users')
 export const Profile = builtIn<AccountBlockProps>('Profile')
 export const Password = builtIn<AccountBlockProps>('Password')

@@ -54,7 +54,9 @@ export type DerivedSpec<F> = {
  * A resource as `resource(name)` builds it. Every method returns a new builder, so a resource is one chain. See
  * [resource()](docs/website/src/content/docs/reference/data-config.mdx#resource).
  */
-export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
+export class ResourceBuilder<F extends FieldsInput = {}, K = never, N extends string = string> {
+  /** The name, for the compiler only, which typed layouts read to know a resource by its name; never set. */
+  declare readonly $name: N
   /** The fields, for the compiler only, which {@link InferRecord} reads; never set. */
   declare readonly $fields: F
   /** The fields of the key, for the compiler only, which {@link RecordKey} reads; never set. */
@@ -82,7 +84,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
    * snake_case of the name unless `.column()` says otherwise. Required, and called before the methods that pick fields.
    */
   fields<const N extends FieldsInput>(fields: N) {
-    return new ResourceBuilder<N>({ ...this.state, fields })
+    return new ResourceBuilder<N, never, typeof this.$name>({ ...this.state, fields })
   }
 
   /**
@@ -113,14 +115,14 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
       measures: measures as Record<string, BucketMeasure[]>,
       late: spec.late,
     })
-    return new ResourceBuilder<BucketFields<S, B, M>, Ref<'id', string>>({ ...this.state, ...state })
+    return new ResourceBuilder<BucketFields<S, B, M>, Ref<'id', string>, typeof this.$name>({ ...this.state, ...state })
   }
 
   /** The key: one field, or a list for a key of several columns (`(r) => [r.order_id, r.line_no]`). Required. */
   primaryKey<const P extends KeyRefs>(pick: (r: FieldRefs<F>) => P) {
     const picked = pick(this.refs())
     const refs: readonly Ref[] = Array.isArray(picked) ? picked : [picked]
-    return new ResourceBuilder<F, P>(
+    return new ResourceBuilder<F, P, typeof this.$name>(
       { ...this.state, primaryKey: refs.map((ref) => ref.name) },
       this.validators,
       this.accessRules,
@@ -351,7 +353,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
    * ```
    */
   validate(validator: Validator<F>) {
-    return new ResourceBuilder<F, K>(this.state, [...this.validators, validator], this.accessRules, this.computedReveals)
+    return new ResourceBuilder<F, K, N>(this.state, [...this.validators, validator], this.accessRules, this.computedReveals)
   }
 
   /**
@@ -369,7 +371,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
    * ```
    */
   access(rules: Access<F>) {
-    return new ResourceBuilder<F, K>(this.state, this.validators, { ...this.accessRules, ...rules }, this.computedReveals)
+    return new ResourceBuilder<F, K, N>(this.state, this.validators, { ...this.accessRules, ...rules }, this.computedReveals)
   }
 
   /**
@@ -390,7 +392,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
       const minutes = reveal.strongSignIn?.minutes
       if (minutes !== undefined && (!Number.isInteger(minutes) || minutes < 1)) throw new Error(`Resource "${this.state.name}": the reveal "${name}" needs minutes of at least 1`)
     }
-    return new ResourceBuilder<F, K>(this.state, this.validators, this.accessRules, { ...this.computedReveals, ...reveals })
+    return new ResourceBuilder<F, K, N>(this.state, this.validators, this.accessRules, { ...this.computedReveals, ...reveals })
   }
 
   /** Role-based rules per field, for fields that declared `.access(...)`. */
@@ -432,7 +434,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   }
 
   private next(patch: Partial<ResourceState>) {
-    return new ResourceBuilder<F, K>({ ...this.state, ...patch }, this.validators, this.accessRules, this.computedReveals)
+    return new ResourceBuilder<F, K, N>({ ...this.state, ...patch }, this.validators, this.accessRules, this.computedReveals)
   }
 }
 
@@ -454,4 +456,4 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
  *   .search((r) => [r.name, r.email])
  * ```
  */
-export const resource = (name: string) => new ResourceBuilder({ name })
+export const resource = <const N extends string>(name: N) => new ResourceBuilder<{}, never, N>({ name })

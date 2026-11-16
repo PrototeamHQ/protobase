@@ -57,7 +57,7 @@ describe('pageProblems', () => {
       title: 'x',
       children: [
         Table({ resource: 'nope' }),
-        Table({ resource: 'invoices', filter: "stauts = 'open'", sort: 'totl desc', columns: ['number', { name: 'amount', priority: 1 }] }),
+        Table({ resource: 'invoices', filter: "stauts = 'open'", sort: ['totl desc'], columns: ['number', { name: 'amount', priority: 1 }] }),
         RecordCard({ resource: 'subscriptions', children: [Field({ source: 'plan.title' }), Stat({ label: 'a', field: 'seats' })] }),
       ],
     })
@@ -73,7 +73,7 @@ describe('pageProblems', () => {
   })
 
   it("checks a record row's resource, filter and sort like a table's", () => {
-    const tree = Page({ title: 'x', children: [RecordRow({ resource: 'nope' }), RecordRow({ resource: 'invoices', filter: "stauts = 'open'", sort: 'number desc' })] })
+    const tree = Page({ title: 'x', children: [RecordRow({ resource: 'nope' }), RecordRow({ resource: 'invoices', filter: "stauts = 'open'", sort: ['number desc'] })] })
     const found = pageProblems(model(tree), input)
     expect(found[0]).toBe('<Page> › <RecordRow resource="nope">: unknown resource "nope"')
     expect(found[1]).toMatch(/^<Page> › <RecordRow resource="invoices">: filter: .*stauts/)
