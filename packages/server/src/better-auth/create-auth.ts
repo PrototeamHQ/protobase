@@ -61,7 +61,7 @@ import { versionedSecrets } from './secret-versions'
 import { signingKeyRotation, signingKeys } from './signing-keys'
 import type { RoleSession, RoleUser } from './roles/session-role'
 import type { Session } from '../types'
-import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
+import { platformSignInFor, platformSignInProvider, providerPagesOffPlugin, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
 import { appSignInPolicy } from './app-sign-in-policy'
 import { signInPolicyPlugin } from './policy-plugin'
 import { defaultSignInPolicy, type SignInPolicy } from './sign-in-policy'
@@ -233,7 +233,8 @@ export type CreateAuthOptions = {
    * A sign-in provider the platform adds for people who already have an account: an OpenID Connect provider that never
    * signs anyone up. Defaults to the one the platform passes in `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`
    * and `PROTOBASE_SIGN_IN_CLIENT_SECRET` (see `readPlatformSignIn`), when set; `false` turns it off whatever the
-   * environment says. Left out when `socialProviders` has a provider with the same id.
+   * environment says. Left out when `socialProviders` has a provider with the same id. Without `clientSecret`, it
+   * signs in by token sign-in alone, with tokens for the origin of `baseURL` unless `clientId` names another.
    */
   signInProvider?: PlatformSignIn | false
   /**
@@ -507,6 +508,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(mail ? [emailOTP(emailCodeOptions(mail)), noAccountMailPlugin(mail), confirmationCodePlugin(mail)] : []),
       ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, ...(signUpDomains && { domains: signUpDomains }), mail, defaultPolicy: signInPolicy })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
+      ...(signIn && !signIn.pages ? [providerPagesOffPlugin(signIn.provider)] : []),
       ...(connections && connections.resolved.length > 0
         ? [connectionProvidersPlugin(connections.resolved, { allowPrivateAddresses: connections.allowPrivateAddresses }), connectionsPlugin({ connections: connections.resolved, events: connections.events, allowPrivateAddresses: connections.allowPrivateAddresses })]
         : []),
@@ -641,7 +643,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const operator = provider && resolveOperator(provider)
   const signInSettings = options.signInProvider === undefined ? platformSignInSettings() : options.signInProvider || undefined
   const socialProviders = Object.keys(options.socialProviders ?? {})
-  const platformSignIn = platformSignInFor(signInSettings && resolvePlatformSignIn(signInSettings), socialProviders)
+  const platformSignIn = platformSignInFor(signInSettings && resolvePlatformSignIn(signInSettings, options.baseURL), socialProviders)
   const saml = resolveSamlProviders(options.sso?.saml ?? [], [...socialProviders, ...(platformSignIn ? [platformSignIn.provider] : [])])
   const personalMail = resolvePersonalMail(options.personalMail ?? [], socialProviders, options.encryptOAuthTokens === true)
   if (Object.keys(options.connections ?? {}).length > 0 && options.encryptOAuthTokens !== true) throw new Error("auth.connections: the connected accounts' tokens would be stored in plain text; turn on auth.encryptOAuthTokens")
@@ -722,7 +724,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     /** The app's name it signs in and mails as: `PROTOBASE_APP_NAME`, else `appName`, else `Protobase`. */
     appName: appName ?? defaultAppName,
     operator: operator?.name,
-    platformSignIn: platformSignIn && { provider: platformSignIn.provider, name: platformSignIn.name },
+    platformSignIn: platformSignIn && { provider: platformSignIn.provider, name: platformSignIn.name, pages: platformSignIn.pages },
     /** The id and name of each SAML provider, for the sign-in page. */
     samlProviders: saml.map(({ id, name }) => ({ id, name })),
     /** The mail providers people link their own mailbox with (`personalMail`). */

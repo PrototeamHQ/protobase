@@ -506,7 +506,7 @@ PROTOBASE_OPERATOR_NAME="Protobase Cloud"                  # shown as "Continue 
 PROTOBASE_OPERATOR_GROUP=protobase-staff-access            # the default
 ```
 
-Set the first three together or none: some but not all of them stops the app at start with an error. In the config, `auth.operator` takes the same settings and a few more, and `false` turns staff sign-in off whatever the environment says:
+Set the first three together or none: some but not all of them stops the app at start with an error. The one exception is [token sign-in alone](#token-sign-in): `PROTOBASE_SIGN_IN_ISSUER` with `PROTOBASE_SIGN_IN_TOKENS=true`, and no secret. In the config, `auth.operator` takes the same settings and a few more, and `false` turns staff sign-in off whatever the environment says:
 
 ```ts
 auth: { operator: { issuer, clientId, clientSecret, name: 'Support', group: 'support-leads', scopes: ['groups'], acrValues: ['gold'], sessionMinutes: 15 } }
@@ -610,6 +610,7 @@ auth: { signInProvider: { issuer, clientId, clientSecret, tokenSignIn: true } }
 The client posts `POST /api/auth/sign-in/social` with `{ "provider": "<provider id>", "idToken": { "token": "<ID token>" } }`, as Better Auth's client sends `signIn.social({ provider, idToken: { token } })`, and gets the session cookie with `{ redirect: false, user }`, or `{ twoFactorRedirect: true, twoFactorMethods }` when the [second step](#two-factor-authentication) is due, which it finishes as after a password. Then `GET /api/auth/token` gives it the app's API token as for any session.
 
 - **Only this app's own provider:** the app trusts the one provider it is configured with, and a token only for this app. The token must be signed with a key the provider publishes (its discovery's `jwks_uri`) with an asymmetric algorithm, come from the configured issuer, and have this app's client id as its one audience, so a token issued for another app is never accepted here. It must carry an `email` (a `jti` is not needed), live at most 5 minutes from `iat` to `exp`, and have been issued within the last 5 minutes (30 seconds of clock skew allowed). Otherwise it is refused with `401 INVALID_TOKEN`.
+- **Alone, without a client secret:** with the issuer and `PROTOBASE_SIGN_IN_TOKENS=true` but no `PROTOBASE_SIGN_IN_CLIENT_SECRET` (`signInProvider: { issuer, tokenSignIn: true }`), the app is no client of the provider's: it takes tokens whose audience is the origin of its `url`, or `PROTOBASE_SIGN_IN_CLIENT_ID` when set, as from the [token exchange](#token-exchange) of an OpenID provider's `audiences`. Nobody is sent through the provider's pages: the sign-in page shows no button for it, and starting or connecting it answers `403 PROVIDER_PAGES_OFF`.
 - **Once:** each token signs in once. Its issuer and the SHA-256 of its claims are kept in the `verification` table until it expires, with no migration, and a second use answers `401 TOKEN_USED`. The claims count, not the token's text, so the same token written another way is refused too, and so is a second token with exactly the same claims.
 - **Who it signs in:** as through the provider's pages, the account linked to the provider's `sub`, else the account with the address the provider vouches for (`email_verified`), which it links. Nobody is signed up (`401`), and a banned person is refused.
 - **Never recent:** the client can mint a fresh session at will, so a session a token began never counts as [recently signed in](#confirming-an-account-change). Adding a passkey, unlinking a provider, making a personal access token or deleting the account asks it to confirm it's them in place first, and it is never a [strong sign-in](#recent-strong-sign-in) until it confirms it's them.
@@ -847,15 +848,17 @@ auth: { mcp: true, oauth: { api: true } }
 
 ## OpenID provider for other apps
 
-With `openIdProvider`, the app is an OpenID provider for the clients its admins register, such as other apps that let people sign in with it: a person signs in on the app's own pages, as they always do, and the client gets an ID token that says who they are. Nobody is asked to allow a client, since only an admin registers one.
+With `openIdProvider`, the app is an OpenID provider for the clients its admins register, such as other apps that let people sign in with it: a person signs in on the app's own pages, as they always do, and the client gets an ID token that says who they are. Nobody is asked to allow a client, since only an admin registers one. A phone app the admin registers can also get ID tokens for every app at the origins `audiences` names, with no registration per app, through the [token exchange](#token-exchange).
 
 ```ts
 auth: { openIdProvider: true }
-auth: { openIdProvider: { connectPage: '/-/connect' } }
+auth: { openIdProvider: { connectPage: '/-/connect', audiences: ['https://*.example.app'] } }
 ```
 
+- **Audiences** are https origins, exact (`https://shop.example.com`) or with one leading wildcard label (`https://*.example.app`, which stands for `shop.example.app` but not `example.app` or `a.b.example.app`). A wildcard needs two labels after it, and a pattern takes no port, path, query or user info; anything else stops the app at start. An app at such an origin gets ID tokens only from the token exchange: no browser is ever sent there, so an authorize whose client id or redirect URI is on such a host is refused (`400 invalid_request`), and so is registering a client with a redirect URI there (`400 REDIRECT_ON_AUDIENCE_HOST`).
+
 - **Only registered clients.** Nothing registers itself: `/api/auth/oauth2/register` is closed, and so are the provider's own client management, consent, userinfo, introspection and logout endpoints. A client the admin did not register through the API below is refused with `400 invalid_client` at authorize and at the token endpoint, before anything else, and so is a client in the store from elsewhere, such as one an MCP client registered while the app had `mcp` on. A redirect URI must be one the client registered, character for character, so the person's browser is never sent with a code, or an error, to an address of someone else's.
-- **Not with `mcp`.** MCP clients register themselves, and the app has one OAuth provider, so the server refuses to start with both. Serve them from separate apps.
+- **Not with `mcp`.** MCP clients register themselves, and the provider of this mode is separate from MCP's, so the server refuses to start with both. Serve them from separate apps.
 - **Discovery** is at `/.well-known/openid-configuration`, with the app's `url` as issuer, and the keys at `/api/auth/jwks`. A client uses the authorization code flow with PKCE, with `openid email profile`, and a `nonce`.
 - **The ID token** is signed with the app's [signing keys](#signing-keys) (EdDSA) and lives 5 minutes. It carries `iss` (the app's `url`), `aud` (the client's id, alone), `sub` (the person's user id in this app), `email`, `email_verified`, and `name` when the person has one. It has no `jti`. Another Protobase app takes it as its [platform sign-in provider](#platform-sign-in-provider), through its pages or by [token sign-in](#token-sign-in).
 - **Signing in** goes through the connect page (`connectPage`, default `/-/connect`), which signs the person in and goes straight on to the client. Someone who has not set up what the [sign-in policy](#sign-in-policy) requires is sent to the setup page first, and staff signed in as a person get no token.
@@ -883,7 +886,7 @@ POST /api/auth/openid-provider/clients/delete
 
 ### Token exchange
 
-A client registered with `exchange: true`, such as a phone app the person signed in to once, gets an ID token for another registered client without a browser, and posts it to that app's [token sign-in](#token-sign-in). It is the token exchange of RFC 8693 at the token endpoint:
+A client registered with `exchange: true`, such as a phone app the person signed in to once, gets an ID token for another registered client, or for an origin of `audiences`, without a browser, and posts it to that app's [token sign-in](#token-sign-in). It is the token exchange of RFC 8693 at the token endpoint:
 
 ```http
 POST /api/auth/oauth2/token
@@ -892,13 +895,13 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 &subject_token=<its access token>
 &subject_token_type=urn:ietf:params:oauth:token-type:access_token
 &requested_token_type=urn:ietf:params:oauth:token-type:id_token
-&audience=<the other client's id>
+&audience=<the other client's id, or an origin such as https://shop.example.app>
 → { "access_token": "<ID token>", "issued_token_type": "urn:ietf:params:oauth:token-type:id_token", "token_type": "N_A", "expires_in": 300 }
 ```
 
 - **The subject is the caller's own person.** `subject_token` must be a live access token this app issued to the calling client itself: not an ID token, a refresh token or another client's token, not expired, revoked or from a session that ended. Otherwise it answers `400 invalid_grant`. A client without `exchange` gets `400 unauthorized_client`.
-- **The audience is another registered client**: not the caller, not an unknown client and not one the admin did not register (`400 invalid_target`).
-- **An ID token only.** The answer is an ID token for that client alone, living 5 minutes, as from the client's own sign-in. No access or refresh token for the other client leaves the app. `requested_token_type` and `subject_token_type` take only the values above (`400 invalid_request`).
+- **The audience is another registered client, or an origin of `audiences`**: not the caller, not an unknown client and not one the admin did not register (`400 invalid_target`). An origin is matched as the URL parser writes it, label by label, so `http://`, a port, a path or trailing slash, user info, upper case, an extra label (`a.b.example.app`) and look-alikes (`example.app.evil.com`, `evilexample.app`) are refused.
+- **An ID token only.** The answer is an ID token for that client or origin alone, living 5 minutes, with the claims of the client's own sign-in; one for an origin has that origin as `aud`, and a `jti`. No access or refresh token for the other client leaves the app. `requested_token_type` and `subject_token_type` take only the values above (`400 invalid_request`).
 - **A banned person, or one whose address is not verified,** gets none (`400 invalid_grant`). A ban after the token was issued is caught by the other app, which checks its own account at sign-in.
 - The token endpoint takes 20 requests a minute per client address.
 

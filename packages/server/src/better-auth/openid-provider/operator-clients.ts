@@ -2,6 +2,7 @@ import type { BetterAuthPlugin, DBAdapter } from 'better-auth'
 import { APIError, createAuthEndpoint, createAuthMiddleware } from 'better-auth/api'
 import * as z from 'zod'
 import { adminOnly } from '../admin-only'
+import { onAudienceHost, type AudiencePattern } from './audience-patterns'
 import { openIdScopes, tokenExchangeGrant } from './openid-provider-options'
 
 // A client the operator registered carries this in its metadata; any other in the store, such as one an MCP client
@@ -77,21 +78,26 @@ export const deleteOperatorClient = async (adapter: Adapter, clientId: string) =
 
 const operatorOnly = adminOnly('Only an admin registers the clients of the OpenID provider.')
 
+const onAudienceHostRefusal = (uri: string) => new APIError('BAD_REQUEST', { code: 'REDIRECT_ON_AUDIENCE_HOST', message: `${uri} is on a host of auth.openIdProvider.audiences, which only the token exchange issues tokens for.` })
+
 type Endpoint = (input: Record<string, unknown>) => Promise<unknown>
 
 /**
  * The operator's API for the OpenID provider's clients, for admins only (`403 ADMIN_ONLY`): `POST
  * /openid-provider/clients` registers one (`registration`) and answers its `clientId`, with its `clientSecret` once
  * for a confidential client; `GET /openid-provider/clients` lists them; `POST /openid-provider/clients/delete` with
- * `{ clientId }` deletes one and what it was given.
+ * `{ clientId }` deletes one and what it was given. A redirect URI on a host of `audiences` is refused (`400
+ * REDIRECT_ON_AUDIENCE_HOST`): those apps get ID tokens from the token exchange alone.
  */
-export const operatorClientsPlugin = () =>
+export const operatorClientsPlugin = (audiences: readonly AudiencePattern[]) =>
   ({
     id: 'protobase-openid-operator-clients',
     endpoints: {
       registerOperatorClient: createAuthEndpoint('/openid-provider/clients', { method: 'POST', use: [operatorOnly], body: registration }, async (ctx) => {
         const provider = ctx.context.getPlugin('oauth-provider') as { endpoints: { adminCreateOAuthClient: Endpoint } } | null
         if (!provider) throw new APIError('INTERNAL_SERVER_ERROR', { message: 'The OpenID provider is not on' })
+        const onHost = ctx.body.redirectUris.find((uri) => onAudienceHost(audiences, uri))
+        if (onHost) throw onAudienceHostRefusal(onHost)
         // Called as Better Auth's own plugins call another endpoint: with this request's context, answering its body.
         const { response: created } = (await provider.endpoints.adminCreateOAuthClient({ ...ctx, body: registrationBody(ctx.body), asResponse: false, returnHeaders: true })) as { response: { client_id: string; client_secret?: string } }
         return ctx.json({ clientId: created.client_id, ...(created.client_secret && { clientSecret: created.client_secret }) })
@@ -128,9 +134,10 @@ const unregistered = () => new APIError('BAD_REQUEST', { error: 'invalid_client'
 /**
  * Refuses every client the operator did not register (`400 invalid_client`), before the provider looks at the
  * request: at authorize, so a browser is never sent to a redirect URI of such a client, and at the token endpoint, so
- * no code, refresh token or exchange gives it anything. A request that names no client is refused too.
+ * no code, refresh token or exchange gives it anything. A request that names no client is refused too, and so is an
+ * authorize whose client id or redirect URI is on a host of `audiences`, which no browser is ever sent to.
  */
-export const operatorClientsOnly = () =>
+export const operatorClientsOnly = (audiences: readonly AudiencePattern[]) =>
   ({
     id: 'protobase-openid-operator-clients-only',
     hooks: {
@@ -143,6 +150,10 @@ export const operatorClientsOnly = () =>
                 ? tokenRequestClientId(ctx.body, ctx.headers?.get('authorization'))
                 : ((ctx.body as { client_id?: unknown } | undefined)?.client_id ?? (ctx.query as { client_id?: unknown } | undefined)?.client_id)
             if (typeof clientId !== 'string' || !clientId) throw unregistered()
+            if (ctx.path === '/oauth2/authorize') {
+              const redirectUri = (ctx.body as { redirect_uri?: unknown } | undefined)?.redirect_uri ?? (ctx.query as { redirect_uri?: unknown } | undefined)?.redirect_uri
+              if (onAudienceHost(audiences, clientId) || onAudienceHost(audiences, redirectUri)) throw new APIError('BAD_REQUEST', { error: 'invalid_request', error_description: 'the token exchange alone issues tokens for this host' })
+            }
             const [client] = await ctx.context.adapter.findMany<StoredClient>({ model: 'oauthClient', where: [{ field: 'clientId', value: clientId }], limit: 1 })
             if (!isOperatorClient(client)) throw unregistered()
           }),

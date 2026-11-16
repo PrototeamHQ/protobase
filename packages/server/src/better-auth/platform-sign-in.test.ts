@@ -1,6 +1,6 @@
 import { UnsecuredJWT } from 'jose'
 import { describe, expect, it } from 'vitest'
-import { idTokenUser, platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn } from './platform-sign-in'
+import { idTokenUser, platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, startsProviderPages } from './platform-sign-in'
 
 const env = { PROTOBASE_SIGN_IN_ISSUER: 'https://auth.example.com', PROTOBASE_SIGN_IN_CLIENT_ID: 'app.example.com', PROTOBASE_SIGN_IN_CLIENT_SECRET: 'secret' }
 const settings = { issuer: 'https://auth.example.com', clientId: 'app.example.com', clientSecret: 'secret' }
@@ -28,25 +28,53 @@ describe('readPlatformSignIn', () => {
 
   it('refuses some but not all of the three', () => {
     expect(() => readPlatformSignIn({ PROTOBASE_SIGN_IN_ISSUER: env.PROTOBASE_SIGN_IN_ISSUER, PROTOBASE_SIGN_IN_CLIENT_ID: 'app' })).toThrow(/go together/)
+    expect(() => readPlatformSignIn({ PROTOBASE_SIGN_IN_ISSUER: env.PROTOBASE_SIGN_IN_ISSUER, PROTOBASE_SIGN_IN_CLIENT_SECRET: 'secret', PROTOBASE_SIGN_IN_TOKENS: 'true' })).toThrow(/go together/)
+    expect(() => readPlatformSignIn({ PROTOBASE_SIGN_IN_CLIENT_ID: 'app', PROTOBASE_SIGN_IN_TOKENS: 'true' })).toThrow(/go together/)
+  })
+
+  it('reads the issuer alone, or with the client id, for token sign-in alone', () => {
+    expect(readPlatformSignIn({ PROTOBASE_SIGN_IN_ISSUER: env.PROTOBASE_SIGN_IN_ISSUER, PROTOBASE_SIGN_IN_TOKENS: 'true' })).toEqual({ issuer: settings.issuer, tokenSignIn: true })
+    expect(readPlatformSignIn({ PROTOBASE_SIGN_IN_ISSUER: env.PROTOBASE_SIGN_IN_ISSUER, PROTOBASE_SIGN_IN_CLIENT_ID: 'app', PROTOBASE_SIGN_IN_TOKENS: 'true' })).toEqual({ issuer: settings.issuer, clientId: 'app', tokenSignIn: true })
+    expect(() => readPlatformSignIn({ PROTOBASE_SIGN_IN_ISSUER: env.PROTOBASE_SIGN_IN_ISSUER })).toThrow(/token sign-in alone/)
   })
 })
 
 describe('resolvePlatformSignIn', () => {
   it('defaults the id to oidc and names the provider after it', () => {
-    expect(resolvePlatformSignIn(settings)).toMatchObject({ provider: 'oidc', name: 'SSO', scopes: [], tokenSignIn: false })
-    expect(resolvePlatformSignIn({ ...settings, provider: 'github' })).toMatchObject({ provider: 'github', name: 'GitHub' })
-    expect(resolvePlatformSignIn({ ...settings, provider: 'github', name: 'Protobase' }).name).toBe('Protobase')
+    expect(resolvePlatformSignIn(settings, 'https://app.example.com')).toMatchObject({ provider: 'oidc', name: 'SSO', scopes: [], tokenSignIn: false, pages: true })
+    expect(resolvePlatformSignIn({ ...settings, provider: 'github' }, 'https://app.example.com')).toMatchObject({ provider: 'github', name: 'GitHub' })
+    expect(resolvePlatformSignIn({ ...settings, provider: 'github', name: 'Protobase' }, 'https://app.example.com').name).toBe('Protobase')
   })
 
   it('refuses an issuer that is not a URL and an id that is not a plain name', () => {
-    expect(() => resolvePlatformSignIn({ ...settings, issuer: 'auth.example.com' })).toThrow(/must be a URL/)
-    expect(() => resolvePlatformSignIn({ ...settings, provider: 'Git Hub' })).toThrow(/Invalid sign-in provider id/)
+    expect(() => resolvePlatformSignIn({ issuer: settings.issuer }, 'https://app.example.com')).toThrow(/clientSecret .* or tokenSignIn: true/)
+    expect(() => resolvePlatformSignIn({ issuer: settings.issuer, clientSecret: 'secret' }, 'https://app.example.com')).toThrow(/needs its clientId/)
+    expect(() => resolvePlatformSignIn({ ...settings, issuer: 'auth.example.com' }, 'https://app.example.com')).toThrow(/must be a URL/)
+    expect(() => resolvePlatformSignIn({ ...settings, provider: 'Git Hub' }, 'https://app.example.com')).toThrow(/Invalid sign-in provider id/)
+  })
+})
+
+describe('a provider without a client secret', () => {
+  it('signs in by token alone, with tokens for the origin of the app unless a client id names another', () => {
+    expect(resolvePlatformSignIn({ issuer: settings.issuer, tokenSignIn: true }, 'https://shop.example.app/admin')).toMatchObject({ clientId: 'https://shop.example.app', pages: false, tokenSignIn: true })
+    expect(resolvePlatformSignIn({ issuer: settings.issuer, clientId: 'shop', tokenSignIn: true }, 'https://shop.example.app')).toMatchObject({ clientId: 'shop', pages: false })
+    expect(platformSignInProvider(resolvePlatformSignIn({ issuer: settings.issuer, tokenSignIn: true }, 'https://shop.example.app')).authentication).toBeUndefined()
+  })
+
+  it("knows the requests that would send someone through the provider's pages, and not a posted token", () => {
+    expect(startsProviderPages('/sign-in/social', { provider: 'oidc', callbackURL: '/' }, 'oidc')).toBe(true)
+    expect(startsProviderPages('/link-social', { provider: 'oidc' }, 'oidc')).toBe(true)
+    expect(startsProviderPages('/sign-in/oauth2', { providerId: 'oidc' }, 'oidc')).toBe(true)
+    expect(startsProviderPages('/oauth2/link', { providerId: 'oidc' }, 'oidc')).toBe(true)
+    expect(startsProviderPages('/sign-in/social', { provider: 'oidc', idToken: { token: 'x' } }, 'oidc')).toBe(false)
+    expect(startsProviderPages('/sign-in/social', { provider: 'github' }, 'oidc')).toBe(false)
+    expect(startsProviderPages('/sign-in/email', { provider: 'oidc' }, 'oidc')).toBe(false)
   })
 })
 
 describe('platformSignInFor', () => {
   it("gives way to the app's own provider with the same id", () => {
-    const github = resolvePlatformSignIn({ ...settings, provider: 'github' })
+    const github = resolvePlatformSignIn({ ...settings, provider: 'github' }, 'https://app.example.com')
     expect(platformSignInFor(github, ['github'])).toBeUndefined()
     expect(platformSignInFor(github, ['google'])).toBe(github)
     expect(platformSignInFor(undefined, [])).toBeUndefined()
@@ -55,7 +83,7 @@ describe('platformSignInFor', () => {
 
 describe('platformSignInProvider', () => {
   it('uses discovery, PKCE, a Basic client secret and verified ID tokens, and signs nobody up', () => {
-    expect(platformSignInProvider(resolvePlatformSignIn({ ...settings, issuer: 'https://auth.example.com/' }))).toMatchObject({
+    expect(platformSignInProvider(resolvePlatformSignIn({ ...settings, issuer: 'https://auth.example.com/' }, 'https://app.example.com'))).toMatchObject({
       providerId: 'oidc',
       discoveryUrl: 'https://auth.example.com/.well-known/openid-configuration',
       scopes: ['openid', 'email', 'profile'],

@@ -25,12 +25,12 @@ export const exactRedirectUri = (uri: string, registered: readonly string[]) => 
  * and the operator's client API. A client gets the person's `sub` (their id here), `email`, `email_verified` and
  * `name` in an ID token for its own client id, living `idTokenSeconds`, after the person signs in on the app's own
  * pages; it is never asked to allow the client. A client the operator lets exchange also gets refresh tokens, and ID
- * tokens for other clients through the token exchange.
+ * tokens for other clients, and for the origins of `audiences`, through the token exchange.
  */
 export const openIdProviderPlugins = ({ openId, mail, defaultPolicy }: OpenIdProviderPluginsOptions) => [
   mcpSignedQueryGuard(),
   mcpSetupGate({ mail, defaultPolicy, connectPage: openId.connectPage }),
-  operatorClientsOnly(),
+  operatorClientsOnly(openId.audiences),
   oauthProvider({
     loginPage: openId.connectPage,
     consentPage: openId.connectPage,
@@ -47,8 +47,8 @@ export const openIdProviderPlugins = ({ openId, mail, defaultPolicy }: OpenIdPro
       shouldRedirect: () => false,
       consentReferenceId: () => undefined,
     },
-    extensions: [tokenExchange()],
+    extensions: [tokenExchange(openId.audiences)],
     schema: pluginNames.mcp,
   }),
-  operatorClientsPlugin(),
+  operatorClientsPlugin(openId.audiences),
 ]

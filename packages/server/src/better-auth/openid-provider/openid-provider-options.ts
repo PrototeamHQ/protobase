@@ -1,14 +1,21 @@
 import { connectRoute } from '@protobase/schema'
 import type { ResolvedMcp } from '../mcp/mcp-plugins'
 import { signInTokenSeconds } from '../sign-in-token'
+import { parseAudiencePattern, type AudiencePattern } from './audience-patterns'
 
 export type OpenIdProviderOptions = {
   /** The connect page's path on the app's origin, where people sign in on the way to a client; default `/-/connect`, for a UI at the root. */
   connectPage?: string
+  /**
+   * The origins the token exchange issues ID tokens for besides the registered clients, as patterns such as
+   * `https://*.example.app` (see `AudiencePattern`): the ID token's audience is the origin itself, so the apps there
+   * need no registration. No browser is ever sent to them. Default none.
+   */
+  audiences?: string[]
 }
 
 /** `OpenIdProviderOptions` with the defaults filled in. */
-export type ResolvedOpenIdProvider = { connectPage: string }
+export type ResolvedOpenIdProvider = { connectPage: string; audiences: AudiencePattern[] }
 
 /** The scopes a client gets: who the person is, by `sub`, `email` and `email_verified`, and `name`. */
 export const openIdScopes = ['openid', 'email', 'profile']
@@ -31,9 +38,9 @@ export const accessTokenSeconds = 15 * 60
  */
 export const resolveOpenIdProvider = (options: true | OpenIdProviderOptions, mcp: ResolvedMcp | undefined): ResolvedOpenIdProvider => {
   if (mcp) throw new Error('auth.openIdProvider cannot be on together with auth.mcp, whose clients register themselves; serve them from separate apps')
-  const { connectPage = connectRoute } = options === true ? {} : options
+  const { connectPage = connectRoute, audiences = [] } = options === true ? {} : options
   if (!connectPage.startsWith('/')) throw new Error(`auth.openIdProvider.connectPage "${connectPage}" must be a path on the app's origin, such as ${connectRoute}`)
-  return { connectPage }
+  return { connectPage, audiences: audiences.map(parseAudiencePattern) }
 }
 
 /**

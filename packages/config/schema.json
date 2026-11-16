@@ -2235,7 +2235,7 @@
           ]
         },
         "signInProvider": {
-          "description": "A sign-in provider the platform adds for people who already have an account: an OpenID Connect provider that never\nsigns anyone up. Defaults to the one the platform passes in `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`\nand `PROTOBASE_SIGN_IN_CLIENT_SECRET` (see `readPlatformSignIn`), when set; `false` turns it off whatever the\nenvironment says. Left out when `socialProviders` has a provider with the same id.",
+          "description": "A sign-in provider the platform adds for people who already have an account: an OpenID Connect provider that never\nsigns anyone up. Defaults to the one the platform passes in `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`\nand `PROTOBASE_SIGN_IN_CLIENT_SECRET` (see `readPlatformSignIn`), when set; `false` turns it off whatever the\nenvironment says. Left out when `socialProviders` has a provider with the same id. Without `clientSecret`, it\nsigns in by token sign-in alone, with tokens for the origin of `baseURL` unless `clientId` names another.",
           "anyOf": [
             {
               "const": false
@@ -2264,6 +2264,20 @@
           "anyOf": [
             {
               "$ref": "#/definitions/OAuthApiOptions"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "openIdProvider": {
+          "description": "Turns the app into an OpenID provider for the clients its admins register (`/api/auth/openid-provider/clients`),\nsuch as other apps that let people sign in with it: a person signs in on the app's own pages and the client gets\nan ID token with their `sub`, `email` and `email_verified`, without being asked to allow it. Nothing registers\nitself, and any other client or redirect URI is refused. A client allowed to exchange gets ID tokens for the other\nclients from its own access token (RFC 8693), without a browser. `true` for the defaults, or the `connectPage`\n(default `/-/connect`). Not with `mcp`. Off by default.",
+          "anyOf": [
+            {
+              "const": true
+            },
+            {
+              "$ref": "#/definitions/OpenIdProviderOptions"
             },
             {
               "$ref": "#/definitions/EnvValue"
@@ -2698,6 +2712,7 @@
           ]
         },
         "clientId": {
+          "description": "This app's client id at the provider, which its ID tokens name as their audience; default the origin of `baseURL` without `clientSecret`.",
           "anyOf": [
             {
               "type": "string"
@@ -2708,6 +2723,7 @@
           ]
         },
         "clientSecret": {
+          "description": "The client secret for sign-in through the provider's pages; without it, only `tokenSignIn`, which must then be on.",
           "anyOf": [
             {
               "type": "string"
@@ -2773,9 +2789,7 @@
         }
       },
       "required": [
-        "issuer",
-        "clientId",
-        "clientSecret"
+        "issuer"
       ],
       "additionalProperties": false
     },
@@ -3005,6 +3019,44 @@
           "anyOf": [
             {
               "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "OpenIdProviderOptions": {
+      "type": "object",
+      "properties": {
+        "connectPage": {
+          "description": "The connect page's path on the app's origin, where people sign in on the way to a client; default `/-/connect`, for a UI at the root.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "audiences": {
+          "description": "The origins the token exchange issues ID tokens for besides the registered clients, as patterns such as\n`https://*.example.app` (see `AudiencePattern`): the ID token's audience is the origin itself, so the apps there\nneed no registration. No browser is ever sent to them. Default none.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
             },
             {
               "$ref": "#/definitions/EnvValue"
