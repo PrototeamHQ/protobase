@@ -127,6 +127,9 @@ describe('the token exchange', () => {
     const claims = await app.verified(body.access_token as string, shop.clientId)
     expect(claims).toMatchObject({ iss: origin, aud: shop.clientId, sub: await app.userId('ana@example.com'), email: 'ana@example.com', email_verified: true })
     expect(claims.exp! - claims.iat!).toBe(300)
+    // The other app's token sign-in takes it, as it checks every token posted to it.
+    expect(await app.signInTokenClaims(body.access_token as string, shop.clientId)).toMatchObject({ sub: claims.sub, email: 'ana@example.com' })
+    expect(await app.signInTokenClaims(body.access_token as string, phone.clientId)).toBeUndefined()
     // The access token minted with it for the other client is gone.
     expect((await app.store.query(`select 1 from oauth_access_token where client_id = $1`, [shop.clientId])).rows).toHaveLength(0)
   })

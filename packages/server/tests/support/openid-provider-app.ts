@@ -2,6 +2,7 @@ import { createLocalJWKSet, jwtVerify, type JSONWebKeySet } from 'jose'
 import { expect } from 'vitest'
 import { betterAuthAuthenticator } from '../../src/better-auth/authenticator'
 import { buildAuth, type CreateAuthOptions } from '../../src/better-auth/create-auth'
+import { verifySignInToken } from '../../src/better-auth/sign-in-token'
 import { createUser } from '../../src/better-auth/users'
 import { createAdmin } from '../../src/create-admin'
 import { allResources } from '../../../../test-support/server'
@@ -106,7 +107,13 @@ export const serveOpenId = async (stores: McpStores, options: Partial<CreateAuth
     return (await jwtVerify(idToken, createLocalJWKSet(keys), { issuer: origin, audience })).payload
   }
 
+  /** The claims another app's token sign-in takes the token with (`verifySignInToken`), or `undefined` when it refuses it. */
+  const signInTokenClaims = async (idToken: string, clientId: string) => {
+    const keys = (await (await request('/api/auth/jwks')).json()) as JSONWebKeySet
+    return verifySignInToken(idToken, { jwks: createLocalJWKSet(keys), issuer: origin, audience: clientId, algorithms: ['EdDSA'] }, clientId)
+  }
+
   const userId = async (email: string) => (await store.query<{ id: string }>(`select id from "user" where email = $1`, [email])).rows[0]!.id
 
-  return { auth, store, request, signIn, register, registerWeb, registerPhone, authorize, codeOf, token, basic, codeFlow, exchange, verified, userId }
+  return { auth, store, request, signIn, register, registerWeb, registerPhone, authorize, codeOf, token, basic, codeFlow, exchange, verified, signInTokenClaims, userId }
 }
