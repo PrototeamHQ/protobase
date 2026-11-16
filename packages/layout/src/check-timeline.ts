@@ -1,5 +1,4 @@
 import type { ResourceModel } from '@protobase/schema'
-import { maxPerPage } from './list-blocks'
 import type { LayoutNode } from './node'
 
 // A timeline draws a lane per value of `lane`, a bar per value of `bar` in it, and a segment per record from `start`
@@ -11,8 +10,17 @@ const unshown = ['json', 'file']
 /** The fields a timeline reads of each record, in the order its text form's table shows them. */
 export const timelineFields = (node: LayoutNode) => ['lane', 'bar', 'color', 'start', 'end'].map((prop) => String(node.props[prop]))
 
-/** The order a timeline reads its records in: each bar's segments from its earliest start. */
+/** The order a timeline finds its chosen bar's first record in: each bar's segments from its earliest start. */
 export const timelineSort = (node: LayoutNode) => `${String(node.props.start)} asc`
+
+/** The order a timeline reads its records in, the latest start first, so a `limit` that cuts them leaves out the oldest. */
+export const timelineReadSort = (node: LayoutNode) => `${String(node.props.start)} desc`
+
+/** How many records a timeline reads at most without a `limit`, page after page. */
+export const defaultTimelineLimit = 20_000
+
+/** The largest `limit` a timeline takes. */
+export const maxTimelineLimit = 100_000
 
 const fieldOf = (model: ResourceModel, name: string) => (Object.hasOwn(model.fields, name) ? model.fields[name] : undefined)
 
@@ -25,10 +33,10 @@ const fieldProblems = (model: ResourceModel, prop: string, name: string): string
   return unshown.includes(field.type) ? [`${prop}: "${name}" is a ${field.type} field, which has no values to group by`] : []
 }
 
-/** What a timeline names that its resource does not have or cannot draw, and a limit it cannot read at once. */
+/** What a timeline names that its resource does not have or cannot draw, and a limit it does not take. */
 export const timelineProblems = (node: LayoutNode, model: ResourceModel): string[] => {
   const fields = ['lane', 'bar', 'start', 'end', 'color'].flatMap((prop) => fieldProblems(model, prop, String(node.props[prop])))
   const limit = node.props.limit
-  const limits = limit === undefined || (typeof limit === 'number' && limit <= maxPerPage) ? [] : [`limit must be a whole number from 1 to ${maxPerPage}`]
+  const limits = limit === undefined || (Number.isInteger(limit) && Number(limit) >= 1 && Number(limit) <= maxTimelineLimit) ? [] : [`limit must be a whole number from 1 to ${maxTimelineLimit}`]
   return [...fields, ...limits]
 }

@@ -477,20 +477,20 @@ Each value takes its colour from the view's `valueColors`, else an enum value's 
 ### Timeline
 
 :::caution[Beta]
-A timeline is read-only: bars cannot be dragged or edited, and it has no zoom; it reads at most 500 records.
+A timeline is read-only: bars cannot be dragged or edited, and it has no zoom.
 :::
 
 Records of `resource` that match `filter` as a timeline, a Gantt chart for projects, orders or work: a lane per value of `lane`, a bar per value of `bar` in it, and each record a segment of its bar from `start` to `end`, coloured by its `color` value. A record without an end runs to now. The time axis runs from the earliest start to the latest end and always fits the page's width, so a phone shows the same time compressed, its lanes stacked under their names, and the page never scrolls sideways. Bars that overlap in time get rows of their own in their lane. Pointing at a bar, or moving focus to it, shows its times and each segment's under the lanes, which a screen reader reads from the bar too, a relation's bar by the name of the record it points at.
 
 | Prop | |
 | --- | --- |
-| `resource`, `filter` | The records it draws, the earliest first. `resource` is required. |
+| `resource`, `filter` | The records it draws, every one the filter matches, read page after page. `resource` is required. |
 | `lane` | The field whose values each get a lane, in the order they first start, such as a project. Required. |
 | `bar` | The field whose values each get a bar in their lane, its records the bar's segments, such as a task; the record's own key gives a bar per record. Required. |
 | `start`, `end` | Date or timestamp fields where a segment starts and ends. Required. |
 | `color` | An enum field: a segment takes its value's tone or colour from the view's [`valueColors`](/reference/ui-config/#value-tones-and-currencies), else the [chart token](/reference/theme/#tokens) of its place among the enum's values, and is striped for a value the view marks with `.waitingValues(...)`. A legend names the values the bars hold. Required. |
 | `select` | The [page parameter](/reference/layouts/#page-parameters) a bar's choice sets, such as `task`: each bar links to the page with its `bar` value there (`?task=42`), the chosen bar is marked `aria-current`, and the timeline's children draw under it inside the chosen bar's first record, or nothing while none is chosen. |
-| `limit` | How many records it reads at most; default and largest 500. |
+| `limit` | How many records it reads at most, from 1 to 100,000; default 20,000. When more match, it draws the latest by `start` and a line under the lanes says how many it shows. |
 | `title`, `description`, `actions`, `empty`, `span` | As on `Table`. |
 
 ```tsx
@@ -507,7 +507,7 @@ view<typeof phases>('phases').fields((r) => ({
 
 <StoryFrame id="composed-pages-timeline--desktop" title="Projects, their tasks and a chosen task" height={520} />
 
-Its [text form](/reference/layouts/#text-form) is a Markdown table with a row per segment: its lane, bar, value, start and end under the fields' labels. A timeline whose fields the user cannot read is left out of their page, and a field it cannot draw, such as a `start` that is no date, stops the server at startup.
+Its [text form](/reference/layouts/#text-form) is a Markdown table with a row per segment of its latest 500, the earliest first: its lane, bar, value, start and end under the fields' labels. A timeline whose fields the user cannot read is left out of their page, and a field it cannot draw, such as a `start` that is no date, stops the server at startup.
 
 ### Graph
 

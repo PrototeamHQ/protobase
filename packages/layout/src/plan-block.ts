@@ -3,7 +3,7 @@ import { templatePlaceholders } from '@protobase/schema/internal'
 import { blockSpecs, type BlockReads } from './block-specs'
 import { threadSort } from './check-time'
 import { threadFields } from './check-conversation'
-import { timelineFields, timelineSort } from './check-timeline'
+import { timelineFields, timelineReadSort, timelineSort } from './check-timeline'
 import { edgeConditionFields } from './graph-edges'
 import { defaultPerPage, defaultSort, defaultSource, maxPerPage } from './list-blocks'
 import { filterLiteral, filterText, sortText } from './list-query'
@@ -37,8 +37,9 @@ const pageSizeOf = (node: LayoutNode, reads: BlockReads): number | undefined => 
       return number(limit) ?? 10
     case 'Thread':
       return number(limit) ?? 50
+    // A timeline's own read pages through its records; the plan's is one page of them, as its text form shows
     case 'Timeline':
-      return number(limit) ?? maxPerPage
+      return Math.min(number(limit) ?? maxPerPage, maxPerPage)
     // A graph draws all of its nodes and edges at once
     case 'Graph':
       return maxPerPage
@@ -68,7 +69,7 @@ const ownFilter = (node: LayoutNode, reads: BlockReads) => filterText(reads.filt
 
 const ownSort = (node: LayoutNode, reads: BlockReads, model: ResourceModel) => {
   if (node.type === 'Thread') return threadSort(String(node.props.time))
-  if (node.type === 'Timeline') return timelineSort(node)
+  if (node.type === 'Timeline') return timelineReadSort(node)
   const given = sortText(reads.sort === undefined ? undefined : (node.props[reads.sort] as LayoutValue | undefined))
   if (given !== undefined || !['ReferenceManyField', 'ReferenceArrayField'].includes(node.type)) return given
   return defaultSort(keyOf(model))

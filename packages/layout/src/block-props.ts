@@ -170,7 +170,10 @@ export type TimelineProps = Heading & {
   end: string
   /** An enum field that colours each segment by its view's `valueColors`, striped for its `waitingValues`. */
   color: string
-  /** How many records it reads at most, the earliest first; default 500, the most one read holds. */
+  /**
+   * How many records it reads at most, page after page, from 1 to 100,000; default 20,000. With more, it draws the
+   * latest by `start` and says how many it shows.
+   */
   limit?: number
   empty?: string
   span?: GridSpan

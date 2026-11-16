@@ -1521,6 +1521,7 @@
     "couldNotLoad": "Could not load",
     "nothingYet": "Nothing here yet.",
     "loadMore": "Load more",
+    "timelineCut": "Showing the latest {count, number} records; older ones are left out.",
     "saved": "{label}: saved",
     "create": "Create",
     "save": "Save",
