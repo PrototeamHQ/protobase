@@ -177,7 +177,7 @@
     "codeNeedsMail": "Vraagt mailinstellingen (PROTOBASE_SMTP_URL en PROTOBASE_MAIL_FROM): uit tot die zijn ingesteld.",
     "passwordStaysOn": "Zonder mailinstellingen blijft inloggen met een wachtwoord aan, zodat niemand wordt buitengesloten.",
     "staffNeedsMail": "Vraagt mailinstellingen (PROTOBASE_SMTP_URL en PROTOBASE_MAIL_FROM): medewerkers kunnen niet inloggen tot die zijn ingesteld.",
-    "platformOff": "Uit zolang passkeys of tweestapsverificatie verplicht zijn: het slaat de tweede stap over.",
+    "platformOff": "Uit zolang passkeys verplicht zijn: het meldt aan zonder passkey.",
     "appliesAs": "Geldt voorlopig als {rule}.",
     "lastSaved": "Laatst bewaard op {time}.",
     "lastSavedBy": "Laatst bewaard door {name} op {time}.",

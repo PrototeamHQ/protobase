@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { providerName, readProviderError, readSignInLink, withoutSignInLink } from './provider-link'
+import { providerName, readProviderError, readSecondStep, readSignInLink, withoutSignInLink } from './provider-link'
 
 describe('readSignInLink', () => {
   it('reads the provider a link asks to sign in with', () => {
@@ -21,7 +21,20 @@ describe('readProviderError', () => {
   })
 })
 
+describe('readSecondStep', () => {
+  it("reads the second step's methods a provider's callback came back with, and leaves out unknown ones", () => {
+    expect(readSecondStep('https://erp.example.com/orders?second-step=totp%2Cotp')).toEqual(['totp', 'otp'])
+    expect(readSecondStep('https://erp.example.com/?second-step=otp,passkey')).toEqual(['otp'])
+    expect(readSecondStep('https://erp.example.com/?second-step=')).toEqual([])
+    expect(readSecondStep('https://erp.example.com/')).toBeUndefined()
+  })
+})
+
 describe('withoutSignInLink', () => {
+  it("drops the second step's marker too", () => {
+    expect(withoutSignInLink('https://erp.example.com/orders?second-step=totp%2Cotp&view=open')).toBe('/orders?view=open')
+  })
+
   it('drops the marker and the error and keeps the rest of the address', () => {
     expect(withoutSignInLink('https://erp.example.com/orders?view=open&sign-in=github#top')).toBe('/orders?view=open#top')
     expect(withoutSignInLink('https://erp.example.com/-/account/security?error=account_already_linked_to_different_user')).toBe('/-/account/security')
