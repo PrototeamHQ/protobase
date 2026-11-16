@@ -1,7 +1,7 @@
 import { pickLocale, type Locale } from '@protobase/schema/internal'
 
 // `nl-BE, nl;q=0.9, en;q=0.8` as its tags, the most preferred first; a tag of weight 0 is not acceptable.
-const acceptedTags = (header: string) =>
+export const acceptedTags = (header: string) =>
   header
     .split(',')
     .map((entry) => {

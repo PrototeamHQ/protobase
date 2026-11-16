@@ -4,7 +4,7 @@ import { isLayoutNode } from './node'
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
 // blocks.ts say the same for the compiler.
 
-type Kind = 'choices' | 'sort' | 'filter' | 'pagination' | 'referenceLink' | 'text' | 'content' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls' | 'tableColumns' | 'locales' | 'intlOptions' | 'dateFormat'
+type Kind = 'shown' | 'transValues' | 'transComponents' | 'choices' | 'sort' | 'filter' | 'pagination' | 'referenceLink' | 'text' | 'content' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls' | 'tableColumns' | 'locales' | 'intlOptions' | 'dateFormat'
 
 type PropSpec = { kind: Kind; required?: true }
 
@@ -15,7 +15,7 @@ export type BlockSpec = { props: Record<string, PropSpec>; children: boolean; re
 const optional = (kind: Kind): PropSpec => ({ kind })
 const required = (kind: Kind): PropSpec => ({ kind, required: true })
 
-const heading = { title: optional('text'), description: optional('text'), actions: optional('elements') }
+const heading = { title: optional('shown'), description: optional('shown'), actions: optional('elements') }
 const data = { resource: required('text'), filter: optional('text'), sort: optional('text') }
 const reads: BlockReads = { resource: 'resource', filter: 'filter', sort: 'sort' }
 const listShape = { sort: optional('sort'), filter: optional('filter'), perPage: optional('integer') }
@@ -23,22 +23,22 @@ const inlineField = { source: required('text'), emptyText: optional('text') }
 const intl = { locales: optional('locales'), options: optional('intlOptions') }
 
 const specs: Record<string, BlockSpec> = {
-  Page: { children: true, props: { title: required('text'), description: optional('text'), actions: optional('elements'), width: optional('pageWidth') } },
+  Page: { children: true, props: { title: required('shown'), description: optional('shown'), actions: optional('elements'), width: optional('pageWidth') } },
   Grid: { children: true, props: { columns: optional('columns'), span: optional('span') } },
   Card: { children: true, props: { ...heading, span: optional('span') } },
   Stat: {
     children: false,
-    props: { label: required('text'), value: optional('scalar'), resource: optional('text'), filter: optional('text'), field: optional('text'), format: optional('format'), description: optional('text'), span: optional('span') },
+    props: { label: required('shown'), value: optional('scalar'), resource: optional('text'), filter: optional('text'), field: optional('text'), format: optional('format'), description: optional('shown'), span: optional('span') },
     reads: { resource: 'resource', filter: 'filter' },
   },
-  RecordCard: { children: true, props: { ...data, ...heading, recordKey: optional('text'), empty: optional('text'), span: optional('span') }, reads },
+  RecordCard: { children: true, props: { ...data, ...heading, recordKey: optional('text'), empty: optional('shown'), span: optional('span') }, reads },
   Field: { children: false, props: { source: required('text'), label: optional('label'), format: optional('format') } },
   Diff: { children: false, props: inlineField },
   // Without `resource`, it draws the list around it and reads nothing; its children draw the row `select` chose
-  Table: { children: true, reads, props: { ...data, resource: optional('text'), ...heading, columns: optional('tableColumns'), button: optional('rowButton'), bulk: optional('boolean'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span'), select: optional('text') } },
-  SelectInput: { children: false, props: { source: required('text'), choices: optional('choices'), label: optional('text'), defaultValue: optional('scalar') } },
-  CardRow: { children: true, props: { ...data, ...heading, limit: optional('integer'), empty: optional('text'), span: optional('span') }, reads },
-  RecordRow: { children: false, props: { ...data, ...heading, limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') }, reads },
+  Table: { children: true, reads, props: { ...data, resource: optional('text'), ...heading, columns: optional('tableColumns'), button: optional('rowButton'), bulk: optional('boolean'), limit: optional('integer'), display: optional('text'), empty: optional('shown'), span: optional('span'), select: optional('text') } },
+  SelectInput: { children: false, props: { source: required('text'), choices: optional('choices'), label: optional('shown'), defaultValue: optional('scalar') } },
+  CardRow: { children: true, props: { ...data, ...heading, limit: optional('integer'), empty: optional('shown'), span: optional('span') }, reads },
+  RecordRow: { children: false, props: { ...data, ...heading, limit: optional('integer'), display: optional('text'), empty: optional('shown'), span: optional('span') }, reads },
   RecordCards: {
     children: false,
     reads: { ...reads, fields: 'fields' },
@@ -51,7 +51,7 @@ const specs: Record<string, BlockSpec> = {
       cardActions: optional('texts'),
       limit: optional('integer'),
       display: optional('text'),
-      empty: optional('text'),
+      empty: optional('shown'),
       span: optional('span'),
     },
   },
@@ -70,7 +70,7 @@ const specs: Record<string, BlockSpec> = {
       granularity: optional('bucket'),
       range: optional('range'),
       limit: optional('integer'),
-      empty: optional('text'),
+      empty: optional('shown'),
       span: optional('span'),
     },
   },
@@ -88,40 +88,40 @@ const specs: Record<string, BlockSpec> = {
       end: required('text'),
       color: required('text'),
       limit: optional('integer'),
-      empty: optional('text'),
+      empty: optional('shown'),
       span: optional('span'),
       select: optional('text'),
     },
   },
-  Progress: { children: false, props: { value: required('amount'), max: optional('amount'), label: optional('text'), span: optional('span') } },
+  Progress: { children: false, props: { value: required('amount'), max: optional('amount'), label: optional('shown'), span: optional('span') } },
   ModalForm: {
     children: false,
-    props: { mode: required('mode'), label: required('text'), fields: required('texts'), resource: optional('text'), recordKey: optional('text'), title: optional('text'), values: optional('values'), variant: optional('variant') },
+    props: { mode: required('mode'), label: required('shown'), fields: required('texts'), resource: optional('text'), recordKey: optional('text'), title: optional('shown'), values: optional('values'), variant: optional('variant') },
   },
   Thread: {
     children: false,
     reads: { resource: 'resource', filter: 'filter' },
-    props: { ...heading, resource: required('text'), filter: optional('text'), sender: optional('text'), time: required('text'), text: required('text'), status: optional('text'), working: optional('text'), calls: optional('toolCalls'), limit: optional('integer'), empty: optional('text'), span: optional('span') },
+    props: { ...heading, resource: required('text'), filter: optional('text'), sender: optional('text'), time: required('text'), text: required('text'), status: optional('text'), working: optional('text'), calls: optional('toolCalls'), limit: optional('integer'), empty: optional('shown'), span: optional('span') },
   },
   Composer: { children: false, props: { resource: required('text'), field: required('text'), values: optional('values'), placeholder: optional('text'), span: optional('span') } },
   Image: { children: false, props: { function: optional('text'), src: optional('text'), alt: optional('text'), width: optional('integer'), height: optional('integer'), refresh: optional('integer') } },
-  Action: { children: false, props: { name: required('text'), resource: optional('text'), label: optional('text'), variant: optional('variant') } },
+  Action: { children: false, props: { name: required('text'), resource: optional('text'), label: optional('shown'), variant: optional('variant') } },
   ReferenceManyField: {
     children: true,
     reads: { resource: 'reference', filter: 'filter', sort: 'sort' },
-    props: { reference: required('text'), target: required('text'), source: optional('text'), ...listShape, empty: optional('text'), pagination: optional('pagination') },
+    props: { reference: required('text'), target: required('text'), source: optional('text'), ...listShape, empty: optional('shown'), pagination: optional('pagination') },
   },
-  ReferenceArrayField: { children: true, reads: { resource: 'reference', filter: 'filter', sort: 'sort' }, props: { source: required('text'), reference: required('text'), ...listShape, empty: optional('text') } },
+  ReferenceArrayField: { children: true, reads: { resource: 'reference', filter: 'filter', sort: 'sort' }, props: { source: required('text'), reference: required('text'), ...listShape, empty: optional('shown') } },
   ArrayField: { children: true, props: { source: required('text') } },
   RecordsIterator: { children: true, props: {} },
-  ReferenceField: { children: true, reads: { resource: 'reference' }, props: { source: required('text'), reference: required('text'), link: optional('referenceLink'), empty: optional('text') } },
+  ReferenceField: { children: true, reads: { resource: 'reference' }, props: { source: required('text'), reference: required('text'), link: optional('referenceLink'), empty: optional('shown') } },
   Show: { children: true, props: { when: required('text'), fallback: optional('content') } },
   Switch: { children: true, props: { fallback: optional('content') } },
   Match: { children: true, props: { when: required('text') } },
   Link: { children: true, props: { href: optional('text'), to: optional('address'), variant: optional('variant') } },
   Tabs: { children: true, props: {} },
-  Tab: { children: true, props: { name: required('text'), label: required('text') } },
-  Settings: { children: false, props: { resource: required('text'), fields: optional('texts'), title: optional('text'), description: optional('text'), span: optional('span') } },
+  Tab: { children: true, props: { name: required('text'), label: required('shown') } },
+  Settings: { children: false, props: { resource: required('text'), fields: optional('texts'), title: optional('shown'), description: optional('shown'), span: optional('span') } },
   Users: { children: false, props: {} },
   Profile: { children: false, props: {} },
   Password: { children: false, props: {} },
@@ -138,6 +138,8 @@ const specs: Record<string, BlockSpec> = {
   Row: { children: true, props: {} },
   Column: { children: true, props: {} },
   Text: { children: true, props: { as: optional('textAs') } },
+  // A text in the reader's language: its message by key, the values it formats and the elements its tags become
+  Trans: { children: false, props: { i18nKey: required('text'), values: optional('transValues'), components: optional('transComponents') } },
   Details: { children: true, props: { open: optional('boolean') } },
   Summary: { children: true, props: {} },
   TextField: { children: false, props: inlineField },
@@ -159,7 +161,7 @@ const ranges = ['7d', '30d', '90d', '1y', 'all']
 const cardsLayouts = ['stack', 'carousel']
 const cardWidths = ['1/4', '1/3', '1/2', '2/3']
 const pageWidths = ['column', 'full']
-const textTags = ['p', 'span', 'h1', 'h2', 'h3', 'h4']
+const textTags = ['p', 'span', 'strong', 'em', 'h1', 'h2', 'h3', 'h4']
 
 const oneOf = (values: string[]): [test: (value: LayoutValue) => boolean, expected: string] => [(value) => typeof value === 'string' && values.includes(value), values.join(', ')]
 
@@ -187,6 +189,8 @@ const isSort = (value: LayoutValue) =>
   typeof value === 'string' || (isObject(value) && typeof value.field === 'string' && (value.order === 'ASC' || value.order === 'DESC') && Object.keys(value).length === 2)
 
 // react-admin's object of equalities, each a scalar value, or AIP-160 text
+const isTrans = (value: LayoutValue) => isLayoutNode(value) && value.type === 'Trans'
+
 const isFilter = (value: LayoutValue) => typeof value === 'string' || (isObject(value) && !isLayoutNode(value) && Object.values(value).every((item) => item === null || ['string', 'number', 'boolean'].includes(typeof item)))
 
 const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: string]> = {
@@ -196,6 +200,9 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
   pagination: [(value) => value === 'more', "'more'"],
   referenceLink: [(value) => value === 'edit' || value === 'show' || value === false, "'edit', 'show' or false"],
   text: [(value) => typeof value === 'string', 'text'],
+  shown: [(value) => typeof value === 'string' || isTrans(value), 'text, or a <Trans i18nKey="..." />'],
+  transValues: [(value) => isObject(value) && !isLayoutNode(value) && Object.values(value).every((item) => item === null || ['string', 'number', 'boolean'].includes(typeof item)), "values by name, such as { name: '{{title}}', count: 3 }"],
+  transComponents: [(value) => isObject(value) && !isLayoutNode(value) && Object.values(value).every(isLayoutNode), 'elements by tag name, such as { b: <Text as="strong" /> }'],
   content: [(value) => typeof value === 'string' || isLayoutNode(value) || (Array.isArray(value) && value.every(isLayoutNode)), 'text, an element or a list of elements'],
   boolean: [(value) => typeof value === 'boolean', 'true or false'],
   texts: [(value) => Array.isArray(value) && value.every((item) => typeof item === 'string'), 'a list of names'],
@@ -207,7 +214,7 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
   format: [(value) => typeof value === 'string' && formats.includes(value), formats.join(', ')],
   variant: [(value) => typeof value === 'string' && variants.includes(value), variants.join(', ')],
   mode: [(value) => value === 'create' || value === 'edit', 'create or edit'],
-  label: [(value) => typeof value === 'string' || value === false, 'text, or false for none'],
+  label: [(value) => typeof value === 'string' || isTrans(value) || value === false, 'text, a <Trans />, or false for none'],
   amount: [(value) => typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value)), 'a number or a field name'],
   scalar: [(value) => typeof value === 'string' || typeof value === 'number', 'text or a number'],
   chartType: oneOf(chartTypes),

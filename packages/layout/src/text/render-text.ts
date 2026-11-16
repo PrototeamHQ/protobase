@@ -3,6 +3,7 @@ import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } fro
 import { isInlineChild } from '../inline-fields'
 import { pageParamValues } from '../page-params'
 import { fillProps } from '../scope-values'
+import { formatMessage, formatText, isTrans } from '../translations'
 import { selectOf } from '../select-blocks'
 import { childScope, pageScope, propScope } from '../walk'
 import { textForms } from './forms'
@@ -62,9 +63,29 @@ const childOptions = (node: LayoutNode, options: TextOptions, at: string): TextO
   return scoped(options, childScope(node, pageScope).stack.length > 0)
 }
 
+const isObject = (value: unknown): value is Record<string, LayoutValue> => typeof value === 'object' && value !== null && !Array.isArray(value)
+
+// Each <Trans> in a block's props as its text, so the block's form reads a `title` or a `label` as any text
+const propTexts = (node: LayoutNode, options: TextOptions): LayoutNode =>
+  node.custom || !Object.values(node.props).some(isTrans)
+    ? node
+    : { ...node, props: Object.fromEntries(Object.entries(node.props).map(([name, value]) => [name, isTrans(value) ? formatText(options.texts, String(value.props.i18nKey), isObject(value.props.values) ? value.props.values : {}) : value])) }
+
 const render = (unfilled: LayoutNode, options: TextOptions, around: unknown[] | undefined, at: string): string => {
   // Its `{{path}}`s read the record around the tree, the only one the text has, and the page's parameters; others read as empty
-  const node = fillProps(unfilled, { stack: options.record ? [{ record: options.record }] : [], ...(options.params && { params: options.params }) })
+  const node = propTexts(fillProps(unfilled, { stack: options.record ? [{ record: options.record }] : [], ...(options.params && { params: options.params }) }), options)
+  // A <Trans> reads as its message in the reader's language, each tag as its element with the tag's text in it
+  if (!node.custom && node.type === 'Trans') {
+    const components = isObject(node.props.components) ? node.props.components : {}
+    // A tag's text is already Markdown, the message's own text not yet; the element a tag draws escapes the text in it
+    const isMarkdown = (part: unknown): part is { markdown: string } => typeof part === 'object' && part !== null && 'markdown' in part
+    const plain = (part: unknown) => (isMarkdown(part) ? part.markdown : escapeMarkdown(String(part)))
+    const tags = Object.fromEntries(
+      Object.entries(components).flatMap(([tag, element]) => (isLayoutNode(element) ? [[tag, (chunks: unknown[]) => ({ markdown: render({ ...element, children: [...element.children, chunks.map((part) => (isMarkdown(part) ? part.markdown : String(part))).join('')] }, options, around, at) })]] : [])),
+    )
+    const formatted = formatMessage(options.texts, String(node.props.i18nKey), isObject(node.props.values) ? node.props.values : {}, tags)
+    return (Array.isArray(formatted) ? formatted : [formatted]).map(plain).join('')
+  }
   if (!node.custom && node.type === 'RecordsIterator') return iterate(placed(node.children, at, 'children'), options, around).trim()
   // A list context puts its list around its children; other elements pass on the one around them
   const listed = listOf(node, options, at)

@@ -63,10 +63,34 @@ export const cliTypePaths = (ownDir = cliDir): Record<string, string[]> =>
     }),
   )
 
+/** The declarations that register the project's config module, which typed layouts read their resources and texts from. */
+export const registerFile = path.join(protobaseFolder, 'register.d.ts')
+
+const register = [
+  "// Written by protobase: the project's config module, which layout(), recordLayout() and <Trans> read the app's",
+  '// resources, fields and texts from. Wrap a typed layout in page() or a view; a layout exported bare refers to itself.',
+  "import type * as app from '../config/index'",
+  '',
+  "declare module '@protobase/layout' {",
+  '  interface Register {',
+  '    app: typeof app',
+  '  }',
+  '}',
+  '',
+].join('\n')
+
+// Vite reloads every module on any write to a tsconfig.json, so an unchanged file is left alone
+const writeChanged = async (file: string, content: string) => {
+  if (existsSync(file) && readFileSync(file, 'utf8') === content) return
+  await writeFile(file, content)
+}
+
 /**
  * Writes `.protobase/tsconfig.json` in `projectDir`, which the project's tsconfig.json extends: in a bundled project
  * its `paths` give the @protobase packages and those the serve runtime supplies the types of the CLI that builds the
- * app, with nothing installed; a locked project's installed packages type themselves, so it holds no paths. The
+ * app, with nothing installed; a locked project's installed packages type themselves, so it holds no paths. With a
+ * `config/index.ts` it also writes `.protobase/register.d.ts`, which types the layouts by the app's resources and texts,
+ * and includes it beside the project's files; a project tsconfig.json with an `include` of its own lists it there. The
  * folder ignores itself in git, since the paths are this machine's. An unchanged file is left alone: Vite reloads every
  * module on any write to a tsconfig.json, so another command rewriting it would rebuild a running dev server's API.
  */
@@ -76,8 +100,9 @@ export const writeProjectTypes = async (projectDir: string) => {
   const ignore = path.join(folder, '.gitignore')
   if (!existsSync(ignore)) await writeFile(ignore, '*\n')
   const compilerOptions = projectPackages(projectDir).mode === 'bundled' ? { paths: cliTypePaths() } : {}
-  const file = path.join(projectDir, typesFile)
-  const content = `${JSON.stringify({ compilerOptions }, null, 2)}\n`
-  if (existsSync(file) && readFileSync(file, 'utf8') === content) return
-  await writeFile(file, content)
+  const registered = existsSync(path.join(projectDir, 'config', 'index.ts'))
+  if (registered) await writeChanged(path.join(projectDir, registerFile), register)
+  // Relative to this folder, as an extended tsconfig's include is: the project's own files, and the register
+  const include = registered ? { include: ['../**/*', 'register.d.ts'] } : {}
+  await writeChanged(path.join(projectDir, typesFile), `${JSON.stringify({ compilerOptions, ...include }, null, 2)}\n`)
 }

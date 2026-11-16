@@ -12,8 +12,8 @@ export type RowProps = Styled & { children?: LayoutChildren }
 /** Its children one under another, in a column. */
 export type ColumnProps = Styled & { children?: LayoutChildren }
 
-/** What a `Text` is: a paragraph, a piece of a line, or a heading of a level. */
-export type TextAs = 'p' | 'span' | 'h1' | 'h2' | 'h3' | 'h4'
+/** What a `Text` is: a paragraph, a piece of a line, plain, strong or emphasised, or a heading of a level. */
+export type TextAs = 'p' | 'span' | 'strong' | 'em' | 'h1' | 'h2' | 'h3' | 'h4'
 /** Text, and `Link`s and `Text as="span"`s in it: a paragraph unless `as` says otherwise. */
 export type TextProps = Styled & { as?: TextAs; children?: LayoutChildren }
 

@@ -53,6 +53,8 @@ const Progress: TextForm = ({ node, options }) => {
 const Text: TextForm = ({ node, children }) => {
   const level = headingLevels[String(node.props.as)]
   const line = blocks(children)
+  if (node.props.as === 'strong') return strong(line)
+  if (node.props.as === 'em') return line === '' ? '' : `*${line}*`
   return level === undefined ? line : heading(level, line)
 }
 

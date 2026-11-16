@@ -1,3 +1,4 @@
+import type { Translations } from '@protobase/layout'
 import type { PageModel } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarModel, ResolveOptions, UserMenuModel, ViewModel } from '@protobase/schema'
@@ -62,6 +63,8 @@ export type Deps = {
   webPushKey?: string
   /** The language the admin app's screens are in for everyone, which `/meta` names to everyone. */
   locale?: Locale
+  /** The app's own texts in each of its languages (`translations(...)` exported from the config), which `<Trans>` elements and labels read. */
+  translations?: Translations
   /** The plugins `/meta` names to the callers they are for. */
   plugins: PluginOption[]
   /** The other APIs whose resources `/meta` names to the callers they are for. */

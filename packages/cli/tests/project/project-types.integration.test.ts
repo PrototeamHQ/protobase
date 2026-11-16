@@ -39,21 +39,33 @@ describe('.protobase/tsconfig.json', () => {
     '',
   ].join('\n')
 
-  it("types a bundled project's @protobase and runtime-supplied imports from the CLI, and real mistakes still fail", async () => {
-    await write({ 'package.json': JSON.stringify({ name: 'app', devDependencies: { '@protobase/server': '*' } }), 'tsconfig.json': tsconfig, 'data.ts': data })
+  const config = (column: string) =>
+    [
+      "import { Page, Table, layout, page } from '@protobase/layout'",
+      "export { things } from '../data'",
+      `export const list = page('list', layout(() => Page({ title: 'Things', children: Table({ resource: 'things', columns: ['${column}'], sort: ['id desc'] }) })))`,
+      '',
+    ].join('\n')
+
+  it("types a bundled project's @protobase and runtime-supplied imports from the CLI and its layouts by its resources, and real mistakes still fail", async () => {
+    await write({ 'package.json': JSON.stringify({ name: 'app', devDependencies: { '@protobase/server': '*' } }), 'tsconfig.json': tsconfig, 'data.ts': data, 'config/index.ts': config('id') })
     await writeProjectTypes(projectDir)
     const generated = JSON.parse(await readFile(path.join(projectDir, '.protobase/tsconfig.json'), 'utf8'))
     expect(Object.keys(generated.compilerOptions.paths)).toEqual(expect.arrayContaining(['@protobase/server', '@protobase/layout/jsx-runtime', 'kysely', 'zod']))
     expect(generated.compilerOptions.paths).not.toHaveProperty('*')
     expect(generated.compilerOptions.paths).not.toHaveProperty('react')
+    expect(generated.include).toEqual(['../**/*', 'register.d.ts'])
+    expect(await readFile(path.join(projectDir, '.protobase/register.d.ts'), 'utf8')).toContain("import type * as app from '../config/index'")
     expect(await readFile(path.join(projectDir, '.protobase/.gitignore'), 'utf8')).toBe('*\n')
     expect(typecheck()).toMatchObject({ status: 0, stdout: '' })
 
-    // Both mistakes in one check: each run type-checks the whole CLI's types afresh, which takes most of a minute on CI.
+    // The mistakes in one check: each run type-checks the whole CLI's types afresh, which takes most of a minute on CI.
     await writeFile(path.join(projectDir, 'data.ts'), `${data}export const wrong: string = defineConfig({ name: 'Shop' })\nimport 'left-pad'\n`)
+    await writeFile(path.join(projectDir, 'config/index.ts'), config('nope'))
     const mistakes = typecheck().stdout
     expect(mistakes).toContain("data.ts(7,14): error TS2322: Type 'WithJobs<{}>' is not assignable to type 'string'.")
     expect(mistakes).toContain("Cannot find module or type declarations for side-effect import of 'left-pad'")
+    expect(mistakes).toMatch(/config\/index\.ts\(3,\d+\): error TS2322: Type '"nope"' is not assignable to type 'TableColumn<"things">'/)
   }, 120_000)
 
   it("holds no paths in a locked project, whose installed packages type themselves", async () => {

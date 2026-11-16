@@ -1,5 +1,5 @@
 import { fillFilter, fillText, parseTemplatePath, valueText, wholePlaceholder, type PathLookup } from '@protobase/schema/internal'
-import type { LayoutNode, LayoutValue } from './node'
+import { isLayoutNode, type LayoutNode, type LayoutValue } from './node'
 import { readList } from './select-blocks'
 
 // The records around an element as it draws, and the value a path reads from them, by the same Mustache lookup the
@@ -77,6 +77,11 @@ export const fillProps = (node: LayoutNode, scope: ValueScope): LayoutNode => {
   const lookup = scopeLookup(scope)
   const props = { ...node.props }
   for (const name of textProps) if (typeof props[name] === 'string') props[name] = fillText(props[name], (path) => valueText(lookup(path)))
+  // A <Trans> drawn as a prop's text fills its own values where the element is
+  for (const name of textProps) {
+    const value = props[name]
+    if (isLayoutNode(value) && value.type === 'Trans') props[name] = fillProps(value, scope)
+  }
   for (const name of filterProps) if (typeof props[name] === 'string') props[name] = fillFilter(props[name], lookup)
   if (isObject(props.filter)) props.filter = fillFilterObject(props.filter as Record<string, LayoutValue>, lookup)
   if (props.values !== undefined) props.values = fillValues(props.values, lookup)

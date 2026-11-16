@@ -8,6 +8,7 @@ import { Box, Column, Row, Text } from '../elements'
 import { SelectInput } from '../page-params'
 import * as fields from '../inline-fields'
 import type { LayoutNode } from '../node'
+import { Trans } from '../translations'
 import { renderText } from './render-text'
 
 const text = Text({ children: 'Inside' })
@@ -56,6 +57,7 @@ const samples: Record<string, LayoutNode> = {
   Row: Row({ children: text }),
   Column: Column({ children: text }),
   Text: text,
+  Trans: Trans({ i18nKey: 'today.title' }),
   ReferenceManyField: lists.ReferenceManyField({ reference: 'claims', target: 'task_id', children: lists.RecordsIterator({ children: text }) }),
   ReferenceArrayField: lists.ReferenceArrayField({ source: 'tag_ids', reference: 'tags', children: lists.RecordsIterator({ children: text }) }),
   ArrayField: lists.ArrayField({ source: 'labels', children: lists.RecordsIterator({ children: text }) }),

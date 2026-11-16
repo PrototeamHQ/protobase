@@ -28,6 +28,6 @@ export const recordLayout = <R extends ResourceName>(
   resource: R,
   build: (scope: { data: Recorded<RecordOf<R>>; resources: Resources }) => LayoutChildren,
 ): LayoutNode => {
-  if (typeof resource !== 'string' || resource === '') throw new Error('recordLayout(resource, build) takes the name of the resource whose record page it draws')
+  if (typeof resource !== 'string' || (resource as string) === '') throw new Error('recordLayout(resource, build) takes the name of the resource whose record page it draws')
   return oneNode(build({ data: recorder() as Recorded<RecordOf<R>>, resources: resourcesRecorder() as Resources }), `<recordLayout ${resource}>`)
 }

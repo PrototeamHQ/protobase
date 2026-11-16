@@ -39,6 +39,7 @@
   "dependencies": {
     "@protobase/schema": "workspace:*",
     "aip-parsers": "^1.0.0",
-    "fastest-levenshtein": "^1.0.16"
+    "fastest-levenshtein": "^1.0.16",
+    "intl-messageformat": "^12.1.4"
   }
 }

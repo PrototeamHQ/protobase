@@ -1,5 +1,5 @@
 import type { z } from 'zod'
-import { isPageDefinition, type PageDefinition } from '@protobase/layout'
+import { isPageDefinition, isTranslations, type PageDefinition } from '@protobase/layout'
 import type { AccessSource, BottomBarSource, ComputedReveal, EventMatch, FileProcessor, UserMenuSource, ViewModel } from '@protobase/schema'
 import { isSubscription } from './webhooks/subscription'
 
@@ -24,7 +24,9 @@ export const configExports = (module: Record<string, unknown>) => {
   const values = Object.values(module)
   const pages = values.filter(isPageDefinition)
   const subscriptions = [...new Set(values.filter(isSubscription))]
-  const others = values.filter((value) => !isPageDefinition(value) && !isSubscription(value)) as Array<{ toModel?: unknown; recordSchema?: unknown; toUserMenuModel?: unknown; toBottomBarModel?: unknown }>
+  const texts = values.filter(isTranslations)
+  if (texts.length > 1) throw new Error(`The config module exports ${texts.length} translations; export one translations({ en, ... })`)
+  const others = values.filter((value) => !isPageDefinition(value) && !isSubscription(value) && !isTranslations(value)) as Array<{ toModel?: unknown; recordSchema?: unknown; toUserMenuModel?: unknown; toBottomBarModel?: unknown }>
   const buildable = others.filter((value) => typeof value?.toModel === 'function')
   const menus = others.filter((value) => typeof value?.toUserMenuModel === 'function') as unknown as UserMenuSource[]
   const bottomBars = [...new Set(others.filter((value) => typeof value?.toBottomBarModel === 'function'))] as unknown as BottomBarSource[]
@@ -36,5 +38,6 @@ export const configExports = (module: Record<string, unknown>) => {
     subscriptions,
     bottomBars,
     ...(menus[0] && { userMenu: menus[0] }),
+    ...(texts[0] && { translations: texts[0] }),
   }
 }
