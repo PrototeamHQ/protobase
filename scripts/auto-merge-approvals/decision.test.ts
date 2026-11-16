@@ -148,7 +148,30 @@ describe('refusal', () => {
   })
 
   it('refuses the bot approving over its own change request on the head, as its approve command can', () => {
-    expect(decide({ reviews: [review({ state: 'CHANGES_REQUESTED' }), review()] })).toContain('came after')
+    expect(decide({ reviews: [review({ state: 'CHANGES_REQUESTED' }), review()] })).toContain('after its own change request')
+  })
+
+  it('names the change request it approved after, on the real reviews and timeline of a pull request', () => {
+    // PrototeamHQ/protobase#411's reviews and its approval label, cut to the fields the decision reads.
+    const sha = '40103bee'.padEnd(40, '0')
+    const at = (login: string, state: string, submitted_at: string) => ({ user: { login }, state, commit_id: sha, submitted_at })
+    const reviews = [
+      at('coderabbitai[bot]', 'CHANGES_REQUESTED', '2026-11-16T17:56:26Z'),
+      at('mitchellderijcke', 'COMMENTED', '2026-11-16T18:16:21Z'),
+      at('mitchellderijcke', 'COMMENTED', '2026-11-16T18:50:25Z'),
+      at('coderabbitai[bot]', 'COMMENTED', '2026-11-16T18:51:20Z'),
+      at('coderabbitai[bot]', 'APPROVED', '2026-11-16T18:51:26Z'),
+    ]
+    const timeline = [
+      { event: 'committed' },
+      { event: 'labeled', created_at: '2026-11-16T17:48:24Z', label: { name: 'auto-merge-approvals' } },
+      { event: 'commented', created_at: '2026-11-16T17:48:41Z' },
+      { event: 'reviewed' },
+    ]
+    const real = { pull: { ...pull, user: { login: 'mitchellderijcke' }, head: { ...pull.head, sha } }, reviews, timeline, roles: { mitchellderijcke: 'admin' } }
+    expect(decide(real)).toBe('coderabbitai[bot] approved 40103be after its own change request on it, so it needs an approval from an account with write access or that change request dismissed')
+    const dismissed = reviews.map((item) => (item.state === 'CHANGES_REQUESTED' ? { ...item, state: 'DISMISSED' } : item))
+    expect(decide({ ...real, reviews: dismissed })).toBeNull()
   })
 
   it('takes an approval from an account with write access in those two cases', () => {
