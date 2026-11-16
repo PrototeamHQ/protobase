@@ -356,6 +356,19 @@ export const SignUpDetailsPasswordOnly: StoryObj<SignUpDetailsFormProps> = {
   },
 }
 
+export const SignUpDetailsAddressOnly: StoryObj<SignUpDetailsFormProps> = {
+  tags: ['play'],
+  args: { email: 'nia@homes.example', methods: ['password'], askName: false, onSubmit: fn(), onBack: fn() },
+  render: (args) => <SignUpDetailsForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.queryByLabelText('Your name')).toBeNull()
+    await userEvent.type(canvas.getByLabelText('Password'), 'correct horse battery')
+    await userEvent.click(canvas.getByRole('button', { name: 'Create account' }))
+    expect(args.onSubmit).toHaveBeenCalledWith({ password: 'correct horse battery' })
+  },
+}
+
 export const EmailCodeWrong: StoryObj<EmailCodeFormProps> = {
   args: { email: 'sanne@veldhuis-supply.example', onSubmit: fn(), onResend: fn(), onBack: fn(), error: 'The code is not right, or has expired. Ask for a new one.' },
   render: (args) => <EmailCodeForm {...args} />,

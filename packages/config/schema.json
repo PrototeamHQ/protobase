@@ -1936,7 +1936,7 @@
           ]
         },
         "signUp": {
-          "description": "Open sign-up: anyone makes their own account from the sign-in page, with `role`, after proving their address with\nan emailed code. Off by default, so accounts come only from the host, an admin, an invitation or a sign-in provider.\nNeeds a mailer: without one it is not offered. `role` is one of `roles` and never `admin`; give it the least\na stranger may hold. Not with `organizations`, whose people come from invitations. `domains`, for example\n`['example.com']`, limits it to addresses there (subdomains count); `PROTOBASE_SIGN_UP_DOMAINS`, when set, replaces\nit. An empty list leaves open sign-up off.",
+          "description": "Open sign-up: anyone makes their own account from the sign-in page, with `role`, after proving their address with\nan emailed code. Off by default, so accounts come only from the host, an admin, an invitation or a sign-in provider.\nNeeds a mailer: without one it is not offered. `role` is one of `roles` and never `admin`; give it the least\na stranger may hold. Not with `organizations`, whose people come from invitations. `domains`, for example\n`['example.com']`, limits it to addresses there (subdomains count); `PROTOBASE_SIGN_UP_DOMAINS`, when set, replaces\nit. An empty list leaves open sign-up off. `fields` is what it asks for: `['email', 'name']` by default, or\n`['email']`, when the emailed sign-in code makes the account of an address without one on the spot.",
           "anyOf": [
             {
               "type": "object",
@@ -1959,6 +1959,29 @@
                         "anyOf": [
                           {
                             "type": "string"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "fields": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "enum": [
+                              "email",
+                              "name"
+                            ]
                           },
                           {
                             "$ref": "#/definitions/EnvValue"
@@ -2359,7 +2382,7 @@
             {
               "type": "object",
               "properties": {
-                "name": {
+                "email": {
                   "anyOf": [
                     {
                       "type": "string"
@@ -2369,7 +2392,7 @@
                     }
                   ]
                 },
-                "email": {
+                "name": {
                   "anyOf": [
                     {
                       "type": "string"

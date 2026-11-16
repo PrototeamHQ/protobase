@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
-import { AuthError, createStaticSession, type AuthSession, type AuthUser, type Client, type ResourcePermissions } from '@protobase/client'
+import { AuthError, createStaticSession, type AuthSession, type AuthUser, type Client, type ResourcePermissions, type SignUpField } from '@protobase/client'
 import { f, resource, view, type SignInViewModel } from '@protobase/schema'
 import { App } from '../app'
 import { fakeApi } from '../testing/fake-api'
@@ -65,14 +65,14 @@ const memberApi = () =>
 const code = '246810'
 
 // A server with open sign-up and an anonymous role: nobody is signed in until the emailed code makes an account.
-const openSignUp = () => {
+const openSignUp = (signUpFields: SignUpField[]) => {
   const base = createStaticSession('story-token', { id: 'story', email: 'story@example.test', name: 'Story', role: 'member' })
   const mailed = new Set<string>()
   const tickets = new Map<string, string>()
   let user: AuthUser | undefined
   const session: AuthSession = {
     ...base,
-    status: async () => ({ ...(await base.status()), signInMethods: ['password', 'emailCode'], anonymous: true, signUp: true }),
+    status: async () => ({ ...(await base.status()), signInMethods: ['password', 'emailCode'], anonymous: true, signUp: true, signUpFields }),
     session: async () => user,
     sendSignUpCode: async (email) => void mailed.add(email),
     verifySignUpCode: async (email, given) => {
@@ -85,16 +85,16 @@ const openSignUp = () => {
       const email = tickets.get(input.ticket)
       if (!email) throw new AuthError('This sign-up took too long. Start again with your email address.', 400, 'SIGN_UP_TICKET_INVALID')
       tickets.delete(input.ticket)
-      user = { id: 'new-member', email, name: input.name, role: 'member' }
+      user = { id: 'new-member', email, name: input.name ?? '', role: 'member' }
       return user
     },
   }
   return { session, signedUp: () => user !== undefined }
 }
 
-const Portal = () => {
+const Portal = ({ signUpFields = ['email', 'name'] }: { signUpFields?: SignUpField[] }) => {
   const [{ client, session }] = useState(() => {
-    const auth = openSignUp()
+    const auth = openSignUp(signUpFields)
     const visitor = visitorApi().client
     const member = memberApi().client
     // The API answers as the anonymous role until the account exists, and as the new member after.
@@ -164,5 +164,25 @@ export const FromTheSignInPage: StoryObj = {
     await userEvent.click(canvas.getByRole('link', { name: 'Create an account' }))
     await userEvent.click(await canvas.findByRole('button', { name: 'Continue without an account' }))
     expect(await canvas.findByText('Keizersgracht 12')).toBeVisible()
+  },
+}
+
+export const FromTheAddressAlone: StoryObj = {
+  name: 'Visitor: an account from the address alone',
+  tags: ['play'],
+  render: () => <Portal signUpFields={['email']} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByText('Keizersgracht 12')
+    await userEvent.click(canvas.getByRole('link', { name: 'Sign in' }))
+    await userEvent.click(await canvas.findByRole('link', { name: 'Create an account' }))
+    await userEvent.type(await canvas.findByLabelText('Email'), 'nia@homes.example')
+    await userEvent.click(canvas.getByRole('button', { name: 'Email me a code' }))
+    expect(await canvas.findByRole('heading', { name: 'Check your email' })).toBeVisible()
+    await userEvent.type(canvas.getByLabelText('Code'), code)
+
+    // The right code makes the account: no name, and no password while emailed codes sign in
+    expect(await canvas.findByRole('button', { name: 'Profile menu' })).toBeVisible()
+    expect(canvas.queryByRole('heading', { name: 'Your details' })).toBeNull()
   },
 }

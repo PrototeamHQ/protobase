@@ -103,6 +103,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
         ...(body.changeEmail && { changeEmail: true }),
         ...(body.accountDeletion && { accountDeletion: true }),
         ...(body.signUp && { signUp: true }),
+        ...(body.signUp && body.signUpFields && { signUpFields: body.signUpFields }),
         socialProviders: body.socialProviders ?? [],
         ...(body.platformSignIn && { platformSignIn: body.platformSignIn }),
         samlProviders: body.samlProviders ?? [],

@@ -172,7 +172,7 @@ export { usersPage } from '@protobase/layout'      // at /accounts, for admins
 export const accountMenu = userMenu((m) => [m.page('accounts', { label: 'Users', icon: 'users' })])
 ```
 
-New apps have it already. Leave the export out to drop it, or make a page of your own around the [`Users` block](/reference/blocks/#users). It works with or without [organizations](#organizations): an invitation to the app makes an account with the roles the admin ticked, from the same link page and sign-up as an organization's invitation, and someone with an account just signs in. Listing, creating, roles and blocking are Better Auth's admin endpoints (`/api/auth/admin/list-users`, `create-user`, `set-role`, `ban-user`, `unban-user`), whose roles go as a list; the rest are Protobase's, for admins only:
+New apps have it already. Leave the export out to drop it, or make a page of your own around the [`Users` block](/reference/blocks/#users). It works with or without [organizations](#organizations): an invitation to the app makes an account with the roles the admin ticked, from the same link page and sign-up as an organization's invitation, or from [open sign-up](#open-sign-up) with the invited address, and someone with an account just signs in. Listing, creating, roles and blocking are Better Auth's admin endpoints (`/api/auth/admin/list-users`, `create-user`, `set-role`, `ban-user`, `unban-user`), whose roles go as a list; the rest are Protobase's, for admins only:
 
 | Endpoint | Does |
 | --- | --- |
@@ -335,7 +335,7 @@ auth: { signInFirst: 'emailCode' }
 ```
 
 - A code works for 10 minutes, once, and three wrong tries end it; asking again sends a new one and the old one stops working. Codes are stored hashed.
-- It never creates an account: an address no account uses gets no code but an email saying so, which suggests signing in with the address the person signed up with. The answer is the same either way, so it does not tell who has an account.
+- It creates no account, unless [open sign-up asks for the address only](#sign-up-with-the-address-only): an address no account uses gets no code but an email saying so, which suggests signing in with the address the person signed up with. The answer is the same either way, so it does not tell who has an account.
 - Only sign-in codes are mailed this way. The plugin's own email verification and password reset endpoints are off (`404`), and asking for another type of code answers `400`. Its address change is on, as [Changing the address](#changing-the-address) describes.
 - An account with [two-factor authentication](#two-factor-authentication) is asked for its second step after the code too, as after a password.
 - An account created by Protobase 0.3 or earlier, which has a password, is marked verified the first time it uses a code. Otherwise Better Auth would treat the code as taking over an unverified account and delete its password.
@@ -354,11 +354,28 @@ The sign-in page then offers "Create an account", and so do [sign-in prompts](/r
 - It needs mail: without a mailer it is not offered, `GET /api/auth/status` has no `signUp`, and its endpoints answer `404`. Not with [organizations](#organizations), whose people join by invitation.
 - `POST /api/auth/sign-up/send-code` with `{ email }` mails the code. It answers the same whether the address has an account or not; an address that has one is mailed a note saying so instead of a code, with a link to the sign-in page, so nobody can tell from the answer, and no second account is made.
 - `POST /api/auth/sign-up/verify-code` with `{ email, code }` checks the code on its own and answers `{ ticket }`. A code works for 10 minutes, once, and three wrong tries end it; asking again sends a new one. Codes are stored hashed.
-- `POST /api/auth/sign-up/create` with `{ ticket, name, password? }` makes the account for the address whose code was right, and signs in. A ticket works for 30 minutes, once, and is stored hashed; a password the policy refuses leaves it for another try. A used or expired one answers `SIGN_UP_TICKET_INVALID`, and the sign-up starts again with the address.
+- `POST /api/auth/sign-up/create` with `{ ticket, name, password? }` makes the account for the address whose code was right, and signs in. `name` is optional when sign-up [asks for the address only](#sign-up-with-the-address-only). A ticket works for 30 minutes, once, and is stored hashed; a password the policy refuses leaves it for another try. A used or expired one answers `SIGN_UP_TICKET_INVALID`, and the sign-up starts again with the address.
 - The password follows the [sign-in policy](#sign-in-policy) as for an invitation: none while passwords are off, optional while emailed codes are on, 12 characters or more. What the policy requires, such as two-factor authentication, is set up after the first sign-in, as for every account.
+- An address with a pending [invitation to the app](#users-page) gets its account through the invitation: with the roles the admin ticked instead of `role`, and the invitation is used up, as its link would. A revoked or expired invitation counts as none.
 - The three requests are limited per minute and client like sign-in (`signInPerMinute`, default 5), and refused (`NO_ADMIN_YET`) while the store has no user.
 - The `onUserCreated` [hook](#hooks) runs for every account made this way.
 - `createAuthSession` from `@protobase/client` has the three steps as `sendSignUpCode(email)`, `verifySignUpCode(email, code)`, which resolves to the ticket, and `signUp({ ticket, name, password? })`, which resolves to the signed-in user.
+
+### Sign-up with the address only
+
+An app that needs nothing but a verified address, such as a sign-in server other apps send their people to, has open sign-up ask for the address alone:
+
+```ts
+auth: { roles: ['admin', 'member'], signUp: { role: 'member', fields: ['email'] } }
+```
+
+- `fields` is what sign-up asks for: `['email', 'name']` by default, or `['email']`. The address is always one of them; any other list stops the app at start with an error.
+- The [emailed sign-in code](#emailed-sign-in-codes) then signs in an address that has an account, and makes the account of one that has none, on the spot, once its code is right: verified, with `role`, and an empty name the person can fill in on the [account page](#account-page). Asking for the code answers the same and mails the same email whether the address has an account or not.
+- An address with a pending [invitation to the app](#users-page) gets its account through it, as with the sign-up page: the invited roles, and the invitation used up. A revoked or expired one counts as none.
+- An address open sign-up does not take, outside [its domains](#sign-up-for-email-domains) or while the store has no user, still gets the no-account email and no account. While the [sign-in policy](#sign-in-policy) turns emailed codes off, asking for one is refused and nothing is made.
+- "Create an account" makes the account as soon as its code is right, without asking a name; while the policy needs a password, because emailed codes are off, the last page asks only for that.
+- `GET /api/auth/status` answers `signUpFields: ["email"]`, and `["email", "name"]` by default, beside `signUp`.
+- Not with [organizations](#organizations), like all open sign-up: their people come in by invitation, and the emailed code never makes an account there.
 
 ### Sign-up for email domains
 

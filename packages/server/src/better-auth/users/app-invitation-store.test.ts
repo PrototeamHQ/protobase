@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AuthContext } from '../organizations/store'
-import { createAppInvitation, deleteAppInvitation, findAppInvitation, listAppInvitations } from './app-invitation-store'
+import { createAppInvitation, deleteAppInvitation, findAppInvitation, findAppInvitationOf, listAppInvitations } from './app-invitation-store'
 
 type Row = { identifier: string; value: string; expiresAt: Date; createdAt: Date }
 
@@ -45,11 +45,20 @@ describe('app invitations', () => {
     expect(again.id).not.toBe(other.id)
   })
 
+  it('are found by address, whatever its case', async () => {
+    const { context } = fakeContext()
+    await createAppInvitation(context, { email: 'bo@example.com', roles: ['user'], inviterId: 'root' }, 7 * day)
+    const invitation = await createAppInvitation(context, { email: 'ana@example.com', roles: ['sales'], inviterId: 'root' }, 7 * day)
+    expect(await findAppInvitationOf(context, 'Ana@Example.com')).toEqual(invitation)
+    expect(await findAppInvitationOf(context, 'cy@example.com')).toBeUndefined()
+  })
+
   it('stop being listed or found once they expire', async () => {
     const { context } = fakeContext()
     const invitation = await createAppInvitation(context, { email: 'ana@example.com', roles: ['sales'], inviterId: 'root' }, day)
     vi.useFakeTimers({ toFake: ['Date'], now: Date.now() + day * 1000 + 1 })
     expect(await listAppInvitations(context)).toEqual([])
     expect(await findAppInvitation(context, invitation.id)).toBeUndefined()
+    expect(await findAppInvitationOf(context, 'ana@example.com')).toBeUndefined()
   })
 })

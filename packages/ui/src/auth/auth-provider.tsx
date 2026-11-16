@@ -33,6 +33,8 @@ export type AuthApi = {
   personalAccessTokens: boolean
   /** Anyone can make their own account, so the sign-in page and sign-in prompts offer "Create an account". */
   canSignUp: boolean
+  /** Open sign-up asks for the person's name, as it does unless the app asks for the address only. */
+  signUpAsksName: boolean
   /** The domains people's passkeys were made for, when more than one, the passkey domain first; otherwise empty. */
   passkeyDomains: string[]
   /** Each sign-in step rejects with `AuthError`, for the form to show. */
@@ -44,7 +46,7 @@ export type AuthApi = {
   /** Checks the emailed sign-up code on its own; resolves with the ticket that makes the account with `signUp`. */
   verifySignUpCode: (email: string, code: string) => Promise<string>
   /** Makes the account for the address whose code was right, with the ticket that answered it, and signs in with it. */
-  signUp: (input: { ticket: string; name: string; password?: string }) => Promise<void>
+  signUp: (input: { ticket: string; name?: string; password?: string }) => Promise<void>
   /** With a passkey of the app's passkey domain, or of `domain`, one of `passkeyDomains`. */
   signInWithPasskey: (domain?: string) => Promise<void>
   /** The second step, while `state` is `two-factor`. */
@@ -148,6 +150,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
   const mcp = status?.mcp
   const personalAccessTokens = Boolean(status?.personalAccessTokens)
   const canSignUp = Boolean(status?.signUp)
+  const signUpAsksName = status?.signUpFields?.includes('name') ?? true
   const passkeyDomains = status?.passkeyDomains ?? none
   const socialProviders = status?.socialProviders ?? none
   const platformSignIn = status?.platformSignIn
@@ -270,6 +273,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
       mcp,
       personalAccessTokens,
       canSignUp,
+      signUpAsksName,
       passkeyDomains,
       socialProviders,
       signInProviders: [...socialProviders.map((id) => ({ id, name: providerName(id, platformSignIn) })), ...samlProviders],
@@ -337,7 +341,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
       },
       push,
     }),
-    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, personalAccessTokens, canSignUp, passkeyDomains, socialProviders, platformSignIn, personalMail, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, identity, signedOutState, markSignedOut, recheck, finish, signIn],
+    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, personalAccessTokens, canSignUp, signUpAsksName, passkeyDomains, socialProviders, platformSignIn, personalMail, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, identity, signedOutState, markSignedOut, recheck, finish, signIn],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

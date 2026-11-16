@@ -26,11 +26,14 @@ export type SignUpPageProps = {
 
 /**
  * Makes an account on a server with open sign-up: the address, then the code emailed to it on its own, then the
- * person's name and password. The new account is signed in, and sets up what the sign-in policy requires as after any
- * sign-in.
+ * person's name and password. When the server asks for the address only, the right code makes the account, unless the
+ * policy needs a password, which the last step then asks for alone. The new account is signed in, and sets up what the
+ * sign-in policy requires as after any sign-in.
  */
 export const SignUpPage = ({ workspace, email, ticket, onCodeSent, onVerified, onBack, onSignIn, onBrowse }: SignUpPageProps) => {
-  const { signInMethods, sendSignUpCode, verifySignUpCode, signUp } = useAuth()
+  const { signInMethods, sendSignUpCode, verifySignUpCode, signUp, signUpAsksName } = useAuth()
+  // A password is needed while passwords are on and emailed codes off.
+  const asksDetails = signUpAsksName || (signInMethods.includes('password') && !signInMethods.includes('emailCode'))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
@@ -71,7 +74,11 @@ export const SignUpPage = ({ workspace, email, ticket, onCodeSent, onVerified, o
         error={error}
         notice={notice}
         onBack={onBack}
-        onSubmit={(code) => void attempt(async () => onVerified(await verifySignUpCode(email, code)))}
+        onSubmit={(code) => void attempt(async () => {
+          const verified = await verifySignUpCode(email, code)
+          if (asksDetails) onVerified(verified)
+          else await signUp({ ticket: verified })
+        })}
         onResend={() => void attempt(async () => {
           await sendSignUpCode(email)
           setNotice(text('newCodeSent'))
@@ -83,6 +90,7 @@ export const SignUpPage = ({ workspace, email, ticket, onCodeSent, onVerified, o
     <SignUpDetailsForm
       email={email}
       methods={signInMethods}
+      askName={signUpAsksName}
       busy={busy}
       error={error}
       onBack={onBack}
