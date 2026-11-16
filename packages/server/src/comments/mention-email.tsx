@@ -1,23 +1,57 @@
-import { Text } from 'react-email'
-import { EmailButton, EmailLayout, EmailNote } from '../mail/email-layout'
-import type { MailingApp } from '../mail/mailing-app'
-import { defineEmail } from '../mail/define-email'
+/** @jsxImportSource @protobase/layout */
+import { ArrayField, Button, RecordsIterator, Text, Trans, translations } from '@protobase/layout'
+import { defineTemplate } from '../mail/template/define-template'
 
-export type MentionData = { app: MailingApp; author: string; record: string; body: string; url: string }
+/** The comment comes as its lines, `commentLines(body)`, so each keeps its own line in both parts. */
+export type MentionData = { author: string; record: string; lines: { text: string }[]; url: string }
 
-// The comment keeps its line breaks in both parts: as <br> in the HTML one, which the plain-text one turns back into breaks.
-const MentionEmail = ({ app, author, record, body, url }: MentionData) => (
-  <EmailLayout app={app} preview={`${author} mentioned you on ${record}`} heading={`${author} mentioned you`}>
-    <Text>
-      {author} mentioned you in a comment on {record} in {app.name}:
-    </Text>
-    <Text style={{ whiteSpace: 'pre-wrap' }}>
-      {body.split('\n').flatMap((line, index) => (index === 0 ? [line] : [<br key={index} />, line]))}
-    </Text>
-    <EmailButton href={url}>Open {record}</EmailButton>
-    <EmailNote>You get this email because someone mentioned you. Reply in the app, not to this email.</EmailNote>
-  </EmailLayout>
-)
+/** A comment's text as the mention email takes it: one item per line. */
+export const commentLines = (body: string) => body.split('\n').map((text) => ({ text }))
+
+const texts = translations({
+  en: {
+    subject: '{author} mentioned you on {record}',
+    preview: '{author} mentioned you on {record}',
+    heading: '{author} mentioned you',
+    intro: '{author} mentioned you in a comment on {record} in {app}:',
+    action: 'Open {record}',
+    note: 'You get this email because someone mentioned you. Reply in the app, not to this email.',
+  },
+  nl: {
+    subject: '{author} heeft je genoemd bij {record}',
+    preview: '{author} heeft je genoemd bij {record}',
+    heading: '{author} heeft je genoemd',
+    intro: '{author} heeft je genoemd in een opmerking bij {record} in {app}:',
+    action: '{record} openen',
+    note: 'Je krijgt deze e-mail omdat iemand je heeft genoemd. Reageer in de app, niet op deze e-mail.',
+  },
+})
 
 /** The email to someone a comment mentions: who wrote it on which record, the comment, and a link to the record. */
-export const mentionEmail = defineEmail({ name: 'mention', subject: ({ author, record }: MentionData) => `${author} mentioned you on ${record}`, component: MentionEmail })
+export const mentionEmail = defineTemplate<MentionData>({
+  name: 'mention',
+  texts,
+  subject: ({ data }) => <Trans i18nKey="subject" values={{ author: data.author, record: data.record }} />,
+  preview: ({ data }) => <Trans i18nKey="preview" values={{ author: data.author, record: data.record }} />,
+  body: ({ data, app }) => (
+    <>
+      <Text as="h1">
+        <Trans i18nKey="heading" values={{ author: data.author }} />
+      </Text>
+      <Text>
+        <Trans i18nKey="intro" values={{ author: data.author, record: data.record, app: app.name }} />
+      </Text>
+      <ArrayField source="lines">
+        <RecordsIterator>
+          <Text>{'{{text}}'}</Text>
+        </RecordsIterator>
+      </ArrayField>
+      <Button href={`${data.url}`}>
+        <Trans i18nKey="action" values={{ record: data.record }} />
+      </Button>
+      <Text>
+        <Trans i18nKey="note" />
+      </Text>
+    </>
+  ),
+})

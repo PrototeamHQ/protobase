@@ -61,6 +61,8 @@ Every built-in screen is translated: the shell with its sidebar, top bar, search
 
 The screens where people add [tables of their own](/reference/user-tables/#in-the-admin-app) are translated too: the tables list, a table's page with its fields, and the forms that make a table and a field, with the names of the field types. So are the other lists Protobase adds beside your resources, failed jobs, activity and comments, with their record pages, sections and actions.
 
+Protobase's [own emails](/reference/email/#protobases-own-mail) are translated too: the sign-in, two-factor, sign-up and confirmation codes, the notes to an address that has an account or has none, password reset and the note that a password changed, invitations, staff sign-in notices and the email to someone a comment mentions. An auth email is in the app's `locale`, or else in the language of the browser that asked for it; the mention email is in the app's `locale`, or else in English.
+
 The approvals an AI client asks for over [MCP](/reference/mcp/#writes) are translated too, with their buttons and the refusal for a client that cannot ask: in the app's `locale`, or else in the language the client's request accepts.
 
 The other texts a plugin or the server writes itself, such as an error message the API sends back, show as they are written.

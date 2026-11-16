@@ -16,7 +16,17 @@ describe('sendAuthEmail', () => {
 
   it('links the app on its base URL outside a request', async () => {
     const { sent, mail } = recording()
-    await sendAuthEmail(mail, 'signInCodeEmail', 'ada@example.com', { code: '123456', lifetime: '10 minutes' })
+    await sendAuthEmail(mail, 'signInCodeEmail', 'ada@example.com', { code: '123456', minutes: 10 })
     expect(sent[0]!.text).toContain('Property Finder https://homes.example.com/')
+  })
+
+  it("sends in the request's language, with a date written in it", async () => {
+    const { sent, mail } = recording()
+    const expiresAt = new Date('2026-10-15T12:00:00Z')
+    await sendAuthEmail(mail, 'appInvitationEmail', 'ada@example.com', { inviter: 'Bo', url: 'https://homes.example.com/-/invitation?token=t', expiresAt }, undefined, 'nl')
+    await sendAuthEmail(mail, 'appInvitationEmail', 'ada@example.com', { inviter: 'Bo', url: 'https://homes.example.com/-/invitation?token=t', expiresAt })
+    expect(sent.map((message) => message.subject)).toEqual(['Word lid van Property Finder', 'Join Property Finder'])
+    expect(sent[0]!.text).toContain('De link werkt tot 15 oktober 2026 om 12:00 UTC.')
+    expect(sent[1]!.text).toContain('The link works until October 15, 2026 at 12:00 PM UTC.')
   })
 })

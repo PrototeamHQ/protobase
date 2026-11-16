@@ -451,10 +451,10 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(passwordHashes.length > 0 && { password: { verify: verifyAcceptedHash(passwordHashes) } }),
       ...(mail &&
         passwordResetOptions(mail, {
-          onPasswordReset: async ({ user }) => {
+          onPasswordReset: async ({ user }, request) => {
             const auth = await context()
             if (mcp) await revokeMcpGrants(auth.adapter, user.id)
-            await mailPasswordChanged({ context: auth }, mail, user.email)
+            await mailPasswordChanged({ context: auth, headers: request?.headers }, mail, user.email)
           },
         })),
     },

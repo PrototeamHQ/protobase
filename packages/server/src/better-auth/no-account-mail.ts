@@ -1,5 +1,6 @@
 import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthMiddleware } from 'better-auth/api'
+import { headersLocale } from '../locale/request-locale'
 import { sendAuthEmail, type AuthMail } from './auth-mail/send-auth-email'
 
 /**
@@ -21,7 +22,7 @@ export const noAccountMailPlugin = (mail: AuthMail) =>
             if (type !== 'sign-in') return
             const address = email.toLowerCase()
             if (await ctx.context.internalAdapter.findUserByEmail(address)) return
-            await ctx.context.runInBackgroundOrAwait(sendAuthEmail(mail, 'noAccountEmail', address, {}, ctx.context.baseURL))
+            await ctx.context.runInBackgroundOrAwait(sendAuthEmail(mail, 'noAccountEmail', address, {}, ctx.context.baseURL, headersLocale(ctx.headers)))
           }),
         },
       ],

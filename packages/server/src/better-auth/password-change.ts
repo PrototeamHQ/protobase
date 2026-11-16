@@ -1,16 +1,17 @@
 import type { AuthContext, BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint, createAuthMiddleware } from 'better-auth/api'
 import * as z from 'zod'
+import { headersLocale } from '../locale/request-locale'
 import { sendAuthEmail, type AuthMail } from './auth-mail/send-auth-email'
 import { setPasswordPath } from './set-password'
 
 /**
  * Mails `email` that its account's password changed, when the app has mail: in the background, as Better Auth sends
- * its own mail, so the answer does not wait on the mail server.
+ * its own mail, so the answer does not wait on the mail server. It comes in the language of the request's `headers`.
  */
-export const mailPasswordChanged = async (ctx: { context: Pick<AuthContext, 'baseURL' | 'runInBackgroundOrAwait'> }, mail: AuthMail | undefined, email: string) => {
+export const mailPasswordChanged = async (ctx: { context: Pick<AuthContext, 'baseURL' | 'runInBackgroundOrAwait'>; headers?: Headers | undefined }, mail: AuthMail | undefined, email: string) => {
   if (!mail) return
-  await ctx.context.runInBackgroundOrAwait(sendAuthEmail(mail, 'passwordChangedEmail', email, {}, ctx.context.baseURL))
+  await ctx.context.runInBackgroundOrAwait(sendAuthEmail(mail, 'passwordChangedEmail', email, {}, ctx.context.baseURL, headersLocale(ctx.headers)))
 }
 
 type FinishedChange = { path?: string; body?: unknown; context: { session?: { user: { email: string } } | null; returned?: unknown } }

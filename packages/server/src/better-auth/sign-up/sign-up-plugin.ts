@@ -2,10 +2,11 @@ import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
 import * as z from 'zod'
+import { headersLocale } from '../../locale/request-locale'
 import { sendAuthEmail, type AuthMail } from '../auth-mail/send-auth-email'
 import { checkNewAccountPassword } from '../new-account-password'
 import { readSignInPolicy } from '../policy-store'
-import { codeLifetime } from '../sign-in-mail'
+import { codeMinutes } from '../sign-in-mail'
 import { effectiveSignInPolicy, type SignInPolicy } from '../sign-in-policy'
 import { createSignedUpAccount } from './sign-up-account'
 import { consumeSignUpCode, issueSignUpCode } from './sign-up-code'
@@ -43,8 +44,8 @@ export const signUpPlugin = ({ role, mail, defaultPolicy }: SignUpPluginOptions)
         const { internalAdapter, adapter } = ctx.context
         if ((await adapter.count({ model: 'user' })) === 0) throw noAdminYet()
         const sending = (await internalAdapter.findUserByEmail(email))
-          ? sendAuthEmail(mail, 'accountExistsEmail', email, {}, ctx.context.baseURL)
-          : sendAuthEmail(mail, 'signUpCodeEmail', email, { code: await issueSignUpCode(ctx.context, email), lifetime: codeLifetime }, ctx.context.baseURL)
+          ? sendAuthEmail(mail, 'accountExistsEmail', email, {}, ctx.context.baseURL, headersLocale(ctx.headers))
+          : sendAuthEmail(mail, 'signUpCodeEmail', email, { code: await issueSignUpCode(ctx.context, email), minutes: codeMinutes }, ctx.context.baseURL, headersLocale(ctx.headers))
         await ctx.context.runInBackgroundOrAwait(sending)
         return ctx.json({ sent: true })
       }),

@@ -1,9 +1,10 @@
 import type { AuthContext, BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint, sessionMiddleware } from 'better-auth/api'
 import * as z from 'zod'
+import { headersLocale } from '../locale/request-locale'
 import { sendAuthEmail, type AuthMail } from './auth-mail/send-auth-email'
 import { checkConfirmationCode, dropConfirmationCode, newConfirmationCode, saveConfirmationCode, type CodeCheck } from './confirmation-codes'
-import { codeLifetime } from './sign-in-mail'
+import { codeMinutes } from './sign-in-mail'
 import { hasPasskeyOrSecondStep } from './strong-factors'
 import { saveStrongSignIn } from './strong-sign-ins'
 
@@ -43,7 +44,7 @@ export const confirmationCodePlugin = (mail: AuthMail) =>
         const holder = { userId: signed.user.id, sessionId: signed.session.id }
         await dropConfirmationCode(ctx.context.internalAdapter, holder.sessionId)
         const code = newConfirmationCode()
-        await sendAuthEmail(mail, 'confirmationCodeEmail', signed.user.email, { code, lifetime: codeLifetime }, ctx.context.baseURL)
+        await sendAuthEmail(mail, 'confirmationCodeEmail', signed.user.email, { code, minutes: codeMinutes }, ctx.context.baseURL, headersLocale(ctx.headers))
         await saveConfirmationCode(ctx.context.internalAdapter, holder, code)
         return ctx.json({ status: true })
       }),

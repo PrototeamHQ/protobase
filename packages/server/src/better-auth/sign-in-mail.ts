@@ -1,11 +1,12 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { emailOTP, twoFactor } from 'better-auth/plugins'
 import { emailCodeMinutes } from '@protobase/schema/internal'
+import { headersLocale } from '../locale/request-locale'
 import { sendAuthEmail, type AuthMail } from './auth-mail/send-auth-email'
 
-/** How long an emailed code works: in seconds for the sign-in code, and in the email's words. */
+/** How long an emailed code works: in seconds for the sign-in code, and in minutes for the email. */
 export const codeLifetimeSeconds = emailCodeMinutes * 60
-export const codeLifetime = `${emailCodeMinutes} minutes`
+export const codeMinutes = emailCodeMinutes
 
 type EmailOtpOptions = Parameters<typeof emailOTP>[0]
 
@@ -21,7 +22,7 @@ export const emailCodeOptions = (mail: AuthMail) =>
     storeOTP: 'hashed',
     changeEmail: { enabled: true },
     sendVerificationOTP: ({ email, otp, type }, ctx) =>
-      sendAuthEmail(mail, type === 'change-email' ? 'changeEmailCodeEmail' : 'signInCodeEmail', email, { code: otp, lifetime: codeLifetime }, ctx?.context.baseURL),
+      sendAuthEmail(mail, type === 'change-email' ? 'changeEmailCodeEmail' : 'signInCodeEmail', email, { code: otp, minutes: codeMinutes }, ctx?.context.baseURL, headersLocale(ctx?.headers)),
   }) satisfies EmailOtpOptions
 
 /** The email OTP plugin's endpoints Protobase does not use; `createAuth` turns them off. */
@@ -40,5 +41,5 @@ export const twoFactorCodeOptions = (mail: AuthMail) =>
   ({
     period: emailCodeMinutes,
     storeOTP: 'hashed',
-    sendOTP: ({ user, otp }, ctx) => sendAuthEmail(mail, 'twoFactorCodeEmail', user.email, { code: otp, lifetime: codeLifetime }, ctx?.context.baseURL),
+    sendOTP: ({ user, otp }, ctx) => sendAuthEmail(mail, 'twoFactorCodeEmail', user.email, { code: otp, minutes: codeMinutes }, ctx?.context.baseURL, headersLocale(ctx?.headers)),
   }) satisfies TwoFactorOptions['otpOptions']

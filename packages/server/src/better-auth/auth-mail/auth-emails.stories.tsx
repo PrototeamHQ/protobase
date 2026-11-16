@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, waitFor } from 'storybook/test'
-import { mentionEmail } from '../../comments/mention-email'
+import { commentLines, mentionEmail } from '../../comments/mention-email'
 import type { RenderedEmail } from '../../mail/define-email'
-import { accountExistsEmail, changeEmailCodeEmail, confirmationCodeEmail, invitationEmail, noAccountEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
+import { accountExistsEmail, appInvitationEmail, changeEmailCodeEmail, confirmationCodeEmail, invitationEmail, noAccountEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
 
 // Each auth email as Protobase renders it: the HTML part in a frame as wide as a mail client's reading pane, with the
 // subject and the plain-text part beside it.
@@ -12,7 +12,7 @@ export default meta
 type Story = StoryObj<{ email: RenderedEmail }>
 
 const app = { name: 'Property Finder', url: 'https://homes.example.com/' }
-const expiresAt = new Date('2026-10-22T12:00:00Z')
+const expiresAt = 'October 22, 2026 at 12:00 PM UTC'
 
 const Preview = ({ email }: { email: RenderedEmail }) => (
   <div className="flex flex-wrap gap-6 p-6">
@@ -45,42 +45,42 @@ const story = (render: () => Promise<RenderedEmail>, check?: (body: HTMLElement)
   },
 })
 
-export const SignUpCode = story(() => signUpCodeEmail.render({ app, code: '482913', lifetime: '10 minutes' }), (body) => expect(body.textContent).toContain('482913'))
+export const SignUpCode = story(() => signUpCodeEmail.render({ code: '482913', minutes: 10 }, { app }), (body) => expect(body.textContent).toContain('482913'))
 
 export const AccountExists = story(
-  () => accountExistsEmail.render({ app }),
+  () => accountExistsEmail.render({}, { app }),
   (body) => expect(body.querySelector('a[href="https://homes.example.com/-/sign-in"]')?.textContent).toBe('Sign in to Property Finder'),
 )
 
 export const NoAccount = story(
-  () => noAccountEmail.render({ app }),
+  () => noAccountEmail.render({}, { app }),
   (body) => expect(body.querySelector('a[href="https://homes.example.com/-/sign-in"]')?.textContent).toBe('Sign in to Property Finder'),
 )
 
-export const SignInCode = story(() => signInCodeEmail.render({ app, code: '482913', lifetime: '10 minutes' }))
+export const SignInCode = story(() => signInCodeEmail.render({ code: '482913', minutes: 10 }, { app }))
 
-export const TwoFactorCode = story(() => twoFactorCodeEmail.render({ app, code: '482913', lifetime: '10 minutes' }))
+export const TwoFactorCode = story(() => twoFactorCodeEmail.render({ code: '482913', minutes: 10 }, { app }))
 
-export const ConfirmationCode = story(() => confirmationCodeEmail.render({ app, code: '482913', lifetime: '10 minutes' }), (body) => expect(body.textContent).toContain('It does not sign you in'))
+export const ConfirmationCode = story(() => confirmationCodeEmail.render({ code: '482913', minutes: 10 }, { app }), (body) => expect(body.textContent).toContain('It does not sign you in'))
 
-export const ChangeEmailCode = story(() => changeEmailCodeEmail.render({ app, code: '482913', lifetime: '10 minutes' }), (body) => expect(body.textContent).toContain('Confirm your new address'))
+export const ChangeEmailCode = story(() => changeEmailCodeEmail.render({ code: '482913', minutes: 10 }, { app }), (body) => expect(body.textContent).toContain('Confirm your new address'))
 
 export const ResetPassword = story(() =>
-  resetPasswordEmail.render({ app, url: 'https://homes.example.com/api/auth/reset-password/abc?callbackURL=%2F', lifetime: '1 hour' }),
+  resetPasswordEmail.render({ url: 'https://homes.example.com/api/auth/reset-password/abc?callbackURL=%2F', hours: 1 }, { app }),
 )
 
 export const StaffSignIn = story(() =>
-  staffSignInEmail.render({ app, staff: 'Alex Jansen (alex@operator.example)', reason: 'Ticket 1234: saved searches do not send alerts', expiresAt }),
+  staffSignInEmail.render({ staff: 'Alex Jansen (alex@operator.example)', reason: 'Ticket 1234: saved searches do not send alerts', expiresAt }, { app }),
 )
 
 export const Invitation = story(() =>
-  invitationEmail.render({ app, inviter: 'Ada Lovelace', organization: 'Utrecht Rentals', url: 'https://homes.example.com/-/invitation?token=abc', expiresAt }),
+  invitationEmail.render({ inviter: 'Ada Lovelace', organization: 'Utrecht Rentals', url: 'https://homes.example.com/-/invitation?token=abc', expiresAt }, { app }),
 )
 
-export const AppInvitation = story(() => invitationEmail.render({ app, inviter: 'Ada Lovelace', url: 'https://homes.example.com/-/invitation?token=abc', expiresAt }))
+export const AppInvitation = story(() => appInvitationEmail.render({ inviter: 'Ada Lovelace', url: 'https://homes.example.com/-/invitation?token=abc', expiresAt }, { app }))
 
 export const Mention = story(
   () =>
-    mentionEmail.render({ app, author: 'Ann de Vries', record: 'Listing: Keizersgracht 12', body: 'Can you call the owner, @Bo Jansen?\nThey asked about the viewing.', url: 'https://homes.example.com/listings/12' }),
+    mentionEmail.render({ author: 'Ann de Vries', record: 'Listing: Keizersgracht 12', lines: commentLines('Can you call the owner, @Bo Jansen?\nThey asked about the viewing.'), url: 'https://homes.example.com/listings/12' }, { app }),
   (body) => expect(body.querySelector('a[href="https://homes.example.com/listings/12"]')?.textContent).toBe('Open Listing: Keizersgracht 12'),
 )

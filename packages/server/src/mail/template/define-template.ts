@@ -87,6 +87,12 @@ export const configureTemplates = (options: { locale?: string }) => {
   appLocale = options.locale
 }
 
+/**
+ * The language a send whose reader prefers `preferred` (a BCP 47 tag, such as their browser's) comes in: the app's
+ * `locale` when the template has it, else the one of `languages` closest to `preferred`, else English.
+ */
+export const appOrReaderLanguage = (languages: readonly string[], preferred?: string) => readerLanguage(languages, preferred ? [preferred] : [], appLocale) ?? 'en'
+
 const lazyRenderer = async () => {
   const [{ render, toPlainText }, { drawEmail }] = await Promise.all([import('@react-email/render'), import('./render-tree')])
   return { render, toPlainText, drawEmail }

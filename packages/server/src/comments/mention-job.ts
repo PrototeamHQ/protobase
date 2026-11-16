@@ -27,7 +27,8 @@ export const mentionJob = (users: CommentUsers | undefined, appName: string) =>
       const to = await users.email(user)
       if (!to) return
       const author = (await users.names([found.author_id]))[found.author_id] ?? found.author_id
-      const { mentionEmail } = await import('./mention-email')
-      await mentionEmail.send(to, { app: { name: appName, url: new URL('/', url).href }, author, record, body: found.body, url }, mail)
+      const { commentLines, mentionEmail } = await import('./mention-email')
+      // In the app's own language: the job has no request to read the reader's from.
+      await mentionEmail.send(to, { author, record, lines: commentLines(found.body), url }, { mailer: mail, app: { name: appName, url: new URL('/', url).href } })
     },
   })

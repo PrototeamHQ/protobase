@@ -1,20 +1,53 @@
-import { Text } from 'react-email'
-import { defineEmail } from '../../mail/define-email'
-import { EmailLayout, EmailNote } from '../../mail/email-layout'
-import type { MailingApp } from '../../mail/mailing-app'
+/** @jsxImportSource @protobase/layout */
+import { Text, Trans, translations } from '@protobase/layout'
+import { defineTemplate } from '../../mail/template/define-template'
 
-export type StaffSignInData = { app: MailingApp; staff: string; reason: string; expiresAt: Date }
+/** `expiresAt` is the date and time the session ends, as the mail writes it. */
+export type StaffSignInData = { staff: string; reason: string; expiresAt: string }
 
-const StaffSignInEmail = ({ app, staff, reason, expiresAt }: StaffSignInData) => (
-  <EmailLayout app={app} preview={`${staff} signed in as you to help`} heading="Staff signed in as you">
-    <Text>
-      {staff}, of the team that runs {app.name}, signed in as you to help. The reason they gave:
-    </Text>
-    <Text style={{ borderLeft: '3px solid #e4e4e7', paddingLeft: '12px' }}>{reason}</Text>
-    <Text>Their session ends by {expiresAt.toUTCString()}. The app's admins see it in the app's log of staff sign-ins.</Text>
-    <EmailNote>If you did not expect this, tell your admin.</EmailNote>
-  </EmailLayout>
-)
+const texts = translations({
+  en: {
+    subject: 'Staff signed in to {app} as you',
+    preview: '{staff} signed in as you to help',
+    heading: 'Staff signed in as you',
+    intro: '{staff}, of the team that runs {app}, signed in as you to help. The reason they gave:',
+    until: "Their session ends by {expiresAt}. The app's admins see it in the app's log of staff sign-ins.",
+    note: 'If you did not expect this, tell your admin.',
+  },
+  nl: {
+    subject: 'Een medewerker is als jou ingelogd bij {app}',
+    preview: '{staff} is als jou ingelogd om je te helpen',
+    heading: 'Een medewerker is als jou ingelogd',
+    intro: '{staff}, van het team achter {app}, is als jou ingelogd om je te helpen. De reden die is opgegeven:',
+    until: 'De sessie eindigt uiterlijk {expiresAt}. De beheerders van de app zien deze sessie in het logboek van inloggen door medewerkers.',
+    note: 'Had je dit niet verwacht? Laat het je beheerder weten.',
+  },
+})
 
 /** The email to someone whose app lets staff sign in as people only when they are told: who, why, and until when. */
-export const staffSignInEmail = defineEmail({ name: 'staff-sign-in', subject: ({ app }: StaffSignInData) => `Staff signed in to ${app.name} as you`, component: StaffSignInEmail })
+export const staffSignInEmail = defineTemplate<StaffSignInData>({
+  name: 'staff-sign-in',
+  texts,
+  subject: ({ app }) => <Trans i18nKey="subject" values={{ app: app.name }} />,
+  preview: ({ data }) => <Trans i18nKey="preview" values={{ staff: data.staff }} />,
+  body: ({ data, app }) => (
+    <>
+      <Text as="h1">
+        <Trans i18nKey="heading" />
+      </Text>
+      <Text>
+        <Trans i18nKey="intro" values={{ staff: data.staff, app: app.name }} />
+      </Text>
+      {/* As they wrote it: text, never markup. */}
+      <Text>
+        <Text as="em">{`${data.reason}`}</Text>
+      </Text>
+      <Text>
+        <Trans i18nKey="until" values={{ expiresAt: data.expiresAt }} />
+      </Text>
+      <Text>
+        <Trans i18nKey="note" />
+      </Text>
+    </>
+  ),
+})
