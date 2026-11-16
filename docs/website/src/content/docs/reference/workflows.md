@@ -504,7 +504,7 @@ The mail goes from the app's own sender with the app's mailer; a workflow cannot
 
 The editor draws one input pin for each field of the chosen template's data, and offers the template's languages for `locale`. A save checks each value read by name in `data` against the type of that field, as it checks a record's fields. `list_workflow_types` lists the app's template names in the step's `template` argument, and each template's languages and data schema under `templates`.
 
-The mail goes from the app's own sender, as `app:mail.send`'s does. The result is `{ message_id, locale }`: the Message-ID the step sets, the same for each try of the step, and the language the mail was sent in. Data the template's schema refuses fails the step with `Mail.InvalidData`, its cause naming each path, such as `data.name: Invalid input`. A template the app does not have fails it with `Mail.UnknownTemplate`. Without mail the step fails.
+The mail goes from the app's own sender, as `app:mail.send`'s does. The result is `{ message_id, locale }`: the Message-ID the step sets, the same for each try of the step, and the language the mail was sent in. Data the template's schema refuses fails the step with `Mail.InvalidData`, its cause naming each path, such as `data.name: Invalid input`. A template the app does not have fails it with `Mail.UnknownTemplate`, and a `to` or `locale` of the wrong kind, such as a locale that is no language tag, with `Mail.InvalidArguments`. Without mail the step fails.
 
 ### app:piece
 

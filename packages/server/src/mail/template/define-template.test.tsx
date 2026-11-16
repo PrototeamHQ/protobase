@@ -50,7 +50,7 @@ const autoReply = defineTemplate({
 })
 
 const data = { name: 'Sam', topic: 'sales' as const, days: 2, id: 'c7' }
-const app = { name: 'Acme', url: 'https://acme.test' }
+const app = { name: 'Acme', url: 'https://acme.test/' }
 
 describe('an email template', () => {
   it('renders in the language asked for, its plurals, conditions, tags and addresses filled', async () => {

@@ -155,7 +155,8 @@ export const defineTemplate = <Data extends object = Record<string, unknown>>(op
     const value = await checked(data)
     const lang = readerLanguage(languages, locale ? [locale] : [], locale ? undefined : appLocale) ?? 'en'
     const texts = options.texts ? { locale: lang, messages: options.texts.languages[lang]! } : undefined
-    const record = { ...value, app }
+    // Its address without a closing slash, so `${app.url}/contacts/7` is one address
+    const record = { ...value, app: { ...app, url: app.url.replace(/\/+$/, '') } }
     const scope: ValueScope = { stack: [{ record }], root: record }
     const renderer = await lazyRenderer()
     const previewText = preview ? plainText(preview, scope, texts) : undefined
