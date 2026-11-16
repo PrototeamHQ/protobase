@@ -124,7 +124,7 @@ const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[
       if (model) problems.push(...timelineProblems(node, model))
       break
     case 'Graph':
-      problems.push(...graphProblems(node, models))
+      problems.push(...graphProblems(node, models, inputs))
       break
     case 'Progress':
       for (const name of [node.props.value, node.props.max]) if (typeof name === 'string') path(name)

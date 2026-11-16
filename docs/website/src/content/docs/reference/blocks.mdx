@@ -515,7 +515,7 @@ Its [text form](/reference/layouts/#text-form) is a Markdown table with a row pe
 A graph is read-only: you cannot move, add or connect nodes in it, and it reads at most 500 nodes and 500 edges.
 :::
 
-The records of `nodes` as boxes and the records of `edges` as arrows between them, from the node an edge's `source` holds the key of to the one its `target` holds, such as services and the links between them, or tasks and what blocks them. Each node sits in the region of its `group`, coloured by its `status`, and draws its label and status, or contents of the layout's own; each edge can carry a label, a status colour and a moving, dashed or dotted line. With `select`, the chosen node's details draw beside the graph. It draws with [React Flow](https://reactflow.dev), which loads only on a page with a graph, and lays out with [ELK](https://eclipse.dev/elk/) in a worker of its own.
+The records of `nodes` as boxes and the records of `edges` as arrows between them, from the node an edge's `source` holds the key of to the one its `target` holds, such as services and the links between them, or tasks and what blocks them. Each node sits in the region of its `group`, coloured by its `status`, and draws its label and status, or contents of the layout's own; each edge can carry a label, a status colour and a moving, dashed or dotted line. With `select`, the chosen node's details draw beside the graph. Its drawing code loads only on a page with a graph, and it is laid out in a worker of its own, so a large graph never holds up the page.
 
 | Prop | |
 | --- | --- |

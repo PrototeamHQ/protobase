@@ -2,6 +2,8 @@ import type { ResourceModel } from '@protobase/schema'
 import { edgeCondition, edgeConditions } from './graph-edges'
 import { isLayoutNode, type LayoutNode } from './node'
 import { readsOf } from './plan-block'
+import { choiceFilterProblems } from './check-param-filters'
+import type { SelectInputProps } from './page-params'
 import { sampledFilterErrors } from './sampled-filter'
 import { label, walkTree } from './walk'
 
@@ -24,8 +26,11 @@ const fieldProblems = (model: ResourceModel, prop: string, name: string): string
 
 const named = (node: LayoutNode, model: ResourceModel, props: readonly string[]) => props.flatMap((prop) => (text(node.props[prop]) === undefined ? [] : fieldProblems(model, prop, String(node.props[prop]))))
 
-const filterProblems = (model: ResourceModel, prop: string, filter: unknown) => {
+// A filter fed by page parameters is checked with each of their values, which a stand-in may not fit, as a block's is
+const filterProblems = (model: ResourceModel, prop: string, filter: unknown, inputs: ReadonlyMap<string, SelectInputProps>) => {
   if (typeof filter !== 'string') return []
+  const choices = choiceFilterProblems(model, filter, inputs)
+  if (choices) return choices.map((problem) => `${prop}: ${problem}`)
   const errors = sampledFilterErrors(model, filter)
   return errors.length === 0 ? [] : [`${prop}: ${errors.join('; ')}`]
 }
@@ -43,7 +48,7 @@ const nodeContentProblems = (node: LayoutNode): string[] => {
 }
 
 /** What a graph names that its resources do not have or cannot draw, and how it is laid out. */
-export const graphProblems = (node: LayoutNode, models: Record<string, ResourceModel>): string[] => {
+export const graphProblems = (node: LayoutNode, models: Record<string, ResourceModel>, inputs: ReadonlyMap<string, SelectInputProps> = new Map()): string[] => {
   const nodes = text(node.props.nodes)
   const edges = text(node.props.edges)
   const nodeModel = nodes === undefined ? undefined : models[nodes]
@@ -55,11 +60,11 @@ export const graphProblems = (node: LayoutNode, models: Record<string, ResourceM
   if (nodeModel) {
     // An edge's `source` and `target` each hold one value, so a node is found by a key of one field
     if (nodeModel.primaryKey.length !== 1) problems.push(`nodes: ${nodeModel.name} has a key of ${nodeModel.primaryKey.length} fields, and an edge's source and target hold one value each; give the graph a resource with a key of one field`)
-    problems.push(...named(node, nodeModel, ['label', 'group', 'status', 'x', 'y']), ...filterProblems(nodeModel, 'filter', node.props.filter))
+    problems.push(...named(node, nodeModel, ['label', 'group', 'status', 'x', 'y']), ...filterProblems(nodeModel, 'filter', node.props.filter, inputs))
     if ((node.props.x === undefined) !== (node.props.y === undefined)) problems.push('"x" and "y" place a node together; give both, or neither')
   }
   if (edgeModel) {
-    problems.push(...named(node, edgeModel, ['source', 'target', 'edgeLabel', 'edgeStatus']), ...filterProblems(edgeModel, 'edgeFilter', node.props.edgeFilter))
+    problems.push(...named(node, edgeModel, ['source', 'target', 'edgeLabel', 'edgeStatus']), ...filterProblems(edgeModel, 'edgeFilter', node.props.edgeFilter, inputs))
     for (const name of edgeConditions) {
       const when = text(node.props[name])
       if (when === undefined) continue

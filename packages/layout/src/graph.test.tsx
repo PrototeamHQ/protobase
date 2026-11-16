@@ -1,6 +1,7 @@
 /** @jsxImportSource @protobase/layout */
 import { describe, expect, it } from 'vitest'
-import { Field, Graph, Image, Page, Show, Table } from './blocks'
+import { CardRow, Field, Graph, Image, Page, Show, Table } from './blocks'
+import { SelectInput } from './page-params'
 import { treeFindings } from './check-page'
 import { structureProblems } from './check-structure'
 import { compileReadPlan } from './compile-read-plan'
@@ -85,6 +86,27 @@ describe('a Graph', () => {
     expect(part('nodes').fields).not.toContain('map_x')
     expect(part('edges')).toMatchObject({ resource: 'links', fields: expect.arrayContaining(['id', 'from_id', 'to_id', 'protocol', 'state']) })
     expect(part('chosen')).toMatchObject({ resource: 'services', pageSize: 1, fields: expect.arrayContaining(['id', 'health']) })
+  })
+
+  it("reads the fields a node's text draws, and a text child's anywhere, as a prop's", () => {
+    const tree = Page({ title: 'Map', children: [Graph({ ...base, node: <Text>{'Owned by {{owner}}'}</Text> }), CardRow({ resource: 'links', children: <Text>{'{{protocol}}'}</Text> })] })
+    const { plan } = compileReadPlan(tree, { models })
+    expect(plan.reads.find((read) => read.part === 'nodes')!.fields).toContain('owner')
+    expect(plan.reads.find((read) => read.resource === 'links' && read.part === undefined)!.fields).toContain('protocol')
+  })
+
+  it("checks each filter's page parameters against their choices, and edgeFilter's slots as a read's", () => {
+    const choices = [{ id: 'busy', name: 'Busy' }]
+    const findings = (graph: ReturnType<typeof Graph>) =>
+      treeFindings(Page({ title: 'Map', children: [SelectInput({ source: 'state', choices, defaultValue: 'busy' }), SelectInput({ source: 'free' }), graph] }), { models, actions: () => new Set() }).problems
+    expect(findings(Graph({ ...base, edgeFilter: 'state = "{{@params.state}}"' }))).toEqual([])
+    expect(findings(Graph({ ...base, filter: 'health = "{{@params.state}}"' }))[0]).toMatch(/filter: .*busy/)
+    expect(findings(Graph({ ...base, edgeFilter: 'protocol = "{{@params.free}}"' }))).toEqual([
+      '<Page> › <Graph nodes="services">: edgeFilter: "{{@params.free}}" comes from a SelectInput without choices, so any text in the address would reach the read; give it choices',
+    ])
+    // Each read splits by one condition of the records around it: one on the nodes and one on the edges is fine
+    const inCard = (graph: ReturnType<typeof Graph>) => treeFindings(Page({ title: 'Map', children: CardRow({ resource: 'services', children: graph }) }), { models, actions: () => new Set() }).problems
+    expect(inCard(Graph({ ...base, filter: 'owner = "{{owner}}"', edgeFilter: 'protocol = "{{name}}"' }))).toEqual([])
   })
 
   it('checks what it names against its resources, and how it is laid out', () => {
