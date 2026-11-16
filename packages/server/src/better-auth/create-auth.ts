@@ -79,7 +79,7 @@ import { recentConfirmationPlugin } from './recent-confirmation'
 import { confirmationCodePaths, confirmationCodePlugin } from './confirmation-code-plugin'
 import { passwordConfirmationPath, passwordConfirmationPlugin } from './password-confirmation'
 import { tokenClaims } from './token-claims'
-import { twoFactorAfterPasswordOrCode } from './two-factor-challenge'
+import { twoFactorAfterFirstFactor } from './two-factor-challenge'
 import { metadataField, userFieldsNamed, userModel, userTable, withUserColumns, type UserTableOptions } from './user-table'
 import { usersPlugin } from './users/users-plugin'
 
@@ -480,7 +480,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       jwt(jwtOptions),
       keys.plugin,
       // Without a password, as for someone who signs in with a provider only, two-factor authentication is turned on without one.
-      twoFactorAfterPasswordOrCode({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mail && { otpOptions: twoFactorCodeOptions(mail) }) }),
+      twoFactorAfterFirstFactor({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mail && { otpOptions: twoFactorCodeOptions(mail) }) }),
       passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]!, origins: appOrigins(options.baseURL, origins) }),
       strongSignInsPlugin(),
       recentConfirmationPlugin(),

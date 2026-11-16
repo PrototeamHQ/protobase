@@ -10,7 +10,7 @@ import { EmailCodePage } from './email-code-page'
 import { providerMessage } from './auth-messages'
 import { FirstRunPage } from './first-run-page'
 import { ForgotPasswordPage } from './forgot-password-page'
-import { readProviderError, readSignInLink, withoutSignInLink } from './provider-link'
+import { readProviderError, readSecondStep, readSignInLink, withoutSignInLink } from './provider-link'
 import { ProviderSignInPage } from './provider-sign-in-page'
 import { readResetLink, withoutResetLink } from './reset-link'
 import { ResetPasswordPage } from './reset-password-page'
@@ -100,15 +100,16 @@ const useAuthPage = (workspace: string | undefined, children: ReactNode): ReactN
   // A notice, an error and a sent code are for the next sign-in only: once its first step went through, signing out
   // starts over. A sign-in link opened by someone signed in already has nothing left to do.
   const entered = state.kind === 'signed-in' || state.kind === 'two-factor' || state.kind === 'setup-required'
+  const secondStepLeft = readSecondStep(href) !== undefined
   useEffect(() => {
     if (!entered) return
-    if (page.kind === 'provider-sign-in') forget(withoutSignInLink)
+    if (page.kind === 'provider-sign-in' || secondStepLeft) forget(withoutSignInLink)
     const stale = page.kind === 'provider-sign-in' || (page.kind === 'sign-in' && (page.notice || page.error || page.providerError))
     if (stale) setPage({ kind: 'sign-in' })
     setCodeEmail(undefined)
     setSignUpEmail(undefined)
     setSignUpTicket(undefined)
-  }, [entered, page, forget])
+  }, [entered, page, secondStepLeft, forget])
   // The provider's refusal shows once; the address keeps no trace of it. Off the sign-in route, opening the route does.
   const providerErrorLeft = address !== undefined && readProviderError(href) !== undefined
   useEffect(() => {
