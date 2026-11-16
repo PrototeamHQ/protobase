@@ -17,10 +17,61 @@
       }
       document.documentElement.dataset.theme = stored === 'light' || stored === 'dark' ? stored : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
     </script>
+    <!--
+      The start screen, before any stylesheet or script of the app loads: the theme's background, and after a moment a
+      spinner, until the app removes it (start-screen.ts) once it has drawn its first page. The colours are the theme's,
+      a project's protobase.theme.css included, else those of tokens.css, which index-html.test.ts keeps them equal to.
+    -->
+    <style>
+      html,
+      #pb-start {
+        background: var(--background, #ffffff);
+        color: var(--muted-foreground, #71717a);
+      }
+      html[data-theme='dark'],
+      [data-theme='dark'] #pb-start {
+        background: var(--background, #0f0f11);
+        color: var(--muted-foreground, #a1a1aa);
+        color-scheme: dark;
+      }
+      /* Above all the app draws under it while it starts */
+      #pb-start {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      /* The app's loading screens wait as long before they show their spinner */
+      #pb-start svg {
+        animation:
+          pb-start-reveal 1ms 180ms backwards,
+          pb-start-spin 1s linear infinite;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #pb-start svg {
+          animation: pb-start-reveal 1ms 180ms backwards;
+        }
+      }
+      @keyframes pb-start-reveal {
+        from {
+          visibility: hidden;
+        }
+      }
+      @keyframes pb-start-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
   </head>
   <body>
     <!-- As tall as the screen shows, browser toolbars aside, so a page that fills it, such as a map, keeps the bottom bar in view. The page reaches under the status bar and the home indicator, which the shell's bars keep clear of; the sides keep clear of the notch. -->
     <div id="root" class="h-dvh" style="padding-left: var(--pb-safe-left); padding-right: var(--pb-safe-right)"></div>
+    <div id="pb-start" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+    </div>
     <script type="module" src="./main"></script>
   </body>
 </html>

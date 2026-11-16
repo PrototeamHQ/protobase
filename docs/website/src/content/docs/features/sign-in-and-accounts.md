@@ -18,6 +18,7 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Changing the address](/reference/auth/#changing-the-address): People move their account to a new email address from the account page, once they enter the code sent there.
 - [Deleting the account](/reference/auth/#deleting-the-account): People delete their own account from the account page, after confirming it, in the web app and the mobile app. On by default; an app whose accounts an organization's admins manage turns it off.
 - [Open sign-up](/reference/auth/#open-sign-up): Anyone can create an account after confirming an emailed code.
+- [Sign-up for email domains](/reference/auth/#sign-up-for-email-domains): Open sign-up can take only addresses at your company's email domains, so colleagues make their own account and everyone else still needs an invitation.
 - [Passkeys](/reference/auth/#passkeys): People sign in with their device's face or fingerprint unlock, or with a security key.
 - [Two-factor authentication](/reference/auth/#two-factor-authentication): A second step with an authenticator app, backup codes or emailed codes.
 - [Emailed confirmation code](/reference/auth/#emailed-confirmation-code): Someone without a passkey or a second step confirms it's them with a code emailed on request, where they are, such as before a secret is shown.

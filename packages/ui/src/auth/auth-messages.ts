@@ -27,6 +27,8 @@ const messages: Record<string, Id> = {
   PREVIOUSLY_REGISTERED: 'passkeyAdded',
   ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED: 'passkeyAdded',
   PASSWORD_COMPROMISED: 'passwordLeaked',
+  // Open sign-up limited to email domains refuses an address elsewhere.
+  EMAIL_DOMAIN_NOT_ALLOWED: 'signUpDomainNotAllowed',
 }
 
 const lookup = (ids: Record<string, Id>, code: string | undefined) => {
