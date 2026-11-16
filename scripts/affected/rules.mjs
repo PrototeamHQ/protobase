@@ -74,7 +74,7 @@ export const edges = [
   // A deploy bundle copies the @protobase packages.
   { from: ['packages/cli/src/build/packages/copy-packages.ts'], reads: ['packages/**'] },
   // The UI's tests of its stylesheet and page.
-  { from: ['packages/ui/src/tokens.test.ts'], reads: ['packages/ui/src/tokens.css'] },
+  { from: ['packages/ui/src/tokens.test.ts', 'packages/ui/src/app/index-html.test.ts'], reads: ['packages/ui/src/tokens.css'] },
   { from: ['scripts/plugin-network/find-network.test.ts'], reads: ['scripts/plugin-network/fixtures/**'] },
   { from: ['packages/ui/src/app/index-html.test.ts', 'packages/ui/src/theme/theme-preference.test.ts'], reads: ['packages/ui/src/app/index.html'] },
   // The fake OAuth provider of the connection tests answers from a provider's recorded answers, read by path.
