@@ -26,7 +26,7 @@ export const whileBuilding = <T>(build: () => T): T => {
 
 /** Runs `build` in a new scope, a record block's child function's, and gives the scope with what it built. */
 export const inScope = <T>(build: (scope: number) => T): { scope: number; built: T } => {
-  if (building === 0) throw new Error("A record block's children are a function of its record only inside a typed layout: layout() or recordLayout()")
+  if (building === 0) throw new Error("A record block's children are a function of its record only inside a typed layout: layout(), recordLayout() or defineTemplate()")
   lastScope += 1
   const scope = lastScope
   scopes.push(scope)

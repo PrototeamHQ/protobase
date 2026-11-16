@@ -37,6 +37,11 @@ export type TemplateOptions<Data extends object> = {
   subject: TemplateText | ((scope: TemplateScope<Data>) => TemplateText)
   /** The line inboxes show after the subject. */
   preview?: TemplateText | ((scope: TemplateScope<Data>) => TemplateText)
+  /**
+   * More header fields, each one line that may read the data: such as `List-Unsubscribe` with the recipient's own
+   * link, `` ({ data }) => ({ 'List-Unsubscribe': `<${data.unsubscribe_url}>` }) ``, which bulk mail should carry.
+   */
+  headers?: Record<string, string> | ((scope: TemplateScope<Data>) => Record<string, string>)
   /** Checks the data before a send, and gives the workflow step its fields; without it, they are derived from the tree. */
   schema?: TemplateSchema<Data>
   /** The mail's text: mail blocks, such as `<Text>`, `<Button href>` and `<Show when>`, with the data in hand. */
@@ -126,7 +131,10 @@ export const defineTemplate = <Data extends object = Record<string, unknown>>(op
   const tree = body.type === 'Email' ? body : Email({ children: body })
   const subject = asText(options.subject)
   const preview = options.preview === undefined ? undefined : asText(options.preview)
-  const parts = [{ at: 'body', tree }, { at: 'subject', tree: subject }, ...(preview ? [{ at: 'preview', tree: preview }] : [])]
+  // Each header's value as a text node named by its field, so its recorded paths are written as the subject's are
+  const headerFields = options.headers
+  const headers = headerFields === undefined ? undefined : scoped((scope) => Email({ children: Object.entries(typeof headerFields === 'function' ? headerFields(scope) : headerFields).map(([name, value]) => Text({ className: name, children: value })) }))
+  const parts = [{ at: 'body', tree }, { at: 'subject', tree: subject }, ...(preview ? [{ at: 'preview', tree: preview }] : []), ...(headers ? [{ at: 'headers', tree: headers }] : [])]
   const problems = [...mailTreeProblems(tree).map((problem) => `body: ${problem}`), ...translationProblems(parts, options.texts)]
   if (problems.length > 0) throw new Error(`Email template "${options.name}" is not valid:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 
@@ -152,7 +160,8 @@ export const defineTemplate = <Data extends object = Record<string, unknown>>(op
     const renderer = await lazyRenderer()
     const previewText = preview ? plainText(preview, scope, texts) : undefined
     const html = await renderer.render(renderer.drawEmail(tree, scope, { texts, app, lang, ...(previewText !== undefined && { preview: previewText }) }))
-    return { subject: plainText(subject, scope, texts), html, text: renderer.toPlainText(html), locale: lang }
+    const fields = headers && Object.fromEntries(headers.children.flatMap((child) => (typeof child === 'string' ? [] : [[String(child.props.className), plainText(child, scope, texts)]])))
+    return { subject: plainText(subject, scope, texts), html, text: renderer.toPlainText(html), ...(fields && { headers: fields }), locale: lang }
   }
 
   const send = async (to: string, data: Data, { mailer = platformMailer(), attachments, ...rest }: TemplateSendOptions = {}) => {

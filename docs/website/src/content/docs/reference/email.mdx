@@ -51,7 +51,66 @@ The auth emails (sign-in, two-factor and sign-up codes, the note to an address t
 
 ## Templates
 
-An email of the app's own is `defineEmail`: a name, a subject, and a React component whose props are the email's data. The components of [React Email](https://react.email) render the tables and inline styles email clients need. `@protobase/server` brings React's renderer; the project adds the components, and React for its JSX, which a project with a UI has already:
+An email of the app's own is a template: `defineTemplate`, with its data typed, its text in each language it is sent in, and its body written in mail blocks, as a [typed layout](/reference/layouts/#typed-layouts) is. The body is built once, as the config loads, into a static tree: `data.name` is the placeholder `{{name}}`, `<Show when>` and `<Switch>` choose by the data, and an `ArrayField` repeats a list of it. Export the template from `config/index.ts`, so the workflow step [Send email](/reference/workflows/#appmailtemplate) lists it.
+
+```tsx title="config/emails/contact-reply.tsx"
+/** @jsxImportSource @protobase/layout */
+import { Button, Show, Text, Trans, translations } from '@protobase/layout'
+import { defineTemplate } from '@protobase/server'
+import { z } from 'zod'
+import en from './contact-reply.en.json'
+import nl from './contact-reply.nl.json'
+
+export const contactReply = defineTemplate({
+  name: 'contact-reply',
+  texts: translations({ en, nl }),
+  schema: z.object({ name: z.string(), topic: z.enum(['sales', 'support']), days: z.number(), id: z.string() }),
+  subject: ({ data }) => <Trans i18nKey="subject" values={{ name: data.name }} />,
+  body: ({ data, app }) => (
+    <>
+      <Text as="h1"><Trans i18nKey="greeting" values={{ name: data.name }} /></Text>
+      <Text><Trans i18nKey="thanks" values={{ days: data.days }} /></Text>
+      <Show when={data.topic.eq('sales')}>
+        <Text><Trans i18nKey="sales" components={{ b: <Text as="strong" /> }} /></Text>
+      </Show>
+      <Button href={`${app.url}/contact/${data.id}`}><Trans i18nKey="cta" /></Button>
+    </>
+  ),
+})
+```
+
+```json title="config/emails/contact-reply.nl.json"
+{
+  "subject": "We hebben je bericht ontvangen, {name}",
+  "greeting": "Hoi {name},",
+  "thanks": "{days, plural, one {We antwoorden binnen # werkdag.} other {We antwoorden binnen # werkdagen.}}",
+  "sales": "Een collega van sales <b>belt je</b>.",
+  "cta": "Bekijk je bericht"
+}
+```
+
+| `defineTemplate` option | |
+| --- | --- |
+| `name` | Names the template, in errors and in the step's list: a lowercase letter, then lowercase letters, digits and dashes. Each template of the app has its own. |
+| `texts` | Its texts in each language it is sent in, `translations({ en, nl })` of ICU messages, which its `<Trans>` elements show, as the app's own [texts](/reference/languages/#your-own-texts) are. Without it, the template is in one language, as written. |
+| `subject` | The subject line: text, or a function of `{ data, app }` that gives text or a `<Trans>`. |
+| `preview` | Optional: the line inboxes show after the subject, as `subject` is written. |
+| `schema` | Optional: a [Standard Schema](https://standardschema.dev), such as a zod 4 schema, or Valibot's with `toStandardJsonSchema`, which checks the data before each send and types it. |
+| `headers` | Optional: more header fields, or a function of `{ data, app }` that gives them, each one line. |
+| `body` | A function of `{ data, app }` that gives the mail's blocks. `app.name` and `app.url` are the app the mail comes from. |
+
+The body takes the mail blocks: `Text` (a paragraph, `as="h1"` to `h4` for a heading, `strong`, `em` or `span` in a line), `Trans`, `Link` with an `href`, `Button` with an `href`, `Image`, `Divider`, `Box`, `Row` and `Column`, `Show`, `Switch` and `Match`, `ArrayField` with `RecordsIterator`, and `Field`. Any other block, such as a `Table`, fails as the config loads, as does a `<Trans>` key the texts lack.
+
+The template that comes back has two methods, both typed by the data:
+
+- `render(data, { locale, app })` gives `{ subject, html, text, headers, locale }` without sending anything: for a test, or to look at the result.
+- `send(to, data, { locale, mailer, app, attachments })` renders and sends it, through `mailer` when given (a job's `mail`), otherwise through `PROTOBASE_SMTP_URL`, and gives what it rendered. It rejects when mail is off or the server refuses the message.
+
+A send is in the language of its texts closest to `locale`, by its tag (`nl-BE`) or its language (`nl`), else the app's `locale` when the texts have it, else English, else the first; `locale` says which it was. With a `schema`, data the schema refuses rejects with `TemplateDataError`, naming each path, before anything is sent. The data's JSON Schema, which the step draws its pins from, is the schema's own, or without one each path the template reads, such as `name` and a list `items` with its `title`.
+
+### Emails in React
+
+An email can also be `defineEmail`: a name, a subject, and a React component whose props are the email's data, for a layout the mail blocks cannot draw. The components of [React Email](https://react.email) render the tables and inline styles email clients need. `@protobase/server` brings React's renderer; the project adds the components, and React for its JSX, which a project with a UI has already:
 
 ```sh
 bun add react-email react

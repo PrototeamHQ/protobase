@@ -5,7 +5,8 @@ description: Mail the app sends, the PDF documents it makes, and forms for peopl
 
 - [Email](/reference/email/#configuration): The app sends mail through one SMTP server or a mailer you supply.
 - [Built-in emails](/reference/email/#protobases-own-mail): Sign-in codes, password resets, invitations and mentions are sent in the app's name, in English or Dutch.
-- [Email templates](/reference/email/#templates): Your own emails are React components with typed data, sent from jobs, hooks or functions.
+- [Email templates](/reference/email/#templates) (beta): Your own emails are templates with typed data, written in mail blocks with their texts in each language they are sent in, checked by a schema of yours or the data they read, and sent from jobs, hooks, functions or a workflow's Send email step.
+- [Emails in React](/reference/email/#emails-in-react): An email can be a React component with typed data instead, for a layout the mail blocks cannot draw.
 - [Protobase's mail look](/reference/email/#the-look-of-protobases-own-mail): Your emails use a layout, button, code and note with the look of Protobase's own mail.
 - [Unsubscribe headers](/reference/email/#templates): Your emails carry header fields of their own, such as a one-click unsubscribe link for bulk mail.
 - [Attachments](/reference/email/#attachments): A message carries files, such as an invoice's PDF, through the app's mail or someone's own mailbox.

@@ -100,6 +100,17 @@ describe('an email template', () => {
     expect(sent.html).toContain('Two for Sam')
   })
 
+  it('carries header fields of its own, which may read the data', async () => {
+    const digest = defineTemplate<{ unsubscribe_url: string }>({
+      name: 'bulk',
+      subject: 'News',
+      headers: ({ data }) => ({ 'List-Unsubscribe': `<${data.unsubscribe_url}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }),
+      body: () => <Text>News</Text>,
+    })
+    expect((await digest.render({ unsubscribe_url: 'https://acme.test/u/1' })).headers).toEqual({ 'List-Unsubscribe': '<https://acme.test/u/1>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' })
+    expect(digest.dataSchema).toMatchObject({ properties: { unsubscribe_url: {} } })
+  })
+
   it('refuses a block an email cannot draw, a key its texts lack, and a bad name', () => {
     expect(() => defineTemplate({ name: 'x', subject: 'X', body: () => <Table resource="tasks" /> })).toThrow(/<Table> does not draw in an email/)
     expect(() => defineTemplate({ name: 'y', texts, subject: <Trans i18nKey="nope" />, body: () => <Text>y</Text> })).toThrow(/no language has "nope"/)
