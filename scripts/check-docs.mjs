@@ -23,9 +23,10 @@ const report = (label, found) => {
 }
 
 // Four pages at a time, in one context so they share its cache: a page mostly waits for the network to go idle. Each
-// url gets the problems its page met and what `inspect` returns once the network is idle, in the order of `urls`. A
-// visit during which the host's network changed (other jobs on a shared runner add and drop Docker networks, and
-// Chromium then aborts every request in flight, even to localhost) says nothing about the site, so it is made again.
+// url gets the problems its page met and what `inspect` returns once the network is idle, in the order of `urls`;
+// `prepare` sets a page up before its first visit. A visit during which the host's network changed (other jobs on a
+// shared runner add and drop Docker networks, and Chromium then aborts every request in flight, even to localhost)
+// says nothing about the site, so it is made again.
 const pages = 4
 const visitsPerUrl = 3
 const networkChangedError = 'net::ERR_NETWORK_CHANGED'
@@ -41,11 +42,12 @@ const navigate = async (page, url) => {
     return false
   }
 }
-const visitAll = async (context, urls, inspect) => {
+const visitAll = async (context, urls, inspect, prepare) => {
   const visits = new Array(urls.length)
   let next = 0
   await Promise.all(Array.from({ length: pages }, async () => {
     const page = await context.newPage()
+    await prepare?.(page)
     const problems = []
     let networkChanged = false
     page.on('console', (message) => message.type() === 'error' && problems.push(`console: ${message.text()}`))
@@ -75,9 +77,16 @@ const visitAll = async (context, urls, inspect) => {
   return visits
 }
 
+// A page's embedded stories are checked in a pass of their own, each opened directly, so a page gets them as empty
+// documents. Loaded in the page, their few hundred module requests slow it down, and a story frame that requests
+// again after its network went idle keeps Playwright's networkidle from ever firing for the page (Playwright
+// 1.63 to 1.65 drop the frame's idle state then and never restore it).
+const stubStories = (page) =>
+  page.route((url) => url.pathname.endsWith('/storybook/iframe.html'), (route) => route.fulfill({ contentType: 'text/html', body: '' }))
+
 try {
   const context = await browser.newContext()
-  const pageVisits = await visitAll(context, paths, (page) => page.$$eval('iframe[src]', (frames) => frames.map((frame) => frame.getAttribute('src'))))
+  const pageVisits = await visitAll(context, paths, (page) => page.$$eval('iframe[src]', (frames) => frames.map((frame) => frame.getAttribute('src'))), stubStories)
   pageVisits.forEach((visit, i) => report(paths[i], visit.problems))
   const stories = [...new Set(pageVisits.flatMap((visit) => visit.found))]
   const storyVisits = await visitAll(context, stories, async (page, problems) => {
