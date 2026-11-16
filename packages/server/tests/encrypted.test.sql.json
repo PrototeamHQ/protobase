@@ -509,8 +509,8 @@
       {"sql":"select count(*)::text as count from \"applications\" where \"name\" like $1","params":["pbenc:%"],"result":{"command":"SELECT","rowCount":1,"columns":[["count",25]],"rows":[["0"]]}},
       {"sql":"select c.conname as \"constraint\"\nfrom pg_constraint c\nwhere c.contype = 'f' and c.confupdtype in ('c', 'd')\n  and c.conrelid = to_regclass(quote_ident($1))\n  and exists (select 1 from pg_attribute a where a.attrelid = c.conrelid and a.attnum = any(c.conkey) and a.attname = any($2::text[]))\norder by c.conname","params":["applications","{\"id\"}"],"result":{"command":"SELECT","rowCount":0,"columns":[["constraint",19]],"rows":[]}},
       {"sql":"select distinct split_part(\"iban\", ':', 3) as kid from \"people\" where \"iban\" like 'pbenc:%'","result":{"command":"SELECT","rowCount":3,"columns":[["kid",25]],"rows":[
-        ["FeZ7JsT-"],
         ["-PvW_Gdy"],
+        ["FeZ7JsT-"],
         ["YUkHCLNa"]
       ]}},
       {"sql":"select distinct split_part(\"device_token\", ':', 3) as kid from \"devices\" where \"device_token\" like 'pbenc:%'","result":{"command":"SELECT","rowCount":1,"columns":[["kid",25]],"rows":[["FeZ7JsT-"]]}},
@@ -700,8 +700,8 @@
     "(hooks)#0": [
       {"repeated":2},
       {"sql":"select distinct split_part(\"iban\", ':', 3) as kid from \"people\" where \"iban\" like 'pbenc:%'","result":{"command":"SELECT","rowCount":2,"columns":[["kid",25]],"rows":[
-        ["FeZ7JsT-"],
-        ["-PvW_Gdy"]
+        ["-PvW_Gdy"],
+        ["FeZ7JsT-"]
       ]}},
       {"repeated":2}
     ]
@@ -721,8 +721,8 @@
       {"sql":"update vaults set secret = (select secret from vaults where tenant_id = '2' and code = 'R') where tenant_id = '1' and code = 'R'","result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
       {"sql":"select secret as value from vaults where tenant_id = '1' and code = 'R'","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["pbenc:1:FeZ7JsT-:KamMDTOS-HFDXjJl9vhBYGiL3-yJcRX9fMEWDMwqoq5wHTeJMyF_"]]}},
       {"sql":"select distinct split_part(\"iban\", ':', 3) as kid from \"people\" where \"iban\" like 'pbenc:%'","result":{"command":"SELECT","rowCount":2,"columns":[["kid",25]],"rows":[
-        ["FeZ7JsT-"],
-        ["-PvW_Gdy"]
+        ["-PvW_Gdy"],
+        ["FeZ7JsT-"]
       ]}},
       {"sql":"select distinct split_part(\"device_token\", ':', 3) as kid from \"devices\" where \"device_token\" like 'pbenc:%'","result":{"command":"SELECT","rowCount":1,"columns":[["kid",25]],"rows":[["FeZ7JsT-"]]}},
       {"sql":"select distinct split_part(\"secret\", ':', 3) as kid from \"vaults\" where \"secret\" like 'pbenc:%'","result":{"command":"SELECT","rowCount":1,"columns":[["kid",25]],"rows":[["FeZ7JsT-"]]}},

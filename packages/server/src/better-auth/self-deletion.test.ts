@@ -8,7 +8,8 @@ import { userDeletion } from './user-deletion'
 const base: CreateAuthOptions = { database: undefined, baseURL: 'https://admin.example.com', secret: 'test-secret-test-secret-test-secret-1234' }
 const password = 'correct horse battery'
 
-// Better Auth with Protobase's options on a store in memory, with a locked demo account, a user and one admin.
+// Better Auth with Protobase's options on a store in memory, with a locked demo account, a user and one admin. The
+// last-admin refusal asks Postgres, so it is tested on it (tests/many-users.test.ts).
 const setUp = async (options: Partial<CreateAuthOptions> = {}) => {
   const store: Record<string, Record<string, unknown>[]> = { user: [], account: [], session: [], verification: [], two_factor: [], passkey: [], sign_in_policy: [], jwks: [] }
   const deletion = userDeletion()
@@ -54,17 +55,6 @@ describe('deleting your own account', () => {
     await expect(auth.api.deleteUser({ body: { password: 'not the password' }, headers: await headersOf('ana@example.com') })).rejects.toEqual(failedWith('INVALID_PASSWORD'))
     expect(store.user!.some((user) => user.id === users.ana.id)).toBe(true)
     expect(deleted).toEqual([])
-  })
-
-  it('is refused for the last active admin, and allowed once there is another', async () => {
-    const { auth, store, users, deleted, headersOf } = await setUp()
-    const headers = await headersOf('root@example.com')
-    await expect(auth.api.deleteUser({ body: { password }, headers })).rejects.toEqual(failedWith('LAST_ADMIN'))
-    expect(store.user!.some((user) => user.id === users.root.id)).toBe(true)
-    expect(deleted).toEqual([])
-    await auth.api.setRole({ body: { userId: users.ana.id, role: 'admin' }, headers })
-    await auth.api.deleteUser({ body: { password }, headers })
-    expect(store.user!.some((user) => user.id === users.root.id)).toBe(false)
   })
 
   it('is refused for a locked account, which keeps its sessions', async () => {

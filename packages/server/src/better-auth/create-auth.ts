@@ -444,7 +444,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
   const trusted = [options.baseURL, ...origins, ...(options.trustedOrigins ?? [])]
   const userFields = { ...userFieldsNamed(emailConfirmedField, users), ...(organizations && userFieldsNamed(lastOrganizationField, users)), ...metadataField(users) }
   const accountDeletion = options.accountDeletion !== false
-  const deleteUser = accountDeletion ? { deleteUser: selfDeletionOptions({ lockedAccounts, mcp: Boolean(mcp), adapter: async () => (await context()).adapter, ...(deletion && { deletion }) }) } : {}
+  const deleteUser = accountDeletion ? { deleteUser: selfDeletionOptions({ lockedAccounts, mcp: Boolean(mcp), context, ...(deletion && { deletion }) }) } : {}
   return {
     appName,
     database: options.database,

@@ -8,14 +8,11 @@ const api = (): OrganizationsApi => ({
   setMemberRoles: vi.fn(async () => undefined),
   removeMember: vi.fn(async () => undefined),
   addAppRoleToOwners: vi.fn(async () => 2),
-  listUsers: async () => [
-    { email: 'bo@example.com', role: 'admin' },
-    { email: 'root@example.com', role: 'admin' },
-    { email: 'sanne@example.com', role: 'sales,manager' },
-    { email: 'kim@example.com', role: 'user' },
-  ],
-  setUserRole: vi.fn(async () => undefined),
-  membershipRoles: () => ['manager', 'sales', 'accountant'],
+  addEveryUser: vi.fn(async () => [
+    { email: 'root@example.com', role: 'owner', appRoles: ['manager', 'sales', 'accountant'] },
+    { email: 'sanne@example.com', role: 'member', appRoles: ['sales', 'manager'] },
+    { email: 'kim@example.com', role: 'member', appRoles: [] },
+  ]),
 })
 
 const output = () => {
@@ -46,15 +43,15 @@ describe('the organization commands', () => {
     expect(lines.join('')).toBe('Created organization acme-holding (1), owned by bo@example.com\n')
   })
 
-  it('bring every user in with --members all: superusers as owners, the others with their global roles moved here', async () => {
+  it('bring every user in with --members all, and say who joined as what', async () => {
     const organizations = api()
-    const { out } = output()
+    const { lines, out } = output()
     await createOrganizationCommand(organizations, { name: 'Acme', owner: 'bo@example.com', id: '1', members: 'all' }, out)
-    expect(organizations.addMember).toHaveBeenCalledWith({ organization: '1', email: 'root@example.com', role: 'owner', appRoles: ['manager', 'sales', 'accountant'] })
-    expect(organizations.addMember).toHaveBeenCalledWith({ organization: '1', email: 'sanne@example.com', role: 'member', appRoles: ['sales', 'manager'] })
-    expect(organizations.addMember).toHaveBeenCalledWith({ organization: '1', email: 'kim@example.com', role: 'member', appRoles: [] })
-    expect(organizations.setUserRole).toHaveBeenCalledWith({ email: 'sanne@example.com', role: 'user' })
-    expect(organizations.setUserRole).not.toHaveBeenCalledWith(expect.objectContaining({ email: 'root@example.com' }))
+    expect(organizations.addEveryUser).toHaveBeenCalledWith('1')
+    expect(organizations.addMember).not.toHaveBeenCalled()
+    expect(lines.join('')).toBe(
+      'Created organization acme (1), owned by bo@example.com\n  root@example.com: owner, with every app role\n  sanne@example.com: member, with sales,manager\n  kim@example.com: member\n',
+    )
     await expect(createOrganizationCommand(organizations, { name: 'Acme', owner: 'bo@example.com', members: 'some' }, out)).rejects.toThrow('--members takes "all"')
   })
 

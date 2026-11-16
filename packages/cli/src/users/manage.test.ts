@@ -6,7 +6,7 @@ const api = (): UsersApi => ({
   roles: async () => ({ roles: ['admin', 'user'], labels: {} }),
   hasUsers: async () => true,
   createUser: vi.fn(),
-  listUsers: async () => [],
+  listUsers: async () => ({ users: [] }),
   deleteUser: vi.fn(async () => {}),
   setUserRole: vi.fn(async ({ email, role }) => ({ email, role })),
   setUserBanned: vi.fn(async () => {}),
