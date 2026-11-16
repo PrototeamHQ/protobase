@@ -27,7 +27,7 @@ export const AuthLayout = ({ title, description, size = 'sm', appName, icon, foo
   const identity = useOptionalAuth()?.identity
   useDocumentTitle(identity?.appName)
   return (
-    <div className="flex min-h-full w-full flex-col items-center bg-surface px-4 pb-[calc(2.5rem+var(--pb-safe-bottom))] pt-[calc(2.5rem+var(--pb-safe-top))] short:pb-[calc(1rem+var(--pb-safe-bottom))] short:pt-[calc(1rem+var(--pb-safe-top))]">
+    <div className="flex min-h-full w-full flex-col items-center bg-background px-4 pb-[calc(2.5rem+var(--pb-safe-bottom))] pt-[calc(2.5rem+var(--pb-safe-top))] short:pb-[calc(1rem+var(--pb-safe-bottom))] short:pt-[calc(1rem+var(--pb-safe-top))]">
       <div className="flex w-full flex-1 items-center justify-center">
         <div className={cn('w-full', size === 'sm' ? 'max-w-sm' : 'max-w-lg')}>
           <div className="mb-6 flex flex-col items-center text-center short:mb-4">
