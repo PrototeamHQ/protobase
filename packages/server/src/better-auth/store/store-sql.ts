@@ -15,7 +15,7 @@ export type StoreSql = {
   user: RawBuilder<unknown>
   /** A column of the user table, by Better Auth's field name: `userColumn('banExpires')`. */
   userColumn: (field: string) => RawBuilder<unknown>
-  /** A new row's id, as Better Auth would make it: a uuid with `generateUserId: 'uuid'`, else 32 random characters. */
+  /** A new row's id, made by Postgres: a uuid, as text where the ids are text. */
   newId: RawBuilder<unknown>
 }
 
@@ -37,7 +37,7 @@ export const storeSqlOf = (context: Source): StoreSql => {
     table,
     user: table(users.modelName),
     userColumn: (field) => sql.id(field === 'id' ? 'id' : (users.fields[field]?.fieldName ?? field)),
-    newId: context.options.advanced?.database?.generateId === 'uuid' ? sql`gen_random_uuid()` : sql`replace(gen_random_uuid()::text, '-', '')`,
+    newId: context.options.advanced?.database?.generateId === 'uuid' ? sql`gen_random_uuid()` : sql`gen_random_uuid()::text`,
   }
   made.set(context.options, store)
   return store
