@@ -106,7 +106,7 @@ const sendTemplate = async ({ input, mail, templates, idempotencyKey }: StepCont
  */
 export const mailSteps: Record<string, StepType> = {
   'mail.send': {
-    label: 'Send mail',
+    label: 'Send plain mail',
     description: "Sends a mail from the app's own sender.",
     errorPrefix: 'Mail',
     writes: true,

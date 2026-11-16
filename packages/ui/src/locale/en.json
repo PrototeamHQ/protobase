@@ -853,7 +853,7 @@
     "stepRecordsUpdate": "Update a record",
     "stepRecordsGet": "Get a record",
     "stepRecordsList": "List records",
-    "stepMailSend": "Send mail",
+    "stepMailSend": "Send plain mail",
     "stepMailTemplate": "Send email",
     "stepPiece": "Connector action",
     "typePass": "Set values",
