@@ -91,6 +91,7 @@ The store's migrations then make nothing of the user table, which a migration of
 | `PROTOBASE_ORIGINS` | the other origins the app is served on, comma separated, passed by the platform; see [Several origins](#several-origins) |
 | `PROTOBASE_PASSKEY_DOMAIN` | the host new [passkeys](#passkeys) are made for, passed by the platform; default the host of the app's `url` |
 | `PROTOBASE_LOCKED_ACCOUNTS` | the addresses of accounts no one may take over, comma separated, passed by the platform, such as a demo's shared account: their address, password, passkeys, two-factor authentication, linked accounts and [personal access tokens](/reference/personal-access-tokens/) stay as they are, from any endpoint or host call, which fails with `403 ACCOUNT_LOCKED`, and they cannot be deleted |
+| `PROTOBASE_SIGN_UP_DOMAINS` | the email domains [open sign-up](#sign-up-for-email-domains) takes, comma separated, passed by the platform: it replaces `signUp.domains`, and empty it leaves open sign-up off |
 | `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated http and https origins, passed by the platform; see [CORS](/reference/api/#cors) |
 | `PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM` | the mail server and sender for [password reset](#password-reset), [emailed sign-in codes](#emailed-sign-in-codes), emailed [two-factor](#two-factor-authentication) codes and [open sign-up](#open-sign-up), passed by the platform; all four are off without them |
 | `PROTOBASE_APP_NAME` | the app's name, passed by the platform: it overrides `name` |
@@ -358,6 +359,22 @@ The sign-in page then offers "Create an account", and so do [sign-in prompts](/r
 - The three requests are limited per minute and client like sign-in (`signInPerMinute`, default 5), and refused (`NO_ADMIN_YET`) while the store has no user.
 - The `onUserCreated` [hook](#hooks) runs for every account made this way.
 - `createAuthSession` from `@protobase/client` has the three steps as `sendSignUpCode(email)`, `verifySignUpCode(email, code)`, which resolves to the ticket, and `signUp({ ticket, name, password? })`, which resolves to the signed-in user.
+
+### Sign-up for email domains
+
+A company's app can let colleagues make their own account while everyone else still needs an invitation, with the email domains open sign-up takes:
+
+```ts
+auth: { roles: ['admin', 'member'], signUp: { role: 'member', domains: ['example.com'] } }
+```
+
+- An address at one of `domains` (subdomains count, letter case does not) signs up as above, with the emailed code; domains are matched as [SAML providers'](#sign-in-with-saml) are.
+- Any other address is refused at each step with `403` (`EMAIL_DOMAIN_NOT_ALLOWED`) before anything is mailed or made, and the sign-up page says the address cannot make an account here. The answer does not name the domains, and `GET /api/auth/status` still only says `signUp`. Invitations and sign-in work as before, whatever the domain.
+- `PROTOBASE_SIGN_UP_DOMAINS`, comma separated, replaces `domains` when set, so the deployment or the platform hosting the app decides them, and knows which it set. It only narrows open sign-up: without `signUp` in the config it turns nothing on.
+- An empty list, from either, takes nobody: open sign-up is then off, as without `signUp`, never open to all. Without `domains` and the variable, every address may sign up.
+- On the [GoTrue-compatible endpoints](#supabase-js-and-supabasessr), `POST /signup` from another address answers `422 signup_disabled`, and `POST /otp` sends a sign-in code, as with open sign-up off.
+- On the host, `auth.signUpDomains` is the list in effect and `auth.signUpTakes(email)` whether open sign-up takes an address.
+- <gap>A platform cannot read over HTTP the domains an app lists only in its own config because an endpoint that tells them to the platform is not implemented.</gap>
 
 ## Passkeys
 

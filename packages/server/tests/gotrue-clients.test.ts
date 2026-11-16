@@ -33,7 +33,7 @@ beforeAll(async () => {
 // Better Auth's rate limits are per client address and kept in memory, so every app gets an address of its own.
 let client = 0
 
-const serve = async () => {
+const serve = async (signUp: { role: string; domains?: string[] } = { role: 'member' }) => {
   const db = await store.clone()
   const sent: MailMessage[] = []
   const auth = createAuth({
@@ -41,7 +41,7 @@ const serve = async () => {
     baseURL: origin,
     secret,
     roles: ['admin', 'member'],
-    signUp: { role: 'member' },
+    signUp,
     users: { metadata: 'raw_user_meta_data' },
     mailer: { send: async (message) => void sent.push(message) },
   })
@@ -58,7 +58,7 @@ const serve = async () => {
     sent.length = 0
     return code
   }
-  return { auth, app, fetch, options, codeFor }
+  return { auth, app, fetch, options, codeFor, sent }
 }
 
 describe('supabase-js on the GoTrue-compatible endpoints', () => {
@@ -97,6 +97,15 @@ describe('supabase-js on the GoTrue-compatible endpoints', () => {
     const fresh = refreshed.data.session!.access_token
     expect((await supabase.auth.signOut()).error).toBeNull()
     expect((await supabase.auth.getUser(fresh)).error).toMatchObject({ name: 'AuthSessionMissingError' })
+  })
+
+  it('refuses a sign-up from an address outside the domains open sign-up is limited to, as with sign-up off', async () => {
+    const { auth, options, sent } = await serve({ role: 'member', domains: ['example.com'] })
+    const supabase = createClient(`${origin}/api/sb`, publishable, options)
+    const signUp = await supabase.auth.signUp({ email: 'ann@elsewhere.test', password })
+    expect(signUp.error).toMatchObject({ status: 422, code: 'signup_disabled' })
+    expect(sent).toEqual([])
+    expect(await (await auth.$context).internalAdapter.findUserByEmail('ann@elsewhere.test')).toBeNull()
   })
 
   it('signs in an existing user with an emailed code, and refuses a wrong password', async () => {
