@@ -60,10 +60,10 @@ export default defineConfig({ auth: { organizations: { create: 'everyone', invit
 
 ## auth.signUp
 
-- **Type:** `{ role: string }`
+- **Type:** `{ role: string; domains?: string[] }`
 - **Default:** off
 
-Open sign-up: anyone makes their own account from the sign-in page, with `role`, after proving their address with an emailed code. Needs a mailer. `role` is one of [`roles`](#authroles) and never `admin`. Not with organizations. See [Open sign-up](/reference/auth/#open-sign-up).
+Open sign-up: anyone makes their own account from the sign-in page, with `role`, after proving their address with an emailed code. Needs a mailer. `role` is one of [`roles`](#authroles) and never `admin`. `domains` takes only addresses at those email domains, subdomains included, and `PROTOBASE_SIGN_UP_DOMAINS` replaces it; an empty list leaves sign-up off. Not with organizations. See [Open sign-up](/reference/auth/#open-sign-up) and [Sign-up for email domains](/reference/auth/#sign-up-for-email-domains).
 
 ```ts
 export default defineConfig({ auth: { roles: ['admin', 'customer'], signUp: { role: 'customer' } } })

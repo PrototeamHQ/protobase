@@ -9,12 +9,15 @@ import { readSignInPolicy } from '../policy-store'
 import { codeMinutes } from '../sign-in-mail'
 import { effectiveSignInPolicy, type SignInPolicy } from '../sign-in-policy'
 import { createSignedUpAccount } from './sign-up-account'
+import { signUpTakes } from './sign-up-domains'
 import { consumeSignUpCode, issueSignUpCode } from './sign-up-code'
 import { consumeSignUpTicket, issueSignUpTicket } from './sign-up-ticket'
 
 export type SignUpPluginOptions = {
   /** The role every account made here gets, whatever the request says. */
   role: string
+  /** The email domains it takes, from `resolveSignUpDomains`; every address without them. */
+  domains?: string[]
   mail: AuthMail
   /** The policy until an admin saves one. */
   defaultPolicy: SignInPolicy
@@ -25,6 +28,9 @@ const address = z.string().trim().toLowerCase().pipe(z.email())
 /** The paths of the sign-up endpoints, as `ctx.path` and the rate limits name them. */
 export const signUpPaths = { sendCode: '/sign-up/send-code', verifyCode: '/sign-up/verify-code', create: '/sign-up/create' }
 
+// The message names no domain, so the answer does not list the ones the app takes.
+const domainNotAllowed = () => new APIError('FORBIDDEN', { code: 'EMAIL_DOMAIN_NOT_ALLOWED', message: 'You cannot make an account here with this address. Ask an admin to invite you.' })
+
 const noAdminYet = () => new APIError('FORBIDDEN', { code: 'NO_ADMIN_YET', message: 'This app has no admin yet; accounts are created on the host until it has one.' })
 
 /**
@@ -32,15 +38,17 @@ const noAdminYet = () => new APIError('FORBIDDEN', { code: 'NO_ADMIN_YET', messa
  * own, and only then the name and password, so an account exists only for an address its owner reads, verified from the
  * start, and nobody can claim an address before its owner does. Asking for a code answers the same whether the address
  * has an account or not; one that has gets a mail saying so, with a link to sign in, instead of a code. While the store
- * has no user, nobody signs up: the first admin is made on the host.
+ * has no user, nobody signs up: the first admin is made on the host. With `domains`, each step refuses an address
+ * elsewhere (`EMAIL_DOMAIN_NOT_ALLOWED`), before it mails or makes anything.
  */
-export const signUpPlugin = ({ role, mail, defaultPolicy }: SignUpPluginOptions) =>
+export const signUpPlugin = ({ role, domains, mail, defaultPolicy }: SignUpPluginOptions) =>
   ({
     id: 'protobase-sign-up',
     endpoints: {
       /** `POST /sign-up/send-code` with `{ email }`: mails a code for making an account with the address. */
       sendSignUpCode: createAuthEndpoint(signUpPaths.sendCode, { method: 'POST', body: z.object({ email: address }) }, async (ctx) => {
         const { email } = ctx.body
+        if (!signUpTakes(email, domains)) throw domainNotAllowed()
         const { internalAdapter, adapter } = ctx.context
         if ((await adapter.count({ model: 'user' })) === 0) throw noAdminYet()
         const sending = (await internalAdapter.findUserByEmail(email))
@@ -56,6 +64,7 @@ export const signUpPlugin = ({ role, mail, defaultPolicy }: SignUpPluginOptions)
        */
       verifySignUpCode: createAuthEndpoint(signUpPaths.verifyCode, { method: 'POST', body: z.object({ email: address, code: z.string().trim().min(1) }) }, async (ctx) => {
         const { email, code } = ctx.body
+        if (!signUpTakes(email, domains)) throw domainNotAllowed()
         if ((await ctx.context.adapter.count({ model: 'user' })) === 0) throw noAdminYet()
         await consumeSignUpCode(ctx.context, email, code)
         return ctx.json({ ticket: await issueSignUpTicket(ctx.context, email) })
@@ -76,6 +85,7 @@ export const signUpPlugin = ({ role, mail, defaultPolicy }: SignUpPluginOptions)
           if ((await adapter.count({ model: 'user' })) === 0) throw noAdminYet()
           checkNewAccountPassword(effectiveSignInPolicy((await readSignInPolicy(adapter, defaultPolicy)).policy, { mail: true }), password)
           const email = await consumeSignUpTicket(ctx.context, ticket)
+          if (!signUpTakes(email, domains)) throw domainNotAllowed()
           const passwordHash = password === undefined ? undefined : await ctx.context.password.hash(password)
           const user = await createSignedUpAccount(ctx.context, { email, name, role, ...(passwordHash !== undefined && { passwordHash }) })
           const session = await internalAdapter.createSession(user.id, false)

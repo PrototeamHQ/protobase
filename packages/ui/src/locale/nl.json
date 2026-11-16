@@ -1824,6 +1824,7 @@
     "wrongEmailOrPassword": "Het e-mailadres of wachtwoord klopt niet.",
     "wrongPassword": "Het wachtwoord klopt niet.",
     "wrongCode": "De code klopt niet.",
+    "signUpDomainNotAllowed": "Met dit adres kun je hier geen account maken. Vraag een beheerder om je uit te nodigen.",
     "wrongOrExpiredCode": "De code klopt niet, of is verlopen. Vraag een nieuwe aan.",
     "codeExpired": "De code is verlopen. Vraag een nieuwe aan.",
     "tooManyCodes": "Te veel verkeerde codes. Vraag een nieuwe aan.",

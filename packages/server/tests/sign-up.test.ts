@@ -260,3 +260,46 @@ describe('open sign-up, turned on', () => {
     expect(answers).toEqual([400, 400, 400, 400, 400, 429])
   })
 })
+
+describe('open sign-up, limited to email domains', () => {
+  const limited = { role: 'member', domains: ['Example.com'] }
+
+  // The whole flow, from the mailed code to the account: longer than one request on a busy runner.
+  it('makes the account of an address at a listed domain or a subdomain of one, whatever its case', async () => {
+    const { auth, request, status, askCode, codeFor, verify } = await serve({ signUp: limited })
+    expect(auth.signUpDomains).toEqual(['example.com'])
+    expect(await status()).toMatchObject({ signUp: true })
+    await askCode('nia@Mail.Example.com')
+    const { ticket } = (await (await verify('nia@Mail.Example.com', codeFor('nia@mail.example.com'))).json()) as { ticket: string }
+    expect((await request('/sign-up/create', { body: { ticket, name: 'Nia', password } })).status).toBe(200)
+    expect((await (await auth.$context).internalAdapter.findUserByEmail('nia@mail.example.com'))?.user).toMatchObject({ role: 'member', emailVerified: true })
+  }, 20_000)
+
+  it('refuses an address elsewhere at every step, mails it nothing and makes no account', async () => {
+    const { auth, request, sent, verify } = await serve({ signUp: limited })
+    for (const email of ['new@elsewhere.test', 'new@notexample.com']) {
+      const asked = await request('/sign-up/send-code', { body: { email } })
+      expect(asked.status).toBe(403)
+      expect(await asked.json()).toMatchObject({ code: 'EMAIL_DOMAIN_NOT_ALLOWED' })
+      expect(await (await verify(email, '123456')).json()).toMatchObject({ code: 'EMAIL_DOMAIN_NOT_ALLOWED' })
+      expect(await (await auth.$context).internalAdapter.findUserByEmail(email)).toBeNull()
+    }
+    expect(sent).toEqual([])
+  })
+
+  it('is off with an empty list, from the app or the platform, never open to all', async () => {
+    for (const options of [{ signUp: { role: 'member', domains: [] } }, { signUp }]) {
+      vi.stubEnv('PROTOBASE_SIGN_UP_DOMAINS', options.signUp === signUp ? '' : undefined)
+      try {
+        const { auth, request, status, sent } = await serve(options)
+        expect(auth.signUp).toBe(false)
+        expect(auth.signUpTakes('new@example.com')).toBe(false)
+        expect(await status()).not.toHaveProperty('signUp')
+        expect((await request('/sign-up/send-code', { body: { email: 'new@example.com' } })).status).toBe(404)
+        expect(sent).toEqual([])
+      } finally {
+        vi.unstubAllEnvs()
+      }
+    }
+  })
+})

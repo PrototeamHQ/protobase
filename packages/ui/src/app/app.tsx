@@ -83,6 +83,7 @@ import { LiveUpdateProvider } from './live-update/live-update-provider'
 import { updateAfterSignIn } from './live-update/sign-in-update'
 import { nativeSplash } from './native-splash'
 import { createSplashHold, SplashHoldProvider } from './splash-hold'
+import { removeStartScreen } from './start-screen'
 import { LiveUpdateCheck } from './live-update/live-update-check'
 import { LiveUpdateResume } from './live-update/live-update-resume'
 import { useStatusMenu } from '../status/use-status-menu'
@@ -362,9 +363,17 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, local
   const apiOrigin = rest.baseUrl && new URL(rest.baseUrl, window.location.href).origin
   const updater = useMemo(() => appLiveUpdater({ bridge: nativeBridge, apiOrigin, userAgent: navigator.userAgent, fetch: window.fetch.bind(window) }), [nativeBridge, apiOrigin])
   const afterSignIn = useMemo(() => updater && (() => updateAfterSignIn(updater, sessionPageKeeper())), [updater])
-  // The splash covers the app from launch, or from a reload into a release, until it draws past its loading screens:
-  // the auth check, `/meta` and the plugins, so the first thing seen is the page, from the start cache when it has one
-  const splash = useMemo(() => createSplashHold(() => void nativeSplash(nativeBridge)?.hide()), [nativeBridge])
+  // The splash, and index.html's start screen below it, cover the app from launch, or from a reload into a release, until
+  // it draws past its loading screens: the auth check, `/meta` and the plugins, so the first thing seen is the page, from
+  // the start cache when it has one
+  const splash = useMemo(
+    () =>
+      createSplashHold(() => {
+        removeStartScreen(document)
+        void nativeSplash(nativeBridge)?.hide()
+      }),
+    [nativeBridge],
+  )
   useEffect(() => splash.start(), [splash])
   return (
     <SplashHoldProvider value={splash}>
