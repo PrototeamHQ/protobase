@@ -13,6 +13,12 @@ state, step type and trigger, is in [the workflows reference](references/referen
    not check a resource's name or its fields: `"resource": "contact_messages"` saves and fails when it runs.
 3. Records steps act as the user who saved the workflow, with that user's roles now; mail always goes from the app's
    own sender.
+4. For a mail the app has a template for, use `app:mail.template` (Send email), not `app:mail.send`. Its
+   `template` argument in `list_workflow_types` names the app's templates, and the list's `templates` gives each one's
+   languages and the JSON Schema of its data. Pass `template`, `to`, an optional `locale` such as `nl`, and `data`
+   shaped as that schema: `{ "template": "welcome", "to": "{% $contact.email %}", "data": { "name": "{% $contact.name %}" } }`.
+   Data the schema refuses fails the step with `Mail.InvalidData`, naming each path. Use `app:mail.send` for a plain
+   mail whose subject and text the workflow writes itself.
 
 ## Sequence or data order
 

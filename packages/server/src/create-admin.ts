@@ -329,7 +329,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const encryption = createEncryptionRuntime({ models: registry.entries.map((entry) => entry.model), env: globalThis.process?.env ?? {} })
   const files = createFilesRuntime({ ...(filesOptions && { options: filesOptions }), ...(secret && { secret }), env: globalThis.process?.env ?? {}, models: registry.entries.map((entry) => entry.model), systemPath, storage: servesKeys })
   const table = webhooksOptions && webhookTable(webhooksOptions, auth)
-  const engine = workflowsOptions && workflowEngine(workflowsOptions, () => deps, auth, locale)
+  const engine = workflowsOptions && workflowEngine(workflowsOptions, () => deps, auth, locale, templates)
   // AI fields and actions call the assistant's model; without a key they fail when used, and dev and serve stop at startup (see `checkAi`)
   const withAi = withAiFields || hasAiActions(viewModels)
   const model = withAi ? aiModel(options.assistant, globalThis.process?.env ?? {}) : undefined
@@ -497,7 +497,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     if (auth) removeHistoryWithUsers(auth, history)
     app.route(historyPath(systemPath), guarded((routes) => void routes.route('/', historyRoutes(history, auth?.origins ?? []))))
   }
-  if (engine) app.route(workflowTypesPath(systemPath), guarded((routes) => void routes.route('/', workflowTypesRoute(deps, engine.types.types, engine.customTypes))))
+  if (engine) app.route(workflowTypesPath(systemPath), guarded((routes) => void routes.route('/', workflowTypesRoute(deps, engine.types.types, engine.customTypes, engine.types.templates))))
   if (engine) app.route(workflowRunsPath(systemPath), guarded((routes) => void routes.route('/', workflowTraceRoute(deps, engine.readTrace))))
   if (statusTables) app.route(statusPath(systemPath), guarded((routes) => void routes.route('/', statusRoutes(db, statusTables))))
   if (deps.calls) app.route(ringsPath(systemPath), guarded((routes) => void routes.route('/', ringRoutes(deps.calls!))))

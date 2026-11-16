@@ -13,5 +13,8 @@ export type WorkflowTypeEntry = { id: string; kind: string; label: string; descr
  */
 export type WorkflowCacheAdvice = { choice: 'hidden' | 'switch' | 'force' | 'discouraged'; default?: boolean; disclaimer?: string }
 
-/** The app's step types and triggers, `manual` among them, built-in and plugin types alike. */
-export type WorkflowTypeList = { step_types: WorkflowTypeEntry[]; triggers: WorkflowTypeEntry[] }
+/** An email template of the app: its name, the languages it is sent in, and the JSON Schema of its data, which `app:mail.template` takes. */
+export type WorkflowTemplateEntry = { name: string; languages: string[]; schema: Record<string, unknown> }
+
+/** The app's step types and triggers, `manual` among them, built-in and plugin types alike, and its email templates, none when it has none. */
+export type WorkflowTypeList = { step_types: WorkflowTypeEntry[]; triggers: WorkflowTypeEntry[]; templates?: WorkflowTemplateEntry[] }

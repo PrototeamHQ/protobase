@@ -1,5 +1,5 @@
-import type { JsonSchema, Plugin, PollingTrigger, ReadyTrigger, TriggerType, WebhookTrigger } from '@protobase/workflows/plugin'
-import { connectionUnavailable, loadPlugins, stepHandlers, triggerChecks, typeList, type CheckOptions, type ConnectionSupport, type LoadedPlugin, type StepWiring, type TaskHandlers, type TriggerCheck } from '@protobase/workflows'
+import type { JsonSchema, Plugin, PluginTemplate, PollingTrigger, ReadyTrigger, TriggerType, WebhookTrigger } from '@protobase/workflows/plugin'
+import { connectionUnavailable, loadPlugins, stepHandlers, triggerChecks, typeList, type CatalogTemplate, type CheckOptions, type ConnectionSupport, type EmailSchemas, type LoadedPlugin, type StepWiring, type TaskHandlers, type TriggerCheck, type TypeEntry } from '@protobase/workflows'
 import type { ResourceModel } from '@protobase/schema'
 import { keyTypes, recordJsonSchema } from '@protobase/schema/internal'
 import type { Mailer } from '../mail/mail-message'
@@ -19,15 +19,35 @@ export const readyTriggers = (plugins: readonly Plugin[]) => triggersOfKind<Read
 
 type Models = (name: string) => ResourceModel | undefined
 
+/** The step that sends one of the app's email templates, which takes one by its name. */
+export const templateStep = 'app:mail.template'
+
+// The template step's `template` as one of the app's templates' names, so the list and the editor offer them
+const withTemplateNames = (types: TypeEntry[], names: readonly string[]) =>
+  names.length === 0
+    ? types
+    : types.map((type) => {
+        if (type.id !== templateStep) return type
+        const properties = type.input.properties as Record<string, JsonSchema>
+        return { ...type, input: { ...type.input, properties: { ...properties, template: { ...properties.template, enum: [...names] } } } }
+      })
+
 /**
  * The trigger and step types of an app: the default plugins, then the app's own, all through the same loader and
  * interface. `types` is the list the MCP tools and the editor read; `check` is what a save checks a definition against,
  * the available types only, and `checkWith` the same check against other resources, such as those a caller may read.
- * A type that signs in is available once the app can make its connection, as `support` says.
+ * A type that signs in is available once the app can make its connection, as `support` says. `app:mail.template`
+ * takes one of `templates`, the app's email templates, by name, its data as that template's schema says;
+ * `templates` lists them as the type list's readers see them.
  */
-export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Models = () => undefined, support?: ConnectionSupport) => {
+export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Models = () => undefined, support?: ConnectionSupport, mailTemplates: readonly PluginTemplate[] = []) => {
   const plugins = loadPlugins(workflowPlugins(loaded))
-  const types = typeList(plugins, connectionUnavailable(support))
+  const types = withTemplateNames(typeList(plugins, connectionUnavailable(support)), mailTemplates.map((template) => template.name))
+  const templates: CatalogTemplate[] = mailTemplates.map((template) => ({ name: template.name, languages: [...template.languages], schema: template.dataSchema }))
+  const emails: EmailSchemas = (name) => {
+    const found = templates.find((template) => template.name === name)
+    return found && { schema: found.schema, languages: found.languages }
+  }
   // The connection `<plugin>:<connection>` of each type that signs in, by the type's id.
   const connections = Object.fromEntries(types.flatMap((type) => (type.connection ? [[type.id, `${type.plugin}:${type.connection.name}`]] : [])))
   // Trigger types only: a step's id never makes a trigger available.
@@ -62,6 +82,7 @@ export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Mode
           const model = against(resource)
           return model && recordJsonSchema(model, use, model.name, keyTypes(against))
         },
+        emails,
       },
     }
   }
@@ -69,7 +90,7 @@ export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Mode
   /** The step types of one segment, which sends mail with the mailer of the job that runs it, signs in through `connection`, and sends from the enabler's `mailbox`. */
   const tasks = (input: ServicesInput, mail: Mailer | undefined, connection: StepWiring['connection'], mailbox?: StepWiring['mailbox']): TaskHandlers =>
     stepHandlers(plugins, { services: pluginServices(input, mail), connection, ...(mailbox && { mailbox }) })
-  return { plugins, types, check, checkWith, tasks, ready, polling, webhooks, connections, available: (id: string) => available.has(id) }
+  return { plugins, types, templates, check, checkWith, tasks, ready, polling, webhooks, connections, available: (id: string) => available.has(id) }
 }
 
 export type WorkflowTypes = ReturnType<typeof workflowTypes>

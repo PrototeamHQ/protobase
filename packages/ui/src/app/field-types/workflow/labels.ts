@@ -14,6 +14,7 @@ const stepTypeLabels: Record<string, () => string> = {
   'app:records.get': () => text('stepRecordsGet'),
   'app:records.list': () => text('stepRecordsList'),
   'app:mail.send': () => text('stepMailSend'),
+  'app:mail.template': () => text('stepMailTemplate'),
   'app:piece': () => text('stepPiece'),
 }
 

@@ -4,7 +4,7 @@ import type { Definition } from '../types'
 import { pinProblems } from './check-pins'
 import { fits, pinType, pinTypeText } from './pin-type'
 import { expressionReferences, parseReference, readText, referenceValue } from './references'
-import { resolveSchema, schemaAt, type RecordSchemas } from './resolve-schema'
+import { resolveSchema, schemaAt, type EmailSchemas, type RecordSchemas } from './resolve-schema'
 import type { PinSchemas } from './pin-sources'
 
 const contact = { type: 'object', title: 'contacts', properties: { id: { type: 'string' }, name: { type: 'string' }, age: { type: 'integer' } } }
@@ -75,6 +75,31 @@ describe('pins', () => {
     expect(resolveSchema(created, { data: { name: 'a' } }, records)).toEqual({ type: 'object' })
     expect(resolveSchema(created, { data: [{ name: 'a' }] }, records)).toEqual({ type: 'array' })
     expect(resolveSchema(created, { data: '{% $rows %}' }, records)).toEqual({ anyOf: [{ type: 'object' }, { type: 'array' }] })
+  })
+
+  it("fills in the data and languages of the email template an argument names, and leaves an unknown one's open", () => {
+    const welcome = { type: 'object', required: ['name'], properties: { name: { type: 'string' }, seats: { type: 'integer' } } }
+    const emails: EmailSchemas = (name) => (name === 'welcome' ? { schema: welcome, languages: ['en', 'nl'] } : undefined)
+    const input = { type: 'object', properties: { template: { type: 'string' }, locale: { type: 'string', 'x-email-of': 'template', 'x-email-use': 'locale' }, data: { type: 'object', 'x-email-of': 'template' } } }
+    const resolved = resolveSchema(input, { template: 'welcome' }, records, emails)
+    expect(schemaAt(resolved, ['data'])).toEqual(welcome)
+    expect(schemaAt(resolved, ['data', 'seats'])).toEqual({ type: 'integer' })
+    expect(schemaAt(resolved, ['locale'])).toEqual({ type: 'string', enum: ['en', 'nl'] })
+    for (const template of ['goodbye', '{% $which %}', undefined]) {
+      const open = resolveSchema(input, { template }, records, emails)
+      expect(schemaAt(open, ['data'])).toEqual({ type: 'object' })
+      expect(schemaAt(open, ['locale'])).toEqual({ type: 'string' })
+    }
+    // Without the app's templates, as before
+    expect(resolveSchema({ 'x-email-of': 'template' }, { template: 'welcome' }, records)).toEqual({})
+    // A save check types each wire into the template's data
+    const send: Definition = {
+      trigger: { 'app:record': { resource: 'contacts' } },
+      stateMachine: { QueryLanguage: 'JSONata', StartAt: 'Send', States: { Send: { Type: 'Task', Resource: 'app:mail.template', Arguments: { template: 'welcome', to: 'a@example.com', data: { name: '{% $states.context.Execution.Input.record.age %}', seats: '{% $states.context.Execution.Input.record.age %}' } }, End: true } } },
+    }
+    expect(pinProblems(send, { ...schemas, inputs: { 'app:mail.template': input }, emails })).toEqual([
+      { state: 'Send', field: 'Arguments.data.name', message: 'reads $states.context.Execution.Input.record.age, a whole number, where data.name takes text' },
+    ])
   })
 
   it('reports an argument that reads a value of a type it does not take, naming both, and lets the rest pass', () => {

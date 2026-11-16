@@ -6,13 +6,17 @@ import type { PinSchemas } from '@protobase/workflows'
 import { useMeta } from '../../../../data/use-meta'
 import { humanize } from '../../../../live/naming'
 
-/** The schemas pins are typed by: the types' inputs and outputs, and each resource's record titled by its singular name. */
+/** The schemas pins are typed by: the types' inputs and outputs, each resource's record titled by its singular name, and each email template's data. */
 export const pinSchemas = (types: WorkflowTypeList, resources: Record<string, ResourceModel>, views: Record<string, ViewModel> = {}): PinSchemas => ({
   inputs: Object.fromEntries(types.step_types.map((type) => [type.id, type.input])),
   outputs: Object.fromEntries([...types.step_types, ...types.triggers].flatMap((type) => (type.output ? [[type.id, type.output]] : []))),
   records: (resource, use) => {
     const model = resources[resource]
     return model && recordJsonSchema(model, use, views[resource]?.names?.singular ?? humanize(resource), keyTypes((name) => resources[name]))
+  },
+  emails: (name) => {
+    const template = types.templates?.find((each) => each.name === name)
+    return template && { schema: template.schema, languages: template.languages }
   },
 })
 

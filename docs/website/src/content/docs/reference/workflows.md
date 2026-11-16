@@ -477,6 +477,35 @@ A get and a list only read; a create and an update are recorded. They go through
 
 The mail goes from the app's own sender with the app's mailer; a workflow cannot set the sender. The result is `{ message_id }`, the Message-ID the step sets, the same for each try of the step. Without mail the step fails.
 
+### app:mail.template
+
+**Send email** sends one of the app's [email templates](/reference/email/), the `defineTemplate(...)` templates its config exports:
+
+| Argument | |
+| --- | --- |
+| `template` | The template's name, one of the app's templates. |
+| `to` | One address. |
+| `locale` | Optional: a BCP 47 language tag, such as `nl` or `en-GB`. The mail is in the template's language closest to it, so `nl-BE` picks `nl`. Without it, the mail is in the app's `locale` when the template has that language. Otherwise it is in English when the template has it, else in the template's first language. |
+| `data` | The template's data, as its schema takes it. |
+
+```json
+{
+  "Type": "Task",
+  "Resource": "app:mail.template",
+  "Arguments": {
+    "template": "order-confirmation",
+    "to": "{% $states.context.Execution.Input.record.email %}",
+    "locale": "{% $states.context.Execution.Input.record.language %}",
+    "data": { "name": "{% $states.context.Execution.Input.record.name %}", "order": "{% $states.context.Execution.Input.record.number %}" }
+  },
+  "End": true
+}
+```
+
+The editor draws one input pin for each field of the chosen template's data, and offers the template's languages for `locale`. A save checks each value read by name in `data` against the type of that field, as it checks a record's fields. `list_workflow_types` lists the app's template names in the step's `template` argument, and each template's languages and data schema under `templates`.
+
+The mail goes from the app's own sender, as `app:mail.send`'s does. The result is `{ message_id, locale }`: the Message-ID the step sets, the same for each try of the step, and the language the mail was sent in. Data the template's schema refuses fails the step with `Mail.InvalidData`, its cause naming each path, such as `data.name: Invalid input`. A template the app does not have fails it with `Mail.UnknownTemplate`. Without mail the step fails.
+
 ### app:piece
 
 `piece`, `action`, `connection` and `props` name an action of a connector and its arguments. A save takes it, and a run fails it with `Piece.Error`. <gap>A piece step cannot run an action because its handler is not implemented.</gap>

@@ -854,6 +854,7 @@
     "stepRecordsGet": "Record ophalen",
     "stepRecordsList": "Records opvragen",
     "stepMailSend": "Mail versturen",
+    "stepMailTemplate": "E-mail versturen",
     "stepPiece": "Connectoractie",
     "typePass": "Waarden zetten",
     "typeChoice": "Keuze",

@@ -854,6 +854,7 @@
     "stepRecordsGet": "Get a record",
     "stepRecordsList": "List records",
     "stepMailSend": "Send mail",
+    "stepMailTemplate": "Send email",
     "stepPiece": "Connector action",
     "typePass": "Set values",
     "typeChoice": "Choice",
