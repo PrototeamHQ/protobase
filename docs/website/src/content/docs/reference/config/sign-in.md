@@ -316,6 +316,17 @@ What the OAuth provider of [`auth.mcp`](#authmcp) serves besides MCP. `api: true
 export default defineConfig({ auth: { mcp: true, oauth: { api: true } } })
 ```
 
+## auth.openIdProvider
+
+- **Type:** `true | { connectPage?: string }`
+- **Default:** off
+
+Makes the app an OpenID provider for the clients its admins register at `/api/auth/openid-provider/clients`, such as other apps that sign people in with it: they get an ID token with the person's `sub`, `email` and `email_verified`, without asking the person to allow them, and nothing else can register. A client allowed to exchange gets ID tokens for the other clients without a browser. `connectPage` is the page people sign in on (default `/-/connect`). Not with [`auth.mcp`](#authmcp); the server refuses to start with both. See [OpenID provider for other apps](/reference/auth/#openid-provider-for-other-apps).
+
+```ts
+export default defineConfig({ auth: { openIdProvider: true } })
+```
+
 ## auth.personalAccessTokens
 
 - **Type:** `{ prefix: string }`

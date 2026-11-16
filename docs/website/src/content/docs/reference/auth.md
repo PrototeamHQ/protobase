@@ -845,6 +845,64 @@ auth: { mcp: true, oauth: { api: true } }
 - Notifications and calls refuse these tokens, as they refuse an MCP client's.
 - <gap>The app's API cannot take DPoP-bound access tokens because checking a proof against the API's URLs is not implemented.</gap> A token bound to a key is refused when it is sent as a bearer token.
 
+## OpenID provider for other apps
+
+With `openIdProvider`, the app is an OpenID provider for the clients its admins register, such as other apps that let people sign in with it: a person signs in on the app's own pages, as they always do, and the client gets an ID token that says who they are. Nobody is asked to allow a client, since only an admin registers one.
+
+```ts
+auth: { openIdProvider: true }
+auth: { openIdProvider: { connectPage: '/-/connect' } }
+```
+
+- **Only registered clients.** Nothing registers itself: `/api/auth/oauth2/register` is closed, and so are the provider's own client management, consent, userinfo, introspection and logout endpoints. A client the admin did not register through the API below is refused with `400 invalid_client` at authorize and at the token endpoint, before anything else, and so is a client in the store from elsewhere, such as one an MCP client registered while the app had `mcp` on. A redirect URI must be one the client registered, character for character, so the person's browser is never sent with a code, or an error, to an address of someone else's.
+- **Not with `mcp`.** MCP clients register themselves, and the app has one OAuth provider, so the server refuses to start with both. Serve them from separate apps.
+- **Discovery** is at `/.well-known/openid-configuration`, with the app's `url` as issuer, and the keys at `/api/auth/jwks`. A client uses the authorization code flow with PKCE, with `openid email profile`, and a `nonce`.
+- **The ID token** is signed with the app's [signing keys](#signing-keys) (EdDSA) and lives 5 minutes. It carries `iss` (the app's `url`), `aud` (the client's id, alone), `sub` (the person's user id in this app), `email`, `email_verified`, and `name` when the person has one. It has no `jti`. Another Protobase app takes it as its [platform sign-in provider](#platform-sign-in-provider), through its pages or by [token sign-in](#token-sign-in).
+- **Signing in** goes through the connect page (`connectPage`, default `/-/connect`), which signs the person in and goes straight on to the client. Someone who has not set up what the [sign-in policy](#sign-in-policy) requires is sent to the setup page first, and staff signed in as a person get no token.
+
+### Registering clients
+
+An admin registers, lists and deletes the clients with their own session; anyone else is refused with `403 ADMIN_ONLY`:
+
+```http
+POST /api/auth/openid-provider/clients
+{ "name": "Shop", "redirectUris": ["https://shop.example.com/api/auth/callback/oidc"], "type": "confidential" }
+→ { "clientId": "...", "clientSecret": "..." }
+
+GET /api/auth/openid-provider/clients
+→ [{ "clientId": "...", "name": "Shop", "redirectUris": [...], "type": "confidential", "exchange": false }]
+
+POST /api/auth/openid-provider/clients/delete
+{ "clientId": "..." }
+```
+
+- `confidential` is an app with a server, which authenticates with the secret it gets once, in a Basic header; `public` is an app on a device, such as a phone app, which has no secret and uses PKCE alone.
+- Every client skips consent, must use PKCE, and gets the scopes `openid email profile`.
+- `exchange: true` lets a client exchange its access token for ID tokens of the other clients (below), and gives it refresh tokens (`offline_access`). Only the app that signs people in on their device for the other apps should have it: it can sign its people in to every other client.
+- Deleting a client deletes its tokens too, so its refresh tokens stop at once.
+
+### Token exchange
+
+A client registered with `exchange: true`, such as a phone app the person signed in to once, gets an ID token for another registered client without a browser, and posts it to that app's [token sign-in](#token-sign-in). It is the token exchange of RFC 8693 at the token endpoint:
+
+```http
+POST /api/auth/oauth2/token
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&client_id=<its own id>
+&subject_token=<its access token>
+&subject_token_type=urn:ietf:params:oauth:token-type:access_token
+&requested_token_type=urn:ietf:params:oauth:token-type:id_token
+&audience=<the other client's id>
+→ { "access_token": "<ID token>", "issued_token_type": "urn:ietf:params:oauth:token-type:id_token", "token_type": "N_A", "expires_in": 300 }
+```
+
+- **The subject is the caller's own person.** `subject_token` must be a live access token this app issued to the calling client itself: not an ID token, a refresh token or another client's token, not expired, revoked or from a session that ended. Otherwise it answers `400 invalid_grant`. A client without `exchange` gets `400 unauthorized_client`.
+- **The audience is another registered client**: not the caller, not an unknown client and not one the admin did not register (`400 invalid_target`).
+- **An ID token only.** The answer is an ID token for that client alone, living 5 minutes, as from the client's own sign-in. No access or refresh token for the other client leaves the app. `requested_token_type` and `subject_token_type` take only the values above (`400 invalid_request`).
+- **A banned person, or one whose address is not verified,** gets none (`400 invalid_grant`). A ban after the token was issued is caught by the other app, which checks its own account at sign-in.
+- The token endpoint takes 20 requests a minute per client address.
+
+
 ## Several origins
 
 An app can be served on more than one origin, such as its platform address and the customer's own domain. `auth.origins` lists the others; it defaults to `PROTOBASE_ORIGINS`, which a platform sets:

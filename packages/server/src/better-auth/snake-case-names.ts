@@ -38,7 +38,8 @@ export const pluginNames = {
   passkey: {
     passkey: { fields: { publicKey: 'public_key', userId: 'user_id', credentialID: 'credential_id', deviceType: 'device_type', backedUp: 'backed_up', createdAt: 'created_at' } },
   },
-  // The OAuth provider MCP clients sign in through (`mcpAuthPlugins`); the CIMD plugin adds no tables.
+  // The OAuth provider MCP clients sign in through (`mcpAuthPlugins`), or the OpenID provider's clients
+  // (`openIdProviderPlugins`); the CIMD plugin adds no tables.
   mcp: {
     oauthClient: {
       modelName: 'oauth_client',
