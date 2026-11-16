@@ -23,7 +23,17 @@ describe('emailed sign-in and two-factor codes', () => {
     expect(sent).toHaveLength(2)
     for (const message of sent) {
       expect(message.text).toContain(`It works for ${emailCodeMinutes} minutes, once.`)
-      expect(message.html).toContain(`>${emailCodeMinutes} minutes<`)
+      expect(message.html).toContain(`It works for ${emailCodeMinutes} minutes, once.`)
     }
+  })
+
+  it("come in the language of the request that asked for them, else in English", async () => {
+    const { sent, mail } = recording()
+    const signIn = emailCodeOptions(mail)
+    const asked = (language?: string) => ({ headers: new Headers(language ? { 'accept-language': language } : {}), context: { baseURL: 'https://homes.example.com/api/auth' } }) as never
+    await signIn.sendVerificationOTP({ email: 'ada@example.com', otp: '123456', type: 'sign-in' }, asked('nl-BE, en;q=0.8'))
+    await signIn.sendVerificationOTP({ email: 'ada@example.com', otp: '123456', type: 'sign-in' }, asked('fr'))
+    await signIn.sendVerificationOTP({ email: 'ada@example.com', otp: '123456', type: 'sign-in' }, asked())
+    expect(sent.map((message) => message.subject)).toEqual(['123456 is je inlogcode voor Property Finder', '123456 is your Property Finder sign-in code', '123456 is your Property Finder sign-in code'])
   })
 })

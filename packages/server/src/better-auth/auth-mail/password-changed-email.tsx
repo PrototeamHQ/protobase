@@ -1,19 +1,55 @@
-import { Text } from 'react-email'
+/** @jsxImportSource @protobase/layout */
+import { Button, Text, Trans, translations } from '@protobase/layout'
 import { signInPath } from '@protobase/schema'
-import { defineEmail } from '../../mail/define-email'
-import { EmailButton, EmailLayout, EmailNote } from '../../mail/email-layout'
-import type { MailingApp } from '../../mail/mailing-app'
+import { defineTemplate } from '../../mail/template/define-template'
 
-export type PasswordChangedData = { app: MailingApp }
+export type PasswordChangedData = Record<never, never>
 
-const PasswordChangedEmail = ({ app }: PasswordChangedData) => (
-  <EmailLayout app={app} preview={`The password of your ${app.name} account was changed`} heading="Your password was changed">
-    <Text>The password of your account with {app.name} was just changed.</Text>
-    <Text>If this was not you, choose a new password at once with "Forgot password?" on the sign-in page:</Text>
-    <EmailButton href={new URL(signInPath({ step: 'forgot-password' }), app.url).href}>Choose a new password</EmailButton>
-    <EmailNote>If this was you, ignore this email.</EmailNote>
-  </EmailLayout>
-)
+const texts = translations({
+  en: {
+    subject: 'Your {app} password was changed',
+    preview: 'The password of your {app} account was changed',
+    heading: 'Your password was changed',
+    intro: 'The password of your account with {app} was just changed.',
+    hint: 'If this was not you, choose a new password at once with "Forgot password?" on the sign-in page:',
+    action: 'Choose a new password',
+    note: 'If this was you, ignore this email.',
+  },
+  nl: {
+    subject: 'Je wachtwoord voor {app} is gewijzigd',
+    preview: 'Het wachtwoord van je account bij {app} is gewijzigd',
+    heading: 'Je wachtwoord is gewijzigd',
+    intro: 'Het wachtwoord van je account bij {app} is zojuist gewijzigd.',
+    hint: 'Was jij dit niet? Kies dan meteen een nieuw wachtwoord met "Wachtwoord vergeten?" op de inlogpagina:',
+    action: 'Kies een nieuw wachtwoord',
+    note: 'Was jij dit wel? Dan kun je deze e-mail negeren.',
+  },
+})
 
 /** The email to an account whose password changed: what happened, and how to take the account back if it was not them. */
-export const passwordChangedEmail = defineEmail({ name: 'password-changed', subject: ({ app }: PasswordChangedData) => `Your ${app.name} password was changed`, component: PasswordChangedEmail })
+export const passwordChangedEmail = defineTemplate<PasswordChangedData>({
+  name: 'password-changed',
+  texts,
+  subject: ({ app }) => <Trans i18nKey="subject" values={{ app: app.name }} />,
+  preview: ({ app }) => <Trans i18nKey="preview" values={{ app: app.name }} />,
+  body: ({ app }) => (
+    <>
+      <Text as="h1">
+        <Trans i18nKey="heading" />
+      </Text>
+      <Text>
+        <Trans i18nKey="intro" values={{ app: app.name }} />
+      </Text>
+      <Text>
+        <Trans i18nKey="hint" />
+      </Text>
+      {/* The app's url ends in a slash: it is its home page. */}
+      <Button href={`${app.url}${signInPath({ step: 'forgot-password' })}`}>
+        <Trans i18nKey="action" />
+      </Button>
+      <Text>
+        <Trans i18nKey="note" />
+      </Text>
+    </>
+  ),
+})

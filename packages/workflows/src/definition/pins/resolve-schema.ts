@@ -8,6 +8,9 @@ export type RecordUse = 'read' | 'write'
 /** A resource's record as JSON Schema, for a use; undefined for a resource the app does not have. */
 export type RecordSchemas = (resource: string, use: RecordUse) => JsonSchema | undefined
 
+/** An email template of the app by its name: the JSON Schema of its data and the languages it is sent in; undefined for one the app does not have. */
+export type EmailSchemas = (template: string) => { schema: JsonSchema; languages: readonly string[] } | undefined
+
 const isSchema = (value: unknown): value is JsonSchema => typeof value === 'object' && value !== null && !Array.isArray(value)
 
 /**
@@ -15,10 +18,11 @@ const isSchema = (value: unknown): value is JsonSchema => typeof value === 'obje
  * resource that argument names, for the `x-record-use` it says (default `read`), and `{ "x-schema-of": "<argument>" }`
  * is the schema that argument holds, such as an HTTP answer's declared body, and `{ "x-one-or-many-of": "<argument>",
  * "anyOf": [<one>, <list>] }` is one or the list as that argument holds an object or a list. `{ "x-file": true }` is a
- * stored file, with its own title and description. An argument that is an expression, or a resource the app does not
- * have, leaves the value of any type.
+ * stored file, with its own title and description. `{ "x-email-of": "<argument>" }` is the data of the email template
+ * that argument names, and with `"x-email-use": "locale"` one of the languages it is sent in. An argument that is an
+ * expression, or a resource or template the app does not have, leaves the value of any type.
  */
-export const resolveSchema = (schema: JsonSchema, args: Record<string, unknown>, records: RecordSchemas): JsonSchema => {
+export const resolveSchema = (schema: JsonSchema, args: Record<string, unknown>, records: RecordSchemas, emails: EmailSchemas = () => undefined): JsonSchema => {
   const resolve = (node: unknown): unknown => {
     if (Array.isArray(node)) return node.map(resolve)
     if (!isSchema(node)) return node
@@ -29,6 +33,14 @@ export const resolveSchema = (schema: JsonSchema, args: Record<string, unknown>,
       const use = node['x-record-use'] === 'write' ? 'write' : 'read'
       const record = typeof resource === 'string' && !resource.startsWith('{%') ? records(resource, use) : undefined
       return record ?? withoutKeys(node, ['x-record-of', 'x-record-use'])
+    }
+    const emailOf = node['x-email-of']
+    if (typeof emailOf === 'string') {
+      const name = args[emailOf]
+      const template = typeof name === 'string' && !name.startsWith('{%') ? emails(name) : undefined
+      const rest = withoutKeys(node, ['x-email-of', 'x-email-use'])
+      if (node['x-email-use'] === 'locale') return template && template.languages.length > 0 ? { ...rest, enum: [...template.languages] } : rest
+      return template?.schema ?? rest
     }
     // One of an object and a list of them, as the argument it names holds one or a list
     const oneOrMany = node['x-one-or-many-of']

@@ -245,7 +245,7 @@ export const CreatesAndConnectsChecks: StoryObj = {
     await addStep(canvasElement, 'HTTP request')
     const panel = () => within(canvas.getByRole('region', { name: 'Chosen step' }))
     await userEvent.type(await panel().findByRole('textbox', { name: /^URL/ }), 'https://news.example.com/today')
-    await addStep(canvasElement, 'email')
+    await addStep(canvasElement, 'plain mail')
     await userEvent.type(await panel().findByRole('textbox', { name: /^To/ }), 'team@example.com')
     await userEvent.type(panel().getByRole('textbox', { name: /^Subject/ }), 'Today')
     await userEvent.type(panel().getByRole('textbox', { name: /^Text/ }), "{{% $states.context.Execution.Input.body %}")

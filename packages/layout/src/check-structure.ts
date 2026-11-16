@@ -118,6 +118,21 @@ const recordTreeProblems = (node: LayoutNode): string[] => {
   return []
 }
 
+/** The blocks only an email draws, around and in its text. */
+export const mailOnlyBlocks = new Set(['Email', 'Button', 'Divider'])
+
+/** The blocks an email draws: text, links, images and its own, shown by its data's values and conditions. */
+const mailBlocks = new Set([...mailOnlyBlocks, 'Text', 'Trans', 'Link', 'Image', 'Box', 'Row', 'Column', 'Show', 'Switch', 'Match', 'ArrayField', 'RecordsIterator', 'Field', 'TextField', 'NumberField', 'DateField', 'BooleanField', 'UrlField', 'ChipField', 'Fragment'])
+
+// An email's tree is drawn once, as the mail is sent, from its data alone: no reads, actions or page addresses
+const mailProblems = (node: LayoutNode, mail: boolean): string[] => {
+  if (node.custom) return mail ? [`<${node.type}> is a custom component, which an email cannot draw`] : []
+  if (mail && !mailBlocks.has(node.type)) return [`<${node.type}> does not draw in an email, which takes ${[...mailBlocks].filter((name) => name !== 'Email' && name !== 'Fragment').join(', ')}`]
+  if (!mail && mailOnlyBlocks.has(node.type)) return [`<${node.type}> draws only in an email: write it in defineTemplate's body`]
+  if (mail && node.type === 'Link' && node.props.to !== undefined) return ['a link in an email takes "href", a full address, not "to"']
+  return []
+}
+
 /**
  * Checks a page's tree without the models: the root is one `Page`, every built-in element has known props of the right
  * kind, elements that show a record's fields sit inside one, tabs are placed as their address needs, and conditions
@@ -127,14 +142,17 @@ const recordTreeProblems = (node: LayoutNode): string[] => {
 export const structureProblems = (tree: LayoutNode, scope: Scope = pageScope): string[] => {
   const problems: string[] = []
   const record = scope.root !== undefined
+  const mail = !tree.custom && tree.type === 'Email'
   if (!record && (tree.custom || tree.type !== 'Page')) problems.push(`the root element is <${tree.type}>, it must be <Page>`)
   walkTree(tree, (node, { path, scope }) => {
     const report = (problem: string) => problems.push(`${path}: ${problem}`)
     if (record) recordTreeProblems(node).forEach(report)
+    mailProblems(node, mail).forEach(report)
     if (node.custom) return
     const spec = blockSpecs[node.type]
     if (!spec) return report(`<${node.type}> is not a block; custom components are declared with component('${node.type}')`)
     if (!record && node.type === 'Page' && node !== tree) report('<Page> is only allowed as the root')
+    if (node.type === 'Email' && node !== tree) report('<Email> is only allowed as the root')
     propProblems(spec, node.props, node.children.length).forEach(report)
     recordProblems(node, scope).forEach(report)
     if (node.type === 'Stat') statProblems(node).forEach(report)
@@ -156,3 +174,6 @@ export const structureProblems = (tree: LayoutNode, scope: Scope = pageScope): s
   }, { path: label(tree), scope })
   return record ? problems : [...problems, ...tabsProblems(tree), ...pageParamProblems(tree)]
 }
+
+/** Checks an email's tree, rooted in an `Email`, as a record page's is checked inside its data: the blocks it draws, their props and conditions. */
+export const mailTreeProblems = (tree: LayoutNode): string[] => structureProblems(tree, { stack: [], root: 'data' })

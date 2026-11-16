@@ -3,15 +3,19 @@ import { expressionSource } from '../expressions'
 import type { BlockState, Definition, Machine, State } from '../types'
 import { taskResource } from '../task-resource'
 import type { Reference } from './references'
-import { resolveSchema, schemaAt, type RecordSchemas } from './resolve-schema'
+import { resolveSchema, schemaAt, type EmailSchemas, type RecordSchemas } from './resolve-schema'
 
 type JsonSchema = Record<string, unknown>
 
-/** What the types of pins are read from: each step type's input and each step and trigger type's output, by id, and the records of the app's resources. */
+/**
+ * What the types of pins are read from: each step type's input and each step and trigger type's output, by id, the
+ * records of the app's resources, and its email templates' data.
+ */
 export type PinSchemas = {
   inputs: Readonly<Record<string, JsonSchema>>
   outputs: Readonly<Record<string, JsonSchema>>
   records: RecordSchemas
+  emails?: EmailSchemas
 }
 
 
@@ -47,14 +51,14 @@ export const resultState = (machine: Machine, variable: string): [string, State]
 export const resultSchema = (state: State, schemas: PinSchemas) => {
   if (state.Type !== 'Task') return
   const { type, waits } = taskResource(state.Resource)
-  return !waits && schemas.outputs[type] ? resolveSchema(schemas.outputs[type]!, argumentsOf(state), schemas.records) : undefined
+  return !waits && schemas.outputs[type] ? resolveSchema(schemas.outputs[type]!, argumentsOf(state), schemas.records, schemas.emails) : undefined
 }
 
 /** The run's input as the trigger gives it, with what its input names filled in; undefined for a manual workflow. */
 export const triggerSchema = (definition: Definition, schemas: PinSchemas) => {
   const [id, input] = Object.entries(definition.trigger ?? {})[0] ?? []
   if (id === undefined || id === 'manual' || !schemas.outputs[id]) return
-  return resolveSchema(schemas.outputs[id]!, (input ?? {}) as Record<string, unknown>, schemas.records)
+  return resolveSchema(schemas.outputs[id]!, (input ?? {}) as Record<string, unknown>, schemas.records, schemas.emails)
 }
 
 /**
@@ -80,7 +84,7 @@ export const referenceSchema = (definition: Definition, reference: Reference, sc
 export const inputSchema = (state: State, schemas: PinSchemas) => {
   if (state.Type !== 'Task') return
   const { type } = taskResource(state.Resource)
-  return schemas.inputs[type] ? resolveSchema(schemas.inputs[type]!, argumentsOf(state), schemas.records) : undefined
+  return schemas.inputs[type] ? resolveSchema(schemas.inputs[type]!, argumentsOf(state), schemas.records, schemas.emails) : undefined
 }
 
 /** Every Task of a machine outside any Block, with its path, the ones in Maps too: a Block's steps read only its own input. */

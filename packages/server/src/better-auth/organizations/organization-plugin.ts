@@ -1,6 +1,7 @@
 import { getCurrentAuthEndpointContext } from '@better-auth/core/context'
 import { APIError } from 'better-auth/api'
 import { organization, type OrganizationOptions } from 'better-auth/plugins/organization'
+import { headersLocale } from '../../locale/request-locale'
 import { sendAuthEmail, type AuthMail } from '../auth-mail/send-auth-email'
 import { checkAppRoleChange, globalRoles, parseAppRoles, effectiveRoles } from './app-roles'
 import { invitationPage } from '../invitations/invitation-link-hook'
@@ -101,10 +102,11 @@ export const organizationPlugin = ({ resolved, secret, mail, context }: Organiza
     // in the answer instead (see the invitation endpoints). Better Auth hands this only the raw request, so the
     // request's origin as it resolved it comes from the endpoint the mail is sent in.
     ...(mail && {
-      sendInvitationEmail: async ({ invitation, organization, inviter }) => {
+      // In the inviter's language, the request's, when the app sets none.
+      sendInvitationEmail: async ({ invitation, organization, inviter }, request) => {
         const page = invitationPage(resolved.invitationUrl, getCurrentAuthEndpointContext().context.baseURL)
         const url = invitationLink(page, await invitationToken(secret, invitation))
-        await sendAuthEmail(mail, 'invitationEmail', invitation.email, { inviter: inviter.user.name || inviter.user.email, organization: organization.name, url, expiresAt: new Date(invitation.expiresAt) }, url)
+        await sendAuthEmail(mail, 'invitationEmail', invitation.email, { inviter: inviter.user.name || inviter.user.email, organization: organization.name, url, expiresAt: new Date(invitation.expiresAt) }, url, headersLocale(request?.headers))
       },
     }),
     organizationHooks: mergeHooks(own, resolved.options.hooks),

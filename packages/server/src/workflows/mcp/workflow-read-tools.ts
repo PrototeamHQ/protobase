@@ -3,7 +3,7 @@ import type { IssueWebhook } from './webhook-tools'
 import type { GoLive } from '../hooks/create-workflow'
 import type { Session } from '../../types'
 import { listConnectionsTool, type ListConnections } from './connection-tools'
-import { checkDefinition, definitionFromParts, definitionWarnings, typeCatalog, withCustomSteps, type DefinitionParts, type CheckOptions, type TypeEntry } from '@protobase/workflows'
+import { checkDefinition, definitionFromParts, definitionWarnings, typeCatalog, withCustomSteps, type CatalogTemplate, type DefinitionParts, type CheckOptions, type TypeEntry } from '@protobase/workflows'
 import { refused } from '../../assistant/record-tool-args'
 import { defineTool, type ToolContext } from '../../assistant/tools'
 import { mergePatch } from './merge-patch'
@@ -22,6 +22,8 @@ const listed = ['id', 'name', 'description', 'version', 'updated_at']
  */
 export type WorkflowCatalog = {
   types: readonly TypeEntry[]
+  /** The app's email templates, whose data `app:mail.template` takes; none without it. */
+  templates?: readonly CatalogTemplate[]
   checkWith: (models: (name: string) => ResourceModel | undefined) => CheckOptions
   /** The custom step types of a tenant, which follow the app's types in the list and the check; none without it. */
   customTypes?: (tenant: unknown) => Promise<TypeEntry[]>
@@ -50,10 +52,10 @@ const customOf = async (catalog: WorkflowCatalog, context: ToolContext) => withC
 /** The step types and triggers a definition may name, with their arguments, results, errors and run inputs. */
 const listWorkflowTypesTool = (catalog: WorkflowCatalog) => defineTool({
   name: 'list_workflow_types',
-  description: "Lists what a workflow definition may name, as JSON ({ step_types, triggers }): each step type a Task names as its Resource and each trigger, by id, with its label, description, input (the Task's Arguments, or the trigger's input) and output as JSON Schema, the errors a step fails with, the connection it signs in with, and whether this app can run it. Each version of a custom step is a step type of its own, custom:<name>:<version>, with how its image's build stands on the app's runners (build: ready, building or failed; none before a build began).",
+  description: "Lists what a workflow definition may name, as JSON ({ step_types, triggers, templates }): each step type a Task names as its Resource and each trigger, by id, with its label, description, input (the Task's Arguments, or the trigger's input) and output as JSON Schema, the errors a step fails with, the connection it signs in with, and whether this app can run it; and the app's email templates, each with its languages and the JSON Schema of the data app:mail.template takes for it. Each version of a custom step is a step type of its own, custom:<name>:<version>, with how its image's build stands on the app's runners (build: ready, building or failed; none before a build began).",
   parameters: { type: 'object', properties: {} },
   annotations: reads,
-  run: async (_args, context) => JSON.stringify(typeCatalog((await customOf(catalog, context)).types(catalog.types))),
+  run: async (_args, context) => JSON.stringify(typeCatalog((await customOf(catalog, context)).types(catalog.types), catalog.templates)),
 })
 
 /** The workflows the caller may read, a page at a time, without their definitions. */

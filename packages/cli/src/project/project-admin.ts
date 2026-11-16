@@ -14,7 +14,7 @@ import type { BundleUi } from '../serve/bundle-ui'
  * beside the config's resources (see `readUserTables`). `report` is what the admin does with an unhandled error.
  */
 export const projectAdmin = (project: BuiltProject, db: Db, ui?: BundleUi, reporter?: ErrorReporter, upgradeWebSocket?: UpgradeWebSocket, userTables?: UserTables) => {
-  const { resources, views, pages, translations, userMenu, bottomBars, subscriptions } = configExports(project.config)
+  const { resources, views, pages, translations, templates, userMenu, bottomBars, subscriptions } = configExports(project.config)
   const unhandled = project.options?.onUnhandledError ?? ((error: unknown) => console.error(error))
   const report = (error: unknown, request?: Request) => {
     reporter?.report(error, request)
@@ -26,6 +26,7 @@ export const projectAdmin = (project: BuiltProject, db: Db, ui?: BundleUi, repor
     ...(userTables && { userTables }),
     pages,
     ...(translations && { translations }),
+    templates,
     ...(userMenu && { userMenu }),
     bottomBars,
     db,

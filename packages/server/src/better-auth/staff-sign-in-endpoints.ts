@@ -1,6 +1,7 @@
 import { APIError, createAuthEndpoint, type createAuthMiddleware } from 'better-auth/api'
 import { expireCookie, setSessionCookie } from 'better-auth/cookies'
 import * as z from 'zod'
+import { headersLocale } from '../locale/request-locale'
 import { sendAuthEmail, type AuthMail } from './auth-mail/send-auth-email'
 import { operatorClient, randomValue, type OperatorClient, type ResolvedOperator } from './operator-provider'
 import { readSignInPolicy } from './policy-store'
@@ -59,7 +60,7 @@ export const staffSignInEndpoints = ({ operator, mail, defaultPolicy }: { operat
 
     const staff = staffLabel(claims)
     const expiresAt = new Date(Date.now() + operator.sessionMinutes * 60 * 1000)
-    if (policy.staffAccess === 'notify' && mail) await sendAuthEmail(mail, 'staffSignInEmail', found.user.email, { staff, reason: started.reason, expiresAt }, ctx.context.baseURL)
+    if (policy.staffAccess === 'notify' && mail) await sendAuthEmail(mail, 'staffSignInEmail', found.user.email, { staff, reason: started.reason, expiresAt }, ctx.context.baseURL, headersLocale(ctx.headers))
     // Not remembered, so Better Auth never extends it, and gone with the browser.
     const session = await ctx.context.internalAdapter.createSession(found.user.id, true, { impersonatedBy: staff, expiresAt }, true)
     await logStaffSignIn(ctx.context.adapter, {

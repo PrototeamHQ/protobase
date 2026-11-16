@@ -23,6 +23,12 @@ export const layout = (build: (scope: { resources: Resources; data: Recorded<Rec
   oneNode(() => build({ resources: resourcesRecorder() as Resources, data: recorder() as Recorded<Record<string, unknown>> }), '<layout>')
 
 /**
+ * A tree drawn from data of the type `Data`, such as an email's, written with the data in hand: `data.name` is
+ * `{{name}}` where it ends up as text, and `data.lines` a list an `ArrayField` repeats. Built once into a static tree.
+ */
+export const dataLayout = <Data extends object>(build: (scope: { data: Recorded<Data> }) => LayoutChildren): LayoutNode => oneNode(() => build({ data: recorder() as Recorded<Data> }), '<dataLayout>')
+
+/**
  * Blocks for the record page of `resource`, written with its record in hand: `data.title` is `{{title}}` where it
  * ends up as text, typed by the resource's fields, and `f.task_id.eq(data.id)` a filter on it. Hand the result to
  * `l.blocks(...)` in the resource's view.

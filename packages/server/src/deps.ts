@@ -1,3 +1,4 @@
+import type { MailTemplate } from './mail/template/define-template'
 import type { Translations } from '@protobase/layout'
 import type { PageModel } from '@protobase/layout'
 import type { Db } from '@protobase/query'
@@ -65,6 +66,8 @@ export type Deps = {
   locale?: Locale
   /** The app's own texts in each of its languages (`translations(...)` exported from the config), which `<Trans>` elements and labels read. */
   translations?: Translations
+  /** The app's email templates, which the workflow step `Send email` lists and sends. */
+  templates: MailTemplate<object>[]
   /** The plugins `/meta` names to the callers they are for. */
   plugins: PluginOption[]
   /** The other APIs whose resources `/meta` names to the callers they are for. */

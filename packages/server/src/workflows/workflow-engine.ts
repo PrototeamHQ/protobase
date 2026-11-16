@@ -34,6 +34,9 @@ import { customStepTypes } from './custom-steps/custom-step-types'
 import { customStepRunners } from './runners/runners'
 import { runnersOnline, startCustomStepTest } from './custom-steps/custom-step-tests'
 import type { CustomStepService } from './mcp/custom-step-tools'
+import type { MailTemplate } from '../mail/template/define-template'
+import { mailingApp } from '../mail/mailing-app'
+import { shownAppName } from '../app-name'
 
 /**
  * What `createAdmin` needs for `workflows`: the hooks that check saves and start runs, the check of a run's input before
@@ -45,14 +48,17 @@ import type { CustomStepService } from './mcp/custom-step-tools'
  * (`routes.runners`) and install script (`routes.runnerInstall`), the registration tokens a runner's editor issues, and
  * the job that ends a runner's lease, with what the MCP tools of custom steps need beside their records
  * (`customSteps`): a version's test run, the runners online and a runner's registration token; `stop` answers the runners' claims held open, as the process closes.
+ * `templates` are the app's email templates, which `app:mail.template` sends as from the app, on its first origin.
  */
-export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth?: AdminAuth, locale?: Locale) => {
+export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth?: AdminAuth, locale?: Locale, templates: readonly MailTemplate<object>[] = []) => {
   const schema = workflowsSchema(options)
   const roles = options.savedByRoles ?? (auth && betterAuthOwnerRoles(auth))
   if (!roles) throw new Error("workflows act on records as each workflow's last editor, with their current roles: give the config `auth` (Better Auth), or `workflows.savedByRoles`")
   const env = globalThis.process?.env ?? {}
   const secrets = workflowSecrets(options, env)
-  const types = workflowTypes(options.plugins, (name) => deps().registry.find(name)?.model, auth?.connectionSupport)
+  const types = workflowTypes(options.plugins, (name) => deps().registry.find(name)?.model, auth?.connectionSupport, templates)
+  const appName = shownAppName(auth, env)
+  const mailTemplates = { list: templates, app: auth?.origins[0] ? mailingApp({ appName, baseURL: auth.origins[0] }) : { name: appName, url: '' } }
   const accounts = auth && betterAuthConnectionAccounts(auth as unknown as TokenAuth)
   const text = connectionTexts(locale)
   const connections = connectionWiring({ deps, schema, roles, accounts, plugins: types.plugins, connectionOf: types.connections, text, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }) })
@@ -64,7 +70,7 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   if (custom && !sealKey) throw new Error("workflows.customSteps seals the arguments of custom steps' jobs with the app's secret: give the config `auth`, or set PROTOBASE_SECRET")
   // A runner's completion answers its job's Task by its token's hash, as an outside executor's answer by its token.
   const allowPrivateAddresses = Boolean(options.allowPrivateAddresses)
-  const input = { deps, schema, roles, allowPrivateAddresses, storage, connect: connections.trigger }
+  const input = { deps, schema, roles, allowPrivateAddresses, storage, templates: mailTemplates, connect: connections.trigger }
   // Its files are read and stored as the run's storage steps do, as the run's last editor.
   const runners = custom && customStepRunners({ deps, schema, settings: runnerSettings, secrets: Object.values(secrets), key: sealKey!, answer: (hash, answer) => answerTaskByHash(hash, answer), storage: input, origin: () => auth?.origins[0] })
   const cache = postgresStepCache(() => deps().db, schema, secretFingerprints(secrets, env.PROTOBASE_SECRET), roles)

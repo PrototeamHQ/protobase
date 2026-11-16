@@ -241,6 +241,18 @@ export { MailSenderRefusedError } from './personal-mail/mail-sender-refused'
 export type { MailSender } from './personal-mail/mail-sender'
 export type { PersonalMail, PersonalMailMessage } from './personal-mail/personal-mailer'
 export { defineEmail, type EmailComponent, type EmailOptions, type EmailTemplate, type RenderedEmail } from './mail/define-email'
+export {
+  defineTemplate,
+  isMailTemplate,
+  TemplateDataError,
+  type MailTemplate,
+  type RenderedTemplate,
+  type TemplateOptions,
+  type TemplateSchema,
+  type TemplateScope,
+  type TemplateSendOptions,
+  type TemplateText,
+} from './mail/template/define-template'
 export { definePdf, type PdfComponent, type PdfOptions, type PdfTemplate } from './pdf/define-pdf'
 export { startJobs, type DrainResult, type JobsRuntime, type StartJobsOptions } from './jobs/runtime'
 export { jobsDrainApp } from './jobs/drain-route'

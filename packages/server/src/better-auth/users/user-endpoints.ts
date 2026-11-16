@@ -1,6 +1,7 @@
 import { APIError, createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 import { adminOnly } from '../admin-only'
+import { headersLocale } from '../../locale/request-locale'
 import { sendAuthEmail, type AuthMail } from '../auth-mail/send-auth-email'
 import { invitationPage } from '../invitations/invitation-link-hook'
 import { invitationLink, invitationToken } from '../invitations/invitation-token'
@@ -44,7 +45,7 @@ export const userEndpoints = ({ definitions, mail, invitationUrl, invitationSeco
       const invitation = await createAppInvitation(ctx.context, { email: ctx.body.email, roles: [...new Set(ctx.body.roles)], inviterId: inviter.id }, invitationSeconds)
       if (mail) {
         const url = invitationLink(invitationPage(invitationUrl, ctx.context.baseURL), await invitationToken(ctx.context.secret, invitation))
-        await sendAuthEmail(mail, 'invitationEmail', invitation.email, { inviter: inviter.name || inviter.email, url, expiresAt: invitation.expiresAt }, url)
+        await sendAuthEmail(mail, 'appInvitationEmail', invitation.email, { inviter: inviter.name || inviter.email, url, expiresAt: invitation.expiresAt }, url, headersLocale(ctx.headers))
       }
       return ctx.json(answerOf(invitation))
     },

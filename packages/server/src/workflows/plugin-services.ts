@@ -1,4 +1,4 @@
-import type { PluginFiles, PluginServices } from '@protobase/workflows/plugin'
+import type { PluginFiles, PluginServices, PluginTemplates } from '@protobase/workflows/plugin'
 import type { TaskContext } from '@protobase/workflows'
 import type { Deps } from '../deps'
 import type { FilesRuntime } from '../files/runtime'
@@ -9,7 +9,10 @@ import { readRunFile, storeRunFile } from './run-files'
 import type { WorkflowsStorage } from './options'
 import { pluginStorage } from './storage/plugin-storage'
 
-export type ServicesInput = { deps: () => Deps; schema: string; roles: SaverRoles; allowPrivateAddresses: boolean; storage?: WorkflowsStorage | undefined }
+/** What the app's plugin services are made of; `templates`, the app's email templates and the app they name, none without it. */
+export type ServicesInput = { deps: () => Deps; schema: string; roles: SaverRoles; allowPrivateAddresses: boolean; storage?: WorkflowsStorage | undefined; templates?: PluginTemplates }
+
+const noTemplates: PluginTemplates = { list: [], app: { name: 'Protobase', url: '' } }
 
 /** The plugin context's `files`: those of the run alone, in the app's `private` file provider. */
 export const runFiles = (files: () => FilesRuntime | undefined, runId: string): PluginFiles => ({
@@ -20,8 +23,8 @@ export const runFiles = (files: () => FilesRuntime | undefined, runId: string): 
   },
 })
 
-/** What the app gives a plugin's step in a run: the guarded fetch, records as the saver, the run's files, storage as the saver and the mailer. */
-export const pluginServices = ({ deps, schema, roles, allowPrivateAddresses, storage }: ServicesInput, mail: Mailer | undefined) => {
+/** What the app gives a plugin's step in a run: the guarded fetch, records as the saver, the run's files, storage as the saver, the mailer and the email templates. */
+export const pluginServices = ({ deps, schema, roles, allowPrivateAddresses, storage, templates = noTemplates }: ServicesInput, mail: Mailer | undefined) => {
   const fetch = pluginFetch({ allowPrivateAddresses })
   return (task: TaskContext): PluginServices => ({
     fetch,
@@ -29,5 +32,6 @@ export const pluginServices = ({ deps, schema, roles, allowPrivateAddresses, sto
     files: runFiles(() => deps().files, task.runId),
     storage: pluginStorage({ deps, schema, roles, storage, allowPrivateAddresses }, task.runId),
     mail,
+    templates,
   })
 }

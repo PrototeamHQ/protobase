@@ -2,7 +2,7 @@
 export { accountExistsEmail } from './account-exists-email'
 export { changeEmailCodeEmail } from './change-email-code-email'
 export { confirmationCodeEmail } from './confirmation-code-email'
-export { invitationEmail } from './invitation-email'
+export { appInvitationEmail, invitationEmail } from './invitation-email'
 export { noAccountEmail } from './no-account-email'
 export { passwordChangedEmail } from './password-changed-email'
 export { resetPasswordEmail } from './reset-password-email'

@@ -135,6 +135,10 @@ const specs: Record<string, BlockSpec> = {
   PersonalAccessTokens: { children: false, props: {} },
   DeleteAccount: { children: false, props: {} },
   Box: { children: true, props: {} },
+  // An email's own: its root, which the template gives, a button that opens a full address, and a rule
+  Email: { children: true, props: {} },
+  Button: { children: true, props: { href: required('text') } },
+  Divider: { children: false, props: {} },
   Row: { children: true, props: {} },
   Column: { children: true, props: {} },
   Text: { children: true, props: { as: optional('textAs') } },

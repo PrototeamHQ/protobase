@@ -1,9 +1,10 @@
 import type { BetterAuthOptions } from 'better-auth'
+import { headersLocale } from '../locale/request-locale'
 import { sendAuthEmail, type AuthMail } from './auth-mail/send-auth-email'
 
-/** How long an emailed reset link works, in seconds and in the email's words. */
+/** How long an emailed reset link works, in seconds and in hours for the email. */
 export const resetLinkLifetimeSeconds = 60 * 60
-const resetLinkLifetime = '1 hour'
+const resetLinkHours = resetLinkLifetimeSeconds / 3600
 
 type EmailAndPassword = NonNullable<BetterAuthOptions['emailAndPassword']>
 
@@ -16,6 +17,6 @@ export const passwordResetOptions = (mail: AuthMail, { onPasswordReset }: Pick<E
   ({
     resetPasswordTokenExpiresIn: resetLinkLifetimeSeconds,
     revokeSessionsOnPasswordReset: true,
-    sendResetPassword: ({ user, url }) => sendAuthEmail(mail, 'resetPasswordEmail', user.email, { url, lifetime: resetLinkLifetime }, url),
+    sendResetPassword: ({ user, url }, request) => sendAuthEmail(mail, 'resetPasswordEmail', user.email, { url, hours: resetLinkHours }, url, headersLocale(request?.headers)),
     ...(onPasswordReset && { onPasswordReset }),
   }) satisfies Partial<EmailAndPassword>

@@ -92,6 +92,24 @@ export type PluginMailMessage = {
 
 export type PluginMail = { send(message: PluginMailMessage): Promise<void> }
 
+/** The app a mail comes from, as a template names it: its name, and its home page. */
+export type PluginMailingApp = { name: string; url: string }
+
+/**
+ * An email template of the app, as `app:mail.template` sends it: its name, the languages it is sent in, and the JSON
+ * Schema of its data. `send` renders the mail in the language closest to `locale` and sends it through `mailer`; it
+ * rejects data the template's schema refuses with an error that has `issues`, each naming its `path`.
+ */
+export type PluginTemplate = {
+  readonly name: string
+  readonly languages: readonly string[]
+  readonly dataSchema: JsonSchema
+  send(to: string, data: object, options: { locale?: string; mailer: PluginMail; app: PluginMailingApp }): Promise<{ locale: string }>
+}
+
+/** The app's email templates, and the app they name as the one the mail comes from. */
+export type PluginTemplates = { list: readonly PluginTemplate[]; app: PluginMailingApp }
+
 /** The sign-in a step or trigger declared, bound by its workflow; it names no other. */
 export type PluginConnection = {
   /**
@@ -101,7 +119,7 @@ export type PluginConnection = {
   accessToken(options?: { refresh?: boolean }): Promise<string>
 }
 
-/** What the app gives every hook of a plugin: its guarded requests, records, files, storage and mail. */
+/** What the app gives every hook of a plugin: its guarded requests, records, files, storage, mail and email templates. */
 export type PluginServices = {
   fetch: PluginFetch
   records: PluginRecords
@@ -109,6 +127,8 @@ export type PluginServices = {
   storage: PluginStorage
   /** Undefined when the app sends no mail. */
   mail: PluginMail | undefined
+  /** The app's email templates, none when it exports none. */
+  templates: PluginTemplates
 }
 
 /** What a step's `run` gets: its checked input, the app's services, and the step's own run details. */

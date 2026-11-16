@@ -106,6 +106,7 @@ import { checkLiveReads } from './check-live-reads'
 import { checkPositionAfter } from './check-position-after'
 import { checkRecordBlocks } from './view-blocks'
 import { blockTrees } from './meta-texts'
+import { configureTemplates, type MailTemplate } from './mail/template/define-template'
 import { checkViews } from './check-views'
 import { liveRoutes } from './live/live-route'
 import { tableFeed } from './live/notice-feed'
@@ -171,6 +172,8 @@ export type CreateAdminInput = {
   pages?: PageSource[]
   /** The app's own texts in each of its languages (`translations(...)` from @protobase/layout), which `<Trans>` elements and labels read. */
   translations?: Translations
+  /** The app's email templates (`defineTemplate(...)` exported from the config), which the workflow step `Send email` sends. */
+  templates?: MailTemplate<object>[]
   db: Db
   authenticate: Authenticator
   /** A Better Auth instance (see `createAuth`): its handler is mounted at `/api/auth`. */
@@ -249,7 +252,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], translations, userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], derived: computes = {}, webhooks: webhooksOptions, workflows: workflowsOptions, realtime, notifications, status, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], translations, templates = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], derived: computes = {}, webhooks: webhooksOptions, workflows: workflowsOptions, realtime, notifications, status, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed, AI fields filled and notifications sent by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -317,6 +320,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const statusTables = status && auth && { statuses: statusNames(status), members: { schema: storeSchema(auth), table: 'member' } }
   const pushKey = webPushKey(senders)
   const locale = localeSetting(options.locale)
+  configureTemplates({ ...(locale && { locale }) })
   const plugins = pluginOptions(options.plugins, globalThis.process?.env ?? {}, bundlePlugins)
   const sources = sourceOptions(options.sources, globalThis.process?.env ?? {})
   checkSourceNames(sources, { resources: registry.entries.map((entry) => entry.name), pages: pageModels.map((entry) => entry.name) })
@@ -325,7 +329,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const encryption = createEncryptionRuntime({ models: registry.entries.map((entry) => entry.model), env: globalThis.process?.env ?? {} })
   const files = createFilesRuntime({ ...(filesOptions && { options: filesOptions }), ...(secret && { secret }), env: globalThis.process?.env ?? {}, models: registry.entries.map((entry) => entry.model), systemPath, storage: servesKeys })
   const table = webhooksOptions && webhookTable(webhooksOptions, auth)
-  const engine = workflowsOptions && workflowEngine(workflowsOptions, () => deps, auth, locale)
+  const engine = workflowsOptions && workflowEngine(workflowsOptions, () => deps, auth, locale, templates)
   // AI fields and actions call the assistant's model; without a key they fail when used, and dev and serve stop at startup (see `checkAi`)
   const withAi = withAiFields || hasAiActions(viewModels)
   const model = withAi ? aiModel(options.assistant, globalThis.process?.env ?? {}) : undefined
@@ -360,6 +364,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     ...(statusTables && { status: true }),
     ...(locale && { locale }),
     ...(translations && { translations }),
+    templates,
     plugins,
     sources,
     ...(files && { files }),
@@ -492,7 +497,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     if (auth) removeHistoryWithUsers(auth, history)
     app.route(historyPath(systemPath), guarded((routes) => void routes.route('/', historyRoutes(history, auth?.origins ?? []))))
   }
-  if (engine) app.route(workflowTypesPath(systemPath), guarded((routes) => void routes.route('/', workflowTypesRoute(deps, engine.types.types, engine.customTypes))))
+  if (engine) app.route(workflowTypesPath(systemPath), guarded((routes) => void routes.route('/', workflowTypesRoute(deps, engine.types.types, engine.customTypes, engine.types.templates))))
   if (engine) app.route(workflowRunsPath(systemPath), guarded((routes) => void routes.route('/', workflowTraceRoute(deps, engine.readTrace))))
   if (statusTables) app.route(statusPath(systemPath), guarded((routes) => void routes.route('/', statusRoutes(db, statusTables))))
   if (deps.calls) app.route(ringsPath(systemPath), guarded((routes) => void routes.route('/', ringRoutes(deps.calls!))))
