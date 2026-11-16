@@ -1,21 +1,24 @@
 import { createHash } from 'node:crypto'
+import type { JWTPayload } from 'jose'
 import type { AuthContext } from './organizations/store'
 import { clockToleranceSeconds } from './sign-in-token'
 
 type Stores = Pick<AuthContext, 'adapter'> & { internalAdapter: Pick<AuthContext['internalAdapter'], 'createVerificationValue' | 'findVerificationValue'> }
 
-// Kept in Better Auth's verification table, which every store has, so recording them needs no migration. A token's id
-// is the issuer's, so it is hashed with the issuer into an identifier of a fixed length.
-const usedIdentifier = (issuer: string, jti: string) => `protobase-sign-in-token-${createHash('sha256').update(`${issuer} ${jti}`).digest('base64url')}`
+// Kept in Better Auth's verification table, which every store has, so recording them needs no migration. A token is
+// known by its issuer and the SHA-256 of its claims, not of its text: the same signed claims can be written as other
+// text (another base64url spelling, or an ECDSA signature's twin), which would otherwise count as a new token.
+const usedIdentifier = (issuer: string, claims: JWTPayload) => `protobase-sign-in-token-${createHash('sha256').update(`${issuer} ${JSON.stringify(claims)}`).digest('base64url')}`
 const sessionIdentifier = (sessionId: string) => `protobase-token-session-${sessionId}`
 
 /**
- * Records that the token `jti` of `issuer` signed in, until it expires (`exp`, in seconds), and tells whether this is
- * its first use. Two uses at once both record theirs, so both count as a second use and neither signs in.
+ * Records that the token with the verified `claims` signed in, until it expires (their `exp`, in seconds), and tells
+ * whether this is its first use. Two uses at once both record theirs, so both count as a second use and neither signs
+ * in. Two tokens with the same claims are one token: the second is refused.
  */
-export const useSignInToken = async ({ adapter, internalAdapter }: Stores, issuer: string, jti: string, exp: number) => {
-  const identifier = usedIdentifier(issuer, jti)
-  await internalAdapter.createVerificationValue({ identifier, value: 'used', expiresAt: new Date((exp + clockToleranceSeconds) * 1000) })
+export const useSignInToken = async ({ adapter, internalAdapter }: Stores, claims: JWTPayload & { iss: string; exp: number }) => {
+  const identifier = usedIdentifier(claims.iss, claims)
+  await internalAdapter.createVerificationValue({ identifier, value: 'used', expiresAt: new Date((claims.exp + clockToleranceSeconds) * 1000) })
   return (await adapter.count({ model: 'verification', where: [{ field: 'identifier', value: identifier }] })) === 1
 }
 

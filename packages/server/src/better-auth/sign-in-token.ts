@@ -20,13 +20,13 @@ export const signInTokenAlgorithms = (named: string[] | undefined) => (named ? n
 
 /**
  * Why a token's verified claims do not make a sign-in token, or `undefined` when they do: one audience, the app's
- * client id; a `jti` to use it once by; an address; and a life of at most `signInTokenSeconds`, issued no later than
- * now. `jwtVerify` has checked the signature, the issuer, the audience, `exp` and the token's age already.
+ * client id; an address; and a life of at most `signInTokenSeconds`, issued no later than now. `jwtVerify` has checked
+ * the signature, the issuer, the audience, `exp` and the token's age already. No `jti` is needed, as OpenID Connect
+ * asks for none: a token is used once by its claims (`useSignInToken`).
  */
 export const signInTokenProblem = (payload: JWTPayload, clientId: string, now = Date.now()) => {
   const audience = Array.isArray(payload.aud) ? payload.aud : [payload.aud]
   if (audience.length !== 1 || audience[0] !== clientId) return 'its audience is not this app alone'
-  if (typeof payload.jti !== 'string' || payload.jti === '') return 'it has no jti'
   if (typeof payload.email !== 'string' || payload.email === '') return 'it has no email'
   const { iat, exp } = payload
   if (typeof iat !== 'number' || typeof exp !== 'number') return 'it has no iat or exp'
@@ -47,7 +47,7 @@ export const verifySignInToken = async (token: string, verification: IdTokenVeri
       algorithms: signInTokenAlgorithms(verification.algorithms),
       maxTokenAge: signInTokenSeconds,
       clockTolerance: clockToleranceSeconds,
-      requiredClaims: ['iss', 'sub', 'aud', 'exp', 'iat', 'jti'],
+      requiredClaims: ['iss', 'sub', 'aud', 'exp', 'iat'],
       currentDate: new Date(now),
     })
     return signInTokenProblem(payload, clientId, now) === undefined ? payload : undefined

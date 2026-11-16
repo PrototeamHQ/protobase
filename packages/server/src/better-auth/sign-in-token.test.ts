@@ -9,7 +9,7 @@ const issuer = 'https://id.example.com'
 const valid: JWTPayload = { iss: issuer, sub: 'person-7', aud: clientId, jti: 'token-1', email: 'sanne@example.com', iat: seconds - 10, exp: seconds + 290 }
 
 describe('signInTokenProblem', () => {
-  it('takes a token for this app alone, with a jti and an address, that lives at most five minutes', () => {
+  it('takes a token for this app alone, with an address, that lives at most five minutes', () => {
     expect(signInTokenProblem(valid, clientId, now)).toBeUndefined()
     expect(signInTokenProblem({ ...valid, aud: [clientId] }, clientId, now)).toBeUndefined()
     expect(signInTokenProblem({ ...valid, iat: seconds + 20 }, clientId, now)).toBeUndefined()
@@ -20,10 +20,9 @@ describe('signInTokenProblem', () => {
     expect(signInTokenProblem({ ...valid, aud: [clientId, 'other.example.com'] }, clientId, now)).toMatch(/audience/)
   })
 
-  it('refuses a token without a jti or an address', () => {
-    expect(signInTokenProblem({ ...valid, jti: undefined }, clientId, now)).toMatch(/jti/)
-    expect(signInTokenProblem({ ...valid, jti: '' }, clientId, now)).toMatch(/jti/)
+  it('refuses a token without an address, and takes one without a jti, which OpenID Connect does not require', () => {
     expect(signInTokenProblem({ ...valid, email: undefined }, clientId, now)).toMatch(/email/)
+    expect(signInTokenProblem({ ...valid, jti: undefined }, clientId, now)).toBeUndefined()
   })
 
   it('refuses a token issued in the future, or made to live longer than five minutes', () => {
@@ -51,6 +50,7 @@ describe('verifySignInToken', () => {
   it("answers the claims of a token the provider's key signed for this app", async () => {
     const { sign, verification } = await keys()
     expect(await verifySignInToken(await sign(valid), verification, clientId, now)).toMatchObject({ sub: 'person-7', jti: 'token-1' })
+    expect(await verifySignInToken(await sign({ ...valid, jti: undefined }), verification, clientId, now)).toMatchObject({ sub: 'person-7' })
   })
 
   it('refuses one from another issuer, expired, issued over five minutes ago, or not a sign-in token', async () => {
@@ -58,7 +58,6 @@ describe('verifySignInToken', () => {
     expect(await verifySignInToken(await sign({ ...valid, iss: 'https://other.example.com' }), verification, clientId, now)).toBeUndefined()
     expect(await verifySignInToken(await sign({ ...valid, exp: seconds - 31 }), verification, clientId, now)).toBeUndefined()
     expect(await verifySignInToken(await sign({ ...valid, iat: seconds - 400, exp: seconds + 100 }), verification, clientId, now)).toBeUndefined()
-    expect(await verifySignInToken(await sign({ ...valid, jti: undefined }), verification, clientId, now)).toBeUndefined()
     expect(await verifySignInToken('not a token', verification, clientId, now)).toBeUndefined()
   })
 
