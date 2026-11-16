@@ -2,7 +2,7 @@ import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import pg from 'pg'
-import { assistantSettings, authStoreTables, backgroundSettled, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkJobsSchema, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, configExports, createFileCleanup, relayed, sqlSends, startJobs, type ErrorReporter } from '@protobase/server'
+import { backgroundSettled, checkAi, checkJobsSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
 import { servedAdmin } from '../project/served-admin'
 import { openAppDatabase } from '../project/pg-db'
 import { buildProject, type AppDatabase } from '../config/build-project'
@@ -12,6 +12,7 @@ import { createServeApp, type ServedSite } from './app'
 import { startCleanupTimer } from './cleanup-timer'
 import { withClientAddress } from './client-address'
 import { serverCloser } from './close-server'
+import { checkStartup } from './startup-checks'
 import { closeSockets } from './close-sockets'
 import { servedRelease } from './mobile-release'
 import { protobaseVersion } from '../version/version'
@@ -65,23 +66,9 @@ export const startServe = async ({ config, env, openDb = (url) => openAppDatabas
   const startJobsAndListen = async () => {
     // The app, built from its config at serve time: its references loaded, auth and the authenticator made.
     const project = await buildProject(config, database)
-    if (env.startupChecks && project.auth) await checkAuthSchema(project.auth)
+    if (env.startupChecks) await checkStartup(project, db)
     const { resources, views } = configExports(project.config)
-    if (env.startupChecks && project.auth) await checkResourcesOutsideAuthStore(db, resources.map((resource) => resource.toModel()), project.auth)
-    if (env.startupChecks) await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
-    if (env.startupChecks) await checkComments(db, resources.map((resource) => resource.toModel()))
-    if (env.startupChecks) await checkDerived(db, resources.map((resource) => resource.toModel()))
-    if (env.startupChecks) await checkCalls(db, project.calls, project.events)
-    if (env.startupChecks) await checkComputed(db, resources.map((resource) => resource.toModel()))
-    if (env.startupChecks && assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in') await checkQueryRunner(db, project.auth ? authStoreTables(project.auth) : { tables: [], schemas: [] })
     if (env.startupChecks) checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
-    if (env.startupChecks && project.webhooks) await checkWebhooksSchema(db, project.webhooks)
-    if (env.startupChecks && project.workflows) await checkWorkflowsSchema(db, project.workflows)
-    if (env.startupChecks && relayed(project.realtime)) await checkRealtimeRelay(db)
-    if (env.startupChecks && sqlSends(project.realtime)) await checkChannelSends(db)
-    if (env.startupChecks && project.notifications) await checkNotificationsSchema(db, project.notifications, project.auth)
-    if (env.startupChecks && project.status) await checkStatusSchema(db, project.status, project.auth)
-    if (env.startupChecks && project.userTables) await checkUserTablesSchema(db)
     const { admin, jobs: definitions } = await servedAdmin(project, db, ui, reporter, upgradeWebSocket)
     if (env.startupChecks && definitions.length > 0) await checkJobsSchema(db)
     const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, decryptField: admin.decryptField, ...(project.mailer && { mailer: project.mailer }), onError: (error) => console.error(error) }) : undefined

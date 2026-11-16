@@ -201,6 +201,28 @@ An app on Protobase Cloud whose code is on GitHub follows one branch of its repo
 
 When a step fails, the previous version keeps serving on the database as it was, except after a failed start, which comes after the migrations committed: they stay applied. Each build reports on GitHub as the check run `Protobase deploy` on the commit it built, with the step that failed and the end of its output. A commit whose build failed is not built again: the fix is a new push.
 
-Since the deploy runs neither the typecheck nor the tests, and refuses what `doctor` refuses, check a change before pushing it: the project's typecheck and tests, `protobase doctor --env DATABASE_URL` on a database with the migrations applied, and `protobase build`. The migrations run in one transaction, so a statement Postgres refuses in one, such as `create index concurrently`, fails the deploy. Protobase Cloud also pushes to the branch itself, for an update of the app's Protobase packages, so pull before pushing.
+Since the deploy runs neither the typecheck nor the tests, and refuses what `doctor` refuses, check a change before pushing it: the project's typecheck and tests, `protobase build`, and `protobase doctor --env DATABASE_URL` on a database with the migrations applied, which also runs the server's [startup checks](/reference/cli/#doctor); on GitHub, [the check action](#check-a-change-before-it-merges) runs them all on every pull request. The migrations run in one transaction, so a statement Postgres refuses in one, such as `create index concurrently`, fails the deploy. Protobase Cloud also pushes to the branch itself, for an update of the app's Protobase packages, so pull before pushing.
+
+### Check a change before it merges
+
+Protobase's check action runs those checks on every pull request in one step of the app's GitHub workflow:
+
+```yaml
+name: check
+on: pull_request
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PrototeamHQ/protobase/actions/check@main
+```
+
+It installs Bun and the app's packages with `bun install --frozen-lockfile`, those of every platform, as the build needs for [native packages](/reference/cli/#native-packages), then runs the app's `typecheck` and `test` scripts and `protobase build`. It then starts a fresh Postgres 18 of its own in Docker, with a role that is no superuser and may only create in its own database, as a hosted app's is, and runs the app's `db:migrate` (`protobase migrate` without one), the auth schema's migration and `protobase doctor`. Every `protobase` command is the app's own installed CLI, so the checks are those of the version the app deploys with. Each step's output is a group of its own in the log, and the first that fails stops the check with an error naming it, which the action's `failed` output holds too. A script the app does not have is skipped with a notice. The workflow declares no database service and needs no secrets: sign-in gets stand-ins for `PROTOBASE_URL` and `PROTOBASE_SECRET` when the workflow sets none, and doctor does not check the [model key](/reference/ai/#the-model) of AI fields, which belongs to the deploy's environment.
+
+- `working-directory`: the app's folder, for an app that is not at the root of its repository.
+- `bun-version`: the Bun to install, `latest` by default.
+
+The action needs a Linux runner with Docker, such as `ubuntu-latest`. `@main` follows the action as it changes; a release tag, such as `@v0.99.9`, pins it.
 
 [`protobase skill install`](/reference/cli/#skill) writes the `protobase-cloud` agent skill into the project, with how to check that a change went live and why a deploy failed, step by step.

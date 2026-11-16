@@ -59,8 +59,10 @@ Work down the list; the first that matches is the cause.
 The deploy does not run the project's typecheck or tests, and refuses what doctor refuses, so run them before pushing:
 
 1. The project's typecheck and tests.
-2. `protobase doctor --env DATABASE_URL` against a database with the project's migrations applied; exit code 1 means the deploy will be refused.
+2. `protobase doctor --env DATABASE_URL` against a database with the project's migrations applied; exit code 1 means the deploy will be refused, or the new version would not start, since doctor runs the server's startup checks too.
 3. `protobase build`.
 4. Migrations that work inside one transaction (no `CONCURRENTLY`), since the deploy runs them all in one.
+
+A pull request runs all four with one step in the app's GitHub workflow, `uses: PrototeamHQ/protobase/actions/check@main` after `actions/checkout`, which starts its own Postgres (see the deploy guide's "Check a change before it merges").
 
 After pushing, the change is done when `Protobase deploy` succeeded on its commit or a later one that contains it. A failure leaves the previous version live: fix it with a new push.

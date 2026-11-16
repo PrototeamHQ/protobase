@@ -1,11 +1,13 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
+import pg from 'pg'
 import { tableIndexes } from '@protobase/query'
 import { connect } from '../db/connect'
 import { introspect } from '../db/introspect'
 import { readOnlyDb } from '../db/read-only-db'
 import { loadSourceConfig } from '../config/source-config'
 import { loadDataConfig } from '../project/load-data-config'
+import { openAppDatabase } from '../project/pg-db'
 import { builtInIndexIssues, builtInModels } from './built-in-models'
 import { checkResource, type Issue } from './check'
 import { indexIssues } from './index-issues'
@@ -13,6 +15,7 @@ import { unplannedBlocks } from './page-shapes'
 import { readShapes } from './read-shapes'
 import { relationIssues } from './relation-issues'
 import { sortIssues } from './sort-issues'
+import { checkServerStartup } from './startup'
 import { userTableModels } from './user-table-models'
 import { userTablesOn } from '../config/user-tables-config'
 
@@ -20,6 +23,8 @@ export type DoctorOptions = {
   url: string
   configDir: string
   projectDir: string
+  /** Also run the server's startup checks once the config passes (`checkServerStartup`), as the `doctor` command does. */
+  startupChecks?: boolean
 }
 
 const format = (issue: Issue) =>
@@ -47,8 +52,16 @@ export const runDoctor = async (options: DoctorOptions, out: (text: string) => v
   const byName = Object.fromEntries(models.map((model) => [model.name, model]))
   for (const block of config.pages.flatMap((page) => unplannedBlocks(page, byName))) out(`  note    ${block} declares no reads, so it is outside the page's read plan and reads whatever it reads once it draws\n`)
   const errors = issues.filter((i) => i.severity === 'error').length
+  // Only a project that passes the checks above can be built as the server builds it; a refusal ends the run with the
+  // server's own message. These checks are of the app `serve` runs, from the project's own config, not of `--config`:
+  // the server never reads another folder.
+  const startup = options.startupChecks === true && errors === 0
+  if (startup) {
+    const database = openAppDatabase(pg, options.url)
+    await checkServerStartup(source, database).finally(() => database.db.destroy())
+  }
   const counted = userTables.models.length > 0 ? `${config.models.length} resources, ${userTables.models.length} user tables` : `${config.models.length} resources`
   const checked = builtIn.models.length > 0 ? `${counted} and ${builtIn.models.length} built-in ones` : counted
-  out(`Checked ${checked}: ${errors} errors, ${issues.length - errors} warnings.\n`)
+  out(`Checked ${checked}${startup ? ' and the server\'s startup checks' : ''}: ${errors} errors, ${issues.length - errors} warnings.\n`)
   return { errors, warnings: issues.length - errors, issues }
 }

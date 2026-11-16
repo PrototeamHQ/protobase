@@ -129,6 +129,8 @@ Imports `config/index.ts` and the views of `config/*/ui.ts`, as the config modul
 
 Doctor also lists, as a note it does not count, each custom component of a page that declares no [reads](/reference/custom-components/#reads), since it reads outside the page's plan.
 
+When the config has no errors, doctor then builds the app from `protobase.config.ts` and its own `config` folder, whatever `--config` names, as [`serve`](#serve) does and runs the server's startup checks of the database, and stops with the server's own message at the first one that fails: an auth store behind this version, a resource over a table of the auth store, [events](/reference/events/), [history](/reference/history/) or live updates without their triggers, a missing [comments](/reference/comments/#the-table) table, [rollup and formula fields](/reference/data-config/#rollups-and-formulas) without their columns or triggers, and a jobs, webhooks, workflows, notifications, status or user tables schema that is missing or behind. A change that passes doctor so starts. Sign-in is built only to read its store, so doctor needs neither `PROTOBASE_URL` nor `PROTOBASE_SECRET`. The one startup check doctor leaves out is the [model key](/reference/ai/#the-model) of AI fields and actions, which belongs to the environment the app runs in. <gap>Doctor cannot run its checks that need only the config, such as relations and sorts, without a database because a run without a connection is not implemented.</gap>
+
 Exit code is 1 when there are errors. Run it after the project's migrations and before a new version serves, as a platform's deploy does: a read it fails is one the API would refuse once the version runs. `protobase build` needs no database, so the indexes are doctor's to check.
 
 ## `eject`
@@ -619,7 +621,7 @@ bun run db:migrate                # applies them
 protobase auth migration [--dir db/migrations] [--name auth]
 ```
 
-Run inside a project with sign-in on, against its database with the project's migrations applied. It reads the versions the store applied from its `auth_migrations` table and writes the auth migrations of this Protobase it has not, each followed by its row there, as the next migration in `--dir`: `009_auth.sql` after `008_...`, with the store's schema, user table, columns and id type as the config's `auth` names them. Nothing is written when the store is current. The file only adds, never drops; apply it with the project's other migrations. For a store made before 0.48, without `auth_migrations`, it writes the step that adopts it once, and refuses one that matches no version, naming what differs. See [migrations](/reference/auth/#migrations).
+Run inside a project, against its database with the project's migrations applied. It reads the versions the store applied from its `auth_migrations` table and writes the auth migrations of this Protobase it has not, each followed by its row there, as the next migration in `--dir`: `009_auth.sql` after `008_...`, with the store's schema, user table, columns and id type as the config's `auth` names them. Nothing is written when the store is current, nor with sign-in off, when it says so and exits 0. The file only adds, never drops; apply it with the project's other migrations. For a store made before 0.48, without `auth_migrations`, it writes the step that adopts it once, and refuses one that matches no version, naming what differs. See [migrations](/reference/auth/#migrations).
 
 ## `import supabase`
 

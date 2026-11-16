@@ -8,15 +8,15 @@ import { openAppDatabase } from '../project/pg-db'
 
 /**
  * The sign-in of the project in `projectDir`, built from its config's `auth` over DATABASE_URL, with only the plugins
- * it turns on. With a device or history store of the app's own (notifications/store.ts, notifications/history-store.ts),
- * deleting a user removes their devices or history from it too; the built-in tables go with the user by their foreign
- * keys. With workflows, deleting a user revokes their connected accounts and parks the triggers on them, as the app
- * does, reporting a token it left valid on stderr.
+ * it turns on; `undefined` when sign-in is off. With a device or history store of the app's own (notifications/store.ts,
+ * notifications/history-store.ts), deleting a user removes their devices or history from it too; the built-in tables go
+ * with the user by their foreign keys. With workflows, deleting a user revokes their connected accounts and parks the
+ * triggers on them, as the app does, reporting a token it left valid on stderr.
  */
-export const loadProjectAuth = async (projectDir: string): Promise<AdminAuth> => {
+export const loadSignIn = async (projectDir: string): Promise<AdminAuth | undefined> => {
   loadNearestEnvFile(projectDir)
   const config = await loadSourceConfig(projectDir, { command: 'tool' })
-  if (!config.auth) throw new Error('Sign-in is off (`auth: false` in the config), so the app has no users to manage')
+  if (!config.auth) return
   if (!process.env.DATABASE_URL) throw new Error('No database: set DATABASE_URL')
   const database = openAppDatabase(pg, process.env.DATABASE_URL)
   const [workflows, notifications] = await Promise.all([projectWorkflows(config), projectNotifications(config)])
@@ -25,4 +25,11 @@ export const loadProjectAuth = async (projectDir: string): Promise<AdminAuth> =>
   if (notifications?.store) removeDevicesWithUsers(auth!, notifications.store)
   if (notifications?.historyStore) removeHistoryWithUsers(auth!, notifications.historyStore)
   return auth!
+}
+
+/** The project's sign-in (`loadSignIn`), refused when it is off, for the commands that manage its users. */
+export const loadProjectAuth = async (projectDir: string): Promise<AdminAuth> => {
+  const auth = await loadSignIn(projectDir)
+  if (!auth) throw new Error('Sign-in is off (`auth: false` in the config), so the app has no users to manage')
+  return auth
 }

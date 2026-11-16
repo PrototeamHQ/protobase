@@ -1,0 +1,24 @@
+name: Protobase check
+description: Runs the checks a Protobase deploy runs on an app, and the server's startup checks, on a fresh Postgres of its own.
+inputs:
+  working-directory:
+    description: The app's folder in the repository.
+    default: .
+  bun-version:
+    description: The Bun version to install the app's packages and run its scripts with.
+    default: latest
+outputs:
+  failed:
+    description: The step that failed, such as Doctor; empty when every check passed.
+    value: ${{ steps.check.outputs.failed }}
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: ${{ inputs.bun-version }}
+    - id: check
+      name: Check the app
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: '"$GITHUB_ACTION_PATH/check.sh"'
