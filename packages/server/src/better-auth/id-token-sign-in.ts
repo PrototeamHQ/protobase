@@ -51,7 +51,7 @@ export const idTokenSignInPlugin = ({ tokenSignIn }: IdTokenSignInOptions = {}) 
             const verification = provider.idToken && !('verify' in provider.idToken) ? provider.idToken : undefined
             const claims = typeof token === 'string' && verification ? await verifySignInToken(token, verification, tokenSignIn.clientId) : undefined
             if (!claims) throw new APIError('UNAUTHORIZED', invalidSignInToken)
-            if (!(await useSignInToken(ctx.context, claims.iss!, claims.jti!, claims.exp!))) throw new APIError('UNAUTHORIZED', signInTokenUsed)
+            if (!(await useSignInToken(ctx.context, { ...claims, iss: claims.iss!, exp: claims.exp! }))) throw new APIError('UNAUTHORIZED', signInTokenUsed)
           }),
         },
       ],
