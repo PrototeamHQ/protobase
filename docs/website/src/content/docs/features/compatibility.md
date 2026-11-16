@@ -25,7 +25,7 @@ description: Apps written for other systems that keep working on Protobase, and 
 ## react-admin
 
 - [Related records](/reference/layouts/#related-records) (beta): Layouts take react-admin's `ReferenceManyField`, `ReferenceArrayField`, `ArrayField`, `RecordsIterator` and `ReferenceField` with their names, props and defaults: `sort` is the key descending, and a `ReferenceManyField`'s `source` is `id` and its `perPage` 25.
-- [Text filters on related records](/reference/layouts/#related-records) (beta): `filter` and `sort` also take AIP-160 and AIP-132 text, since an object cannot say `OR`.
+- [Filters and sorts on related records](/reference/layouts/#related-records) (beta): `filter` is AIP-160 text or the condition builder's arrow, since an object cannot say `OR`, and `sort` a list of fields, `['claimed_at desc']`; react-admin's `{ field: value }` and `{ field, order }` objects are not taken.
 - [Page size of related records](/reference/layouts/#related-records) (beta): A list reads at most 500 records, the API's largest page, which is also a `ReferenceArrayField`'s `perPage` where react-admin's is 1000.
 - [Items of an ArrayField](/reference/layouts/#related-records) (beta): A text item of an `ArrayField` is read as `this`. An `ArrayField` takes no `filter`, `sort` or `perPage` yet.
 - [RecordsIterator without functions](/reference/layouts/#related-records) (beta): `RecordsIterator` takes no `render`, `data`, `total` or `isPending`, as a layout holds no functions and the list around it gives the rest.

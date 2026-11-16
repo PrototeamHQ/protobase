@@ -7,7 +7,7 @@ import { Code } from '@astrojs/starlight/components'
 import StoryFrame from '../../../components/StoryFrame.astro'
 import erpPage from '../../../../../../tests/apps/erp/config/overview/page.tsx?raw'
 
-Blocks are imported from `@protobase/layout`. Every block also takes [`className`](/reference/layouts/#tailwind-classes), Tailwind classes for its outer element. "Record" below means the record of the `RecordCard`, `CardRow` card or `RecordsIterator` entry around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. The ERP example's sales overview uses `Page`, `Grid`, `Card`, `Stat`, `Table`, `RecordCard`, `CardRow`, `Field`, `Chart`, `Action`, `ModalForm` and `Show`; of the others, the property portal's home uses `RecordRow`, and the [Users page](/reference/auth/#users-page) `Users`:
+Blocks are imported from `@protobase/layout`. Every block also takes [`className`](/reference/layouts/#tailwind-classes), Tailwind classes for its outer element. "Record" below means the record of the `RecordCard`, `CardRow` card or `RecordsIterator` entry around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160, as in the list API, or the [builder's arrow](/reference/layouts/#the-condition-builder), and `sort` a list of fields, each with `asc` or `desc` if it likes, as the list API's `order_by`. The ERP example's sales overview uses `Page`, `Grid`, `Card`, `Stat`, `Table`, `RecordCard`, `CardRow`, `Field`, `Chart`, `Action`, `ModalForm` and `Show`; of the others, the property portal's home uses `RecordRow`, and the [Users page](/reference/auth/#users-page) `Users`:
 
 <Code code={erpPage} lang="tsx" title="tests/apps/erp/config/overview/page.tsx" />
 
@@ -87,13 +87,27 @@ Plain elements for a page too custom for the blocks, drawn by their [Tailwind cl
 | `Box` | An element of its own, such as a panel or a banner. No look of its own. |
 | `Row` | Its children side by side: `flex`. |
 | `Column` | Its children one under another: `flex flex-col`. |
-| `Text` | Text, `Link`s, `Text as="span"`s and [field components](#field-components) in it, nothing else, run as one line. `as` makes it `p` (the default), `span`, or a heading `h1` to `h4`. |
+| `Text` | Text, `Link`s, `Trans`es, inline `Text`s and [field components](#field-components) in it, nothing else, run as one line. `as` makes it `p` (the default), `span`, `strong`, `em`, or a heading `h1` to `h4`; `span`, `strong` and `em` run inline. |
 
 ```tsx
 <Row className="items-center gap-3">
   <Box className="size-3 rounded-full bg-success" />
   <Text as="span" className="font-medium">All systems running</Text>
 </Row>
+```
+
+### Trans
+
+One of the app's own texts in the reader's language, as react-i18next's `<Trans>`: as a child, it runs inline as text does, and as a `title`, `description`, `label` or `empty` it reads as that prop's text. See [Texts in the reader's language](/reference/layouts/#texts-in-the-readers-language).
+
+| Prop | |
+| --- | --- |
+| `i18nKey` | The message's key in the app's [translations](/reference/languages/#your-own-texts), such as `today.open`. Required. |
+| `values` | What the message formats by name, `{ count: 2, name: '{{owner}}' }`: text, numbers, booleans and placeholders. |
+| `components` | The element each tag of the message draws, `{ b: <Text as="strong" /> }`, with the tag's text inside it. As a prop's text, tags read as their text alone. |
+
+```tsx
+<Trans i18nKey="today.owner" values={{ name: '{{owner}}' }} components={{ b: <Text as="strong" /> }} />
 ```
 
 ### Details and Summary
@@ -508,14 +522,14 @@ The records of `reference` whose `target` holds the record's `source`, as [react
 | `reference` | The resource it reads. Required. |
 | `target` | The field of `reference` that points at the record. Required. |
 | `source` | The field of the record it matches; default `id`, of the nearest record. A [path](/reference/layouts/#paths-and-scopes), such as `../id`. |
-| `filter` | More conditions, as AIP-160 text or react-admin's `{ field: value }`, its fields ANDed. |
-| `sort` | AIP-132 text, or react-admin's `{ field, order: 'ASC' \| 'DESC' }`; default the key, descending. |
+| `filter` | More conditions, as AIP-160 text or the [builder's arrow](/reference/layouts/#the-condition-builder), ANDed with the target's. |
+| `sort` | A list of fields, each with `asc` or `desc` if it likes, `['claimed_at desc']`; default the key, descending. |
 | `perPage` | How many records it reads, at most 500; default 25. |
 | `pagination` | `more`: a **Load more** button reads the next `perPage` records into the same list. |
 | `empty` | Text instead of the children when no record matches. |
 
 ```tsx
-<ReferenceManyField reference="task_claims" target="task_id" filter={{ status: 'open' }} sort={['claimed_at desc']} pagination="more">
+<ReferenceManyField reference="task_claims" target="task_id" filter="status = 'open'" sort={['claimed_at desc']} pagination="more">
   <Table title="Open claims" columns={['worker_id', 'claimed_at']} />
 </ReferenceManyField>
 ```
