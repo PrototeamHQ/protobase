@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { CardRow, Field, Graph, Image, Page, Show, Table } from './blocks'
 import { SelectInput } from './page-params'
 import { treeFindings } from './check-page'
+import { component } from './component'
 import { structureProblems } from './check-structure'
 import { compileReadPlan } from './compile-read-plan'
 import { Text } from './elements'
@@ -99,6 +100,12 @@ describe('a Graph', () => {
     const problemsOfTree = (children: ReturnType<typeof Graph>) => treeFindings(Page({ title: 'Map', children }), { models, actions: () => new Set() }).problems
     expect(problemsOfTree(Graph({ ...base, node: <Text>{'Owned by {{owner}}'}</Text> }))).toEqual([])
     expect(problemsOfTree(Graph({ ...base, node: <Text>{'Owned by {{owenr}}'}</Text> }))[0]).toMatch(/^<Page> › <Graph nodes="services"> node=\{<Text>\}: text "\{\{owenr\}\}": /)
+    // A custom component's text, and the text of a fallback, in the node's record
+    const Badge = component<object>('Badge', { fallback: ['Owned by {{owenr}}'] })
+    const found = problemsOfTree(Graph({ ...base, node: Badge({ children: 'Run by {{ownr}}' }) }))
+    expect(found).toHaveLength(2)
+    expect(found[0]).toMatch(/node=\{<Badge>\}: text "\{\{ownr\}\}": /)
+    expect(found[1]).toMatch(/node=\{<Badge>\}: fallback text "\{\{owenr\}\}": /)
   })
 
   it("checks each filter's page parameters against their choices, and edgeFilter's slots as a read's", () => {

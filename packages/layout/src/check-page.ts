@@ -85,9 +85,6 @@ const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[
   const placed = pathFindings(node, scope, { models, params, chosen })
   problems.push(...placed.problems)
   placed.warnings.forEach(warn)
-  const texts = textChildFindings(node, scope, { models, params })
-  problems.push(...texts.problems)
-  texts.warnings.forEach(warn)
   // A field a block shows is found through the records around it, as a bare name in Mustache is
   const path = (name: string) => {
     if (innermost(scope) === undefined && scope.root === undefined) return
@@ -248,7 +245,10 @@ export const treeFindings = (tree: LayoutNode, input: PageCheckInput & { root?: 
   walkTree(tree, (node, { path, scope }) => {
     const warn = (warning: string) => warnings.push(`${path}: ${warning}`)
     const found = node.custom ? customProblems(node, scope, input) : nodeProblems(node, scope, { ...input, params, inputs, chosen, warn })
-    for (const problem of found) problems.push(`${path}: ${problem}`)
+    // Text, a block's or a custom component's, is filled from the records around it alike
+    const texts = textChildFindings(node, scope, { models: input.models, params })
+    for (const problem of [...found, ...texts.problems]) problems.push(`${path}: ${problem}`)
+    texts.warnings.forEach(warn)
   }, { path: label(tree), scope })
   // The plan reads a tree the checks above accept
   if (problems.length === 0) {

@@ -2,7 +2,7 @@ import type { ResourceModel } from '@protobase/schema'
 import { embeddedFilterFields, templatePlaceholders, wholePlaceholder } from '@protobase/schema/internal'
 import { equalitySlots } from './filter-slots'
 import { defaultSource } from './list-blocks'
-import type { LayoutNode, LayoutValue } from './node'
+import type { LayoutChild, LayoutNode, LayoutValue } from './node'
 import { resolveScopePath, type ScopeResolution } from './scope-lookup'
 import { childScope, type Scope } from './walk'
 
@@ -111,20 +111,24 @@ export const pathFindings = (node: LayoutNode, scope: Scope, { models, params, c
 }
 
 /**
- * Problems and warnings of the placeholders in an element's text children, which draw where its children do, each
- * checked as a prop's text is: a path no record around it has fails, rather than drawing as empty.
+ * Problems and warnings of the placeholders in an element's text children, which draw where its children do, and in
+ * the text of its fallback, which draws in its place, each checked as a prop's text is: a path no record around it
+ * has fails, rather than drawing as empty. A custom component's text is checked as a block's.
  */
 export const textChildFindings = (node: LayoutNode, scope: Scope, { models, params }: Pick<PathCheckInput, 'models' | 'params'>): PathFindings => {
   const problems: string[] = []
   const warnings: string[] = []
-  const inner = childScope(node, scope)
-  for (const child of node.children) {
-    if (typeof child !== 'string') continue
-    for (const path of templatePlaceholders(child)) {
-      const resolved = resolveScopePath(path, { models, scope: inner, params, mode: 'stored' })
-      if (!resolved.ok) problems.push(`text "{{${path}}}": ${resolved.message}`)
-      else if (resolved.kind === 'field' && resolved.shadows) warnings.push(`text "{{${path}}}": ${resolved.shadows}`)
+  const check = (texts: readonly LayoutChild[], at: Scope, where: string) => {
+    for (const text of texts) {
+      if (typeof text !== 'string') continue
+      for (const path of templatePlaceholders(text)) {
+        const resolved = resolveScopePath(path, { models, scope: at, params, mode: 'stored' })
+        if (!resolved.ok) problems.push(`${where} "{{${path}}}": ${resolved.message}`)
+        else if (resolved.kind === 'field' && resolved.shadows) warnings.push(`${where} "{{${path}}}": ${resolved.shadows}`)
+      }
     }
   }
+  check(node.children, childScope(node, scope), 'text')
+  check(node.fallback ?? [], scope, 'fallback text')
   return { problems, warnings }
 }
