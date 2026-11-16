@@ -39,7 +39,7 @@ const rowNote = ({ method }: PolicyRow, draft: SignInPolicy, { mail, effective, 
   if (method === 'emailCode' && !mail) return text('codeNeedsMail')
   if (method === 'password' && !mail && draft.password === 'forbidden') return text('passwordStaysOn')
   if (method === 'staffAccess' && !mail && draft.staffAccess === 'notify') return text('staffNeedsMail')
-  if (method === 'platformSignIn' && draft.platformSignIn === 'allowed' && (draft.passkey === 'required' || draft.twoFactor === 'required')) {
+  if (method === 'platformSignIn' && draft.platformSignIn === 'allowed' && draft.passkey === 'required') {
     return text('platformOff')
   }
   if (draft[method] === policy[method] && effective[method] !== policy[method]) return text('appliesAs', { rule: ruleLabel(method, effective[method]) })

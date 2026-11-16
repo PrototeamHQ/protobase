@@ -138,15 +138,6 @@ describe('the policy for sign-in through the platform', () => {
     expect(refused.status).toBe(403)
     expect(await refused.json()).toMatchObject({ code: 'SIGN_IN_METHOD_FORBIDDEN' })
   })
-
-  it('applies as off while two-factor authentication is required, since the provider skips the second step', async () => {
-    const { request, signIn, savePolicy } = await serve()
-    await savePolicy({ twoFactor: 'required' })
-    const answer = await (await request('/policy/sign-in', { cookie: await signIn('root@example.com') })).json()
-    expect(answer).toMatchObject({ platformSignIn: 'GitHub', policy: { platformSignIn: 'allowed' }, effective: { platformSignIn: 'forbidden' } })
-    expect((await (await request('/status')).json()).socialProviders).toEqual([])
-    expect((await request('/sign-in/social', { body: { provider: 'github', callbackURL: `${origin}/`, disableRedirect: true } })).status).toBe(403)
-  })
 })
 
 describe('without the platform provider', () => {

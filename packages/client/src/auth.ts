@@ -132,7 +132,8 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
     /**
      * Starts sign-in with a provider such as `github`: resolves with the provider's authorization URL, for the page to go to.
      * The provider sends the browser back to `callbackURL` signed in, or with `?error=<code>`, for example
-     * `signup_disabled` when no account here has that provider account or its address.
+     * `signup_disabled` when no account here has that provider account or its address, or with
+     * `?second-step=<methods>` when the person's second step is due, which `verifyTwoFactor` then takes.
      */
     signInSocial: async (provider: string, callbackURL: string) => {
       const { data, error } = await client.signIn.social({ provider, callbackURL, errorCallbackURL: callbackURL, disableRedirect: true })

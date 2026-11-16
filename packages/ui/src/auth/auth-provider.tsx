@@ -7,7 +7,7 @@ import type { PushUser } from '../notifications/push/web-push'
 import { useStartCache } from '../data/start-cache/start-cache'
 import { customSchemeAuth, isHttpOrigin } from './custom-scheme-auth'
 import { enterAfterUpdate } from './enter-after-update'
-import { providerName, withoutSignInLink } from './provider-link'
+import { providerName, readSecondStep, withoutSignInLink } from './provider-link'
 import type { AuthState } from './auth-state'
 import { startCacheStep } from './start-session'
 import { text } from './messages'
@@ -241,7 +241,10 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
       if (status.needsAdmin) return setState({ kind: 'needs-admin', ...(status.firstAdminUrl && { firstAdminUrl: status.firstAdminUrl }) })
       const user = await session.session()
       if (generation.current !== asked) return
-      return user ? enter(user, asked) : setState({ kind: status.anonymous ? 'visitor' : 'signed-out' })
+      if (user) return enter(user, asked)
+      // A provider sent the browser back to take the second step before signing in.
+      const methods = readSecondStep(window.location.href)
+      setState(methods ? { kind: 'two-factor', methods } : { kind: status.anonymous ? 'visitor' : 'signed-out' })
     }).catch((error: unknown) => {
       if (generation.current !== asked) return
       setState((current) => (current.kind === 'signed-in' ? current : { kind: 'error', message: error instanceof Error ? error.message : text('noAnswer') }))

@@ -1,3 +1,6 @@
+import type { TwoFactorMethod } from '@protobase/client'
+import { secondStepParam } from '@protobase/schema/internal'
+
 /** Marks a link that starts signing in with a provider at once, for example `/?sign-in=github`. */
 export const signInMarker = 'sign-in'
 
@@ -17,10 +20,25 @@ export const readSignInLink = (href: string): string | undefined => {
 /** Why the provider sent the browser back here, or `undefined`. */
 export const readProviderError = (href: string): string | undefined => new URL(href).searchParams.get(errorParam) || undefined
 
-/** The address without the link's marker and the provider's error: for the address bar, and the page to come back to. */
+const twoFactorMethods: readonly TwoFactorMethod[] = ['totp', 'otp']
+
+/**
+ * The second step's methods when a provider sent the browser back here to take it before signing in, for example
+ * `?second-step=totp,otp`, or `undefined`. Methods this page does not know are left out.
+ */
+export const readSecondStep = (href: string): TwoFactorMethod[] | undefined => {
+  const value = new URL(href).searchParams.get(secondStepParam)
+  if (value === null) return undefined
+  return value.split(',').filter((method): method is TwoFactorMethod => twoFactorMethods.includes(method as TwoFactorMethod))
+}
+
+/**
+ * The address without the link's marker, the provider's error and the second step's marker: for the address bar, and
+ * the page to come back to.
+ */
 export const withoutSignInLink = (href: string) => {
   const url = new URL(href)
-  for (const name of [signInMarker, errorParam]) url.searchParams.delete(name)
+  for (const name of [signInMarker, errorParam, secondStepParam]) url.searchParams.delete(name)
   return `${url.pathname}${url.search}${url.hash}`
 }
 
