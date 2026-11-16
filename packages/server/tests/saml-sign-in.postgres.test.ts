@@ -5,7 +5,9 @@ import { buildAuth, type CreateAuthOptions } from '../src/better-auth/create-aut
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
+import { turnOnAuthenticatorApp } from './support/authenticator-app'
 import { fakeSamlIdp, type SamlPerson } from './support/fake-saml-idp'
+import { authenticatorCode } from './support/vault-app'
 
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
@@ -98,6 +100,19 @@ describe.skipIf(!ready)('sign-in with a SAML identity provider', () => {
     const { session } = await samlSignIn(sanne())
     expect(session.user.id).toBe(id)
     expect(await accounts()).toEqual([{ email: 'sanne@acme.test', providerId: 'acme', accountId: 'sanne@acme.test' }])
+  })
+
+  it('sends a person who turned on a second step back to take it, and signs them in once it is right', async () => {
+    const { auth, request, samlSignIn } = await serve()
+    await createUser(auth, { email: 'sanne@acme.test', password, role: 'user' })
+    const signedIn = cookiesOf(await request('/sign-in/email', { body: { email: 'sanne@acme.test', password } })).join('; ')
+    const totpURI = await turnOnAuthenticatorApp(request, signedIn, password)
+    const { acs, session, location } = await samlSignIn(sanne())
+    expect(location).toBe(`${origin}/?second-step=totp`)
+    expect(session).toBeNull()
+    const verified = await request('/two-factor/verify-totp', { cookie: cookiesOf(acs).join('; '), body: { code: authenticatorCode(totpURI) } })
+    expect(verified.status).toBe(200)
+    expect((await request('/token', { cookie: cookiesOf(verified).join('; ') })).status).toBe(200)
   })
 
   it('keeps signing in a person it signed up when it changes their NameID', async () => {

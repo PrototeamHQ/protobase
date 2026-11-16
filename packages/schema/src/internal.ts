@@ -45,6 +45,7 @@ export { mobileReleaseBasePath, mobileReleaseParams, mobileReleasePath, mobileRe
 export { authBasePath } from './auth-base-path'
 export { emailCodeMinutes } from './email-code-lifetime'
 export { confirmationMinutes } from './confirmation-window'
+export { secondStepParam } from './second-step-marker'
 export { capacitorOrigin } from './capacitor-origins'
 export { pushRecord, serviceWorkerFile } from './push-record'
 export { bridgeSocketPath, bridgeTokenParam } from './bridge-address'
