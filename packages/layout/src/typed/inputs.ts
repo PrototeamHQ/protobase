@@ -5,6 +5,7 @@ import type {
   ChartProps,
   ComposerProps,
   FieldProps,
+  GraphProps,
   MatchProps,
   ModalFormProps,
   ProgressProps,
@@ -78,6 +79,31 @@ export type ModalFormInput<R extends string> = Written<ModalFormProps, { label: 
 export type ThreadInput<R extends string> = Written<
   ThreadProps,
   { resource: R; filter?: Filter<R>; sender?: FieldName<R>; time: FieldName<R>; text: FieldName<R>; status?: FieldName<R>; working?: When }
+>
+/** A graph's nodes are records of `N` and its edges records of `E`, each condition on an edge an arrow of its fields. */
+export type GraphInput<N extends string, E extends string> = Written<
+  GraphProps,
+  {
+    nodes: N
+    edges: E
+    source: FieldName<E>
+    target: FieldName<E>
+    label: FieldName<N>
+    group?: FieldName<N>
+    status?: FieldName<N>
+    x?: FieldName<N>
+    y?: FieldName<N>
+    /** What each node shows: elements, or a function of its record, `(task) => <Text>{task.title}</Text>`. */
+    node?: RecordChildren<N>
+    filter?: Filter<N>
+    edgeFilter?: Filter<E>
+    edgeLabel?: FieldName<E>
+    edgeStatus?: FieldName<E>
+    animated?: Filter<E>
+    dashed?: Filter<E>
+    dotted?: Filter<E>
+    fallback?: LayoutChildren
+  }
 >
 export type ComposerInput<R extends string> = Written<ComposerProps, { resource: R; field: FieldName<R> }>
 export type ActionInput<R extends string> = Written<ActionProps, { resource?: R }>

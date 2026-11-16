@@ -15,6 +15,7 @@ export {
   DeleteAccount,
   Devices,
   Field,
+  Graph,
   Grid,
   Image,
   Link,
@@ -56,6 +57,8 @@ export type {
   DataProps,
   Elements,
   FieldProps,
+  GraphLayoutName,
+  GraphProps,
   GridProps,
   ImageProps,
   LinkProps,
@@ -117,6 +120,8 @@ export { cardsLayoutOf } from './cards-layout'
 export { maxThreadLimit, messageFieldsProblems, messageStatusProblems, messageTextProblems, threadFields, threadLimitProblems, type MessageFields } from './check-conversation'
 export { threadSort } from './check-time'
 export { timelineFields, timelineSort } from './check-timeline'
+export { graphShape, type GraphFields, type GraphShape, type ShapeEdge, type ShapeGroup, type ShapeNode } from './graph-shape'
+export { edgeCondition, edgeConditions } from './graph-edges'
 export { threadItemNodes, threadLines, threadMarkdown, type ThreadTextItem, type ToolCallWords } from './thread-text'
 export { pruneToolCalls, toolCallsProblems, toolCallStates, type ToolCallSource, type ToolCallState } from './check-tool-calls'
 export { checkPages, pageFindings, type Findings, type PageCheckInput } from './check-page'

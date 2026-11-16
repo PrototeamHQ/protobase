@@ -59,9 +59,9 @@ describe('fillProps', () => {
 
 describe('fillComponentReads', () => {
   it('fills a filter two reads share once, so filled text that looks like a placeholder stays as it is', () => {
-    const Graph = component<{ nodes: string; edges: string; filter: string }>('Graph', { reads: [{ resource: 'nodes', filter: 'filter' }, { resource: 'edges', filter: 'filter' }] })
+    const Network = component<{ nodes: string; edges: string; filter: string }>('Network', { reads: [{ resource: 'nodes', filter: 'filter' }, { resource: 'edges', filter: 'filter' }] })
     const tricky: ValueScope = { stack: [{ record: { title: '{{status}}', status: 'open' } }] }
-    const node = fillComponentReads(Graph({ nodes: 'tasks', edges: 'links', filter: "title = '{{title}}'" }), tricky)
+    const node = fillComponentReads(Network({ nodes: 'tasks', edges: 'links', filter: "title = '{{title}}'" }), tricky)
     expect(node.props.filter).toBe("title = '{{status}}'")
   })
 })

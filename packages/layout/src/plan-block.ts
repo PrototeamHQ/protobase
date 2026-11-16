@@ -4,6 +4,7 @@ import { blockSpecs, type BlockReads } from './block-specs'
 import { threadSort } from './check-time'
 import { threadFields } from './check-conversation'
 import { timelineFields, timelineSort } from './check-timeline'
+import { edgeConditionFields } from './graph-edges'
 import { defaultPerPage, defaultSort, defaultSource, maxPerPage } from './list-blocks'
 import { filterLiteral, filterText, sortText } from './list-query'
 import type { LayoutNode, LayoutValue } from './node'
@@ -38,6 +39,9 @@ const pageSizeOf = (node: LayoutNode, reads: BlockReads): number | undefined => 
       return number(limit) ?? 50
     case 'Timeline':
       return number(limit) ?? maxPerPage
+    // A graph draws all of its nodes and edges at once
+    case 'Graph':
+      return maxPerPage
     case 'ReferenceManyField':
       return number(perPage) ?? defaultPerPage
     case 'ReferenceArrayField':
@@ -97,6 +101,8 @@ const ownFields = (node: LayoutNode, reads: BlockReads, model: ResourceModel): S
       return names([...threadFields(node), ...(text(node.props.status) ? [String(node.props.status)] : [])])
     case 'Timeline':
       return names(timelineFields(node))
+    case 'Graph':
+      return names([...namedFields(node, reads.fields ?? []), ...(reads.resource === 'edges' ? edgeConditionFields(node) : [])])
     case 'RecordRow':
       return undefined
     // Without children, it draws the record's title
@@ -187,9 +193,9 @@ export type BlockDrafts = { own?: Draft; chosen?: Draft; extra: Draft[] }
  * plan: none for a block's one read, the prop of its resource for each of a component's several.
  */
 export const readsOf = (node: LayoutNode): Array<{ reads: BlockReads; part?: string }> => {
-  if (!node.custom) return blockSpecs[node.type]?.reads ? [{ reads: blockSpecs[node.type]!.reads! }] : []
-  if (!node.reads) return []
-  return Array.isArray(node.reads) ? node.reads.map((reads) => ({ reads, part: reads.resource })) : [{ reads: node.reads }]
+  const declared = node.custom ? node.reads : blockSpecs[node.type]?.reads
+  if (!declared) return []
+  return Array.isArray(declared) ? declared.map((reads) => ({ reads, part: reads.resource })) : [{ reads: declared }]
 }
 
 // The record a `select` chose is read by its key, which the page's address holds
@@ -235,7 +241,8 @@ const readDrafts = (node: LayoutNode, block: string, { reads, part }: { reads: B
     fields: shape.kind === 'list' ? ownFields(node, reads, model) : shape.kind === 'count' ? new Set([keyOf(model)]) : undefined,
     etag: changesOwn(node),
   }
-  const chosen = !node.custom || reads.select !== undefined ? chosenOf(node, block, model, split.filter, context) : undefined
+  // A block of one read chooses among it, one of several in the read that names `select`
+  const chosen = (!node.custom && part === undefined) || reads.select !== undefined ? chosenOf(node, block, model, split.filter, context) : undefined
   const total = split.parent && totalOf(node, own, keysOf(split, context))
   return { own, ...(chosen && { chosen }), ...(total && { total }) }
 }

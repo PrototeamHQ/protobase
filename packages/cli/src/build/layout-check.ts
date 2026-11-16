@@ -3,9 +3,9 @@ import type { Plugin } from 'vite'
 
 // Layout files are data: their JSX becomes JSON for the browser. The JSX runtime refuses a function prop when the
 // config loads; this check refuses what is visibly not static at build time already, with the file and line, before
-// any project code runs. Two arrows are data too, run once as the config loads: a filter's, `(f) => f.done.eq(false)`,
-// which writes its AIP-160 text, and a record block's child, `(run) => <Text>{run.outcome}</Text>`, which writes its
-// placeholders; each is one expression, never a body of statements.
+// any project code runs. Two kinds of arrow are data too, run once as the config loads: a filter's or a condition's,
+// `(f) => f.done.eq(false)`, which writes its AIP-160 text, and a record block's child or a graph's `node`,
+// `(run) => <Text>{run.outcome}</Text>`, which writes its placeholders; each is one expression, never a body of statements.
 
 const pragma = /@jsxImportSource\s+@protobase\/layout\b/
 
@@ -27,6 +27,14 @@ const what = (expression: ts.Expression): string | undefined => {
 // The blocks whose children may be a function of the record each draws its children in
 const recordChildBlocks = new Set(['RecordCard', 'CardRow', 'ReferenceField', 'RecordsIterator'])
 
+// The props that may be one arrow: a filter's or a condition's of the block's records, and a graph's `node`, of the
+// record each node draws in
+const conditionProps = new Set(['filter', 'edgeFilter', 'animated', 'dashed', 'dotted'])
+const isArrowProp = (attribute: ts.JsxAttribute) => {
+  const name = attribute.name.getText()
+  return conditionProps.has(name) || (name === 'node' && elementName(attribute).replace(/<.*$/, '') === 'Graph')
+}
+
 const unwrapped = (expression: ts.Expression) => (ts.isParenthesizedExpression(expression) ? expression.expression : expression)
 
 // An arrow of one expression, `(f) => ...`, not a body of statements
@@ -47,8 +55,8 @@ export const layoutProblems = (code: string, file: string): string[] => {
   }
   const visit = (node: ts.Node) => {
     if (ts.isJsxAttribute(node) && node.initializer && ts.isJsxExpression(node.initializer) && node.initializer.expression) {
-      const kind = node.name.getText() === 'filter' && isExpressionArrow(node.initializer.expression) ? undefined : what(node.initializer.expression)
-      if (kind) problems.push(`${at(node)}: <${elementName(node)} ${node.name.getText()}> is ${kind}; layout props must be static data, a filter may be one arrow of the builder. Use <Action name="..."> for behaviour, or a custom component for React code.`)
+      const kind = isArrowProp(node) && isExpressionArrow(node.initializer.expression) ? undefined : what(node.initializer.expression)
+      if (kind) problems.push(`${at(node)}: <${elementName(node)} ${node.name.getText()}> is ${kind}; layout props must be static data, a filter or condition may be one arrow of the builder, the node of a Graph one arrow of its record. Use <Action name="..."> for behaviour, or a custom component for React code.`)
     }
     if (ts.isJsxExpression(node) && node.expression && (ts.isJsxElement(node.parent) || ts.isJsxFragment(node.parent))) {
       const recordChild = ts.isJsxElement(node.parent) && recordChildBlocks.has(node.parent.openingElement.tagName.getText().replace(/<.*$/, '')) && isExpressionArrow(node.expression)

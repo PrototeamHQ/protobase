@@ -12,6 +12,11 @@ const record = { title: 'Fix the roof', status: 'in_progress', seats: 3, plan: {
 const fields = { status: { label: 'Status', valueLabels: { in_progress: 'In progress' } } }
 
 describe('renderText', () => {
+  it("fills a text child's {{path}}s from the record around the tree, as a prop's, and escapes the value", () => {
+    expect(renderText(Text({ children: ['Hi {{name}}, ', '*left*'] }), { record: { name: 'Sam_1' } })).toBe('Hi Sam\\_1, \\*left\\*')
+    expect(renderText(Text({ children: 'Hi {{name}}' }))).toBe('Hi')
+  })
+
   it('renders each child of a container as its own text, in order', () => {
     const section = Box({ children: [Text({ as: 'h2', children: 'Roof' }), Field({ source: 'title', label: 'Title' }), Field({ source: 'seats', label: 'Seats' }), Field({ source: 'status', format: 'badge' })] })
     expect(renderText(section, { record, fields })).toBe('## Roof\n\n**Title**: Fix the roof\n\n**Seats**: 3\n\n**Status**: In progress')

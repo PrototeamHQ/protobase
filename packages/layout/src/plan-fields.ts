@@ -58,5 +58,13 @@ export const readScopeFields = (node: LayoutNode, scope: Scope, rows: Rows, cont
   if (node.type === 'Progress') for (const value of [node.props.value, node.props.max]) if (typeof value === 'string') add(value, 'relations')
 }
 
+/** Adds every field a text child's `{{path}}`s read of the records around it, where `scope` is, to the reads that hold them. */
+export const readTextFields = (text: string, scope: Scope, rows: Rows, context: PlanContext) => {
+  for (const path of templatePlaceholders(text)) {
+    const resolved = resolveScopePath(path, { models: context.models, scope, params: context.params, mode: 'stored' })
+    if (resolved.ok && resolved.kind === 'field' && resolved.context.at !== 'root') reads(rows[resolved.context.at], resolved.names[0]!)
+  }
+}
+
 /** Whether `node` changes the record nearest around it, so that record's read asks for its ETag. */
 export const changesRecord = (node: LayoutNode) => !node.custom && (node.type === 'Action' || (node.type === 'ModalForm' && node.props.mode === 'edit' && node.props.recordKey === undefined))

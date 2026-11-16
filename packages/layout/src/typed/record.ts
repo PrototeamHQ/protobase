@@ -45,6 +45,12 @@ export const markScope = (node: object, scope: number) => {
   scopeOf.set(node, scope)
 }
 
+/** Gives `copy` the scope `node` was marked with, as an element held in a prop is copied into the tree. */
+export const keepScope = (node: object, copy: object) => {
+  const scope = scopeOf.get(node)
+  if (scope !== undefined) scopeOf.set(copy, scope)
+}
+
 type PathInfo = { path: string[]; scope: number }
 
 /** A filter value: written as it is in AIP-160 text. */

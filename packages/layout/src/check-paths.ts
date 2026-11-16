@@ -62,7 +62,7 @@ export const pathFindings = (node: LayoutNode, scope: Scope, { models, params, c
     if (strings(node.props[prop]).some((text) => templatePlaceholders(text).length > 0)) problems.push(`"${prop}" shapes the read and takes no {{…}}; ${waits}`)
   }
   // A slot inside a longer quoted value would be filled unescaped, so only one quoted alone is taken, as in a link's filter
-  for (const prop of ['filter', 'when', 'working']) {
+  for (const prop of ['filter', 'edgeFilter', 'when', 'working']) {
     const value = node.props[prop]
     if (typeof value !== 'string') continue
     for (const path of embeddedFilterFields(value)) problems.push(`${prop}: "{{${path}}}" sits inside a longer quoted value; quote it alone, such as title = '{{${path}}}'`)
@@ -73,7 +73,8 @@ export const pathFindings = (node: LayoutNode, scope: Scope, { models, params, c
   }
 
   // A slot in a read's data: an address value anywhere, a field of a record around it only as the one per-row split
-  let perRow = 0
+  // of each read, a Graph's edges being a read of their own
+  const perRow = new Map<string, number>()
   const dataSlot = (prop: string, path: string, splits: boolean) => {
     const resolved = resolve(prop, path)
     if (resolved?.kind === 'data' && resolved.variable === 'params' && !chosen.has(resolved.names[0]!)) {
@@ -82,16 +83,19 @@ export const pathFindings = (node: LayoutNode, scope: Scope, { models, params, c
     if (!resolved || isAddressValue(resolved, models)) return
     if (resolved.kind !== 'field' || resolved.names.length > 1) return problems.push(`${prop}: "{{${path}}}" is no stored field of a record, so a read cannot take it`)
     if (!splits) return problems.push(`${prop}: "{{${path}}}" sits where a read cannot split it per row; only field = {{${path}}} as a top-level AND condition can, and ${waits}`)
-    perRow += 1
-    if (perRow > 1) problems.push(`${prop}: "{{${path}}}" is a second per-row condition, and a read splits by one; ${waits}`)
+    const read = prop === 'edgeFilter' ? 'edges' : 'own'
+    perRow.set(read, (perRow.get(read) ?? 0) + 1)
+    if (perRow.get(read)! > 1) problems.push(`${prop}: "{{${path}}}" is a second per-row condition, and a read splits by one; ${waits}`)
   }
   // A reference block's `source` is the implicit equality `target = {{source}}`, or `id in {{source}}`
   if (['ReferenceManyField', 'ReferenceArrayField', 'ReferenceField'].includes(node.type)) dataSlot('source', typeof node.props.source === 'string' ? node.props.source : defaultSource, true)
   const filter = node.props.filter
-  if (typeof filter === 'string') {
+  for (const prop of ['filter', 'edgeFilter']) {
+    const value = node.props[prop]
+    if (typeof value !== 'string') continue
     // A filter that does not parse is reported by the filter check
-    const found = equalitySlots(filter)
-    for (const slot of found?.slots ?? []) dataSlot('filter', slot.path, found!.split.has(slot))
+    const found = equalitySlots(value)
+    for (const slot of found?.slots ?? []) dataSlot(prop, slot.path, found!.split.has(slot))
   }
   // A whole `{{path}}` in a key, a filter object or a value is the equality `field = {{path}}` itself
   const wholes = (prop: string, values: string[]) => {

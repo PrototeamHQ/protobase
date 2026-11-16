@@ -509,6 +509,65 @@ view<typeof phases>('phases').fields((r) => ({
 
 Its [text form](/reference/layouts/#text-form) is a Markdown table with a row per segment: its lane, bar, value, start and end under the fields' labels. A timeline whose fields the user cannot read is left out of their page, and a field it cannot draw, such as a `start` that is no date, stops the server at startup.
 
+### Graph
+
+:::caution[Beta]
+A graph is read-only: you cannot move, add or connect nodes in it, and it reads at most 500 nodes and 500 edges.
+:::
+
+The records of `nodes` as boxes and the records of `edges` as arrows between them, from the node an edge's `source` holds the key of to the one its `target` holds, such as services and the links between them, or tasks and what blocks them. Each node sits in the region of its `group`, coloured by its `status`, and draws its label and status, or contents of the layout's own; each edge can carry a label, a status colour and a moving, dashed or dotted line. With `select`, the chosen node's details draw beside the graph. Its drawing code loads only on a page with a graph, and it is laid out in a worker of its own, so a large graph never holds up the page.
+
+| Prop | |
+| --- | --- |
+| `nodes`, `edges` | The resources whose records are the nodes and the edges. A node is found by its key, which must be one field: a resource with a key of several fields stops the server at startup. An edge whose `source` or `target` is not among the nodes is left out. Required. |
+| `source`, `target` | The fields of an edge that hold the keys of the nodes it runs from and to. Required. |
+| `label` | The field of a node that names it: its text where it draws no `node`, the name of its link and its line in the text form. Required. |
+| `group` | The field of a node whose value puts it in a region with the nodes that hold the same, the value at the region's top; a node without one stands outside every region. |
+| `status` | An enum field of a node, shown under its label and colouring its left edge, as the view's [`valueColors`](/reference/ui-config/#value-tones-and-currencies) give each value. |
+| `node` | What each node draws, inside its record: [placeholders](/reference/layouts/#data), `Field`s, `Show`s and the other blocks that show a record, but no block that reads records of its own, which would read once per node. In a [typed layout](/reference/layouts/#typed-layouts) it is a function of the node's record, `(service) => <Text>{service.owner}</Text>`. A node that draws one is 224 pixels wide and as tall as it draws. |
+| `filter`, `edgeFilter` | Which nodes and which edges it shows, AIP-160 or the [builder's arrow](/reference/layouts/#the-condition-builder). |
+| `edgeLabel` | A field of an edge shown on its middle, by its value label if the edges' view gives one. |
+| `edgeStatus` | An enum field of an edge that colours its line and arrow, as the edges' view's `valueColors` give each value. |
+| `animated`, `dashed`, `dotted` | Conditions on an edge, AIP-160 or the builder's arrow of the edge's fields, `(link) => link.state.eq('busy')`, under which its line moves, as for work running along it, is dashed or is dotted; dotted wins over dashed. Each is evaluated for each edge as the graph draws, `now()` included. |
+| `layout` | `layered` (the default), the nodes in layers along their edges, or `force`, linked nodes pulled near each other and the others pushed apart, for a graph that has no direction. |
+| `direction` | Which way a layered graph's edges run: `down` (the default), which keeps it narrow on a phone, or `right`. |
+| `x`, `y` | Two number fields of a node that place its top left corner, in pixels at the graph's normal size. A node with both stands there, and the nodes without are laid out under the placed ones; when every node has them, nothing is laid out. |
+| `select` | The [page parameter](/reference/layouts/#page-parameters) that holds the chosen node's key: each node links to the page with it chosen, a node that draws its own `node` as a whole, and the `Graph`'s children draw beside the graph, inside that node's record, or under it on a narrow screen. |
+| `empty` | What it shows without nodes. |
+| `fallback` | What draws in its place where it cannot draw, as when its records cannot be read, such as the [picture](#image) one of the app's API functions draws of the same graph. Without one, it shows the error. |
+
+```tsx
+export const serviceMap = page('service-map', layout(() => (
+  <Page title="Services" width="full">
+    <Card title="Service map">
+      <Graph
+        nodes="services" edges="links" source="from_id" target="to_id"
+        label="name" group="area" status="health" select="service"
+        node={(service) => (
+          <>
+            <Text as="strong">{service.name}</Text>
+            <Text>{`Owned by ${service.owner}`}</Text>
+          </>
+        )}
+        edgeLabel="protocol" edgeStatus="state"
+        animated={(link) => link.state.eq('busy')}
+        dashed={(link) => link.optional.eq(true)}
+        fallback={<Image function="service_map" alt="The services and the links between them" />}
+      >
+        <Field source="owner" />
+        <Field source="health" />
+      </Graph>
+    </Card>
+  </Page>
+)))
+```
+
+<StoryFrame id="composed-pages-graph--drawn" title="Services, each drawing its owner, and their links by state" height={560} />
+
+The page's [read plan](/reference/layouts/#how-a-page-reads-its-data) reads the nodes, with the fields they and their `node` draw, and the edges, with the fields their label, colour and conditions read, with the rest of the page as it opens. The same records always make the same picture: groups, nodes and edges are laid out in the order of their keys, and a force layout from a fixed seed. The graph is as wide as its place and as tall as its shape asks, up to most of the screen; it fits in that box unless that would make it too small to read, as on a phone, where you drag to pan. Pinch or the zoom buttons zoom it, the fit button shows all of it, and the mouse wheel scrolls the page past it. <gap>A group cannot show the title of the record its field points at, because reading related records' titles in the graph is not implemented, so a relation groups by its key.</gap> <gap>Nodes cannot be dragged to store their positions, because writing `x` and `y` from the graph is not implemented; store them from elsewhere, such as an action.</gap>
+
+Its [text form](/reference/layouts/#text-form) lists each group with its nodes and their status, the nodes in no group, then each edge as `a → b` with its label, from the records of the page's plan, or its fallback without them. A graph whose resources, label or ends the user cannot read is left out of their page, and its other props that name fields they cannot read are dropped.
+
 ## Related records
 
 The blocks that repeat over a record's related records, as [related records](/reference/layouts/#related-records) explains, with the names, props and defaults of react-admin's components. `ReferenceManyField`, `ReferenceArrayField` and `ArrayField` hold a list and draw nothing of their own; a `RecordsIterator` or a `Table` without `resource` inside one draws it. Each sits inside a record, whose field it reads.

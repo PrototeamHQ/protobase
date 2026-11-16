@@ -1,16 +1,17 @@
-import type { BlockReads, LayoutValue } from './node'
+import type { BlockReads, ComponentReads, LayoutValue } from './node'
 import { isLayoutNode } from './node'
 
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
 // blocks.ts say the same for the compiler.
 
-type Kind = 'shown' | 'transValues' | 'transComponents' | 'choices' | 'sort' | 'filter' | 'pagination' | 'referenceLink' | 'text' | 'content' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls' | 'tableColumns' | 'locales' | 'intlOptions' | 'dateFormat'
+type Kind = 'shown' | 'transValues' | 'transComponents' | 'choices' | 'sort' | 'filter' | 'pagination' | 'referenceLink' | 'text' | 'content' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth' | 'pageWidth' | 'rowButton' | 'textAs' | 'boolean' | 'toolCalls' | 'tableColumns' | 'locales' | 'intlOptions' | 'dateFormat' | 'graphLayout' | 'graphDirection'
 
 type PropSpec = { kind: Kind; required?: true }
 
 export type { BlockReads }
 
-export type BlockSpec = { props: Record<string, PropSpec>; children: boolean; reads?: BlockReads }
+/** A block's props and children, and what it reads: one read, or several, each a part of the plan named by its resource prop. */
+export type BlockSpec = { props: Record<string, PropSpec>; children: boolean; reads?: ComponentReads }
 
 const optional = (kind: Kind): PropSpec => ({ kind })
 const required = (kind: Kind): PropSpec => ({ kind, required: true })
@@ -91,6 +92,37 @@ const specs: Record<string, BlockSpec> = {
       empty: optional('shown'),
       span: optional('span'),
       select: optional('text'),
+    },
+  },
+  // Two reads, its nodes and its edges; its children draw the node `select` chose, and `node` each node
+  Graph: {
+    children: true,
+    reads: [
+      { resource: 'nodes', filter: 'filter', fields: ['label', 'group', 'status', 'x', 'y'], select: 'select' },
+      { resource: 'edges', filter: 'edgeFilter', fields: ['source', 'target', 'edgeLabel', 'edgeStatus'] },
+    ],
+    props: {
+      nodes: required('text'),
+      edges: required('text'),
+      source: required('text'),
+      target: required('text'),
+      label: required('text'),
+      group: optional('text'),
+      status: optional('text'),
+      node: optional('elements'),
+      filter: optional('text'),
+      edgeFilter: optional('text'),
+      edgeLabel: optional('text'),
+      edgeStatus: optional('text'),
+      animated: optional('text'),
+      dashed: optional('text'),
+      dotted: optional('text'),
+      layout: optional('graphLayout'),
+      direction: optional('graphDirection'),
+      x: optional('text'),
+      y: optional('text'),
+      select: optional('text'),
+      empty: optional('shown'),
     },
   },
   Progress: { children: false, props: { value: required('amount'), max: optional('amount'), label: optional('shown'), span: optional('span') } },
@@ -240,6 +272,8 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
     "Intl options, such as { style: 'currency', currency: 'EUR' }",
   ],
   dateFormat: oneOf(['relative']),
+  graphLayout: oneOf(['layered', 'force']),
+  graphDirection: oneOf(['down', 'right']),
   tableColumns: [(value) => Array.isArray(value) && value.every(isTableColumn), "a list of field names or { name, priority }, such as ['title', { name: 'status', priority: 1 }]"],
   rowButton: [
     (value) => (Array.isArray(value) ? value.length > 0 && value.every(isRowButtonChoice) : isRowButtonChoice(value)),

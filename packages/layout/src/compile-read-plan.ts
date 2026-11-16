@@ -3,7 +3,7 @@ import { isScopeField } from './check-condition'
 import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from './node'
 import { blockDrafts, type BlockDrafts } from './plan-block'
 import { finalRead, reads, type Draft, type PlanContext, type Rows } from './plan-draft'
-import { changesRecord, conditionPaths, readScopeFields } from './plan-fields'
+import { changesRecord, conditionPaths, readScopeFields, readTextFields } from './plan-fields'
 import { pageInputs } from './page-params'
 import { pointerOf } from './element-at'
 import { newSlots } from './plan-slots'
@@ -78,11 +78,15 @@ export const compileReadPlan = (tree: LayoutNode, { models, root }: ReadPlanInpu
     const innerRows = pushed ? [...rows, pushedRead(node, made, scope, list)] : rows
     const innerList = pushed ? undefined : inner.list !== scope.list ? made.own : list
     const walk = (child: LayoutChild, childScope: Scope, childRows: Rows, childList: Draft | undefined, childPointer: string, place: string) => {
+      // A text child's `{{path}}`s read the records around it, as a prop's do
       if (typeof child !== 'string') visit(child, childScope, childRows, childList, childPointer, place)
+      else readTextFields(child, childScope, childRows, context)
     }
     node.children.forEach((child, index) => walk(child, inner, innerRows, innerList, pointerOf(pointer, 'children', index), typeof child === 'string' ? at : `${at} › ${label(child)}`))
     const slot = propScope(node, scope)
-    const slotted = slot === scope ? { rows, list } : { rows: innerRows, list: innerList }
+    // A graph's `node` draws in each record of its nodes read, a RecordCard's actions in its record
+    const slotRead = !node.custom && node.type === 'Graph' ? made.extra.find((draft) => draft.part === 'nodes') : undefined
+    const slotted = slot === scope ? { rows, list } : slotRead ? { rows: [...rows, slotRead], list: undefined } : { rows: innerRows, list: innerList }
     for (const [name, value] of Object.entries(node.props)) {
       const elements = elementsOf(value)
       elements.forEach((element, index) => walk(element, slot, slotted.rows, slotted.list, pointerOf(pointer, 'props', name, ...(Array.isArray(value) ? [index] : [])), `${at} ${name}={${label(element)}}`))

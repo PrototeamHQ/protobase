@@ -69,12 +69,23 @@ export const childScope = (node: LayoutNode, scope: Scope): Scope => {
 export const actsOnList = (node: LayoutNode, scope: Scope) =>
   !node.custom && node.type === 'Action' && scope.list?.resource !== undefined && (node.props.resource === undefined || node.props.resource === scope.list.resource)
 
-/** The scope of the elements in a prop: a `RecordCard`'s header actions belong to its record, others to the parent's scope. */
-export const propScope = (node: LayoutNode, scope: Scope): Scope => (!node.custom && node.type === 'RecordCard' ? childScope(node, scope) : scope)
+/**
+ * The scope of the elements in a prop: a `RecordCard`'s header actions belong to its record, a `Graph`'s `node` draws
+ * in each of its nodes, others are in the parent's scope.
+ */
+export const propScope = (node: LayoutNode, scope: Scope): Scope => {
+  if (node.custom) return scope
+  if (node.type === 'RecordCard') return childScope(node, scope)
+  if (node.type === 'Graph') return pushed(scope, { resource: text(node.props.nodes), repeated: true, block: label(node) })
+  return scope
+}
 
 export type Location = { path: string; scope: Scope }
 
-export const label = (node: LayoutNode) => `<${node.type}${typeof node.props.resource === 'string' ? ` resource="${node.props.resource}"` : ''}${typeof node.props.reference === 'string' ? ` reference="${node.props.reference}"` : ''}${typeof node.props.name === 'string' ? ` name="${node.props.name}"` : ''}${typeof node.props.source === 'string' ? ` source="${node.props.source}"` : ''}>`
+// A graph is named by its nodes, whose `source` is an edge's field
+const named = (node: LayoutNode) => (!node.custom && node.type === 'Graph' ? ['nodes'] : ['resource', 'reference', 'name', 'source'])
+
+export const label = (node: LayoutNode) => `<${node.type}${named(node).map((prop) => (typeof node.props[prop] === 'string' ? ` ${prop}="${node.props[prop]}"` : '')).join('')}>`
 
 const isElements = (value: LayoutValue): value is LayoutNode | LayoutNode[] => isLayoutNode(value) || (Array.isArray(value) && value.length > 0 && value.every(isLayoutNode))
 

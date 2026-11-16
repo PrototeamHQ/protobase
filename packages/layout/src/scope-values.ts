@@ -57,7 +57,7 @@ const fillFilterObject = (filter: Record<string, LayoutValue>, lookup: PathLooku
 const textProps = ['title', 'description', 'empty', 'label', 'recordKey']
 
 /** Props that are filters or conditions, where a quoted `'{{path}}'` is escaped so any text stays one value. */
-const filterProps = ['filter', 'when', 'working']
+const filterProps = ['filter', 'when', 'working', 'edgeFilter', 'animated', 'dashed', 'dotted']
 
 const fillValues = (value: LayoutValue, lookup: PathLookup): LayoutValue => {
   if (typeof value === 'string') return fillText(value, (path) => valueText(lookup(path)))
@@ -68,7 +68,7 @@ const fillValues = (value: LayoutValue, lookup: PathLookup): LayoutValue => {
 
 /**
  * The element with every `{{path}}` in its text props (`title`, `description`, `empty`, `label`, `recordKey`), its
- * filters and conditions (`filter`, `when`, `working`, a thread's `calls.filter`) and its `values` replaced by the values where `scope` is. A
+ * filters and conditions (`filter`, `when`, `working`, a graph's `edgeFilter` and edge conditions, a thread's `calls.filter`) and its `values` replaced by the values where `scope` is. A
  * missing value becomes empty, as in Mustache. Custom components and other props are left as they are.
  */
 export const fillProps = (node: LayoutNode, scope: ValueScope): LayoutNode => {

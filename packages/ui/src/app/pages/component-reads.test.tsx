@@ -19,7 +19,7 @@ const links = resource('links').table('links').fields({ id: f.integer().readOnly
 const models = { tasks, links }
 const meta = { resources: models, views: {} } as unknown as MetaData
 
-const Graph = component<{ nodes: string; edges: string; label: string }>('Graph', { reads: [{ resource: 'nodes', fields: 'label' }, { resource: 'edges' }] })
+const Network = component<{ nodes: string; edges: string; label: string }>('Network', { reads: [{ resource: 'nodes', fields: 'label' }, { resource: 'edges' }] })
 
 // Draws what each of its reads holds, as a plugin's component only draws
 const DrawnGraph = () => {
@@ -27,7 +27,7 @@ const DrawnGraph = () => {
   return <p>{Object.entries(reads).map(([name, read]) => `${name}:${read.model.name}:${read.rows.length}`).join(' ')}</p>
 }
 
-const tree = Page({ title: 'Map', children: Graph({ nodes: 'tasks', edges: 'links', label: 'title' }) })
+const tree = Page({ title: 'Map', children: Network({ nodes: 'tasks', edges: 'links', label: 'title' }) })
 
 describe("a custom component's declared reads", () => {
   it('reach it from the page’s plan, the page reading each of them, and it reads nothing itself', () => {
@@ -41,7 +41,7 @@ describe("a custom component's declared reads", () => {
     const html = renderToStaticMarkup(
       <ApiProvider client={client} queryClient={queryClient}>
         <MetaContext.Provider value={meta}>
-          <ProjectUiContext.Provider value={{ components: { Graph: DrawnGraph } }}>
+          <ProjectUiContext.Provider value={{ components: { Network: DrawnGraph } }}>
             <PlanReadsProvider tree={tree} plan={plan}>
               <RenderNode node={tree.children[0] as LayoutNode} at="/children/0" />
             </PlanReadsProvider>
