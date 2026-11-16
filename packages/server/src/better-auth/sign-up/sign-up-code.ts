@@ -15,8 +15,8 @@ export const hashOf = async (code: string) => {
   return btoa(String.fromCharCode(...new Uint8Array(digest)))
 }
 
-// Six digits from a uniform draw: 2^32 is not a multiple of a million, so draws past the last whole million are retried.
-const sixDigits = () => {
+/** Six digits from a uniform draw: 2^32 is not a multiple of a million, so draws past the last whole million are retried. */
+export const sixDigits = () => {
   const limit = Math.floor(2 ** 32 / 1_000_000) * 1_000_000
   for (;;) {
     const [value] = crypto.getRandomValues(new Uint32Array(1))

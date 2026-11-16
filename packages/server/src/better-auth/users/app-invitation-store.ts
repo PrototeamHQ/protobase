@@ -37,7 +37,13 @@ export const findAppInvitation = async (context: AuthContext, id: string) => {
   return invitation && pending(invitation) ? invitation : undefined
 }
 
-export const deleteAppInvitation = (context: AuthContext, id: string) => context.internalAdapter.deleteVerificationByIdentifier(`${prefix}${id}`)
+/** The pending app invitation of `email`, or `undefined`; inviting an address again replaces its invitation, so it has one at most. */
+export const findAppInvitationOf = async (context: AuthContext, email: string) => {
+  const address = email.toLowerCase()
+  return (await listAppInvitations(context)).find((invitation) => invitation.email === address)
+}
+
+export const deleteAppInvitation =(context: AuthContext, id: string) => context.internalAdapter.deleteVerificationByIdentifier(`${prefix}${id}`)
 
 /** Invites `email` with `roles` for `lifetimeSeconds`; an earlier invitation of the same address is replaced, so its link stops working. */
 export const createAppInvitation = async (context: AuthContext, input: { email: string; roles: string[]; inviterId: string }, lifetimeSeconds: number) => {

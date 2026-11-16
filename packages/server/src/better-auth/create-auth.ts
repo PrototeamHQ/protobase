@@ -71,6 +71,8 @@ import { noAccountMailPlugin } from './no-account-mail'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
 import { resolveSignUpDomains, signUpTakes } from './sign-up/sign-up-domains'
 import { signUpPaths, signUpPlugin } from './sign-up/sign-up-plugin'
+import { codeSignsUp, codeSignUpPlugin } from './sign-up/code-sign-up-plugin'
+import { resolveSignUpFields, type SignUpField } from './sign-up/sign-up-fields'
 import { confirmedOnCreate, confirmedOnUpdate, emailConfirmedField } from './email-confirmed'
 import { coreNames, pluginNames } from './snake-case-names'
 import { rehashPasswordsPlugin, verifyAcceptedHash, type PasswordHash } from './password-hashes'
@@ -139,9 +141,10 @@ export type CreateAuthOptions = {
    * Needs a mailer: without one it is not offered. `role` is one of `roles` and never `admin`; give it the least
    * a stranger may hold. Not with `organizations`, whose people come from invitations. `domains`, for example
    * `['example.com']`, limits it to addresses there (subdomains count); `PROTOBASE_SIGN_UP_DOMAINS`, when set, replaces
-   * it. An empty list leaves open sign-up off.
+   * it. An empty list leaves open sign-up off. `fields` is what it asks for: `['email', 'name']` by default, or
+   * `['email']`, when the emailed sign-in code makes the account of an address without one on the spot.
    */
-  signUp?: { role: string; domains?: string[] }
+  signUp?: { role: string; domains?: string[]; fields?: SignUpField[] }
   /**
    * The sign-in policy that applies until an admin saves one on the Sign-in policy page, and when the saved one no
    * longer reads: the methods it names, for example `{ password: 'forbidden' }` for emailed codes and passkeys only,
@@ -337,6 +340,8 @@ type Resolved = {
   signUpRole?: string
   /** The email domains open sign-up takes, from `resolveSignUpDomains`; every address without them. */
   signUpDomains?: string[]
+  /** What open sign-up asks for, from `resolveSignUpFields`. */
+  signUpFields?: SignUpField[]
   operator?: ResolvedOperator
   platformSignIn?: ResolvedPlatformSignIn
   /** The SAML providers, from `resolveSamlProviders`. */
@@ -394,7 +399,7 @@ const pageLoadReads = ['/get-session', '/role/current', '/token']
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, operator, platformSignIn, saml = [], organizations, mcp, api, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, ...plugins }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn, saml = [], organizations, mcp, api, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, ...plugins }: Resolved) => {
   const mailProviders = resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true)
   const connectionHooks = connections && connections.resolved.length > 0 ? connectionAccountHooks(connections.resolved, connections.events) : undefined
   const ownProviders = (connections?.resolved ?? []).filter(({ declaration }) => 'oauth' in declaration).map(({ providerId }) => providerId)
@@ -402,6 +407,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
   const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
   const hosts = passkeyHosts([options.baseURL, ...origins])
   const mail = mailer && { mailer, appName, baseURL: options.baseURL }
+  // The role of accounts the emailed sign-in code makes on the spot, when open sign-up asks for the address only.
+  const codeSignUp = signUpFields.includes('name') ? undefined : signUpRole
   const samlIds = saml.map((provider) => provider.id)
   const users = userTable(options.users)
   const passwordHashes = options.passwordHashes ?? []
@@ -490,8 +497,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       strongSignInsPlugin(),
       recentConfirmationPlugin(),
       passwordConfirmationPlugin(),
-      ...(mail ? [emailOTP(emailCodeOptions(mail)), noAccountMailPlugin(mail), confirmationCodePlugin(mail)] : []),
-      ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, ...(signUpDomains && { domains: signUpDomains }), mail, defaultPolicy: signInPolicy })] : []),
+      ...(mail ? [emailOTP(emailCodeOptions(mail)), noAccountMailPlugin(mail, codeSignUp ? (context, email) => codeSignsUp(context, email, signUpDomains) : undefined), confirmationCodePlugin(mail)] : []),
+      ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, ...(signUpDomains && { domains: signUpDomains }), fields: signUpFields, mail, defaultPolicy: signInPolicy })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
       ...(connections && connections.resolved.length > 0
         ? [connectionProvidersPlugin(connections.resolved, { allowPrivateAddresses: connections.allowPrivateAddresses }), connectionsPlugin({ connections: connections.resolved, events: connections.events, allowPrivateAddresses: connections.allowPrivateAddresses })]
@@ -500,6 +507,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       refreshRefusalsPlugin(),
       ...(saml.length > 0 ? [loaded(plugins.samlPlugin, 'sso.saml')(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
       signInPolicyPlugin(policy),
+      // After the policy's plugin, so an emailed code it refuses makes no account.
+      ...(mail && codeSignUp ? [codeSignUpPlugin({ role: codeSignUp, ...(signUpDomains && { domains: signUpDomains }), mail })] : []),
       idTokenSignInPlugin(signIn?.tokenSignIn ? { tokenSignIn: { provider: signIn.provider, clientId: signIn.clientId } } : {}),
       passwordChecksPlugin(),
       setPasswordPlugin(),
@@ -615,6 +624,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   // An empty list of domains takes nobody: open sign-up is off, as without `signUp`.
   const checkedSignUpRole = options.signUp && checkSignUpRole(options.signUp.role, roles)
   const signUpRole = signUpDomains?.length === 0 ? undefined : checkedSignUpRole
+  const signUpFields = resolveSignUpFields(options.signUp?.fields)
   const signInPolicy = appSignInPolicy(options.signInPolicy)
   const others = roles.filter((role) => role !== 'admin')
   // With organizations, roles mostly come with memberships: a new account holds no global role unless given one.
@@ -650,7 +660,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   // Deleting a user revokes their connected accounts and parks the triggers on them, as disconnecting each would.
   if (resolvedConnections.length > 0) deletion.set('connections', releaseUserConnections({ connections: resolvedConnections, events, allowPrivateAddresses, context }))
   const lockedAccounts = platformLockedAccounts()
-  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
+  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
@@ -696,6 +706,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     signUpRole: mailer ? signUpRole : undefined,
     /** The email domains open sign-up takes (`signUp.domains` or `PROTOBASE_SIGN_UP_DOMAINS`); every address without them. */
     signUpDomains,
+    /** What open sign-up asks for (`signUp.fields`): without `name`, the emailed sign-in code makes the account. */
+    signUpFields,
     /** Whether open sign-up is offered and takes the address. */
     signUpTakes: (email: string) => Boolean(signUpRole && mailer) && signUpTakes(email, signUpDomains),
     /** The app keeps each user's metadata, in the column `users.metadata` names. */
