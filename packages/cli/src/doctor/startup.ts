@@ -1,15 +1,23 @@
 import { randomBytes } from 'node:crypto'
 import { checkJobsSchema } from '@protobase/server'
+import { readOrigins, readPasskeyDomain } from '@protobase/server/internal'
 import { buildProject, type AppDatabase } from '../config/build-project'
 import type { MergedConfig } from '../config/merge-config'
 import { servedAdmin } from '../project/served-admin'
 import { checkStartup } from '../serve/startup-checks'
 
-/** The app's URL, or a stand-in on the passkey domain the config names, which must be the host of one of its origins. */
-export const startupUrl = (config: Pick<MergedConfig, 'url' | 'auth'>) => {
+/**
+ * The app's URL, or a stand-in that sign-in accepts: on the passkey domain when the config or `PROTOBASE_PASSKEY_DOMAIN`
+ * names one, since it must be the host of one of the app's origins, and on localhost otherwise; with the scheme of the
+ * app's other origins (`auth.origins` or `PROTOBASE_ORIGINS`), which must share the URL's, and https or http without them.
+ */
+export const startupUrl = (config: Pick<MergedConfig, 'url' | 'auth'>, env: Record<string, string | undefined>) => {
   if (config.url) return config.url
-  const passkeyDomain = config.auth ? config.auth.passkeyDomain : undefined
-  return passkeyDomain ? `https://${passkeyDomain}` : 'http://localhost'
+  const auth = config.auth || {}
+  const passkeyDomain = auth.passkeyDomain ?? readPasskeyDomain(env)
+  const origin = (auth.origins ?? readOrigins(env))[0]
+  const scheme = origin ? new URL(origin).protocol : passkeyDomain ? 'https:' : 'http:'
+  return `${scheme}//${passkeyDomain ?? 'localhost'}`
 }
 
 /**
@@ -21,7 +29,7 @@ export const startupUrl = (config: Pick<MergedConfig, 'url' | 'auth'>) => {
  * doctor's own checks read.
  */
 export const checkServerStartup = async (config: MergedConfig, database: AppDatabase) => {
-  const readOnly = { ...config, url: startupUrl(config), secret: config.secret ?? randomBytes(32).toString('base64') }
+  const readOnly = { ...config, url: startupUrl(config, process.env), secret: config.secret ?? randomBytes(32).toString('base64') }
   const project = await buildProject(readOnly, database)
   await checkStartup(project, database.db)
   const { admin, jobs } = await servedAdmin(project, database.db)

@@ -6,6 +6,8 @@ export { buildAuth, createAuth, loadAuthPlugins, type AuthPlugins } from './bett
 export { appAuthOptions, buildAppAuth, type AppAuthInput } from './better-auth/auth-settings'
 export { betterAuthAuthenticator } from './better-auth/authenticator'
 export { buildAuthenticator } from './better-auth/authenticate-settings'
+export { readOrigins } from './better-auth/origins'
+export { readPasskeyDomain } from './better-auth/passkey-domain'
 export { localFiles } from './files/local-files'
 export { s3Files } from './files/s3-files'
 export { fileProviderOf } from './files/provider-settings'
