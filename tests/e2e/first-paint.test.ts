@@ -33,6 +33,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('from the first paint to
   let origin: string
   let browser: Browser
   let slow = false
+  let entryMissing = false
 
   beforeAll(async () => {
     shellDir = await mkdtemp(path.join(tmpdir(), 'first-paint-'))
@@ -53,6 +54,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('from the first paint to
       if (pathname === '/protobase.theme.css') return new Response('', { headers: { 'content-type': 'text/css' } })
       if (!shellPaths.some((shellPath) => pathname === shellPath || pathname.startsWith(`${shellPath}/`))) return new Response(index, { headers: { 'content-type': 'text/html' } })
       const script = pathname.endsWith('.js')
+      if (pathname === entry && entryMissing) return new Response('Not found', { status: 404 })
       if (pathname === entry && slow) await sleep(slowScriptMs)
       const body = await readFile(path.join(shellDir, pathname)).catch(() => undefined)
       if (!body) return new Response('Not found', { status: 404 })
@@ -115,6 +117,17 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('from the first paint to
     expect(strayFrames(frames, background)).toEqual([])
     // The spinner shows while the scripts are still on their way
     expect(frames.some((frame) => frame.at < slowScriptMs && frame.markedCentre && frame.corners.every((corner) => near(corner, background)))).toBe(true)
+    await context.close()
+  })
+
+  it('says the app did not load, with a way to try again, when its script is missing', async () => {
+    entryMissing = true
+    const context = await browser.newContext({ colorScheme: 'dark' })
+    const page = await context.newPage()
+    await page.goto(`${origin}/`).finally(() => (entryMissing = false))
+    await page.getByRole('alert').getByText('The app did not load.').waitFor()
+    await page.getByRole('button', { name: 'Try again' }).waitFor()
+    expect(await page.locator('#pb-start svg').count()).toBe(0)
     await context.close()
   })
 })
