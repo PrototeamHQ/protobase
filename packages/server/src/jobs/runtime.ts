@@ -155,14 +155,15 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
     // of jobs.enqueue() among them.
     const orderedId = definition.options.ordered ? (await sql<{ id: string }>`select uuidv7() as id`.execute(target)).rows[0]!.id : undefined
     const send = { ...sendOptions(definition.options, options), ...(orderedId !== undefined && { id: orderedId }), db: jobsDatabase(target) }
-    // With a key: the waiting job, kept (dedupe) or given this payload (replace), or a new one. pg-boss's upsert
-    // indexes waiting keys, so two enqueues racing for one key end with one job.
+    // With a key: the waiting job, kept (dedupe) or given this payload (replace), or a new one. Both insert under
+    // pg-boss's index of waiting keys, so two enqueues racing for one key end with one job. A dedupe inserts with
+    // `jobs.enqueue`, which skips a job another enqueue put there meanwhile, never pg-boss's upsert, which would move
+    // that job, such as a replace's that runs now, to this enqueue's later time.
     const keyed = async (key: string) => {
-      if (options.mode !== 'replace') {
-        const [waiting] = await boss.findJobs(name, { key, queued: true, db: send.db })
-        if (waiting) return waiting.id
-      }
-      return (await boss.upsert(name, data as object, send)).jobs[0]
+      if (options.mode === 'replace') return (await boss.upsert(name, data as object, send)).jobs[0]
+      const runAt = send.startAfter === undefined ? sql`null` : send.startAfter instanceof Date ? sql`${send.startAfter}::timestamptz` : sql`${sql.id(jobsSchema, 'job_now')}() + ${send.startAfter} * interval '1 second'`
+      const { rows } = await sql<{ id: string | null }>`select ${sql.id(jobsSchema, 'enqueue')}(${name}, ${data === null ? null : JSON.stringify(data)}::jsonb, ${runAt}, ${key}, null, ${send.priority ?? 0}) as id`.execute(target)
+      return rows[0]!.id
     }
     const id = options.key === undefined ? await boss.send(name, data as object, send) : await keyed(options.key)
     if (!id) throw new Error(`Job "${name}" was not enqueued`)

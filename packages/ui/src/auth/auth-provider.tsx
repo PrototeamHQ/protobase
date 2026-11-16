@@ -5,6 +5,7 @@ import { nativeAuthFetch, type NativeBridge } from '../app/native-auth-fetch'
 import { pushNotifications, type PushNotifications } from '../notifications/push/push-notifications'
 import type { PushUser } from '../notifications/push/web-push'
 import { useStartCache } from '../data/start-cache/start-cache'
+import { customSchemeAuth, isHttpOrigin } from './custom-scheme-auth'
 import { enterAfterUpdate } from './enter-after-update'
 import { providerName, withoutSignInLink } from './provider-link'
 import type { AuthState } from './auth-state'
@@ -127,8 +128,9 @@ type AuthProviderProps = {
 
 /**
  * Finds out whether the server has a login and who is signed in, and keeps that state for the app. Without a `session`,
- * it makes one on `origin`, the page's own by default; in the iOS or Android app, with its `nativeBridge`, the session
- * signs in through native HTTP, and "Forgot password?" is not offered, as a reset link cannot come back to the app.
+ * it makes one on `origin`, the page's own by default, also when the page is served from an app's own scheme (see
+ * `customSchemeAuth`); in the iOS or Android app, with its `nativeBridge`, the session signs in through native HTTP,
+ * and "Forgot password?" is not offered, as a reset link cannot come back to the app.
  * Below a `StartCacheProvider`, someone who was signed in starts signed in, and the check runs behind the app.
  * Someone already signed in when the page starts is no sign-in: `afterSignIn` runs only for one made on the page.
  */
@@ -170,16 +172,18 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
   }, [])
   const signedOut = useRef(markSignedOut)
   signedOut.current = markSignedOut
-  const session = useMemo(
-    () =>
-      given ??
-      createAuthSession({
-        ...(origin && { origin }),
-        ...(nativeBridge && { fetch: nativeAuthFetch(nativeBridge, origin ?? window.location.origin) }),
-        onSignedOut: () => signedOut.current(),
-      }),
-    [given, origin, nativeBridge],
-  )
+  const session = useMemo(() => {
+    if (given) return given
+    // Without an http or https `origin`, the session is the page's own, which may be served from an app's own scheme
+    const scheme = isHttpOrigin(origin) ? undefined : customSchemeAuth(window.location)
+    const authOrigin = scheme?.origin ?? origin
+    return createAuthSession({
+      ...(authOrigin && { origin: authOrigin }),
+      ...(scheme && { fetch: scheme.fetch }),
+      ...(nativeBridge && { fetch: nativeAuthFetch(nativeBridge, authOrigin ?? window.location.origin) }),
+      onSignedOut: () => signedOut.current(),
+    })
+  }, [given, origin, nativeBridge])
 
   // Push follows who is signed in: the helper reads it at each step, and only someone signed in as themselves has it.
   const pushUser = useRef<PushUser>(undefined)

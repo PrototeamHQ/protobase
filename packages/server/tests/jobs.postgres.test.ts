@@ -83,6 +83,24 @@ describe.skipIf(!ready)('keys', () => {
     expect(fromSql.rows[0]!.id).toBe(first)
   })
 
+  it('keeps the job a replace put there while a dedupe enqueued, at its time', async () => {
+    const db = await jobsDb()
+    const job = defineJob({ name: 'refresh', payload: z.object({ v: z.number() }), run: () => {} })
+    await start(db, [job], { work: false })
+    const later = new Date(Date.now() + 3_600_000)
+    // The replace's job waits uncommitted while the dedupe inserts, so the dedupe meets it only on its insert.
+    const { replaced, deduped } = await db.transaction().execute(async (trx) => {
+      const replaced = await job.enqueue(trx, { v: 1 }, { key: 'run:1', mode: 'replace', runAt: new Date() })
+      const deduped = job.enqueue(db, { v: 2 }, { key: 'run:1', runAt: later })
+      await until(async () => expect((await sql`select 1 from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'`.execute(db)).rows).toHaveLength(1))
+      return { replaced, deduped: { promise: deduped } }
+    })
+    expect(await deduped.promise).toBe(replaced)
+    const kept = (await sql<{ data: unknown; start_after: Date }>`select data, start_after from jobs.job where id = ${replaced}`.execute(db)).rows[0]!
+    expect(kept.data).toEqual({ v: 1 })
+    expect(kept.start_after.getTime()).toBeLessThan(later.getTime() - 60_000)
+  })
+
   it('enqueues a new job once the waiting one runs', async () => {
     const db = await jobsDb()
     let release!: () => void

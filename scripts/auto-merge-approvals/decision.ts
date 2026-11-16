@@ -88,10 +88,8 @@ function standingChangeRequests(reviews: Review[], head: string) {
 // Anyone but the author can comment `@coderabbitai approve` or `resolve`, and the bot then approves without a finished
 // review and over its own findings. So its approval counts only with its check on the head finished and no change
 // request of its own on that head; lifting one of those takes an approval from an account with write access.
-function botApprovalCounts(reviews: Review[], head: string, finished: boolean) {
-  const requested = onHead(reviews, head).some((review) => review.user?.login === reviewBot && review.state === 'CHANGES_REQUESTED')
-  return finished && !requested
-}
+const botRequestedChanges = (reviews: Review[], head: string) =>
+  onHead(reviews, head).some((review) => review.user?.login === reviewBot && review.state === 'CHANGES_REQUESTED')
 
 // The follow-up check's clean verdict of the head stands in for an approval only on a pull request from a branch of
 // this repository by an author with write access, as the author writes everything the check reads. pullRefusal already
@@ -114,13 +112,18 @@ export function refusal({ repository, pull, timeline, reviews, files, roles, fol
   const labelled = labelledAt(timeline)
   if (labelled === null) return unapproved
 
-  const botCounts = botApprovalCounts(reviews, head, reviewBotFinished)
+  const botRequested = botRequestedChanges(reviews, head)
+  const botCounts = reviewBotFinished && !botRequested
   const mayApprove = (login: string | undefined) => (login === reviewBot ? botCounts : writeRoles.has(roles[login ?? ''] ?? ''))
-  const reviewed = onHead(reviews, head).some(
-    (review) => review.state === 'APPROVED' && Date.parse(review.submitted_at) > labelled && mayApprove(review.user?.login),
-  )
+  const approvals = onHead(reviews, head).filter((review) => review.state === 'APPROVED' && Date.parse(review.submitted_at) > labelled)
+  const reviewed = approvals.some((review) => mayApprove(review.user?.login))
   const followedUp = followUpCleanAt !== null && followUpCleanAt > labelled && followUpCounts(pull, repository, roles)
-  if (!reviewed && !followedUp) return unapproved
+  if (!reviewed && !followedUp) {
+    const botApproved = approvals.some((review) => review.user?.login === reviewBot)
+    if (botApproved && botRequested)
+      return `${reviewBot} approved ${head.slice(0, 7)} after its own change request on it, so it needs an approval from an account with write access or that change request dismissed`
+    return unapproved
+  }
 
   if (checks.state === 'red') return `these did not pass: ${checks.names.join(', ')}`
   if (checks.state === 'pending') return `these still run: ${checks.names.join(', ')}`
