@@ -53,7 +53,8 @@ export const runDoctor = async (options: DoctorOptions, out: (text: string) => v
   for (const block of config.pages.flatMap((page) => unplannedBlocks(page, byName))) out(`  note    ${block} declares no reads, so it is outside the page's read plan and reads whatever it reads once it draws\n`)
   const errors = issues.filter((i) => i.severity === 'error').length
   // Only a project that passes the checks above can be built as the server builds it; a refusal ends the run with the
-  // server's own message.
+  // server's own message. These checks are of the app `serve` runs, from the project's own config, not of `--config`:
+  // the server never reads another folder.
   const startup = options.startupChecks === true && errors === 0
   if (startup) {
     const database = openAppDatabase(pg, options.url)
