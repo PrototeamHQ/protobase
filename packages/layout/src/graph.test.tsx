@@ -95,6 +95,12 @@ describe('a Graph', () => {
     expect(plan.reads.find((read) => read.resource === 'links' && read.part === undefined)!.fields).toContain('protocol')
   })
 
+  it("refuses a text child's {{path}} that no record around it has, where it draws", () => {
+    const problemsOfTree = (children: ReturnType<typeof Graph>) => treeFindings(Page({ title: 'Map', children }), { models, actions: () => new Set() }).problems
+    expect(problemsOfTree(Graph({ ...base, node: <Text>{'Owned by {{owner}}'}</Text> }))).toEqual([])
+    expect(problemsOfTree(Graph({ ...base, node: <Text>{'Owned by {{owenr}}'}</Text> }))[0]).toMatch(/^<Page> › <Graph nodes="services"> node=\{<Text>\}: text "\{\{owenr\}\}": /)
+  })
+
   it("checks each filter's page parameters against their choices, and edgeFilter's slots as a read's", () => {
     const choices = [{ id: 'busy', name: 'Busy' }]
     const findings = (graph: ReturnType<typeof Graph>) =>
