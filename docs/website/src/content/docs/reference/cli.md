@@ -252,7 +252,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
   "server": "protobase.config.js",
   "public": "public",
   "spa": "index.html",
-  "api": ["/api", "/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource"],
+  "api": ["/api", "/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource", "/.well-known/openid-configuration"],
   "theme": "protobase.theme.css",
   "plugins": [
     { "name": "app", "path": "plugins/app/plugin.json", "api": 1, "protobase": ">=0.12.0", "fields": { "steps": ["enum"] } }

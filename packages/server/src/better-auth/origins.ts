@@ -52,10 +52,12 @@ export const multiHostBaseURL = (baseURL: string, origins: string[]) => {
 export const webauthnPath = '/.well-known/webauthn'
 
 /**
- * Where MCP clients discover how to sign in: the OAuth authorization server's metadata, and the protected resource's
- * (also below it, at the resource's path). Every bundle sends them to the API, which answers them with MCP on.
+ * Where OAuth clients discover how to sign in: the OAuth authorization server's metadata and the protected resource's
+ * (also below it, at the resource's path), which MCP clients read, and the OpenID provider's configuration, which the
+ * clients of `openIdProvider` read. Every bundle sends them to the API, which answers them with MCP or the OpenID
+ * provider on.
  */
-export const oauthWellKnownPaths = ['/.well-known/oauth-authorization-server', '/.well-known/oauth-protected-resource']
+export const oauthWellKnownPaths = ['/.well-known/oauth-authorization-server', '/.well-known/oauth-protected-resource', '/.well-known/openid-configuration']
 
 /** Whether `path` is one of `oauthWellKnownPaths` or below one. */
 export const isOAuthWellKnownPath = (path: string) => oauthWellKnownPaths.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))

@@ -11,6 +11,7 @@ describe('isApiRequest', () => {
       '/.well-known/webauthn',
       '/.well-known/oauth-authorization-server',
       '/.well-known/oauth-protected-resource/api/mcp',
+      '/.well-known/openid-configuration',
       '/protobase.sw.js',
       '/protobase.sw.js?v=2',
     ]
@@ -18,7 +19,7 @@ describe('isApiRequest', () => {
   })
 
   it('leaves the app and its files to Vite', () => {
-    const app = ['/', '/orders/7', '/apis', '/src/main.tsx', '/@vite/client', '/protobase.theme.css', '/.well-known/webauthnx', '/.well-known/openid-configuration', '/protobase.sw.json']
+    const app = ['/', '/orders/7', '/apis', '/src/main.tsx', '/@vite/client', '/protobase.theme.css', '/.well-known/webauthnx', '/.well-known/openid-configurationx', '/protobase.sw.json']
     for (const url of app) expect(isApiRequest(url)).toBe(false)
   })
 })

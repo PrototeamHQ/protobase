@@ -31,8 +31,9 @@ export const statusRoute = (auth: AdminAuth, { anonymous = false, plugins = [], 
     const policy = effectiveSignInPolicy((await readSignInPolicy(context.adapter, auth.signInPolicy)).policy, { mail: auth.mail })
     const signInMethods = [...(policy.password === 'allowed' ? ['password'] : []), ...(policy.emailCode === 'allowed' ? ['emailCode'] : []), ...(policy.passkey !== 'forbidden' ? ['passkey'] : [])]
     const staffSignIn = auth.operator && policy.staffAccess !== 'forbidden' ? auth.operator : undefined
-    // A platform provider whose settings could not be read at startup is not registered, and so not offered.
-    const platform = auth.platformSignIn
+    // A platform provider whose settings could not be read at startup is not registered, and so not offered; nor is
+    // one that signs in by token alone, whose pages nobody is sent to.
+    const platform = auth.platformSignIn?.pages ? auth.platformSignIn : undefined
     const platformSignIn = platform && policy.platformSignIn === 'allowed' && context.socialProviders.some((provider) => provider.id === platform.provider) ? platform : undefined
     const socialProviders = [...auth.socialProviders, ...(platformSignIn ? [platformSignIn.provider] : [])]
     const passkeyDomains = signInMethods.includes('passkey') ? await signInPasskeyDomains(context.adapter, auth.passkeyDomain, auth.origins) : []
