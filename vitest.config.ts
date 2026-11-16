@@ -20,6 +20,7 @@ const mocking = [
   'docs-examples/functions.test.ts',
   'packages/cli/src/build/bun-build.test.ts',
   'packages/cli/src/doctor/run-without-database.test.ts',
+  'packages/cli/src/main-doctor.test.ts',
   'packages/cli/src/migration/migrate-command.test.ts',
   'packages/cli/src/mobile/build.test.ts',
   'packages/cli/src/mobile/child-process.test.ts',

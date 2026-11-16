@@ -89,6 +89,7 @@ program
   .option('--config <dir>', 'config folder', 'config')
   .option('--without-database', 'check only what the config and the migrations tell, listing the checks skipped')
   .action(async (connection: string | undefined, opts) => {
+    loadNearestEnvFile(process.cwd())
     if (opts.withoutDatabase) {
       if (connection || opts.env) throw new Error('Pass a connection string or --env, or --without-database, not both')
       const { runDoctorWithoutDatabase } = await import('./doctor/run-without-database')
@@ -96,7 +97,6 @@ program
       if (errors > 0) process.exitCode = 1
       return
     }
-    loadNearestEnvFile(process.cwd())
     if (!connection && !opts.env && !process.env[defaultConnectionEnv]) {
       throw new Error(`Pass a connection string or --env <VARIABLE>, or set ${defaultConnectionEnv} in .env; --without-database checks what the project alone tells`)
     }
