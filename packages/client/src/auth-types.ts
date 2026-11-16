@@ -22,6 +22,9 @@ export type PlatformSignIn = { provider: string; name: string }
  */
 export type PersonalMailLink = { id: string; name: string; provider: string; scopes: string[]; params: Record<string, string> }
 
+/** What open sign-up asks for: the address always, and the person's name unless the app asks for the address only. */
+export type SignUpField = 'email' | 'name'
+
 /** A SAML identity provider of the app: its id, for `signInSaml`, and the name to show. */
 export type SamlSignIn = { id: string; name: string }
 
@@ -30,7 +33,7 @@ export type SamlSignIn = { id: string; name: string }
  * `signInFirst` when the sign-in page leads with an emailed code, with the password behind "Use a password"; `passwordReset` when the server can email reset links; `changeEmail` when it can email the code that confirms a new
  * address (see `account.requestEmailChange`); `accountDeletion` when people may delete their own account (see
  * `deleteAccount`); `signUp` when anyone can make their own account (see
- * `sendSignUpCode`); `socialProviders` the ids of the sign-in providers, for example
+ * `sendSignUpCode`), with `signUpFields` what it asks for, the name too or the address only; `socialProviders` the ids of the sign-in providers, for example
  * `github`; `platformSignIn` the one of them the platform adds; `samlProviders` the app's SAML identity providers; `staffSignIn` the operator provider's name when its staff
  * can sign in as people; `organizations` when the app has them; `anonymous` when visitors may browse what the project's
  * anonymous role reads without signing in; `personalMail` the mail providers people may link their mailbox with (see `account.linkPersonalMail`); `mcp` when MCP clients can connect, with the `url` of the app's MCP endpoint, so the account page shows it and lists the clients; `plugins`
@@ -47,6 +50,7 @@ export type SetupStatus = {
   changeEmail?: boolean
   accountDeletion?: boolean
   signUp?: boolean
+  signUpFields?: SignUpField[]
   socialProviders: string[]
   platformSignIn?: PlatformSignIn
   samlProviders: SamlSignIn[]

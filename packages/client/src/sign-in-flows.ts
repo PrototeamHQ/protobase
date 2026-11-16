@@ -57,9 +57,10 @@ export const signInFlows = (client: BetterAuthClient, signedIn: () => Promise<un
 
     /**
      * Makes the account for the address whose code `verifySignUpCode` took, with the ticket it answered, the person's
-     * name and a password (optional when the server offers emailed sign-in codes), and signs in with it.
+     * name (optional when the status's `signUpFields` leaves it out) and a password (optional when the server offers
+     * emailed sign-in codes), and signs in with it.
      */
-    signUp: async (input: { ticket: string; name: string; password?: string }): Promise<AuthUser> => {
+    signUp: async (input: { ticket: string; name?: string; password?: string }): Promise<AuthUser> => {
       const { data, error } = await client.$fetch<{ user: AuthUser }>('/sign-up/create', { method: 'POST', body: input })
       if (error || !data) throw authError(error, 'Could not create your account')
       await signedIn()
