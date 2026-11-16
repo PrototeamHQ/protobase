@@ -28,6 +28,7 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Connected accounts](/reference/auth/#sign-in-links-and-connected-accounts): People link GitHub or another sign-in provider to their account from the account page.
 - [SAML sign-in](/reference/auth/#sign-in-with-saml): People sign in through any SAML provider.
 - [OpenID Connect provider](/reference/auth/#platform-sign-in-provider): A host adds an OpenID Connect provider for people who already have an account.
+- [Token sign-in](/reference/auth/#token-sign-in): A client that holds a fresh ID token from that provider for this app signs in with it once, in place of an emailed code, and gets the app's own session, with the app's second step when one is on.
 - [Staff sign-in](/reference/auth/#staff-sign-in): The team that runs an app signs in as a person to help them, with a reason and a log entry.
 - [Roles](/reference/auth/#roles): A user holds one or more roles and switches between them without signing in again.
 - [Organizations](/reference/auth/#organizations): People work in one organization at a time, see only its records, and are invited with their own roles.

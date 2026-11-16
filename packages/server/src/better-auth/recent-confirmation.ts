@@ -4,6 +4,7 @@ import { confirmationMinutes } from '@protobase/schema/internal'
 import { isPasswordConfirmed } from './password-confirmation'
 import { isStaffSession } from './staff-checks'
 import { hasPasskeyOrSecondStep } from './strong-factors'
+import { isTokenSession } from './sign-in-token-uses'
 import { strongSignInAt } from './strong-sign-ins'
 
 /** How long after signing in a session counts as recent without confirming: Better Auth's own default fresh age, a day. */
@@ -43,9 +44,12 @@ export const confirmationAsked = async (context: Context, path: string, body: un
   return (await hasPasskeyOrSecondStep(context.adapter, user)) ? 'confirm' : 'confirm-or-password'
 }
 
-/** Whether the session signed in within a day, or confirmed it's them within `confirmationMinutes`. */
+/**
+ * Whether the session signed in within a day, or confirmed it's them within `confirmationMinutes`. A session a sign-in
+ * token began counts by its confirmations alone, as its client may begin a fresh one whenever it likes.
+ */
 export const isRecentlyConfirmed = async (context: Pick<Context, 'internalAdapter'>, session: GuardedSession['session'], now = new Date()) => {
-  if (now.getTime() - new Date(session.createdAt).getTime() < recentSessionSeconds * 1000) return true
+  if (now.getTime() - new Date(session.createdAt).getTime() < recentSessionSeconds * 1000 && !(await isTokenSession(context, session.id))) return true
   const at = await strongSignInAt(context.internalAdapter, session.id, now)
   return at !== undefined && now.getTime() - at.getTime() <= confirmationMinutes * 60_000
 }

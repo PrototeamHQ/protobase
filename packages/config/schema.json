@@ -2739,6 +2739,17 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "tokenSignIn": {
+          "description": "Token sign-in: a client that holds a fresh ID token the provider issued for this app posts it instead of sending\nthe browser through the provider, and gets the app's own session (see `idTokenSignInPlugin`). Default off.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
         }
       },
       "required": [
