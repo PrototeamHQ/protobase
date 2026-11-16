@@ -523,6 +523,7 @@ These work for every provider, the project's own and the [platform's](#platform-
 - **Connected accounts:** the [account page](#account-page)'s **Sign-in & security** tab lists the providers and offers "Connect GitHub" for one the account is not linked to. Connecting signs in at the provider and links that account whatever its address (`accountLinking.allowDifferentEmails`, which applies only to this explicit link by someone signed in). A provider account linked to another person already is refused (`account_already_linked_to_different_user`); a [staff session](#staff-sign-in) cannot link.
 - **Linked up front:** `protobase users create <email> --github-id <id>`, or `createUser(auth, { ..., accounts: [{ providerId: 'github', accountId }] })`, links a new user to a GitHub user id, so GitHub finds them by it whatever address it reports.
 - Without a link, a provider finds someone by address only when it vouches for the address (`email_verified`) and the account's address is verified; accounts created by an admin or on the host are.
+- **Through the provider's pages only:** signing in or connecting with an ID token a client posts instead (`idToken` on `/api/auth/sign-in/social` or `/api/auth/link-social`, as `signIn.social({ provider, idToken })` of Better Auth's client sends it) is refused with `403 TOKEN_SIGN_IN_OFF`, for every provider: such a token would sign in without the nonce of a sign-in the app started, as often as it is posted, and without the app's [second step](#two-factor-authentication).
 
 ## Sign-in with SAML
 

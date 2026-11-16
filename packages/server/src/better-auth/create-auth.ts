@@ -64,6 +64,7 @@ import { appSignInPolicy } from './app-sign-in-policy'
 import { signInPolicyPlugin } from './policy-plugin'
 import { defaultSignInPolicy, type SignInPolicy } from './sign-in-policy'
 import { assertNoEndpointKeyClashes } from './endpoint-key-clashes'
+import { idTokenSignInPlugin } from './id-token-sign-in'
 import type { samlPlugin } from './saml-plugin'
 import { emailInDomains, resolveSamlProviders, samlDisabledPaths, samlGuardPlugin, type ResolvedSamlProvider, type SsoOptions } from './saml-sign-in'
 import { noAccountMailPlugin } from './no-account-mail'
@@ -494,6 +495,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       refreshRefusalsPlugin(),
       ...(saml.length > 0 ? [loaded(plugins.samlPlugin, 'sso.saml')(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
       signInPolicyPlugin(policy),
+      idTokenSignInPlugin(),
       passwordChecksPlugin(),
       setPasswordPlugin(),
       passwordChangePlugin(mail),

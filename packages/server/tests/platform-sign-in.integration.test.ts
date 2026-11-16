@@ -167,6 +167,29 @@ describe('sign-in through the platform provider', () => {
   })
 })
 
+describe('an ID token a client posts', () => {
+  it("is refused for the platform's provider, a valid one too, and signs nobody in", async () => {
+    const { auth, platform, request } = await serve()
+    await createUser(auth, { email: 'octo@example.com', password, role: 'user' })
+    const refused = await request('/sign-in/social', { body: { provider: 'github', idToken: { token: await platform.idToken(octo()) } } })
+    expect(refused.status).toBe(403)
+    expect(await refused.json()).toMatchObject({ code: 'TOKEN_SIGN_IN_OFF' })
+    expect(cookiesOf(refused)).toEqual([])
+  })
+
+  it("is refused for the app's own provider, and for connecting a provider from someone's session", async () => {
+    const { auth, platform, request, signIn, accounts } = await serve({ socialProviders: { google: { clientId: 'own-client', clientSecret: 'own-secret' } } })
+    await createUser(auth, { email: 'sanne@example.com', password, role: 'user' })
+    const own = await request('/sign-in/social', { body: { provider: 'google', idToken: { token: 'eyJhbGciOiJSUzI1NiJ9.e30.c2ln' } } })
+    expect(own.status).toBe(403)
+    expect(await own.json()).toMatchObject({ code: 'TOKEN_SIGN_IN_OFF' })
+    const link = await request('/link-social', { cookie: await signIn('sanne@example.com'), body: { provider: 'github', idToken: { token: await platform.idToken(octo()) } } })
+    expect(link.status).toBe(403)
+    expect(await link.json()).toMatchObject({ code: 'TOKEN_SIGN_IN_OFF' })
+    expect(await accounts()).toEqual([])
+  })
+})
+
 describe('the policy for sign-in through the platform', () => {
   it('turns it off: no longer offered, starting it is refused', async () => {
     const { request, savePolicy } = await serve()
