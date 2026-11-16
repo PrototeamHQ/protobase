@@ -4,7 +4,7 @@ import { equalitySlots } from './filter-slots'
 import { defaultSource } from './list-blocks'
 import type { LayoutNode, LayoutValue } from './node'
 import { resolveScopePath, type ScopeResolution } from './scope-lookup'
-import type { Scope } from './walk'
+import { childScope, type Scope } from './walk'
 
 // The `{{path}}` placeholders in an element's props, checked against the records around it. Reads start in parallel
 // at page load, so a read may take a value from the records around it only where it can be split per row:
@@ -107,5 +107,24 @@ export const pathFindings = (node: LayoutNode, scope: Scope, { models, params, c
   if (typeof filter === 'object' && filter !== null && !Array.isArray(filter)) wholes('filter', strings(filter))
   if (typeof node.props.recordKey === 'string') wholes('recordKey', [node.props.recordKey])
   if (node.props.values !== undefined) wholes('values', strings(node.props.values))
+  return { problems, warnings }
+}
+
+/**
+ * Problems and warnings of the placeholders in an element's text children, which draw where its children do, each
+ * checked as a prop's text is: a path no record around it has fails, rather than drawing as empty.
+ */
+export const textChildFindings = (node: LayoutNode, scope: Scope, { models, params }: Pick<PathCheckInput, 'models' | 'params'>): PathFindings => {
+  const problems: string[] = []
+  const warnings: string[] = []
+  const inner = childScope(node, scope)
+  for (const child of node.children) {
+    if (typeof child !== 'string') continue
+    for (const path of templatePlaceholders(child)) {
+      const resolved = resolveScopePath(path, { models, scope: inner, params, mode: 'stored' })
+      if (!resolved.ok) problems.push(`text "{{${path}}}": ${resolved.message}`)
+      else if (resolved.kind === 'field' && resolved.shadows) warnings.push(`text "{{${path}}}": ${resolved.shadows}`)
+    }
+  }
   return { problems, warnings }
 }

@@ -9,7 +9,7 @@ import type { BlockReads } from './block-specs'
 import { conditionFindings } from './check-condition'
 import { listModelProblems } from './check-list-models'
 import { composerProblems, threadProblems } from './check-conversation'
-import { pathFindings } from './check-paths'
+import { pathFindings, textChildFindings } from './check-paths'
 import { choiceFilterProblems } from './check-param-filters'
 import { chosenParams, pageInputs, type SelectInputProps } from './page-params'
 import { resolveFieldPath } from './field-path'
@@ -85,6 +85,9 @@ const nodeProblems = (node: LayoutNode, scope: Scope, input: NodeInput): string[
   const placed = pathFindings(node, scope, { models, params, chosen })
   problems.push(...placed.problems)
   placed.warnings.forEach(warn)
+  const texts = textChildFindings(node, scope, { models, params })
+  problems.push(...texts.problems)
+  texts.warnings.forEach(warn)
   // A field a block shows is found through the records around it, as a bare name in Mustache is
   const path = (name: string) => {
     if (innermost(scope) === undefined && scope.root === undefined) return
