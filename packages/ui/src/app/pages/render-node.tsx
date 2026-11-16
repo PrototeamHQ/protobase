@@ -1,5 +1,5 @@
 import { Fragment, useMemo, type ComponentType } from 'react'
-import { fillProps, isInlineChild, isLayoutNode, pointerOf, type LayoutChild, type LayoutNode, type LayoutValue } from '@protobase/layout'
+import { fillProps, formatMessage, isInlineChild, isLayoutNode, pointerOf, type LayoutChild, type LayoutNode, type LayoutValue, type ReaderTexts } from '@protobase/layout'
 import { unmarkFieldRefs } from '@protobase/schema/internal'
 import { ActionBlock } from './blocks/action'
 import type { BlockProps } from './blocks/block-props'
@@ -55,6 +55,7 @@ import { useProjectUi } from './project-ui'
 import { usePageParamValues } from './page-params'
 import { useScopeStack, valueScopeOf } from './record-scope'
 import { text } from './messages'
+import { useAppTexts, withPropTexts } from './app-texts'
 
 const blocks: Record<string, ComponentType<BlockProps>> = {
   Page: PageBlock,
@@ -156,6 +157,17 @@ const renderSlots = (node: LayoutNode, at: string | undefined) =>
 const slotted = (value: LayoutNode | LayoutNode[], at: string | undefined, name: string): Placed[] =>
   Array.isArray(value) ? placed(value, at, 'props', name) : [{ child: value, ...(at !== undefined && { at: pointerOf(at, 'props', name) }) }]
 
+const isObject = (value: unknown): value is Record<string, LayoutValue> => typeof value === 'object' && value !== null && !Array.isArray(value)
+
+// A <Trans> child as the text it runs as: its message in the user's language, each tag the element `components` gives
+// it with the text inside the tag as its children
+const transChildren = (node: LayoutNode, texts: ReaderTexts | undefined): LayoutChild[] => {
+  const components = isObject(node.props.components) ? node.props.components : {}
+  const tags = Object.fromEntries(Object.entries(components).flatMap(([tag, element]) => (isLayoutNode(element) ? [[tag, (chunks: unknown[]) => ({ ...element, children: [...element.children, ...(chunks as LayoutChild[])] })]] : [])))
+  const formatted = formatMessage<LayoutNode>(texts, String(node.props.i18nKey), isObject(node.props.values) ? node.props.values : {}, tags)
+  return Array.isArray(formatted) ? formatted.map((part) => (typeof part === 'string' || isLayoutNode(part) ? part : String(part))) : [formatted]
+}
+
 /**
  * One element of a composed page: a built-in block, or the project's component registered under its name. A block's
  * `{{path}}`s are filled from the records around it and the page's parameters before it draws. `at` is its place in
@@ -165,7 +177,9 @@ export const RenderNode = ({ node: written, at }: { node: LayoutNode; at?: strin
   const { components } = useProjectUi()
   const stack = useScopeStack()
   const params = usePageParamValues()
-  const node = useMemo(() => fillProps(written, { ...valueScopeOf(stack), params }), [written, stack, params])
+  const texts = useAppTexts()
+  const node = useMemo(() => withPropTexts(fillProps(written, { ...valueScopeOf(stack), params }), texts), [written, stack, params, texts])
+  if (node.type === 'Trans' && !node.custom) return <>{renderInline(transChildren(node, texts).map((child) => ({ child })))}</>
   if (node.custom) {
     const Custom = components?.[node.type]
     // Field references reach the component as the names they reference; its children draw in the record its

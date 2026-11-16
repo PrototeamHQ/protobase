@@ -1,5 +1,6 @@
 import type { ResourceModel } from '@protobase/schema'
 import type { LayoutNode } from '../node'
+import type { ReaderTexts } from '../translations'
 import { blocks } from './markdown'
 import type { TableText } from './table-text'
 
@@ -40,6 +41,8 @@ export type TextOptions = {
    * `SelectInput`s read; a block's `select` children read the row `records` gives for that block.
    */
   params?: Readonly<Record<string, string>>
+  /** The app's texts in the reader's language, which its `<Trans>` elements read; each reads as its key without them. */
+  texts?: ReaderTexts
   /** The reader's locale, such as `nl-NL`, in which field components without `locales` format numbers and dates; the runtime's default when omitted. */
   locale?: string
   /** What the app's paths start with, such as `https://example.com/admin`; none when omitted. */

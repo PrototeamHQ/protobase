@@ -20,12 +20,12 @@ export const billing = page(
         <Stat label="Open invoices" resource="invoices" filter="status = 'open'" />
       </Card>
     </Grid>
-    <CardRow resource="paymentMethods" sort="isDefault desc" title="Payment methods" actions={<ModalForm mode="create" label="Add card" fields={['brand', 'last4']} resource="paymentMethods" />}>
+    <CardRow resource="paymentMethods" sort={['isDefault desc']} title="Payment methods" actions={<ModalForm mode="create" label="Add card" fields={['brand', 'last4']} resource="paymentMethods" />}>
       <Field source="brand" label={false} />
       <Field source="last4" />
       <Action name="makeDefault" />
     </CardRow>
-    <Table resource="invoices" sort="number desc" columns={['number', 'status', 'total']} limit={10} title="Invoices" />
+    <Table resource="invoices" sort={['number desc']} columns={['number', 'status', 'total']} limit={10} title="Invoices" />
     <Card title="Questions?">
       Mail <Link href="mailto:billing@example.com">billing@example.com</Link>
       {false}

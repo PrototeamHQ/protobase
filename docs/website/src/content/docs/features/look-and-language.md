@@ -10,6 +10,7 @@ description: The app's colours, name, icon, language and installation.
 - [Logo and favicon](/reference/theme/#logo-and-favicon): Your own favicon or logo replaces Protobase's.
 - [Named icons](/reference/layouts/#named-actions): Actions, key facts and card meta show an icon picked by name from a set, such as `play`, `bed` or `cpu`.
 - [English and Dutch](/reference/languages/): The built-in screens come in English and Dutch, with numbers and dates written to match.
+- [The app's own texts](/reference/languages/#your-own-texts) (beta): Pages and labels come in each language the app has translations for, ICU messages shown with `<Trans>`, in the reader's language, and the server refuses to start on a missing text.
 - [Installable app](/reference/installable-app/): The admin installs as an app on phones and computers, and says when the server cannot be reached.
 - [Start from the last pages seen](/reference/installable-app/#starting-from-the-last-pages-seen): Someone signed in opens the app on what it showed last time, muted with a spinner by the title until it is refreshed in the background.
 

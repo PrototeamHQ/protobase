@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import type { UpgradeWebSocket } from 'hono/ws'
 import type { JWTPayload } from 'jose'
-import { accountPage, accountPageName, checkPages, settingsResources, withSettingsFields } from '@protobase/layout'
+import { accountPage, accountPageName, checkPages, settingsResources, translationProblems, withSettingsFields, type Translations } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarSource, UserMenuSource } from '@protobase/schema'
 import { guestCallsPath, ringsPath, statusPath, workflowRunsPath, workflowTypesPath } from '@protobase/schema/internal'
@@ -105,6 +105,7 @@ import { checkParents, parentWarnings } from './check-parents'
 import { checkLiveReads } from './check-live-reads'
 import { checkPositionAfter } from './check-position-after'
 import { checkRecordBlocks } from './view-blocks'
+import { blockTrees } from './meta-texts'
 import { checkViews } from './check-views'
 import { liveRoutes } from './live/live-route'
 import { tableFeed } from './live/notice-feed'
@@ -127,7 +128,7 @@ import { functionRoutes } from './functions/routes'
 import { supabaseFunctionRoutes } from './functions/supabase-routes'
 import { upgradeAuthenticator } from './functions/upgrade-caller'
 import { localeSetting } from './locale/locale-option'
-import { requestLocale } from './locale/request-locale'
+import { acceptedTags, requestLocale } from './locale/request-locale'
 import { mapSettings } from './maps/map-settings'
 import { createMeta } from './meta'
 import { buildRegistry } from './registry'
@@ -168,6 +169,8 @@ export type CreateAdminInput = {
   bottomBars?: BottomBarSource[]
   /** Composed pages (`page()` from @protobase/layout), served by /meta and checked against the resources here. */
   pages?: PageSource[]
+  /** The app's own texts in each of its languages (`translations(...)` from @protobase/layout), which `<Trans>` elements and labels read. */
+  translations?: Translations
   db: Db
   authenticate: Authenticator
   /** A Better Auth instance (see `createAuth`): its handler is mounted at `/api/auth`. */
@@ -246,7 +249,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], derived: computes = {}, webhooks: webhooksOptions, workflows: workflowsOptions, realtime, notifications, status, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], translations, userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], derived: computes = {}, webhooks: webhooksOptions, workflows: workflowsOptions, realtime, notifications, status, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed, AI fields filled and notifications sent by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -294,6 +297,11 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   }
   checkPages([...pageModels, accountModel], pageCheck)
   checkRecordBlocks(viewModels, { ...pageCheck, pages: new Set(pageModels.map((entry) => entry.name)) })
+  const textProblems = translationProblems(
+    [...[...pageModels, accountModel].map((entry) => ({ at: `Page "${entry.name}"`, tree: entry.tree })), ...viewModels.flatMap((view) => blockTrees(view).map((tree) => ({ at: `View "${view.resource}" blocks`, tree })))],
+    translations,
+  )
+  if (textProblems.length > 0) throw new Error(`The app's texts do not cover its layouts:\n${textProblems.map((problem) => `  - ${problem}`).join('\n')}`)
   const forms = createFormsRuntime({ registry, views: viewModels, limits: options.roles?.limits ?? [], env: globalThis.process?.env ?? {}, ...(secret && { secret }), ...(formsDifficulty && { difficulty: formsDifficulty }) })
   const systemPath = basePath.slice(0, basePath.lastIndexOf('/'))
   const assistant = assistantSettings(options.assistant, globalThis.process?.env ?? {})
@@ -351,6 +359,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     ...(pushKey && { webPushKey: pushKey }),
     ...(statusTables && { status: true }),
     ...(locale && { locale }),
+    ...(translations && { translations }),
     plugins,
     sources,
     ...(files && { files }),
@@ -383,7 +392,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     app.onError(onError)
     app.use('*', async (c, next) => {
       await next()
-      c.res.headers.set('X-Meta-Version', await meta.version(c.get('session')?.user.roles ?? []))
+      c.res.headers.set('X-Meta-Version', await meta.version(c.get('session')?.user.roles ?? [], acceptedTags(c.req.header('accept-language') ?? '')))
     })
     app.use('*', async (c, next) => {
       c.set('session', await caller(c.req.raw))

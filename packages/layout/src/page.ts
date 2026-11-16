@@ -1,7 +1,7 @@
 import type { NavModel } from '@protobase/schema'
 import { accountBlockProblems } from './check-account'
 import { structureProblems } from './check-structure'
-import type { LayoutNode } from './node'
+import { isLayoutNode, type LayoutNode } from './node'
 import type { ReadPlan } from './read-plan'
 
 /** A composed page as `/api/meta` serves it. */
@@ -33,7 +33,9 @@ export const page = (name: string, tree: LayoutNode, options: PageOptions = {}):
   if (!pageName.test(name)) throw new Error(`Page name "${name}" must start with a lowercase letter and hold only letters, digits and dashes`)
   const problems = [...structureProblems(tree), ...accountBlockProblems(name, tree)]
   if (problems.length > 0) throw new Error(`Page "${name}" is not a valid layout:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
-  const model: PageModel = { name, title: String(tree.props.title), tree, ...options }
+  // A <Trans> title is its key until the server gives each reader the text in their language
+  const title = tree.props.title
+  const model: PageModel = { name, title: isLayoutNode(title) ? String(title.props.i18nKey) : String(title), tree, ...options }
   return { kind: 'page', name, toModel: () => structuredClone(model) }
 }
 

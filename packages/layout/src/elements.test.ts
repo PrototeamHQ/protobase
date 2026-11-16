@@ -73,11 +73,11 @@ describe('plain elements', () => {
     expect(problems(tree)).toEqual([])
   })
 
-  it('keep a Text to text and links, and its as to a paragraph, a span or a heading', () => {
+  it('keep a Text to text and links, and its as to a paragraph, a span, strong or emphasised text or a heading', () => {
     const tree = Page({ title: 'x', children: [Text({ children: [Box({})] }), { type: 'Text', props: { as: 'div' }, children: ['a'] }] })
     expect(problems(tree)).toEqual([
       '<Page> › <Text>: holds text, <Link>s, <Text as="span">s and field components such as <TextField> only; put other elements beside it in a <Row> or <Column>',
-      '<Page> › <Text>: "as" must be p, span, h1, h2, h3, h4',
+      '<Page> › <Text>: "as" must be p, span, strong, em, h1, h2, h3, h4',
     ])
   })
 })

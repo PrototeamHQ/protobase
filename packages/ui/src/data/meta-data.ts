@@ -44,6 +44,8 @@ export type MetaData = {
   calls?: boolean
   /** The language the app's screens are in for everyone, when it sets one (see `AppLocale`). */
   locale?: Locale
+  /** The app's own texts in the user's language, the messages their pages' `<Trans>` elements name (see `AppTexts`). */
+  texts?: { locale: string; messages: Record<string, string> }
   /** The hosts besides the app's own whose images are drawn with the page's referrer (see `FileImage`). */
   files?: { trustedHosts: string[] }
   /** The plugins the app loads for the user (see `PluginGate`). */

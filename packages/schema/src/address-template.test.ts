@@ -29,6 +29,13 @@ describe('fillAddress', () => {
     expect(parsed.ok && JSON.stringify(parsed.ast)).toContain(JSON.stringify(`say "hi" it's a\\b`))
   })
 
+  it("quotes a compared value that would break into more than one, and leaves a whole filter or a duration as it is", () => {
+    const list = (filter: string, record: Record<string, unknown>) => (fillAddress({ kind: 'list', resource: 'tasks', filter }, record) as { filter: string }).filter
+    expect(list('title = {{title}} AND id = {{id}}', { title: 'Fix "the" bug', id: 7 })).toBe('title = "Fix \\"the\\" bug" AND id = 7')
+    expect(list('{{lever}}', { lever: 'repo = "x" OR repo = "y"' })).toBe('repo = "x" OR repo = "y"')
+    expect(list('due_at > now() - {{window}}', { window: '7d' })).toBe('due_at > now() - 7d')
+  })
+
   it('names the fields a filter takes outside quotes', () => {
     expect(bareFilterFields({ kind: 'list', resource: 'tasks', filter: `task_id = {{task_id}} AND title = "{{title}}" AND n > {{task_id}} OR x = '{{y}}'` })).toEqual(['task_id'])
     expect(bareFilterFields({ kind: 'record', resource: 'tasks', key: '{{id}}' })).toEqual([])

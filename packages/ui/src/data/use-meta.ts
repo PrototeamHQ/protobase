@@ -54,6 +54,7 @@ export const useMeta = (): UseQueryResult<MetaData> => {
         ...(result.meta.status && { status: true }),
         ...(result.meta.calls && { calls: true }),
         ...(result.meta.locale && { locale: result.meta.locale }),
+        ...(result.meta.texts && { texts: result.meta.texts }),
         ...(result.meta.files && { files: result.meta.files }),
         ...(result.meta.plugins && { plugins: result.meta.plugins }),
         // The sources' own `/meta` is read below `MetaGate` (see `withSources`).

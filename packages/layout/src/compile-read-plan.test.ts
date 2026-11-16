@@ -18,7 +18,7 @@ const plan = (tree: LayoutNode, root?: string) => compileReadPlan(tree, { models
 const reads = (tree: LayoutNode, root?: string) => plan(tree, root).plan.reads
 
 // Open tasks, the newest first, ten of them
-const openTasks = (...children: LayoutNode[]) => CardRow({ resource: 'tasks', filter: "status = 'open'", sort: 'id desc', limit: 10, children })
+const openTasks = (...children: LayoutNode[]) => CardRow({ resource: 'tasks', filter: "status = 'open'", sort: ['id desc'], limit: 10, children })
 const taskClaims = `related(task_id, tasks.id, (status = "open"), "id desc", 10)`
 
 describe('compileReadPlan', () => {

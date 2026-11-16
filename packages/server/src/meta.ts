@@ -1,3 +1,5 @@
+import { readerTexts, textsLanguage, translatedPage, translatedView } from './meta-texts'
+import type { ReaderTexts } from '@protobase/layout'
 import { prunePage, type PageModel } from '@protobase/layout'
 import { pickView, type BottomBarItemModel, type ResourceModel, type SignInViewModel, type UserMenuItemModel, type UserMenuModel, type ViewModel } from '@protobase/schema'
 import { bottomBarFor, type Locale } from '@protobase/schema/internal'
@@ -66,6 +68,8 @@ export type CallerMeta = {
   calls?: true
   /** The language the admin app's screens are in, when the app sets one for everyone. */
   locale?: Locale
+  /** With the app's translations: the reader's language of them and the messages their pages' `<Trans>` elements name. */
+  texts?: ReaderTexts
   /** The hosts besides the app's own whose images the admin app draws with the page's referrer, when there are any. */
   files?: { trustedHosts: string[] }
   /** The plugins the admin app loads for the caller: those for everyone, and those for one of their roles. */
@@ -94,7 +98,7 @@ const modelsHash = (deps: Deps) => sha256Hex(stableJson(deps.registry.entries.ma
 export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
   const base = modelsHash(deps)
 
-  const forCaller = async (session: Session) => {
+  const forCaller = async (session: Session, preferred: readonly string[] = []) => {
     const accesses = await Promise.all(deps.registry.entries.map((entry) => requestAccess(deps, entry, session)))
     const visible = accesses.filter((access) => Object.values(access.resolved.operations).some(Boolean))
     // Sensitive fields are in the models and views, so the record page can offer to reveal them, but nowhere data is listed
@@ -122,6 +126,11 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
     const pageNames = new Set(pages.map((page) => page.name))
     // Only someone signed in has an account to show
     const account = deps.account && !session.anonymous ? prunePage(deps.account, session.user.roles, callerAccess) : undefined
+    // The app's own texts in the reader's language: the messages their trees name, and the labels and page titles in it
+    const language = textsLanguage(deps.translations, preferred, deps.locale)
+    const texts = deps.translations && language ? readerTexts(deps.translations, language, [...pages, ...(account ? [account] : [])], withBlocks) : undefined
+    const shownPages = texts ? pages.map((page) => translatedPage(page, texts)) : pages
+    const shownViews = deps.translations && language ? withBlocks.map((view) => translatedView(view, deps.translations!, language)) : withBlocks
     const shown = (item: UserMenuItemModel | BottomBarItemModel) =>
       item.kind === 'link' || (item.kind === 'resource' ? visible.some((access) => access.entry.name === item.resource) || prompted.has(item.resource) : pages.some((page) => page.name === item.page))
     const bar = bottomBarFor(deps.bottomBars, activeRole(session))
@@ -133,9 +142,9 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       protobaseVersion,
       ...(appIcon && { appIcon }),
       resources: visible.map(metaModel),
-      views: withBlocks.map((view) => prunePageDestinations(view, pageNames)),
-      pages,
-      ...(account && { account }),
+      views: shownViews.map((view) => prunePageDestinations(view, pageNames)),
+      pages: shownPages,
+      ...(account && { account: texts ? translatedPage(account, texts) : account }),
       permissions: Object.fromEntries(visible.map(({ entry, resolved, full }) => [entry.name, {
         read: resolved.operations.read || resolved.operations.list,
         create: resolved.operations.create,
@@ -154,6 +163,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       ...(deps.status && { status: true as const }),
       ...(deps.calls && { calls: true as const }),
       ...(deps.locale && { locale: deps.locale }),
+      ...(texts && { texts }),
       ...(deps.files && deps.files.trustedHosts.length > 0 && { files: { trustedHosts: deps.files.trustedHosts } }),
       ...(plugins.length > 0 && { plugins }),
       ...(sources.length > 0 && { sources }),
@@ -165,7 +175,8 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
    * The X-Meta-Version header: the models, the Protobase version, so the admin app reads `/meta` again on the first
    * answer after an upgrade, and the roles the access depends on, so a role change moves it.
    */
-  const version = async (roles: readonly string[]) => (await sha256Hex(`${await base}|${protobaseVersion}|${[...roles].sort().join(',')}`)).slice(0, 32)
+  const version = async (roles: readonly string[], preferred: readonly string[] = []) =>
+    (await sha256Hex(`${await base}|${protobaseVersion}|${[...roles].sort().join(',')}|${textsLanguage(deps.translations, preferred, deps.locale) ?? ''}`)).slice(0, 32)
 
   return { forCaller, version }
 }

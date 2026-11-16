@@ -52,7 +52,7 @@ const release = (key: string) =>
     children: ReferenceManyField({
       reference: 'approvals',
       target: 'release_id',
-      sort: { field: 'id', order: 'ASC' },
+      sort: ['id asc'],
       children: [Action({ name: 'approve' }), RecordsIterator({ children: Card({ title: '{{title}}', children: Action({ name: 'approve' }) }) })],
     }),
   })

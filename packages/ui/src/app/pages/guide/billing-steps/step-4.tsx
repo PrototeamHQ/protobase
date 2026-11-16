@@ -39,7 +39,7 @@ export const billing = page(
     <CardRow
       title="Payment methods"
       resource="payment_methods"
-      sort="is_default desc, id"
+      sort={['is_default desc', 'id']}
       actions={<ModalForm mode="create" label="Add card" resource="payment_methods" fields={['brand', 'last4', 'expires']} />}
     >
       <Field source="brand" label={false} />
@@ -52,10 +52,10 @@ export const billing = page(
       </Show>
     </CardRow>
     <Grid columns={3}>
-      <Table title="Invoices" resource="invoices" sort="issued_at desc" limit={5} span={2} />
+      <Table title="Invoices" resource="invoices" sort={['issued_at desc']} limit={5} span={2} />
       <Grid columns={1}>
         <Stat label="Open invoices" resource="invoices" filter="status = 'open'" />
-        <RecordCard title="Latest invoice" resource="invoices" sort="issued_at desc" actions={<Action name="download" />}>
+        <RecordCard title="Latest invoice" resource="invoices" sort={['issued_at desc']} actions={<Action name="download" />}>
           <Grid columns={2}>
             <Field source="number" />
             <Field source="total" />

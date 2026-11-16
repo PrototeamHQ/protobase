@@ -142,3 +142,8 @@ export * as markdown from './text/markdown'
 
 /** What `@protobase/layout/jsx-runtime` exports, for runtimes that supply it as a module. */
 export * as jsxRuntime from './jsx-runtime'
+export { layout, recordLayout } from './typed/layout'
+export { Condition, Now, not, now } from './typed/record'
+export type { FieldName, Fields, Filter, Operand, RecordOf, Recorded, Register, ResourceName, Resources, Sort } from './typed/types'
+export type * from './typed/inputs'
+export { Trans, formatMessage, formatText, isTranslations, isTrans, messageParts, readerLanguage, transKeys, translationProblems, translations, type ReaderTexts, type TextKeys, type TextTree, type TransKey, type Translations } from './translations'

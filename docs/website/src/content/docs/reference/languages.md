@@ -1,9 +1,9 @@
 ---
 title: Languages
-description: The admin app's built-in screens come in English and Dutch, chosen by the app or by each user's browser, with numbers and dates written to match.
+description: The admin app's built-in screens come in English and Dutch, chosen by the app or by each user's browser, with numbers and dates written to match, and the app's own texts in any language it has translations for.
 ---
 
-The admin app's own texts and its numbers and dates come in English and Dutch. The texts you write yourself, such as resource names, labels and enum value labels, show as you write them, in any language.
+The admin app's own texts and its numbers and dates come in English and Dutch. The texts you write yourself, such as resource names, labels and enum value labels, show as you write them, in any language, unless the app's [translations](#your-own-texts) give them in the reader's.
 
 ## Choosing the language
 
@@ -20,6 +20,40 @@ The value is `'en'` or `'nl'`, and the server refuses to start with any other va
 ## Numbers and dates
 
 Numbers, amounts and dates use the conventions of the language: English as written in Britain (`6 Oct 2026`, `€1,234.56`), and Dutch as written in the Netherlands (`6 okt 2026`, `€ 1.234,56`). Typing a decimal number in a form uses the same decimal mark. Times show in the viewer's time zone in both languages.
+
+## Your own texts
+
+The app's own texts, its pages' and its labels, come in every language it has translations for: one JSON file per language, its messages ICU, as `intl-messageformat` reads them, exported from `config/index.ts` with `translations`:
+
+```ts title="config/index.ts"
+import { translations } from '@protobase/layout'
+import en from './texts/en.json'
+import nl from './texts/nl.json'
+
+export const texts = translations({ en, nl })
+```
+
+```json title="config/texts/nl.json"
+{
+  "today": {
+    "title": "Vandaag",
+    "open": "{count, plural, one {# open taak} other {# open taken}}",
+    "owner": "Van <b>{name}</b>"
+  },
+  "resources": {
+    "tasks": {
+      "names": { "singular": "Taak", "plural": "Taken" },
+      "fields": { "status": { "label": "Staat", "values": { "done": "Klaar" } } }
+    }
+  }
+}
+```
+
+A layout shows a message with [`<Trans i18nKey="today.open" values={{ count: 2 }} />`](/reference/layouts/#texts-in-the-readers-language), and a page whose `title` is one is named by it in the sidebar too. A view's labels take their key from where they sit, under `resources.<resource>`: `names.singular` and `names.plural`, `help`, `fields.<field>.label`, `.help` and `.values.<value>`, `layout.<index>.title`, `.help` and `.empty` (a tab's items under `layout.<index>.items.<index>`), and `actions.<action>.label` and `.confirm`. A label the translations leave out shows as the view writes it.
+
+Each reader gets the app's own `locale` when it sets one the translations have, else the first of their browser's languages the translations have, by its tag or its language (`nl-BE` reads `nl`), else English, else the first language. A language is any BCP 47 tag, such as `de` or `pt-BR`, while the built-in screens stay in English or Dutch. `/meta` serves the reader's language and only the messages their pages name, as `texts: { locale, messages }`, with the page titles and labels already in it.
+
+The config fails to load when a message is not ICU or a language lacks a key another has, and the server refuses to start when a layout names a key no language has, leaves out a value its message formats in some language, or has a tag with no element in `components`, naming the page or view.
 
 ## What is translated
 

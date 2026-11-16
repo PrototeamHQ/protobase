@@ -7,6 +7,7 @@ import { useMeta } from '../data/use-meta'
 import { useSourceMetas } from '../data/use-source-metas'
 import { withSources } from '../data/with-sources'
 import { AppLocale } from '../locale/app-locale'
+import { AppTexts } from './pages/app-texts'
 import { cn } from '../lib/cn'
 import { revealLate } from '../primitives/skeleton'
 import { Spinner } from '../primitives/spinner'
@@ -51,7 +52,9 @@ const WithSources = ({ meta, children }: { meta: MetaData; children: ReactNode }
   return (
     <ClientProvider client={routing.client} resourceClient={routing.resourceClient}>
       <AppLocale locale={meta.locale}>
-        <TranslatedMeta meta={merged}>{children}</TranslatedMeta>
+        <AppTexts.Provider value={meta.texts}>
+          <TranslatedMeta meta={merged}>{children}</TranslatedMeta>
+        </AppTexts.Provider>
       </AppLocale>
     </ClientProvider>
   )

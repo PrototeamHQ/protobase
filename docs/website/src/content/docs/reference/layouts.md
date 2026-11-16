@@ -118,14 +118,14 @@ It takes the options of `renderText` but `records`, `tables` and `planned`, and 
 
 A prop is a string, a finite number, a boolean, `null`, or an array or plain object of those (elements included). It is JSON in the end, so the rules are checked twice:
 
-- **At build time.** `protobase build` and `protobase dev` read every file with the `@jsxImportSource @protobase/layout` comment and refuse a function, class or `new` value in a prop or child, and any call to a hook (`useState`, ...), with the file, line and column. No project code runs for this.
+- **At build time.** `protobase build` and `protobase dev` read every file with the `@jsxImportSource @protobase/layout` comment and refuse a function, class or `new` value in a prop or child, and any call to a hook (`useState`, ...), with the file, line and column. Two arrows are data and pass: a [filter's arrow](#the-condition-builder) and a record block's child arrow in a [typed layout](#typed-layouts), each one expression, never a body of statements. No project code runs for this.
 - **When the config loads.** The JSX runtime refuses anything else that is not plain data (a function in a variable, a `Date`, a `Map`, `NaN`), `page()` checks every element's props against its block (unknown, missing and mistyped props, children where none are allowed, elements that need a record outside one), and `createAdmin` checks every resource, field, filter, sort, action and condition against the models. Each problem names its place, such as `Page "overview": <Page> › <Table resource="invoices">: unknown column "amount" on invoices`.
 
 Behaviour comes from [named actions](#named-actions); React code from [custom components](/reference/custom-components/).
 
 ## Data
 
-`Stat`, `RecordCard`, `Table`, `CardRow`, `RecordRow`, `RecordCards` and `Thread` read records of a `resource`. `filter` is AIP-160 and `sort` AIP-132, exactly as the list API's `filter` and `order_by`, so a filter that works in the list's URL works here. `Thread` takes no `sort`: it orders its messages by its `time` field, newest first. `ReferenceManyField`, `ReferenceArrayField` and `ReferenceField` read records of their `reference` that the record around them points to or is pointed at by: see [related records](#related-records).
+`Stat`, `RecordCard`, `Table`, `CardRow`, `RecordRow`, `RecordCards` and `Thread` read records of a `resource`. `filter` is AIP-160, exactly as the list API's `filter`, so a filter that works in the list's URL works here, or [the builder's arrow](#the-condition-builder), `filter={(f) => f.status.eq('open')}`, which writes that text. `sort` is a list of fields, each with `asc` or `desc` if it likes, `sort={['due_at', 'total desc']}`, the list API's `order_by` one entry at a time. `Thread` takes no `sort`: it orders its messages by its `time` field, newest first. `ReferenceManyField`, `ReferenceArrayField` and `ReferenceField` read records of their `reference` that the record around them points to or is pointed at by: see [related records](#related-records).
 
 A `RecordCard` (its first match), a `ReferenceField`, each card of a `CardRow` and each entry of a `RecordsIterator` hold a **record**. Inside one, `Field`, `Diff`, `Progress`, `Stat field`, `Show`, `Action` and `ModalForm mode="edit"` work on that record, and a `RecordCard`'s header `actions` do too. A field name may follow relations: `company_id.city` is the city of the record's company, fetched like the record page fetches it and cached.
 
@@ -142,7 +142,7 @@ A record's related records repeat under it as a list: a `ReferenceManyField` hol
   <ArrayField source="labels">
     <RecordsIterator><Field source="this" label={false} /></RecordsIterator>
   </ArrayField>
-  <ReferenceManyField reference="task_claims" target="task_id" sort={{ field: 'claimed_at', order: 'DESC' }}>
+  <ReferenceManyField reference="task_claims" target="task_id" sort={['claimed_at desc']}>
     <RecordsIterator>
       <Card title="Claim {{@index}}">
         <ReferenceField source="worker_id" reference="workers" />
@@ -155,7 +155,70 @@ A record's related records repeat under it as a list: a `ReferenceManyField` hol
 </RecordCard>
 ```
 
-Each entry is a record of the stack while its children draw, so `Field`, `Show`, `{{path}}` placeholders and nested lists inside it read it, and `@index`, `@first` and `@last` count its place in the list. A text item of an `ArrayField`, such as a label, is read as `this`; an object item by its keys, which no model describes, so the build does not check them, and it warns when an item's key could shadow a field of a record further out. A list ties itself to the record around it by a field of that record, its `source`; a `ReferenceManyField`'s is `id` of the nearest record by default. A `ReferenceManyField`'s and a `ReferenceArrayField`'s `filter` and `sort` take AIP-160 and AIP-132 text, or the objects react-admin writes: `{ status: 'open' }` is `status = "open"`, its fields ANDed, and `{ field: 'claimed_at', order: 'DESC' }` is `claimed_at desc`. Without `sort`, such a list is in its key's order, descending, as react-admin's is. A `ReferenceManyField`'s `pagination="more"` adds a button that reads the next `perPage` records into the same list. The [blocks reference](/reference/blocks/#related-records) lists every prop.
+Each entry is a record of the stack while its children draw, so `Field`, `Show`, `{{path}}` placeholders and nested lists inside it read it, and `@index`, `@first` and `@last` count its place in the list. A text item of an `ArrayField`, such as a label, is read as `this`; an object item by its keys, which no model describes, so the build does not check them, and it warns when an item's key could shadow a field of a record further out. A list ties itself to the record around it by a field of that record, its `source`; a `ReferenceManyField`'s is `id` of the nearest record by default. A `ReferenceManyField`'s and a `ReferenceArrayField`'s `filter` and `sort` are a data block's: AIP-160 text or the builder's arrow, and a list of fields. react-admin's objects are not taken: write `filter={{ status: 'open' }}` as `filter="status = 'open'"` and `sort={{ field: 'claimed_at', order: 'DESC' }}` as `sort={['claimed_at desc']}`. Without `sort`, such a list is in its key's order, descending, as react-admin's is. A `ReferenceManyField`'s `pagination="more"` adds a button that reads the next `perPage` records into the same list. The [blocks reference](/reference/blocks/#related-records) lists every prop.
+
+## Typed layouts
+
+A layout written as a function of what it reads is typed by the app's resources: `layout()` draws a composed page's tree, and `recordLayout(resource, ...)` a record page's. Each runs its function once, as the config loads, and gives the same tree the JSX would, so the server checks, plans and serves it as any other.
+
+```tsx
+/** @jsxImportSource @protobase/layout */
+import { Card, Page, Show, Table, Text, layout, now, page, recordLayout, RecordsIterator, ReferenceManyField } from '@protobase/layout'
+import { l, view } from '@protobase/schema'
+
+export const today = page('today', layout(({ resources }) => (
+  <Page title="Today">
+    <Show when={resources.invoices.count.gt(0)}>
+      <Table resource="invoices" filter={(f) => f.status.eq('open').and(f.due_at.lt(now().plus('7d')))} sort={['due_at asc']} columns={['number', 'due_at', 'total']} />
+    </Show>
+  </Page>
+)))
+
+export const tasksView = view<typeof tasks>('tasks').layout(() => [
+  l.blocks(recordLayout('tasks', ({ data }) => (
+    <ReferenceManyField reference="task_runs" target="task_id">
+      <RecordsIterator<'task_runs'>>{(run) => <Card title={`${run.outcome} of ${data.title}`} />}</RecordsIterator>
+    </ReferenceManyField>
+  ))),
+])
+```
+
+| | |
+| --- | --- |
+| `data` | The record page's record, in `recordLayout` only: `data.title` is the placeholder `{{title}}`, so `` `Runs of ${data.title}` `` is `Runs of {{title}}`. |
+| `resources` | `resources.invoices.count` is how many `invoices` the user can see, for a [condition](#conditions). |
+| A record block's child | A `RecordCard`, a `CardRow`, a `ReferenceField` or a `RecordsIterator` takes a function of its record as its children, `(run) => ...`. Inside it `run.outcome` is `{{outcome}}`, the page's record is `{{@root.title}}`, and a record further out is `{{../outcome}}`. |
+
+With `.protobase/register.d.ts`, which `protobase types`, `dev` and `build` write from `config/index.ts` (see [`types`](/reference/cli/#types)), TypeScript checks the names against the app: `resource` against its resources, `columns`, `fields`, `sort` and the filter's fields against the resource's fields, `data` against the record's fields, and a [`<Trans>`](#texts-in-the-readers-language)'s key against its texts. Without the file, any name type-checks and the server checks them as it starts. Export a typed layout inside `page()` or a view, as above: a tree exported bare, `export const tree = layout(...)`, refers to its own type through the register, and TypeScript gives up on it.
+
+### The condition builder
+
+A filter's arrow and a typed layout's `when` write AIP-160 with one builder. A field compares with `eq`, `ne`, `lt`, `le`, `gt`, `ge`, `in([...])`, `contains(value)` and `isNull()`, and conditions join with `.and(...)`, `.or(...)` and `not(...)`, bracketed where AND and OR mix:
+
+| Builder | AIP-160 |
+| --- | --- |
+| `f.status.eq('open')` | `status = "open"` |
+| `f.total.gt(100).and(f.paid.eq(false))` | `total > 100 AND paid = false` |
+| `f.a.eq(1).and(f.b.eq(2).or(f.c.eq(3)))` | `a = 1 AND (b = 2 OR c = 3)` |
+| `not(f.status.in(['done', 'held']))` | `NOT in(status, "done", "held")` |
+| `f.owner.eq(null)`, `f.owner.isNull()` | `isNull(owner)` |
+| `f.plan.name.ne('Pro')` | `plan.name != "Pro"` |
+| `f.due_at.lt(now().plus('7d'))` | `due_at < now() + 7d` |
+| `f.task_id.eq(data.id)` | `task_id = {{id}}` |
+
+`now().plus(...)` and `now().minus(...)` take a duration, a number and one of `s`, `m`, `h`, `d` or `w`. A filter's arrow gives one condition, or the layout fails as it loads; AIP-160 text stays for what the builder does not write, such as `related()`.
+
+## Texts in the reader's language
+
+A `<Trans i18nKey="..." />` shows one of the app's own texts in the reader's language, as react-i18next's `<Trans>` does, wherever text goes: as a child, or as a `title`, `description`, `label` or `empty`. Its message is ICU, `values` gives what it formats, from a record with `{{path}}` or `data.title`, and `components` the element each of its tags draws:
+
+```tsx
+<Card title={<Trans i18nKey="today.open" values={{ count: 2 }} />}>
+  <Trans i18nKey="today.owner" values={{ name: '{{owner}}' }} components={{ b: <Text as="strong" /> }} />
+</Card>
+```
+
+The texts are the app's `translations({ en, nl })`; see [Your own texts](/reference/languages/#your-own-texts).
 
 ## How a page reads its data
 
@@ -270,7 +333,7 @@ export const tasksView = view<typeof tasks>('tasks').layout((r) => [
 ])
 ```
 
-The view's file is then `.tsx` and starts with the JSX import source, as a [layout file](#setup) does, or it imports the tree from a layout file of its own.
+The view's file is then `.tsx` and starts with the JSX import source, as a [layout file](#setup) does, or it imports the tree from a layout file of its own. [`recordLayout('tasks', ({ data }) => ...)`](#typed-layouts) writes the same tree typed by the record, `data.title` for `{{title}}`.
 
 | | |
 | --- | --- |
@@ -318,7 +381,9 @@ A [`Timeline`](/reference/blocks/#timeline) takes `select` too: a bar links to t
 | `status`, `plan.name` | A field of the records around it, through relations, by the [lookup of paths](#paths-and-scopes). |
 | `invoices.count` | How many `invoices` the user can see (an exact count from the list API). |
 
-Comparisons, `AND`, `OR`, `NOT`, parentheses, `isNull(field)` and `in(field, "a", "b")` work. <gap>A condition cannot call other functions, such as `now()`, because their evaluation is not implemented.</gap> A field that is missing or that the user cannot read makes the comparison false, and a `Show` that names a resource or field the user cannot see is left out of their page.
+Comparisons, `AND`, `OR`, `NOT`, parentheses, `isNull(field)`, `in(field, "a", "b")`, `now()` and `now() + 7d` or `now() - 1h` work; a time compares with a timestamp field as the list API compares it. Any other function, such as `regex()` or `related()`, works only in a list's `filter`, which the API reads, and a condition that calls one fails as the config loads. A field that is missing or that the user cannot read makes the comparison false, and a `Show` that names a resource or field the user cannot see is left out of their page.
+
+In a [typed layout](#typed-layouts), `when` takes [the builder's](#the-condition-builder) condition too: `when={data.status.eq('done')}` or `when={resources.invoices.count.gt(0)}`.
 
 Record pages take the same conditions in the `when` of `l.section`, `l.related` and `l.sidebar`; see [Form and read view](/reference/ui-config/#form-and-read-view).
 

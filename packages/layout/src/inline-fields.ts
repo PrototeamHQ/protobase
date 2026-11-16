@@ -46,4 +46,4 @@ export const inlineFieldTypes: ReadonlySet<string> = new Set(['TextField', 'Numb
 export const isInlineField = (child: LayoutChild) => typeof child !== 'string' && !child.custom && inlineFieldTypes.has(child.type)
 
 /** What runs on in a line of text: text, links, a `Text as="span"` and the field components. */
-export const isInlineChild = (child: LayoutChild) => typeof child === 'string' || isInlineField(child) || (!child.custom && (child.type === 'Link' || (child.type === 'Text' && child.props.as === 'span')))
+export const isInlineChild = (child: LayoutChild) => typeof child === 'string' || isInlineField(child) || (!child.custom && (child.type === 'Link' || child.type === 'Trans' || (child.type === 'Text' && ['span', 'strong', 'em'].includes(String(child.props.as)))))

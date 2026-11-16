@@ -46,7 +46,7 @@ const recent = page(
         resource: 'task_claims',
         title: 'Claims of the last {{@params.window}}',
         filter: 'claimed_at >= now() - {{@params.window}}',
-        sort: 'claimed_at desc',
+        sort: ['claimed_at desc'],
         columns: ['title', 'status', 'claimed_at'],
         select: 'claim',
         children: [Field({ source: 'title' }), Field({ source: 'status' }), ReferenceField({ source: 'worker_id', reference: 'workers' })],
