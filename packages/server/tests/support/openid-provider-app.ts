@@ -55,9 +55,13 @@ export const serveOpenId = async (stores: McpStores, options: Partial<CreateAuth
     return cookieOf(response)
   }
 
+  // Root signs in once per app, for every client registered.
+  let root: string | undefined
+  const rootCookie = async () => (root ??= await signIn('root@example.com'))
+
   /** Root registers a client through the operator API. */
   const register = async (body: Record<string, unknown>): Promise<Registered> => {
-    const response = await request('/api/auth/openid-provider/clients', { cookie: await signIn('root@example.com'), body })
+    const response = await request('/api/auth/openid-provider/clients', { cookie: await rootCookie(), body })
     expect(response.status, await response.clone().text()).toBe(200)
     return (await response.json()) as Registered
   }
@@ -115,5 +119,5 @@ export const serveOpenId = async (stores: McpStores, options: Partial<CreateAuth
 
   const userId = async (email: string) => (await store.query<{ id: string }>(`select id from "user" where email = $1`, [email])).rows[0]!.id
 
-  return { auth, store, request, signIn, register, registerWeb, registerPhone, authorize, codeOf, token, basic, codeFlow, exchange, verified, signInTokenClaims, userId }
+  return { auth, store, request, signIn, rootCookie, register, registerWeb, registerPhone, authorize, codeOf, token, basic, codeFlow, exchange, verified, signInTokenClaims, userId }
 }

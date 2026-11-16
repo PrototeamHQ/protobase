@@ -5,7 +5,7 @@ import { mcpStores, origin, secret, type McpStores } from './support/mcp-app'
 import { phoneCallback, serveOpenId, webCallback } from './support/openid-provider-app'
 
 // The app as the OpenID provider of other apps: only the clients its admin registers get an ID token, which says who
-// the person is, and a phone app the admin lets exchange gets ID tokens for the other clients from its own token.
+// the person is. The token exchange is in openid-token-exchange.test.ts.
 
 let stores: McpStores
 beforeAll(async () => {
@@ -14,8 +14,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await stores.fixture.db.destroy()
 })
-
-const idTokenType = 'urn:ietf:params:oauth:token-type:id_token'
 
 describe('the browser sign-in of a registered client', () => {
   it('gives it an ID token for its own id, with who the person is, without asking them to allow it', async () => {
@@ -67,7 +65,7 @@ describe('the browser sign-in of a registered client', () => {
 
   it('refuses a client in the store the operator did not register, at authorize and at the token endpoint', async () => {
     const app = await serveOpenId(stores)
-    const created = (await app.auth.api.adminCreateOAuthClient({ headers: new Headers({ cookie: await app.signIn('root@example.com') }), body: { redirect_uris: [webCallback], scope: 'openid email profile', skip_consent: true } })) as { client_id: string; client_secret: string }
+    const created = (await app.auth.api.adminCreateOAuthClient({ headers: new Headers({ cookie: await app.rootCookie() }), body: { redirect_uris: [webCallback], scope: 'openid email profile', skip_consent: true } })) as { client_id: string; client_secret: string }
     const { response } = await app.authorize(await app.signIn('ana@example.com'), created.client_id)
     expect(response.status).toBe(400)
     const refused = await app.token({ grant_type: 'authorization_code', code: 'any', redirect_uri: webCallback, code_verifier: 'v' }, app.basic({ clientId: created.client_id, clientSecret: created.client_secret }))
@@ -92,7 +90,7 @@ describe('the operator API', () => {
     const phone = await app.registerPhone()
     expect(shop.clientSecret).toBeTruthy()
     expect(phone.clientSecret).toBeUndefined()
-    const cookie = await app.signIn('root@example.com')
+    const cookie = await app.rootCookie()
     expect(await (await app.request('/api/auth/openid-provider/clients', { cookie })).json()).toEqual(
       expect.arrayContaining([
         { clientId: shop.clientId, name: 'Shop', redirectUris: [webCallback], type: 'confidential', exchange: false },
@@ -104,86 +102,6 @@ describe('the operator API', () => {
     const refreshed = await app.token({ grant_type: 'refresh_token', refresh_token: refresh_token!, client_id: phone.clientId })
     expect(refreshed.status).toBe(400)
     expect((await (await app.request('/api/auth/openid-provider/clients', { cookie })).json()) as unknown[]).toHaveLength(1)
-  })
-})
-
-describe('the token exchange', () => {
-  const signedInPhone = async () => {
-    const app = await serveOpenId(stores)
-    const shop = await app.registerWeb()
-    const phone = await app.registerPhone()
-    const tokens = await app.codeFlow(phone, 'ana@example.com', phoneCallback, 'openid email profile offline_access')
-    return { app, shop, phone, tokens }
-  }
-
-  it("gives the phone an ID token for another client, for that client alone, living five minutes, and nothing else", async () => {
-    const { app, shop, phone, tokens } = await signedInPhone()
-    const exchanged = await app.exchange(phone, tokens.access_token, shop.clientId)
-    expect(exchanged.status, await exchanged.clone().text()).toBe(200)
-    const body = (await exchanged.json()) as Record<string, unknown>
-    expect(body).toMatchObject({ issued_token_type: idTokenType, token_type: 'N_A', expires_in: 300 })
-    expect(body.refresh_token).toBeUndefined()
-    expect(body.id_token).toBeUndefined()
-    const claims = await app.verified(body.access_token as string, shop.clientId)
-    expect(claims).toMatchObject({ iss: origin, aud: shop.clientId, sub: await app.userId('ana@example.com'), email: 'ana@example.com', email_verified: true })
-    expect(claims.exp! - claims.iat!).toBe(300)
-    // The other app's token sign-in takes it, as it checks every token posted to it.
-    expect(await app.signInTokenClaims(body.access_token as string, shop.clientId)).toMatchObject({ sub: claims.sub, email: 'ana@example.com' })
-    expect(await app.signInTokenClaims(body.access_token as string, phone.clientId)).toBeUndefined()
-    // The access token minted with it for the other client is gone.
-    expect((await app.store.query(`select 1 from oauth_access_token where client_id = $1`, [shop.clientId])).rows).toHaveLength(0)
-  })
-
-  it('takes only a live access token the phone itself was given', async () => {
-    const { app, shop, phone, tokens } = await signedInPhone()
-    const other = await app.register({ name: 'Other phone', redirectUris: [phoneCallback], type: 'public', exchange: true })
-    const othersToken = (await app.codeFlow(other, 'ana@example.com', phoneCallback, 'openid email profile offline_access')).access_token
-    for (const subject of [tokens.id_token, tokens.refresh_token!, othersToken, 'made-up-token']) {
-      const refused = await app.exchange(phone, subject, shop.clientId)
-      expect(refused.status).toBe(400)
-      expect(await refused.json()).toMatchObject({ error: 'invalid_grant' })
-    }
-    expect((await app.request('/api/auth/oauth2/revoke', { form: { token: tokens.access_token, token_type_hint: 'access_token', client_id: phone.clientId }, from: null })).status).toBe(200)
-    expect(await (await app.exchange(phone, tokens.access_token, shop.clientId)).json()).toMatchObject({ error: 'invalid_grant' })
-  })
-
-  it('refuses a client the operator did not let exchange', async () => {
-    const { app, shop } = await signedInPhone()
-    const plain = await app.register({ name: 'Plain phone', redirectUris: [phoneCallback], type: 'public' })
-    const tokens = await app.codeFlow(plain, 'ana@example.com', phoneCallback)
-    const refused = await app.exchange(plain, tokens.access_token, shop.clientId)
-    expect(refused.status).toBe(400)
-    expect(await refused.json()).toMatchObject({ error: 'unauthorized_client' })
-  })
-
-  it('gives an ID token only for another client the operator registered', async () => {
-    const { app, phone, tokens } = await signedInPhone()
-    const created = (await app.auth.api.adminCreateOAuthClient({ headers: new Headers({ cookie: await app.signIn('root@example.com') }), body: { redirect_uris: [webCallback], scope: 'openid email profile', skip_consent: true } })) as { client_id: string }
-    for (const audience of ['nobody-registered-me', phone.clientId, created.client_id]) {
-      const refused = await app.exchange(phone, tokens.access_token, audience)
-      expect(refused.status).toBe(400)
-      const body = (await refused.json()) as Record<string, unknown>
-      expect(body).toMatchObject({ error: 'invalid_target' })
-      expect(body.access_token).toBeUndefined()
-    }
-  })
-
-  it('gives an ID token only, from an access token only', async () => {
-    const { app, shop, phone, tokens } = await signedInPhone()
-    const forms: Record<string, string>[] = [{ requested_token_type: 'urn:ietf:params:oauth:token-type:access_token' }, { requested_token_type: '' }, { subject_token_type: idTokenType }]
-    for (const form of forms) {
-      const refused = await app.exchange(phone, tokens.access_token, shop.clientId, form)
-      expect(refused.status).toBe(400)
-      expect(await refused.json()).toMatchObject({ error: 'invalid_request' })
-    }
-  })
-
-  it('refuses a banned person, and one whose address is not verified', async () => {
-    const { app, shop, phone, tokens } = await signedInPhone()
-    await app.store.query(`update "user" set email_verified = false where email = 'ana@example.com'`)
-    expect(await (await app.exchange(phone, tokens.access_token, shop.clientId)).json()).toMatchObject({ error: 'invalid_grant', error_description: 'the address is not verified' })
-    await app.store.query(`update "user" set email_verified = true, banned = true where email = 'ana@example.com'`)
-    expect(await (await app.exchange(phone, tokens.access_token, shop.clientId)).json()).toMatchObject({ error: 'invalid_grant' })
   })
 })
 

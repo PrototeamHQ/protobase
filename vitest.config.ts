@@ -120,6 +120,8 @@ const snapshotIsolated = [
   'packages/server/tests/platform-sign-in.integration.test.ts',
   'packages/server/tests/platform-token-sign-in.test.ts',
   'packages/server/tests/openid-provider.test.ts',
+  'packages/server/tests/openid-token-exchange.test.ts',
+  'packages/server/tests/openid-token-exchange-refusals.test.ts',
   'packages/server/tests/provider-second-step.test.ts',
   'packages/server/tests/plugins.test.ts',
   'packages/server/tests/session-token-answers.test.ts',
