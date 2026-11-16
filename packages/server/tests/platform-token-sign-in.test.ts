@@ -23,6 +23,11 @@ afterEach(() => {
 let tokens = 0
 const claims = (changes: Record<string, unknown> = {}) => octo({ jti: `token-${++tokens}`, ...changes })
 
+// The same token with the last character of its signature changed in bits base64url leaves unused: other text, the
+// same signed claims, which still verify.
+const base64url = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+const respelled = (token: string) => token.slice(0, -1) + base64url[base64url.indexOf(token.at(-1)!) ^ 1]
+
 const serve = async (options: PlatformApp = {}) => {
   const app = await servePlatformApp(shared, appDb, { tokenSignIn: true, ...options })
   const postToken = (token: string) => app.request('/sign-in/social', { body: { provider: 'github', idToken: { token } } })
@@ -61,15 +66,25 @@ describe('token sign-in through the platform provider', () => {
     expect(cookiesOf(replayed)).toEqual([])
   })
 
-  it('refuses a token for another app, for this app among others, living over five minutes, or without an id', async () => {
-    // Six tries, one more than the five sign-ins a minute a client may make by default.
-    const { auth, platform, postToken } = await serve({ signInPerMinute: 10 })
+  it('signs a token without a jti in once, and the same token spelled another way is no new token', async () => {
+    const { auth, platform, postToken } = await serve()
+    await createUser(auth, { email: 'octo@example.com', password, role: 'user' })
+    const token = await platform.idToken(octo())
+    expect((await postToken(token)).status).toBe(200)
+    for (const replayed of [token, respelled(token)]) {
+      const answer = await postToken(replayed)
+      expect(answer.status).toBe(401)
+      expect(await answer.json()).toMatchObject({ code: 'TOKEN_USED' })
+    }
+  })
+
+  it('refuses a token for another app, for this app among others, living over five minutes, or signed by another', async () => {
+    const { auth, platform, postToken } = await serve()
     await createUser(auth, { email: 'octo@example.com', password, role: 'user' })
     const refused = [
       await platform.idToken(claims(), { audience: 'other.example.com' }),
       await platform.idToken(claims(), { audience: ['localhost', 'other.example.com'] }),
       await platform.idToken(claims(), { lifetime: '10m' }),
-      await platform.idToken(octo()),
       await platform.idToken(claims(), { foreignKey: true }),
       await platform.idToken(claims(), { issuer: 'https://evil.example' }),
     ]
