@@ -156,3 +156,52 @@ export const Reopened: StoryObj = { ...Desktop, name: 'A task chosen in the addr
 export const DesktopChecks: StoryObj = { ...Desktop, name: 'Projects, their tasks and a chosen task (checks)', tags: ['play', '!dev'], play }
 
 export const PhoneChecks: StoryObj = { ...Phone, name: 'Projects, their tasks and a chosen task, on a phone (checks)', tags: ['play', '!dev', 'phone'], play }
+
+// A long window: twenty tasks of sixty phases each, 1,200 records, more than one read holds; with a limit, the latest
+// of them and a line that says how many it shows
+
+const longWork = (limit?: number) =>
+  page('work', Page({ title: 'Work', children: [Timeline({ resource: 'phases', title: 'Where the time went', lane: 'project', bar: 'task_id', start: 'started_at', end: 'ended_at', color: 'phase', ...(limit !== undefined && { limit }) })] }))
+
+const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()
+
+const longRows = () => ({
+  tasks: Array.from({ length: 20 }, (_, index) => ({ id: index + 1, title: `Task ${index + 1}` })),
+  phases: Array.from({ length: 1200 }, (_, index) => {
+    const task = Math.floor(index / 60) + 1
+    return { id: index + 1, project: ['web', 'api', 'docs'][task % 3], task_id: task, phase: index % 2 === 0 ? 'build' : 'ci', started_at: minutesAgo((1200 - index) * 2), ended_at: minutesAgo((1200 - index) * 2 - 2), note: null }
+  }),
+})
+
+const LongWork = ({ limit }: { limit?: number }) => {
+  const [client] = useState(() => fakeApi({ resources: [tasks.toModel(), phases.toModel()], views: views.map((entry) => entry.toModel()), pages: [longWork(limit).toModel()], rows: longRows() }).client)
+  return (
+    <div className="min-h-screen">
+      <App client={client} auth={session} initialUrl="/work" />
+    </div>
+  )
+}
+
+export const Long: StoryObj = { ...Desktop, name: 'A long window, read page after page', render: () => <LongWork /> }
+
+export const LongCut: StoryObj = { ...Desktop, name: 'A long window cut by its limit', render: () => <LongWork limit={500} /> }
+
+// Every task draws, the earliest one from the last page read too, and nothing says records are left out
+const longPlay: StoryObj['play'] = async ({ canvasElement }) => {
+  const timeline = within(await within(canvasElement).findByRole('region', { name: 'Where the time went' }))
+  await waitFor(() => expect(timeline.getAllByRole('img', { name: /^Task \d+: / })).toHaveLength(20))
+  expect(timeline.getByRole('img', { name: /^Task 1: / })).toBeVisible()
+  expect(timeline.queryByText(/left out/)).toBeNull()
+}
+
+// The latest 500 records draw, the tasks before them do not, and a line says so
+const cutPlay: StoryObj['play'] = async ({ canvasElement }) => {
+  const timeline = within(await within(canvasElement).findByRole('region', { name: 'Where the time went' }))
+  expect(await timeline.findByText('Showing the latest 500 records; older ones are left out.')).toBeVisible()
+  expect(timeline.getByRole('img', { name: /^Task 20: / })).toBeVisible()
+  expect(timeline.queryByRole('img', { name: /^Task 1: / })).toBeNull()
+}
+
+export const LongChecks: StoryObj = { ...Long, name: 'A long window, read page after page (checks)', tags: ['play', '!dev'], play: longPlay }
+
+export const LongCutChecks: StoryObj = { ...LongCut, name: 'A long window cut by its limit (checks)', tags: ['play', '!dev'], play: cutPlay }

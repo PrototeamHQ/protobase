@@ -1521,6 +1521,7 @@
     "couldNotLoad": "Kon niet laden",
     "nothingYet": "Hier staat nog niets.",
     "loadMore": "Meer laden",
+    "timelineCut": "De laatste {count, number} records worden getoond; oudere zijn weggelaten.",
     "saved": "{label}: bewaard",
     "create": "Maken",
     "save": "Bewaren",

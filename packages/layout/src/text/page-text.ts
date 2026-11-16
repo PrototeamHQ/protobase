@@ -30,12 +30,13 @@ const rowsAt = (outcomes: Outcomes, reads: Map<string, PlanRead>, id: string, re
 }
 
 // A table without `resource` has no resource to take labels from, so its columns read under their names; a
-// timeline's are its segments' fields
+// timeline's are its segments' fields, which it reads the latest first and shows the earliest first
 const tableOf = (node: LayoutNode, rows: Record<string, unknown>[], labels: PageTextOptions['labels']): TableText => {
   const own = typeof node.props.resource === 'string' ? labels?.[node.props.resource] : undefined
-  const names = node.type === 'Timeline' ? timelineFields(node) : ((node.props.columns as TableColumn[] | undefined)?.map(columnName) ?? Object.keys(rows[0] ?? {}))
+  const timeline = node.type === 'Timeline'
+  const names = timeline ? timelineFields(node) : ((node.props.columns as TableColumn[] | undefined)?.map(columnName) ?? Object.keys(rows[0] ?? {}))
   const columns = names.map((name) => ({ name, label: own?.[name]?.label ?? name, ...(own?.[name]?.valueLabels && { valueLabels: own[name].valueLabels }) }))
-  return { columns, rows }
+  return { columns, rows: timeline ? rows.toReversed() : rows }
 }
 
 /**

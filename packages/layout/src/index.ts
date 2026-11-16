@@ -119,7 +119,7 @@ export { page, isPageDefinition, type PageDefinition, type PageModel, type PageO
 export { cardsLayoutOf } from './cards-layout'
 export { maxThreadLimit, messageFieldsProblems, messageStatusProblems, messageTextProblems, threadFields, threadLimitProblems, type MessageFields } from './check-conversation'
 export { threadSort } from './check-time'
-export { timelineFields, timelineSort } from './check-timeline'
+export { defaultTimelineLimit, maxTimelineLimit, timelineFields, timelineReadSort, timelineSort } from './check-timeline'
 export { graphShape, type GraphFields, type GraphShape, type ShapeEdge, type ShapeGroup, type ShapeNode } from './graph-shape'
 export { edgeCondition, edgeConditions } from './graph-edges'
 export { threadItemNodes, threadLines, threadMarkdown, type ThreadTextItem, type ToolCallWords } from './thread-text'

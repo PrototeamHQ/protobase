@@ -49,6 +49,8 @@ The releases of Protobase that the release workflow cut with a release commit. L
 
 ### Bug Fixes
 
+* **layout:** a `Timeline` draws every record its `filter` matches, read page after page up to its `limit`, now from 1 to 100,000 and 20,000 by default, instead of the earliest 500, which left out the newest work of a long window. A limit that cuts the records keeps the latest by `start` and says how many it shows, and the text form's table holds the latest 500, the earliest first. See [Timeline](https://docs.protobase.net/reference/blocks/#timeline).
+
 * **ui:** a `{{path}}` in a text child, such as a typed layout's `<Text>{run.outcome}</Text>`, is filled from the records around it in the admin app and the text form, as a prop's is, instead of showing as written. See [Data](https://docs.protobase.net/reference/layouts/#data).
 
 ## [0.14.2](https://github.com/PrototeamHQ/protobase/compare/v0.14.1...v0.14.2) (2026-10-13)
