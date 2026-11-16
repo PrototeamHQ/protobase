@@ -14,6 +14,18 @@ describe('readPlatformSignIn', () => {
     expect(readPlatformSignIn({ ...env, PROTOBASE_SIGN_IN_PROVIDER: 'github', PROTOBASE_SIGN_IN_NAME: 'GitHub' })).toEqual({ ...settings, provider: 'github', name: 'GitHub' })
   })
 
+  it('reads token sign-in from PROTOBASE_SIGN_IN_TOKENS, true or false only', () => {
+    expect(readPlatformSignIn({ ...env, PROTOBASE_SIGN_IN_TOKENS: 'true' })).toEqual({ ...settings, tokenSignIn: true })
+    expect(readPlatformSignIn({ ...env, PROTOBASE_SIGN_IN_TOKENS: 'false' })).toEqual({ ...settings, tokenSignIn: false })
+    expect(readPlatformSignIn({ ...env, PROTOBASE_SIGN_IN_TOKENS: '' })).toEqual(settings)
+    for (const value of ['on', '1', 'yes', 'TRUE']) expect(() => readPlatformSignIn({ ...env, PROTOBASE_SIGN_IN_TOKENS: value })).toThrow(/PROTOBASE_SIGN_IN_TOKENS must be true or false/)
+  })
+
+  it('refuses token sign-in without the provider', () => {
+    expect(() => readPlatformSignIn({ PROTOBASE_SIGN_IN_TOKENS: 'true' })).toThrow(/needs the platform sign-in provider/)
+    expect(readPlatformSignIn({ PROTOBASE_SIGN_IN_TOKENS: 'false' })).toBeUndefined()
+  })
+
   it('refuses some but not all of the three', () => {
     expect(() => readPlatformSignIn({ PROTOBASE_SIGN_IN_ISSUER: env.PROTOBASE_SIGN_IN_ISSUER, PROTOBASE_SIGN_IN_CLIENT_ID: 'app' })).toThrow(/go together/)
   })
@@ -21,7 +33,7 @@ describe('readPlatformSignIn', () => {
 
 describe('resolvePlatformSignIn', () => {
   it('defaults the id to oidc and names the provider after it', () => {
-    expect(resolvePlatformSignIn(settings)).toMatchObject({ provider: 'oidc', name: 'SSO', scopes: [] })
+    expect(resolvePlatformSignIn(settings)).toMatchObject({ provider: 'oidc', name: 'SSO', scopes: [], tokenSignIn: false })
     expect(resolvePlatformSignIn({ ...settings, provider: 'github' })).toMatchObject({ provider: 'github', name: 'GitHub' })
     expect(resolvePlatformSignIn({ ...settings, provider: 'github', name: 'Protobase' }).name).toBe('Protobase')
   })

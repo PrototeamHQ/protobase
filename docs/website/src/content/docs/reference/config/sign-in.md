@@ -166,11 +166,11 @@ export default defineConfig(({ env }) => ({
 
 ## auth.signInProvider
 
-- **Type:** `{ issuer: string; clientId: string; clientSecret: string; provider?: string; name?: string; scopes?: string[] } | false`
+- **Type:** `{ issuer: string; clientId: string; clientSecret: string; provider?: string; name?: string; scopes?: string[]; tokenSignIn?: boolean } | false`
 - **Default:** the provider of the environment variables below, when set
-- **Environment variables:** `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and optionally `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME`
+- **Environment variables:** `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and optionally `PROTOBASE_SIGN_IN_PROVIDER`, `PROTOBASE_SIGN_IN_NAME` and `PROTOBASE_SIGN_IN_TOKENS` (`true` or `false`)
 
-An OpenID Connect provider the platform adds for people who already have an account; it never signs anyone up. `provider` is its id (default `oidc`), `name` its button's name. `false` turns it off whatever the environment says. Left out when `socialProviders` has a provider with the same id. See [Platform sign-in provider](/reference/auth/#platform-sign-in-provider).
+An OpenID Connect provider the platform adds for people who already have an account; it never signs anyone up. `provider` is its id (default `oidc`), `name` its button's name, and `tokenSignIn: true` lets a client sign in with a fresh ID token the provider issued for this app ([Token sign-in](/reference/auth/#token-sign-in), default off). `false` turns it off whatever the environment says. Left out when `socialProviders` has a provider with the same id. See [Platform sign-in provider](/reference/auth/#platform-sign-in-provider).
 
 ```ts
 export default defineConfig({ auth: { signInProvider: false } })

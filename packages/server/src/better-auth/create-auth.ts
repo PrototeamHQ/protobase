@@ -500,7 +500,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       refreshRefusalsPlugin(),
       ...(saml.length > 0 ? [loaded(plugins.samlPlugin, 'sso.saml')(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
       signInPolicyPlugin(policy),
-      idTokenSignInPlugin(),
+      idTokenSignInPlugin(signIn?.tokenSignIn ? { tokenSignIn: { provider: signIn.provider, clientId: signIn.clientId } } : {}),
       passwordChecksPlugin(),
       setPasswordPlugin(),
       passwordChangePlugin(mail),
@@ -563,6 +563,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         // Every page load reads the session, the role it acts with and its token: limiting them would refuse browsing.
         ...Object.fromEntries(pageLoadReads.map((path) => [path, false as const])),
         '/sign-in/email': { window: 60, max: options.signInPerMinute ?? 5 },
+        // Starting a provider's sign-in, and signing in with a token the platform's provider issued.
+        '/sign-in/social': { window: 60, max: options.signInPerMinute ?? 5 },
         '/staff/sign-in': { window: 60, max: 5 },
         [setPasswordPath]: { window: 60, max: 5 },
         '/invitation/sign-up': { window: 60, max: options.signInPerMinute ?? 5 },

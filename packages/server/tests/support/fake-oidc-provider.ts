@@ -67,14 +67,17 @@ export const startFakeOidcProvider = async ({ issuer, client, discoveredIssuer =
   })
 
   return {
-    /** An ID token for this app as the provider signs one, with the claims given and `twist` applied, for a client to post. */
-    idToken: (claims: Record<string, unknown>, twist: TokenTwist = {}) =>
+    /**
+     * An ID token for this app as the provider signs one, with the claims given and `twist` applied, for a client to
+     * post: for `audience` (default this app's client id), living `lifetime` (default `5m`).
+     */
+    idToken: (claims: Record<string, unknown>, { audience = client.clientId, lifetime = '5m', ...twist }: TokenTwist & { audience?: string | string[]; lifetime?: string } = {}) =>
       new SignJWT({ ...claims, ...(twist.nonce !== undefined && { nonce: twist.nonce }) })
         .setProtectedHeader({ alg: 'EdDSA', kid: jwk.kid })
         .setIssuer(twist.issuer ?? discoveredIssuer)
-        .setAudience(client.clientId)
+        .setAudience(audience)
         .setIssuedAt()
-        .setExpirationTime('5m')
+        .setExpirationTime(lifetime)
         .sign(twist.foreignKey ? foreign.privateKey : privateKey),
     exchanged,
     /** Every authorization URL the provider was sent to, in order. */

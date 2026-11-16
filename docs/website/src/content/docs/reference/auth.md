@@ -95,7 +95,7 @@ The store's migrations then make nothing of the user table, which a migration of
 | `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated http and https origins, passed by the platform; see [CORS](/reference/api/#cors) |
 | `PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM` | the mail server and sender for [password reset](#password-reset), [emailed sign-in codes](#emailed-sign-in-codes), emailed [two-factor](#two-factor-authentication) codes and [open sign-up](#open-sign-up), passed by the platform; all four are off without them |
 | `PROTOBASE_APP_NAME` | the app's name, passed by the platform: it overrides `name` |
-| `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | the [platform sign-in provider](#platform-sign-in-provider) for people who have an account, passed by the platform; off without them. `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME` are optional |
+| `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | the [platform sign-in provider](#platform-sign-in-provider) for people who have an account, passed by the platform; off without them. `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME` are optional, and `PROTOBASE_SIGN_IN_TOKENS=true` turns on its [token sign-in](#token-sign-in) |
 | `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the [operator provider](#operator-provider) its staff sign in with to sign in as people, passed by the platform; staff sign-in is off without them. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional |
 | `PROTOBASE_TRUSTED_PROXIES` | the proxies in front of `protobase serve`, addresses or CIDR ranges, comma separated, such as `172.30.87.1`, the Docker network's gateway in the [compose template](/guides/deploy/#compose-template); see [Client addresses](#client-addresses) |
 
@@ -396,9 +396,9 @@ On their account page, people turn on a second step after a password or an email
 - **Authenticator app:** the page shows a QR code (and the key, to type in), the person confirms it with a code from the app, and gets ten backup codes that each work once instead of a code. New backup codes replace the old ones.
 - **Emailed code:** with mail configured, a 6-digit code mailed at each sign-in, valid for 10 minutes. An account with an app can also choose an emailed code at sign-in. Backup codes come with the app only.
 
-Turning it on, off, or making new backup codes asks for the account's password when it has one. Without one, turning it on, reading the authenticator link (`/two-factor/get-totp-uri`) or making new backup codes from a session that signed in more than a day ago asks to [confirm it's them](#confirming-an-account-change) first, and the account page asks for it in place. At sign-in, a correct password or code answers `{ "twoFactorRedirect": true, "twoFactorMethods": ["totp", "otp"] }` instead of a session, and `POST /api/auth/two-factor/verify-totp`, `verify-otp` or `verify-backup-code` with `{ code, trustDevice? }` finishes it; `trustDevice` skips the step in that browser for 30 days. Ten wrong codes in a row lock the account's second step for 15 minutes.
+Turning it on, off, or making new backup codes asks for the account's password when it has one. Without one, turning it on, reading the authenticator link (`/two-factor/get-totp-uri`) or making new backup codes from a session that signed in more than a day ago asks to [confirm it's them](#confirming-an-account-change) first, and the account page asks for it in place. At sign-in, a correct password or code, or a [sign-in token](#token-sign-in), answers `{ "twoFactorRedirect": true, "twoFactorMethods": ["totp", "otp"] }` instead of a session, and `POST /api/auth/two-factor/verify-totp`, `verify-otp` or `verify-backup-code` with `{ code, trustDevice? }` finishes it; `trustDevice` skips the step in that browser for 30 days. Ten wrong codes in a row lock the account's second step for 15 minutes.
 
-Sign-in with GitHub or another [provider](#sign-in-with-github) is not asked for the second step.
+Sign-in with GitHub or another [provider](#sign-in-with-github) through its pages is not asked for the second step.
 
 ## Recent strong sign-in
 
@@ -459,7 +459,7 @@ The server stores the policy in the `sign_in_policy` table, one row per save (th
 - **Required:** someone who signs in without it is sent to set it up first. The server holds back API tokens until then (`GET /api/auth/token` answers `403`, `SIGN_IN_SETUP_REQUIRED`), and refuses to turn two-factor authentication off or to remove the last passkey.
 - Signed-in people keep their session after a change; a newly required method is asked for at their next token refresh, within 15 minutes.
 - **Staff sign-in as a person** shows only with an [operator provider](#operator-provider). Off refuses [staff sign-in](#staff-sign-in) (`403`, `SIGN_IN_METHOD_FORBIDDEN`); Email the person mails the person each time, and needs mail: without it the server refuses to save it, and a saved one turns staff sign-in off until mail is back.
-- **Sign in with ... through the platform** shows only with a [platform sign-in provider](#platform-sign-in-provider). Off refuses starting, finishing and connecting it (`403`, `SIGN_IN_METHOD_FORBIDDEN`) and the sign-in page leaves it out. It applies as Off while passkeys or two-factor authentication are Required: a provider's sign-in skips the app's second step, and the provider's own cannot be checked.
+- **Sign in with ... through the platform** shows only with a [platform sign-in provider](#platform-sign-in-provider). Off refuses starting, finishing and connecting it, and its [token sign-in](#token-sign-in) (`403`, `SIGN_IN_METHOD_FORBIDDEN`), and the sign-in page leaves it out. It applies as Off while passkeys or two-factor authentication are Required: a provider's sign-in skips the app's second step, and the provider's own cannot be checked.
 
 The server refuses a policy (`400`, `SIGN_IN_POLICY_REFUSED`, with the reason) that would lock people out: passwords and emailed codes both off (someone without a passkey could not sign in), passwords off without mail, two-factor authentication required with passwords off (turning it on asks for the password), or a policy the saving admin could not sign in with. Emailed codes need mail: without `PROTOBASE_SMTP_URL` they are off whatever the policy says, and so that a policy saved with mail cannot lock everyone out once mail goes away, password sign-in is then on as well.
 
@@ -540,7 +540,7 @@ These work for every provider, the project's own and the [platform's](#platform-
 - **Connected accounts:** the [account page](#account-page)'s **Sign-in & security** tab lists the providers and offers "Connect GitHub" for one the account is not linked to. Connecting signs in at the provider and links that account whatever its address (`accountLinking.allowDifferentEmails`, which applies only to this explicit link by someone signed in). A provider account linked to another person already is refused (`account_already_linked_to_different_user`); a [staff session](#staff-sign-in) cannot link.
 - **Linked up front:** `protobase users create <email> --github-id <id>`, or `createUser(auth, { ..., accounts: [{ providerId: 'github', accountId }] })`, links a new user to a GitHub user id, so GitHub finds them by it whatever address it reports.
 - Without a link, a provider finds someone by address only when it vouches for the address (`email_verified`) and the account's address is verified; accounts created by an admin or on the host are.
-- **Through the provider's pages only:** signing in or connecting with an ID token a client posts instead (`idToken` on `/api/auth/sign-in/social` or `/api/auth/link-social`, as `signIn.social({ provider, idToken })` of Better Auth's client sends it) is refused with `403 TOKEN_SIGN_IN_OFF`, for every provider: such a token would sign in without the nonce of a sign-in the app started, as often as it is posted, and without the app's [second step](#two-factor-authentication).
+- **Through the provider's pages only:** signing in or connecting with an ID token a client posts instead (`idToken` on `/api/auth/sign-in/social` or `/api/auth/link-social`, as `signIn.social({ provider, idToken })` of Better Auth's client sends it) is refused with `403 TOKEN_SIGN_IN_OFF`, for every provider: such a token would sign in without the nonce of a sign-in the app started, as often as it is posted, and without the app's [second step](#two-factor-authentication). The one exception is signing in with the platform's provider when its [token sign-in](#token-sign-in) is on, with the limits that section lists.
 
 ## Sign-in with SAML
 
@@ -588,12 +588,34 @@ Register the app with the provider as a confidential client with the redirect UR
 - **Startup:** the provider's settings are read when the app starts; when they cannot be, the provider is left out until the next start (the status and sign-in page do not offer it) and every other way to sign in works.
 - The [sign-in policy](#sign-in-policy) has a row for it, and `GET /api/auth/status` names it as `platformSignIn: { provider, name }` besides listing it in `socialProviders`.
 
-Set the first three together or none: some but not all of them stops the app at start with an error. In the config, `auth.signInProvider` takes the same settings and `scopes`, and `false` turns it off whatever the environment says:
+Set the first three together or none: some but not all of them stops the app at start with an error. In the config, `auth.signInProvider` takes the same settings, `scopes` and `tokenSignIn`, and `false` turns it off whatever the environment says:
 
 ```ts
 auth: { signInProvider: { issuer, clientId, clientSecret, provider: 'oidc', name: 'Acme SSO', scopes: ['groups'] } }
 auth: { signInProvider: false }
 ```
+
+### Token sign-in
+
+A client that already holds a fresh ID token the platform's provider issued for this app, such as a phone app the person signed in to once at the provider, can post it to the app instead of sending a browser through the provider's pages. It gets the app's own session, as an emailed code or the provider's pages would give it. The provider's token counts as one factor, in the place of an emailed code: the app asks for its own second step when the person turned one on, and nothing else. Off by default:
+
+```sh
+PROTOBASE_SIGN_IN_TOKENS=true        # true or false; anything else stops the app at start
+```
+
+```ts
+auth: { signInProvider: { issuer, clientId, clientSecret, tokenSignIn: true } }
+```
+
+The client posts `POST /api/auth/sign-in/social` with `{ "provider": "<provider id>", "idToken": { "token": "<ID token>" } }`, as Better Auth's client sends `signIn.social({ provider, idToken: { token } })`, and gets the session cookie with `{ redirect: false, user }`, or `{ twoFactorRedirect: true, twoFactorMethods }` when the [second step](#two-factor-authentication) is due, which it finishes as after a password. Then `GET /api/auth/token` gives it the app's API token as for any session.
+
+- **Only this app's own provider:** the app trusts the one provider it is configured with, and a token only for this app. The token must be signed with a key the provider publishes (its discovery's `jwks_uri`) with an asymmetric algorithm, come from the configured issuer, and have this app's client id as its one audience, so a token issued for another app is never accepted here. It must carry a `jti` and an `email`, live at most 5 minutes from `iat` to `exp`, and have been issued within the last 5 minutes (30 seconds of clock skew allowed). Otherwise it is refused with `401 INVALID_TOKEN`.
+- **Once:** each token signs in once. Its `jti` is kept in the `verification` table until it expires, with no migration, and a second use answers `401 TOKEN_USED`.
+- **Who it signs in:** as through the provider's pages, the account linked to the provider's `sub`, else the account with the address the provider vouches for (`email_verified`), which it links. Nobody is signed up (`401`), and a banned person is refused.
+- **Never recent:** the client can mint a fresh session at will, so a session a token began never counts as [recently signed in](#confirming-an-account-change). Adding a passkey, unlinking a provider, making a personal access token or deleting the account asks it to confirm it's them in place first, and it is never a [strong sign-in](#recent-strong-sign-in) until it confirms it's them.
+- **The policy:** **Sign in with ... through the platform** in the [sign-in policy](#sign-in-policy) covers it, so Off refuses it, and so do passkeys or two-factor authentication being Required. Linking a provider with a token stays refused (`403 TOKEN_SIGN_IN_OFF`).
+- **Rate limit:** `/api/auth/sign-in/social` takes `signInPerMinute` requests a minute per client, default 5, as a password sign-in does.
+- **Signing out:** signing out at the provider ends no session in the app, as with the provider's pages; the app's own sign-out, an admin, a ban or a deletion does.
 
 ### Self-hosting with Dex or Keycloak
 

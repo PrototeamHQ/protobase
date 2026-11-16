@@ -21,6 +21,11 @@ export type PlatformSignIn = {
   name?: string
   /** Scopes asked for besides `openid email profile`. */
   scopes?: string[]
+  /**
+   * Token sign-in: a client that holds a fresh ID token the provider issued for this app posts it instead of sending
+   * the browser through the provider, and gets the app's own session (see `idTokenSignInPlugin`). Default off.
+   */
+  tokenSignIn?: boolean
 }
 
 export const signInIssuerVariable = 'PROTOBASE_SIGN_IN_ISSUER'
@@ -28,20 +33,34 @@ export const signInClientIdVariable = 'PROTOBASE_SIGN_IN_CLIENT_ID'
 export const signInClientSecretVariable = 'PROTOBASE_SIGN_IN_CLIENT_SECRET'
 export const signInProviderVariable = 'PROTOBASE_SIGN_IN_PROVIDER'
 export const signInNameVariable = 'PROTOBASE_SIGN_IN_NAME'
+export const signInTokensVariable = 'PROTOBASE_SIGN_IN_TOKENS'
+
+// A boolean variable is true or false; unset or empty, it is not given.
+const readBoolean = (env: Record<string, string | undefined>, name: string) => {
+  const value = env[name]?.trim()
+  if (!value) return
+  if (value !== 'true' && value !== 'false') throw new Error(`${name} must be true or false, not "${value}"`)
+  return value === 'true'
+}
 
 /**
  * The provider the platform passes in `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID` and
- * `PROTOBASE_SIGN_IN_CLIENT_SECRET` (with `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME` optional);
- * `undefined` when none of the three is set. Some but not all of them stops the server at startup.
+ * `PROTOBASE_SIGN_IN_CLIENT_SECRET` (with `PROTOBASE_SIGN_IN_PROVIDER`, `PROTOBASE_SIGN_IN_NAME` and
+ * `PROTOBASE_SIGN_IN_TOKENS` optional); `undefined` when none of the three is set. Some but not all of them, or
+ * `PROTOBASE_SIGN_IN_TOKENS=true` without them, or that variable other than `true` or `false`, stops the server at startup.
  */
 export const readPlatformSignIn = (env: Record<string, string | undefined>): PlatformSignIn | undefined => {
   const required = [signInIssuerVariable, signInClientIdVariable, signInClientSecretVariable]
   const [issuer, clientId, clientSecret] = required.map((name) => env[name]?.trim() || undefined)
-  if (!issuer && !clientId && !clientSecret) return undefined
+  const tokenSignIn = readBoolean(env, signInTokensVariable)
+  if (!issuer && !clientId && !clientSecret) {
+    if (tokenSignIn) throw new Error(`${signInTokensVariable} needs the platform sign-in provider: set ${required.join(', ')} too, or leave it out`)
+    return undefined
+  }
   if (!issuer || !clientId || !clientSecret) throw new Error(`${required.join(', ')} go together: set all three for the platform sign-in provider, or none`)
   const provider = env[signInProviderVariable]?.trim()
   const name = env[signInNameVariable]?.trim()
-  return { issuer, clientId, clientSecret, ...(provider && { provider }), ...(name && { name }) }
+  return { issuer, clientId, clientSecret, ...(provider && { provider }), ...(name && { name }), ...(tokenSignIn !== undefined && { tokenSignIn }) }
 }
 
 /** What a sign-in provider id may be: lowercase letters, digits or "-", starting with a letter. */
@@ -52,7 +71,7 @@ export const resolvePlatformSignIn = (signIn: PlatformSignIn) => {
   if (!URL.canParse(signIn.issuer)) throw new Error(`The platform sign-in provider's issuer must be a URL, not "${signIn.issuer}"`)
   const provider = signIn.provider ?? 'oidc'
   if (!providerIdPattern.test(provider)) throw new Error(`Invalid sign-in provider id "${provider}": use lowercase letters, digits or "-"`)
-  return { ...signIn, provider, name: signIn.name ?? (provider === 'github' ? 'GitHub' : 'SSO'), scopes: signIn.scopes ?? [] }
+  return { ...signIn, provider, name: signIn.name ?? (provider === 'github' ? 'GitHub' : 'SSO'), scopes: signIn.scopes ?? [], tokenSignIn: signIn.tokenSignIn === true }
 }
 
 export type ResolvedPlatformSignIn = ReturnType<typeof resolvePlatformSignIn>
