@@ -2,7 +2,8 @@
 # Checks the app in the current directory as a deploy does, each step in a log group of its own, and stops at the first
 # that fails, naming it: the install from the lockfile, the app's typecheck and tests, `protobase build`, then on a
 # fresh Postgres of its own the app's migrations, the auth schema's migration and `protobase doctor`, which runs the
-# server's startup checks too. Every protobase command is the app's own installed CLI.
+# server's startup checks too. An app without migrations brings its own database, which a fresh one cannot stand for:
+# it gets `protobase doctor --without-database` and no Postgres. Every protobase command is the app's own installed CLI.
 set -Eeuo pipefail
 
 # The Postgres major Protobase is tested on.
@@ -49,6 +50,15 @@ run_script 'Tests' test
 
 begin 'Build'
 protobase build
+
+# Only migrations the check applies give a fresh database the app's tables.
+if ! has_script db:migrate && ! compgen -G 'db/migrations/*.sql' > /dev/null; then
+  begin 'Doctor'
+  echo '::notice title=Protobase check::The project has no db/migrations or db:migrate script, so doctor checks it without a database and the migration steps are skipped.'
+  protobase doctor --without-database
+  echo '::endgroup::'
+  exit 0
+fi
 
 # A database of its own, provisioned as a hosted app's is: a role that is no superuser and may only create in its own
 # database, so a migration that needs more fails here as it would on deploy.

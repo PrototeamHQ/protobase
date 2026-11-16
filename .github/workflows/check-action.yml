@@ -2,7 +2,8 @@ name: check action
 
 # The check action (actions/check) as an app's workflow uses it, on the property-portal preset written out as an app has
 # it, with its @protobase packages packed from this checkout (scripts/check-action/write-app.ts): it passes on the
-# preset, and fails at Doctor, naming it, once a resource has events whose triggers no migration made.
+# preset, and fails at Doctor, naming it, once a resource has events whose triggers no migration made; without the
+# app's migrations it checks without a database, which leaves those triggers to the app's own database, and passes.
 on:
   pull_request:
     paths:
@@ -53,3 +54,13 @@ jobs:
         env:
           FAILED: ${{ steps.broken.outputs.failed }}
         run: test "$FAILED" = Doctor
+      - name: Take the app's migrations away
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          rm -r db/migrations
+          jq 'del(.scripts["db:migrate"])' package.json > package.json.next
+          mv package.json.next package.json
+      - uses: ./actions/check
+        with:
+          working-directory: ${{ runner.temp }}/app
+          bun-version: 1.4.4
