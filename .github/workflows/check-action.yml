@@ -8,8 +8,10 @@ on:
     paths:
       - actions/check/**
       - scripts/check-action/**
-      - packages/cli/**
-      - packages/presets/src/**
+      # Every package is packed and installed in the app, at the versions the lockfile records.
+      - packages/**
+      - package.json
+      - bun.lock
       - scripts/publish.mjs
       - scripts/publish/**
       - tests/apps/property-portal/**
