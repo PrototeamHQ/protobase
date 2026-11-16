@@ -7,6 +7,7 @@ import type {
   FieldProps,
   MatchProps,
   ModalFormProps,
+  ProgressProps,
   PageProps,
   RecordCardProps,
   RecordCardsProps,
@@ -58,6 +59,7 @@ export type FieldInput = Written<FieldProps, { label?: Text | false }>
 export type ShowInput = Written<ShowProps, { when: When }>
 export type MatchInput = Written<MatchProps, { when: When }>
 export type TabInput = Written<TabProps, { label: Text }>
+export type ProgressInput = Written<ProgressProps, {}>
 export type StatInput<R extends string> = Written<StatProps, { label: Text; resource?: R; filter?: Filter<R> }>
 export type RecordCardInput<R extends string> = Written<RecordCardProps, Data<R> & { children?: RecordChildren<R> }>
 export type TableInput<R extends string> = Written<TableProps, Partial<Data<R>> & { columns?: TableColumn<R>[] }>

@@ -1,7 +1,7 @@
-import type { AccountBlockProps, GridProps, ImageProps, LinkProps, ProgressProps, Styled, SwitchProps, TabsProps, UsersProps } from './block-props'
+import type { AccountBlockProps, GridProps, ImageProps, LinkProps, Styled, SwitchProps, TabsProps, UsersProps } from './block-props'
 import { defineBlock } from './create-node'
 import type { LayoutNode } from './node'
-import type { ActionInput, CardInput, CardRowInput, ChartInput, ComposerInput, FieldInput, MatchInput, ModalFormInput, PageInput, RecordCardInput, RecordCardsInput, RecordRowInput, SettingsInput, ShowInput, StatInput, TabInput, TableInput, ThreadInput, TimelineInput } from './typed/inputs'
+import type { ActionInput, CardInput, ProgressInput, CardRowInput, ChartInput, ComposerInput, FieldInput, MatchInput, ModalFormInput, PageInput, RecordCardInput, RecordCardsInput, RecordRowInput, SettingsInput, ShowInput, StatInput, TabInput, TableInput, ThreadInput, TimelineInput } from './typed/inputs'
 import type { ResourceName } from './typed/types'
 
 export type * from './block-props'
@@ -22,7 +22,7 @@ export const RecordRow = typed<<R extends ResourceName>(props: RecordRowInput<R>
 export const RecordCards = typed<<R extends ResourceName>(props: RecordCardsInput<R>) => LayoutNode>('RecordCards')
 export const Chart = typed<<R extends ResourceName>(props: ChartInput<R>) => LayoutNode>('Chart')
 export const Timeline = typed<<R extends ResourceName>(props: TimelineInput<R>) => LayoutNode>('Timeline')
-export const Progress = builtIn<ProgressProps>('Progress')
+export const Progress = builtIn<ProgressInput>('Progress')
 export const ModalForm = typed<<R extends ResourceName>(props: ModalFormInput<R>) => LayoutNode>('ModalForm')
 export const Thread = typed<<R extends ResourceName>(props: ThreadInput<R>) => LayoutNode>('Thread')
 export const Composer = typed<<R extends ResourceName>(props: ComposerInput<R>) => LayoutNode>('Composer')
