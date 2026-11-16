@@ -1,8 +1,11 @@
 import { randomBytes } from 'node:crypto'
+import { Kysely, PostgresDialect } from 'kysely'
+import pg from 'pg'
 import { checkJobsSchema } from '@protobase/server'
 import { readOrigins, readPasskeyDomain } from '@protobase/server/internal'
 import { buildProject, type AppDatabase } from '../config/build-project'
 import type { MergedConfig } from '../config/merge-config'
+import { projectAdmin } from '../project/project-admin'
 import { servedAdmin } from '../project/served-admin'
 import { checkStartup } from '../serve/startup-checks'
 
@@ -20,6 +23,27 @@ export const startupUrl = (config: Pick<MergedConfig, 'url' | 'auth'>, env: Reco
   return `${scheme}//${passkeyDomain ?? 'localhost'}`
 }
 
+// Sign-in is built only to read its store, so without the app's URL and secret it gets stand-ins for them.
+const startupConfig = (config: MergedConfig) => ({ ...config, url: startupUrl(config, process.env), secret: config.secret ?? randomBytes(32).toString('base64') })
+
+// A pool connects only for a query, and building the app makes none: one that reached for this address would fail.
+const noDatabase = 'postgres://nobody@127.0.0.1:1/none'
+
+/**
+ * Builds the app and its admin from its config as `serve` does, over a pool that never connects: the server's startup
+ * refusals the config alone decides, such as an owner field that must hold sign-in's user ids, with the server's own
+ * message. What `checkServerStartup` checks of the database is left out.
+ */
+export const checkServerBuild = async (config: MergedConfig) => {
+  const pool = new pg.Pool({ connectionString: noDatabase })
+  const db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
+  const build = async () => {
+    const project = await buildProject(startupConfig(config), { db, pool })
+    await projectAdmin(project, db).admin.stopHolding()
+  }
+  await build().finally(() => db.destroy())
+}
+
 /**
  * Builds the app from its config over `database` as `serve` does and runs the server's startup checks of the database,
  * its jobs schema included, so doctor refuses what the server would refuse to start on, with the server's own message.
@@ -29,8 +53,7 @@ export const startupUrl = (config: Pick<MergedConfig, 'url' | 'auth'>, env: Reco
  * doctor's own checks read.
  */
 export const checkServerStartup = async (config: MergedConfig, database: AppDatabase) => {
-  const readOnly = { ...config, url: startupUrl(config, process.env), secret: config.secret ?? randomBytes(32).toString('base64') }
-  const project = await buildProject(readOnly, database)
+  const project = await buildProject(startupConfig(config), database)
   await checkStartup(project, database.db)
   const { admin, jobs } = await servedAdmin(project, database.db)
   await admin.stopHolding()
