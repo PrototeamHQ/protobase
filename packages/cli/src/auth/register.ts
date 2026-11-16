@@ -15,7 +15,7 @@ export const registerAuth = (program: Command) => {
       const [{ loadSignIn }, { writeAuthMigration }] = await Promise.all([import('../users/load-auth'), import('./write-migration')])
       const auth = await loadSignIn(process.cwd())
       if (!auth) {
-        out('sign-in is off, so the project has no auth schema; nothing to write\n')
+        out("sign-in is off in the project's config; nothing to write\n")
         return
       }
       const file = await writeAuthMigration({ auth, dir: path.resolve(opts.dir), name: opts.name })
