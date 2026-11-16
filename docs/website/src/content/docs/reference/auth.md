@@ -374,6 +374,7 @@ auth: { roles: ['admin', 'member'], signUp: { role: 'member', domains: ['example
 - An empty list, from either, takes nobody: open sign-up is then off, as without `signUp`, never open to all. Without `domains` and the variable, every address may sign up.
 - On the [GoTrue-compatible endpoints](#supabase-js-and-supabasessr), `POST /signup` from another address answers `422 signup_disabled`, and `POST /otp` sends a sign-in code, as with open sign-up off.
 - On the host, `auth.signUpDomains` is the list in effect and `auth.signUpTakes(email)` whether open sign-up takes an address.
+- <gap>A platform cannot read over HTTP the domains an app lists only in its own config because an endpoint that tells them to the platform is not implemented.</gap>
 
 ## Passkeys
 
