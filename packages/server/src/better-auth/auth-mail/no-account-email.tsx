@@ -44,7 +44,7 @@ export const noAccountEmail = defineTemplate<NoAccountData>({
         <Trans i18nKey="hint" />
       </Text>
       {/* The app's url ends in a slash: it is its home page. */}
-      <Button href={`${app.url}${signInPath().slice(1)}`}>
+      <Button href={`${app.url}${signInPath()}`}>
         <Trans i18nKey="action" values={{ app: app.name }} />
       </Button>
       <Text>

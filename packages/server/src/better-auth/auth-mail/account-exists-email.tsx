@@ -39,7 +39,7 @@ export const accountExistsEmail = defineTemplate<AccountExistsData>({
         <Trans i18nKey="intro" values={{ app: app.name }} />
       </Text>
       {/* The app's url ends in a slash: it is its home page. */}
-      <Button href={`${app.url}${signInPath().slice(1)}`}>
+      <Button href={`${app.url}${signInPath()}`}>
         <Trans i18nKey="action" values={{ app: app.name }} />
       </Button>
       <Text>

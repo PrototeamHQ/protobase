@@ -44,7 +44,7 @@ export const passwordChangedEmail = defineTemplate<PasswordChangedData>({
         <Trans i18nKey="hint" />
       </Text>
       {/* The app's url ends in a slash: it is its home page. */}
-      <Button href={`${app.url}${signInPath({ step: 'forgot-password' }).slice(1)}`}>
+      <Button href={`${app.url}${signInPath({ step: 'forgot-password' })}`}>
         <Trans i18nKey="action" />
       </Button>
       <Text>
