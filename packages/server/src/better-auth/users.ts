@@ -6,6 +6,7 @@ import type { AuthContext } from './organizations/store'
 import { parseRoles } from './parse-roles'
 import { activeAdminExists } from './store/active-admin'
 import { pageOf } from './store/page-of'
+import { exists } from './store/store-reads'
 import { storeSqlOf } from './store/store-sql'
 
 export { parseRoles }
@@ -40,7 +41,7 @@ export type NewUser = { email: string; password?: string; name?: string; role?: 
 export type StoredUser = { id: string; email: string; role: string; banned: boolean; createdAt: string }
 
 /** Whether the admin store has any user yet. */
-export const hasUsers = async (auth: AdminAuth) => (await auth.$context).adapter.count({ model: 'user' }).then((count) => count > 0)
+export const hasUsers = async (auth: AdminAuth) => exists((await auth.$context).adapter, 'user', [])
 
 // Accounts at a provider that sign in someone already; the user's password account is Better Auth's own.
 const checkAccounts = async (auth: AdminAuth, accounts: LinkedAccount[]) => {

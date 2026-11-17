@@ -10,7 +10,7 @@ import { loadDataConfig } from '../project/load-data-config'
 import { openAppDatabase } from '../project/pg-db'
 import { builtInIndexIssues, builtInModels } from './built-in-models'
 import { checkResource, type Issue } from './check'
-import { indexIssues } from './index-issues'
+import { fileIndexIssues, indexIssues } from './index-issues'
 import { unplannedBlocks } from './page-shapes'
 import { readShapes } from './read-shapes'
 import { relationIssues } from './relation-issues'
@@ -45,7 +45,12 @@ export const runDoctor = async (options: DoctorOptions, out: (text: string) => v
   const userTables = userTablesOn(source) ? await userTableModels(db, [...builtIn.models, ...config.models]) : { models: [], issues: [] }
   const models = [...builtIn.models, ...config.models, ...userTables.models]
   const shapes = readShapes({ models, views: [...builtIn.views, ...config.views], pages: config.pages })
-  const indexes = await Promise.all(models.map(async (model) => indexIssues(model, await tableIndexes(db, model), shapes)))
+  const indexes = await Promise.all(
+    models.map(async (model) => {
+      const table = await tableIndexes(db, model)
+      return [...indexIssues(model, table, shapes), ...fileIndexIssues(model, table)]
+    }),
+  )
     .then((found) => found.map((issues, i) => (i < builtIn.models.length ? builtInIndexIssues(issues) : issues)))
     .finally(() => db.destroy())
   const issues = [...userTables.issues, ...models.flatMap((model, i) => [...checkResource(model, tables), ...relationIssues(model, models), ...sortIssues(model, shapes), ...indexes[i]!])]

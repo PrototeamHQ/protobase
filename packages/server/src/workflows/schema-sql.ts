@@ -4,7 +4,7 @@ import { quoteIdent } from '../changes/capture-sql'
  * Bumped whenever the tables, functions or indexes below change, so the next migration writes them again; each example
  * app ships its migration with the bump (docs/example-apps.md).
  */
-export const workflowsVersion = 27
+export const workflowsVersion = 28
 
 /** The comment the schema's function carries, which the startup check reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
@@ -230,6 +230,7 @@ create index if not exists "workflows_execution_order" on ${s}."workflows" ("exe
 create index if not exists "workflows_name_search" on ${s}."workflows" using gin ("name" gin_trgm_ops);
 create index if not exists "versions_tenant" on ${s}."versions" ("tenant_id");
 create index if not exists "versions_version" on ${s}."versions" ("version");
+create index if not exists "versions_enabled_by" on ${s}."versions" ("enabled_by");
 alter table ${s}."runs" add column if not exists "key" text;
 create unique index if not exists "runs_key" on ${s}."runs" ("workflow_id", "key");
 alter table ${s}."runs" add column if not exists "rerun_of" uuid references ${s}."runs" ("id") on delete set null;
