@@ -36,6 +36,14 @@ describe('fixed authorization parameters', () => {
   })
 })
 
+describe('a provider without a button', () => {
+  it('has pages, which only a link or a redirect sends people to', () => {
+    expect(resolvePlatformSignIn({ ...settings, button: false }, 'https://app.example.com')).toMatchObject({ button: false, pages: true })
+    expect(resolvePlatformSignIn(settings, 'https://app.example.com').button).toBe(true)
+    expect(() => resolvePlatformSignIn({ issuer: settings.issuer, tokenSignIn: true, button: false }, 'https://app.example.com')).toThrow(/has no pages, so it shows no button anyway/)
+  })
+})
+
 describe('a provider of devices', () => {
   it('signs in by token alone', () => {
     expect(resolvePlatformSignIn({ issuer: settings.issuer, tokenSignIn: true, devices: true }, 'https://app.example.com')).toMatchObject({ devices: true, pages: false })

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AuthError } from '@protobase/client'
 import { authMessage, signInMessage } from './auth-messages'
 import { useAuth } from './auth-provider'
+import { buttonProviders } from './provider-link'
 import { SignInForm, type SignInFormProps } from './sign-in-form'
 
 export { signInMessage }
@@ -43,7 +44,7 @@ export const SignInPage = ({ workspace, notice, forgotPassword, signUp, onBrowse
       onBrowse={onBrowse}
       {...(identity.appName && { appName: identity.appName })}
       runsOnNote={identity.runsOnNote}
-      providers={signInProviders}
+      providers={buttonProviders(signInProviders)}
       onContinueWith={(provider) => void attempt(() => signInSocial(provider), signInMessage)}
       passkeyDomains={passkeyDomains}
       onPasskey={(domain) => void attempt(() => signInWithPasskey(domain), authMessage)}

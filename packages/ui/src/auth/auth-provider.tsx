@@ -102,8 +102,8 @@ export type AuthApi = {
 /** What the setup status names of the app: its name and the path of its own icon, when it has them, and `runsOnNote`. */
 export type AuthIdentity = { appName?: string; appIcon?: string; runsOnNote: boolean }
 
-/** A sign-in provider as the app offers it: its id and its name. */
-export type SignInProvider = { id: string; name: string }
+/** A sign-in provider as the app offers it: its id, its name, and `linkOnly` when only a sign-in link starts it, with no button on the sign-in page. */
+export type SignInProvider = { id: string; name: string; linkOnly?: true }
 
 const AuthContext = createContext<AuthApi | null>(null)
 
@@ -282,7 +282,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
       signUpAsksName,
       passkeyDomains,
       socialProviders,
-      signInProviders: [...socialProviders.map((id) => ({ id, name: providerName(id, platformProviders) })), ...samlProviders],
+      signInProviders: [...socialProviders.map((id) => ({ id, name: providerName(id, platformProviders), ...(platformProviders.some((platform) => platform.provider === id && platform.button === false) && { linkOnly: true as const }) })), ...samlProviders],
       platformProviders,
       deviceLinks,
       staffSignIn,
