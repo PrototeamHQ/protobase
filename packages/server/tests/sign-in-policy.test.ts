@@ -81,7 +81,7 @@ describe('the sign-in policy endpoints', () => {
     const saved = await request('/policy/sign-in', { cookie: root, body: strict })
     expect(saved.status).toBe(200)
     const answer = await saved.json()
-    // Sign-in through the platform skips the second step, so it applies as off while one is required.
+    // Sign-in through the platform signs in without a passkey, so it applies as off while passkeys are required.
     expect(answer).toMatchObject({ policy: strict, effective: { ...strict, platformSignIn: 'forbidden' }, mail: true, savedBy: 'root@example.com' })
     expect(Date.parse(answer.savedAt)).toBeGreaterThan(Date.now() - 60_000)
     expect(await (await request('/policy/sign-in', { cookie: root })).json()).toEqual(answer)
@@ -212,7 +212,7 @@ describe('a required method', () => {
     expect(held.status).toBe(403)
     expect(await held.json()).toMatchObject({ code: 'SIGN_IN_SETUP_REQUIRED' })
     expect(await (await request('/account/sign-in-methods', { cookie })).json()).toEqual({
-      policy: { ...defaultSignInPolicy, twoFactor: 'required', platformSignIn: 'forbidden' },
+      policy: { ...defaultSignInPolicy, twoFactor: 'required' },
       mail: true,
       account: { password: true, passkeys: 0, twoFactor: false, authenticatorApp: false },
       missing: ['twoFactor'],

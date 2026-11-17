@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { SignInPolicy, SignInPolicyState } from '@protobase/client'
 import { formatDateTime } from '../format'
+import { formatTag } from '../locale/active-locale'
 import { cn } from '../lib/cn'
 import { Button } from '../primitives/button'
 import { policyRows, ruleLabel, type PolicyRow, type PolicyRule } from './sign-in-policy-labels'
@@ -39,18 +40,20 @@ const rowNote = ({ method }: PolicyRow, draft: SignInPolicy, { mail, effective, 
   if (method === 'emailCode' && !mail) return text('codeNeedsMail')
   if (method === 'password' && !mail && draft.password === 'forbidden') return text('passwordStaysOn')
   if (method === 'staffAccess' && !mail && draft.staffAccess === 'notify') return text('staffNeedsMail')
-  if (method === 'platformSignIn' && draft.platformSignIn === 'allowed' && (draft.passkey === 'required' || draft.twoFactor === 'required')) {
+  if (method === 'platformSignIn' && draft.platformSignIn === 'allowed' && draft.passkey === 'required') {
     return text('platformOff')
   }
   if (draft[method] === policy[method] && effective[method] !== policy[method]) return text('appliesAs', { rule: ruleLabel(method, effective[method]) })
   return undefined
 }
 
-// The rows that apply to this app: staff access with an operator provider, sign-in through the platform with its provider.
-const rowsFor = ({ operator, platformSignIn }: SignInPolicyState) =>
+// The rows that apply to this app: staff access with an operator provider, sign-in through the platform with its providers.
+const rowsFor = ({ operator, platformProviders = [] }: SignInPolicyState) =>
   policyRows().flatMap((row) => {
     if (row.method === 'staffAccess' && !operator) return []
-    if (row.method === 'platformSignIn') return platformSignIn ? [{ ...row, label: text('platformSignInWith', { provider: platformSignIn }) }] : []
+    if (row.method === 'platformSignIn') {
+      return platformProviders.length > 0 ? [{ ...row, label: text('platformSignInWith', { provider: new Intl.ListFormat(formatTag(), { type: 'conjunction' }).format(platformProviders) }) }] : []
+    }
     return [row]
   })
 

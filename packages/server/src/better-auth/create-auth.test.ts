@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { betterAuthOptions, buildAuth, createAuth, type CreateAuthOptions } from './create-auth'
 import { roleDefinitions } from './organizations/role-definitions'
-import { resolvePlatformSignIn } from './platform-sign-in'
+import { resolvePlatformSignIns } from './platform-sign-in'
 import { samlPlugin } from './saml-plugin'
 import { resolveSamlProviders, samlDisabledPaths } from './saml-sign-in'
 import { coreNames } from './snake-case-names'
@@ -48,13 +48,13 @@ describe('betterAuthOptions', () => {
 
   it('leaves OAuth tokens unencrypted and adds no after-create hook by default', () => {
     const options = betterAuthOptions(base, resolved)
-    expect(options.account).toEqual({ ...coreNames.account, accountLinking: { allowDifferentEmails: true } })
+    expect(options.account).toEqual({ ...coreNames.account, accountLinking: { allowDifferentEmails: true, requireLocalEmailVerified: true } })
     expect(options.databaseHooks.user.create).not.toHaveProperty('after')
   })
 
   it('turns on OAuth token encryption', () => {
     const { account, ...rest } = betterAuthOptions({ ...base, encryptOAuthTokens: true }, resolved)
-    expect(account).toEqual({ ...coreNames.account, accountLinking: { allowDifferentEmails: true }, encryptOAuthTokens: true })
+    expect(account).toEqual({ ...coreNames.account, accountLinking: { allowDifferentEmails: true, requireLocalEmailVerified: true }, encryptOAuthTokens: true })
     const { account: _, ...plain } = betterAuthOptions(base, resolved)
     expect(data(rest)).toEqual(data(plain))
   })
@@ -110,12 +110,23 @@ describe('betterAuthOptions', () => {
     expect(betterAuthOptions(base, resolved).baseURL).toBe('https://admin.example.com')
   })
 
-  it('adds the platform sign-in provider, unless the app has its own provider with the same id', () => {
-    const platformSignIn = resolvePlatformSignIn({ issuer: 'https://auth.example.com', clientId: 'app', clientSecret: 'secret', provider: 'github' })
+  it("adds the platform's sign-in providers, but for any whose id the app has a provider of its own with", () => {
+    const platformSignIn = resolvePlatformSignIns([{ issuer: 'https://auth.example.com', clientId: 'app', clientSecret: 'secret', provider: 'github' }], 'https://app.example.com')
     const plugins = (options: CreateAuthOptions) => betterAuthOptions(options, { ...resolved, platformSignIn }).plugins.map((plugin) => plugin.id)
     expect(plugins(base)).toContain('generic-oauth')
     expect(plugins({ ...base, socialProviders: github })).not.toContain('generic-oauth')
     expect(betterAuthOptions(base, resolved).plugins.map((plugin) => plugin.id)).not.toContain('generic-oauth')
+  })
+
+  it('refuses the pages of only the token-only providers, and takes the tokens of only those with token sign-in', () => {
+    const platformSignIn = resolvePlatformSignIns([
+      { issuer: 'https://auth.example.com', clientId: 'app', clientSecret: 'secret', provider: 'oidc' },
+      { issuer: 'https://id.example.net', provider: 'central', tokenSignIn: true },
+    ], 'https://app.example.com')
+    const ids = betterAuthOptions(base, { ...resolved, platformSignIn }).plugins.map((plugin) => plugin.id)
+    expect(ids).toContain('protobase-provider-pages-off')
+    expect(ids.filter((id) => id === 'generic-oauth')).toHaveLength(1)
+    expect(betterAuthOptions(base, { ...resolved, platformSignIn: platformSignIn.slice(0, 1) }).plugins.map((plugin) => plugin.id)).not.toContain('protobase-provider-pages-off')
   })
 
   it('adds the SSO plugin without its provider table, and turns off its management paths, only with SAML providers', () => {
@@ -145,12 +156,12 @@ describe('createAuth', () => {
       ...base,
       mailer: false,
       operator: false,
-      signInProvider: { issuer: 'https://idp.example.com', clientId: 'platform-client', clientSecret: 'platform-secret', provider: 'platform' },
+      signInProviders: [{ issuer: 'https://idp.example.com', clientId: 'platform-client', clientSecret: 'platform-secret', provider: 'platform' }],
       socialProviders: github,
       sso: { saml: [{ id: 'okta', domains: ['example.com'], idp: { metadata: '<EntityDescriptor/>' } }] },
     })
     expect(auth.socialProviders).toEqual(['github'])
     expect(auth.samlProviders).toEqual([expect.objectContaining({ id: 'okta' })])
-    expect(auth.platformSignIn).toMatchObject({ provider: 'platform' })
+    expect(auth.platformSignIn).toMatchObject([{ provider: 'platform' }])
   })
 })

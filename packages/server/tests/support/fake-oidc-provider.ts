@@ -5,6 +5,9 @@ import { vi } from 'vitest'
 export const operatorIssuer = 'https://id.operator.example'
 export const operatorClient = { clientId: 'protobase-app', clientSecret: 'operator-client-secret' }
 
+// The fetch every file starts with; a provider started after another serves the other's requests through it.
+const startingFetch = globalThis.fetch
+
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 const challengeOf = (verifier: string) => createHash('sha256').update(verifier).digest('base64url')
 
@@ -21,7 +24,8 @@ export type FakeOidcProviderOptions = {
 /**
  * An OpenID Connect provider, as a stubbed `fetch`: discovery, its keys, and a token endpoint that checks the client
  * secret and PKCE and answers with an ID token signed with its key. `approve` stands for the person signing in at the
- * provider: it takes the authorization URL and the claims, and returns the code.
+ * provider: it takes the authorization URL and the claims, and returns the code. Requests to another issuer go to the
+ * provider started before it, if any.
  */
 export const startFakeOidcProvider = async ({ issuer, client, discoveredIssuer = issuer }: FakeOidcProviderOptions) => {
   // EdDSA signs the same token the same way every time, so the ID token the app stores is the same on each recording.
@@ -31,6 +35,7 @@ export const startFakeOidcProvider = async ({ issuer, client, discoveredIssuer =
   const grants = new Map<string, { challenge: string; redirectURI: string; claims: Record<string, unknown>; twist: TokenTwist }>()
   const exchanged: string[] = []
   const authorizations: URL[] = []
+  const before = globalThis.fetch
 
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init)
@@ -63,10 +68,23 @@ export const startFakeOidcProvider = async ({ issuer, client, discoveredIssuer =
         .sign(grant.twist.foreignKey ? foreign.privateKey : privateKey)
       return json({ access_token: 'provider-access', token_type: 'Bearer', expires_in: 60, id_token: idToken })
     }
+    if (before !== startingFetch) return before(input, init)
     throw new Error(`Unexpected request to ${url.href}`)
   })
 
   return {
+    /**
+     * An ID token for this app as the provider signs one, with the claims given and `twist` applied, for a client to
+     * post: for `audience` (default this app's client id), living `lifetime` (default `5m`).
+     */
+    idToken: (claims: Record<string, unknown>, { audience = client.clientId, lifetime = '5m', ...twist }: TokenTwist & { audience?: string | string[]; lifetime?: string } = {}) =>
+      new SignJWT({ ...claims, ...(twist.nonce !== undefined && { nonce: twist.nonce }) })
+        .setProtectedHeader({ alg: 'EdDSA', kid: jwk.kid })
+        .setIssuer(twist.issuer ?? discoveredIssuer)
+        .setAudience(audience)
+        .setIssuedAt()
+        .setExpirationTime(lifetime)
+        .sign(twist.foreignKey ? foreign.privateKey : privateKey),
     exchanged,
     /** Every authorization URL the provider was sent to, in order. */
     authorizations,

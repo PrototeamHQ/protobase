@@ -18,6 +18,8 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Changing the address](/reference/auth/#changing-the-address): People move their account to a new email address from the account page, once they enter the code sent there.
 - [Deleting the account](/reference/auth/#deleting-the-account): People delete their own account from the account page, after confirming it, in the web app and the mobile app. On by default; an app whose accounts an organization's admins manage turns it off.
 - [Open sign-up](/reference/auth/#open-sign-up): Anyone can create an account after confirming an emailed code.
+- [Sign-up with the address only](/reference/auth/#sign-up-with-the-address-only): Open sign-up can ask for nothing but the address, so the emailed sign-in code makes a new person's account on the spot; an invited address still gets the roles it was invited with.
+- [Sign-up for email domains](/reference/auth/#sign-up-for-email-domains): Open sign-up can take only addresses at your company's email domains, so colleagues make their own account and everyone else still needs an invitation.
 - [Passkeys](/reference/auth/#passkeys): People sign in with their device's face or fingerprint unlock, or with a security key.
 - [Two-factor authentication](/reference/auth/#two-factor-authentication): A second step with an authenticator app, backup codes or emailed codes.
 - [Emailed confirmation code](/reference/auth/#emailed-confirmation-code): Someone without a passkey or a second step confirms it's them with a code emailed on request, where they are, such as before a secret is shown.
@@ -27,7 +29,10 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Sign-in links](/reference/auth/#sign-in-links-and-connected-accounts): A link signs someone in with a sign-in provider at once, without the sign-in page.
 - [Connected accounts](/reference/auth/#sign-in-links-and-connected-accounts): People link GitHub or another sign-in provider to their account from the account page.
 - [SAML sign-in](/reference/auth/#sign-in-with-saml): People sign in through any SAML provider.
-- [OpenID Connect provider](/reference/auth/#platform-sign-in-provider): A host adds an OpenID Connect provider for people who already have an account.
+- [OpenID Connect providers](/reference/auth/#platform-sign-in-providers): A host adds OpenID Connect providers for people who already have an account, each with its own id, name and ways to sign in.
+- [Devices](/reference/auth/#device-accounts): A provider that signs in phones links each device as an account of its own, which the person signs out for good from the Devices tab.
+- [Token sign-in](/reference/auth/#token-sign-in): A client that holds a fresh ID token from that provider for this app signs in with it once, in place of an emailed code, and gets the app's own session, with the app's second step when one is on.
+- [Being an OpenID provider](/reference/auth/#openid-provider-for-other-apps): The app vouches for its people's verified addresses to other apps its admin registers, which sign them in without asking them to allow it, and lets a phone app get a sign-in token for each of those apps, or for any app at the origins it names by pattern, without a browser.
 - [Staff sign-in](/reference/auth/#staff-sign-in): The team that runs an app signs in as a person to help them, with a reason and a log entry.
 - [Roles](/reference/auth/#roles): A user holds one or more roles and switches between them without signing in again.
 - [Organizations](/reference/auth/#organizations): People work in one organization at a time, see only its records, and are invited with their own roles.

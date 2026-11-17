@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { createAuthSession, createClient, type AuthSession, type AuthUser, type PersonalMailLink, type PluginRef, type SamlSignIn, type SetupStatus, type SignInMethod, type SignInResult, type TwoFactorMethod, type WorkflowConnection } from '@protobase/client'
+import { createAuthSession, createClient, type AuthSession, type AuthUser, type PersonalMailLink, type PlatformSignIn, type PluginRef, type SamlSignIn, type SetupStatus, type SignInMethod, type SignInResult, type TwoFactorMethod, type WorkflowConnection } from '@protobase/client'
 import type { Locale } from '@protobase/schema/internal'
 import { nativeAuthFetch, type NativeBridge } from '../app/native-auth-fetch'
 import { pushNotifications, type PushNotifications } from '../notifications/push/push-notifications'
@@ -7,7 +7,7 @@ import type { PushUser } from '../notifications/push/web-push'
 import { useStartCache } from '../data/start-cache/start-cache'
 import { customSchemeAuth, isHttpOrigin } from './custom-scheme-auth'
 import { enterAfterUpdate } from './enter-after-update'
-import { providerName, withoutSignInLink } from './provider-link'
+import { providerName, readSecondStep, withoutSignInLink } from './provider-link'
 import type { AuthState } from './auth-state'
 import { startCacheStep } from './start-session'
 import { text } from './messages'
@@ -33,6 +33,8 @@ export type AuthApi = {
   personalAccessTokens: boolean
   /** Anyone can make their own account, so the sign-in page and sign-in prompts offer "Create an account". */
   canSignUp: boolean
+  /** Open sign-up asks for the person's name, as it does unless the app asks for the address only. */
+  signUpAsksName: boolean
   /** The domains people's passkeys were made for, when more than one, the passkey domain first; otherwise empty. */
   passkeyDomains: string[]
   /** Each sign-in step rejects with `AuthError`, for the form to show. */
@@ -44,7 +46,7 @@ export type AuthApi = {
   /** Checks the emailed sign-up code on its own; resolves with the ticket that makes the account with `signUp`. */
   verifySignUpCode: (email: string, code: string) => Promise<string>
   /** Makes the account for the address whose code was right, with the ticket that answered it, and signs in with it. */
-  signUp: (input: { ticket: string; name: string; password?: string }) => Promise<void>
+  signUp: (input: { ticket: string; name?: string; password?: string }) => Promise<void>
   /** With a passkey of the app's passkey domain, or of `domain`, one of `passkeyDomains`. */
   signInWithPasskey: (domain?: string) => Promise<void>
   /** The second step, while `state` is `two-factor`. */
@@ -53,6 +55,10 @@ export type AuthApi = {
   socialProviders: string[]
   /** The server's sign-in providers with the names to show, the platform's own and the SAML identity providers included. */
   signInProviders: SignInProvider[]
+  /** The platform's sign-in providers among `socialProviders`, with those the account page keeps off marked `hidden`. */
+  platformProviders: PlatformSignIn[]
+  /** Whether the platform links devices, which the account page's devices list (`account.deviceLinks`). */
+  deviceLinks: boolean
   /** Leaves for the sign-in of any of `signInProviders`, which comes back to this page; rejects with `AuthError`. */
   signInSocial: (provider: string) => Promise<void>
   /** Leaves for the provider to link the signed-in account to it, which comes back to this page; rejects with `AuthError`. */
@@ -96,8 +102,8 @@ export type AuthApi = {
 /** What the setup status names of the app: its name and the path of its own icon, when it has them, and `runsOnNote`. */
 export type AuthIdentity = { appName?: string; appIcon?: string; runsOnNote: boolean }
 
-/** A sign-in provider as the app offers it: its id and its name. */
-export type SignInProvider = { id: string; name: string }
+/** A sign-in provider as the app offers it: its id, its name, and `linkOnly` when only a sign-in link starts it, with no button on the sign-in page. */
+export type SignInProvider = { id: string; name: string; linkOnly?: true }
 
 const AuthContext = createContext<AuthApi | null>(null)
 
@@ -106,6 +112,7 @@ const defaultSignInMethods: SignInMethod[] = ['password']
 const none: string[] = []
 const noMail: PersonalMailLink[] = []
 const noSaml: SamlSignIn[] = []
+const noPlatform: PlatformSignIn[] = []
 const noPlugins: PluginRef[] = []
 
 export const useAuth = () => {
@@ -148,12 +155,14 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
   const mcp = status?.mcp
   const personalAccessTokens = Boolean(status?.personalAccessTokens)
   const canSignUp = Boolean(status?.signUp)
+  const signUpAsksName = status?.signUpFields?.includes('name') ?? true
   const passkeyDomains = status?.passkeyDomains ?? none
   const socialProviders = status?.socialProviders ?? none
-  const platformSignIn = status?.platformSignIn
+  const platformProviders = status?.platformProviders ?? noPlatform
   const personalMail = status?.personalMail ?? noMail
   const samlProviders = status?.samlProviders ?? noSaml
   const staffSignIn = status?.staffSignIn
+  const deviceLinks = Boolean(status?.deviceLinks)
   const organizations = status?.organizations
   // Whether visitors may browse without signing in; signing out then goes back to browsing.
   const anonymous = Boolean(status?.anonymous)
@@ -238,7 +247,10 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
       if (status.needsAdmin) return setState({ kind: 'needs-admin', ...(status.firstAdminUrl && { firstAdminUrl: status.firstAdminUrl }) })
       const user = await session.session()
       if (generation.current !== asked) return
-      return user ? enter(user, asked) : setState({ kind: status.anonymous ? 'visitor' : 'signed-out' })
+      if (user) return enter(user, asked)
+      // A provider sent the browser back to take the second step before signing in.
+      const methods = readSecondStep(window.location.href)
+      setState(methods ? { kind: 'two-factor', methods } : { kind: status.anonymous ? 'visitor' : 'signed-out' })
     }).catch((error: unknown) => {
       if (generation.current !== asked) return
       setState((current) => (current.kind === 'signed-in' ? current : { kind: 'error', message: error instanceof Error ? error.message : text('noAnswer') }))
@@ -267,9 +279,12 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
       mcp,
       personalAccessTokens,
       canSignUp,
+      signUpAsksName,
       passkeyDomains,
       socialProviders,
-      signInProviders: [...socialProviders.map((id) => ({ id, name: providerName(id, platformSignIn) })), ...samlProviders],
+      signInProviders: [...socialProviders.map((id) => ({ id, name: providerName(id, platformProviders), ...(platformProviders.some((platform) => platform.provider === id && platform.button === false) && { linkOnly: true as const }) })), ...samlProviders],
+      platformProviders,
+      deviceLinks,
       staffSignIn,
       ...(organizations && { organizations }),
       markSignedOut,
@@ -334,7 +349,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
       },
       push,
     }),
-    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, personalAccessTokens, canSignUp, passkeyDomains, socialProviders, platformSignIn, personalMail, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, identity, signedOutState, markSignedOut, recheck, finish, signIn],
+    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, personalAccessTokens, canSignUp, signUpAsksName, passkeyDomains, socialProviders, platformProviders, deviceLinks, personalMail, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, identity, signedOutState, markSignedOut, recheck, finish, signIn],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

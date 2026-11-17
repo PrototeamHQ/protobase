@@ -131,6 +131,12 @@ export type ProtobaseConfig = AppKeys &
      * refused with `authenticate.organizations` alone.
      */
     userTables?: boolean
+    /**
+     * `'none'` says the app has no resources on purpose, such as an app that only signs people in: `protobase doctor`
+     * then accepts a config with none, and refuses one that exports any. Unset, doctor refuses an app with none, which
+     * has usually lost them by mistake.
+     */
+    resources?: 'none'
   }
 
 /**

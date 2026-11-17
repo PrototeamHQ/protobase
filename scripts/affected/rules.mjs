@@ -42,6 +42,8 @@ export const edges = [
   { from: ['packages/cli/tests/build/build-plugin.integration.test.ts'], loads: ['packages/image-viewer/src/index.ts', 'packages/pdf-viewer/src/index.ts'] },
   // The CLI's tests start the CLI from source in the ERP, or in a project beside it.
   { from: ['packages/cli/tests/support/auth-project.ts'], starts: ['packages/cli/bin/protobase-source.mjs', 'tests/apps/erp/protobase.config.ts'], reads: ['tests/apps/erp/**'] },
+  // The no-resources test builds and serves a copy of the scratch app, with the admin app it bundles.
+  { from: ['packages/cli/tests/doctor/no-resources.integration.test.ts'], loads: cliModuleFiles, reads: ['tests/apps/scratch/**'] },
   // The Supabase move's test imports into a new scratch app and serves it with `protobase dev`, with pg_dump and psql
   // of its own, from a Supabase project it makes from its SQL and the import's fixtures.
   { from: ['tests/supabase-move/client/moved-app.ts'], starts: ['packages/cli/bin/protobase-source.mjs'], loads: cliModuleFiles, reads: ['tests/apps/scratch/**', 'tests/supabase-move/client/project/**', 'tests/supabase-move/client/pg-tools/**'] },
@@ -76,7 +78,9 @@ export const edges = [
   // The UI's tests of its stylesheet and page.
   { from: ['packages/ui/src/tokens.test.ts'], reads: ['packages/ui/src/tokens.css'] },
   { from: ['scripts/plugin-network/find-network.test.ts'], reads: ['scripts/plugin-network/fixtures/**'] },
-  { from: ['packages/ui/src/app/index-html.test.ts', 'packages/ui/src/theme/theme-preference.test.ts'], reads: ['packages/ui/src/app/index.html'] },
+  { from: ['packages/ui/src/app/index-html.test.ts'], reads: ['packages/ui/src/app/index.html', 'packages/ui/src/tokens.css'] },
+  { from: ['packages/ui/src/theme/theme-preference.test.ts'], reads: ['packages/ui/src/app/index.html'] },
+  { from: ['packages/ui/src/app/start-screen-watch.test.ts'], reads: ['packages/ui/src/app/index.html'] },
   // The fake OAuth provider of the connection tests answers from a provider's recorded answers, read by path.
   { from: ['packages/server/src/better-auth/connections/testing/snapshots.ts'], reads: ['packages/server/src/better-auth/connections/testing/snapshots/**'] },
   // The leak scan of the committed Google recordings reads them by path; the Gmail fake's are under test-support/.

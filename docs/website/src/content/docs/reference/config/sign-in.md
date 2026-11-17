@@ -60,10 +60,10 @@ export default defineConfig({ auth: { organizations: { create: 'everyone', invit
 
 ## auth.signUp
 
-- **Type:** `{ role: string }`
+- **Type:** `{ role: string; domains?: string[]; fields?: ('email' | 'name')[] }`
 - **Default:** off
 
-Open sign-up: anyone makes their own account from the sign-in page, with `role`, after proving their address with an emailed code. Needs a mailer. `role` is one of [`roles`](#authroles) and never `admin`. Not with organizations. See [Open sign-up](/reference/auth/#open-sign-up).
+Open sign-up: anyone makes their own account from the sign-in page, with `role`, after proving their address with an emailed code. Needs a mailer. `role` is one of [`roles`](#authroles) and never `admin`. `domains` takes only addresses at those email domains, subdomains included, and `PROTOBASE_SIGN_UP_DOMAINS` replaces it; an empty list leaves sign-up off. `fields` is what it asks for, `['email', 'name']` by default; `['email']` has the emailed sign-in code make the account of a new address. Not with organizations. See [Open sign-up](/reference/auth/#open-sign-up), [Sign-up for email domains](/reference/auth/#sign-up-for-email-domains) and [Sign-up with the address only](/reference/auth/#sign-up-with-the-address-only).
 
 ```ts
 export default defineConfig({ auth: { roles: ['admin', 'customer'], signUp: { role: 'customer' } } })
@@ -164,16 +164,16 @@ export default defineConfig(({ env }) => ({
 }))
 ```
 
-## auth.signInProvider
+## auth.signInProviders
 
-- **Type:** `{ issuer: string; clientId: string; clientSecret: string; provider?: string; name?: string; scopes?: string[] } | false`
-- **Default:** the provider of the environment variables below, when set
-- **Environment variables:** `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and optionally `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME`
+- **Type:** `{ issuer: string; clientId?: string; clientSecret?: string; provider?: string; name?: string; scopes?: string[]; authorizationParams?: Record<string, string>; tokenSignIn?: boolean; hidden?: boolean; button?: boolean; devices?: boolean }[]`
+- **Default:** the providers of the environment variables below, when set
+- **Environment variables:** `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and optionally `PROTOBASE_SIGN_IN_PROVIDER`, `PROTOBASE_SIGN_IN_NAME`, `PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS` (`name=value&other=value`), `PROTOBASE_SIGN_IN_TOKENS`, `PROTOBASE_SIGN_IN_HIDDEN`, `PROTOBASE_SIGN_IN_BUTTON` and `PROTOBASE_SIGN_IN_DEVICES` (`true` or `false`); the same with `_2_`, `_3_` and so on after `PROTOBASE_SIGN_IN` for each further provider
 
-An OpenID Connect provider the platform adds for people who already have an account; it never signs anyone up. `provider` is its id (default `oidc`), `name` its button's name. `false` turns it off whatever the environment says. Left out when `socialProviders` has a provider with the same id. See [Platform sign-in provider](/reference/auth/#platform-sign-in-provider).
+The OpenID Connect providers the platform adds for people who already have an account; they never sign anyone up. Each has its own `provider` id (default `oidc`) and `name` people see; `authorizationParams` go on every authorization request to it, unchangeable by the client; `tokenSignIn: true` lets a client sign in with a fresh ID token it issued for this app ([Token sign-in](/reference/auth/#token-sign-in), default off); `hidden: true` keeps its links off the account page; `button: false` keeps its button off the sign-in page, so only a sign-in link or another app's redirect starts it; `devices: true` makes each device an account of its own ([Devices](/reference/auth/#device-accounts)). `[]` turns them off whatever the environment says. One is left out when `socialProviders` has a provider with its id. Without `clientSecret` one signs in by token sign-in alone, which `tokenSignIn: true` must then turn on, with tokens for the origin of `url` unless `clientId` names another. See [Platform sign-in providers](/reference/auth/#platform-sign-in-providers).
 
 ```ts
-export default defineConfig({ auth: { signInProvider: false } })
+export default defineConfig({ auth: { signInProviders: [] } })
 ```
 
 ## auth.operator
@@ -314,6 +314,17 @@ What the OAuth provider of [`auth.mcp`](#authmcp) serves besides MCP. `api: true
 
 ```ts
 export default defineConfig({ auth: { mcp: true, oauth: { api: true } } })
+```
+
+## auth.openIdProvider
+
+- **Type:** `true | { connectPage?: string; audiences?: string[] }`
+- **Default:** off
+
+Makes the app an OpenID provider for the clients its admins register at `/api/auth/openid-provider/clients`, such as other apps that sign people in with it: they get an ID token with the person's `sub`, `email` and `email_verified`, without asking the person to allow them, and nothing else can register. A client allowed to exchange gets ID tokens for the other clients, and for the origins `audiences` names as patterns such as `https://*.example.app`, without a browser. `connectPage` is the page people sign in on (default `/-/connect`). Not with [`auth.mcp`](#authmcp); the server refuses to start with both. See [OpenID provider for other apps](/reference/auth/#openid-provider-for-other-apps).
+
+```ts
+export default defineConfig({ auth: { openIdProvider: true } })
 ```
 
 ## auth.personalAccessTokens

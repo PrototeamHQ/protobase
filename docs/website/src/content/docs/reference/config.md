@@ -25,7 +25,7 @@ Each key is described with its type and default in the option pages:
 
 | Page | Keys |
 | --- | --- |
-| [App options](/reference/config/app/) | `name`, `url`, `secret`, `previousSecrets`, `locale`, `timezone`, `themeColor`, `backgroundColor`, `mobile` |
+| [App options](/reference/config/app/) | `name`, `url`, `secret`, `previousSecrets`, `locale`, `timezone`, `themeColor`, `backgroundColor`, `mobile`, `resources` |
 | [Sign-in options](/reference/config/sign-in/) | `auth`, `authenticate`, `signingKeyDays`, `signingKeyGraceDays` |
 | [API options](/reference/config/api/) | `apiPath`, `apiKeys`, `cors`, `defaultAccess`, `rowPermissions`, `statementTimeoutMs`, `scanGuard`, `errorReporting`, `writeHooks`, `mcpEndpoint`, `remoteResources`, `runtimeUpdates`, `realtime`, `calls`, `userTables` |
 | [Admin app options](/reference/config/admin-app/) | `assistant`, `maps`, `plugins` |

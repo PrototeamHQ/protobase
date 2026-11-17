@@ -1,6 +1,6 @@
 import { Laptop, ShieldUser, Smartphone, Tablet } from 'lucide-react'
 import { useState } from 'react'
-import { AuthError, type DeviceSession } from '@protobase/client'
+import { AuthError, type DeviceLink, type DeviceSession } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
 import { formatDateTime } from '../format'
 import { Badge } from '../primitives/badge'
@@ -14,10 +14,17 @@ export type DevicesSectionProps = {
   sessions: DeviceSession[]
   /** The operator provider's name, which names a staff session; `undefined` when the app has none. */
   operator?: string
+  /** The devices the platform links, each listed once with the sessions it began. */
+  links?: DeviceLink[]
   /** Each rejects with `AuthError`, which the section shows. */
   onSignOut: (token: string) => Promise<void>
   onSignOutOthers: () => Promise<void>
+  /** Signs a linked device out for good. */
+  onSignOutLink?: (id: string) => Promise<void>
 }
+
+// A linked device is named by its provider and, when its token gave one, its own name.
+const linkName = (link: DeviceLink) => (link.device ? text('deviceThrough', { device: link.device, provider: link.name }) : link.name)
 
 // A staff session is named for the operator alone: the person sees that its staff signed in and when, not who.
 const nameOf = (session: DeviceSession, operator: string | undefined) => {
@@ -39,20 +46,39 @@ const iconOf = (session: DeviceSession) => {
 // This device first, then the newest sign-in.
 const ordered = (sessions: DeviceSession[]) => [...sessions].sort((a, b) => Number(b.current) - Number(a.current) || b.createdAt.localeCompare(a.createdAt))
 
-type Confirming = { kind: 'one'; session: DeviceSession } | { kind: 'others' }
+type Confirming = { kind: 'one'; session: DeviceSession } | { kind: 'link'; link: DeviceLink } | { kind: 'others' }
 
-/** The devices signed in to the person's account, this one marked, each other one of which they can sign out. */
-export const DevicesSection = ({ sessions, operator, onSignOut, onSignOutOthers }: DevicesSectionProps) => {
+const titleOf = (what: Confirming, operator: string | undefined) => {
+  if (what.kind === 'one') return text('signOutDevice', { name: nameOf(what.session, operator) })
+  if (what.kind === 'link') return text('signOutDevice', { name: linkName(what.link) })
+  return text('signOutOthersTitle')
+}
+
+const descriptionOf = (what: Confirming) => text(what.kind === 'one' ? 'signOutDeviceDescription' : what.kind === 'link' ? 'signOutLinkedDeviceDescription' : 'signOutOthersDescription')
+
+/**
+ * The devices signed in to the person's account, this one marked, each other one of which they can sign out; and the
+ * devices the platform links, each of which they can sign out for good, with the sessions it began.
+ */
+export const DevicesSection = ({ sessions: all, operator, links = [], onSignOut, onSignOutOthers, onSignOutLink }: DevicesSectionProps) => {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [confirming, setConfirming] = useState<Confirming>()
-  const others = sessions.filter((session) => !session.current)
+  // A linked device's sessions show as that device.
+  const sessions = all.filter((session) => !links.some((link) => link.sessions.includes(session.token)))
+  const others = all.filter((session) => !session.current)
+
+  const run = (what: Confirming) => {
+    if (what.kind === 'one') return onSignOut(what.session.token)
+    if (what.kind === 'link') return onSignOutLink!(what.link.id)
+    return onSignOutOthers()
+  }
 
   const signOut = async (what: Confirming) => {
     setBusy(true)
     setError(undefined)
     try {
-      await (what.kind === 'one' ? onSignOut(what.session.token) : onSignOutOthers())
+      await run(what)
       setConfirming(undefined)
     } catch (failure) {
       if (!(failure instanceof AuthError)) throw failure
@@ -68,7 +94,7 @@ export const DevicesSection = ({ sessions, operator, onSignOut, onSignOutOthers 
 
   return (
     <AccountSection title={text('devices')} description={text('devicesDescription')}>
-      {sessions.length === 0 ? (
+      {sessions.length === 0 && links.length === 0 ? (
         <p className="text-muted-foreground">{text('noDevices')}</p>
       ) : (
         <ul className="divide-y rounded-md border">
@@ -95,6 +121,26 @@ export const DevicesSection = ({ sessions, operator, onSignOut, onSignOutOthers 
               </li>
             )
           })}
+          {links.map((link) => {
+            const current = all.some((session) => session.current && link.sessions.includes(session.token))
+            return (
+              <li key={link.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+                <Smartphone className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <bdi className="truncate font-medium">{linkName(link)}</bdi>
+                    {current && <Badge tone="green">{text('thisDevice')}</Badge>}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">{text('linkedOn', { date: formatDateTime(Date.parse(link.linkedAt)) })}</span>
+                </span>
+                {!current && onSignOutLink && (
+                  <Button size="sm" variant="ghost" onClick={() => open({ kind: 'link', link })}>
+                    {text('signOut')}
+                  </Button>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
       {others.length > 0 && (
@@ -104,8 +150,8 @@ export const DevicesSection = ({ sessions, operator, onSignOut, onSignOutOthers 
       )}
       {confirming && (
         <Dialog
-          title={confirming.kind === 'one' ? text('signOutDevice', { name: nameOf(confirming.session, operator) }) : text('signOutOthersTitle')}
-          description={confirming.kind === 'one' ? text('signOutDeviceDescription') : text('signOutOthersDescription')}
+          title={titleOf(confirming, operator)}
+          description={descriptionOf(confirming)}
           onClose={() => setConfirming(undefined)}
           actions={
             <>

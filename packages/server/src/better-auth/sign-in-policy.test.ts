@@ -35,9 +35,9 @@ describe('effectiveSignInPolicy', () => {
     expect(effectiveSignInPolicy(strict, { mail: true })).toEqual(strict)
   })
 
-  it('turns sign-in through the platform off while passkeys or two-factor authentication are required', () => {
+  it('turns sign-in through the platform off while passkeys are required, and keeps it while a second step is', () => {
     expect(effectiveSignInPolicy(policy({ passkey: 'required' }), { mail: true })).toEqual(policy({ passkey: 'required', platformSignIn: 'forbidden' }))
-    expect(effectiveSignInPolicy(policy({ twoFactor: 'required' }), { mail: true }).platformSignIn).toBe('forbidden')
+    expect(effectiveSignInPolicy(policy({ twoFactor: 'required' }), { mail: true })).toEqual(policy({ twoFactor: 'required' }))
     expect(effectiveSignInPolicy(policy({ twoFactor: 'forbidden', passkey: 'allowed' }), { mail: true }).platformSignIn).toBe('allowed')
   })
 

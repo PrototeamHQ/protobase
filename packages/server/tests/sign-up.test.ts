@@ -1,81 +1,15 @@
 import { decodeJwt } from 'jose'
-import { Kysely } from 'kysely'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
-import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
+import { describe, expect, it, vi } from 'vitest'
+import { createAuth } from '../src/better-auth/create-auth'
 import { defaultSignInPolicy } from '../src/better-auth/sign-in-policy'
-import { createUser } from '../src/better-auth/users'
-import { createAdmin } from '../src/create-admin'
-import type { MailMessage } from '../src/mail/smtp-mailer'
-import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
+import { origin, password, signUpServer } from './support/sign-up-app'
 
 // Real scrypt hashing runs on this thread, CPU work a busy machine stretches past 5 s.
 vi.setConfig({ testTimeout: 30_000 })
 
-const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
-const password = 'correct horse battery'
 const roles = ['admin', 'member', 'editor']
-
-const authOf = (store: SnapshotDb, options: Partial<CreateAuthOptions> = {}) =>
-  createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret, roles, defaultRole: 'member', mailer: false, ...options })
-
-// An empty store, and one with an admin and a member, made once: hashing their passwords is the slow part.
-let empty: SnapshotDb
-let withUsers: SnapshotDb
-let appDb: Kysely<any>
-beforeAll(async () => {
-  empty = await openSnapshotDb('auth')
-  withUsers = await empty.clone()
-  const auth = authOf(withUsers)
-  await createUser(auth, { email: 'root@example.com', password })
-  await createUser(auth, { email: 'sanne@example.com', password, role: 'member' })
-  appDb = new Kysely<any>({ dialect: empty.dialect })
-  // React Email and the templates load with the first auth email; render one here, so no test pays for that load.
-  await (await import('../src/better-auth/auth-mail/auth-emails')).accountExistsEmail.render({ app: { name: 'Protobase', url: `${origin}/` } })
-}, 60_000)
-
-// Better Auth's rate limits are per client address and kept in memory, so every app gets an address of its own.
-let client = 0
-
-// Every app gets a copy of the store with an admin and a member, or of the empty one, and keeps the mail it sends.
-const serve = async (options: Partial<CreateAuthOptions> = {}, { users = true } = {}) => {
-  const store = await (users ? withUsers : empty).clone()
-  const sent: MailMessage[] = []
-  const auth = authOf(store, { mailer: { send: async (message) => void sent.push(message) }, ...options })
-  const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })
-  const address = `192.0.2.${++client}`
-  const request = (path: string, init: { body?: unknown; cookie?: string } = {}) =>
-    app.request(`${origin}/api/auth${path}`, {
-      method: init.body === undefined ? 'GET' : 'POST',
-      headers: { 'content-type': 'application/json', origin, 'x-forwarded-for': address, ...(init.cookie && { cookie: init.cookie }) },
-      ...(init.body !== undefined && { body: JSON.stringify(init.body) }),
-    })
-  const status = async () => (await request('/status')).json()
-  // Mail goes out after the answer: an answered code request waits for its mail, the first one rendered included.
-  const askCode = async (email: string) => {
-    const before = sent.length
-    const response = await request('/sign-up/send-code', { body: { email } })
-    if (response.ok) await expect.poll(() => sent.length, { timeout: 10_000 }).toBeGreaterThan(before)
-    return response
-  }
-  const codeFor = (to: string) => {
-    const message = sent.findLast((mail) => mail.to === to)
-    const code = message && /^\d{6}$/m.exec(message.text)?.[0]
-    if (!code) throw new Error(`No code mailed to ${to}`)
-    return code
-  }
-  const cookiesOf = (response: Response) => response.headers.getSetCookie().map((line) => line.split(';')[0]!).filter((pair) => !pair.endsWith('=')).join('; ')
-  const tokenOf = async (cookie: string) => (await (await request('/token', { cookie })).json()) as { token?: string; code?: string }
-  const verify = (email: string, code: string) => request('/sign-up/verify-code', { body: { email, code } })
-  // The ticket a right code for `to` is traded for: what makes the account.
-  const ticketFor = async (to: string) => {
-    await askCode(to)
-    const { ticket } = (await (await verify(to, codeFor(to))).json()) as { ticket: string }
-    return ticket
-  }
-  return { auth, store, sent, request, askCode, status, codeFor, cookiesOf, tokenOf, verify, ticketFor }
-}
+const { serve, dialect } = signUpServer()
 
 const signUp = { role: 'member' }
 
@@ -101,10 +35,11 @@ describe('open sign-up, off by default', () => {
   })
 
   it('refuses a sign-up role that is admin or none of the roles, and organizations', () => {
-    const options = { database: { dialect: empty.dialect, type: 'postgres' as const }, baseURL: origin, secret, roles, mailer: false as const }
+    const options = { database: { dialect: dialect(), type: 'postgres' as const }, baseURL: origin, secret, roles, mailer: false as const }
     expect(() => createAuth({ ...options, signUp: { role: 'admin' } })).toThrow('signUp.role cannot be admin')
     expect(() => createAuth({ ...options, signUp: { role: 'owner' } })).toThrow('signUp.role "owner" is not one of the roles')
     expect(() => createAuth({ ...options, signUp, organizations: {} })).toThrow('signUp is not available with organizations')
+    expect(() => createAuth({ ...options, signUp: { role: 'member', fields: ['name'] } })).toThrow("signUp.fields needs 'email'")
   })
 })
 
@@ -112,7 +47,7 @@ describe('open sign-up, turned on', () => {
   // The whole flow, from the mailed code to a second sign-in: longer than one request on a busy runner.
   it('makes a verified account with the sign-up role from the mailed code, signed in, whatever role the request asks for', async () => {
     const { auth, request, status, sent, codeFor, cookiesOf, tokenOf, askCode, verify } = await serve({ signUp, appName: 'Homes' })
-    expect(await status()).toMatchObject({ signUp: true })
+    expect(await status()).toMatchObject({ signUp: true, signUpFields: ['email', 'name'] })
     const asked = await askCode(' New@Example.com ')
     expect(asked.status).toBe(200)
     expect(await asked.json()).toEqual({ sent: true })
@@ -258,5 +193,48 @@ describe('open sign-up, turned on', () => {
     const answers = []
     for (let attempt = 0; attempt < 6; attempt++) answers.push((await verify(`new${attempt}@example.com`, '000000')).status)
     expect(answers).toEqual([400, 400, 400, 400, 400, 429])
+  })
+})
+
+describe('open sign-up, limited to email domains', () => {
+  const limited = { role: 'member', domains: ['Example.com'] }
+
+  // The whole flow, from the mailed code to the account: longer than one request on a busy runner.
+  it('makes the account of an address at a listed domain or a subdomain of one, whatever its case', async () => {
+    const { auth, request, status, askCode, codeFor, verify } = await serve({ signUp: limited })
+    expect(auth.signUpDomains).toEqual(['example.com'])
+    expect(await status()).toMatchObject({ signUp: true })
+    await askCode('nia@Mail.Example.com')
+    const { ticket } = (await (await verify('nia@Mail.Example.com', codeFor('nia@mail.example.com'))).json()) as { ticket: string }
+    expect((await request('/sign-up/create', { body: { ticket, name: 'Nia', password } })).status).toBe(200)
+    expect((await (await auth.$context).internalAdapter.findUserByEmail('nia@mail.example.com'))?.user).toMatchObject({ role: 'member', emailVerified: true })
+  }, 20_000)
+
+  it('refuses an address elsewhere at every step, mails it nothing and makes no account', async () => {
+    const { auth, request, sent, verify } = await serve({ signUp: limited })
+    for (const email of ['new@elsewhere.test', 'new@notexample.com']) {
+      const asked = await request('/sign-up/send-code', { body: { email } })
+      expect(asked.status).toBe(403)
+      expect(await asked.json()).toMatchObject({ code: 'EMAIL_DOMAIN_NOT_ALLOWED' })
+      expect(await (await verify(email, '123456')).json()).toMatchObject({ code: 'EMAIL_DOMAIN_NOT_ALLOWED' })
+      expect(await (await auth.$context).internalAdapter.findUserByEmail(email)).toBeNull()
+    }
+    expect(sent).toEqual([])
+  })
+
+  it('is off with an empty list, from the app or the platform, never open to all', async () => {
+    for (const options of [{ signUp: { role: 'member', domains: [] } }, { signUp }]) {
+      vi.stubEnv('PROTOBASE_SIGN_UP_DOMAINS', options.signUp === signUp ? '' : undefined)
+      try {
+        const { auth, request, status, sent } = await serve(options)
+        expect(auth.signUp).toBe(false)
+        expect(auth.signUpTakes('new@example.com')).toBe(false)
+        expect(await status()).not.toHaveProperty('signUp')
+        expect((await request('/sign-up/send-code', { body: { email: 'new@example.com' } })).status).toBe(404)
+        expect(sent).toEqual([])
+      } finally {
+        vi.unstubAllEnvs()
+      }
+    }
   })
 })

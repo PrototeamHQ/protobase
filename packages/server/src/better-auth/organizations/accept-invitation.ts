@@ -1,7 +1,9 @@
 import { APIError } from 'better-auth/api'
+import { sql } from 'kysely'
 import { parseAppRoles } from './app-roles'
 import { invalidInvitation, invitationIdOf, verifyInvitationToken } from '../invitations/invitation-token'
-import { findMember, membersOf, type AuthContext, type StoredMember } from './store'
+import { storeSqlOf } from '../store/store-sql'
+import type { AuthContext, StoredMember } from './store'
 
 export type StoredInvitation = {
   id: string
@@ -40,27 +42,29 @@ export const invitationOfId = async (context: AuthContext, id: string): Promise<
 
 /**
  * Makes `user` a member as the invitation says, with its organization role and app roles, in one transaction with the
- * invitation's acceptance, so a member never exists without the app roles they were invited with. Better Auth's own
- * accept leaves the app roles out; it is turned off with organizations.
+ * invitation's acceptance, so a member never exists without the app roles they were invited with. The transaction
+ * locks the organization's row first, so accepts of one organization take turns: the membership check and the count
+ * against `membershipLimit` see every member an earlier accept made. Better Auth's own accept leaves the app roles out;
+ * it is turned off with organizations.
  */
 export const acceptInvitation = async (context: AuthContext, invitation: StoredInvitation, user: { id: string; email: string; emailVerified: boolean }, membershipLimit: number) => {
   if (invitation.email.toLowerCase() !== user.email.toLowerCase()) {
     throw new APIError('FORBIDDEN', { code: 'NOT_THE_INVITED_ADDRESS', message: `This invitation is for ${invitation.email}; sign in with that address to accept it.` })
   }
   if (!user.emailVerified) throw new APIError('FORBIDDEN', { code: 'EMAIL_NOT_VERIFIED', message: 'Verify your email address before accepting an invitation.' })
-  if (await findMember(context.adapter, { organizationId: invitation.organizationId, userId: user.id })) {
-    throw new APIError('BAD_REQUEST', { code: 'ALREADY_A_MEMBER', message: 'You are a member of this organization already.' })
-  }
-  if ((await membersOf(context.adapter, invitation.organizationId)).length >= membershipLimit) {
-    throw new APIError('FORBIDDEN', { code: 'MEMBERSHIP_LIMIT_REACHED', message: 'This organization has as many members as it can have.' })
-  }
-  return context.adapter.transaction(async (trx) => {
-    const accepted = await trx.update({ model: 'invitation', where: [{ field: 'id', value: invitation.id }, { field: 'status', value: 'pending' }], update: { status: 'accepted' } })
-    if (!accepted) throw new APIError('BAD_REQUEST', invalidInvitation)
-    const member = await trx.create<Record<string, unknown>, Omit<StoredMember, 'appRoles'>>({
-      model: 'member',
-      data: { organizationId: invitation.organizationId, userId: user.id, role: invitation.role, appRoles: invitation.appRoles, createdAt: new Date() },
-    })
-    return { ...member, appRoles: invitation.appRoles }
+  const store = storeSqlOf(context)
+  const member = store.table('member')
+  return store.db.transaction().execute(async (trx): Promise<StoredMember> => {
+    await sql`select from ${store.table('organization')} where id = ${invitation.organizationId} for update`.execute(trx)
+    const { rows: [counted] } = await sql<{ members: number; joined: boolean }>`select count(*)::int as members, count(*) filter (where user_id = ${user.id}) > 0 as joined
+      from ${member} where organization_id = ${invitation.organizationId}`.execute(trx)
+    if (counted!.joined) throw new APIError('BAD_REQUEST', { code: 'ALREADY_A_MEMBER', message: 'You are a member of this organization already.' })
+    if (counted!.members >= membershipLimit) throw new APIError('FORBIDDEN', { code: 'MEMBERSHIP_LIMIT_REACHED', message: 'This organization has as many members as it can have.' })
+    const accepted = await sql`update ${store.table('invitation')} set status = 'accepted' where id = ${invitation.id} and status = 'pending' returning id`.execute(trx)
+    if (accepted.rows.length === 0) throw new APIError('BAD_REQUEST', invalidInvitation)
+    const { rows: [made] } = await sql<Omit<StoredMember, 'appRoles'>>`insert into ${member} (id, organization_id, user_id, role, app_roles, created_at)
+      values (${store.newId}, ${invitation.organizationId}, ${user.id}, ${invitation.role}, ${JSON.stringify(invitation.appRoles)}::jsonb, ${new Date()})
+      returning id, organization_id as "organizationId", user_id as "userId", role, created_at as "createdAt"`.execute(trx)
+    return { ...made!, appRoles: invitation.appRoles }
   })
 }

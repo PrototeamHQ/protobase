@@ -51,7 +51,7 @@ const authOn = async (pg: SnapshotDb) => {
     secret,
     mailer: false,
     operator: false,
-    signInProvider: false,
+    signInProviders: [],
     socialProviders: { github: { clientId: 'Iv1.client', clientSecret: 'client-secret' } },
     ...supabaseUsers,
   })

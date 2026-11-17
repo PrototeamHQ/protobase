@@ -6,7 +6,7 @@ export const usersApi = (auth: AdminAuth): UsersApi => ({
   hasUsers: () => hasUsers(auth),
   roles: async () => ({ roles: roleChoices(auth), defaultRole: auth.defaultRole, labels: auth.roleDefinitions.labels }),
   createUser: (input) => createUser(auth, input),
-  listUsers: () => listUsers(auth),
+  listUsers: (after) => listUsers(auth, after && { after }),
   deleteUser: (email) => deleteUser(auth, email),
   setUserRole: (input) => setUserRole(auth, input),
   setUserBanned: (input) => setUserBanned(auth, input),

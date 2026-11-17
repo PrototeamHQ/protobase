@@ -83,6 +83,7 @@ import { LiveUpdateProvider } from './live-update/live-update-provider'
 import { updateAfterSignIn } from './live-update/sign-in-update'
 import { nativeSplash } from './native-splash'
 import { createSplashHold, SplashHoldProvider } from './splash-hold'
+import { removeStartScreen } from './start-screen'
 import { LiveUpdateCheck } from './live-update/live-update-check'
 import { LiveUpdateResume } from './live-update/live-update-resume'
 import { useStatusMenu } from '../status/use-status-menu'
@@ -135,7 +136,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   // A visitor browses what the anonymous role reads: no account, roles or organizations, and a "Sign in" link.
   const user = state.kind === 'signed-in' ? state.user : undefined
   const staff = state.kind === 'signed-in' ? state.staff : undefined
-  const { path, params, basePath } = useRouter()
+  const { path, params, basePath, navigate } = useRouter()
   const { address, go, open, back } = useAppAddress()
   const place = placeOf(address)
   const shown = recordOf(address)
@@ -149,10 +150,13 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const start = useMemo(() => startAddress(meta), [meta])
   const page = address?.kind === 'page' ? meta.pages[address.page] : undefined
 
-  // The root opens the first entry of the sidebar
+  // The root opens the first entry of the sidebar; with nothing to open, such as an app with no resources or pages, a
+  // signed-in person's account page
   useEffect(() => {
-    if (path === '/' && start) go(start, { replace: true })
-  }, [path, start, go])
+    if (path !== '/') return
+    if (start) go(start, { replace: true })
+    else if (user) navigate(accountPath, { replace: true })
+  }, [path, start, go, user, navigate])
 
   const resource = address?.kind === 'page' ? undefined : address?.resource
   // A resource drawn from another API waits for that API's `/meta`, and says so when it cannot be read.
@@ -362,9 +366,17 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, local
   const apiOrigin = rest.baseUrl && new URL(rest.baseUrl, window.location.href).origin
   const updater = useMemo(() => appLiveUpdater({ bridge: nativeBridge, apiOrigin, userAgent: navigator.userAgent, fetch: window.fetch.bind(window) }), [nativeBridge, apiOrigin])
   const afterSignIn = useMemo(() => updater && (() => updateAfterSignIn(updater, sessionPageKeeper())), [updater])
-  // The splash covers the app from launch, or from a reload into a release, until it draws past its loading screens:
-  // the auth check, `/meta` and the plugins, so the first thing seen is the page, from the start cache when it has one
-  const splash = useMemo(() => createSplashHold(() => void nativeSplash(nativeBridge)?.hide()), [nativeBridge])
+  // The splash, and index.html's start screen below it, cover the app from launch, or from a reload into a release, until
+  // it draws past its loading screens: the auth check, `/meta` and the plugins, so the first thing seen is the page, from
+  // the start cache when it has one
+  const splash = useMemo(
+    () =>
+      createSplashHold(() => {
+        removeStartScreen(document)
+        void nativeSplash(nativeBridge)?.hide()
+      }),
+    [nativeBridge],
+  )
   useEffect(() => splash.start(), [splash])
   return (
     <SplashHoldProvider value={splash}>

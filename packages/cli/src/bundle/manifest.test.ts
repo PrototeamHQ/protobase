@@ -17,7 +17,7 @@ describe('isApiPath', () => {
   it("sends a bundle's OAuth discovery documents to the API, the resource's own below its prefix too", () => {
     expect(isApiPath(bundleLayout.api, '/.well-known/oauth-authorization-server')).toBe(true)
     expect(isApiPath(bundleLayout.api, '/.well-known/oauth-protected-resource/api/mcp')).toBe(true)
-    expect(isApiPath(bundleLayout.api, '/.well-known/openid-configuration')).toBe(false)
+    expect(isApiPath(bundleLayout.api, '/.well-known/openid-configuration')).toBe(true)
   })
 })
 

@@ -12,6 +12,7 @@ describe('auth messages', () => {
     expect(authMessage(new AuthError('Too many requests', 429))).toBe('Too many attempts. Wait a minute and try again.')
     expect(authMessage(new AuthError('The password you entered has been compromised.', 400, 'PASSWORD_COMPROMISED'))).toBe('This password appears in a known data breach. Choose a different one.')
     expect(authMessage(new AuthError('Signing in with a password is turned off.', 403, 'SIGN_IN_METHOD_FORBIDDEN'))).toBe('Signing in with a password is turned off.')
+    expect(authMessage(new AuthError('You cannot make an account here with this address. Ask an admin to invite you.', 403, 'EMAIL_DOMAIN_NOT_ALLOWED'))).toBe('You cannot make an account here with this address. Ask an admin to invite you.')
   })
 
   it('reads any other 401 of the password form as a wrong email or password', () => {

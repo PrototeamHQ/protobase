@@ -1234,6 +1234,17 @@
           "$ref": "#/definitions/EnvValue"
         }
       ]
+    },
+    "resources": {
+      "description": "`'none'` says the app has no resources on purpose, such as an app that only signs people in: `protobase doctor`\nthen accepts a config with none, and refuses one that exports any. Unset, doctor refuses an app with none, which\nhas usually lost them by mistake.",
+      "anyOf": [
+        {
+          "const": "none"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
     }
   },
   "additionalProperties": false,
@@ -1936,7 +1947,7 @@
           ]
         },
         "signUp": {
-          "description": "Open sign-up: anyone makes their own account from the sign-in page, with `role`, after proving their address with\nan emailed code. Off by default, so accounts come only from the host, an admin, an invitation or a sign-in provider.\nNeeds a mailer: without one it is not offered. `role` is one of `roles` and never `admin`; give it the least\na stranger may hold. Not with `organizations`, whose people come from invitations.",
+          "description": "Open sign-up: anyone makes their own account from the sign-in page, with `role`, after proving their address with\nan emailed code. Off by default, so accounts come only from the host, an admin, an invitation or a sign-in provider.\nNeeds a mailer: without one it is not offered. `role` is one of `roles` and never `admin`; give it the least\na stranger may hold. Not with `organizations`, whose people come from invitations. `domains`, for example\n`['example.com']`, limits it to addresses there (subdomains count); `PROTOBASE_SIGN_UP_DOMAINS`, when set, replaces\nit. An empty list leaves open sign-up off. `fields` is what it asks for: `['email', 'name']` by default, or\n`['email']`, when the emailed sign-in code makes the account of an address without one on the spot.",
           "anyOf": [
             {
               "type": "object",
@@ -1945,6 +1956,49 @@
                   "anyOf": [
                     {
                       "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "domains": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "fields": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "enum": [
+                              "email",
+                              "name"
+                            ]
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      }
                     },
                     {
                       "$ref": "#/definitions/EnvValue"
@@ -2083,7 +2137,7 @@
           ]
         },
         "socialProviders": {
-          "description": "Sign-in providers for Better Auth, for example `{ github: { clientId, clientSecret } }`; the callback is\n`{baseURL}/api/auth/callback/<provider>`. A provider also signs up people without an account, with the default role.\nOne with the id of `signInProvider` takes its place. Default none.",
+          "description": "Sign-in providers for Better Auth, for example `{ github: { clientId, clientSecret } }`; the callback is\n`{baseURL}/api/auth/callback/<provider>`. A provider also signs up people without an account, with the default role.\nOne with the id of a provider of `signInProviders` takes its place. Default none.",
           "anyOf": [
             {
               "type": "object"
@@ -2214,14 +2268,21 @@
             }
           ]
         },
-        "signInProvider": {
-          "description": "A sign-in provider the platform adds for people who already have an account: an OpenID Connect provider that never\nsigns anyone up. Defaults to the one the platform passes in `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`\nand `PROTOBASE_SIGN_IN_CLIENT_SECRET` (see `readPlatformSignIn`), when set; `false` turns it off whatever the\nenvironment says. Left out when `socialProviders` has a provider with the same id.",
+        "signInProviders": {
+          "description": "The sign-in providers the platform adds for people who already have an account: OpenID Connect providers that never\nsign anyone up, each with its own id. Defaults to those the platform passes in `PROTOBASE_SIGN_IN_ISSUER`,\n`PROTOBASE_SIGN_IN_CLIENT_ID` and `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and the numbered sets after them such as\n`PROTOBASE_SIGN_IN_2_ISSUER` (see `readPlatformSignIns`); `[]` turns them off whatever the environment says. One\nis left out when `socialProviders` has a provider with its id. Without `clientSecret`, one signs in by token sign-in\nalone, with tokens for the origin of `baseURL` unless `clientId` names another.",
           "anyOf": [
             {
-              "const": false
-            },
-            {
-              "$ref": "#/definitions/PlatformSignIn"
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/PlatformSignIn"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
             },
             {
               "$ref": "#/definitions/EnvValue"
@@ -2244,6 +2305,20 @@
           "anyOf": [
             {
               "$ref": "#/definitions/OAuthApiOptions"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "openIdProvider": {
+          "description": "Turns the app into an OpenID provider for the clients its admins register (`/api/auth/openid-provider/clients`),\nsuch as other apps that let people sign in with it: a person signs in on the app's own pages and the client gets\nan ID token with their `sub`, `email` and `email_verified`, without being asked to allow it. Nothing registers\nitself, and any other client or redirect URI is refused. A client allowed to exchange gets ID tokens for the other\nclients from its own access token (RFC 8693), without a browser. `true` for the defaults, or the `connectPage`\n(default `/-/connect`). Not with `mcp`. Off by default.",
+          "anyOf": [
+            {
+              "const": true
+            },
+            {
+              "$ref": "#/definitions/OpenIdProviderOptions"
             },
             {
               "$ref": "#/definitions/EnvValue"
@@ -2325,7 +2400,7 @@
             {
               "type": "object",
               "properties": {
-                "name": {
+                "email": {
                   "anyOf": [
                     {
                       "type": "string"
@@ -2335,7 +2410,7 @@
                     }
                   ]
                 },
-                "email": {
+                "name": {
                   "anyOf": [
                     {
                       "type": "string"
@@ -2678,6 +2753,7 @@
           ]
         },
         "clientId": {
+          "description": "This app's client id at the provider, which its ID tokens name as their audience; default the origin of `baseURL` without `clientSecret`.",
           "anyOf": [
             {
               "type": "string"
@@ -2688,6 +2764,7 @@
           ]
         },
         "clientSecret": {
+          "description": "The client secret for sign-in through the provider's pages; without it, only `tokenSignIn`, which must then be on.",
           "anyOf": [
             {
               "type": "string"
@@ -2739,12 +2816,75 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "authorizationParams": {
+          "description": "Parameters every authorization request to the provider carries as given, such as one naming which of its own\nsign-in methods it must use; a client cannot add to them or change them. None of those the flow sets itself\n(`state`, `client_id`, `redirect_uri`, `response_type`, `scope`, `nonce`, `code_challenge`, `code_challenge_method`).",
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "hidden": {
+          "description": "Keeps people's links to the provider off their account page: not listed among the connected accounts, and not\nconnected or disconnected there. The link still signs them in, and goes with the person. Default off.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "button": {
+          "description": "Whether the sign-in page shows \"Continue with {name}\" for it. With `false`, people sign in through its pages only\nwhen something sends them there: a sign-in link (`?sign-in={provider}`) or a redirect another app starts. Only for a\nprovider with pages. Default on.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "tokenSignIn": {
+          "description": "Token sign-in: a client that holds a fresh ID token the provider issued for this app posts it instead of sending\nthe browser through the provider, and gets the app's own session (see `idTokenSignInPlugin`). Default off.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "devices": {
+          "description": "Each device is an account of its own: the provider gives every device a subject of its own, and a person holds\nas many accounts of it as they have devices, each linked by the address on its first sign-in like any other. The\naccount page lists them among the devices, named by `name` and the token's `device_name` claim, not among the\nconnected accounts; signing one out there removes it and ends its sessions, and its subject never signs in again.\nNeeds `tokenSignIn` without a `clientSecret`: a device signs in by token alone. Default off.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
         }
       },
       "required": [
-        "issuer",
-        "clientId",
-        "clientSecret"
+        "issuer"
       ],
       "additionalProperties": false
     },
@@ -2974,6 +3114,44 @@
           "anyOf": [
             {
               "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "OpenIdProviderOptions": {
+      "type": "object",
+      "properties": {
+        "connectPage": {
+          "description": "The connect page's path on the app's origin, where people sign in on the way to a client; default `/-/connect`, for a UI at the root.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "audiences": {
+          "description": "The origins the token exchange issues ID tokens for besides the registered clients, as patterns such as\n`https://*.example.app` (see `AudiencePattern`): the ID token's audience is the origin itself, so the apps there\nneed no registration. No browser is ever sent to them. Default none.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
             },
             {
               "$ref": "#/definitions/EnvValue"

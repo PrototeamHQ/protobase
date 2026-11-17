@@ -7,10 +7,10 @@ import { devHost } from './loopback'
 
 /**
  * The requests the API process answers: everything under /api, the passkey origins at /.well-known/webauthn, the OAuth
- * discovery documents MCP clients read (`oauthWellKnownPaths`), below which a resource's own one is, and the push worker
- * (`withDevServiceWorker`). Vite serves the rest.
+ * discovery documents MCP clients and the OpenID provider's clients read (`oauthWellKnownPaths`), below which a
+ * resource's own one is, and the push worker (`withDevServiceWorker`). Vite serves the rest.
  */
-export const apiRequestPattern = /^(\/api(\/|\?|$)|\/\.well-known\/webauthn(\?|$)|\/\.well-known\/oauth-(authorization-server|protected-resource)(\/|\?|$)|\/protobase\.sw\.js(\?|$))/
+export const apiRequestPattern = /^(\/api(\/|\?|$)|\/\.well-known\/webauthn(\?|$)|\/\.well-known\/(oauth-authorization-server|oauth-protected-resource|openid-configuration)(\/|\?|$)|\/protobase\.sw\.js(\?|$))/
 
 export const isApiRequest = (url: string) => apiRequestPattern.test(url)
 

@@ -7,7 +7,7 @@ const api = (existing: boolean): UsersApi => ({
   roles: async () => ({ roles: ['admin', 'auditor'], defaultRole: 'auditor', labels: { admin: 'Superuser', auditor: 'Auditor', user: 'User' } }),
   hasUsers: async () => existing,
   createUser: vi.fn(async (input) => ({ id: '1', email: input.email, role: input.role ?? 'auditor' })),
-  listUsers: async () => [{ id: '1', email: 'a@example.com', role: 'admin', createdAt: '2026-10-07' }],
+  listUsers: async () => ({ users: [{ id: '1', email: 'a@example.com', role: 'admin', createdAt: '2026-10-07' }] }),
   deleteUser: vi.fn(async () => {}),
   setUserRole: vi.fn(async ({ email, role }) => ({ email, role })),
   setUserBanned: vi.fn(async () => {}),
@@ -119,5 +119,17 @@ describe('listUsersCommand', () => {
     const out: string[] = []
     await listUsersCommand(api(true), (t) => out.push(t))
     expect(out.join('')).toBe('EMAIL          ROLE      CREATED\na@example.com  admin     2026-10-07\n')
+  })
+
+  it('prints every page, from the next of the page before, under one header', async () => {
+    const pages: Record<string, Awaited<ReturnType<UsersApi['listUsers']>>> = {
+      first: { users: [{ id: '1', email: 'a@example.com', role: 'admin', createdAt: '2026-10-07' }], next: { createdAt: '2026-10-07 00:00:00+00', id: '1' } },
+      '1': { users: [{ id: '2', email: 'b@example.com', role: 'user', createdAt: '2026-10-08', banned: true }] },
+    }
+    const listUsers = vi.fn(async (after?: { id: string }) => pages[after?.id ?? 'first']!)
+    const out: string[] = []
+    await listUsersCommand({ ...api(true), listUsers }, (t) => out.push(t))
+    expect(listUsers).toHaveBeenLastCalledWith({ createdAt: '2026-10-07 00:00:00+00', id: '1' })
+    expect(out.join('')).toBe('EMAIL          ROLE      CREATED\na@example.com  admin     2026-10-07\nb@example.com  user      2026-10-08  disabled\n')
   })
 })

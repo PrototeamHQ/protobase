@@ -5,6 +5,7 @@ import { loadDataConfig } from '../project/load-data-config'
 import { builtInModels } from './built-in-models'
 import type { Issue } from './check'
 import { unplannedBlocks } from './page-shapes'
+import { checkResourceCount } from './resource-count'
 
 /** The config doctor checks, from `configDir`, the project's protobase.config.ts, and the resources Protobase adds by them. */
 export const loadDoctorProject = async (configDir: string, projectDir: string) => {
@@ -12,8 +13,8 @@ export const loadDoctorProject = async (configDir: string, projectDir: string) =
     throw new Error(`No config in ${configDir}: write it with \`protobase scaffold\`, or pass --config <dir>`)
   }
   const config = await loadDataConfig(configDir, projectDir)
-  if (config.models.length === 0) throw new Error(`No resources exported from ${configDir}/index.ts`)
   const source = await loadSourceConfig(projectDir, { command: 'tool' })
+  checkResourceCount(config.models.length, source.resources, `${configDir}/index.ts`)
   return { config, source, builtIn: builtInModels(source, config.models) }
 }
 

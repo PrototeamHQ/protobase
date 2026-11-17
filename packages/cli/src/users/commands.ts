@@ -1,12 +1,17 @@
 import { resolvePassword, type PasswordDeps } from './password'
 
 // The host-side user functions of @protobase/server, injected so the commands are testable.
+
+/** Where a page of users ends, as `listUsers` of @protobase/server answers it. */
+export type UsersCursor = { createdAt: string; id: string }
+
 export type UsersApi = {
   hasUsers: () => Promise<boolean>
   /** The roles, and the labels the app shows for them, such as Superuser for admin. */
   roles: () => Promise<{ roles: string[]; defaultRole?: string; labels: Record<string, string> }>
   createUser: (input: { email: string; password?: string; name?: string; role?: string; accounts?: { providerId: string; accountId: string }[] }) => Promise<{ id: string; email: string; role: string }>
-  listUsers: () => Promise<{ id: string; email: string; role: string; createdAt: string; banned?: boolean }[]>
+  /** A page of the users, oldest first, from the `next` of the page before. */
+  listUsers: (after?: UsersCursor) => Promise<{ users: { id: string; email: string; role: string; createdAt: string; banned?: boolean }[]; next?: UsersCursor }>
   deleteUser: (email: string) => Promise<void>
   setUserRole: (input: { email: string; role: string }) => Promise<{ email: string; role: string }>
   setUserBanned: (input: { email: string; banned: boolean }) => Promise<void>
@@ -57,15 +62,20 @@ export const createUserCommand = async (
   if (generated) out(`Password (shown once): ${password}\n`)
 }
 
+/** Prints every user, oldest first, a page at a time as the store pages them; the first page sets the columns' width. */
 export const listUsersCommand = async (api: UsersApi, out: (text: string) => void) => {
-  const users = await api.listUsers()
-  if (users.length === 0) {
+  let page = await api.listUsers()
+  if (page.users.length === 0) {
     out('No users yet. Create the first admin with: protobase users create you@example.com\n')
     return
   }
-  const width = Math.max(...users.map((user) => user.email.length), 5)
+  const width = Math.max(...page.users.map((user) => user.email.length), 5)
   out(`${'EMAIL'.padEnd(width)}  ${'ROLE'.padEnd(8)}  CREATED\n`)
-  for (const user of users) out(`${user.email.padEnd(width)}  ${user.role.padEnd(8)}  ${user.createdAt}${user.banned ? '  disabled' : ''}\n`)
+  for (;;) {
+    for (const user of page.users) out(`${user.email.padEnd(width)}  ${user.role.padEnd(8)}  ${user.createdAt}${user.banned ? '  disabled' : ''}\n`)
+    if (!page.next) return
+    page = await api.listUsers(page.next)
+  }
 }
 
 export const listRolesCommand = async (api: UsersApi, out: (text: string) => void) => {

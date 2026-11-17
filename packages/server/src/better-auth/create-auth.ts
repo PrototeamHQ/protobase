@@ -37,6 +37,8 @@ import { selfDeletionCallbackPath, selfDeletionOptions, selfDeletionPath } from 
 import { userDeletion, type UserDeletion } from './user-deletion'
 import { revokeMcpGrants } from './mcp/revoke-grants'
 import type { mcpAuthPlugins } from './mcp/mcp-auth-plugins'
+import { openIdUnusedPaths, resolveOpenIdProvider, type OpenIdProviderOptions, type ResolvedOpenIdProvider } from './openid-provider/openid-provider-options'
+import type { openIdProviderPlugins } from './openid-provider/openid-provider-plugins'
 import { resolveOAuthApi, type OAuthApiOptions, type OAuthApiResource } from './oauth-api'
 import { mcpScope, mcpUnusedPaths, resolveMcp, type McpAuthOptions, type ResolvedMcp } from './mcp/mcp-plugins'
 import { lastOrganizationField, sessionOrganizationHooks } from './organizations/session-organization'
@@ -59,16 +61,24 @@ import { versionedSecrets } from './secret-versions'
 import { signingKeyRotation, signingKeys } from './signing-keys'
 import type { RoleSession, RoleUser } from './roles/session-role'
 import type { Session } from '../types'
-import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
+import { platformSignInFor, platformSignInProvider, providerPagesOffPlugin, resolvePlatformSignIns, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
+import { readPlatformSignIns } from './platform-sign-in-env'
+import { hiddenAccountsPlugin, oneAccountPerProvider, singleSubjectField } from './platform-accounts'
+import { fixedAuthorizationParamsPlugin } from './platform-authorization-params'
+import { deviceLinksPlugin } from './platform-devices'
 import { appSignInPolicy } from './app-sign-in-policy'
 import { signInPolicyPlugin } from './policy-plugin'
 import { defaultSignInPolicy, type SignInPolicy } from './sign-in-policy'
 import { assertNoEndpointKeyClashes } from './endpoint-key-clashes'
+import { idTokenSignInPlugin } from './id-token-sign-in'
 import type { samlPlugin } from './saml-plugin'
 import { emailInDomains, resolveSamlProviders, samlDisabledPaths, samlGuardPlugin, type ResolvedSamlProvider, type SsoOptions } from './saml-sign-in'
 import { noAccountMailPlugin } from './no-account-mail'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
+import { resolveSignUpDomains, signUpTakes } from './sign-up/sign-up-domains'
 import { signUpPaths, signUpPlugin } from './sign-up/sign-up-plugin'
+import { codeSignsUp, codeSignUpPlugin } from './sign-up/code-sign-up-plugin'
+import { resolveSignUpFields, type SignUpField } from './sign-up/sign-up-fields'
 import { confirmedOnCreate, confirmedOnUpdate, emailConfirmedField } from './email-confirmed'
 import { coreNames, pluginNames } from './snake-case-names'
 import { rehashPasswordsPlugin, verifyAcceptedHash, type PasswordHash } from './password-hashes'
@@ -78,7 +88,7 @@ import { recentConfirmationPlugin } from './recent-confirmation'
 import { confirmationCodePaths, confirmationCodePlugin } from './confirmation-code-plugin'
 import { passwordConfirmationPath, passwordConfirmationPlugin } from './password-confirmation'
 import { tokenClaims } from './token-claims'
-import { twoFactorAfterPasswordOrCode } from './two-factor-challenge'
+import { twoFactorAfterFirstFactor } from './two-factor-challenge'
 import { metadataField, userFieldsNamed, userModel, userTable, withUserColumns, type UserTableOptions } from './user-table'
 import { usersPlugin } from './users/users-plugin'
 
@@ -135,9 +145,12 @@ export type CreateAuthOptions = {
    * Open sign-up: anyone makes their own account from the sign-in page, with `role`, after proving their address with
    * an emailed code. Off by default, so accounts come only from the host, an admin, an invitation or a sign-in provider.
    * Needs a mailer: without one it is not offered. `role` is one of `roles` and never `admin`; give it the least
-   * a stranger may hold. Not with `organizations`, whose people come from invitations.
+   * a stranger may hold. Not with `organizations`, whose people come from invitations. `domains`, for example
+   * `['example.com']`, limits it to addresses there (subdomains count); `PROTOBASE_SIGN_UP_DOMAINS`, when set, replaces
+   * it. An empty list leaves open sign-up off. `fields` is what it asks for: `['email', 'name']` by default, or
+   * `['email']`, when the emailed sign-in code makes the account of an address without one on the spot.
    */
-  signUp?: { role: string }
+  signUp?: { role: string; domains?: string[]; fields?: SignUpField[] }
   /**
    * The sign-in policy that applies until an admin saves one on the Sign-in policy page, and when the saved one no
    * longer reads: the methods it names, for example `{ password: 'forbidden' }` for emailed codes and passkeys only,
@@ -162,7 +175,7 @@ export type CreateAuthOptions = {
   /**
    * Sign-in providers for Better Auth, for example `{ github: { clientId, clientSecret } }`; the callback is
    * `{baseURL}/api/auth/callback/<provider>`. A provider also signs up people without an account, with the default role.
-   * One with the id of `signInProvider` takes its place. Default none.
+   * One with the id of a provider of `signInProviders` takes its place. Default none.
    */
   socialProviders?: BetterAuthOptions['socialProviders']
   /**
@@ -224,12 +237,14 @@ export type CreateAuthOptions = {
    */
   operator?: OperatorProvider | false
   /**
-   * A sign-in provider the platform adds for people who already have an account: an OpenID Connect provider that never
-   * signs anyone up. Defaults to the one the platform passes in `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`
-   * and `PROTOBASE_SIGN_IN_CLIENT_SECRET` (see `readPlatformSignIn`), when set; `false` turns it off whatever the
-   * environment says. Left out when `socialProviders` has a provider with the same id.
+   * The sign-in providers the platform adds for people who already have an account: OpenID Connect providers that never
+   * sign anyone up, each with its own id. Defaults to those the platform passes in `PROTOBASE_SIGN_IN_ISSUER`,
+   * `PROTOBASE_SIGN_IN_CLIENT_ID` and `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and the numbered sets after them such as
+   * `PROTOBASE_SIGN_IN_2_ISSUER` (see `readPlatformSignIns`); `[]` turns them off whatever the environment says. One
+   * is left out when `socialProviders` has a provider with its id. Without `clientSecret`, one signs in by token sign-in
+   * alone, with tokens for the origin of `baseURL` unless `clientId` names another.
    */
-  signInProvider?: PlatformSignIn | false
+  signInProviders?: readonly PlatformSignIn[]
   /**
    * Single sign-on with the app's SAML 2.0 identity providers, for example `{ saml: [{ id: 'okta', name: 'Okta',
    * domains: ['example.com'], idp: { metadata } }] }` (see `SamlProvider`). Like `socialProviders`, a provider signs up
@@ -252,6 +267,15 @@ export type CreateAuthOptions = {
   mcp?: true | McpAuthOptions
   /** What the OAuth provider of `mcp` serves besides MCP: `api` lets clients get tokens for the app's API (see `OAuthApiOptions`). Needs `mcp`. */
   oauth?: OAuthApiOptions
+  /**
+   * Turns the app into an OpenID provider for the clients its admins register (`/api/auth/openid-provider/clients`),
+   * such as other apps that let people sign in with it: a person signs in on the app's own pages and the client gets
+   * an ID token with their `sub`, `email` and `email_verified`, without being asked to allow it. Nothing registers
+   * itself, and any other client or redirect URI is refused. A client allowed to exchange gets ID tokens for the other
+   * clients from its own access token (RFC 8693), without a browser. `true` for the defaults, or the `connectPage`
+   * (default `/-/connect`). Not with `mcp`. Off by default.
+   */
+  openIdProvider?: true | OpenIdProviderOptions
   /**
    * Turns on personal access tokens: a signed-in person makes long-lived tokens on their account page, for a script to
    * call the app's API as them with `Authorization: Bearer <token>`. `prefix` starts every token, lowercase letters,
@@ -289,7 +313,7 @@ export type UserCreatedHook = NonNullable<UserCreateHooks['after']>
 
 const platformOperator = () => readOperatorSettings(globalThis.process?.env ?? {})
 
-const platformSignInSettings = () => readPlatformSignIn(globalThis.process?.env ?? {})
+const platformSignInSettings = () => readPlatformSignIns(globalThis.process?.env ?? {})
 
 const platformOrigins = () => readOrigins(globalThis.process?.env ?? {})
 
@@ -331,8 +355,12 @@ type Resolved = {
   mailer?: Mailer
   /** The role of accounts made by open sign-up, when it is on and there is a mailer. */
   signUpRole?: string
+  /** The email domains open sign-up takes, from `resolveSignUpDomains`; every address without them. */
+  signUpDomains?: string[]
+  /** What open sign-up asks for, from `resolveSignUpFields`. */
+  signUpFields?: SignUpField[]
   operator?: ResolvedOperator
-  platformSignIn?: ResolvedPlatformSignIn
+  platformSignIn?: ResolvedPlatformSignIn[]
   /** The SAML providers, from `resolveSamlProviders`. */
   saml?: ResolvedSamlProvider[]
   organizations?: ResolvedOrganizations
@@ -340,6 +368,8 @@ type Resolved = {
   mcp?: ResolvedMcp
   /** The app's API as an OAuth resource of the MCP provider, resolved (`resolveOAuthApi`), when `oauth.api` is on. */
   api?: OAuthApiResource
+  /** The OpenID provider's options, resolved (`resolveOpenIdProvider`), when it is on. */
+  openId?: ResolvedOpenIdProvider
   /** The personal access tokens' options, checked (`resolvePersonalAccessTokens`), when they are on. */
   personalAccessTokens?: PersonalAccessTokensOptions
   /** The auth context once the instance exists, for the organization hooks and claims and the MCP provider. */
@@ -358,14 +388,15 @@ type Resolved = {
 
 /**
  * The plugins only some apps use, which `loadAuthPlugins` imports when the options turn them on: the SSO plugin of
- * `sso.saml` and the OAuth provider of `mcp`.
+ * `sso.saml`, the OAuth provider of `mcp` and the OpenID provider of `openIdProvider`.
  */
-export type AuthPlugins = { samlPlugin?: typeof samlPlugin; mcpAuthPlugins?: typeof mcpAuthPlugins }
+export type AuthPlugins = { samlPlugin?: typeof samlPlugin; mcpAuthPlugins?: typeof mcpAuthPlugins; openIdProviderPlugins?: typeof openIdProviderPlugins }
 
-/** The optional plugins `options` turns on, imported: an app without SAML or MCP loads neither. */
-export const loadAuthPlugins = async (options: Pick<CreateAuthOptions, 'sso' | 'mcp'>): Promise<AuthPlugins> => ({
+/** The optional plugins `options` turns on, imported: an app without SAML, MCP or the OpenID provider loads none of them. */
+export const loadAuthPlugins = async (options: Pick<CreateAuthOptions, 'sso' | 'mcp' | 'openIdProvider'>): Promise<AuthPlugins> => ({
   ...((options.sso?.saml.length ?? 0) > 0 && { samlPlugin: (await import('./saml-plugin')).samlPlugin }),
   ...(options.mcp && { mcpAuthPlugins: (await import('./mcp/mcp-auth-plugins')).mcpAuthPlugins }),
+  ...(options.openIdProvider && { openIdProviderPlugins: (await import('./openid-provider/openid-provider-plugins')).openIdProviderPlugins }),
 })
 
 const loaded = <T>(plugin: T | undefined, option: string): T => {
@@ -388,14 +419,21 @@ const pageLoadReads = ['/get-session', '/role/current', '/token']
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, mcp, api, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, ...plugins }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn = [], saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, ...plugins }: Resolved) => {
   const mailProviders = resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true)
   const connectionHooks = connections && connections.resolved.length > 0 ? connectionAccountHooks(connections.resolved, connections.events) : undefined
   const ownProviders = (connections?.resolved ?? []).filter(({ declaration }) => 'oauth' in declaration).map(({ providerId }) => providerId)
   const secure = options.baseURL.startsWith('https://')
-  const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
+  const signIns = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
+  const platformIds = signIns.map(({ provider }) => provider)
+  const devices = signIns.filter(({ devices }) => devices)
+  // A device provider's accounts are on the account page's devices, not its connected accounts.
+  const offAccountPage = signIns.filter(({ hidden, devices }) => hidden || devices).map(({ provider }) => provider)
+  const singleSubject = signIns.filter(({ devices }) => !devices).map(({ provider }) => provider)
   const hosts = passkeyHosts([options.baseURL, ...origins])
   const mail = mailer && { mailer, appName, baseURL: options.baseURL }
+  // The role of accounts the emailed sign-in code makes on the spot, when open sign-up asks for the address only.
+  const codeSignUp = signUpFields.includes('name') ? undefined : signUpRole
   const samlIds = saml.map((provider) => provider.id)
   const users = userTable(options.users)
   const passwordHashes = options.passwordHashes ?? []
@@ -404,7 +442,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     defaultPolicy: signInPolicy,
     socialProviders: [...Object.keys(options.socialProviders ?? {}), ...samlIds],
     ...(operator && { operator: operator.name }),
-    ...(signIn && { platformSignIn: { provider: signIn.provider, name: signIn.name } }),
+    platformSignIn: signIns.map(({ provider, name }) => ({ provider, name })),
   }
   const jwtOptions = {
     schema: pluginNames.jwt,
@@ -431,7 +469,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
   const trusted = [options.baseURL, ...origins, ...(options.trustedOrigins ?? [])]
   const userFields = { ...userFieldsNamed(emailConfirmedField, users), ...(organizations && userFieldsNamed(lastOrganizationField, users)), ...metadataField(users) }
   const accountDeletion = options.accountDeletion !== false
-  const deleteUser = accountDeletion ? { deleteUser: selfDeletionOptions({ lockedAccounts, mcp: Boolean(mcp), adapter: async () => (await context()).adapter, ...(deletion && { deletion }) }) } : {}
+  const deleteUser = accountDeletion ? { deleteUser: selfDeletionOptions({ lockedAccounts, mcp: Boolean(mcp), context, ...(deletion && { deletion }) }) } : {}
   return {
     appName,
     database: options.database,
@@ -465,10 +503,12 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     verification: coreNames.verification,
     account: {
       ...coreNames.account,
+      ...(singleSubject.length > 0 && { additionalFields: singleSubjectField }),
       // Someone signed in links a provider account with another address on purpose, from their account page.
       // A connection's own provider links only, from someone signed in, as sign-in through it is refused, so its
-      // account's address need not be one it vouches for.
-      accountLinking: { allowDifferentEmails: true, ...(ownProviders.length > 0 && { trustedProviders: ownProviders }) },
+      // account's address need not be one it vouches for. A first sign-in links by the address only when the provider
+      // says it verified it and the account's own address is verified too.
+      accountLinking: { allowDifferentEmails: true, requireLocalEmailVerified: true, ...(ownProviders.length > 0 && { trustedProviders: ownProviders }) },
       ...(options.encryptOAuthTokens && { encryptOAuthTokens: true }),
     },
     plugins: [
@@ -479,14 +519,18 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       jwt(jwtOptions),
       keys.plugin,
       // Without a password, as for someone who signs in with a provider only, two-factor authentication is turned on without one.
-      twoFactorAfterPasswordOrCode({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mail && { otpOptions: twoFactorCodeOptions(mail) }) }),
+      twoFactorAfterFirstFactor({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mail && { otpOptions: twoFactorCodeOptions(mail) }) }),
       passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]!, origins: appOrigins(options.baseURL, origins) }),
       strongSignInsPlugin(),
       recentConfirmationPlugin(),
       passwordConfirmationPlugin(),
-      ...(mail ? [emailOTP(emailCodeOptions(mail)), noAccountMailPlugin(mail), confirmationCodePlugin(mail)] : []),
-      ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, mail, defaultPolicy: signInPolicy })] : []),
-      ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
+      ...(mail ? [emailOTP(emailCodeOptions(mail)), noAccountMailPlugin(mail, codeSignUp ? (context, email) => codeSignsUp(context, email, signUpDomains) : undefined), confirmationCodePlugin(mail)] : []),
+      ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, ...(signUpDomains && { domains: signUpDomains }), fields: signUpFields, mail, defaultPolicy: signInPolicy })] : []),
+      ...(signIns.length > 0 ? [genericOAuth({ config: signIns.map(platformSignInProvider) })] : []),
+      ...(signIns.some(({ pages }) => !pages) ? [providerPagesOffPlugin(signIns.filter(({ pages }) => !pages).map(({ provider }) => provider))] : []),
+      ...(signIns.length > 0 ? [fixedAuthorizationParamsPlugin(platformIds)] : []),
+      ...(offAccountPage.length > 0 ? [hiddenAccountsPlugin(offAccountPage)] : []),
+      ...(devices.length > 0 ? [deviceLinksPlugin(devices.map(({ provider, name }) => ({ provider, name })))] : []),
       ...(connections && connections.resolved.length > 0
         ? [connectionProvidersPlugin(connections.resolved, { allowPrivateAddresses: connections.allowPrivateAddresses }), connectionsPlugin({ connections: connections.resolved, events: connections.events, allowPrivateAddresses: connections.allowPrivateAddresses })]
         : []),
@@ -494,6 +538,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       refreshRefusalsPlugin(),
       ...(saml.length > 0 ? [loaded(plugins.samlPlugin, 'sso.saml')(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
       signInPolicyPlugin(policy),
+      // After the policy's plugin, so an emailed code it refuses makes no account.
+      ...(mail && codeSignUp ? [codeSignUpPlugin({ role: codeSignUp, ...(signUpDomains && { domains: signUpDomains }), mail })] : []),
+      idTokenSignInPlugin({ tokenSignIn: signIns.filter(({ tokenSignIn }) => tokenSignIn).map(({ provider, clientId, devices }) => ({ provider, clientId, devices })) }),
       passwordChecksPlugin(),
       setPasswordPlugin(),
       passwordChangePlugin(mail),
@@ -520,8 +567,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(mailProviders.length > 0 ? [mailSendersPlugin(mailProviders)] : []),
       // Last, so the staff plugin refuses staff sessions on the provider's paths before its own hooks run.
       ...(mcp ? loaded(plugins.mcpAuthPlugins, 'mcp')({ mcp, ...(api && { api }), organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context }) : []),
+      ...(openId ? loaded(plugins.openIdProviderPlugins, 'openIdProvider')({ openId, mail: Boolean(mailer), defaultPolicy: signInPolicy }) : []),
     ].map((plugin) => withUserColumns(plugin, users)),
-    disabledPaths: [selfDeletionCallbackPath, ...(accountDeletion ? [] : [selfDeletionPath]), ...unusedEmailCodePaths, ...adminImpersonationPaths, ...providerTokenPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : []), ...(mcp ? mcpUnusedPaths : [])],
+    disabledPaths: [selfDeletionCallbackPath, ...(accountDeletion ? [] : [selfDeletionPath]), ...unusedEmailCodePaths, ...adminImpersonationPaths, ...providerTokenPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : []), ...(mcp ? mcpUnusedPaths : []), ...(openId ? openIdUnusedPaths : [])],
     databaseHooks: {
       user: {
         create: {
@@ -545,8 +593,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         update: { before: async (user) => ({ data: confirmedOnUpdate(user, new Date()) }) },
       },
       session: refusingConnectionSessions(withEndedReplaced(organizations ? sessionOrganizationHooks(context) : {}) as SessionHooks, connectionHooks?.session.create?.before),
-      // Linking a mailbox makes that account the one mail goes through; linking a connection's account resumes its triggers.
-      account: ((mail) => (connectionHooks ? bothAccountHooks(mail, connectionHooks.account) : mail))(mailLinkHooks(mailProviders)),
+      // Linking a mailbox makes that account the one mail goes through; linking a connection's account resumes its
+      // triggers; a person holds one account of each platform provider, but for one of devices.
+      account: ((mail) => (connectionHooks ? bothAccountHooks(mail, connectionHooks.account) : mail))(bothAccountHooks(oneAccountPerProvider(singleSubject), mailLinkHooks(mailProviders))),
     },
     rateLimit: {
       enabled: true,
@@ -556,6 +605,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         // Every page load reads the session, the role it acts with and its token: limiting them would refuse browsing.
         ...Object.fromEntries(pageLoadReads.map((path) => [path, false as const])),
         '/sign-in/email': { window: 60, max: options.signInPerMinute ?? 5 },
+        // Starting a provider's sign-in, and signing in with a token the platform's provider issued.
+        '/sign-in/social': { window: 60, max: options.signInPerMinute ?? 5 },
         '/staff/sign-in': { window: 60, max: 5 },
         [setPasswordPath]: { window: 60, max: 5 },
         '/invitation/sign-up': { window: 60, max: options.signInPerMinute ?? 5 },
@@ -602,7 +653,11 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   if (options.defaultRole !== undefined && !roles.includes(options.defaultRole)) {
     throw new Error(`defaultRole "${options.defaultRole}" is not one of the roles: ${roles.join(', ')}`)
   }
-  const signUpRole = options.signUp && checkSignUpRole(options.signUp.role, roles)
+  const signUpDomains = options.signUp && resolveSignUpDomains(options.signUp.domains, globalThis.process?.env ?? {})
+  // An empty list of domains takes nobody: open sign-up is off, as without `signUp`.
+  const checkedSignUpRole = options.signUp && checkSignUpRole(options.signUp.role, roles)
+  const signUpRole = signUpDomains?.length === 0 ? undefined : checkedSignUpRole
+  const signUpFields = resolveSignUpFields(options.signUp?.fields)
   const signInPolicy = appSignInPolicy(options.signInPolicy)
   const others = roles.filter((role) => role !== 'admin')
   // With organizations, roles mostly come with memberships: a new account holds no global role unless given one.
@@ -612,10 +667,10 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const mailer = options.mailer === undefined ? platformMailer(undefined, appName) : options.mailer || undefined
   const provider = options.operator === undefined ? platformOperator() : options.operator || undefined
   const operator = provider && resolveOperator(provider)
-  const signInSettings = options.signInProvider === undefined ? platformSignInSettings() : options.signInProvider || undefined
+  const signInSettings = options.signInProviders ?? platformSignInSettings()
   const socialProviders = Object.keys(options.socialProviders ?? {})
-  const platformSignIn = platformSignInFor(signInSettings && resolvePlatformSignIn(signInSettings), socialProviders)
-  const saml = resolveSamlProviders(options.sso?.saml ?? [], [...socialProviders, ...(platformSignIn ? [platformSignIn.provider] : [])])
+  const platformSignIn = platformSignInFor(resolvePlatformSignIns(signInSettings, options.baseURL), socialProviders)
+  const saml = resolveSamlProviders(options.sso?.saml ?? [], [...socialProviders, ...platformSignIn.map(({ provider }) => provider)])
   const personalMail = resolvePersonalMail(options.personalMail ?? [], socialProviders, options.encryptOAuthTokens === true)
   if (Object.keys(options.connections ?? {}).length > 0 && options.encryptOAuthTokens !== true) throw new Error("auth.connections: the connected accounts' tokens would be stored in plain text; turn on auth.encryptOAuthTokens")
   const allowPrivateAddresses = options.workflowConnections?.allowPrivateAddresses === true
@@ -629,6 +684,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const organizations = options.organizations && resolveOrganizations(options.organizations, definitions)
   const mcp = options.mcp && resolveMcp(options.baseURL, options.mcp)
   const api = resolveOAuthApi(options.baseURL, options.oauth, mcp || undefined)
+  const openId = options.openIdProvider && resolveOpenIdProvider(options.openIdProvider, mcp || undefined)
   const personalAccessTokens = options.personalAccessTokens === undefined ? undefined : resolvePersonalAccessTokens(options.personalAccessTokens)
   // The organization hooks and the MCP provider read the store through the instance made below; they run only once it exists.
   let instance: { $context: Promise<AuthContext> } | undefined
@@ -638,7 +694,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   // Deleting a user revokes their connected accounts and parks the triggers on them, as disconnecting each would.
   if (resolvedConnections.length > 0) deletion.set('connections', releaseUserConnections({ connections: resolvedConnections, events, allowPrivateAddresses, context }))
   const lockedAccounts = platformLockedAccounts()
-  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
+  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
@@ -682,6 +738,12 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     signUp: Boolean(signUpRole && mailer),
     /** The role of accounts made by open sign-up, while it is offered. */
     signUpRole: mailer ? signUpRole : undefined,
+    /** The email domains open sign-up takes (`signUp.domains` or `PROTOBASE_SIGN_UP_DOMAINS`); every address without them. */
+    signUpDomains,
+    /** What open sign-up asks for (`signUp.fields`): without `name`, the emailed sign-in code makes the account. */
+    signUpFields,
+    /** Whether open sign-up is offered and takes the address. */
+    signUpTakes: (email: string) => Boolean(signUpRole && mailer) && signUpTakes(email, signUpDomains),
     /** The app keeps each user's metadata, in the column `users.metadata` names. */
     userMetadata: Boolean(options.users?.metadata),
     /** The user table's name and columns, as `users` names them, for the store's migrations. */
@@ -690,7 +752,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     /** The app's name it signs in and mails as: `PROTOBASE_APP_NAME`, else `appName`, else `Protobase`. */
     appName: appName ?? defaultAppName,
     operator: operator?.name,
-    platformSignIn: platformSignIn && { provider: platformSignIn.provider, name: platformSignIn.name },
+    /** The platform's sign-in providers: each one's id, name, whether people sign in through its pages, whether it is off the account page, whether the sign-in page shows its button, and whether its accounts are devices. */
+    platformSignIn: platformSignIn.map(({ provider, name, pages, hidden, button, devices }) => ({ provider, name, pages, hidden, button, devices })),
     /** The id and name of each SAML provider, for the sign-in page. */
     samlProviders: saml.map(({ id, name }) => ({ id, name })),
     /** The mail providers people link their own mailbox with (`personalMail`). */
@@ -716,6 +779,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     mcp: mcp && { resource: mcp.resource, path: mcp.path, scope: mcpScope },
     /** The OAuth resource of the app's API, when clients may get tokens for it (`oauth.api`): the audience the API takes them with. */
     oauthApi: api,
+    /** The app is an OpenID provider for the clients its admins register (`openIdProvider`). */
+    openIdProvider: Boolean(openId),
     /** Personal access tokens, when on: the prefix every token starts with. */
     personalAccessTokens,
   })

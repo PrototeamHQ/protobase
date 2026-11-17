@@ -51,17 +51,20 @@ describe('policyRefusal', () => {
     expect(policyRefusal(policy({ twoFactor: 'required' }), { path: '/two-factor/enable' })).toBeUndefined()
   })
 
-  it("refuses starting, finishing and linking the platform's provider while sign-in through the platform is off, and no other provider", () => {
+  it("refuses starting, finishing and linking each of the platform's providers while sign-in through the platform is off, and no other provider", () => {
     const off = policy({ platformSignIn: 'forbidden' })
-    const platformProvider = 'github'
+    const platformProviders = ['github', 'central']
     const forbidden = { code: 'SIGN_IN_METHOD_FORBIDDEN', message: 'Signing in through the platform is turned off for this app.' }
-    expect(policyRefusal(off, { path: '/sign-in/social', body: { provider: 'github' }, platformProvider })).toEqual(forbidden)
-    expect(policyRefusal(off, { path: '/link-social', body: { provider: 'github' }, platformProvider })).toEqual(forbidden)
-    expect(policyRefusal(off, { path: '/callback/:id', params: { id: 'github' }, platformProvider })).toEqual(forbidden)
-    expect(policyRefusal(off, { path: '/sign-in/social', body: { provider: 'google' }, platformProvider })).toBeUndefined()
-    expect(policyRefusal(off, { path: '/callback/:id', params: { id: 'google' }, platformProvider })).toBeUndefined()
+    for (const provider of platformProviders) {
+      expect(policyRefusal(off, { path: '/sign-in/social', body: { provider }, platformProviders })).toEqual(forbidden)
+      expect(policyRefusal(off, { path: '/link-social', body: { provider }, platformProviders })).toEqual(forbidden)
+      expect(policyRefusal(off, { path: '/callback/:id', params: { id: provider }, platformProviders })).toEqual(forbidden)
+    }
+    expect(policyRefusal(off, { path: '/sign-in/social', body: { provider: 'google' }, platformProviders })).toBeUndefined()
+    expect(policyRefusal(off, { path: '/callback/:id', params: { id: 'google' }, platformProviders })).toBeUndefined()
     expect(policyRefusal(off, { path: '/sign-in/social', body: { provider: 'github' } })).toBeUndefined()
-    expect(policyRefusal(defaultSignInPolicy, { path: '/sign-in/social', body: { provider: 'github' }, platformProvider })).toBeUndefined()
+    expect(policyRefusal(off, { path: '/sign-in/social', body: {}, platformProviders })).toBeUndefined()
+    expect(policyRefusal(defaultSignInPolicy, { path: '/sign-in/social', body: { provider: 'github' }, platformProviders })).toBeUndefined()
   })
 })
 

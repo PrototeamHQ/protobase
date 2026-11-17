@@ -217,19 +217,21 @@ export const SignInPolicy: StoryObj<SignInPolicyFormProps> = {
   },
 }
 
-/** When the platform adds a sign-in provider, admins can turn it off; it is off anyway while a second step is required. */
+/** When the platform adds sign-in providers, admins can turn them all off; they are off anyway while passkeys are required. */
 export const SignInPolicyWithPlatformSignIn: StoryObj<SignInPolicyFormProps> = {
   tags: ['play'],
-  args: { state: { ...policyState, platformSignIn: 'GitHub' }, onSave: fn() },
+  args: { state: { ...policyState, platformProviders: ['GitHub', 'Central'] }, onSave: fn() },
   render: (args) => <SignInPolicyForm {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
-    const row = canvas.getByRole('radiogroup', { name: 'Sign in with GitHub through the platform' })
+    const row = canvas.getByRole('radiogroup', { name: 'Sign in with GitHub and Central through the platform' })
     await userEvent.click(within(canvas.getByRole('radiogroup', { name: 'Two-factor authentication' })).getByRole('radio', { name: 'Required' }))
-    expect(canvas.getByText(/Off while passkeys or two-factor authentication are required/)).toBeVisible()
+    expect(canvas.queryByText(/Off while passkeys are required/)).toBeNull()
+    await userEvent.click(within(canvas.getByRole('radiogroup', { name: 'Passkeys' })).getByRole('radio', { name: 'Required' }))
+    expect(canvas.getByText(/Off while passkeys are required/)).toBeVisible()
     await userEvent.click(within(row).getByRole('radio', { name: 'Off' }))
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
-    expect(args.onSave).toHaveBeenCalledWith({ ...policyState.policy, twoFactor: 'required', platformSignIn: 'forbidden' })
+    expect(args.onSave).toHaveBeenCalledWith({ ...policyState.policy, twoFactor: 'required', passkey: 'required', platformSignIn: 'forbidden' })
   },
 }
 
