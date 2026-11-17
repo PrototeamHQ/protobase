@@ -27,15 +27,15 @@ let duringRun: { key: string; run: () => Promise<void> } | undefined
 // How many times each record's function ran.
 const runs = new Map<string, number>()
 
-// "late" once an open task is older than two hours, "open" while any is open, else "done".
+// "late" once an open task is older than two hours, "open" while any is open, else "done": the oldest open task decides.
 const verdict: DerivedCompute = async (key, { db, clock }) => {
   runs.set(key, (runs.get(key) ?? 0) + 1)
-  const open = await db.selectFrom('tasks').select(['created_at']).where('objective_id', '=', Number(key)).where('status', '=', 'open').execute()
+  const oldest = await db.selectFrom('tasks').select(['created_at']).where('objective_id', '=', Number(key)).where('status', '=', 'open').orderBy('created_at').limit(1).executeTakeFirst()
   const interfere = duringRun?.key === key ? duringRun : undefined
   if (interfere) duringRun = undefined
   await interfere?.run()
-  if (open.length === 0) return 'done'
-  return open.some((task) => clock.olderThan(task.created_at, '2 hours')) ? 'late' : 'open'
+  if (!oldest) return 'done'
+  return clock.olderThan(oldest.created_at, '2 hours') ? 'late' : 'open'
 }
 
 describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postgres', () => {
