@@ -3171,8 +3171,106 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "clients": {
+          "description": "The app's own public clients, such as its phone app (`DeclaredClient`): served under the ids written here from the\nfirst request on, with no admin registering them, and refused once they are gone from the config. Default none.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/DeclaredClient"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
         }
       },
+      "additionalProperties": false
+    },
+    "DeclaredClient": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "description": "The client's id, as the client sends it.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "name": {
+          "description": "Shown to nobody but the developer: no consent page asks for the client.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "redirectUris": {
+          "description": "Every address the client may be sent back to, matched exactly.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "type": {
+          "description": "Only `public`: a declared client has no secret.",
+          "anyOf": [
+            {
+              "const": "public"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "exchange": {
+          "description": "May exchange its access token for an ID token of another client or an origin of `audiences`. Default false.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "clientId",
+        "name",
+        "redirectUris",
+        "type"
+      ],
       "additionalProperties": false
     },
     "PersonalAccessTokensOptions": {

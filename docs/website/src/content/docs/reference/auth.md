@@ -896,7 +896,7 @@ auth: { mcp: true, oauth: { api: true } }
 
 ## OpenID provider for other apps
 
-With `openIdProvider`, the app is an OpenID provider for the clients its admins register, such as other apps that let people sign in with it: a person signs in on the app's own pages, as they always do, and the client gets an ID token that says who they are. Nobody is asked to allow a client, since only an admin registers one. A phone app the admin registers can also get ID tokens for every app at the origins `audiences` names, with no registration per app, through the [token exchange](#token-exchange).
+With `openIdProvider`, the app is an OpenID provider for the clients its admins register and those its config declares, such as other apps that let people sign in with it: a person signs in on the app's own pages, as they always do, and the client gets an ID token that says who they are. Nobody is asked to allow a client, since only an admin or the app's developer adds one. A phone app the admin registers can also get ID tokens for every app at the origins `audiences` names, with no registration per app, through the [token exchange](#token-exchange).
 
 ```ts
 auth: { openIdProvider: true }
@@ -905,7 +905,7 @@ auth: { openIdProvider: { connectPage: '/-/connect', audiences: ['https://*.exam
 
 - **Audiences** are https origins, exact (`https://shop.example.com`) or with one leading wildcard label (`https://*.example.app`, which stands for `shop.example.app` but not `example.app` or `a.b.example.app`). A wildcard needs two labels after it, and a pattern takes no port, path, query or user info; anything else stops the app at start. An app at such an origin gets ID tokens only from the token exchange: no browser is ever sent there, so an authorize whose client id or redirect URI is on such a host is refused (`400 invalid_request`), and so is registering a client with a redirect URI there (`400 REDIRECT_ON_AUDIENCE_HOST`).
 
-- **Only registered clients.** Nothing registers itself: `/api/auth/oauth2/register` is closed, and so are the provider's own client management, consent, userinfo, introspection and logout endpoints. A client the admin did not register through the API below is refused with `400 invalid_client` at authorize and at the token endpoint, before anything else, and so is a client in the store from elsewhere, such as one an MCP client registered while the app had `mcp` on. A redirect URI must be one the client registered, character for character, so the person's browser is never sent with a code, or an error, to an address of someone else's.
+- **Only registered clients.** Nothing registers itself: `/api/auth/oauth2/register` is closed, and so are the provider's own client management, consent, userinfo, introspection and logout endpoints. A client the admin did not register through the API below, and the config does not [declare](#declared-clients), is refused with `400 invalid_client` at authorize and at the token endpoint, before anything else, and so is a client in the store from elsewhere, such as one an MCP client registered while the app had `mcp` on. A redirect URI must be one the client registered, character for character, so the person's browser is never sent with a code, or an error, to an address of someone else's.
 - **Not with `mcp`.** MCP clients register themselves, and the provider of this mode is separate from MCP's, so the server refuses to start with both. Serve them from separate apps.
 - **Discovery** is at `/.well-known/openid-configuration`, with the app's `url` as issuer, and the keys at `/api/auth/jwks`. A client uses the authorization code flow with PKCE, with `openid email profile`, and a `nonce`.
 - **The ID token** is signed with the app's [signing keys](#signing-keys) (EdDSA) and lives 5 minutes. It carries `iss` (the app's `url`), `aud` (the client's id, alone), `sub` (the person's user id in this app, or the [grant's subject](#grant-subjects)), `email`, `email_verified`, and `name` when the person has one. It has no `jti`. Another Protobase app takes it as its [platform sign-in provider](#platform-sign-in-providers), through its pages or by [token sign-in](#token-sign-in).
@@ -914,6 +914,20 @@ auth: { openIdProvider: { connectPage: '/-/connect', audiences: ['https://*.exam
 ### Grant subjects
 
 With `subject: 'grant'`, an ID token's `sub` names the client's grant, never the person's id: the client's tokens from one sign-in at the app. A fresh sign-in is a new grant with a new subject, and the grant's refresh tokens and token exchanges keep it. So each sign-in of a phone app is a device of its own to the apps that take its tokens, such as an app whose platform provider signs in [device accounts](#device-accounts), and signing one device out there leaves the others. The subject is a hash of the grant, so it says nothing of the person and stays when the app's [secret changes](#changing-the-secret); `email` and `email_verified` still say who they are. The default, `subject: 'user'`, keeps the person's user id.
+
+### Declared clients
+
+The app's own clients, such as its phone app, can be declared in the config instead, with the fields the admin API takes and the client id the client ships with, so every deploy has them with no admin account and no manual step:
+
+```ts
+auth: { openIdProvider: { clients: [{ clientId: 'example-phone', name: 'Phone', redirectUris: ['com.example.phone:/signed-in'], type: 'public', exchange: true }] } }
+```
+
+- A declared client works as a registered `public` one does: discovery, the authorization code flow with PKCE, ID tokens, and, with `exchange: true`, refresh tokens and the [token exchange](#token-exchange), to and from registered clients alike. The admin API neither lists nor deletes it.
+- Its record is written on its first request and rewritten when the config changes it.
+- Removed from the config, it is refused with `400 invalid_client` from the next deploy on, its refresh tokens included. Declaring the same id again brings back its tokens that have not expired.
+- The app refuses to start with an id declared twice, a field missing, or a redirect URI the provider cannot send a browser to: one with a fragment, plain `http` other than to a loopback address, or one on a host of `audiences`. An id an admin also registered a client under is refused with `400 invalid_client` rather than served as either: delete the registered one.
+- <gap>A declared client cannot be `confidential` because a store for declared clients' secrets is not implemented.</gap>
 
 ### Registering clients
 
@@ -952,7 +966,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ```
 
 - **The subject is the caller's own person.** `subject_token` must be a live access token this app issued to the calling client itself: not an ID token, a refresh token or another client's token, not expired, revoked or from a session that ended. Otherwise it answers `400 invalid_grant`. A client without `exchange` gets `400 unauthorized_client`.
-- **The audience is another registered client, or an origin of `audiences`**: not the caller, not an unknown client and not one the admin did not register (`400 invalid_target`). An origin is matched as the URL parser writes it, label by label, so `http://`, a port, a path or trailing slash, user info, upper case, an extra label (`a.b.example.app`) and look-alikes (`example.app.evil.com`, `evilexample.app`) are refused.
+- **The audience is another registered or [declared](#declared-clients) client, or an origin of `audiences`**: not the caller, not an unknown client and not one the admin did not register or the config does not declare (`400 invalid_target`). An origin is matched as the URL parser writes it, label by label, so `http://`, a port, a path or trailing slash, user info, upper case, an extra label (`a.b.example.app`) and look-alikes (`example.app.evil.com`, `evilexample.app`) are refused.
 - **An ID token only.** The answer is an ID token for that client or origin alone, living 5 minutes, with the claims of the client's own sign-in; one for an origin has that origin as `aud`, and a `jti`. No access or refresh token for the other client leaves the app. `requested_token_type` and `subject_token_type` take only the values above (`400 invalid_request`).
 - **The device name:** `device_name=<name>` names the device the caller runs on, such as `Ana's phone`; the ID token carries it as the `device_name` claim, trimmed and cut to 64 characters, which another app shows for a [device account](#device-accounts). Without it, or blank, the claim is left out.
 - **A banned person, or one whose address is not verified,** gets none (`400 invalid_grant`). A ban after the token was issued is caught by the other app, which checks its own account at sign-in.

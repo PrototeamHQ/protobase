@@ -131,6 +131,7 @@ const snapshotIsolated = [
   'packages/server/tests/openid-grant-subject.test.ts',
   'packages/server/tests/openid-token-exchange-refusals.test.ts',
   'packages/server/tests/openid-token-exchange-audiences.test.ts',
+  'packages/server/tests/openid-declared-clients.test.ts',
   'packages/server/tests/provider-second-step.test.ts',
   'packages/server/tests/plugins.test.ts',
   'packages/server/tests/session-token-answers.test.ts',

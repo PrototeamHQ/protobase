@@ -3,7 +3,7 @@ import { APIError } from 'better-auth/api'
 import { matchesAudience, type AudiencePattern } from './audience-patterns'
 import { deviceNameClaim, deviceNameOf, grantSubject, resignedIdToken, signIdToken } from './grant-subjects'
 import { idTokenClaims } from './id-token-claims'
-import { isOperatorClient, mayExchange } from './operator-clients'
+import { isServedClient, mayExchange } from './operator-clients'
 import { idTokenSeconds, openIdScopes, tokenExchangeGrant } from './openid-provider-options'
 
 export const accessTokenType = 'urn:ietf:params:oauth:token-type:access_token'
@@ -49,10 +49,10 @@ const originIdToken = async (ctx: GrantInput['ctx'], user: ExchangeUser, audienc
 }
 
 /**
- * The token exchange (RFC 8693) for a client the operator let exchange (`mayExchange`), such as a phone app signed in
- * once: it posts its own access token as `subject_token` and, as `audience`, another client the operator registered or
- * an origin one of `audiences` stands for, and gets an ID token for it alone, living `idTokenSeconds`, with no browser
- * and no consent. The subject is always the person the access token acts for, by their id or, with `subject` `grant`,
+ * The token exchange (RFC 8693) for a client the operator or the config let exchange (`mayExchange`), such as a phone
+ * app signed in once: it posts its own access token as `subject_token` and, as `audience`, another client the operator
+ * registered or the config declares, or an origin one of `audiences` stands for, and gets an ID token for it alone,
+ * living `idTokenSeconds`, with no browser and no consent. The subject is always the person the access token acts for, by their id or, with `subject` `grant`,
  * the subject of the caller's grant (`grantSubject`), and the token must be a live access token of this provider
  * issued to the caller itself. A `device_name` the caller passes goes in the ID token as `device_name`, cut to
  * `deviceNameLength`. Anything else is refused. For a registered client the provider
@@ -63,7 +63,7 @@ export const exchangeIdToken = (audiences: readonly AudiencePattern[], subject: 
   const request = exchangeRequest((ctx.body ?? {}) as Record<string, unknown>)
   if ('problem' in request) throw request.problem
   const { client: caller } = await provider.authenticateClient({ requireCredentials: false })
-  if (!isOperatorClient(caller) || !mayExchange(caller)) throw refused('unauthorized_client', 'client may not exchange tokens')
+  if (!isServedClient(caller) || !mayExchange(caller)) throw refused('unauthorized_client', 'client may not exchange tokens')
 
   const stored = await ctx.context.adapter.findOne<StoredAccessToken>({ model: 'oauthAccessToken', where: [{ field: 'token', value: await provider.hashToken(request.subjectToken, 'access_token') }] })
   if (!stored?.userId || stored.clientId !== caller.clientId) throw refused('invalid_grant', 'subject_token is not an access token of this client')
@@ -76,7 +76,7 @@ export const exchangeIdToken = (audiences: readonly AudiencePattern[], subject: 
 
   const origin = matchesAudience(audiences, request.audience)
   const target = origin ? undefined : await provider.getClient(request.audience)
-  if (!origin && (!target || target.disabled || !isOperatorClient(target) || target.clientId === caller.clientId || !target.scopes?.includes('openid'))) {
+  if (!origin && (!target || target.disabled || !isServedClient(target) || target.clientId === caller.clientId || !target.scopes?.includes('openid'))) {
     throw refused('invalid_target', 'audience is not another client or an origin of this provider')
   }
   const user = await ctx.context.internalAdapter.findUserById(stored.userId)
