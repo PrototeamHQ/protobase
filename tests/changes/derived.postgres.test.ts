@@ -230,3 +230,35 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
     expect(await derivedMigration(db, models)).toContain(`select jobs.enqueue('derived.fill'`)
   })
 })
+
+describe.skipIf(!(await postgresTemplateReady('jobs')))('filling a newly declared value on Postgres', () => {
+  it('queues every one of 1,200 records, past the first page, while records of a page already read are deleted', async () => {
+    const pg = await openPostgresDatabase('jobs')
+    const { db } = pg
+    await pg.exec(`create table objectives (id integer generated always as identity primary key, title text not null, verdict text);
+      create table tasks (id integer generated always as identity primary key, objective_id integer not null, status text not null, created_at timestamptz not null default now());
+      insert into objectives (title) select 'Objective ' || i from generate_series(1, 1200) i`)
+    const models = [objectives.toModel(), tasks.toModel()]
+    await pg.exec((await changesMigration(db, models))!)
+    await pg.exec((await derivedMigration(db, models))!)
+    // Once the first page is queued, ten of its records go: paging by offset would then pass over ten of the next page.
+    await pg.exec(`create table deleted_once (done boolean);
+      create function delete_once() returns trigger language plpgsql as $$ begin
+        if not exists (select from deleted_once) then insert into deleted_once values (true); delete from objectives where id <= 10; end if;
+        return null;
+      end $$;
+      create trigger delete_once after insert on derived.values for each statement execute function delete_once()`)
+    const admin = createAdmin({ resources: [objectives, tasks], db, authenticate: () => ({ user: { id: 'u1', roles: ['admin'] } }), derived: { 'objectives.verdict': verdict }, options: { statementTimeoutMs } })
+    const runtime = await startJobs({ db, jobs: admin.jobs, work: false, onError: (error) => { throw error } })
+    try {
+      const fill = admin.jobs.find((job) => job.name === 'derived.fill')!
+      await fill.options.run({ name: 'objectives.verdict' }, { db } as never)
+    } finally {
+      await runtime.stop()
+    }
+    const { rows } = await sql<{ missing: number; queued: number }>`select count(*) filter (where v.key is null)::int as missing, count(j.id)::int as queued from objectives o
+      left join derived.values v on v.name = 'objectives.verdict' and v.key = o.id::text
+      left join jobs.job j on j.name = 'derived.compute' and j.singleton_key = 'change:objectives.verdict:' || o.id`.execute(db)
+    expect(rows).toEqual([{ missing: 0, queued: 1190 }])
+  })
+})

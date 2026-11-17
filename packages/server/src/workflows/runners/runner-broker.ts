@@ -37,7 +37,7 @@ export const preparePass = (db: Db, schema: string, ids: readonly string[]) =>
     const runners = sql.id(schema, 'runners')
     await sql`select pg_advisory_xact_lock(hashtextextended(${`${schema}.runners:match`}, 0))`.execute(trx)
     const now = new Date()
-    const { rows } = await sql<Prepared>`select distinct on (r.id) r.id as runner_id, v.id as version_id, r.tenant_id, 'custom:' || v.name || ':' || v.version as step, v.container
+    const { rows } = await sql<Prepared>`with chosen as (select distinct on (r.id) r.id as runner_id, v.id as version_id, r.tenant_id, 'custom:' || v.name || ':' || v.version as step, v.container
       from ${runners} r
       join ${sql.id(schema, 'custom_step_versions')} v on coalesce(v.tenant_id, '') = coalesce(r.tenant_id, '') and v.custom_step_id is not null
       where r.id = any(${ids}) and r.polling_until > ${now} and not r.revoked and r.state -> 'kinds' @> '["build"]'::jsonb
@@ -47,10 +47,11 @@ export const preparePass = (db: Db, schema: string, ids: readonly string[]) =>
         and not exists (select 1 from ${sql.id(schema, 'custom_step_builds')} b where b.runner_id = r.id and b.version_id = v.id
           and (b.status = 'failed' or (b.status = 'building' and b.started_at > ${new Date(now.getTime() - buildMs)})))
         and not exists (select 1 from ${sql.id(schema, 'custom_step_jobs')} j where j.runner_id = r.id and j.status = 'running' and j.sent_at is null)
-      order by r.id, v.name, v.version`.execute(trx)
-    for (const row of rows) {
-      await sql`insert into ${sql.id(schema, 'custom_step_builds')} (runner_id, version_id, step, status, tenant_id) values (${row.runner_id}, ${row.version_id}, ${row.step}, 'building', ${row.tenant_id})`.execute(trx)
-    }
+      order by r.id, v.name, v.version
+    ), building as (
+      insert into ${sql.id(schema, 'custom_step_builds')} (runner_id, version_id, step, status, tenant_id) select runner_id, version_id, step, 'building', tenant_id from chosen
+    )
+    select * from chosen`.execute(trx)
     if (rows.length > 0) await sql`update ${runners} set polling_until = null where id = any(${rows.map((row) => row.runner_id)})`.execute(trx)
     return rows
   })
@@ -88,10 +89,13 @@ export const matchPass = (db: Db, schema: string, settings: RunnerSettings, leas
       settings,
     })
     const until = new Date(now.getTime() + settings.leaseMs)
-    for (const placement of placements) {
-      await sql`update ${jobs} set status = 'running', runner_id = ${placement.runner}, claimed_at = ${now}, lease_until = ${until} where id = ${placement.job} and status = 'queued'`.execute(trx)
-      await lease.enqueue(trx, { job: placement.job }, { key: placement.job, mode: 'replace', runAt: until })
+    if (placements.length > 0) {
+      await sql`update ${jobs} j set status = 'running', runner_id = p.runner, claimed_at = ${now}, lease_until = ${until}
+        from unnest(${placements.map((placement) => placement.job)}::uuid[], ${placements.map((placement) => placement.runner)}::uuid[]) as p(job, runner)
+        where j.id = p.job and j.status = 'queued'`.execute(trx)
     }
+    // A replace moves a lease job already waiting to this lease's end, which enqueueMany does not: one job each.
+    for (const placement of placements) await lease.enqueue(trx, { job: placement.job }, { key: placement.job, mode: 'replace', runAt: until })
     if (placements.length > 0) await sql`update ${runners} set polling_until = null where id = any(${placements.map((placement) => placement.runner)})`.execute(trx)
     if (passedOver.length > 0) await sql`update ${jobs} set passed_over_at = ${now} where id = any(${passedOver}) and passed_over_at is null`.execute(trx)
     return placements.length

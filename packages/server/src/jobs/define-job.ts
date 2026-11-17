@@ -1,5 +1,5 @@
 import { currentJobs } from './current'
-import type { EnqueueOptions, JobDefinition, JobOptions } from './job-types'
+import type { EnqueuedJob, EnqueueOptions, JobDefinition, JobOptions } from './job-types'
 import { nextRun } from './schedule'
 
 const namePattern = /^[\w.\-/]+$/
@@ -22,6 +22,7 @@ export const defineJob = <Payload = undefined>(options: JobOptions<Payload>): Jo
     name: options.name,
     options,
     enqueue: async (db, payload?: Payload, enqueueOptions?: EnqueueOptions) => currentJobs().enqueue(definition as JobDefinition, db, payload, enqueueOptions),
+    enqueueMany: async (db, jobs) => currentJobs().enqueueMany(definition as JobDefinition, db, jobs as readonly EnqueuedJob[]),
   }
   return definition
 }

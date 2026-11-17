@@ -3,7 +3,7 @@ import type { OrganizationsApi } from './commands'
 
 // The commands over a project's Better Auth instance.
 export const organizationsApi = (auth: AdminAuth): OrganizationsApi => ({
-  listOrganizations: () => listOrganizations(auth),
+  listOrganizations: (after) => listOrganizations(auth, after && { after }),
   createOrganization: (input) => createOrganization(auth, input),
   addMember: (input) => addMember(auth, input),
   setMemberRoles: (input) => setMemberRoles(auth, input),

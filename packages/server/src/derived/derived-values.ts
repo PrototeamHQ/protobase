@@ -63,7 +63,7 @@ export const createDerived = ({ deps, computes, jobNames, now = () => new Date()
 
   const queue = async (db: Db, refs: readonly ValueRef[]) => {
     await markStale(db, refs)
-    for (const ref of refs) await compute.enqueue(db, ref, { key: `change:${ref.name}:${ref.key}`, delay: settle })
+    await compute.enqueueMany(db, refs.map((ref) => ({ payload: ref, options: { key: `change:${ref.name}:${ref.key}`, delay: settle } })))
   }
 
   const compute = defineJob<ValueRef>({
@@ -90,7 +90,8 @@ export const createDerived = ({ deps, computes, jobNames, now = () => new Date()
     },
   })
 
-  // Every record of a value, a page at a time, each queued as stale.
+  // Every record of a value, a page at a time by its key past the page before, so a record deleted meanwhile moves no
+  // other out of its page, each queued as stale.
   const fill = defineJob<{ name: string }>({
     name: fillJobName,
     timeout: '15 minutes',
@@ -100,10 +101,14 @@ export const createDerived = ({ deps, computes, jobNames, now = () => new Date()
       const { model } = item.entry
       const table = model.table.schema ? sql.id(model.table.schema, model.table.name) : sql.id(model.table.name)
       const columns = model.primaryKey.map((field) => model.fields[field]!.column)
-      for (let offset = 0; ; offset += fillPage) {
-        const { rows } = await sql<Record<string, KeyValue>>`select ${sql.join(columns.map((column) => sql.id(column)))} from ${table} order by ${sql.join(columns.map((column) => sql.id(column)))} limit ${fillPage} offset ${offset}`.execute(db)
+      const key = sql.join(columns.map((column) => sql.id(column)))
+      let last: KeyValue[] | undefined
+      for (;;) {
+        const past = last ? sql`where (${key}) > (${sql.join(last.map((value) => sql`${value}`))})` : sql``
+        const { rows } = await sql<Record<string, KeyValue>>`select ${key} from ${table} ${past} order by ${key} limit ${fillPage}`.execute(db)
         await queue(db, rows.map((row) => ({ name, key: encodeKey(columns.map((column) => row[column]!)) })))
         if (rows.length < fillPage) return
+        last = columns.map((column) => rows.at(-1)![column]!)
       }
     },
   })
