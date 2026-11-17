@@ -29,7 +29,7 @@ const serve = async () => {
     secret,
     mailer: false,
     operator: false,
-    signInProvider: false,
+    signInProviders: [],
     roles: ['admin', 'user'],
     socialProviders: { github: { clientId: 'Iv1.client', clientSecret: 'client-secret' } },
     sso: { saml: [{ id: 'acme', name: 'Acme', domains: ['acme.test'], idp: { metadata: idp.metadata } }] },

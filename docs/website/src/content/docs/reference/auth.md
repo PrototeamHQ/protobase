@@ -95,7 +95,7 @@ The store's migrations then make nothing of the user table, which a migration of
 | `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated http and https origins, passed by the platform; see [CORS](/reference/api/#cors) |
 | `PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM` | the mail server and sender for [password reset](#password-reset), [emailed sign-in codes](#emailed-sign-in-codes), emailed [two-factor](#two-factor-authentication) codes and [open sign-up](#open-sign-up), passed by the platform; all four are off without them |
 | `PROTOBASE_APP_NAME` | the app's name, passed by the platform: it overrides `name` |
-| `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | the [platform sign-in provider](#platform-sign-in-provider) for people who have an account, passed by the platform; off without them. `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME` are optional, and `PROTOBASE_SIGN_IN_TOKENS=true` turns on its [token sign-in](#token-sign-in) |
+| `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | the [platform sign-in provider](#platform-sign-in-providers) for people who have an account, passed by the platform; off without them. `PROTOBASE_SIGN_IN_PROVIDER`, `PROTOBASE_SIGN_IN_NAME`, `PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS`, `PROTOBASE_SIGN_IN_HIDDEN` and `PROTOBASE_SIGN_IN_DEVICES` are optional, and `PROTOBASE_SIGN_IN_TOKENS=true` turns on its [token sign-in](#token-sign-in). `PROTOBASE_SIGN_IN_2_ISSUER` and so on add [more providers](#more-than-one-provider) |
 | `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the [operator provider](#operator-provider) its staff sign in with to sign in as people, passed by the platform; staff sign-in is off without them. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional |
 | `PROTOBASE_TRUSTED_PROXIES` | the proxies in front of `protobase serve`, addresses or CIDR ranges, comma separated, such as `172.30.87.1`, the Docker network's gateway in the [compose template](/guides/deploy/#compose-template); see [Client addresses](#client-addresses) |
 
@@ -277,7 +277,7 @@ Checks of the signed-in account's current password are limited to 5 a minute for
 
 On the [account page](#account-page), the `Password` block does both: with a password, it asks for the current one and the new one twice, and says the other devices are signed out; without one, it sets the first, and nobody is signed out. While the sign-in policy turns passwords off, or in a staff session, it only says so.
 
-The [account page](#account-page)'s Devices tab lists the sessions with this one first and marked, a Sign out on each other one and Sign out of all other devices. It names each by its browser and system from the user agent, and a staff session by the operator alone, such as "Protobase staff" with when it signed in and until when, never the staff member.
+The [account page](#account-page)'s Devices tab lists the sessions with this one first and marked, a Sign out on each other one and Sign out of all other devices. It names each by its browser and system from the user agent, and a staff session by the operator alone, such as "Protobase staff" with when it signed in and until when, never the staff member. Devices a [platform provider of devices](#device-accounts) links are listed by their own name, each with the sessions it began.
 
 ## Deleting the account
 
@@ -415,7 +415,7 @@ On their account page, people turn on a second step after a password or an email
 
 Turning it on, off, or making new backup codes asks for the account's password when it has one. Without one, turning it on, reading the authenticator link (`/two-factor/get-totp-uri`) or making new backup codes from a session that signed in more than a day ago asks to [confirm it's them](#confirming-an-account-change) first, and the account page asks for it in place. At sign-in, a correct password or code, or a [sign-in token](#token-sign-in), answers `{ "twoFactorRedirect": true, "twoFactorMethods": ["totp", "otp"] }` instead of a session, and `POST /api/auth/two-factor/verify-totp`, `verify-otp` or `verify-backup-code` with `{ code, trustDevice? }` finishes it; `trustDevice` skips the step in that browser for 30 days. Ten wrong codes in a row lock the account's second step for 15 minutes.
 
-Signing in through a provider's pages is one factor too, for the app's own [providers](#sign-in-with-github), the [platform's](#platform-sign-in-provider) and [SAML](#sign-in-with-saml) ones alike, since the app cannot check the provider's own second step. A person who turned the second step on comes back from the provider to the page they started from with `?second-step=<methods>`, such as `?second-step=totp`, the two-factor cookie and no session, and the sign-in page asks for the step there. <gap>A sign-in through the [GoTrue-compatible](#supabase-js-and-supabasessr) provider route cannot take the second step, because the GoTrue-compatible endpoints do not offer one; a person who turned it on is sent back with `error=access_denied`, as a password sign-in there answers `insufficient_aal`.</gap>
+Signing in through a provider's pages is one factor too, for the app's own [providers](#sign-in-with-github), the [platform's](#platform-sign-in-providers) and [SAML](#sign-in-with-saml) ones alike, since the app cannot check the provider's own second step. A person who turned the second step on comes back from the provider to the page they started from with `?second-step=<methods>`, such as `?second-step=totp`, the two-factor cookie and no session, and the sign-in page asks for the step there. <gap>A sign-in through the [GoTrue-compatible](#supabase-js-and-supabasessr) provider route cannot take the second step, because the GoTrue-compatible endpoints do not offer one; a person who turned it on is sent back with `error=access_denied`, as a password sign-in there answers `insufficient_aal`.</gap>
 
 ## Recent strong sign-in
 
@@ -476,13 +476,13 @@ The server stores the policy in the `sign_in_policy` table, one row per save (th
 - **Required:** someone who signs in without it is sent to set it up first. The server holds back API tokens until then (`GET /api/auth/token` answers `403`, `SIGN_IN_SETUP_REQUIRED`), and refuses to turn two-factor authentication off or to remove the last passkey.
 - Signed-in people keep their session after a change; a newly required method is asked for at their next token refresh, within 15 minutes.
 - **Staff sign-in as a person** shows only with an [operator provider](#operator-provider). Off refuses [staff sign-in](#staff-sign-in) (`403`, `SIGN_IN_METHOD_FORBIDDEN`); Email the person mails the person each time, and needs mail: without it the server refuses to save it, and a saved one turns staff sign-in off until mail is back.
-- **Sign in with ... through the platform** shows only with a [platform sign-in provider](#platform-sign-in-provider). Off refuses starting, finishing and connecting it, and its [token sign-in](#token-sign-in) (`403`, `SIGN_IN_METHOD_FORBIDDEN`), and the sign-in page leaves it out. It applies as Off while passkeys are Required, as it signs in without one. While two-factor authentication is Required it stays on: the [second step](#two-factor-authentication) follows it, and someone who has none yet sets it up first.
+- **Sign in with ... through the platform** shows only with [platform sign-in providers](#platform-sign-in-providers), and names them all. Off refuses starting, finishing and connecting every one of them, and their [token sign-in](#token-sign-in) (`403`, `SIGN_IN_METHOD_FORBIDDEN`), and the sign-in page leaves it out. It applies as Off while passkeys are Required, as it signs in without one. While two-factor authentication is Required it stays on: the [second step](#two-factor-authentication) follows it, and someone who has none yet sets it up first.
 
 The server refuses a policy (`400`, `SIGN_IN_POLICY_REFUSED`, with the reason) that would lock people out: passwords and emailed codes both off (someone without a passkey could not sign in), passwords off without mail, two-factor authentication required with passwords off (turning it on asks for the password), or a policy the saving admin could not sign in with. Emailed codes need mail: without `PROTOBASE_SMTP_URL` they are off whatever the policy says, and so that a policy saved with mail cannot lock everyone out once mail goes away, password sign-in is then on as well.
 
-The endpoints, for admins: `GET /api/auth/policy/sign-in` answers `{ policy, effective, mail, operator?, platformSignIn?, savedAt?, savedBy? }` (`effective` is the policy as it applies now, `operator` the operator provider's name, `platformSignIn` the platform sign-in provider's), and `POST /api/auth/policy/sign-in` with `{ password, emailCode, passkey, twoFactor, staffAccess, platformSignIn }` saves one. `GET /api/auth/account/sign-in-methods` tells the signed-in user the policy, what their account has (`password`, `passkeys`, `twoFactor`, `authenticatorApp`) and what it still has to set up (`missing`).
+The endpoints, for admins: `GET /api/auth/policy/sign-in` answers `{ policy, effective, mail, operator?, platformProviders?, savedAt?, savedBy? }` (`effective` is the policy as it applies now, `operator` the operator provider's name, `platformProviders` the names of the platform's sign-in providers), and `POST /api/auth/policy/sign-in` with `{ password, emailCode, passkey, twoFactor, staffAccess, platformSignIn }` saves one. `GET /api/auth/account/sign-in-methods` tells the signed-in user the policy, what their account has (`password`, `passkeys`, `twoFactor`, `authenticatorApp`) and what it still has to set up (`missing`).
 
-Sign-in providers the project configures in code, such as its own GitHub app, are not covered by the policy; the one the platform adds is. Neither are roles: the policy is the same for everyone.
+Sign-in providers the project configures in code, such as its own GitHub app, are not covered by the policy; those the platform adds are. Neither are roles: the policy is the same for everyone.
 
 ## Staff sign-in
 
@@ -534,7 +534,7 @@ auth: { operator: false }
 
 ## Sign-in with GitHub
 
-Projects have no sign-in provider of their own by default (a platform can add [one](#platform-sign-in-provider)). `auth.socialProviders` adds Better Auth's [social providers](https://www.better-auth.com/docs/authentication/github), and the sign-in page shows "Continue with {name}" for each, such as "Continue with GitHub" with GitHub's mark for `github`:
+Projects have no sign-in provider of their own by default (a platform can add [one](#platform-sign-in-providers)). `auth.socialProviders` adds Better Auth's [social providers](https://www.better-auth.com/docs/authentication/github), and the sign-in page shows "Continue with {name}" for each, such as "Continue with GitHub" with GitHub's mark for `github`:
 
 ```ts
 export default defineConfig(({ env }) => ({
@@ -551,7 +551,7 @@ export default defineConfig(({ env }) => ({
 
 ### Sign-in links and connected accounts
 
-These work for every provider, the project's own and the [platform's](#platform-sign-in-provider):
+These work for every provider, the project's own and the [platform's](#platform-sign-in-providers):
 
 - **Sign-in links:** `https://<app>/?sign-in=github` starts signing in with `github` at once, showing only "Signing in with GitHub" while the browser leaves, so someone the provider knows lands signed in without a sign-in page. A refusal comes back to the sign-in page with the reason (`?error=<code>`, for example `signup_disabled`), and does not start again. Someone signed in already just opens the app.
 - **Connected accounts:** the [account page](#account-page)'s **Sign-in & security** tab lists the providers and offers "Connect GitHub" for one the account is not linked to. Connecting signs in at the provider and links that account whatever its address (`accountLinking.allowDifferentEmails`, which applies only to this explicit link by someone signed in). A provider account linked to another person already is refused (`account_already_linked_to_different_user`); a [staff session](#staff-sign-in) cannot link.
@@ -585,9 +585,9 @@ Instead of the metadata XML, `idp` takes the provider's entity ID, sign-in URL a
   - <gap>SAML providers cannot be kept per organization yet.</gap>
   - <gap>SAML sign-in does not support signed or encrypted requests yet.</gap>
 
-## Platform sign-in provider
+## Platform sign-in providers
 
-A platform that hosts the app can add a sign-in provider for the people who have an account in it: any OpenID Connect provider, passed in the environment. Protobase Cloud passes its own, so people sign in with GitHub through the Protobase GitHub App; a self-hosted app passes [Dex, Keycloak](#self-hosting-with-dex-or-keycloak) or the like.
+A platform that hosts the app can add sign-in providers for the people who have an account in it: any OpenID Connect providers, passed in the environment, each with an id of its own. A list of one is the common case. Protobase Cloud passes its own, so people sign in with GitHub through the Protobase GitHub App; a self-hosted app passes [Dex, Keycloak](#self-hosting-with-dex-or-keycloak) or the like.
 
 ```sh
 PROTOBASE_SIGN_IN_ISSUER=https://auth.example.com     # its discovery is <issuer>/.well-known/openid-configuration
@@ -603,14 +603,44 @@ Register the app with the provider as a confidential client with the redirect UR
 - **The project's own provider wins:** with `socialProviders.github` in code and `PROTOBASE_SIGN_IN_PROVIDER=github`, the project's GitHub app handles the sign-in and the platform's is left out.
 - **The provider id:** set `PROTOBASE_SIGN_IN_PROVIDER=github` only when the provider's `sub` is the GitHub user id, as Protobase Cloud's is. Its links are then those of Better Auth's own GitHub provider, so an app that later brings its own GitHub app keeps every person's link. Dex's and Keycloak's `sub` is their own id, so keep the default `oidc` for them.
 - **Startup:** the provider's settings are read when the app starts; when they cannot be, the provider is left out until the next start (the status and sign-in page do not offer it) and every other way to sign in works.
-- The [sign-in policy](#sign-in-policy) has a row for it, and `GET /api/auth/status` names it as `platformSignIn: { provider, name }` besides listing it in `socialProviders`.
+- **Linking by address, safely:** a provider's first sign-in for someone links their account only when the token says the provider verified the address (`email_verified: true`) and the account's own address is verified. Once linked, the link alone finds them: the provider's id and `sub`, whatever address the token carries later. A person linked to one subject of a provider is not linked to a second one by address (`403 PROVIDER_ACCOUNT_LINKED`), unless the provider signs in [devices](#device-accounts). The store holds each provider's account once, and for a provider that links one subject per person, one account per person (unique indexes on the provider and account id, and on the provider and person, auth store migration 11), so two first sign-ins at the same moment link one, whether they bring the same subject or two.
+- The [sign-in policy](#sign-in-policy) has one row for every one of them, and `GET /api/auth/status` names those with a button as `platformProviders: [{ provider, name }]` besides listing them in `socialProviders`.
 
-Set the first three together or none: some but not all of them stops the app at start with an error. In the config, `auth.signInProvider` takes the same settings, `scopes` and `tokenSignIn`, and `false` turns it off whatever the environment says:
+Set the first three together or none: some but not all of them stops the app at start with an error. In the config, `auth.signInProviders` takes a list of the same settings with `scopes`, `tokenSignIn`, `authorizationParams`, `hidden` and `devices`, and `[]` turns them off whatever the environment says:
 
 ```ts
-auth: { signInProvider: { issuer, clientId, clientSecret, provider: 'oidc', name: 'Acme SSO', scopes: ['groups'] } }
-auth: { signInProvider: false }
+auth: { signInProviders: [{ issuer, clientId, clientSecret, provider: 'oidc', name: 'Acme SSO', scopes: ['groups'] }] }
+auth: { signInProviders: [] }
 ```
+
+### More than one provider
+
+Each further provider takes the same variables with its number after `PROTOBASE_SIGN_IN_`, from 2 up: `PROTOBASE_SIGN_IN_2_ISSUER`, `PROTOBASE_SIGN_IN_2_CLIENT_ID`, `PROTOBASE_SIGN_IN_2_PROVIDER` and so on. The first keeps the variables without a number, so an app with one provider is configured as before. Every provider is checked on its own: a token posted under a provider's id is verified against that provider's issuer, keys and client id alone, and a [token sign-in](#token-sign-in) is kept as used by its issuer.
+
+```sh
+PROTOBASE_SIGN_IN_ISSUER=https://auth.example.com
+PROTOBASE_SIGN_IN_CLIENT_ID=erp-example-com
+PROTOBASE_SIGN_IN_CLIENT_SECRET=...
+PROTOBASE_SIGN_IN_PROVIDER=github
+PROTOBASE_SIGN_IN_2_ISSUER=https://id.example.com             # a second provider, for token sign-in alone
+PROTOBASE_SIGN_IN_2_PROVIDER=phone
+PROTOBASE_SIGN_IN_2_TOKENS=true
+```
+
+- **Ids:** each provider has an id of its own; two with one id stop the app at start. A number without every number before it (a `_3_` set without a `_2_` one, or a `_2_` set without the first) stops it too, as does `_1_` or `_02_`.
+- **Names:** `name` (`PROTOBASE_SIGN_IN_NAME`, `PROTOBASE_SIGN_IN_2_NAME`) is what people see, apart from the id, so two providers may show the same name.
+- **Fixed authorization parameters:** `PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS` (`authorizationParams` in the config), written as `name=value&other=value`, goes on every authorization request to that provider as given, such as a parameter naming which of its own sign-in methods it must use. A client cannot change or add to them: a sign-in or link with a platform provider that brings `additionalParams` of its own answers `400 AUTHORIZATION_PARAMS_FIXED`. The parameters the sign-in sets itself (`state`, `client_id`, `redirect_uri`, `response_type`, `scope`, `nonce`, `code_challenge`, `code_challenge_method`) cannot be fixed; naming one stops the app at start.
+- **Kept off the account page:** `PROTOBASE_SIGN_IN_HIDDEN=true` (`hidden: true`) keeps people's links to that provider off the account page: the connected accounts do not list it, `/api/auth/list-accounts` leaves its links out, and connecting it, or disconnecting one of its links by its id, answers `403 PROVIDER_ACCOUNT_HIDDEN`. The link still signs in, and goes when the person is deleted. `GET /api/auth/status` marks it `hidden: true` in `platformProviders`.
+
+### Device accounts
+
+A provider that gives each device a subject of its own, such as one that signs in a phone app, can have every device be an account of its own: `PROTOBASE_SIGN_IN_DEVICES=true` (`devices: true`), with [token sign-in](#token-sign-in) alone, without a client secret.
+
+- **Linked by address:** a device's first sign-in links it to the account with the address the provider vouches for, as for any provider, both addresses verified. A person holds as many of the provider's accounts as they have devices.
+- **Its sessions:** each session a device's token sign-in starts is kept as the device's in the store's `device_session` table (auth store migration 11), which goes with the session, so it lasts as long as the session however often it is renewed. A sign-in that waits for the [second step](#two-factor-authentication) is the device's once the step is taken.
+- **On the account page:** the **Devices** tab lists each device as the provider's name with the device's own name, which the device's ID token carries in the `device_name` claim (a string), with when it was linked, and the sessions it began under it rather than among the others. The connected accounts do not list them. `GET /api/auth/account/device-links` answers `{ links: [{ id, provider, name, device, linkedAt, sessions }] }`, `sessions` being the tokens of the sessions it began; `GET /api/auth/status` says `deviceLinks: true`.
+- **Sign out:** **Sign out** on a device, `POST /api/auth/account/device-links/sign-out` with its `id`, refuses its subject from then on, ends the sessions it began, and removes its link, in that order: a token for it answers `403 DEVICE_SIGNED_OUT` and never links again, by address or otherwise, and a sign-in with it that was under way ends its own session. A sign-out that stopped half way is taken again with the same `id`. The person's other devices stay signed in, and a new device of the same address links as the first ones did. The refused subjects are kept in the store's `refused_account` table (auth store migration 11), and go when the person is deleted. A [staff session](#staff-sign-in) can do neither.
+
 
 ### Token sign-in
 
@@ -621,15 +651,15 @@ PROTOBASE_SIGN_IN_TOKENS=true        # true or false; anything else stops the ap
 ```
 
 ```ts
-auth: { signInProvider: { issuer, clientId, clientSecret, tokenSignIn: true } }
+auth: { signInProviders: [{ issuer, clientId, clientSecret, tokenSignIn: true }] }
 ```
 
 The client posts `POST /api/auth/sign-in/social` with `{ "provider": "<provider id>", "idToken": { "token": "<ID token>" } }`, as Better Auth's client sends `signIn.social({ provider, idToken: { token } })`, and gets the session cookie with `{ redirect: false, user }`, or `{ twoFactorRedirect: true, twoFactorMethods }` when the [second step](#two-factor-authentication) is due, which it finishes as after a password. Then `GET /api/auth/token` gives it the app's API token as for any session.
 
-- **Only this app's own provider:** the app trusts the one provider it is configured with, and a token only for this app. The token must be signed with a key the provider publishes (its discovery's `jwks_uri`) with an asymmetric algorithm, come from the configured issuer, and have this app's client id as its one audience, so a token issued for another app is never accepted here. It must carry an `email` (a `jti` is not needed), live at most 5 minutes from `iat` to `exp`, and have been issued within the last 5 minutes (30 seconds of clock skew allowed). Otherwise it is refused with `401 INVALID_TOKEN`.
-- **Alone, without a client secret:** with the issuer and `PROTOBASE_SIGN_IN_TOKENS=true` but no `PROTOBASE_SIGN_IN_CLIENT_SECRET` (`signInProvider: { issuer, tokenSignIn: true }`), the app is no client of the provider's: it takes tokens whose audience is the origin of its `url`, or `PROTOBASE_SIGN_IN_CLIENT_ID` when set, as from the [token exchange](#token-exchange) of an OpenID provider's `audiences`. Nobody is sent through the provider's pages: the sign-in page shows no button for it, and starting or connecting it answers `403 PROVIDER_PAGES_OFF`.
+- **Only this app's own providers:** the app trusts the providers it is configured with, each for its own tokens, and a token only for this app. The token must be signed with a key the provider it is posted for publishes (its discovery's `jwks_uri`) with an asymmetric algorithm, come from that provider's issuer, and have this app's client id as its one audience, so a token issued for another app is never accepted here. It must carry an `email` (a `jti` is not needed), live at most 5 minutes from `iat` to `exp`, and have been issued within the last 5 minutes (30 seconds of clock skew allowed). Otherwise it is refused with `401 INVALID_TOKEN`.
+- **Alone, without a client secret:** with the issuer and `PROTOBASE_SIGN_IN_TOKENS=true` but no `PROTOBASE_SIGN_IN_CLIENT_SECRET` (`signInProviders: [{ issuer, tokenSignIn: true }]`), the app is no client of the provider's: it takes tokens whose audience is the origin of its `url`, or `PROTOBASE_SIGN_IN_CLIENT_ID` when set, as from the [token exchange](#token-exchange) of an OpenID provider's `audiences`. Nobody is sent through the provider's pages: the sign-in page shows no button for it, and starting or connecting it answers `403 PROVIDER_PAGES_OFF`.
 - **Once:** each token signs in once. Its issuer and the SHA-256 of its claims are kept in the `verification` table until it expires, with no migration, and a second use answers `401 TOKEN_USED`. The claims count, not the token's text, so the same token written another way is refused too, and so is a second token with exactly the same claims.
-- **Who it signs in:** as through the provider's pages, the account linked to the provider's `sub`, else the account with the address the provider vouches for (`email_verified`), which it links. Nobody is signed up (`401`), and a banned person is refused.
+- **Who it signs in:** as through the provider's pages, the account linked to the provider's `sub`, else the account with the address the provider vouches for (`email_verified`), which it links [safely](#platform-sign-in-providers). Nobody is signed up (`401`), and a banned person is refused.
 - **Never recent:** the client can mint a fresh session at will, so a session a token began never counts as [recently signed in](#confirming-an-account-change). Adding a passkey, unlinking a provider, making a personal access token or deleting the account asks it to confirm it's them in place first, and it is never a [strong sign-in](#recent-strong-sign-in) until it confirms it's them.
 - **The policy:** **Sign in with ... through the platform** in the [sign-in policy](#sign-in-policy) covers it, so Off refuses it, and so do passkeys being Required. Linking a provider with a token stays refused (`403 TOKEN_SIGN_IN_OFF`).
 - **Rate limit:** `/api/auth/sign-in/social` takes `signInPerMinute` requests a minute per client, default 5, as a password sign-in does.
@@ -877,12 +907,12 @@ auth: { openIdProvider: { connectPage: '/-/connect', audiences: ['https://*.exam
 - **Only registered clients.** Nothing registers itself: `/api/auth/oauth2/register` is closed, and so are the provider's own client management, consent, userinfo, introspection and logout endpoints. A client the admin did not register through the API below is refused with `400 invalid_client` at authorize and at the token endpoint, before anything else, and so is a client in the store from elsewhere, such as one an MCP client registered while the app had `mcp` on. A redirect URI must be one the client registered, character for character, so the person's browser is never sent with a code, or an error, to an address of someone else's.
 - **Not with `mcp`.** MCP clients register themselves, and the provider of this mode is separate from MCP's, so the server refuses to start with both. Serve them from separate apps.
 - **Discovery** is at `/.well-known/openid-configuration`, with the app's `url` as issuer, and the keys at `/api/auth/jwks`. A client uses the authorization code flow with PKCE, with `openid email profile`, and a `nonce`.
-- **The ID token** is signed with the app's [signing keys](#signing-keys) (EdDSA) and lives 5 minutes. It carries `iss` (the app's `url`), `aud` (the client's id, alone), `sub` (the person's user id in this app, or the [grant's subject](#grant-subjects)), `email`, `email_verified`, and `name` when the person has one. It has no `jti`. Another Protobase app takes it as its [platform sign-in provider](#platform-sign-in-provider), through its pages or by [token sign-in](#token-sign-in).
+- **The ID token** is signed with the app's [signing keys](#signing-keys) (EdDSA) and lives 5 minutes. It carries `iss` (the app's `url`), `aud` (the client's id, alone), `sub` (the person's user id in this app, or the [grant's subject](#grant-subjects)), `email`, `email_verified`, and `name` when the person has one. It has no `jti`. Another Protobase app takes it as its [platform sign-in provider](#platform-sign-in-providers), through its pages or by [token sign-in](#token-sign-in).
 - **Signing in** goes through the connect page (`connectPage`, default `/-/connect`), which signs the person in and goes straight on to the client. Someone who has not set up what the [sign-in policy](#sign-in-policy) requires is sent to the setup page first, and staff signed in as a person get no token.
 
 ### Grant subjects
 
-With `subject: 'grant'`, an ID token's `sub` names the client's grant, never the person's id: the client's tokens from one sign-in at the app. A fresh sign-in is a new grant with a new subject, and the grant's refresh tokens and token exchanges keep it. So each sign-in of a phone app is a device of its own to the apps that take its tokens, such as an app that makes each device an account of its own, and signing one device out there leaves the others. The subject is derived from the grant with the app's secret, so it says nothing of the person; `email` and `email_verified` still say who they are. The default, `subject: 'user'`, keeps the person's user id.
+With `subject: 'grant'`, an ID token's `sub` names the client's grant, never the person's id: the client's tokens from one sign-in at the app. A fresh sign-in is a new grant with a new subject, and the grant's refresh tokens and token exchanges keep it. So each sign-in of a phone app is a device of its own to the apps that take its tokens, such as an app whose platform provider signs in [device accounts](#device-accounts), and signing one device out there leaves the others. The subject is derived from the grant with the app's secret, so it says nothing of the person; `email` and `email_verified` still say who they are. The default, `subject: 'user'`, keeps the person's user id.
 
 ### Registering clients
 
@@ -923,7 +953,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 - **The subject is the caller's own person.** `subject_token` must be a live access token this app issued to the calling client itself: not an ID token, a refresh token or another client's token, not expired, revoked or from a session that ended. Otherwise it answers `400 invalid_grant`. A client without `exchange` gets `400 unauthorized_client`.
 - **The audience is another registered client, or an origin of `audiences`**: not the caller, not an unknown client and not one the admin did not register (`400 invalid_target`). An origin is matched as the URL parser writes it, label by label, so `http://`, a port, a path or trailing slash, user info, upper case, an extra label (`a.b.example.app`) and look-alikes (`example.app.evil.com`, `evilexample.app`) are refused.
 - **An ID token only.** The answer is an ID token for that client or origin alone, living 5 minutes, with the claims of the client's own sign-in; one for an origin has that origin as `aud`, and a `jti`. No access or refresh token for the other client leaves the app. `requested_token_type` and `subject_token_type` take only the values above (`400 invalid_request`).
-- **The device name:** `device_name=<name>` names the device the caller runs on, such as `Ana's phone`; the ID token carries it as the `device_name` claim, trimmed and cut to 64 characters, which another app can show as the device's name. Without it, or blank, the claim is left out.
+- **The device name:** `device_name=<name>` names the device the caller runs on, such as `Ana's phone`; the ID token carries it as the `device_name` claim, trimmed and cut to 64 characters, which another app shows for a [device account](#device-accounts). Without it, or blank, the claim is left out.
 - **A banned person, or one whose address is not verified,** gets none (`400 invalid_grant`). A ban after the token was issued is caught by the other app, which checks its own account at sign-in.
 - The token endpoint takes 20 requests a minute per client address.
 

@@ -29,7 +29,8 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Sign-in links](/reference/auth/#sign-in-links-and-connected-accounts): A link signs someone in with a sign-in provider at once, without the sign-in page.
 - [Connected accounts](/reference/auth/#sign-in-links-and-connected-accounts): People link GitHub or another sign-in provider to their account from the account page.
 - [SAML sign-in](/reference/auth/#sign-in-with-saml): People sign in through any SAML provider.
-- [OpenID Connect provider](/reference/auth/#platform-sign-in-provider): A host adds an OpenID Connect provider for people who already have an account.
+- [OpenID Connect providers](/reference/auth/#platform-sign-in-providers): A host adds OpenID Connect providers for people who already have an account, each with its own id, name and ways to sign in.
+- [Devices](/reference/auth/#device-accounts): A provider that signs in phones links each device as an account of its own, which the person signs out for good from the Devices tab.
 - [Token sign-in](/reference/auth/#token-sign-in): A client that holds a fresh ID token from that provider for this app signs in with it once, in place of an emailed code, and gets the app's own session, with the app's second step when one is on.
 - [Being an OpenID provider](/reference/auth/#openid-provider-for-other-apps): The app vouches for its people's verified addresses to other apps its admin registers, which sign them in without asking them to allow it, and lets a phone app get a sign-in token for each of those apps, or for any app at the origins it names by pattern, without a browser.
 - [Grant subjects](/reference/auth/#grant-subjects): Each sign-in of a phone app gets a subject of its own instead of the person's id, and names its device, so the apps it signs in to see every device apart.

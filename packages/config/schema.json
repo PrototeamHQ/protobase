@@ -2126,7 +2126,7 @@
           ]
         },
         "socialProviders": {
-          "description": "Sign-in providers for Better Auth, for example `{ github: { clientId, clientSecret } }`; the callback is\n`{baseURL}/api/auth/callback/<provider>`. A provider also signs up people without an account, with the default role.\nOne with the id of `signInProvider` takes its place. Default none.",
+          "description": "Sign-in providers for Better Auth, for example `{ github: { clientId, clientSecret } }`; the callback is\n`{baseURL}/api/auth/callback/<provider>`. A provider also signs up people without an account, with the default role.\nOne with the id of a provider of `signInProviders` takes its place. Default none.",
           "anyOf": [
             {
               "type": "object"
@@ -2257,14 +2257,21 @@
             }
           ]
         },
-        "signInProvider": {
-          "description": "A sign-in provider the platform adds for people who already have an account: an OpenID Connect provider that never\nsigns anyone up. Defaults to the one the platform passes in `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`\nand `PROTOBASE_SIGN_IN_CLIENT_SECRET` (see `readPlatformSignIn`), when set; `false` turns it off whatever the\nenvironment says. Left out when `socialProviders` has a provider with the same id. Without `clientSecret`, it\nsigns in by token sign-in alone, with tokens for the origin of `baseURL` unless `clientId` names another.",
+        "signInProviders": {
+          "description": "The sign-in providers the platform adds for people who already have an account: OpenID Connect providers that never\nsign anyone up, each with its own id. Defaults to those the platform passes in `PROTOBASE_SIGN_IN_ISSUER`,\n`PROTOBASE_SIGN_IN_CLIENT_ID` and `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and the numbered sets after them such as\n`PROTOBASE_SIGN_IN_2_ISSUER` (see `readPlatformSignIns`); `[]` turns them off whatever the environment says. One\nis left out when `socialProviders` has a provider with its id. Without `clientSecret`, one signs in by token sign-in\nalone, with tokens for the origin of `baseURL` unless `clientId` names another.",
           "anyOf": [
             {
-              "const": false
-            },
-            {
-              "$ref": "#/definitions/PlatformSignIn"
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/PlatformSignIn"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
             },
             {
               "$ref": "#/definitions/EnvValue"
@@ -2799,8 +2806,51 @@
             }
           ]
         },
+        "authorizationParams": {
+          "description": "Parameters every authorization request to the provider carries as given, such as one naming which of its own\nsign-in methods it must use; a client cannot add to them or change them. None of those the flow sets itself\n(`state`, `client_id`, `redirect_uri`, `response_type`, `scope`, `nonce`, `code_challenge`, `code_challenge_method`).",
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "hidden": {
+          "description": "Keeps people's links to the provider off their account page: not listed among the connected accounts, and not\nconnected or disconnected there. The link still signs them in, and goes with the person. Default off.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
         "tokenSignIn": {
           "description": "Token sign-in: a client that holds a fresh ID token the provider issued for this app posts it instead of sending\nthe browser through the provider, and gets the app's own session (see `idTokenSignInPlugin`). Default off.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "devices": {
+          "description": "Each device is an account of its own: the provider gives every device a subject of its own, and a person holds\nas many accounts of it as they have devices, each linked by the address on its first sign-in like any other. The\naccount page lists them among the devices, named by `name` and the token's `device_name` claim, not among the\nconnected accounts; signing one out there removes it and ends its sessions, and its subject never signs in again.\nNeeds `tokenSignIn` without a `clientSecret`: a device signs in by token alone. Default off.",
           "anyOf": [
             {
               "type": "boolean"

@@ -164,16 +164,16 @@ export default defineConfig(({ env }) => ({
 }))
 ```
 
-## auth.signInProvider
+## auth.signInProviders
 
-- **Type:** `{ issuer: string; clientId?: string; clientSecret?: string; provider?: string; name?: string; scopes?: string[]; tokenSignIn?: boolean } | false`
-- **Default:** the provider of the environment variables below, when set
-- **Environment variables:** `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and optionally `PROTOBASE_SIGN_IN_PROVIDER`, `PROTOBASE_SIGN_IN_NAME` and `PROTOBASE_SIGN_IN_TOKENS` (`true` or `false`)
+- **Type:** `{ issuer: string; clientId?: string; clientSecret?: string; provider?: string; name?: string; scopes?: string[]; authorizationParams?: Record<string, string>; tokenSignIn?: boolean; hidden?: boolean; devices?: boolean }[]`
+- **Default:** the providers of the environment variables below, when set
+- **Environment variables:** `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and optionally `PROTOBASE_SIGN_IN_PROVIDER`, `PROTOBASE_SIGN_IN_NAME`, `PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS` (`name=value&other=value`), `PROTOBASE_SIGN_IN_TOKENS`, `PROTOBASE_SIGN_IN_HIDDEN` and `PROTOBASE_SIGN_IN_DEVICES` (`true` or `false`); the same with `_2_`, `_3_` and so on after `PROTOBASE_SIGN_IN` for each further provider
 
-An OpenID Connect provider the platform adds for people who already have an account; it never signs anyone up. `provider` is its id (default `oidc`), `name` its button's name, and `tokenSignIn: true` lets a client sign in with a fresh ID token the provider issued for this app ([Token sign-in](/reference/auth/#token-sign-in), default off). `false` turns it off whatever the environment says. Left out when `socialProviders` has a provider with the same id. Without `clientSecret` it signs in by token sign-in alone, which `tokenSignIn: true` must then turn on, with tokens for the origin of `url` unless `clientId` names another. See [Platform sign-in provider](/reference/auth/#platform-sign-in-provider).
+The OpenID Connect providers the platform adds for people who already have an account; they never sign anyone up. Each has its own `provider` id (default `oidc`) and `name` people see; `authorizationParams` go on every authorization request to it, unchangeable by the client; `tokenSignIn: true` lets a client sign in with a fresh ID token it issued for this app ([Token sign-in](/reference/auth/#token-sign-in), default off); `hidden: true` keeps its links off the account page; `devices: true` makes each device an account of its own ([Devices](/reference/auth/#device-accounts)). `[]` turns them off whatever the environment says. One is left out when `socialProviders` has a provider with its id. Without `clientSecret` one signs in by token sign-in alone, which `tokenSignIn: true` must then turn on, with tokens for the origin of `url` unless `clientId` names another. See [Platform sign-in providers](/reference/auth/#platform-sign-in-providers).
 
 ```ts
-export default defineConfig({ auth: { signInProvider: false } })
+export default defineConfig({ auth: { signInProviders: [] } })
 ```
 
 ## auth.operator

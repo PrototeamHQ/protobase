@@ -33,7 +33,7 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
     secret,
     mailer: false,
     operator: false,
-    signInProvider: false,
+    signInProviders: [],
     roles: ['admin', 'user'],
     sso: { saml: [{ id: 'acme', name: 'Acme', domains: ['acme.test'], idp: { metadata: idp.metadata } }] },
     ...options,

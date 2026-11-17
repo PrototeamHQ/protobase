@@ -100,7 +100,7 @@ describe('protobase users disable and enable', () => {
     await create('root@example.com')
     await create('ana@example.com')
 
-    await expect(setDisabledInProject(made, { email: 'ana@example.com', disabled: true }, () => {})).rejects.toThrow(/The auth schema is behind this version of Protobase \(missing migrations 10 mail_sender_names\)/)
+    await expect(setDisabledInProject(made, { email: 'ana@example.com', disabled: true }, () => {})).rejects.toThrow(/The auth schema is behind this version of Protobase \(missing migrations 11 account_keys\)/)
     expect((await issueToken(made, { email: 'ana@example.com' })).token).toBeTruthy()
 
     await store.exec((await authSchemaMigration(made))!)

@@ -32,7 +32,7 @@ export const serve = async ({ notifications = true, store, historyStore, users, 
   const pg = await openSnapshotDb('empty')
   // Better Auth checks its schema once per instance: one writes the store, a new one serves it, as after a deploy.
   const authOn = async () => {
-    const made = createAuth({ database: { dialect: pg.dialect, type: 'postgres' }, baseURL: origin, secret, mailer: mailer ?? false, operator: false, signInProvider: false, signInPerMinute: 100, ...(users && { users }) })
+    const made = createAuth({ database: { dialect: pg.dialect, type: 'postgres' }, baseURL: origin, secret, mailer: mailer ?? false, operator: false, signInProviders: [], signInPerMinute: 100, ...(users && { users }) })
     await made.$context
     await settled()
     return made
