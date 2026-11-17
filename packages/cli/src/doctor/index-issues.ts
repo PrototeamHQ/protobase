@@ -1,4 +1,4 @@
-import { uncoveredColumns, type IndexNeed, type TableIndexes, type UncoveredColumn } from '@protobase/query'
+import { uncoveredColumns, uncoveredFileColumns, type IndexNeed, type TableIndexes, type UncoveredColumn } from '@protobase/query'
 import type { ResourceModel } from '@protobase/schema'
 import type { Issue } from './check'
 import type { ReadShape } from './read-shape'
@@ -6,7 +6,7 @@ import type { ReadShape } from './read-shape'
 // The reads that need one index: each request once, with every place in the config it comes from.
 type Refusal = { column: UncoveredColumn; requests: Map<string, string[]> }
 
-const kinds: Record<IndexNeed, string> = { btree: 'index', trigram: 'pg_trgm index', digits: 'pg_trgm index', gin: 'GIN index' }
+const kinds: Record<IndexNeed, string> = { btree: 'index', trigram: 'pg_trgm index', digits: 'pg_trgm index', gin: 'GIN index', file: 'index' }
 
 const served = (column: UncoveredColumn) => (column.need === 'digits' ? `the digits of "${column.column}"` : `the column "${column.column}"`)
 
@@ -32,3 +32,15 @@ export const indexIssues = (model: ResourceModel, table: TableIndexes, shapes: R
     suggestion: `${column.suggestion};`,
   }))
 }
+
+/**
+ * The file columns of `model` the file cleanup reads every row of before it deletes a file, as no index looks a file up
+ * there: a warning each, since the API refuses nothing for it.
+ */
+export const fileIndexIssues = (model: ResourceModel, table: TableIndexes): Issue[] =>
+  uncoveredFileColumns(model, table).map((column) => ({
+    severity: 'warning',
+    resource: model.name,
+    message: `no index looks up the files of "${column.column}", so each file cleanup reads every row of the table to check that none holds a file it deletes`,
+    suggestion: `${column.suggestion};`,
+  }))
