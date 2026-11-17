@@ -56,17 +56,26 @@ const users = (count: number) => `insert into "user" (id, name, email, email_ver
   select 'u' || i, 'User ' || i, 'user' || i || '@example.com', true, 'user', false, now(), now() from generate_series(1, ${count}) i`
 
 describe.skipIf(!ready)('the auth reads', () => {
-  it('list every one of the 100,005 people of an organization, in the session it starts in', async () => {
-    const { auth, fill, request, signIn } = await serve()
+  it('list every one of the 100,005 people of an organization once, in the session it starts in, and a few by the index', async () => {
+    const { auth, fill, request, signIn, plansOf } = await serve()
     await createUser(auth, { email: 'root@example.com', password, name: 'Root' })
+    await createUser(auth, { email: 'few@example.com', password, name: 'Few' })
     const { organization } = await createOrganization(auth, { name: 'Acme', slug: 'acme', owner: 'root@example.com' })
+    const { organization: small } = await createOrganization(auth, { name: 'Globex', slug: 'globex', owner: 'few@example.com' })
     await fill(`${largeTable('"user"', ['id'])}; ${largeTable('member', ['organization_id', 'user_id'])}; ${users(100_004)};
-      insert into member (id, organization_id, user_id, role, created_at) select 'm' || i, '${organization.id}', 'u' || i, 'member', now() from generate_series(1, 100004) i`)
-    const answer = await request('/api/auth/organization/people', { cookie: await signIn('root@example.com') })
-    expect(answer.status).toBe(200)
-    const { people } = (await answer.json()) as { people: { name: string }[] }
+      insert into member (id, organization_id, user_id, role, created_at) select 'm' || i, '${organization.id}', 'u' || i, 'member', now() from generate_series(1, 100004) i;
+      insert into member (id, organization_id, user_id, role, created_at) values ('again', '${small.id}', (select id from "user" where email = 'few@example.com'), 'member', now())`)
+    const peopleOf = async (email: string) => {
+      const answer = await request('/api/auth/organization/people', { cookie: await signIn(email) })
+      expect(answer.status).toBe(200)
+      return ((await answer.json()) as { people: { name: string }[] }).people.map((person) => person.name)
+    }
+    // A person whose membership is kept twice is listed once.
+    expect(await peopleOf('few@example.com')).toEqual(['Few'])
+    expect(seqScansOf(await plansOf('user'), 'user')).toEqual([])
+    const people = await peopleOf('root@example.com')
     expect(people).toHaveLength(100_005)
-    expect(people[0]!.name).toBe('Root')
+    expect(people[0]).toBe('Root')
   })
 
   it('start a session in the last organization while the person may enter it, else in their oldest, the 100,001st of their memberships', async () => {

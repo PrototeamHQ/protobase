@@ -27,6 +27,6 @@ export const peopleEndpoint = createAuthEndpoint('/organization/people', { metho
   if (!organizationId || !member) throw new APIError('FORBIDDEN', { code: 'NOT_A_MEMBER', message: 'Only the members of the organization you work in can see its people.' })
   const store = storeSqlOf(ctx.context as unknown as AuthContext)
   const { rows } = await sql<UserRow>`select u.id, u.${store.userColumn('name')} as name, u.${store.userColumn('image')} as image
-    from ${store.table('member')} m join ${store.user} u on u.id = m.user_id where m.organization_id = ${organizationId}`.execute(store.db)
+    from ${store.user} u where exists (select from ${store.table('member')} m where m.user_id = u.id and m.organization_id = ${organizationId})`.execute(store.db)
   return ctx.json({ people: peopleOf(rows) })
 })
