@@ -1,4 +1,4 @@
-import type { DBAdapter, Where } from 'better-auth'
+import type { Account, DBAdapter, Where } from 'better-auth'
 
 // Questions about rows, put to the store as they are asked: Postgres answers them, so the answer never depends on
 // which rows a read would have returned.
@@ -13,3 +13,7 @@ export const exists = async (adapter: Pick<Reads, 'findMany'>, model: string, wh
 
 /** How many rows of `model` match `where`, counted by the store. */
 export const countWhere = (adapter: Pick<Reads, 'count'>, model: string, where: Where[]) => adapter.count({ model, where })
+
+/** The person's account of this id, read by its key; undefined when there is none, or it is someone else's. */
+export const findAccount = async <T = Account>(adapter: Pick<Reads, 'findMany'>, userId: string, id: string) =>
+  (await adapter.findMany<T>({ model: 'account', where: [{ field: 'id', value: id }, { field: 'userId', value: userId }], limit: 1 }))[0]
