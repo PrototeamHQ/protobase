@@ -1234,6 +1234,17 @@
           "$ref": "#/definitions/EnvValue"
         }
       ]
+    },
+    "resources": {
+      "description": "`'none'` says the app has no resources on purpose, such as an app that only signs people in: `protobase doctor`\nthen accepts a config with none, and refuses one that exports any. Unset, doctor refuses an app with none, which\nhas usually lost them by mistake.",
+      "anyOf": [
+        {
+          "const": "none"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
     }
   },
   "additionalProperties": false,
