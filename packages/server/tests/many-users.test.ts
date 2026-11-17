@@ -15,12 +15,15 @@ const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
 const password = 'correct horse battery'
 
-// Past Better Auth's 100 rows a read returns when not told how many: 150 users made in one statement, in pairs that
-// share a creation time down to the millisecond and differ in the microsecond, or not at all.
+// Past Better Auth's 100 rows a read returns when not told how many: 150 users made in one statement before the test
+// clock, in pairs that share a creation time down to the millisecond and differ in the microsecond, or not at all.
 const manyUsers = `insert into "user" (id, name, email, email_verified, role, banned, created_at, updated_at)
   select 'u' || lpad(i::text, 3, '0'), 'User ' || i, 'user' || i || '@example.com', true, 'user', false,
-    timestamptz '2026-08-02 00:00:00+00' + (i / 2) * interval '1 microsecond', timestamptz '2026-08-02 00:00:00+00'
+    timestamptz '2026-07-01 00:00:00+00' + (i / 2) * interval '1 microsecond', timestamptz '2026-07-01 00:00:00+00'
   from generate_series(1, 150) i`
+
+// Root, the first user, joined before them all.
+const rootFirst = `update "user" set created_at = timestamptz '2026-06-01 00:00:00+00' where email = 'root@example.com'`
 
 let fixture: Awaited<ReturnType<typeof createFixtureDb>>
 beforeAll(async () => { fixture = await createFixtureDb() })
@@ -37,13 +40,14 @@ const authOn = async (store: SnapshotDb, options: Partial<CreateAuthOptions> = {
 }
 
 /**
- * An app with 152 users whose only active admin is the newest, Last: Root, the first user, is an admin no more. A
- * read of every user, oldest first, stops long before Last.
+ * An app with 152 users whose only active admin is the newest, Last, made on the test clock after the 150: Root, the
+ * first user, is an admin no more. A read of every user, oldest first, stops long before Last.
  */
 const serve = async () => {
   const store = await openSnapshotDb('auth')
   const auth = await authOn(store)
   await createUser(auth, { email: 'root@example.com', password })
+  await store.query(rootFirst)
   await store.query(manyUsers)
   const last = await createUser(auth, { email: 'last@example.com', password, role: 'admin' })
   await store.query(`update "user" set role = 'user' where email = 'root@example.com'`)
@@ -91,8 +95,11 @@ describe('the last admin, past the first 100 users', () => {
     await store.query(`update "user" set role = 'superadmin' where id = 'u010'`)
     await store.query(`update "user" set role = 'admin', banned = true where id = 'u020'`)
     await expect(setUserRole(auth, { email: 'last@example.com', role: 'user' })).rejects.toThrow('Cannot demote the last admin')
-    // A comma list with spaces, and the braced form a driver writes an array as, both name the admin role.
-    for (const role of ['sales , admin', '{admin,sales}']) {
+    // A space inside a name makes another name, as parseRoles reads it.
+    await store.query(`update "user" set role = 'ad min' where id = 'u030'`)
+    await expect(setUserRole(auth, { email: 'last@example.com', role: 'user' })).rejects.toThrow('Cannot demote the last admin')
+    // A comma list with spaces, and the braced form a driver writes an array as, quoted or not, all name the admin role.
+    for (const role of ['sales , admin', '{admin,sales}', '{"admin","sales"}']) {
       await store.query(`update "user" set role = $1 where id = 'u030'`, [role])
       await setUserRole(auth, { email: 'last@example.com', role: 'user' })
       await setUserRole(auth, { email: 'last@example.com', role: 'admin' })
@@ -138,7 +145,7 @@ describe('the host user functions, past the first 100 users', () => {
     const { rows } = await store.query<{ email: string }>(`select email from "user" order by created_at, id`)
     expect(listed).toEqual(rows.map(({ email }) => email))
     expect(listed).toHaveLength(152)
-    expect(listed.slice(2, 5)).toEqual(['user1@example.com', 'user2@example.com', 'user3@example.com'])
+    expect([listed[0], ...listed.slice(1, 4), listed.at(-1)]).toEqual(['root@example.com', 'user1@example.com', 'user2@example.com', 'user3@example.com', 'last@example.com'])
     expect((await listUsers(auth)).users).toHaveLength(152)
   })
 })
@@ -148,6 +155,7 @@ describe('bringing every user into a new organization, past the first 100 users'
     const store = await openSnapshotDb('auth')
     const auth = await authOn(store, { roles: { sales: 'Sales', manager: 'Manager' }, organizations: { generateId: () => 'acme', create: 'everyone' } })
     await createUser(auth, { email: 'root@example.com', password })
+    await store.query(rootFirst)
     await store.query(manyUsers)
     await store.query(`update "user" set role = 'admin' where id = 'u150'`)
     await store.query(`update "user" set role = 'manager,sales' where id = 'u149'`)

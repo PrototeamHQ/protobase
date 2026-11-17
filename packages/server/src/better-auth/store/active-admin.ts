@@ -1,8 +1,13 @@
 import { sql, type RawBuilder } from 'kysely'
 import type { StoreSql } from './store-sql'
 
-/** The names in a user's role, a comma list that may be braced (`{admin,sales}`) as `parseRoles` reads it: a text[]. */
-export const roleNames = (role: RawBuilder<unknown>) => sql`string_to_array(replace(btrim(coalesce(${role}, 'user'), '{}'), ' ', ''), ',')`
+/**
+ * The names in a user's role as `parseRoles` reads them, a text[]: a comma list that may be braced (`{admin,"sales"}`),
+ * each name without the spaces and the quote at either end. The braces go, then the spaces and quote at the list's ends,
+ * then the list splits at each comma with the quotes and spaces beside it; spaces inside a name stay (`ad min`).
+ */
+export const roleNames = (role: RawBuilder<unknown>) =>
+  sql`regexp_split_to_array(regexp_replace(regexp_replace(coalesce(${role}, 'user'), '^\\s*\\{(.*)\\}\\s*$', '\\1'), '^\\s*"?|"?\\s*$', '', 'g'), '"?\\s*,\\s*"?')`
 
 /**
  * A user who is an active admin, in SQL: `admin` is one of the names in their role (`roleNames`), so `superadmin` is
