@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { deviceNameOf, grantSubject } from './grant-subjects'
 
 describe('grantSubject', () => {
-  it('is the same for one grant and secret, and another for another grant or secret', async () => {
-    const subject = await grantSubject('secret-one', 'grant-1')
-    expect(await grantSubject('secret-one', 'grant-1')).toBe(subject)
-    expect(await grantSubject('secret-one', 'grant-2')).not.toBe(subject)
-    expect(await grantSubject('secret-two', 'grant-1')).not.toBe(subject)
+  it('is the same for one grant, whatever the secret, and another for another grant', async () => {
+    const subject = await grantSubject('grant-1')
+    expect(await grantSubject('grant-1')).toBe(subject)
+    expect(await grantSubject('grant-2')).not.toBe(subject)
+    expect(subject).not.toContain('grant-1')
     expect(subject).toMatch(/^[A-Za-z0-9_-]{43}$/)
   })
 })

@@ -3,7 +3,7 @@ import { createAuthMiddleware } from 'better-auth/api'
 import { base64url, decodeJwt } from 'jose'
 import { storedToken } from '../mcp/refresh-reuse'
 
-type Context = { context: { secret: string; getPlugin: (id: string) => unknown } }
+type Context = { context: { getPlugin: (id: string) => unknown } }
 type SignEndpoint = (input: Record<string, unknown>) => Promise<{ response: { token: string } }>
 
 /** The claim an ID token names the device in, from the `device_name` a client passes to the token exchange. */
@@ -20,13 +20,12 @@ export const deviceNameOf = (value: unknown) => {
 
 /**
  * The subject of a grant: the client's tokens from one sign-in at the provider, which its refresh tokens and token
- * exchanges keep (the provider's `authorizationCodeId`). Derived with the app's secret, so it says nothing of the person
- * or the code, and the same grant always gets the same one.
+ * exchanges keep (the provider's `authorizationCodeId`, the hash of the code it began with). A hash of that alone, so
+ * it says nothing of the person or the code, and the same grant always gets the same one, also after the app's secret
+ * changes.
  */
-export const grantSubject = async (secret: string, authorizationCodeId: string) => {
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
-  return base64url.encode(new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`protobase-grant-subject ${authorizationCodeId}`))))
-}
+export const grantSubject = async (authorizationCodeId: string) =>
+  base64url.encode(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`protobase-grant-subject ${authorizationCodeId}`))))
 
 /** Signs `payload` with the app's keys, as the provider signs its own ID tokens, with this request's context. */
 export const signIdToken = async (ctx: Context, payload: Record<string, unknown>) => {
@@ -82,7 +81,7 @@ export const grantSubjectsPlugin = () => {
             const answer = answerOf(ctx.context.returned)
             const grant = grants.get(ctx.context)
             if (!answer || !grant) return
-            return ctx.json({ ...answer, id_token: await resignedIdToken(ctx, answer.id_token, await grantSubject(ctx.context.secret, grant)) })
+            return ctx.json({ ...answer, id_token: await resignedIdToken(ctx, answer.id_token, await grantSubject(grant)) })
           }),
         },
       ],

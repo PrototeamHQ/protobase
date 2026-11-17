@@ -913,7 +913,7 @@ auth: { openIdProvider: { connectPage: '/-/connect', audiences: ['https://*.exam
 
 ### Grant subjects
 
-With `subject: 'grant'`, an ID token's `sub` names the client's grant, never the person's id: the client's tokens from one sign-in at the app. A fresh sign-in is a new grant with a new subject, and the grant's refresh tokens and token exchanges keep it. So each sign-in of a phone app is a device of its own to the apps that take its tokens, such as an app whose platform provider signs in [device accounts](#device-accounts), and signing one device out there leaves the others. The subject is derived from the grant with the app's secret, so it says nothing of the person; `email` and `email_verified` still say who they are. The default, `subject: 'user'`, keeps the person's user id.
+With `subject: 'grant'`, an ID token's `sub` names the client's grant, never the person's id: the client's tokens from one sign-in at the app. A fresh sign-in is a new grant with a new subject, and the grant's refresh tokens and token exchanges keep it. So each sign-in of a phone app is a device of its own to the apps that take its tokens, such as an app whose platform provider signs in [device accounts](#device-accounts), and signing one device out there leaves the others. The subject is a hash of the grant, so it says nothing of the person and stays when the app's [secret changes](#changing-the-secret); `email` and `email_verified` still say who they are. The default, `subject: 'user'`, keeps the person's user id.
 
 ### Registering clients
 

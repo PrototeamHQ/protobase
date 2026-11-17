@@ -83,7 +83,7 @@ export const exchangeIdToken = (audiences: readonly AudiencePattern[], subject: 
   const problem = subjectProblem(user as ExchangeUser | null)
   if (problem) throw refused('invalid_grant', problem)
   if (subject === 'grant' && !stored.authorizationCodeId) throw refused('invalid_grant', 'subject_token belongs to no sign-in')
-  const sub = subject === 'grant' ? await grantSubject(ctx.context.secret, stored.authorizationCodeId!) : user!.id
+  const sub = subject === 'grant' ? await grantSubject(stored.authorizationCodeId!) : user!.id
   const device = deviceNameOf((ctx.body as Record<string, unknown> | undefined)?.device_name)
   const extra = device ? { [deviceNameClaim]: device } : {}
   if (origin) return exchanged(await originIdToken(ctx, user as ExchangeUser, request.audience, sub, extra))
