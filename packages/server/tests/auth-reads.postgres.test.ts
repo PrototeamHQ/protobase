@@ -5,7 +5,9 @@ import { createOrganization } from '../src/better-auth/organizations/host'
 import { startingOrganization } from '../src/better-auth/organizations/session-organization'
 import type { AuthContext } from '../src/better-auth/organizations/store'
 import { createUser } from '../src/better-auth/users'
+import { betterAuthActorNames } from '../src/history/actor-names'
 import type { TokenAuth } from '../src/personal-mail/linked-accounts'
+import { betterAuthOwnerRoles } from '../src/webhooks/table/owner-roles'
 import { betterAuthConnectionAccounts } from '../src/workflows/connections/connection-accounts'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
 import { largeTable, seqScansOf, watchStatements } from '../../../test-support/query-plans'
@@ -133,5 +135,34 @@ describe.skipIf(!ready)('the auth reads', () => {
     expect(await accounts.find('u1', 'mail')).toEqual({ id: 'mail', providerId: 'google', scopes: ['email', 'gmail'], refreshToken: null })
     expect(await accounts.find('u2', 'mail')).toBeUndefined()
     expect(seqScansOf(await plansOf('account'), 'account')).toEqual([])
+  })
+
+  it('name the actors of a page, 150 of 100,002 users, in one read by the key', async () => {
+    const { auth, fill, plansOf } = await serve()
+    await fill(`${largeTable('"user"', ['id'])}; ${users(100_002)}`)
+    const ids = [...Array.from({ length: 150 }, (_, i) => `u${String(i + 1)}`), 'u1', 'gone']
+    const names = await betterAuthActorNames(auth)(ids)
+    expect(Object.keys(names)).toHaveLength(150)
+    expect(names.u150).toBe('User 150')
+    const plans = await plansOf('user')
+    expect([plans.length, seqScansOf(plans, 'user')]).toEqual([1, []])
+  })
+
+  it("give each of 1,000 owners the role they act with now, in one read of the users and one of the memberships", async () => {
+    const { auth, fill, plansOf } = await serve()
+    await fill(`${largeTable('"user"', ['id'])}; ${largeTable('member', ['organization_id', 'user_id'])}; ${users(100_002)};
+      insert into organization (id, name, slug, created_at) values ('acme', 'Acme', 'acme', now());
+      insert into member (id, organization_id, user_id, role, app_roles, created_at) select 'm' || i, 'acme', 'u' || i, 'member', '["sales"]', now() from generate_series(1, 100000) i;
+      update "user" set role = 'support', last_role = case when i <= 500 then 'sales' end from generate_series(1, 1000) i where id = 'u' || i;
+      update "user" set banned = true where id = 'u1000'`)
+    const roles = betterAuthOwnerRoles(auth)
+    const owners = [...Array.from({ length: 1000 }, (_, i) => ({ id: `u${String(i + 1)}`, tenant: 'acme' })), { id: 'u1' }, { id: 'u100001', tenant: 'acme' }, { id: 'gone', tenant: 'acme' }]
+    const held = await Promise.all(owners.map(roles))
+    // A member's last chosen role while they hold it, else their first, a global one; outside the tenant, the global ones.
+    expect(held.slice(0, 500).every((one) => one.join() === 'sales')).toBe(true)
+    expect(held.slice(500, 999).every((one) => one.join() === 'support')).toBe(true)
+    expect(held.slice(999)).toEqual([[], ['support'], [], []])
+    const plans = [...(await plansOf('user')), ...(await plansOf('member'))]
+    expect([plans.length, seqScansOf(plans, 'user'), seqScansOf(plans, 'member')]).toEqual([2, [], []])
   })
 })
