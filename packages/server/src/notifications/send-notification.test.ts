@@ -12,7 +12,7 @@ let runtime: JobsEnqueuer | undefined
 const running = (names: string[]) => {
   const enqueue = vi.fn(async () => 'job-id')
   const definitions = new Map(names.map((name) => [name, defineJob({ name, run: () => {} })]))
-  runtime = { enqueue, wake: () => {}, definition: (name) => definitions.get(name) }
+  runtime = { enqueue, enqueueMany: vi.fn(async () => []), wake: () => {}, definition: (name) => definitions.get(name) }
   setCurrentJobs(runtime)
   return enqueue
 }

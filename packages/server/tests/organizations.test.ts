@@ -124,7 +124,7 @@ describe('the auth schema with organizations', () => {
 describe('organizations on the host', () => {
   it('make the creator owner with every app role a member can hold, and keep members with the roles given', async () => {
     const { auth } = await serve({}, { people: true })
-    expect(await listOrganizations(auth)).toEqual([
+    expect((await listOrganizations(auth)).organizations).toEqual([
       { id: '1', name: 'Acme', slug: 'acme', members: expect.arrayContaining([
         { email: 'bo@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] },
         { email: 'sanne@example.com', role: 'member', appRoles: ['sales'] },
@@ -142,7 +142,7 @@ describe('the first user', () => {
     await store.exec(`insert into organization (id, name, slug, created_at) values ('1', 'Seeded', 'seeded', now())`)
     await createUser(auth, { email: 'root@example.com', password })
     await createUser(auth, { email: 'bo@example.com', password })
-    expect(await listOrganizations(auth)).toEqual([{ id: '1', name: 'Seeded', slug: 'seeded', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] }])
+    expect((await listOrganizations(auth)).organizations).toEqual([{ id: '1', name: 'Seeded', slug: 'seeded', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] }])
   })
 })
 
@@ -349,7 +349,7 @@ describe('managing members', () => {
     const sanneId = members.members.find((member: { user: { email: string } }) => member.user.email === 'sanne@example.com').id
     expect((await app.request('/api/auth/organization/transfer-ownership', { cookie: await app.signIn('sanne@example.com'), body: { memberId: sanneId } })).status).toBe(403)
     expect((await app.request('/api/auth/organization/transfer-ownership', { cookie: bo, body: { memberId: sanneId } })).status).toBe(200)
-    const acme = (await listOrganizations(app.auth))[0]!
+    const acme = (await listOrganizations(app.auth)).organizations[0]!
     expect(acme.members).toEqual(expect.arrayContaining([expect.objectContaining({ email: 'sanne@example.com', role: 'owner' }), expect.objectContaining({ email: 'bo@example.com', role: 'admin' })]))
   })
 
@@ -430,7 +430,7 @@ describe('deleting an organization', () => {
     expect(await refused.json()).toMatchObject({ code: 'ORGANIZATION_HAS_RECORDS', message: expect.stringContaining('companies') })
     await createOrganization(app.auth, { name: 'Empty', slug: 'empty', owner: 'bo@example.com' })
     expect((await app.request('/api/auth/organization/delete', { cookie: bo, body: { organizationId: '3' } })).status).toBe(200)
-    expect((await listOrganizations(app.auth)).map((organization) => organization.slug)).toEqual(['acme', 'globex'])
+    expect((await listOrganizations(app.auth)).organizations.map((organization) => organization.slug)).toEqual(['acme', 'globex'])
   })
 })
 

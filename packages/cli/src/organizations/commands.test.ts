@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { addAppRoleCommand, addMemberCommand, createOrganizationCommand, listOrganizationsCommand, parseRoleList, setMemberRolesCommand, slugOf, type OrganizationsApi } from './commands'
 
 const api = (): OrganizationsApi => ({
-  listOrganizations: async () => [{ id: '1', name: 'Acme', slug: 'acme', members: [{ email: 'bo@example.com', role: 'owner', appRoles: ['manager', 'sales'] }] }],
+  listOrganizations: async (after) =>
+    after
+      ? { organizations: [{ id: '2', name: 'Globex', slug: 'globex', members: [] }] }
+      : { organizations: [{ id: '1', name: 'Acme', slug: 'acme', members: [{ email: 'bo@example.com', role: 'owner', appRoles: ['manager', 'sales'] }] }], next: { createdAt: '2026-08-01 00:00:00+00', id: '1' } },
   createOrganization: vi.fn(async (input) => ({ organization: { id: input.id ?? 'new-id', slug: input.slug } })),
   addMember: vi.fn(async () => undefined),
   setMemberRoles: vi.fn(async () => undefined),
@@ -28,10 +31,10 @@ describe('the organization commands', () => {
     expect(parseRoleList(undefined)).toBeUndefined()
   })
 
-  it('list organizations with their members', async () => {
+  it('list organizations with their members, page by page', async () => {
     const { lines, out } = output()
     await listOrganizationsCommand(api(), out)
-    expect(lines.join('')).toBe('acme  Acme  (1)\n  bo@example.com  owner  manager,sales\n')
+    expect(lines.join('')).toBe('acme  Acme  (1)\n  bo@example.com  owner  manager,sales\nglobex  Globex  (2)\n')
   })
 
   it('create an organization with a slug from its name, keeping a given id', async () => {

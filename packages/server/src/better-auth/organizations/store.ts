@@ -1,4 +1,5 @@
 import type { createAuthMiddleware } from 'better-auth/api'
+import { sql, type RawBuilder } from 'kysely'
 import { parseAppRoles } from './app-roles'
 import type { MembershipSummary } from './active-organization'
 
@@ -25,6 +26,9 @@ export const organizationRoleOf = (member: Pick<StoredMember, 'role'>): Organiza
   const roles = member.role.split(',').map((name) => name.trim())
   return roles.includes('owner') ? 'owner' : roles.includes('admin') ? 'admin' : 'member'
 }
+
+/** A member who is an owner, in SQL: `owner` is one of the names in their role, as `organizationRoleOf` reads it. */
+export const isOwner = (role: RawBuilder<unknown>) => sql`'owner' = any(regexp_split_to_array(regexp_replace(${role}, '^\\s+|\\s+$', '', 'g'), '\\s*,\\s*'))`
 
 export const findMember = async (adapter: Adapter, where: { organizationId: string; userId: string }) => {
   const row = await adapter.findOne<MemberRow>({ model: 'member', where: [{ field: 'organizationId', value: where.organizationId }, { field: 'userId', value: where.userId }] })

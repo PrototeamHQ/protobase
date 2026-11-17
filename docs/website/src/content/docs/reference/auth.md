@@ -749,7 +749,7 @@ await createOrganization(auth, { name, slug, owner: email, id? })               
 await addMember(auth, { organization, email, role?, appRoles? })                      // role: owner, admin or member (default)
 await setMemberRoles(auth, { organization, email, role?, appRoles? })
 await removeMember(auth, { organization, email })                                     // refuses the last owner
-await listOrganizations(auth)                                                         // oldest first, with members' emails and roles
+await listOrganizations(auth, { after?, size? })                                     // a page, oldest first: { organizations: [{ id, name, slug, members }], next? }
 await addAppRoleToOwners(auth, appRole)                                               // a role the project added later, to every owner
 ```
 

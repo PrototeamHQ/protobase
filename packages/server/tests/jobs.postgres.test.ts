@@ -117,6 +117,54 @@ describe.skipIf(!ready)('keys', () => {
   })
 })
 
+describe.skipIf(!ready)('many at once', () => {
+  const many = Array.from({ length: 150 }, (_, index) => index)
+
+  it('enqueues 150 jobs in one call, each payload checked first, and runs every one', async () => {
+    const db = await jobsDb()
+    const seen: number[] = []
+    const job = defineJob({ name: 'many', concurrency: 25, payload: z.object({ index: z.number() }), run: ({ index }) => { seen.push(index) } })
+    await start(db, [job])
+    await expect(job.enqueueMany(db, [{ payload: { index: 0 } }, { payload: { index: 'x' } as never }])).rejects.toThrow('Job "many" has an invalid payload')
+    expect((await sql`select 1 from jobs.job where name = 'many'`.execute(db)).rows).toEqual([])
+    const ids = await job.enqueueMany(db, many.map((index) => ({ payload: { index }, ...(index === 0 && { options: { delay: '1 hour', priority: 3 } }) })))
+    expect(new Set(ids).size).toBe(150)
+    expect(await row(db, ids[0]!)).toMatchObject({ data: { index: 0 }, priority: 3, state: 'created' })
+    await until(() => expect(seen.sort((a, b) => a - b)).toEqual(many.slice(1)), 20_000)
+    await expect(job.enqueueMany(db, [{ payload: { index: 1 }, options: { key: 'k', mode: 'replace' } }])).rejects.toThrow('enqueueMany keeps a waiting job of a key')
+  })
+
+  it('keeps one waiting job per key, for a key listed twice and for one already waiting', async () => {
+    const db = await jobsDb()
+    const job = defineJob({ name: 'refresh', payload: z.object({ v: z.number() }), run: () => {} })
+    await start(db, [job], { work: false })
+    const waiting = await job.enqueue(db, { v: -1 }, { key: 'customer:0' })
+    const later = new Date(Date.now() + 3_600_000)
+    const ids = await job.enqueueMany(db, [...many.map((v) => ({ payload: { v }, options: { key: `customer:${v}`, runAt: later } })), { payload: { v: 999 }, options: { key: 'customer:149', delay: 60 } }])
+    expect(ids[0]).toBe(waiting)
+    expect(ids[150]).toBe(ids[149])
+    const { rows } = await sql<{ jobs: number; keys: number; later: number }>`select count(*)::int as jobs, count(distinct singleton_key)::int as keys,
+      count(*) filter (where start_after = ${later})::int as later from jobs.job where name = 'refresh'`.execute(db)
+    expect(rows).toEqual([{ jobs: 150, keys: 150, later: 149 }])
+    expect((await row(db, ids[149]!))!.data).toEqual({ v: 149 })
+  })
+
+  // pg-boss runs a group's jobs by their transaction's start, then by id, one at a time: the ids rise in the list's order.
+  it('gives 150 jobs of one group enqueued in one call ids in the order of the list, and runs them so', async () => {
+    const db = await jobsDb()
+    const done: number[] = []
+    const job = defineJob({ name: 'ordered-many', ordered: true, payload: z.object({ index: z.number() }), run: ({ index }) => { done.push(index) } })
+    await start(db, [job], { work: false })
+    const ids = await db.transaction().execute((trx) => job.enqueueMany(trx, many.map((index) => ({ payload: { index }, options: { group: 'g' } }))))
+    const { rows } = await sql<{ id: string; index: number }>`select id, (data->>'index')::int as index from jobs.job where name = 'ordered-many' and singleton_key = 'g' order by id`.execute(db)
+    expect(rows.map((job) => job.index)).toEqual(many)
+    expect(rows.map((job) => job.id)).toEqual(ids)
+    await stop()
+    await start(db, [job])
+    await until(() => expect(done.slice(0, 5)).toEqual([0, 1, 2, 3, 4]))
+  })
+})
+
 describe.skipIf(!ready)('failures', () => {
   it('keeps a job as failed with its last error once its attempts run out', async () => {
     const db = await jobsDb()

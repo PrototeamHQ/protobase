@@ -1,9 +1,10 @@
 import type { Db } from '@protobase/query'
-import type { EnqueueOptions, JobDefinition } from './job-types'
+import type { EnqueuedJob, EnqueueOptions, JobDefinition } from './job-types'
 
 /** What `defineJob(...).enqueue` reaches: the jobs runtime this process started. */
 export type JobsEnqueuer = {
   enqueue(definition: JobDefinition, db: Db, payload: unknown, options?: EnqueueOptions): Promise<string>
+  enqueueMany(definition: JobDefinition, db: Db, jobs: readonly EnqueuedJob[]): Promise<string[]>
   /** The job of this name among the jobs this runtime took, or `undefined`. */
   definition(name: string): JobDefinition | undefined
   /** Has this process's worker of the job look for due jobs now rather than at its next poll; nothing without one. */

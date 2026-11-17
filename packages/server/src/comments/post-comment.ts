@@ -42,7 +42,7 @@ export const postComment = async (deps: Deps, entry: Entry, session: Session, ke
     if (input.mentions.length === 0) return inserted
     const url = `${appOrigin!(requestURL)}${appPath({ kind: 'record', resource: entry.name, key })}`
     const record = recordLabel(access, deps.views, key, current.record)
-    for (const user of input.mentions) await mentionJob!.enqueue(trx, { comment: inserted.id, user, url, record }, { key: `${inserted.id}:${user}` })
+    await mentionJob!.enqueueMany(trx, input.mentions.map((user) => ({ payload: { comment: inserted.id, user, url, record }, options: { key: `${inserted.id}:${user}` } })))
     return inserted
   })
   if (!row) throw notFound(`No ${entry.name} with this key`)
