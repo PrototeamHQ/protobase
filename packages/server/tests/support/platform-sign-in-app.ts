@@ -2,6 +2,7 @@ import { Kysely } from 'kysely'
 import { expect } from 'vitest'
 import { betterAuthAuthenticator } from '../../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../../src/better-auth/create-auth'
+import type { PlatformSignIn } from '../../src/better-auth/platform-sign-in'
 import { defaultSignInPolicy, type SignInPolicy } from '../../src/better-auth/sign-in-policy'
 import { createUser } from '../../src/better-auth/users'
 import { createAdmin } from '../../src/create-admin'
@@ -19,7 +20,16 @@ export const cookiesOf = (response: Response) => response.headers.getSetCookie()
 /** The claims of a person as the platform's provider vouches for them. */
 export const octo = (changes: Record<string, unknown> = {}) => ({ sub: '4242', email: 'octo@example.com', email_verified: true, name: 'Octo Cat', ...changes })
 
-export type PlatformApp = Partial<CreateAuthOptions> & { provider?: string; discoveredIssuer?: string; tokenSignIn?: boolean; tokensOnly?: boolean }
+export type PlatformApp = Partial<CreateAuthOptions> & {
+  provider?: string
+  discoveredIssuer?: string
+  tokenSignIn?: boolean
+  tokensOnly?: boolean
+  /** More of the platform's provider's settings, such as `authorizationParams`. */
+  settings?: Partial<PlatformSignIn>
+  /** The platform's providers after this one, whose fake providers the test starts first. */
+  more?: PlatformSignIn[]
+}
 
 // Better Auth's rate limits are per client address and kept in memory, so every app gets an address of its own.
 let address = 0
@@ -27,9 +37,9 @@ let address = 0
 /**
  * An app on a copy of `shared`'s migrated store with an admin (`root@example.com`) and the platform's provider, with
  * token sign-in when `tokenSignIn` asks for it, or token sign-in alone, without a client of the provider's, with
- * `tokensOnly`, and a client address of its own.
+ * `tokensOnly`, with `more` providers after it, and a client address of its own.
  */
-export const servePlatformApp = async (shared: SnapshotDb, appDb: Kysely<any>, { provider = 'github', discoveredIssuer, tokenSignIn, tokensOnly, ...options }: PlatformApp = {}) => {
+export const servePlatformApp = async (shared: SnapshotDb, appDb: Kysely<any>, { provider = 'github', discoveredIssuer, tokenSignIn, tokensOnly, settings = {}, more = [], ...options }: PlatformApp = {}) => {
   const platform = await startFakeOidcProvider({ issuer, client, ...(discoveredIssuer && { discoveredIssuer }) })
   const store = await shared.clone()
   const auth = createAuth({
@@ -38,7 +48,7 @@ export const servePlatformApp = async (shared: SnapshotDb, appDb: Kysely<any>, {
     secret,
     mailer: false,
     operator: false,
-    signInProvider: tokensOnly ? { issuer, provider, tokenSignIn: true } : { issuer, ...client, provider, ...(tokenSignIn && { tokenSignIn }) },
+    signInProviders: [{ ...(tokensOnly ? { issuer, provider, tokenSignIn: true } : { issuer, ...client, provider, ...(tokenSignIn && { tokenSignIn }) }), ...settings }, ...more],
     ...options,
   })
   await createUser(auth, { email: 'root@example.com', password })

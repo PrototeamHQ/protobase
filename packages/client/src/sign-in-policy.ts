@@ -23,10 +23,10 @@ export type SignInPolicy = {
 /**
  * The saved policy, how it applies (`effective`: emailed codes need mail, and without mail passwords stay on and staff
  * who would have to tell the person cannot sign in; the platform's provider is off while a second step is required), the
- * name of the operator provider when staff can sign in at all, the name of the platform's sign-in provider when it adds
- * one, and who saved it when.
+ * name of the operator provider when staff can sign in at all, the names of the sign-in providers the platform adds,
+ * and who saved it when.
  */
-export type SignInPolicyState = { policy: SignInPolicy; effective: SignInPolicy; mail: boolean; operator?: string; platformSignIn?: string; savedAt?: string; savedBy?: string }
+export type SignInPolicyState = { policy: SignInPolicy; effective: SignInPolicy; mail: boolean; operator?: string; platformProviders?: string[]; savedAt?: string; savedBy?: string }
 
 /** Reading and saving the sign-in policy, for admins. Saving rejects with `AuthError` saying why a policy cannot be saved. */
 export const signInPolicyClient = (client: BetterAuthClient) => ({

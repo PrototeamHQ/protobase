@@ -5,7 +5,7 @@ import type { StoreMigration } from './migration'
 
 /** The indexes that find the other active admins and page through the users by creation; none on a view (`users.keyTable`). */
 export const userIndexes: StoreMigration = {
-  version: 11,
+  version: 12,
   name: 'user_indexes',
   title: 'The indexes that find the active admins and page through the users',
   tables: [],

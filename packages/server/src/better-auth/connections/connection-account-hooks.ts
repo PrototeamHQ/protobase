@@ -32,15 +32,20 @@ export const connectionAccountHooks = (connections: readonly ResolvedConnection[
   return { account, session }
 }
 
-/** Runs each hook of `first` and then of `second`; their `before` hooks change no data, as neither returns any. */
+/**
+ * Runs each hook of `first` and then of `second`. Data a `before` hook returns goes into the record the next one sees,
+ * and both hooks' data into what the join returns.
+ */
 export const bothAccountHooks = (first: AccountHooks, second: AccountHooks): AccountHooks => {
   const join = (stage: 'before' | 'after', operation: 'create' | 'update') => {
     const a = first[operation]?.[stage] as ((record: never, context: never) => Promise<unknown>) | undefined
     const b = second[operation]?.[stage] as ((record: never, context: never) => Promise<unknown>) | undefined
     if (!a || !b) return a ?? b
     return async (record: never, context: never) => {
-      await a(record, context)
-      return b(record, context)
+      const before = (await a(record, context)) as { data?: Record<string, unknown> } | undefined
+      if (!before?.data) return b(record, context)
+      const after = (await b({ ...(record as object), ...before.data } as never, context)) as { data?: Record<string, unknown> } | undefined
+      return { data: { ...before.data, ...after?.data } }
     }
   }
   return {

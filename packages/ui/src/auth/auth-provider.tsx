@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { createAuthSession, createClient, type AuthSession, type AuthUser, type PersonalMailLink, type PluginRef, type SamlSignIn, type SetupStatus, type SignInMethod, type SignInResult, type TwoFactorMethod, type WorkflowConnection } from '@protobase/client'
+import { createAuthSession, createClient, type AuthSession, type AuthUser, type PersonalMailLink, type PlatformSignIn, type PluginRef, type SamlSignIn, type SetupStatus, type SignInMethod, type SignInResult, type TwoFactorMethod, type WorkflowConnection } from '@protobase/client'
 import type { Locale } from '@protobase/schema/internal'
 import { nativeAuthFetch, type NativeBridge } from '../app/native-auth-fetch'
 import { pushNotifications, type PushNotifications } from '../notifications/push/push-notifications'
@@ -55,6 +55,10 @@ export type AuthApi = {
   socialProviders: string[]
   /** The server's sign-in providers with the names to show, the platform's own and the SAML identity providers included. */
   signInProviders: SignInProvider[]
+  /** The platform's sign-in providers among `socialProviders`, with those the account page keeps off marked `hidden`. */
+  platformProviders: PlatformSignIn[]
+  /** Whether the platform links devices, which the account page's devices list (`account.deviceLinks`). */
+  deviceLinks: boolean
   /** Leaves for the sign-in of any of `signInProviders`, which comes back to this page; rejects with `AuthError`. */
   signInSocial: (provider: string) => Promise<void>
   /** Leaves for the provider to link the signed-in account to it, which comes back to this page; rejects with `AuthError`. */
@@ -108,6 +112,7 @@ const defaultSignInMethods: SignInMethod[] = ['password']
 const none: string[] = []
 const noMail: PersonalMailLink[] = []
 const noSaml: SamlSignIn[] = []
+const noPlatform: PlatformSignIn[] = []
 const noPlugins: PluginRef[] = []
 
 export const useAuth = () => {
@@ -153,10 +158,11 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
   const signUpAsksName = status?.signUpFields?.includes('name') ?? true
   const passkeyDomains = status?.passkeyDomains ?? none
   const socialProviders = status?.socialProviders ?? none
-  const platformSignIn = status?.platformSignIn
+  const platformProviders = status?.platformProviders ?? noPlatform
   const personalMail = status?.personalMail ?? noMail
   const samlProviders = status?.samlProviders ?? noSaml
   const staffSignIn = status?.staffSignIn
+  const deviceLinks = Boolean(status?.deviceLinks)
   const organizations = status?.organizations
   // Whether visitors may browse without signing in; signing out then goes back to browsing.
   const anonymous = Boolean(status?.anonymous)
@@ -276,7 +282,9 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
       signUpAsksName,
       passkeyDomains,
       socialProviders,
-      signInProviders: [...socialProviders.map((id) => ({ id, name: providerName(id, platformSignIn) })), ...samlProviders],
+      signInProviders: [...socialProviders.map((id) => ({ id, name: providerName(id, platformProviders) })), ...samlProviders],
+      platformProviders,
+      deviceLinks,
       staffSignIn,
       ...(organizations && { organizations }),
       markSignedOut,
@@ -341,7 +349,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
       },
       push,
     }),
-    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, personalAccessTokens, canSignUp, signUpAsksName, passkeyDomains, socialProviders, platformSignIn, personalMail, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, identity, signedOutState, markSignedOut, recheck, finish, signIn],
+    [push, state, session, signInMethods, signInFirst, passwordReset, changeEmail, accountDeletion, mcp, personalAccessTokens, canSignUp, signUpAsksName, passkeyDomains, socialProviders, platformProviders, deviceLinks, personalMail, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, identity, signedOutState, markSignedOut, recheck, finish, signIn],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

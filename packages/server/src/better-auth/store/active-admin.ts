@@ -11,7 +11,7 @@ export const roleNames = (role: RawBuilder<unknown>) =>
 
 /**
  * A user who is an active admin, in SQL: `admin` is one of the names in their role (`roleNames`), so `superadmin` is
- * not, and they are not blocked. The partial index `user_active_admin_idx` (migration 11) has this predicate, and
+ * not, and they are not blocked. The partial index `user_active_admin_idx` (migration 12) has this predicate, and
  * Postgres uses it only for a query that repeats it word for word: changing it needs a new index.
  */
 export const activeAdmin = (role: RawBuilder<unknown>, banned: RawBuilder<unknown>) =>
