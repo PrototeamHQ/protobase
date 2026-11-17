@@ -363,6 +363,16 @@ describe('managing members', () => {
     expect((await app.request('/api/v1/companies?page_size=1', { token })).status).toBe(401)
     expect(await claimsOf(app, sanne)).not.toHaveProperty('org')
   })
+
+  it('takes a removed member out of the organization on every session, past the 100 rows a read returns untold', async () => {
+    const app = await serve({}, { people: true })
+    await app.store.query(`insert into session (id, user_id, token, expires_at, updated_at, active_organization_id)
+      select 'many-' || i, u.id, 'many-token-' || i, timestamptz '2026-08-02 00:00:00+00', timestamptz '2026-08-01 00:00:00+00', '1'
+      from "user" u, generate_series(1, 150) i where u.email = 'sanne@example.com'`)
+    expect((await app.request('/api/auth/organization/remove-member', { cookie: await app.signIn('bo@example.com'), body: { memberIdOrEmail: 'sanne@example.com', organizationId: '1' } })).status).toBe(200)
+    const { rows } = await app.store.query(`select count(*)::int as left_in from session s join "user" u on u.id = s.user_id where u.email = 'sanne@example.com' and s.active_organization_id is not null`)
+    expect(rows).toEqual([{ left_in: 0 }])
+  })
 })
 
 describe('working in another organization', () => {

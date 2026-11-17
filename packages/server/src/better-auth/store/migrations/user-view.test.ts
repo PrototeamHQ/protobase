@@ -12,7 +12,7 @@ const statementsOf = (options: UserTableOptions) => {
   const names = migrationNames({ schema: 'app_auth', users: userTable(options), uuidIds: true })
   return storeMigrations.flatMap((migration) => migration.statements(names).map(ddlText))
 }
-const userDdl = (statement: string) => /^(create table if not exists|alter table) "app_auth"\."users"/.test(statement)
+const userDdl = (statement: string) => /^(create table if not exists|alter table|create index if not exists \w+ on) "app_auth"\."users"/.test(statement)
 // What each column holding a user's id references.
 const references = (statements: string[]) => statements.flatMap((statement) => [...statement.matchAll(/\b(?:user_id|inviter_id) [^,\n]* (references "[^"]+"\."[^"]+" \(id\))/g)].map((match) => match[1]!))
 
@@ -38,6 +38,8 @@ describe('the store over a user view', () => {
       'alter table "app_auth"."users" add column if not exists "raw_user_meta_data" jsonb',
       'alter table "app_auth"."users" add column if not exists "two_factor_enabled" boolean',
       'alter table "app_auth"."users" add column if not exists "last_organization_id" text',
+      expect.stringMatching(/^create index if not exists user_active_admin_idx on "app_auth"\."users" \(id\) where "banned" is not true and 'admin' = any\(.*"app_role"/),
+      'create index if not exists user_created_at_id_idx on "app_auth"."users" ("created_at", id)',
     ])
     expect(new Set(references(plain))).toEqual(new Set(['references "app_auth"."users" (id)']))
   })
