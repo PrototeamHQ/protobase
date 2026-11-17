@@ -25,7 +25,7 @@ describe.skipIf(!ready)('a table subscription among 100,000', () => {
     const db = new Kysely<any>({ dialect: watched.dialect })
     const subscriptions = tableSubscriptions({ schema: 'webhooks', ownerRoles: async () => [], deliveryLog: true })
     const id = '00000000-0000-4000-8000-000000050000'
-    expect((await subscriptions.find(db, id))?.options.url).toBe('https://example.com/50000')
+    expect((await subscriptions.find(db, id))?.options).toMatchObject({ url: 'https://example.com/50000' })
     await subscriptions.record(db, id, event, 1, { ok: true, status: 200 }, 12)
     await subscriptions.record(db, id, event, 2, { ok: false, error: 'refused', status: 500, final: false }, 12)
     expect(await subscriptions.find(db, 'not-a-uuid')).toBeUndefined()

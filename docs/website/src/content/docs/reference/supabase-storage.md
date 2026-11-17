@@ -48,7 +48,7 @@ Public buckets are served at `/api/sb/storage/v1/object/public/<bucket>/<name>` 
 - `object/list/<bucket>`, `object/move`, `object/copy` and `object/info/...`.
 - `bucket`: list, get, create, update, empty and delete.
 
-A list walks the folder's level entry by entry on Supabase's `(bucket_id, name collate "C")` index: a folder below it costs one read however many objects it holds, so the top of a big bucket lists as fast as any folder.
+A list walks the folder's level entry by entry on the storage schema's `(bucket_id, name collate "C")` index: a folder below it costs one read however many objects it holds, so the top of a big bucket lists as fast as any folder.
 
 A download is sent with the type it was uploaded with, `nosniff` and a sandboxing Content-Security-Policy, so an uploaded page cannot run on the app's origin, and `?download` makes it an attachment.
 
