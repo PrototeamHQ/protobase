@@ -44,6 +44,8 @@ export const edges = [
   { from: ['packages/cli/tests/support/auth-project.ts'], starts: ['packages/cli/bin/protobase-source.mjs', 'tests/apps/erp/protobase.config.ts'], reads: ['tests/apps/erp/**'] },
   // The no-resources test builds and serves a copy of the scratch app, with the admin app it bundles.
   { from: ['packages/cli/tests/doctor/no-resources.integration.test.ts'], loads: cliModuleFiles, reads: ['tests/apps/scratch/**'] },
+  // The doctor's database-free test loads the real-estate app's config and reads its migrations by path.
+  { from: ['packages/cli/src/doctor/run-without-database.test.ts'], reads: ['tests/apps/real-estate/**'] },
   // The Supabase move's test imports into a new scratch app and serves it with `protobase dev`, with pg_dump and psql
   // of its own, from a Supabase project it makes from its SQL and the import's fixtures.
   { from: ['tests/supabase-move/client/moved-app.ts'], starts: ['packages/cli/bin/protobase-source.mjs'], loads: cliModuleFiles, reads: ['tests/apps/scratch/**', 'tests/supabase-move/client/project/**', 'tests/supabase-move/client/pg-tools/**'] },
