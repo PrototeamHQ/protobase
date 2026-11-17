@@ -57,6 +57,8 @@ export type SetupStatus = {
   signUpFields?: SignUpField[]
   socialProviders: string[]
   platformProviders?: PlatformSignIn[]
+  /** The ids of the platform's providers that take token sign-in, by token alone too. */
+  tokenProviders?: string[]
   deviceLinks?: boolean
   samlProviders: SamlSignIn[]
   staffSignIn?: string
