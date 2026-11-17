@@ -20,23 +20,10 @@ describe('resolvePasskeyDomain', () => {
 })
 
 describe('signInPasskeyDomains', () => {
-  // Counts the passkeys whose RP ID is any of the values asked for.
-  const store = (rpIDs: Array<string | null>) => ({
-    count: async ({ where = [] }: { where?: Array<{ value: unknown }> }) => rpIDs.filter((rpID) => where.some((condition) => condition.value === rpID)).length,
-  })
-
+  // Which hosts hold a passkey is asked of real Postgres, in tests/auth-lookups.postgres.test.ts.
   it('is the passkey domain alone on one origin, without asking the store', async () => {
-    const unread = { count: () => Promise.reject(new Error('read')) }
+    const unread = { findOne: () => Promise.reject(new Error('read')) }
     expect(await signInPasskeyDomains(unread, 'erp-x1.protobase.net', origins.slice(0, 1))).toEqual(['erp-x1.protobase.net'])
-  })
-
-  it('adds the other hosts that passkeys were made for, after the passkey domain', async () => {
-    expect(await signInPasskeyDomains(store(['admin.shop.com']), 'admin.shop.com', origins)).toEqual(['admin.shop.com'])
-    expect(await signInPasskeyDomains(store(['admin.shop.com', 'erp-x1.protobase.net']), 'admin.shop.com', origins)).toEqual(['admin.shop.com', 'erp-x1.protobase.net'])
-  })
-
-  it('counts passkeys made before they kept their RP ID for the host of baseURL', async () => {
-    expect(await signInPasskeyDomains(store([null]), 'admin.shop.com', origins)).toEqual(['admin.shop.com', 'erp-x1.protobase.net'])
   })
 
   it('lists each host once, whatever the ports of its origins', () => {
