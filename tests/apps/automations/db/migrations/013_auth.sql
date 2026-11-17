@@ -1,8 +1,10 @@
 -- The auth schema changes this version of Protobase needs, written by `protobase auth migration`.
 -- Applied with the project's other migrations; edit or remove statements the project handles differently.
 
--- 11 account_keys: One account per provider and account id, the device accounts people signed out of, and the sessions of each device.
+-- 11 account_keys: One account per provider and account id, and per person where a provider links one, the device accounts people signed out of, and the sessions of each device.
 create unique index account_provider_id_account_id_uidx on "auth"."account" (provider_id, account_id);
+alter table "auth"."account" add column single_subject_user_id text;
+create unique index account_provider_id_single_subject_user_id_uidx on "auth"."account" (provider_id, single_subject_user_id);
 create table "auth"."refused_account" (
   id text primary key,
   provider_id text not null,

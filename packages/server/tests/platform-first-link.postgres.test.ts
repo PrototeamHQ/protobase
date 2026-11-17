@@ -63,4 +63,12 @@ describe.skipIf(!ready)('first sign-ins at once', () => {
     await insert('link-1')
     await expect(insert('link-2')).rejects.toThrow(/account_provider_id_account_id_uidx/)
   })
+
+  it('cannot leave two accounts of a provider that links one for one person in the store', async () => {
+    const { auth, store } = await serve()
+    const octoId = (await createUser(auth, { email: 'octo@example.com', password, role: 'user' })).id
+    const insert = (id: string, subject: string) => store.exec(`insert into account (id, account_id, provider_id, user_id, single_subject_user_id, updated_at) values ('${id}', '${subject}', 'central', '${octoId}', '${octoId}', now())`)
+    await insert('link-1', 'subject-1')
+    await expect(insert('link-2', 'subject-2')).rejects.toThrow(/account_provider_id_single_subject_user_id_uidx/)
+  })
 })

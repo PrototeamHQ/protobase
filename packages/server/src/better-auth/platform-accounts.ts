@@ -13,26 +13,27 @@ export const holdsOtherSubject = (linked: { providerId: string; accountId: strin
   linked.some((account) => account.providerId === providerId && account.accountId !== accountId)
 
 /**
+ * The account's field that holds its person's id when the provider links one account per person, and nothing
+ * otherwise: the store keeps it unique per provider (auth store migration 11), so a second account of such a provider
+ * for one person is never written, also when two sign-ins write theirs at the same moment.
+ */
+export const singleSubjectField = { singleSubjectUserId: { type: 'string', required: false, input: false, fieldName: 'single_subject_user_id' } } as const
+
+/**
  * Better Auth's `databaseHooks.account` for the platform's `providers`: a person holds at most one account of each, so
  * a first sign-in that Better Auth would link by the address to someone linked to another subject of that provider is
  * refused (`403 PROVIDER_ACCOUNT_LINKED`), as is connecting a second one from the account page. Once linked, Better
  * Auth finds the person by the provider and subject alone. Two first sign-ins with two subjects at the same moment can
- * both pass the check before either is written, so each looks again once written, and one that finds another account
- * of the provider removes its own and is refused: at most one stays, and when both look late, neither does.
+ * both pass the check before either is written; the account's `singleSubjectField` then makes the store refuse the
+ * second insert, so it links nothing and signs nobody in.
  */
 export const oneAccountPerProvider = (providers: string[]): AccountHooks => ({
   create: {
     before: async (account, context) => {
-      if (!context || !providers.includes(account.providerId)) return
-      const linked = await context.context.internalAdapter.findAccounts(account.userId)
+      if (!providers.includes(account.providerId)) return
+      const linked = context ? await context.context.internalAdapter.findAccounts(account.userId) : []
       if (holdsOtherSubject(linked, account)) throw new APIError('FORBIDDEN', otherSubjectLinked)
-    },
-    after: async (account, context) => {
-      if (!context || !providers.includes(account.providerId)) return
-      const linked = await context.context.internalAdapter.findAccounts(account.userId)
-      if (!holdsOtherSubject(linked, account)) return
-      await context.context.internalAdapter.deleteAccount(account.id)
-      throw new APIError('FORBIDDEN', otherSubjectLinked)
+      return { data: { singleSubjectUserId: account.userId } }
     },
   },
 })

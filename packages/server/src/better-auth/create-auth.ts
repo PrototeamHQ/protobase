@@ -63,7 +63,7 @@ import type { RoleSession, RoleUser } from './roles/session-role'
 import type { Session } from '../types'
 import { platformSignInFor, platformSignInProvider, providerPagesOffPlugin, resolvePlatformSignIns, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
 import { readPlatformSignIns } from './platform-sign-in-env'
-import { hiddenAccountsPlugin, oneAccountPerProvider } from './platform-accounts'
+import { hiddenAccountsPlugin, oneAccountPerProvider, singleSubjectField } from './platform-accounts'
 import { fixedAuthorizationParamsPlugin } from './platform-authorization-params'
 import { deviceLinksPlugin } from './platform-devices'
 import { appSignInPolicy } from './app-sign-in-policy'
@@ -429,6 +429,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
   const devices = signIns.filter(({ devices }) => devices)
   // A device provider's accounts are on the account page's devices, not its connected accounts.
   const offAccountPage = signIns.filter(({ hidden, devices }) => hidden || devices).map(({ provider }) => provider)
+  const singleSubject = signIns.filter(({ devices }) => !devices).map(({ provider }) => provider)
   const hosts = passkeyHosts([options.baseURL, ...origins])
   const mail = mailer && { mailer, appName, baseURL: options.baseURL }
   // The role of accounts the emailed sign-in code makes on the spot, when open sign-up asks for the address only.
@@ -502,6 +503,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     verification: coreNames.verification,
     account: {
       ...coreNames.account,
+      ...(singleSubject.length > 0 && { additionalFields: singleSubjectField }),
       // Someone signed in links a provider account with another address on purpose, from their account page.
       // A connection's own provider links only, from someone signed in, as sign-in through it is refused, so its
       // account's address need not be one it vouches for. A first sign-in links by the address only when the provider
@@ -593,7 +595,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       session: refusingConnectionSessions(withEndedReplaced(organizations ? sessionOrganizationHooks(context) : {}) as SessionHooks, connectionHooks?.session.create?.before),
       // Linking a mailbox makes that account the one mail goes through; linking a connection's account resumes its
       // triggers; a person holds one account of each platform provider, but for one of devices.
-      account: ((mail) => (connectionHooks ? bothAccountHooks(mail, connectionHooks.account) : mail))(bothAccountHooks(oneAccountPerProvider(signIns.filter(({ devices }) => !devices).map(({ provider }) => provider)), mailLinkHooks(mailProviders))),
+      account: ((mail) => (connectionHooks ? bothAccountHooks(mail, connectionHooks.account) : mail))(bothAccountHooks(oneAccountPerProvider(singleSubject), mailLinkHooks(mailProviders))),
     },
     rateLimit: {
       enabled: true,
