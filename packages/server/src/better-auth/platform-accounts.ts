@@ -1,5 +1,5 @@
 import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
-import { APIError, createAuthMiddleware } from 'better-auth/api'
+import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import type { SignInRefusal } from './sign-in-enforcement'
 
 type AccountHooks = NonNullable<NonNullable<BetterAuthOptions['databaseHooks']>['account']>
@@ -16,7 +16,9 @@ export const holdsOtherSubject = (linked: { providerId: string; accountId: strin
  * Better Auth's `databaseHooks.account` for the platform's `providers`: a person holds at most one account of each, so
  * a first sign-in that Better Auth would link by the address to someone linked to another subject of that provider is
  * refused (`403 PROVIDER_ACCOUNT_LINKED`), as is connecting a second one from the account page. Once linked, Better
- * Auth finds the person by the provider and subject alone.
+ * Auth finds the person by the provider and subject alone. Two first sign-ins with two subjects at the same moment can
+ * both pass the check before either is written, so each looks again once written, and one that finds another account
+ * of the provider removes its own and is refused: at most one stays, and when both look late, neither does.
  */
 export const oneAccountPerProvider = (providers: string[]): AccountHooks => ({
   create: {
@@ -25,18 +27,23 @@ export const oneAccountPerProvider = (providers: string[]): AccountHooks => ({
       const linked = await context.context.internalAdapter.findAccounts(account.userId)
       if (holdsOtherSubject(linked, account)) throw new APIError('FORBIDDEN', otherSubjectLinked)
     },
+    after: async (account, context) => {
+      if (!context || !providers.includes(account.providerId)) return
+      const linked = await context.context.internalAdapter.findAccounts(account.userId)
+      if (!holdsOtherSubject(linked, account)) return
+      await context.context.internalAdapter.deleteAccount(account.id)
+      throw new APIError('FORBIDDEN', otherSubjectLinked)
+    },
   },
 })
 
-// What a person's request names the provider of an account by: connecting it, and disconnecting it.
-const accountPaths: Record<string, 'provider' | 'providerId'> = { '/link-social': 'provider', '/unlink-account': 'providerId' }
+/** Whether a request to `path` connects an account of one of `providers` from the account page. */
+export const connectsHiddenAccount = (path: string | undefined, body: unknown, providers: string[]) =>
+  path === '/link-social' && typeof body === 'object' && body !== null && providers.includes((body as { provider?: unknown }).provider as string)
 
-/** Whether a request to `path` connects or disconnects an account of one of `providers` from the account page. */
-export const changesHiddenAccount = (path: string | undefined, body: unknown, providers: string[]) => {
-  const field = path === undefined ? undefined : accountPaths[path]
-  if (!field || typeof body !== 'object' || body === null) return false
-  return providers.includes((body as Record<string, unknown>)[field] as string)
-}
+/** Whether `accountId`, which a request to disconnect names, is one of the person's accounts of one of `providers`. */
+export const disconnectsHiddenAccount = (linked: { id: string; providerId: string }[], accountId: unknown, providers: string[]) =>
+  linked.some((account) => account.id === accountId && providers.includes(account.providerId))
 
 // `/list-accounts` answers the accounts as they are, or `ctx.json` of them as a hook returned it.
 const listedAccounts = (returned: unknown) => {
@@ -55,9 +62,20 @@ export const hiddenAccountsPlugin = (providers: string[]) =>
     hooks: {
       before: [
         {
-          matcher: (context) => changesHiddenAccount(context.path, context.body, providers),
+          matcher: (context) => connectsHiddenAccount(context.path, context.body, providers),
           handler: createAuthMiddleware(async () => {
             throw new APIError('FORBIDDEN', hiddenAccount)
+          }),
+        },
+        {
+          // Disconnecting names the account by its own id alone, so its provider is read from the person's accounts.
+          matcher: (context) => context.path === '/unlink-account',
+          handler: createAuthMiddleware(async (ctx) => {
+            const session = await getSessionFromCtx(ctx)
+            // Without a session the endpoint's own check answers.
+            if (!session) return
+            const linked = await ctx.context.internalAdapter.findAccounts(session.user.id)
+            if (disconnectsHiddenAccount(linked, (ctx.body as { accountId?: unknown } | undefined)?.accountId, providers)) throw new APIError('FORBIDDEN', hiddenAccount)
           }),
         },
       ],

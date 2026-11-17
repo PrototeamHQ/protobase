@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { changesHiddenAccount, holdsOtherSubject } from './platform-accounts'
+import { connectsHiddenAccount, disconnectsHiddenAccount, holdsOtherSubject } from './platform-accounts'
 
 describe('holdsOtherSubject', () => {
   const linked = [{ providerId: 'credential', accountId: 'user-1' }, { providerId: 'central', accountId: '4242' }]
@@ -15,16 +15,25 @@ describe('holdsOtherSubject', () => {
   })
 })
 
-describe('changesHiddenAccount', () => {
-  it('is connecting or disconnecting an account of one of the providers', () => {
-    expect(changesHiddenAccount('/link-social', { provider: 'console', callbackURL: '/' }, ['console'])).toBe(true)
-    expect(changesHiddenAccount('/unlink-account', { providerId: 'console', accountId: '4242' }, ['console'])).toBe(true)
+describe('connectsHiddenAccount', () => {
+  it('is connecting an account of one of the providers, and nothing else', () => {
+    expect(connectsHiddenAccount('/link-social', { provider: 'console', callbackURL: '/' }, ['console'])).toBe(true)
+    expect(connectsHiddenAccount('/link-social', { provider: 'github' }, ['console'])).toBe(false)
+    expect(connectsHiddenAccount('/sign-in/social', { provider: 'console' }, ['console'])).toBe(false)
+    expect(connectsHiddenAccount(undefined, undefined, ['console'])).toBe(false)
+  })
+})
+
+describe('disconnectsHiddenAccount', () => {
+  const linked = [{ id: 'row-1', providerId: 'console' }, { id: 'row-2', providerId: 'github' }]
+
+  it("is disconnecting one of the person's accounts of one of the providers, by its id alone", () => {
+    expect(disconnectsHiddenAccount(linked, 'row-1', ['console'])).toBe(true)
   })
 
-  it('is not another provider, signing in with it, or another path', () => {
-    expect(changesHiddenAccount('/link-social', { provider: 'github' }, ['console'])).toBe(false)
-    expect(changesHiddenAccount('/unlink-account', { providerId: 'github' }, ['console'])).toBe(false)
-    expect(changesHiddenAccount('/sign-in/social', { provider: 'console' }, ['console'])).toBe(false)
-    expect(changesHiddenAccount(undefined, undefined, ['console'])).toBe(false)
+  it('is not an account of another provider, nor one that is not theirs', () => {
+    expect(disconnectsHiddenAccount(linked, 'row-2', ['console'])).toBe(false)
+    expect(disconnectsHiddenAccount(linked, 'row-3', ['console'])).toBe(false)
+    expect(disconnectsHiddenAccount(linked, undefined, ['console'])).toBe(false)
   })
 })

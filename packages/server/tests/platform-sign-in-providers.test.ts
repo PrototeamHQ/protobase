@@ -1,8 +1,9 @@
 import { Kysely } from 'kysely'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PlatformSignIn } from '../src/better-auth/platform-sign-in'
 import { createUser } from '../src/better-auth/users'
 import { startFakeOidcProvider } from './support/fake-oidc-provider'
+import { authenticatorCode } from './support/vault-app'
 import { client, cookiesOf, octo, origin, password, servePlatformApp, type PlatformApp } from './support/platform-sign-in-app'
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
@@ -23,7 +24,11 @@ afterEach(() => {
 const centralIssuer = 'https://id.central.example'
 const centralClient = { clientId: client.clientId, clientSecret: 'central-client-secret' }
 
+// Each test's tokens get the same ids whatever ran before it.
 let tokens = 0
+beforeEach(() => {
+  tokens = 0
+})
 const claims = (changes: Record<string, unknown> = {}) => octo({ jti: `token-${++tokens}`, ...changes })
 
 // The platform's first provider, `github`, beside `central`, whose tokens are for the same audience, so only the
@@ -125,7 +130,7 @@ describe('fixed authorization parameters', () => {
 
 describe('a hidden provider', () => {
   it('signs in by its link, which the account page neither lists, nor connects, nor disconnects', async () => {
-    const { auth, central, request, signIn, postToken, accounts } = await serve({ ...centralClient, hidden: true })
+    const { auth, store, central, request, signIn, postToken, accounts } = await serve({ ...centralClient, hidden: true })
     expect((await (await request('/status')).json()).platformProviders).toEqual([
       { provider: 'github', name: 'GitHub' },
       { provider: 'central', name: 'Central', hidden: true },
@@ -138,7 +143,8 @@ describe('a hidden provider', () => {
     const cookie = await signIn('octo@example.com')
     const listed = (await (await request('/list-accounts', { cookie })).json()) as { providerId: string }[]
     expect(listed.map(({ providerId }) => providerId)).toEqual(['credential'])
-    for (const [path, body] of [['/unlink-account', { providerId: 'central' }], ['/link-social', { provider: 'central', callbackURL: `${origin}/` }]] as const) {
+    const [{ id: accountId }] = (await store.query<{ id: string }>(`select id from account where provider_id = 'central'`)).rows as [{ id: string }]
+    for (const [path, body] of [['/unlink-account', { accountId }], ['/link-social', { provider: 'central', callbackURL: `${origin}/` }]] as const) {
       const refused = await request(path, { cookie, body })
       expect(refused.status).toBe(403)
       expect(await refused.json()).toMatchObject({ code: 'PROVIDER_ACCOUNT_HIDDEN' })
@@ -184,6 +190,41 @@ describe('a provider of devices', () => {
     // A new device of the same verified address links as the first ones did.
     expect((await postToken('central', await central.idToken(claims({ sub: 'device-3' })))).status).toBe(200)
     expect((await accounts()).map(({ accountId }) => accountId).sort()).toEqual(['device-2', 'device-3'])
+  })
+
+  it('notes a device sign-in that waits for the second step as the device, once the step is taken', async () => {
+    const { auth, central, request, signIn, postToken } = await serve({ devices: true })
+    await createUser(auth, { email: 'octo@example.com', password, role: 'user' })
+    const first = await signIn('octo@example.com')
+    const { totpURI } = (await (await request('/two-factor/enable', { cookie: first, body: { password } })).json()) as { totpURI: string }
+    const enabled = await request('/two-factor/verify-totp', { cookie: first, body: { code: authenticatorCode(totpURI) } })
+    expect(enabled.status).toBe(200)
+    // Turning it on starts a session of its own in place of the first.
+    const cookie = cookiesOf(enabled).join('; ')
+
+    const challenged = await postToken('central', await central.idToken(claims({ sub: 'device-1' })))
+    expect(await challenged.json()).toMatchObject({ twoFactorRedirect: true })
+    const verified = await request('/two-factor/verify-totp', { cookie: cookiesOf(challenged).join('; '), body: { code: authenticatorCode(totpURI) } })
+    expect(verified.status).toBe(200)
+    const phone = cookiesOf(verified).join('; ')
+    const { links } = (await (await request('/account/device-links', { cookie })).json()) as Links
+    expect(links).toMatchObject([{ sessions: [sessionToken(phone)] }])
+
+    expect((await request('/account/device-links/sign-out', { cookie, body: { id: links[0]!.id } })).status).toBe(200)
+    expect(await (await request('/get-session', { cookie: phone })).json()).toBeNull()
+  })
+
+  it('takes a sign-out that stopped half way again, and finishes it', async () => {
+    const { auth, store, central, request, signIn, postToken, accounts } = await serve({ devices: true })
+    await createUser(auth, { email: 'octo@example.com', password, role: 'user' })
+    const phone = cookiesOf(await postToken('central', await central.idToken(claims({ sub: 'device-1' })))).join('; ')
+    const cookie = await signIn('octo@example.com')
+    const { links } = (await (await request('/account/device-links', { cookie })).json()) as Links
+    // The device is refused already, as a sign-out that failed after its first step left it.
+    await store.query(`insert into refused_account (id, provider_id, account_id, user_id, created_at) select 'refused-1', 'central', 'device-1', user_id, now() from account where provider_id = 'central'`)
+    expect((await request('/account/device-links/sign-out', { cookie, body: { id: links[0]!.id } })).status).toBe(200)
+    expect(await (await request('/get-session', { cookie: phone })).json()).toBeNull()
+    expect(await accounts()).toEqual([])
   })
 
   it("cannot sign out another person's device", async () => {

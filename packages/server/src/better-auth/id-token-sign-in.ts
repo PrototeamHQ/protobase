@@ -1,7 +1,6 @@
 import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthMiddleware } from 'better-auth/api'
-import { decodeJwt } from 'jose'
-import { deviceSignedOut, isRefusedAccount, saveDeviceSession } from './platform-devices'
+import { deviceSignedOut, isRefusedAccount } from './platform-devices'
 import type { SignInRefusal } from './sign-in-enforcement'
 import { invalidSignInToken, verifySignInToken, type IdTokenVerification } from './sign-in-token'
 import { saveTokenSession, useSignInToken } from './sign-in-token-uses'
@@ -71,12 +70,6 @@ export const idTokenSignInPlugin = ({ tokenSignIn = [] }: IdTokenSignInOptions =
             const session = ctx.context.newSession?.session
             if (tokenSignIn.length === 0 || !session || !postsIdToken(ctx.path, ctx.body)) return
             await saveTokenSession(ctx.context, session)
-            const signIn = tokenSignInWith(ctx.path, ctx.body, tokenSignIn)
-            if (!signIn?.devices) return
-            // Verified before Better Auth signed in with it, so its subject names the device's account.
-            const { sub } = decodeJwt((ctx.body as { idToken: { token: string } }).idToken.token)
-            const account = await ctx.context.internalAdapter.findAccountByKey({ providerId: signIn.provider, accountId: sub! })
-            if (account) await saveDeviceSession(ctx.context, session, account.id)
           }),
         },
       ],

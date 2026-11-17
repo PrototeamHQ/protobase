@@ -34,7 +34,7 @@ const serve = async () => {
   return { auth, store, platform, postToken, links }
 }
 
-describe.skipIf(!ready)('first sign-ins with the same account at once', () => {
+describe.skipIf(!ready)('first sign-ins at once', () => {
   it('link it once, and every one that signs in signs in the same person', async () => {
     const { auth, platform, postToken, links } = await serve()
     const octoId = (await createUser(auth, { email: 'octo@example.com', password, role: 'user' })).id
@@ -44,6 +44,16 @@ describe.skipIf(!ready)('first sign-ins with the same account at once', () => {
     const signedIn = await Promise.all(answers.filter((answer) => answer.status === 200).map(async (answer) => ((await answer.json()) as { user: { id: string } }).user.id))
     expect(signedIn.length).toBeGreaterThan(0)
     expect(new Set(signedIn)).toEqual(new Set([octoId]))
+  })
+
+  it('link at most one of several subjects of the provider to one person, by the address', async () => {
+    const { auth, platform, postToken, links } = await serve()
+    await createUser(auth, { email: 'octo@example.com', password, role: 'user' })
+    const tokens = await Promise.all(Array.from({ length: 8 }, (_, index) => platform.idToken(octo({ sub: `subject-${index}`, jti: `token-${index}` }))))
+    const answers = await Promise.all(tokens.map(postToken))
+    const linked = await links()
+    expect(linked.length).toBeLessThanOrEqual(1)
+    expect(answers.filter((answer) => answer.status === 200)).toHaveLength(linked.length)
   })
 
   it('cannot leave two accounts with one provider and account id in the store', async () => {
