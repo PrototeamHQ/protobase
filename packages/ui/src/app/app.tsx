@@ -136,7 +136,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   // A visitor browses what the anonymous role reads: no account, roles or organizations, and a "Sign in" link.
   const user = state.kind === 'signed-in' ? state.user : undefined
   const staff = state.kind === 'signed-in' ? state.staff : undefined
-  const { path, params, basePath } = useRouter()
+  const { path, params, basePath, navigate } = useRouter()
   const { address, go, open, back } = useAppAddress()
   const place = placeOf(address)
   const shown = recordOf(address)
@@ -150,10 +150,13 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const start = useMemo(() => startAddress(meta), [meta])
   const page = address?.kind === 'page' ? meta.pages[address.page] : undefined
 
-  // The root opens the first entry of the sidebar
+  // The root opens the first entry of the sidebar; with nothing to open, such as an app with no resources or pages, a
+  // signed-in person's account page
   useEffect(() => {
-    if (path === '/' && start) go(start, { replace: true })
-  }, [path, start, go])
+    if (path !== '/') return
+    if (start) go(start, { replace: true })
+    else if (user) navigate(accountPath, { replace: true })
+  }, [path, start, go, user, navigate])
 
   const resource = address?.kind === 'page' ? undefined : address?.resource
   // A resource drawn from another API waits for that API's `/meta`, and says so when it cannot be read.

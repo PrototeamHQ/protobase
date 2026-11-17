@@ -106,6 +106,8 @@ protobase doctor [connection string | --env VAR] [--config <dir>]
 
 The URL comes as for [`scaffold`](#scaffold): the connection string, the variable `--env` names, or `DATABASE_URL`, each also read from the nearest `.env`.
 
+A config that exports no resource fails, as one that lost its resources by mistake, unless `protobase.config.ts` says the app has none with [`resources: 'none'`](/reference/config/app/#resources); one that says so and exports a resource fails too.
+
 Imports `config/index.ts` and the views of `config/*/ui.ts`, as the config module has them by convention, and checks every exported resource against the database, with the resources Protobase adds by what `protobase.config.ts` (read with `command: 'tool'`) and the resources enable: the [webhook](/reference/webhooks/#subscriptions-in-the-admin-app) ones of `webhooks`, Failed jobs, [Activity](/reference/history/) and [Comments](/reference/comments/). The tables [`migration`](#migration) writes for those have every index their reads need, so after the project's migrations they pass; a read of theirs that lacks an index, as on a table an earlier version wrote, is an error and doctor exits 1 until you run `migration` and apply what it writes:
 
 - error: missing table or column, field type that does not fit the column (a file field needs a text column), table without a usable key, configured key not backed by a unique index, `.openExisting()` fields that are not the columns of a unique index, relation to a resource the config does not declare

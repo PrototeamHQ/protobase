@@ -14,6 +14,7 @@ import { indexIssues } from './index-issues'
 import { unplannedBlocks } from './page-shapes'
 import { readShapes } from './read-shapes'
 import { relationIssues } from './relation-issues'
+import { checkResourceCount } from './resource-count'
 import { sortIssues } from './sort-issues'
 import { checkServerStartup } from './startup'
 import { userTableModels } from './user-table-models'
@@ -35,8 +36,8 @@ export const runDoctor = async (options: DoctorOptions, out: (text: string) => v
     throw new Error(`No config in ${options.configDir}: write it with \`protobase scaffold\`, or pass --config <dir>`)
   }
   const config = await loadDataConfig(options.configDir, options.projectDir)
-  if (config.models.length === 0) throw new Error(`No resources exported from ${options.configDir}/index.ts`)
   const source = await loadSourceConfig(options.projectDir, { command: 'tool' })
+  checkResourceCount(config.models.length, source.resources, `${options.configDir}/index.ts`)
   const builtIn = builtInModels(source, config.models)
   const sql = connect(options.url)
   const tables = await introspect(sql, { views: true }).finally(() => sql.end())

@@ -1,6 +1,6 @@
 ---
 title: App options
-description: The config keys of the app itself, its name, public URL, secret, language, time zone, install colours and mobile build, with their types, defaults and environment variables.
+description: The config keys of the app itself, its name, public URL, secret, language, time zone, install colours, mobile build and whether it has resources, with their types, defaults and environment variables.
 ---
 
 The keys of the app itself, at the top level of [`protobase.config.ts`](/reference/config/).
@@ -111,4 +111,16 @@ The app's iOS and Android build: with it, `protobase mobile` builds the app with
 export default defineConfig({
   mobile: { appId: 'com.example.shop', plugins: { '@capacitor/camera': '^8.0.0' } },
 })
+```
+
+## resources
+
+- **Type:** `'none'`
+
+Says the app has no resources on purpose, such as an app that only signs people in for other apps. [`protobase doctor`](/reference/cli/#doctor) refuses an app whose `config/index.ts` exports no resource, since one that lost them by mistake would deploy with nothing to serve; with `resources: 'none'` it accepts one with none, and refuses one that exports a resource. Without the key, doctor keeps refusing an app with none.
+
+An app with no resources builds and serves as any other: sign-in, the account page, its API functions and plugins' routes. Its sidebar has no resource entries, and `/` opens the signed-in person's account page when there is no page or resource to open.
+
+```ts
+export default defineConfig({ resources: 'none' })
 ```

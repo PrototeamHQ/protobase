@@ -20,6 +20,7 @@ description: Start a new app, or an admin over an existing Postgres database, an
 - [Safe re-scaffolding](/reference/cli/#re-running): Running scaffold again adds only the columns that are not declared yet and leaves your own config code as it is.
 - [Schema drift report](/reference/cli/#drift-report): After each scaffold, lists declared fields whose column is gone, whose type changed or whose enum values differ, with a suggested fix.
 - [Doctor](/reference/cli/#doctor): Checks every resource and view against the database, the ones Protobase adds such as webhook subscriptions included, with the reads that lack an index, and prints the fix for each problem. It then runs the server's startup checks, such as the triggers of resources with events, so a project it passes starts.
+- [Apps without resources](/reference/config/app/#resources): An app with no resources on purpose, such as one that only signs people in, says so with `resources: 'none'`, so doctor accepts it while still catching an app that lost its resources by mistake.
 - [Admin without a view](/guides/table-to-admin/#1-the-table-as-it-is): A table with an empty view already gives a working admin with every column, sorting, paging, a record page and a New button.
 - [Agent skills](/reference/cli/#skill): `protobase skill install` writes agent skills that match the installed version into the project, for the coding agents that work on it.
 - [Docs as Markdown](/getting-started/#docs-as-markdown): Every docs page is also Markdown at its address plus `.md`, for coding agents and chat assistants.
