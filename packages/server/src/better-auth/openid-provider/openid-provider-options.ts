@@ -2,6 +2,7 @@ import { connectRoute } from '@protobase/schema'
 import type { ResolvedMcp } from '../mcp/mcp-plugins'
 import { signInTokenSeconds } from '../sign-in-token'
 import { parseAudiencePattern, type AudiencePattern } from './audience-patterns'
+import { resolveDeclaredClients, type DeclaredClient } from './declared-clients'
 
 export type OpenIdProviderOptions = {
   /** The connect page's path on the app's origin, where people sign in on the way to a client; default `/-/connect`, for a UI at the root. */
@@ -19,10 +20,15 @@ export type OpenIdProviderOptions = {
    * tokens. Default `user`.
    */
   subject?: 'user' | 'grant'
+  /**
+   * The app's own public clients, such as its phone app (`DeclaredClient`): served under the ids written here from the
+   * first request on, with no admin registering them, and refused once they are gone from the config. Default none.
+   */
+  clients?: DeclaredClient[]
 }
 
 /** `OpenIdProviderOptions` with the defaults filled in. */
-export type ResolvedOpenIdProvider = { connectPage: string; audiences: AudiencePattern[]; subject: 'user' | 'grant' }
+export type ResolvedOpenIdProvider = { connectPage: string; audiences: AudiencePattern[]; subject: 'user' | 'grant'; clients: DeclaredClient[] }
 
 /** The scopes a client gets: who the person is, by `sub`, `email` and `email_verified`, and `name`. */
 export const openIdScopes = ['openid', 'email', 'profile']
@@ -45,10 +51,11 @@ export const accessTokenSeconds = 15 * 60
  */
 export const resolveOpenIdProvider = (options: true | OpenIdProviderOptions, mcp: ResolvedMcp | undefined): ResolvedOpenIdProvider => {
   if (mcp) throw new Error('auth.openIdProvider cannot be on together with auth.mcp, whose clients register themselves; serve them from separate apps')
-  const { connectPage = connectRoute, audiences = [], subject = 'user' } = options === true ? {} : options
+  const { connectPage = connectRoute, audiences = [], subject = 'user', clients = [] } = options === true ? {} : options
   if (!connectPage.startsWith('/')) throw new Error(`auth.openIdProvider.connectPage "${connectPage}" must be a path on the app's origin, such as ${connectRoute}`)
   if (subject !== 'user' && subject !== 'grant') throw new Error(`auth.openIdProvider.subject must be user or grant, not "${String(subject)}"`)
-  return { connectPage, audiences: audiences.map(parseAudiencePattern), subject }
+  const patterns = audiences.map(parseAudiencePattern)
+  return { connectPage, audiences: patterns, subject, clients: resolveDeclaredClients(clients, patterns) }
 }
 
 /**

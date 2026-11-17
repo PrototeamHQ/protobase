@@ -3,6 +3,7 @@ import { mcpSetupGate } from '../mcp/setup-gate'
 import { mcpSignedQueryGuard } from '../mcp/signed-query-guard'
 import type { SignInPolicy } from '../sign-in-policy'
 import { pluginNames } from '../snake-case-names'
+import { declaredClients } from './declared-client-discovery'
 import { grantSubjectsPlugin } from './grant-subjects'
 import { idTokenClaims } from './id-token-claims'
 import { operatorClientsOnly, operatorClientsPlugin } from './operator-clients'
@@ -21,7 +22,7 @@ export type OpenIdProviderPluginsOptions = {
 export const exactRedirectUri = (uri: string, registered: readonly string[]) => registered.includes(uri)
 
 /**
- * The Better Auth plugins of an OpenID provider for the operator's clients, after the `jwt` plugin, in this order: the
+ * The Better Auth plugins of an OpenID provider for the operator's clients and the declared ones, after the `jwt` plugin, in this order: the
  * guard on signed queries, the setup gate, the refusal of every client the operator did not register, the provider,
  * and the operator's client API, with `grantSubjectsPlugin` last when `subject` is `grant`. A client gets the person's
  * `sub` (their id here, or its grant's subject), `email`, `email_verified` and
@@ -32,7 +33,7 @@ export const exactRedirectUri = (uri: string, registered: readonly string[]) => 
 export const openIdProviderPlugins = ({ openId, mail, defaultPolicy }: OpenIdProviderPluginsOptions) => [
   mcpSignedQueryGuard(),
   mcpSetupGate({ mail, defaultPolicy, connectPage: openId.connectPage }),
-  operatorClientsOnly(openId.audiences),
+  operatorClientsOnly(openId.audiences, openId.clients),
   oauthProvider({
     loginPage: openId.connectPage,
     consentPage: openId.connectPage,
@@ -49,7 +50,7 @@ export const openIdProviderPlugins = ({ openId, mail, defaultPolicy }: OpenIdPro
       shouldRedirect: () => false,
       consentReferenceId: () => undefined,
     },
-    extensions: [tokenExchange(openId.audiences, openId.subject)],
+    extensions: [tokenExchange(openId.audiences, openId.subject), declaredClients(openId.clients)],
     schema: pluginNames.mcp,
   }),
   operatorClientsPlugin(openId.audiences),

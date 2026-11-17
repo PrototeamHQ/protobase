@@ -3,6 +3,7 @@ import { APIError, createAuthEndpoint, createAuthMiddleware } from 'better-auth/
 import * as z from 'zod'
 import { adminOnly } from '../admin-only'
 import { onAudienceHost, type AudiencePattern } from './audience-patterns'
+import { isDeclaredClient, type DeclaredClient } from './declared-clients'
 import { openIdScopes, tokenExchangeGrant } from './openid-provider-options'
 
 // A client the operator registered carries this in its metadata; any other in the store, such as one an MCP client
@@ -12,7 +13,7 @@ const operatorMark = 'protobase_operator_client'
 /** A client as the operator API lists it. */
 export type OperatorClient = { clientId: string; name: string; redirectUris: string[]; type: 'confidential' | 'public'; exchange: boolean }
 
-type StoredClient = { clientId: string; name?: string | null; redirectUris?: string[] | null; tokenEndpointAuthMethod?: string | null; grantTypes?: string[] | null; metadata?: unknown }
+type StoredClient = { clientId: string; name?: string | null; redirectUris?: string[] | null; tokenEndpointAuthMethod?: string | null; grantTypes?: string[] | null; metadata?: unknown; clientDiscoveryId?: string | null }
 
 const metadataOf = (client: Pick<StoredClient, 'metadata'>) => {
   const { metadata } = client
@@ -22,6 +23,12 @@ const metadataOf = (client: Pick<StoredClient, 'metadata'>) => {
 
 /** Whether the operator registered `client`, so the OpenID provider serves it. */
 export const isOperatorClient = (client: Pick<StoredClient, 'metadata'> | null | undefined) => Boolean(client && metadataOf(client)[operatorMark] === true)
+
+/**
+ * Whether the OpenID provider serves `client`, one the operator registered or the config declares; the provider's own
+ * lookup already drops a declared client the config no longer declares.
+ */
+export const isServedClient = (client: Pick<StoredClient, 'metadata' | 'clientDiscoveryId'> | null | undefined) => isOperatorClient(client) || isDeclaredClient(client)
 
 /** Whether the operator let `client` exchange its access token for other clients' ID tokens. */
 export const mayExchange = (client: Pick<StoredClient, 'grantTypes'>) => (client.grantTypes ?? []).includes(tokenExchangeGrant)
@@ -130,15 +137,18 @@ export const tokenRequestClientId = (body: unknown, authorization: string | null
 }
 
 const unregistered = () => new APIError('BAD_REQUEST', { error: 'invalid_client', error_description: 'client not registered with this provider' })
+const declaredTwice = () => new APIError('BAD_REQUEST', { error: 'invalid_client', error_description: 'client id is both declared in the app config and registered by an admin; delete one of them' })
 
 /**
- * Refuses every client the operator did not register (`400 invalid_client`), before the provider looks at the
- * request: at authorize, so a browser is never sent to a redirect URI of such a client, and at the token endpoint, so
+ * Refuses every client the operator did not register and `declared` does not hold (`400 invalid_client`), before the
+ * provider looks at the request: at authorize, so a browser is never sent to a redirect URI of such a client, and at the token endpoint, so
  * no code, refresh token or exchange gives it anything. A request that names no client is refused too, and so is an
- * authorize whose client id or redirect URI is on a host of `audiences`, which no browser is ever sent to.
+ * authorize whose client id or redirect URI is on a host of `audiences`, which no browser is ever sent to. A declared
+ * id an admin registered a client under too is refused rather than served as either.
  */
-export const operatorClientsOnly = (audiences: readonly AudiencePattern[]) =>
-  ({
+export const operatorClientsOnly = (audiences: readonly AudiencePattern[], declared: readonly DeclaredClient[]) => {
+  const declaredIds = new Set(declared.map((client) => client.clientId))
+  return {
     id: 'protobase-openid-operator-clients-only',
     hooks: {
       before: [
@@ -155,9 +165,15 @@ export const operatorClientsOnly = (audiences: readonly AudiencePattern[]) =>
               if (onAudienceHost(audiences, clientId) || onAudienceHost(audiences, redirectUri)) throw new APIError('BAD_REQUEST', { error: 'invalid_request', error_description: 'the token exchange alone issues tokens for this host' })
             }
             const [client] = await ctx.context.adapter.findMany<StoredClient>({ model: 'oauthClient', where: [{ field: 'clientId', value: clientId }], limit: 1 })
+            if (declaredIds.has(clientId)) {
+              // No record yet: the provider writes it on this first use.
+              if (client && !isDeclaredClient(client)) throw declaredTwice()
+              return
+            }
             if (!isOperatorClient(client)) throw unregistered()
           }),
         },
       ],
     },
-  }) satisfies BetterAuthPlugin
+  } satisfies BetterAuthPlugin
+}

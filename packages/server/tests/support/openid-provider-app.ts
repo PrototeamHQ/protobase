@@ -19,15 +19,18 @@ let client = 0
 
 /**
  * An app with the OpenID provider on, on a copy of the migrated store, with Root (admin) and Ana (sales); `auth` adds
- * or replaces options. Its helpers drive the provider as a client and a browser do.
+ * or replaces options. Its helpers drive the provider as a client and a browser do. Given `on`, the store of an app
+ * served before, it serves that store as it is, as the app's next deploy does.
  */
-export const serveOpenId = async (stores: McpStores, options: Partial<CreateAuthOptions> = {}) => {
-  const store: SnapshotDb = await stores.migrated.clone()
+export const serveOpenId = async (stores: McpStores, options: Partial<CreateAuthOptions> = {}, on?: SnapshotDb) => {
+  const store: SnapshotDb = on ?? (await stores.migrated.clone())
   const auth = await buildAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret, mailer: false, signInPerMinute: 100, roles: ['admin', 'sales'], defaultRole: 'sales', openIdProvider: true, ...options })
   await auth.$context
   await settled()
-  await createUser(auth, { email: 'root@example.com', password })
-  await createUser(auth, { email: 'ana@example.com', password, role: 'sales' })
+  if (!on) {
+    await createUser(auth, { email: 'root@example.com', password })
+    await createUser(auth, { email: 'ana@example.com', password, role: 'sales' })
+  }
   const app = createAdmin({ resources: allResources, db: stores.fixture.db, authenticate: betterAuthAuthenticator({ auth }), auth })
 
   const address = `198.51.100.${++client}`
