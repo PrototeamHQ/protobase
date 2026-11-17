@@ -10,11 +10,11 @@ const photos = resource('photos')
   .toModel()
 
 // An expression index on a file column, as pg_get_indexdef prints its key.
-const fileIndex = (name: string, column: string, partial = false) => ({ name, method: 'btree', partial, keys: [{ column: null, definition: `split_part(${column}, '?'::text, 1)`, opclass: 'text_ops' }] })
+const fileIndex = (name: string, column: string, partial = false, definition = `split_part(${column}, '?'::text, 1)`) => ({ name, method: 'btree', partial, keys: [{ column: null, definition, opclass: 'text_ops' }] })
 
 describe('the file columns no index looks files up in', () => {
   it('are a warning each, with the index that serves the file cleanup', () => {
-    const table: TableIndexes = { kind: 'table', indexes: [fileIndex('photos_photo', 'photo'), fileIndex('photos_cover_kept', 'cover', true)] }
+    const table: TableIndexes = { kind: 'table', indexes: [fileIndex('photos_photo', 'photo'), fileIndex('photos_cover_kept', 'cover', true), fileIndex('photos_cover_query', 'cover', false, `split_part(cover, '?'::text, 2)`)] }
     expect(fileIndexIssues(photos, table)).toEqual([
       {
         severity: 'warning',
@@ -23,5 +23,9 @@ describe('the file columns no index looks files up in', () => {
         suggestion: `create index on "photos" ((split_part("cover", '?', 1)));`,
       },
     ])
+  })
+
+  it('are none of a view, which can have no index', () => {
+    expect(fileIndexIssues(photos, { kind: 'other', indexes: [] })).toEqual([])
   })
 })

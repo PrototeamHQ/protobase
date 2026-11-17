@@ -68,6 +68,12 @@ const mentions = (definition: string, column: string) => {
   return new RegExp(`(^|[^\\w"])("${name}"|${name})([^\\w"]|$)`).test(definition)
 }
 
+// The key the file cleanup looks a column's files up by, as pg_get_indexdef prints it: split_part(photo, '?'::text, 1).
+const fileKey = (column: string) => {
+  const name = column.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`^split_part\\((${name}|"${name}")(::text)?, '\\?'(::text)?, 1\\)$`)
+}
+
 /** Whether the index serves reading the column with the given need, while the query pins the `pinned` columns. */
 export const indexServes = (index: TableIndex, column: string, need: IndexNeed, pinned: ReadonlySet<string>) => {
   if (index.partial) return false
@@ -82,19 +88,22 @@ export const indexServes = (index: TableIndex, column: string, need: IndexNeed, 
       return index.method === 'gin' && index.keys.some((key) => key.column === column)
     case 'file': {
       const first = index.keys[0]
-      return index.method === 'btree' && first !== undefined && first.column === null && first.definition.startsWith('split_part(') && first.definition.includes("'?'") && mentions(first.definition, column)
+      return index.method === 'btree' && first !== undefined && first.column === null && fileKey(column).test(first.definition)
     }
   }
 }
 
 /**
  * The file columns of `model` no index looks their files up by, as the file cleanup does before it deletes one: every
- * row, soft-deleted ones too, so a partial index serves none.
+ * row, soft-deleted ones too, so a partial index serves none. A plain view or a foreign table can have no index and
+ * is not judged.
  */
 export const uncoveredFileColumns = (model: ResourceModel, table: TableIndexes): UncoveredColumn[] =>
-  Object.values(model.fields)
-    .filter((field) => field.type === 'file' && !table.indexes.some((index) => indexServes(index, field.column, 'file', new Set())))
-    .map((field) => ({ field: field.name, column: field.column, use: 'cleanup', need: 'file', suggestion: suggestion(model, field.column, 'file') }))
+  table.kind !== 'table'
+    ? []
+    : Object.values(model.fields)
+        .filter((field) => field.type === 'file' && !table.indexes.some((index) => indexServes(index, field.column, 'file', new Set())))
+        .map((field) => ({ field: field.name, column: field.column, use: 'cleanup', need: 'file', suggestion: suggestion(model, field.column, 'file') }))
 
 // `also` is a kind of index that serves as well: a pg_trgm index answers `=` on text as a btree index does
 const need = (ctx: Context, field: FieldModel, kind: IndexNeed, pinned: Set<string>, also?: IndexNeed): UncoveredColumn[] =>
