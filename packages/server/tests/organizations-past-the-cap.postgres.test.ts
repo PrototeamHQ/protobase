@@ -1,17 +1,20 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createAuth } from '../src/better-auth/create-auth'
-import { addAppRoleToOwners, listOrganizations, ownOrganizationsWithoutMembers } from '../src/better-auth/organizations/host'
+import { authSchemaMigration } from '../src/better-auth/auth-schema'
+import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
+import { addAppRoleToOwners, addMember, createOrganization, listOrganizations, ownOrganizationsWithoutMembers, removeMember, setMemberRoles } from '../src/better-auth/organizations/host'
+import { createUser } from '../src/better-auth/users'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
 // The organization functions past the 100,000 rows a whole read of the store stops at, on a real Postgres made in one
-// statement each: too many rows for a recording to hold.
+// statement each: too many rows for a recording to hold. And on a store whose ids are random uuids, which no recording
+// replays.
 vi.setConfig({ testTimeout: 60_000 })
 
-const ready = await postgresTemplateReady('auth')
+const ready = (await postgresTemplateReady('auth')) && (await postgresTemplateReady('empty'))
 
 const past = 100_010
 
-const authOn = (store: PostgresDatabase) =>
+const authOn = (store: PostgresDatabase, options: Partial<CreateAuthOptions> = {}) =>
   createAuth({
     database: { dialect: store.dialect, type: 'postgres' },
     baseURL: 'http://localhost:5173',
@@ -19,6 +22,7 @@ const authOn = (store: PostgresDatabase) =>
     mailer: false,
     roles: { sales: 'Sales', manager: 'Manager' },
     organizations: { create: 'everyone' },
+    ...options,
   })
 
 // Organizations made a microsecond apart, the last one newest.
@@ -81,5 +85,28 @@ describe.skipIf(!ready)('the organization functions, past 100,000 rows', () => {
     expect(new Set(slugs).size).toBe(past)
     expect([slugs[0], slugs.at(-1)]).toEqual(['organization-1', `organization-${past}`])
     expect(page.organizations.at(-1)!.members).toEqual([{ email: 'root@example.com', role: 'owner', appRoles: ['manager'] }])
+  })
+})
+
+describe.skipIf(!ready)('the organization functions, on a store whose ids are uuids', () => {
+  it('list, own, give app roles to and keep an owner of organizations', async () => {
+    const store = await openPostgresDatabase('empty')
+    const auth = authOn(store, { generateUserId: 'uuid', organizations: { create: 'everyone', generateId: () => crypto.randomUUID() } })
+    await store.exec((await authSchemaMigration(auth))!)
+    const root = await createUser(auth, { email: 'root@example.com' })
+    await createUser(auth, { email: 'bo@example.com', role: 'user' })
+    const { id: acme } = (await createOrganization(auth, { name: 'Acme', slug: 'acme', owner: 'root@example.com' })).organization
+    await addMember(auth, { organization: acme, email: 'bo@example.com' })
+    await store.exec(`insert into organization (id, name, slug, created_at) values (gen_random_uuid(), 'Seeded', 'seeded', now())`)
+    expect(await ownOrganizationsWithoutMembers(auth, root.id)).toBe(1)
+    expect(await addAppRoleToOwners(auth, 'manager')).toBe(0)
+    await expect(removeMember(auth, { organization: acme, email: 'root@example.com' })).rejects.toThrow('Cannot remove the last owner')
+    await setMemberRoles(auth, { organization: acme, email: 'bo@example.com', role: 'owner' })
+    await removeMember(auth, { organization: acme, email: 'root@example.com' })
+    const first = await listOrganizations(auth, { size: 1 })
+    expect(first.organizations.map(({ slug, members }) => ({ slug, members }))).toEqual([{ slug: 'acme', members: [{ email: 'bo@example.com', role: 'owner', appRoles: [] }] }])
+    expect((await listOrganizations(auth, { after: first.next! })).organizations.map(({ slug, members }) => ({ slug, members }))).toEqual([
+      { slug: 'seeded', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['sales', 'manager'] }] },
+    ])
   })
 })

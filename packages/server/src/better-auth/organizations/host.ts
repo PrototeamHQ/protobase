@@ -158,14 +158,20 @@ export const listOrganizations = async (auth: AdminAuth, { after, size = organiz
   })
   const ids = page.rows.map((organization) => organization.id)
   const { rows: members } = await sql<{ organizationId: string; email: string; role: string; appRoles: unknown }>`select m.organization_id as "organizationId",
-      coalesce(u.${store.userColumn('email')}, m.user_id) as email, m.role, m.app_roles as "appRoles"
+      coalesce(u.${store.userColumn('email')}, m.user_id::text) as email, m.role, m.app_roles as "appRoles"
     from ${store.table('member')} m left join ${store.user} u on u.id = m.user_id
     where m.organization_id = any(${ids}) order by m.created_at, m.id`.execute(store.db)
+  const membersOf = new Map<string, typeof members>()
+  for (const member of members) {
+    const held = membersOf.get(member.organizationId)
+    if (held) held.push(member)
+    else membersOf.set(member.organizationId, [member])
+  }
   const organizations = page.rows.map(({ id, name, slug }) => ({
     id,
     name,
     slug,
-    members: members.filter((member) => member.organizationId === id).map((member) => ({ email: member.email, role: organizationRoleOf(member), appRoles: parseAppRoles(member.appRoles) })),
+    members: (membersOf.get(id) ?? []).map((member) => ({ email: member.email, role: organizationRoleOf(member), appRoles: parseAppRoles(member.appRoles) })),
   }))
   return { organizations, ...(page.next && { next: { createdAt: page.next[0]!, id: page.next[1]! } }) }
 }
