@@ -20,6 +20,13 @@ const uuid = /^(\{[0-9a-f]{4}(-?[0-9a-f]{4}){7}\}|[0-9a-f]{4}(-?[0-9a-f]{4}){7})
 /** Whether `key` may be the id of a row: where the ids are uuids, only one Postgres reads as a uuid, as it refuses others. */
 export const mayBeId = (options: Pick<BetterAuthOptions, 'advanced'>, key: string) => options.advanced?.database?.generateId !== 'uuid' || uuid.test(key)
 
+/** `key` as the store gives an id back: where the ids are uuids, one in lower case and hyphenated, as Postgres prints it. */
+export const storedId = (options: Pick<BetterAuthOptions, 'advanced'>, key: string) => {
+  if (options.advanced?.database?.generateId !== 'uuid' || !uuid.test(key)) return key
+  const hex = key.replace(/[{}-]/g, '').toLowerCase()
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
 /** The person's account of this id, read by its key; undefined when there is none, or it is someone else's. */
 export const findAccount = async <T = Account>({ adapter, options }: { adapter: Pick<Reads, 'findMany'>; options: Pick<BetterAuthOptions, 'advanced'> }, userId: string, id: string) =>
   mayBeId(options, id) ? (await adapter.findMany<T>({ model: 'account', where: [{ field: 'id', value: id }, { field: 'userId', value: userId }], limit: 1 }))[0] : undefined

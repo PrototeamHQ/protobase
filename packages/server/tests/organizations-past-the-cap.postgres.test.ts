@@ -3,6 +3,7 @@ import { authSchemaMigration } from '../src/better-auth/auth-schema'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
 import { addAppRoleToOwners, addMember, createOrganization, listOrganizations, ownOrganizationsWithoutMembers, removeMember, setMemberRoles } from '../src/better-auth/organizations/host'
 import { createUser } from '../src/better-auth/users'
+import { betterAuthOwnerRoles } from '../src/webhooks/table/owner-roles'
 import type { TokenAuth } from '../src/personal-mail/linked-accounts'
 import { betterAuthConnectionAccounts } from '../src/workflows/connections/connection-accounts'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
@@ -125,5 +126,16 @@ describe.skipIf(!ready)('on a store whose ids are uuids', () => {
     const accounts = betterAuthConnectionAccounts(auth as unknown as TokenAuth)
     expect(await accounts.find(id, 'no-such-account')).toBeUndefined()
     expect(await accounts.find(id, crypto.randomUUID())).toBeUndefined()
+  })
+
+  it("an owner's roles are read by an id or tenant in any form Postgres reads as a uuid", async () => {
+    const { auth } = await uuidStore()
+    await createUser(auth, { email: 'root@example.com' })
+    const bo = await createUser(auth, { email: 'bo@example.com', role: 'user' })
+    const { id: acme } = (await createOrganization(auth, { name: 'Acme', slug: 'acme', owner: 'root@example.com' })).organization
+    await addMember(auth, { organization: 'acme', email: 'bo@example.com', appRoles: ['sales'] })
+    const roles = betterAuthOwnerRoles(auth)
+    const asked = [{ id: bo.id, tenant: acme }, { id: bo.id.toUpperCase(), tenant: `{${acme}}` }, { id: bo.id.replaceAll('-', ''), tenant: acme.toUpperCase().replaceAll('-', '') }]
+    expect(await Promise.all(asked.map(roles))).toEqual([['sales'], ['sales'], ['sales']])
   })
 })
