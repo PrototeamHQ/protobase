@@ -44,8 +44,9 @@ describe('withoutSignInLink', () => {
 describe('providerName', () => {
   it("names the platform's provider by its own name, and well-known providers by theirs", () => {
     expect(providerName('github')).toBe('GitHub')
-    expect(providerName('oidc', { provider: 'oidc', name: 'Acme SSO' })).toBe('Acme SSO')
-    expect(providerName('github', { provider: 'github', name: 'GitHub' })).toBe('GitHub')
+    expect(providerName('oidc', [{ provider: 'oidc', name: 'Acme SSO' }])).toBe('Acme SSO')
+    expect(providerName('central', [{ provider: 'oidc', name: 'Acme SSO' }, { provider: 'central', name: 'Central' }])).toBe('Central')
+    expect(providerName('github', [{ provider: 'github', name: 'GitHub' }])).toBe('GitHub')
     expect(providerName('keycloak')).toBe('Keycloak')
   })
 })

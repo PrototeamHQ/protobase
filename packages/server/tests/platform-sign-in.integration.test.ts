@@ -20,7 +20,7 @@ const serve = (options: PlatformApp = {}) => servePlatformApp(shared, appDb, opt
 describe('sign-in through the platform provider', () => {
   it('is offered on the status with its name, and asks the provider with PKCE, a nonce and the callback of its id', async () => {
     const { request, platformSignIn } = await serve()
-    expect(await (await request('/status')).json()).toMatchObject({ socialProviders: ['github'], platformSignIn: { provider: 'github', name: 'GitHub' } })
+    expect(await (await request('/status')).json()).toMatchObject({ socialProviders: ['github'], platformProviders: [{ provider: 'github', name: 'GitHub' }] })
     const { url } = await platformSignIn(octo())
     const authorize = new URL(url)
     expect(authorize.origin + authorize.pathname).toBe(`${issuer}/authorize`)
@@ -133,7 +133,7 @@ describe('the policy for sign-in through the platform', () => {
     await savePolicy({ platformSignIn: 'forbidden' })
     const status = await (await request('/status')).json()
     expect(status.socialProviders).toEqual([])
-    expect(status).not.toHaveProperty('platformSignIn')
+    expect(status).not.toHaveProperty('platformProviders')
     const refused = await request('/sign-in/social', { body: { provider: 'github', callbackURL: `${origin}/`, disableRedirect: true } })
     expect(refused.status).toBe(403)
     expect(await refused.json()).toMatchObject({ code: 'SIGN_IN_METHOD_FORBIDDEN' })
@@ -145,7 +145,7 @@ describe('without the platform provider', () => {
     const { request } = await serve({ socialProviders: { github: { clientId: 'Iv1.own', clientSecret: 'own-secret' } } })
     const status = await (await request('/status')).json()
     expect(status.socialProviders).toEqual(['github'])
-    expect(status).not.toHaveProperty('platformSignIn')
+    expect(status).not.toHaveProperty('platformProviders')
     const start = await request('/sign-in/social', { body: { provider: 'github', callbackURL: `${origin}/`, disableRedirect: true } })
     const authorize = new URL(((await start.json()) as { url: string }).url)
     expect(authorize.origin + authorize.pathname).toBe('https://github.com/login/oauth/authorize')
@@ -153,13 +153,13 @@ describe('without the platform provider', () => {
   })
 
   it('is not offered when its settings could not be read at startup', async () => {
-    const { request } = await serve({ signInProvider: { issuer: 'https://down.platform.example', ...client } })
+    const { request } = await serve({ signInProviders: [{ issuer: 'https://down.platform.example', ...client }] })
     expect((await (await request('/status')).json()).socialProviders).toEqual([])
   })
 
   it('takes an id and a name of its own', async () => {
-    const { request, auth, platformSignIn } = await serve({ provider: 'oidc', signInProvider: { issuer, ...client, provider: 'oidc', name: 'Acme SSO' } })
-    expect(await (await request('/status')).json()).toMatchObject({ socialProviders: ['oidc'], platformSignIn: { provider: 'oidc', name: 'Acme SSO' } })
+    const { request, auth, platformSignIn } = await serve({ provider: 'oidc', signInProviders: [{ issuer, ...client, provider: 'oidc', name: 'Acme SSO' }] })
+    expect(await (await request('/status')).json()).toMatchObject({ socialProviders: ['oidc'], platformProviders: [{ provider: 'oidc', name: 'Acme SSO' }] })
     await createUser(auth, { email: 'octo@example.com', password, role: 'user' })
     expect((await platformSignIn(octo())).session.user.email).toBe('octo@example.com')
   })

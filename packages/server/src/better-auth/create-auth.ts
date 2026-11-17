@@ -61,7 +61,11 @@ import { versionedSecrets } from './secret-versions'
 import { signingKeyRotation, signingKeys } from './signing-keys'
 import type { RoleSession, RoleUser } from './roles/session-role'
 import type { Session } from '../types'
-import { platformSignInFor, platformSignInProvider, providerPagesOffPlugin, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
+import { platformSignInFor, platformSignInProvider, providerPagesOffPlugin, resolvePlatformSignIns, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
+import { readPlatformSignIns } from './platform-sign-in-env'
+import { hiddenAccountsPlugin, oneAccountPerProvider } from './platform-accounts'
+import { fixedAuthorizationParamsPlugin } from './platform-authorization-params'
+import { deviceLinksPlugin } from './platform-devices'
 import { appSignInPolicy } from './app-sign-in-policy'
 import { signInPolicyPlugin } from './policy-plugin'
 import { defaultSignInPolicy, type SignInPolicy } from './sign-in-policy'
@@ -171,7 +175,7 @@ export type CreateAuthOptions = {
   /**
    * Sign-in providers for Better Auth, for example `{ github: { clientId, clientSecret } }`; the callback is
    * `{baseURL}/api/auth/callback/<provider>`. A provider also signs up people without an account, with the default role.
-   * One with the id of `signInProvider` takes its place. Default none.
+   * One with the id of a provider of `signInProviders` takes its place. Default none.
    */
   socialProviders?: BetterAuthOptions['socialProviders']
   /**
@@ -233,13 +237,14 @@ export type CreateAuthOptions = {
    */
   operator?: OperatorProvider | false
   /**
-   * A sign-in provider the platform adds for people who already have an account: an OpenID Connect provider that never
-   * signs anyone up. Defaults to the one the platform passes in `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`
-   * and `PROTOBASE_SIGN_IN_CLIENT_SECRET` (see `readPlatformSignIn`), when set; `false` turns it off whatever the
-   * environment says. Left out when `socialProviders` has a provider with the same id. Without `clientSecret`, it
-   * signs in by token sign-in alone, with tokens for the origin of `baseURL` unless `clientId` names another.
+   * The sign-in providers the platform adds for people who already have an account: OpenID Connect providers that never
+   * sign anyone up, each with its own id. Defaults to those the platform passes in `PROTOBASE_SIGN_IN_ISSUER`,
+   * `PROTOBASE_SIGN_IN_CLIENT_ID` and `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and the numbered sets after them such as
+   * `PROTOBASE_SIGN_IN_2_ISSUER` (see `readPlatformSignIns`); `[]` turns them off whatever the environment says. One
+   * is left out when `socialProviders` has a provider with its id. Without `clientSecret`, one signs in by token sign-in
+   * alone, with tokens for the origin of `baseURL` unless `clientId` names another.
    */
-  signInProvider?: PlatformSignIn | false
+  signInProviders?: readonly PlatformSignIn[]
   /**
    * Single sign-on with the app's SAML 2.0 identity providers, for example `{ saml: [{ id: 'okta', name: 'Okta',
    * domains: ['example.com'], idp: { metadata } }] }` (see `SamlProvider`). Like `socialProviders`, a provider signs up
@@ -308,7 +313,7 @@ export type UserCreatedHook = NonNullable<UserCreateHooks['after']>
 
 const platformOperator = () => readOperatorSettings(globalThis.process?.env ?? {})
 
-const platformSignInSettings = () => readPlatformSignIn(globalThis.process?.env ?? {})
+const platformSignInSettings = () => readPlatformSignIns(globalThis.process?.env ?? {})
 
 const platformOrigins = () => readOrigins(globalThis.process?.env ?? {})
 
@@ -355,7 +360,7 @@ type Resolved = {
   /** What open sign-up asks for, from `resolveSignUpFields`. */
   signUpFields?: SignUpField[]
   operator?: ResolvedOperator
-  platformSignIn?: ResolvedPlatformSignIn
+  platformSignIn?: ResolvedPlatformSignIn[]
   /** The SAML providers, from `resolveSamlProviders`. */
   saml?: ResolvedSamlProvider[]
   organizations?: ResolvedOrganizations
@@ -414,12 +419,16 @@ const pageLoadReads = ['/get-session', '/role/current', '/token']
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn, saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, ...plugins }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn = [], saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, ...plugins }: Resolved) => {
   const mailProviders = resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true)
   const connectionHooks = connections && connections.resolved.length > 0 ? connectionAccountHooks(connections.resolved, connections.events) : undefined
   const ownProviders = (connections?.resolved ?? []).filter(({ declaration }) => 'oauth' in declaration).map(({ providerId }) => providerId)
   const secure = options.baseURL.startsWith('https://')
-  const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
+  const signIns = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
+  const platformIds = signIns.map(({ provider }) => provider)
+  const devices = signIns.filter(({ devices }) => devices)
+  // A device provider's accounts are on the account page's devices, not its connected accounts.
+  const offAccountPage = signIns.filter(({ hidden, devices }) => hidden || devices).map(({ provider }) => provider)
   const hosts = passkeyHosts([options.baseURL, ...origins])
   const mail = mailer && { mailer, appName, baseURL: options.baseURL }
   // The role of accounts the emailed sign-in code makes on the spot, when open sign-up asks for the address only.
@@ -432,7 +441,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     defaultPolicy: signInPolicy,
     socialProviders: [...Object.keys(options.socialProviders ?? {}), ...samlIds],
     ...(operator && { operator: operator.name }),
-    ...(signIn && { platformSignIn: { provider: signIn.provider, name: signIn.name } }),
+    platformSignIn: signIns.map(({ provider, name }) => ({ provider, name })),
   }
   const jwtOptions = {
     schema: pluginNames.jwt,
@@ -495,8 +504,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...coreNames.account,
       // Someone signed in links a provider account with another address on purpose, from their account page.
       // A connection's own provider links only, from someone signed in, as sign-in through it is refused, so its
-      // account's address need not be one it vouches for.
-      accountLinking: { allowDifferentEmails: true, ...(ownProviders.length > 0 && { trustedProviders: ownProviders }) },
+      // account's address need not be one it vouches for. A first sign-in links by the address only when the provider
+      // says it verified it and the account's own address is verified too.
+      accountLinking: { allowDifferentEmails: true, requireLocalEmailVerified: true, ...(ownProviders.length > 0 && { trustedProviders: ownProviders }) },
       ...(options.encryptOAuthTokens && { encryptOAuthTokens: true }),
     },
     plugins: [
@@ -514,8 +524,11 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       passwordConfirmationPlugin(),
       ...(mail ? [emailOTP(emailCodeOptions(mail)), noAccountMailPlugin(mail, codeSignUp ? (context, email) => codeSignsUp(context, email, signUpDomains) : undefined), confirmationCodePlugin(mail)] : []),
       ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, ...(signUpDomains && { domains: signUpDomains }), fields: signUpFields, mail, defaultPolicy: signInPolicy })] : []),
-      ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
-      ...(signIn && !signIn.pages ? [providerPagesOffPlugin(signIn.provider)] : []),
+      ...(signIns.length > 0 ? [genericOAuth({ config: signIns.map(platformSignInProvider) })] : []),
+      ...(signIns.some(({ pages }) => !pages) ? [providerPagesOffPlugin(signIns.filter(({ pages }) => !pages).map(({ provider }) => provider))] : []),
+      ...(signIns.length > 0 ? [fixedAuthorizationParamsPlugin(platformIds)] : []),
+      ...(offAccountPage.length > 0 ? [hiddenAccountsPlugin(offAccountPage)] : []),
+      ...(devices.length > 0 ? [deviceLinksPlugin(devices.map(({ provider, name }) => ({ provider, name })))] : []),
       ...(connections && connections.resolved.length > 0
         ? [connectionProvidersPlugin(connections.resolved, { allowPrivateAddresses: connections.allowPrivateAddresses }), connectionsPlugin({ connections: connections.resolved, events: connections.events, allowPrivateAddresses: connections.allowPrivateAddresses })]
         : []),
@@ -525,7 +538,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       signInPolicyPlugin(policy),
       // After the policy's plugin, so an emailed code it refuses makes no account.
       ...(mail && codeSignUp ? [codeSignUpPlugin({ role: codeSignUp, ...(signUpDomains && { domains: signUpDomains }), mail })] : []),
-      idTokenSignInPlugin(signIn?.tokenSignIn ? { tokenSignIn: { provider: signIn.provider, clientId: signIn.clientId } } : {}),
+      idTokenSignInPlugin({ tokenSignIn: signIns.filter(({ tokenSignIn }) => tokenSignIn).map(({ provider, clientId, devices }) => ({ provider, clientId, devices })) }),
       passwordChecksPlugin(),
       setPasswordPlugin(),
       passwordChangePlugin(mail),
@@ -578,8 +591,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         update: { before: async (user) => ({ data: confirmedOnUpdate(user, new Date()) }) },
       },
       session: refusingConnectionSessions(withEndedReplaced(organizations ? sessionOrganizationHooks(context) : {}) as SessionHooks, connectionHooks?.session.create?.before),
-      // Linking a mailbox makes that account the one mail goes through; linking a connection's account resumes its triggers.
-      account: ((mail) => (connectionHooks ? bothAccountHooks(mail, connectionHooks.account) : mail))(mailLinkHooks(mailProviders)),
+      // Linking a mailbox makes that account the one mail goes through; linking a connection's account resumes its
+      // triggers; a person holds one account of each platform provider, but for one of devices.
+      account: ((mail) => (connectionHooks ? bothAccountHooks(mail, connectionHooks.account) : mail))(bothAccountHooks(oneAccountPerProvider(signIns.filter(({ devices }) => !devices).map(({ provider }) => provider)), mailLinkHooks(mailProviders))),
     },
     rateLimit: {
       enabled: true,
@@ -651,10 +665,10 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const mailer = options.mailer === undefined ? platformMailer(undefined, appName) : options.mailer || undefined
   const provider = options.operator === undefined ? platformOperator() : options.operator || undefined
   const operator = provider && resolveOperator(provider)
-  const signInSettings = options.signInProvider === undefined ? platformSignInSettings() : options.signInProvider || undefined
+  const signInSettings = options.signInProviders ?? platformSignInSettings()
   const socialProviders = Object.keys(options.socialProviders ?? {})
-  const platformSignIn = platformSignInFor(signInSettings && resolvePlatformSignIn(signInSettings, options.baseURL), socialProviders)
-  const saml = resolveSamlProviders(options.sso?.saml ?? [], [...socialProviders, ...(platformSignIn ? [platformSignIn.provider] : [])])
+  const platformSignIn = platformSignInFor(resolvePlatformSignIns(signInSettings, options.baseURL), socialProviders)
+  const saml = resolveSamlProviders(options.sso?.saml ?? [], [...socialProviders, ...platformSignIn.map(({ provider }) => provider)])
   const personalMail = resolvePersonalMail(options.personalMail ?? [], socialProviders, options.encryptOAuthTokens === true)
   if (Object.keys(options.connections ?? {}).length > 0 && options.encryptOAuthTokens !== true) throw new Error("auth.connections: the connected accounts' tokens would be stored in plain text; turn on auth.encryptOAuthTokens")
   const allowPrivateAddresses = options.workflowConnections?.allowPrivateAddresses === true
@@ -736,7 +750,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     /** The app's name it signs in and mails as: `PROTOBASE_APP_NAME`, else `appName`, else `Protobase`. */
     appName: appName ?? defaultAppName,
     operator: operator?.name,
-    platformSignIn: platformSignIn && { provider: platformSignIn.provider, name: platformSignIn.name, pages: platformSignIn.pages },
+    /** The platform's sign-in providers: each one's id, name, whether people sign in through its pages, whether it is off the account page, and whether its accounts are devices. */
+    platformSignIn: platformSignIn.map(({ provider, name, pages, hidden, devices }) => ({ provider, name, pages, hidden, devices })),
     /** The id and name of each SAML provider, for the sign-in page. */
     samlProviders: saml.map(({ id, name }) => ({ id, name })),
     /** The mail providers people link their own mailbox with (`personalMail`). */

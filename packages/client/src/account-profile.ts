@@ -17,6 +17,13 @@ export type DeviceSession = {
   staff?: string
 }
 
+/**
+ * A device signed in to the account by a platform sign-in provider whose accounts are devices: the id of its link (to
+ * sign it out), the provider's id and name, the device's own name when its token gave one, when it was linked, and the
+ * tokens of the sessions it began, which `sessions` also lists.
+ */
+export type DeviceLink = { id: string; provider: string; name: string; device?: string; linkedAt: string; sessions: string[] }
+
 const isoDate = (value: string | Date) => new Date(value).toISOString()
 
 /** The signed-in person's name, address, password and signed-in devices. Each call rejects with `AuthError`. */
@@ -89,5 +96,18 @@ export const accountProfile = (client: BetterAuthClient) => ({
   revokeOtherSessions: async () => {
     const { error } = await client.revokeOtherSessions()
     if (error) throw authError(error, 'Could not sign out your other devices')
+  },
+
+  /** The devices linked to the account by the platform's device providers, when the server has any (`status().deviceLinks`). */
+  deviceLinks: async (): Promise<DeviceLink[]> => {
+    const { data, error } = await client.$fetch<{ links: DeviceLink[] }>('/account/device-links', { method: 'GET' })
+    if (error || !data) throw authError(error, 'Could not read your devices')
+    return data.links
+  },
+
+  /** Signs a linked device out for good: its link goes, its sessions end, and it never signs in again. */
+  signOutDeviceLink: async (id: string) => {
+    const { error } = await client.$fetch('/account/device-links/sign-out', { method: 'POST', body: { id } })
+    if (error) throw authError(error, 'Could not sign out the device')
   },
 })

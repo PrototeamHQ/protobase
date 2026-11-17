@@ -29,7 +29,7 @@ describe('the auth plugins with every feature on', () => {
       secret: 'test-secret-test-secret-test-secret-1234',
       mailer: { send: async () => {} },
       operator: false,
-      signInProvider: { issuer: 'https://idp.example.com', clientId: 'platform-client', clientSecret: 'platform-secret', provider: 'platform' },
+      signInProviders: [{ issuer: 'https://idp.example.com', clientId: 'platform-client', clientSecret: 'platform-secret', provider: 'platform' }],
       sso: { saml: [{ id: 'okta', domains: ['example.com'], idp: { metadata: '<EntityDescriptor/>' } }] },
       passwordHashes: ['bcrypt'],
       roles: { sales: 'Sales' },

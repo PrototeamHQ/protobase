@@ -38,13 +38,13 @@ const createDatabase = async () => {
 }
 
 // The same store as `authOn`'s, as a served config's `auth` describes it: in the database's search path, without mail or providers.
-const storeAuth = { schema: 'public', mailer: false, operator: false, signInProvider: false } as const
+const storeAuth = { schema: 'public', mailer: false, operator: false, signInProviders: [] } as const
 
 const pools: pg.Pool[] = []
 const authOn = (databaseUrl: string, options: pg.PoolConfig = {}) => {
   const pool = new pg.Pool({ connectionString: databaseUrl, max: 2, ...options })
   pools.push(pool)
-  return createAuth({ database: pool, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProvider: false })
+  return createAuth({ database: pool, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProviders: [] })
 }
 
 // Applies the migration files of `dir` the way a project's migrate step does: all in one transaction.
@@ -85,7 +85,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     return [...rows]
   }
   const versions = async (databaseUrl: string, table = 'auth_migrations') => (await query<{ version: number }>(databaseUrl, `select version from ${table} order by version`)).map((row) => row.version)
-  const every = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  const every = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
   // Every feature that keeps something in the store: organizations, the OAuth provider for MCP, personal access tokens
   // and the From addresses of personal mail.
   const personalMail = { personalMail: ['gmail' as const], encryptOAuthTokens: true, socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } } }
@@ -117,7 +117,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const written = new Set<string>()
     for (const features of featureSets) {
       const databaseUrl = await createDatabase()
-      const auth = await buildAuth({ database: new pg.Pool({ connectionString: databaseUrl, max: 2 }), baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProvider: false, ...features })
+      const auth = await buildAuth({ database: new pg.Pool({ connectionString: databaseUrl, max: 2 }), baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProviders: [], ...features })
       pools.push(auth.options.database as pg.Pool)
       const folder = await migrationsDir()
       written.add(await readFile((await writeAuthMigration({ auth, dir: folder, name: 'auth' }))!, 'utf8'))
@@ -139,7 +139,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
       secret,
       mailer: false as const,
       operator: false as const,
-      signInProvider: false as const,
+      signInProviders: [] as const,
       users: { table: 'people', columns: { email: 'address', two_factor_enabled: 'mfa', last_organization_id: 'last_org' }, metadata: 'meta' },
       generateUserId: 'uuid' as const,
     }
@@ -174,7 +174,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
 
     const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
     pools.push(pool)
-    const on = await buildAuth({ database: pool, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProvider: false, ...allOn })
+    const on = await buildAuth({ database: pool, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProviders: [], ...allOn })
     await expect(checkAuthSchema(on)).resolves.toBeUndefined()
     expect(await writeAuthMigration({ auth: on, dir: folder, name: 'auth' })).toBeUndefined()
     expect(await authSchemaDrift(on)).toEqual([])
@@ -210,7 +210,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const databaseUrl = await createDatabase()
     const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
     pools.push(pool)
-    const options = { database: pool, baseURL: 'http://localhost:1', secret, mailer: false as const, operator: false as const, signInProvider: false as const, organizations: allOn.organizations }
+    const options = { database: pool, baseURL: 'http://localhost:1', secret, mailer: false as const, operator: false as const, signInProviders: [] as const, organizations: allOn.organizations }
     await (await getMigrations(createAuth(options).options)).runMigrations()
     await query(databaseUrl, `insert into "user" (id, name, email, email_verified) values ('u1', 'Root', 'root@example.com', true)`)
     return { databaseUrl, auth: createAuth(options) }
@@ -255,9 +255,9 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const folder = await migrationsDir()
     await writeAuthMigration({ auth, dir: folder, name: 'auth' })
     await applyAll(databaseUrl, folder)
-    await query(databaseUrl, "insert into auth_migrations (version, name) values (11, 'later')")
-    await expect(checkAuthSchema(auth)).rejects.toThrow('The auth store is at migration 11, newer than the 10 this version of Protobase knows; upgrade Protobase')
-    await expect(writeAuthMigration({ auth, dir: folder, name: 'auth' })).rejects.toThrow(/newer than the 10/)
+    await query(databaseUrl, "insert into auth_migrations (version, name) values (12, 'later')")
+    await expect(checkAuthSchema(auth)).rejects.toThrow('The auth store is at migration 12, newer than the 11 this version of Protobase knows; upgrade Protobase')
+    await expect(writeAuthMigration({ auth, dir: folder, name: 'auth' })).rejects.toThrow(/newer than the 11/)
   })
 
   it('compares the tables only in the development check, which names what drifted', async () => {
@@ -298,7 +298,7 @@ describe.skipIf(!reachable)('the auth store and the app\'s resources', () => {
     pools.push(pool)
     if (schemaName) await pool.query(`create schema ${schemaName}`)
     const database = schemaName ? { dialect: new PostgresDialect({ pool }), type: 'postgres' as const, schemaName } : pool
-    const auth = createAuth({ database, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProvider: false, ...(users && { users }) })
+    const auth = createAuth({ database, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProviders: [], ...(users && { users }) })
     await pool.query((await authSchemaMigration(auth))!)
     await pool.query('create table orders (id text primary key)')
     const db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
@@ -327,7 +327,7 @@ describe.skipIf(!reachable)('the auth store and the app\'s resources', () => {
     pools.push(pool)
     await pool.query('create schema app_auth; create schema auth; create table auth.users (id uuid primary key, email text, encrypted_password text)')
     const users = { table: 'users', keyTable: { schema: 'auth', table: 'users' } }
-    const auth = createAuth({ database: { dialect: new PostgresDialect({ pool }), type: 'postgres', schemaName: 'app_auth' }, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProvider: false, generateUserId: 'uuid', users })
+    const auth = createAuth({ database: { dialect: new PostgresDialect({ pool }), type: 'postgres', schemaName: 'app_auth' }, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProviders: [], generateUserId: 'uuid', users })
     await pool.query((await authSchemaMigration(auth))!)
     await pool.query('create view app_auth.users as select id, email from auth.users; create table orders (id text primary key)')
     const db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
