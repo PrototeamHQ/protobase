@@ -14,21 +14,31 @@ const likeEscaped = (text: string) => text.replace(/[\\%_]/g, (char) => `\\${cha
  * One level of `bucket` below the folder `prefix` (`''` for the top, else ending in `/`), as the transaction's role may
  * see it: the objects directly in it and the folders that hold objects deeper down, whose names start with `search`
  * (case-insensitive). Folders sort with the objects by name; by any other column they come first, as in Supabase.
+ *
+ * The level is walked entry by entry on `(bucket_id, name collate "C")`: after an object the next name, after a folder
+ * the first name past everything in it (`'0'` follows `'/'`), so a folder costs one read however much it holds.
  */
 export const listFolder = async (trx: Db, bucket: string, query: ListQuery) => {
   // Postgres counts characters, where JavaScript counts UTF-16 code units.
   const start = [...query.prefix].length + 1
   const order = sql.raw(query.order === 'desc' ? 'desc' : 'asc')
+  const within = sql`bucket_id = ${bucket} and name collate "C" like ${`${likeEscaped(query.prefix)}%`} and substr(name, ${start}) ilike ${`${likeEscaped(query.search)}%`}`
+  const columns = sql`name, strpos(substr(name, ${start}), '/') > 0 as folder, id, updated_at, created_at, last_accessed_at, metadata`
   const { rows } = await sql<ListEntry>`
-    with level as (
-      select split_part(substr(name, ${start}), '/', 1) as entry, strpos(substr(name, ${start}), '/') > 0 as folder, id, updated_at, created_at, last_accessed_at, metadata
-      from storage.objects
-      where bucket_id = ${bucket} and name like ${`${likeEscaped(query.prefix)}%`} and substr(name, ${start}) ilike ${`${likeEscaped(query.search)}%`}
+    with recursive walk as (
+      (select ${columns} from storage.objects where ${within} order by name collate "C" limit 1)
+      union all
+      select next.* from walk cross join lateral (
+        select ${columns} from storage.objects
+        where ${within} and name collate "C" >= case when walk.folder then ${query.prefix} || split_part(substr(walk.name, ${start}), '/', 1) || '0' else walk.name || chr(1) end
+        order by name collate "C" limit 1
+      ) next
     ), entries as (
       select distinct on (entry) entry as name, folder, case when folder then null else id end as id,
         case when folder then null else updated_at end as updated_at, case when folder then null else created_at end as created_at,
         case when folder then null else last_accessed_at end as last_accessed_at, case when folder then null else metadata end as metadata
-      from level order by entry, folder desc
+      from (select split_part(substr(name, ${start}), '/', 1) as entry, folder, id, updated_at, created_at, last_accessed_at, metadata from walk) level
+      order by entry, folder desc
     )
     select name, id, updated_at, created_at, last_accessed_at, metadata from entries
     order by ${query.column === 'name' ? sql`name collate "C" ${order}` : sql`folder desc, ${sql.ref(query.column)} ${order} nulls last, name collate "C"`}
