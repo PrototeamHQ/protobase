@@ -50,8 +50,11 @@ export const passkeyPlugin = ({ domain, hosts, formerDomain, origins }: PasskeyP
       const rpID = ctx.query?.rpId?.toLowerCase() ?? domain
       if (!hosts.includes(rpID)) throw new APIError('BAD_REQUEST', unknownDomain)
       const session = await getSessionFromCtx(ctx)
-      const own = session ? await ctx.context.adapter.findMany<StoredPasskey>({ model: 'passkey', where: [{ field: 'userId', value: session.user.id }] }) : []
-      const passkeys = own.filter((stored) => rpIDOf(stored) === rpID)
+      // Passkeys made before they kept their RP ID are the former domain's.
+      const rpIDs = rpID === formerDomain ? [rpID, null] : [rpID]
+      const passkeys = session
+        ? await ctx.context.adapter.findMany<StoredPasskey>({ model: 'passkey', where: [{ field: 'userId', value: session.user.id }, ...rpIDs.map((value) => ({ field: 'rpID', value, connector: 'OR' as const }))] })
+        : []
       const options = await generateAuthenticationOptions({
         rpID,
         userVerification: 'preferred',
