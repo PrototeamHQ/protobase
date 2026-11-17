@@ -3,7 +3,7 @@ import type { AdminAuth } from '../../better-auth/create-auth'
 import { effectiveRoles, globalRoles, parseAppRoles } from '../../better-auth/organizations/app-roles'
 import type { AuthContext } from '../../better-auth/organizations/store'
 import { resolveActiveRole } from '../../better-auth/roles/active-role'
-import { mayBeId } from '../../better-auth/store/store-reads'
+import { mayBeId, storedId } from '../../better-auth/store/store-reads'
 import { storeSqlOf } from '../../better-auth/store/store-sql'
 import { parseRoles } from '../../better-auth/users'
 import type { TenantValue } from '../../types'
@@ -18,20 +18,22 @@ const memberKey = (userId: string, organizationId: string) => JSON.stringify([us
 const ownersRoles = async (auth: AdminAuth, owners: readonly Owner[]) => {
   const context = (await auth.$context) as unknown as AuthContext
   const store = storeSqlOf(context)
-  const ids = [...new Set(owners.map((owner) => owner.id))].filter((id) => mayBeId(context.options, id))
+  // Ids as the store gives them back, so the rows it returns are found by them.
+  const idOf = (id: string) => storedId(context.options, id)
+  const ids = [...new Set(owners.map((owner) => idOf(owner.id)))].filter((id) => mayBeId(context.options, id))
   const { rows: users } = ids.length === 0 ? { rows: [] } : await sql<UserRow>`select id, ${store.userColumn('role')} as role, ${store.userColumn('lastRole')} as last_role,
     ${store.userColumn('banned')} as banned from ${store.user} where id = any(${ids})`.execute(store.db)
   const standing = new Map(users.filter((user) => !user.banned).map((user) => [user.id, user]))
   // Without organizations, a tenant holds no roles of its own.
-  const tenants = auth.organizations ? [...new Set(owners.flatMap((owner) => (owner.tenant !== undefined && standing.has(owner.id) ? [String(owner.tenant)] : [])))].filter((id) => mayBeId(context.options, id)) : []
+  const tenants = auth.organizations ? [...new Set(owners.flatMap((owner) => (owner.tenant !== undefined && standing.has(idOf(owner.id)) ? [idOf(String(owner.tenant))] : [])))].filter((id) => mayBeId(context.options, id)) : []
   const { rows: members } = tenants.length === 0 ? { rows: [] } : await sql<MemberRow>`select user_id, organization_id, app_roles from ${store.table('member')}
     where user_id = any(${[...standing.keys()]}) and organization_id = any(${tenants})`.execute(store.db)
   const memberships = new Map(members.map((member) => [memberKey(member.user_id, member.organization_id), parseAppRoles(member.app_roles)]))
   return owners.map(({ id, tenant }) => {
-    const user = standing.get(id)
+    const user = standing.get(idOf(id))
     if (!user) return []
     const global = auth.organizations ? globalRoles(user.role) : parseRoles(user.role)
-    const appRoles = tenant === undefined ? undefined : memberships.get(memberKey(id, String(tenant)))
+    const appRoles = tenant === undefined ? undefined : memberships.get(memberKey(user.id, idOf(String(tenant))))
     const active = resolveActiveRole(appRoles ? effectiveRoles(global, appRoles) : global, [user.last_role])
     return active === undefined ? [] : [active]
   })
