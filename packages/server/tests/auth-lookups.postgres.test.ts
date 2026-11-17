@@ -3,7 +3,9 @@ import { createAuth } from '../src/better-auth/create-auth'
 import { listOrganizations } from '../src/better-auth/organizations/host'
 import type { AuthContext } from '../src/better-auth/organizations/store'
 import { signInPasskeyDomains } from '../src/better-auth/passkey-domain'
+import { codeSignsUp } from '../src/better-auth/sign-up/code-sign-up-plugin'
 import { endStaffSignIn, listStaffSignIns, staffSignInOfSession } from '../src/better-auth/staff-log'
+import { hasUsers } from '../src/better-auth/users'
 import { createAppInvitation, findAppInvitationOf, listAppInvitations } from '../src/better-auth/users/app-invitation-store'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
 import { seqScansOf, watchStatements } from '../../../test-support/query-plans'
@@ -37,6 +39,19 @@ const root = `insert into "user" (id, name, email, email_verified, role, banned,
   values ('root', 'Root', 'root@example.com', true, 'admin', false, now(), now())`
 
 describe.skipIf(!ready)('the auth store lookups', () => {
+  it('ask whether any user exists, as the status route and sign-up do, by the first of 100,000 rows', async () => {
+    const { auth, context, fill, plansOf } = await serve()
+    expect(await hasUsers(auth)).toBe(false)
+    await fill(`insert into "user" (id, name, email, email_verified, role, banned, created_at, updated_at)
+      select 'u' || i, 'User ' || i, 'user' || i || '@example.com', true, 'user', false, now(), now() from generate_series(1, 100000) i`)
+    expect(await hasUsers(auth)).toBe(true)
+    expect(await codeSignsUp(context, 'new@example.com', undefined)).toBe(true)
+    const plans = await plansOf('user')
+    expect(plans).toHaveLength(2)
+    // A count would read every row; the plan stops at the first.
+    expect(plans.filter((plan) => !plan.startsWith('Limit'))).toEqual([])
+  })
+
   it('page through 100,000 organizations by their creation', async () => {
     const { auth, fill, plansOf } = await serve()
     await fill(`insert into organization (id, name, slug, created_at)

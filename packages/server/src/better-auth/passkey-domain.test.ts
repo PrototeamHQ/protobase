@@ -22,7 +22,7 @@ describe('resolvePasskeyDomain', () => {
 describe('signInPasskeyDomains', () => {
   // Which hosts hold a passkey is asked of real Postgres, in tests/auth-lookups.postgres.test.ts.
   it('is the passkey domain alone on one origin, without asking the store', async () => {
-    const unread = { findOne: () => Promise.reject(new Error('read')) }
+    const unread = { findMany: () => Promise.reject(new Error('read')) }
     expect(await signInPasskeyDomains(unread, 'erp-x1.protobase.net', origins.slice(0, 1))).toEqual(['erp-x1.protobase.net'])
   })
 

@@ -1,8 +1,8 @@
 import type { DBAdapter } from 'better-auth'
 import { exists } from './store/store-reads'
 
-// Any store's adapter: only its `findOne` is used.
-type Finder = Pick<DBAdapter, 'findOne'>
+// Any store's adapter: only its `findMany` is used.
+type Finder = Pick<DBAdapter, 'findMany'>
 
 export const passkeyDomainVariable = 'PROTOBASE_PASSKEY_DOMAIN'
 
