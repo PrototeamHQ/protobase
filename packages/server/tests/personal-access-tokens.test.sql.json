@@ -97,7 +97,7 @@
       {"sql":"select \"primary\".* from (select * from \"verification\" where \"verification\".\"expires_at\" < $1 limit $2) as \"primary\"","params":["2026-08-01T00:00:00.000+00:00","100"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",25],["identifier",25],["value",25],["expires_at",1184],["created_at",1184],["updated_at",1184]],"rows":[]}},
       {"sql":"delete from \"verification\" where \"verification\".\"expires_at\" < $1","params":["2026-08-01T00:00:00.000+00:00"],"result":{"command":"DELETE","rowCount":0,"columns":[],"rows":[]}},
       {"sql":"insert into \"personal_access_token\" (\"user_id\", \"name\", \"token_hash\", \"role\", \"organization_id\", \"created_at\", \"expires_at\", \"id\") values ($1, $2, $3, $4, $5, $6, $7, $8) returning *","params":["rlf8GfpKV61UvrbqQC00o28m2Sz0HMRX","Weekly invoices","9150b03ea1b56bae8cebc6007051bb79468340562b1eb439566009d6e3475632","sales",null,"2026-08-01T00:00:00.000+00:00",null,"oNJWVdjRrWmMxNC5UXpyc8ph1iiUsfxN"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",25],["user_id",25],["name",25],["token_hash",25],["role",25],["organization_id",25],["created_at",1184],["expires_at",1184],["last_used_at",1184]],"rows":[["oNJWVdjRrWmMxNC5UXpyc8ph1iiUsfxN","rlf8GfpKV61UvrbqQC00o28m2Sz0HMRX","Weekly invoices","9150b03ea1b56bae8cebc6007051bb79468340562b1eb439566009d6e3475632","sales",null,"2026-08-01 00:00:00+00",null,null]]}},
-      {"sql":"select table_name as name from information_schema.tables where table_schema = current_schema() and table_type = 'BASE TABLE' order by 1","result":{"command":"SELECT","rowCount":22,"columns":[["name",19]],"rows":[
+      {"sql":"select table_name as name from information_schema.tables where table_schema = current_schema() and table_type = 'BASE TABLE' order by 1","result":{"command":"SELECT","rowCount":23,"columns":[["name",19]],"rows":[
         ["account"],
         ["auth_migrations"],
         ["invitation"],
@@ -114,6 +114,7 @@
         ["organization"],
         ["passkey"],
         ["personal_access_token"],
+        ["refused_account"],
         ["session"],
         ["sign_in_policy"],
         ["staff_sign_in"],
@@ -137,6 +138,7 @@
       {"sql":"select count(*)::int as found from \"organization\" t where strpos(row_to_json(t)::text, $1) > 0","params":["s9kIQI778m99KjaHQbKTxp2QXsyX0oqzs5IhknEy"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",23]],"rows":[["0"]]}},
       {"sql":"select count(*)::int as found from \"passkey\" t where strpos(row_to_json(t)::text, $1) > 0","params":["s9kIQI778m99KjaHQbKTxp2QXsyX0oqzs5IhknEy"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",23]],"rows":[["0"]]}},
       {"sql":"select count(*)::int as found from \"personal_access_token\" t where strpos(row_to_json(t)::text, $1) > 0","params":["s9kIQI778m99KjaHQbKTxp2QXsyX0oqzs5IhknEy"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",23]],"rows":[["0"]]}},
+      {"sql":"select count(*)::int as found from \"refused_account\" t where strpos(row_to_json(t)::text, $1) > 0","params":["s9kIQI778m99KjaHQbKTxp2QXsyX0oqzs5IhknEy"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",23]],"rows":[["0"]]}},
       {"sql":"select count(*)::int as found from \"session\" t where strpos(row_to_json(t)::text, $1) > 0","params":["s9kIQI778m99KjaHQbKTxp2QXsyX0oqzs5IhknEy"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",23]],"rows":[["0"]]}},
       {"sql":"select count(*)::int as found from \"sign_in_policy\" t where strpos(row_to_json(t)::text, $1) > 0","params":["s9kIQI778m99KjaHQbKTxp2QXsyX0oqzs5IhknEy"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",23]],"rows":[["0"]]}},
       {"sql":"select count(*)::int as found from \"staff_sign_in\" t where strpos(row_to_json(t)::text, $1) > 0","params":["s9kIQI778m99KjaHQbKTxp2QXsyX0oqzs5IhknEy"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",23]],"rows":[["0"]]}},
