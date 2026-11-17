@@ -89,14 +89,15 @@ describe.skipIf(!ready)('the organization functions, past 100,000 rows', () => {
 })
 
 describe.skipIf(!ready)('the organization functions, on a store whose ids are uuids', () => {
-  it('list, own, give app roles to and keep an owner of organizations', async () => {
+  it('list, own, give app roles to and keep an owner of organizations, named by id or slug', async () => {
     const store = await openPostgresDatabase('empty')
     const auth = authOn(store, { generateUserId: 'uuid', organizations: { create: 'everyone', generateId: () => crypto.randomUUID() } })
     await store.exec((await authSchemaMigration(auth))!)
     const root = await createUser(auth, { email: 'root@example.com' })
     await createUser(auth, { email: 'bo@example.com', role: 'user' })
     const { id: acme } = (await createOrganization(auth, { name: 'Acme', slug: 'acme', owner: 'root@example.com' })).organization
-    await addMember(auth, { organization: acme, email: 'bo@example.com' })
+    // A slug is no uuid, so it is not asked as an id.
+    await addMember(auth, { organization: 'acme', email: 'bo@example.com' })
     await store.exec(`insert into organization (id, name, slug, created_at) values (gen_random_uuid(), 'Seeded', 'seeded', now())`)
     expect(await ownOrganizationsWithoutMembers(auth, root.id)).toBe(1)
     expect(await addAppRoleToOwners(auth, 'manager')).toBe(0)
