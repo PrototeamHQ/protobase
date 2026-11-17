@@ -1,0 +1,23 @@
+{
+  "the notices a page replays > are those after its last one up to the cursor, none past it, or none at all when more than the limit or pruned": {
+    "the notices a page replays > are those after its last one up to the cursor, none past it, or none at all when more than the limit or pruned#0": [
+      {"sql":"create schema events; create table if not exists \"events\".\"notices\" (\n  \"id\" bigint generated always as identity primary key,\n  \"resource\" text not null,\n  \"record_key\" text not null,\n  \"tenant_id\" text,\n  \"operation\" text not null check (\"operation\" in ('create', 'update', 'delete', 'undelete')),\n  \"at\" timestamptz not null default now()\n);\ncreate index if not exists \"notices_at\" on \"events\".\"notices\" (\"at\");\n      insert into events.notices (resource, record_key, operation) select 'tasks', i::text, 'update' from generate_series(1, 20) i","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":20,"columns":[],"rows":[]}]},
+      {"sql":"select exists (select from \"events\".\"notices\" where \"id\" = $1::bigint) as kept","params":["10"],"result":{"command":"SELECT","rowCount":1,"columns":[["kept",16]],"rows":[["t"]]}},
+      {"sql":"select \"id\"::text as id, \"resource\", \"record_key\", \"tenant_id\", \"operation\",\n      to_char(\"at\" at time zone 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') as at from \"events\".\"notices\"\n    where \"id\" > $1::bigint and \"id\" <= $2::bigint order by \"id\" limit $3","params":["10","13","4"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",25],["resource",25],["record_key",25],["tenant_id",25],["operation",25],["at",25]],"rows":[
+        ["11","tasks","11",null,"update","{{now:1:T:-:Z}}"],
+        ["12","tasks","12",null,"update","{{now:1:T:-:Z}}"],
+        ["13","tasks","13",null,"update","{{now:1:T:-:Z}}"]
+      ]}},
+      {"sql":"select exists (select from \"events\".\"notices\" where \"id\" = $1::bigint) as kept","params":["10"],"result":{"command":"SELECT","rowCount":1,"columns":[["kept",16]],"rows":[["t"]]}},
+      {"sql":"select \"id\"::text as id, \"resource\", \"record_key\", \"tenant_id\", \"operation\",\n      to_char(\"at\" at time zone 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') as at from \"events\".\"notices\"\n    where \"id\" > $1::bigint and \"id\" <= $2::bigint order by \"id\" limit $3","params":["10","14","4"],"result":{"command":"SELECT","rowCount":4,"columns":[["id",25],["resource",25],["record_key",25],["tenant_id",25],["operation",25],["at",25]],"rows":[
+        ["11","tasks","11",null,"update","{{now:1:T:-:Z}}"],
+        ["12","tasks","12",null,"update","{{now:1:T:-:Z}}"],
+        ["13","tasks","13",null,"update","{{now:1:T:-:Z}}"],
+        ["14","tasks","14",null,"update","{{now:1:T:-:Z}}"]
+      ]}},
+      {"sql":"select exists (select from \"events\".\"notices\" where \"id\" = $1::bigint) as kept","params":["13"],"result":{"command":"SELECT","rowCount":1,"columns":[["kept",16]],"rows":[["t"]]}},
+      {"sql":"delete from events.notices where id = 10","result":{"command":"DELETE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"select exists (select from \"events\".\"notices\" where \"id\" = $1::bigint) as kept","params":["10"],"result":{"command":"SELECT","rowCount":1,"columns":[["kept",16]],"rows":[["f"]]}}
+    ]
+  }
+}
