@@ -3,6 +3,7 @@ import { mcpSetupGate } from '../mcp/setup-gate'
 import { mcpSignedQueryGuard } from '../mcp/signed-query-guard'
 import type { SignInPolicy } from '../sign-in-policy'
 import { pluginNames } from '../snake-case-names'
+import { grantSubjectsPlugin } from './grant-subjects'
 import { idTokenClaims } from './id-token-claims'
 import { operatorClientsOnly, operatorClientsPlugin } from './operator-clients'
 import { accessTokenSeconds, idTokenSeconds, openIdScopes, tokenExchangeGrant, type ResolvedOpenIdProvider } from './openid-provider-options'
@@ -22,7 +23,8 @@ export const exactRedirectUri = (uri: string, registered: readonly string[]) => 
 /**
  * The Better Auth plugins of an OpenID provider for the operator's clients, after the `jwt` plugin, in this order: the
  * guard on signed queries, the setup gate, the refusal of every client the operator did not register, the provider,
- * and the operator's client API. A client gets the person's `sub` (their id here), `email`, `email_verified` and
+ * and the operator's client API, with `grantSubjectsPlugin` last when `subject` is `grant`. A client gets the person's
+ * `sub` (their id here, or its grant's subject), `email`, `email_verified` and
  * `name` in an ID token for its own client id, living `idTokenSeconds`, after the person signs in on the app's own
  * pages; it is never asked to allow the client. A client the operator lets exchange also gets refresh tokens, and ID
  * tokens for other clients, and for the origins of `audiences`, through the token exchange.
@@ -47,8 +49,9 @@ export const openIdProviderPlugins = ({ openId, mail, defaultPolicy }: OpenIdPro
       shouldRedirect: () => false,
       consentReferenceId: () => undefined,
     },
-    extensions: [tokenExchange(openId.audiences)],
+    extensions: [tokenExchange(openId.audiences, openId.subject)],
     schema: pluginNames.mcp,
   }),
   operatorClientsPlugin(openId.audiences),
+  ...(openId.subject === 'grant' ? [grantSubjectsPlugin()] : []),
 ]
