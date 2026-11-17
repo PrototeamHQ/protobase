@@ -51,11 +51,11 @@ export const writeNotices = async (db: Db, schema: string, changes: readonly Not
 export const lastNotice = async (db: Db, schema: string) =>
   (await sql<{ id: string }>`select coalesce(max("id"), 0)::text as id from ${tableOf(schema)}`.execute(db)).rows[0]!.id
 
-/** At most `limit` notices after `after`, in order. */
-export const noticesAfter = async (db: Db, schema: string, after: string, limit: number) => {
+/** At most `limit` notices after `after`, and up to `upTo` when given, in order. */
+export const noticesAfter = async (db: Db, schema: string, after: string, limit: number, upTo?: string) => {
   const { rows } = await sql<NoticeRow>`select "id"::text as id, "resource", "record_key", "tenant_id", "operation",
       to_char("at" at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as at from ${tableOf(schema)}
-    where "id" > ${after}::bigint order by "id" limit ${limit}`.execute(db)
+    where "id" > ${after}::bigint${upTo === undefined ? sql`` : sql` and "id" <= ${upTo}::bigint`} order by "id" limit ${limit}`.execute(db)
   return rows.map(noticeOf)
 }
 

@@ -75,7 +75,7 @@ const customStepVersionsResource = (schema: string) =>
     .fields({
       id: f.uuid().readOnly().dbDefault(),
       custom_step_id: f.relation('workflow_custom_steps').optional().readOnly().filterable(),
-      version: f.integer().readOnly().sortable(),
+      version: f.integer().readOnly().sortable().filterable(),
       name: f.text().readOnly(),
       label: f.text().readOnly(),
       description: f.text().optional().readOnly(),

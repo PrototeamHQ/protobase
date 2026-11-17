@@ -83,7 +83,9 @@ const tail = (lines: string[]) => lines.slice(-tailLines).join('\n')
 /** A custom step's record by its name, as the caller may read it; undefined when they may read none of that name. */
 const stepNamed = async (records: ToolRecords, name: string) => (await records.list('workflow_custom_steps', { filter: `name = "${name}"`, page_size: 1 })).items[0]
 
-const versionsOf = async (records: ToolRecords, step: unknown, pageSize = 20) => (await records.list('workflow_custom_step_versions', { filter: `custom_step_id = "${String(step)}"`, order_by: 'version desc', page_size: pageSize })).items
+// A step's latest 20 versions, or only `version`, newest first.
+const versionsOf = async (records: ToolRecords, step: unknown, version?: number) =>
+  (await records.list('workflow_custom_step_versions', { filter: `custom_step_id = "${String(step)}"${version === undefined ? '' : ` AND version = ${String(version)}`}`, order_by: 'version desc', page_size: 20 })).items
 
 /** One build as an answer gives it: its runner, status, the image's digest once ready, how long it took and its log's end. */
 const buildOf = (build: Row) => ({
@@ -94,7 +96,15 @@ const buildOf = (build: Row) => ({
   ...(typeof build.log === 'string' && build.log !== '' && { log_tail: tail(build.log.split('\n')) }),
 })
 
-const buildsOf = async (records: ToolRecords, version: unknown) => (await records.list('workflow_custom_step_builds', { filter: `version_id = "${String(version)}"`, order_by: 'started_at desc', page_size: 20 })).items
+// The latest 20 builds of each of these versions, newest first, in one read, by version id.
+const buildsOf = async (records: ToolRecords, versions: unknown[]) => {
+  const byVersion = new Map<unknown, Row[]>(versions.map((version) => [version, []]))
+  if (versions.length === 0) return byVersion
+  const filter = versions.map((version) => `version_id = "${String(version)}"`).join(' OR ')
+  const { items } = await records.list('workflow_custom_step_builds', { filter, order_by: 'started_at desc', limit_per: 'version_id:20', page_size: 20 * versions.length })
+  for (const build of items) byVersion.get(build.version_id)?.push(build)
+  return byVersion
+}
 
 // How a version's image stands: its first build that ended, ready before failed, else one under way, else whether a
 // runner that builds is online to take it.
@@ -164,9 +174,9 @@ const saveCustomStepTool = (calls: CustomStepCalls, input: WriteRecordToolsInput
 
 // How the build of a saved step's current version stands, once its first build ended or `seconds` passed.
 const builtVersion = async (context: ToolContext, calls: CustomStepCalls, step: Row, seconds: number) => {
-  const version = (await versionsOf(context.records, step.id, 1)).find((one) => one.version === step.version)
+  const [version] = await versionsOf(context.records, step.id, Number(step.version))
   if (!version) return { status: 'building' }
-  const read = async () => buildStatus(await buildsOf(context.records, version.id), (await calls.online(context.session.tenant)).builds)
+  const read = async () => buildStatus((await buildsOf(context.records, [version.id])).get(version.id)!, (await calls.online(context.session.tenant)).builds)
   return waited(seconds, read, ended)
 }
 
@@ -183,9 +193,12 @@ const getCustomStepTool = defineTool({
       const found = await stepNamed(context.records, name)
       if (!found) return refused(notFound(`No custom step named ${name} that you may read`))
       const { record, etag } = await context.records.get('workflow_custom_steps', String(found.id))
-      const versions = (await versionsOf(context.records, record.id)).filter((one) => args.version === undefined || one.version === args.version)
-      if (args.version !== undefined && versions.length === 0) return refused(notFound(`${name} has no version ${String(args.version)} among its latest 20 that you may read`))
-      const listed = await Promise.all(versions.map(async (one) => ({ version: one.version, type: `custom:${name}:${String(one.version)}`, saved_by: one.saved_by, saved_at: one.saved_at, builds: (await buildsOf(context.records, one.id)).map(buildOf) })))
+      if (args.version !== undefined && !Number.isInteger(args.version)) return `Pass version as a whole number, such as { "name": "${name}", "version": 2 }.`
+      const version = args.version as number | undefined
+      const versions = await versionsOf(context.records, record.id, version)
+      if (version !== undefined && versions.length === 0) return refused(notFound(`${name} has no version ${String(version)} that you may read`))
+      const builds = await buildsOf(context.records, versions.map((one) => one.id))
+      const listed = versions.map((one) => ({ version: one.version, type: `custom:${name}:${String(one.version)}`, saved_by: one.saved_by, saved_at: one.saved_at, builds: builds.get(one.id)!.map(buildOf) }))
       const step = Object.fromEntries(['label', 'description', ...manifestFields].flatMap((field) => (field in record ? [[field, record[field]]] : [])))
       return JSON.stringify({ id: record.id, name: record.name, version: record.version, etag, step, versions: listed })
     }

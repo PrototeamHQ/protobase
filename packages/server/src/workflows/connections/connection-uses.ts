@@ -22,9 +22,10 @@ export const connectionUses = ({ deps, schema, roles }: ConnectionUsesInput) => 
     cross join lateral jsonb_each_text(coalesce(v.connections, '{}'::jsonb)) c
     where v.enabled_by = ${userId} and c.value in (${sql.join(accountIds)})
     order by w.name, w.id`.execute(db)
-  for (const row of rows) {
-    if (!(await enablerMayUpdate(db, deps(), roles, userId, row.tenant_id ?? undefined, row.id))) continue
-    uses[row.account] = [...(uses[row.account] ?? []), { id: row.id, name: row.name }]
-  }
+  // Each workflow is checked once, all of them together, so their roles are asked at once.
+  const workflows = [...new Map(rows.map((row) => [row.id, row])).values()]
+  const allowed = await Promise.all(workflows.map((row) => enablerMayUpdate(db, deps(), roles, userId, row.tenant_id ?? undefined, row.id)))
+  const kept = new Set(workflows.filter((_, index) => allowed[index]).map((row) => row.id))
+  for (const row of rows) if (kept.has(row.id)) uses[row.account] = [...(uses[row.account] ?? []), { id: row.id, name: row.name }]
   return uses
 }
