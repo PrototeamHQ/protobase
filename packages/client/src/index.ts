@@ -69,7 +69,7 @@ export type { AuthUser, PersonalMailLink, PlatformSignIn, RoleLabel, SamlSignIn,
 export type { AppUser, UserInvitation, UserInvitationSent, UsersClient, UsersFound } from './users'
 export type { CurrentOrganization, InvitationPreview, InvitationSent, Organization, OrganizationInvitation, OrganizationMember, OrganizationPerson, OrganizationRole, OrganizationsClient, OrganizationsFound } from './organizations'
 export type { ActiveRole, RoleOption, RolesClient } from './roles'
-export type { DeviceSession } from './account-profile'
+export type { DeviceLink, DeviceSession } from './account-profile'
 export type { NewPersonalAccessToken, PersonalAccessToken } from './account-tokens'
 export type { MailSender, MailSenderChange, MailSenders } from './account-mail-senders'
 export type { AccountSecurity, AccountSignIn, AuthenticatorSetup, ConnectedApp, ConnectionRevocation, Passkey, RequiredSetup, WorkflowConnection } from './account-security'

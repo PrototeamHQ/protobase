@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
-import { AuthError, type DeviceSession } from '@protobase/client'
+import { AuthError, type DeviceLink, type DeviceSession } from '@protobase/client'
 import { DevicesSection, type DevicesSectionProps } from './devices-section'
 
 const meta = { title: 'Account devices', decorators: [(Story) => <div className="max-w-3xl bg-surface p-6"><Story /></div>] } satisfies Meta
@@ -91,5 +91,28 @@ export const SignOutRefused: StoryObj<DevicesSectionProps> = {
     const dialog = within(within(document.body).getByRole('dialog'))
     await userEvent.click(dialog.getByRole('button', { name: 'Sign out' }))
     expect(await dialog.findByText(/Staff cannot change/)).toBeVisible()
+  },
+}
+
+const phoneApp: DeviceSession = { token: 'phone-app', current: false, userAgent: 'Okhttp/4.12.0', createdAt: '2026-10-26T08:00:00.000Z', updatedAt: '2026-10-26T08:00:00.000Z', expiresAt: '2026-11-02T08:00:00.000Z' }
+const links: DeviceLink[] = [
+  { id: 'link-1', provider: 'central', name: 'Central', device: "Sanne's phone", linkedAt: '2026-10-26T08:00:00.000Z', sessions: ['phone-app'] },
+  { id: 'link-2', provider: 'central', name: 'Central', linkedAt: '2026-10-22T10:30:00.000Z', sessions: [] },
+]
+
+/** A device the platform links shows once, named by its provider and its own name, its sessions under it; signing it out is for good. */
+export const LinkedDevices: StoryObj<DevicesSectionProps> = {
+  tags: ['play'],
+  args: { sessions: [...sessions.filter(({ staff }) => !staff), phoneApp], links, ...actions, onSignOutLink: fn(async () => undefined) },
+  render: (args) => <DevicesSection {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    const rows = canvas.getAllByRole('listitem')
+    expect(rows.map((row) => row.querySelector('bdi')?.textContent)).toEqual(['Chrome on macOS', 'Safari on iPhone', "Sanne's phone (Central)", 'Central'])
+    await userEvent.click(within(rows[2]!).getByRole('button', { name: 'Sign out' }))
+    const dialog = within(within(document.body).getByRole('dialog', { name: "Sign out Sanne's phone (Central)?" }))
+    expect(dialog.getByText(/cannot sign in to your account again/)).toBeVisible()
+    await userEvent.click(dialog.getByRole('button', { name: 'Sign out' }))
+    expect(args.onSignOutLink).toHaveBeenCalledWith('link-1')
   },
 }

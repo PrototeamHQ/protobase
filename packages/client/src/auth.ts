@@ -93,7 +93,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
       const response = await doFetch(`${origin}${basePath}/status`)
       if (response.status === 404) throw new AuthError('This server has no sign-in. Is the API URL right?', 404)
       if (!response.ok) throw new AuthError('Could not read the sign-in status', response.status)
-      const body = (await response.json()) as Partial<SetupStatus> & { platformSignIn?: PlatformSignIn }
+      const body = (await response.json()) as Partial<SetupStatus> & { platformProviders?: PlatformSignIn[] }
       return {
         needsAdmin: Boolean(body.needsAdmin),
         ...(body.needsAdmin && body.firstAdminUrl && { firstAdminUrl: body.firstAdminUrl }),
@@ -105,7 +105,8 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
         ...(body.signUp && { signUp: true }),
         ...(body.signUp && body.signUpFields && { signUpFields: body.signUpFields }),
         socialProviders: body.socialProviders ?? [],
-        ...(body.platformSignIn && { platformSignIn: body.platformSignIn }),
+        ...(body.platformProviders && { platformProviders: body.platformProviders }),
+        ...(body.deviceLinks && { deviceLinks: true }),
         samlProviders: body.samlProviders ?? [],
         ...(body.staffSignIn && { staffSignIn: body.staffSignIn }),
         ...(body.passkeyDomains && { passkeyDomains: body.passkeyDomains }),

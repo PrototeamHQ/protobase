@@ -20,7 +20,7 @@ const secretKey = 'sb_secret_hidden_test'
 it("answers no route over the auth store's tables, in the app's own database and schema", async () => {
   const pg = await openSnapshotDb('auth')
   await pg.exec(`create table orders (id text primary key); insert into orders values ('o1')`)
-  const auth = createAuth({ database: { dialect: pg.dialect, type: 'postgres' }, baseURL: origin, secret: 'test-secret-test-secret-test-secret-1234', mailer: false, operator: false, signInProvider: false })
+  const auth = createAuth({ database: { dialect: pg.dialect, type: 'postgres' }, baseURL: origin, secret: 'test-secret-test-secret-test-secret-1234', mailer: false, operator: false, signInProviders: [] })
   await createUser(auth, { email: 'root@example.com', password: 'correct horse battery', role: 'admin' })
   const orders = resource('orders').table('orders').fields({ id: f.text() }).primaryKey((r) => r.id)
   const app = createAdmin({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isTokenSignIn, postsIdToken } from './id-token-sign-in'
+import { postsIdToken, tokenSignInWith } from './id-token-sign-in'
 
 describe('postsIdToken', () => {
   it('is a sign-in or a link with an ID token in the body', () => {
@@ -15,11 +15,14 @@ describe('postsIdToken', () => {
   })
 })
 
-describe('isTokenSignIn', () => {
-  it('is a sign-in with the provider token sign-in is on for, never a link', () => {
-    expect(isTokenSignIn('/sign-in/social', { provider: 'oidc' }, 'oidc')).toBe(true)
-    expect(isTokenSignIn('/sign-in/social', { provider: 'google' }, 'oidc')).toBe(false)
-    expect(isTokenSignIn('/link-social', { provider: 'oidc' }, 'oidc')).toBe(false)
-    expect(isTokenSignIn('/sign-in/social', { provider: 'oidc' }, undefined)).toBe(false)
+describe('tokenSignInWith', () => {
+  const providers = [{ provider: 'oidc', clientId: 'app' }, { provider: 'central', clientId: 'https://app.example.com' }]
+
+  it('is the provider a sign-in names, of those token sign-in is on for, never a link', () => {
+    expect(tokenSignInWith('/sign-in/social', { provider: 'oidc' }, providers)).toBe(providers[0])
+    expect(tokenSignInWith('/sign-in/social', { provider: 'central' }, providers)).toBe(providers[1])
+    expect(tokenSignInWith('/sign-in/social', { provider: 'google' }, providers)).toBeUndefined()
+    expect(tokenSignInWith('/link-social', { provider: 'oidc' }, providers)).toBeUndefined()
+    expect(tokenSignInWith('/sign-in/social', { provider: 'oidc' }, [])).toBeUndefined()
   })
 })
