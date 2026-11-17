@@ -1,30 +1,25 @@
+import { sql } from 'kysely'
 import type { AdminAuth } from './create-auth'
 import type { AuthContext } from './organizations/store'
-
-type SessionRow = { id: string; userId: string; expiresAt: Date }
-type UserRow = { id: string; banned?: boolean | null; banExpires?: Date | null }
-
-// A ban stands while it has no end or its end is still to come.
-const isBanned = (user: UserRow, now: Date) => user.banned === true && (user.banExpires === null || user.banExpires === undefined || new Date(user.banExpires) > now)
+import { storeSqlOf, type StoreSql } from './store/store-sql'
 
 /**
- * Which of the sessions with these ids still stand, read from the store: each live one's id with its user's id. A
- * session signed out, revoked, ended by a newer sign-in in the same browser, or expired is not among them, nor one
- * whose user is banned: a ban deletes the user's sessions, and is read here too, so a session it left still ends.
- * Reads by the session's id, never its token.
+ * Which of the sessions with these ids still stand, as Postgres answers it in one join: each live one's id with its
+ * user's id. A session signed out, revoked, ended by a newer sign-in in the same browser, or expired is not among them,
+ * nor one whose user is banned: a ban deletes the user's sessions, and is read here too, so a session it left still
+ * ends. A ban stands while it has no end or its end is still to come. Reads by the session's id, never its token.
  */
-export const liveSessionsIn = async (context: Pick<AuthContext, 'adapter'>, ids: readonly string[], now = new Date()) => {
+export const liveSessionsIn = async (store: StoreSql, ids: readonly string[], now = new Date()) => {
   const live = new Map<string, string>()
   if (ids.length === 0) return live
-  const rows = await context.adapter.findMany<SessionRow>({ model: 'session', where: [{ field: 'id', operator: 'in', value: [...ids] }] })
-  const standing = rows.filter((row) => ids.includes(row.id) && new Date(row.expiresAt) > now)
-  if (standing.length === 0) return live
-  const userIds = [...new Set(standing.map((row) => String(row.userId)))]
-  const users = await context.adapter.findMany<UserRow>({ model: 'user', where: [{ field: 'id', operator: 'in', value: userIds }] })
-  const allowed = new Set(users.filter((user) => !isBanned(user, now)).map((user) => String(user.id)))
-  for (const row of standing) if (allowed.has(String(row.userId))) live.set(row.id, String(row.userId))
+  const banned = store.userColumn('banned')
+  const banExpires = store.userColumn('banExpires')
+  const { rows } = await sql<{ id: string; userId: string }>`select s.id, s.user_id as "userId" from ${store.table('session')} s
+    join ${store.user} u on u.id = s.user_id
+    where s.id = any(${[...ids]}) and s.expires_at > ${now} and not (u.${banned} is true and (u.${banExpires} is null or u.${banExpires} > ${now}))`.execute(store.db)
+  for (const row of rows) live.set(String(row.id), String(row.userId))
   return live
 }
 
 /** `liveSessionsIn` on the store of this Better Auth instance. */
-export const liveSessions = (auth: AdminAuth) => async (ids: readonly string[]) => liveSessionsIn((await auth.$context) as unknown as AuthContext, ids)
+export const liveSessions = (auth: AdminAuth) => async (ids: readonly string[]) => liveSessionsIn(storeSqlOf((await auth.$context) as unknown as AuthContext), ids)

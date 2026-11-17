@@ -29,52 +29,42 @@ export type PlatformSignIn = {
   /** Scopes asked for besides `openid email profile`. */
   scopes?: string[]
   /**
+   * Parameters every authorization request to the provider carries as given, such as one naming which of its own
+   * sign-in methods it must use; a client cannot add to them or change them. None of those the flow sets itself
+   * (`state`, `client_id`, `redirect_uri`, `response_type`, `scope`, `nonce`, `code_challenge`, `code_challenge_method`).
+   */
+  authorizationParams?: Record<string, string>
+  /**
+   * Keeps people's links to the provider off their account page: not listed among the connected accounts, and not
+   * connected or disconnected there. The link still signs them in, and goes with the person. Default off.
+   */
+  hidden?: boolean
+  /**
+   * Whether the sign-in page shows "Continue with {name}" for it. With `false`, people sign in through its pages only
+   * when something sends them there: a sign-in link (`?sign-in={provider}`) or a redirect another app starts. Only for a
+   * provider with pages. Default on.
+   */
+  button?: boolean
+  /**
    * Token sign-in: a client that holds a fresh ID token the provider issued for this app posts it instead of sending
    * the browser through the provider, and gets the app's own session (see `idTokenSignInPlugin`). Default off.
    */
   tokenSignIn?: boolean
-}
-
-export const signInIssuerVariable = 'PROTOBASE_SIGN_IN_ISSUER'
-export const signInClientIdVariable = 'PROTOBASE_SIGN_IN_CLIENT_ID'
-export const signInClientSecretVariable = 'PROTOBASE_SIGN_IN_CLIENT_SECRET'
-export const signInProviderVariable = 'PROTOBASE_SIGN_IN_PROVIDER'
-export const signInNameVariable = 'PROTOBASE_SIGN_IN_NAME'
-export const signInTokensVariable = 'PROTOBASE_SIGN_IN_TOKENS'
-
-// A boolean variable is true or false; unset or empty, it is not given.
-const readBoolean = (env: Record<string, string | undefined>, name: string) => {
-  const value = env[name]?.trim()
-  if (!value) return
-  if (value !== 'true' && value !== 'false') throw new Error(`${name} must be true or false, not "${value}"`)
-  return value === 'true'
-}
-
-/**
- * The provider the platform passes in `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID` and
- * `PROTOBASE_SIGN_IN_CLIENT_SECRET` (with `PROTOBASE_SIGN_IN_PROVIDER`, `PROTOBASE_SIGN_IN_NAME` and
- * `PROTOBASE_SIGN_IN_TOKENS` optional); `undefined` when none of the three is set. With `PROTOBASE_SIGN_IN_TOKENS=true`
- * the issuer alone will do, or with the client id, for token sign-in alone. Anything else short of all three, or
- * `PROTOBASE_SIGN_IN_TOKENS=true` without an issuer, or that variable other than `true` or `false`, stops the server at startup.
- */
-export const readPlatformSignIn = (env: Record<string, string | undefined>): PlatformSignIn | undefined => {
-  const required = [signInIssuerVariable, signInClientIdVariable, signInClientSecretVariable]
-  const [issuer, clientId, clientSecret] = required.map((name) => env[name]?.trim() || undefined)
-  const tokenSignIn = readBoolean(env, signInTokensVariable)
-  if (!issuer && !clientId && !clientSecret) {
-    if (tokenSignIn) throw new Error(`${signInTokensVariable} needs the platform sign-in provider: set ${required.join(', ')} too, or leave it out`)
-    return undefined
-  }
-  if (!issuer || (clientSecret && !clientId) || (!clientSecret && tokenSignIn !== true)) {
-    throw new Error(`${required.join(', ')} go together: set all three for the platform sign-in provider, or none; or ${signInIssuerVariable} with ${signInTokensVariable}=true for token sign-in alone`)
-  }
-  const provider = env[signInProviderVariable]?.trim()
-  const name = env[signInNameVariable]?.trim()
-  return { issuer, ...(clientId && { clientId }), ...(clientSecret && { clientSecret }), ...(provider && { provider }), ...(name && { name }), ...(tokenSignIn !== undefined && { tokenSignIn }) }
+  /**
+   * Each device is an account of its own: the provider gives every device a subject of its own, and a person holds
+   * as many accounts of it as they have devices, each linked by the address on its first sign-in like any other. The
+   * account page lists them among the devices, named by `name` and the token's `device_name` claim, not among the
+   * connected accounts; signing one out there removes it and ends its sessions, and its subject never signs in again.
+   * Needs `tokenSignIn` without a `clientSecret`: a device signs in by token alone. Default off.
+   */
+  devices?: boolean
 }
 
 /** What a sign-in provider id may be: lowercase letters, digits or "-", starting with a letter. */
 export const providerIdPattern = /^[a-z][a-z0-9-]*$/
+
+// The parameters of an authorization request the flow sets itself, which Better Auth never lets others replace.
+const flowParams = ['state', 'client_id', 'redirect_uri', 'response_type', 'scope', 'nonce', 'code_challenge', 'code_challenge_method']
 
 /**
  * The provider with its defaults filled in, for an app at `baseURL`: `pages` says whether people sign in through the
@@ -88,15 +78,27 @@ export const resolvePlatformSignIn = (signIn: PlatformSignIn, baseURL: string) =
   const pages = Boolean(signIn.clientSecret)
   if (!pages && signIn.tokenSignIn !== true) throw new Error("The platform sign-in provider needs a clientSecret for sign-in through its pages, or tokenSignIn: true for token sign-in alone")
   if (pages && !signIn.clientId) throw new Error("The platform sign-in provider's clientSecret needs its clientId")
+  if (signIn.button === false && !pages) throw new Error(`The platform sign-in provider "${provider}" has no pages, so it shows no button anyway: leave button out`)
+  if (signIn.devices === true && (pages || signIn.tokenSignIn !== true)) throw new Error(`The platform sign-in provider "${provider}" signs in devices by token alone: give it tokenSignIn: true and no clientSecret`)
+  const authorizationParams = signIn.authorizationParams ?? {}
+  const taken = Object.keys(authorizationParams).find((name) => flowParams.includes(name))
+  if (taken) throw new Error(`The platform sign-in provider "${provider}" cannot fix the authorization parameter ${taken}: the sign-in sets it itself`)
   const clientId = signIn.clientId ?? new URL(baseURL).origin
-  return { ...signIn, clientId, pages, provider, name: signIn.name ?? (provider === 'github' ? 'GitHub' : 'SSO'), scopes: signIn.scopes ?? [], tokenSignIn: signIn.tokenSignIn === true }
+  return { ...signIn, clientId, pages, provider, name: signIn.name ?? (provider === 'github' ? 'GitHub' : 'SSO'), scopes: signIn.scopes ?? [], authorizationParams, tokenSignIn: signIn.tokenSignIn === true, hidden: signIn.hidden === true, button: signIn.button !== false, devices: signIn.devices === true }
 }
 
 export type ResolvedPlatformSignIn = ReturnType<typeof resolvePlatformSignIn>
 
-/** The platform provider, unless the app configures a provider of its own with the same id, which then wins. */
-export const platformSignInFor = (signIn: ResolvedPlatformSignIn | undefined, socialProviders: string[]) =>
-  signIn && !socialProviders.includes(signIn.provider) ? signIn : undefined
+/** Each provider resolved (`resolvePlatformSignIn`); two with the same id are an error, as the id is all a request names. */
+export const resolvePlatformSignIns = (signIns: readonly PlatformSignIn[], baseURL: string) => {
+  const resolved = signIns.map((signIn) => resolvePlatformSignIn(signIn, baseURL))
+  const twice = resolved.find(({ provider }, index) => resolved.findIndex((other) => other.provider === provider) !== index)
+  if (twice) throw new Error(`Two platform sign-in providers have the id "${twice.provider}": give each its own provider id`)
+  return resolved
+}
+
+/** The platform's providers, but for any whose id a provider the app configures itself has, which then wins. */
+export const platformSignInFor = (signIns: ResolvedPlatformSignIn[], socialProviders: string[]) => signIns.filter(({ provider }) => !socialProviders.includes(provider))
 
 /**
  * The person as an ID token Better Auth already verified (the provider's keys, this client and the nonce) says, once
@@ -129,6 +131,7 @@ export const platformSignInProvider = (signIn: ResolvedPlatformSignIn): GenericO
   clientSecret: signIn.clientSecret,
   discoveryUrl: `${signIn.issuer.replace(/\/$/, '')}/.well-known/openid-configuration`,
   scopes: ['openid', 'email', 'profile', ...signIn.scopes],
+  ...(Object.keys(signIn.authorizationParams).length > 0 && { authorizationUrlParams: signIn.authorizationParams }),
   pkce: true,
   requireIdTokenVerification: true,
   ...(signIn.pages && { authentication: 'basic' as const }),
@@ -141,25 +144,25 @@ export const providerPagesOff: SignInRefusal = { code: 'PROVIDER_PAGES_OFF', mes
 // Where a browser starts out to a provider's pages, to sign in or to connect it, and the body field naming the provider.
 const pagePaths: Record<string, 'provider' | 'providerId'> = { '/sign-in/social': 'provider', '/link-social': 'provider', '/sign-in/oauth2': 'providerId', '/oauth2/link': 'providerId' }
 
-/** Whether a request starts sending a browser through `provider`'s pages, rather than posting an ID token. */
-export const startsProviderPages = (path: string | undefined, body: unknown, provider: string) => {
+/** Whether a request starts sending a browser through the pages of one of `providers`, rather than posting an ID token. */
+export const startsProviderPages = (path: string | undefined, body: unknown, providers: string[]) => {
   const field = path === undefined ? undefined : pagePaths[path]
   if (!field || typeof body !== 'object' || body === null) return false
   const named = body as Record<string, unknown>
-  return named[field] === provider && named.idToken === undefined
+  return providers.includes(named[field] as string) && named.idToken === undefined
 }
 
 /**
- * Refuses sending anyone through the pages of the platform's provider when it has no client secret (`403
- * PROVIDER_PAGES_OFF`): to sign in, or to connect it from the account page. Token sign-in alone stays.
+ * Refuses sending anyone through the pages of the platform's `providers` that have no client secret (`403
+ * PROVIDER_PAGES_OFF`): to sign in, or to connect one from the account page. Token sign-in alone stays.
  */
-export const providerPagesOffPlugin = (provider: string) =>
+export const providerPagesOffPlugin = (providers: string[]) =>
   ({
     id: 'protobase-provider-pages-off',
     hooks: {
       before: [
         {
-          matcher: (context) => startsProviderPages(context.path, context.body, provider),
+          matcher: (context) => startsProviderPages(context.path, context.body, providers),
           handler: createAuthMiddleware(async () => {
             throw new APIError('FORBIDDEN', providerPagesOff)
           }),

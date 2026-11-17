@@ -13,7 +13,7 @@ const scriptFile = `import { loadProjectAuth } from '@protobase/cli/auth'
 import { createUser, issueToken, listUsers } from '@protobase/server'
 const auth = await loadProjectAuth(process.cwd())
 const created = await createUser(auth, { email: 'seed@example.com', password: 'a-long-seed-password' })
-const users = await listUsers(auth)
+const { users } = await listUsers(auth)
 const { token } = await issueToken(auth, { email: 'seed@example.com' })
 process.stdout.write(JSON.stringify({ created, emails: users.map((user) => user.email), token }))
 process.exit(0)

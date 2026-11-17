@@ -44,6 +44,9 @@ export const withoutSignInLink = (href: string) => {
 
 const knownNames: Record<string, string> = { github: 'GitHub', gitlab: 'GitLab', google: 'Google', microsoft: 'Microsoft', apple: 'Apple' }
 
-/** The name of a sign-in provider: the platform's own name for its provider, or a well-known provider's name. */
-export const providerName = (provider: string, platformSignIn?: { provider: string; name: string }) =>
-  platformSignIn?.provider === provider ? platformSignIn.name : (knownNames[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1))
+/** The name of a sign-in provider: the platform's own name for one of its providers, or a well-known provider's name. */
+export const providerName = (provider: string, platformProviders: { provider: string; name: string }[] = []) =>
+  platformProviders.find((platform) => platform.provider === provider)?.name ?? knownNames[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1)
+
+/** The providers the sign-in page shows a button for: all but those only a sign-in link starts (`linkOnly`). */
+export const buttonProviders = <Provider extends { linkOnly?: true }>(providers: Provider[]) => providers.filter(({ linkOnly }) => !linkOnly)

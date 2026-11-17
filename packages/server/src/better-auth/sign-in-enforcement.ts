@@ -18,8 +18,8 @@ const accountPaths = ['/email-otp/send-verification-otp', '/passkey/delete-passk
 export const isPoliced = (path: string | undefined) =>
   path !== undefined && ([...passwordPaths, ...emailCodePaths, ...passkeyPaths, ...accountPaths, ...providerPaths, callbackPath, staffSignInPath].includes(path) || path.startsWith('/reset-password/'))
 
-/** A request to Better Auth as the policy sees it; `platformProvider` is the id of the platform's sign-in provider, if any. */
-export type PolicedRequest = { path: string; body?: unknown; params?: Record<string, string | undefined>; platformProvider?: string }
+/** A request to Better Auth as the policy sees it; `platformProviders` are the ids of the platform's sign-in providers. */
+export type PolicedRequest = { path: string; body?: unknown; params?: Record<string, string | undefined>; platformProviders?: string[] }
 
 const providerOf = ({ path, body, params }: PolicedRequest) =>
   providerPaths.includes(path) ? (body as { provider?: unknown } | undefined)?.provider : path === callbackPath ? params?.id : undefined
@@ -32,7 +32,7 @@ const methodOf = (request: PolicedRequest): SignInPolicyMethod | undefined => {
   if (passkeyPaths.includes(path)) return 'passkey'
   if (path === '/two-factor/enable') return 'twoFactor'
   if (path === staffSignInPath) return 'staffAccess'
-  if (request.platformProvider !== undefined && providerOf(request) === request.platformProvider) return 'platformSignIn'
+  if (request.platformProviders?.includes(providerOf(request) as string)) return 'platformSignIn'
   return undefined
 }
 

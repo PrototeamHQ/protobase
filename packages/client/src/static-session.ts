@@ -74,6 +74,8 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
     sessions: async () => [],
     revokeSession: unsupported('sign out a device'),
     revokeOtherSessions: unsupported('sign out other devices'),
+    deviceLinks: async () => [],
+    signOutDeviceLink: unsupported('sign out a device'),
   },
   connect: { client: unsupported('allow an app'), resume: unsupported('allow an app'), answer: unsupported('allow an app') },
   signInPolicy: { read: unsupported('read the sign-in policy'), save: unsupported('save the sign-in policy') },

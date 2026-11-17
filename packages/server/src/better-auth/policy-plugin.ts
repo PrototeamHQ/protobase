@@ -20,8 +20,8 @@ export type SignInPolicyPluginOptions = {
   socialProviders: string[]
   /** The name of the operator provider staff sign in with, when one is configured. */
   operator?: string
-  /** The id and name of the sign-in provider the platform adds, when one is configured. */
-  platformSignIn?: { provider: string; name: string }
+  /** The id and name of each sign-in provider the platform adds. */
+  platformSignIn: { provider: string; name: string }[]
 }
 
 const refuse = (status: 'FORBIDDEN' | 'BAD_REQUEST', refusal: { code: string; message: string }) => new APIError(status, refusal)
@@ -31,7 +31,7 @@ const currentPolicy = async (context: Context, { mail, defaultPolicy }: SignInPo
 // The providers someone can sign in with under `policy`: the app's own, and the platform's while the policy lets it.
 const providersUnder = (policy: SignInPolicy, { socialProviders, platformSignIn }: SignInPolicyPluginOptions) => [
   ...socialProviders,
-  ...(platformSignIn && policy.platformSignIn === 'allowed' ? [platformSignIn.provider] : []),
+  ...(policy.platformSignIn === 'allowed' ? platformSignIn.map(({ provider }) => provider) : []),
 ]
 
 /**
@@ -63,7 +63,7 @@ export const signInPolicyPlugin = (options: SignInPolicyPluginOptions) => {
       effective: effectiveSignInPolicy(stored.policy, { mail }),
       mail,
       ...(operator && { operator }),
-      ...(platformSignIn && { platformSignIn: platformSignIn.name }),
+      ...(platformSignIn.length > 0 && { platformProviders: platformSignIn.map(({ name }) => name) }),
       ...(stored.savedAt && { savedAt: stored.savedAt }),
       ...(savedBy && { savedBy }),
     }
@@ -109,7 +109,7 @@ export const signInPolicyPlugin = (options: SignInPolicyPluginOptions) => {
               throw refuse('BAD_REQUEST', { code: 'SIGN_IN_CODES_ONLY', message: 'Only sign-in codes can be emailed.' })
             }
             const policy = await currentPolicy(ctx.context, options)
-            const refusal = policyRefusal(policy, { path, body: ctx.body, params: ctx.params, ...(platformSignIn && { platformProvider: platformSignIn.provider }) })
+            const refusal = policyRefusal(policy, { path, body: ctx.body, params: ctx.params, platformProviders: platformSignIn.map(({ provider }) => provider) })
             if (refusal) throw refuse('FORBIDDEN', refusal)
             if (path === '/sign-in/email-otp') return vouchForCreatedAccount(ctx.context, (ctx.body as { email?: unknown }).email)
             const accountChecked = (path === '/token' && (policy.twoFactor === 'required' || policy.passkey === 'required')) || (path === '/passkey/delete-passkey' && policy.passkey === 'required')

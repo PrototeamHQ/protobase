@@ -77,12 +77,11 @@ export const organizationPlugin = ({ resolved, secret, mail, context }: Organiza
       // Better Auth leaves the organization active on the removed person's other sessions; their next token would
       // still be refused (see `organizationClaims`), and here those sessions leave it, unless a global role enters it.
       if (globalRoles(user.role as string | null | undefined).length > 0) return
-      const { internalAdapter } = await context()
-      for (const session of await internalAdapter.listSessions(member.userId)) {
-        if ((session as { activeOrganizationId?: string | null }).activeOrganizationId === member.organizationId) {
-          await internalAdapter.updateSession(session.token, { activeOrganizationId: null })
-        }
-      }
+      await (await context()).adapter.updateMany({
+        model: 'session',
+        where: [{ field: 'userId', value: member.userId }, { field: 'activeOrganizationId', value: member.organizationId }],
+        update: { activeOrganizationId: null },
+      })
     },
     beforeDeleteOrganization: async ({ organization }) => {
       await resolved.options.beforeDelete?.(organization as StoredOrganization)

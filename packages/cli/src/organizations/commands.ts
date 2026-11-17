@@ -7,10 +7,8 @@ export type OrganizationsApi = {
   setMemberRoles: (input: { organization: string; email: string; role?: string; appRoles?: string[] }) => Promise<unknown>
   removeMember: (input: { organization: string; email: string }) => Promise<void>
   addAppRoleToOwners: (appRole: string) => Promise<number>
-  listUsers: () => Promise<{ email: string; role: string }[]>
-  setUserRole: (input: { email: string; role: string }) => Promise<unknown>
-  /** The roles a member can hold. */
-  membershipRoles: () => string[]
+  /** Makes every user who is not a member yet a member, as `organizations create --members all` describes. */
+  addEveryUser: (organization: string) => Promise<{ email: string; role: string; appRoles: string[] }[]>
 }
 
 type Out = (text: string) => void
@@ -61,19 +59,9 @@ export const createOrganizationCommand = async (api: OrganizationsApi, options: 
   const { organization } = await api.createOrganization({ name: options.name, slug, owner: options.owner, ...(options.id && { id: options.id }) })
   out(`Created organization ${organization.slug} (${organization.id}), owned by ${options.owner}\n`)
   if (options.members !== 'all') return
-  const holdable = api.membershipRoles()
-  for (const user of await api.listUsers()) {
-    if (user.email.toLowerCase() === options.owner.toLowerCase()) continue
-    const global = user.role.split(',').map((name) => name.trim()).filter(Boolean)
-    if (global.includes('admin')) {
-      await api.addMember({ organization: organization.id, email: user.email, role: 'owner', appRoles: holdable })
-      out(`  ${user.email}: owner, with every app role\n`)
-      continue
-    }
-    const appRoles = global.filter((name) => holdable.includes(name))
-    await api.addMember({ organization: organization.id, email: user.email, role: 'member', appRoles })
-    await api.setUserRole({ email: user.email, role: 'user' })
-    out(`  ${user.email}: member${appRoles.length > 0 ? `, with ${appRoles.join(',')}` : ''}\n`)
+  for (const user of await api.addEveryUser(organization.id)) {
+    if (user.role === 'owner') out(`  ${user.email}: owner, with every app role\n`)
+    else out(`  ${user.email}: member${user.appRoles.length > 0 ? `, with ${user.appRoles.join(',')}` : ''}\n`)
   }
 }
 

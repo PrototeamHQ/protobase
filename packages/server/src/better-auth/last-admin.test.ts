@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isActiveAdmin, wouldLeaveNoAdmin } from './last-admin'
+import { isActiveAdmin, takesAdminAway } from './last-admin'
 
 const root = { id: 'root', role: 'admin', banned: false }
 const other = { id: 'other', role: 'admin,sales', banned: null }
@@ -14,33 +14,21 @@ describe('isActiveAdmin', () => {
   })
 })
 
-describe('wouldLeaveNoAdmin', () => {
-  const alone = [root, plain]
-
-  it('refuses demoting, blocking or removing the only active admin', () => {
-    expect(wouldLeaveNoAdmin(alone, { userId: 'root', roles: ['user'] })).toBe(true)
-    expect(wouldLeaveNoAdmin(alone, { userId: 'root', banned: true })).toBe(true)
-    expect(wouldLeaveNoAdmin(alone, { userId: 'root', removed: true })).toBe(true)
+describe('takesAdminAway', () => {
+  it('is demoting, blocking or removing an active admin', () => {
+    expect(takesAdminAway(root, { userId: 'root', roles: ['user'] })).toBe(true)
+    expect(takesAdminAway(root, { userId: 'root', banned: true })).toBe(true)
+    expect(takesAdminAway(root, { userId: 'root', removed: true })).toBe(true)
   })
 
-  it('allows it while another active admin remains', () => {
-    expect(wouldLeaveNoAdmin([root, other], { userId: 'root', roles: ['user'] })).toBe(false)
-    expect(wouldLeaveNoAdmin([root, other], { userId: 'root', banned: true })).toBe(false)
-    expect(wouldLeaveNoAdmin([root, other], { userId: 'root', removed: true })).toBe(false)
+  it('is not a change that keeps the admin role or unblocks', () => {
+    expect(takesAdminAway(root, { userId: 'root', roles: ['admin', 'sales'] })).toBe(false)
+    expect(takesAdminAway(root, { userId: 'root', banned: false })).toBe(false)
+    expect(takesAdminAway(root, { userId: 'root' })).toBe(false)
   })
 
-  it('counts a blocked admin as no admin', () => {
-    expect(wouldLeaveNoAdmin([root, { ...other, banned: true }], { userId: 'root', banned: true })).toBe(true)
-  })
-
-  it('allows a change that keeps the admin role or unblocks', () => {
-    expect(wouldLeaveNoAdmin(alone, { userId: 'root', roles: ['admin', 'sales'] })).toBe(false)
-    expect(wouldLeaveNoAdmin(alone, { userId: 'root', banned: false })).toBe(false)
-    expect(wouldLeaveNoAdmin(alone, { userId: 'root' })).toBe(false)
-  })
-
-  it('leaves other users and unknown ids alone', () => {
-    expect(wouldLeaveNoAdmin(alone, { userId: 'plain', removed: true })).toBe(false)
-    expect(wouldLeaveNoAdmin(alone, { userId: 'missing', banned: true })).toBe(false)
+  it('is never a change to someone who is no active admin', () => {
+    expect(takesAdminAway(plain, { userId: 'plain', removed: true })).toBe(false)
+    expect(takesAdminAway({ ...root, banned: true }, { userId: 'root', roles: ['user'] })).toBe(false)
   })
 })
