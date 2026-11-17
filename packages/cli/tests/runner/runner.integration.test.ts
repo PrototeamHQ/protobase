@@ -33,5 +33,5 @@ process.stdout.write(JSON.stringify([first.stderr, second.stderr]))
 `,
   )
   const { stdout } = await promisify(execFile)('bun', [script], { cwd: dir })
-  expect(JSON.parse(stdout)).toEqual([`error: No resources exported from ${path.join(dir, 'config')}/index.ts\n`, 'error: the second version\n'])
+  expect(JSON.parse(stdout)).toEqual([`error: No resources exported from ${path.join(dir, 'config')}/index.ts; an app with none on purpose says so with resources: 'none' in its config\n`, 'error: the second version\n'])
 }, 60_000)
