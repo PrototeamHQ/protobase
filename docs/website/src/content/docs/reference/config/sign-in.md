@@ -318,10 +318,10 @@ export default defineConfig({ auth: { mcp: true, oauth: { api: true } } })
 
 ## auth.openIdProvider
 
-- **Type:** `true | { connectPage?: string; audiences?: string[] }`
+- **Type:** `true | { connectPage?: string; audiences?: string[]; subject?: 'user' | 'grant' }`
 - **Default:** off
 
-Makes the app an OpenID provider for the clients its admins register at `/api/auth/openid-provider/clients`, such as other apps that sign people in with it: they get an ID token with the person's `sub`, `email` and `email_verified`, without asking the person to allow them, and nothing else can register. A client allowed to exchange gets ID tokens for the other clients, and for the origins `audiences` names as patterns such as `https://*.example.app`, without a browser. `connectPage` is the page people sign in on (default `/-/connect`). Not with [`auth.mcp`](#authmcp); the server refuses to start with both. See [OpenID provider for other apps](/reference/auth/#openid-provider-for-other-apps).
+Makes the app an OpenID provider for the clients its admins register at `/api/auth/openid-provider/clients`, such as other apps that sign people in with it: they get an ID token with the person's `sub`, `email` and `email_verified`, without asking the person to allow them, and nothing else can register. A client allowed to exchange gets ID tokens for the other clients, and for the origins `audiences` names as patterns such as `https://*.example.app`, without a browser. `connectPage` is the page people sign in on (default `/-/connect`). `subject: 'grant'` makes an ID token's `sub` the client's grant, new on each fresh sign-in and kept across its refresh tokens and exchanges, never the person's id ([Grant subjects](/reference/auth/#grant-subjects); default `user`). Not with [`auth.mcp`](#authmcp); the server refuses to start with both. See [OpenID provider for other apps](/reference/auth/#openid-provider-for-other-apps).
 
 ```ts
 export default defineConfig({ auth: { openIdProvider: true } })

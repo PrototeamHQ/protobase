@@ -3085,6 +3085,20 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "subject": {
+          "description": "What an ID token's `sub` names: `user`, the person's id here, the same for every client and sign-in; or `grant`, an\nid of the client's grant, new on each fresh sign-in at the provider and kept across its refresh tokens and token\nexchanges, never the person's id, so each sign-in of a phone app is a device of its own to the apps that take its\ntokens. Default `user`.",
+          "anyOf": [
+            {
+              "enum": [
+                "user",
+                "grant"
+              ]
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
         }
       },
       "additionalProperties": false
