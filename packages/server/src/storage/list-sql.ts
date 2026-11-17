@@ -26,7 +26,9 @@ export const listFolder = async (trx: Db, bucket: string, query: ListQuery) => {
   const order = sql.raw(query.order === 'desc' ? 'desc' : 'asc')
   // The names below the folder end before the first name past it, so a read stops there, not at the bucket's end.
   const end = query.prefix === '' ? sql`` : sql`and name collate "C" < ${`${query.prefix.slice(0, -1)}0`}`
-  const within = sql`bucket_id = ${bucket} and name collate "C" like ${`${likeEscaped(query.prefix)}%`} ${end} and substr(name, ${start}) ilike ${`${likeEscaped(query.search)}%`}`
+  // The search is asked of the level's entries, not of each read, which then reads the index in order whatever the
+  // planner expects the search to match.
+  const within = sql`bucket_id = ${bucket} and name collate "C" like ${`${likeEscaped(query.prefix)}%`} ${end}`
   const columns = sql`name, strpos(substr(name, ${start}), '/') > 0 as folder, id, updated_at, created_at, last_accessed_at`
   // The objects from `from` on, up to `size` of them and the first folder among them. The last says where the next
   // batch starts and how many it reads.
@@ -49,6 +51,7 @@ export const listFolder = async (trx: Db, bucket: string, query: ListQuery) => {
         case when folder then null else updated_at end as updated_at, case when folder then null else created_at end as created_at,
         case when folder then null else last_accessed_at end as last_accessed_at
       from (select split_part(substr(name, ${start}), '/', 1) as entry, folder, id, updated_at, created_at, last_accessed_at from walk) level
+      where entry ilike ${`${likeEscaped(query.search)}%`}
       order by entry, folder desc
     ), page as (
       select * from entries order by ${sorted} limit ${query.limit} offset ${query.offset}
