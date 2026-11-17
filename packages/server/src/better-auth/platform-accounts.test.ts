@@ -2,16 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { connectsHiddenAccount, disconnectsHiddenAccount, holdsOtherSubject } from './platform-accounts'
 
 describe('holdsOtherSubject', () => {
-  const linked = [{ providerId: 'credential', accountId: 'user-1' }, { providerId: 'central', accountId: '4242' }]
-
-  it('is an account of the same provider with another subject', () => {
-    expect(holdsOtherSubject(linked, { providerId: 'central', accountId: '5151' })).toBe(true)
-  })
-
-  it('is not the same subject again, nor a provider the person has no account of', () => {
-    expect(holdsOtherSubject(linked, { providerId: 'central', accountId: '4242' })).toBe(false)
-    expect(holdsOtherSubject(linked, { providerId: 'oidc', accountId: '5151' })).toBe(false)
-    expect(holdsOtherSubject([], { providerId: 'central', accountId: '5151' })).toBe(false)
+  it("counts the person's accounts of the provider but the one with this subject, in the store", async () => {
+    const asked: unknown[] = []
+    const adapter = { count: async (input: unknown) => (asked.push(input), 1) }
+    expect(await holdsOtherSubject({ adapter }, { userId: 'user-1', providerId: 'central', accountId: '5151' })).toBe(true)
+    expect(asked).toEqual([{ model: 'account', where: [{ field: 'userId', value: 'user-1' }, { field: 'providerId', value: 'central' }, { field: 'accountId', operator: 'ne', value: '5151' }] }])
+    expect(await holdsOtherSubject({ adapter: { count: async () => 0 } }, { userId: 'user-1', providerId: 'central', accountId: '4242' })).toBe(false)
   })
 })
 
@@ -25,15 +21,12 @@ describe('connectsHiddenAccount', () => {
 })
 
 describe('disconnectsHiddenAccount', () => {
-  const linked = [{ id: 'row-1', providerId: 'console' }, { id: 'row-2', providerId: 'github' }]
-
-  it("is disconnecting one of the person's accounts of one of the providers, by its id alone", () => {
-    expect(disconnectsHiddenAccount(linked, 'row-1', ['console'])).toBe(true)
+  it("is one of the person's own accounts of one of the providers", () => {
+    expect(disconnectsHiddenAccount({ providerId: 'console' }, ['console'])).toBe(true)
   })
 
-  it('is not an account of another provider, nor one that is not theirs', () => {
-    expect(disconnectsHiddenAccount(linked, 'row-2', ['console'])).toBe(false)
-    expect(disconnectsHiddenAccount(linked, 'row-3', ['console'])).toBe(false)
-    expect(disconnectsHiddenAccount(linked, undefined, ['console'])).toBe(false)
+  it('is not an account of another provider, nor one the person does not have', () => {
+    expect(disconnectsHiddenAccount({ providerId: 'github' }, ['console'])).toBe(false)
+    expect(disconnectsHiddenAccount(null, ['console'])).toBe(false)
   })
 })
