@@ -74,8 +74,7 @@ export const deliver = async ({ to, message }: CheckedSend, given: Progress, ste
     }
   }
 
-  const settle = async (device: Device, answer: PushAnswer) => {
-    if (answer.result === 'gone') await storeCall('removeGone', () => steps.devices.removeGone([device.token]))
+  const settle = (device: Device, answer: PushAnswer) => {
     if (answer.result !== 'retry' || retried.has(device.id)) return markDone(device.id)
     retried.add(device.id)
     progress.retried.push(device.id)
@@ -122,7 +121,10 @@ export const deliver = async ({ to, message }: CheckedSend, given: Progress, ste
       const answers = await answered(sender, batch)
       if (answers === undefined) left.retried += batch.length
       const byId = new Map((answers ?? []).map((answer) => [answer.id, answer]))
-      for (const device of answers ? batch : []) await settle(device, byId.get(device.id) ?? { id: device.id, result: 'retry' })
+      // The batch's gone devices are removed together, before any is settled.
+      const gone = answers ? batch.filter((device) => byId.get(device.id)?.result === 'gone').map((device) => device.token) : []
+      if (gone.length > 0) await storeCall('removeGone', () => steps.devices.removeGone(gone))
+      for (const device of answers ? batch : []) settle(device, byId.get(device.id) ?? { id: device.id, result: 'retry' })
       await steps.save(progress)
     }
   }
