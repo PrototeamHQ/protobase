@@ -1,7 +1,6 @@
 import type { createAuthMiddleware } from 'better-auth/api'
 import { sql, type RawBuilder } from 'kysely'
 import { parseAppRoles } from './app-roles'
-import type { MembershipSummary } from './active-organization'
 
 // Storage goes through Better Auth's adapter, which maps the models and fields to the store's snake_case names.
 // Written against better-auth 1.7.7.
@@ -48,8 +47,6 @@ export const membersOf = async (adapter: Adapter, organizationId: string): Promi
 
 export const findOrganization = (adapter: Adapter, id: string) =>
   adapter.findOne<StoredOrganization>({ model: 'organization', where: [{ field: 'id', value: id }] })
-
-export const summaries = (members: readonly StoredMember[]): MembershipSummary[] => members.map(({ organizationId, createdAt }) => ({ organizationId, createdAt }))
 
 export const setAppRoles = (adapter: Adapter, memberId: string, appRoles: readonly string[]) =>
   adapter.update<MemberRow>({ model: 'member', where: [{ field: 'id', value: memberId }], update: { appRoles: [...appRoles] } })
