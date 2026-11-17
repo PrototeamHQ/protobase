@@ -127,6 +127,12 @@ Imports `config/index.ts` and the views of `config/*/ui.ts`, as the config modul
               GET /seller?order_by=name asc (the seller list's order)
             fix: mark "name" .sortable() in data.ts, or sort the list by a sortable field
   ```
+- warning: a file field whose column no index looks files up in, so each [file cleanup](/reference/files/#deleting-files) reads every row of the table before it deletes a file. The fix is an index on the file without its query part, which a partial index cannot be, as soft-deleted rows still hold their files:
+
+  ```
+    warning photos: no index looks up the files of "photo", so each file cleanup reads every row of the table to check that none holds a file it deletes
+            fix: create index on "photos" ((split_part("photo", '?', 1)));
+  ```
 - warning: enum values differ
 
 Doctor also lists, as a note it does not count, each custom component of a page that declares no [reads](/reference/custom-components/#reads), since it reads outside the page's plan.
