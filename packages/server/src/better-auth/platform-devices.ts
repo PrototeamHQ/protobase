@@ -2,7 +2,8 @@ import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint, createAuthMiddleware, sessionMiddleware } from 'better-auth/api'
 import { decodeJwt } from 'jose'
 import * as z from 'zod'
-import { everyRow, type AuthContext } from './organizations/store'
+import type { AuthContext } from './organizations/store'
+import { deviceLinkRows, endDeviceSessions } from './platform-device-store'
 import type { SignInRefusal } from './sign-in-enforcement'
 import { isStaffSession } from './staff-checks'
 
@@ -99,12 +100,11 @@ const postedDevice = (path: string | undefined, body: unknown, providers: string
   return typeof sub === 'string' ? { providerId: provider as string, subject: sub } : undefined
 }
 
-type Account = { id: string; providerId: string; accountId: string; idToken?: string | null; createdAt: Date }
-type Session = { id: string; token: string }
+type Account = { id: string; providerId: string; accountId: string }
 
-/** Every account of the person, however many: Better Auth's own read stops at 100. */
-export const accountsOf = async ({ adapter }: Pick<Stores, 'adapter'>, userId: string) =>
-  adapter.findMany<Account>({ model: 'account', where: [{ field: 'userId', value: userId }], limit: everyRow })
+/** The person's account with the id `id`, if they have one: a read of one row, by its key. */
+export const ownAccount = async ({ adapter }: Pick<Stores, 'adapter'>, userId: string, id: unknown) =>
+  typeof id === 'string' ? adapter.findOne<Account>({ model: 'account', where: [{ field: 'id', value: id }, { field: 'userId', value: userId }] }) : null
 
 /** The name the device's last ID token gave it, if any. */
 export const deviceNameOf = (idToken: string | null | undefined) => {
@@ -115,16 +115,6 @@ export const deviceNameOf = (idToken: string | null | undefined) => {
   } catch {
     return
   }
-}
-
-// The person's device accounts, each with every session it began: three reads, each of every row it matches.
-const deviceLinks = async ({ adapter }: Pick<Stores, 'adapter'>, userId: string, providers: { provider: string; name: string }[]) => {
-  const accounts = (await accountsOf({ adapter }, userId)).filter(({ providerId }) => providers.some(({ provider }) => provider === providerId))
-  if (accounts.length === 0) return []
-  const began = await adapter.findMany<{ sessionId: string; accountId: string }>({ model: deviceSessionModel, where: [{ field: 'accountId', operator: 'in', value: accounts.map(({ id }) => id) }], limit: everyRow })
-  const sessions = began.length === 0 ? [] : await adapter.findMany<Session>({ model: 'session', where: [{ field: 'id', operator: 'in', value: began.map(({ sessionId }) => sessionId) }], limit: everyRow })
-  const sessionsOf = (account: Account) => sessions.filter(({ id }) => began.some((row) => row.sessionId === id && row.accountId === account.id))
-  return accounts.map((account) => ({ account, sessions: sessionsOf(account) }))
 }
 
 /**
@@ -165,17 +155,17 @@ export const deviceLinksPlugin = (providers: { provider: string; name: string }[
     endpoints: {
       listDeviceLinks: createAuthEndpoint('/account/device-links', { method: 'GET', use: [sessionMiddleware] }, async (ctx) => {
         if (isStaffSession(ctx.context.session.session)) return ctx.json({ links: [] })
-        const links = await deviceLinks(ctx.context, ctx.context.session.user.id, providers)
+        const rows = await deviceLinkRows(ctx.context, ctx.context.session.user.id, providers.map(({ provider }) => provider))
         return ctx.json({
-          links: links.map(({ account, sessions }) => {
-            const device = deviceNameOf(account.idToken)
+          links: rows.map(({ id, providerId, idToken, createdAt, sessions }) => {
+            const device = deviceNameOf(idToken)
             return {
-              id: account.id,
-              provider: account.providerId,
-              name: providers.find(({ provider }) => provider === account.providerId)!.name,
+              id,
+              provider: providerId,
+              name: providers.find(({ provider }) => provider === providerId)!.name,
               ...(device && { device }),
-              linkedAt: new Date(account.createdAt).toISOString(),
-              sessions: sessions.map(({ token }) => token),
+              linkedAt: new Date(createdAt).toISOString(),
+              sessions,
             }
           }),
         })
@@ -184,8 +174,8 @@ export const deviceLinksPlugin = (providers: { provider: string; name: string }[
       signOutDeviceLink: createAuthEndpoint('/account/device-links/sign-out', { method: 'POST', use: [sessionMiddleware], body: z.object({ id: z.string() }) }, async (ctx) => {
         if (isStaffSession(ctx.context.session.session)) throw new APIError('FORBIDDEN', staffCannotSignOut)
         const userId = ctx.context.session.user.id
-        const account = (await accountsOf(ctx.context, userId)).find(({ id, providerId }) => id === ctx.body.id && providers.some(({ provider }) => provider === providerId))
-        if (!account) throw new APIError('NOT_FOUND', deviceLinkNotFound)
+        const account = await ownAccount(ctx.context, userId, ctx.body.id)
+        if (!account || !providers.some(({ provider }) => provider === account.providerId)) throw new APIError('NOT_FOUND', deviceLinkNotFound)
         // Refused first, so a sign-in with the device's token at the same time ends its own session (`saveDeviceSession`).
         if (!(await isRefusedAccount(ctx.context, account.providerId, account.accountId))) {
           // A sign-out of the same device at the same time refuses it too: either one's row will do.
@@ -193,8 +183,7 @@ export const deviceLinksPlugin = (providers: { provider: string; name: string }[
             if (!(await isRefusedAccount(ctx.context, account.providerId, account.accountId))) throw error
           })
         }
-        const [link] = await deviceLinks(ctx.context, userId, providers.filter(({ provider }) => provider === account.providerId)).then((links) => links.filter((found) => found.account.id === account.id))
-        for (const session of link?.sessions ?? []) await ctx.context.internalAdapter.deleteSession(session.token)
+        await endDeviceSessions(ctx.context, account.id)
         await ctx.context.internalAdapter.deleteAccount(account.id)
         return ctx.json({ signedOut: true })
       }),
