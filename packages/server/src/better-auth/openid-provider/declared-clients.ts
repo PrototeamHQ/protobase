@@ -1,3 +1,4 @@
+import { SafeUrlSchema } from '@better-auth/core/utils/redirect-uri'
 import * as z from 'zod'
 import { onAudienceHost, type AudiencePattern } from './audience-patterns'
 
@@ -27,7 +28,8 @@ export const isDeclaredClient = (client: { clientDiscoveryId?: string | null } |
 const declaredClient = z.strictObject({
   clientId: z.string().min(1),
   name: z.string().trim().min(1),
-  redirectUris: z.array(z.string().url()).min(1),
+  // The provider's own rule for a redirect URI, so a client the app starts with can always sign in.
+  redirectUris: z.array(SafeUrlSchema).min(1),
   type: z.literal('public', { error: 'must be public: a declared client has no secret' }),
   exchange: z.boolean().optional(),
 })

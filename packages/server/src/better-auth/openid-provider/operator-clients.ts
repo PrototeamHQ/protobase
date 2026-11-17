@@ -122,10 +122,7 @@ export const operatorClientsPlugin = (audiences: readonly AudiencePattern[]) =>
     },
   }) satisfies BetterAuthPlugin
 
-/** The client id a token request names: in its body, else in its Basic credentials. */
-export const tokenRequestClientId = (body: unknown, authorization: string | null | undefined) => {
-  const named = typeof body === 'object' && body !== null ? (body as { client_id?: unknown }).client_id : undefined
-  if (typeof named === 'string' && named) return named
+const basicClientId = (authorization: string | null | undefined) => {
   const [scheme, credentials] = (authorization ?? '').split(' ')
   if (scheme?.toLowerCase() !== 'basic' || !credentials) return
   try {
@@ -134,6 +131,18 @@ export const tokenRequestClientId = (body: unknown, authorization: string | null
   } catch {
     return
   }
+}
+
+/**
+ * The client id a token request names: in its body, in its Basic credentials, or in both when they agree. Two that
+ * differ name none, since the provider authenticates the Basic one and the guard must check the client it serves.
+ */
+export const tokenRequestClientId = (body: unknown, authorization: string | null | undefined) => {
+  const named = typeof body === 'object' && body !== null ? (body as { client_id?: unknown }).client_id : undefined
+  const inBody = typeof named === 'string' && named ? named : undefined
+  const inBasic = basicClientId(authorization)
+  if (inBody && inBasic && inBody !== inBasic) return
+  return inBody ?? inBasic
 }
 
 const unregistered = () => new APIError('BAD_REQUEST', { error: 'invalid_client', error_description: 'client not registered with this provider' })
