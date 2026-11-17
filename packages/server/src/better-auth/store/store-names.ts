@@ -1,4 +1,5 @@
 import { sql } from 'kysely'
+import type { BetterAuthOptions } from 'better-auth'
 import type { AdminAuth } from '../create-auth'
 import type { UserTable } from '../user-table'
 
@@ -14,8 +15,11 @@ export type StoreNames = {
   uuidIds: boolean
 }
 
+/** What the store's helpers read of an auth instance, or of Better Auth's context: the options' `database`. */
+export type StoreOptions = { options: Pick<BetterAuthOptions, 'database'> }
+
 /** The schema the admin store lives in; the search path decides when its options name none. */
-export const storeSchema = ({ options: { database } }: AdminAuth): string | undefined => (database && 'schemaName' in database ? database.schemaName : undefined)
+export const storeSchema = ({ options: { database } }: StoreOptions): string | undefined => (database && 'schemaName' in database ? database.schemaName : undefined)
 
 /** The store's configured names, from the app's auth. */
 export const storeNames = (auth: AdminAuth): StoreNames => ({

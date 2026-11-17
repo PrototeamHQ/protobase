@@ -1,6 +1,6 @@
 import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
-import { accountsOf } from './platform-devices'
+import { ownAccount } from './platform-devices'
 import type { SignInRefusal } from './sign-in-enforcement'
 
 type AccountHooks = NonNullable<NonNullable<BetterAuthOptions['databaseHooks']>['account']>
@@ -9,9 +9,11 @@ export const hiddenAccount: SignInRefusal = { code: 'PROVIDER_ACCOUNT_HIDDEN', m
 
 export const otherSubjectLinked: SignInRefusal = { code: 'PROVIDER_ACCOUNT_LINKED', message: 'This account is linked to another account at this provider already.' }
 
-/** Whether `linked`, a person's accounts, hold one of `providerId` other than `accountId`. */
-export const holdsOtherSubject = (linked: { providerId: string; accountId: string }[], { providerId, accountId }: { providerId: string; accountId: string }) =>
-  linked.some((account) => account.providerId === providerId && account.accountId !== accountId)
+type Stores = { adapter: { count: (input: { model: string; where: { field: string; value: string; operator?: 'ne' }[] }) => Promise<number> } }
+
+/** Whether the person holds an account of `providerId` other than `accountId`: one count, which the accounts' index serves. */
+export const holdsOtherSubject = async ({ adapter }: Stores, { userId, providerId, accountId }: { userId: string; providerId: string; accountId: string }) =>
+  (await adapter.count({ model: 'account', where: [{ field: 'userId', value: userId }, { field: 'providerId', value: providerId }, { field: 'accountId', operator: 'ne', value: accountId }] })) > 0
 
 /**
  * The account's field that holds its person's id when the provider links one account per person, and nothing
@@ -32,8 +34,7 @@ export const oneAccountPerProvider = (providers: string[]): AccountHooks => ({
   create: {
     before: async (account, context) => {
       if (!providers.includes(account.providerId)) return
-      const linked = context ? await accountsOf(context.context, account.userId) : []
-      if (holdsOtherSubject(linked, account)) throw new APIError('FORBIDDEN', otherSubjectLinked)
+      if (context && (await holdsOtherSubject(context.context, account))) throw new APIError('FORBIDDEN', otherSubjectLinked)
       return { data: { singleSubjectUserId: account.userId } }
     },
   },
@@ -43,9 +44,8 @@ export const oneAccountPerProvider = (providers: string[]): AccountHooks => ({
 export const connectsHiddenAccount = (path: string | undefined, body: unknown, providers: string[]) =>
   path === '/link-social' && typeof body === 'object' && body !== null && providers.includes((body as { provider?: unknown }).provider as string)
 
-/** Whether `accountId`, which a request to disconnect names, is one of the person's accounts of one of `providers`. */
-export const disconnectsHiddenAccount = (linked: { id: string; providerId: string }[], accountId: unknown, providers: string[]) =>
-  linked.some((account) => account.id === accountId && providers.includes(account.providerId))
+/** Whether the account a request to disconnect names, found among the person's own, is of one of `providers`. */
+export const disconnectsHiddenAccount = (account: { providerId: string } | null, providers: string[]) => account !== null && providers.includes(account.providerId)
 
 // `/list-accounts` answers the accounts as they are, or `ctx.json` of them as a hook returned it.
 const listedAccounts = (returned: unknown) => {
@@ -76,8 +76,8 @@ export const hiddenAccountsPlugin = (providers: string[]) =>
             const session = await getSessionFromCtx(ctx)
             // Without a session the endpoint's own check answers.
             if (!session) return
-            const linked = await accountsOf(ctx.context, session.user.id)
-            if (disconnectsHiddenAccount(linked, (ctx.body as { accountId?: unknown } | undefined)?.accountId, providers)) throw new APIError('FORBIDDEN', hiddenAccount)
+            const account = await ownAccount(ctx.context, session.user.id, (ctx.body as { accountId?: unknown } | undefined)?.accountId)
+            if (disconnectsHiddenAccount(account, providers)) throw new APIError('FORBIDDEN', hiddenAccount)
           }),
         },
       ],
