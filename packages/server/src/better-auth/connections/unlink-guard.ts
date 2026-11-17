@@ -1,4 +1,5 @@
 import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
+import { findAccount } from '../store/store-reads'
 import { accountConnection } from './account-connection'
 import { connectionRefusal } from './connection-refusal'
 import type { ResolvedConnection } from './declared-connections'
@@ -18,7 +19,7 @@ export const unlinkGuard = (connections: readonly ResolvedConnection[]) => {
       const session = await getSessionFromCtx(ctx)
       // Without a session, or an account id, Better Auth's endpoint refuses the request itself.
       if (!session || typeof accountId !== 'string') return
-      const account = (await ctx.context.internalAdapter.findAccounts(session.user.id)).find((candidate) => candidate.id === accountId)
+      const account = await findAccount(ctx.context, session.user.id, accountId)
       if (account && connectionOf(account)) throw connectionRefusal('FORBIDDEN', 'CONNECTION_UNLINK_REFUSED', ctx.headers)
     }),
   }

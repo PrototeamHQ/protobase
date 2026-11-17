@@ -140,6 +140,20 @@ describe('deliver', () => {
     expect(job.stored().map((device) => device.token).sort()).toEqual(['alive', 'other', 'refused'])
   })
 
+  it('keeps the other devices of a batch done when removing its gone ones fails, so the next try pushes only those', async () => {
+    const push = recordingSender({ dead: 'gone' })
+    const store = memoryDeviceStore()
+    let removals = 0
+    const job = harness({ devices: { ...store, removeGone: async (tokens) => (++removals === 1 ? Promise.reject(new Error('down')) : store.removeGone(tokens)) }, senders: [push.sender] })
+    await job.register('a', newDevice('alive'))
+    await job.register('a', newDevice('dead'))
+    await expect(job.run({ userIds: ['a'], inbox: false })).rejects.toThrow('store failures: 1 in removeGone')
+    await job.run({ userIds: ['a'], inbox: false })
+    expect(push.batches.map((batch) => batch.tokens.toSorted())).toEqual([['alive', 'dead'], ['dead']])
+    expect([...store.devices.values()].map((device) => device.token)).toEqual(['alive'])
+    expect(job.completed()).toBe(true)
+  })
+
   it('leaves a batch whose sender throws to the next try, removing nothing, and skips kinds without a sender', async () => {
     const answers: Record<string, 'throw'> = { 'a-phone': 'throw' }
     const push = recordingSender(answers)

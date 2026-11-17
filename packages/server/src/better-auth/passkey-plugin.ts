@@ -4,8 +4,11 @@ import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint, getSessionFromCtx } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
 import { generateRandomString } from 'better-auth/crypto'
+import { sql } from 'kysely'
 import * as z from 'zod'
+import type { AuthContext } from './organizations/store'
 import { pluginNames } from './snake-case-names'
+import { storeSqlOf } from './store/store-sql'
 
 export type PasskeyPluginOptions = {
   /** The RP ID of new passkeys (see `resolvePasskeyDomain`). */
@@ -50,8 +53,15 @@ export const passkeyPlugin = ({ domain, hosts, formerDomain, origins }: PasskeyP
       const rpID = ctx.query?.rpId?.toLowerCase() ?? domain
       if (!hosts.includes(rpID)) throw new APIError('BAD_REQUEST', unknownDomain)
       const session = await getSessionFromCtx(ctx)
-      const own = session ? await ctx.context.adapter.findMany<StoredPasskey>({ model: 'passkey', where: [{ field: 'userId', value: session.user.id }] }) : []
-      const passkeys = own.filter((stored) => rpIDOf(stored) === rpID)
+      // Every passkey of the person for that RP ID, of which Better Auth's adapter would read 100. Those made before
+      // passkeys kept their RP ID are the former domain's.
+      const passkeysOf = async (userId: string) => {
+        const store = storeSqlOf(ctx.context as unknown as AuthContext)
+        const { rows } = await sql<Pick<StoredPasskey, 'credentialID' | 'transports'>>`select credential_id as "credentialID", transports from ${store.table('passkey')}
+          where user_id = ${userId} and (rp_id = ${rpID}${rpID === formerDomain ? sql` or rp_id is null` : sql``})`.execute(store.db)
+        return rows
+      }
+      const passkeys = session ? await passkeysOf(session.user.id) : []
       const options = await generateAuthenticationOptions({
         rpID,
         userVerification: 'preferred',

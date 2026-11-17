@@ -33,11 +33,9 @@ export type MailSenderStore = {
 
 type Adapter = Pick<DBAdapter, 'findMany' | 'create' | 'update' | 'updateMany' | 'deleteMany'>
 
-const oldestFirst = (rows: MailSenderRow[]) => rows.toSorted((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-
 /** The user's addresses, oldest first. */
-export const sendersOf = async (adapter: Pick<Adapter, 'findMany'>, userId: string) =>
-  oldestFirst(await adapter.findMany<MailSenderRow>({ model: mailSenderModel, where: [{ field: 'userId', value: userId }], limit: everyRow }))
+export const sendersOf = (adapter: Pick<Adapter, 'findMany'>, userId: string) =>
+  adapter.findMany<MailSenderRow>({ model: mailSenderModel, where: [{ field: 'userId', value: userId }], sortBy: { field: 'createdAt', direction: 'asc' }, limit: everyRow })
 
 /** The store as sending reads it, through Better Auth's adapter. */
 export const adapterSenderStore = (adapter: () => Promise<Pick<Adapter, 'findMany'>>): MailSenderStore => ({

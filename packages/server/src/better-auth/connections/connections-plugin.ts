@@ -2,6 +2,7 @@ import type { BetterAuthPlugin } from 'better-auth'
 import { createAuthEndpoint, createAuthMiddleware, sessionMiddleware } from 'better-auth/api'
 import { decryptOAuthToken } from 'better-auth/oauth2'
 import * as z from 'zod'
+import { countWhere, findAccount } from '../store/store-reads'
 import type { ConnectionEvents } from './connection-events'
 import { connectionRefusal } from './connection-refusal'
 import type { ResolvedConnection } from './declared-connections'
@@ -33,15 +34,15 @@ export const connectionsPlugin = ({ connections, events, allowPrivateAddresses }
       }),
       disconnectConnection: createAuthEndpoint(connectionPaths.disconnect, { method: 'POST', use: [sessionMiddleware], body: z.object({ accountId: z.string() }) }, async (ctx) => {
         const adapter = ctx.context.internalAdapter
-        const accounts = await adapter.findAccounts(ctx.context.session.user.id)
-        const account = accounts.find((candidate) => candidate.id === ctx.body.accountId)
+        const userId = ctx.context.session.user.id
+        const account = await findAccount(ctx.context, userId, ctx.body.accountId)
         const connection = account && connections.find((candidate) => candidate.providerId === account.providerId)
         // The same answer for an account that is not there and one of someone else's, so it tells nothing of other accounts.
         if (!account || !connection) throw connectionRefusal('NOT_FOUND', 'CONNECTION_NOT_FOUND', ctx.headers)
         // As Better Auth's own unlinking: the last account that signs in is the person's only way to sign in. An account of
         // a provider only connections use never signs in, so disconnecting it is always allowed.
-        const signIns = accounts.filter((candidate) => !own.has(candidate.providerId))
-        if (!own.has(account.providerId) && signIns.length === 1) throw connectionRefusal('BAD_REQUEST', 'FAILED_TO_UNLINK_LAST_ACCOUNT', ctx.headers)
+        const signIns = [{ field: 'userId', value: userId }, ...(own.size > 0 ? [{ field: 'providerId', operator: 'not_in' as const, value: [...own] }] : [])]
+        if (!own.has(account.providerId) && (await countWhere(ctx.context.adapter, 'account', signIns)) === 1) throw connectionRefusal('BAD_REQUEST', 'FAILED_TO_UNLINK_LAST_ACCOUNT', ctx.headers)
         // A token the provider may not take is kept for a later try, so disconnecting waits until the workflows can queue it.
         if (connection.revocationUrl && !events.listening()) throw connectionRefusal('SERVICE_UNAVAILABLE', 'CONNECTIONS_STARTING', ctx.headers)
         const revocation = await disconnectAccount({

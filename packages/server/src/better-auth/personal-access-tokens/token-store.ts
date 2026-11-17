@@ -58,10 +58,8 @@ export const findTokenByHash = (adapter: Pick<Adapter, 'findOne'>, tokenHash: st
   adapter.findOne<PersonalAccessTokenRow>({ model: personalAccessTokenModel, where: [{ field: 'tokenHash', value: tokenHash }] })
 
 /** The user's tokens, newest first. */
-export const tokensOf = async (adapter: Pick<Adapter, 'findMany'>, userId: string) =>
-  (await adapter.findMany<PersonalAccessTokenRow>({ model: personalAccessTokenModel, where: [{ field: 'userId', value: userId }], limit: everyRow })).toSorted(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  )
+export const tokensOf = (adapter: Pick<Adapter, 'findMany'>, userId: string) =>
+  adapter.findMany<PersonalAccessTokenRow>({ model: personalAccessTokenModel, where: [{ field: 'userId', value: userId }], sortBy: { field: 'createdAt', direction: 'desc' }, limit: everyRow })
 
 export const storeToken = (adapter: Pick<Adapter, 'create'>, data: Omit<PersonalAccessTokenRow, 'id' | 'lastUsedAt'>) =>
   adapter.create<Omit<PersonalAccessTokenRow, 'id'>, PersonalAccessTokenRow>({ model: personalAccessTokenModel, data })
