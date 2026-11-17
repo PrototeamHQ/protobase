@@ -89,6 +89,23 @@ describe("the platform's providers", () => {
   })
 })
 
+describe('a provider without a button', () => {
+  it('is offered for sign-in links but shows no button, and its link signs in through its pages', async () => {
+    const { auth, request, platformSignIn } = await serve({}, { settings: { button: false } })
+    expect(await (await request('/status')).json()).toMatchObject({ socialProviders: ['github'], platformProviders: [{ provider: 'github', name: 'GitHub', button: false }] })
+    await createUser(auth, { email: 'octo@example.com', password, role: 'user' })
+    // What a sign-in link (`?sign-in=github`) or another app's redirect starts.
+    expect((await platformSignIn(octo())).session.user.email).toBe('octo@example.com')
+  })
+
+  it('leaves a provider of tokens alone refusing its pages', async () => {
+    const { request } = await serve()
+    const refused = await request('/sign-in/social', { body: { provider: 'central', callbackURL: `${origin}/` } })
+    expect(refused.status).toBe(403)
+    expect(await refused.json()).toMatchObject({ code: 'PROVIDER_PAGES_OFF' })
+  })
+})
+
 describe('linking on a first sign-in', () => {
   it("links nobody whose own address is not verified, though the provider's is", async () => {
     const { auth, store, central, postToken, accounts } = await serve()

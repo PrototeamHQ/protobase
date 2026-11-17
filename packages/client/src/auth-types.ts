@@ -13,10 +13,11 @@ export type TwoFactorMethod = 'totp' | 'otp'
 export type SignInResult = { kind: 'signed-in'; user: AuthUser } | { kind: 'two-factor'; methods: TwoFactorMethod[] }
 
 /**
- * A sign-in provider the platform adds to the app: its id, as in `socialProviders`, the name to show, and `hidden` when
- * the account page neither lists nor connects it.
+ * A sign-in provider the platform adds to the app: its id, as in `socialProviders`, the name to show, `hidden` when
+ * the account page neither lists nor connects it, and `button: false` when the sign-in page shows no button for it,
+ * which a sign-in link (`?sign-in=<id>`) still starts.
  */
-export type PlatformSignIn = { provider: string; name: string; hidden?: boolean }
+export type PlatformSignIn = { provider: string; name: string; hidden?: boolean; button?: false }
 
 /**
  * A mail provider people may link their own mailbox with, for the app to send mail from it: its id and name, such as

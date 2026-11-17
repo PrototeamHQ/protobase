@@ -1,7 +1,7 @@
 import type { PlatformSignIn } from './platform-sign-in'
 
 // The parts of one provider's variables, after `PROTOBASE_SIGN_IN_` or `PROTOBASE_SIGN_IN_<n>_`.
-const parts = ['ISSUER', 'CLIENT_ID', 'CLIENT_SECRET', 'PROVIDER', 'NAME', 'TOKENS', 'AUTHORIZATION_PARAMS', 'HIDDEN', 'DEVICES'] as const
+const parts = ['ISSUER', 'CLIENT_ID', 'CLIENT_SECRET', 'PROVIDER', 'NAME', 'TOKENS', 'AUTHORIZATION_PARAMS', 'HIDDEN', 'BUTTON', 'DEVICES'] as const
 type Part = (typeof parts)[number]
 
 /** The variable of `part` for the provider `number`: the first has none in its name, the second `_2_`, and so on. */
@@ -45,6 +45,7 @@ const readEntry = (env: Record<string, string | undefined>, number: number): Pla
   const display = env[name('NAME')]?.trim()
   const authorizationParams = readParams(env, name('AUTHORIZATION_PARAMS'))
   const hidden = readBoolean(env, name('HIDDEN'))
+  const button = readBoolean(env, name('BUTTON'))
   const devices = readBoolean(env, name('DEVICES'))
   return {
     issuer,
@@ -55,6 +56,7 @@ const readEntry = (env: Record<string, string | undefined>, number: number): Pla
     ...(tokenSignIn !== undefined && { tokenSignIn }),
     ...(authorizationParams && { authorizationParams }),
     ...(hidden !== undefined && { hidden }),
+    ...(button !== undefined && { button }),
     ...(devices !== undefined && { devices }),
   }
 }
@@ -63,10 +65,10 @@ const readEntry = (env: Record<string, string | undefined>, number: number): Pla
  * The providers the platform passes, in order. The first is `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`
  * and `PROTOBASE_SIGN_IN_CLIENT_SECRET` (with `PROTOBASE_SIGN_IN_PROVIDER`, `PROTOBASE_SIGN_IN_NAME` and
  * `PROTOBASE_SIGN_IN_TOKENS`, `PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS` as `name=value&other=value`,
- * `PROTOBASE_SIGN_IN_HIDDEN` and `PROTOBASE_SIGN_IN_DEVICES` optional); each further one is the same set with its number after `PROTOBASE_SIGN_IN_`,
+ * `PROTOBASE_SIGN_IN_HIDDEN`, `PROTOBASE_SIGN_IN_BUTTON` and `PROTOBASE_SIGN_IN_DEVICES` optional); each further one is the same set with its number after `PROTOBASE_SIGN_IN_`,
  * from 2 up, such as `PROTOBASE_SIGN_IN_2_ISSUER`. With `..._TOKENS=true` the issuer alone will do, or with the client
  * id, for token sign-in alone. Empty when none is set. A set short of all three otherwise, `..._TOKENS=true` without an
- * issuer, `..._TOKENS`, `..._HIDDEN` or `..._DEVICES` other than `true` or `false`, or a number without every number before it, stops the server at
+ * issuer, `..._TOKENS`, `..._HIDDEN`, `..._BUTTON` or `..._DEVICES` other than `true` or `false`, or a number without every number before it, stops the server at
  * startup.
  */
 export const readPlatformSignIns = (env: Record<string, string | undefined>): PlatformSignIn[] => {

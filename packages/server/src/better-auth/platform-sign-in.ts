@@ -40,6 +40,12 @@ export type PlatformSignIn = {
    */
   hidden?: boolean
   /**
+   * Whether the sign-in page shows "Continue with {name}" for it. With `false`, people sign in through its pages only
+   * when something sends them there: a sign-in link (`?sign-in={provider}`) or a redirect another app starts. Only for a
+   * provider with pages. Default on.
+   */
+  button?: boolean
+  /**
    * Token sign-in: a client that holds a fresh ID token the provider issued for this app posts it instead of sending
    * the browser through the provider, and gets the app's own session (see `idTokenSignInPlugin`). Default off.
    */
@@ -72,12 +78,13 @@ export const resolvePlatformSignIn = (signIn: PlatformSignIn, baseURL: string) =
   const pages = Boolean(signIn.clientSecret)
   if (!pages && signIn.tokenSignIn !== true) throw new Error("The platform sign-in provider needs a clientSecret for sign-in through its pages, or tokenSignIn: true for token sign-in alone")
   if (pages && !signIn.clientId) throw new Error("The platform sign-in provider's clientSecret needs its clientId")
+  if (signIn.button === false && !pages) throw new Error(`The platform sign-in provider "${provider}" has no pages, so it shows no button anyway: leave button out`)
   if (signIn.devices === true && (pages || signIn.tokenSignIn !== true)) throw new Error(`The platform sign-in provider "${provider}" signs in devices by token alone: give it tokenSignIn: true and no clientSecret`)
   const authorizationParams = signIn.authorizationParams ?? {}
   const taken = Object.keys(authorizationParams).find((name) => flowParams.includes(name))
   if (taken) throw new Error(`The platform sign-in provider "${provider}" cannot fix the authorization parameter ${taken}: the sign-in sets it itself`)
   const clientId = signIn.clientId ?? new URL(baseURL).origin
-  return { ...signIn, clientId, pages, provider, name: signIn.name ?? (provider === 'github' ? 'GitHub' : 'SSO'), scopes: signIn.scopes ?? [], authorizationParams, tokenSignIn: signIn.tokenSignIn === true, hidden: signIn.hidden === true, devices: signIn.devices === true }
+  return { ...signIn, clientId, pages, provider, name: signIn.name ?? (provider === 'github' ? 'GitHub' : 'SSO'), scopes: signIn.scopes ?? [], authorizationParams, tokenSignIn: signIn.tokenSignIn === true, hidden: signIn.hidden === true, button: signIn.button !== false, devices: signIn.devices === true }
 }
 
 export type ResolvedPlatformSignIn = ReturnType<typeof resolvePlatformSignIn>
