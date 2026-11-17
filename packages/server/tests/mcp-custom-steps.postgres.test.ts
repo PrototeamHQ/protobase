@@ -196,4 +196,19 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('custom steps over MCP',
     expect(await bo('create_runner_token', { name: 'Mine' })).toMatchObject({ error: 'forbidden' })
     expect((await sql<{ count: number }>`select (select count(*)::int from workflows.runs) + (select count(*)::int from workflows.runners) + (select count(*)::int from workflows.custom_steps) as count`.execute(database.db)).rows[0]).toEqual(before)
   })
+
+  it('reads any version of a step, past its latest 20, and the builds of each of its latest 20 versions', async () => {
+    await sql`insert into workflows.custom_step_versions (custom_step_id, version, tenant_id, name, label, container, input, output, saved_by)
+      select first.custom_step_id, n, first.tenant_id, first.name, first.label, first.container, first.input, first.output, first.saved_by
+      from workflows.custom_step_versions first, generate_series(2, 25) n where first.name = 'shout' and first.version = 1`.execute(database.db)
+    await sql`insert into workflows.custom_step_builds (version_id, step, status, digest, tenant_id, started_at)
+      select id, 'custom:shout:' || version, 'ready', 'sha256:' || version, tenant_id, now() from workflows.custom_step_versions where name = 'shout' and version > 1
+      union all select id, 'custom:shout:25', 'failed', null, tenant_id, now() - interval '1 hour' from workflows.custom_step_versions where name = 'shout' and version = 25`.execute(database.db)
+    const first = await ana('get_custom_step', { name: 'shout', version: 1 })
+    expect(first.versions).toEqual([expect.objectContaining({ version: 1, type: step, builds: [expect.objectContaining({ status: 'ready', digest: 'sha256:5a1e' })] })])
+    const latest = (await ana('get_custom_step', { name: 'shout' })).versions as { version: number; builds: { status: string; digest?: string }[] }[]
+    expect(latest.map((one) => one.version)).toEqual(Array.from({ length: 20 }, (_, i) => 25 - i))
+    expect(latest[0]!.builds.map((build) => build.status)).toEqual(['ready', 'failed'])
+    expect(latest.slice(1).map((one) => one.builds.map((build) => build.digest))).toEqual(latest.slice(1).map((one) => [`sha256:${String(one.version)}`]))
+  })
 })
