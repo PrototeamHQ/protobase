@@ -95,7 +95,7 @@ The store's migrations then make nothing of the user table, which a migration of
 | `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated http and https origins, passed by the platform; see [CORS](/reference/api/#cors) |
 | `PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM` | the mail server and sender for [password reset](#password-reset), [emailed sign-in codes](#emailed-sign-in-codes), emailed [two-factor](#two-factor-authentication) codes and [open sign-up](#open-sign-up), passed by the platform; all four are off without them |
 | `PROTOBASE_APP_NAME` | the app's name, passed by the platform: it overrides `name` |
-| `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | the [platform sign-in provider](#platform-sign-in-providers) for people who have an account, passed by the platform; off without them. `PROTOBASE_SIGN_IN_PROVIDER`, `PROTOBASE_SIGN_IN_NAME`, `PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS`, `PROTOBASE_SIGN_IN_HIDDEN`, `PROTOBASE_SIGN_IN_BUTTON` and `PROTOBASE_SIGN_IN_DEVICES` are optional, and `PROTOBASE_SIGN_IN_TOKENS=true` turns on its [token sign-in](#token-sign-in). `PROTOBASE_SIGN_IN_2_ISSUER` and so on add [more providers](#more-than-one-provider) |
+| `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | the [platform sign-in provider](#platform-sign-in-providers) for people who have an account, passed by the platform; off without them. `PROTOBASE_SIGN_IN_PROVIDER`, `PROTOBASE_SIGN_IN_NAME`, `PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS`, `PROTOBASE_SIGN_IN_HIDDEN`, `PROTOBASE_SIGN_IN_BUTTON` and `PROTOBASE_SIGN_IN_DEVICES` are optional, and `PROTOBASE_SIGN_IN_TOKENS=true` turns on its [token sign-in](#token-sign-in). `PROTOBASE_SIGN_IN_<ID>_ISSUER` and so on add [more providers](#more-than-one-provider), each named by its id |
 | `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the [operator provider](#operator-provider) its staff sign in with to sign in as people, passed by the platform; staff sign-in is off without them. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional |
 | `PROTOBASE_TRUSTED_PROXIES` | the proxies in front of `protobase serve`, addresses or CIDR ranges, comma separated, such as `172.30.87.1`, the Docker network's gateway in the [compose template](/guides/deploy/#compose-template); see [Client addresses](#client-addresses) |
 
@@ -615,20 +615,20 @@ auth: { signInProviders: [] }
 
 ### More than one provider
 
-Each further provider takes the same variables with its number after `PROTOBASE_SIGN_IN_`, from 2 up: `PROTOBASE_SIGN_IN_2_ISSUER`, `PROTOBASE_SIGN_IN_2_CLIENT_ID`, `PROTOBASE_SIGN_IN_2_PROVIDER` and so on. The first keeps the variables without a number, so an app with one provider is configured as before. Every provider is checked on its own: a token posted under a provider's id is verified against that provider's issuer, keys and client id alone, and a [token sign-in](#token-sign-in) is kept as used by its issuer.
+Each further provider takes the same variables with its id after `PROTOBASE_SIGN_IN_`, in upper case with `_` for `-`: `PROTOBASE_SIGN_IN_PHONE_ISSUER`, `PROTOBASE_SIGN_IN_PHONE_CLIENT_ID` and so on for the provider `phone`, `PROTOBASE_SIGN_IN_ACME_SSO_ISSUER` for `acme-sso`. The name gives the id, so such a provider takes no `_PROVIDER`, and adding or removing one leaves the others as they are. The unnamed variables stay one provider of their own, so an app with one provider is configured as before, and the named ones need not have it. Every provider is checked on its own: a token posted under a provider's id is verified against that provider's issuer, keys and client id alone, and a [token sign-in](#token-sign-in) is kept as used by its issuer.
 
 ```sh
 PROTOBASE_SIGN_IN_ISSUER=https://auth.example.com
 PROTOBASE_SIGN_IN_CLIENT_ID=erp-example-com
 PROTOBASE_SIGN_IN_CLIENT_SECRET=...
 PROTOBASE_SIGN_IN_PROVIDER=github
-PROTOBASE_SIGN_IN_2_ISSUER=https://id.example.com             # a second provider, for token sign-in alone
-PROTOBASE_SIGN_IN_2_PROVIDER=phone
-PROTOBASE_SIGN_IN_2_TOKENS=true
+PROTOBASE_SIGN_IN_PHONE_ISSUER=https://id.example.com         # the provider phone, for token sign-in alone
+PROTOBASE_SIGN_IN_PHONE_TOKENS=true
 ```
 
-- **Ids:** each provider has an id of its own; two with one id stop the app at start. A number without every number before it (a `_3_` set without a `_2_` one, or a `_2_` set without the first) stops it too, as does `_1_` or `_02_`.
-- **Names:** `name` (`PROTOBASE_SIGN_IN_NAME`, `PROTOBASE_SIGN_IN_2_NAME`) is what people see, apart from the id, so two providers may show the same name.
+- **Ids:** each provider has an id of its own; two with one id stop the app at start, such as `PROTOBASE_SIGN_IN_PROVIDER=phone` next to `PROTOBASE_SIGN_IN_PHONE_ISSUER`. So does a named set without its `_ISSUER`, a name that is no provider id, such as the numbered `PROTOBASE_SIGN_IN_2_ISSUER` of earlier versions, or a named `_PROVIDER`.
+- **Order:** the unnamed provider comes first, then the named ones in order of their id.
+- **Names:** `name` (`PROTOBASE_SIGN_IN_NAME`, `PROTOBASE_SIGN_IN_PHONE_NAME`) is what people see, apart from the id, so two providers may show the same name.
 - **Fixed authorization parameters:** `PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS` (`authorizationParams` in the config), written as `name=value&other=value`, goes on every authorization request to that provider as given, such as a parameter naming which of its own sign-in methods it must use. A client cannot change or add to them: a sign-in or link with a platform provider that brings `additionalParams` of its own answers `400 AUTHORIZATION_PARAMS_FIXED`. The parameters the sign-in sets itself (`state`, `client_id`, `redirect_uri`, `response_type`, `scope`, `nonce`, `code_challenge`, `code_challenge_method`) cannot be fixed; naming one stops the app at start.
 - **No button:** `PROTOBASE_SIGN_IN_BUTTON=false` (`button: false`) keeps "Continue with {name}" off the sign-in page for a provider with pages. People still sign in through its pages when something sends them there: a [sign-in link](#sign-in-links-and-connected-accounts) (`?sign-in=<provider>`), or a redirect another app starts. `GET /api/auth/status` still lists it in `socialProviders`, so links work, and marks it `button: false` in `platformProviders`. A provider of [token sign-in](#token-sign-in) alone has no button anyway, and naming one stops the app at start. The account page's connected accounts follow `hidden`, not this.
 - **Kept off the account page:** `PROTOBASE_SIGN_IN_HIDDEN=true` (`hidden: true`) keeps people's links to that provider off the account page: the connected accounts do not list it, `/api/auth/list-accounts` leaves its links out, and connecting it, or disconnecting one of its links by its id, answers `403 PROVIDER_ACCOUNT_HIDDEN`. The link still signs in, and goes when the person is deleted. `GET /api/auth/status` marks it `hidden: true` in `platformProviders`.
