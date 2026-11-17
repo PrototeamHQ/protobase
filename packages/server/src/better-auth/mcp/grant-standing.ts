@@ -1,9 +1,9 @@
 import type { DBAdapter } from 'better-auth'
 import { unauthorized } from '../../problem'
+import { exists } from '../store/store-reads'
 import { consentModel } from './consent-check'
 
 type Adapter = Pick<DBAdapter, 'findMany'>
-type Consent = { createdAt: Date }
 
 /** What an MCP access token claims about its grant: its person (`sub`), its client (`client_id`) and when it was issued (`iat`, in seconds). */
 export type GrantClaims = { userId: string; clientId?: string; issuedAt?: number }
@@ -18,7 +18,7 @@ export type GrantClaims = { userId: string; clientId?: string; issuedAt?: number
 export const checkMcpGrant = async (adapter: Adapter, { userId, clientId, issuedAt }: GrantClaims) => {
   if (clientId === undefined) throw unauthorized('The access token names no client')
   if (issuedAt === undefined) throw unauthorized('The access token has no issue time')
-  const consents = await adapter.findMany<Consent>({ model: consentModel, where: [{ field: 'userId', value: userId }, { field: 'clientId', value: clientId }] })
   // Both are whole seconds: the provider dates a consent it creates by the same clock it stamps `iat` with.
-  if (!consents.some((consent) => new Date(consent.createdAt).getTime() <= issuedAt * 1000)) throw unauthorized('The client was disconnected: connect it again')
+  const where = [{ field: 'userId', value: userId }, { field: 'clientId', value: clientId }, { field: 'createdAt', operator: 'lte' as const, value: new Date(issuedAt * 1000) }]
+  if (!(await exists(adapter, consentModel, where))) throw unauthorized('The client was disconnected: connect it again')
 }
