@@ -2,7 +2,7 @@ import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint, createAuthMiddleware, sessionMiddleware } from 'better-auth/api'
 import { decodeJwt } from 'jose'
 import * as z from 'zod'
-import type { AuthContext } from './organizations/store'
+import { everyRow, type AuthContext } from './organizations/store'
 import type { SignInRefusal } from './sign-in-enforcement'
 import { isStaffSession } from './staff-checks'
 
@@ -102,6 +102,10 @@ const postedDevice = (path: string | undefined, body: unknown, providers: string
 type Account = { id: string; providerId: string; accountId: string; idToken?: string | null; createdAt: Date }
 type Session = { id: string; token: string }
 
+/** Every account of the person, however many: Better Auth's own read stops at 100. */
+export const accountsOf = async ({ adapter }: Pick<Stores, 'adapter'>, userId: string) =>
+  adapter.findMany<Account>({ model: 'account', where: [{ field: 'userId', value: userId }], limit: everyRow })
+
 /** The name the device's last ID token gave it, if any. */
 export const deviceNameOf = (idToken: string | null | undefined) => {
   if (!idToken) return
@@ -113,12 +117,12 @@ export const deviceNameOf = (idToken: string | null | undefined) => {
   }
 }
 
-// The person's device accounts, each with the sessions it began, in one read of the device sessions.
-const deviceLinks = async ({ adapter, internalAdapter }: Stores, userId: string, providers: { provider: string; name: string }[]) => {
-  const accounts = ((await internalAdapter.findAccounts(userId)) as Account[]).filter(({ providerId }) => providers.some(({ provider }) => provider === providerId))
+// The person's device accounts, each with every session it began: three reads, each of every row it matches.
+const deviceLinks = async ({ adapter }: Pick<Stores, 'adapter'>, userId: string, providers: { provider: string; name: string }[]) => {
+  const accounts = (await accountsOf({ adapter }, userId)).filter(({ providerId }) => providers.some(({ provider }) => provider === providerId))
   if (accounts.length === 0) return []
-  const sessions = (await internalAdapter.listSessions(userId)) as Session[]
-  const began = await adapter.findMany<{ sessionId: string; accountId: string }>({ model: deviceSessionModel, where: [{ field: 'accountId', operator: 'in', value: accounts.map(({ id }) => id) }] })
+  const began = await adapter.findMany<{ sessionId: string; accountId: string }>({ model: deviceSessionModel, where: [{ field: 'accountId', operator: 'in', value: accounts.map(({ id }) => id) }], limit: everyRow })
+  const sessions = began.length === 0 ? [] : await adapter.findMany<Session>({ model: 'session', where: [{ field: 'id', operator: 'in', value: began.map(({ sessionId }) => sessionId) }], limit: everyRow })
   const sessionsOf = (account: Account) => sessions.filter(({ id }) => began.some((row) => row.sessionId === id && row.accountId === account.id))
   return accounts.map((account) => ({ account, sessions: sessionsOf(account) }))
 }
@@ -180,7 +184,7 @@ export const deviceLinksPlugin = (providers: { provider: string; name: string }[
       signOutDeviceLink: createAuthEndpoint('/account/device-links/sign-out', { method: 'POST', use: [sessionMiddleware], body: z.object({ id: z.string() }) }, async (ctx) => {
         if (isStaffSession(ctx.context.session.session)) throw new APIError('FORBIDDEN', staffCannotSignOut)
         const userId = ctx.context.session.user.id
-        const account = ((await ctx.context.internalAdapter.findAccounts(userId)) as Account[]).find(({ id, providerId }) => id === ctx.body.id && providers.some(({ provider }) => provider === providerId))
+        const account = (await accountsOf(ctx.context, userId)).find(({ id, providerId }) => id === ctx.body.id && providers.some(({ provider }) => provider === providerId))
         if (!account) throw new APIError('NOT_FOUND', deviceLinkNotFound)
         // Refused first, so a sign-in with the device's token at the same time ends its own session (`saveDeviceSession`).
         if (!(await isRefusedAccount(ctx.context, account.providerId, account.accountId))) {

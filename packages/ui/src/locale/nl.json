@@ -1836,7 +1836,7 @@
     "locked": "Te veel verkeerde codes. Wacht 15 minuten en probeer het opnieuw.",
     "tooSlow": "Deze inlogpoging duurde te lang. Log opnieuw in.",
     "passkeyNotFound": "Deze passkey hoort hier bij geen enkel account.",
-    "deviceSignedOutAlready": "Dit apparaat is al uitgelogd.",
+    "deviceLinkNotFound": "Geen apparaat dat aan je account gekoppeld is, heeft deze id.",
     "passkeyFailed": "De passkey kon niet worden gecontroleerd. Probeer het opnieuw.",
     "passkeyAdded": "Deze passkey is al toegevoegd.",
     "staffPermissionMissing": "Je medewerkersaccount mag hier niet als iemand anders inloggen.",

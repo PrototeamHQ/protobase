@@ -29,8 +29,8 @@ const messages: Record<string, Id> = {
   PASSWORD_COMPROMISED: 'passwordLeaked',
   // Open sign-up limited to email domains refuses an address elsewhere.
   EMAIL_DOMAIN_NOT_ALLOWED: 'signUpDomainNotAllowed',
-  // A device the platform links, signed out already, from another tab or by another of the person's devices.
-  DEVICE_LINK_NOT_FOUND: 'deviceSignedOutAlready',
+  // No device the platform links has that id, as after a sign-out from another tab; the server cannot tell why.
+  DEVICE_LINK_NOT_FOUND: 'deviceLinkNotFound',
 }
 
 const lookup = (ids: Record<string, Id>, code: string | undefined) => {

@@ -1836,7 +1836,7 @@
     "locked": "Too many wrong codes. Wait 15 minutes and try again.",
     "tooSlow": "This sign-in took too long. Sign in again.",
     "passkeyNotFound": "This passkey is not registered for an account here.",
-    "deviceSignedOutAlready": "This device is signed out already.",
+    "deviceLinkNotFound": "No device linked to your account has this id.",
     "passkeyFailed": "The passkey could not be checked. Try again.",
     "passkeyAdded": "This passkey is added already.",
     "staffPermissionMissing": "Your staff account has no permission to sign in as people here.",

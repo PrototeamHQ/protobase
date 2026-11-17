@@ -1,5 +1,6 @@
 import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
+import { accountsOf } from './platform-devices'
 import type { SignInRefusal } from './sign-in-enforcement'
 
 type AccountHooks = NonNullable<NonNullable<BetterAuthOptions['databaseHooks']>['account']>
@@ -31,7 +32,7 @@ export const oneAccountPerProvider = (providers: string[]): AccountHooks => ({
   create: {
     before: async (account, context) => {
       if (!providers.includes(account.providerId)) return
-      const linked = context ? await context.context.internalAdapter.findAccounts(account.userId) : []
+      const linked = context ? await accountsOf(context.context, account.userId) : []
       if (holdsOtherSubject(linked, account)) throw new APIError('FORBIDDEN', otherSubjectLinked)
       return { data: { singleSubjectUserId: account.userId } }
     },
@@ -75,7 +76,7 @@ export const hiddenAccountsPlugin = (providers: string[]) =>
             const session = await getSessionFromCtx(ctx)
             // Without a session the endpoint's own check answers.
             if (!session) return
-            const linked = await ctx.context.internalAdapter.findAccounts(session.user.id)
+            const linked = await accountsOf(ctx.context, session.user.id)
             if (disconnectsHiddenAccount(linked, (ctx.body as { accountId?: unknown } | undefined)?.accountId, providers)) throw new APIError('FORBIDDEN', hiddenAccount)
           }),
         },
