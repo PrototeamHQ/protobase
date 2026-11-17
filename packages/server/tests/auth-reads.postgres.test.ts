@@ -107,18 +107,20 @@ describe.skipIf(!ready)('the auth reads', () => {
     await expect(checkMcpGrant(context.adapter, { userId: 'u1', clientId: 'assistant', issuedAt: Date.parse('2026-08-01T09:00:00Z') / 1000 })).rejects.toThrow('disconnected')
   })
 
-  it("offer the passkey of the asked RP ID, behind 150 of the person's others", async () => {
+  it("offer each of the person's 101 passkeys of the asked RP ID, behind 150 of their others", async () => {
     const { auth, store, fill, request, signIn } = await serve()
     const { id } = await createUser(auth, { email: 'root@example.com', password, name: 'Root' })
     const passkey = (name: string, rpId: string | null) => `('${name}', 'key', '${id}', '${name}', 0, 'singleDevice', false, ${rpId === null ? 'null' : `'${rpId}'`})`
     await fill(`insert into passkey (id, public_key, user_id, credential_id, counter, device_type, backed_up, rp_id)
       select 'p' || i, 'key', '${id}', 'elsewhere-' || i, 0, 'singleDevice', false, 'elsewhere.example' from generate_series(1, 150) i;
+      insert into passkey (id, public_key, user_id, credential_id, counter, device_type, backed_up, rp_id)
+      select 'h' || i, 'key', '${id}', 'here-' || i, 0, 'singleDevice', false, 'localhost' from generate_series(1, 100) i;
       insert into passkey (id, public_key, user_id, credential_id, counter, device_type, backed_up, rp_id) values ${passkey('here', 'localhost')}, ${passkey('before', null)}`)
     const options = await request('/api/auth/passkey/generate-authenticate-options', { cookie: await signIn('root@example.com') })
     const { allowCredentials } = (await options.json()) as { allowCredentials?: { id: string }[] }
     // A passkey made before passkeys kept their RP ID is the first host's, here the passkey domain.
-    expect(allowCredentials?.map((credential) => credential.id).toSorted()).toEqual(['before', 'here'])
-    expect(await store.db.selectFrom('passkey').select(({ fn }) => fn.countAll<string>().as('count')).executeTakeFirstOrThrow()).toEqual({ count: '152' })
+    expect(allowCredentials?.map((credential) => credential.id).toSorted()).toEqual(['before', 'here', ...Array.from({ length: 100 }, (_, i) => `here-${i + 1}`)].toSorted())
+    expect(await store.db.selectFrom('passkey').select(({ fn }) => fn.countAll<string>().as('count')).executeTakeFirstOrThrow()).toEqual({ count: '252' })
   })
 
   it("find a person's account by its id, behind 150 of their others, and none of someone else's", async () => {
