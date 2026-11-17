@@ -102,6 +102,27 @@ const postedDevice = (path: string | undefined, body: unknown, providers: string
 type Account = { id: string; providerId: string; accountId: string; idToken?: string | null; createdAt: Date }
 type Session = { id: string; token: string }
 
+/** How many ids one `in` read takes: well under the 65,535 bind parameters one Postgres query holds. */
+export const idsPerRead = 10_000
+
+/** Every row of `model` whose `field` is one of `values`, in reads of at most `idsPerRead` of them each. */
+export const findIn = async <Row>({ adapter }: Pick<Stores, 'adapter'>, model: string, field: string, values: string[]) => {
+  const rows: Row[] = []
+  for (let start = 0; start < values.length; start += idsPerRead) {
+    rows.push(...(await adapter.findMany<Row>({ model, where: [{ field, operator: 'in', value: values.slice(start, start + idsPerRead) }], limit: everyRow })))
+  }
+  return rows
+}
+
+type Began = { sessionId: string; accountId: string }
+
+// Every session the device accounts `accountIds` began, with the rows that say which began which.
+const sessionsBegunBy = async (stores: Pick<Stores, 'adapter'>, accountIds: string[]) => {
+  const began = await findIn<Began>(stores, deviceSessionModel, 'accountId', accountIds)
+  const sessions = await findIn<Session>(stores, 'session', 'id', began.map(({ sessionId }) => sessionId))
+  return { began, sessions }
+}
+
 /** Every account of the person, however many: Better Auth's own read stops at 100. */
 export const accountsOf = async ({ adapter }: Pick<Stores, 'adapter'>, userId: string) =>
   adapter.findMany<Account>({ model: 'account', where: [{ field: 'userId', value: userId }], limit: everyRow })
@@ -117,12 +138,11 @@ export const deviceNameOf = (idToken: string | null | undefined) => {
   }
 }
 
-// The person's device accounts, each with every session it began: three reads, each of every row it matches.
-const deviceLinks = async ({ adapter }: Pick<Stores, 'adapter'>, userId: string, providers: { provider: string; name: string }[]) => {
-  const accounts = (await accountsOf({ adapter }, userId)).filter(({ providerId }) => providers.some(({ provider }) => provider === providerId))
+// The person's device accounts, each with every session it began.
+const deviceLinks = async (stores: Pick<Stores, 'adapter'>, userId: string, providers: { provider: string; name: string }[]) => {
+  const accounts = (await accountsOf(stores, userId)).filter(({ providerId }) => providers.some(({ provider }) => provider === providerId))
   if (accounts.length === 0) return []
-  const began = await adapter.findMany<{ sessionId: string; accountId: string }>({ model: deviceSessionModel, where: [{ field: 'accountId', operator: 'in', value: accounts.map(({ id }) => id) }], limit: everyRow })
-  const sessions = began.length === 0 ? [] : await adapter.findMany<Session>({ model: 'session', where: [{ field: 'id', operator: 'in', value: began.map(({ sessionId }) => sessionId) }], limit: everyRow })
+  const { began, sessions } = await sessionsBegunBy(stores, accounts.map(({ id }) => id))
   const sessionsOf = (account: Account) => sessions.filter(({ id }) => began.some((row) => row.sessionId === id && row.accountId === account.id))
   return accounts.map((account) => ({ account, sessions: sessionsOf(account) }))
 }
@@ -193,8 +213,8 @@ export const deviceLinksPlugin = (providers: { provider: string; name: string }[
             if (!(await isRefusedAccount(ctx.context, account.providerId, account.accountId))) throw error
           })
         }
-        const [link] = await deviceLinks(ctx.context, userId, providers.filter(({ provider }) => provider === account.providerId)).then((links) => links.filter((found) => found.account.id === account.id))
-        for (const session of link?.sessions ?? []) await ctx.context.internalAdapter.deleteSession(session.token)
+        const { sessions } = await sessionsBegunBy(ctx.context, [account.id])
+        for (const session of sessions) await ctx.context.internalAdapter.deleteSession(session.token)
         await ctx.context.internalAdapter.deleteAccount(account.id)
         return ctx.json({ signedOut: true })
       }),
