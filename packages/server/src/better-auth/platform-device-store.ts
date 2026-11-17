@@ -10,14 +10,15 @@ export type DeviceLinkRow = { id: string; providerId: string; idToken: string | 
 
 /**
  * The person's accounts of the device `providers`, oldest first, each with the tokens of every session it began: one
- * query, which the user's accounts' index, `device_session_account_id_idx` and the sessions' key serve.
+ * query, which the user's accounts' index, `device_session_account_id_idx` and the sessions' key serve. A device
+ * session names its account as text, also in a store whose ids are uuids, so the account's id is compared as text.
  */
 export const deviceLinkRows = async (context: DeviceStoreContext, userId: string, providers: string[]) => {
   const names = { schema: storeSchema(context) }
   const { rows } = await sql<DeviceLinkRow>`select a.id, a.provider_id as "providerId", a.id_token as "idToken", a.created_at as "createdAt",
   coalesce(array_agg(s.token order by s.created_at) filter (where s.token is not null), '{}') as sessions
 from ${storeTable(names, 'account')} a
-left join ${storeTable(names, 'device_session')} d on d.account_id = a.id
+left join ${storeTable(names, 'device_session')} d on d.account_id = a.id::text
 left join ${storeTable(names, 'session')} s on s.id = d.session_id
 where a.user_id = ${userId} and a.provider_id in (${sql.join(providers)})
 group by a.id
