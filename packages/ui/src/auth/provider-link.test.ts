@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { providerName, readProviderError, readSecondStep, readSignInLink, withoutSignInLink } from './provider-link'
+import { buttonProviders, providerName, readProviderError, readSecondStep, readSignInLink, withoutSignInLink } from './provider-link'
 
 describe('readSignInLink', () => {
   it('reads the provider a link asks to sign in with', () => {
@@ -48,5 +48,12 @@ describe('providerName', () => {
     expect(providerName('central', [{ provider: 'oidc', name: 'Acme SSO' }, { provider: 'central', name: 'Central' }])).toBe('Central')
     expect(providerName('github', [{ provider: 'github', name: 'GitHub' }])).toBe('GitHub')
     expect(providerName('keycloak')).toBe('Keycloak')
+  })
+})
+
+describe('buttonProviders', () => {
+  it('leaves out the providers only a sign-in link starts, and keeps the rest in order', () => {
+    const providers = [{ id: 'github', name: 'GitHub' }, { id: 'console', name: 'GitHub', linkOnly: true as const }, { id: 'okta', name: 'Okta' }]
+    expect(buttonProviders(providers).map(({ id }) => id)).toEqual(['github', 'okta'])
   })
 })

@@ -2838,6 +2838,17 @@
             }
           ]
         },
+        "button": {
+          "description": "Whether the sign-in page shows \"Continue with {name}\" for it. With `false`, people sign in through its pages only\nwhen something sends them there: a sign-in link (`?sign-in={provider}`) or a redirect another app starts. Only for a\nprovider with pages. Default on.",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
         "tokenSignIn": {
           "description": "Token sign-in: a client that holds a fresh ID token the provider issued for this app posts it instead of sending\nthe browser through the provider, and gets the app's own session (see `idTokenSignInPlugin`). Default off.",
           "anyOf": [

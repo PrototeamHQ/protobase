@@ -69,6 +69,8 @@ describe('readPlatformSignIns, further providers', () => {
     expect(() => one({ ...env, PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS: 'connection=github&connection=other' })).toThrow('PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS names connection twice')
     expect(() => one({ ...env, PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS: '=github' })).toThrow(/must be written as name=value/)
     expect(() => one({ ...env, PROTOBASE_SIGN_IN_HIDDEN: 'yes' })).toThrow(/PROTOBASE_SIGN_IN_HIDDEN must be true or false/)
+    expect(one({ ...env, PROTOBASE_SIGN_IN_BUTTON: 'false' })).toEqual({ ...settings, button: false })
+    expect(() => one({ ...env, PROTOBASE_SIGN_IN_BUTTON: 'off' })).toThrow(/PROTOBASE_SIGN_IN_BUTTON must be true or false/)
     expect(readPlatformSignIns({ ...env, ...central, PROTOBASE_SIGN_IN_2_DEVICES: 'true' })[1]).toMatchObject({ devices: true })
     expect(() => readPlatformSignIns({ ...env, ...central, PROTOBASE_SIGN_IN_2_DEVICES: 'on' })).toThrow(/PROTOBASE_SIGN_IN_2_DEVICES must be true or false/)
   })
