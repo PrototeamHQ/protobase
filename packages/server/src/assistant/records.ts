@@ -29,7 +29,10 @@ export type ListParams = {
   fields?: string[]
   count?: 'exact'
   show_deleted?: boolean
-  /** `<field>:<n>`: the first n records per value of the field, in the list's order, with no further page. */
+  /**
+   * `<field>:<n>`: the first n records per value of the field, in the list's order, with no further page: at most
+   * `page_size` records in all, so a list of many values asks for n times their number.
+   */
   limit_per?: string
 }
 
