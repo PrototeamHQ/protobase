@@ -19,7 +19,7 @@ export const unlinkGuard = (connections: readonly ResolvedConnection[]) => {
       const session = await getSessionFromCtx(ctx)
       // Without a session, or an account id, Better Auth's endpoint refuses the request itself.
       if (!session || typeof accountId !== 'string') return
-      const account = await findAccount(ctx.context.adapter, session.user.id, accountId)
+      const account = await findAccount(ctx.context, session.user.id, accountId)
       if (account && connectionOf(account)) throw connectionRefusal('FORBIDDEN', 'CONNECTION_UNLINK_REFUSED', ctx.headers)
     }),
   }

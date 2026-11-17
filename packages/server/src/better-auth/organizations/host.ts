@@ -1,6 +1,7 @@
 import { sql } from 'kysely'
 import type { AdminAuth } from '../create-auth'
 import { pageOf } from '../store/page-of'
+import { mayBeId } from '../store/store-reads'
 import { storeSqlOf } from '../store/store-sql'
 import { parseAppRoles } from './app-roles'
 import { membershipRoles } from './role-definitions'
@@ -39,15 +40,12 @@ const userByEmail = async (auth: AdminAuth, email: string) => {
 }
 
 /** An organization by its id or slug. */
-const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 export const findOrganizationByKey = async (auth: AdminAuth, key: string) => {
   const context = await contextOf(auth)
   const { adapter } = context
-  // Where the ids are uuids, a key that is none is a slug: Postgres would refuse it as an id.
-  const mayBeId = context.options.advanced?.database?.generateId !== 'uuid' || uuid.test(key)
+  // Where the ids are uuids, a key that is none is a slug.
   const found =
-    (mayBeId ? await adapter.findOne<StoredOrganization>({ model: 'organization', where: [{ field: 'id', value: key }] }) : null) ??
+    (mayBeId(context.options, key) ? await adapter.findOne<StoredOrganization>({ model: 'organization', where: [{ field: 'id', value: key }] }) : null) ??
     (await adapter.findOne<StoredOrganization>({ model: 'organization', where: [{ field: 'slug', value: key }] }))
   if (!found) throw new Error(`No organization "${key}"`)
   return found

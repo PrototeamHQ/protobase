@@ -35,7 +35,7 @@ export const connectionsPlugin = ({ connections, events, allowPrivateAddresses }
       disconnectConnection: createAuthEndpoint(connectionPaths.disconnect, { method: 'POST', use: [sessionMiddleware], body: z.object({ accountId: z.string() }) }, async (ctx) => {
         const adapter = ctx.context.internalAdapter
         const userId = ctx.context.session.user.id
-        const account = await findAccount(ctx.context.adapter, userId, ctx.body.accountId)
+        const account = await findAccount(ctx.context, userId, ctx.body.accountId)
         const connection = account && connections.find((candidate) => candidate.providerId === account.providerId)
         // The same answer for an account that is not there and one of someone else's, so it tells nothing of other accounts.
         if (!account || !connection) throw connectionRefusal('NOT_FOUND', 'CONNECTION_NOT_FOUND', ctx.headers)

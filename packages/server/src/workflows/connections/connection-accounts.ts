@@ -18,7 +18,7 @@ export type ConnectionAccounts = {
 /** The accounts Better Auth keeps, read through its internal adapter, with its refreshing `getAccessToken`. */
 export const betterAuthConnectionAccounts = (auth: TokenAuth): ConnectionAccounts => ({
   find: async (userId, accountId) => {
-    const account = await findAccount((await auth.$context).adapter, userId, accountId)
+    const account = await findAccount(await auth.$context, userId, accountId)
     if (!account) return
     return { id: account.id, providerId: account.providerId, scopes: storedScopes(account.scope), refreshToken: account.refreshToken ?? null }
   },
