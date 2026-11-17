@@ -7,6 +7,7 @@ import { codeMinutes } from '../sign-in-mail'
 import { isSignInCode, issueSignInCode } from './sign-in-code'
 import { createSignedUpAccount } from './sign-up-account'
 import { signUpTakes } from './sign-up-domains'
+import { exists } from '../store/store-reads'
 
 export type CodeSignUpOptions = {
   /** The role every account made here gets, unless the address has a pending invitation. */
@@ -18,7 +19,7 @@ export type CodeSignUpOptions = {
 
 /** Whether the emailed sign-in code makes the account of `email`, which has none: open sign-up takes it, and the store has its first admin. */
 export const codeSignsUp = async (context: AuthContext, email: string, domains: string[] | undefined) =>
-  signUpTakes(email, domains) && (await context.adapter.count({ model: 'user' })) > 0
+  signUpTakes(email, domains) && (await exists(context.adapter, 'user', []))
 
 const bodyOf = (body: unknown) => body as { email?: unknown; type?: unknown; otp?: unknown } | undefined
 

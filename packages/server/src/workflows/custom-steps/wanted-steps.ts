@@ -11,11 +11,13 @@ export const wantCustomSteps = async (trx: Db, schema: string, workflow: string,
   await sql`delete from ${wanted} where workflow_id = ${workflow}`.execute(trx)
   const steps = [...new Set(definition ? resources(definition.stateMachine) : [])].flatMap((type) => {
     const step = customStepOf(type)
-    return step ? [`${step.name}:${step.version}`] : []
+    return step ? [step] : []
   })
   if (steps.length === 0) return
   await sql`insert into ${wanted} (workflow_id, version_id, tenant_id)
-    select w.id, v.id, w.tenant_id from ${sql.id(schema, 'workflows')} w join ${sql.id(schema, 'custom_step_versions')} v on coalesce(v.tenant_id, '') = coalesce(w.tenant_id, '')
-    where w.id = ${workflow} and v.custom_step_id is not null and v.name || ':' || v.version = any(${steps})
+    select w.id, v.id, w.tenant_id from ${sql.id(schema, 'workflows')} w
+    cross join unnest(${steps.map((step) => step.name)}::text[], ${steps.map((step) => step.version)}::integer[]) as s(name, version)
+    join ${sql.id(schema, 'custom_step_versions')} v on coalesce(v.tenant_id, '') = coalesce(w.tenant_id, '') and v.name = s.name and v.version = s.version
+    where w.id = ${workflow} and v.custom_step_id is not null
     on conflict do nothing`.execute(trx)
 }

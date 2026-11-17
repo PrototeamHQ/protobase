@@ -10,13 +10,14 @@ import { mailSenders } from './009-mail-senders'
 import { mailSenderNames } from './010-mail-sender-names'
 import { accountKeys } from './011-account-keys'
 import { userIndexes } from './012-user-indexes'
+import { lookupIndexes } from './013-lookup-indexes'
 import type { StoreMigration } from './migration'
 
 // Every table of every feature, whether the app turns the feature on or not, so turning one on or off never changes
 // the schema and no relationship has to depend on it. SAML providers and open sign-up keep nothing of their own.
 
 /** The auth store's migrations, by version. A new one goes last, with the next version. */
-export const storeMigrations: StoreMigration[] = [core, twoFactor, passkeys, signInPolicy, staffSignIn, organizations, mcp, personalAccessTokens, mailSenders, mailSenderNames, accountKeys, userIndexes]
+export const storeMigrations: StoreMigration[] = [core, twoFactor, passkeys, signInPolicy, staffSignIn, organizations, mcp, personalAccessTokens, mailSenders, mailSenderNames, accountKeys, userIndexes, lookupIndexes]
 
 /** The version the store is at once every migration is applied. */
 export const latestStoreVersion = storeMigrations.at(-1)!.version
