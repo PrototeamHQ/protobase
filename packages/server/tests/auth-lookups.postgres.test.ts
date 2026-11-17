@@ -8,7 +8,7 @@ import { endStaffSignIn, listStaffSignIns, staffSignInOfSession } from '../src/b
 import { hasUsers } from '../src/better-auth/users'
 import { createAppInvitation, findAppInvitationOf, listAppInvitations } from '../src/better-auth/users/app-invitation-store'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
-import { seqScansOf, watchStatements } from '../../../test-support/query-plans'
+import { largeTable, seqScansOf, watchStatements } from '../../../test-support/query-plans'
 
 // The auth store's lookups, as they are sent, on as many rows as a busy app holds: each one finds its rows by an index.
 // Too many rows for a recording to hold, and plans a recording cannot make.
@@ -42,7 +42,7 @@ describe.skipIf(!ready)('the auth store lookups', () => {
   it('ask whether any user exists, as the status route and sign-up do, by the first of 100,000 rows', async () => {
     const { auth, context, fill, plansOf } = await serve()
     expect(await hasUsers(auth)).toBe(false)
-    await fill(`insert into "user" (id, name, email, email_verified, role, banned, created_at, updated_at)
+    await fill(`${largeTable('"user"', ['email'])}; insert into "user" (id, name, email, email_verified, role, banned, created_at, updated_at)
       select 'u' || i, 'User ' || i, 'user' || i || '@example.com', true, 'user', false, now(), now() from generate_series(1, 100000) i`)
     expect(await hasUsers(auth)).toBe(true)
     expect(await codeSignsUp(context, 'new@example.com', undefined)).toBe(true)
@@ -54,7 +54,7 @@ describe.skipIf(!ready)('the auth store lookups', () => {
 
   it('page through 100,000 organizations by their creation', async () => {
     const { auth, fill, plansOf } = await serve()
-    await fill(`insert into organization (id, name, slug, created_at)
+    await fill(`${largeTable('organization', ['created_at', 'id'])}; insert into organization (id, name, slug, created_at)
       select 'o' || i, 'Organization ' || i, 'organization-' || i, timestamptz '2026-07-01 00:00:00+00' + i * interval '1 second' from generate_series(1, 100000) i`)
     const first = await listOrganizations(auth, { size: 100 })
     const second = await listOrganizations(auth, { after: first.next!, size: 100 })
@@ -67,7 +67,7 @@ describe.skipIf(!ready)('the auth store lookups', () => {
   it('find which other hosts hold a passkey among 100,000, passkeys made before they kept their RP ID counting for the first', async () => {
     const { context, fill, plansOf } = await serve()
     const origins = ['https://erp-x1.protobase.net', 'https://admin.shop.com', 'https://admin.shop.com:8443', 'https://shop.example']
-    await fill(`${root}; insert into passkey (id, public_key, user_id, credential_id, counter, device_type, backed_up, rp_id)
+    await fill(`${root}; ${largeTable('passkey', ['rp_id'])}; insert into passkey (id, public_key, user_id, credential_id, counter, device_type, backed_up, rp_id)
       select 'p' || i, 'key', 'root', 'credential-' || i, 0, 'singleDevice', false, 'admin.shop.com' from generate_series(1, 100000) i`)
     expect(await signInPasskeyDomains(context.adapter, 'admin.shop.com', origins)).toEqual(['admin.shop.com'])
     await fill(`insert into passkey (id, public_key, user_id, credential_id, counter, device_type, backed_up, rp_id) values ('before', 'key', 'root', 'before', 0, 'singleDevice', false, null)`)
@@ -82,7 +82,7 @@ describe.skipIf(!ready)('the auth store lookups', () => {
 
   it('find the staff sign-in of a session, end it, and list the newest, among 100,000', async () => {
     const { context, fill, plansOf } = await serve()
-    await fill(`insert into staff_sign_in (id, user_id, user_email, staff, staff_subject, issuer, reason, session_id, started_at, expires_at)
+    await fill(`${largeTable('staff_sign_in', ['session_id', 'started_at'])}; insert into staff_sign_in (id, user_id, user_email, staff, staff_subject, issuer, reason, session_id, started_at, expires_at)
       select 's' || i, 'root', 'root@example.com', 'staff@example.com', 'subject', 'https://central.example', 'support', 'session-' || i,
         timestamptz '2026-07-01 00:00:00+00' + i * interval '1 second', timestamptz '2026-07-02 00:00:00+00' + i * interval '1 second'
       from generate_series(1, 100000) i`)
@@ -97,7 +97,7 @@ describe.skipIf(!ready)('the auth store lookups', () => {
 
   it('list, find and replace the app invitations among 100,000 other verifications', async () => {
     const { context, fill, plansOf } = await serve()
-    await fill(`${root}; insert into verification (id, identifier, value, expires_at, created_at, updated_at)
+    await fill(`${root}; ${largeTable('verification', ['identifier'])}; insert into verification (id, identifier, value, expires_at, created_at, updated_at)
       select 'v' || i, 'email-verification:' || i, 'token', now() + interval '1 day', now(), now() from generate_series(1, 100000) i`)
     await createAppInvitation(context, { email: 'ana@example.com', roles: ['user'], inviterId: 'root' }, 86_400)
     await createAppInvitation(context, { email: 'ana@example.com', roles: ['support'], inviterId: 'root' }, 86_400)

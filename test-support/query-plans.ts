@@ -53,3 +53,10 @@ export const watchStatements = (store: PostgresDatabase) => {
 
 /** The sequential scans of `table` among `plans`. */
 export const seqScansOf = (plans: string[], table: string) => plans.filter((plan) => new RegExp(`Seq Scan on ("?[\\w]+"?\\.)?"?${table}"?\\b`).test(plan))
+
+/**
+ * What a table above 30k rows needs before its rows go in, so every run plans alike: no autovacuum to change its
+ * statistics mid-test, and `analyze` reading every row of the `columns` the plans read it by.
+ */
+export const largeTable = (table: string, columns: string[]) =>
+  [`alter table ${table} set (autovacuum_enabled = off)`, ...columns.map((column) => `alter table ${table} alter column ${column} set statistics 1000`)].join(';\n')

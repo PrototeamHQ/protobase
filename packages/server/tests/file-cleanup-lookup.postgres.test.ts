@@ -9,7 +9,7 @@ import { storageCleanupSchedule } from '../src/files/cleanup-schedule'
 import { localFiles } from '../src/files/local-files'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
 import { field, model } from '../../../test-support/query'
-import { seqScansOf, watchStatements } from '../../../test-support/query-plans'
+import { largeTable, seqScansOf, watchStatements } from '../../../test-support/query-plans'
 
 // Before it deletes a file, the cleanup checks that no row of a file column holds it, among as many rows as a busy
 // table holds: by the index the doctor suggests for the column. Plans a recording cannot make.
@@ -27,7 +27,7 @@ const body = () => new Blob(['bytes']).stream()
 describe.skipIf(!ready)('the file cleanup among 200,000 rows', () => {
   it('keeps a file a row holds and deletes the others, looking each up by the index the doctor suggests', async () => {
     const store = await openPostgresDatabase('empty')
-    await store.exec(`create table photos (id integer primary key, photo text);
+    await store.exec(`create table photos (id integer primary key, photo text); ${largeTable('photos', ['photo'])};
       insert into photos select i, 'local:photos/' || i || '.jpg?w=100' from generate_series(1, 200000) i;
       analyze`)
     const [needed] = uncoveredFileColumns(photos, await tableIndexes(store.db, photos))

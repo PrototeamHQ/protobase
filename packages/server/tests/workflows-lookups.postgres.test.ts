@@ -6,7 +6,7 @@ import { runnersOnline } from '../src/workflows/custom-steps/custom-step-tests'
 import { wantCustomSteps } from '../src/workflows/custom-steps/wanted-steps'
 import { workflowsMigration } from '../src/workflows/schema'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
-import { seqScansOf, watchStatements } from '../../../test-support/query-plans'
+import { largeTable, seqScansOf, watchStatements } from '../../../test-support/query-plans'
 
 // The workflows schema's lookups, as they are sent, on as many rows as a busy app holds: each finds its rows by an
 // index. Plans a recording cannot make.
@@ -32,7 +32,8 @@ const manifest = `'Step', '{"image": "step"}', '{}', '{}'`
 describe.skipIf(!ready)('the workflows lookups', () => {
   it('find the workflows a person turned on among 100,000 versions', async () => {
     const { db, fill, plansOf } = await serve()
-    await fill(`insert into workflows.workflows (name, state_machine, trigger) select 'Workflow ' || i, '{}', '{}' from generate_series(1, 100000) i;
+    await fill(`${largeTable('workflows.workflows', ['id'])}; ${largeTable('workflows.versions', ['enabled_by'])};
+      insert into workflows.workflows (name, state_machine, trigger) select 'Workflow ' || i, '{}', '{}' from generate_series(1, 100000) i;
       insert into workflows.versions (workflow_id, version, state_machine, trigger, enabled_by)
         select id, 1, '{}', '{}', 'user-' || abs(hashtext(id::text) % 5000) from workflows.workflows`)
     const uses = connectionUses({ deps: () => ({ db }) as unknown as Deps, schema: 'workflows', roles: { roles: async () => [] } as never })

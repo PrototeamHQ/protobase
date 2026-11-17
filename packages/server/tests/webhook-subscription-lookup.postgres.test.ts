@@ -4,7 +4,7 @@ import { deliveryLogSql, subscriptionsIndexesSql, subscriptionsSql } from '../sr
 import { tableSubscriptions } from '../src/webhooks/table/table-subscriptions'
 import type { SubscriptionEvent } from '../src/webhooks/subscription'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
-import { seqScansOf, watchStatements } from '../../../test-support/query-plans'
+import { largeTable, seqScansOf, watchStatements } from '../../../test-support/query-plans'
 
 // Each delivery of a subscription made in the admin app reads its row and records its try on it, among as many
 // subscriptions as a busy app holds: by its primary key, as a uuid. Plans a recording cannot make.
@@ -18,6 +18,7 @@ describe.skipIf(!ready)('a table subscription among 100,000', () => {
   it('is found and has its tries recorded by its primary key, and an id that is no uuid names none', async () => {
     const store = await openPostgresDatabase('trigram')
     await store.exec(`create schema webhooks; ${subscriptionsSql('webhooks', 'changes')}; ${subscriptionsIndexesSql('webhooks')}; ${deliveryLogSql('webhooks')};
+      ${largeTable('webhooks.subscriptions', ['id'])};
       insert into webhooks.subscriptions (id, name, events, url)
         select ('00000000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid, 'Subscription ' || i, 'orders.created', 'https://example.com/' || i from generate_series(1, 100000) i;
       analyze`)
