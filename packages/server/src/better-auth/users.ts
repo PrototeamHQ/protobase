@@ -2,14 +2,22 @@ import type { AdminAuth } from './create-auth'
 import { isActiveAdmin } from './last-admin'
 import { revokeMcpGrants } from './mcp/revoke-grants'
 import { ownOrganizationsWithoutMembers } from './organizations/host'
+import type { AuthContext } from './organizations/store'
 import { parseRoles } from './parse-roles'
+import { activeAdminExists } from './store/active-admin'
+import { pageOf } from './store/page-of'
+import { storeSqlOf } from './store/store-sql'
 
 export { parseRoles }
 
 // Storage goes through Better Auth's own adapters (`adapter` and `internalAdapter` of `auth.$context`), which also map
-// model and column names, never through its tables. The admin plugin's HTTP-style endpoints (banUser, setRole,
+// model and column names; what they cannot ask, whether another active admin exists and a keyset page of the users,
+// goes to the store as SQL (`store/store-sql.ts`). The admin plugin's HTTP-style endpoints (banUser, setRole,
 // removeUser, revokeUserSessions) need a signed-in admin session, so a host without one (the CLI) cannot call them;
 // they use the same internalAdapter calls as here. Written against better-auth 1.7.7.
+
+// The instance's context is typed by its own options; the store functions take the context of any instance.
+const contextOf = async (auth: AdminAuth) => (await auth.$context) as unknown as AuthContext
 
 /** The roles this auth instance allows, `admin` first. */
 export const roleChoices = (auth: AdminAuth) => [...auth.roles]
@@ -75,35 +83,38 @@ export const createUser = async (auth: AdminAuth, input: NewUser) => {
 
 type Row = { id: string; email: string; role?: string | string[] | null; banned?: boolean | null; createdAt: Date | string }
 
-const allUsers = async (auth: AdminAuth) => {
-  const { adapter } = await auth.$context
-  return adapter.findMany<Row>({ model: 'user', sortBy: { field: 'createdAt', direction: 'asc' } })
-}
-
 const rolesOf = (user: Row) => parseRoles(user.role)
 
 const findUser = async (auth: AdminAuth, email: string) => {
-  const user = (await allUsers(auth)).find((candidate) => candidate.email.toLowerCase() === email.toLowerCase())
-  if (!user) throw new Error(`No user with email ${email}`)
-  return user
+  const found = await (await auth.$context).internalAdapter.findUserByEmail(email.toLowerCase())
+  if (!found) throw new Error(`No user with email ${email}`)
+  return found.user as Row
 }
 
 // Every host caller goes through here, and HTTP callers through `lastAdminGuardPlugin`, so the last admin can never be
 // removed, demoted or banned by accident.
 const refuseLastAdmin = async (auth: AdminAuth, user: Row, action: string) => {
   if (!isActiveAdmin(user)) return
-  const admins = (await allUsers(auth)).filter(isActiveAdmin)
-  if (admins.length <= 1) throw new Error(`Cannot ${action} the last admin`)
+  if (!(await activeAdminExists(storeSqlOf(await contextOf(auth)), { except: user.id }))) throw new Error(`Cannot ${action} the last admin`)
 }
 
-export const listUsers = async (auth: AdminAuth): Promise<StoredUser[]> =>
-  (await allUsers(auth)).map((user) => ({
-    id: user.id,
-    email: user.email,
-    role: rolesOf(user).join(','),
-    banned: Boolean(user.banned),
-    createdAt: new Date(user.createdAt).toISOString(),
-  }))
+/** Where a page of `listUsers` ends: pass it as `after` for the next page. */
+export type UsersCursor = { createdAt: string; id: string }
+
+/** The users a page holds, oldest first, and where the next page starts; no `next` on the last page. */
+export type UsersPage = { users: StoredUser[]; next?: UsersCursor }
+
+/** The users a page of `listUsers` holds when it is not told. */
+export const usersPageSize = 500
+
+/** A page of the users, oldest first: `size` of them from `after`, the `next` of the page before, as Postgres pages them. */
+export const listUsers = async (auth: AdminAuth, { after, size = usersPageSize }: { after?: UsersCursor; size?: number } = {}): Promise<UsersPage> => {
+  const store = storeSqlOf(await contextOf(auth))
+  const select = Object.fromEntries(['id', 'email', 'role', 'banned', 'createdAt'].map((field) => [field, store.userColumn(field)]))
+  const page = await pageOf<Row>(store, { from: store.user, select, key: [store.userColumn('createdAt'), store.userColumn('id')], ...(after && { after: [after.createdAt, after.id] }), size })
+  const users = page.rows.map((user) => ({ id: user.id, email: user.email, role: rolesOf(user).join(','), banned: Boolean(user.banned), createdAt: new Date(user.createdAt).toISOString() }))
+  return { users, ...(page.next && { next: { createdAt: page.next[0]!, id: page.next[1]! } }) }
+}
 
 /**
  * Deletes the user with their sessions and accounts, their MCP grants with MCP on, and what `auth.userDeletion`

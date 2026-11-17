@@ -1,6 +1,6 @@
 import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthMiddleware } from 'better-auth/api'
-import { wouldLeaveNoAdmin, type AdminCandidate, type AdminChange } from './last-admin'
+import { leavesNoAdmin, type AdminChange } from './last-admin'
 import { parseRoles } from './parse-roles'
 
 type Body = { userId?: unknown; role?: unknown; data?: { role?: unknown; banned?: unknown } }
@@ -39,8 +39,7 @@ export const lastAdminGuardPlugin = () =>
           handler: createAuthMiddleware(async (ctx) => {
             const change = adminChange(ctx.path, (ctx.body ?? {}) as Body)
             if (!change) return
-            const users = await ctx.context.adapter.findMany<AdminCandidate>({ model: 'user', select: ['id', 'role', 'banned'] })
-            if (wouldLeaveNoAdmin(users, change)) refuseLastAdmin()
+            if (await leavesNoAdmin(ctx.context, change)) refuseLastAdmin()
           }),
         },
       ],

@@ -11,12 +11,13 @@ const password = 'correct horse battery'
 const newPassword = 'another horse battery'
 
 // Better Auth with Protobase's options on a store in memory, whose rows have the store's snake_case columns, with a
-// locked demo account, another user and an admin.
+// locked demo account, another user and an admin. The demo account is no admin, so removing it never asks Postgres
+// whether another admin exists (tests/many-users.test.ts).
 const setUp = async () => {
   const store: Record<string, Record<string, unknown>[]> = { user: [], account: [], session: [], verification: [], two_factor: [], passkey: [], sign_in_policy: [], jwks: [] }
   const auth = betterAuth({ ...betterAuthOptions(base, resolved), database: memoryAdapter(store) })
   const create = (email: string, role: string) => auth.api.createUser({ body: { email, password, name: email, role: role as 'user' } })
-  const demo = (await create('Demo@Example.com', 'admin')).user
+  const demo = (await create('Demo@Example.com', 'user')).user
   const other = (await create('other@example.com', 'user')).user
   await create('root@example.com', 'admin')
   const signIn = async (email: string, secret = password) => (await auth.api.signInEmail({ body: { email, password: secret }, returnHeaders: true })).headers

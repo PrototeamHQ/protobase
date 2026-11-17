@@ -1,5 +1,6 @@
 import type { BetterAuthPlugin, DBAdapter, Where } from 'better-auth'
 import { APIError } from 'better-auth/api'
+import { exists } from './store/store-reads'
 
 export const lockedAccountsVariable = 'PROTOBASE_LOCKED_ACCOUNTS'
 
@@ -31,15 +32,14 @@ export const refuseLockedAccount = (): never => {
  * endpoint or host call writes. A locked account's first account row, made with its user, is the one write of those it allows.
  */
 export const lockAccounts = <A extends Writes>(adapter: A, emails: string[]): A => {
+  // The addresses are unique, so the list bounds the users.
   const lockedIds = async () =>
-    new Set((await adapter.findMany<{ id: string }>({ model: 'user', where: [{ field: 'email', operator: 'in', value: emails }], select: ['id'] })).map((user) => user.id))
-  // Whether `where` matches a row of a locked account; the user's own row is matched by its `id`.
+    new Set((await adapter.findMany<{ id: string }>({ model: 'user', where: [{ field: 'email', operator: 'in', value: emails }], select: ['id'], limit: emails.length })).map((user) => user.id))
+  // Whether `where` matches a row of a locked account, asked of the store; the user's own row is matched by its `id`.
   const matchesLocked = async (model: string, where: Where[]) => {
     const ids = await lockedIds()
     if (ids.size === 0) return false
-    const owner = model === 'user' ? 'id' : 'userId'
-    const rows = await adapter.findMany<Record<string, string>>({ model, where, select: [owner] })
-    return rows.some((row) => ids.has(row[owner]!))
+    return exists(adapter, model, [...where, { field: model === 'user' ? 'id' : 'userId', operator: 'in', value: [...ids] }])
   }
   const checkUpdate = async (model: string, where: Where[], fields: string[]) => {
     const locked = lockedFields[model]

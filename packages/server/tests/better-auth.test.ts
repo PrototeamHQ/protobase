@@ -86,7 +86,7 @@ describe('the first admin', () => {
   it('lists users without secrets, and later users get the requested role', async () => {
     const second = await createUser(auth, { email: 'later@example.com', password })
     expect(second.role).toBe('user')
-    const users = await listUsers(auth)
+    const { users } = await listUsers(auth)
     expect(users.map((user) => [user.email, user.role])).toEqual([['root@example.com', 'admin'], ['later@example.com', 'user']])
     expect(JSON.stringify(users)).not.toContain(password)
     await store.exec(`delete from account where user_id = '${second.id}'; delete from session where user_id = '${second.id}'; delete from "user" where id = '${second.id}'`)
@@ -226,7 +226,7 @@ describe('JWKS caching in betterAuthAuthenticator', () => {
 const claimsOfToken = (token: string) => JSON.parse(Buffer.from(token.split('.')[1]!, 'base64url').toString()) as { role: string }
 
 describe('managing users on the host', () => {
-  const emails = async () => (await listUsers(auth)).map((user) => `${user.email}:${user.role}${user.banned ? ':banned' : ''}`)
+  const emails = async () => (await listUsers(auth)).users.map((user) => `${user.email}:${user.role}${user.banned ? ':banned' : ''}`)
 
   it('bans (ending sessions and sign-in), unbans, changes roles and deletes', async () => {
     await createUser(auth, { email: 'temp@example.com', password })
