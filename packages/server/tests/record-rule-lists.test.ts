@@ -192,4 +192,11 @@ describe('a write rule that reads the record without throwing', () => {
     expect(await (await get('/orders/1')).json()).toMatchObject({ id: 1, status: 'shipped' })
     expect((await write('PATCH', 2, { status: 'paid' })).status).toBe(200)
   })
+
+  it("tells a page of 150 orders what the caller may do with each, from the stored rows read at once", async () => {
+    await db.insertInto('orders').values(Array.from({ length: 148 }, (_, i) => ({ id: i + 3, status: i % 2 === 0 ? 'shipped' : 'draft' }))).execute()
+    const page = (await (await get('/orders?page_size=150')).json()) as { items: { status: string; permissions: { update: boolean; delete: boolean } }[] }
+    expect(page.items).toHaveLength(150)
+    for (const { status, permissions } of page.items) expect(permissions).toEqual(status === 'shipped' ? { update: false, delete: false } : { update: true, delete: true })
+  })
 })
