@@ -88,7 +88,7 @@ export const tableFeed = ({ db, schema, intervalMs = 1000, report }: TableFeedOp
     replay: async (from, upTo, limit) => {
       if (!(await noticeKept(db, schema, from))) return undefined
       if (!after(upTo, from)) return []
-      const notices = (await noticesAfter(db, schema, from, limit + 1)).filter((notice) => !after(notice.id, upTo))
+      const notices = await noticesAfter(db, schema, from, limit + 1, upTo)
       return notices.length > limit ? undefined : notices
     },
   }
