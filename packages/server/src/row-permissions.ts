@@ -3,15 +3,13 @@ import { sql, type SqlBool } from 'kysely'
 import type { Db } from '@protobase/query'
 import { compileFilter } from '@protobase/query'
 import { parentGuard } from './parent-access'
-import { fetchRecord } from './records'
+import { fetchRecords, recordKey } from './records'
 import { andFilters, recordDecision, type RequestAccess } from './request-access'
 import { aliasedColumn, columnId, scopeConditions, tableId, whereClause } from './sql-parts'
 import { tenantScope } from './tenant'
 import type { Row } from './types'
 
 export type RowPermissions = { update: boolean; delete: boolean }
-
-const keyOf = (access: RequestAccess, row: Row) => JSON.stringify(access.full.primaryKey.map((name) => String(row[name])))
 
 // Keys among `rows` that satisfy a row filter, decided by the database with the same semantics as reads.
 const matching = async (trx: Db, access: RequestAccess, rows: Row[], filter: NonNullable<ReturnType<typeof andFilters>>) => {
@@ -21,7 +19,7 @@ const matching = async (trx: Db, access: RequestAccess, rows: Row[], filter: Non
   const tenant = tenantScope(access.entry, access.session)?.tenantValue
   const conditions = [...scopeConditions(full, tenant), compileFilter(full, filter), sql<SqlBool>`(${sql.join(keyFields.map(columnId))}) in (${sql.join(tuples)})`]
   const found = await sql<Row>`select ${sql.join(keyFields.map(aliasedColumn))} from ${tableId(full)} as t${whereClause(conditions)}`.execute(trx)
-  return new Set(found.rows.map((row) => keyOf(access, row)))
+  return new Set(found.rows.map((row) => recordKey(access.entry, row)))
 }
 
 // A row a list across tenants brings from another tenant, which is written only from its own: the list reads the
@@ -49,14 +47,15 @@ export const rowPermissions = async (trx: Db, access: RequestAccess, rows: Row[]
     const filter = resolved.rowFilter[operation]
     if (filter) {
       const allowed = await matching(trx, access, rows, filter)
-      rows.forEach((row, i) => { if (!allowed.has(keyOf(access, row))) result[i]![operation] = false })
+      rows.forEach((row, i) => { if (!allowed.has(recordKey(access.entry, row))) result[i]![operation] = false })
     }
     if (!resolved.recordChecks.includes(operation)) continue
     const tenant = tenantScope(entry, session)?.tenantValue
+    const asked = rows.filter((_, i) => result[i]![operation])
+    const storedRows = await fetchRecords(trx, entry, asked.map((row) => access.full.primaryKey.map((name) => row[name] as string | number)), tenant)
     for (const [i, row] of rows.entries()) {
       if (!result[i]![operation]) continue
-      const key = access.full.primaryKey.map((name) => row[name] as string | number)
-      const stored = await fetchRecord(trx, entry, key, tenant)
+      const stored = storedRows.get(recordKey(entry, row))
       if (!stored) { result[i]![operation] = false; continue }
       const decision = await recordDecision(access, operation, stored.record)
       if (decision === false) { result[i]![operation] = false; continue }
@@ -74,10 +73,12 @@ const withParents = async (trx: Db, access: RequestAccess, rows: Row[], result: 
   const guard = parentGuard(trx, access, false)
   const fields = [...new Set([...full.primaryKey, ...full.parents.map((parent) => parent.field)])].map((name) => full.fields[name]!)
   const tenant = tenantScope(entry, session)?.tenantValue
+  const asked = rows.filter((_, i) => result[i]!.update || result[i]!.delete)
+  const storedRows = await fetchRecords(trx, entry, asked.map((row) => full.primaryKey.map((name) => row[name] as string | number)), tenant, { fields })
   for (const [i, row] of rows.entries()) {
     const permissions = result[i]!
     if (!permissions.update && !permissions.delete) continue
-    const stored = await fetchRecord(trx, entry, full.primaryKey.map((name) => row[name] as string | number), tenant, { fields })
+    const stored = storedRows.get(recordKey(entry, row))
     const allowed = stored !== undefined && (await guard(stored.record))
     permissions.update &&= allowed
     permissions.delete &&= allowed

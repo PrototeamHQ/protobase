@@ -31,7 +31,8 @@ export type ListParams = {
   show_deleted?: boolean
   /**
    * `<field>:<n>`: the first n records per value of the field, in the list's order, with no further page: at most
-   * `page_size` records in all, so a list of many values asks for n times their number.
+   * the page size in all (`page_size`, 50 when it is left out or 0, and never above 500), so a list of many values asks
+   * for n times their number, and one of more than 500 records splits its values over several lists.
    */
   limit_per?: string
 }
