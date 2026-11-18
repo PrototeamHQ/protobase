@@ -40,11 +40,12 @@ export const schemaWriter = (program: ts.Program) => {
     return declarations.length > 0 && declarations.every((declaration) => outside(declaration.getSourceFile()))
   }
 
-  // A value position: the value's schema, or an $env value. `undefined` when JSON cannot write the value at all.
+  // A value position: the value's schema, or an $env value. `undefined` when JSON cannot write the value at all. A
+  // boolean takes no $env value: that reads as text, and a boolean key takes only true or false.
   const valueOf = (type: ts.Type): Schema | undefined => {
     const schema = schemaOf(type)
     if (!schema) return undefined
-    if (Object.keys(schema).length === 0) return schema
+    if (Object.keys(schema).length === 0 || schema.type === 'boolean') return schema
     return { anyOf: [...(Object.keys(schema).length === 1 && Array.isArray(schema.anyOf) ? schema.anyOf : [schema]), envRef] }
   }
 
