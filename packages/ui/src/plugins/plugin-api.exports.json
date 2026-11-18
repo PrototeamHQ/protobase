@@ -70,6 +70,7 @@
     "fileNamed",
     "isConflict",
     "isFramed",
+    "logoTapEvent",
     "mentionedIds",
     "mergeUi",
     "parseDiff",
