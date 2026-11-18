@@ -3,7 +3,7 @@ import { planAdoption, storeHasTables, adoptionSql } from './store/adoption'
 import { migrationSql, migrationsTableSql } from './store/migration-sql'
 import { latestStoreVersion, storeMigrations } from './store/migrations'
 import { appliedVersions, migrationsTableName } from './store/migrations-table'
-import { storeDb } from './store/store-db'
+import { plainStoreDb } from './store/store-db'
 import { storeNames } from './store/store-names'
 
 // The admin store is versioned: its migrations ship with Protobase (`store/migrations`), and `auth_migrations` records
@@ -28,7 +28,7 @@ const refuseNewer = (applied: number[]) => {
  */
 export const authSchemaMigration = async (auth: AdminAuth) => {
   const names = storeNames(auth)
-  const db = storeDb(auth)
+  const db = plainStoreDb(auth)
   const applied = await appliedVersions(db, names)
   if (applied !== undefined) {
     refuseNewer(applied)
@@ -46,7 +46,7 @@ export const authSchemaMigration = async (auth: AdminAuth) => {
  * migrations do, before the new version serves.
  */
 export const checkAuthSchema = async (auth: AdminAuth) => {
-  const applied = await appliedVersions(storeDb(auth), storeNames(auth))
+  const applied = await appliedVersions(plainStoreDb(auth), storeNames(auth))
   const write = `Write it as a migration with \`${authMigrationCommand}\`, apply it with the project's migrations, then start again.`
   if (applied === undefined) throw new Error(`The auth store has no ${migrationsTableName} table: it is new, or an earlier Protobase made it. ${write}`)
   refuseNewer(applied)

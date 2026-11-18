@@ -1,4 +1,3 @@
-import type { PostgresPool } from 'kysely'
 import type { Db } from '@protobase/query'
 import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, DerivedCompute, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, StatusOptions, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
 import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions, workflowPlugins } from '@protobase/server/internal'
@@ -6,11 +5,8 @@ import type { MergedConfig } from './merge-config'
 import { projectDerived, projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks, projectWorkflows } from './project-parts'
 import { userTablesOn } from './user-tables-config'
 
-/**
- * The app's database: Kysely over its pool, and the pool itself, which its Better Auth store shares; a test's database
- * without auth may have none.
- */
-export type AppDatabase = { db: Db; pool?: PostgresPool }
+/** The app's database: Kysely over its pool, which its Better Auth store's queries run through. */
+export type AppDatabase = { db: Db }
 
 /**
  * The app's own mailer, the default export of its auth/mailer.ts: what sign-in and the jobs (`context.mail`) both send
@@ -22,16 +18,15 @@ export const projectMailer = async (config: MergedConfig) => (await config.authF
  * The app's sign-in, built from `auth` with the app's URL, secrets, signing key rotation and name, the hooks of its
  * auth/hooks.ts and the app's mailer when it has them; none without `auth`.
  */
-export const projectAuth = async (config: MergedConfig, { db, pool }: AppDatabase, workflows?: WorkflowsOptions): Promise<AdminAuth | undefined> => {
+export const projectAuth = async (config: MergedConfig, { db }: AppDatabase, workflows?: WorkflowsOptions): Promise<AdminAuth | undefined> => {
   if (!config.auth) return undefined
-  if (!pool) throw new Error("auth needs the app's pool, which its store shares")
   const { url, secret, previousSecrets, signingKeyDays, signingKeyGraceDays, name } = config
   if (!url) throw new Error('Sign-in needs the app\'s public URL: set PROTOBASE_URL, such as https://admin.example.com, or url in protobase.config.ts')
   if (!secret) throw new Error('Sign-in needs the app\'s secret: set PROTOBASE_SECRET to the output of `openssl rand -base64 32`, or secret in protobase.config.ts')
   const [hooks, mailer] = await Promise.all([config.authFiles?.module('auth/hooks.ts')?.(), projectMailer(config)])
   return buildAppAuth(
     { ...(config.auth || {}), baseURL: url, secret, ...(previousSecrets && { previousSecrets }), ...(signingKeyDays !== undefined && { signingKeyDays }), ...(signingKeyGraceDays !== undefined && { signingKeyGraceDays }), ...(name && { appName: name }) },
-    { pool, db, ...(hooks && { hooks: hooks as AuthHooks }), ...(mailer && { mailer }), ...(workflows && { workflowConnections: workflowConnectionsOf(workflows) }) },
+    { db, ...(hooks && { hooks: hooks as AuthHooks }), ...(mailer && { mailer }), ...(workflows && { workflowConnections: workflowConnectionsOf(workflows) }) },
   )
 }
 

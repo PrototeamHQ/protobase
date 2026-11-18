@@ -21,7 +21,7 @@ export default defineConfig({
 
 ## Admin store
 
-Users, sessions and signing keys stay apart from the application's tables, in a schema of the app's own database, `auth` by default (`auth: { schema: 'accounts' }` names another), so a host that gives an application one database (and a role that cannot create databases) is enough. The store shares the app's one pool on `DATABASE_URL`, which `protobase dev` and `serve` open, so it opens no connections beyond [`PROTOBASE_DB_CONNECTIONS`](/reference/cli/#serve), and a database restart is printed instead of stopping the app.
+Users, sessions and signing keys stay apart from the application's tables, in a schema of the app's own database, `auth` by default (`auth: { schema: 'accounts' }` names another), so a host that gives an application one database (and a role that cannot create databases) is enough. Sign-in, sessions, tokens and organization memberships run through the app's own query layer, on its one pool on `DATABASE_URL`, which `protobase dev` and `serve` open, so the store opens no connections beyond [`PROTOBASE_DB_CONNECTIONS`](/reference/cli/#serve), and a database restart is printed instead of stopping the app.
 
 ### Migrations
 

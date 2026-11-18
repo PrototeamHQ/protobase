@@ -51,7 +51,7 @@ const schema = process.env.TEST_AUTH_SCHEMA!
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1 })
 await pool.query(\`create schema \${schema}\`)
 await pool.query(\`create sequence \${schema}.user_ids\`)
-const auth = createAuth(appAuthOptions({ baseURL: 'http://localhost:1', secret: '${secret}', schema }, { pool, db: new Kysely<any>({ dialect: new PostgresDialect({ pool }) }) }))
+const auth = createAuth(appAuthOptions({ baseURL: 'http://localhost:1', secret: '${secret}', schema }, { db: new Kysely<any>({ dialect: new PostgresDialect({ pool }) }) }))
 await pool.query((await authSchemaMigration(auth))!)
 await pool.end()
 process.exit(0)

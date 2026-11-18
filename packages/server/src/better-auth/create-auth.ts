@@ -93,7 +93,11 @@ import { metadataField, userFieldsNamed, userModel, userTable, withUserColumns, 
 import { usersPlugin } from './users/users-plugin'
 
 export type CreateAuthOptions = {
-  /** A `pg` Pool, or `{ dialect, type: 'postgres', schemaName? }` for a Kysely dialect: the admin store, apart from the application's tables (its own schema or database). */
+  /**
+   * The admin store, apart from the application's tables (its own schema or database): the app's own Kysely as
+   * `{ db, type: 'postgres', schemaName? }`, whose plugins every sign-in query passes through; a `pg` Pool; or
+   * `{ dialect, type: 'postgres', schemaName? }` for a Kysely dialect.
+   */
   database: BetterAuthOptions['database']
   /** Public origin of the API, for example `https://admin.example.com`. Issuer and audience of the tokens; new passkeys are made for its host unless `passkeyDomain` names another. */
   baseURL: string

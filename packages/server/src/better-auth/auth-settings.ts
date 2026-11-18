@@ -1,4 +1,3 @@
-import { PostgresDialect, type PostgresPool } from 'kysely'
 import type { OrganizationOptions } from 'better-auth/plugins/organization'
 import type { Db } from '@protobase/query'
 import type { Mailer } from '../mail/smtp-mailer'
@@ -51,9 +50,7 @@ export type AuthSettings = Omit<CreateAuthOptions, 'database' | 'secret' | 'gene
 }
 
 export type AppAuthInput = {
-  /** The app's pool, which the store shares (`appPool`). */
-  pool: PostgresPool
-  /** The app's database, which the hooks get. */
+  /** The app's database: sign-in queries run through it, its plugins included, and the hooks get it. */
   db: Db
   hooks?: AuthHooks
   /** A mailer of the project's own, in place of the default. */
@@ -76,7 +73,7 @@ const organizationOptions = (organizations: AuthSettings['organizations'], hooks
 }
 
 /** createAuth's options for the `auth` settings, the store in the app's own database. */
-export const appAuthOptions = (settings: AuthSettings, { pool, db, hooks = {}, mailer, workflowConnections }: AppAuthInput): CreateAuthOptions => {
+export const appAuthOptions = (settings: AuthSettings, { db, hooks = {}, mailer, workflowConnections }: AppAuthInput): CreateAuthOptions => {
   const { schema = 'auth', secret, generateUserId, mailer: mail, organizations, mcp, ...rest } = settings
   if (!secret) throw new Error("the auth secret is not set: give it the app's secret, PROTOBASE_SECRET, made with `openssl rand -base64 32`")
   const app = { db }
@@ -85,7 +82,7 @@ export const appAuthOptions = (settings: AuthSettings, { pool, db, hooks = {}, m
   const onUserCreated: UserCreatedHook | undefined = hooks.onUserCreated && ((user, context) => hooks.onUserCreated!(user, context, app))
   return {
     ...rest,
-    database: { dialect: new PostgresDialect({ pool }), type: 'postgres', schemaName: schema, transaction: true },
+    database: { db, type: 'postgres', schemaName: schema, transaction: true },
     secret,
     ...(userId && { generateUserId: userId }),
     ...(onUserCreated && { onUserCreated }),
