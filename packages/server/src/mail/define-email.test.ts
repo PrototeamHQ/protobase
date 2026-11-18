@@ -60,6 +60,19 @@ describe('defineEmail', () => {
     expect(sent[0]!.headers).toEqual({ 'List-Unsubscribe': '<https://app.example.com/unsubscribe>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' })
   })
 
+  it('marks bulk mail with its topic, for the mailer to add its unsubscribe', async () => {
+    const { sent, mailer } = recording()
+    const digest = defineEmail({ name: 'digest', subject: 'Your digest', component: Body, bulk: true, topic: 'digest' })
+    await digest.send('ada@example.com', { name: 'Ada', url: 'https://app.example.com' }, mailer)
+    expect(sent[0]).toMatchObject({ to: 'ada@example.com', bulk: true, topic: 'digest' })
+    await welcome.send('ada@example.com', { name: 'Ada', url: 'https://app.example.com' }, mailer)
+    expect(sent[1]).not.toHaveProperty('bulk')
+  })
+
+  it('refuses bulk mail without a topic as it is defined', () => {
+    expect(() => defineEmail({ name: 'digest', subject: 'Your digest', component: Body, bulk: true })).toThrow('Email "digest" is bulk mail without a topic')
+  })
+
   it('refuses to send while mail is off', async () => {
     vi.stubEnv('PROTOBASE_SMTP_URL', '')
     vi.stubEnv('PROTOBASE_MAIL_FROM', '')

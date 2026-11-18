@@ -125,6 +125,8 @@ bun add -d @types/react
 | `subject` | The subject line, or a function of the data that makes it. |
 | `component` | The body, a React component of the data. It is rendered with React Email's `render` to the HTML part; the plain-text part is made from that HTML, leaving out what React Email marks to skip, such as `<Preview>`. |
 | `headers` | Optional: more header fields, or a function of the data that makes them. A value is one line. |
+| `bulk` | Optional: `true` marks bulk mail, which carries a one-click unsubscribe from its `topic` (see [Unsubscribe](#unsubscribe)). |
+| `topic` | The kind of mail, such as `newsletter`, which a recipient unsubscribes from; required with `bulk`. |
 
 The template that comes back has two methods, both typed by the component's props:
 
@@ -133,11 +135,7 @@ The template that comes back has two methods, both typed by the component's prop
 
 React and React Email's renderer are loaded on the first email rendered, not when the app starts.
 
-Mail an app sends in bulk, such as alerts or newsletters, should carry a one-click unsubscribe link, which large mailbox providers expect of bulk senders ([RFC 8058](https://www.rfc-editor.org/rfc/rfc8058)): a `List-Unsubscribe` header with the recipient's own link, and `List-Unsubscribe-Post`. The link must stop the mail on a `POST` without a sign-in, such as an [API function](/guides/api-functions/) that takes a token of the recipient's in its address:
-
-```ts
-headers: ({ unsubscribeUrl }: Digest) => ({ 'List-Unsubscribe': `<${unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }),
-```
+Mail an app sends in bulk, such as alerts or newsletters, is marked `bulk` with a `topic`, and Protobase gives it a one-click unsubscribe: see [Unsubscribe](#unsubscribe).
 
 ### The look of Protobase's own mail
 
@@ -198,6 +196,41 @@ await db.updateTable('invoices').set({ message_id: messageId ?? null }).where('i
 ```
 
 Protobase gives every message through `PROTOBASE_SMTP_URL` a new id on the sender's domain before it goes out, in place of a `Message-ID` among the message's own `headers`. A relay that rewrites the `Message-ID` changes what the recipient sees, so check that yours keeps it. A mailer of the project's own resolves to the id it sends, or to `{}` without one; mail from someone's own mailbox resolves to `{}` (see below).
+
+## Unsubscribe
+
+:::caution[Beta]
+There is no preferences page yet, and no way to subscribe again once unsubscribed.
+:::
+
+Mail you mark as bulk carries a one-click unsubscribe, as large mailbox providers expect of bulk senders ([RFC 8058](https://www.rfc-editor.org/rfc/rfc8058)): the mail client shows an unsubscribe button, and one click stops that kind of mail to that recipient. Protobase records who unsubscribed from which topic, and does not send that topic to them again.
+
+**Bulk** is mail the recipient did not ask for by an action of their own: newsletters, digests, announcements and marketing. **Transactional** mail answers something the recipient did or needs to act on, such as a password reset, a sign-in code, a receipt or an invoice: it is not marked bulk and carries no unsubscribe. Protobase's own mail is transactional.
+
+Turn it on in the config; `protobase migration` then writes its table, `mail.unsubscribes`. Its links are on the app's [`url`](/reference/config/app/#url) and signed with its [`secret`](/reference/config/app/#secret):
+
+```ts
+export default defineConfig({ unsubscribe: true })
+```
+
+Mark an email as bulk with a `topic`, the kind of mail someone unsubscribes from, such as `newsletter` or `weekly-digest`: a lowercase letter, then lowercase letters, digits, `_` and `-`. Send it from a job with the job's `mail`:
+
+```ts
+export const weeklyDigest = defineEmail({ name: 'weekly-digest', subject: 'This week', component: Digest, bulk: true, topic: 'weekly-digest' })
+
+// jobs/send-digest.ts
+const { skipped } = await weeklyDigest.send(member.email, digest, mail)
+await mail.send({ to: member.email, subject: 'News', text: '...', bulk: true, topic: 'newsletter' })
+```
+
+- **The headers:** each message gets `List-Unsubscribe` with the recipient's own link, `https://<app>/api/unsubscribe/<token>` with the default [`apiPath`](/reference/config/api/#apipath), and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`, in place of such headers of its own. The token names the recipient and the topic, signed so that nobody can unsubscribe someone else or from another topic.
+- **One recipient a message:** bulk mail goes to one plain address, since each recipient gets a link of their own; a list or a named address (`Ada <ada@example.com>`) is refused. Send one message per recipient.
+- **The click:** the mail client's `POST` with `List-Unsubscribe=One-Click` records the opt-out and answers `200`; doing it again changes nothing. Opening the link in a browser shows a page with an **Unsubscribe** button that sends that `POST`, so a scanner that follows links in mail unsubscribes no one. A link the app did not sign answers `400` and records nothing.
+- **Skipped sends:** a bulk send to someone who unsubscribed from its topic sends nothing and resolves to `{ skipped: ['ada@example.com'] }`; a sent one resolves to its `messageId` with `skipped: []`. Other topics still reach them.
+- **Who unsubscribed:** admins see each recipient, topic and time under **Unsubscribes** in the admin app, and the app's code reads them as the `mail_unsubscribes` resource, `GET /api/v1/mail_unsubscribes?topic=newsletter`. Nobody changes them but the link.
+- **Refused:** `bulk` without a `topic` is refused, as the email is defined or the message sent. Bulk mail without `unsubscribe: true`, or sent another way than a job's `mail`, such as through `PROTOBASE_SMTP_URL` directly or from someone's own mailbox, is refused before anything is sent. A mailer of the project's own (`auth/mailer.ts`) that is handed bulk mail directly, outside a job's `mail`, gets it without its unsubscribe: send it through the job's `mail` instead.
+- <gap>Bulk mail cannot be sent from an API function because only a job's `mail` adds the unsubscribe; enqueue a job instead.</gap>
+- <gap>Email templates cannot be marked bulk because `defineTemplate` does not take `bulk` and `topic` yet.</gap>
 
 ## Attachments
 
