@@ -7,11 +7,15 @@ export const viewports = { desktop: { width: 1280, height: 720 }, phone: { width
 // The stories' data and "6 days ago" labels are drawn from the clock, so every run sees the same day.
 const now = new Date('2026-10-12T09:00:00Z')
 
-// The layout once it stops changing: data loads and charts draw after the story first renders.
+// The layout once it stops changing: data loads, pages' code loads lazily and charts draw after the story first
+// renders, so a layout only counts once no request is in flight, or after 5 s for a story that keeps asking.
 export const settledTree = async (page) => {
   let last = ''
   for (let attempt = 0; attempt < 40; attempt += 1) {
     await page.waitForTimeout(250)
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch((error) => {
+      if (!(error instanceof playwrightErrors.TimeoutError)) throw error
+    })
     const tree = await page.evaluate(layoutTree)
     if (tree === last) return tree
     last = tree
