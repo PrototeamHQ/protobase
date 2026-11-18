@@ -3,6 +3,7 @@ import { LogIn } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import { Logo, type ShellLogoProps } from './logo'
+import { tellLogoTap } from './logo-tap'
 import type { NavGroup } from './nav'
 import { ProfileMenu, type ProfileMenuItem, type ProfileOrganizations, type ProfileRoles, type ProfileStatus, type ShellUser } from './profile-menu'
 import { ThemeSwitch, type ProfileTheme } from './theme-switch'
@@ -63,7 +64,8 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, f
           expanded && 'w-60 shadow-pop',
         )}
       >
-        <div className={cn('flex h-12 shrink-0 items-center px-3.5', mode === 'icon-label' && 'justify-center px-0')}>
+        {/* A tap on the logo tells the page (`logoTapEvent`); the logo has no action of its own to reach by keyboard */}
+        <div className={cn('flex h-12 shrink-0 items-center px-3.5', mode === 'icon-label' && 'justify-center px-0')} onClick={() => tellLogoTap()}>
           <SidebarLogo compact={!inline} workspace={workspace} appName={appName} appIcon={appIcon} />
         </div>
         <div className={cn('flex-1 overflow-y-auto overflow-x-hidden pb-2', mode === 'icon-label' ? 'px-2' : 'px-2')}>
