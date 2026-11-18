@@ -1,7 +1,10 @@
+import { Suspense, use, useState, type ReactNode } from 'react'
 import { lazyComponent } from './lazy-component'
 import { ListSkeleton } from './list-skeleton'
 import { RecordSkeleton } from './record-skeleton'
 import { RevealSkeleton } from './reveal-when-loaded'
+import { HoldSplash } from './splash-hold'
+import { startsFromSnapshot } from './start-screen'
 
 // The app's pages, each loaded as it first opens, with the skeleton it draws while its data loads in its place until then.
 
@@ -26,9 +29,31 @@ export const AssistantPanel = lazyComponent(() => import('./assistant-shell').th
 export const CallRings = lazyComponent(() => import('../calls/call-rings').then((module) => module.CallRings))
 export const RuntimeUpdateButton = lazyComponent(() => import('./runtime/runtime-update').then((module) => module.RuntimeUpdateButton))
 
+let pages: Promise<unknown> | undefined
+
 /**
  * Starts loading the pages a start mostly opens, a list, a record and a composed page, while the start waits for the
- * sign-in check and `/meta`, so the page's code is there when the shell draws it. A load that fails is tried again as
- * the page opens.
+ * sign-in check and `/meta`, so the page's code is there when the shell draws it. Once; a page whose load fails is
+ * tried again as it opens.
  */
-export const preloadPages = () => Promise.all([ListPage.preload(), RecordPage.preload(), ComposedPage.preload()]).catch(() => undefined)
+export const preloadPages = () => (pages ??= Promise.all([ListPage.preload(), RecordPage.preload(), ComposedPage.preload()]).catch(() => undefined))
+
+const PagesLoaded = ({ children }: { children: ReactNode }) => {
+  use(preloadPages())
+  return children
+}
+
+/**
+ * Draws its children once the pages' code has loaded when the start screen shows a host's snapshot, holding it until
+ * then, so the first page draws at once and the snapshot gives way to it with no skeleton between them; at once on any
+ * other start, where the page's skeleton shows while its code loads.
+ */
+export const PagesFirst = ({ children }: { children: ReactNode }) => {
+  const [snapshot] = useState(() => typeof document !== 'undefined' && startsFromSnapshot(document))
+  if (!snapshot) return children
+  return (
+    <Suspense fallback={<HoldSplash />}>
+      <PagesLoaded>{children}</PagesLoaded>
+    </Suspense>
+  )
+}

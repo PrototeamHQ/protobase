@@ -3,10 +3,11 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { useEffect, useMemo, useState } from 'react'
 import { expect, waitFor } from 'storybook/test'
 import { HoldStartForFirstLoads } from './hold-start-for-first-loads'
+import { PagesFirst } from './lazy-routes'
 import { createSplashHold, SplashHoldProvider } from './splash-hold'
 
 /** A first page whose data comes after `ms`, under the start screen's hold, which tells when it lets go. */
-const Start = ({ snapshot, ms, onGone }: { snapshot: boolean; ms: number; onGone: (at: string) => void }) => {
+const Start = ({ snapshot, ms, onGone, pagesFirst = false }: { snapshot: boolean; ms: number; onGone: (at: string) => void; pagesFirst?: boolean }) => {
   const [placed] = useState(() => {
     document.body.removeAttribute('data-start-gone')
     const placeholder = document.createElement('div')
@@ -22,8 +23,17 @@ const Start = ({ snapshot, ms, onGone }: { snapshot: boolean; ms: number; onGone
   return (
     <SplashHoldProvider value={splash}>
       <QueryClientProvider client={client}>
-        <HoldStartForFirstLoads />
-        <Page ms={ms} />
+        {pagesFirst ? (
+          <PagesFirst>
+            <HoldStartForFirstLoads />
+            <Page ms={ms} />
+          </PagesFirst>
+        ) : (
+          <>
+            <HoldStartForFirstLoads />
+            <Page ms={ms} />
+          </>
+        )}
       </QueryClientProvider>
     </SplashHoldProvider>
   )
@@ -52,5 +62,14 @@ export const WithoutSnapshot: StoryObj = {
   render: () => <Start snapshot={false} ms={400} onGone={(at) => document.body.setAttribute('data-start-gone', at)} />,
   play: async () => {
     await waitFor(() => expect(document.body.getAttribute('data-start-gone')).toBe('before the data'), { timeout: 3000 })
+  },
+}
+
+/** With a host's snapshot, the app draws its first page once the pages' code has loaded, and the start screen still waits for the page's data. */
+export const WithSnapshotAndPagesCode: StoryObj = {
+  tags: ['play'],
+  render: () => <Start snapshot pagesFirst ms={400} onGone={(at) => document.body.setAttribute('data-start-gone', at)} />,
+  play: async () => {
+    await waitFor(() => expect(document.body.getAttribute('data-start-gone')).toBe('after the data'), { timeout: 5000 })
   },
 }

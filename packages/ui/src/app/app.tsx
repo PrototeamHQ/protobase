@@ -57,7 +57,7 @@ import { NewVersionBanner } from './new-version/new-version-banner'
 import { NewVersionButton } from './new-version/new-version-button'
 import { NewVersionToast } from './new-version/new-version-toast'
 import { Router, useRouter } from './router'
-import { preloadPages, AccountPage, AssistantPanel, CallRings, ComposedPage, ConnectRoute, CreateRoute, GuestCallPage, InvitationsPage, ListPage, MembersPage, OrganizationPage, OrganizationsPage, PublicFormPage, RecordPage, RuntimeUpdateButton, SignInPolicyPage } from './lazy-routes'
+import { preloadPages, PagesFirst, AccountPage, AssistantPanel, CallRings, ComposedPage, ConnectRoute, CreateRoute, GuestCallPage, InvitationsPage, ListPage, MembersPage, OrganizationPage, OrganizationsPage, PublicFormPage, RecordPage, RuntimeUpdateButton, SignInPolicyPage } from './lazy-routes'
 import { StaffBanner } from './staff-banner'
 import { useNavRecent } from './use-nav-recent'
 import { useAppAddress, type CurrentAddress } from './use-app-address'
@@ -307,12 +307,14 @@ const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, a
             <ConnectRoute />
           ) : (
             <PluginGate ui={ui}>
-              <HoldStartForFirstLoads />
-              <PresenceProvider>
-                <RecordTitles>
-                  <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
-                </RecordTitles>
-              </PresenceProvider>
+              <PagesFirst>
+                <HoldStartForFirstLoads />
+                <PresenceProvider>
+                  <RecordTitles>
+                    <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
+                  </RecordTitles>
+                </PresenceProvider>
+              </PagesFirst>
             </PluginGate>
           )}
         </ToastProvider>
