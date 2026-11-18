@@ -1,9 +1,10 @@
-import { Kysely } from 'kysely'
+import { Kysely, sql } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/mail-message'
 import { appBulkMailer } from '../src/mail/unsubscribe/bulk-mailer'
-import { unsubscribesMigration } from '../src/mail/unsubscribe/unsubscribe-schema'
+import { checkUnsubscribesSchema, unsubscribesMigration } from '../src/mail/unsubscribe/unsubscribe-schema'
+import { recordUnsubscribe } from '../src/mail/unsubscribe/unsubscribe-store'
 import { signTestToken, testAuthenticator } from '../../../test-support/server'
 import { openSnapshotDb } from '../../../test-support/sql-snapshot'
 
@@ -37,11 +38,11 @@ describe('one-click unsubscribe', () => {
     expect(link).toMatch(/^\/api\/unsubscribe\//)
 
     expect((await app.request(link)).status).toBe(200)
-    expect(await db.selectFrom('mail.unsubscribes').select('recipient').execute()).toEqual([])
+    expect(await db.selectFrom('mail.unsubscribes').select('recipient').where('recipient', '=', 'ada@example.com').execute()).toEqual([])
 
     expect((await app.request(link, oneClick)).status).toBe(200)
     expect((await app.request(link, oneClick)).status).toBe(200)
-    expect(await db.selectFrom('mail.unsubscribes').select(['recipient', 'topic']).execute()).toEqual([{ recipient: 'ada@example.com', topic: 'newsletter' }])
+    expect(await db.selectFrom('mail.unsubscribes').select(['recipient', 'topic']).where('recipient', '=', 'ada@example.com').execute()).toEqual([{ recipient: 'ada@example.com', topic: 'newsletter' }])
 
     expect(await mail.send(newsletter)).toEqual({ skipped: ['ada@example.com'], sent: [] })
     expect(sent).toHaveLength(1)
@@ -56,9 +57,17 @@ describe('one-click unsubscribe', () => {
   })
 
   it('lists the opt-outs to admins, who cannot change them', async () => {
-    const listed = await asAdmin('/mail_unsubscribes')
+    await recordUnsubscribe(db, { recipient: 'cy@example.com', topic: 'digest' })
+    const listed = await asAdmin(`/mail_unsubscribes?filter=${encodeURIComponent('topic = "digest"')}`)
     expect(listed.status).toBe(200)
-    expect(await listed.json()).toMatchObject({ items: [{ recipient: 'ada@example.com', topic: 'newsletter' }] })
+    expect(await listed.json()).toMatchObject({ items: [{ recipient: 'cy@example.com', topic: 'digest' }] })
     expect((await asAdmin('/mail_unsubscribes', { method: 'POST', body: JSON.stringify({ recipient: 'bo@example.com', topic: 'newsletter' }) })).status).toBe(403)
+  })
+
+  it('refuses to start without the unique index an opt-out is recorded on', async () => {
+    await expect(checkUnsubscribesSchema(db)).resolves.toBeUndefined()
+    await sql`drop index mail.unsubscribes_recipient_topic`.execute(db)
+    await expect(checkUnsubscribesSchema(db)).rejects.toThrow(/unique index unsubscribes_recipient_topic, is missing/)
+    await sql`create unique index unsubscribes_recipient_topic on mail.unsubscribes (recipient, topic)`.execute(db)
   })
 })

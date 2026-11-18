@@ -32,8 +32,12 @@ export const unsubscribesMigration = async (db: Db) => {
   return unsubscribesTableSql()
 }
 
-/** Refuses to start while `unsubscribe` is on and its table is missing; the project's migrations add it. */
+/**
+ * Refuses to start while `unsubscribe` is on and its table, or the unique index recording an opt-out stands on, is
+ * missing; the project's migrations add them.
+ */
 export const checkUnsubscribesSchema = async (db: Db) => {
-  if (await hasTable(db)) return
-  throw new Error(`The opt-outs table ${unsubscribesTable} of unsubscribe is missing. Write it as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`)
+  const [unique] = indexes[0]
+  if ((await hasTable(db)) && (await hasIndexes(db, unsubscribesSchema, 'unsubscribes', [unique]))) return
+  throw new Error(`The opt-outs table ${unsubscribesTable} of unsubscribe, or its unique index ${unique}, is missing. Write it as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`)
 }
