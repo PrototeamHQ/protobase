@@ -32,14 +32,16 @@ const clientTimeouts = { dnsTimeout: 10_000, connectionTimeout: 10_000, greeting
  * drops the mail port's packets would otherwise hold it for minutes, once for each of the server's addresses.
  *
  * Each message gets a `Message-ID` of its own on the sender's domain (`messageId`), which the send resolves to; a header
- * of that name among the message's own is replaced.
+ * of that name among the message's own, or a `messageId` field on the message object, is replaced. The send resolves to
+ * the id it submitted: SMTP has no standard way for a relay to report a `Message-ID` it rewrites, and Nodemailer's
+ * result only repeats the submitted one, so a relay that rewrites it is the app's to avoid, as the email docs say.
  */
 export const smtpMailer = (settings: MailSettings, limitMs = sendLimitMs): { send: (message: MailMessage) => Promise<{ messageId: string }> } => {
   let transport: Promise<import('nodemailer').Mail> | undefined
   return {
     send: async (message) => {
       transport ??= import('nodemailer').then(({ createTransport }) => createTransport({ url: settings.smtpUrl, name: senderDomain(settings.from), requireTLS: true, ...clientTimeouts }))
-      const mail = { from: sender(settings), messageId: messageId(settings.from), ...composerMessage(message) }
+      const mail = { from: sender(settings), ...composerMessage(message), messageId: messageId(settings.from) }
       await withinLimit(transport.then((client) => client.sendMail(mail)), limitMs)
       return { messageId: mail.messageId }
     },

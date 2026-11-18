@@ -34,6 +34,16 @@ describe('smtpMailer', () => {
     expect(second.messageId).not.toBe(first.messageId)
   })
 
+  it('gives a new Message-ID even when the message object carries a messageId of its own', async () => {
+    const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@shop.example.com' })
+    const message = { to: 'ada@example.com', subject: 'Hello', text: 'Hello', messageId: '<old@shop.example.com>' }
+    const first = await mailer.send(message)
+    expect(sendMail).toHaveBeenLastCalledWith(expect.objectContaining({ messageId: first.messageId }))
+    const second = await mailer.send(message)
+    expect(first.messageId).not.toBe('<old@shop.example.com>')
+    expect(second.messageId).not.toBe(first.messageId)
+  })
+
   it('sends an HTML part beside the plain text', async () => {
     const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@acme.example.com' })
     await mailer.send({ to: 'ada@example.com', subject: 'Welcome', text: 'Hello', html: '<p>Hello</p>' })
