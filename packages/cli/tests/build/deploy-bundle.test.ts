@@ -55,12 +55,14 @@ describe('buildDeployBundle', () => {
     const index = await readFile(path.join(outDir, 'public/index.html'), 'utf8')
     const assets = await readdir(path.join(outDir, 'public/assets'))
     const script = assets.find((file) => /^index-[\w-]+\.js$/.test(file))
-    const style = assets.find((file) => /^index-[\w-]+\.css$/.test(file))
+    const app = assets.find((file) => /^app-[\w-]+\.js$/.test(file))
+    const style = assets.find((file) => /^app-[\w-]+\.css$/.test(file))
     expect(index).toContain(`src="/assets/${script}"`)
     expect(index).toContain(`href="/assets/${style}"`)
     expect(index).not.toContain('./main')
     expect(assets.filter((file) => file.endsWith('.map'))).toEqual([])
-    const code = await readFile(path.join(outDir, 'public/assets', script!), 'utf8')
+    // The app's own code, which index.html's script imports
+    const code = await readFile(path.join(outDir, 'public/assets', app!), 'utf8')
     expect(code).not.toContain('@vite/client')
     expect(code).not.toContain('react-refresh')
     expect(code).not.toContain('jsxDEV')
@@ -158,7 +160,7 @@ describe('buildDeployBundle', () => {
     expect(await readFile(path.join(outDir, 'public/protobase.theme.css'), 'utf8')).toBe('')
     const index = await readFile(path.join(outDir, 'public/index.html'), 'utf8')
     expect(index).toContain('<link rel="stylesheet" href="/protobase.theme.css">')
-    expect(index.indexOf('href="/protobase.theme.css"')).toBeGreaterThan(index.lastIndexOf('/assets/index-'))
+    expect(index.indexOf('href="/protobase.theme.css"')).toBeGreaterThan(index.lastIndexOf('/assets/app-'))
 
     await writeFile(path.join(projectDir, 'protobase.theme.css'), ':root {\n  --primary: #0d9488;\n  --radius: 10px;\n  --primry: red;\n}\n[data-theme="dark"] { --primary: #2dd4bf; }\n')
     const warnings: string[] = []
@@ -315,7 +317,7 @@ describe('buildDeployBundle', () => {
     const assets = path.join(outDir, 'public/assets')
     // Chunks of generated code alone, such as the shared modules' re-exports, have no sources to map.
     const maps = (await readdir(assets)).filter((file) => file.endsWith('.js.map'))
-    expect(maps).toContainEqual(expect.stringMatching(/^index-[\w-]+\.js\.map$/))
+    expect(maps).toContainEqual(expect.stringMatching(/^app-[\w-]+\.js\.map$/))
     expect(maps).toContainEqual(expect.stringMatching(/^parse-worker-[\w-]+\.js\.map$/))
     for (const map of maps) await expectDebugIdMap(path.join(assets, map.slice(0, -'.map'.length)))
     const plugin = JSON.parse(await readFile(path.join(outDir, 'public/plugins/app/plugin.json'), 'utf8')) as { entry: string }

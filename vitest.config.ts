@@ -156,7 +156,7 @@ const snapshotProject = (name: string, include: string[], exclude: string[], iso
     include,
     exclude: [...configDefaults.exclude, ...integration, ...presets, ...realPostgres, ...exclude],
     // Replay connects to nothing, so a test that reaches for a database fails as a unit test does.
-    setupFiles: [...(recordSnapshots ? [] : ['test-support/no-database.setup.ts']), 'test-support/sql-snapshot/setup.ts'],
+    setupFiles: [...(recordSnapshots ? [] : ['test-support/no-database.setup.ts']), 'test-support/sql-snapshot/setup.ts', 'test-support/ui-texts.setup.ts'],
     globalSetup: ['test-support/sql-snapshot/global-setup.ts'],
     isolate,
     env: { TZ: 'UTC' },
