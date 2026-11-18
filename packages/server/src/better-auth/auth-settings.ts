@@ -33,7 +33,9 @@ export type AuthHooks = {
 
 /**
  * `auth` in `protobase.config.ts`: the sign-in settings as data. The store is the app's own database, in `schema`;
- * the hooks and a mailer of the project's own are found in auth/hooks.ts and auth/mailer.ts.
+ * the hooks and a mailer of the project's own are found in auth/hooks.ts and auth/mailer.ts. createAuth's `tables` is no
+ * setting of its own: `users` names the user table and its columns, and `userTableOptions` maps them onto `tables.user`,
+ * so the config has one place for those names. The other tables keep their built-in names.
  */
 export type AuthSettings = Omit<CreateAuthOptions, 'database' | 'secret' | 'generateUserId' | 'onUserCreated' | 'mailer' | 'organizations' | 'mcp' | 'workflowConnections' | 'tables' | 'users'> & {
   /**
