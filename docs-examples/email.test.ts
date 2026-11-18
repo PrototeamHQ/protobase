@@ -42,7 +42,7 @@ describe('the repair-ready email', () => {
   it('is sent by the job, through the mail it gets', async () => {
     const sent: MailMessage[] = []
     const db = answering([{ number: 'R-0007', bike: 'Gazelle Orange', name: 'Sanne', email: 'sanne@example.com' }])
-    await emailRepairReady({ repairId: 7 }, contextWith(db, { send: async (message) => void sent.push(message) }))
+    await emailRepairReady({ repairId: 7 }, contextWith(db, { send: async (message) => { sent.push(message); return {} } }))
     expect(sent).toEqual([{ to: 'sanne@example.com', subject: 'Your Gazelle Orange is ready for pickup', html: expect.stringContaining('R-0007'), text: expect.stringContaining('Hi Sanne') }])
   })
 

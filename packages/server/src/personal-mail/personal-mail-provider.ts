@@ -1,4 +1,4 @@
-import type { MailMessage } from '../mail/smtp-mailer'
+import type { MailMessage, SentMail } from '../mail/smtp-mailer'
 
 /** A From address with the display name the From header shows beside it, if it has one. */
 export type MailFrom = { address: string; name?: string }
@@ -21,7 +21,8 @@ export type PersonalMailProvider = {
   linkParams: Record<string, string>
   /**
    * Sends `message` from the mailbox, with `from` as its From address when given, else the mailbox's own. Rejects with a `PersonalMailError` of `link_expired` when the provider refuses the
-   * token, and with an error naming the status for anything else it refuses.
+   * token, and with an error naming the status for anything else it refuses. Resolves to the `Message-ID` the recipient
+   * sees when the provider can tell it.
    */
-  send: (message: MailMessage, accessToken: string, from?: MailFrom) => Promise<void>
+  send: (message: MailMessage, accessToken: string, from?: MailFrom) => Promise<SentMail>
 }

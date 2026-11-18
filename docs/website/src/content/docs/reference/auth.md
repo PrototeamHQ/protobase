@@ -243,7 +243,7 @@ Sign-in reads both from the environment; the platform passes them, like `DATABAS
 // auth/mailer.ts
 import type { Mailer } from '@protobase/server'
 
-export default { send: async ({ to, subject, text }) => { /* deliver it */ } } satisfies Mailer
+export default { send: async ({ to, subject, text }) => { /* deliver it */ return {} } } satisfies Mailer
 ```
 
 [Jobs](/reference/jobs/#mail) send their own mail through the same server, or the same `auth/mailer.ts`, with `mail` in their context, and so do the app's [email templates](/reference/email/) given it.

@@ -24,7 +24,7 @@ const setUp = async ({ mail, invitationUrl }: { mail: boolean; invitationUrl?: s
     roles: definitions.names,
     definitions,
     organizations: resolveOrganizations(organizations, definitions),
-    ...(mail && { mailer: { send: async (message: MailMessage) => void mails.push(message) } }),
+    ...(mail && { mailer: { send: async (message: MailMessage) => { mails.push(message); return {} } } }),
     context: () => instance!.$context,
   }
   const auth = betterAuth({ ...betterAuthOptions({ ...options, mailer: mail ? undefined : false }, resolved), database: memoryAdapter(store) })

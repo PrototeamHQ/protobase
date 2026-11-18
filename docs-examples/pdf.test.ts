@@ -53,7 +53,7 @@ describe('the repair quote', () => {
     expect(config.jobs).toHaveProperty('email-repair-quote')
     const sent: MailMessage[] = []
     const db = answering([{ number: 'R-0007', bike: 'Gazelle Orange', problem: 'Squeaky brakes', estimate: '45.00', currency: 'EUR', name: 'Sanne', email: 'sanne@example.com' }])
-    await emailRepairQuote({ repairId: 7 }, contextWith(db, { send: async (message) => void sent.push(message) }))
+    await emailRepairQuote({ repairId: 7 }, contextWith(db, { send: async (message) => { sent.push(message); return {} } }))
     expect(sent).toEqual([expect.objectContaining({ to: 'sanne@example.com', subject: 'Quote R-0007 for your Gazelle Orange' })])
     const [attachment] = sent[0]!.attachments!
     expect(attachment).toMatchObject({ filename: 'quote-R-0007.pdf', contentType: 'application/pdf' })

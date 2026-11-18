@@ -34,7 +34,7 @@ PROTOBASE_MAIL_FROM=noreply@shop.example.com
 
 Over `smtp://` the client always upgrades the connection with STARTTLS before it logs in or sends anything, so nobody between the app and the server reads the server's password or the mail, such as a sign-in code or a reset link. A server that does not offer STARTTLS, or an answer from which someone on the way removed it, fails the send, with the code `ETLS` when the server refuses the upgrade. `?requireTLS=false` on the URL is the only way to send in plaintext, for a server that has no TLS, such as the mail catcher above or a server on the same host. `smtps://` uses TLS from the start.
 
-A project that delivers its mail another way exports a mailer, `{ send({ to, subject, text, html, headers }) }`, as the default of `auth/mailer.ts`: sign-in and the jobs (`mail` in their context) both send with it. `auth: { mailer: false }` turns sign-in's mail off whatever the environment says. A host that runs jobs itself passes a mailer to `startJobs`. A template's `send` takes one too, see [Templates](#templates).
+A project that delivers its mail another way exports a mailer, `{ send({ to, subject, text, html, headers }) }`, resolving to `{ messageId }` when it knows the message's `Message-ID` and `{}` when not, as the default of `auth/mailer.ts`: sign-in and the jobs (`mail` in their context) both send with it. `auth: { mailer: false }` turns sign-in's mail off whatever the environment says. A host that runs jobs itself passes a mailer to `startJobs`. A template's `send` takes one too, see [Templates](#templates).
 
 ### When the server does not answer
 
@@ -188,6 +188,17 @@ An **[API function](/guides/api-functions/)** may send directly, as the answer t
 
 A message is sent once per call, so a job try that sends and then fails sends again: record what was sent, and check it first.
 
+### Message id
+
+`mail.send` and a template's `send` resolve to `{ messageId }`, the `Message-ID` header the recipient sees, such as `<3f9c2a7e0b4d4e51a1c6f0d2b8e7a913@shop.example.com>`. Store it with the record the mail was about, so a reply, bounce or complaint that comes back later, which names that id, can be matched to the mail it answers. A mailer that does not know the id resolves to `{}`, so store `null` then:
+
+```ts
+const { messageId } = await invoiceEmail.send(client.email, { number: 7 }, mail)
+await db.updateTable('invoices').set({ message_id: messageId ?? null }).where('id', '=', invoice.id).execute()
+```
+
+Protobase gives every message through `PROTOBASE_SMTP_URL` a new id on the sender's domain before it goes out, in place of a `Message-ID` among the message's own `headers`. A relay that rewrites the `Message-ID` changes what the recipient sees, so check that yours keeps it. A mailer of the project's own resolves to the id it sends, or to `{}` without one; mail from someone's own mailbox resolves to `{}` (see below).
+
 ## Attachments
 
 A message takes files beside its body, such as an invoice's PDF: `attachments`, each a `filename`, its bytes as `content` (a `Uint8Array`, such as a `Buffer`) and, optionally, its `contentType`, else the one the name implies. A template's `send` takes them as its fourth argument:
@@ -244,6 +255,7 @@ export default defineFunction(async (request, { personalMail }) => {
 - **Sign-in is not a mailbox:** under **Mailbox**, the account page says when someone signs in with Google without having allowed it to send mail, so a linked Google sign-in is not taken for a connected mailbox.
 - <gap>The account page cannot show which account a mailbox is linked through or disconnect it because unlinking a mailbox is not implemented.</gap>
 - <gap>Mailboxes other than Gmail cannot be linked because no other mail provider is implemented.</gap>
+- <gap>A send through Gmail cannot return its [message id](#message-id) because Gmail sets its own and reading it back needs a scope that reads the mailbox, which the link does not ask for.</gap>
 
 ### From addresses
 

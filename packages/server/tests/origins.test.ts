@@ -29,7 +29,7 @@ let client = 0
 
 const serve = async (options: Partial<CreateAuthOptions> = {}, mobile?: MobileConfig) => {
   const sent: MailMessage[] = []
-  const mailer = { send: async (message: MailMessage) => void sent.push(message) }
+  const mailer = { send: async (message: MailMessage) => { sent.push(message); return {} } }
   const auth = createAuth({ database: { dialect: (await shared.clone()).dialect, type: 'postgres' }, baseURL: label, secret, mailer, ...options })
   await createUser(auth, { email: 'root@example.com', password })
   const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth, ...(mobile && { mobile }) })

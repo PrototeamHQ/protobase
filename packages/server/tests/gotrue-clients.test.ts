@@ -43,7 +43,7 @@ const serve = async (signUp: { role: string; domains?: string[] } = { role: 'mem
     roles: ['admin', 'member'],
     signUp,
     users: { metadata: 'raw_user_meta_data' },
-    mailer: { send: async (message) => void sent.push(message) },
+    mailer: { send: async (message) => { sent.push(message); return {} } },
   })
   await createUser(auth, { email: 'root@example.com', password })
   const app = createAdmin({ resources: [], db: new Kysely<any>({ dialect: db.dialect }), authenticate: betterAuthAuthenticator({ auth }), auth })
