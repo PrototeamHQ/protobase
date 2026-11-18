@@ -10,8 +10,7 @@ import { resolvePersonalAccessTokens } from '../personal-access-tokens/options'
 import { resolvePlatformSignIns } from '../platform-sign-in'
 import { samlPlugin } from '../saml-plugin'
 import { resolveSamlProviders } from '../saml-sign-in'
-import { resolveNames } from './resolve-names'
-import type { TableNames } from './table-names'
+import { resolveNames, type TableNames } from './resolve-names'
 
 // Each feature that brings tables or columns of its own: the store's names must be Better Auth's whichever are on.
 const features = ['organizations', 'mcp', 'personalAccessTokens', 'personalMail', 'devices'] as const

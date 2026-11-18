@@ -1,5 +1,5 @@
 import type { BuiltInTables } from './names/modules'
-import type { TableNames } from './names/table-names'
+import type { TableNames } from './names/resolve-names'
 
 // The user table can be one another system made, such as Supabase's `auth.users`: `auth.users` names it and its
 // columns, which become the model's names of the user table, and says what else the store needs to know of it.
