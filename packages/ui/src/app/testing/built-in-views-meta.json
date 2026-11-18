@@ -354,6 +354,58 @@
       "primaryKey": [
         "id"
       ]
+    },
+    {
+      "name": "mail_unsubscribes",
+      "table": {
+        "schema": "mail",
+        "name": "unsubscribes"
+      },
+      "fields": {
+        "id": {
+          "name": "id",
+          "column": "id",
+          "type": "bigint",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "recipient": {
+          "name": "recipient",
+          "column": "recipient",
+          "type": "text",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "topic": {
+          "name": "topic",
+          "column": "topic",
+          "type": "text",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "created_at": {
+          "name": "created_at",
+          "column": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": true,
+          "aliases": []
+        }
+      },
+      "primaryKey": [
+        "id"
+      ]
     }
   ],
   "views": [
@@ -622,6 +674,53 @@
           "record_key",
           "author_id",
           "body"
+        ]
+      }
+    },
+    {
+      "resource": "mail_unsubscribes",
+      "fields": {
+        "recipient": {
+          "label": "Recipient"
+        },
+        "topic": {
+          "label": "Topic"
+        },
+        "created_at": {
+          "label": "Unsubscribed"
+        }
+      },
+      "filters": [],
+      "layout": [
+        {
+          "kind": "section",
+          "title": "Unsubscribe",
+          "fields": [
+            "recipient",
+            "topic",
+            "created_at"
+          ]
+        }
+      ],
+      "actions": [],
+      "names": {
+        "singular": "Unsubscribe",
+        "plural": "Unsubscribes"
+      },
+      "icon": "mail-x",
+      "title": "recipient",
+      "help": "Everyone who unsubscribed from a topic of the bulk mail, newest first. Bulk mail of that topic is not sent to them.",
+      "list": {
+        "sort": [
+          [
+            "created_at",
+            "desc"
+          ]
+        ],
+        "columns": [
+          "recipient",
+          "topic",
+          "created_at"
         ]
       }
     }

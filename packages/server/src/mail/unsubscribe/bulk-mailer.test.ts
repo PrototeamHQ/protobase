@@ -1,0 +1,89 @@
+import { describe, expect, it } from 'vitest'
+import type { MailMessage } from '../mail-message'
+import { BulkMailError } from './bulk-mail-error'
+import { bulkMailer } from './bulk-mailer'
+import { unsubscribeLinks } from './unsubscribe-links'
+
+const links = unsubscribeLinks({ appUrl: 'https://shop.example.com', path: '/api/unsubscribe', secret: 'test secret' })
+
+const recording = () => {
+  const sent: MailMessage[] = []
+  return { sent, mailer: { send: async (message: MailMessage) => { sent.push(message); return { messageId: '<1@shop.example.com>' } } } }
+}
+
+// Bob unsubscribed from the newsletter.
+const unsubscribed = async (topic: string, recipients: readonly string[]) => recipients.filter((recipient) => topic === 'newsletter' && recipient === 'bob@example.com')
+
+const newsletter = { subject: 'News', text: 'Hi', bulk: true, topic: 'newsletter' }
+
+describe('bulk mail', () => {
+  it("carries both one-click headers, with each recipient's own link", async () => {
+    const { sent, mailer } = recording()
+    const mail = bulkMailer(mailer, { links, unsubscribed })
+    expect(await mail.send({ to: 'Ada@Example.com', ...newsletter })).toEqual({ messageId: '<1@shop.example.com>', skipped: [], sent: [{ to: 'ada@example.com', messageId: '<1@shop.example.com>' }] })
+    await mail.send({ to: 'cy@example.com', ...newsletter, headers: { 'List-Unsubscribe': '<https://elsewhere.example>', 'X-Campaign': 'may' } })
+    const [ada, cy] = sent.map((message) => message.headers!)
+    expect(ada!['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click')
+    expect(ada!['List-Unsubscribe']).toMatch(/^<https:\/\/shop\.example\.com\/api\/unsubscribe\/[\w-]+\.[\w-]+>$/)
+    expect(links.read(ada!['List-Unsubscribe']!.slice(1, -1).split('/').at(-1)!)).toEqual({ recipient: 'ada@example.com', topic: 'newsletter' })
+    expect(cy!['List-Unsubscribe']).not.toBe(ada!['List-Unsubscribe'])
+    expect(cy!['X-Campaign']).toBe('may')
+    expect(sent[0]).not.toHaveProperty('bulk')
+    expect(sent[0]).not.toHaveProperty('topic')
+  })
+
+  it('drops its own unsubscribe headers in any case, keeping one of each', async () => {
+    const { sent, mailer } = recording()
+    await bulkMailer(mailer, { links, unsubscribed }).send({ to: 'cy@example.com', ...newsletter, headers: { 'list-unsubscribe': '<https://elsewhere.example>', 'LIST-UNSUBSCRIBE-POST': 'x', 'X-Campaign': 'may' } })
+    expect(Object.keys(sent[0]!.headers!).sort()).toEqual(['List-Unsubscribe', 'List-Unsubscribe-Post', 'X-Campaign'])
+  })
+
+  it('is not sent to whoever unsubscribed from its topic, and says so', async () => {
+    const { sent, mailer } = recording()
+    const mail = bulkMailer(mailer, { links, unsubscribed })
+    expect(await mail.send({ to: 'bob@example.com', ...newsletter })).toEqual({ skipped: ['bob@example.com'], sent: [] })
+    expect(sent).toEqual([])
+    await mail.send({ to: 'bob@example.com', ...newsletter, topic: 'digest' })
+    expect(sent).toHaveLength(1)
+  })
+
+  it('goes to several recipients as a message each, with its own link, leaving out who unsubscribed', async () => {
+    const { sent, mailer } = recording()
+    const mail = bulkMailer(mailer, { links, unsubscribed })
+    const result = await mail.send({ to: 'ada@example.com, bob@example.com, cy@example.com', ...newsletter })
+    expect(result).toEqual({ skipped: ['bob@example.com'], sent: [{ to: 'ada@example.com', messageId: '<1@shop.example.com>' }, { to: 'cy@example.com', messageId: '<1@shop.example.com>' }] })
+    expect(sent.map((message) => message.to)).toEqual(['ada@example.com', 'cy@example.com'])
+    expect(sent[0]!.headers!['List-Unsubscribe']).not.toBe(sent[1]!.headers!['List-Unsubscribe'])
+  })
+
+  it('rejects with who it went to when the server refuses a recipient, so a retried try can leave them out', async () => {
+    const refusal = Object.assign(new Error('Mailbox unavailable'), { code: 'EENVELOPE' })
+    const tried: string[] = []
+    const mailer = { send: async ({ to }: MailMessage) => { tried.push(to as string); if (to === 'cy@example.com') throw refusal; return { messageId: `<${tried.length}@shop.example.com>` } } }
+    const sending = bulkMailer(mailer, { links, unsubscribed }).send({ to: 'ada@example.com, bob@example.com, cy@example.com, dee@example.com', ...newsletter })
+    const error = await sending.catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(BulkMailError)
+    expect(error).toMatchObject({ code: 'BULK_MAIL_FAILED', to: 'cy@example.com', sent: [{ to: 'ada@example.com', messageId: '<1@shop.example.com>' }], skipped: ['bob@example.com'], cause: refusal })
+    expect(tried).toEqual(['ada@example.com', 'cy@example.com'])
+  })
+
+  it('is refused without a topic, to a named address, or with unsubscribe off', async () => {
+    const { sent, mailer } = recording()
+    const mail = bulkMailer(mailer, { links, unsubscribed })
+    await expect(mail.send({ to: 'ada@example.com', subject: 'News', text: 'Hi', bulk: true })).rejects.toThrow(/without a topic/)
+    await expect(mail.send({ to: 'ada@example.com', ...newsletter, topic: 'News Letter' })).rejects.toThrow(/lowercase letter/)
+    await expect(mail.send({ to: 'Ada <ada@example.com>', ...newsletter })).rejects.toThrow(/plain addresses/)
+    await expect(bulkMailer(mailer, undefined).send({ to: 'ada@example.com', ...newsletter })).rejects.toThrow(/unsubscribe: true/)
+    expect(sent).toEqual([])
+  })
+})
+
+describe('transactional mail', () => {
+  it('goes out unchanged, without unsubscribe headers or a skip list', async () => {
+    const { sent, mailer } = recording()
+    const mail = bulkMailer(mailer, { links, unsubscribed })
+    expect(await mail.send({ to: 'bob@example.com', subject: 'Reset', text: 'Code', topic: 'newsletter' })).toEqual({ messageId: '<1@shop.example.com>' })
+    expect(await bulkMailer(mailer, undefined).send({ to: 'bob@example.com', subject: 'Reset', text: 'Code' })).toEqual({ messageId: '<1@shop.example.com>' })
+    expect(sent).toEqual([{ to: 'bob@example.com', subject: 'Reset', text: 'Code' }, { to: 'bob@example.com', subject: 'Reset', text: 'Code' }])
+  })
+})

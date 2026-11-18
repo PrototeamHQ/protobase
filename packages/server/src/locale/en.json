@@ -56,5 +56,12 @@
     "stopLinkExpired": "The account connected for {key} no longer signs in, so this trigger cannot end its subscription with it",
     "disconnected": "The connected account was disconnected: its owner connects it again",
     "subscriptionNotEnded": "The subscription could not be ended at the provider: {reason}"
+  },
+  "mail/unsubscribe": {
+    "title": "Unsubscribe",
+    "question": "Stop sending {topic} mail to {recipient}?",
+    "button": "Unsubscribe",
+    "doneTitle": "Unsubscribed",
+    "done": "{recipient} gets no more {topic} mail."
   }
 }

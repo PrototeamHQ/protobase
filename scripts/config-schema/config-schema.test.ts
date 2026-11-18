@@ -29,4 +29,10 @@ describe('the JSON Schema of protobase.config.json', () => {
     expect(validate({ secret: { $env: 'PROTOBASE_SECRET' }, jobs: { nightly: { schedule: { $env: 'NIGHTLY', default: '0 2 * * *' } } } })).toBe(true)
     expect(validate({ secret: { $env: 'PROTOBASE_SECRET', fallback: 'x' } })).toBe(false)
   })
+
+  it('takes a boolean key only as true or false, not as an $env value that reads as text', () => {
+    expect(validate({ unsubscribe: true, userTables: false })).toBe(true)
+    expect(validate({ unsubscribe: { $env: 'UNSUBSCRIBE' } })).toBe(false)
+    expect(validate({ userTables: { $env: 'USER_TABLES', default: true } })).toBe(false)
+  })
 })

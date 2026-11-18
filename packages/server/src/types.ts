@@ -1,3 +1,4 @@
+import type { UnsubscribeLinks } from './mail/unsubscribe/unsubscribe-links'
 import type { FieldDecrypter } from './encryption/decrypt-field-types'
 import type { JobDefinition } from './jobs/job-types'
 import type { Hono } from 'hono'
@@ -135,4 +136,4 @@ export type PageSource = { toModel(): PageModel }
  * waiting, such as runners' claims, which a closing process gives at once (`stopHolding`), and the read of encrypted
  * fields that `startJobs` gives the jobs' context, and the path it answers `/meta` at.
  */
-export type Admin = Hono<AdminEnv> & { jobs: JobDefinition[]; startRealtimePrune: () => RealtimePrune; stopHolding: () => Promise<void>; decryptField: FieldDecrypter; metaPath: string }
+export type Admin = Hono<AdminEnv> & { jobs: JobDefinition[]; startRealtimePrune: () => RealtimePrune; stopHolding: () => Promise<void>; decryptField: FieldDecrypter; metaPath: string; unsubscribe?: UnsubscribeLinks }

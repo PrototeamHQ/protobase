@@ -5,7 +5,7 @@ import { createAdmin } from '../src/create-admin'
 import { as, testAuthenticator } from '../../../test-support/server'
 import { openSnapshotDb } from '../../../test-support/sql-snapshot'
 
-// A resource with history and comments brings Failed jobs, Activity and Comments; the events schema is renamed, which moves Activity's table.
+// A resource with history and comments brings Failed jobs, Activity and Comments, and the unsubscribe brings Unsubscribes; the events schema is renamed, which moves Activity's table.
 const notes = resource('notes').table('notes').fields({ id: f.integer().readOnly(), body: f.text() }).primaryKey((r) => r.id).history().comments()
 
 let db: Kysely<any>
@@ -17,11 +17,11 @@ afterAll(async () => {
 })
 
 describe('the views Protobase adds', () => {
-  it('gives an admin Failed jobs, Activity and Comments in /meta, with their English texts', async () => {
-    const app = createAdmin({ resources: [notes], db, authenticate: testAuthenticator, events: { schema: 'outbox' } })
+  it('gives an admin Failed jobs, Activity, Comments and Unsubscribes in /meta, with their English texts', async () => {
+    const app = createAdmin({ resources: [notes], db, authenticate: testAuthenticator, events: { schema: 'outbox' }, secret: 'test secret', unsubscribe: { appUrl: 'https://shop.example.com' } })
     const meta = await (await app.request('/api/meta', { headers: as(undefined, 'admin') })).json()
     // The admin app's translations of these views stand on this answer.
-    const shown = ['failed_jobs', 'record_history', 'record_comments']
+    const shown = ['failed_jobs', 'record_history', 'record_comments', 'mail_unsubscribes']
     expect(meta.views.map((model: { resource: string }) => model.resource)).toEqual(shown)
     const recorded = {
       resources: meta.resources.filter((model: { name: string }) => shown.includes(model.name)),

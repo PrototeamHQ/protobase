@@ -23,7 +23,7 @@ export default defineConfig({ name: 'Property Finder' })
 - **Default:** `PROTOBASE_URL`; in `protobase dev`, the dev server's own address
 - **Environment variable:** `PROTOBASE_URL`
 
-The app's public URL: the issuer and audience of its tokens, and where its emails link to. Sign-in needs it: with `auth` on, `protobase dev`, `serve` and the commands that sign people in stop with a clear message when it is missing. Other origins the app is served on are [`auth.origins`](/reference/config/sign-in/#authorigins).
+The app's public URL: the issuer and audience of its tokens, and where its emails link to. Sign-in and [`unsubscribe`](/reference/config/jobs-and-events/#unsubscribe) need it. With `auth` on, `protobase dev`, `serve` and the commands that sign people in stop with a clear message when it is missing. With `unsubscribe: true`, `protobase serve` stops when it is missing too, auth on or off, and when it is not `https://`, but for `localhost` and `127.0.0.1`. Other origins the app is served on are [`auth.origins`](/reference/config/sign-in/#authorigins).
 
 ```ts
 export default defineConfig({ url: 'https://admin.example.com' })
@@ -35,7 +35,7 @@ export default defineConfig({ url: 'https://admin.example.com' })
 - **Default:** `PROTOBASE_SECRET`
 - **Environment variable:** `PROTOBASE_SECRET`
 
-The app's secret, made with `openssl rand -base64 32`: it signs session cookies, upload tickets, download links and public forms' bot checks, and encrypts the token signing keys. Sign-in needs it, and file fields too unless [`files.secret`](/reference/config/files/#filessecret) names another; public forms sign their bot checks with `PROTOBASE_FORMS_SECRET` instead when it is set. Keep it out of the config's source and read it from the environment, which the default does.
+The app's secret, made with `openssl rand -base64 32`: it signs session cookies, upload tickets, download links, public forms' bot checks and unsubscribe links, and encrypts the token signing keys. Sign-in and `unsubscribe` need it, and file fields too unless [`files.secret`](/reference/config/files/#filessecret) names another; public forms sign their bot checks with `PROTOBASE_FORMS_SECRET` instead when it is set. Keep it out of the config's source and read it from the environment, which the default does.
 
 ```ts
 export default defineConfig(({ env }) => ({ secret: env.ADMIN_SECRET }))

@@ -45,8 +45,8 @@ type AppKeys = AppIdentity & {
    */
   url?: string
   /**
-   * The app's secret, made with `openssl rand -base64 32`: it signs session cookies, upload tickets and download links
-   * and public forms' bot checks, and encrypts the token signing keys. Default `PROTOBASE_SECRET`; required with sign-in.
+   * The app's secret, made with `openssl rand -base64 32`: it signs session cookies, upload tickets and download links,
+   * public forms' bot checks and unsubscribe links, and encrypts the token signing keys. Default `PROTOBASE_SECRET`; required with sign-in.
    */
   secret?: string
   /**
@@ -125,6 +125,13 @@ export type ProtobaseConfig = AppKeys &
     calls?: CallsOptions
     /** The app's iOS and Android build (see `MobileConfig`). */
     mobile?: MobileConfig
+    /**
+     * `true` gives bulk mail a one-click unsubscribe: mail a job sends with `bulk: true` and a `topic` carries the
+     * recipient's own unsubscribe link, and is not sent to whoever unsubscribed from its topic. Its links are on `url`
+     * and signed with `secret`; `protobase migration` writes its table, `mail.unsubscribes`. The server that signs the mail must DKIM-sign
+     * both unsubscribe headers, or mail clients show no button. Off by default.
+     */
+    unsubscribe?: boolean
     /**
      * `true` keeps the tables the app's users add in its own database and serves each one like a resource of the config;
      * `protobase migration` writes the schemas they need. Off by default. With organizations, each keeps its own tables;

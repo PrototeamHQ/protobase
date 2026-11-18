@@ -71,6 +71,15 @@ describe('smtpMailer', () => {
     await expect(mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello', headers: { 'X Note': 'a' } })).rejects.toThrow('Mail header name "X Note" is not a valid header field name')
   })
 
+  it("refuses bulk mail that did not come through a job's mail, and drops a transactional topic", async () => {
+    const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@shop.example.com' })
+    sendMail.mockClear()
+    await expect(mailer.send({ to: 'ada@example.com', subject: 'News', text: 'Hi', bulk: true, topic: 'newsletter' })).rejects.toThrow(/job's mail/)
+    expect(sendMail).not.toHaveBeenCalled()
+    await mailer.send({ to: 'ada@example.com', subject: 'Reset', text: 'Code', topic: 'account' })
+    expect(sendMail).toHaveBeenLastCalledWith({ from: 'noreply@shop.example.com', messageId: expect.any(String), to: 'ada@example.com', subject: 'Reset', text: 'Code' })
+  })
+
   it('sends attachments as their bytes alone, never reading a file or URL', async () => {
     const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@shop.example.com' })
     const content = new Uint8Array([37, 80, 68, 70])

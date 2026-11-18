@@ -1,6 +1,7 @@
 import type { FunctionComponent } from 'react'
 import { mailFromVariable, smtpUrlVariable } from './mail-settings'
 import { platformMailer } from './platform-mailer'
+import { checkBulkOptions } from './unsubscribe/bulk-options'
 import type { MailAttachment, Mailer, SentMail } from './smtp-mailer'
 
 export type EmailOptions<Data extends object> = {
@@ -13,11 +14,15 @@ export type EmailOptions<Data extends object> = {
    * It is rendered to the HTML part, and the plain-text part is made from that HTML.
    */
   component: EmailComponent<Data>
-  /**
-   * More header fields, or how to make them from the email's data: such as `List-Unsubscribe` with the recipient's own
-   * unsubscribe link, and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`, which mailbox providers expect of bulk mail.
-   */
+  /** More header fields, or how to make them from the email's data. */
   headers?: Record<string, string> | ((data: Data) => Record<string, string>)
+  /**
+   * Marks bulk mail, such as a newsletter: sent with a job's `mail`, it carries a one-click unsubscribe from its
+   * `topic`, and is not sent to whoever unsubscribed from it. Needs `topic`.
+   */
+  bulk?: boolean
+  /** The kind of mail, such as `newsletter`, which a recipient unsubscribes from. */
+  topic?: string
 }
 
 /** A function component of the email's data, as JSX writes one; typed here so the server's own types need no React. */
@@ -35,7 +40,9 @@ export type EmailTemplate<Data extends object> = {
    * Renders the email for `data` and sends it to `to`: through `mailer` when given, such as a job's `context.mail`,
    * or a function's `context.personalMail`, the caller's own mailbox, otherwise through the app's SMTP server
    * (`PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM`), with the `attachments` given. Resolves to the mailer's
-   * `SentMail` result object: read its `messageId` field, which a mailer that does not know the id leaves out (`{}`).
+   * `SentMail` result object: read its `messageId` field, which a mailer that does not know the id leaves out (`{}`),
+   * and of bulk mail `skipped`, the recipients who unsubscribed and were sent nothing, and `sent`. Bulk mail needs a
+   * `mailer` that adds the unsubscribe, a job's `context.mail`: without one, `send` rejects and sends nothing.
    * Rejects when mail is off or the server refuses the message.
    */
   send(to: string, data: Data, mailer?: Mailer, extra?: { attachments?: MailAttachment[] }): Promise<SentMail>
@@ -52,6 +59,8 @@ const loadRenderer = async () => {
  * HTML with React Email's renderer, makes the plain-text part from that, and sends both through the app's mail.
  */
 export const defineEmail = <Data extends object>(options: EmailOptions<Data>): EmailTemplate<Data> => {
+  checkBulkOptions(`Email "${options.name}"`, options)
+  const kind = { ...(options.bulk && { bulk: true }), ...(options.topic !== undefined && { topic: options.topic }) }
   const render = async (data: Data): Promise<RenderedEmail> => {
     const renderer = await loadRenderer()
     const html = await renderer.render(renderer.createElement(options.component as FunctionComponent<Data>, data))
@@ -62,7 +71,7 @@ export const defineEmail = <Data extends object>(options: EmailOptions<Data>): E
 
   const send = async (to: string, data: Data, mailer = platformMailer(), { attachments }: { attachments?: MailAttachment[] } = {}) => {
     if (!mailer) throw new Error(`Email "${options.name}" cannot be sent: mail is off; set ${smtpUrlVariable} and ${mailFromVariable}`)
-    return mailer.send({ to, ...(await render(data)), ...(attachments && attachments.length > 0 && { attachments }) })
+    return mailer.send({ to, ...(await render(data)), ...kind, ...(attachments && attachments.length > 0 && { attachments }) })
   }
 
   return { name: options.name, options, render, send }

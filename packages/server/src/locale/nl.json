@@ -56,5 +56,12 @@
     "stopLinkExpired": "Met het account dat voor {key} gekoppeld is, lukt inloggen niet meer, dus deze trigger kan zijn abonnement daarmee niet beëindigen",
     "disconnected": "Het gekoppelde account is ontkoppeld: de eigenaar koppelt het opnieuw",
     "subscriptionNotEnded": "Het abonnement kon niet worden beëindigd bij de provider: {reason}"
+  },
+  "mail/unsubscribe": {
+    "title": "Afmelden",
+    "question": "Geen {topic}-mail meer sturen naar {recipient}?",
+    "button": "Afmelden",
+    "doneTitle": "Afgemeld",
+    "done": "{recipient} krijgt geen {topic}-mail meer."
   }
 }

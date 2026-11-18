@@ -3,6 +3,7 @@ import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, Ca
 import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions, isOverSignIn, workflowPlugins } from '@protobase/server/internal'
 import type { MergedConfig } from './merge-config'
 import { projectDerived, projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks, projectWorkflows } from './project-parts'
+import { projectUnsubscribe } from './unsubscribe-config'
 import { userTablesOn } from './user-tables-config'
 
 /** The app's database: Kysely over its pool, which its Better Auth store's queries run through. */
@@ -66,6 +67,8 @@ export type BuiltProject = {
   realtime?: RealtimeOptions
   notifications?: NotificationsOptions
   status?: StatusOptions
+  /** The one-click unsubscribe of bulk mail, on the app's URL (`projectUnsubscribe`). */
+  unsubscribe?: { appUrl: string }
   calls?: CallsOptions
   jobs: JobDefinition[]
   /** The derived values' compute functions, by `<resource>.<name>` (`projectDerived`). */
@@ -95,6 +98,7 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
   ])
   const jobs = projectJobs(config)
   const derived = projectDerived(config)
+  const unsubscribe = projectUnsubscribe(config)
   // The installed app's colours, the app's other settings being the config's.
   const identity = config.themeColor || config.backgroundColor ? { ...(config.themeColor && { themeColor: config.themeColor }), ...(config.backgroundColor && { backgroundColor: config.backgroundColor }) } : undefined
   return {
@@ -113,6 +117,7 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
     ...(notifications && { notifications }),
     ...(config.status && { status: checkStatusOptions(config.status) }),
     ...(config.calls && { calls: checkCallsOptions(config.calls) }),
+    ...(unsubscribe && { unsubscribe }),
     ...(mailer && { mailer }),
     ...(config.mobile && { mobile: config.mobile }),
     ...(config.secret && { secret: config.secret }),

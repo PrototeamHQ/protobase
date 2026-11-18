@@ -6,6 +6,8 @@ import { runInBackground } from '../background-work'
 import type { FieldDecrypter } from '../encryption/decrypt-field-types'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
+import { appBulkMailer } from '../mail/unsubscribe/bulk-mailer'
+import type { UnsubscribeLinks } from '../mail/unsubscribe/unsubscribe-links'
 import { pushJobName } from '../notifications/push-job-name'
 import { sendNotification } from '../notifications/send-notification'
 import { busyDatabase } from './busy-database'
@@ -36,6 +38,11 @@ export type StartJobsOptions = {
    * `PROTOBASE_MAIL_FROM`, when set; `false` turns mail off whatever the environment says.
    */
   mailer?: Mailer | false
+  /**
+   * The links of the app's one-click unsubscribe (`admin.unsubscribe`, with `unsubscribe: true`): bulk mail through
+   * `context.mail` carries the recipient's own and skips whoever unsubscribed from its topic. Without them it refuses bulk mail.
+   */
+  unsubscribe?: UnsubscribeLinks
   /** The app's read of encrypted fields (`createAdmin(...).decryptField`), which each job's context binds to the job. */
   decryptField?: FieldDecrypter
 }
@@ -81,8 +88,9 @@ const createBoss = (db: BossDb, work: boolean) =>
  * that retries jobs whose worker died. It reads the jobs schema, never changes it: check it first with
  * `checkJobsSchema`. Enqueueing through `defineJob(...).enqueue` reaches the runtime started here.
  */
-export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdownSeconds = 30, onError, now = () => new Date(), mailer, decryptField }: StartJobsOptions): Promise<JobsRuntime> => {
-  const mail = mailer === undefined ? platformMailer() : mailer || undefined
+export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdownSeconds = 30, onError, now = () => new Date(), mailer, unsubscribe, decryptField }: StartJobsOptions): Promise<JobsRuntime> => {
+  const base = mailer === undefined ? platformMailer() : mailer || undefined
+  const mail = base && appBulkMailer(base, db, unsubscribe)
   let decrypter = decryptField
   const database = busyDatabase(jobsDatabase(db))
   const boss = createBoss(database.db, work)
