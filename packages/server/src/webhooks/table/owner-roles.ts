@@ -5,11 +5,12 @@ import type { AuthContext } from '../../better-auth/organizations/store'
 import { resolveActiveRole } from '../../better-auth/roles/active-role'
 import { mayBeId, storedId } from '../../better-auth/store/store-reads'
 import { storeSqlOf } from '../../better-auth/store/store-sql'
+import { bannedNow } from '../../better-auth/token-standing'
 import { parseRoles } from '../../better-auth/users'
 import type { TenantValue } from '../../types'
 
 type Owner = { id: string; tenant?: TenantValue }
-type UserRow = { id: string; role: string | null; last_role: string | null; banned: boolean | null }
+type UserRow = { id: string; role: string | null; last_role: string | null; banned: boolean | null; banExpires: Date | null }
 type MemberRow = { user_id: string; organization_id: string; app_roles: unknown }
 
 const memberKey = (userId: string, organizationId: string) => JSON.stringify([userId, organizationId])
@@ -22,8 +23,9 @@ const ownersRoles = async (auth: AdminAuth, owners: readonly Owner[]) => {
   const idOf = (id: string) => storedId(context.options, id)
   const ids = [...new Set(owners.map((owner) => idOf(owner.id)))].filter((id) => mayBeId(context.options, id))
   const { rows: users } = ids.length === 0 ? { rows: [] } : await sql<UserRow>`select id, ${store.userColumn('role')} as role, ${store.userColumn('lastRole')} as last_role,
-    ${store.userColumn('banned')} as banned from ${store.user} where id = any(${ids})`.execute(store.db)
-  const standing = new Map(users.filter((user) => !user.banned).map((user) => [user.id, user]))
+    ${store.userColumn('banned')} as banned, ${store.userColumn('banExpires')} as "banExpires" from ${store.user} where id = any(${ids})`.execute(store.db)
+  const now = new Date()
+  const standing = new Map(users.filter((user) => !bannedNow(user, now)).map((user) => [user.id, user]))
   // Without organizations, a tenant holds no roles of its own.
   const tenants = auth.organizations ? [...new Set(owners.flatMap((owner) => (owner.tenant !== undefined && standing.has(idOf(owner.id)) ? [idOf(String(owner.tenant))] : [])))].filter((id) => mayBeId(context.options, id)) : []
   const { rows: members } = tenants.length === 0 ? { rows: [] } : await sql<MemberRow>`select user_id, organization_id, app_roles from ${store.table('member')}
@@ -41,7 +43,7 @@ const ownersRoles = async (auth: AdminAuth, owners: readonly Owner[]) => {
 
 /**
  * The role someone acts with now, as their next session's token would carry it: the one they last chose while they
- * hold it, else their first (see `resolveActiveRole`). None for a user who is banned or gone, or holds no role. The
+ * hold it, else their first (see `resolveActiveRole`). None for a user whose ban stands, who is gone, or who holds no role. The
  * calls made together, as for every subscription loaded at once, are answered by one read of the users and one of
  * their memberships.
  */

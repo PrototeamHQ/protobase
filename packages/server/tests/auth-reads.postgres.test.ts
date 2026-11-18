@@ -155,11 +155,13 @@ describe.skipIf(!ready)('the auth reads', () => {
       insert into organization (id, name, slug, created_at) values ('acme', 'Acme', 'acme', now());
       insert into member (id, organization_id, user_id, role, app_roles, created_at) select 'm' || i, 'acme', 'u' || i, 'member', '["sales"]', now() from generate_series(1, 100000) i;
       update "user" set role = 'support', last_role = case when i <= 500 then 'sales' end from generate_series(1, 1000) i where id = 'u' || i;
-      update "user" set banned = true where id = 'u1000'`)
+      update "user" set banned = true where id = 'u1000';
+      update "user" set banned = true, ban_expires = '2026-01-01' where id = 'u999'`)
     const roles = betterAuthOwnerRoles(auth)
     const owners = [...Array.from({ length: 1000 }, (_, i) => ({ id: `u${String(i + 1)}`, tenant: 'acme' })), { id: 'u1' }, { id: 'u100001', tenant: 'acme' }, { id: 'gone', tenant: 'acme' }]
     const held = await Promise.all(owners.map(roles))
     // A member's last chosen role while they hold it, else their first, a global one; outside the tenant, the global ones.
+    // A ban whose end has passed no longer stands.
     expect(held.slice(0, 500).every((one) => one.join() === 'sales')).toBe(true)
     expect(held.slice(500, 999).every((one) => one.join() === 'support')).toBe(true)
     expect(held.slice(999)).toEqual([[], ['support'], [], []])
@@ -182,6 +184,8 @@ describe.skipIf(!ready)('the auth reads', () => {
     expect(await names('AARON A', 8)).toEqual(['Aaron Active'])
     expect(await names('%', 8)).toEqual([])
     expect(await names('', 2)).toEqual(['Aaron Active', 'Aaron Lapsed'])
+    // Whom the search offers is mailed, and no one whose ban stands.
+    expect([await users.email('lapsed'), await users.email('later'), await users.email('u1')]).toEqual(['lapsed@example.com', undefined, undefined])
     // A part of a name few users have is found by the trigram index; one nearly all have, by reading them all.
     forget()
     expect(await names('zed', 8)).toEqual(['Zed Aaron'])

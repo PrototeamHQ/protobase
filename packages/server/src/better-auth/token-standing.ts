@@ -30,7 +30,8 @@ export const tokenClaims = (payload: JWTPayload, roles: readonly string[], tenan
 
 const revoked = () => unauthorized('The bearer token was revoked: get a new one')
 
-const bannedNow = (user: StandingUser, now: Date) => Boolean(user.banned) && (!user.banExpires || user.banExpires > now)
+/** Whether the user's ban stands at `now`: it has no end, or its end is still to come. */
+export const bannedNow = (user: Pick<StandingUser, 'banned' | 'banExpires'>, now: Date) => Boolean(user.banned) && (!user.banExpires || user.banExpires > now)
 
 // The roles the user holds where the token works: globally, and in its organization as a member, with their
 // organization role there; `undefined` when they may no longer work in that organization at all.
