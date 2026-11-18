@@ -1,9 +1,10 @@
-import { IdentifierNode, Kysely, OperationNodeTransformer, type KyselyPlugin, type RawNode, type TableNode } from 'kysely'
+import { IdentifierNode, Kysely, OperationNodeTransformer, type KyselyPlugin, type TableNode } from 'kysely'
 import { describe, expect, it, vi } from 'vitest'
 import { checkAuthSchema } from '../src/better-auth/auth-schema'
 import { appAuthOptions } from '../src/better-auth/auth-settings'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { buildAuth } from '../src/better-auth/create-auth'
+import { endDeviceSessions } from '../src/better-auth/platform-device-store'
 import { createOrganization } from '../src/better-auth/organizations/host'
 import { createUser } from '../src/better-auth/users'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
@@ -19,7 +20,7 @@ const password = 'correct-horse-battery-staple'
 const baseURL = 'http://localhost:5173'
 const prefix = 'test_'
 
-// Notes each table a query names, as a table or as an identifier of raw SQL, and gives it its name in `renamed`.
+// Notes each table a query names, in a query builder or raw SQL alike, and gives it its name in `renamed`.
 class TableNames extends OperationNodeTransformer {
   constructor(
     readonly seen: Set<string>,
@@ -34,17 +35,6 @@ class TableNames extends OperationNodeTransformer {
     this.seen.add(name)
     const to = this.renamed[name]
     return to ? { ...table, table: { ...table.table, identifier: IdentifierNode.create(to) } } : table
-  }
-
-  protected override transformRaw(node: RawNode): RawNode {
-    const raw = super.transformRaw(node)
-    const parameters = raw.parameters.map((parameter) => {
-      if (!IdentifierNode.is(parameter)) return parameter
-      this.seen.add(parameter.name)
-      const to = this.renamed[parameter.name]
-      return to ? IdentifierNode.create(to) : parameter
-    })
-    return { ...raw, parameters }
   }
 }
 
@@ -111,6 +101,11 @@ describe.skipIf(!ready)("sign-in on the app's own Kysely", () => {
       .selectNoFrom((eb) => Object.values(renamed).map((table) => eb.selectFrom(table).select(eb.fn.countAll<string>().as('n')).as(table)))
       .executeTakeFirstOrThrow()
     expect(counts).toEqual({ app_session: '1', app_member: '1', app_personal_access_token: '1' })
+    // The store's own SQL maps its tables too: ending a device's sessions deletes the row of the renamed table.
+    const { id } = await app.store.db.selectFrom('app_session').select('id').executeTakeFirstOrThrow()
+    await app.store.db.insertInto('device_session').values({ id: 'd1', session_id: id, account_id: 'device-account', created_at: new Date() }).execute()
+    await endDeviceSessions(app.auth, 'device-account')
+    expect(await app.store.db.selectFrom('app_session').select('id').execute()).toEqual([])
   })
 
   it("checks the auth schema on plain connections, past the app's plugins", async () => {

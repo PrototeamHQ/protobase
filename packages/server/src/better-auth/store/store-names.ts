@@ -1,4 +1,4 @@
-import { sql } from 'kysely'
+import { sql, TableNode } from 'kysely'
 import type { BetterAuthOptions } from 'better-auth'
 import type { UserTable } from '../user-table'
 
@@ -30,5 +30,11 @@ export const storeNames = (auth: StoreNamesSource): StoreNames => ({
   uuidIds: auth.options.advanced?.database?.generateId === 'uuid',
 })
 
-/** A table of the store, in its schema, as an identifier for `ddl`. */
-export const storeTable = ({ schema }: Pick<StoreNames, 'schema'>, name: string) => (schema === undefined ? sql.id(name) : sql.id(schema, name))
+/**
+ * A table of the store, in its schema, for raw SQL and `ddl`. It is a table reference, not a bare identifier, so a
+ * plugin on the app's Kysely that maps tables maps it as it maps Better Auth's own queries.
+ */
+export const storeTable = ({ schema }: Pick<StoreNames, 'schema'>, name: string) => {
+  const table = schema === undefined ? TableNode.create(name) : TableNode.createWithSchema(schema, name)
+  return sql`${{ toOperationNode: () => table }}`
+}
