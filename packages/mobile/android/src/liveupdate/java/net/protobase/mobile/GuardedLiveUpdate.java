@@ -1,6 +1,7 @@
 package net.protobase.mobile;
 
 import android.app.Activity;
+import android.content.pm.ApplicationInfo;
 import android.content.res.AssetManager;
 import android.content.SharedPreferences;
 import android.util.Base64;
@@ -18,15 +19,12 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -46,9 +44,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  *   upgrade that adds a method leaves no LiveUpdate at all rather than an open one.
  * - The methods the shell needs that take no input clear what page script passed before the stock code reads it.
  * - downloadBundle takes only a manifest from the app's own releases URL, `releasesUrl + "/" + bundleId`, over https
- *   or loopback http, and downloads it itself (ReleaseDownload), bound by the release's statement to the id, the pinned
- *   `publicKey`, this binary and its order; a caller's checksum and signature are dropped. A few per run of the app, so
- *   a loop cannot drain the data plan.
+ *   or, in a debuggable build alone, loopback http (ReleasesUrl), and downloads it itself (ReleaseDownload), bound by
+ *   the release's statement to the id, the pinned `publicKey`, this binary and its order; a caller's checksum and
+ *   signature are dropped. A few per run of the app, so a loop cannot drain the data plan.
  * - Both take a release only above the order of the binary's own files, `builtInOrder`, which the CLI computes as the
  *   server computes a release's, so a reinstalled app cannot be taken below its own files; and neither takes a bundle
  *   the stock code blocked after rolling it back (BlockedBundles), which it checks only in the refused sync().
@@ -113,8 +111,9 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
             refuseToLoad("plugins.LiveUpdate needs the order of the binary's own files, builtInOrder, in a Protobase app: run protobase mobile again");
         }
         releasesUrl = config.getString("releasesUrl");
-        if (!ownSource(releasesUrl)) {
-            refuseToLoad("plugins.LiveUpdate.releasesUrl must be an https URL, or http to the device itself, in a Protobase app");
+        boolean debuggable = (getContext().getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+        if (!ReleasesUrl.isOwnSource(releasesUrl, debuggable)) {
+            refuseToLoad("plugins.LiveUpdate.releasesUrl must be an https URL, or in a debuggable build http to the device itself, in a Protobase app");
         }
         publicKey = rsaKey(config.getString("publicKey"));
         String fingerprint = config.getString("fingerprint");
@@ -451,20 +450,6 @@ public class GuardedLiveUpdate extends LiveUpdatePlugin {
     @PluginMethod
     public void sync(PluginCall call) {
         Refusal.rejectMethod(call, "LiveUpdate", "sync");
-    }
-
-    // https, or http to the device itself, where no one sits on the path; a bare origin and path only.
-    private static boolean ownSource(String releasesUrl) {
-        if (releasesUrl == null) return false;
-        URI uri;
-        try {
-            uri = new URI(releasesUrl);
-        } catch (URISyntaxException e) {
-            return false;
-        }
-        if (uri.getHost() == null || uri.getRawUserInfo() != null || uri.getRawQuery() != null || uri.getRawFragment() != null) return false;
-        if ("https".equals(uri.getScheme())) return true;
-        return "http".equals(uri.getScheme()) && Arrays.asList("localhost", "127.0.0.1", "[::1]").contains(uri.getHost());
     }
 
     // The live data the stock code reads (PluginCall.java:150-152), emptied: keys collected first, then removed.

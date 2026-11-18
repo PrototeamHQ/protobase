@@ -42,8 +42,10 @@ describe('token sign-in alone', () => {
     expect(cookiesOf(refused).filter((cookie) => cookie.includes('state'))).toEqual([])
     const linking = await request('/link-social', { cookie: await signIn('root@example.com'), body: { provider: 'github', callbackURL: `${origin}/` } })
     expect(linking.status).toBe(403)
-    const status = (await (await request('/status')).json()) as { socialProviders: string[]; platformProviders?: unknown }
+    const status = (await (await request('/status')).json()) as { socialProviders: string[]; platformProviders?: unknown; tokenProviders?: string[] }
     expect(status.socialProviders).not.toContain('github')
     expect(status.platformProviders).toBeUndefined()
+    // It is named where a client looks for where its ID token signs in
+    expect(status.tokenProviders).toEqual(['github'])
   })
 })

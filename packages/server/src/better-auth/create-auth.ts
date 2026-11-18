@@ -774,8 +774,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     /** The app's name it signs in and mails as: `PROTOBASE_APP_NAME`, else `appName`, else `Protobase`. */
     appName: appName ?? defaultAppName,
     operator: operator?.name,
-    /** The platform's sign-in providers: each one's id, name, whether people sign in through its pages, whether it is off the account page, whether the sign-in page shows its button, and whether its accounts are devices. */
-    platformSignIn: platformSignIn.map(({ provider, name, pages, hidden, button, devices }) => ({ provider, name, pages, hidden, button, devices })),
+    /** The platform's sign-in providers: each one's id, name, whether people sign in through its pages, whether it takes token sign-in, whether it is off the account page, whether the sign-in page shows its button, and whether its accounts are devices. */
+    platformSignIn: platformSignIn.map(({ provider, name, pages, tokenSignIn, hidden, button, devices }) => ({ provider, name, pages, tokens: tokenSignIn === true, hidden, button, devices })),
     /** The id and name of each SAML provider, for the sign-in page. */
     samlProviders: saml.map(({ id, name }) => ({ id, name })),
     /** The mail providers people link their own mailbox with (`personalMail`). */
