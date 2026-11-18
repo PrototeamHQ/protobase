@@ -127,6 +127,7 @@ export { relaySendPath, maxRelayDevices, relayHandle, relayResults, relaySendReq
 export { statusMigration, checkStatusSchema } from './status/schema'
 export { unsubscribesMigration, checkUnsubscribesSchema } from './mail/unsubscribe/unsubscribe-schema'
 export type { UnsubscribeLinks } from './mail/unsubscribe/unsubscribe-links'
+export { BulkMailError } from './mail/unsubscribe/bulk-mail-error'
 export { onDoNotDisturb } from './status/do-not-disturb'
 export { statusNames, type StatusOptions } from './status/options'
 export type { OrganizationsOptions } from './better-auth/organizations/options'

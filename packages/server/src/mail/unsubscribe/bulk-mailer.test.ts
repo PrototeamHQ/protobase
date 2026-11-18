@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MailMessage } from '../mail-message'
+import { BulkMailError } from './bulk-mail-error'
 import { bulkMailer } from './bulk-mailer'
 import { unsubscribeLinks } from './unsubscribe-links'
 
@@ -53,6 +54,17 @@ describe('bulk mail', () => {
     expect(result).toEqual({ skipped: ['bob@example.com'], sent: [{ to: 'ada@example.com', messageId: '<1@shop.example.com>' }, { to: 'cy@example.com', messageId: '<1@shop.example.com>' }] })
     expect(sent.map((message) => message.to)).toEqual(['ada@example.com', 'cy@example.com'])
     expect(sent[0]!.headers!['List-Unsubscribe']).not.toBe(sent[1]!.headers!['List-Unsubscribe'])
+  })
+
+  it('rejects with who it went to when the server refuses a recipient, so a retried try can leave them out', async () => {
+    const refusal = Object.assign(new Error('Mailbox unavailable'), { code: 'EENVELOPE' })
+    const tried: string[] = []
+    const mailer = { send: async ({ to }: MailMessage) => { tried.push(to as string); if (to === 'cy@example.com') throw refusal; return { messageId: `<${tried.length}@shop.example.com>` } } }
+    const sending = bulkMailer(mailer, { links, unsubscribed }).send({ to: 'ada@example.com, bob@example.com, cy@example.com, dee@example.com', ...newsletter })
+    const error = await sending.catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(BulkMailError)
+    expect(error).toMatchObject({ code: 'BULK_MAIL_FAILED', to: 'cy@example.com', sent: [{ to: 'ada@example.com', messageId: '<1@shop.example.com>' }], skipped: ['bob@example.com'], cause: refusal })
+    expect(tried).toEqual(['ada@example.com', 'cy@example.com'])
   })
 
   it('is refused without a topic, to a named address, or with unsubscribe off', async () => {
