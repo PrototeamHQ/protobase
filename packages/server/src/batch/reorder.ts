@@ -1,4 +1,4 @@
-import { sql } from 'kysely'
+import { sql, type SqlBool } from 'kysely'
 import type { Db } from '@protobase/query'
 import { encodeKey } from '@protobase/schema/internal'
 import type { Deps } from '../deps'
@@ -6,7 +6,7 @@ import type { ScheduledDelete } from '../files/cleanup-schedule'
 import { badRequest, preconditionFailed } from '../problem'
 import { fetchRecord } from '../records'
 import { requireOperation, targetFilter, writableFields, type RequestAccess } from '../request-access'
-import { columnId, keyConditions, scopeConditions, tableId, whereClause } from '../sql-parts'
+import { columnId, scopeConditions, tableId, whereClause } from '../sql-parts'
 import { tenantScope } from '../tenant'
 import { refuseUnknownField, validateBody } from '../validate-body'
 import { missing, shown, type WriteResult } from '../write-shared'
@@ -23,8 +23,9 @@ const checkViolation = '23514'
 const isDatabaseCode = (error: unknown, code: string) => error instanceof Error && (error as { code?: unknown }).code === code
 
 /**
- * Moves the affected rows out of the range in use, in one statement per row and without touching their ETags, so the
- * final positions can be written without any two rows colliding on a non-deferrable unique index.
+ * Moves the affected rows out of the range in use, in one statement and without touching their ETags, so the final
+ * positions can be written without any two rows colliding on a non-deferrable unique index: each lands on its own value
+ * outside every one in use, so none collides on the way either.
  * First above the highest value in the column; when a check constraint refuses that, below the lowest (negative).
  * The first attempt runs in a savepoint, so a refusal costs nothing.
  */
@@ -33,20 +34,20 @@ const moveAside = async (trx: Db, access: RequestAccess, field: string, keys: Ke
   const column = columnId(full.fields[field]!)
   const tenant = tenantScope(access.entry, access.session)?.tenantValue
   const bounds = (await sql<{ high: number | null; low: number | null }>`select max(${column}) as high, min(${column}) as low from ${tableId(full)} as t`.execute(trx)).rows[0]!
-  const assign = async (temporary: (rank: number) => number) => {
-    for (const [rank, key] of keys.entries()) {
-      const conditions = [...scopeConditions(full, tenant), ...keyConditions(full, key)]
-      await sql`update ${tableId(full)} as t set ${column} = ${temporary(rank)}${whereClause(conditions)}`.execute(trx)
-    }
-  }
+  const keyRow = sql`(${sql.join(full.primaryKey.map((name) => columnId(full.fields[name]!)))})`
+  const keyOf = (key: Key) => sql`(${sql.join(key.map((value) => sql`${value}`))})`
+  const ranks = sql.join(keys.map((key, rank) => sql`when ${keyRow} = ${keyOf(key)} then ${rank}::bigint`), sql` `)
+  const conditions = [...scopeConditions(full, tenant), sql<SqlBool>`${keyRow} in (${sql.join(keys.map(keyOf))})`]
+  // The row of rank n goes to `from` + n, or `from` - n going down.
+  const assign = (from: number, step: 1 | -1) => sql`update ${tableId(full)} as t set ${column} = ${from}::bigint + ${step}::bigint * (case ${ranks} end)${whereClause(conditions)}`.execute(trx)
   await sql`savepoint reorder_aside`.execute(trx)
   try {
-    await assign((rank) => Number(bounds.high ?? 0) + 1 + rank)
+    await assign(Number(bounds.high ?? 0) + 1, 1)
     await sql`release savepoint reorder_aside`.execute(trx)
   } catch (error) {
     if (!isDatabaseCode(error, checkViolation)) throw error
     await sql`rollback to savepoint reorder_aside`.execute(trx)
-    await assign((rank) => Math.min(Number(bounds.low ?? 0), 0) - 1 - rank)
+    await assign(Math.min(Number(bounds.low ?? 0), 0) - 1, -1)
   }
 }
 
