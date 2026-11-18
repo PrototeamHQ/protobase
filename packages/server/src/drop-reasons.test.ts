@@ -26,7 +26,7 @@ describe('keepDropReasons', () => {
     expect((error as Error).cause).toBe(reason)
   })
 
-  it('fails a statement in flight with the FATAL error that ended the session, and later ones with it too', async () => {
+  it('fails a statement in flight with the error that ended the session, and later ones with it too', async () => {
     const reason = terminated()
     const { client, pool } = poolOf(() => Promise.reject(reason))
     const checkedOut = await pool.connect()
@@ -43,6 +43,22 @@ describe('keepDropReasons', () => {
     const { pool } = poolOf(() => Promise.reject(failed))
     const checkedOut = await pool.connect()
     await expect(checkedOut.query('insert', [])).rejects.toBe(failed)
+  })
+
+  it('keeps a statement error the server reported, even once the connection dropped right after it', async () => {
+    const failed = Object.assign(new Error('duplicate key value'), { severity: 'ERROR', code: '23505' })
+    const { client, pool } = poolOf(() => Promise.reject(failed))
+    const checkedOut = await pool.connect()
+    client.emit('error', terminated())
+    await expect(checkedOut.query('insert', [])).rejects.toBe(failed)
+  })
+
+  it('reads a session-ending error by its SQLSTATE, whatever language its severity is in', async () => {
+    const reason = Object.assign(new Error('terminating connection due to idle-in-transaction timeout'), { severity: 'ВАЖНО', code: '25P03' })
+    const { pool } = poolOf(() => Promise.reject(reason))
+    const error = await (await pool.connect()).query('select 1', []).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(LostConnection)
+    expect((error as Error).cause).toBe(reason)
   })
 
   it('releases a dropped client with its reason, so the pool closes it, and a working one without', async () => {

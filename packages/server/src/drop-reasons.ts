@@ -16,12 +16,29 @@ const listen = (client: PgClient) => {
   })
 }
 
-// Postgres ends the session with a FATAL error, such as a terminated backend or an idle-transaction timeout, and a
-// statement in flight then fails with that error before the client reports the drop.
-const endsSession = (error: unknown) => error instanceof Error && (error as { severity?: unknown }).severity === 'FATAL'
+// The SQLSTATEs Postgres ends a session with, such as a terminated backend or an idle-transaction timeout; a statement
+// in flight then fails with that error before the client reports the drop. Read by code, which Postgres never
+// translates, unlike the severity.
+const sessionEnding = new Set([
+  '57P01', // admin_shutdown, also pg_terminate_backend
+  '57P02', // crash_shutdown
+  '57P04', // database_dropped
+  '57P05', // idle_session_timeout
+  '25P03', // idle_in_transaction_session_timeout
+  '25P04', // transaction_timeout
+])
+const sqlState = (error: unknown) => (error instanceof Error ? (error as { code?: unknown }).code : undefined)
+const endsSession = (error: unknown) => sessionEnding.has(sqlState(error) as string)
+// pg's DatabaseError, the server's answer to the statement, carries a severity; the client's own failures do not.
+const reportedByServer = (error: unknown) => error instanceof Error && typeof (error as { severity?: unknown }).severity === 'string'
 
 const failure = (client: PgClient, error: unknown) => {
-  if (!reasons.has(client) && endsSession(error)) reasons.set(client, error as Error)
+  if (endsSession(error)) {
+    if (!reasons.has(client)) reasons.set(client, error as Error)
+    return new LostConnection(reasons.get(client)!)
+  }
+  // The statement's own error, such as a unique violation, even when the drop came right after it.
+  if (reportedByServer(error)) return error
   const reason = reasons.get(client)
   return reason ? new LostConnection(reason) : error
 }

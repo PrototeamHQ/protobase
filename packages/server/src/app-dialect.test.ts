@@ -54,6 +54,26 @@ describe('appDialect', () => {
     expect(error).toBe(own)
   })
 
+  it('fails an explicit rollback after a commit that lost the connection, whose outcome is unknown', async () => {
+    const reason = new Error('Connection terminated unexpectedly')
+    const { client, drop, db } = droppingPool(reason)
+    client.query.mockImplementation(async (text: string) => {
+      if (text === 'commit') drop()
+      if (text === 'commit' || text === 'rollback') throw notQueryable()
+      return { rows: [], command: 'SELECT', rowCount: 0 }
+    })
+    const trx = await db.startTransaction().execute()
+    await expect(trx.commit().execute()).rejects.toBeInstanceOf(LostConnection)
+    await expect(trx.rollback().execute()).rejects.toMatchObject({ cause: reason })
+  })
+
+  it('rolls back explicitly without error when the connection dropped before any commit', async () => {
+    const { drop, db } = droppingPool(new Error('Connection terminated unexpectedly'))
+    const trx = await db.startTransaction().execute()
+    drop()
+    await expect(trx.rollback().execute()).resolves.toBeUndefined()
+  })
+
   it('fails a transaction with a rollback that fails on a connection that is still up', async () => {
     const { client, db } = droppingPool(new Error('unused'))
     const refused = new Error('rollback refused')
