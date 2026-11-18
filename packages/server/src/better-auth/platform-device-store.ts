@@ -1,9 +1,9 @@
 import { sql } from 'kysely'
-import { storeDb } from './store/store-db'
-import { storeSchema, storeTable, type StoreOptions } from './store/store-names'
+import type { AuthContext } from './organizations/store'
+import { storeSqlOf } from './store/store-sql'
 
-/** What a device store query needs of Better Auth's context: the store's database options. */
-export type DeviceStoreContext = StoreOptions
+/** What a device store query needs of Better Auth's context: its options and the store's names. */
+export type DeviceStoreContext = Pick<AuthContext, 'options'>
 
 /** A device account of the person, with the tokens of the sessions it began, as one row of `deviceLinkRows`. */
 export type DeviceLinkRow = { id: string; providerId: string; idToken: string | null; createdAt: Date; sessions: string[] }
@@ -14,15 +14,21 @@ export type DeviceLinkRow = { id: string; providerId: string; idToken: string | 
  * session names its account as text, also in a store whose ids are uuids, so the account's id is compared as text.
  */
 export const deviceLinkRows = async (context: DeviceStoreContext, userId: string, providers: string[]) => {
-  const names = { schema: storeSchema(context) }
-  const { rows } = await sql<DeviceLinkRow>`select a.id, a.provider_id as "providerId", a.id_token as "idToken", a.created_at as "createdAt",
-  coalesce(array_agg(s.token order by s.created_at) filter (where s.token is not null), '{}') as sessions
-from ${storeTable(names, 'account')} a
-left join ${storeTable(names, 'device_session')} d on d.account_id = a.id::text
-left join ${storeTable(names, 'session')} s on s.id = d.session_id
-where a.user_id = ${userId} and a.provider_id in (${sql.join(providers)})
+  const store = storeSqlOf(context)
+  const account = store.table('account')
+  const a = account.columns
+  const device = store.table('device_session')
+  const d = device.columns
+  const session = store.table('session')
+  const s = session.columns
+  const { rows } = await sql<DeviceLinkRow>`select a.id, a.${a.provider_id} as "providerId", a.${a.id_token} as "idToken", a.${a.created_at} as "createdAt",
+  coalesce(array_agg(s.${s.token} order by s.${s.created_at}) filter (where s.${s.token} is not null), '{}') as sessions
+from ${account} a
+left join ${device} d on d.${d.account_id} = a.id::text
+left join ${session} s on s.id = d.${d.session_id}
+where a.${a.user_id} = ${userId} and a.${a.provider_id} in (${sql.join(providers)})
 group by a.id
-order by a.created_at, a.id`.execute(storeDb(context))
+order by a.${a.created_at}, a.id`.execute(store.db)
   return rows
 }
 
@@ -32,6 +38,8 @@ order by a.created_at, a.id`.execute(storeDb(context))
  * else: its cookie and tokens are refused once its row is gone.
  */
 export const endDeviceSessions = async (context: DeviceStoreContext, accountId: string) => {
-  const names = { schema: storeSchema(context) }
-  await sql`delete from ${storeTable(names, 'session')} s using ${storeTable(names, 'device_session')} d where d.session_id = s.id and d.account_id = ${accountId}`.execute(storeDb(context))
+  const store = storeSqlOf(context)
+  const device = store.table('device_session')
+  const { session_id, account_id } = device.columns
+  await sql`delete from ${store.table('session')} s using ${device} d where d.${session_id} = s.id and d.${account_id} = ${accountId}`.execute(store.db)
 }

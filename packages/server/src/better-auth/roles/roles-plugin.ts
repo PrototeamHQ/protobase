@@ -2,6 +2,7 @@ import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint, createAuthMiddleware, getSessionFromCtx, sessionMiddleware } from 'better-auth/api'
 import * as z from 'zod'
 import { superuserRole, type RoleDefinitions } from '../organizations/role-definitions'
+import type { BetterAuthNames } from '../names/better-auth-names'
 import { sessionRoles, type RoleSession, type RoleUser } from './session-role'
 
 /**
@@ -9,13 +10,13 @@ import { sessionRoles, type RoleSession, type RoleUser } from './session-role'
  * alone (see `narrowClaims`), so the API, the views and the menu follow it. The user keeps the last one chosen, for
  * their next session. Better Auth's admin endpoints refuse a superuser acting with another role.
  */
-export const rolesPlugin = ({ definitions }: { definitions: RoleDefinitions }) =>
+export const rolesPlugin = ({ definitions, names }: { definitions: RoleDefinitions; names: BetterAuthNames }) =>
   ({
     id: 'protobase-roles',
     // The session's active role, which its tokens carry, and the user's last one, which a new session starts with.
     schema: {
-      session: { fields: { activeRole: { type: 'string', required: false, input: false, fieldName: 'active_role' } } },
-      user: { fields: { lastRole: { type: 'string', required: false, input: false, fieldName: 'last_role' } } },
+      session: { fields: names.fields('session', ['activeRole']) },
+      user: { fields: names.fields('user', ['lastRole']) },
     },
     endpoints: {
       /** `GET /role/current`: the role the session acts with, and the roles held there with their labels to switch to. */

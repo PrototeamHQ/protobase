@@ -888,16 +888,6 @@
                         {
                           "type": "object",
                           "properties": {
-                            "created_at": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "$ref": "#/definitions/EnvValue"
-                                }
-                              ]
-                            },
                             "auth": {
                               "anyOf": [
                                 {
@@ -908,7 +898,27 @@
                                 }
                               ]
                             },
-                            "id": {
+                            "created_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "token": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "user_agent": {
                               "anyOf": [
                                 {
                                   "type": "string"
@@ -928,7 +938,7 @@
                                 }
                               ]
                             },
-                            "kind": {
+                            "session_id": {
                               "anyOf": [
                                 {
                                   "type": "string"
@@ -938,7 +948,17 @@
                                 }
                               ]
                             },
-                            "token": {
+                            "id": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "kind": {
                               "anyOf": [
                                 {
                                   "type": "string"
@@ -969,26 +989,6 @@
                               ]
                             },
                             "app_id": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "$ref": "#/definitions/EnvValue"
-                                }
-                              ]
-                            },
-                            "user_agent": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "$ref": "#/definitions/EnvValue"
-                                }
-                              ]
-                            },
-                            "session_id": {
                               "anyOf": [
                                 {
                                   "type": "string"
@@ -1065,7 +1065,7 @@
                                 }
                               ]
                             },
-                            "id": {
+                            "user_id": {
                               "anyOf": [
                                 {
                                   "type": "string"
@@ -1075,7 +1075,7 @@
                                 }
                               ]
                             },
-                            "user_id": {
+                            "id": {
                               "anyOf": [
                                 {
                                   "type": "string"
@@ -1830,6 +1830,17 @@
             }
           ]
         },
+        "users": {
+          "description": "The user table, when it is one another system made, such as Supabase's `auth.users`: its name, the columns named\notherwise than Protobase names them, and a JSON column for each user's metadata, for example `{ table: 'users',\ncolumns: { role: 'app_role' }, metadata: 'raw_user_meta_data' }`. The other tables keep their names. Default the\ntable `protobase auth migration` makes.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UserTableSettings"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
         "origins": {
           "description": "The other origins the app is served on, for example `['https://admin.shop.com']`. A request to one of them is\nanswered for that host: its sign-in callbacks and the links it mails, such as a password reset, stay there, and\npasskeys work on every origin. Tokens keep `baseURL` as issuer, whatever host issued them. Defaults to the\ncomma-separated list the platform passes in `PROTOBASE_ORIGINS`, when set; none otherwise.",
           "anyOf": [
@@ -1938,8 +1949,8 @@
                         "anyOf": [
                           {
                             "enum": [
-                              "email",
-                              "name"
+                              "name",
+                              "email"
                             ]
                           },
                           {
@@ -2000,9 +2011,9 @@
                   "anyOf": [
                     {
                       "enum": [
+                        "required",
                         "allowed",
-                        "forbidden",
-                        "required"
+                        "forbidden"
                       ]
                     },
                     {
@@ -2014,9 +2025,9 @@
                   "anyOf": [
                     {
                       "enum": [
+                        "required",
                         "allowed",
-                        "forbidden",
-                        "required"
+                        "forbidden"
                       ]
                     },
                     {
@@ -2135,17 +2146,6 @@
                   }
                 ]
               }
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        },
-        "users": {
-          "description": "The user table, when it is one another system made, such as Supabase's `auth.users`: its name, the columns named\notherwise than Protobase names them, and a JSON column for each user's metadata, for example `{ table: 'users',\ncolumns: { role: 'app_role' }, metadata: 'raw_user_meta_data' }`. The other tables keep their names. Default the\ntable `protobase auth migration` makes.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/UserTableOptions"
             },
             {
               "$ref": "#/definitions/EnvValue"
@@ -2277,204 +2277,9 @@
       },
       "additionalProperties": false
     },
-    "ConnectionClient": {
+    "UserTableSettings": {
       "type": "object",
       "properties": {
-        "clientId": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        },
-        "clientSecret": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        }
-      },
-      "required": [
-        "clientId",
-        "clientSecret"
-      ],
-      "additionalProperties": false
-    },
-    "UserTableOptions": {
-      "type": "object",
-      "properties": {
-        "table": {
-          "description": "The table's name, default `user`, for example `users` for Supabase's `auth.users`.",
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        },
-        "columns": {
-          "description": "The columns named otherwise than Protobase names them: `{ role: 'app_role' }`, where `role` holds something else\nalready, such as the Postgres role in Supabase's `auth.users`.",
-          "anyOf": [
-            {
-              "type": "object",
-              "properties": {
-                "email": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "name": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "image": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "role": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "banned": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "email_verified": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "email_confirmed_at": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "created_at": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "updated_at": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "ban_reason": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "ban_expires": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "two_factor_enabled": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "last_role": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "last_organization_id": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                }
-              },
-              "additionalProperties": false
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        },
         "metadata": {
           "description": "A JSON column that holds each user's metadata, such as `raw_user_meta_data`; none by default.",
           "anyOf": [
@@ -2487,7 +2292,7 @@
           ]
         },
         "keyTable": {
-          "description": "The table that holds the user ids, when `table` is a view over another system's user table, such as\n`{ schema: 'auth', table: 'users' }` under a view over Supabase's `auth.users`: the store's migrations then make\nnothing of the user table, which the app's own migration makes, and every foreign key points at this table.",
+          "description": "The table that holds the user ids, when the user table is a view over another system's user table, such as\n`{ schema: 'auth', table: 'users' }` under a view over Supabase's `auth.users`: the store's migrations then make\nnothing of the user table, which the app's own migration makes, and every foreign key points at this table.",
           "anyOf": [
             {
               "type": "object",
@@ -2544,8 +2349,203 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "table": {
+          "description": "The table's name, default `user`, for example `users` for Supabase's `auth.users`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "columns": {
+          "description": "The columns named otherwise than Protobase names them: `{ role: 'app_role' }`, where `role` holds something else\nalready, such as the Postgres role in Supabase's `auth.users`.",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "email": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "email_verified": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "image": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "created_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "updated_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "role": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "banned": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "ban_reason": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "ban_expires": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "last_role": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "email_confirmed_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "two_factor_enabled": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "last_organization_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
         }
       },
+      "additionalProperties": false
+    },
+    "ConnectionClient": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "clientSecret": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "clientId",
+        "clientSecret"
+      ],
       "additionalProperties": false
     },
     "OperatorProvider": {
@@ -3184,8 +3184,8 @@
           "description": "Whether the tokens carry organizations; read from `auth` when given. Needed with `jwksUrl` only.",
           "type": "boolean"
         },
-        "jwksUrl": {
-          "description": "Or its JWKS endpoint, for an API that runs apart from the auth server. Needs `issuer`.",
+        "issuer": {
+          "description": "Defaults to the auth instance's `issuer`, its `baseURL`; it is both issuer and audience of its tokens.",
           "anyOf": [
             {
               "type": "string"
@@ -3195,8 +3195,8 @@
             }
           ]
         },
-        "issuer": {
-          "description": "Defaults to the auth instance's `issuer`, its `baseURL`; it is both issuer and audience of its tokens.",
+        "jwksUrl": {
+          "description": "Or its JWKS endpoint, for an API that runs apart from the auth server. Needs `issuer`.",
           "anyOf": [
             {
               "type": "string"
@@ -3491,13 +3491,13 @@
               "bigint",
               "boolean",
               "uuid",
+              "date",
+              "json",
               "text",
               "integer",
               "decimal",
-              "date",
               "timestamp",
               "enum",
-              "json",
               "currency",
               "country"
             ]
@@ -3513,13 +3513,13 @@
                       "bigint",
                       "boolean",
                       "uuid",
+                      "date",
+                      "json",
                       "text",
                       "integer",
                       "decimal",
-                      "date",
                       "timestamp",
                       "enum",
-                      "json",
                       "currency",
                       "country"
                     ]

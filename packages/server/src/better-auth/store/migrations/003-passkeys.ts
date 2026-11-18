@@ -7,22 +7,26 @@ export const passkeys: StoreMigration = {
   name: 'passkeys',
   title: "The users' passkeys",
   tables: ['passkey'],
-  statements: ({ table, user, id, idRef }) => [
-    ddl`create table ${table('passkey')} (
+  statements: ({ table, user, id, idRef }) => {
+    const passkey = table('passkey')
+    const p = passkey.columns
+    return [
+      ddl`create table ${passkey} (
   id ${id} primary key,
-  name text,
-  public_key text not null,
-  user_id ${idRef} not null references ${user} (id) on delete cascade,
-  credential_id text not null,
-  counter integer not null,
-  device_type text not null,
-  backed_up boolean not null,
-  transports text,
-  created_at timestamptz,
-  aaguid text,
-  rp_id text
+  ${p.name} text,
+  ${p.public_key} text not null,
+  ${p.user_id} ${idRef} not null references ${user} (id) on delete cascade,
+  ${p.credential_id} text not null,
+  ${p.counter} integer not null,
+  ${p.device_type} text not null,
+  ${p.backed_up} boolean not null,
+  ${p.transports} text,
+  ${p.created_at} timestamptz,
+  ${p.aaguid} text,
+  ${p.rp_id} text
 )`,
-    ddl`create index passkey_user_id_idx on ${table('passkey')} (user_id)`,
-    ddl`create index passkey_credential_id_idx on ${table('passkey')} (credential_id)`,
-  ],
+      ddl`create index ${passkey.index('passkey_user_id_idx')} on ${passkey} (${p.user_id})`,
+      ddl`create index ${passkey.index('passkey_credential_id_idx')} on ${passkey} (${p.credential_id})`,
+    ]
+  },
 }

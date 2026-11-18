@@ -104,7 +104,7 @@ describe.skipIf(!ready)("sign-in on the app's own Kysely", () => {
     // The store's own SQL maps its tables too: ending a device's sessions deletes the row of the renamed table.
     const { id } = await app.store.db.selectFrom('app_session').select('id').executeTakeFirstOrThrow()
     await app.store.db.insertInto('device_session').values({ id: 'd1', session_id: id, account_id: 'device-account', created_at: new Date() }).execute()
-    await endDeviceSessions(app.auth, 'device-account')
+    await endDeviceSessions(await app.auth.$context, 'device-account')
     expect(await app.store.db.selectFrom('app_session').select('id').execute()).toEqual([])
   })
 

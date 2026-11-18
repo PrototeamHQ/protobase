@@ -20,7 +20,7 @@ export const holdsOtherSubject = async ({ adapter }: Stores, { userId, providerI
  * otherwise: the store keeps it unique per provider (auth store migration 11), so a second account of such a provider
  * for one person is never written, also when two sign-ins write theirs at the same moment.
  */
-export const singleSubjectField = { singleSubjectUserId: { type: 'string', required: false, input: false, fieldName: 'single_subject_user_id' } } as const
+export const singleSubjectField = 'singleSubjectUserId'
 
 /**
  * Better Auth's `databaseHooks.account` for the platform's `providers`: a person holds at most one account of each, so

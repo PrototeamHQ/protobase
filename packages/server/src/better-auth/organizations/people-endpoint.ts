@@ -26,7 +26,9 @@ export const peopleEndpoint = createAuthEndpoint('/organization/people', { metho
   const member = organizationId ? await findMember(adapter, { organizationId, userId: user.id }) : undefined
   if (!organizationId || !member) throw new APIError('FORBIDDEN', { code: 'NOT_A_MEMBER', message: 'Only the members of the organization you work in can see its people.' })
   const store = storeSqlOf(ctx.context as unknown as AuthContext)
-  const { rows } = await sql<UserRow>`select u.id, u.${store.userColumn('name')} as name, u.${store.userColumn('image')} as image
-    from ${store.user} u where exists (select from ${store.table('member')} m where m.user_id = u.id and m.organization_id = ${organizationId})`.execute(store.db)
+  const users = store.table('user')
+  const m = store.table('member').columns
+  const { rows } = await sql<UserRow>`select u.id, u.${users.columns.name} as name, u.${users.columns.image} as image
+    from ${users} u where exists (select from ${store.table('member')} m where m.${m.user_id} = u.id and m.${m.organization_id} = ${organizationId})`.execute(store.db)
   return ctx.json({ people: peopleOf(rows) })
 })

@@ -10,13 +10,14 @@ import { storeNames } from './store-names'
 
 /** Each column of Better Auth's user model the view lacks, or the view itself when there is none. */
 const userViewDrift = async (auth: AdminAuth) => {
-  const { schema, users } = storeNames(auth)
+  const { schema, names } = storeNames(auth)
+  const user = names.table('user').name
   const { rows } = await sql<{ column: string }>`select column_name as "column" from information_schema.columns
-    where table_schema = ${schema ?? sql`current_schema()`} and table_name = ${users.modelName}`.execute(plainStoreDb(auth))
-  if (rows.length === 0) return [`lacks the view ${users.modelName}`]
+    where table_schema = ${schema ?? sql`current_schema()`} and table_name = ${user}`.execute(plainStoreDb(auth))
+  if (rows.length === 0) return [`lacks the view ${user}`]
   const found = new Set(rows.map(({ column }) => column))
-  const wanted = ['id', ...Object.keys(getSchema(auth.options)[users.modelName]?.fields ?? {})]
-  return wanted.filter((column) => !found.has(column)).map((column) => `lacks the column ${users.modelName}.${column}`)
+  const wanted = ['id', ...Object.keys(getSchema(auth.options)[user]?.fields ?? {})]
+  return wanted.filter((column) => !found.has(column)).map((column) => `lacks the column ${user}.${column}`)
 }
 
 /**
@@ -29,7 +30,7 @@ export const authSchemaDrift = async (auth: AdminAuth) => {
   const { database } = auth.options
   const options = database && 'db' in database ? { ...auth.options, database: { ...database, db: plainStoreDb(auth) } } : auth.options
   const { toBeCreated, toBeAdded, toBeAddedIndexes, schemaProblems } = await getMigrations(options, { throwOnUnsafe: false })
-  const view = auth.userTable.keyTable ? auth.userTable.modelName : undefined
+  const view = auth.users.keyTable ? auth.names.table('user').name : undefined
   const tables = [
     ...toBeCreated.filter(({ table }) => table !== view).map(({ table }) => `lacks the table ${table}`),
     ...toBeAdded.filter(({ table }) => table !== view).flatMap(({ table, fields }) => Object.keys(fields).map((field) => `lacks the column ${table}.${field}`)),

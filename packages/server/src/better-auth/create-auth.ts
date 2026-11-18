@@ -80,7 +80,6 @@ import { signUpPaths, signUpPlugin } from './sign-up/sign-up-plugin'
 import { codeSignsUp, codeSignUpPlugin } from './sign-up/code-sign-up-plugin'
 import { resolveSignUpFields, type SignUpField } from './sign-up/sign-up-fields'
 import { confirmedOnCreate, confirmedOnUpdate, emailConfirmedField } from './email-confirmed'
-import { coreNames, pluginNames } from './snake-case-names'
 import { rehashPasswordsPlugin, verifyAcceptedHash, type PasswordHash } from './password-hashes'
 import { staffSignInPlugin } from './staff-plugin'
 import { strongSignInsPlugin } from './strong-sign-ins'
@@ -89,7 +88,11 @@ import { confirmationCodePaths, confirmationCodePlugin } from './confirmation-co
 import { passwordConfirmationPath, passwordConfirmationPlugin } from './password-confirmation'
 import { tokenClaims } from './token-claims'
 import { twoFactorAfterFirstFactor } from './two-factor-challenge'
-import { metadataField, userFieldsNamed, userModel, userTable, withUserColumns, type UserTableOptions } from './user-table'
+import { metadataField, userTable, type UserTableOptions } from './user-table'
+import { betterAuthNames } from './names/better-auth-names'
+import { storeNamesPlugin } from './names/names-plugin'
+import { resolveNames, type ResolvedNames, type TableNames } from './names/resolve-names'
+import { storeSchema } from './store/store-names'
 import { usersPlugin } from './users/users-plugin'
 
 export type CreateAuthOptions = {
@@ -210,10 +213,15 @@ export type CreateAuthOptions = {
    */
   generateUserId?: (() => string | Promise<string>) | 'uuid'
   /**
-   * The user table, when it is one another system made, such as Supabase's `auth.users`: its name, the columns named
-   * otherwise than Protobase names them, and a JSON column for each user's metadata, for example `{ table: 'users',
-   * columns: { role: 'app_role' }, metadata: 'raw_user_meta_data' }`. The other tables keep their names. Default the
-   * table `protobase auth migration` makes.
+   * The names of the store's tables and columns where the app wants others than the built-in ones (see `TableNames`),
+   * such as `{ user: { name: 'users', columns: { role: 'app_role' } } }` for Supabase's `auth.users`. Default the
+   * built-in names.
+   */
+  tables?: TableNames
+  /**
+   * The user table, when it is one another system made, such as Supabase's `auth.users`: a JSON column for each user's
+   * metadata, the table under a view over it, and the schemas the other system keeps its sign-in data in, for example
+   * `{ metadata: 'raw_user_meta_data' }`. `tables.user` names the table and its columns.
    */
   users?: UserTableOptions
   /**
@@ -346,6 +354,8 @@ const adminImpersonationPaths = ['/admin/impersonate-user', '/admin/stop-imperso
 export const providerTokenPaths = ['/get-access-token', '/refresh-token']
 
 type Resolved = {
+  /** The store's names, from `resolveNames`; default those of `tables`. */
+  names?: ResolvedNames
   /** The origins besides `baseURL`, from `resolveOrigins`. */
   origins?: string[]
   /** The RP ID of new passkeys, from `resolvePasskeyDomain`; default the host of `baseURL`. */
@@ -423,7 +433,8 @@ const pageLoadReads = ['/get-session', '/role/current', '/token']
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn = [], saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, ...plugins }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn = [], saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, names = resolveNames({ schema: storeSchema({ options }), tables: options.tables }), ...plugins }: Resolved) => {
+  const named = betterAuthNames(names)
   const mailProviders = resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true)
   const connectionHooks = connections && connections.resolved.length > 0 ? connectionAccountHooks(connections.resolved, connections.events) : undefined
   const ownProviders = (connections?.resolved ?? []).filter(({ declaration }) => 'oauth' in declaration).map(({ providerId }) => providerId)
@@ -447,9 +458,10 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     socialProviders: [...Object.keys(options.socialProviders ?? {}), ...samlIds],
     ...(operator && { operator: operator.name }),
     platformSignIn: signIns.map(({ provider, name }) => ({ provider, name })),
+    names: named,
   }
   const jwtOptions = {
-    schema: pluginNames.jwt,
+    schema: named.schema('jwks'),
     // Protobase's tokens are EdDSA; the GoTrue-compatible endpoints' are ES256, with a key of their own. Both rotate.
     jwks: { keyPairConfigs: [goTrueKeyPair], ...signingKeyRotation(options) },
     jwt: {
@@ -471,7 +483,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
   const keys = signingKeys(jwtOptions)
   const { secrets, legacySecret } = versionedSecrets(options.secret, options.previousSecrets)
   const trusted = [options.baseURL, ...origins, ...(options.trustedOrigins ?? [])]
-  const userFields = { ...userFieldsNamed(emailConfirmedField, users), ...(organizations && userFieldsNamed(lastOrganizationField, users)), ...metadataField(users) }
+  const userFields = { ...named.fields('user', [emailConfirmedField]), ...(organizations && named.fields('user', [lastOrganizationField])), ...metadataField(users) }
   const accountDeletion = options.accountDeletion !== false
   const deleteUser = accountDeletion ? { deleteUser: selfDeletionOptions({ lockedAccounts, mcp: Boolean(mcp), context, ...(deletion && { deletion }) }) } : {}
   return {
@@ -501,13 +513,13 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         })),
     },
     ...(options.socialProviders && { socialProviders: options.socialProviders }),
-    user: { ...userModel(users), ...(Object.keys(userFields).length > 0 && { additionalFields: userFields }), ...deleteUser },
+    user: { ...named.user, ...(Object.keys(userFields).length > 0 && { additionalFields: userFields }), ...deleteUser },
     // Better Auth's fresh-session check could only be met by signing in again; `recentConfirmationPlugin` replaces it.
-    session: { ...coreNames.session, freshAge: 0 },
-    verification: coreNames.verification,
+    session: { ...named.session, freshAge: 0 },
+    verification: named.verification,
     account: {
-      ...coreNames.account,
-      ...(singleSubject.length > 0 && { additionalFields: singleSubjectField }),
+      ...named.account,
+      ...(singleSubject.length > 0 && { additionalFields: named.fields('account', [singleSubjectField]) }),
       // Someone signed in links a provider account with another address on purpose, from their account page.
       // A connection's own provider links only, from someone signed in, as sign-in through it is refused, so its
       // account's address need not be one it vouches for. A first sign-in links by the address only when the provider
@@ -519,12 +531,12 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       // First, so every other plugin writes through the adapter it guards.
       ...(lockedAccounts.length > 0 ? [lockedAccountsPlugin(lockedAccounts)] : []),
       // Without a default role the plugin's own default is a name outside the list, which the hook below refuses.
-      admin({ schema: pluginNames.admin, defaultRole: defaultRole ?? 'unassigned', roles: Object.fromEntries(roles.map((role) => [role, role === 'admin' ? adminAc : userAc])) }),
+      admin({ schema: named.schema('user', 'session'), defaultRole: defaultRole ?? 'unassigned', roles: Object.fromEntries(roles.map((role) => [role, role === 'admin' ? adminAc : userAc])) }),
       jwt(jwtOptions),
       keys.plugin,
       // Without a password, as for someone who signs in with a provider only, two-factor authentication is turned on without one.
-      twoFactorAfterFirstFactor({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mail && { otpOptions: twoFactorCodeOptions(mail) }) }),
-      passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]!, origins: appOrigins(options.baseURL, origins) }),
+      twoFactorAfterFirstFactor({ schema: named.schema('user', 'twoFactor'), allowPasswordless: true, ...(mail && { otpOptions: twoFactorCodeOptions(mail) }) }),
+      passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]!, origins: appOrigins(options.baseURL, origins), names: named }),
       strongSignInsPlugin(),
       recentConfirmationPlugin(),
       passwordConfirmationPlugin(),
@@ -534,7 +546,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(signIns.some(({ pages }) => !pages) ? [providerPagesOffPlugin(signIns.filter(({ pages }) => !pages).map(({ provider }) => provider))] : []),
       ...(signIns.length > 0 ? [fixedAuthorizationParamsPlugin(platformIds)] : []),
       ...(offAccountPage.length > 0 ? [hiddenAccountsPlugin(offAccountPage)] : []),
-      ...(devices.length > 0 ? [deviceLinksPlugin(devices.map(({ provider, name }) => ({ provider, name })))] : []),
+      ...(devices.length > 0 ? [deviceLinksPlugin(devices.map(({ provider, name }) => ({ provider, name })), named)] : []),
       ...(connections && connections.resolved.length > 0
         ? [connectionProvidersPlugin(connections.resolved, { allowPrivateAddresses: connections.allowPrivateAddresses }), connectionsPlugin({ connections: connections.resolved, events: connections.events, allowPrivateAddresses: connections.allowPrivateAddresses })]
         : []),
@@ -550,13 +562,13 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       passwordChangePlugin(mail),
       ...(options.leakedPasswords ? [leakedPasswordsPlugin()] : []),
       goTrueSessionsPlugin({ issuer: goTrueIssuer(options.baseURL), jwt: jwtOptions, signingKey: keys.ensure, policy }),
-      staffSignInPlugin({ ...(operator && { operator }), ...(mail && { mail }), defaultPolicy: signInPolicy }),
-      rolesPlugin({ definitions }),
+      staffSignInPlugin({ ...(operator && { operator }), ...(mail && { mail }), defaultPolicy: signInPolicy, names: named }),
+      rolesPlugin({ definitions, names: named }),
       lastAdminGuardPlugin(),
       // After the last-admin guard, so a refused removal deletes nothing of the user.
       ...(deletion ? [deletion.plugin] : []),
       ...(organizations
-        ? [organizationPlugin({ resolved: organizations, secret: options.secret, ...(mail && { mail }), context }), protobaseOrganizationPlugin({ resolved: organizations, mail: Boolean(mailer) })]
+        ? [organizationPlugin({ resolved: organizations, secret: options.secret, ...(mail && { mail }), context, names: named }), protobaseOrganizationPlugin({ resolved: organizations, mail: Boolean(mailer) })]
         : []),
       usersPlugin({
         definitions,
@@ -567,12 +579,14 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         ...(organizations && { organizations }),
       }),
       ...(passwordHashes.length > 0 ? [rehashPasswordsPlugin(passwordHashes)] : []),
-      ...(personalAccessTokens ? [personalAccessTokensPlugin({ options: personalAccessTokens, definitions })] : []),
-      ...(mailProviders.length > 0 ? [mailSendersPlugin(mailProviders)] : []),
+      ...(personalAccessTokens ? [personalAccessTokensPlugin({ options: personalAccessTokens, definitions, names: named })] : []),
+      ...(mailProviders.length > 0 ? [mailSendersPlugin(mailProviders, named)] : []),
       // Last, so the staff plugin refuses staff sessions on the provider's paths before its own hooks run.
-      ...(mcp ? loaded(plugins.mcpAuthPlugins, 'mcp')({ mcp, ...(api && { api }), organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context }) : []),
-      ...(openId ? loaded(plugins.openIdProviderPlugins, 'openIdProvider')({ openId, mail: Boolean(mailer), defaultPolicy: signInPolicy }) : []),
-    ].map((plugin) => withUserColumns(plugin, users)),
+      ...(mcp ? loaded(plugins.mcpAuthPlugins, 'mcp')({ mcp, ...(api && { api }), organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context, names: named }) : []),
+      ...(openId ? loaded(plugins.openIdProviderPlugins, 'openIdProvider')({ openId, mail: Boolean(mailer), defaultPolicy: signInPolicy, names: named }) : []),
+      // The store's names, on the context, where the store's own SQL reads them.
+      storeNamesPlugin(names),
+    ].map((plugin) => named.plugin(plugin)),
     disabledPaths: [selfDeletionCallbackPath, ...(accountDeletion ? [] : [selfDeletionPath]), ...unusedEmailCodePaths, ...adminImpersonationPaths, ...providerTokenPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : []), ...(mcp ? mcpUnusedPaths : []), ...(openId ? openIdUnusedPaths : [])],
     databaseHooks: {
       user: {
@@ -698,7 +712,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   // Deleting a user revokes their connected accounts and parks the triggers on them, as disconnecting each would.
   if (resolvedConnections.length > 0) deletion.set('connections', releaseUserConnections({ connections: resolvedConnections, events, allowPrivateAddresses, context }))
   const lockedAccounts = platformLockedAccounts()
-  const authOptions = betterAuthOptions(options, { ...plugins, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
+  const names = resolveNames({ schema: storeSchema({ options }), tables: options.tables })
+  const authOptions = betterAuthOptions(options, { ...plugins, names, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
@@ -750,8 +765,10 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     signUpTakes: (email: string) => Boolean(signUpRole && mailer) && signUpTakes(email, signUpDomains),
     /** The app keeps each user's metadata, in the column `users.metadata` names. */
     userMetadata: Boolean(options.users?.metadata),
-    /** The user table's name and columns, as `users` names them, for the store's migrations. */
-    userTable: userTable(options.users),
+    /** The store's tables and columns, as `tables` names them. */
+    names,
+    /** What the store knows of the user table besides its names (`users`). */
+    users: userTable(options.users),
     socialProviders,
     /** The app's name it signs in and mails as: `PROTOBASE_APP_NAME`, else `appName`, else `Protobase`. */
     appName: appName ?? defaultAppName,

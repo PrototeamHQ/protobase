@@ -1,11 +1,11 @@
-import { DummyDriver, Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler, sql, type RawBuilder } from 'kysely'
+import { DummyDriver, Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler, sql, type OperationNode, type RawBuilder } from 'kysely'
 
 // The auth store's migrations as SQL text, with Kysely's `sql` tag doing the quoting. Kysely makes every interpolated
 // value a parameter, which a migration file cannot have, so `ddl` makes each string an identifier instead. A literal
-// goes through `sql.lit`, raw SQL through `sql.raw`, and a qualified name through `sql.id(schema, table)`.
+// goes through `sql.lit`, raw SQL through `sql.raw`, and a resolved name (`names/identifiers`) prints itself.
 
-/** A part of a `ddl` template: a string is an identifier, quoted; a fragment (`ddl`, `sql.lit`, `sql.id`, ...) is kept as it is. */
-export type DdlPart = string | RawBuilder<unknown>
+/** A part of a `ddl` template: a string is an identifier, quoted; a fragment (`ddl`, `sql.lit`, `sql.id`, a resolved name, ...) is kept as it is. */
+export type DdlPart = string | RawBuilder<unknown> | { toOperationNode: () => OperationNode }
 
 /** A fragment of SQL whose strings are identifiers: `ddl\`create table ${'user'} (...)\`` is `create table "user" (...)`. */
 export const ddl = (strings: TemplateStringsArray, ...parts: DdlPart[]) => sql<unknown>(strings, ...parts.map((part) => (typeof part === 'string' ? sql.id(part) : part)))

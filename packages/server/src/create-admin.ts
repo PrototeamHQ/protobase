@@ -93,7 +93,6 @@ import { pushJob } from './notifications/push-job'
 import { onDoNotDisturb } from './status/do-not-disturb'
 import { checkStatusAuth, statusNames, type StatusOptions } from './status/options'
 import { statusRoutes } from './status/routes'
-import { storeSchema } from './better-auth/store/store-names'
 import { liveSessions } from './better-auth/live-sessions'
 import type { SubscriptionDefinition } from './webhooks/subscription'
 import { visitorsBrowse, withAnonymous } from './anonymous'
@@ -326,7 +325,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const senders = notifications ? notificationSenders(notifications, globalThis.process?.env ?? {}, mobile) : []
   // Who sees a status follows organizations, so an app without them stops here.
   if (status) checkStatusAuth(auth)
-  const statusTables = status && auth && { statuses: statusNames(status), members: { schema: storeSchema(auth), table: 'member' } }
+  const statusTables = status && auth && { statuses: statusNames(status), members: auth.names.table('member') }
   const pushKey = webPushKey(senders)
   const locale = localeSetting(options.locale)
   configureTemplates({ ...(locale && { locale }) })

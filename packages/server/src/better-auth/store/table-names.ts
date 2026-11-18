@@ -1,8 +1,7 @@
-import { storeMigrations } from './migrations'
-import { migrationsTableName } from './migrations-table'
+import type { ResolvedNames } from '../names/resolve-names'
 
 /**
- * The admin store's tables besides the user table, whose name the app may configure: every feature's, which the store
- * has whether the app turns the feature on or not, and the record of its migrations.
+ * The admin store's tables besides the user table, as the app names them: every module's, which the store has whether
+ * the app turns the feature on or not, and the record of its migrations.
  */
-export const storeTableNames = [...storeMigrations.flatMap((migration) => migration.tables), migrationsTableName]
+export const storeTableNamesOf = (names: ResolvedNames) => Object.values(names.tables).filter(({ internal }) => internal !== 'user').map(({ name }) => name)

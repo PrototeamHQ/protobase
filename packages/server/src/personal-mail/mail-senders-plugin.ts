@@ -4,7 +4,8 @@ import * as z from 'zod'
 import { idTokenAddress, storedScopes } from './linked-accounts'
 import type { PersonalMailProvider } from './personal-mail-provider'
 import { linkedMailbox } from './personal-mailer'
-import { changeSender, clearDefault, deleteSender, mailSenderSchema, sendersOf, storeSender, type MailSenderRow } from './sender-store'
+import type { BetterAuthNames } from '../better-auth/names/better-auth-names'
+import { changeSender, clearDefault, deleteSender, mailSenderModel, sendersOf, storeSender, type MailSenderRow } from './sender-store'
 
 /** The paths of the person's From addresses, as Better Auth names them under the auth base path. */
 export const mailSenderPaths = {
@@ -56,10 +57,10 @@ const nameField = z
  * changes one, `name: null` dropping its name, `signature: null` dropping its own, and `isDefault` making it, or no longer making it, the address mail goes out from when the app names
  * none; `POST /account/mail-senders/remove { id }` deletes one. Each acts on the session's own person only.
  */
-export const mailSendersPlugin = (providers: PersonalMailProvider[]) =>
+export const mailSendersPlugin = (providers: PersonalMailProvider[], names: BetterAuthNames) =>
   ({
     id: 'protobase-mail-senders',
-    schema: mailSenderSchema,
+    schema: names.tables(mailSenderModel),
     endpoints: {
       listMailSenders: createAuthEndpoint(mailSenderPaths.list, { method: 'GET', use: [sessionMiddleware] }, async (ctx) => {
         const userId = ctx.context.session.user.id

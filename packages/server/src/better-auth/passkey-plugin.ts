@@ -7,7 +7,7 @@ import { generateRandomString } from 'better-auth/crypto'
 import { sql } from 'kysely'
 import * as z from 'zod'
 import type { AuthContext } from './organizations/store'
-import { pluginNames } from './snake-case-names'
+import type { BetterAuthNames } from './names/better-auth-names'
 import { storeSqlOf } from './store/store-sql'
 
 export type PasskeyPluginOptions = {
@@ -41,8 +41,8 @@ const decodeBase64 = (value: string) => Uint8Array.from(atob(value), (char) => c
  * browsers let each origin use the passkeys of the others through `/.well-known/webauthn` (Related Origin Requests).
  * Adding a passkey and signing in with one both accept only an answer that names one of the app's own origins.
  */
-export const passkeyPlugin = ({ domain, hosts, formerDomain, origins }: PasskeyPluginOptions) => {
-  const base = passkey({ schema: pluginNames.passkey, rpID: domain, origin: origins })
+export const passkeyPlugin = ({ domain, hosts, formerDomain, origins, names }: PasskeyPluginOptions & { names: BetterAuthNames }) => {
+  const base = passkey({ schema: names.schema('passkey'), rpID: domain, origin: origins })
   const rpIDOf = (stored: StoredPasskey) => stored.rpID ?? formerDomain
 
   /** `GET /passkey/generate-authenticate-options?rpId=`: what the browser needs to ask for a passkey of that RP ID. */
@@ -57,8 +57,10 @@ export const passkeyPlugin = ({ domain, hosts, formerDomain, origins }: PasskeyP
       // passkeys kept their RP ID are the former domain's.
       const passkeysOf = async (userId: string) => {
         const store = storeSqlOf(ctx.context as unknown as AuthContext)
-        const { rows } = await sql<Pick<StoredPasskey, 'credentialID' | 'transports'>>`select credential_id as "credentialID", transports from ${store.table('passkey')}
-          where user_id = ${userId} and (rp_id = ${rpID}${rpID === formerDomain ? sql` or rp_id is null` : sql``})`.execute(store.db)
+        const passkey = store.table('passkey')
+        const { credential_id, transports, user_id, rp_id } = passkey.columns
+        const { rows } = await sql<Pick<StoredPasskey, 'credentialID' | 'transports'>>`select ${credential_id} as "credentialID", ${transports} as transports from ${passkey}
+          where ${user_id} = ${userId} and (${rp_id} = ${rpID}${rpID === formerDomain ? sql` or ${rp_id} is null` : sql``})`.execute(store.db)
         return rows
       }
       const passkeys = session ? await passkeysOf(session.user.id) : []
@@ -124,7 +126,7 @@ export const passkeyPlugin = ({ domain, hosts, formerDomain, origins }: PasskeyP
     endpoints: { ...base.endpoints, generatePasskeyAuthenticationOptions, verifyPasskeyAuthentication },
     // A new passkey keeps the passkey domain it was made for. A copy, since the plugin's schema is shared by every instance.
     schema: {
-      passkey: { ...base.schema.passkey, fields: { ...base.schema.passkey.fields, rpID: { type: 'string', required: false, fieldName: 'rp_id', input: false, defaultValue: () => domain } } },
+      passkey: { ...base.schema.passkey, fields: { ...base.schema.passkey.fields, rpID: { ...names.fields('passkey', ['rpID']).rpID!, defaultValue: () => domain } } },
     },
   } satisfies BetterAuthPlugin
 }

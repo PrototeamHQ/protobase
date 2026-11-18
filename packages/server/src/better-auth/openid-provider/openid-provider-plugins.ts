@@ -2,7 +2,7 @@ import { oauthProvider } from '@better-auth/oauth-provider'
 import { mcpSetupGate } from '../mcp/setup-gate'
 import { mcpSignedQueryGuard } from '../mcp/signed-query-guard'
 import type { SignInPolicy } from '../sign-in-policy'
-import { pluginNames } from '../snake-case-names'
+import type { BetterAuthNames } from '../names/better-auth-names'
 import { declaredClients } from './declared-client-discovery'
 import { grantSubjectsPlugin } from './grant-subjects'
 import { idTokenClaims } from './id-token-claims'
@@ -16,6 +16,8 @@ export type OpenIdProviderPluginsOptions = {
   mail: boolean
   /** The policy until an admin saves one, from `appSignInPolicy`. */
   defaultPolicy: SignInPolicy
+  /** The names of the provider's tables and columns. */
+  names: BetterAuthNames
 }
 
 /** A redirect URI the client registered, character for character: no other port, path or case. */
@@ -30,7 +32,7 @@ export const exactRedirectUri = (uri: string, registered: readonly string[]) => 
  * pages; it is never asked to allow the client. A client the operator lets exchange also gets refresh tokens, and ID
  * tokens for other clients, and for the origins of `audiences`, through the token exchange.
  */
-export const openIdProviderPlugins = ({ openId, mail, defaultPolicy }: OpenIdProviderPluginsOptions) => [
+export const openIdProviderPlugins = ({ openId, mail, defaultPolicy, names }: OpenIdProviderPluginsOptions) => [
   mcpSignedQueryGuard(),
   mcpSetupGate({ mail, defaultPolicy, connectPage: openId.connectPage }),
   operatorClientsOnly(openId.audiences, openId.clients),
@@ -51,7 +53,7 @@ export const openIdProviderPlugins = ({ openId, mail, defaultPolicy }: OpenIdPro
       consentReferenceId: () => undefined,
     },
     extensions: [tokenExchange(openId.audiences, openId.subject), declaredClients(openId.clients)],
-    schema: pluginNames.mcp,
+    schema: names.moduleSchema('mcp'),
   }),
   operatorClientsPlugin(openId.audiences),
   ...(openId.subject === 'grant' ? [grantSubjectsPlugin()] : []),

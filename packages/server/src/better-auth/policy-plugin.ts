@@ -1,7 +1,8 @@
 import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint, createAuthMiddleware, getSessionFromCtx, sessionMiddleware } from 'better-auth/api'
 import * as z from 'zod'
-import { readSignInPolicy, saveSignInPolicy, signInPolicyTables, type SignInPolicySchema } from './policy-store'
+import type { BetterAuthNames } from './names/better-auth-names'
+import { readSignInPolicy, saveSignInPolicy, signInPolicyModel } from './policy-store'
 import { isPoliced, lastPasskeyRequired, policyRefusal, setupRequired } from './sign-in-enforcement'
 import { accountMethods } from './sign-in-setup'
 import { effectiveSignInPolicy, missingRequiredMethods, parseSignInPolicy, signInPolicyProblem, type SignInPolicy } from './sign-in-policy'
@@ -22,8 +23,8 @@ export type SignInPolicyPluginOptions = {
   operator?: string
   /** The id and name of each sign-in provider the platform adds. */
   platformSignIn: { provider: string; name: string }[]
-  /** The table's and its columns' names, when not `sign_in_policy` and its own. */
-  schema?: SignInPolicySchema
+  /** The names of the policy's table and its columns. */
+  names: BetterAuthNames
 }
 
 const refuse = (status: 'FORBIDDEN' | 'BAD_REQUEST', refusal: { code: string; message: string }) => new APIError(status, refusal)
@@ -73,7 +74,7 @@ export const signInPolicyPlugin = (options: SignInPolicyPluginOptions) => {
 
   return {
     id: 'protobase-sign-in-policy',
-    schema: signInPolicyTables(options.schema),
+    schema: options.names.tables(signInPolicyModel),
     endpoints: {
       /** `GET /policy/sign-in`, for admins: the saved policy, how it applies (`effective`), and whether mail is on. */
       getSignInPolicy: createAuthEndpoint('/policy/sign-in', { method: 'GET', use: [policyAdmin] }, async (ctx) => ctx.json(await policyAnswer(ctx.context))),

@@ -6,7 +6,8 @@ import type { RoleDefinitions } from '../organizations/role-definitions'
 import { sessionRoles, type RoleSession, type RoleUser } from '../roles/session-role'
 import type { PersonalAccessTokensOptions } from './options'
 import { newToken, tokenHash } from './token-format'
-import { deleteToken, listedToken, personalAccessTokenTables, storeToken, tokensOf, type PersonalAccessTokenRow, type PersonalAccessTokenSchema } from './token-store'
+import type { BetterAuthNames } from '../names/better-auth-names'
+import { deleteToken, listedToken, personalAccessTokenModel, storeToken, tokensOf, type PersonalAccessTokenRow } from './token-store'
 
 /** The paths of the account's tokens, as Better Auth names them under the auth base path. */
 export const personalAccessTokenPaths = {
@@ -39,12 +40,11 @@ const labelsFor = async (adapter: AuthContext['adapter'], definitions: RoleDefin
  * session works with, and answers the token, once, beside the listed entry;
  * `POST /account/personal-access-tokens/revoke { id }` deletes one, so it stops at its next request; one that is gone
  * already is no error. Each acts on the session's own person only. The store keeps each token's SHA-256 hash alone.
- * `schema` names the table and its columns, when not `personal_access_token` and its own.
  */
-export const personalAccessTokensPlugin = ({ options, definitions, schema }: { options: PersonalAccessTokensOptions; definitions: RoleDefinitions; schema?: PersonalAccessTokenSchema }) =>
+export const personalAccessTokensPlugin = ({ options, definitions, names }: { options: PersonalAccessTokensOptions; definitions: RoleDefinitions; names: BetterAuthNames }) =>
   ({
     id: 'protobase-personal-access-tokens',
-    schema: personalAccessTokenTables(schema),
+    schema: names.tables(personalAccessTokenModel),
     endpoints: {
       listPersonalAccessTokens: createAuthEndpoint(personalAccessTokenPaths.list, { method: 'GET', use: [sessionMiddleware] }, async (ctx) => {
         const rows = await tokensOf(ctx.context.adapter, ctx.context.session.user.id)

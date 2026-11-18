@@ -29,11 +29,12 @@ export const betterAuthCommentUsers = (auth: AdminAuth): CommentUsers => ({
   // while it has no end or its end is still to come.
   search: async (query, limit) => {
     const store = storeSqlOf((await auth.$context) as unknown as AuthContext)
-    const name = store.userColumn('name')
+    const user = store.table('user')
+    const { name, banned, ban_expires } = user.columns
     const now = new Date()
     const contains = query === '' ? sql`` : sql` and ${name} ilike ${`%${query.replace(/[\\%_]/g, '\\$&')}%`}`
-    const { rows } = await sql<{ id: string; name: string }>`select id, ${name} as name from ${store.user}
-      where ${name} <> '' and not (${store.userColumn('banned')} is true and (${store.userColumn('banExpires')} is null or ${store.userColumn('banExpires')} > ${now}))${contains}
+    const { rows } = await sql<{ id: string; name: string }>`select id, ${name} as name from ${user}
+      where ${name} <> '' and not (${banned} is true and (${ban_expires} is null or ${ban_expires} > ${now}))${contains}
       order by ${name}, id limit ${limit}`.execute(store.db)
     return rows.map((user) => ({ id: String(user.id), name: user.name }))
   },

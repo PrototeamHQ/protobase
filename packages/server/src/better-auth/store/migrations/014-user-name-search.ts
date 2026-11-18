@@ -10,10 +10,12 @@ export const userNameSearch: StoreMigration = {
   name: 'user_name_search',
   title: 'The indexes that find the users by a part of their name and list them by name',
   tables: [],
-  statements: ({ user, userDdl, userColumn: column }) =>
-    userDdl([
+  statements: ({ table, userDdl }) => {
+    const user = table('user')
+    return userDdl([
       ddl`create extension if not exists pg_trgm`,
-      ddl`create index if not exists user_name_id_idx on ${user} (${column('name')}, id)`,
-      ddl`create index if not exists user_name_trgm_idx on ${user} using gin (${column('name')} gin_trgm_ops)`,
-    ]),
+      ddl`create index if not exists ${user.index('user_name_id_idx')} on ${user} (${user.columns.name}, id)`,
+      ddl`create index if not exists ${user.index('user_name_trgm_idx')} on ${user} using gin (${user.columns.name} gin_trgm_ops)`,
+    ])
+  },
 }

@@ -7,18 +7,22 @@ export const mailSenders: StoreMigration = {
   name: 'mail_senders',
   title: 'The From addresses people send mail from through the mailbox they linked',
   tables: ['mail_sender'],
-  statements: ({ table, user, id, idRef }) => [
-    ddl`create table ${table('mail_sender')} (
+  statements: ({ table, user, id, idRef }) => {
+    const sender = table('mail_sender')
+    const s = sender.columns
+    return [
+      ddl`create table ${sender} (
   id ${id} primary key,
-  user_id ${idRef} not null references ${user} (id) on delete cascade,
-  address text not null,
-  shared boolean not null,
-  signature text,
-  is_default boolean not null,
-  created_at timestamptz not null,
-  unique (user_id, address)
+  ${s.user_id} ${idRef} not null references ${user} (id) on delete cascade,
+  ${s.address} text not null,
+  ${s.shared} boolean not null,
+  ${s.signature} text,
+  ${s.is_default} boolean not null,
+  ${s.created_at} timestamptz not null,
+  unique (${s.user_id}, ${s.address})
 )`,
-    ddl`create unique index mail_sender_default_idx on ${table('mail_sender')} (user_id) where is_default`,
-    ddl`create index mail_sender_shared_idx on ${table('mail_sender')} (address) where shared`,
-  ],
+      ddl`create unique index ${sender.index('mail_sender_default_idx')} on ${sender} (${s.user_id}) where ${s.is_default}`,
+      ddl`create index ${sender.index('mail_sender_shared_idx')} on ${sender} (${s.address}) where ${s.shared}`,
+    ]
+  },
 }
