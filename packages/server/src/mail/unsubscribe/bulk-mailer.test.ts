@@ -31,6 +31,12 @@ describe('bulk mail', () => {
     expect(sent[0]).not.toHaveProperty('topic')
   })
 
+  it('drops its own unsubscribe headers in any case, keeping one of each', async () => {
+    const { sent, mailer } = recording()
+    await bulkMailer(mailer, { links, unsubscribed }).send({ to: 'cy@example.com', ...newsletter, headers: { 'list-unsubscribe': '<https://elsewhere.example>', 'LIST-UNSUBSCRIBE-POST': 'x', 'X-Campaign': 'may' } })
+    expect(Object.keys(sent[0]!.headers!).sort()).toEqual(['List-Unsubscribe', 'List-Unsubscribe-Post', 'X-Campaign'])
+  })
+
   it('is not sent to whoever unsubscribed from its topic, and says so', async () => {
     const { sent, mailer } = recording()
     const mail = bulkMailer(mailer, { links, unsubscribed })
