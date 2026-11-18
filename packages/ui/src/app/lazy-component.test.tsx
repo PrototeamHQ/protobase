@@ -14,7 +14,7 @@ describe('lazyComponent', () => {
       },
       ({ name }) => <span>Loading {name}</span>,
     )
-    expect(renderToStaticMarkup(<Lazy name="Ann" />)).toBe('<span>Loading Ann</span>')
+    expect(renderToStaticMarkup(<Lazy name="Ann" />)).toBe('<span aria-busy="true" class="contents"><span>Loading Ann</span></span>')
     await Lazy.preload()
     expect(renderToStaticMarkup(<Lazy name="Ann" />)).toBe('<p>Hello Ann</p>')
     expect(loads).toBe(1)

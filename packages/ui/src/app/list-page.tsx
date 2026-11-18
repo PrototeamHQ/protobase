@@ -260,7 +260,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       className="flex-1"
     />
   ) : (
-    <div className="flex-1 rounded-lg border bg-surface" />
+    <div aria-busy className="flex-1 rounded-lg border bg-surface" />
   )
   const cardsList = { ...rows, initialIndex: scroll.initialIndex, onScrollIndex: scroll.remember }
   // A list without rows says why, and offers to clear what narrows it or to create the first record
