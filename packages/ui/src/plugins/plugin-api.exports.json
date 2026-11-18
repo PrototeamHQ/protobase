@@ -71,6 +71,7 @@
     "isConflict",
     "isFramed",
     "loadTexts",
+    "logoTapEvent",
     "mentionedIds",
     "mergeUi",
     "parseDiff",

@@ -38,6 +38,25 @@ export const IconTooltip: Story = { args: { sidebarMode: 'icon-tooltip' } }
 export const IconExpand: Story = { args: { sidebarMode: 'icon-expand' } }
 export const ProfileMenuOpen: Story = { args: { profileMenuOpen: true } }
 
+/** A tap on the logo is the cancelable `protobase:logo-tap` event, which a host takes. */
+export const LogoTap: Story = {
+  tags: ['play'],
+  play: async ({ canvasElement }) => {
+    const taps: boolean[] = []
+    const take = (event: Event) => {
+      taps.push(event.cancelable)
+      event.preventDefault()
+    }
+    window.addEventListener('protobase:logo-tap', take)
+    try {
+      await userEvent.click(within(canvasElement).getByText('Veldhuis Supply'))
+      expect(taps).toEqual([true])
+    } finally {
+      window.removeEventListener('protobase:logo-tap', take)
+    }
+  },
+}
+
 const record = (id: string, label: string, status: string, tone: StatusTone, pulse = false, active = false): NavRecord => ({ id, label, href: `#orders/${id}`, status: { label: status, tone, pulse }, active })
 
 const recentOrders = [record('o1', 'SO-1042', 'picking', 'warning', true), record('o2', 'SO-1041', 'confirmed', 'info', false, true), record('o3', 'SO-1038', 'on hold', 'danger')]

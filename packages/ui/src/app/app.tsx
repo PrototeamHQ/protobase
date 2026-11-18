@@ -70,6 +70,7 @@ import { LiveUpdateProvider } from './live-update/live-update-provider'
 import { updateAfterSignIn } from './live-update/sign-in-update'
 import { nativeSplash } from './native-splash'
 import { createSplashHold, SplashHoldProvider } from './splash-hold'
+import { HoldStartForFirstLoads } from './hold-start-for-first-loads'
 import { removeStartScreen } from './start-screen'
 import { LiveUpdateCheck } from './live-update/live-update-check'
 import { LiveUpdateResume } from './live-update/live-update-resume'
@@ -306,6 +307,7 @@ const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, a
             <ConnectRoute />
           ) : (
             <PluginGate ui={ui}>
+              <HoldStartForFirstLoads />
               <PresenceProvider>
                 <RecordTitles>
                   <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
