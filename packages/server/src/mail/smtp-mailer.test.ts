@@ -5,6 +5,8 @@ const sendMail = vi.fn(async () => ({}))
 const createTransport = vi.fn(() => ({ sendMail }))
 vi.mock('nodemailer', () => ({ createTransport }))
 
+const shopMessageId = /^<[0-9a-f]{32}@shop\.example\.com>$/
+
 describe('smtpMailer', () => {
   it('greets the server with the sender domain and sends from the sender', async () => {
     const smtpUrl = 'smtps://tenant:s3cret@relay.example.net:465'
@@ -30,8 +32,10 @@ describe('smtpMailer', () => {
     const first = await mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello' })
     expect(sendMail).toHaveBeenLastCalledWith(expect.objectContaining({ messageId: first.messageId }))
     const second = await mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello' })
-    expect(first.messageId).toMatch(/^<[0-9a-f]{32}@shop\.example\.com>$/)
+    expect(first.messageId).toMatch(shopMessageId)
     expect(second.messageId).not.toBe(first.messageId)
+    expect(second.messageId).toMatch(shopMessageId)
+    expect(sendMail).toHaveBeenLastCalledWith(expect.objectContaining({ messageId: second.messageId }))
   })
 
   it('gives a new Message-ID even when the message object carries a messageId of its own', async () => {
@@ -42,6 +46,8 @@ describe('smtpMailer', () => {
     const second = await mailer.send(message)
     expect(first.messageId).not.toBe('<old@shop.example.com>')
     expect(second.messageId).not.toBe(first.messageId)
+    expect(second.messageId).toMatch(shopMessageId)
+    expect(sendMail).toHaveBeenLastCalledWith(expect.objectContaining({ messageId: second.messageId }))
   })
 
   it('sends an HTML part beside the plain text', async () => {
