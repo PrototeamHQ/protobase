@@ -33,7 +33,7 @@ bun run protobase auth migration    # reads auth_migrations; writes the versions
 bun run db:migrate                  # applies them
 ```
 
-Each version's statements are followed by its row in `auth_migrations`. The file only adds tables, columns and indexes, never drops one, and is plain SQL to review, edit or leave out where the project handles the auth schema itself. `--dir` and `--name` choose the folder and the name after the number. [`protobase migration`](/reference/cli/#migration) writes the same file, along with what the config's other features need, such as [jobs](/reference/jobs/).
+Each version's statements are followed by its row in `auth_migrations`. The file only adds tables, columns and indexes, and the `pg_trgm` extension that the index of the users' names needs, never drops one, and is plain SQL to review, edit or leave out where the project handles the auth schema itself. `--dir` and `--name` choose the folder and the name after the number. [`protobase migration`](/reference/cli/#migration) writes the same file, along with what the config's other features need, such as [jobs](/reference/jobs/).
 
 Every store has the tables of every feature, whether the app turns the feature on or not: [passkeys](#passkeys), [two-factor authentication](#two-factor-authentication), [organizations](#organizations), the [OAuth provider for MCP](#oauth-for-mcp-clients) and [personal access tokens](/reference/personal-access-tokens/). Turning a feature on or off needs no migration and drops nothing; the columns a feature adds to the user and session tables are empty until it is on. SAML providers and open sign-up keep nothing in the store.
 
