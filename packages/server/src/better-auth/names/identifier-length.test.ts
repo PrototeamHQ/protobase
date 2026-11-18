@@ -3,14 +3,14 @@ import { checkConfiguredName, generatedName } from './identifier-length'
 
 describe('a configured name', () => {
   it('is refused past 63 bytes, naming the setting', () => {
-    expect(() => checkConfiguredName('a'.repeat(63), 'auth.tables.user.name')).not.toThrow()
-    expect(() => checkConfiguredName('a'.repeat(64), 'auth.tables.user.name')).toThrow(/^auth\.tables\.user\.name "a{64}" is 64 bytes, past the 63 Postgres keeps/)
+    expect(() => checkConfiguredName('a'.repeat(63), 'tables.user.name')).not.toThrow()
+    expect(() => checkConfiguredName('a'.repeat(64), 'tables.user.name')).toThrow(/^tables\.user\.name "a{64}" is 64 bytes, past the 63 Postgres keeps/)
     // Bytes, not characters: 32 two-byte letters are 64 bytes.
-    expect(() => checkConfiguredName('é'.repeat(32), 'auth.tables.session.columns.token')).toThrow(/is 64 bytes/)
+    expect(() => checkConfiguredName('é'.repeat(32), 'tables.session.columns.token')).toThrow(/is 64 bytes/)
   })
 
   it('is refused empty', () => {
-    expect(() => checkConfiguredName('', 'auth.tables.prefix')).toThrow('auth.tables.prefix is empty')
+    expect(() => checkConfiguredName('', 'tables.prefix')).toThrow('tables.prefix is empty')
   })
 })
 

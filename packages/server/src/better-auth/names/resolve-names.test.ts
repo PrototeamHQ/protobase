@@ -43,20 +43,20 @@ describe('resolveNames', () => {
     expect(long.name).toMatch(/_[0-9a-f]{8}$/)
     expect(resolveNames({ schema: undefined, tables: { prefix } }).table('oauth_client_resource').name).toBe(long.name)
     expect(Buffer.byteLength(long.index('oauth_client_resource_client_id_resource_id_uidx').name)).toBe(63)
-    expect(() => resolveNames({ schema: undefined, tables: { session: { name: 's'.repeat(64) } } })).toThrow(/^auth\.tables\.session\.name "s{64}" is 64 bytes/)
-    expect(() => resolveNames({ schema: undefined, tables: { session: { columns: { token: 't'.repeat(64) } } } })).toThrow(/^auth\.tables\.session\.columns\.token "t{64}" is 64 bytes/)
+    expect(() => resolveNames({ schema: undefined, tables: { session: { name: 's'.repeat(64) } } })).toThrow(/^tables\.session\.name "s{64}" is 64 bytes/)
+    expect(() => resolveNames({ schema: undefined, tables: { session: { columns: { token: 't'.repeat(64) } } } })).toThrow(/^tables\.session\.columns\.token "t{64}" is 64 bytes/)
   })
 
   it('refuses a table or column the store has not, and id', () => {
-    expect(() => resolveNames({ schema: undefined, tables: { sessions: {} } as never })).toThrow(/^auth\.tables names "sessions", which is not a table of the auth store: user, session/)
-    expect(() => resolveNames({ schema: undefined, tables: { session: { columns: { user: 'x' } } } as never })).toThrow(/^auth\.tables\.session\.columns names "user", which is not a column of session: expires_at/)
-    expect(() => resolveNames({ schema: undefined, tables: { session: { columns: { id: 'session_id' } } } as never })).toThrow('auth.tables.session.columns names id, which keeps its name')
+    expect(() => resolveNames({ schema: undefined, tables: { sessions: {} } as never })).toThrow(/^tables names "sessions", which is not a table of the auth store: user, session/)
+    expect(() => resolveNames({ schema: undefined, tables: { session: { columns: { user: 'x' } } } as never })).toThrow(/^tables\.session\.columns names "user", which is not a column of session: expires_at/)
+    expect(() => resolveNames({ schema: undefined, tables: { session: { columns: { id: 'session_id' } } } as never })).toThrow('tables.session.columns names id, which keeps its name')
   })
 
   it('refuses one name for two tables, a table and an index, or two columns of one', () => {
-    expect(() => resolveNames({ schema: undefined, tables: { member: { name: 'session' } } })).toThrow('auth.tables gives two tables, or a table and an index, the name "session" twice')
-    expect(() => resolveNames({ schema: undefined, tables: { account: { name: 'session_user_id_idx' } } })).toThrow('auth.tables gives two tables, or a table and an index, the name "session_user_id_idx" twice')
-    expect(() => resolveNames({ schema: undefined, tables: { session: { columns: { token: 'user_id' } } } })).toThrow('auth.tables gives two columns of session the name "user_id" twice')
+    expect(() => resolveNames({ schema: undefined, tables: { member: { name: 'session' } } })).toThrow('tables gives two tables, or a table and an index, the name "session" twice')
+    expect(() => resolveNames({ schema: undefined, tables: { account: { name: 'session_user_id_idx' } } })).toThrow('tables gives two tables, or a table and an index, the name "session_user_id_idx" twice')
+    expect(() => resolveNames({ schema: undefined, tables: { session: { columns: { token: 'user_id' } } } })).toThrow('tables gives two columns of session the name "user_id" twice')
     expect(() => resolveNames({ schema: undefined, tables: { session: { columns: { token: 'id' } } } })).toThrow('the name "id" twice')
   })
 

@@ -45,7 +45,7 @@ describe('the user table', () => {
   })
 
   it('refuses a column the user table does not have', () => {
-    expect(() => schemaWith({ columns: { phone: 'phone' } as never })).toThrow(/^auth\.tables\.user\.columns names "phone", which is not a column of user: name, email/)
+    expect(() => schemaWith({ columns: { phone: 'phone' } as never })).toThrow(/^tables\.user\.columns names "phone", which is not a column of user: name, email/)
   })
 })
 

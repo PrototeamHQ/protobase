@@ -73,22 +73,22 @@ type TableConfig = { name?: string; columns?: Record<string, string | undefined>
 
 const checkConfig = (tables: TableNames, declared: Declared[]) => {
   const { prefix, ...named } = tables
-  if (prefix !== undefined) checkConfiguredName(prefix, 'auth.tables.prefix')
+  if (prefix !== undefined) checkConfiguredName(prefix, 'tables.prefix')
   for (const [internal, config] of Object.entries(named) as [string, TableConfig | undefined][]) {
     const table = declared.find((candidate) => candidate.internal === internal)
-    if (!table) throw new Error(`auth.tables names "${internal}", which is not a table of the auth store: ${declared.map((known) => known.internal).join(', ')}`)
-    if (config?.name !== undefined) checkConfiguredName(config.name, `auth.tables.${internal}.name`)
+    if (!table) throw new Error(`tables names "${internal}", which is not a table of the auth store: ${declared.map((known) => known.internal).join(', ')}`)
+    if (config?.name !== undefined) checkConfiguredName(config.name, `tables.${internal}.name`)
     for (const [column, name] of Object.entries(config?.columns ?? {})) {
-      if (column === 'id') throw new Error(`auth.tables.${internal}.columns names id, which keeps its name`)
-      if (!(column in table.columns)) throw new Error(`auth.tables.${internal}.columns names "${column}", which is not a column of ${internal}: ${Object.keys(table.columns).join(', ')}`)
-      if (name !== undefined) checkConfiguredName(name, `auth.tables.${internal}.columns.${column}`)
+      if (column === 'id') throw new Error(`tables.${internal}.columns names id, which keeps its name`)
+      if (!(column in table.columns)) throw new Error(`tables.${internal}.columns names "${column}", which is not a column of ${internal}: ${Object.keys(table.columns).join(', ')}`)
+      if (name !== undefined) checkConfiguredName(name, `tables.${internal}.columns.${column}`)
     }
   }
 }
 
 const refuseTwice = (names: string[], what: string) => {
   const twice = names.find((name, i) => names.indexOf(name) !== i)
-  if (twice !== undefined) throw new Error(`auth.tables gives ${what} the name "${twice}" twice: give each its own`)
+  if (twice !== undefined) throw new Error(`tables gives ${what} the name "${twice}" twice: give each its own`)
 }
 
 const resolveTable = (schema: string | undefined, { module, internal, table, columns }: Declared, prefix: string, config: TableConfig = {}): ResolvedTable => {
