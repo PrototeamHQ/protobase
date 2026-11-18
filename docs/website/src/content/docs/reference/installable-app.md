@@ -45,11 +45,11 @@ Each build of the app has its own worker, which replaces the previous one and dr
 
 ## Starting from the last pages seen
 
-The app keeps what someone signed in last saw, from the moment they sign in, and opens on it the next time, in the browser tab, the installed app and the iOS and Android app alike. The first screen draws from this start cache as soon as the app's plugins have loaded, which the browser usually has cached, and everything on it is fetched again behind it:
+The app keeps what someone signed in last saw, from the moment they sign in, and opens on it the next time, in the browser tab, the installed app and the iOS and Android app alike. Before it draws, the app reads this start cache and loads the plugins its `/meta` names, which the browser usually has cached, at most 10 seconds; then its first frame is the whole page, drawn from the cache: a list with its rows, a record with its fields, a page with its blocks, with no skeleton or spinner in place of anything the cache holds. Everything on it is fetched again behind it:
 
-- While the page shows cached data, its content is muted and pulses as a skeleton does, so it never passes for up to date, and a small spinner sits beside the page's title.
+- While the cached data is fetched again, a small spinner sits beside the page's title. The page itself stays as it was drawn.
 - When the fresh data lands it replaces the cached data in place, and nothing moves.
-- When the refresh fails, such as without a network, the cached data stays muted and a warning replaces the spinner.
+- When the refresh fails, such as without a network, the cached data stays, muted, and a warning replaces the spinner.
 
 The start cache holds who is signed in, the app's `/meta` and the latest answer of each query the app read. It has no time limit, only a soft limit of 4 MB: once the answers pass it, those used least recently are dropped, oldest first, until they are back under it. Who is signed in, `/meta` and the answers of the page on screen when it saves are never dropped, so the next start draws that page whole: the cache can pass 4 MB by that one page. A table embedded in a page reads only the fields it shows, which keeps the page small, unless its actions run on selected rows: those get whole records. It lives in the browser's IndexedDB for the app's origin, or in the app's own storage on a phone. It is emptied when someone signs out, when the session ends and the API answers 401, and when a new Protobase version of the app opens. Visitors and staff signed in as someone keep nothing.
 
