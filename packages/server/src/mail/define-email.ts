@@ -34,8 +34,9 @@ export type EmailTemplate<Data extends object> = {
   /**
    * Renders the email for `data` and sends it to `to`: through `mailer` when given, such as a job's `context.mail`,
    * or a function's `context.personalMail`, the caller's own mailbox, otherwise through the app's SMTP server
-   * (`PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM`), with the `attachments` given. Resolves to the message's
-   * `messageId`, as the mailer gives it (see `SentMail`). Rejects when mail is off or the server refuses the message.
+   * (`PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM`), with the `attachments` given. Resolves to the mailer's
+   * `SentMail` result object: read its `messageId` field, which a mailer that does not know the id leaves out (`{}`).
+   * Rejects when mail is off or the server refuses the message.
    */
   send(to: string, data: Data, mailer?: Mailer, extra?: { attachments?: MailAttachment[] }): Promise<SentMail>
 }

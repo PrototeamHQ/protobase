@@ -190,11 +190,11 @@ A message is sent once per call, so a job try that sends and then fails sends ag
 
 ### Message id
 
-`mail.send` and a template's `send` resolve to `{ messageId }`, the `Message-ID` header the recipient sees, such as `<3f9c2a7e0b4d4e51a1c6f0d2b8e7a913@shop.example.com>`. Store it with the record the mail was about, so a reply, bounce or complaint that comes back later, which names that id, can be matched to the mail it answers:
+`mail.send` and a template's `send` resolve to `{ messageId }`, the `Message-ID` header the recipient sees, such as `<3f9c2a7e0b4d4e51a1c6f0d2b8e7a913@shop.example.com>`. Store it with the record the mail was about, so a reply, bounce or complaint that comes back later, which names that id, can be matched to the mail it answers. A mailer that does not know the id resolves to `{}`, so store `null` then:
 
 ```ts
 const { messageId } = await invoiceEmail.send(client.email, { number: 7 }, mail)
-await db.updateTable('invoices').set({ message_id: messageId }).where('id', '=', invoice.id).execute()
+await db.updateTable('invoices').set({ message_id: messageId ?? null }).where('id', '=', invoice.id).execute()
 ```
 
 Protobase gives every message through `PROTOBASE_SMTP_URL` a new id on the sender's domain before it goes out, in place of a `Message-ID` among the message's own `headers`. A relay that rewrites the `Message-ID` changes what the recipient sees, so check that yours keeps it. A mailer of the project's own resolves to the id it sends, or to `{}` without one; mail from someone's own mailbox resolves to `{}` (see below).
