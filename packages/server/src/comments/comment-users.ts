@@ -2,6 +2,7 @@ import { sql } from 'kysely'
 import type { AdminAuth } from '../better-auth/create-auth'
 import type { AuthContext } from '../better-auth/organizations/store'
 import { storeSqlOf } from '../better-auth/store/store-sql'
+import { bannedNow } from '../better-auth/token-standing'
 import { betterAuthActorNames } from '../history/actor-names'
 import type { TenantValue } from '../types'
 import { betterAuthOwnerRoles } from '../webhooks/table/owner-roles'
@@ -12,13 +13,13 @@ export type CommentUsers = {
   names(ids: readonly string[]): Promise<Record<string, string>>
   /** Up to `limit` users whose name contains `query`, whatever its case, by name; no banned ones. */
   search(query: string, limit: number): Promise<{ id: string; name: string }[]>
-  /** The role the user acts with now in `tenant` (see `betterAuthOwnerRoles`); none when banned or gone. */
+  /** The role the user acts with now in `tenant` (see `betterAuthOwnerRoles`); none while their ban stands, or when they are gone. */
   roles(user: { id: string; tenant?: TenantValue }): Promise<string[]>
-  /** The address mail to the user goes to; `undefined` when they are banned or gone. */
+  /** The address mail to the user goes to; `undefined` while their ban stands, or when they are gone. */
   email(id: string): Promise<string | undefined>
 }
 
-type UserRow = { id: string; name?: string | null; email?: string | null; banned?: boolean | null }
+type UserRow = { id: string; name?: string | null; email?: string | null; banned?: boolean | null; banExpires?: Date | null }
 
 /** The users of a Better Auth instance, read through its adapters only (see `better-auth/users.ts`). */
 export const betterAuthCommentUsers = (auth: AdminAuth): CommentUsers => ({
@@ -39,6 +40,6 @@ export const betterAuthCommentUsers = (auth: AdminAuth): CommentUsers => ({
   email: async (id) => {
     const { internalAdapter } = (await auth.$context) as unknown as AuthContext
     const user = (await internalAdapter.findUserById(id)) as UserRow | null
-    return user && !user.banned && user.email ? user.email : undefined
+    return user && !bannedNow(user, new Date()) && user.email ? user.email : undefined
   },
 })
