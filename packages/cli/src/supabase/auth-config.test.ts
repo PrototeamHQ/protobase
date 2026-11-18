@@ -20,8 +20,7 @@ export default defineConfig({
     // trigger and policy naming it keeps working. Its passwords are bcrypt hashes, its ids UUIDs, and its \`role\` the
     // Postgres role, so the app's roles go to a column of their own. No resource may be over a table of auth, where
     // Supabase Auth keeps its sessions, tokens and secrets, and the assistant never reads one.
-    tables: { user: { name: 'users', columns: { role: 'app_role' } } },
-    users: { metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] },
+    users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] },
     passwordHashes: ['bcrypt'],
     generateUserId: 'uuid',
     roles: ['admin'],
@@ -41,8 +40,7 @@ export default defineConfig({
     // column of their own. No resource may be over a table of auth, where Supabase Auth keeps its sessions, tokens and
     // secrets, and the assistant never reads one.
     schema: 'app_auth',
-    tables: { user: { name: 'users', columns: { role: 'app_role' } } },
-    users: { metadata: 'raw_user_meta_data', guardedSchemas: ['auth'], keyTable: { schema: 'auth', table: 'users' } },
+    users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', guardedSchemas: ['auth'], keyTable: { schema: 'auth', table: 'users' } },
     passwordHashes: ['bcrypt'],
     generateUserId: 'uuid',
     roles: ['admin'],
@@ -53,7 +51,7 @@ export default defineConfig({
 
   it('adds an auth of the settings to a config without one, sign-in being on by default', () => {
     expect(withSupabaseUsers("export default { timezone: 'UTC' }\n", 'protobase.config.ts', importedUsersConfig)).toBe(
-      "export default { timezone: 'UTC', auth: { tables: { user: { name: 'users', columns: { role: 'app_role' } } }, users: { metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] }, passwordHashes: ['bcrypt'], generateUserId: 'uuid' } }\n",
+      "export default { timezone: 'UTC', auth: { users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] }, passwordHashes: ['bcrypt'], generateUserId: 'uuid' } }\n",
     )
   })
 

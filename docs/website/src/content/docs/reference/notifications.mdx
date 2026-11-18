@@ -446,7 +446,7 @@ The default store keeps devices in the table `devices` of the schema `notificati
 
 `protobase migration` adds `session_id` to a devices table written before devices kept their session.
 
-You rename the schema, the table and each column, as auth takes `tables`, such as to keep devices in a table you already have:
+You rename the schema, the table and each column, as auth takes `users.table` and `users.columns`, such as to keep devices in a table you already have:
 
 ```ts
 notifications: {
