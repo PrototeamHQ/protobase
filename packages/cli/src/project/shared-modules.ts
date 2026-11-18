@@ -74,8 +74,9 @@ export const sharedModulesPlugin = (): Plugin => {
         build: {
           rolldownOptions: {
             input: { index: path.join(root, 'index.html'), ...Object.fromEntries(sharedModules.map((name) => [entryName(name), facadeId(name)])) },
-            // An entry keeps every export, which plugins import by name.
-            preserveEntrySignatures: 'exports-only',
+            // An entry keeps every export, which plugins import by name; it may hold more, such as the app's code
+            // index.html loads, so the start is a few chunks (../build/shell-chunks).
+            preserveEntrySignatures: 'allow-extension',
           },
         },
       }
