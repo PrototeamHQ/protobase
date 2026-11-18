@@ -269,7 +269,7 @@ export const Assistant: StoryObj = {
     const button = await canvas.findByRole('button', { name: 'Assistant' })
     expect(canvas.queryByRole('complementary', { name: 'Assistant' })).toBeNull()
     await userEvent.click(button)
-    const dock = canvas.getByRole('complementary', { name: 'Assistant' })
+    const dock = await canvas.findByRole('complementary', { name: 'Assistant' })
     await userEvent.type(within(dock).getByRole('textbox', { name: 'Message' }), 'Add a discount to invoices{Enter}')
     await within(dock).findByRole('button', { name: 'Approve' })
     await userEvent.click(within(dock).getByRole('button', { name: 'Close' }))
