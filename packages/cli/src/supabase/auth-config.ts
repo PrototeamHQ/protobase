@@ -12,7 +12,8 @@ import { exportedConfigObject } from './config-object'
 export const supabaseUsers = {
   // Supabase's `role` holds the Postgres role, so the app's roles go to a column of their own. Every table of `auth`,
   // where Supabase Auth keeps identities, sessions, refresh tokens and two-factor secrets, is the store's own.
-  users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] },
+  tables: { user: { name: 'users', columns: { role: 'app_role' } } },
+  users: { metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] },
   passwordHashes: ['bcrypt'],
   generateUserId: 'uuid',
 } satisfies Partial<AuthSettings>
@@ -23,6 +24,7 @@ export const sharedUsersSchema = 'app_auth'
 /** The `auth` settings for a view over Supabase's auth.users, on a Supabase database the app shares with Supabase Auth. */
 export const supabaseUsersView = {
   schema: sharedUsersSchema,
+  tables: supabaseUsers.tables,
   users: { ...supabaseUsers.users, keyTable: { schema: 'auth', table: 'users' } },
   passwordHashes: supabaseUsers.passwordHashes,
   generateUserId: supabaseUsers.generateUserId,

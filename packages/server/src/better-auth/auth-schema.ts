@@ -2,7 +2,7 @@ import type { AdminAuth } from './create-auth'
 import { planAdoption, storeHasTables, adoptionSql } from './store/adoption'
 import { migrationSql, migrationsTableSql } from './store/migration-sql'
 import { latestStoreVersion, storeMigrations } from './store/migrations'
-import { appliedVersions, migrationsTableName } from './store/migrations-table'
+import { appliedVersions, migrationsTable } from './store/migrations-table'
 import { plainStoreDb } from './store/store-db'
 import { storeNames } from './store/store-names'
 
@@ -46,9 +46,10 @@ export const authSchemaMigration = async (auth: AdminAuth) => {
  * migrations do, before the new version serves.
  */
 export const checkAuthSchema = async (auth: AdminAuth) => {
-  const applied = await appliedVersions(plainStoreDb(auth), storeNames(auth))
+  const names = storeNames(auth)
+  const applied = await appliedVersions(plainStoreDb(auth), names)
   const write = `Write it as a migration with \`${authMigrationCommand}\`, apply it with the project's migrations, then start again.`
-  if (applied === undefined) throw new Error(`The auth store has no ${migrationsTableName} table: it is new, or an earlier Protobase made it. ${write}`)
+  if (applied === undefined) throw new Error(`The auth store has no ${migrationsTable(names).name} table: it is new, or an earlier Protobase made it. ${write}`)
   refuseNewer(applied)
   const missing = storeMigrations.filter((migration) => !applied.includes(migration.version))
   if (missing.length === 0) return

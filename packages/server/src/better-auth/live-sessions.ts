@@ -12,11 +12,13 @@ import { storeSqlOf, type StoreSql } from './store/store-sql'
 export const liveSessionsIn = async (store: StoreSql, ids: readonly string[], now = new Date()) => {
   const live = new Map<string, string>()
   if (ids.length === 0) return live
-  const banned = store.userColumn('banned')
-  const banExpires = store.userColumn('banExpires')
-  const { rows } = await sql<{ id: string; userId: string }>`select s.id, s.user_id as "userId" from ${store.table('session')} s
-    join ${store.user} u on u.id = s.user_id
-    where s.id = any(${[...ids]}) and s.expires_at > ${now} and not (u.${banned} is true and (u.${banExpires} is null or u.${banExpires} > ${now}))`.execute(store.db)
+  const session = store.table('session')
+  const { user_id, expires_at } = session.columns
+  const user = store.table('user')
+  const { banned, ban_expires } = user.columns
+  const { rows } = await sql<{ id: string; userId: string }>`select s.id, s.${user_id} as "userId" from ${session} s
+    join ${user} u on u.id = s.${user_id}
+    where s.id = any(${[...ids]}) and s.${expires_at} > ${now} and not (u.${banned} is true and (u.${ban_expires} is null or u.${ban_expires} > ${now}))`.execute(store.db)
   for (const row of rows) live.set(String(row.id), String(row.userId))
   return live
 }

@@ -5,7 +5,7 @@ type Adapter = AuthContext['adapter']
 type SessionUser = { id: string; role?: string | null }
 
 /** The user field that keeps the organization someone last worked in, for their next sign-in. */
-export const lastOrganizationField = { lastOrganizationId: { type: 'string', required: false, input: false, fieldName: 'last_organization_id' } } as const
+export const lastOrganizationField = 'lastOrganizationId'
 
 /** Whether someone may work in an organization: a member, or holding a global role, which enters every one. */
 export const mayEnter = async (adapter: Adapter, user: SessionUser, organizationId: string) => {

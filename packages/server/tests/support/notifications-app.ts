@@ -4,7 +4,7 @@ import { betterAuthAuthenticator } from '../../src/better-auth/authenticator'
 import { createAuth } from '../../src/better-auth/create-auth'
 import { liveSessions } from '../../src/better-auth/live-sessions'
 import { createUser } from '../../src/better-auth/users'
-import type { UserTableOptions } from '../../src/better-auth/user-table'
+import type { TableNames } from '../../src/better-auth/names/table-names'
 import { createAdmin } from '../../src/create-admin'
 import type { Mailer } from '../../src/mail/smtp-mailer'
 import { deliver } from '../../src/notifications/deliver'
@@ -24,15 +24,15 @@ export const password = 'correct horse battery'
 export const fcm = (token: string) => ({ kind: 'fcm', token })
 export const browser = (name: string) => ({ kind: 'web', endpoint: `https://fcm.googleapis.com/fcm/send/${name}`, keys: { p256dh: Buffer.alloc(65, 4).toString('base64url'), auth: Buffer.alloc(16, 1).toString('base64url') } })
 
-type Served = { notifications?: boolean; store?: DeviceStore; historyStore?: HistoryStore; users?: UserTableOptions; mailer?: Mailer }
+type Served = { notifications?: boolean; store?: DeviceStore; historyStore?: HistoryStore; tables?: TableNames; mailer?: Mailer }
 
 // An app with auth on a fresh store, an admin, Alice and Bob, and notifications in the devices table or `store`; with
 // `mailer`, auth sends its mail through it.
-export const serve = async ({ notifications = true, store, historyStore, users, mailer }: Served = {}) => {
+export const serve = async ({ notifications = true, store, historyStore, tables, mailer }: Served = {}) => {
   const pg = await openSnapshotDb('empty')
   // Better Auth checks its schema once per instance: one writes the store, a new one serves it, as after a deploy.
   const authOn = async () => {
-    const made = createAuth({ database: { dialect: pg.dialect, type: 'postgres' }, baseURL: origin, secret, mailer: mailer ?? false, operator: false, signInProviders: [], signInPerMinute: 100, ...(users && { users }) })
+    const made = createAuth({ database: { dialect: pg.dialect, type: 'postgres' }, baseURL: origin, secret, mailer: mailer ?? false, operator: false, signInProviders: [], signInPerMinute: 100, ...(tables && { tables }) })
     await made.$context
     await settled()
     return made

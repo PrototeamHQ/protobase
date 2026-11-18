@@ -1,13 +1,16 @@
-import { sql, type RawBuilder } from 'kysely'
+import { sql, type OperationNode } from 'kysely'
 import type { StoreSql } from './store-sql'
+
+/** A table, a column or another fragment of SQL. */
+type SqlPart = { toOperationNode: () => OperationNode }
 
 /** A keyset page of a table, as `pageOf` asks Postgres for it. */
 export type PageQuery = {
-  from: RawBuilder<unknown>
+  from: SqlPart
   /** Each column the rows hold, under the name they hold it. */
-  select: Record<string, RawBuilder<unknown>>
+  select: Record<string, SqlPart>
   /** The columns the page is ordered by, the last one unique, such as `(created_at, id)`; an index on them serves it. */
-  key: RawBuilder<unknown>[]
+  key: SqlPart[]
   /** The `next` of the page before; the first page without it. */
   after?: readonly string[]
   size: number

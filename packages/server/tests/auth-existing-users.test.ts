@@ -52,7 +52,8 @@ const authOn = async (pg: SnapshotDb) => {
     mailer: false,
     operator: false,
     signInProviders: [],
-    users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data' },
+    tables: { user: { name: 'users', columns: { role: 'app_role' } } },
+    users: { metadata: 'raw_user_meta_data' },
     passwordHashes: ['bcrypt'],
     generateUserId: 'uuid',
   })

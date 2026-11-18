@@ -110,8 +110,10 @@ const memberOrThrow = async (auth: AdminAuth, organizationKey: string, email: st
 const refuseLastOwner = async (auth: AdminAuth, member: StoredMember, action: string) => {
   if (organizationRoleOf(member) !== 'owner') return
   const store = storeSqlOf(await contextOf(auth))
-  const { rows } = await sql<{ found: boolean }>`select exists (select from ${store.table('member')}
-    where organization_id = ${member.organizationId} and id <> ${member.id} and ${isOwner(sql`role`)}) as found`.execute(store.db)
+  const members = store.table('member')
+  const { organization_id, role } = members.columns
+  const { rows } = await sql<{ found: boolean }>`select exists (select from ${members}
+    where ${organization_id} = ${member.organizationId} and id <> ${member.id} and ${isOwner(sql`${role}`)}) as found`.execute(store.db)
   if (!rows[0]!.found) throw new Error(`Cannot ${action} the last owner`)
 }
 
@@ -152,18 +154,22 @@ export const organizationsPageSize = 100
 export const listOrganizations = async (auth: AdminAuth, { after, size = organizationsPageSize }: { after?: OrganizationsCursor; size?: number } = {}): Promise<OrganizationsPage> => {
   settingsOf(auth)
   const store = storeSqlOf(await contextOf(auth))
+  const organization = store.table('organization')
+  const o = organization.columns
   const page = await pageOf<{ id: string; name: string; slug: string }>(store, {
-    from: store.table('organization'),
-    select: { id: sql`id`, name: sql`name`, slug: sql`slug` },
-    key: [sql`created_at`, sql`id`],
+    from: organization,
+    select: { id: sql`id`, name: o.name, slug: o.slug },
+    key: [o.created_at, sql`id`],
     ...(after && { after: [after.createdAt, after.id] }),
     size,
   })
   const ids = page.rows.map((organization) => organization.id)
-  const { rows: members } = await sql<{ organizationId: string; email: string; role: string; appRoles: unknown }>`select m.organization_id as "organizationId",
-      coalesce(u.${store.userColumn('email')}, m.user_id::text) as email, m.role, m.app_roles as "appRoles"
-    from ${store.table('member')} m left join ${store.user} u on u.id = m.user_id
-    where m.organization_id = any(${ids}) order by m.created_at, m.id`.execute(store.db)
+  const user = store.table('user')
+  const m = store.table('member').columns
+  const { rows: members } = await sql<{ organizationId: string; email: string; role: string; appRoles: unknown }>`select m.${m.organization_id} as "organizationId",
+      coalesce(u.${user.columns.email}, m.${m.user_id}::text) as email, m.${m.role} as role, m.${m.app_roles} as "appRoles"
+    from ${store.table('member')} m left join ${user} u on u.id = m.${m.user_id}
+    where m.${m.organization_id} = any(${ids}) order by m.${m.created_at}, m.id`.execute(store.db)
   const membersOf = new Map<string, typeof members>()
   for (const member of members) {
     const held = membersOf.get(member.organizationId)
@@ -188,9 +194,10 @@ export const ownOrganizationsWithoutMembers = async (auth: AdminAuth, userId: st
   const settings = settingsOf(auth)
   const store = storeSqlOf(await contextOf(auth))
   const member = store.table('member')
-  const { rows } = await sql`insert into ${member} (id, organization_id, user_id, role, app_roles, created_at)
+  const m = member.columns
+  const { rows } = await sql`insert into ${member} (id, ${m.organization_id}, ${m.user_id}, ${m.role}, ${m.app_roles}, ${m.created_at})
     select ${store.newId}, o.id, ${userId}, 'owner', ${JSON.stringify(settings.creatorAppRoles)}::jsonb, ${new Date()} from ${store.table('organization')} o
-    where not exists (select from ${member} m where m.organization_id = o.id)
+    where not exists (select from ${member} m where m.${m.organization_id} = o.id)
     returning id`.execute(store.db)
   return rows.length
 }
@@ -202,9 +209,11 @@ export const ownOrganizationsWithoutMembers = async (auth: AdminAuth, userId: st
 export const addAppRoleToOwners = async (auth: AdminAuth, appRole: string) => {
   checkAppRoles(auth, [appRole])
   const store = storeSqlOf(await contextOf(auth))
-  const held = sql`coalesce(app_roles, '[]'::jsonb)`
-  const { rows } = await sql`update ${store.table('member')} set app_roles = ${held} || jsonb_build_array(${appRole}::text)
-    where ${isOwner(sql`role`)} and not ${held} @> jsonb_build_array(${appRole}::text)
+  const member = store.table('member')
+  const { app_roles, role } = member.columns
+  const held = sql`coalesce(${app_roles}, '[]'::jsonb)`
+  const { rows } = await sql`update ${member} set ${app_roles} = ${held} || jsonb_build_array(${appRole}::text)
+    where ${isOwner(sql`${role}`)} and not ${held} @> jsonb_build_array(${appRole}::text)
     returning id`.execute(store.db)
   return rows.length
 }

@@ -1,3 +1,4 @@
+import { sql } from 'kysely'
 import type { AdminAuth } from './create-auth'
 import { isActiveAdmin } from './last-admin'
 import { revokeMcpGrants } from './mcp/revoke-grants'
@@ -111,8 +112,10 @@ export const usersPageSize = 500
 /** A page of the users, oldest first: `size` of them from `after`, the `next` of the page before, as Postgres pages them. */
 export const listUsers = async (auth: AdminAuth, { after, size = usersPageSize }: { after?: UsersCursor; size?: number } = {}): Promise<UsersPage> => {
   const store = storeSqlOf(await contextOf(auth))
-  const select = Object.fromEntries(['id', 'email', 'role', 'banned', 'createdAt'].map((field) => [field, store.userColumn(field)]))
-  const page = await pageOf<Row>(store, { from: store.user, select, key: [store.userColumn('createdAt'), store.userColumn('id')], ...(after && { after: [after.createdAt, after.id] }), size })
+  const user = store.table('user')
+  const u = user.columns
+  const select = { id: sql`id`, email: u.email, role: u.role, banned: u.banned, createdAt: u.created_at }
+  const page = await pageOf<Row>(store, { from: user, select, key: [u.created_at, sql`id`], ...(after && { after: [after.createdAt, after.id] }), size })
   const users = page.rows.map((user) => ({ id: user.id, email: user.email, role: rolesOf(user).join(','), banned: Boolean(user.banned), createdAt: new Date(user.createdAt).toISOString() }))
   return { users, ...(page.next && { next: { createdAt: page.next[0]!, id: page.next[1]! } }) }
 }

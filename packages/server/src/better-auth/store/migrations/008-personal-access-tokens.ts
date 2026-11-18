@@ -7,18 +7,22 @@ export const personalAccessTokens: StoreMigration = {
   name: 'personal_access_tokens',
   title: "The personal access tokens people make for their scripts, by their tokens' hashes",
   tables: ['personal_access_token'],
-  statements: ({ table, user, id, idRef }) => [
-    ddl`create table ${table('personal_access_token')} (
+  statements: ({ table, user, id, idRef }) => {
+    const token = table('personal_access_token')
+    const t = token.columns
+    return [
+      ddl`create table ${token} (
   id ${id} primary key,
-  user_id ${idRef} not null references ${user} (id) on delete cascade,
-  name text not null,
-  token_hash text not null unique,
-  role text not null,
-  organization_id ${idRef} references ${table('organization')} (id) on delete cascade,
-  created_at timestamptz not null,
-  expires_at timestamptz,
-  last_used_at timestamptz
+  ${t.user_id} ${idRef} not null references ${user} (id) on delete cascade,
+  ${t.name} text not null,
+  ${t.token_hash} text not null unique,
+  ${t.role} text not null,
+  ${t.organization_id} ${idRef} references ${table('organization')} (id) on delete cascade,
+  ${t.created_at} timestamptz not null,
+  ${t.expires_at} timestamptz,
+  ${t.last_used_at} timestamptz
 )`,
-    ddl`create index personal_access_token_user_id_idx on ${table('personal_access_token')} (user_id)`,
-  ],
+      ddl`create index ${token.index('personal_access_token_user_id_idx')} on ${token} (${t.user_id})`,
+    ]
+  },
 }

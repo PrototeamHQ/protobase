@@ -22,14 +22,18 @@ const ownersRoles = async (auth: AdminAuth, owners: readonly Owner[]) => {
   // Ids as the store gives them back, so the rows it returns are found by them.
   const idOf = (id: string) => storedId(context.options, id)
   const ids = [...new Set(owners.map((owner) => idOf(owner.id)))].filter((id) => mayBeId(context.options, id))
-  const { rows: users } = ids.length === 0 ? { rows: [] } : await sql<UserRow>`select id, ${store.userColumn('role')} as role, ${store.userColumn('lastRole')} as last_role,
-    ${store.userColumn('banned')} as banned, ${store.userColumn('banExpires')} as "banExpires" from ${store.user} where id = any(${ids})`.execute(store.db)
+  const user = store.table('user')
+  const u = user.columns
+  const { rows: users } = ids.length === 0 ? { rows: [] } : await sql<UserRow>`select id, ${u.role} as role, ${u.last_role} as last_role,
+    ${u.banned} as banned, ${u.ban_expires} as "banExpires" from ${user} where id = any(${ids})`.execute(store.db)
   const now = new Date()
   const standing = new Map(users.filter((user) => !bannedNow(user, now)).map((user) => [user.id, user]))
   // Without organizations, a tenant holds no roles of its own.
   const tenants = auth.organizations ? [...new Set(owners.flatMap((owner) => (owner.tenant !== undefined && standing.has(idOf(owner.id)) ? [idOf(String(owner.tenant))] : [])))].filter((id) => mayBeId(context.options, id)) : []
-  const { rows: members } = tenants.length === 0 ? { rows: [] } : await sql<MemberRow>`select user_id, organization_id, app_roles from ${store.table('member')}
-    where user_id = any(${[...standing.keys()]}) and organization_id = any(${tenants})`.execute(store.db)
+  const member = store.table('member')
+  const m = member.columns
+  const { rows: members } = tenants.length === 0 ? { rows: [] } : await sql<MemberRow>`select ${m.user_id} as user_id, ${m.organization_id} as organization_id, ${m.app_roles} as app_roles from ${member}
+    where ${m.user_id} = any(${[...standing.keys()]}) and ${m.organization_id} = any(${tenants})`.execute(store.db)
   const memberships = new Map(members.map((member) => [memberKey(member.user_id, member.organization_id), parseAppRoles(member.app_roles)]))
   return owners.map(({ id, tenant }) => {
     const user = standing.get(idOf(id))

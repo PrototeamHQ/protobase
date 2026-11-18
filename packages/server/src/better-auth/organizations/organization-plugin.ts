@@ -2,6 +2,7 @@ import { getCurrentAuthEndpointContext } from '@better-auth/core/context'
 import { APIError } from 'better-auth/api'
 import { organization, type OrganizationOptions } from 'better-auth/plugins/organization'
 import { headersLocale } from '../../locale/request-locale'
+import type { BetterAuthNames } from '../names/better-auth-names'
 import { sendAuthEmail, type AuthMail } from '../auth-mail/send-auth-email'
 import { checkAppRoleChange, globalRoles, parseAppRoles, effectiveRoles } from './app-roles'
 import { invitationPage } from '../invitations/invitation-link-hook'
@@ -12,19 +13,13 @@ import { findMember, type AuthContext, type StoredMember, type StoredOrganizatio
 
 type Hooks = NonNullable<OrganizationOptions['organizationHooks']>
 
-/** The snake_case names of the organization plugin's tables and columns, with the app roles of members and invitations. */
-export const organizationNames = {
-  organization: { fields: { createdAt: 'created_at' } },
-  member: {
-    fields: { organizationId: 'organization_id', userId: 'user_id', createdAt: 'created_at' },
-    additionalFields: { appRoles: { type: 'string[]', required: false, defaultValue: [], input: false, fieldName: 'app_roles' } },
-  },
-  invitation: {
-    fields: { organizationId: 'organization_id', inviterId: 'inviter_id', expiresAt: 'expires_at', createdAt: 'created_at' },
-    additionalFields: { appRoles: { type: 'string[]', required: false, defaultValue: [], input: true, fieldName: 'app_roles' } },
-  },
-  session: { fields: { activeOrganizationId: 'active_organization_id' } },
-} satisfies OrganizationOptions['schema']
+/** The organization plugin's `schema` option: its tables' names and the session's, with the app roles of members and invitations. */
+const organizationSchema = (names: BetterAuthNames) =>
+  ({
+    ...names.schema('organization', 'session'),
+    member: { ...names.schema('member').member, additionalFields: names.fields('member', ['appRoles']) },
+    invitation: { ...names.schema('invitation').invitation, additionalFields: names.fields('invitation', ['appRoles']) },
+  }) satisfies OrganizationOptions['schema']
 
 /** Runs Protobase's hook, then the project's, with the same data; data either returns is merged, the project's last. */
 const mergeHooks = (own: Hooks, project: Hooks = {}): Hooks => {
@@ -50,6 +45,7 @@ export type OrganizationPluginInput = {
   mail?: AuthMail
   /** The auth context, once the instance exists: the hooks read memberships through its adapter. */
   context: () => Promise<AuthContext>
+  names: BetterAuthNames
 }
 
 /**
@@ -58,7 +54,7 @@ export type OrganizationPluginInput = {
  * `creatorAppRoles`, invitations checked against what the inviter may give and mailed with a signed link, and the
  * project's hooks after Protobase's.
  */
-export const organizationPlugin = ({ resolved, secret, mail, context }: OrganizationPluginInput) => {
+export const organizationPlugin = ({ resolved, secret, mail, context, names }: OrganizationPluginInput) => {
   const { definitions } = resolved
 
   const own: Hooks = {
@@ -96,7 +92,7 @@ export const organizationPlugin = ({ resolved, secret, mail, context }: Organiza
     // Protobase's own accept checks this too; Better Auth's get and reject by id ask for it with this on.
     requireEmailVerificationOnInvitation: true,
     cancelPendingInvitationsOnReInvite: true,
-    schema: organizationNames,
+    schema: organizationSchema(names),
     // Also on resend, which moves the expiry and so voids the earlier link. Without a mailer the inviter gets the link
     // in the answer instead (see the invitation endpoints). Better Auth hands this only the raw request, so the
     // request's origin as it resolved it comes from the endpoint the mail is sent in.

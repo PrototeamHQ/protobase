@@ -3,9 +3,11 @@ import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import { qualified } from '../notifications/schema-sql'
 import type { StatusNames } from './options'
+import type { BuiltInTables } from '../better-auth/names/modules'
+import type { ResolvedTable } from '../better-auth/names/resolve-names'
 
 /** Where statuses are read and written: the statuses table, and auth's members table, which says who shares an organization. */
-export type StatusTables = { statuses: StatusNames; members: { schema: string | undefined; table: string } }
+export type StatusTables = { statuses: StatusNames; members: ResolvedTable<BuiltInTables['member']> }
 
 type Row = { user_id: string; availability: PersonStatus['availability']; text: string | null; clears_at: Date | null }
 
@@ -24,10 +26,11 @@ export const ownStatus = async (db: Db, tables: StatusTables, userId: string) =>
 /** The statuses that hold now of everyone who shares an organization with `viewerId`, their own included when they have one. */
 export const visibleStatuses = async (db: Db, tables: StatusTables, viewerId: string) => {
   const statuses = sql.raw(qualified(tables.statuses))
-  const members = sql.raw(qualified(tables.members))
+  const { members } = tables
+  const { organization_id, user_id } = members.columns
   const { rows } = await sql<Row>`select s.user_id, s.availability, s.text, s.clears_at from ${statuses} s
-    where ${holds} and exists (select from ${members} own join ${members} other on other.organization_id = own.organization_id
-      where own.user_id = ${viewerId} and other.user_id = s.user_id)
+    where ${holds} and exists (select from ${members} own join ${members} other on other.${organization_id} = own.${organization_id}
+      where own.${user_id} = ${viewerId} and other.${user_id} = s.user_id)
     order by s.user_id`.execute(db)
   return rows.map(statusOf)
 }

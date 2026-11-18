@@ -1,33 +1,7 @@
-import type { DBAdapter, InferOptionSchema } from 'better-auth'
-import { mergeSchema } from 'better-auth/db'
+import type { DBAdapter } from 'better-auth'
 
 /** Better Auth's model for the log of staff sign-ins: one row per session staff started as someone. */
 export const staffSignInModel = 'staffSignIn'
-
-export const staffSignInSchema = {
-  [staffSignInModel]: {
-    modelName: 'staff_sign_in',
-    fields: {
-      userId: { type: 'string', required: true, fieldName: 'user_id' },
-      userEmail: { type: 'string', required: true, fieldName: 'user_email' },
-      staff: { type: 'string', required: true },
-      staffName: { type: 'string', required: false, fieldName: 'staff_name' },
-      staffSubject: { type: 'string', required: true, fieldName: 'staff_subject' },
-      issuer: { type: 'string', required: true },
-      reason: { type: 'string', required: true },
-      sessionId: { type: 'string', required: true, fieldName: 'session_id' },
-      startedAt: { type: 'date', required: true, fieldName: 'started_at' },
-      expiresAt: { type: 'date', required: true, fieldName: 'expires_at' },
-      endedAt: { type: 'date', required: false, fieldName: 'ended_at' },
-    },
-  },
-} as const
-
-/** The staff sign-in log' table and column names, as a Better Auth plugin's `schema` option renames its own: a name left out keeps the one above. */
-export type StaffSignInSchema = InferOptionSchema<typeof staffSignInSchema>
-
-/** The plugin's schema under `names`; a copy, since `mergeSchema` writes into the schema it is given. */
-export const staffSignInTables = (names?: StaffSignInSchema) => mergeSchema(structuredClone(staffSignInSchema), names)
 
 type Row = {
   id: string

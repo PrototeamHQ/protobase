@@ -221,16 +221,29 @@ Lets the signed-in person delete their own account from the account page, as app
 export default defineConfig({ auth: { accountDeletion: false } })
 ```
 
-## auth.users
+## auth.tables
 
-- **Type:** `{ table?: string; columns?: Record<string, string>; metadata?: string; keyTable?: { schema: string; table: string }; guardedSchemas?: string[] }`
-- **Default:** the table `protobase auth migration` makes
+- **Type:** `{ prefix?: string } & { [table: string]: { name?: string; columns?: Record<string, string> } }`
+- **Default:** the built-in names
 
-The user table, when another system made it, such as Supabase's `auth.users`: its name, the columns named otherwise than Protobase names them, and a JSON column for each user's metadata. See [An existing users table](/reference/auth/#an-existing-users-table). `keyTable` makes the user table a view of the app's own over another system's, the table it names, which holds the user ids: the store's migrations leave the view to the app and point their foreign keys at that table. See [A view over another system's users](/reference/auth/#a-view-over-another-systems-users). `guardedSchemas` names the schemas the other system keeps the rest of its sign-in data in, such as Supabase Auth's `auth`: no resource may be over any table in them, and the assistant's queries never read one.
+The names of the auth store's tables and columns in the database, where the app wants others than the built-in ones: `prefix` goes before the name of every table it does not name, and each table, by its built-in name, takes its own `name` and `columns`, each column by its built-in name. `id` keeps its name. A name past Postgres's 63 bytes is refused. See [Table and column names](/reference/auth/#table-and-column-names).
 
 ```ts
 export default defineConfig({
-  auth: { schema: 'auth', users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] } },
+  auth: { tables: { prefix: 'app_', user: { name: 'users', columns: { role: 'app_role' } } } },
+})
+```
+
+## auth.users
+
+- **Type:** `{ metadata?: string; keyTable?: { schema: string; table: string }; guardedSchemas?: string[] }`
+- **Default:** none
+
+The user table, when another system made it, such as Supabase's `auth.users`: a JSON column for each user's metadata, and what else the store must know of it; [`auth.tables`](#authtables)`.user` names it and its columns. See [An existing users table](/reference/auth/#an-existing-users-table). `keyTable` makes the user table a view of the app's own over another system's, the table it names, which holds the user ids: the store's migrations leave the view to the app and point their foreign keys at that table. See [A view over another system's users](/reference/auth/#a-view-over-another-systems-users). `guardedSchemas` names the schemas the other system keeps the rest of its sign-in data in, such as Supabase Auth's `auth`: no resource may be over any table in them, and the assistant's queries never read one.
+
+```ts
+export default defineConfig({
+  auth: { schema: 'auth', tables: { user: { name: 'users', columns: { role: 'app_role' } } }, users: { metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] } },
 })
 ```
 

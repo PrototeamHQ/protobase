@@ -37,7 +37,7 @@ Each version's statements are followed by its row in `auth_migrations`. The file
 
 Every store has the tables of every feature, whether the app turns the feature on or not: [passkeys](#passkeys), [two-factor authentication](#two-factor-authentication), [organizations](#organizations), the [OAuth provider for MCP](#oauth-for-mcp-clients) and [personal access tokens](/reference/personal-access-tokens/). Turning a feature on or off needs no migration and drops nothing; the columns a feature adds to the user and session tables are empty until it is on. SAML providers and open sign-up keep nothing in the store.
 
-The store's tables and columns are snake_case, like the app's (`sign_in_policy.platform_sign_in`, `session.user_id`); the code and the API keep Better Auth's camelCase names. The names the app configures, the store's schema ([`auth.schema`](/reference/config/sign-in/#authschema)), the [user table](#an-existing-users-table) and its columns, and uuid ids (`generateUserId: 'uuid'`), are the ones in effect when the file is written. Changing one later is a migration of the project's own, such as a rename. <gap>The sign-in policy, staff sign-in and personal access token tables cannot be renamed because config keys for their names are not implemented.</gap>
+The names the app configures, the store's schema ([`auth.schema`](/reference/config/sign-in/#authschema)), its [tables and columns](#table-and-column-names), and uuid ids (`generateUserId: 'uuid'`), are the ones in effect when the file is written. Changing one later is a migration of the project's own, such as a rename. <gap>`protobase auth migration` cannot rename a table or column the store has already because writing a rename from a changed name is not implemented.</gap>
 
 The server never changes the schema, and never compares it with what Better Auth needs. `protobase serve` and `protobase dev` read `auth_migrations` at startup and refuse to start while a version of this Protobase is not applied, naming it and `protobase auth migration`, or while the store has a version newer than this Protobase knows. The examples' `db:migrate` applies all pending files in one transaction, so a migration that fails leaves the database as the running version expects it. The host must guarantee the rest: nothing but the migrations writes while they run, and the new version serves only after they succeeded. Only [`protobase dev`](/reference/cli/#dev), on the developer's machine, compares the store's tables with what the app's Better Auth needs, and warns at startup about each table, column or index that drifted, such as one changed by hand.
 
@@ -45,19 +45,47 @@ No resource may be over a table of the store, which holds password hashes, sessi
 
 A store made before 0.48, when `protobase auth migration` compared the database with Better Auth's tables, has no `auth_migrations`. For it, `protobase auth migration` writes the step that adopts it, once: it runs each version in a scratch schema, in a transaction it rolls back, to find the tables and columns that version makes, records each version whose tables and columns the store has, with their types, as applied, and writes the versions whose tables it has none of, such as MCP's for an app that never turned MCP on. The file checks again, when it is applied, that the store has every table and column it adopts, and stops otherwise, naming them. A store that has only some of a version's tables and columns, or has them with other types, is refused, naming what differs: bring it to the schema of Protobase 0.47 first, with that version's `protobase auth migration`. A store set up by Protobase 0.6, with Better Auth's camelCase names, or by `auth:migrate` before it, goes through 0.47 the same way.
 
+### Table and column names
+
+Each module of the store declares its tables and columns once, under built-in names, snake_case like the app's (`sign_in_policy.platform_sign_in`, `session.user_id`); the code and the API keep Better Auth's camelCase names. The modules and their tables:
+
+- `auth`: `user`, `session`, `account`, `verification`, `jwks` and `auth_migrations`.
+- `two_factor`: `two_factor`, and the user's `two_factor_enabled`.
+- `passkeys`: `passkey`.
+- `sign_in_policy`: `sign_in_policy`.
+- `staff_sign_in`: `staff_sign_in`.
+- `organizations`: `organization`, `member` and `invitation`, whose rows each belong to one organization, and the user's `last_organization_id`, the session's `active_organization_id` and the personal access token's `organization_id`.
+- `personal_access_tokens`: `personal_access_token`.
+- `mcp`: the OAuth provider's `oauth_client`, `oauth_resource`, `oauth_client_resource`, `oauth_refresh_token`, `oauth_access_token`, `oauth_consent` and `oauth_client_assertion`.
+- `mail_senders`: `mail_sender`.
+- `platform_devices`: `refused_account` and `device_session`.
+
+[`auth.tables`](/reference/config/sign-in/#authtables) gives any of them another name in the database: `prefix` goes before the name of every table it does not name, and each table, by its built-in name, takes its own `name` and `columns`, each column by its built-in name. A name it leaves out stays built-in, and `id` always keeps its name. The migrations make the tables and columns under these names, and sign-in, sessions, tokens and Protobase's own queries of the store read and write them so.
+
+```ts
+auth: {
+  tables: { prefix: 'app_', user: { name: 'people', columns: { role: 'app_role' } }, session: { columns: { user_id: 'person_id' } } },
+}
+```
+
+Here the user table is `people`, with its roles in `app_role`, and every other table starts with `app_`, such as `app_session`, whose `person_id` holds its user.
+
+Postgres keeps the first 63 bytes of a name and drops the rest, so the server refuses to start with a name `auth.tables` gives past 63 bytes, naming the setting and its length. It refuses a table or column the store does not have, `id`, and a name two tables, or two columns of one table, would share. Each index is named after its table, such as `app_session_user_id_idx` for `session_user_id_idx`; a prefixed table name or an index name past 63 bytes is cut to its start and `_` and the first 8 hex digits of its SHA-256, the same every time.
+
 ### An existing users table
 
 The store can use a users table another system made, such as Supabase's `auth.users`, so its rows keep signing in and every foreign key, trigger and function that names the table keeps working:
 
 ```ts
 auth: {
-  users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] },
+  tables: { user: { name: 'users', columns: { role: 'app_role' } } },
+  users: { metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] },
   passwordHashes: ['bcrypt'],
   generateUserId: 'uuid',
 }
 ```
 
-- `users.table` names the table, default `user`. `users.columns` maps a column, by the name Protobase gives it (`name`, `email`, `email_verified`, `email_confirmed_at`, `image`, `created_at`, `updated_at`, `role`, `banned`, `ban_reason`, `ban_expires`, `two_factor_enabled`, `last_role`, `last_organization_id`), to the table's own; here the app's roles go to `app_role`, since Supabase's `role` holds the Postgres role. The other tables keep their names and point at this one.
+- `tables.user.name` names the table, default `user`. `tables.user.columns` maps a column, by its built-in name (`name`, `email`, `email_verified`, `email_confirmed_at`, `image`, `created_at`, `updated_at`, `role`, `banned`, `ban_reason`, `ban_expires`, `two_factor_enabled`, `last_role`, `last_organization_id`), to the table's own; here the app's roles go to `app_role`, since Supabase's `role` holds the Postgres role. The other tables point at this one (see [Table and column names](#table-and-column-names)).
 - `users.guardedSchemas` names the schemas where the other system keeps the rest of its sign-in data, such as Supabase Auth's `auth`, with its identities, sessions, refresh tokens and two-factor secrets. Every table in them, including one the other system adds later, counts among the store's tables: no resource may be over it and the assistant's queries never read it. Name only a schema that holds none of the app's own tables.
 - `users.metadata` names a JSON column for each user's metadata, which the migrations add as `jsonb` when the table lacks it: `createUser(auth, { ..., metadata: { full_name: 'Carol' } })` writes it, so a trigger that reads `raw_user_meta_data->>'full_name'` sees it.
 - `passwordHashes: ['bcrypt']` also verifies bcrypt hashes (`$2a$`, `$2b$`, `$2y$`), and stores the password again as Better Auth's own scrypt after its first sign-in. The 12-character minimum holds for new passwords only, so a shorter existing one still signs in.
@@ -72,7 +100,8 @@ Where the app may not change the other system's users table, as on a Supabase da
 ```ts
 auth: {
   schema: 'app_auth',
-  users: { table: 'users', keyTable: { schema: 'auth', table: 'users' }, guardedSchemas: ['auth'], columns: { role: 'app_role' }, metadata: 'raw_user_meta_data' },
+  tables: { user: { name: 'users', columns: { role: 'app_role' } } },
+  users: { keyTable: { schema: 'auth', table: 'users' }, guardedSchemas: ['auth'], metadata: 'raw_user_meta_data' },
   passwordHashes: ['bcrypt'],
   generateUserId: 'uuid',
 }
