@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rowWindow } from './row-window'
+import { rowPlaces, rowSpan, rowWindow } from './row-window'
 
 describe('rowWindow', () => {
   it('draws the cards in view and three more on each side', () => {
@@ -18,5 +18,20 @@ describe('rowWindow', () => {
     expect(rowWindow(26_000, 600, 100)).toEqual({ start: 94, end: 100 })
     expect(rowWindow(-40, 600, 4)).toEqual({ start: 0, end: 4 })
     expect(rowWindow(0, 600, 0)).toEqual({ start: 0, end: 0 })
+  })
+})
+
+describe('rowPlaces', () => {
+  it('gives a place of its own to the drawn cards and fifty more on each side, none past either end', () => {
+    expect(rowPlaces(0, 6, 150_000)).toEqual({ from: 0, to: 56 })
+    expect(rowPlaces(1000, 1009, 150_000)).toEqual({ from: 950, to: 1059 })
+    expect(rowPlaces(149_994, 150_000, 150_000)).toEqual({ from: 149_944, to: 150_000 })
+    expect(rowPlaces(0, 4, 4)).toEqual({ from: 0, to: 4 })
+  })
+})
+
+describe('rowSpan', () => {
+  it('is as wide as that many cards and the gaps between them', () => {
+    expect(rowSpan(3)).toBe('calc(3 * (min(256px, 100%) + 0.75rem) - 0.75rem)')
   })
 })
