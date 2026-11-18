@@ -53,8 +53,9 @@ describe('resolveNames', () => {
     expect(() => resolveNames({ schema: undefined, tables: { session: { columns: { id: 'session_id' } } } as never })).toThrow('auth.tables.session.columns names id, which keeps its name')
   })
 
-  it('refuses one name for two tables, or for two columns of one', () => {
-    expect(() => resolveNames({ schema: undefined, tables: { member: { name: 'session' } } })).toThrow('auth.tables gives two tables the name "session" twice')
+  it('refuses one name for two tables, a table and an index, or two columns of one', () => {
+    expect(() => resolveNames({ schema: undefined, tables: { member: { name: 'session' } } })).toThrow('auth.tables gives two tables, or a table and an index, the name "session" twice')
+    expect(() => resolveNames({ schema: undefined, tables: { account: { name: 'session_user_id_idx' } } })).toThrow('auth.tables gives two tables, or a table and an index, the name "session_user_id_idx" twice')
     expect(() => resolveNames({ schema: undefined, tables: { session: { columns: { token: 'user_id' } } } })).toThrow('auth.tables gives two columns of session the name "user_id" twice')
     expect(() => resolveNames({ schema: undefined, tables: { session: { columns: { token: 'id' } } } })).toThrow('the name "id" twice')
   })

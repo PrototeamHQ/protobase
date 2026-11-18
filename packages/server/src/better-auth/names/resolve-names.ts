@@ -116,7 +116,7 @@ const resolveTable = (schema: string | undefined, { module, internal, table, col
 /**
  * The store's names: every table of the modules that are on, under the name `tables` gives it or its built-in one, each
  * column likewise. Refuses a module that is on while one it requires is off, a table or column `tables` names that
- * the store has not, a configured name Postgres would cut, and a name two tables, or two columns of one, share.
+ * the store has not, a configured name Postgres would cut, and a name two tables, a table and an index, or two columns of one, share.
  */
 export const resolveNames = (input: NamesInput): ResolvedNames => {
   const { schema, tables = {}, modules = allModules } = input
@@ -124,8 +124,11 @@ export const resolveNames = (input: NamesInput): ResolvedNames => {
   const declared = declaredTables(modules)
   checkConfig(tables, declared)
   const configs = tables as Record<string, TableConfig | undefined>
-  const resolved = Object.fromEntries(declared.map((table) => [table.internal, resolveTable(schema, table, tables.prefix ?? '', configs[table.internal])]))
-  refuseTwice(Object.values(resolved).map(({ name }) => name), 'two tables')
+  const each = declared.map((table) => ({ indexes: table.table.indexes ?? [], resolved: resolveTable(schema, table, tables.prefix ?? '', configs[table.internal]) }))
+  const resolved = Object.fromEntries(each.map((table) => [table.resolved.internal, table.resolved]))
+  // Postgres keeps a schema's tables and indexes under one set of names.
+  const relations = each.flatMap(({ indexes, resolved: table }) => [table.name, ...indexes.map((index) => table.index(index).name)])
+  refuseTwice(relations, 'two tables, or a table and an index,')
   return {
     schema,
     modules,
