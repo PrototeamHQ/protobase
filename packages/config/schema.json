@@ -1225,7 +1225,7 @@
       ]
     },
     "unsubscribe": {
-      "description": "`true` gives bulk mail a one-click unsubscribe: mail a job sends with `bulk: true` and a `topic` carries the\nrecipient's own unsubscribe link, and is not sent to whoever unsubscribed from its topic. Its links are on `url`\nand signed with `secret`; `protobase migration` writes its table, `mail.unsubscribes`. Off by default.",
+      "description": "`true` gives bulk mail a one-click unsubscribe: mail a job sends with `bulk: true` and a `topic` carries the\nrecipient's own unsubscribe link, and is not sent to whoever unsubscribed from its topic. Its links are on `url`\nand signed with `secret`; `protobase migration` writes its table, `mail.unsubscribes`. The server that signs the mail must DKIM-sign\nboth unsubscribe headers, or mail clients show no button. Off by default.",
       "anyOf": [
         {
           "type": "boolean"

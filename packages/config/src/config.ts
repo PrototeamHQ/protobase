@@ -128,7 +128,8 @@ export type ProtobaseConfig = AppKeys &
     /**
      * `true` gives bulk mail a one-click unsubscribe: mail a job sends with `bulk: true` and a `topic` carries the
      * recipient's own unsubscribe link, and is not sent to whoever unsubscribed from its topic. Its links are on `url`
-     * and signed with `secret`; `protobase migration` writes its table, `mail.unsubscribes`. Off by default.
+     * and signed with `secret`; `protobase migration` writes its table, `mail.unsubscribes`. The server that signs the mail must DKIM-sign
+     * both unsubscribe headers, or mail clients show no button. Off by default.
      */
     unsubscribe?: boolean
     /**

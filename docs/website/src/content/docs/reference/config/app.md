@@ -23,7 +23,7 @@ export default defineConfig({ name: 'Property Finder' })
 - **Default:** `PROTOBASE_URL`; in `protobase dev`, the dev server's own address
 - **Environment variable:** `PROTOBASE_URL`
 
-The app's public URL: the issuer and audience of its tokens, and where its emails link to. Sign-in and [`unsubscribe`](/reference/config/jobs-and-events/#unsubscribe) need it: with `auth` on, `protobase dev`, `serve` and the commands that sign people in stop with a clear message when it is missing. Other origins the app is served on are [`auth.origins`](/reference/config/sign-in/#authorigins).
+The app's public URL: the issuer and audience of its tokens, and where its emails link to. Sign-in and [`unsubscribe`](/reference/config/jobs-and-events/#unsubscribe) need it. With `auth` on, `protobase dev`, `serve` and the commands that sign people in stop with a clear message when it is missing. With `unsubscribe: true`, `protobase serve` stops when it is missing too, auth on or off, and when it is not `https://`, but for `localhost` and `127.0.0.1`. Other origins the app is served on are [`auth.origins`](/reference/config/sign-in/#authorigins).
 
 ```ts
 export default defineConfig({ url: 'https://admin.example.com' })

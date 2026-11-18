@@ -131,7 +131,7 @@ bun add -d @types/react
 The template that comes back has two methods, both typed by the component's props:
 
 - `render(data)` gives `{ subject, html, text, headers }` without sending anything: for a test, or to look at the result.
-- `send(to, data, mailer?)` renders and sends it, through `mailer` when given (a job's `mail`), otherwise through `PROTOBASE_SMTP_URL`. It rejects when mail is off or the server refuses the message.
+- `send(to, data, mailer?)` renders and sends it, through `mailer` when given (a job's `mail`), otherwise through `PROTOBASE_SMTP_URL`. It rejects when mail is off or the server refuses the message, and a bulk email without a job's `mail` as `mailer`.
 
 React and React Email's renderer are loaded on the first email rendered, not when the app starts.
 
@@ -203,11 +203,11 @@ Protobase gives every message through `PROTOBASE_SMTP_URL` a new id on the sende
 There is no preferences page yet, and no way to subscribe again once unsubscribed.
 :::
 
-Mail you mark as bulk carries a one-click unsubscribe, as large mailbox providers expect of bulk senders ([RFC 8058](https://www.rfc-editor.org/rfc/rfc8058)): the mail client shows an unsubscribe button, and one click stops that kind of mail to that recipient. Protobase records who unsubscribed from which topic, and does not send that topic to them again.
+Mail you mark as bulk carries a one-click unsubscribe, as large mailbox providers expect of bulk senders ([RFC 8058](https://www.rfc-editor.org/rfc/rfc8058)): the mail client shows an unsubscribe button, and one click stops that kind of mail to that recipient. Protobase records who unsubscribed from which topic, and does not send that topic to them from the next send on.
 
 **Bulk** is mail the recipient did not ask for by an action of their own: newsletters, digests, announcements and marketing. **Transactional** mail answers something the recipient did or needs to act on, such as a password reset, a sign-in code, a receipt or an invoice: it is not marked bulk and carries no unsubscribe. Protobase's own mail is transactional.
 
-Turn it on in the config; `protobase migration` then writes its table, `mail.unsubscribes`. Its links are on the app's [`url`](/reference/config/app/#url) and signed with its [`secret`](/reference/config/app/#secret):
+Turn it on in the config, then run `protobase migration`, which writes its table, `mail.unsubscribes`, as a migration of the project's own, and apply it with the project's migrations: `protobase serve` refuses to start while the table or its unique index is missing, and names the migration to write. Its links are on the app's [`url`](/reference/config/app/#url), which must be `https://` but on `localhost`, and signed with its [`secret`](/reference/config/app/#secret):
 
 ```ts
 export default defineConfig({ unsubscribe: true })
@@ -223,11 +223,13 @@ const { skipped } = await weeklyDigest.send(member.email, digest, mail)
 await mail.send({ to: member.email, subject: 'News', text: '...', bulk: true, topic: 'newsletter' })
 ```
 
-- **The headers:** each message gets `List-Unsubscribe` with the recipient's own link, `https://<app>/api/unsubscribe/<token>` with the default [`apiPath`](/reference/config/api/#apipath), and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`, in place of such headers of its own. The token names the recipient and the topic, signed so that nobody can unsubscribe someone else or from another topic.
+- **The headers:** each message gets `List-Unsubscribe` with the recipient's own link, `https://<app>/api/unsubscribe/<token>` with the default [`apiPath`](/reference/config/api/#apipath), and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`, in place of such headers of its own. The token names the recipient and the topic, signed so that nobody can change either: a link cannot be made for someone else or for another topic. It is a bearer link, though: whoever holds it, such as someone the mail was forwarded to, can unsubscribe its recipient from its topic.
+- **The button:** mail clients show their unsubscribe button only on mail whose DKIM signature covers both headers. Protobase sends the headers; the server that signs your mail must sign `List-Unsubscribe` and `List-Unsubscribe-Post` too, or the mail still goes out without a button.
 - **A message per recipient:** `to` takes one plain address or several separated by commas, and each recipient gets a message of their own with their own link. A named address (`Ada <ada@example.com>`) is refused.
 - **The click:** the mail client's `POST` with `List-Unsubscribe=One-Click` records the opt-out and answers `200`; doing it again changes nothing. Opening the link in a browser shows a page with an **Unsubscribe** button that sends that `POST`, so a scanner that follows links in mail unsubscribes no one. A link the app did not sign answers `400` and records nothing.
-- **Skipped sends:** whoever unsubscribed from the topic is left out, found in one query, and the send resolves to them as `skipped` beside `sent`, each recipient it went to with its message id: `{ skipped: ['bob@example.com'], sent: [{ to: 'ada@example.com', messageId: '<…>' }], messageId: '<…>' }`, with `messageId` only when it went to exactly one. Other topics still reach them.
-- **Who unsubscribed:** admins see each recipient, topic and time under **Unsubscribes** in the admin app, and the app's code reads them as the `mail_unsubscribes` resource, `GET /api/v1/mail_unsubscribes?topic=newsletter`. Nobody changes them but the link.
+- **Skipped sends:** whoever unsubscribed from the topic is left out, found in one query, and the send resolves to them as `skipped` beside `sent`, each recipient it went to with its message id: `{ skipped: ['bob@example.com'], sent: [{ to: 'ada@example.com', messageId: '<…>' }], messageId: '<…>' }`, with `messageId` only when it went to exactly one. Other topics still reach them. Who unsubscribed is read once, before the first message goes out; one who unsubscribes while a send to several is going out is skipped from the next send on.
+- **A refused message:** when the server refuses one recipient's message, the send rejects after the messages before it went out, so a retried job try sends those again: send to one recipient per try where that matters.
+- **Who unsubscribed:** admins see each recipient, topic and time under **Unsubscribes** in the admin app, and the app's code reads them as the `mail_unsubscribes` resource, `GET /api/v1/mail_unsubscribes?filter=topic = "newsletter"`. Nobody changes them but the link.
 - **Refused:** `bulk` without a `topic` is refused, as the email is defined or the message sent. Bulk mail without `unsubscribe: true`, or sent another way than a job's `mail`, such as through `PROTOBASE_SMTP_URL` directly or from someone's own mailbox, is refused before anything is sent. A mailer of the project's own (`auth/mailer.ts`) that is handed bulk mail directly, outside a job's `mail`, gets it without its unsubscribe: send it through the job's `mail` instead.
 - <gap>Bulk mail cannot be sent from an API function because only a job's `mail` adds the unsubscribe; enqueue a job instead.</gap>
 - <gap>Email templates cannot be marked bulk because `defineTemplate` does not take `bulk` and `topic` yet.</gap>

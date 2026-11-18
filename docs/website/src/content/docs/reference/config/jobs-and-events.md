@@ -380,7 +380,7 @@ export default defineConfig({ status: { schema: 'presence' } })
 - **Type:** `boolean`
 - **Default:** `false`
 
-Gives bulk mail a one-click unsubscribe: mail a job sends with `bulk: true` and a `topic` carries the recipient's own unsubscribe link, and is not sent to whoever unsubscribed from its topic. The links are on [`url`](/reference/config/app/#url) and signed with [`secret`](/reference/config/app/#secret), and the table of who unsubscribed, `mail.unsubscribes`, is written by `protobase migration`. See [Unsubscribe](/reference/email/#unsubscribe).
+Gives bulk mail a one-click unsubscribe: mail a job sends with `bulk: true` and a `topic` carries the recipient's own unsubscribe link, and is not sent to whoever unsubscribed from its topic. The links are on [`url`](/reference/config/app/#url) and signed with [`secret`](/reference/config/app/#secret), and the table of who unsubscribed, `mail.unsubscribes`, is written by `protobase migration` as a migration of the project's own: apply it with the project's migrations, as `protobase serve` refuses to start while the table is missing. See [Unsubscribe](/reference/email/#unsubscribe).
 
 ```ts
 export default defineConfig({ unsubscribe: true })
