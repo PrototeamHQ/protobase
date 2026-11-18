@@ -35,7 +35,7 @@ export const RecordRow = ({ model, view, display, source, label, isNew }: Record
     return `${start}-${end}`
   })
   const { start, end } = shown(scroll.view)
-  const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, revision: source.revision, latencyMs: 0 }, start, Math.max(start, end - 1))
+  const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, cachedRows: source.cachedRows, revision: source.revision, latencyMs: 0 }, start, Math.max(start, end - 1))
   return (
     <SnapRow scroll={scroll} label={label}>
       {Array.from({ length: total }, (_, index) => {

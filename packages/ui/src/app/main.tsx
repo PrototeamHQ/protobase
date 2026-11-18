@@ -5,8 +5,13 @@ import '../styles.css'
 import { guarded } from '../lib/guarded'
 import { listenForPresses } from '../lib/press-feedback'
 import { browserLocale } from '../locale/active-locale'
+import { cachedPlugins } from '../data/start-cache/cached-plugins'
 import { openStartCache } from '../data/start-cache/open-start-cache'
+import { browserLoader } from '../plugins/load-plugin'
+import { createPluginSource, preloadPlugins } from '../plugins/plugin-source'
+import { pluginWaitMs } from '../plugins/use-plugin-loads'
 import { App } from './app'
+import { judgesFirstFrame, showFirstFrame } from './first-frame'
 import { restorePage } from './live-update/kept-page'
 import { nativeBridgeOf, type NativeBridge } from './native-auth-fetch'
 import { showKeyboardAccessoryBar } from './native-keyboard'
@@ -30,11 +35,15 @@ if (nativeBridge) {
   if (storage) restorePage(storage, window.history)
 }
 
-// The first render already has what the app showed last time, read from the start cache
-void openStartCache().then((startCache) =>
-  createRoot(root).render(
+// The first render already has what the app showed last time, read from the start cache, with the plugins it names
+const plugins = createPluginSource(browserLoader)
+void openStartCache().then(async (startCache) => {
+  await preloadPlugins(plugins, cachedPlugins(startCache), pluginWaitMs)
+  const app = (
     <StrictMode>
-      <App baseUrl={`${pageApiOrigin() ?? ''}/api/v1`} ui={uiFromModule(projectUi)} locale={browserLocale()} nativeBridge={nativeBridge} startCache={startCache} />
-    </StrictMode>,
-  ),
-)
+      <App baseUrl={`${pageApiOrigin() ?? ''}/api/v1`} ui={uiFromModule(projectUi)} locale={browserLocale()} nativeBridge={nativeBridge} startCache={startCache} pluginSource={plugins} />
+    </StrictMode>
+  )
+  if (judgesFirstFrame(window)) return showFirstFrame(root, app)
+  createRoot(root).render(app)
+})

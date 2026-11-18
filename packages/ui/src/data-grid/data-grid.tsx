@@ -110,7 +110,7 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   const onScroll = onScrollIndex && ((offset: number) => onScrollIndex(offset / rowHeight))
   const { ref, geometry, rows: virtualRows, first: firstIndex, last: lastIndex } = useVirtualRows<HTMLDivElement>({ total, rowHeight, initialIndex: startIndex, inset: headerHeight, onScroll })
   const gutter = narrow || !rowNumbers ? compactGutter : gutterWidthFor(total)
-  const getRow = usePagedRows({ total, rowAt: sourceRowAt ? rowAt : undefined, loadRows: source.loadRows, revision: source.revision, latencyMs }, firstIndex, lastIndex)
+  const getRow = usePagedRows({ total, rowAt: sourceRowAt ? rowAt : undefined, loadRows: source.loadRows, cachedRows: source.cachedRows, revision: source.revision, latencyMs }, firstIndex, lastIndex)
 
   const patchedRow = useCallback((index: number) => {
     const row = getRow(index)

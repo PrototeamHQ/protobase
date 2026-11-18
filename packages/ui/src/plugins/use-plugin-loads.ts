@@ -12,11 +12,12 @@ const none: PluginLoad[] = []
 
 /**
  * The plugins `refs` names, in their order, as they load. `settled` once every one has loaded or failed, or after
- * `pluginWaitMs`, so a slow plugin delays the app only that long. Without plugins it is settled at once.
+ * `pluginWaitMs`, so a slow plugin delays the app only that long. Without plugins it is settled at once, and so it is
+ * when the source has loaded every one already, as before the app's first render.
  */
 export const usePluginLoads = (refs: readonly PluginRef[], source: PluginSource) => {
   const key = JSON.stringify(refs)
-  const [state, setState] = useState<Loads>({ key: '[]', loads: none, settled: true })
+  const [state, setState] = useState<Loads>(() => loadedAlready(refs, source, key) ?? { key: '[]', loads: none, settled: true })
 
   useEffect(() => {
     if (refs.length === 0) return
@@ -46,6 +47,13 @@ export const usePluginLoads = (refs: readonly PluginRef[], source: PluginSource)
   }, [key, source])
 
   if (refs.length === 0) return { loads: none, settled: true }
-  // Until the effect runs for new plugins, the app waits for them
-  return state.key === key ? state : { loads: none, settled: false }
+  if (state.key === key) return state
+  // Until the effect runs for new plugins, the app waits for them, unless they have all loaded already
+  return loadedAlready(refs, source, key) ?? { loads: none, settled: false }
+}
+
+const loadedAlready = (refs: readonly PluginRef[], source: PluginSource, key: string): Loads | undefined => {
+  if (refs.length === 0) return undefined
+  const loads = refs.map((ref) => source.loaded(ref))
+  return loads.every((load) => load !== undefined) ? { key, loads: loads as PluginLoad[], settled: true } : undefined
 }
