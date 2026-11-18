@@ -15,7 +15,7 @@ afterEach(() => setAppLocale(undefined))
 
 describe('translatedView of the lists Protobase adds', () => {
   it('gives the English the server sends, text for text', () => {
-    for (const name of ['failed_jobs', 'record_history', 'record_comments']) expect(translated(name)).toEqual(views[name])
+    for (const name of ['failed_jobs', 'record_history', 'record_comments', 'mail_unsubscribes']) expect(translated(name)).toEqual(views[name])
   })
 
   it('puts Failed jobs in Dutch: names, help, labels, sections and actions', () => {
@@ -51,6 +51,15 @@ describe('translatedView of the lists Protobase adds', () => {
     expect(view.help).toMatch(/^Elke opmerking/)
     expect(labels(view)).toEqual({ resource: 'Onderdeel', record_key: 'Record', author_id: 'Door', body: 'Opmerking', mentions: 'Vermeldingen', created_at: 'Wanneer' })
     expect(titles(view)).toEqual(['Opmerking', undefined])
+  })
+
+  it('puts Unsubscribes in Dutch', () => {
+    setAppLocale('nl')
+    const view = translated('mail_unsubscribes')
+    expect(view.names).toEqual({ singular: 'Afmelding', plural: 'Afmeldingen' })
+    expect(view.help).toMatch(/^Iedereen die zich heeft afgemeld/)
+    expect(labels(view)).toEqual({ recipient: 'Ontvanger', topic: 'Onderwerp', created_at: 'Afgemeld' })
+    expect(titles(view)).toEqual(['Afmelding'])
   })
 
   it("leaves an app's own resource over a table named history as it is", () => {
