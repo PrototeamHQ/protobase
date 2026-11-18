@@ -1,4 +1,5 @@
-import type { DBAdapter } from 'better-auth'
+import type { DBAdapter, InferOptionSchema } from 'better-auth'
+import { mergeSchema } from 'better-auth/db'
 import { everyRow } from '../organizations/store'
 
 /** Better Auth's model for personal access tokens: one row per token, holding its hash and never the token. */
@@ -19,6 +20,12 @@ export const personalAccessTokenSchema = {
     },
   },
 } as const
+
+/** The personal access tokens' table and column names, as a Better Auth plugin's `schema` option renames its own: a name left out keeps the one above. */
+export type PersonalAccessTokenSchema = InferOptionSchema<typeof personalAccessTokenSchema>
+
+/** The plugin's schema under `names`; a copy, since `mergeSchema` writes into the schema it is given. */
+export const personalAccessTokenTables = (names?: PersonalAccessTokenSchema) => mergeSchema(structuredClone(personalAccessTokenSchema), names)
 
 /**
  * A stored token: whose it is, its name, its hash, the role and organization it works with (those of the session that
