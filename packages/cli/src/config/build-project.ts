@@ -1,6 +1,6 @@
 import type { Db } from '@protobase/query'
 import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, DerivedCompute, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, StatusOptions, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
-import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions, workflowPlugins } from '@protobase/server/internal'
+import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions, isOverSignIn, workflowPlugins } from '@protobase/server/internal'
 import type { MergedConfig } from './merge-config'
 import { projectDerived, projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks, projectWorkflows } from './project-parts'
 import { userTablesOn } from './user-tables-config'
@@ -38,12 +38,15 @@ const workflowConnectionsOf = (workflows: WorkflowsOptions) => ({
 
 /**
  * How the API verifies tokens: the default export of the app's auth/authenticate.ts when it has one, such as a
- * `jwtAuthenticator` for tokens of another system; otherwise the app's sign-in with the `authenticate` settings.
+ * `jwtAuthenticator` for tokens of another system, or one made over the app's sign-in (`overSignIn`); otherwise the
+ * app's sign-in with the `authenticate` settings.
  */
 export const projectAuthenticate = async (config: MergedConfig, auth: AdminAuth | undefined): Promise<Authenticator> => {
   const own = config.sources.map(({ files }) => files.module('auth/authenticate.ts')).findLast(Boolean)
-  if (own) return (await own()).default as Authenticator
-  return buildAuthenticator(config.authenticate, auth)
+  if (!own) return buildAuthenticator(config.authenticate, auth)
+  const exported = (await own()).default
+  if (isOverSignIn(exported)) return exported.overSignIn(buildAuthenticator(config.authenticate, auth))
+  return exported as Authenticator
 }
 
 /** Everything the app runs with, built from its config at serve time: what `createAdmin` takes, and the app's own jobs. */
