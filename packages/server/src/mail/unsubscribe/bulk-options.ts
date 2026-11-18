@@ -1,7 +1,7 @@
 /** A topic: a lowercase letter, then lowercase letters, digits, `_` and `-`, at most 63 characters, such as `newsletter`. */
 const topicPattern = /^[a-z][a-z0-9_-]{0,62}$/
 
-/** A plain address with one recipient, as `PROTOBASE_MAIL_FROM` takes one: bulk mail goes to one recipient a message. */
+/** A plain address, as `PROTOBASE_MAIL_FROM` takes one. */
 const plainAddress = /^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/
 
 /**
@@ -14,11 +14,15 @@ export const checkBulkOptions = (name: string, { bulk, topic }: { bulk?: boolean
   if (!topicPattern.test(topic)) throw new Error(`${name} has the topic "${topic}": a topic is a lowercase letter, then lowercase letters, digits, "_" and "-", at most 63 characters`)
 }
 
-/** The one recipient of a bulk message, lower-cased; a list or a named address is refused, since each recipient gets a link of their own. */
-export const bulkRecipient = (to: string) => {
-  const address = to.trim()
-  if (!plainAddress.test(address)) throw new Error(`Bulk mail goes to one plain address a message, each with its own unsubscribe link, not "${to}": send one message per recipient`)
-  return address.toLowerCase()
+/**
+ * The recipients of a bulk message, lower-cased and each once: `to` is one plain address or several separated by
+ * commas, since each gets a message and a link of their own. A named address is refused.
+ */
+export const bulkRecipients = (to: string) => {
+  const addresses = to.split(',').map((address) => address.trim())
+  const refused = addresses.find((address) => !plainAddress.test(address))
+  if (refused !== undefined) throw new Error(`Bulk mail goes to plain addresses separated by commas, each sent a message with its own unsubscribe link, not "${refused}"`)
+  return [...new Set(addresses.map((address) => address.toLowerCase()))]
 }
 
 /**

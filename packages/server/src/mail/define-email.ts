@@ -41,7 +41,7 @@ export type EmailTemplate<Data extends object> = {
    * or a function's `context.personalMail`, the caller's own mailbox, otherwise through the app's SMTP server
    * (`PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM`), with the `attachments` given. Resolves to the mailer's
    * `SentMail` result object: read its `messageId` field, which a mailer that does not know the id leaves out (`{}`),
-   * and of bulk mail `skipped`, which names the recipient when they unsubscribed and nothing was sent.
+   * and of bulk mail `skipped`, the recipients who unsubscribed and were sent nothing, and `sent`.
    * Rejects when mail is off or the server refuses the message.
    */
   send(to: string, data: Data, mailer?: Mailer, extra?: { attachments?: MailAttachment[] }): Promise<SentMail>

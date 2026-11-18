@@ -26,12 +26,14 @@ export type MailAttachment = { filename: string; content: Uint8Array; contentTyp
 
 /**
  * A message sent: its `Message-ID` as the recipient sees it, angle brackets and all, to match a later reply, bounce or
- * complaint to it; absent when the transport cannot tell which id the recipient gets, as for a linked Gmail mailbox, or the message was not sent to anyone (`skipped`).
+ * complaint to it; absent when the transport cannot tell which id the recipient gets, as for a linked Gmail mailbox, or bulk mail went to no one or to several (see `sent`).
  */
 export type SentMail = {
   messageId?: string
-  /** Of bulk mail: the recipients who unsubscribed from its topic, to whom it was not sent; `[]` when it was sent. */
+  /** Of bulk mail: the recipients who unsubscribed from its topic, to whom it was not sent. */
   skipped?: string[]
+  /** Of bulk mail: each recipient it was sent to, as a message of their own, with that message's id when known. */
+  sent?: { to: string; messageId?: string }[]
 }
 
 /** Sends one message; rejects when the server refuses it. */

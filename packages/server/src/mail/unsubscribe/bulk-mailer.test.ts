@@ -19,7 +19,7 @@ describe('bulk mail', () => {
   it("carries both one-click headers, with each recipient's own link", async () => {
     const { sent, mailer } = recording()
     const mail = bulkMailer(mailer, { links, unsubscribed })
-    expect(await mail.send({ to: 'Ada@Example.com', ...newsletter })).toEqual({ messageId: '<1@shop.example.com>', skipped: [] })
+    expect(await mail.send({ to: 'Ada@Example.com', ...newsletter })).toEqual({ messageId: '<1@shop.example.com>', skipped: [], sent: [{ to: 'ada@example.com', messageId: '<1@shop.example.com>' }] })
     await mail.send({ to: 'cy@example.com', ...newsletter, headers: { 'List-Unsubscribe': '<https://elsewhere.example>', 'X-Campaign': 'may' } })
     const [ada, cy] = sent.map((message) => message.headers!)
     expect(ada!['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click')
@@ -34,18 +34,27 @@ describe('bulk mail', () => {
   it('is not sent to whoever unsubscribed from its topic, and says so', async () => {
     const { sent, mailer } = recording()
     const mail = bulkMailer(mailer, { links, unsubscribed })
-    expect(await mail.send({ to: 'bob@example.com', ...newsletter })).toEqual({ skipped: ['bob@example.com'] })
+    expect(await mail.send({ to: 'bob@example.com', ...newsletter })).toEqual({ skipped: ['bob@example.com'], sent: [] })
     expect(sent).toEqual([])
     await mail.send({ to: 'bob@example.com', ...newsletter, topic: 'digest' })
     expect(sent).toHaveLength(1)
   })
 
-  it('is refused without a topic, to several recipients, or with unsubscribe off', async () => {
+  it('goes to several recipients as a message each, with its own link, leaving out who unsubscribed', async () => {
+    const { sent, mailer } = recording()
+    const mail = bulkMailer(mailer, { links, unsubscribed })
+    const result = await mail.send({ to: 'ada@example.com, bob@example.com, cy@example.com', ...newsletter })
+    expect(result).toEqual({ skipped: ['bob@example.com'], sent: [{ to: 'ada@example.com', messageId: '<1@shop.example.com>' }, { to: 'cy@example.com', messageId: '<1@shop.example.com>' }] })
+    expect(sent.map((message) => message.to)).toEqual(['ada@example.com', 'cy@example.com'])
+    expect(sent[0]!.headers!['List-Unsubscribe']).not.toBe(sent[1]!.headers!['List-Unsubscribe'])
+  })
+
+  it('is refused without a topic, to a named address, or with unsubscribe off', async () => {
     const { sent, mailer } = recording()
     const mail = bulkMailer(mailer, { links, unsubscribed })
     await expect(mail.send({ to: 'ada@example.com', subject: 'News', text: 'Hi', bulk: true })).rejects.toThrow(/without a topic/)
     await expect(mail.send({ to: 'ada@example.com', ...newsletter, topic: 'News Letter' })).rejects.toThrow(/lowercase letter/)
-    await expect(mail.send({ to: 'ada@example.com, cy@example.com', ...newsletter })).rejects.toThrow(/one plain address a message/)
+    await expect(mail.send({ to: 'Ada <ada@example.com>', ...newsletter })).rejects.toThrow(/plain addresses/)
     await expect(bulkMailer(mailer, undefined).send({ to: 'ada@example.com', ...newsletter })).rejects.toThrow(/unsubscribe: true/)
     expect(sent).toEqual([])
   })

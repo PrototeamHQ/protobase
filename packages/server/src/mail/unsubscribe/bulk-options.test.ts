@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bulkRecipient, checkBulkOptions, refuseUnlinkedBulk } from './bulk-options'
+import { bulkRecipients, checkBulkOptions, refuseUnlinkedBulk } from './bulk-options'
 
 describe('bulk options', () => {
   it('need a topic that is a plain name', () => {
@@ -9,9 +9,10 @@ describe('bulk options', () => {
     expect(() => checkBulkOptions('Email "reset"', {})).not.toThrow()
   })
 
-  it('take one plain recipient, lower-cased', () => {
-    expect(bulkRecipient(' Ada@Example.com ')).toBe('ada@example.com')
-    for (const to of ['Ada <ada@example.com>', 'ada@example.com, bo@example.com', 'ada@example.com;bo@example.com', 'ada']) expect(() => bulkRecipient(to)).toThrow(/one plain address/)
+  it('take plain recipients separated by commas, lower-cased and each once', () => {
+    expect(bulkRecipients(' Ada@Example.com ')).toEqual(['ada@example.com'])
+    expect(bulkRecipients('ada@example.com, Bo@example.com,ada@EXAMPLE.com')).toEqual(['ada@example.com', 'bo@example.com'])
+    for (const to of ['Ada <ada@example.com>', 'ada@example.com;bo@example.com', 'ada', 'ada@example.com,']) expect(() => bulkRecipients(to)).toThrow(/plain addresses/)
   })
 
   it('refuse bulk mail at a transport the unsubscribe did not see', () => {

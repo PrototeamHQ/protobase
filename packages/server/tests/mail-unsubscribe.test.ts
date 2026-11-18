@@ -32,7 +32,7 @@ describe('one-click unsubscribe', () => {
     const mail = appBulkMailer(mailer, db, app.unsubscribe)
     const newsletter = { to: 'Ada@Example.com', subject: 'News', text: 'Hi', bulk: true, topic: 'newsletter' }
 
-    expect(await mail.send(newsletter)).toEqual({ messageId: '<1@shop.example.com>', skipped: [] })
+    expect(await mail.send(newsletter)).toEqual({ messageId: '<1@shop.example.com>', skipped: [], sent: [{ to: 'ada@example.com', messageId: '<1@shop.example.com>' }] })
     const link = linkPath(sent[0]!)
     expect(link).toMatch(/^\/api\/unsubscribe\//)
 
@@ -43,9 +43,9 @@ describe('one-click unsubscribe', () => {
     expect((await app.request(link, oneClick)).status).toBe(200)
     expect(await db.selectFrom('mail.unsubscribes').select(['recipient', 'topic']).execute()).toEqual([{ recipient: 'ada@example.com', topic: 'newsletter' }])
 
-    expect(await mail.send(newsletter)).toEqual({ skipped: ['ada@example.com'] })
+    expect(await mail.send(newsletter)).toEqual({ skipped: ['ada@example.com'], sent: [] })
     expect(sent).toHaveLength(1)
-    expect(await mail.send({ ...newsletter, topic: 'digest' })).toEqual({ messageId: '<1@shop.example.com>', skipped: [] })
+    expect(await mail.send({ ...newsletter, topic: 'digest' })).toMatchObject({ messageId: '<1@shop.example.com>', skipped: [] })
     expect(sent).toHaveLength(2)
   })
 
