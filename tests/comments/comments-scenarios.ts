@@ -87,7 +87,7 @@ export const commentsScenarios = (connect: () => Promise<TestDatabase>) => {
       commentUsers: users,
     })
     // The worker fetches at start and when woken, never on its timer while the file runs, so a busy machine records the same queries.
-    runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 3600, shutdownSeconds: 5, onError: (error) => errors.push(error), mailer: { send: async (message) => void sent.push(message) } })
+    runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 3600, shutdownSeconds: 5, onError: (error) => errors.push(error), mailer: { send: async (message) => { sent.push(message); return {} } } })
   })
 
   afterAll(async () => {

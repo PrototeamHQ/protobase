@@ -119,7 +119,7 @@ describe('an email template', () => {
 
   it('sends through the mailer it is given, in the language it picked', async () => {
     const sent: unknown[] = []
-    const result = await autoReply.send('sam@example.test', data, { locale: 'en', app, mailer: { send: async (message) => void sent.push(message) } })
+    const result = await autoReply.send('sam@example.test', data, { locale: 'en', app, mailer: { send: async (message) => { sent.push(message); return {} } } })
     expect(result.locale).toBe('en')
     expect(sent).toEqual([expect.objectContaining({ to: 'sam@example.test', subject: 'We received your message, Sam' })])
   })

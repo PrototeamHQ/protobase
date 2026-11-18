@@ -1,7 +1,7 @@
 import type { FunctionComponent } from 'react'
 import { mailFromVariable, smtpUrlVariable } from './mail-settings'
 import { platformMailer } from './platform-mailer'
-import type { MailAttachment, Mailer } from './smtp-mailer'
+import type { MailAttachment, Mailer, SentMail } from './smtp-mailer'
 
 export type EmailOptions<Data extends object> = {
   /** Names the email in errors, such as `welcome` or `listing-alert`. */
@@ -34,10 +34,10 @@ export type EmailTemplate<Data extends object> = {
   /**
    * Renders the email for `data` and sends it to `to`: through `mailer` when given, such as a job's `context.mail`,
    * or a function's `context.personalMail`, the caller's own mailbox, otherwise through the app's SMTP server
-   * (`PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM`), with the `attachments` given. Rejects when mail is off or the server
-   * refuses the message.
+   * (`PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM`), with the `attachments` given. Resolves to the message's
+   * `messageId`, as the mailer gives it (see `SentMail`). Rejects when mail is off or the server refuses the message.
    */
-  send(to: string, data: Data, mailer?: Mailer, extra?: { attachments?: MailAttachment[] }): Promise<void>
+  send(to: string, data: Data, mailer?: Mailer, extra?: { attachments?: MailAttachment[] }): Promise<SentMail>
 }
 
 /** React and React Email's renderer, loaded on the first email rendered, so an app that sends none never loads them. */
@@ -61,7 +61,7 @@ export const defineEmail = <Data extends object>(options: EmailOptions<Data>): E
 
   const send = async (to: string, data: Data, mailer = platformMailer(), { attachments }: { attachments?: MailAttachment[] } = {}) => {
     if (!mailer) throw new Error(`Email "${options.name}" cannot be sent: mail is off; set ${smtpUrlVariable} and ${mailFromVariable}`)
-    await mailer.send({ to, ...(await render(data)), ...(attachments && attachments.length > 0 && { attachments }) })
+    return mailer.send({ to, ...(await render(data)), ...(attachments && attachments.length > 0 && { attachments }) })
   }
 
   return { name: options.name, options, render, send }

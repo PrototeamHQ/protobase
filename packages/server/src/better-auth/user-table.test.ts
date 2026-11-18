@@ -15,7 +15,7 @@ const schemaWith = (users?: CreateAuthOptions['users']) =>
       {
         roles: ['admin', 'user'],
         definitions: roleDefinitions(),
-        mailer: { send: async () => {} },
+        mailer: { send: async () => ({}) },
         organizations: resolveOrganizations({}, roleDefinitions({ sales: 'Sales' }, { organizations: true })),
       },
     ),

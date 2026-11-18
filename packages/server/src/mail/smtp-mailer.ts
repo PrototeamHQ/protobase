@@ -1,9 +1,10 @@
 import { composerMessage } from './composer-message'
-import type { Mailer } from './mail-message'
+import type { MailMessage } from './mail-message'
+import { messageId } from './message-id'
 import type { MailSettings } from './mail-settings'
 import { withinLimit } from './mail-server-timeout'
 
-export type { MailAttachment, MailMessage, Mailer } from './mail-message'
+export type { MailAttachment, MailMessage, Mailer, SentMail } from './mail-message'
 
 /** The whole send, from looking up the server to the end of the message, well within an emailed code's 10 minutes. */
 const sendLimitMs = 30_000
@@ -29,14 +30,18 @@ const clientTimeouts = { dnsTimeout: 10_000, connectionTimeout: 10_000, greeting
  *
  * A send that has not finished after `limitMs` rejects with a `MailServerTimeoutError`, with no retry: a firewall that
  * drops the mail port's packets would otherwise hold it for minutes, once for each of the server's addresses.
+ *
+ * Each message gets a `Message-ID` of its own on the sender's domain (`messageId`), which the send resolves to; a header
+ * of that name among the message's own is replaced.
  */
-export const smtpMailer = (settings: MailSettings, limitMs = sendLimitMs): Mailer => {
+export const smtpMailer = (settings: MailSettings, limitMs = sendLimitMs): { send: (message: MailMessage) => Promise<{ messageId: string }> } => {
   let transport: Promise<import('nodemailer').Mail> | undefined
   return {
     send: async (message) => {
       transport ??= import('nodemailer').then(({ createTransport }) => createTransport({ url: settings.smtpUrl, name: senderDomain(settings.from), requireTLS: true, ...clientTimeouts }))
-      const mail = { from: sender(settings), ...composerMessage(message) }
+      const mail = { from: sender(settings), messageId: messageId(settings.from), ...composerMessage(message) }
       await withinLimit(transport.then((client) => client.sendMail(mail)), limitMs)
+      return { messageId: mail.messageId }
     },
   }
 }

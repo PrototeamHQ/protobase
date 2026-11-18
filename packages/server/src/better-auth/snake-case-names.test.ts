@@ -23,7 +23,7 @@ describe('the auth store names', () => {
         samlPlugin,
         roles: ['admin', 'user'],
         definitions: roleDefinitions(),
-        mailer: { send: async () => {} },
+        mailer: { send: async () => ({}) },
         operator: resolveOperator({ issuer: 'https://id.operator.example', clientId: 'app', clientSecret: 'secret' }),
         platformSignIn: resolvePlatformSignIns([{ issuer: 'https://auth.example.com', clientId: 'app', clientSecret: 'secret' }], 'https://app.example.com'),
         saml: resolveSamlProviders([{ id: 'okta', domains: ['example.com'], idp: { metadata: '<EntityDescriptor entityID="https://idp.example.com"/>' } }], []),

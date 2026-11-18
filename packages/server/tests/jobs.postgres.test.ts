@@ -56,7 +56,7 @@ describe.skipIf(!ready)('enqueue and run', () => {
     const db = await jobsDb()
     const sent: unknown[] = []
     const job = defineJob({ name: 'welcome', run: async (_, { mail }) => { await mail?.send({ to: 'anna@example.com', subject: 'Welcome', text: 'Hello' }) } })
-    await start(db, [job], { mailer: { send: async (message) => { sent.push(message) } } })
+    await start(db, [job], { mailer: { send: async (message) => { sent.push(message); return {} } } })
     await job.enqueue(db)
     await until(() => expect(sent).toEqual([{ to: 'anna@example.com', subject: 'Welcome', text: 'Hello' }]))
   })

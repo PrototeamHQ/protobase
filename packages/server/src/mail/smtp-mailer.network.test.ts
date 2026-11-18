@@ -25,10 +25,10 @@ afterEach(async () => {
 const message = { to: 'ada@example.com', subject: 'Hello', text: 'Hello' }
 
 /**
- * A server that accepts every command, offering STARTTLS only when told to, and records each command it receives.
- * It never actually upgrades: a STARTTLS gets a refusal, so a client that asks for it stops there.
+ * A server that accepts every command, offering STARTTLS only when told to, and records each command it receives, and
+ * the lines of each message in `data`. It never actually upgrades: a STARTTLS gets a refusal, so a client that asks for it stops there.
  */
-const scriptedServer = (offerStartTls: boolean, commands: string[]) => (socket: Socket) => {
+const scriptedServer = (offerStartTls: boolean, commands: string[], data: string[] = []) => (socket: Socket) => {
   let inData = false
   let buffered = ''
   const answer = (line: string) => {
@@ -36,7 +36,7 @@ const scriptedServer = (offerStartTls: boolean, commands: string[]) => (socket: 
       if (line === '.') {
         inData = false
         socket.write('250 2.0.0 Queued\r\n')
-      }
+      } else data.push(line)
       return
     }
     commands.push(line)
@@ -100,5 +100,14 @@ describe('smtpMailer against a local listener', () => {
     const mailer = smtpMailer({ smtpUrl, from: 'noreply@shop.example.com' }, 5000)
     await mailer.send(message)
     expect(verbs(commands)).toEqual(['EHLO', 'AUTH', 'MAIL', 'RCPT', 'DATA'])
+  })
+
+  it('sends the Message-ID it resolves to, in place of one among the message headers', async () => {
+    const data: string[] = []
+    const smtpUrl = `${await listen(scriptedServer(false, [], data))}?requireTLS=false`
+    const mailer = smtpMailer({ smtpUrl, from: 'noreply@shop.example.com' }, 5000)
+    const { messageId } = await mailer.send({ ...message, headers: { 'Message-ID': '<chosen@elsewhere.example>' } })
+    expect(messageId).toMatch(/^<[0-9a-f]{32}@shop\.example\.com>$/)
+    expect(data.filter((line) => /^message-id:/i.test(line))).toEqual([`Message-ID: ${messageId}`])
   })
 })

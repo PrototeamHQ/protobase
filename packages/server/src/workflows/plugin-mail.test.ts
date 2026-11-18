@@ -15,7 +15,7 @@ const failure = (promise: Promise<unknown>) => promise.then(() => undefined, (er
 
 describe('the app:mail.send step', () => {
   const sent: MailMessage[] = []
-  const mailer = { send: async (message: MailMessage) => void sent.push(message) }
+  const mailer = { send: async (message: MailMessage) => { sent.push(message); return {} } }
   let folder: Awaited<ReturnType<typeof tempDir>>
   let files: FilesRuntime
 
@@ -58,7 +58,7 @@ describe('the app:mail.send step', () => {
 
 describe('the app:mail.template step', () => {
   const sent: MailMessage[] = []
-  const mailer = { send: async (message: MailMessage) => void sent.push(message) }
+  const mailer = { send: async (message: MailMessage) => { sent.push(message); return {} } }
   const welcome = defineTemplate({
     name: 'welcome',
     texts: translations({ en: { hi: 'Hi' }, nl: { hi: 'Hoi' } }),

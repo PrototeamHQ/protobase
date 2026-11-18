@@ -11,7 +11,7 @@ const welcome = defineEmail({ name: 'welcome', subject: ({ name }: Welcome) => `
 
 const recording = () => {
   const sent: MailMessage[] = []
-  return { sent, mailer: { send: async (message: MailMessage) => void sent.push(message) } }
+  return { sent, mailer: { send: async (message: MailMessage) => { sent.push(message); return {} } } }
 }
 
 describe('defineEmail', () => {
@@ -34,6 +34,11 @@ describe('defineEmail', () => {
     const { sent, mailer } = recording()
     await welcome.send('ada@example.com', { name: 'Ada', url: 'https://app.example.com' }, mailer)
     expect(sent).toEqual([{ to: 'ada@example.com', subject: 'Welcome, Ada', html: expect.stringContaining('Hi Ada,'), text: expect.stringContaining('Hi Ada,') }])
+  })
+
+  it('resolves to the message id the mailer gives', async () => {
+    const mailer = { send: async () => ({ messageId: '<a1@app.example.com>' }) }
+    expect(await welcome.send('ada@example.com', { name: 'Ada', url: 'https://app.example.com' }, mailer)).toEqual({ messageId: '<a1@app.example.com>' })
   })
 
   it('sends the attachments it is given', async () => {

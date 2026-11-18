@@ -12,6 +12,6 @@ export const enablerMailbox = (enablerOf: () => Promise<string | null>, personal
   send: async (message) => {
     const enabledBy = await enablerOf()
     if (!enabledBy) throw new PersonalMailError('not_linked')
-    await personalMailer(enabledBy).send(message)
+    return personalMailer(enabledBy).send(message)
   },
 })

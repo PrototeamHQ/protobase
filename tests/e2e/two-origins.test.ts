@@ -30,7 +30,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('an app on two origins i
     second = `https://second.test:${server.port}`
 
     store = await openPostgresDatabase('auth')
-    auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: first, origins: [second], secret, mailer: { send: async (message) => void sent.push(message) } })
+    auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: first, origins: [second], secret, mailer: { send: async (message) => { sent.push(message); return {} } } })
     await createUser(auth, { email, password })
     const app = createAdmin({ resources: [], db: store.db, authenticate: betterAuthAuthenticator({ auth }), auth })
     const html = '<!doctype html><title>Protobase</title><script type="module" src="/client.js"></script>'

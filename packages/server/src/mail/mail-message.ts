@@ -17,5 +17,11 @@ export type MailMessage = {
 /** A file sent with a message: its name as the recipient sees it, its bytes, and its media type, else one its name implies. */
 export type MailAttachment = { filename: string; content: Uint8Array; contentType?: string }
 
+/**
+ * A message sent: its `Message-ID` as the recipient sees it, angle brackets and all, to match a later reply, bounce or
+ * complaint to it; absent when the transport cannot tell which id the recipient gets, as for a linked Gmail mailbox.
+ */
+export type SentMail = { messageId?: string }
+
 /** Sends one message; rejects when the server refuses it. */
-export type Mailer = { send: (message: MailMessage) => Promise<void> }
+export type Mailer = { send: (message: MailMessage) => Promise<SentMail> }

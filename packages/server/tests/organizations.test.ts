@@ -236,7 +236,7 @@ describe('inviting people', () => {
 
   it('emails the link with a mailer, and leaves it out of the answer', async () => {
     const sent: { to: string; subject: string; text: string }[] = []
-    const app = await serve({ mailer: { send: async (message) => void sent.push(message) } }, { people: true })
+    const app = await serve({ mailer: { send: async (message) => { sent.push(message); return {} } } }, { people: true })
     const answer = await (await app.request('/api/auth/organization/invite-member', { cookie: await app.signIn('bo@example.com'), body: { email: 'jan@ledger.example', role: 'member', appRoles: ['accountant'] } })).json()
     expect(answer).not.toHaveProperty('link')
     // Mail goes out after the answer

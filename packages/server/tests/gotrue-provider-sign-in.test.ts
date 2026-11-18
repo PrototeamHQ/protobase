@@ -57,7 +57,7 @@ const serve = async ({ baseURL = origin } = {}) => {
     database: { dialect: store.dialect, type: 'postgres' },
     baseURL,
     secret,
-    mailer: { send: async (message) => void sent.push(message) },
+    mailer: { send: async (message) => { sent.push(message); return {} } },
     socialProviders: { github: { clientId: 'Iv1.client', clientSecret: 'client-secret' } },
     trustedOrigins: ['authexp://', web, ...patterns],
   })
