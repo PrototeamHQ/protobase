@@ -1,11 +1,15 @@
 import type { Preview } from '@storybook/react-vite'
 import { configure } from 'storybook/test'
 import '../packages/ui/src/styles.css'
+import { addAllCatalogues } from '../packages/ui/src/locale/all-catalogues'
 import { writeThemePreference } from '../packages/ui/src/theme/theme-preference'
 
 // A busy CI runner plays four stories at once, so a findBy or waitFor waits 5s rather than testing-library's 1s before
 // it gives up.
 configure({ asyncUtilTimeout: 5000 })
+
+// Stories draw the app's pieces on their own, outside the app that loads their texts, in either language.
+addAllCatalogues()
 
 const preview: Preview = {
   globalTypes: {

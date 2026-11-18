@@ -68,10 +68,12 @@ export { DiffView, diffStats, parsePatch, parseDiff, type DiffLine, type DiffVie
 export { CompactTable, type CompactTableProps } from './compact-table'
 export { Markdown } from './markdown/markdown'
 export type { MarkdownContentProps as MarkdownProps } from './markdown/markdown-content'
-// The pieces of the sign-in pages, for a host's own pages that look like the app's; `@protobase/ui/styles.css` styles them.
+// The pieces of the sign-in pages, for a host's own pages that look like the app's; `@protobase/ui/styles.css` styles them,
+// and their texts in a language are there once `loadTexts` has loaded it.
 export { AuthLayout, type AuthLayoutProps } from './auth/auth-layout'
 export { CodeForm, type CodeFormProps } from './auth/code-form'
 export { ResendCodeButton, type ResendCodeButtonProps } from './auth/resend-code-button'
+export { loadTexts } from './locale/messages'
 // The connect page's guard against clickjacking and click-through, for a host's own consent screen to arm its Allow the same way.
 export { allowDelayMs, isFramed, useArmedAfterFocus, useGuardedPress } from './connect/interaction-guard'
 // The form parts of the app's own pages, for a project's components that look like them.

@@ -1,13 +1,14 @@
 import type { ActionModel, FieldViewModel, LayoutItemModel, ResourceModel, ViewModel } from '@protobase/schema'
 import type { MetaData } from '../../data/meta-data'
-import { catalogues, messages } from '../../locale/messages'
+import { activeLocale } from '../../locale/active-locale'
+import { catalogue, messages } from '../../locale/messages'
 
 const namespace = 'app/built-in-views'
 const text = messages(namespace)
 type Id = Parameters<typeof text>[0]
 
-// The English catalogue names every text there is; the view's own text stays where it names none.
-const translated = (id: string, given: string) => (Object.hasOwn(catalogues.en[namespace], id) ? text(id as Id) : given)
+// Every catalogue names the same texts; the view's own text stays where they name none.
+const translated = (id: string, given: string) => (Object.hasOwn(catalogue(activeLocale())[namespace], id) ? text(id as Id) : given)
 
 const field = (prefix: string, hints: FieldViewModel): FieldViewModel => ({
   ...hints,

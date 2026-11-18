@@ -5,6 +5,7 @@ import '../styles.css'
 import { guarded } from '../lib/guarded'
 import { listenForPresses } from '../lib/press-feedback'
 import { browserLocale } from '../locale/active-locale'
+import { loadTexts } from '../locale/messages'
 import { openStartCache } from '../data/start-cache/open-start-cache'
 import { App } from './app'
 import { restorePage } from './live-update/kept-page'
@@ -30,11 +31,15 @@ if (nativeBridge) {
   if (storage) restorePage(storage, window.history)
 }
 
+// The screens' texts in the browser's language start loading with the start cache, which the app waits for anyway
+const locale = browserLocale()
+void loadTexts(locale)
+
 // The first render already has what the app showed last time, read from the start cache
 void openStartCache().then((startCache) =>
   createRoot(root).render(
     <StrictMode>
-      <App baseUrl={`${pageApiOrigin() ?? ''}/api/v1`} ui={uiFromModule(projectUi)} locale={browserLocale()} nativeBridge={nativeBridge} startCache={startCache} />
+      <App baseUrl={`${pageApiOrigin() ?? ''}/api/v1`} ui={uiFromModule(projectUi)} locale={locale} nativeBridge={nativeBridge} startCache={startCache} />
     </StrictMode>,
   ),
 )

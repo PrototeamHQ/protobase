@@ -70,6 +70,7 @@
     "fileNamed",
     "isConflict",
     "isFramed",
+    "loadTexts",
     "mentionedIds",
     "mergeUi",
     "parseDiff",

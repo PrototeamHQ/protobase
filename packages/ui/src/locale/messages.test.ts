@@ -3,7 +3,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it } from 'vitest'
 import { catalogueShape, unknownValues } from '../../../../test-support/icu-catalogue'
 import { setAppLocale, setFallbackLocale } from './active-locale'
-import { catalogues, messages } from './messages'
+import en from './en.json' with { type: 'json' }
+import { messages } from './messages'
+import nl from './nl.json' with { type: 'json' }
 
 afterEach(() => {
   setFallbackLocale('en')
@@ -51,15 +53,15 @@ describe('messages', () => {
 
 describe('the catalogues', () => {
   it('give Dutch exactly the texts English has', () => {
-    expect(Object.keys(catalogueShape(catalogues.nl)).sort()).toEqual(Object.keys(catalogueShape(catalogues.en)).sort())
+    expect(Object.keys(catalogueShape(nl)).sort()).toEqual(Object.keys(catalogueShape(en)).sort())
   })
 
   it('name in Dutch only values the English text names, apart from those passed for the translation alone', () => {
-    expect(unknownValues(catalogues.en, catalogues.nl)).toEqual(['app/delete.confirmDescription: title'])
+    expect(unknownValues(en, nl)).toEqual(['app/delete.confirmDescription: title'])
   })
 
   it('use no tag but lower, the only one the lookup fills in', () => {
-    const tags = new Set([catalogues.en, catalogues.nl].flatMap((catalogue) => Object.values(catalogueShape(catalogue)).flatMap((shape) => shape.tags)))
+    const tags = new Set([en, nl].flatMap((catalogue) => Object.values(catalogueShape(catalogue)).flatMap((shape) => shape.tags)))
     expect([...tags]).toEqual(['lower'])
   })
 })
