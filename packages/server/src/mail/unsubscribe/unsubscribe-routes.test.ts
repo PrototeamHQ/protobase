@@ -7,11 +7,11 @@ import type { UnsubscribeTarget } from './unsubscribe-token'
 
 const links = unsubscribeLinks({ appUrl: 'https://shop.example.com', path: '/api/unsubscribe', secret: 'test secret' })
 
-const serve = () => {
+const serve = (locale?: 'en' | 'nl') => {
   const recorded: UnsubscribeTarget[] = []
   const app = new Hono()
   app.onError(createErrorHandler(() => {}))
-  app.route('/api/unsubscribe', unsubscribeRoutes(links, async (target) => void recorded.push(target)))
+  app.route('/api/unsubscribe', unsubscribeRoutes(links, async (target) => void recorded.push(target), locale))
   return { app, recorded }
 }
 
@@ -63,5 +63,15 @@ describe('the unsubscribe endpoint', () => {
     const page = await (await app.request(path(links.url({ recipient: '<b>@example.com', topic: 'newsletter' })))).text()
     expect(page).not.toContain('<b>@')
     expect(page).toContain('&lt;b&gt;@example.com')
+  })
+
+  it('shows its pages in the language the browser asks for, or the app sets', async () => {
+    const asked = await (await serve().app.request(ada, { headers: { 'accept-language': 'nl-NL, en;q=0.5' } })).text()
+    expect(asked).toContain('<html lang="nl">')
+    expect(asked).toContain('Geen newsletter-mail meer sturen naar ada@example.com?')
+    expect(asked).toContain('<input type="hidden" name="List-Unsubscribe" value="One-Click"><button type="submit">Afmelden</button>')
+    const set = await (await serve('nl').app.request(ada, oneClick('List-Unsubscribe=One-Click'))).text()
+    expect(set).toContain('ada@example.com krijgt geen newsletter-mail meer.')
+    expect(await (await serve().app.request(ada)).text()).toContain('<html lang="en">')
   })
 })

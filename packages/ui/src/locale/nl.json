@@ -583,7 +583,14 @@
     "workflows.custom_step_builds.fields.log.label": "Log",
     "workflows.custom_step_builds.fields.log.help": "Het einde van de log van de build, zoals de runner het doorgaf",
     "workflows.custom_step_builds.fields.started_at.label": "Gestart",
-    "workflows.custom_step_builds.fields.finished_at.label": "Afgerond"
+    "workflows.custom_step_builds.fields.finished_at.label": "Afgerond",
+    "mail.unsubscribes.names.singular": "Afmelding",
+    "mail.unsubscribes.names.plural": "Afmeldingen",
+    "mail.unsubscribes.help": "Iedereen die zich heeft afgemeld voor een onderwerp van de bulkmail, nieuwste eerst. Bulkmail over dat onderwerp wordt niet naar hen gestuurd.",
+    "mail.unsubscribes.fields.recipient.label": "Ontvanger",
+    "mail.unsubscribes.fields.topic.label": "Onderwerp",
+    "mail.unsubscribes.fields.created_at.label": "Afgemeld",
+    "mail.unsubscribes.layout.0.title": "Afmelding"
   },
   "app/change-confirm": {
     "title": "{label} wijzigen?",

@@ -518,7 +518,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   }
   if (forms) app.route(`${systemPath}/forms`, formRoutes(deps, forms))
   const links = unsubscribe && unsubscribeLinks({ appUrl: unsubscribe.appUrl, path: unsubscribePath(systemPath), secret: unsubscribeSecret(secret) })
-  if (links) app.route(unsubscribePath(systemPath), unsubscribeRoutes(links, (target) => recordUnsubscribe(db, target)))
+  if (links) app.route(unsubscribePath(systemPath), unsubscribeRoutes(links, (target) => recordUnsubscribe(db, target), locale))
   // The notices are read only while a page or channel listens.
   const feed = tableFeed({ db, schema: changes, report })
   // supabase-js's `from()`, `rpc()`, `channel()` and `storage`, admitted by the app's keys and the tokens `/api/sb/auth/v1` signs.
