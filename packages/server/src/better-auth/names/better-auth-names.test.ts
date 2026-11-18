@@ -98,3 +98,13 @@ describe("the store's names", () => {
     expect(found.user).toEqual(expect.arrayContaining(['last_organization_id', 'two_factor_enabled', 'email_confirmed_at']))
   })
 })
+
+describe('the names of one auth instance', () => {
+  it('stay its own when another instance in the same process names the tables otherwise', () => {
+    const user = (options: ReturnType<typeof optionsWith>['options']) => getSchema(options).people?.fields ?? {}
+    const first = optionsWith([], { user: { name: 'people', columns: { role: 'app_role', banned: 'is_banned' } } })
+    optionsWith([], { user: { name: 'people', columns: { role: 'other_role' } } })
+    expect(Object.keys(user(first.options))).toEqual(expect.arrayContaining(['app_role', 'is_banned', 'two_factor_enabled']))
+    expect(Object.keys(user(first.options))).not.toContain('other_role')
+  })
+})

@@ -1,4 +1,5 @@
 import type { DBFieldAttribute } from '@better-auth/core/db'
+import type { BetterAuthPlugin } from 'better-auth'
 import type { BuiltInTables, FieldOf, ModuleId, OwnAttribute, OwnField, TableOfModel } from './modules'
 import type { ResolvedNames, ResolvedTable } from './resolve-names'
 
@@ -22,6 +23,24 @@ const attributes = (table: ResolvedTable, picked?: readonly string[]) => {
   return Object.fromEntries(own.map(({ field, name, attribute }) => [field, { ...attribute, fieldName: name } as DBFieldAttribute]))
 }
 
+/**
+ * The plugin with a schema of its own, each table and field the store declares named from the model. Better Auth's
+ * plugins merge their `schema` option into one schema object per module, which a second instance in the same process
+ * would rename again under the first; the copy keeps each instance's names.
+ */
+const namedPlugin = <P extends BetterAuthPlugin>(names: ResolvedNames, plugin: P): P => {
+  if (!plugin.schema) return plugin
+  const schema = Object.fromEntries(
+    Object.entries(plugin.schema).map(([model, table]) => {
+      const resolved = names.model(model)
+      if (!resolved) return [model, table]
+      const fields = Object.fromEntries(Object.entries(table.fields).map(([field, attribute]) => [field, { ...attribute, fieldName: resolved.fields[field]?.name ?? attribute.fieldName }]))
+      return [model, { ...table, modelName: resolved.name, fields }]
+    }),
+  )
+  return { ...plugin, schema }
+}
+
 export type BetterAuthNames = ReturnType<typeof betterAuthNames>
 
 /** Better Auth's names from the resolved model. */
@@ -41,6 +60,8 @@ export const betterAuthNames = (names: ResolvedNames) => ({
   fields: <Table extends keyof BuiltInTables, Field extends OwnField<Table>>(table: Table, picked: readonly Field[]) =>
     // The declarations' types say which attribute each field has.
     attributes(names.table(table), picked) as unknown as { [F in Field]: OwnAttribute<Table, F> & { fieldName: string } },
+  /** The plugin with its own copy of its schema, named from the model (see `namedPlugin`). */
+  plugin: <P extends BetterAuthPlugin>(plugin: P) => namedPlugin(names, plugin),
   /** The `schema` of a plugin of Protobase's own: each of its models' tables, with every field. */
   tables: <Model extends string>(...models: Model[]) =>
     Object.fromEntries(models.map((model) => [model, { modelName: tableOf(names, model).name, fields: attributes(tableOf(names, model)) }])) as Record<Model, { modelName: string; fields: Record<string, DBFieldAttribute> }>,

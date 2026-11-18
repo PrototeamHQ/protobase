@@ -587,7 +587,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(openId ? loaded(plugins.openIdProviderPlugins, 'openIdProvider')({ openId, mail: Boolean(mailer), defaultPolicy: signInPolicy, names: named }) : []),
       // The store's names, on the context, where the store's own SQL reads them.
       storeNamesPlugin(names),
-    ],
+    ].map((plugin) => named.plugin(plugin)),
     disabledPaths: [selfDeletionCallbackPath, ...(accountDeletion ? [] : [selfDeletionPath]), ...unusedEmailCodePaths, ...adminImpersonationPaths, ...providerTokenPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : []), ...(mcp ? mcpUnusedPaths : []), ...(openId ? openIdUnusedPaths : [])],
     databaseHooks: {
       user: {
