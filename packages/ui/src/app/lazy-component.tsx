@@ -1,16 +1,30 @@
-import { lazy, Suspense, type ComponentType, type ReactNode } from 'react'
+import { Suspense, use, type ComponentType, type ReactNode } from 'react'
 
 /**
- * A component whose code loads the first time it draws, as a chunk of its own, with what `fallback` gives for its props
- * in its place until then, such as a skeleton of its size; the start then loads only what draws the shell and its
- * loading states. `load` names the component in its module.
+ * A component whose code loads the first time it draws, or earlier with `preload`, as a chunk of its own, with what
+ * `fallback` gives for its props in its place until then, such as a skeleton of its size; the start then loads only
+ * what draws the shell and its loading states. Once loaded it draws at once, with no fallback in between. `load` names
+ * the component in its module; a load that fails is tried again the next time.
  */
 export const lazyComponent = <P extends object>(load: () => Promise<ComponentType<P>>, fallback: (props: P) => ReactNode = () => null) => {
-  const Loaded = lazy(() => load().then((component) => ({ default: component })))
+  let loaded: ComponentType<P> | undefined
+  let loading: Promise<ComponentType<P>> | undefined
+  const preload = () =>
+    (loading ??= load().then(
+      (component) => (loaded = component),
+      (error: unknown) => {
+        loading = undefined
+        throw error
+      },
+    ))
+  const Loaded = (props: P) => {
+    const Component = loaded ?? use(preload())
+    return <Component {...props} />
+  }
   const Lazy = (props: P) => (
     <Suspense fallback={fallback(props)}>
       <Loaded {...props} />
     </Suspense>
   )
-  return Lazy
+  return Object.assign(Lazy, { preload })
 }
