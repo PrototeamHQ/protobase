@@ -32,7 +32,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('session cookies planted
     evil = `https://evil.shared.test:${server.port}`
 
     store = await openPostgresDatabase('auth')
-    auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: app, secret, mailer: { send: async () => {} } })
+    auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: app, secret, mailer: { send: async () => ({}) } })
     await createUser(auth, visitor)
     await createUser(auth, attacker)
     const admin = createAdmin({ resources: [], db: store.db, authenticate: betterAuthAuthenticator({ auth }), auth })

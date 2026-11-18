@@ -4,7 +4,7 @@ import { sendAuthEmail } from './send-auth-email'
 
 const recording = () => {
   const sent: MailMessage[] = []
-  return { sent, mail: { mailer: { send: async (message: MailMessage) => void sent.push(message) }, appName: 'Property Finder', baseURL: 'https://homes.example.com' } }
+  return { sent, mail: { mailer: { send: async (message: MailMessage) => { sent.push(message); return {} } }, appName: 'Property Finder', baseURL: 'https://homes.example.com' } }
 }
 
 describe('sendAuthEmail', () => {

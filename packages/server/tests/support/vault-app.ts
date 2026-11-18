@@ -71,6 +71,7 @@ export const serveVault = async (shared: SnapshotDb, { bob = false, dana = false
         if (mail.failing) throw new Error('The mail server refused the message')
         sent.push(message)
         for (const resolve of awaiting.splice(0)) resolve(message)
+        return {}
       },
     },
   })

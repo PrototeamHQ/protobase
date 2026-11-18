@@ -1,4 +1,4 @@
-import type { MailMessage } from '../mail/smtp-mailer'
+import type { MailMessage, SentMail } from '../mail/smtp-mailer'
 import type { LinkedAccount, LinkedAccounts } from './linked-accounts'
 import { chooseSender, usableSenders, type MailSender } from './mail-sender'
 import { PersonalMailError } from './personal-mail-error'
@@ -30,9 +30,10 @@ export type PersonalMailMessage = MailMessage & { from?: string }
 export type PersonalMail = {
   /**
    * Sends `message` from `from`, else from the person's default address, else from their mailbox's own address. Rejects
-   * with a `MailSenderRefusedError`, sending nothing, for an address they may not use.
+   * with a `MailSenderRefusedError`, sending nothing, for an address they may not use. Resolves to the `Message-ID` the
+   * recipient sees when the mail provider can tell it (see `SentMail`).
    */
-  send: (message: PersonalMailMessage) => Promise<void>
+  send: (message: PersonalMailMessage) => Promise<SentMail>
   /** The sender a send with `from` goes out as, with its own signature, or refuses as `send` would. */
   sender: (from?: string) => Promise<MailSender>
   /** Every sender the person may choose, as a send dialog lists them. */
@@ -53,7 +54,7 @@ export const personalMailer = (accounts: LinkedAccounts, providers: PersonalMail
       const linked = await linkedProvider(accounts, providers, chosen.ownerId)
       if (!linked) throw new PersonalMailError('not_linked')
       const accessToken = await accounts.accessToken(chosen.ownerId, linked.account, linked.provider.id)
-      await linked.provider.send(message, accessToken, chosen.address ? { address: chosen.address, ...(chosen.name && { name: chosen.name }) } : undefined)
+      return linked.provider.send(message, accessToken, chosen.address ? { address: chosen.address, ...(chosen.name && { name: chosen.name }) } : undefined)
     },
     sender,
     senders: () => usableSenders(senders, userId, ownAddress),

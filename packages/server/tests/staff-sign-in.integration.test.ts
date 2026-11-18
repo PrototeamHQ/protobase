@@ -53,7 +53,7 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
     database: { dialect: store.dialect, type: 'postgres' },
     baseURL: origin,
     secret,
-    mailer: { send: async (message) => void sent.push(message) },
+    mailer: { send: async (message) => { sent.push(message); return {} } },
     operator: { issuer: operatorIssuer, ...operatorClient, name: 'Operator Cloud' },
     ...options,
   })

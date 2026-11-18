@@ -34,7 +34,7 @@ beforeAll(async () => {
   instant = await search('instant', `for_sale = true AND ${place} AND purchase_price >= 0 AND purchase_price <= 500000 AND living_area >= 70 AND living_area <= 400`)
   daily = await search('daily', `for_rent = true AND ${place} AND rent_price >= 0 AND rent_price <= 2000 AND living_area >= 70 AND living_area <= 400`)
   quiet = await search('none', `${place} AND search("Teststraat")`)
-  runtime = await startJobs({ db, jobs: await exampleJobs('property-portal'), pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => { throw error }, mailer: { send: async (message) => { sent.push(message) } } })
+  runtime = await startJobs({ db, jobs: await exampleJobs('property-portal'), pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => { throw error }, mailer: { send: async (message) => { sent.push(message); return {} } } })
 })
 
 afterAll(async () => {

@@ -236,7 +236,7 @@ export type { EnqueueOptions, JobContext, JobDefinition, JobOptions } from './jo
 export { FatalJobError } from './jobs/run-job'
 export { enqueueJob, type ArgumentsPayload, type EnqueueJob, type JobDeclaration, type JobName, type JobPayload, type JobRun } from './jobs/declared-job'
 export { isSchedule } from './jobs/schedule'
-export type { Mailer, MailAttachment, MailMessage } from './mail/smtp-mailer'
+export type { Mailer, MailAttachment, MailMessage, SentMail } from './mail/smtp-mailer'
 export { MailServerTimeoutError } from './mail/mail-server-timeout'
 export { PersonalMailError, type PersonalMailErrorCode } from './personal-mail/personal-mail-error'
 export type { PersonalMailProviderId } from './personal-mail/personal-mail-providers'

@@ -36,7 +36,7 @@ const optionsWith = (on: Feature[], tables?: TableNames) => {
       names,
       roles: ['admin', 'user'],
       definitions: roleDefinitions(),
-      mailer: { send: async () => {} },
+      mailer: { send: async () => ({}) },
       operator: resolveOperator({ issuer: 'https://id.operator.example', clientId: 'app', clientSecret: 'secret' }),
       // With SAML providers too, which live in config: the SSO plugin adds no table.
       samlPlugin,

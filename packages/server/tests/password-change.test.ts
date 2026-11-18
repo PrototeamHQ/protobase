@@ -28,7 +28,7 @@ let client = 0
 const serve = async () => {
   const store = await shared.clone()
   const sent: MailMessage[] = []
-  const auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret, mailer: { send: async (message) => void sent.push(message) } })
+  const auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret, mailer: { send: async (message) => { sent.push(message); return {} } } })
   await createUser(auth, { email: 'root@example.com', password })
   await createUser(auth, { email: 'sanne@example.com', password, role: 'user' })
   const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })

@@ -36,6 +36,13 @@ describe('gmail', () => {
     expect(raw).toContain(Buffer.from(pdf).toString('base64'))
   })
 
+  it('gives the message a Message-ID on the From domain and resolves to none, since Gmail sets its own', async () => {
+    const { fetcher, provider } = answering(() => json(sentMessage))
+    expect(await provider.send(invoice, 'access-1', { address: 'billing@acme.example' })).toEqual({})
+    const raw = new TextDecoder().decode(fetcher.mock.calls[0]![1]!.body as Uint8Array).replace(/\r\n/g, '\n')
+    expect(raw).toMatch(/^Message-ID: <[0-9a-f]{32}@acme\.example>$/m)
+  })
+
   it('puts the chosen address in the From header', async () => {
     const { fetcher, provider } = answering(() => json(sentMessage))
     await provider.send(invoice, 'access-1', { address: 'billing@acme.example' })

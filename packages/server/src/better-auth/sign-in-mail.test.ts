@@ -5,7 +5,7 @@ import { emailCodeOptions, twoFactorCodeOptions } from './sign-in-mail'
 
 const recording = () => {
   const sent: MailMessage[] = []
-  return { sent, mail: { mailer: { send: async (message: MailMessage) => void sent.push(message) }, appName: 'Property Finder', baseURL: 'https://homes.example.com' } }
+  return { sent, mail: { mailer: { send: async (message: MailMessage) => { sent.push(message); return {} } }, appName: 'Property Finder', baseURL: 'https://homes.example.com' } }
 }
 
 describe('emailed sign-in and two-factor codes', () => {

@@ -3,7 +3,7 @@ title: Email and public forms
 description: Mail the app sends, the PDF documents it makes, and forms for people without an account.
 ---
 
-- [Email](/reference/email/#configuration): The app sends mail through one SMTP server or a mailer you supply.
+- [Email](/reference/email/#configuration): The app sends mail through one SMTP server or a mailer you supply. [Sending returns the message id](/reference/email/#message-id), so you can match a later reply, bounce or complaint to the mail it answers.
 - [Built-in emails](/reference/email/#protobases-own-mail): Sign-in codes, password resets, invitations and mentions are sent in the app's name, in English or Dutch.
 - [Email templates](/reference/email/#templates) (beta): Your own emails are templates with typed data, written in mail blocks with their texts in each language they are sent in, checked by a schema of yours or the data they read, and sent from jobs, hooks, functions or a workflow's Send email step.
 - [Emails in React](/reference/email/#emails-in-react): An email can be a React component with typed data instead, for a layout the mail blocks cannot draw.
