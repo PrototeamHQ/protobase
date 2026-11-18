@@ -374,3 +374,14 @@ The schema of the statuses table.
 ```ts
 export default defineConfig({ status: { schema: 'presence' } })
 ```
+
+## unsubscribe
+
+- **Type:** `boolean`
+- **Default:** `false`
+
+Gives bulk mail a one-click unsubscribe: mail a job sends with `bulk: true` and a `topic` carries the recipient's own unsubscribe link, and is not sent to whoever unsubscribed from its topic. The links are on [`url`](/reference/config/app/#url) and signed with [`secret`](/reference/config/app/#secret), and the table of who unsubscribed, `mail.unsubscribes`, is written by `protobase migration`. See [Unsubscribe](/reference/email/#unsubscribe).
+
+```ts
+export default defineConfig({ unsubscribe: true })
+```

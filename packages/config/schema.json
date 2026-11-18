@@ -53,7 +53,7 @@
       ]
     },
     "secret": {
-      "description": "The app's secret, made with `openssl rand -base64 32`: it signs session cookies, upload tickets and download links\nand public forms' bot checks, and encrypts the token signing keys. Default `PROTOBASE_SECRET`; required with sign-in.",
+      "description": "The app's secret, made with `openssl rand -base64 32`: it signs session cookies, upload tickets and download links,\npublic forms' bot checks and unsubscribe links, and encrypts the token signing keys. Default `PROTOBASE_SECRET`; required with sign-in.",
       "anyOf": [
         {
           "type": "string"
@@ -1218,6 +1218,17 @@
       "anyOf": [
         {
           "$ref": "#/definitions/MobileConfig"
+        },
+        {
+          "$ref": "#/definitions/EnvValue"
+        }
+      ]
+    },
+    "unsubscribe": {
+      "description": "`true` gives bulk mail a one-click unsubscribe: mail a job sends with `bulk: true` and a `topic` carries the\nrecipient's own unsubscribe link, and is not sent to whoever unsubscribed from its topic. Its links are on `url`\nand signed with `secret`; `protobase migration` writes its table, `mail.unsubscribes`. Off by default.",
+      "anyOf": [
+        {
+          "type": "boolean"
         },
         {
           "$ref": "#/definitions/EnvValue"

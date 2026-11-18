@@ -5,7 +5,7 @@ import { migrationParts, type MigrationPart } from './parts'
 import type { MigrationProject } from './load-project'
 
 const tickets = resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
-const project = (models: MigrationProject['models'], readOnlyQueries = false) => ({ models, db: {} as MigrationProject['db'], jobs: [], userTables: false, readOnlyQueries, authTables: { tables: [], schemas: [] }, close: async () => {} }) satisfies MigrationProject
+const project = (models: MigrationProject['models'], readOnlyQueries = false) => ({ models, db: {} as MigrationProject['db'], jobs: [], userTables: false, unsubscribe: false, readOnlyQueries, authTables: { tables: [], schemas: [] }, close: async () => {} }) satisfies MigrationProject
 const names = (parts: MigrationPart[]) => parts.map((part) => part.name)
 
 describe('the migration parts', () => {
@@ -37,6 +37,10 @@ describe('the migration parts', () => {
   it('add the statuses table only with status', () => {
     expect(names(migrationParts({ ...project([]), status: {} }))).toEqual(['changes', 'computed', 'derived', 'status'])
     expect(names(migrationParts(project([])))).not.toContain('status')
+  })
+  it('add the unsubscribes table only with unsubscribe', () => {
+    expect(names(migrationParts({ ...project([]), unsubscribe: true }))).toEqual(['changes', 'computed', 'derived', 'unsubscribes'])
+    expect(names(migrationParts(project([])))).not.toContain('unsubscribes')
   })
   it('add the schemas of user tables, then the delete of the definitions code owns, only with userTables', () => {
     expect(names(migrationParts({ ...project([]), userTables: true }))).toEqual(['changes', 'computed', 'derived', 'user_tables', 'owned_definitions'])
