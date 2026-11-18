@@ -44,7 +44,7 @@ describe("the platform's providers", () => {
 
   it('offer a button only for those with pages, and send nobody through the pages of one that takes tokens alone', async () => {
     const { request } = await serve()
-    expect(await (await request('/status')).json()).toMatchObject({ socialProviders: ['github'], platformProviders: [{ provider: 'github', name: 'GitHub' }] })
+    expect(await (await request('/status')).json()).toMatchObject({ socialProviders: ['github'], platformProviders: [{ provider: 'github', name: 'GitHub' }], tokenProviders: ['github', 'central'] })
     const refused = await request('/sign-in/social', { body: { provider: 'central', callbackURL: `${origin}/` } })
     expect(refused.status).toBe(403)
     expect(await refused.json()).toMatchObject({ code: 'PROVIDER_PAGES_OFF' })
@@ -60,7 +60,9 @@ describe("the platform's providers", () => {
       expect(refused.status).toBe(403)
       expect(await refused.json()).toMatchObject({ code: 'SIGN_IN_METHOD_FORBIDDEN' })
     }
-    expect(await (await request('/status')).json()).not.toHaveProperty('platformProviders')
+    const status = await (await request('/status')).json()
+    expect(status).not.toHaveProperty('platformProviders')
+    expect(status).not.toHaveProperty('tokenProviders')
   })
 
   it('may show the same name, which is apart from the id', async () => {
@@ -71,6 +73,7 @@ describe("the platform's providers", () => {
         { provider: 'github', name: 'GitHub' },
         { provider: 'central', name: 'GitHub' },
       ],
+      tokenProviders: ['github'],
     })
   })
 })

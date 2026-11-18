@@ -35,6 +35,7 @@ export type { AuthHooks, AuthSettings, HookContext } from './better-auth/auth-se
 export type { AuthenticateSettings } from './better-auth/authenticate-settings'
 export { betterAuthTokens, type BetterAuthAuthenticator, type BetterAuthAuthenticatorOptions } from './better-auth/authenticator'
 export { withTrustedApps, type TrustedApp } from './better-auth/app-tokens'
+export { overSignIn, type OverSignIn } from './better-auth/over-sign-in'
 export { roleChoices, parseRoles, hasUsers, createUser, listUsers, usersPageSize, deleteUser, setUserRole, setUserBanned, type LinkedAccount, type NewUser, type StoredUser, type UsersCursor, type UsersPage } from './better-auth/users'
 export { issueToken, maxTokenTtlSeconds, type IssueTokenOptions } from './better-auth/tokens'
 export { passwordLength } from './better-auth/new-account-password'

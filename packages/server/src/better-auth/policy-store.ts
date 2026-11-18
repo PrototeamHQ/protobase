@@ -1,4 +1,5 @@
-import type { DBAdapter } from 'better-auth'
+import type { DBAdapter, InferOptionSchema } from 'better-auth'
+import { mergeSchema } from 'better-auth/db'
 import { parseSignInPolicy, type SignInPolicy } from './sign-in-policy'
 
 /** Better Auth's model for the sign-in policy: one row per save, the newest applies, the older ones are its history. */
@@ -21,6 +22,12 @@ export const signInPolicySchema = {
     },
   },
 } as const
+
+/** The sign-in policy' table and column names, as a Better Auth plugin's `schema` option renames its own: a name left out keeps the one above. */
+export type SignInPolicySchema = InferOptionSchema<typeof signInPolicySchema>
+
+/** The plugin's schema under `names`; a copy, since `mergeSchema` writes into the schema it is given. */
+export const signInPolicyTables = (names?: SignInPolicySchema) => mergeSchema(structuredClone(signInPolicySchema), names)
 
 type PolicyRow = SignInPolicy & { id: string; createdAt: Date; createdBy?: string | null }
 

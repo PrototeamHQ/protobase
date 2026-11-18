@@ -1,4 +1,5 @@
-import type { DBAdapter } from 'better-auth'
+import type { DBAdapter, InferOptionSchema } from 'better-auth'
+import { mergeSchema } from 'better-auth/db'
 
 /** Better Auth's model for the log of staff sign-ins: one row per session staff started as someone. */
 export const staffSignInModel = 'staffSignIn'
@@ -21,6 +22,12 @@ export const staffSignInSchema = {
     },
   },
 } as const
+
+/** The staff sign-in log' table and column names, as a Better Auth plugin's `schema` option renames its own: a name left out keeps the one above. */
+export type StaffSignInSchema = InferOptionSchema<typeof staffSignInSchema>
+
+/** The plugin's schema under `names`; a copy, since `mergeSchema` writes into the schema it is given. */
+export const staffSignInTables = (names?: StaffSignInSchema) => mergeSchema(structuredClone(staffSignInSchema), names)
 
 type Row = {
   id: string

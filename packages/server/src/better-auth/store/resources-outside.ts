@@ -2,7 +2,7 @@ import { sql, type Kysely } from 'kysely'
 import type { ResourceModel } from '@protobase/schema'
 import { authStoreTables, type TableName } from '../auth-tables'
 import type { AdminAuth } from '../create-auth'
-import { storeDb } from './store-db'
+import { plainStoreDb } from './store-db'
 
 // The admin store holds password hashes, sessions, tokens and signing keys. Every route that reads tables, the API,
 // the Supabase-compatible endpoints, realtime and MCP, reads them through the app's resources only, so a store no
@@ -27,7 +27,7 @@ const resolve = async (db: Kysely<any>, tables: readonly TableName[]) =>
 export const checkResourcesOutsideAuthStore = async (db: Kysely<any>, models: readonly ResourceModel[], auth: AdminAuth) => {
   if (models.length === 0) return
   const { tables, schemas } = authStoreTables(auth)
-  const store = await resolve(storeDb(auth), tables)
+  const store = await resolve(plainStoreDb(auth), tables)
   const same = (a: Found, b: Found) => a.database === b.database && a.schema === b.schema && a.name === b.name
   const guarded = (table: Found) => schemas.includes(table.schema) || store.some((own) => same(own, table))
   const over = (await resolve(db, models.map((model) => model.table))).filter(guarded)

@@ -93,7 +93,11 @@ import { metadataField, userFieldsNamed, userModel, userTable, withUserColumns, 
 import { usersPlugin } from './users/users-plugin'
 
 export type CreateAuthOptions = {
-  /** A `pg` Pool, or `{ dialect, type: 'postgres', schemaName? }` for a Kysely dialect: the admin store, apart from the application's tables (its own schema or database). */
+  /**
+   * The admin store, apart from the application's tables (its own schema or database): the app's own Kysely as
+   * `{ db, type: 'postgres', schemaName? }`, whose plugins every sign-in query passes through; a `pg` Pool; or
+   * `{ dialect, type: 'postgres', schemaName? }` for a Kysely dialect.
+   */
   database: BetterAuthOptions['database']
   /** Public origin of the API, for example `https://admin.example.com`. Issuer and audience of the tokens; new passkeys are made for its host unless `passkeyDomain` names another. */
   baseURL: string
@@ -752,8 +756,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     /** The app's name it signs in and mails as: `PROTOBASE_APP_NAME`, else `appName`, else `Protobase`. */
     appName: appName ?? defaultAppName,
     operator: operator?.name,
-    /** The platform's sign-in providers: each one's id, name, whether people sign in through its pages, whether it is off the account page, whether the sign-in page shows its button, and whether its accounts are devices. */
-    platformSignIn: platformSignIn.map(({ provider, name, pages, hidden, button, devices }) => ({ provider, name, pages, hidden, button, devices })),
+    /** The platform's sign-in providers: each one's id, name, whether people sign in through its pages, whether it takes token sign-in, whether it is off the account page, whether the sign-in page shows its button, and whether its accounts are devices. */
+    platformSignIn: platformSignIn.map(({ provider, name, pages, tokenSignIn, hidden, button, devices }) => ({ provider, name, pages, tokens: tokenSignIn === true, hidden, button, devices })),
     /** The id and name of each SAML provider, for the sign-in page. */
     samlProviders: saml.map(({ id, name }) => ({ id, name })),
     /** The mail providers people link their own mailbox with (`personalMail`). */
