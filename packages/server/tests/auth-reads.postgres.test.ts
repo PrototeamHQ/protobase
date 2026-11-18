@@ -5,6 +5,7 @@ import { createOrganization } from '../src/better-auth/organizations/host'
 import { startingOrganization } from '../src/better-auth/organizations/session-organization'
 import type { AuthContext } from '../src/better-auth/organizations/store'
 import { createUser } from '../src/better-auth/users'
+import { betterAuthCommentUsers } from '../src/comments/comment-users'
 import { betterAuthActorNames } from '../src/history/actor-names'
 import type { TokenAuth } from '../src/personal-mail/linked-accounts'
 import { betterAuthOwnerRoles } from '../src/webhooks/table/owner-roles'
@@ -164,5 +165,26 @@ describe.skipIf(!ready)('the auth reads', () => {
     expect(held.slice(999)).toEqual([[], ['support'], [], []])
     const plans = [...(await plansOf('user')), ...(await plansOf('member'))]
     expect([plans.length, seqScansOf(plans, 'user'), seqScansOf(plans, 'member')]).toEqual([2, [], []])
+  })
+
+  it('find the people a comment may mention past 100,000 banned users whose names come first, by the index', async () => {
+    const { auth, fill, plansOf, forget } = await serve()
+    const person = (id: string, name: string, banned = false, until = 'null') => `('${id}', '${name}', '${id}@example.com', true, 'user', ${banned}, ${until}, now(), now())`
+    await fill(`${largeTable('"user"', ['id', 'name'])};
+      insert into "user" (id, name, email, email_verified, role, banned, ban_expires, created_at, updated_at)
+      select 'u' || i, 'Aaron ' || i, 'user' || i || '@example.com', true, 'user', true, null, now(), now() from generate_series(1, 100000) i;
+      insert into "user" (id, name, email, email_verified, role, banned, ban_expires, created_at, updated_at) values ${person('nameless', '')},
+        ${person('active', 'Aaron Active')}, ${person('lapsed', 'Aaron Lapsed', true, "'2026-01-01'")}, ${person('zed', 'Zed Aaron')}, ${person('later', 'Aaron Later', true, "'2099-01-01'")}`)
+    const users = betterAuthCommentUsers(auth)
+    const names = async (query: string, limit: number) => (await users.search(query, limit)).map((user) => user.name)
+    // A ban whose end has passed no longer stands; a name with LIKE's wildcards in it is matched as it is written.
+    expect(await names('aaron', 8)).toEqual(['Aaron Active', 'Aaron Lapsed', 'Zed Aaron'])
+    expect(await names('AARON A', 8)).toEqual(['Aaron Active'])
+    expect(await names('%', 8)).toEqual([])
+    expect(await names('', 2)).toEqual(['Aaron Active', 'Aaron Lapsed'])
+    // A part of a name few users have is found by the trigram index; one nearly all have, by reading them all.
+    forget()
+    expect(await names('zed', 8)).toEqual(['Zed Aaron'])
+    expect(seqScansOf(await plansOf('user'), 'user')).toEqual([])
   })
 })

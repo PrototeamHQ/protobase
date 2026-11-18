@@ -23,9 +23,9 @@ const checkViolation = '23514'
 const isDatabaseCode = (error: unknown, code: string) => error instanceof Error && (error as { code?: unknown }).code === code
 
 /**
- * Moves the affected rows out of the range in use, in one statement and without touching their ETags, so the final
- * positions can be written without any two rows colliding on a non-deferrable unique index: each lands on its own value
- * outside every one in use, so none collides on the way either.
+ * Moves the affected rows out of the range in use, in one statement per 1,000 rows and without touching their ETags, so
+ * the final positions can be written without any two rows colliding on a non-deferrable unique index: each lands on its
+ * own value outside every one in use, so none collides on the way either.
  * First above the highest value in the column; when a check constraint refuses that, below the lowest (negative).
  * The first attempt runs in a savepoint, so a refusal costs nothing.
  */
@@ -36,10 +36,19 @@ const moveAside = async (trx: Db, access: RequestAccess, field: string, keys: Ke
   const bounds = (await sql<{ high: number | null; low: number | null }>`select max(${column}) as high, min(${column}) as low from ${tableId(full)} as t`.execute(trx)).rows[0]!
   const keyRow = sql`(${sql.join(full.primaryKey.map((name) => columnId(full.fields[name]!)))})`
   const keyOf = (key: Key) => sql`(${sql.join(key.map((value) => sql`${value}`))})`
-  const ranks = sql.join(keys.map((key, rank) => sql`when ${keyRow} = ${keyOf(key)} then ${rank}::bigint`), sql` `)
-  const conditions = [...scopeConditions(full, tenant), sql<SqlBool>`${keyRow} in (${sql.join(keys.map(keyOf))})`]
+  // A statement moves 1,000 rows: each row looks its rank up among the statement's keys, and each key binds its values
+  // twice and its rank once, far below Postgres's 65,535 parameters. A longer list goes in several statements, its
+  // ranks counted over the whole list.
+  const perStatement = 1000
   // The row of rank n goes to `from` + n, or `from` - n going down.
-  const assign = (from: number, step: 1 | -1) => sql`update ${tableId(full)} as t set ${column} = ${from}::bigint + ${step}::bigint * (case ${ranks} end)${whereClause(conditions)}`.execute(trx)
+  const assign = async (from: number, step: 1 | -1) => {
+    for (let first = 0; first < keys.length; first += perStatement) {
+      const part = keys.slice(first, first + perStatement)
+      const ranks = sql.join(part.map((key, n) => sql`when ${keyRow} = ${keyOf(key)} then ${first + n}::bigint`), sql` `)
+      const conditions = [...scopeConditions(full, tenant), sql<SqlBool>`${keyRow} in (${sql.join(part.map(keyOf))})`]
+      await sql`update ${tableId(full)} as t set ${column} = ${from}::bigint + ${step}::bigint * (case ${ranks} end)${whereClause(conditions)}`.execute(trx)
+    }
+  }
   await sql`savepoint reorder_aside`.execute(trx)
   try {
     await assign(Number(bounds.high ?? 0) + 1, 1)

@@ -12,7 +12,9 @@ const statementsOf = (options: UserTableOptions) => {
   const names = migrationNames({ schema: 'app_auth', users: userTable(options), uuidIds: true })
   return storeMigrations.flatMap((migration) => migration.statements(names).map(ddlText))
 }
-const userDdl = (statement: string) => /^(create table if not exists|alter table|create index if not exists \w+ on) "app_auth"\."users"/.test(statement)
+const userDdl = (statement: string) => /^(create table if not exists|alter table|create index if not exists \w+ on) "app_auth"\."users"/.test(statement) || statement === pgTrgm
+// Only the index of the users' names needs pg_trgm, so a store over a view makes neither.
+const pgTrgm = 'create extension if not exists pg_trgm'
 // What each column holding a user's id references.
 const references = (statements: string[]) => statements.flatMap((statement) => [...statement.matchAll(/\b(?:user_id|inviter_id) [^,\n]* (references "[^"]+"\."[^"]+" \(id\))/g)].map((match) => match[1]!))
 
@@ -40,6 +42,9 @@ describe('the store over a user view', () => {
       'alter table "app_auth"."users" add column if not exists "last_organization_id" text',
       expect.stringMatching(/^create index if not exists user_active_admin_idx on "app_auth"\."users" \(id\) where "banned" is not true and 'admin' = any\(.*"app_role"/),
       'create index if not exists user_created_at_id_idx on "app_auth"."users" ("created_at", id)',
+      pgTrgm,
+      'create index if not exists user_name_id_idx on "app_auth"."users" ("name", id)',
+      'create index if not exists user_name_trgm_idx on "app_auth"."users" using gin ("name" gin_trgm_ops)',
     ])
     expect(new Set(references(plain))).toEqual(new Set(['references "app_auth"."users" (id)']))
   })

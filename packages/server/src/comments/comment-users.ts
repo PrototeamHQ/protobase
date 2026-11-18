@@ -1,5 +1,7 @@
+import { sql } from 'kysely'
 import type { AdminAuth } from '../better-auth/create-auth'
 import type { AuthContext } from '../better-auth/organizations/store'
+import { storeSqlOf } from '../better-auth/store/store-sql'
 import { betterAuthActorNames } from '../history/actor-names'
 import type { TenantValue } from '../types'
 import { betterAuthOwnerRoles } from '../webhooks/table/owner-roles'
@@ -22,15 +24,17 @@ type UserRow = { id: string; name?: string | null; email?: string | null; banned
 export const betterAuthCommentUsers = (auth: AdminAuth): CommentUsers => ({
   names: betterAuthActorNames(auth),
   roles: betterAuthOwnerRoles(auth),
+  // Only users with a name and no standing ban count towards `limit`, so it is asked of Postgres with them: a ban stands
+  // while it has no end or its end is still to come.
   search: async (query, limit) => {
-    const { adapter } = (await auth.$context) as unknown as AuthContext
-    const users = await adapter.findMany<UserRow>({
-      model: 'user',
-      ...(query !== '' && { where: [{ field: 'name', operator: 'contains', value: query, mode: 'insensitive' }] }),
-      limit,
-      sortBy: { field: 'name', direction: 'asc' },
-    })
-    return users.flatMap((user) => (user.banned || !user.name ? [] : [{ id: user.id, name: user.name }]))
+    const store = storeSqlOf((await auth.$context) as unknown as AuthContext)
+    const name = store.userColumn('name')
+    const now = new Date()
+    const contains = query === '' ? sql`` : sql` and ${name} ilike ${`%${query.replace(/[\\%_]/g, '\\$&')}%`}`
+    const { rows } = await sql<{ id: string; name: string }>`select id, ${name} as name from ${store.user}
+      where ${name} <> '' and not (${store.userColumn('banned')} is true and (${store.userColumn('banExpires')} is null or ${store.userColumn('banExpires')} > ${now}))${contains}
+      order by ${name}, id limit ${limit}`.execute(store.db)
+    return rows.map((user) => ({ id: String(user.id), name: user.name }))
   },
   email: async (id) => {
     const { internalAdapter } = (await auth.$context) as unknown as AuthContext
