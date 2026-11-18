@@ -2,6 +2,12 @@ import type { PlanRead } from '@protobase/layout'
 
 export const keys = {
   meta: ['meta'] as const,
+  /** The role the session acts with and the roles it may switch to. */
+  activeRole: ['session', 'active-role'] as const,
+  /** The organization the session works in and the person's organizations. */
+  organizations: ['session', 'organizations'] as const,
+  /** The members of the organization `id`, with their roles, for its members page. */
+  organizationMembers: (id: string) => ['session', 'members', id] as const,
   /** A source's `/meta`, as far as the app draws it: its URL, and the resources the app lists for it. */
   sourceMeta: (url: string, resources: readonly string[]) => ['source-meta', url, resources.join(',')] as const,
   /** Every `/meta` query of the source at `url`. */

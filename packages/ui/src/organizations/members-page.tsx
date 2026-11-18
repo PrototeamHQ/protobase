@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useCallback, useState } from 'react'
+import { keys } from '../data/query-keys'
 import { AuthError, type CurrentOrganization, type OrganizationMember, type OrganizationRole, type PersonStatus } from '@protobase/client'
 import { AccountSection, SectionError } from '../account/account-section'
 import { PageHeader } from '../app-shell'
@@ -66,13 +68,13 @@ const MemberRow = ({ member, current, status, presence, onChanged }: { member: O
  */
 export const MembersPage = ({ current, statuses, presence }: { current?: CurrentOrganization; statuses?: readonly PersonStatus[] | undefined; presence?: PresenceByUser | undefined }) => {
   const { session } = useAuth()
-  const [members, setMembers] = useState<OrganizationMember[]>()
-  const [error, setError] = useState<string>()
   const organizationId = current?.organization?.id
-  const load = useCallback(() => {
-    if (organizationId) void session.organizations.members(organizationId).then(setMembers, (failure: unknown) => setError(failure instanceof AuthError ? authMessage(failure) : text('couldNotReadMembers')))
-  }, [session, organizationId])
-  useEffect(load, [load])
+  // A query, so the start cache keeps the members and the page's first frame lists them
+  const query = useQuery({ queryKey: keys.organizationMembers(organizationId ?? ''), queryFn: () => session.organizations.members(organizationId!), enabled: Boolean(organizationId), retry: false })
+  const members = query.data
+  const error = query.error ? (query.error instanceof AuthError ? authMessage(query.error) : text('couldNotReadMembers')) : undefined
+  const { refetch } = query
+  const load = useCallback(() => void refetch(), [refetch])
   if (!current?.organization) return null
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">

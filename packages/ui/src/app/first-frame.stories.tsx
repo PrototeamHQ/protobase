@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { StrictMode, useEffect, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { expect, waitFor, within } from 'storybook/test'
-import { createStaticSession, type Client } from '@protobase/client'
+import { createStaticSession, type AuthSession, type Client, type CurrentOrganization, type OrganizationMember } from '@protobase/client'
 import { cachedPlugins } from '../data/start-cache/cached-plugins'
 import { loadStartCache, type StartCache } from '../data/start-cache/start-cache'
 import type { StartCacheStore } from '../data/start-cache/start-cache-store'
@@ -44,10 +44,10 @@ const pluginLoader: PluginLoader = {
   importModule: async () => ({ default: definePlugin({ name: 'frame' }) }),
 }
 
-const app = (client: Client, path: string, startCache: StartCache, pluginSource: PluginSource) => (
+const app = (client: Client, path: string, startCache: StartCache, pluginSource: PluginSource, auth: AuthSession = session) => (
   <StrictMode>
     <div className="h-screen">
-      <App client={client} auth={session} initialUrl={path} workspace="Veldhuis Supply" startCache={startCache} pluginSource={pluginSource} />
+      <App client={client} auth={auth} initialUrl={path} workspace="Veldhuis Supply" startCache={startCache} pluginSource={pluginSource} />
     </div>
   </StrictMode>
 )
@@ -58,7 +58,7 @@ const app = (client: Client, path: string, startCache: StartCache, pluginSource:
  * the plugins the cache names loaded first, and its first render, one synchronous commit, is kept and the app unmounted
  * (`showFirstFrame`, as the shell does for the one-frame test). What shows is only what that commit drew.
  */
-const FirstFrame = ({ client, path }: { client: Client; path: string }) => {
+const FirstFrame = ({ client, path, auth }: { client: Client; path: string; auth?: AuthSession }) => {
   const frame = useRef<HTMLDivElement>(null)
   useEffect(() => {
     let done = false
@@ -68,7 +68,7 @@ const FirstFrame = ({ client, path }: { client: Client; path: string }) => {
     document.body.append(warm)
     void (async () => {
       const first = createRoot(warm)
-      first.render(app(client, path, await loadStartCache(store, protobaseVersion), createPluginSource(pluginLoader)))
+      first.render(app(client, path, await loadStartCache(store, protobaseVersion), createPluginSource(pluginLoader), auth))
       await new Promise((resolve) => setTimeout(resolve, warmMs))
       first.unmount()
       warm.remove()
@@ -76,13 +76,13 @@ const FirstFrame = ({ client, path }: { client: Client; path: string }) => {
       const plugins = createPluginSource(pluginLoader)
       await preloadPlugins(plugins, cachedPlugins(startCache), 10_000)
       if (done || !frame.current) return
-      showFirstFrame(frame.current, app(client, path, startCache, plugins))
+      showFirstFrame(frame.current, app(client, path, startCache, plugins, auth))
     })()
     return () => {
       done = true
       warm.remove()
     }
-  }, [client, path])
+  }, [client, path, auth])
   return <div ref={frame} />
 }
 
@@ -182,5 +182,40 @@ export const AccountPage: StoryObj = {
     const frame = await frozen(canvasElement)
     expect(standIns(frame)).toEqual([])
     expect(within(frame).getByRole('heading', { level: 1 })).toHaveTextContent(/account/i)
+  },
+}
+
+// Sam is an admin of Veldhuis Supply, in an app with organizations
+const veldhuis = { id: 'org-veldhuis', name: 'Veldhuis Supply', slug: 'veldhuis', logo: null }
+const members: OrganizationMember[] = [
+  { id: 'm-sam', userId: 'story', name: 'Sam Veldhuis', email: 'sam@veldhuis.example', role: 'owner', appRoles: [], createdAt: '2026-09-01T09:00:00.000Z' },
+  { id: 'm-jan', userId: 'u-jan', name: 'Jan Smit', email: 'jan@veldhuis.example', role: 'member', appRoles: [], createdAt: '2026-09-20T09:00:00.000Z' },
+]
+const samAsOwner: CurrentOrganization = { organization: veldhuis, role: 'owner', appRoles: [], memberId: 'm-sam', globalRoles: [] }
+const withOrganizations: AuthSession = {
+  ...session,
+  status: async () => ({ ...(await session.status()), organizations: { create: 'everyone', roles: [] } }),
+  organizations: { ...session.organizations, current: async () => samAsOwner, list: async () => [veldhuis], members: async () => members },
+}
+
+/** The organization page's first frame is the organization, named. */
+export const OrganizationPage: StoryObj = {
+  tags: ['play'],
+  render: () => <FirstFrame client={rentals()} path="/-/organization" auth={withOrganizations} />,
+  play: async ({ canvasElement }) => {
+    const frame = await frozen(canvasElement)
+    expect(standIns(frame)).toEqual([])
+    expect(within(frame).getAllByText('Veldhuis Supply').length).toBeGreaterThan(0)
+  },
+}
+
+/** The members page's first frame lists the organization's members. */
+export const MembersPage: StoryObj = {
+  tags: ['play'],
+  render: () => <FirstFrame client={rentals()} path="/-/organization/members" auth={withOrganizations} />,
+  play: async ({ canvasElement }) => {
+    const frame = await frozen(canvasElement)
+    expect(standIns(frame)).toEqual([])
+    expect(within(frame).getByText('Jan Smit')).toBeInTheDocument()
   },
 }
