@@ -8,10 +8,11 @@ import type { GridRow } from '../../data-grid'
 import { formatInt } from '../../format'
 import { listLabels } from '../../live/relation-labels'
 import { useToast } from '../../toasts'
+import { lazyComponent } from '../lazy-component'
 import type { ExportFormat } from './builder'
 import { createWorkerPort, type BuilderPort } from './builder-port'
-import { countedRows, ExportDialog, ExportProgressDialog, type RowCount } from './export-dialog'
 import { defaultExportColumns, exportableFields, exportColumns, exportHeaders, exportLimit, exportsSelection, selectionFilters, type ExportSettings } from './export-options'
+import { countedRows, type RowCount } from './row-count'
 import { runExport } from './run-export'
 import { canSaveAsBuilt, createDownloadSink, exportFileName, pickFileSink, type ExportSink } from './sink'
 import { text } from './messages'
@@ -31,6 +32,10 @@ export type ExportFlowOptions = {
   /** Where the file goes: a file the user picks where the browser can write one as it is built, else a download. */
   createSink?: (name: string, format: ExportFormat) => Promise<ExportSink | undefined>
 }
+
+// The dialogs load as the export opens
+const ExportDialog = lazyComponent(() => import('./export-dialog').then((module) => module.ExportDialog))
+const ExportProgressDialog = lazyComponent(() => import('./export-dialog').then((module) => module.ExportProgressDialog))
 
 const defaultSink = (name: string, format: ExportFormat) => (canSaveAsBuilt() ? pickFileSink(name, format) : Promise.resolve(createDownloadSink(name, format)))
 
