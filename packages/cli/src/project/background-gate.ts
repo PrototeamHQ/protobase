@@ -24,12 +24,13 @@ export const gateBackgroundWork = (pool: PostgresPool, slots: number): PostgresP
       free()
       throw error
     })
-    // pg gives a client a new `release` on every checkout, which throws when called twice.
-    const release = client.release
-    client.release = () => {
-      release.call(client)
+    // pg gives a client a new `release` on every checkout, which throws when called twice; one released with an error,
+    // such as a dropped connection's, is closed rather than handed out again.
+    const release = client.release as (error?: Error) => void
+    client.release = ((error?: Error) => {
+      release.call(client, error)
       free()
-    }
+    }) as typeof client.release
     return client
   }
   return {

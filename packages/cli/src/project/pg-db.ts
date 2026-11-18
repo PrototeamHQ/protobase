@@ -1,6 +1,6 @@
 import { readDbConnections, wantsLongQueries } from '@protobase/server'
-import { appPool, longQueryPool } from '@protobase/server/internal'
-import { Kysely, PostgresDialect } from 'kysely'
+import { appDialect, appPool, longQueryPool } from '@protobase/server/internal'
+import { Kysely } from 'kysely'
 import { gateBackgroundWork } from './background-gate'
 import { connectLong } from './long-connect'
 import { connectOrBusy } from './pool-wait'
@@ -26,5 +26,5 @@ export const openAppDatabase = (pg: PgModule, url: string, max = readDbConnectio
       await Promise.all([pool.end(), long.end()])
     },
   }
-  return { db: new Kysely<any>({ dialect: new PostgresDialect({ pool: gateBackgroundWork(routed, Math.max(1, max - 1)) }) }) }
+  return { db: new Kysely<any>({ dialect: appDialect(gateBackgroundWork(routed, Math.max(1, max - 1))) }) }
 }
