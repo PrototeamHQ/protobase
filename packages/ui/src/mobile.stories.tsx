@@ -154,6 +154,45 @@ export const PhoneTopBarWithoutBottomBar: Story = {
   },
 }
 
+// A touch on the page, as a finger's, at `x` and `y`
+const touch = (type: 'touchstart' | 'touchmove' | 'touchend', x: number, y: number) => {
+  const target = document.elementFromPoint(Math.max(x, 1), y) ?? document.body
+  const point = new Touch({ identifier: 1, target, clientX: x, clientY: y })
+  const touches = type === 'touchend' ? [] : [point]
+  target.dispatchEvent(new TouchEvent(type, { touches, targetTouches: touches, changedTouches: [point], bubbles: true, cancelable: true }))
+}
+
+/** On a page with no step back and no bottom bar, a swipe from the left edge opens the drawer under the finger. */
+export const EdgeSwipeOpensDrawer: Story = {
+  name: 'A swipe from the edge opens the drawer under the finger (checks)',
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone', '!dev'],
+  render: () => (
+    <div className="h-screen">
+      <AppShell navGroups={sampleNavGroups} sidebarMode="icon" activeItem="orders" breadcrumb={['Orders']} user={adminUser}>
+        <div className="p-4 text-muted-foreground">A page with no step back.</div>
+      </AppShell>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    touch('touchstart', 4, 300)
+    // Past the slop it opens; from there the drawer's edge follows the finger
+    touch('touchmove', 20, 300)
+    const drawer = await canvas.findByRole('dialog', { name: 'Navigation' })
+    touch('touchmove', 120, 302)
+    await waitFor(() => expect(drawer.getBoundingClientRect().right).toBeCloseTo(100, 0))
+    touch('touchmove', 260, 304)
+    await waitFor(() => expect(drawer.getBoundingClientRect().right).toBeCloseTo(240, 0))
+    // Let go past half way it settles open, and stays
+    touch('touchend', 260, 304)
+    await waitFor(() => expect(drawer.getBoundingClientRect().left).toBeCloseTo(0, 0))
+    await new Promise((settled) => setTimeout(settled, 500))
+    expect(canvas.getByRole('dialog', { name: 'Navigation' })).toBe(drawer)
+    expect(drawer.getBoundingClientRect().left).toBeCloseTo(0, 0)
+  },
+}
+
 const drawerShell = (
   <div className="h-screen">
     <AppShell navGroups={sampleNavGroups} sidebarMode="icon" activeItem="orders" breadcrumb={['Sales', 'Orders']} user={adminUser} workspace="Veldhuis Supply">
