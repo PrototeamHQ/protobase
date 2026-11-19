@@ -40,7 +40,7 @@ export const RecordRow = ({ model, view, display, source, label, isNew }: Record
   })
   const { start, end } = shown(scroll.view)
   const places = rowPlaces(start, end, total)
-  const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, revision: source.revision, latencyMs: 0 }, start, Math.max(start, end - 1))
+  const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, cachedRows: source.cachedRows, revision: source.revision, latencyMs: 0 }, start, Math.max(start, end - 1))
   return (
     <SnapRow scroll={scroll} label={label}>
       {places.from > 0 && <Spacer count={places.from} />}

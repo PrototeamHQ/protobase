@@ -57,7 +57,7 @@ import { ShellBell } from './shell-bell'
 import { ProjectUiContext, useProjectUi, type ProjectUi } from './pages/project-ui'
 import type { PluginLoader } from '../plugins/load-plugin'
 import { PluginGate, usePluginsOff } from '../plugins/plugin-gate'
-import { PluginSourceProvider } from '../plugins/plugin-source'
+import { PluginSourceProvider, type PluginSource } from '../plugins/plugin-source'
 import { PluginNotice } from '../plugins/plugin-notice'
 import { RecordPage } from './record-page'
 import { RefreshMark } from './refresh-mark'
@@ -83,6 +83,7 @@ import { LiveUpdateProvider } from './live-update/live-update-provider'
 import { updateAfterSignIn } from './live-update/sign-in-update'
 import { nativeSplash } from './native-splash'
 import { createSplashHold, SplashHoldProvider } from './splash-hold'
+import { tellUiReady } from './ui-ready'
 import { removeStartScreen } from './start-screen'
 import { LiveUpdateCheck } from './live-update/live-update-check'
 import { LiveUpdateResume } from './live-update/live-update-resume'
@@ -112,6 +113,8 @@ export type AppProps = {
   runtime?: RuntimeClient
   /** How the plugins are loaded, for stories and tests; the page's `fetch` and `import()` by default. */
   pluginLoader?: PluginLoader
+  /** The plugin source the page made before rendering, with the plugins the start cache names loaded already. */
+  pluginSource?: PluginSource
   /** The language the screens are in when the app's `/meta` sets none, such as the browser's (`browserLocale()`); English by default. */
   locale?: Locale
   /** The native bridge of the iOS or Android app (`nativeBridgeOf`): sign-in goes through native HTTP. */
@@ -258,8 +261,8 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       sidebarMode={sidebarMode ?? 'text-small'}
       activeItem={place ?? ''}
       breadcrumb={breadcrumb}
-      titleStatus={restored !== 'fresh' && <RefreshMark failed={restored === 'failed'} />}
-      staleContent={restored === 'fresh' ? undefined : restored === 'failed' ? 'failed' : 'refreshing'}
+      titleStatus={(restored === 'refreshing' || restored === 'failed') && <RefreshMark failed={restored === 'failed'} />}
+      staleContent={restored === 'failed' ? 'failed' : undefined}
       user={acting && userToShell(acting)}
       onSignOut={user && (() => void signOut())}
       signIn={user ? undefined : signIn.link()}
@@ -296,7 +299,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   )
 }
 
-const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, assistant, runtime }: Omit<AppProps, 'auth' | 'basePath' | 'initialUrl' | 'pluginLoader' | 'startCache'>) => {
+const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, assistant, runtime }: Omit<AppProps, 'auth' | 'basePath' | 'initialUrl' | 'pluginLoader' | 'pluginSource' | 'startCache'>) => {
   const { state, session, markSignedOut } = useAuth()
   // A full-width sidebar says the app was updated in a banner, so the toast does not cover the page there
   const sidebarBanner = useSidebarNoticeShown(sidebarMode ?? 'text-small')
@@ -360,7 +363,7 @@ const GuestCallGate = ({ baseUrl, children }: { baseUrl?: string; children: Reac
  * visitor when the project's anonymous role reads, then a sidebar from `/meta`, `/:page` composed pages, `/:resource`
  * lists and `/:resource/:key` records. Fills its parent, in the theme this browser chose, light, dark or the system's.
  */
-export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, locale, nativeBridge, startCache, ...rest }: AppProps) => {
+export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, pluginSource, locale, nativeBridge, startCache, ...rest }: AppProps) => {
   // Before `/meta` names the app's language, and when it names none, the screens are in this one
   setFallbackLocale(locale ?? 'en')
   const apiOrigin = rest.baseUrl && new URL(rest.baseUrl, window.location.href).origin
@@ -374,6 +377,7 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, local
       createSplashHold(() => {
         removeStartScreen(document)
         void nativeSplash(nativeBridge)?.hide()
+        tellUiReady()
       }),
     [nativeBridge],
   )
@@ -387,7 +391,7 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, local
               <Router basePath={basePath} initialUrl={initialUrl}>
                 <LiveUpdateResume />
                 {nativeBridge && apiOrigin && <NativePushTap nativeBridge={nativeBridge} apiOrigin={apiOrigin} />}
-                <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
+                <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })} {...(pluginSource && { source: pluginSource })}>
                   <AuthLocale>
                     <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>
                       <GuestCallGate {...(rest.baseUrl && { baseUrl: rest.baseUrl })}>

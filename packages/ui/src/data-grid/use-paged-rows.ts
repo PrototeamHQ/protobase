@@ -8,15 +8,26 @@ export const gridPageSize = 40
 /** How many rows of `total` the page holds: a whole page, but for the last. */
 const pageLength = (total: number, page: number) => Math.max(0, Math.min(gridPageSize, total - page * gridPageSize))
 
-type Loading = { total: number; rowAt?: (index: number) => GridRow; loadRows?: RowSource['loadRows']; revision?: number; latencyMs: number }
+type Loading = { total: number; rowAt?: (index: number) => GridRow; loadRows?: RowSource['loadRows']; cachedRows?: RowSource['cachedRows']; revision?: number; latencyMs: number }
 
 /**
  * Serves rows by absolute index. Mock sources compute rows (after `latencyMs`, or at once when 0);
- * live sources load pages through `loadRows`. Unloaded rows read as undefined, so fast scrolling shows skeletons. A new
- * `revision` loads the pages on screen again, showing the rows they held until the new ones arrive.
+ * live sources load pages through `loadRows`, starting from the pages `cachedRows` already holds, which show at once and
+ * are loaded again in place. Unloaded rows read as undefined, so fast scrolling shows skeletons. A new `revision` loads
+ * the pages on screen again, showing the rows they held until the new ones arrive.
  */
-export const usePagedRows = ({ total, rowAt, loadRows, revision, latencyMs }: Loading, start: number, end: number) => {
+export const usePagedRows = ({ total, rowAt, loadRows, cachedRows, revision, latencyMs }: Loading, start: number, end: number) => {
   const cache = useMemo(() => createPageCache<GridRow>(gridPageSize, 60), [rowAt, loadRows])
+  // The pages the cache held when they were first drawn, refreshed once by the effect below
+  const seeded = useRef(new Set<number>())
+  const seed = (index: number) => {
+    const page = Math.floor(index / gridPageSize)
+    if (!cachedRows || cache.hasPage(page)) return
+    const rows = cachedRows(page * gridPageSize)
+    if (!rows) return
+    cache.setPage(page, rows)
+    seeded.current.add(page)
+  }
   const [version, setVersion] = useState(0)
   const firstPage = Math.floor(start / gridPageSize)
   const lastPage = Math.floor(end / gridPageSize)
@@ -24,7 +35,7 @@ export const usePagedRows = ({ total, rowAt, loadRows, revision, latencyMs }: Lo
 
   useEffect(() => {
     if (synchronous) return
-    const pages = pagesForRange(firstPage * gridPageSize, lastPage * gridPageSize, gridPageSize).filter((page) => !cache.hasPage(page))
+    const pages = pagesForRange(firstPage * gridPageSize, lastPage * gridPageSize, gridPageSize).filter((page) => !cache.hasPage(page) || seeded.current.delete(page))
     const length = (page: number) => pageLength(total, page)
     const store = (page: number, rows: GridRow[]) => {
       cache.setPage(page, rows)
@@ -63,5 +74,12 @@ export const usePagedRows = ({ total, rowAt, loadRows, revision, latencyMs }: Lo
     }
   }, [cache, revision, loadRows, firstPage, lastPage, total])
 
-  return useCallback((index: number) => (synchronous ? rowAt!(index) : cache.get(index)), [cache, synchronous, rowAt, version])
+  return useCallback(
+    (index: number) => {
+      if (synchronous) return rowAt!(index)
+      seed(index)
+      return cache.get(index)
+    },
+    [cache, synchronous, rowAt, version, cachedRows],
+  )
 }

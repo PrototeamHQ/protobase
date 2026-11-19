@@ -7,8 +7,10 @@ export const viewports = { desktop: { width: 1280, height: 720 }, phone: { width
 // The stories' data and "6 days ago" labels are drawn from the clock, so every run sees the same day.
 const now = new Date('2026-10-12T09:00:00Z')
 
-// The layout once it stops changing: data loads and charts draw after the story first renders.
+// The layout once it stops changing: data loads and charts draw after the story first renders. The stories' data comes
+// a moment late, as over a network, so the first second is not a layout to settle on.
 export const settledTree = async (page) => {
+  await page.waitForTimeout(1000)
   let last = ''
   for (let attempt = 0; attempt < 40; attempt += 1) {
     await page.waitForTimeout(250)

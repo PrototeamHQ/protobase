@@ -8,6 +8,11 @@ export type RowSource = {
   loadRows?: (start: number, count: number) => Promise<GridRow[]>
   /** Changes when the rows were refetched: the pages on screen are loaded again in place, the others when next shown. */
   revision?: number
+  /**
+   * The rows from `start` (a multiple of the page size) a live server's source already holds, such as from the start
+   * cache, read at once: the first draw shows them, and `loadRows` refreshes them in place.
+   */
+  cachedRows?: (start: number) => GridRow[] | undefined
 }
 
 export const createRowSource = (total: number, rowAt: (index: number) => GridRow): RowSource => ({ total, rowAt })

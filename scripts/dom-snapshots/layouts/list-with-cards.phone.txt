@@ -2,7 +2,7 @@ div | block
   div .h-screen | block
     div .flex min-h-full w-full overflow-x-clip bg-background | flex row nowrap normal normal
       div .flex min-w-0 flex-1 flex-col pb-[var(--pb-safe-bottom)] | flex column nowrap normal normal
-        header .sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)] flex shrink-0 items-center gap-[4px] border-b bg-background pt-[calc(var(--pb-safe-top)+1.5px)] pr-[8px] pb-[1.5px] pl-[16px] md:h-[calc(3rem+var(--pb-safe-top))] md:gap-4 md:px-5 md:pt-[var(--pb-safe-top)] md:pb-0 | flex row nowrap center normal fixed
+        header .sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)] flex shrink-0 items-center gap-[4px] border-b bg-background pt-[calc(var(--pb-safe-top)+1.5px)] pr-[8px] pb-[1.5px] pl-[16px] h-[calc(3rem+var(--pb-safe-top))] md:gap-4 md:px-5 md:pt-[var(--pb-safe-top)] md:pb-0 | flex row nowrap center normal fixed
           button .inline-flex size-[min(2.75rem,max(44px,13vw))] shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden [&_svg]:size-[min(1.25rem,max(20px,6vw))] -ml-[12px] | flex row nowrap center center
             svg .lucide lucide-menu | block
           nav .flex min-w-0 items-center gap-1.5 | flex row nowrap center normal
@@ -11,6 +11,7 @@ div | block
             span .min-w-0 items-center gap-1.5 flex | flex row nowrap center normal
               svg .lucide lucide-chevron-right hidden size-3.5 shrink-0 text-faint-foreground md:block | none
               a .truncate font-semibold rounded-sm hover:text-foreground hover:underline | block
+          span .flex shrink-0 items-center empty:hidden | none
           div .ml-auto flex items-center gap-[4px] md:gap-3 | flex row nowrap center normal
             div .hidden md:block | none
               div .relative w-96 | block relative
@@ -22,7 +23,7 @@ div | block
             button .inline-flex size-[min(2.75rem,max(44px,13vw))] shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden [&_svg]:size-[min(1.25rem,max(20px,6vw))] | flex row nowrap center center
               svg .lucide lucide-search | block
             div .contents md:hidden | contents
-        div .h-[var(--pb-sticky-top)] shrink-0 md:hidden | block
+        div .h-[var(--pb-sticky-top,calc(3rem+var(--pb-safe-top)))] shrink-0 md:hidden | block
         main .flex flex-1 flex-col | flex column nowrap normal normal
           div .flex min-h-0 flex-1 flex-col gap-3 px-5 py-4 | flex column nowrap normal normal
             div .flex flex-col gap-2 | flex column nowrap normal normal
