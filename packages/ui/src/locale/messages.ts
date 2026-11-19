@@ -1,7 +1,7 @@
 import type { Locale } from '@protobase/schema/internal'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { createElement, Fragment, type ReactNode } from 'react'
-import { activeLocale, formatTag } from './active-locale'
+import { activeLocale, formatTag, setFallbackLocale } from './active-locale'
 import type en from './en.json'
 
 // The built-in texts, one ICU MessageFormat catalogue per language, keyed by area and then id. Every language has
@@ -27,23 +27,24 @@ export const addCatalogue = (locale: Locale, catalogue: Catalogue) => {
 export const textsLoaded = (locale: Locale) => loaded[locale] !== undefined
 
 /**
- * Loads a language's built-in texts, once; the screens can be in it when it resolves. The app loads those it shows
- * itself, and a host's own page that draws the app's pieces outside it awaits this before it renders them.
+ * Loads a language's built-in texts, once; the screens can be in it when it resolves. A load that fails, such as
+ * offline, stays failed until the page loads again, so what waits for it shows the failure once rather than asking
+ * again on every draw.
  */
 export const loadTexts = (locale: Locale): Promise<void> => {
   if (textsLoaded(locale)) return Promise.resolve()
-  const pending =
-    loading.get(locale) ??
-    loaders[locale]().then(
-      (catalogue) => addCatalogue(locale, catalogue),
-      (error: unknown) => {
-        // A load that failed, such as offline, is tried again the next time
-        loading.delete(locale)
-        throw error
-      },
-    )
+  const pending = loading.get(locale) ?? loaders[locale]().then((catalogue) => addCatalogue(locale, catalogue))
   loading.set(locale, pending)
   return pending
+}
+
+/**
+ * Loads a language's built-in texts and draws the app's pieces in it, for a host's own page that draws them outside the
+ * app, which awaits it before it renders them; the app picks its language itself.
+ */
+export const showTextsIn = async (locale: Locale) => {
+  await loadTexts(locale)
+  setFallbackLocale(locale)
 }
 
 /** A loaded language's catalogue. */
