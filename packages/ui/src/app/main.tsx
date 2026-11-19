@@ -48,11 +48,15 @@ const texts = loadTexts(locale).catch(() => undefined)
 const plugins = createPluginSource(browserLoader)
 void openStartCache().then(async (startCache) => {
   const meta = cachedMeta(startCache)
-  await Promise.all([
-    preloadPlugins(plugins, cachedPlugins(startCache), pluginWaitMs),
-    texts,
-    ...(meta?.locale ? [loadTexts(meta.locale).catch(() => undefined)] : []),
-    ...(meta ? [preloadPages()] : []),
+  await Promise.race([
+    Promise.all([
+      preloadPlugins(plugins, cachedPlugins(startCache), pluginWaitMs),
+      texts,
+      ...(meta?.locale ? [loadTexts(meta.locale).catch(() => undefined)] : []),
+      ...(meta ? [preloadPages()] : []),
+    ]),
+    // No longer than a slow plugin keeps it: what has not loaded by then goes on loading as the app draws
+    new Promise((resolve) => setTimeout(resolve, pluginWaitMs)),
   ])
   const app = (
     <StrictMode>
