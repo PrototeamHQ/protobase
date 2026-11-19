@@ -95,7 +95,7 @@ export const PhonePickChecks: StoryObj = {
     const set = await section(canvasElement, 'Set to table')
     await waitFor(() => expect(headers(set)).toEqual(['title', 'verdict']))
     await userEvent.click(within(set).getByRole('button', { name: 'Display: Table' }))
-    await userEvent.click(within(set).getByRole('menuitemradio', { name: 'Cards' }))
+    await userEvent.click(within(document.body).getByRole('menuitemradio', { name: 'Cards' }))
     await waitFor(() => expect(cards(set)).not.toBeNull())
     expect(headers(set)).toBeUndefined()
   },

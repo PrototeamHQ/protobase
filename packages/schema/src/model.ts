@@ -1633,6 +1633,15 @@ export type BottomBarItemModel =
       /** The tab's icon. */
       icon?: string
     }
+  | {
+      /**
+       * Opens the app's search, which then leaves the top bar. On iOS, with the native tab bar, it is the system's own
+       * search beside the tabs rather than one of them.
+       */
+      kind: 'search'
+      /** The tab's label; "Search" in the app's language when omitted. */
+      label?: string
+    }
 
 /**
  * A bottom bar for the users holding one of `roles`; `label` names it in the role view switcher. See
@@ -1643,7 +1652,7 @@ export type BottomBarModel = {
   label: string
   /** The roles that get the bar; a role belongs to one bar. */
   roles: string[]
-  /** Its tabs, in order, at most four before "More". */
+  /** Its tabs, in order, at most four before "More", and search once. */
   items: BottomBarItemModel[]
 }
 

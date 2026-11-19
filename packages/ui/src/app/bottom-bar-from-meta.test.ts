@@ -29,13 +29,18 @@ const meta = {
 describe('bottomBarFromMeta', () => {
   it('opens resources and pages in the app, under their own labels, and links in a new tab; a resource has its view\'s icon, else a table', () => {
     expect(bottomBarFromMeta(meta, '/admin', 'overview')).toEqual([
-      { id: 'orders', label: 'Orders', icon: Table2, href: '/admin/orders', active: false },
-      { id: 'overview', label: 'Today', icon: Receipt, href: '/admin/overview', active: true },
-      { id: 'plain', label: 'Plain', icon: LayoutDashboard, href: '/admin/plain', active: false },
+      { id: 'orders', label: 'Orders', icon: Table2, href: '/admin/orders', active: false, shown: false },
+      { id: 'overview', label: 'Today', icon: Receipt, href: '/admin/overview', active: true, shown: false },
+      { id: 'plain', label: 'Plain', icon: LayoutDashboard, href: '/admin/plain', active: false, shown: false },
       { id: 'link-3', label: 'Help', icon: LifeBuoy, href: 'https://help.example.test', external: true },
       { id: 'link-4', label: 'Status', icon: ExternalLink, href: 'https://status.example.test', external: true },
-      { id: 'locations', label: 'Locations', icon: Warehouse, href: '/admin/locations', active: false },
+      { id: 'locations', label: 'Locations', icon: Warehouse, href: '/admin/locations', active: false, shown: false },
     ])
+  })
+
+  it('marks the active tab shown only on its own page, not one under it', () => {
+    expect(bottomBarFromMeta(meta, '/admin', 'overview', true).find((tab) => tab.id === 'overview')).toMatchObject({ active: true, shown: true })
+    expect(bottomBarFromMeta(meta, '/admin', 'orders', false).find((tab) => tab.id === 'orders')).toMatchObject({ active: true, shown: false })
   })
 
   it('is empty without a bottom bar', () => {

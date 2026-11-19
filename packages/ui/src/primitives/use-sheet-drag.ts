@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, type PointerEvent, type RefObject } from 'react'
+import { drawerSettleCurve, drawerSettleMs } from './drawer-math'
 import { closesOnRelease, dragSlop, dragsInsteadOfScroll, releaseVelocity, sheetOffset, type DragSample } from './sheet-drag'
 
-/** How long the sheet takes to rise, spring back or slide away, in milliseconds. */
-export const sheetMotionMs = 300
-const ease = 'cubic-bezier(0.32, 0.72, 0, 1)'
+/** How long the sheet takes to rise, spring back or slide away, in milliseconds: the drawers' settle. */
+export const sheetMotionMs = drawerSettleMs
+const ease = drawerSettleCurve
 
 type Parts = {
   panel: RefObject<HTMLElement | null>

@@ -40,9 +40,10 @@ const properties = ['--pb-sticky-top', '--pb-sticky-bottom', 'scroll-padding-top
 /**
  * While the page scrolls, says how tall its sticky bars are, on the root element: as `--pb-sticky-top` and
  * `--pb-sticky-bottom` for content that sticks inside them, and as the page's scroll padding, which the browser keeps
- * focused and scrolled-to content clear of, and which a virtual list reads as the part of the page it shows in.
+ * focused and scrolled-to content clear of, and which a virtual list reads as the part of the page it shows in. It
+ * measures again whenever a bar comes or goes (`topShown`, `bottomShown`), as their elements are then new.
  */
-export const usePageInsets = (on: boolean, top: RefObject<HTMLElement | null>, bottom: RefObject<HTMLElement | null>, bottomShown: boolean) => {
+export const usePageInsets = (on: boolean, top: RefObject<HTMLElement | null>, bottom: RefObject<HTMLElement | null>, bottomShown: boolean, topShown = true) => {
   useLayoutEffect(() => {
     if (!on) return
     const root = document.documentElement
@@ -61,5 +62,5 @@ export const usePageInsets = (on: boolean, top: RefObject<HTMLElement | null>, b
       observer.disconnect()
       for (const property of properties) root.style.removeProperty(property)
     }
-  }, [on, top, bottom, bottomShown])
+  }, [on, top, bottom, bottomShown, topShown])
 }

@@ -1,8 +1,8 @@
 import { MoreVertical } from 'lucide-react'
-import { createPortal } from 'react-dom'
 import { cn } from '../lib/cn'
 import { menuItemClass } from '../primitives/menu-item'
 import { usePopoverMenu } from '../primitives/popover-menu'
+import { MenuSurface } from '../primitives/menu-surface'
 import type { RailAction } from './action-rail'
 import { text } from './messages'
 
@@ -19,8 +19,11 @@ export const ActionMenu = ({ actions, label = text('actions'), className }: { ac
       <button ref={button} type="button" aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)} className={className}>
         <MoreVertical className="size-5" />
       </button>
-      {open &&
-        createPortal(
+      <MenuSurface
+        open={open}
+        title={label}
+        onClose={() => setOpen(false)}
+        menu={
           <ul ref={menu} role="menu" aria-label={label} style={place ?? { visibility: 'hidden' }} className="fixed z-50 max-h-[calc(100dvh-1rem)] min-w-48 overflow-y-auto rounded-md border bg-background py-1 shadow-pop">
             {actions.map(({ name, icon: Icon, onRun, blocked, running, tone, render }) => {
               const children = (
@@ -44,9 +47,9 @@ export const ActionMenu = ({ actions, label = text('actions'), className }: { ac
                 </li>
               )
             })}
-          </ul>,
-          document.body,
-        )}
+          </ul>
+        }
+      />
     </>
   )
 }

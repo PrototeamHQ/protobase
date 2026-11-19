@@ -33,9 +33,16 @@ describe('bottomBarErrors', () => {
   it('refuses more items than fit beside "More", and none at all', () => {
     const five = Array.from({ length: 5 }, () => ({ kind: 'resource' as const, resource: 'orders', label: 'Orders' }))
     expect(bottomBarErrors([bar('Sales', ['sales'], five), bar('Warehouse', ['warehouse'], [])], names)).toEqual([
-      'Bottom bar "Sales": has 5 items; at most 4 fit beside "More"',
+      'Bottom bar "Sales": has 5 tabs; at most 4 fit beside "More"',
       'Bottom bar "Warehouse": needs at least one item',
     ])
+  })
+
+  it('takes search beside three tabs, once', () => {
+    const tabs = (count: number) => Array.from({ length: count }, () => ({ kind: 'resource' as const, resource: 'orders', label: 'Orders' }))
+    expect(bottomBarErrors([bar('Sales', ['sales'], [...tabs(3), { kind: 'search' }])], names)).toEqual([])
+    expect(bottomBarErrors([bar('Sales', ['sales'], [...tabs(4), { kind: 'search' }])], names)).toEqual(['Bottom bar "Sales": has 4 tabs; at most 3 fit beside search and "More"'])
+    expect(bottomBarErrors([bar('Sales', ['sales'], [{ kind: 'search' }, { kind: 'search' }])], names)).toEqual(['Bottom bar "Sales": has search more than once'])
   })
 
   it('refuses a role in two bars, and two bars with one label', () => {

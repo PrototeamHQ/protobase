@@ -12,6 +12,7 @@ import { SidebarGroup } from './sidebar-group'
 import { SidebarItem } from './sidebar-item'
 import { isTextMode, sidebarWidth, type SidebarMode } from './sidebar-mode'
 import { text } from './messages'
+import { GlobalSearch, type GlobalSearchModel } from './global-search'
 
 export type SidebarProps = {
   mode: SidebarMode
@@ -49,26 +50,46 @@ export type SidebarProps = {
   notice?: ReactNode
   /** As wide as its container, such as the phone drawer, in place of the mode's width. */
   fill?: boolean
+  /**
+   * Drawn as a page of its own, in the page's flow, which scrolls it, rather than as a panel the height of its
+   * container; as wide as the page, with no edge, its logo fixed at the top under the status bar, as the page's top bar
+   * would be, and the items scrolling below it.
+   */
+  page?: boolean
+  /** The account is in the top bar (`accountInTopBar`), so the sidebar's foot leaves it out. */
+  accountInTopBar?: boolean
+  /** The app's search at its top, as on a phone (`searchPlacement`), whose results show in place of the items. */
+  search?: GlobalSearchModel
 }
 
-export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, forceExpanded, profileMenuOpen, groups = [], userMenu, account, onNavigate, onSignOut, signIn, organizations, roles, theme, status, sticky, logo: SidebarLogo = Logo, notice, fill }: SidebarProps) => {
+export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, forceExpanded, profileMenuOpen, groups = [], userMenu, account, onNavigate, onSignOut, signIn, organizations, roles, theme, status, sticky, logo: SidebarLogo = Logo, notice, fill, page, search, accountInTopBar }: SidebarProps) => {
   const expanding = mode === 'icon-expand'
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding
   return (
-    <nav aria-label={text('resources')} className={cn(sticky ? 'sticky top-0 h-dvh self-start' : 'relative', 'z-30 shrink-0', fill ? 'w-full' : sidebarWidth[mode])}>
+    <nav aria-label={text('resources')} className={page ? 'w-full' : cn(sticky ? 'sticky top-0 h-dvh self-start' : 'relative', 'z-30 shrink-0', fill ? 'w-full' : sidebarWidth[mode])}>
       <div
         className={cn(
-          'group/side absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r bg-sidebar pb-[var(--pb-safe-bottom)] pt-[var(--pb-safe-top)]',
+          page ? 'group/side flex flex-col bg-sidebar' : 'group/side absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r bg-sidebar pb-[var(--pb-safe-bottom)] pt-[var(--pb-safe-top)]',
           expanding ? 'w-14 transition-[width,box-shadow] duration-150 hover:w-60 hover:shadow-pop focus-within:w-60 focus-within:shadow-pop' : 'w-full',
           expanded && 'w-60 shadow-pop',
         )}
       >
         {/* A tap on the logo tells the page (`logoTapEvent`); the logo has no action of its own to reach by keyboard */}
-        <div className={cn('flex h-12 shrink-0 items-center px-3.5', mode === 'icon-label' && 'justify-center px-0')} onClick={() => tellLogoTap()}>
-          <SidebarLogo compact={!inline} workspace={workspace} appName={appName} appIcon={appIcon} />
-        </div>
-        <div className={cn('flex-1 overflow-y-auto overflow-x-hidden pb-2', mode === 'icon-label' ? 'px-2' : 'px-2')}>
+        {/* As a page, the logo and the account are the page's top bar's, above it */}
+        {!page && (
+          <div className={cn('flex h-12 shrink-0 items-center px-3.5', mode === 'icon-label' && 'justify-center px-0')} onClick={() => tellLogoTap()}>
+            <SidebarLogo compact={!inline} workspace={workspace} appName={appName} appIcon={appIcon} />
+          </div>
+        )}
+        {search && (
+          <div className="px-5 pt-3 pb-3">
+            <GlobalSearch search={search} className="w-full" showShortcut={false} inline />
+          </div>
+        )}
+        {/* While the search has a query to show results for, its results take the items' place; short input keeps them */}
+        {!(search && (search.query !== '' || search.loading)) && (
+        <div className={cn(page ? 'pb-2' : 'flex-1 overflow-y-auto overflow-x-hidden pb-2', mode === 'icon-label' ? 'px-2' : 'px-2')}>
           {groups.map((group, index) => (
             <div key={group.label} className={cn('flex flex-col gap-0.5', index > 0 && 'mt-3')}>
               {inline ? (
@@ -103,15 +124,17 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, f
             </div>
           ))}
         </div>
+        )}
         {notice}
-        <div className={cn('shrink-0 border-t p-2', mode !== 'text-large' && mode !== 'text-small' && !expanding && 'flex justify-center')}>
-          {user ? (
+        {!(page && user) && (
+        <div className={cn('shrink-0 border-t p-2 empty:hidden', mode !== 'text-large' && mode !== 'text-small' && !expanding && 'flex justify-center')}>
+          {user && accountInTopBar ? null : user ? (
             <ProfileMenu user={user} compact={!inline} open={profileMenuOpen} items={userMenu} account={account} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} theme={theme} status={status} />
           ) : (
             <>
               {/* An icon-only sidebar has no room for the switch; the page still follows the system or a stored choice. */}
               {theme && inline && <ThemeSwitch theme={theme} className="flex min-h-11 w-full items-center gap-2.5 whitespace-nowrap p-1.5 text-muted-foreground md:min-h-0" />}
-              {signIn && (
+              {signIn && !page && !accountInTopBar && (
                 <RouteLink to={signIn} aria-label={text('signIn')} className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1.5 text-left font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:min-h-0">
                   <LogIn className="size-4 shrink-0" />
                   {inline && <span className="whitespace-nowrap">{text('signIn')}</span>}
@@ -120,6 +143,7 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, f
             </>
           )}
         </div>
+        )}
       </div>
     </nav>
   )

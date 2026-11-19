@@ -3,8 +3,8 @@ import load from '@commitlint/load'
 import { describe, expect, it } from 'vitest'
 
 const lintWith = async (file: string, message: string) => {
-  const { rules, parserPreset } = await load({}, { file, cwd: import.meta.dirname })
-  return lint(message, rules, parserPreset ? { parserOpts: parserPreset.parserOpts as object } : {})
+  const { rules, parserPreset, plugins } = await load({}, { file, cwd: import.meta.dirname })
+  return lint(message, rules, { plugins, ...(parserPreset && { parserOpts: parserPreset.parserOpts as object }) })
 }
 const branchLint = (message: string) => lintWith('commitlint.branch.config.mjs', message)
 const squashLint = (message: string) => lintWith('commitlint.config.mjs', message)
@@ -15,12 +15,18 @@ describe('the branch commit lint', () => {
   it('refuses a 93-character header', async () => {
     const result = await branchLint(subject(93))
     expect(result.valid).toBe(false)
-    expect(result.errors.map((error) => error.name)).toEqual(['header-max-length'])
+    expect(result.errors.map((error) => error.name)).toEqual(['branch-header-max-length'])
   })
 
   it('accepts a 92-character header', async () => {
     const result = await branchLint(subject(92))
     expect(result.valid).toBe(true)
+  })
+
+  it("takes main's limit for a stacked pull request's squash merge, which pr-title linted as main's message", async () => {
+    expect((await branchLint(`${subject(92)} (#1234)`)).valid).toBe(true)
+    expect((await branchLint(`${subject(93)} (#1234)`)).valid).toBe(false)
+    expect((await branchLint(`${subject(86)} (#469)`)).valid).toBe(true)
   })
 
   it("lets git's own merge commits through, which a squash merge keeps only as body lines", async () => {

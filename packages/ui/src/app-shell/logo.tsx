@@ -1,4 +1,5 @@
 import { cn } from '../lib/cn'
+import { leadingRow } from './leading-slot'
 import { AppMark, brandName } from './app-mark'
 import { solid } from './logo-mark'
 import { wordmarkPath } from './wordmark-path'
@@ -25,7 +26,7 @@ export type ShellLogoProps = { compact: boolean; workspace?: string; appName?: s
  * icon alone when compact.
  */
 export const Logo = ({ compact, workspace, appName, appIcon }: ShellLogoProps) => (
-  <div className="flex items-center gap-2.5 overflow-hidden">
+  <div className={leadingRow}>
     <AppMark appName={appName} appIcon={appIcon} />
     {!compact && (
       <div className="flex min-w-0 flex-col gap-0.5 leading-tight">

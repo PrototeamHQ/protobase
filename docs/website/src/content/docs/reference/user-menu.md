@@ -3,7 +3,7 @@ title: User menu
 description: The user menu at the bottom of the sidebar, with the app's own account pages and links.
 ---
 
-The signed-in user sits at the bottom of the sidebar. Clicking them opens a menu with their name and email, which link to their account, "Set a status" in an app with [status](/reference/status/), the app's own pages, the theme switch, and "Sign out". Account pages (organization, billing, users) and help links belong here rather than among the working resources.
+The signed-in user sits at the bottom of the sidebar, and on a phone at the top right of the top bar, where the menu opens as a sheet from the bottom. Clicking them opens a menu with their name and email, which link to their account, "Set a status" in an app with [status](/reference/status/), the app's own pages, the theme switch, and "Sign out". Account pages (organization, billing, users) and help links belong here rather than among the working resources.
 
 Export one [`userMenu(...)`](/api/schema/functions/usermenu/) from `config/index.ts`:
 

@@ -1,5 +1,5 @@
 import { NativePushTap } from '../notifications/push/native-push-tap'
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { AssistantClient, AuthSession, Client, RuntimeClient } from '@protobase/client'
 import { accountMenuItems, accountPath, readAccountPath, signInPolicyPath } from '../account/account-pages'
 import { useAccountPage } from '../account/use-account-page'
@@ -24,7 +24,7 @@ import { setFallbackLocale } from '../locale/active-locale'
 import type { Locale } from '@protobase/schema/internal'
 import { ToastProvider } from '../toasts'
 import { AssistantButton } from './assistant-button'
-import { bottomBarFromMeta } from './bottom-bar-from-meta'
+import { bottomBarFromMeta, bottomBarSearch } from './bottom-bar-from-meta'
 import { breadcrumbFor } from './breadcrumb-for'
 import { documentTitle, titleParts, useDocumentTitle } from './document-title'
 import { startErrorReporting } from './error-reporting'
@@ -72,6 +72,10 @@ import { nativeSplash } from './native-splash'
 import { createSplashHold, SplashHoldProvider } from './splash-hold'
 import { tellUiReady } from './ui-ready'
 import { removeStartScreen } from './start-screen'
+import { nativeTabBar, NativeTabBarContext } from '../app-shell/native-tab-bar'
+import { menuPagePath, menuPageInstead } from '../app-shell/menu-page'
+import { morePageMode } from '../app-shell/more-page'
+import { useIsDesktop } from '../lib/use-media-query'
 import { LiveUpdateCheck } from './live-update/live-update-check'
 import { LiveUpdateResume } from './live-update/live-update-resume'
 import { useStatusMenu } from '../status/use-status-menu'
@@ -204,7 +208,21 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const accountAddress = user ? readAccountPath(path) : undefined
   const accountTab = accountAddress && account ? shownPageTab(pageTabs(account.tree), accountAddress.tab) : undefined
   // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
-  const accountPage = !user ? undefined : accountAddress ? (account?.title ?? appText('account')) : path === signInPolicyPath ? appText('signInPolicy') : organizationPage
+  const menuShown = path === menuPagePath
+  const tabs = bottomBarFromMeta(meta, basePath, place, address?.kind === 'list' || address?.kind === 'page')
+  // The app never starts on the sidebar's own page, such as kept from before a restart, nor stays on it once More page
+  // mode is off, as when the window widens to a desktop's: the first tab opens instead
+  const firstTab = tabs.find((tab) => !tab.external)?.href.slice(basePath.length)
+  const menuPage = { href: `${basePath}${menuPagePath}`, shown: menuShown }
+  const morePage = morePageMode({ desktop: useIsDesktop(), tabs, menuPage }).on
+  const started = useRef(false)
+  useEffect(() => {
+    const starting = !started.current
+    started.current = true
+    const instead = menuPageInstead(path, firstTab, { starting, morePage })
+    if (instead) navigate(instead, { replace: true })
+  }, [path, firstTab, morePage, navigate])
+  const accountPage = menuShown ? appText('menu') : !user ? undefined : accountAddress ? (account?.title ?? appText('account')) : path === signInPolicyPath ? appText('signInPolicy') : organizationPage
   const resourceLabel = view?.names?.plural ?? (resource && humanize(resource))
   // A full-area record page draws no heading, so the breadcrumb names its record
   const headingless = address?.kind === 'record' && !address.standard && Boolean(meta.views[address.resource]?.record)
@@ -258,7 +276,9 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       appIcon={meta.appIcon}
       logo={ProjectLogo}
       navGroups={groups}
-      bottomBar={bottomBarFromMeta(meta, basePath, place)}
+      bottomBar={tabs}
+      menuPage={menuPage}
+      bottomBarSearch={bottomBarSearch(meta)}
       userMenu={[userMenuFromMeta(meta, basePath, place), organizationSettings && user ? organizationMenuItems(basePath, path, current) : [], user ? accountMenuItems(basePath, path, admin) : []]}
       account={user && `${basePath}${accountPath}`}
       organizations={
@@ -277,14 +297,13 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       banner={(staff || pluginNotice) && <>{staff && <StaffBanner signIn={staff} onStop={stopStaffSession} />}{pluginNotice && <PluginNotice off={pluginsOff} />}</>}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
       actions={(Actions || bell || reloadButton || runtimeButton || assistantButton) && <>{Actions && <CustomBoundary name="shell.actions" fallback={null}><Actions /></CustomBoundary>}{bell}{reloadButton}{runtimeButton}{assistantButton}</>}
+      overlays={(status.dialog || (meta.calls && user && !staff)) && <>{status.dialog}{meta.calls && user && !staff && <CallRings />}</>}
       rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <CustomBoundary name="shell.rightPanel" fallback={null}><RightPanel /></CustomBoundary>}{assistantPanel}</>}
     >
       {/* A page whose code or drawing fails says so in its place, and the next address draws it again */}
       <CustomBoundary name="page" fallback={<Notice title={appText('pageNotLoaded')}>{appText('pageNotLoadedHelp')}</Notice>} resetKey={params.size > 0 ? `${path}?${params}` : path}>
         {content}
       </CustomBoundary>
-      {status.dialog}
-      {meta.calls && user && !staff && <CallRings />}
     </AppShell>
   )
 }
@@ -359,6 +378,7 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, plugi
   const apiOrigin = rest.baseUrl && new URL(rest.baseUrl, window.location.href).origin
   const updater = useMemo(() => appLiveUpdater({ bridge: nativeBridge, apiOrigin, userAgent: navigator.userAgent, fetch: window.fetch.bind(window) }), [nativeBridge, apiOrigin])
   const afterSignIn = useMemo(() => updater && (() => updateAfterSignIn(updater, sessionPageKeeper())), [updater])
+  const tabBar = useMemo(() => nativeTabBar(nativeBridge), [nativeBridge])
   // The splash, and index.html's start screen below it, cover the app from launch, or from a reload into a release, until
   // it draws past its loading screens: the auth check, `/meta` and the plugins, so the first thing seen is the page, from
   // the start cache when it has one
@@ -378,6 +398,7 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, plugi
     <SplashHoldProvider value={splash}>
       <StartCacheProvider value={startCache}>
         <ThemeProvider>
+          <NativeTabBarContext.Provider value={tabBar}>
           <LiveUpdateProvider updater={updater}>
             <AuthProvider session={auth} {...(apiOrigin && { origin: apiOrigin })} {...(nativeBridge && { nativeBridge })} {...(afterSignIn && { afterSignIn })}>
               <Router basePath={basePath} initialUrl={initialUrl}>
@@ -397,6 +418,7 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, plugi
               </Router>
             </AuthProvider>
           </LiveUpdateProvider>
+          </NativeTabBarContext.Provider>
         </ThemeProvider>
       </StartCacheProvider>
     </SplashHoldProvider>

@@ -43,14 +43,15 @@ const Page = () => {
 export const Default: StoryObj = { render: () => <Page /> }
 
 const opened = async (canvasElement: HTMLElement) => {
-  const dialog = await within(canvasElement).findByRole('dialog', { name: 'Filters' })
+  // The sheet opens at the document's root
+  const dialog = await within(canvasElement.ownerDocument.body).findByRole('dialog', { name: 'Filters' })
   // Risen into place
   await waitFor(() => expect(dialog.getBoundingClientRect().bottom).toBeCloseTo(window.innerHeight, 0))
   return dialog
 }
 
 const reopen = async (canvasElement: HTMLElement) => {
-  await waitFor(() => expect(within(canvasElement).queryByRole('dialog')).toBeNull())
+  await waitFor(() => expect(within(canvasElement.ownerDocument.body).queryByRole('dialog')).toBeNull())
   await userEvent.click(within(canvasElement).getByRole('button', { name: 'Open sheet' }))
   return opened(canvasElement)
 }
@@ -92,6 +93,6 @@ export const DragChecks: StoryObj = {
 
     // The handle is a button, for a screen reader or keyboard, that closes it
     await userEvent.click(within(dialog).getByRole('button', { name: 'Drag down to close' }))
-    await waitFor(() => expect(within(canvasElement).queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(within(canvasElement.ownerDocument.body).queryByRole('dialog')).toBeNull())
   },
 }
