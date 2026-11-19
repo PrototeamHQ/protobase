@@ -70,12 +70,12 @@ Every token, with the app's light and dark values. Colors take any CSS color.
 | `--foreground` | `#18181b` | `#f4f4f5` |
 | `--muted-foreground` | `#71717a` | `#a1a1aa` |
 | `--faint-foreground` | `#a1a1aa` | `#71717a` |
-| `--primary` | `#2563eb` | `#3b82f6` |
-| `--primary-hover` | `#1d4ed8` | `#60a5fa` |
+| `--primary` | `#3f434a` | `#5b616b` |
+| `--primary-hover` | `#2c2f34` | `#6d747f` |
 | `--primary-foreground` | `#ffffff` | `#ffffff` |
-| `--primary-soft` | `#eff6ff` | `#172036` |
-| `--primary-border` | `#bfdbfe` | `#1e3a6e` |
-| `--primary-text` | `#1d4ed8` | `#93c5fd` |
+| `--primary-soft` | `#f1f2f4` | `#23252a` |
+| `--primary-border` | `#d3d6db` | `#3b3f46` |
+| `--primary-text` | `#2c2f34` | `#c9ccd2` |
 | `--success` | `#16a34a` | `#22c55e` |
 | `--success-soft` | `#f0fdf4` | `#0f2418` |
 | `--success-text` | `#15803d` | `#86efac` |
