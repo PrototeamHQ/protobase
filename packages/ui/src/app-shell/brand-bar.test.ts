@@ -11,7 +11,7 @@ describe('statusBarStyleOver', () => {
 
 describe('brandContent', () => {
   it("colours the bar's content with the theme's own brand foreground, redefining no theme variable", () => {
-    expect(brandContent.split(' ')).toEqual(['text-primary-foreground', '[&_*]:text-primary-foreground'])
+    expect(brandContent.split(' ')).toEqual(['text-primary-foreground', '[&_*]:text-primary-foreground', '[&_button:hover]:bg-primary-foreground/15'])
     expect(brandContent).not.toMatch(/\[--/)
   })
 })

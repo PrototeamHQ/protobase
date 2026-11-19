@@ -33,6 +33,13 @@ export const useMorePageMode = (tabs: BottomBarTab[] | undefined, menuPage: More
 export const accountInTopBar = (desktop: boolean) => !desktop
 
 /**
+ * Whether the top bar looks as a phone app's does: in the brand colour up behind the status bar, the way back in the
+ * leading slot beside the title, the account on the brand colour. On every phone-width page, with a bottom bar or
+ * without; More page mode changes only how the app is navigated (tabs and More rather than the menu button and drawer).
+ */
+export const phoneAppLook = (desktop: boolean) => !desktop
+
+/**
  * Where search is: in the top bar on a desktop and on a phone without a bottom bar; in More page mode, in the bottom bar
  * where the app put it there (`m.search()`), and otherwise at the top of the More page.
  */

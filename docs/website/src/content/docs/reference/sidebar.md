@@ -7,9 +7,13 @@ The admin's sidebar has one entry per resource view, grouped by `nav.group` (def
 
 Below the `md` breakpoint (768px) the sidebar is a drawer, which the top bar's menu button opens, It is 88% of the screen wide, at most 384px. With a [bottom bar](/reference/bottom-bar/#search-and-more), **More** opens the sidebar as a page of its own instead.
 
+### The top bar on phones
+
+Below the `md` breakpoint every page's top bar looks as a phone app's, with a bottom bar or without one: it takes the app's brand color, the theme's `--primary` with its text in `--primary-foreground`, up behind the status bar, with a round back mark beside the title where the trail has a step back, and the account at the right. Without a bottom bar the menu button for the drawer leads it; with one, the bottom bar's tabs and More navigate instead.
+
 ### Menus and drawers on phones
 
-Below the `md` breakpoint every menu, select list and the account menu opens as a sheet from the bottom of the screen, its items at a phone's list size; from `md` up they open beside their button. Sheets and the sidebar drawer move under the finger as a native drawer does: a drag on them, or on the dim beside them, past a few pixels and close to their axis, moves them one to one, past open with a rubber band; let go, a fast release goes its way and a slow one past half closes them, and they settle without overshoot. Both open at the document's root, with the page's colors, wherever they open from.
+Below the `md` breakpoint every menu, select list and the account menu opens as a sheet from the bottom of the screen, as a menu alone: its drag handle and its own items, as beside its button on a desktop, with no title or close button. Its rows, icons and a switch such as the theme's are sized from its text, at the sidebar drawer's items' size, so they grow with the text size; a menu's heading, such as the account menu's name and email, reads a step larger. It closes by its handle, a swipe down, a tap beside it or Escape, sliding away each time. From `md` up menus open beside their button. Sheets and the sidebar drawer move under the finger as a native drawer does: a drag on them, or on the dim beside them, past a few pixels and close to their axis, moves them one to one, past open with a rubber band; let go, a fast release goes its way and a slow one past half closes them, and they settle without overshoot. Both open at the document's root, with the page's colors, wherever they open from.
 
 ## The logo
 

@@ -9,7 +9,9 @@ export type SegmentedOption<T extends string> = { value: T; label: string; icon?
  */
 export type SegmentedProps<T extends string> = { value: T; options: Array<SegmentedOption<T>>; onChange: (value: T) => void; label?: string; size?: 'sm' | 'md'; iconOnly?: boolean }
 
-const sizes = { sm: { group: 'h-7', option: 'px-2.5 text-body' }, md: { group: 'h-8', option: 'px-3 text-body' } }
+// The group's height in `em`, of the text it stands in, so it grows with that text, as in a phone's menu sheet; 28 and
+// 32 pixels beside the body's 14
+const sizes = { sm: { group: 'h-[2em]', option: 'px-2.5 text-body' }, md: { group: 'h-[2.2857em]', option: 'px-3 text-body' } }
 
 /** A segmented switch's classes, for a row of links that looks like one: the group, and each option, `active` the chosen. */
 export const segmentedClass = {
@@ -19,7 +21,7 @@ export const segmentedClass = {
 }
 
 export const Segmented = <T extends string>({ value, options, onChange, label, size = 'sm', iconOnly = false }: SegmentedProps<T>) => (
-  <span role="group" aria-label={label} className={segmentedClass.group(size)}>
+  <span role="group" aria-label={label} data-segmented="" className={segmentedClass.group(size)}>
     {options.map((option) => (
       <button
         key={option.value}
@@ -29,7 +31,7 @@ export const Segmented = <T extends string>({ value, options, onChange, label, s
         onClick={() => onChange(option.value)}
         className={segmentedClass.option(option.value === value, size)}
       >
-        {option.icon && <option.icon className="size-3.5" />}
+        {option.icon && <option.icon className="size-[1em]" />}
         {!iconOnly && option.label}
       </button>
     ))}

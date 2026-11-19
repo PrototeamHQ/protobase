@@ -43,6 +43,8 @@ export const usePopoverMenu = <T extends HTMLElement = HTMLUListElement>() => {
     if (!open) return
     const inside = (target: EventTarget | null) => target instanceof Node && Boolean(button.current?.contains(target) || menu.current?.contains(target))
     const close = (event: Event) => {
+      // In a phone's sheet (MenuSurface) the sheet closes it, sliding away, from its dim, its handle or Escape
+      if (menu.current?.closest('[aria-modal="true"]')) return
       if (event instanceof KeyboardEvent ? event.key === 'Escape' : !inside(event.target)) setOpen(false)
     }
     // A fixed menu would drift away from its button; the menu's own scroll moves nothing
