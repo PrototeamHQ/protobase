@@ -126,8 +126,10 @@ export const MemberCardsChecks: StoryObj = {
     await waitFor(() => expect(other).toHaveAttribute('aria-pressed', 'true'))
     expect(canvas.getByRole('heading', { name: 'Homes' })).toBeVisible()
     await userEvent.click(canvas.getByRole('link', { name: 'Favorites' }))
-    expect(await canvas.findByRole('heading', { name: 'Favorites' })).toBeVisible()
+    // The page's heading once the saved homes are there: while they load, the page draws a heading of its own in the
+    // loading state's place, which the list's heading then takes over
     await waitFor(() => expect(within(canvas.getByRole('list', { name: 'Homes' })).getAllByRole('listitem')).toHaveLength(2))
+    expect(canvas.getByRole('heading', { name: 'Favorites' })).toBeVisible()
     expect(canvas.queryByText('Witte de Withstraat 5')).toBeNull()
 
     // Taking one off there takes its card away
@@ -246,8 +248,9 @@ export const VisitorSignsIn: StoryObj = {
 
     // Signed in as the member, on the favorites page: their saved home instead of the prompt
     expect(await canvas.findByRole('button', { name: 'Profile menu' })).toBeVisible()
-    expect(await canvas.findByRole('heading', { name: 'Favorites' })).toBeVisible()
+    // The page's heading once the saved home is there, not the loading state's, which the list's heading takes over
     expect(await canvas.findByText('Oudegracht 88')).toBeVisible()
+    expect(canvas.getByRole('heading', { name: 'Favorites' })).toBeVisible()
     expect(canvas.queryByRole('region', { name: 'Keep the homes you like' })).toBeNull()
   },
 }
