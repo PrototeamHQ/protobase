@@ -30,7 +30,7 @@ let pages: Promise<unknown> | undefined
 
 /**
  * Starts loading the pages a start mostly opens, a list, a record and a composed page, while the start waits for the
- * sign-in check and `/meta`, so the page's code is there when the shell draws it. Once; a page whose load fails is
- * tried again as it opens.
+ * sign-in check and `/meta`, so the page's code is there when the shell draws it. Once, settled when each has loaded
+ * or failed; a page whose load failed is tried again as it opens.
  */
-export const preloadPages = () => (pages ??= Promise.all([ListPage.preload(), RecordPage.preload(), ComposedPage.preload()]).catch(() => undefined))
+export const preloadPages = () => (pages ??= Promise.allSettled([ListPage.preload(), RecordPage.preload(), ComposedPage.preload()]))

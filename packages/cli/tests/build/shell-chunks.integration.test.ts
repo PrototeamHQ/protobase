@@ -58,7 +58,9 @@ describe('the built shell’s chunk graph', () => {
   })
 
   it('adds no chunk but its own entry for the plugins’ @protobase/ui', () => {
-    expect([...withPlugins].filter((file) => !start.has(file)).map((file) => file.split('-').slice(0, -1).join('-'))).toEqual(['shared-protobase-ui'])
+    const added = [...withPlugins].filter((file) => !start.has(file))
+    expect(added).toHaveLength(1)
+    expect(named(added[0]!, 'shared-protobase-ui')).toBe(true)
   })
 
   it('loads the pages, the libraries only they use and the texts of each language as they are needed', () => {
