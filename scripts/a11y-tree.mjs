@@ -39,11 +39,14 @@ const textSizes = () => {
   })
 }
 
+// The top bar: the header with the page's trail in it, passed to the page's functions below
+const topBar = 'header:has(nav)'
+
 // The page's scrolling width against the width it shows, and the right edge of each shown link and button of the top bar
-const widths = () => ({
+const widths = (topBar) => ({
   width: document.documentElement.clientWidth,
   page: document.documentElement.scrollWidth,
-  bar: [...document.querySelectorAll('header:has(> nav) a[href], header:has(> nav) button')].flatMap((element) => {
+  bar: [...document.querySelectorAll(`${topBar} a[href], ${topBar} button`)].flatMap((element) => {
     if (element.getClientRects().length === 0) return []
     return [{ text: (element.getAttribute('aria-label') || element.textContent.trim()).slice(0, 40), right: Math.round(element.getBoundingClientRect().right) }]
   }),
@@ -51,9 +54,9 @@ const widths = () => ({
 
 // The top bar's top and bottom, the text, top, bottom and shadow of the field and each button over it while its search is
 // open, and the top and bottom of the inside of the field's border and of its text's line, to a tenth of a pixel
-const searchBounds = () => {
+const searchBounds = (topBar) => {
   const tenth = (value) => Math.round(value * 10) / 10
-  const header = document.querySelector('header:has(> nav)')
+  const header = document.querySelector(topBar)
   const bar = header.getBoundingClientRect()
   const input = [...header.querySelectorAll('[role="combobox"]')].find((element) => element.getClientRects().length > 0)
   const field = input.parentElement.getBoundingClientRect()
@@ -100,12 +103,12 @@ for (const shot of shots) {
       document.documentElement.style.fontSize = '330%'
     })
     await settledTree(page)
-    fits.push(...offScreen(await page.evaluate(widths)))
+    fits.push(...offScreen(await page.evaluate(widths, topBar)))
     await page.getByRole('button', { name: 'Search', exact: true }).click()
     for (const safeTop of ['0px', '47px']) {
       await page.evaluate((safeTop) => document.documentElement.style.setProperty('--safe-area-inset-top', safeTop), safeTop)
       await settledTree(page)
-      const bounds = await page.evaluate(searchBounds)
+      const bounds = await page.evaluate(searchBounds, topBar)
       fits.push(...[...outsideBar(bounds), ...textOutsideField(bounds)].map((problem) => `${problem}, with a ${safeTop} safe area`))
     }
     await page.getByRole('button', { name: 'Close search' }).click()

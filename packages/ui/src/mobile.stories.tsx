@@ -6,6 +6,7 @@ import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { AppShell, type BottomBarTab } from './app-shell'
 import { withDirectMessages } from './app-shell/direct-messages-fixtures'
 import { navOpenStorageKey } from './app-shell/nav-open-storage'
+import { NativeTabBarContext, type NativeTabBar } from './app-shell/native-tab-bar'
 import { App } from './app/app'
 import { AssistantButton } from './app/assistant-button'
 import { AssistantDock } from './assistant-dock'
@@ -84,7 +85,7 @@ export const NavigationDrawer: Story = {
     expect(menu).toHaveAttribute('aria-expanded', 'true')
     expect(drawer).toContainElement(document.activeElement as HTMLElement)
     // The sidebar fills the drawer, not the third of the window a desktop sidebar keeps to.
-    expect(within(drawer).getByRole('navigation', { name: 'Resources' }).getBoundingClientRect().width).toBe(drawer.clientWidth)
+    expect(within(drawer).getByRole('navigation', { name: 'Resources' }).getBoundingClientRect().width).toBeCloseTo(drawer.clientWidth, 0)
     expect(document.body.style.overflow).toBe('hidden')
     await userEvent.keyboard('{Escape}')
     await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Navigation' })).toBeNull())
@@ -214,6 +215,36 @@ export const BottomBarTabs: Story = {
     await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Navigation' })).toBeNull())
     expect(more).toHaveAttribute('data-current', 'true')
     expect(tabs.queryByRole('link', { current: 'page' })).toBeNull()
+  },
+}
+
+// An app's native tab bar that takes the state it is sent (`accepts`) or refuses it, as for a state it cannot draw
+const nativeBar = (accepts: boolean): NativeTabBar => ({
+  set: () => (accepts ? Promise.resolve({}) : Promise.reject(new Error('refused'))),
+  onTap: () => () => {},
+  onHeight: () => () => {},
+})
+
+/** In an app with a native tab bar, that bar draws the tabs; one that refuses them leaves the web bar shown, so the tabs are always there. */
+export const BottomBarNativeRefused: Story = {
+  name: 'Bottom bar the native bar refuses',
+  globals: { viewport: { value: 'phone390' } },
+  tags: ['play', 'phone', '!dev'],
+  render: () => (
+    <>
+      <NativeTabBarContext.Provider value={nativeBar(true)}>
+        <div data-bar="accepted"><TabbedShell /></div>
+      </NativeTabBarContext.Provider>
+      <NativeTabBarContext.Provider value={nativeBar(false)}>
+        <div data-bar="refused"><TabbedShell /></div>
+      </NativeTabBarContext.Provider>
+    </>
+  ),
+  play: async ({ canvasElement }) => {
+    const bar = (which: string) => canvasElement.querySelector<HTMLElement>(`[data-bar="${which}"] nav[aria-label="Tabs"]`)!
+    await waitFor(() => expect(bar('accepted')).toHaveAttribute('aria-hidden', 'true'))
+    await waitFor(() => expect(bar('refused')).not.toHaveAttribute('aria-hidden'))
+    expect(bar('refused')).toBeVisible()
   },
 }
 

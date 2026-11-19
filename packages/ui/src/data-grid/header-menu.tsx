@@ -1,6 +1,6 @@
 import { MoreHorizontal } from 'lucide-react'
-import { createPortal } from 'react-dom'
 import { usePopoverMenu } from '../primitives/popover-menu'
+import { MenuSurface } from '../primitives/menu-surface'
 import { text } from './messages'
 
 export type HeaderMenuProps = { header: string; pinned: boolean; sortable: boolean; onTogglePin: () => void }
@@ -29,8 +29,11 @@ export const HeaderMenu = ({ header, pinned, sortable, onTogglePin }: HeaderMenu
       >
         <MoreHorizontal className="size-3.5" />
       </button>
-      {open &&
-        createPortal(
+      <MenuSurface
+        open={open}
+        title={text('columnMenu', { header })}
+        onClose={() => setOpen(false)}
+        menu={
           <ul ref={menu} role="menu" style={place ?? { visibility: 'hidden' }} className="fixed z-50 min-w-32 rounded-md border bg-background py-1 text-body font-normal text-foreground shadow-pop">
             {!sortable && (
               <li role="none">
@@ -52,9 +55,9 @@ export const HeaderMenu = ({ header, pinned, sortable, onTogglePin }: HeaderMenu
                 {pinned ? text('unpin') : text('pinToLeft')}
               </button>
             </li>
-          </ul>,
-          document.body,
-        )}
+          </ul>
+        }
+      />
     </div>
   )
 }

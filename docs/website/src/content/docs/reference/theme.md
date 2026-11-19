@@ -70,12 +70,12 @@ Every token, with the app's light and dark values. Colors take any CSS color.
 | `--foreground` | `#18181b` | `#f4f4f5` |
 | `--muted-foreground` | `#71717a` | `#a1a1aa` |
 | `--faint-foreground` | `#a1a1aa` | `#71717a` |
-| `--primary` | `#2563eb` | `#3b82f6` |
-| `--primary-hover` | `#1d4ed8` | `#60a5fa` |
+| `--primary` | `#3f434a` | `#5b616b` |
+| `--primary-hover` | `#2c2f34` | `#6d747f` |
 | `--primary-foreground` | `#ffffff` | `#ffffff` |
-| `--primary-soft` | `#eff6ff` | `#172036` |
-| `--primary-border` | `#bfdbfe` | `#1e3a6e` |
-| `--primary-text` | `#1d4ed8` | `#93c5fd` |
+| `--primary-soft` | `#f1f2f4` | `#23252a` |
+| `--primary-border` | `#d3d6db` | `#3b3f46` |
+| `--primary-text` | `#2c2f34` | `#c9ccd2` |
 | `--success` | `#16a34a` | `#22c55e` |
 | `--success-soft` | `#f0fdf4` | `#0f2418` |
 | `--success-text` | `#15803d` | `#86efac` |
@@ -124,7 +124,7 @@ The list is `packages/ui/src/tokens.css`, and a test fails when one of its token
 
 The app's text follows the reader's text size: every size is in `rem`, so all of it grows with the root size, except the mobile top bar's controls described below. In a browser that is the browser's own text size; in the [iOS app](/guides/mobile-app/) the phone's text size, Dynamic Type included, and in the Android app the phone's font size. The base size is 0.875rem, 14px at a browser's default. A plugin's text follows it too when its sizes are in `rem`, such as Tailwind's `text-xs`, rather than pixels.
 
-On a phone the top bar's buttons and icons grow with the text only as far as the screen's width allows, as a native app's bar does, so the menu, back, search and record-menu buttons all fit at the largest accessibility sizes, about three times the default; its text keeps growing and the back button's label shortens with an ellipsis. Its search field grows the same way, so it and its focus ring stay inside the bar. These caps and the bar's spacing are in pixels and screen width, since a size in `rem` alone would grow past the screen.
+On a phone the top bar's buttons and icons grow with the text only as far as the screen's width allows, as a native app's bar does, so the menu, back, search and record-menu buttons all fit at the largest accessibility sizes, about three times the default; its text keeps growing and the back button's label shortens with an ellipsis. Its search field grows the same way, so it and its focus ring stay inside the bar. These caps are in pixels and screen width, since a size in `rem` alone would grow past the screen; the bar's spacing is on the spacing scale.
 
 <gap>A list chart's Day and Week switch cannot fit a phone's width at the largest accessibility text sizes because a mobile layout for it is not implemented.</gap>
 

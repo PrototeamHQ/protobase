@@ -23,4 +23,9 @@ describe('backTarget', () => {
   it('is none while the previous crumb is still loading', () => {
     expect(backTarget([{ label: 'Loading record', href: '/admin/tenants/1', loading: true }, 'Edit'])).toBeUndefined()
   })
+
+  it('goes past crumbs that name no page to the nearest that does, such as More past a sidebar group', () => {
+    expect(backTarget([{ label: 'More', href: '/-/menu' }, 'Browse', 'Agencies'])).toEqual({ label: 'More', href: '/-/menu', shown: false })
+    expect(backTarget(['Browse', 'Agencies'])).toBeUndefined()
+  })
 })

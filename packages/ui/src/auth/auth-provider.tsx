@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { createAuthSession, createClient, type AuthSession, type AuthUser, type PersonalMailLink, type PlatformSignIn, type PluginRef, type SamlSignIn, type SetupStatus, type SignInMethod, type SignInResult, type TwoFactorMethod, type WorkflowConnection } from '@protobase/client'
 import type { Locale } from '@protobase/schema/internal'
 import { nativeAuthFetch, type NativeBridge } from '../app/native-auth-fetch'
+import { nativeSignInBridge } from './native-sign-in'
 import { pushNotifications, type PushNotifications } from '../notifications/push/push-notifications'
 import type { PushUser } from '../notifications/push/web-push'
 import { useStartCache } from '../data/start-cache/start-cache'
@@ -135,8 +136,9 @@ type AuthProviderProps = {
 /**
  * Finds out whether the server has a login and who is signed in, and keeps that state for the app. Without a `session`,
  * it makes one on `origin`, the page's own by default, also when the page is served from an app's own scheme (see
- * `customSchemeAuth`); in the iOS or Android app, with its `nativeBridge`, the session signs in through native HTTP,
- * and "Forgot password?" is not offered, as a reset link cannot come back to the app.
+ * `customSchemeAuth`); in the iOS or Android app, with a `nativeBridge` that offers ProtobaseAuth (`nativeSignInBridge`),
+ * the session signs in through native HTTP, and "Forgot password?" is not offered, as a reset link cannot come back to
+ * the app.
  * Below a `StartCacheProvider`, someone who was signed in starts signed in, and the check runs behind the app.
  * Someone already signed in when the page starts is no sign-in: `afterSignIn` runs only for one made on the page.
  */
@@ -148,7 +150,8 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
   const [status, setStatus] = useState<SetupStatus | undefined>(cached?.status)
   const signInMethods = status?.signInMethods ?? defaultSignInMethods
   const signInFirst = status?.signInFirst ?? 'password'
-  const passwordReset = Boolean(status?.passwordReset) && !nativeBridge
+  const nativeSignIn = nativeSignInBridge(nativeBridge)
+  const passwordReset = Boolean(status?.passwordReset) && !nativeSignIn
   const changeEmail = Boolean(status?.changeEmail)
   const accountDeletion = Boolean(status?.accountDeletion)
   const mcp = status?.mcp
@@ -188,10 +191,10 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
     return createAuthSession({
       ...(authOrigin && { origin: authOrigin }),
       ...(scheme && { fetch: scheme.fetch }),
-      ...(nativeBridge && { fetch: nativeAuthFetch(nativeBridge, authOrigin ?? window.location.origin) }),
+      ...(nativeSignIn && { fetch: nativeAuthFetch(nativeSignIn, authOrigin ?? window.location.origin) }),
       onSignedOut: () => signedOut.current(),
     })
-  }, [given, origin, nativeBridge])
+  }, [given, origin, nativeSignIn])
 
   // Push follows who is signed in: the helper reads it at each step, and only someone signed in as themselves has it.
   const pushUser = useRef<PushUser>(undefined)

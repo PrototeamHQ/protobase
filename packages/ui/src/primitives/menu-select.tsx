@@ -1,5 +1,6 @@
 import { Check, ChevronDown } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { MenuSurface } from './menu-surface'
 import { cn } from '../lib/cn'
 import { useMenuRight, useMenuTop } from './menu-edge'
 import { menuKeyTarget } from './menu-keys'
@@ -29,7 +30,8 @@ export const MenuSelect = <T extends string>({ value, options, onChange, link, l
     // The focus goes to the chosen option when the menu opens, not again when the choice changes
     items.current[Math.max(chosen, 0)]?.focus()
     const close = (event: PointerEvent) => {
-      if (event.target instanceof Node && !root.current?.contains(event.target)) setOpen(false)
+      // On a phone the menu is in a sheet at the document's root (MenuSurface), outside the wrapper
+      if (event.target instanceof Node && !root.current?.contains(event.target) && !menu.current?.contains(event.target)) setOpen(false)
     }
     document.addEventListener('pointerdown', close)
     return () => document.removeEventListener('pointerdown', close)
@@ -63,7 +65,12 @@ export const MenuSelect = <T extends string>({ value, options, onChange, link, l
         {current?.label ?? label}
         <ChevronDown className="size-3.5 text-muted-foreground" />
       </button>
-      {open && (
+      <MenuSurface
+        open={open}
+        title={label}
+        onClose={() => setOpen(false)}
+        inPlaceOnDesktop
+        menu={
         <ul ref={menu} role="menu" aria-label={label} onKeyDown={onKeyDown} style={{ ...right, ...top }} className="absolute right-0 top-full z-30 mt-1 w-max min-w-40 rounded-md border bg-background py-1 text-body shadow-pop">
           {options.map((option, index) => {
             const item = {
@@ -103,7 +110,8 @@ export const MenuSelect = <T extends string>({ value, options, onChange, link, l
             )
           })}
         </ul>
-      )}
+        }
+      />
     </div>
   )
 }

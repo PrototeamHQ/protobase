@@ -10,7 +10,7 @@ describe('sheetOffset', () => {
   it('gives a little upwards and never past its limit', () => {
     expect(sheetOffset(-10)).toBeLessThan(0)
     expect(sheetOffset(-10)).toBeGreaterThan(-10)
-    expect(sheetOffset(-1000)).toBeGreaterThanOrEqual(-24)
+    expect(sheetOffset(-1000)).toBeGreaterThan(-40)
   })
 })
 
@@ -33,18 +33,18 @@ describe('releaseVelocity', () => {
 })
 
 describe('closesOnRelease', () => {
-  it('closes on a fling down from any distance past the slop', () => {
+  it('closes on a fling down from any distance past the slop, as the drawers do', () => {
     expect(closesOnRelease(30, 600, 0.8)).toBe(true)
   })
 
-  it('closes when let go slowly past 30% of its height', () => {
-    expect(closesOnRelease(200, 600, 0)).toBe(true)
-    expect(closesOnRelease(150, 600, 0.1)).toBe(false)
+  it('closes when let go slowly past half its height', () => {
+    expect(closesOnRelease(320, 600, 0)).toBe(true)
+    expect(closesOnRelease(250, 600, 0.1)).toBe(false)
   })
 
-  it('springs back when the finger was moving up, or barely moved', () => {
-    expect(closesOnRelease(300, 600, -0.4)).toBe(false)
-    expect(closesOnRelease(4, 600, 2)).toBe(false)
+  it('springs back on a fast move up, or barely moved', () => {
+    expect(closesOnRelease(400, 600, -0.6)).toBe(false)
+    expect(closesOnRelease(8, 600, 2)).toBe(false)
   })
 })
 

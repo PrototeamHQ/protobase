@@ -1,11 +1,13 @@
 import { ChevronsUpDown, LogOut, SmilePlus, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
+import { topBarBox } from './top-bar'
 import { Avatar } from '../primitives/avatar'
 import { Badge, type BadgeTone } from '../primitives/badge'
 import { SwitchGroup } from './switch-group'
 import { ThemeSwitch, type ProfileTheme } from './theme-switch'
 import { text } from './messages'
+import { MenuSurface } from '../primitives/menu-surface'
 
 export type ShellUser = { name: string; email: string; initials: string; hue: number; role: string; roleTone: BadgeTone }
 
@@ -42,22 +44,29 @@ export type ProfileMenuProps = {
   theme?: ProfileTheme
   /** Shows the person's status by their name, and adds the item that sets it below them. */
   status?: ProfileStatus
+  /** What a screen reader calls the button, "Profile menu" by default. */
+  label?: string
+  /** The avatar alone at the end of a phone's top bar, as large as the bar's buttons at any text size (`topBarBox`). */
+  inTopBar?: boolean
 }
 
 const menuRow = 'flex min-h-11 w-full items-center gap-2.5 px-3 py-1.5 text-left text-muted-foreground hover:bg-muted md:min-h-0'
 
 /** The person at the bottom of the sidebar; the menu is fixed to the viewport so a narrow sidebar cannot clip it. */
-export const ProfileMenu = ({ user, compact, open: controlled, items = [], account, onNavigate, onSignOut, organizations, roles, theme, status }: ProfileMenuProps) => {
+export const ProfileMenu = ({ user, compact, open: controlled, items = [], account, onNavigate, onSignOut, organizations, roles, theme, status, label, inTopBar }: ProfileMenuProps) => {
   const activeRole = roles?.roles.find((role) => role.name === roles.active)
   const [local, setLocal] = useState(false)
   const open = controlled ?? local
   const root = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const [anchor, setAnchor] = useState<{ left: number; bottom: number }>()
 
   useEffect(() => {
     if (!open || controlled !== undefined) return
     const close = (event: Event) => {
-      if (event instanceof KeyboardEvent ? event.key === 'Escape' : !root.current?.contains(event.target as Node)) setLocal(false)
+      // The menu is drawn at the document's root, outside the person's button
+      const inside = root.current?.contains(event.target as Node) || menuRef.current?.contains(event.target as Node)
+      if (event instanceof KeyboardEvent ? event.key === 'Escape' : !inside) setLocal(false)
     }
     document.addEventListener('mousedown', close)
     document.addEventListener('keydown', close)
@@ -83,10 +92,106 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], accou
     setLocal(!local)
   }
 
+  // On a phone a sheet from the bottom, on a desktop beside the person, at the document's root (MenuSurface)
+  const menu = (
+    <div ref={menuRef} role="menu" className={controlled === undefined ? 'fixed z-[60] w-56 overflow-hidden rounded-lg border bg-background py-1 shadow-pop' : 'absolute bottom-full left-0 z-50 mb-2 w-56 overflow-hidden rounded-lg border bg-background py-1 shadow-pop'} style={controlled === undefined && anchor ? { left: anchor.left, bottom: anchor.bottom } : undefined}>
+      {account ? (
+        <a role="menuitem" href={account} onClick={(event) => follow(event, account)} className="block border-b px-3 pb-2 pt-1.5 hover:bg-muted">
+          <div className="font-medium">{user.name}</div>
+          <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+        </a>
+      ) : (
+        <div className="border-b px-3 pb-2 pt-1.5">
+          <div className="font-medium">{user.name}</div>
+          <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+        </div>
+      )}
+      {status && (
+        <div className="border-b py-1">
+          <button
+            type="button"
+            role="menuitem"
+            className={menuRow}
+            onClick={() => {
+              setLocal(false)
+              status.onOpen()
+            }}
+          >
+            <SmilePlus className="size-4 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">{status.label}</span>
+          </button>
+        </div>
+      )}
+      {organizations && (organizations.current || organizations.others.length > 0) && (
+        <SwitchGroup
+          label={text('organizations')}
+          {...(organizations.current && { current: { id: organizations.current.id, label: organizations.current.name } })}
+          others={organizations.others.map(({ id, name }) => ({ id, label: name }))}
+          rowClassName={menuRow}
+          onSwitch={(id) => {
+            setLocal(false)
+            organizations.onSwitch(id)
+          }}
+        />
+      )}
+      {roles && roles.roles.length > 1 && (
+        <SwitchGroup
+          label={text('roles')}
+          {...(activeRole && { current: { id: activeRole.name, label: activeRole.label } })}
+          others={roles.roles.filter((role) => role !== activeRole).map(({ name, label }) => ({ id: name, label }))}
+          rowClassName={menuRow}
+          onSwitch={(name) => {
+            setLocal(false)
+            roles.onSwitch(name)
+          }}
+        />
+      )}
+      {groups.map((group, index) => (
+        <div key={group[0]?.id} role="group" className={cn('py-1', (index < groups.length - 1 || theme || onSignOut) && 'border-b')}>
+          {group.map((item) => {
+            const Icon = item.icon
+            return (
+              <a
+                key={item.id}
+                role="menuitem"
+                href={item.href}
+                aria-current={item.active ? 'page' : undefined}
+                {...(item.external ? { target: '_blank', rel: 'noreferrer' } : {})}
+                onClick={(event) => follow(event, item.href, item.external)}
+                className={cn(menuRow, item.active && 'bg-muted text-foreground')}
+              >
+                <Icon className="size-4" />
+                {item.label}
+              </a>
+            )
+          })}
+        </div>
+      ))}
+      {theme && (
+        <div className={cn(onSignOut && 'border-b')}>
+          <ThemeSwitch theme={theme} className={cn(menuRow, 'hover:bg-transparent')} />
+        </div>
+      )}
+      {onSignOut && (
+        <button type="button" role="menuitem" onClick={onSignOut} className={menuRow}>
+          <LogOut className="size-4" />
+          {text('signOut')}
+        </button>
+      )}
+    </div>
+  )
+
   return (
     <div ref={root} className="relative">
-      <button type="button" className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1 text-left hover:bg-muted md:min-h-0" aria-label={text('profileMenu')} aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
-        <Avatar initials={user.initials} hue={user.hue} size="md" className="ring-0" />
+      <button type="button" className={inTopBar ? cn(topBarBox, 'flex items-center justify-center rounded-md hover:bg-muted') : 'flex min-h-11 w-full items-center gap-2.5 rounded-md p-1 text-left hover:bg-muted md:min-h-0'} aria-label={label ?? text('profileMenu')} aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
+        {/* In the top bar the button names the person, and the initials are its icon, capped as the bar's icons are */}
+        {inTopBar ? (
+          <span aria-hidden className="contents">
+            <Avatar initials={user.initials} hue={user.hue} size="bar" className="ring-0" />
+          </span>
+        ) : (
+          <Avatar initials={user.initials} hue={user.hue} size="md" className="ring-0" />
+        )}
         {!compact && (
           <>
             <span className="min-w-0 flex-1 leading-tight">
@@ -106,93 +211,7 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], accou
           </>
         )}
       </button>
-      {open && (
-        <div role="menu" className={controlled === undefined ? 'fixed z-[60] w-56 overflow-hidden rounded-lg border bg-background py-1 shadow-pop' : 'absolute bottom-full left-0 z-50 mb-2 w-56 overflow-hidden rounded-lg border bg-background py-1 shadow-pop'} style={controlled === undefined && anchor ? { left: anchor.left, bottom: anchor.bottom } : undefined}>
-          {account ? (
-            <a role="menuitem" href={account} onClick={(event) => follow(event, account)} className="block border-b px-3 pb-2 pt-1.5 hover:bg-muted">
-              <div className="font-medium">{user.name}</div>
-              <div className="truncate text-xs text-muted-foreground">{user.email}</div>
-            </a>
-          ) : (
-            <div className="border-b px-3 pb-2 pt-1.5">
-              <div className="font-medium">{user.name}</div>
-              <div className="truncate text-xs text-muted-foreground">{user.email}</div>
-            </div>
-          )}
-          {status && (
-            <div className="border-b py-1">
-              <button
-                type="button"
-                role="menuitem"
-                className={menuRow}
-                onClick={() => {
-                  setLocal(false)
-                  status.onOpen()
-                }}
-              >
-                <SmilePlus className="size-4 shrink-0" />
-                <span className="min-w-0 flex-1 truncate">{status.label}</span>
-              </button>
-            </div>
-          )}
-          {organizations && (organizations.current || organizations.others.length > 0) && (
-            <SwitchGroup
-              label={text('organizations')}
-              {...(organizations.current && { current: { id: organizations.current.id, label: organizations.current.name } })}
-              others={organizations.others.map(({ id, name }) => ({ id, label: name }))}
-              rowClassName={menuRow}
-              onSwitch={(id) => {
-                setLocal(false)
-                organizations.onSwitch(id)
-              }}
-            />
-          )}
-          {roles && roles.roles.length > 1 && (
-            <SwitchGroup
-              label={text('roles')}
-              {...(activeRole && { current: { id: activeRole.name, label: activeRole.label } })}
-              others={roles.roles.filter((role) => role !== activeRole).map(({ name, label }) => ({ id: name, label }))}
-              rowClassName={menuRow}
-              onSwitch={(name) => {
-                setLocal(false)
-                roles.onSwitch(name)
-              }}
-            />
-          )}
-          {groups.map((group, index) => (
-            <div key={group[0]?.id} role="group" className={cn('py-1', (index < groups.length - 1 || theme || onSignOut) && 'border-b')}>
-              {group.map((item) => {
-                const Icon = item.icon
-                return (
-                  <a
-                    key={item.id}
-                    role="menuitem"
-                    href={item.href}
-                    aria-current={item.active ? 'page' : undefined}
-                    {...(item.external ? { target: '_blank', rel: 'noreferrer' } : {})}
-                    onClick={(event) => follow(event, item.href, item.external)}
-                    className={cn(menuRow, item.active && 'bg-muted text-foreground')}
-                  >
-                    <Icon className="size-4" />
-                    {item.label}
-                  </a>
-                )
-              })}
-            </div>
-          ))}
-          {theme && (
-            <div className={cn(onSignOut && 'border-b')}>
-              <ThemeSwitch theme={theme} className={cn(menuRow, 'hover:bg-transparent')} />
-            </div>
-          )}
-          {onSignOut && (
-            <button type="button" role="menuitem" onClick={onSignOut} className={menuRow}>
-              <LogOut className="size-4" />
-              {text('signOut')}
-            </button>
-          )}
-        </div>
-      )}
+      {controlled !== undefined ? open && menu : <MenuSurface open={open} title={text('profileMenu')} onClose={() => setLocal(false)} menu={menu} inPlaceOnDesktop />}
     </div>
   )
 }

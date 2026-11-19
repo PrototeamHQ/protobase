@@ -516,14 +516,14 @@ export const CardsOnPhoneChecks: StoryObj = {
     expect(canvas.queryByRole('combobox', { name: 'Sort' })).toBeNull()
 
     await userEvent.click(filters)
-    const sheet = await canvas.findByRole('dialog', { name: 'Filters' })
+    const sheet = await within(document.body).findByRole('dialog', { name: 'Filters' })
     await userEvent.selectOptions(within(sheet).getByRole('combobox', { name: 'Sort' }), 'booked_on asc')
     await waitFor(async () => expect((await cardTitles(canvas))[0]).toBe('Gazelle Orange'))
     await userEvent.keyboard('{Escape}')
-    await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Filters' })).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog', { name: 'Filters' })).toBeNull())
 
     await userEvent.click(display)
-    const menu = canvas.getByRole('menu', { name: 'Display' })
+    const menu = within(document.body).getByRole('menu', { name: 'Display' })
     expect(within(menu).getAllByRole('menuitemradio').map((item) => item.textContent)).toEqual(['Table', 'Cards', 'Board', 'Calendar'])
     expect(within(menu).getByRole('menuitemradio', { name: 'Cards' })).toHaveAttribute('aria-checked', 'true')
     expect(within(menu).getByRole('menuitemradio', { name: 'Cards' })).toHaveFocus()
@@ -531,7 +531,7 @@ export const CardsOnPhoneChecks: StoryObj = {
     expect(within(menu).getByRole('menuitemradio', { name: 'Table' })).toHaveFocus()
     await userEvent.keyboard('{Enter}')
     await canvas.findByText('14 rows')
-    expect(canvas.queryByRole('menu')).toBeNull()
+    expect(within(document.body).queryByRole('menu')).toBeNull()
     expect(canvas.getByRole('button', { name: 'Display: Table' })).toHaveFocus()
   },
 }
@@ -555,7 +555,7 @@ export const RowsOnPhoneChecks: StoryObj = {
     expect(canvas.queryByRole('grid')).toBeNull()
 
     await userEvent.click(canvas.getByRole('button', { name: 'Display: List' }))
-    const menu = canvas.getByRole('menu', { name: 'Display' })
+    const menu = within(document.body).getByRole('menu', { name: 'Display' })
     expect(within(menu).getAllByRole('menuitemradio').map((item) => item.textContent)).toEqual(['Table', 'List'])
     await userEvent.click(within(menu).getByRole('menuitemradio', { name: 'Table' }))
     expect(await canvas.findByRole('grid')).toBeVisible()

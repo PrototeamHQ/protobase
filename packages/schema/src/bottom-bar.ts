@@ -1,7 +1,10 @@
 import { isMenuHref } from './menu-href'
 import type { BottomBarItemModel, BottomBarModel } from './model'
 
-/** The tabs beside the last one, "More", which opens the sidebar: five tabs in all, as on iOS. */
+/**
+ * The tabs beside the last one, "More", which opens the sidebar: five tabs in all, as on iOS. Search is beside them:
+ * on the web it takes the last tab's place, which "More" then holds; on iOS's native tab bar it is apart from the tabs.
+ */
 export const maxBottomBarItems = 4
 
 const items = {
@@ -14,6 +17,8 @@ const items = {
     if (!isMenuHref(href)) throw new Error(`Bottom bar link "${label}": href must start with https://, http:// or mailto:`)
     return { kind: 'link', label, href, ...options }
   },
+  /** The app's search, in the bar rather than the top bar; on iOS's native tab bar, the system's own search. */
+  search: (options: { label?: string } = {}): BottomBarItemModel => ({ kind: 'search', ...options }),
 }
 
 /** What the server needs from a `bottomBar(...)` export of the config module. */
@@ -25,7 +30,7 @@ export type BottomBarSource = {
 /**
  * Tabs at the bottom of the screen on phones, for the users holding one of `roles`. Export one per group of roles; a
  * role belongs to one bottom bar. `label` names the bar where someone with several switches between them. Its tabs
- * are `m.resource`, `m.page` and `m.link`, at most four. See [Bottom bar](docs/website/src/content/docs/reference/bottom-bar.md).
+ * are `m.resource`, `m.page` and `m.link`, at most four, and `m.search`, once. See [Bottom bar](docs/website/src/content/docs/reference/bottom-bar.md).
  */
 export const bottomBar = (options: { label: string; roles: string[] }, build: (m: typeof items) => BottomBarItemModel[]): BottomBarSource => {
   const model: BottomBarModel = { label: options.label, roles: [...options.roles], items: build(items) }

@@ -46,7 +46,9 @@ export const usePopoverMenu = <T extends HTMLElement = HTMLUListElement>() => {
       if (event instanceof KeyboardEvent ? event.key === 'Escape' : !inside(event.target)) setOpen(false)
     }
     // A fixed menu would drift away from its button; the menu's own scroll moves nothing
+    // In a phone's sheet (MenuSurface) it moves with the sheet, which scrolls it
     const dismiss = (event: Event) => {
+      if (menu.current?.closest('[aria-modal="true"]')) return
       if (!inside(event.target)) setOpen(false)
     }
     document.addEventListener('mousedown', close)
