@@ -284,7 +284,7 @@ describe('mobileRun', () => {
   it("refuses a stale iOS workspace without Protobase's plugin class before it runs the app", async () => {
     const calls: Array<{ command: string; args: string[] } & ChildOptions> = []
     const dir = project("{ appId: 'com.example.shop' }")
-    const deps = { run: fakeRun(calls, { ios: ['AppPlugin', 'ProtobaseBounce', 'ProtobaseExternal', 'ProtobasePush'] }), build, fetch }
+    const deps = { run: fakeRun(calls, { ios: ['AppPlugin', 'ProtobaseBounce', 'ProtobaseExternal', 'ProtobasePush', 'ProtobaseTabBar'] }), build, fetch }
     await expect(mobileRun({ projectDir: dir, platform: 'ios', api: 'https://api.example.com', extensions: [] }, () => {}, deps)).rejects.toThrow(
       "The iOS app lacks Protobase's native plugin (ProtobaseAuthPlugin)",
     )

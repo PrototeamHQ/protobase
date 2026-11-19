@@ -38,19 +38,28 @@ export const moveActive = (active: number, count: number, delta: 1 | -1) => {
 /** A click the browser should handle itself: a new tab or window, or a download. */
 const opensElsewhere = (event: MouseEvent) => event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0
 
-type GlobalSearchProps = { search: GlobalSearchModel; className?: string; fieldClassName?: string; autoFocus?: boolean; showShortcut?: boolean; ref?: Ref<HTMLInputElement> }
+type GlobalSearchProps = {
+  search: GlobalSearchModel
+  className?: string
+  fieldClassName?: string
+  autoFocus?: boolean
+  showShortcut?: boolean
+  /** The results in the page's flow below the field, while there is a query, rather than in a list over the page. */
+  inline?: boolean
+  ref?: Ref<HTMLInputElement>
+}
 
 /**
  * A search box with grouped results under it, each a link: arrows move through them, Enter or a click opens one and
  * closes the list, keeping the text, so focusing the box again shows the same results. Escape clears, then leaves.
  */
-export const GlobalSearch = ({ search, className = 'w-96', fieldClassName, autoFocus, showShortcut = true, ref }: GlobalSearchProps) => {
+export const GlobalSearch = ({ search, className = 'w-96', fieldClassName, autoFocus, showShortcut = true, inline, ref }: GlobalSearchProps) => {
   const listId = useId()
   const input = useRef<HTMLInputElement | null>(null)
   const [focused, setFocused] = useState(false)
   const [active, setActive] = useState(-1)
   const hits = search.groups.flatMap((group) => group.hits)
-  const open = focused && (search.query !== '' || search.loading)
+  const open = (focused || Boolean(inline)) && (search.query !== '' || search.loading)
   const optionId = (index: number) => `${listId}-${index}`
   const root = useRef<HTMLDivElement>(null)
   const list = useRef<HTMLDivElement>(null)
@@ -128,7 +137,7 @@ export const GlobalSearch = ({ search, className = 'w-96', fieldClassName, autoF
         onKeyDown={onKeyDown}
       />
       {open && (
-        <div ref={list} id={listId} role="listbox" aria-label={text('searchResults')} style={{ ...right, ...top }} className="absolute right-0 top-full z-40 mt-1 max-h-96 w-full min-w-72 overflow-y-auto rounded-lg border bg-background py-1 shadow-pop">
+        <div ref={list} id={listId} role="listbox" aria-label={text('searchResults')} style={inline ? undefined : { ...right, ...top }} className={inline ? 'mt-2 py-1' : 'absolute right-0 top-full z-40 mt-1 max-h-96 w-full min-w-72 overflow-y-auto rounded-lg border bg-background py-1 shadow-pop'}>
           {search.groups.length === 0 && <p className="px-3 py-2 text-muted-foreground">{search.loading ? text('searching') : text('noMatches', { query: search.query })}</p>}
           {search.groups.map((group) => (
             <div key={group.id} role="group" aria-label={group.label}>

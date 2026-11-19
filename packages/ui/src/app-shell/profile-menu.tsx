@@ -1,6 +1,7 @@
 import { ChevronsUpDown, LogOut, SmilePlus, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
+import { topBarBox } from './top-bar'
 import { Avatar } from '../primitives/avatar'
 import { Badge, type BadgeTone } from '../primitives/badge'
 import { SwitchGroup } from './switch-group'
@@ -43,12 +44,16 @@ export type ProfileMenuProps = {
   theme?: ProfileTheme
   /** Shows the person's status by their name, and adds the item that sets it below them. */
   status?: ProfileStatus
+  /** What a screen reader calls the button, "Profile menu" by default. */
+  label?: string
+  /** The avatar alone at the end of a phone's top bar, as large as the bar's buttons at any text size (`topBarBox`). */
+  inTopBar?: boolean
 }
 
 const menuRow = 'flex min-h-11 w-full items-center gap-2.5 px-3 py-1.5 text-left text-muted-foreground hover:bg-muted md:min-h-0'
 
 /** The person at the bottom of the sidebar; the menu is fixed to the viewport so a narrow sidebar cannot clip it. */
-export const ProfileMenu = ({ user, compact, open: controlled, items = [], account, onNavigate, onSignOut, organizations, roles, theme, status }: ProfileMenuProps) => {
+export const ProfileMenu = ({ user, compact, open: controlled, items = [], account, onNavigate, onSignOut, organizations, roles, theme, status, label, inTopBar }: ProfileMenuProps) => {
   const activeRole = roles?.roles.find((role) => role.name === roles.active)
   const [local, setLocal] = useState(false)
   const open = controlled ?? local
@@ -178,8 +183,15 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], accou
 
   return (
     <div ref={root} className="relative">
-      <button type="button" className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1 text-left hover:bg-muted md:min-h-0" aria-label={text('profileMenu')} aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
-        <Avatar initials={user.initials} hue={user.hue} size="md" className="ring-0" />
+      <button type="button" className={inTopBar ? cn(topBarBox, 'flex items-center justify-center rounded-md hover:bg-muted') : 'flex min-h-11 w-full items-center gap-2.5 rounded-md p-1 text-left hover:bg-muted md:min-h-0'} aria-label={label ?? text('profileMenu')} aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
+        {/* In the top bar the button names the person, and the initials are its icon, capped as the bar's icons are */}
+        {inTopBar ? (
+          <span aria-hidden className="contents">
+            <Avatar initials={user.initials} hue={user.hue} size="bar" className="ring-0" />
+          </span>
+        ) : (
+          <Avatar initials={user.initials} hue={user.hue} size="md" className="ring-0" />
+        )}
         {!compact && (
           <>
             <span className="min-w-0 flex-1 leading-tight">

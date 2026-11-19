@@ -46,6 +46,9 @@
   /* A menu's items where it opens as a sheet on a phone, a phone's own list size. */
   --text-menu-sheet: 1.0625rem;
   --text-menu-sheet--line-height: 1.4;
+  /* The page's title in the top bar on a phone, a step above the body's. */
+  --text-mobile-title: 1.1875rem;
+  --text-mobile-title--line-height: 1.25;
   --radius-sm: max(0px, calc(var(--radius, 6px) - 2px));
   --radius-md: var(--radius, 6px);
   --radius-lg: calc(var(--radius, 6px) + 2px);

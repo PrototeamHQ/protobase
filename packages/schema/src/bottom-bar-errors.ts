@@ -17,13 +17,19 @@ const itemErrors = (item: BottomBarItemModel, names: BottomBarNames) => {
   return []
 }
 
+// Search takes a tab's place, so beside it one tab fewer fits, on the web and in the iOS app alike
+const tabsOf = (bar: BottomBarModel) => bar.items.filter((item) => item.kind !== 'search').length
+const searchIn = (bar: BottomBarModel) => bar.items.some((item) => item.kind === 'search')
+const maxTabsOf = (bar: BottomBarModel) => (searchIn(bar) ? maxBottomBarItems - 1 : maxBottomBarItems)
+
 const barErrors = (bar: BottomBarModel, names: BottomBarNames) => {
   const unknownRoles = names.roles ? bar.roles.filter((role) => !names.roles!.includes(role)) : []
   return [
     ...(bar.roles.length === 0 ? ['needs at least one role'] : []),
     ...unknownRoles.map((role) => `role "${role}" is not one of the roles: ${names.roles!.join(', ')}`),
     ...(bar.items.length === 0 ? ['needs at least one item'] : []),
-    ...(bar.items.length > maxBottomBarItems ? [`has ${bar.items.length} items; at most ${maxBottomBarItems} fit beside "More"`] : []),
+    ...(tabsOf(bar) > maxTabsOf(bar) ? [`has ${tabsOf(bar)} tabs; at most ${maxTabsOf(bar)} fit beside ${searchIn(bar) ? 'search and "More"' : '"More"'}`] : []),
+    ...(bar.items.filter((item) => item.kind === 'search').length > 1 ? ['has search more than once'] : []),
     ...bar.items.flatMap((item) => itemErrors(item, names)),
   ].map((error) => `Bottom bar "${bar.label}": ${error}`)
 }

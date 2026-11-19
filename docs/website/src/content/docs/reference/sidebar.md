@@ -5,7 +5,7 @@ description: How sidebar entries are grouped and which icon each shows, how an e
 
 The admin's sidebar has one entry per resource view, grouped by `nav.group` (default: the database schema, with no group name for `public`) and sorted by `nav.order`, then by the order `config/index.ts` exports them, in `protobase dev` and in a built bundle alike. The app opens on the first entry. A view's [named lists](/reference/ui-config/#more-than-one-list) are entries of their own, placed by their own `nav`. `nav({ hidden: true })` leaves a resource out, for line and link tables; a resource in the [user menu](/reference/user-menu/) is left out too. [Composed pages](/reference/layouts/#setup) have entries of their own, and groups that hold pages come first. A [remote resource](/reference/remote-resources/) has its entry where its source's view places it; while its source cannot be reached, it sits under the source's label, marked "Cannot reach" with the source's name.
 
-Below the `md` breakpoint (768px) the sidebar is a drawer, which the top bar's menu button opens, or **More** on a [bottom bar](/reference/bottom-bar/). It is 88% of the screen wide, at most 384px.
+Below the `md` breakpoint (768px) the sidebar is a drawer, which the top bar's menu button opens, It is 88% of the screen wide, at most 384px. With a [bottom bar](/reference/bottom-bar/#search-and-more), **More** opens the sidebar as a page of its own instead.
 
 ### Menus and drawers on phones
 
