@@ -239,15 +239,16 @@ export const VisitorSignsIn: StoryObj = {
     await userEvent.click(await canvas.findByRole('link', { name: 'Favorites' }))
     const page = await canvas.findByRole('region', { name: 'Keep the homes you like' })
     await userEvent.click(within(page).getByRole('link', { name: 'Sign in' }))
-    expect(await canvas.findByRole('heading', { name: /^Sign in/ })).toBeVisible()
+    // Asked again until it holds: a page may draw its heading once more while it finishes loading, which replaces the element
+    await waitFor(() => expect(canvas.getByRole('heading', { name: /^Sign in/ })).toBeVisible())
     await userEvent.type(canvas.getByLabelText('Email'), 'pip@homes.example')
     await userEvent.type(canvas.getByLabelText('Password'), 'correct horse battery')
     await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }))
 
     // Signed in as the member, on the favorites page: their saved home instead of the prompt
-    expect(await canvas.findByRole('button', { name: 'Profile menu' })).toBeVisible()
-    expect(await canvas.findByRole('heading', { name: 'Favorites' })).toBeVisible()
-    expect(await canvas.findByText('Oudegracht 88')).toBeVisible()
+    await waitFor(() => expect(canvas.getByRole('button', { name: 'Profile menu' })).toBeVisible())
+    await waitFor(() => expect(canvas.getByRole('heading', { name: 'Favorites' })).toBeVisible())
+    await waitFor(() => expect(canvas.getByText('Oudegracht 88')).toBeVisible())
     expect(canvas.queryByRole('region', { name: 'Keep the homes you like' })).toBeNull()
   },
 }
