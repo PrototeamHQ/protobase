@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import type { PluginRef } from '@protobase/client'
 import type { PluginLoad } from './load-plugin'
 import type { PluginSource } from './plugin-source'
@@ -6,7 +6,7 @@ import type { PluginSource } from './plugin-source'
 /** How long the app waits for its plugins before it draws without the ones still loading, which arrive later. */
 export const pluginWaitMs = 10_000
 
-type Loads = { key: string; loads: PluginLoad[]; settled: boolean }
+type Loads = { key: string; refs?: string; loads: PluginLoad[]; settled: boolean }
 
 const none: PluginLoad[] = []
 
@@ -16,7 +16,10 @@ const none: PluginLoad[] = []
  * when the source has loaded every one already, as before the app's first render.
  */
 export const usePluginLoads = (refs: readonly PluginRef[], source: PluginSource) => {
-  const key = JSON.stringify(refs)
+  // The same plugins load again when the source forgets them (`pluginsChangedEvent`)
+  const revision = useSyncExternalStore(source.subscribe, source.revision, source.revision)
+  const named = JSON.stringify(refs)
+  const key = `${named}#${revision}`
   const [state, setState] = useState<Loads>(() => loadedAlready(refs, source, key) ?? { key: '[]', loads: none, settled: true })
 
   useEffect(() => {
@@ -27,7 +30,9 @@ export const usePluginLoads = (refs: readonly PluginRef[], source: PluginSource)
     const publish = () => {
       if (!active) return
       const loads = results.filter((load): load is PluginLoad => load !== undefined)
-      setState({ key, loads, settled: waited || loads.length === refs.length })
+      const settled = waited || loads.length === refs.length
+      // Loading the same plugins again, what the app shows stays until every one has come
+      setState((current) => (current.refs === named && current.settled && !settled ? current : { key, refs: named, loads, settled }))
     }
     const timer = setTimeout(() => {
       waited = true
@@ -48,6 +53,8 @@ export const usePluginLoads = (refs: readonly PluginRef[], source: PluginSource)
 
   if (refs.length === 0) return { loads: none, settled: true }
   if (state.key === key) return state
+  // The same plugins loading again: what the app shows stays meanwhile
+  if (state.refs === named && state.settled) return state
   // Until the effect runs for new plugins, the app waits for them, unless they have all loaded already
   return loadedAlready(refs, source, key) ?? { loads: none, settled: false }
 }
@@ -55,5 +62,5 @@ export const usePluginLoads = (refs: readonly PluginRef[], source: PluginSource)
 const loadedAlready = (refs: readonly PluginRef[], source: PluginSource, key: string): Loads | undefined => {
   if (refs.length === 0) return undefined
   const loads = refs.map((ref) => source.loaded(ref))
-  return loads.every((load) => load !== undefined) ? { key, loads: loads as PluginLoad[], settled: true } : undefined
+  return loads.every((load) => load !== undefined) ? { key, refs: JSON.stringify(refs), loads: loads as PluginLoad[], settled: true } : undefined
 }
