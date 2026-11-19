@@ -55,6 +55,9 @@ export type TopBarProps = {
  */
 export const topBarButton = 'inline-flex size-[min(2.75rem,max(44px,13vw))] shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden [&_svg]:size-[min(1.25rem,max(20px,6vw))]'
 
+/** The box of any other control at the bar's end, such as the account's avatar, capped as the icon buttons are. */
+export const topBarBox = 'size-[min(2.75rem,max(44px,13vw))] shrink-0'
+
 /**
  * The search field that covers the bar on a mobile screen. Its icons grow with the text only up to the bar's control
  * sizes, as the buttons do, and the field itself only up to the bar's control height, less its 2px focus ring, or to its

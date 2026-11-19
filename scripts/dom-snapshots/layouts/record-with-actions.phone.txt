@@ -30,10 +30,11 @@ div | block
               div .contents md:hidden | contents
                 button .inline-flex size-[min(2.75rem,max(44px,13vw))] shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden [&_svg]:size-[min(1.25rem,max(20px,6vw))] | flex row nowrap center center
                   svg .lucide lucide-ellipsis-vertical lucide-more-vertical size-5 | block
-              div .flex min-h-11 min-w-11 shrink-0 items-center justify-end | flex row nowrap center flex-end
+              div .flex shrink-0 items-center justify-end | flex row nowrap center flex-end
                 div .relative | block relative
-                  button .flex min-h-11 w-full items-center gap-2.5 rounded-md p-1 text-left hover:bg-muted md:min-h-0 | flex row nowrap center normal
-                    span .inline-flex shrink-0 select-none items-center justify-center rounded-full font-semibold text-white ring-2 ring-background size-8 text-xs ring-0 | flex row nowrap center center
+                  button .size-[min(2.75rem,max(44px,13vw))] shrink-0 flex items-center justify-center rounded-md hover:bg-muted | flex row nowrap center center
+                    span .contents | contents
+                      span .inline-flex shrink-0 select-none items-center justify-center rounded-full font-semibold text-white ring-2 ring-background size-[min(2rem,max(32px,9vw))] text-[min(0.75rem,max(12px,3.4vw))] ring-0 | flex row nowrap center center
         div .h-[var(--pb-sticky-top,calc(3rem+var(--pb-safe-top)))] shrink-0 md:hidden | block
         main .flex flex-1 flex-col | flex column nowrap normal normal
           div .flex flex-1 flex-col | flex column nowrap normal normal

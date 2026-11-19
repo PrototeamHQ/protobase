@@ -1,8 +1,11 @@
 import { cn } from '../lib/cn'
 
-export type AvatarProps = { initials: string; hue: number; size?: 'xs' | 'sm' | 'md' | 'lg'; className?: string }
+export type AvatarProps = { initials: string; hue: number; size?: 'xs' | 'sm' | 'md' | 'lg' | 'bar'; className?: string }
 
-const sizes = { xs: 'size-5 text-[0.5625rem]', sm: 'size-6 text-[0.625rem]', md: 'size-8 text-xs', lg: 'size-10 text-base' }
+const sizes = { xs: 'size-5 text-[0.5625rem]', sm: 'size-6 text-[0.625rem]', md: 'size-8 text-xs', lg: 'size-10 text-base',
+  // In a phone's top bar, as its icon: md's size, which grows with the text only as the bar's icons do (topBarButton)
+  bar: 'size-[min(2rem,max(32px,9vw))] text-[min(0.75rem,max(12px,3.4vw))]',
+}
 
 export const Avatar = ({ initials, hue, size = 'sm', className }: AvatarProps) => (
   <span
