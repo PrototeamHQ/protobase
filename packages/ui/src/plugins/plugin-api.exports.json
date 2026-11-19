@@ -63,6 +63,7 @@
     "allowDelayMs",
     "buttonClass",
     "chatDayLabel",
+    "closeSidebarEvent",
     "definePlugin",
     "defineUi",
     "diffStats",
