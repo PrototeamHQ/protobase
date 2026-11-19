@@ -1,12 +1,15 @@
 /// <reference lib="webworker" />
 import type { ParseReply, ParseRequest } from './parse-messages'
 import { setFallbackLocale } from '../../locale/active-locale'
+import { addAllCatalogues } from '../../locale/all-catalogues'
 import { sheetNames, sheetRows } from './sheet-file'
 
 // Reads a chosen file off the main thread: its sheet names, or its rows a chunk at a time, the next chunk once the
 // page asks for it, so a large file is never read faster than the page uses it.
 
 const scope = self as unknown as DedicatedWorkerGlobalScope
+// The texts it writes are in the page's language, which each request names; a worker has every one.
+addAllCatalogues()
 const reply = (message: ParseReply) => scope.postMessage(message)
 let next: (() => void) | undefined
 

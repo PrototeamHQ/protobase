@@ -95,7 +95,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('replaying a run on the 
     })
     await new Promise<void>((resolve) => receiver.listen(0, '127.0.0.1', resolve))
     base = `http://127.0.0.1:${(receiver.address() as AddressInfo).port}`
-    runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, mailer: { send: async (message) => void sent.push(message) }, onError: (error) => errors.push(error) })
+    runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, mailer: { send: async (message) => { sent.push(message); return {} } }, onError: (error) => errors.push(error) })
   })
 
   afterAll(async () => {

@@ -253,6 +253,8 @@
     "chooseResource": "Choose a resource",
     "pickFromSidebar": "Pick one from the sidebar.",
     "nothingHere": "There is nothing at this address.",
+    "pageNotLoaded": "This page did not load",
+    "pageNotLoadedHelp": "Check your connection, then open the page again.",
     "noPage": "There is no page called {page}.",
     "assistant": "Assistant",
     "operationFailed": "Operation {index} ({label}) failed: {message} Nothing was saved.",
@@ -583,7 +585,14 @@
     "workflows.custom_step_builds.fields.log.label": "Log",
     "workflows.custom_step_builds.fields.log.help": "The end of the build's log, as its runner reported it",
     "workflows.custom_step_builds.fields.started_at.label": "Started",
-    "workflows.custom_step_builds.fields.finished_at.label": "Finished"
+    "workflows.custom_step_builds.fields.finished_at.label": "Finished",
+    "mail.unsubscribes.names.singular": "Unsubscribe",
+    "mail.unsubscribes.names.plural": "Unsubscribes",
+    "mail.unsubscribes.help": "Everyone who unsubscribed from a topic of the bulk mail, newest first. Bulk mail of that topic is not sent to them.",
+    "mail.unsubscribes.fields.recipient.label": "Recipient",
+    "mail.unsubscribes.fields.topic.label": "Topic",
+    "mail.unsubscribes.fields.created_at.label": "Unsubscribed",
+    "mail.unsubscribes.layout.0.title": "Unsubscribe"
   },
   "app/change-confirm": {
     "title": "Change {label}?",

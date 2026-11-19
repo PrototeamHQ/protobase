@@ -30,7 +30,7 @@ let closeAuth = async () => {}
 
 // The portal's own auth as its config builds it, with a mailer that keeps what it sends.
 beforeAll(async () => {
-  const mailer = { send: async (message: MailMessage) => void sent.push(message) }
+  const mailer = { send: async (message: MailMessage) => { sent.push(message); return {} } }
   const { auth, authenticate, close } = await exampleAuth('property-portal', databaseUrl, { url: origin, secret: 'property-portal-sign-up-test-secret-1234', mailer })
   closeAuth = close
   app = createAdmin({ resources, views, pages, db, files: { secret: 'property-portal-files-test', sharp }, authenticate, auth, options: { roles } })

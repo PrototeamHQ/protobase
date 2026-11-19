@@ -58,5 +58,5 @@ export const startWorkflow = async (db: Db, { workflow, input, tenant, startedBy
 export const queueRuns = async (db: Db, ids: readonly string[]) => {
   const job = currentJobs().definition(segmentJobName)
   if (!job) throw new Error('Workflows are not running in this app: add `workflows: {}` to protobase.config.ts')
-  for (const id of ids) await job.enqueue(db, { run: id }, { key: id })
+  await job.enqueueMany(db, ids.map((id) => ({ payload: { run: id }, options: { key: id } })))
 }

@@ -8,11 +8,11 @@ import { fcm, serve } from './support/notifications-app'
 vi.setConfig({ testTimeout: 30_000 })
 
 describe.each([
-  { name: "auth's users table", users: undefined, table: '"user"' },
-  { name: 'a renamed users table', users: { table: 'people', columns: { email: 'address' } }, table: '"people"' },
-])('the devices table with $name', ({ users, table }) => {
+  { name: "auth's users table", tables: undefined, table: '"user"' },
+  { name: 'a renamed users table', tables: { user: { name: 'people', columns: { email: 'address' } } }, table: '"people"' },
+])('the devices table with $name', ({ tables, table }) => {
   it("points at the users table, so deleting a user deletes their devices and no one else's", async () => {
-    const { pg, alice, bob, tokenOf, register, devicesOf, auth } = await serve({ users })
+    const { pg, alice, bob, tokenOf, register, devicesOf, auth } = await serve({ ...(tables && { tables }) })
     const migration = await notificationsMigration(pg.db, { schema: 'other' }, auth)
     expect(migration).toContain(`references ${table} (id) on delete cascade`)
     const aliceToken = await tokenOf('alice@example.com')

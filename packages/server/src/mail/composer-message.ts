@@ -1,10 +1,13 @@
 import type { MailMessage } from './mail-message'
+import { refuseUnlinkedBulk } from './unsubscribe/bulk-options'
 
 /**
  * `message` as Nodemailer composes it: its header fields checked, and its attachments as their bytes alone, with
  * Nodemailer's reads of a file path or URL turned off, so no attachment can name a file on the server or a URL to fetch.
+ * Bulk mail that has not been through the app's unsubscribe (`bulkMailer`) is refused; a transactional topic is dropped.
  */
-export const composerMessage = ({ attachments, ...message }: MailMessage) => {
+export const composerMessage = ({ attachments, bulk, topic: _topic, ...message }: MailMessage) => {
+  refuseUnlinkedBulk(bulk)
   checkHeaders(message.headers)
   if (!attachments?.length) return message
   return {

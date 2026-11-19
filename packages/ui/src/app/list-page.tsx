@@ -27,10 +27,8 @@ import { ListEmpty } from './list-empty'
 import { listEmptyState } from './list-empty-state'
 import { ListCards } from './displays/list-cards'
 import { MapDisplay } from './displays/map-display'
-import { BoardDisplay } from './displays/board-display'
+import { BoardDisplay, CalendarDisplay, TimelineDisplay } from './displays/lazy-displays'
 import { boardRank } from './displays/board-columns'
-import { CalendarDisplay } from './displays/calendar-display'
-import { TimelineDisplay } from './displays/timeline-display'
 import { CustomDisplay } from './displays/custom-display'
 import { DisplaySwitch, SortMenu } from './displays/display-controls'
 import { displayRow, listDisplayChoices, loadedFields, shownListDisplay } from './displays/list-displays'
@@ -262,7 +260,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       className="flex-1"
     />
   ) : (
-    <div className="flex-1 rounded-lg border bg-surface" />
+    <div aria-busy className="flex-1 rounded-lg border bg-surface" />
   )
   const cardsList = { ...rows, initialIndex: scroll.initialIndex, onScrollIndex: scroll.remember }
   // A list without rows says why, and offers to clear what narrows it or to create the first record

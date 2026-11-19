@@ -79,7 +79,7 @@ export const snapshotTemplates = {
 export type SnapshotTemplateKey = keyof typeof snapshotTemplates
 
 /** The templates the real-Postgres tests clone. */
-export const realPostgresTemplates = ['empty', 'auth', 'jobs'] as const satisfies readonly SnapshotTemplateKey[]
+export const realPostgresTemplates = ['empty', 'auth', 'jobs', 'storage', 'trigram'] as const satisfies readonly SnapshotTemplateKey[]
 
 /** Fills the template database at `url`. */
 export const fillSnapshotTemplate = async (key: SnapshotTemplateKey, url: string) => {

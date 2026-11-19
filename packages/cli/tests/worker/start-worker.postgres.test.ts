@@ -23,8 +23,8 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('protobase worker', () 
 
   it("sends the jobs' mail through the app's own mailer, auth/mailer.ts, as sign-in's", async () => {
     const sent: MailMessage[] = []
-    const mailer = { send: async (message: MailMessage) => void sent.push(message) }
-    const job = defineJob({ name: 'welcome', run: async (_payload, { mail }) => mail!.send({ to: 'new@example.com', subject: 'Welcome', text: 'Hello' }) })
+    const mailer = { send: async (message: MailMessage) => { sent.push(message); return {} } }
+    const job = defineJob({ name: 'welcome', run: async (_payload, { mail }) => { await mail!.send({ to: 'new@example.com', subject: 'Welcome', text: 'Hello' }) } })
     const { db } = await openPostgresDatabase('jobs')
     vi.spyOn(db, 'destroy').mockImplementation(async () => {})
     const worker = await startWorker({ config: servedConfig({ ...project, jobs: { job }, mailer }), databaseUrl: 'postgres://unused/app', openDb: () => ({ db }) })

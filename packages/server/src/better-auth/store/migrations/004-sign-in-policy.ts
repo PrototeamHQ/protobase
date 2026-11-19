@@ -7,17 +7,21 @@ export const signInPolicy: StoreMigration = {
   name: 'sign_in_policy',
   title: 'The sign-in policies admins saved',
   tables: ['sign_in_policy'],
-  statements: ({ table, id }) => [
-    ddl`create table ${table('sign_in_policy')} (
+  statements: ({ table, id }) => {
+    const policy = table('sign_in_policy')
+    const p = policy.columns
+    return [
+      ddl`create table ${policy} (
   id ${id} primary key,
-  password text not null,
-  email_code text not null,
-  passkey text not null,
-  two_factor text not null,
-  staff_access text not null,
-  platform_sign_in text not null,
-  created_at timestamptz not null,
-  created_by text
+  ${p.password} text not null,
+  ${p.email_code} text not null,
+  ${p.passkey} text not null,
+  ${p.two_factor} text not null,
+  ${p.staff_access} text not null,
+  ${p.platform_sign_in} text not null,
+  ${p.created_at} timestamptz not null,
+  ${p.created_by} text
 )`,
-  ],
+    ]
+  },
 }

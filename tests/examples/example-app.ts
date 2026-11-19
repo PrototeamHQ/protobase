@@ -21,7 +21,7 @@ export const exampleAuth = async (name: string, databaseUrl: string, { secret, u
   const hooks = existsSync(hooksFile) ? ((await import(hooksFile)) as AuthHooks) : undefined
   const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
   const settings = config.auth === false ? {} : (config.auth ?? {})
-  const auth = await buildAppAuth({ ...settings, baseURL: url, secret }, { pool, db: new Kysely<any>({ dialect: new PostgresDialect({ pool }) }), ...(hooks && { hooks }), ...(mailer && { mailer }) })
+  const auth = await buildAppAuth({ ...settings, baseURL: url, secret }, { db: new Kysely<any>({ dialect: new PostgresDialect({ pool }) }), ...(hooks && { hooks }), ...(mailer && { mailer }) })
   return { auth, authenticate: buildAuthenticator(config.authenticate, auth), close: () => pool.end() }
 }
 

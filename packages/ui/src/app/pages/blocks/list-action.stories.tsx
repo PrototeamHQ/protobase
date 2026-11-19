@@ -104,8 +104,8 @@ export const InAListChecks: StoryObj = {
     const canvas = within(canvasElement)
     const body = within(canvasElement.ownerDocument.body)
     await canvas.findByText('Rotate the signing key')
-    // One button per record inside the iterator, besides the one for the whole list
-    expect(canvas.getAllByRole('button', { name: 'Approve' })).toHaveLength(3)
+    // One button per record inside the iterator, besides the one for the whole list, once the page shows
+    await waitFor(() => expect(canvas.getAllByRole('button', { name: 'Approve' })).toHaveLength(3))
     await userEvent.click(canvas.getByRole('button', { name: 'Approve (3)' }))
     const dialog = within(await body.findByRole('dialog', { name: 'Approve (3)' }))
     expect(dialog.getByText('For “Release the billing page”, “Turn on invoices”, “Rotate the signing key”.')).toBeInTheDocument()

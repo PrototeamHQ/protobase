@@ -1,9 +1,15 @@
+import { sql } from 'kysely'
 import type { AdminAuth } from '../create-auth'
+import { pageOf } from '../store/page-of'
+import { mayBeId } from '../store/store-reads'
+import { storeSqlOf } from '../store/store-sql'
+import { parseAppRoles } from './app-roles'
 import { membershipRoles } from './role-definitions'
-import { everyRow, findMember, membersOf, organizationRoleOf, setAppRoles, type AuthContext, type OrganizationRole, type StoredMember, type StoredOrganization } from './store'
+import { findMember, isOwner, organizationRoleOf, setAppRoles, type AuthContext, type OrganizationRole, type StoredMember, type StoredOrganization } from './store'
 
 // Host side only, like `createUser`: the CLI and scripts act as a superuser, so they may give any role. Storage goes
-// through Better Auth's adapter. Written against better-auth 1.7.7.
+// through Better Auth's adapter, and a question about many rows goes to Postgres as one statement. Written against
+// better-auth 1.7.7.
 
 // The instance's context is typed by its own options; the store functions take the context of any instance.
 const contextOf = async (auth: AdminAuth) => (await auth.$context) as unknown as AuthContext
@@ -35,9 +41,11 @@ const userByEmail = async (auth: AdminAuth, email: string) => {
 
 /** An organization by its id or slug. */
 export const findOrganizationByKey = async (auth: AdminAuth, key: string) => {
-  const { adapter } = await contextOf(auth)
+  const context = await contextOf(auth)
+  const { adapter } = context
+  // Where the ids are uuids, a key that is none is a slug.
   const found =
-    (await adapter.findOne<StoredOrganization>({ model: 'organization', where: [{ field: 'id', value: key }] })) ??
+    (mayBeId(context.options, key) ? await adapter.findOne<StoredOrganization>({ model: 'organization', where: [{ field: 'id', value: key }] }) : null) ??
     (await adapter.findOne<StoredOrganization>({ model: 'organization', where: [{ field: 'slug', value: key }] }))
   if (!found) throw new Error(`No organization "${key}"`)
   return found
@@ -101,8 +109,12 @@ const memberOrThrow = async (auth: AdminAuth, organizationKey: string, email: st
 // An organization always keeps an owner, as Better Auth's own endpoints make sure of.
 const refuseLastOwner = async (auth: AdminAuth, member: StoredMember, action: string) => {
   if (organizationRoleOf(member) !== 'owner') return
-  const owners = (await membersOf((await contextOf(auth)).adapter, member.organizationId)).filter((other) => organizationRoleOf(other) === 'owner')
-  if (owners.length <= 1) throw new Error(`Cannot ${action} the last owner`)
+  const store = storeSqlOf(await contextOf(auth))
+  const members = store.table('member')
+  const { organization_id, role } = members.columns
+  const { rows } = await sql<{ found: boolean }>`select exists (select from ${members}
+    where ${organization_id} = ${member.organizationId} and id <> ${member.id} and ${isOwner(sql`${role}`)}) as found`.execute(store.db)
+  if (!rows[0]!.found) throw new Error(`Cannot ${action} the last owner`)
 }
 
 /** Changes a member's organization role, app roles, or both. */
@@ -125,55 +137,83 @@ export const removeMember = async (auth: AdminAuth, input: { organization: strin
   await (await contextOf(auth)).adapter.delete({ model: 'member', where: [{ field: 'id', value: member.id }] })
 }
 
-/** Every organization, oldest first, with its members' emails and roles. */
-export const listOrganizations = async (auth: AdminAuth) => {
+export type OrganizationsCursor = { createdAt: string; id: string }
+
+export type ListedOrganization = { id: string; name: string; slug: string; members: { email: string; role: OrganizationRole; appRoles: string[] }[] }
+
+/** The organizations a page holds, oldest first, and where the next page starts; no `next` on the last page. */
+export type OrganizationsPage = { organizations: ListedOrganization[]; next?: OrganizationsCursor }
+
+/** The organizations a page of `listOrganizations` holds when it is not told. */
+export const organizationsPageSize = 100
+
+/**
+ * A page of the organizations, oldest first, each with its members' emails and roles, oldest member first: `size` of
+ * them from `after`, the `next` of the page before, as Postgres pages them, and their members in one join.
+ */
+export const listOrganizations = async (auth: AdminAuth, { after, size = organizationsPageSize }: { after?: OrganizationsCursor; size?: number } = {}): Promise<OrganizationsPage> => {
   settingsOf(auth)
-  const { adapter, internalAdapter } = await contextOf(auth)
-  const organizations = await adapter.findMany<StoredOrganization>({ model: 'organization', sortBy: { field: 'createdAt', direction: 'asc' }, limit: everyRow })
-  return Promise.all(
-    organizations.map(async (organization) => ({
-      id: organization.id,
-      name: organization.name,
-      slug: organization.slug,
-      members: await Promise.all(
-        (await membersOf(adapter, organization.id)).map(async (member) => ({
-          email: (await internalAdapter.findUserById(member.userId))?.email ?? member.userId,
-          role: organizationRoleOf(member),
-          appRoles: member.appRoles,
-        })),
-      ),
-    })),
-  )
+  const store = storeSqlOf(await contextOf(auth))
+  const organization = store.table('organization')
+  const o = organization.columns
+  const page = await pageOf<{ id: string; name: string; slug: string }>(store, {
+    from: organization,
+    select: { id: sql`id`, name: o.name, slug: o.slug },
+    key: [o.created_at, sql`id`],
+    ...(after && { after: [after.createdAt, after.id] }),
+    size,
+  })
+  const ids = page.rows.map((organization) => organization.id)
+  const user = store.table('user')
+  const m = store.table('member').columns
+  const { rows: members } = await sql<{ organizationId: string; email: string; role: string; appRoles: unknown }>`select m.${m.organization_id} as "organizationId",
+      coalesce(u.${user.columns.email}, m.${m.user_id}::text) as email, m.${m.role} as role, m.${m.app_roles} as "appRoles"
+    from ${store.table('member')} m left join ${user} u on u.id = m.${m.user_id}
+    where m.${m.organization_id} = any(${ids}) order by m.${m.created_at}, m.id`.execute(store.db)
+  const membersOf = new Map<string, typeof members>()
+  for (const member of members) {
+    const held = membersOf.get(member.organizationId)
+    if (held) held.push(member)
+    else membersOf.set(member.organizationId, [member])
+  }
+  const organizations = page.rows.map(({ id, name, slug }) => ({
+    id,
+    name,
+    slug,
+    members: (membersOf.get(id) ?? []).map((member) => ({ email: member.email, role: organizationRoleOf(member), appRoles: parseAppRoles(member.appRoles) })),
+  }))
+  return { organizations, ...(page.next && { next: { createdAt: page.next[0]!, id: page.next[1]! } }) }
 }
 
 /**
- * Makes `userId` the owner, with the creator's app roles, of every organization without members: for the first user of
- * an app whose organizations were made before anyone could own them, such as by its seed. Returns how many.
+ * Makes `userId` the owner, with the creator's app roles, of every organization without members, in one statement: for
+ * the first user of an app whose organizations were made before anyone could own them, such as by its seed. Returns
+ * how many.
  */
 export const ownOrganizationsWithoutMembers = async (auth: AdminAuth, userId: string) => {
   const settings = settingsOf(auth)
-  const { adapter } = await contextOf(auth)
-  const organizations = await adapter.findMany<StoredOrganization>({ model: 'organization', limit: everyRow })
-  let owned = 0
-  for (const organization of organizations) {
-    if ((await membersOf(adapter, organization.id)).length > 0) continue
-    await adapter.create({ model: 'member', data: { organizationId: organization.id, userId, role: 'owner', appRoles: settings.creatorAppRoles, createdAt: new Date() } })
-    owned++
-  }
-  return owned
+  const store = storeSqlOf(await contextOf(auth))
+  const member = store.table('member')
+  const m = member.columns
+  const { rows } = await sql`insert into ${member} (id, ${m.organization_id}, ${m.user_id}, ${m.role}, ${m.app_roles}, ${m.created_at})
+    select ${store.newId}, o.id, ${userId}, 'owner', ${JSON.stringify(settings.creatorAppRoles)}::jsonb, ${new Date()} from ${store.table('organization')} o
+    where not exists (select from ${member} m where m.${m.organization_id} = o.id)
+    returning id`.execute(store.db)
+  return rows.length
 }
 
-/** Gives an app role to every owner of every organization, for a role the project adds once organizations exist. */
+/**
+ * Gives an app role to every owner of every organization who lacks it, in one statement, for a role the project adds
+ * once organizations exist. Returns how many owners got it.
+ */
 export const addAppRoleToOwners = async (auth: AdminAuth, appRole: string) => {
   checkAppRoles(auth, [appRole])
-  const { adapter } = await contextOf(auth)
-  const owners = (await adapter.findMany<StoredMember & { appRoles?: unknown }>({ model: 'member', limit: everyRow })).filter((member) => organizationRoleOf(member) === 'owner')
-  let changed = 0
-  for (const owner of owners) {
-    const current = (await findMember(adapter, { organizationId: owner.organizationId, userId: owner.userId }))!.appRoles
-    if (current.includes(appRole)) continue
-    await setAppRoles(adapter, owner.id, [...current, appRole])
-    changed++
-  }
-  return changed
+  const store = storeSqlOf(await contextOf(auth))
+  const member = store.table('member')
+  const { app_roles, role } = member.columns
+  const held = sql`coalesce(${app_roles}, '[]'::jsonb)`
+  const { rows } = await sql`update ${member} set ${app_roles} = ${held} || jsonb_build_array(${appRole}::text)
+    where ${isOwner(sql`${role}`)} and not ${held} @> jsonb_build_array(${appRole}::text)
+    returning id`.execute(store.db)
+  return rows.length
 }

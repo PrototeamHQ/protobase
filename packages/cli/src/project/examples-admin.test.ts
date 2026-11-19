@@ -30,7 +30,7 @@ describe.each(examples)('the %s example', (name) => {
     const config = await loadSourceConfig(path.join(examplesDir, name), { command: 'tool' })
     expect(config.auth, 'every example signs in with Better Auth').toBeDefined()
     const pool = new pg.Pool({ connectionString: 'postgres://nobody@127.0.0.1:1/none' })
-    const project = await buildProject(config, { db: new Kysely<any>({ dialect: new PostgresDialect({ pool }) }), pool })
+    const project = await buildProject(config, { db: new Kysely<any>({ dialect: new PostgresDialect({ pool }) }) })
     expect(() => projectAdmin(project, {} as never)).not.toThrow()
     await pool.end()
   }, 60_000)

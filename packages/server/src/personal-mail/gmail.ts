@@ -13,6 +13,9 @@ export const gmailSendUrl = 'https://gmail.googleapis.com/upload/gmail/v1/users/
  * so it gives one again on a second link. Without `from`, Gmail sets the From header to the linked address; with it,
  * Gmail keeps it when it is one of the account's verified send-as addresses, and puts the account's own address in its
  * place when it is not, still sending the message.
+ *
+ * A send resolves to no `messageId`: Gmail puts its own `Message-ID` on the mail it sends, and its answer, the sent
+ * message's Gmail id, does not name it; reading it back takes a scope that reads the mailbox, which the link does not ask for.
  */
 export const gmail = (fetcher: typeof fetch = (...args) => fetch(...args)): PersonalMailProvider => ({
   id: 'gmail',
@@ -23,7 +26,7 @@ export const gmail = (fetcher: typeof fetch = (...args) => fetch(...args)): Pers
   send: async (message, accessToken, from) => {
     const body = await rfc822Message(message, from)
     const response = await fetcher(gmailSendUrl, { method: 'POST', headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'message/rfc822' }, body: new Uint8Array(body) })
-    if (response.ok) return
+    if (response.ok) return {}
     // 401: the token is no longer good; 403 with insufficient scope: the grant to send was taken back.
     if (response.status === 401) throw new PersonalMailError('link_expired', 'gmail')
     const error = await gmailError(response)

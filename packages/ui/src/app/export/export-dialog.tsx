@@ -8,11 +8,10 @@ import { Segmented } from '../../primitives/segmented'
 import type { ExportFormat } from './builder'
 import type { ExportMode } from './cells'
 import { exportLimit, type ExportScope, type ExportSettings } from './export-options'
+import { countedRows, type RowCount } from './row-count'
 import type { ViewModel } from '@protobase/schema'
 import { text } from './messages'
 
-/** How many rows the list finds: exact up to 10,000, the planner's estimate above, or still being counted. */
-export type RowCount = { kind: 'counting' } | { kind: 'exact'; rows: number } | { kind: 'estimate'; rows: number }
 
 export type ExportDialogProps = {
   /** The records' name, such as "Orders". */
@@ -48,12 +47,6 @@ const countText = (count: RowCount) => {
   if (count.kind === 'counting') return text('counting')
   if (count.kind === 'exact') return formatApproxRows(count.rows)
   return count.rows > 10_000 ? formatApproxRows(count.rows) : text('moreThan')
-}
-
-/** The fewest rows the list finds, as far as the count tells: an estimate stands only above 10,000. */
-export const countedRows = (count: RowCount) => {
-  if (count.kind === 'counting') return undefined
-  return count.kind === 'exact' ? count.rows : Math.max(count.rows, 10_001)
 }
 
 const Setting = ({ label, help, children }: { label: string; help?: string; children: ReactNode }) => (

@@ -2,10 +2,12 @@
 // project's own code does not call: the app's pool, Better Auth, the authenticator, file providers and the built-in
 // extensions' parts.
 export { appPool, longQueryPool } from './app-pool'
+export { appDialect } from './app-dialect'
 export { buildAuth, createAuth, loadAuthPlugins, type AuthPlugins } from './better-auth/create-auth'
 export { appAuthOptions, buildAppAuth, type AppAuthInput } from './better-auth/auth-settings'
 export { betterAuthAuthenticator } from './better-auth/authenticator'
 export { buildAuthenticator } from './better-auth/authenticate-settings'
+export { isOverSignIn } from './better-auth/over-sign-in'
 export { readOrigins } from './better-auth/origins'
 export { readPasskeyDomain } from './better-auth/passkey-domain'
 export { localFiles } from './files/local-files'

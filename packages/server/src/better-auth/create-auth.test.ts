@@ -4,7 +4,8 @@ import { roleDefinitions } from './organizations/role-definitions'
 import { resolvePlatformSignIns } from './platform-sign-in'
 import { samlPlugin } from './saml-plugin'
 import { resolveSamlProviders, samlDisabledPaths } from './saml-sign-in'
-import { coreNames } from './snake-case-names'
+import { betterAuthNames } from './names/better-auth-names'
+import { resolveNames } from './names/resolve-names'
 
 const base: CreateAuthOptions = { database: undefined, baseURL: 'https://admin.example.com', secret: 'test-secret-test-secret-test-secret-1234' }
 const resolved = { roles: ['admin', 'user'], definitions: roleDefinitions(), defaultRole: 'user' }
@@ -46,15 +47,18 @@ describe('betterAuthOptions', () => {
     expect(data(rest)).toEqual(data(betterAuthOptions(base, resolved)))
   })
 
+  // The account table's built-in names.
+  const accountNames = betterAuthNames(resolveNames({ schema: undefined })).account
+
   it('leaves OAuth tokens unencrypted and adds no after-create hook by default', () => {
     const options = betterAuthOptions(base, resolved)
-    expect(options.account).toEqual({ ...coreNames.account, accountLinking: { allowDifferentEmails: true, requireLocalEmailVerified: true } })
+    expect(options.account).toEqual({ ...accountNames, accountLinking: { allowDifferentEmails: true, requireLocalEmailVerified: true } })
     expect(options.databaseHooks.user.create).not.toHaveProperty('after')
   })
 
   it('turns on OAuth token encryption', () => {
     const { account, ...rest } = betterAuthOptions({ ...base, encryptOAuthTokens: true }, resolved)
-    expect(account).toEqual({ ...coreNames.account, accountLinking: { allowDifferentEmails: true, requireLocalEmailVerified: true }, encryptOAuthTokens: true })
+    expect(account).toEqual({ ...accountNames, accountLinking: { allowDifferentEmails: true, requireLocalEmailVerified: true }, encryptOAuthTokens: true })
     const { account: _, ...plain } = betterAuthOptions(base, resolved)
     expect(data(rest)).toEqual(data(plain))
   })

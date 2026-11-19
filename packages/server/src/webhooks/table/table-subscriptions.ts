@@ -24,6 +24,9 @@ type Row = {
 /** A UI subscription is disabled after this long without a success. */
 const failingFor = '3 days'
 
+// A row's id is a uuid, compared as one so its primary key finds it; any other id names no row.
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export type TableSubscriptionsInput = {
   schema: string
   ownerRoles: (owner: { id: string; tenant?: TenantValue }) => Promise<string[]>
@@ -66,14 +69,16 @@ export const tableSubscriptions = ({ schema, ownerRoles, deliveryLog }: TableSub
 
   /** One by id, enabled or not; `undefined` once it is deleted. */
   const find = async (db: Db, id: string) => {
-    const [row] = (await sql<Row>`${select} where "id"::text = ${id}`.execute(db)).rows
+    if (!uuid.test(id)) return undefined
+    const [row] = (await sql<Row>`${select} where "id" = ${id}::uuid`.execute(db)).rows
     return row && definition(row)
   }
 
   /** The row's record of a try: its last success, how long it has been failing, and disabling it when it should stop. */
   const record = async (db: Db, id: string, event: SubscriptionEvent, tried: number, result: AttemptResult, durationMs: number) => {
+    if (!uuid.test(id)) return
     if (result.ok) {
-      await sql`update ${table} set "last_success_at" = now(), "failing_since" = null where "id"::text = ${id}`.execute(db)
+      await sql`update ${table} set "last_success_at" = now(), "failing_since" = null where "id" = ${id}::uuid`.execute(db)
     } else {
       const gone = result.status === 410
       await sql`update ${table} set "failing_since" = coalesce("failing_since", now()),
@@ -82,13 +87,13 @@ export const tableSubscriptions = ({ schema, ownerRoles, deliveryLog }: TableSub
             when ${gone} then 'The receiver answered 410 Gone'
             when coalesce("failing_since", now()) < now() - ${failingFor}::interval then 'No delivery succeeded for ${sql.raw(failingFor)}'
             else "disabled_reason" end
-        where "id"::text = ${id}`.execute(db)
+        where "id" = ${id}::uuid`.execute(db)
     }
     if (!deliveryLog) return
     const status = result.ok ? 'delivered' : 'failed'
     const response = result.ok ? null : result.error.slice(0, 2048)
     await sql`insert into ${sql.raw(`${quoteIdent(schema)}."delivery_log"`)} ("subscription_id", "tenant_id", "event_id", "event_type", "status", "attempt", "status_code", "response", "duration_ms")
-      select "id", "tenant_id", ${event.id}, ${event.type}, ${status}, ${tried}, ${result.status ?? null}, ${response}, ${Math.round(durationMs)} from ${table} where "id"::text = ${id}`.execute(db)
+      select "id", "tenant_id", ${event.id}, ${event.type}, ${status}, ${tried}, ${result.status ?? null}, ${response}, ${Math.round(durationMs)} from ${table} where "id" = ${id}::uuid`.execute(db)
   }
 
   /** Deletes the log's tries older than 30 days. */

@@ -9,6 +9,9 @@ let app: Locale | undefined
 /** The language the screens are in now. */
 export const activeLocale = (): Locale => app ?? fallback
 
+/** The language the screens are in when the app sets none. */
+export const fallbackLocale = (): Locale => fallback
+
 /** The language the screens are in when the app sets none: the browser's, or the one the app was given. */
 export const setFallbackLocale = (locale: Locale) => {
   fallback = locale

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { formatInt } from '../format/number'
 import { Segmented } from '../primitives/segmented'
 import { cn } from '../lib/cn'
-import { PeriodChart } from '../app/charts/period-chart'
+import { PeriodChart } from '../app/charts/lazy-charts'
 import { halfOverHalfDelta, totalCount } from './activity-math'
 import { text } from './messages'
 

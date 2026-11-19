@@ -19,7 +19,7 @@ export const presentedRefreshToken = (path: string | undefined, body: unknown) =
 
 // The provider stores a refresh token as its SHA-256 in unpadded base64url (its default `storeTokens`, which the MCP
 // options keep).
-const storedToken = async (token: string) => base64url.encode(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))))
+export const storedToken = async (token: string) => base64url.encode(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))))
 
 /** The stored row of a refresh token, before the provider handles it. */
 export const findRefreshToken = async (adapter: Adapter, token: string) =>

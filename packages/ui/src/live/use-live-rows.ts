@@ -49,7 +49,7 @@ export const useLiveRows = ({ resources, views, model, columns, filter, orderBy,
   const firstPage = liveFirstPageQuery(options)
   const first = useQuery(firstPage)
   const source = useMemo<RowSource | undefined>(
-    () => (first.data ? { total: first.data.total, loadRows: loader.loadRows, revision: first.dataUpdatedAt } : undefined),
+    () => (first.data ? { total: first.data.total, loadRows: loader.loadRows, cachedRows: loader.cachedRows, revision: first.dataUpdatedAt } : undefined),
     [first.data, first.dataUpdatedAt, loader],
   )
   return { source, error: first.error, isLoading: first.isLoading, page: loader.page, key: firstPage.queryKey }

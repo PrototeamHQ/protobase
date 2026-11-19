@@ -1,4 +1,3 @@
-import { sql } from 'kysely'
 import { activeAdmin } from '../active-admin'
 import { ddl } from '../ddl'
 import type { StoreMigration } from './migration'
@@ -9,9 +8,12 @@ export const userIndexes: StoreMigration = {
   name: 'user_indexes',
   title: 'The indexes that find the active admins and page through the users',
   tables: [],
-  statements: ({ user, userDdl, userColumn: column }) =>
-    userDdl([
-      ddl`create index if not exists user_active_admin_idx on ${user} (id) where ${activeAdmin(sql.id(column('role')), sql.id(column('banned')))}`,
-      ddl`create index if not exists user_created_at_id_idx on ${user} (${column('created_at')}, id)`,
-    ]),
+  statements: ({ table, userDdl }) => {
+    const user = table('user')
+    const u = user.columns
+    return userDdl([
+      ddl`create index if not exists ${user.index('user_active_admin_idx')} on ${user} (id) where ${activeAdmin(u.role, u.banned)}`,
+      ddl`create index if not exists ${user.index('user_created_at_id_idx')} on ${user} (${u.created_at}, id)`,
+    ])
+  },
 }

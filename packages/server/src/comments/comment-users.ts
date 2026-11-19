@@ -1,5 +1,8 @@
+import { sql } from 'kysely'
 import type { AdminAuth } from '../better-auth/create-auth'
 import type { AuthContext } from '../better-auth/organizations/store'
+import { storeSqlOf } from '../better-auth/store/store-sql'
+import { bannedNow } from '../better-auth/token-standing'
 import { betterAuthActorNames } from '../history/actor-names'
 import type { TenantValue } from '../types'
 import { betterAuthOwnerRoles } from '../webhooks/table/owner-roles'
@@ -10,31 +13,34 @@ export type CommentUsers = {
   names(ids: readonly string[]): Promise<Record<string, string>>
   /** Up to `limit` users whose name contains `query`, whatever its case, by name; no banned ones. */
   search(query: string, limit: number): Promise<{ id: string; name: string }[]>
-  /** The role the user acts with now in `tenant` (see `betterAuthOwnerRoles`); none when banned or gone. */
+  /** The role the user acts with now in `tenant` (see `betterAuthOwnerRoles`); none while their ban stands, or when they are gone. */
   roles(user: { id: string; tenant?: TenantValue }): Promise<string[]>
-  /** The address mail to the user goes to; `undefined` when they are banned or gone. */
+  /** The address mail to the user goes to; `undefined` while their ban stands, or when they are gone. */
   email(id: string): Promise<string | undefined>
 }
 
-type UserRow = { id: string; name?: string | null; email?: string | null; banned?: boolean | null }
+type UserRow = { id: string; name?: string | null; email?: string | null; banned?: boolean | null; banExpires?: Date | null }
 
 /** The users of a Better Auth instance, read through its adapters only (see `better-auth/users.ts`). */
 export const betterAuthCommentUsers = (auth: AdminAuth): CommentUsers => ({
   names: betterAuthActorNames(auth),
   roles: betterAuthOwnerRoles(auth),
+  // Only users with a name and no standing ban count towards `limit`, so it is asked of Postgres with them: a ban stands
+  // while it has no end or its end is still to come.
   search: async (query, limit) => {
-    const { adapter } = (await auth.$context) as unknown as AuthContext
-    const users = await adapter.findMany<UserRow>({
-      model: 'user',
-      ...(query !== '' && { where: [{ field: 'name', operator: 'contains', value: query, mode: 'insensitive' }] }),
-      limit,
-      sortBy: { field: 'name', direction: 'asc' },
-    })
-    return users.flatMap((user) => (user.banned || !user.name ? [] : [{ id: user.id, name: user.name }]))
+    const store = storeSqlOf((await auth.$context) as unknown as AuthContext)
+    const user = store.table('user')
+    const { name, banned, ban_expires } = user.columns
+    const now = new Date()
+    const contains = query === '' ? sql`` : sql` and ${name} ilike ${`%${query.replace(/[\\%_]/g, '\\$&')}%`}`
+    const { rows } = await sql<{ id: string; name: string }>`select id, ${name} as name from ${user}
+      where ${name} <> '' and not (${banned} is true and (${ban_expires} is null or ${ban_expires} > ${now}))${contains}
+      order by ${name}, id limit ${limit}`.execute(store.db)
+    return rows.map((user) => ({ id: String(user.id), name: user.name }))
   },
   email: async (id) => {
     const { internalAdapter } = (await auth.$context) as unknown as AuthContext
     const user = (await internalAdapter.findUserById(id)) as UserRow | null
-    return user && !user.banned && user.email ? user.email : undefined
+    return user && !bannedNow(user, new Date()) && user.email ? user.email : undefined
   },
 })

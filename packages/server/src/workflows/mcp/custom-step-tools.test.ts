@@ -13,10 +13,11 @@ const ready = { id: 'b1', version_id: 'v2', runner_id: 'r1', status: 'ready', di
 const failed = { id: 'b2', version_id: 'v1', runner_id: 'r1', status: 'failed', log: 'E: Unable to locate package jqq', started_at: '2026-11-14T10:00:00.000Z', finished_at: '2026-11-14T10:00:05.000Z' }
 
 const page = (items: Row[]): RecordPage => ({ items, next_page_token: '', total_size_estimate: items.length })
-// The records a caller reads, each list by its resource and the value its filter names.
+// The records a caller reads, each list by its resource and its filter: equalities joined by AND, alternatives by OR.
 const listing = (rows: Record<string, Row[]>) => async (resource: string, params: ListParams = {}) => {
-  const value = /"([^"]*)"/.exec(params.filter ?? '')?.[1]
-  return page((rows[resource] ?? []).filter((row) => value === undefined || Object.values(row).includes(value)))
+  const alternatives = (params.filter ?? '').split(' OR ').map((alternative) => [...alternative.matchAll(/(\w+) = (?:"([^"]*)"|(\d+))/g)].map(([, field, text, number]) => [field!, text ?? number!] as const))
+  const matches = (row: Row) => params.filter === undefined || alternatives.some((conditions) => conditions.every(([field, value]) => String(row[field]) === value))
+  return page((rows[resource] ?? []).filter(matches))
 }
 
 const calls = (given: Partial<CustomStepCalls> = {}): CustomStepCalls => ({

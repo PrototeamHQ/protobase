@@ -45,7 +45,7 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
 
 const recordingMailer = () => {
   const sent: MailMessage[] = []
-  return { sent, mailer: { send: async (message: MailMessage) => void sent.push(message) } }
+  return { sent, mailer: { send: async (message: MailMessage) => { sent.push(message); return {} } } }
 }
 
 describe('password reset is on only with mail', () => {

@@ -4,6 +4,7 @@ import { chromium, errors as playwrightErrors } from 'playwright'
 import { routeFiles } from './lib/routed-files.mjs'
 import { withDeadline } from './play-tests/deadline.mjs'
 import { trackFrameRequests } from './play-tests/frame-requests.mjs'
+import { reportLine } from './play-tests/report.mjs'
 import { parseShard, shardOf } from './play-tests/shard.mjs'
 import { exposeTouchInput } from './play-tests/touch-input.mjs'
 
@@ -80,6 +81,8 @@ const playIn = async (context, story, progress) => {
 
 // A story's whole time, above the 30 s Storybook gets to send an event; the slowest stories take under 10 s.
 const storySeconds = 60
+// Closing a page takes well under a second.
+const closeSeconds = 10
 const timedOut = Symbol('timed out')
 
 // A story that has not finished within storySeconds fails, naming what it waited on, and its context closes, so the run
@@ -92,33 +95,31 @@ const playStory = async (story) => {
   // Times show in the viewer's zone, so every page has the same one, whatever the machine's, and one that is not UTC.
   const touch = story.tags.includes('touch')
   const viewport = story.tags.includes('keyboard') ? { width: 402, height: 478 } : touch ? { width: 390, height: 844 } : story.tags.includes('phone') ? { width: 360, height: 740 } : story.tags.includes('wide') ? { width: 1920, height: 1080 } : { width: 1280, height: 720 }
-  const context = await (story.tags.includes('scrollbars') ? scrollbars : browser).newContext({ viewport, timezoneId: 'Europe/Amsterdam', ...(touch && { hasTouch: true, isMobile: true }) })
+  const setUp = (story.tags.includes('scrollbars') ? scrollbars : browser).newContext({ viewport, timezoneId: 'Europe/Amsterdam', ...(touch && { hasTouch: true, isMobile: true }) })
   const progress = { step: 'setting up the page' }
-  const outcome = await withDeadline(playIn(context, story, progress), storySeconds * 1000, timedOut)
-  await context.close()
+  const outcome = await withDeadline(setUp.then((context) => playIn(context, story, progress)), storySeconds * 1000, timedOut)
   // Closing the context ends the calls still waiting on its page: they fail as their target closed, which the timeout
-  // below stands for.
-  if (outcome !== timedOut) return outcome
-  return { name: 'storyTimedOut', message: `did not finish within ${storySeconds} s while ${progress.step}` }
+  // below stands for. The close has a deadline of its own, as does everything a story waits on.
+  const closed = await withDeadline(setUp.then((context) => context.close()), closeSeconds * 1000, timedOut)
+  if (outcome === timedOut) return { name: 'storyTimedOut', message: `did not finish within ${storySeconds} s while ${progress.step}` }
+  if (closed === timedOut) return { name: 'storyTimedOut', message: `its page did not close within ${closeSeconds} s` }
+  return outcome
 }
 
-// Four pages at a time: a story mostly waits on rendering. Results print in story order.
+// Four pages at a time: a story mostly waits on rendering. Each story's line prints as it finishes
+// (play-tests/report.mjs).
 const pages = 4
-const errors = new Array(stories.length)
 let next = 0
+let failed = 0
 await Promise.all(Array.from({ length: pages }, async () => {
   while (next < stories.length) {
-    const i = next++
-    errors[i] = await playStory(stories[i])
+    const story = stories[next++]
+    const started = performance.now()
+    const error = await playStory(story)
+    console.log(reportLine(story, error, performance.now() - started))
+    if (error) failed += 1
   }
 }))
 await browser.close()
 await scrollbars?.close()
-
-let failed = 0
-for (const [i, story] of stories.entries()) {
-  const error = errors[i]
-  console.log(`${error ? 'FAIL' : 'PASS'} ${story.title} / ${story.name}${error ? `\n  ${error.name}: ${error.message}` : ''}`)
-  if (error) failed += 1
-}
 if (failed > 0) process.exitCode = 1

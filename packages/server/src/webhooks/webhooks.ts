@@ -260,7 +260,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
       payload.events.push(delivery.event)
       groups.set(group, payload)
     }
-    for (const [group, payload] of groups) await deliverOrdered.enqueue(db, payload, { group })
+    await deliverOrdered.enqueueMany(db, [...groups].map(([group, payload]) => ({ payload, options: { group } })))
   }
 
   // A change whose event code threw in dispatch, kept as failed on the failed jobs page; a retry after the fix queues
@@ -275,12 +275,13 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
       const { deliveries, failures } = await (await changeDeliveries(db, only))(change)
       if (only !== undefined && failures.length > 0) throw failures[0]!.error
       await db.transaction().execute(async (trx) => {
-        for (const { subscription, event } of deliveries.filter(({ subscription }) => !subscription.options.ordered)) {
+        const unordered = deliveries.filter(({ subscription }) => !subscription.options.ordered)
+        await deliver.enqueueMany(trx, unordered.map(({ subscription, event }) => {
           const payload = { subscription: subscription.name, event, attempt: 1 }
-          await deliver.enqueue(trx, payload, { key: deliveryKey(payload) })
-        }
+          return { payload, options: { key: deliveryKey(payload) } }
+        }))
         await queueOrdered(trx, deliveries)
-        for (const { subscription } of failures) await dispatchChange.enqueue(trx, { change, subscription })
+        await dispatchChange.enqueueMany(trx, failures.map(({ subscription }) => ({ payload: { change, subscription } })))
       })
     },
   })
@@ -308,16 +309,17 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
     const now = deliveries.filter(({ subscription }) => !subscription.options.ordered)
     const results = await mapLimit(now, parallelAttempts, ({ subscription, event }) => attempt(subscription, event, db, 1, signal))
     await db.transaction().execute(async (trx) => {
-      for (const [index, delivery] of now.entries()) {
+      const retries = now.flatMap((delivery, index) => {
         const result = results[index]!
-        if (result.ok) continue
+        if (result.ok) return []
         const delay = result.final ? undefined : nextRetryDelay(1, result.retryAfterMs)
-        if (delay === undefined) continue
+        if (delay === undefined) return []
         const payload = { subscription: delivery.subscription.name, event: delivery.event, attempt: 2, lastError: result.error }
-        await deliver.enqueue(trx, payload, { key: deliveryKey(payload), delay })
-      }
+        return [{ payload, options: { key: deliveryKey(payload), delay } }]
+      })
+      await deliver.enqueueMany(trx, retries)
       await queueOrdered(trx, deliveries)
-      for (const { change, subscription } of failures) await dispatchChange.enqueue(trx, { change, ...(subscription !== undefined && { subscription }) })
+      await dispatchChange.enqueueMany(trx, failures.map(({ change, subscription }) => ({ payload: { change, ...(subscription !== undefined && { subscription }) } })))
       await writeHistory(trx, schema, changes.filter((change) => deps.registry.find(change.resource)?.model.history))
       await writeNotices(trx, schema, liveNotices(models, changes))
       await onChanges?.(trx, changes)

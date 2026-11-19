@@ -13,6 +13,7 @@ import { signUpTakes } from './sign-up-domains'
 import type { SignUpField } from './sign-up-fields'
 import { consumeSignUpCode, issueSignUpCode } from './sign-up-code'
 import { consumeSignUpTicket, issueSignUpTicket } from './sign-up-ticket'
+import { exists } from '../store/store-reads'
 
 export type SignUpPluginOptions = {
   /** The role every account made here gets, whatever the request says. */
@@ -55,7 +56,7 @@ export const signUpPlugin = ({ role, domains, fields, mail, defaultPolicy }: Sig
         const { email } = ctx.body
         if (!signUpTakes(email, domains)) throw domainNotAllowed()
         const { internalAdapter, adapter } = ctx.context
-        if ((await adapter.count({ model: 'user' })) === 0) throw noAdminYet()
+        if (!(await exists(adapter, 'user', []))) throw noAdminYet()
         const sending = (await internalAdapter.findUserByEmail(email))
           ? sendAuthEmail(mail, 'accountExistsEmail', email, {}, ctx.context.baseURL, headersLocale(ctx.headers))
           : sendAuthEmail(mail, 'signUpCodeEmail', email, { code: await issueSignUpCode(ctx.context, email), minutes: codeMinutes }, ctx.context.baseURL, headersLocale(ctx.headers))
@@ -70,7 +71,7 @@ export const signUpPlugin = ({ role, domains, fields, mail, defaultPolicy }: Sig
       verifySignUpCode: createAuthEndpoint(signUpPaths.verifyCode, { method: 'POST', body: z.object({ email: address, code: z.string().trim().min(1) }) }, async (ctx) => {
         const { email, code } = ctx.body
         if (!signUpTakes(email, domains)) throw domainNotAllowed()
-        if ((await ctx.context.adapter.count({ model: 'user' })) === 0) throw noAdminYet()
+        if (!(await exists(ctx.context.adapter, 'user', []))) throw noAdminYet()
         await consumeSignUpCode(ctx.context, email, code)
         return ctx.json({ ticket: await issueSignUpTicket(ctx.context, email) })
       }),
@@ -88,7 +89,7 @@ export const signUpPlugin = ({ role, domains, fields, mail, defaultPolicy }: Sig
         async (ctx) => {
           const { ticket, name = '', password } = ctx.body
           const { internalAdapter, adapter } = ctx.context
-          if ((await adapter.count({ model: 'user' })) === 0) throw noAdminYet()
+          if (!(await exists(adapter, 'user', []))) throw noAdminYet()
           checkNewAccountPassword(effectiveSignInPolicy((await readSignInPolicy(adapter, defaultPolicy)).policy, { mail: true }), password)
           const email = await consumeSignUpTicket(ctx.context, ticket)
           if (!signUpTakes(email, domains)) throw domainNotAllowed()

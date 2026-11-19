@@ -86,4 +86,13 @@ export type JobDefinition<Payload = any> = {
    * writes or not at all. With a `key` it returns the waiting job's id when that one is kept.
    */
   enqueue(db: Db, ...args: Payload extends undefined ? [payload?: Payload, options?: EnqueueOptions] : [payload: Payload, options?: EnqueueOptions]): Promise<string>
+  /**
+   * Adds many jobs in one statement, or one for those with a `key` and one for those without, and returns their ids in
+   * order: in `db`'s own transaction when it is one, as `enqueue` does. A key twice keeps one waiting job, as two
+   * enqueues do. Not with `mode: 'replace'`: `enqueue` replaces a waiting job one at a time.
+   */
+  enqueueMany(db: Db, jobs: readonly EnqueuedJob<Payload>[]): Promise<string[]>
 }
+
+/** One job of an `enqueueMany`: its payload and where and how it lands. */
+export type EnqueuedJob<Payload = unknown> = (Payload extends undefined ? { payload?: Payload } : { payload: Payload }) & { options?: EnqueueOptions }

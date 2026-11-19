@@ -1,4 +1,5 @@
 import { sql, type Kysely } from 'kysely'
+import { resolveNames } from '../names/resolve-names'
 import { ddl } from './ddl'
 import { migrationNames, type StoreMigration } from './migrations/migration'
 import { storeMigrations } from './migrations'
@@ -28,7 +29,7 @@ const madeColumns = async (db: Kysely<any>, names: StoreNames) => {
   const tx = await db.startTransaction().execute()
   const run = async () => {
     await sql`create schema ${sql.id(scratchSchema)}`.execute(tx)
-    const scratch = migrationNames({ ...names, schema: scratchSchema })
+    const scratch = migrationNames({ ...names, schema: scratchSchema, names: resolveNames({ ...names.names.input, schema: scratchSchema }) })
     const made: Column[][] = []
     let before: Column[] = []
     for (const migration of storeMigrations) {
@@ -45,7 +46,7 @@ const madeColumns = async (db: Kysely<any>, names: StoreNames) => {
 /** Whether the store has any table of the migrations besides the user table, which may be another system's. */
 export const storeHasTables = async (db: Kysely<any>, names: StoreNames) => {
   const tables = new Set((await columnsIn(db, names.schema)).map((column) => column.table))
-  return storeMigrations.some((migration) => migration.tables.some((table) => tables.has(table)))
+  return storeMigrations.some((migration) => migration.tables.some((table) => tables.has(names.names.tables[table]!.name)))
 }
 
 type Adoption = { adopted: Array<{ migration: StoreMigration; columns: Column[] }>; pending: StoreMigration[] }

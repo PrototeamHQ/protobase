@@ -6,7 +6,8 @@ import type { AuthMail } from './auth-mail/send-auth-email'
 import type { ResolvedOperator } from './operator-provider'
 import type { SignInPolicy } from './sign-in-policy'
 import { isOAuthPath, isRefusedForStaff, isStaffSession, staffCannotChange, staffCannotConnect } from './staff-checks'
-import { endStaffSignIn, listStaffSignIns, staffSignInOfSession, staffSignInSchema } from './staff-log'
+import type { BetterAuthNames } from './names/better-auth-names'
+import { endStaffSignIn, listStaffSignIns, staffSignInModel, staffSignInOfSession } from './staff-log'
 import { staffSignInEndpoints } from './staff-sign-in-endpoints'
 
 export type StaffPluginOptions = {
@@ -16,6 +17,8 @@ export type StaffPluginOptions = {
   mail?: AuthMail
   /** The policy until an admin saves one. */
   defaultPolicy: SignInPolicy
+  /** The names of the log's table and its columns. */
+  names: BetterAuthNames
 }
 
 /**
@@ -25,10 +28,10 @@ export type StaffPluginOptions = {
  * staff sign-in is logged for the app's admins. The plugin is there without an operator provider too, so its table
  * exists from the first auth migration.
  */
-export const staffSignInPlugin = ({ operator, mail, defaultPolicy }: StaffPluginOptions) =>
+export const staffSignInPlugin = ({ operator, mail, defaultPolicy, names }: StaffPluginOptions) =>
   ({
     id: 'protobase-staff-sign-in',
-    schema: staffSignInSchema,
+    schema: names.tables(staffSignInModel),
     endpoints: {
       ...(operator && staffSignInEndpoints({ operator, defaultPolicy, ...(mail && { mail }) })),
 

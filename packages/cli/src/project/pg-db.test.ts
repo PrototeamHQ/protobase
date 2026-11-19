@@ -16,10 +16,11 @@ const fakePg = () => {
       super()
       created.push(this)
     }
-    connect = async () => ({
-      query: async () => ({ rows: [{ max: this.options.max }], command: 'SELECT', rowCount: 1 }),
-      release: () => {},
-    })
+    connect = async () =>
+      Object.assign(new EventEmitter(), {
+        query: async () => ({ rows: [{ max: this.options.max }], command: 'SELECT', rowCount: 1 }),
+        release: () => {},
+      })
     end = async () => {
       this.ending = true
     }

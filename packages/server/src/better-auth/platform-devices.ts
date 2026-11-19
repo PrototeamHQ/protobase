@@ -6,6 +6,7 @@ import type { AuthContext } from './organizations/store'
 import { deviceLinkRows, endDeviceSessions } from './platform-device-store'
 import type { SignInRefusal } from './sign-in-enforcement'
 import { isStaffSession } from './staff-checks'
+import type { BetterAuthNames } from './names/better-auth-names'
 
 /** The claim of a device provider's ID token that names the device, such as "Sanne's phone", shown on the account page. */
 export const deviceNameClaim = 'device_name'
@@ -16,25 +17,6 @@ export const refusedAccountModel = 'refusedAccount'
 /** Better Auth's model for the sessions a device account began: one row per session, which goes with the session. */
 export const deviceSessionModel = 'deviceSession'
 
-export const devicesSchema = {
-  [refusedAccountModel]: {
-    modelName: 'refused_account',
-    fields: {
-      providerId: { type: 'string', required: true, fieldName: 'provider_id' },
-      accountId: { type: 'string', required: true, fieldName: 'account_id' },
-      userId: { type: 'string', required: true, fieldName: 'user_id' },
-      createdAt: { type: 'date', required: true, fieldName: 'created_at' },
-    },
-  },
-  [deviceSessionModel]: {
-    modelName: 'device_session',
-    fields: {
-      sessionId: { type: 'string', required: true, fieldName: 'session_id' },
-      accountId: { type: 'string', required: true, fieldName: 'account_id' },
-      createdAt: { type: 'date', required: true, fieldName: 'created_at' },
-    },
-  },
-} as const
 
 export const deviceSignedOut: SignInRefusal = { code: 'DEVICE_SIGNED_OUT', message: 'This device was signed out of the account; it cannot sign in again.' }
 
@@ -126,10 +108,10 @@ export const deviceNameOf = (idToken: string | null | undefined) => {
  * sign-in starts is noted as the device's (`saveDeviceSession`), also when it starts only once the second step is taken.
  * After the two-factor plugin, so a sign-in it holds for the second step has no session yet.
  */
-export const deviceLinksPlugin = (providers: { provider: string; name: string }[]) =>
+export const deviceLinksPlugin = (providers: { provider: string; name: string }[], names: BetterAuthNames) =>
   ({
     id: 'protobase-device-links',
-    schema: devicesSchema,
+    schema: names.tables(refusedAccountModel, deviceSessionModel),
     hooks: {
       after: [
         {

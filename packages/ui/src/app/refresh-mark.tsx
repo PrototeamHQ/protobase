@@ -7,10 +7,11 @@ import { text } from './messages'
 /**
  * Beside the page's title while the page shows data from the start cache: a small spinner while it refreshes, blank for
  * its first 180 ms, or a warning, in the same spot, once the refresh failed and the cached data stays. One status region
- * says which, so a screen reader hears when the refresh failed.
+ * says which, so a screen reader hears when the refresh failed. It is the one thing a refresh shows: the page itself
+ * stays as it was drawn (`data-fetching` names it so).
  */
 export const RefreshMark = ({ failed }: { failed: boolean }) => (
-  <span className="inline-flex items-center text-muted-foreground">
+  <span data-fetching className="inline-flex items-center text-muted-foreground">
     <span role="status" className="sr-only">
       {failed ? text('refreshFailed') : text('refreshing')}
     </span>

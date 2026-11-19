@@ -5,6 +5,8 @@ const sendMail = vi.fn(async () => ({}))
 const createTransport = vi.fn(() => ({ sendMail }))
 vi.mock('nodemailer', () => ({ createTransport }))
 
+const shopMessageId = /^<[0-9a-f]{32}@shop\.example\.com>$/
+
 describe('smtpMailer', () => {
   it('greets the server with the sender domain and sends from the sender', async () => {
     const smtpUrl = 'smtps://tenant:s3cret@relay.example.net:465'
@@ -22,28 +24,60 @@ describe('smtpMailer', () => {
       greetingTimeout: 10_000,
       socketTimeout: 20_000,
     })
-    expect(sendMail).toHaveBeenCalledWith({ from: 'noreply@erp.acme.example.com', to: 'ada@example.com', subject: 'Reset', text: 'Hello' })
+    expect(sendMail).toHaveBeenCalledWith({ from: 'noreply@erp.acme.example.com', messageId: expect.any(String), to: 'ada@example.com', subject: 'Reset', text: 'Hello' })
+  })
+
+  it('resolves to the Message-ID it gives the message, on the sender domain and new for each message', async () => {
+    const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@shop.example.com' })
+    const first = await mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello' })
+    expect(sendMail).toHaveBeenLastCalledWith(expect.objectContaining({ messageId: first.messageId }))
+    const second = await mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello' })
+    expect(first.messageId).toMatch(shopMessageId)
+    expect(second.messageId).not.toBe(first.messageId)
+    expect(second.messageId).toMatch(shopMessageId)
+    expect(sendMail).toHaveBeenLastCalledWith(expect.objectContaining({ messageId: second.messageId }))
+  })
+
+  it('gives a new Message-ID even when the message object carries a messageId of its own', async () => {
+    const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@shop.example.com' })
+    const message = { to: 'ada@example.com', subject: 'Hello', text: 'Hello', messageId: '<old@shop.example.com>' }
+    const first = await mailer.send(message)
+    expect(sendMail).toHaveBeenLastCalledWith(expect.objectContaining({ messageId: first.messageId }))
+    const second = await mailer.send(message)
+    expect(first.messageId).not.toBe('<old@shop.example.com>')
+    expect(second.messageId).not.toBe(first.messageId)
+    expect(second.messageId).toMatch(shopMessageId)
+    expect(sendMail).toHaveBeenLastCalledWith(expect.objectContaining({ messageId: second.messageId }))
   })
 
   it('sends an HTML part beside the plain text', async () => {
     const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@acme.example.com' })
     await mailer.send({ to: 'ada@example.com', subject: 'Welcome', text: 'Hello', html: '<p>Hello</p>' })
-    expect(sendMail).toHaveBeenLastCalledWith({ from: 'noreply@acme.example.com', to: 'ada@example.com', subject: 'Welcome', text: 'Hello', html: '<p>Hello</p>' })
+    expect(sendMail).toHaveBeenLastCalledWith({ from: 'noreply@acme.example.com', messageId: expect.any(String), to: 'ada@example.com', subject: 'Welcome', text: 'Hello', html: '<p>Hello</p>' })
   })
 
   it('shows the name, when it has one, as the sender display name', async () => {
     const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@shop.example.com', name: 'Shop "North"' })
     await mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello' })
-    expect(sendMail).toHaveBeenLastCalledWith({ from: { name: 'Shop "North"', address: 'noreply@shop.example.com' }, to: 'ada@example.com', subject: 'Hello', text: 'Hello' })
+    expect(sendMail).toHaveBeenLastCalledWith({ from: { name: 'Shop "North"', address: 'noreply@shop.example.com' }, messageId: expect.any(String), to: 'ada@example.com', subject: 'Hello', text: 'Hello' })
   })
 
   it('sends header fields of the message, and refuses one that would break the header', async () => {
     const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@shop.example.com' })
     const headers = { 'List-Unsubscribe': '<https://shop.example.com/unsubscribe/7>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
     await mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello', headers })
-    expect(sendMail).toHaveBeenLastCalledWith({ from: 'noreply@shop.example.com', to: 'ada@example.com', subject: 'Hello', text: 'Hello', headers })
+    expect(sendMail).toHaveBeenLastCalledWith({ from: 'noreply@shop.example.com', messageId: expect.any(String), to: 'ada@example.com', subject: 'Hello', text: 'Hello', headers })
     await expect(mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello', headers: { 'X-Note': 'a\r\nBcc: eve@example.com' } })).rejects.toThrow('Mail header X-Note has a line break')
     await expect(mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello', headers: { 'X Note': 'a' } })).rejects.toThrow('Mail header name "X Note" is not a valid header field name')
+  })
+
+  it("refuses bulk mail that did not come through a job's mail, and drops a transactional topic", async () => {
+    const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@shop.example.com' })
+    sendMail.mockClear()
+    await expect(mailer.send({ to: 'ada@example.com', subject: 'News', text: 'Hi', bulk: true, topic: 'newsletter' })).rejects.toThrow(/job's mail/)
+    expect(sendMail).not.toHaveBeenCalled()
+    await mailer.send({ to: 'ada@example.com', subject: 'Reset', text: 'Code', topic: 'account' })
+    expect(sendMail).toHaveBeenLastCalledWith({ from: 'noreply@shop.example.com', messageId: expect.any(String), to: 'ada@example.com', subject: 'Reset', text: 'Code' })
   })
 
   it('sends attachments as their bytes alone, never reading a file or URL', async () => {
@@ -52,6 +86,7 @@ describe('smtpMailer', () => {
     await mailer.send({ to: 'ada@example.com', subject: 'Invoice', text: 'Attached.', attachments: [{ filename: 'invoice.pdf', content, contentType: 'application/pdf' }] })
     expect(sendMail).toHaveBeenLastCalledWith({
       from: 'noreply@shop.example.com',
+      messageId: expect.any(String),
       to: 'ada@example.com',
       subject: 'Invoice',
       text: 'Attached.',

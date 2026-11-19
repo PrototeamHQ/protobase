@@ -21,27 +21,30 @@ export const addEveryUser = async (auth: AdminAuth, organizationKey: string): Pr
   const organization = await findOrganizationByKey(auth, organizationKey)
   const store = storeSqlOf((await auth.$context) as unknown as AuthContext)
   const holdable = membershipRoles(auth.organizations.definitions)
-  const role = store.userColumn('role')
-  const names = roleNames(sql`u.${role}`)
+  const user = store.table('user')
+  const u = user.columns
+  const member = store.table('member')
+  const m = member.columns
+  const names = roleNames(sql`u.${u.role}`)
   const now = new Date()
   return store.db.transaction().execute(async (trx) => {
     await sql`select from ${store.table('organization')} where id = ${organization.id} for update`.execute(trx)
     const { rows } = await sql<JoinedUser>`with joined as (
-      insert into ${store.table('member')} (id, organization_id, user_id, role, app_roles, created_at)
+      insert into ${member} (id, ${m.organization_id}, ${m.user_id}, ${m.role}, ${m.app_roles}, ${m.created_at})
       select ${store.newId}, ${organization.id}, u.id,
         case when 'admin' = any(${names}) then 'owner' else 'member' end,
         case when 'admin' = any(${names}) then to_jsonb(${holdable}::text[])
           else coalesce((select jsonb_agg(name order by place) from unnest(${names}) with ordinality as held(name, place) where name = any(${holdable}::text[])), '[]'::jsonb) end,
         ${now}
-      from ${store.user} u
-      where not exists (select from ${store.table('member')} m where m.organization_id = ${organization.id} and m.user_id = u.id)
-      returning user_id, role, app_roles
+      from ${user} u
+      where not exists (select from ${member} m where m.${m.organization_id} = ${organization.id} and m.${m.user_id} = u.id)
+      returning ${m.user_id} as user_id, ${m.role} as role, ${m.app_roles} as app_roles
     ), demoted as (
-      update ${store.user} u set ${role} = 'user', ${store.userColumn('updatedAt')} = ${now} from joined where u.id = joined.user_id and joined.role = 'member'
+      update ${user} u set ${u.role} = 'user', ${u.updated_at} = ${now} from joined where u.id = joined.user_id and joined.role = 'member'
     )
-    select u.${store.userColumn('email')} as email, joined.role, joined.app_roles as "appRoles" from joined
-      join ${store.user} u on u.id = joined.user_id
-      order by u.${store.userColumn('createdAt')}, u.id`.execute(trx)
+    select u.${u.email} as email, joined.role, joined.app_roles as "appRoles" from joined
+      join ${user} u on u.id = joined.user_id
+      order by u.${u.created_at}, u.id`.execute(trx)
     return rows
   })
 }

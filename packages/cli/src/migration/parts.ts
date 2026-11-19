@@ -1,4 +1,4 @@
-import { authSchemaMigration, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, capturedBy, derivedMigration, jobsSchemaMigration, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, sqlSends, statusMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
+import { authSchemaMigration, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, capturedBy, derivedMigration, jobsSchemaMigration, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
 import { authMigrationTitle } from '../auth/migration-file'
 import type { MigrationProject } from './load-project'
 
@@ -38,6 +38,7 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
       ? [{ name: 'notifications', title: 'The tables of notifications', sql: () => notificationsMigration(project.db, project.notifications, project.auth) }]
       : []),
     ...(project.status ? [{ name: 'status', title: "The statuses table of people's own status", sql: () => statusMigration(project.db, project.status!, project.auth) }] : []),
+    ...(project.unsubscribe ? [{ name: 'unsubscribes', title: 'The table of who unsubscribed from which topic of the bulk mail', sql: () => unsubscribesMigration(project.db) }] : []),
     ...(project.calls ? [{ name: 'calls', title: 'The calls on records, who is in them, whom they ring, their guests, and the signals between the processes serving the app', sql: () => callsMigration(project.db, project.events) }] : []),
     ...(relayed(project.realtime) ? [{ name: 'realtime_relay', title: 'The relay of Realtime broadcasts and presence between the processes serving the app', sql: () => realtimeRelayMigration(project.db) }] : []),
     ...(project.userTables ? [{ name: 'user_tables', title: 'The schemas of the tables users add and of their definitions, and pg_trgm', sql: () => userTablesMigration(project.db) }] : []),

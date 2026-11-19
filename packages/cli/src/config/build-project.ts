@@ -1,16 +1,13 @@
-import type { PostgresPool } from 'kysely'
 import type { Db } from '@protobase/query'
 import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, CallsOptions, DerivedCompute, Mailer, EventsOptions, FilesOptions, FunctionSource, HistoryOptions, JobDefinition, MobileConfig, NotificationsOptions, RealtimeOptions, StatusOptions, WebhooksOptions, WorkflowsOptions } from '@protobase/server'
-import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions, workflowPlugins } from '@protobase/server/internal'
+import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions, isOverSignIn, workflowPlugins } from '@protobase/server/internal'
 import type { MergedConfig } from './merge-config'
 import { projectDerived, projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks, projectWorkflows } from './project-parts'
+import { projectUnsubscribe } from './unsubscribe-config'
 import { userTablesOn } from './user-tables-config'
 
-/**
- * The app's database: Kysely over its pool, and the pool itself, which its Better Auth store shares; a test's database
- * without auth may have none.
- */
-export type AppDatabase = { db: Db; pool?: PostgresPool }
+/** The app's database: Kysely over its pool, which its Better Auth store's queries run through. */
+export type AppDatabase = { db: Db }
 
 /**
  * The app's own mailer, the default export of its auth/mailer.ts: what sign-in and the jobs (`context.mail`) both send
@@ -22,16 +19,15 @@ export const projectMailer = async (config: MergedConfig) => (await config.authF
  * The app's sign-in, built from `auth` with the app's URL, secrets, signing key rotation and name, the hooks of its
  * auth/hooks.ts and the app's mailer when it has them; none without `auth`.
  */
-export const projectAuth = async (config: MergedConfig, { db, pool }: AppDatabase, workflows?: WorkflowsOptions): Promise<AdminAuth | undefined> => {
+export const projectAuth = async (config: MergedConfig, { db }: AppDatabase, workflows?: WorkflowsOptions): Promise<AdminAuth | undefined> => {
   if (!config.auth) return undefined
-  if (!pool) throw new Error("auth needs the app's pool, which its store shares")
   const { url, secret, previousSecrets, signingKeyDays, signingKeyGraceDays, name } = config
   if (!url) throw new Error('Sign-in needs the app\'s public URL: set PROTOBASE_URL, such as https://admin.example.com, or url in protobase.config.ts')
   if (!secret) throw new Error('Sign-in needs the app\'s secret: set PROTOBASE_SECRET to the output of `openssl rand -base64 32`, or secret in protobase.config.ts')
   const [hooks, mailer] = await Promise.all([config.authFiles?.module('auth/hooks.ts')?.(), projectMailer(config)])
   return buildAppAuth(
     { ...(config.auth || {}), baseURL: url, secret, ...(previousSecrets && { previousSecrets }), ...(signingKeyDays !== undefined && { signingKeyDays }), ...(signingKeyGraceDays !== undefined && { signingKeyGraceDays }), ...(name && { appName: name }) },
-    { pool, db, ...(hooks && { hooks: hooks as AuthHooks }), ...(mailer && { mailer }), ...(workflows && { workflowConnections: workflowConnectionsOf(workflows) }) },
+    { db, ...(hooks && { hooks: hooks as AuthHooks }), ...(mailer && { mailer }), ...(workflows && { workflowConnections: workflowConnectionsOf(workflows) }) },
   )
 }
 
@@ -43,12 +39,15 @@ const workflowConnectionsOf = (workflows: WorkflowsOptions) => ({
 
 /**
  * How the API verifies tokens: the default export of the app's auth/authenticate.ts when it has one, such as a
- * `jwtAuthenticator` for tokens of another system; otherwise the app's sign-in with the `authenticate` settings.
+ * `jwtAuthenticator` for tokens of another system, or one made over the app's sign-in (`overSignIn`); otherwise the
+ * app's sign-in with the `authenticate` settings.
  */
 export const projectAuthenticate = async (config: MergedConfig, auth: AdminAuth | undefined): Promise<Authenticator> => {
   const own = config.sources.map(({ files }) => files.module('auth/authenticate.ts')).findLast(Boolean)
-  if (own) return (await own()).default as Authenticator
-  return buildAuthenticator(config.authenticate, auth)
+  if (!own) return buildAuthenticator(config.authenticate, auth)
+  const exported = (await own()).default
+  if (isOverSignIn(exported)) return exported.overSignIn(buildAuthenticator(config.authenticate, auth))
+  return exported as Authenticator
 }
 
 /** Everything the app runs with, built from its config at serve time: what `createAdmin` takes, and the app's own jobs. */
@@ -68,6 +67,8 @@ export type BuiltProject = {
   realtime?: RealtimeOptions
   notifications?: NotificationsOptions
   status?: StatusOptions
+  /** The one-click unsubscribe of bulk mail, on the app's URL (`projectUnsubscribe`). */
+  unsubscribe?: { appUrl: string }
   calls?: CallsOptions
   jobs: JobDefinition[]
   /** The derived values' compute functions, by `<resource>.<name>` (`projectDerived`). */
@@ -97,6 +98,7 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
   ])
   const jobs = projectJobs(config)
   const derived = projectDerived(config)
+  const unsubscribe = projectUnsubscribe(config)
   // The installed app's colours, the app's other settings being the config's.
   const identity = config.themeColor || config.backgroundColor ? { ...(config.themeColor && { themeColor: config.themeColor }), ...(config.backgroundColor && { backgroundColor: config.backgroundColor }) } : undefined
   return {
@@ -115,6 +117,7 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
     ...(notifications && { notifications }),
     ...(config.status && { status: checkStatusOptions(config.status) }),
     ...(config.calls && { calls: checkCallsOptions(config.calls) }),
+    ...(unsubscribe && { unsubscribe }),
     ...(mailer && { mailer }),
     ...(config.mobile && { mobile: config.mobile }),
     ...(config.secret && { secret: config.secret }),

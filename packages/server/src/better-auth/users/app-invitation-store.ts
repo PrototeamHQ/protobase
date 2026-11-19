@@ -32,8 +32,10 @@ const invitationsOf = (email: string): Where[] => [
 /** The pending app invitations, oldest first, as Postgres filters and orders them; expired ones are left out. */
 export const listAppInvitations = async (context: AuthContext) => {
   const store = storeSqlOf(context)
-  const { rows } = await sql<Row>`select identifier, value, expires_at as "expiresAt" from ${store.table('verification')}
-    where identifier like ${sql.lit(`${prefix}%`)} and expires_at > ${new Date()} order by created_at, id`.execute(store.db)
+  const verification = store.table('verification')
+  const { identifier, value, expires_at, created_at } = verification.columns
+  const { rows } = await sql<Row>`select ${identifier} as identifier, ${value} as value, ${expires_at} as "expiresAt" from ${verification}
+    where ${identifier} like ${sql.lit(`${prefix}%`)} and ${expires_at} > ${new Date()} order by ${created_at}, id`.execute(store.db)
   return rows.map(invitationOf)
 }
 

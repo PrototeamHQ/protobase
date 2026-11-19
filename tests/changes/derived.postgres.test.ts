@@ -27,15 +27,15 @@ let duringRun: { key: string; run: () => Promise<void> } | undefined
 // How many times each record's function ran.
 const runs = new Map<string, number>()
 
-// "late" once an open task is older than two hours, "open" while any is open, else "done".
+// "late" once an open task is older than two hours, "open" while any is open, else "done": the oldest open task decides.
 const verdict: DerivedCompute = async (key, { db, clock }) => {
   runs.set(key, (runs.get(key) ?? 0) + 1)
-  const open = await db.selectFrom('tasks').select(['created_at']).where('objective_id', '=', Number(key)).where('status', '=', 'open').execute()
+  const oldest = await db.selectFrom('tasks').select(['created_at']).where('objective_id', '=', Number(key)).where('status', '=', 'open').orderBy('created_at').limit(1).executeTakeFirst()
   const interfere = duringRun?.key === key ? duringRun : undefined
   if (interfere) duringRun = undefined
   await interfere?.run()
-  if (open.length === 0) return 'done'
-  return open.some((task) => clock.olderThan(task.created_at, '2 hours')) ? 'late' : 'open'
+  if (!oldest) return 'done'
+  return clock.olderThan(oldest.created_at, '2 hours') ? 'late' : 'open'
 }
 
 describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postgres', () => {
@@ -228,5 +228,37 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
     await markStale(db, [ref])
     expect(await sql`select 1 from derived.values where name = 'objectives.verdict'`.execute(db)).toMatchObject({ rows: [] })
     expect(await derivedMigration(db, models)).toContain(`select jobs.enqueue('derived.fill'`)
+  })
+})
+
+describe.skipIf(!(await postgresTemplateReady('jobs')))('filling a newly declared value on Postgres', () => {
+  it('queues every one of 1,200 records, past the first page, while records of a page already read are deleted', async () => {
+    const pg = await openPostgresDatabase('jobs')
+    const { db } = pg
+    await pg.exec(`create table objectives (id integer generated always as identity primary key, title text not null, verdict text);
+      create table tasks (id integer generated always as identity primary key, objective_id integer not null, status text not null, created_at timestamptz not null default now());
+      insert into objectives (title) select 'Objective ' || i from generate_series(1, 1200) i`)
+    const models = [objectives.toModel(), tasks.toModel()]
+    await pg.exec((await changesMigration(db, models))!)
+    await pg.exec((await derivedMigration(db, models))!)
+    // Once the first page is queued, ten of its records go: paging by offset would then pass over ten of the next page.
+    await pg.exec(`create table deleted_once (done boolean);
+      create function delete_once() returns trigger language plpgsql as $$ begin
+        if not exists (select from deleted_once) then insert into deleted_once values (true); delete from objectives where id <= 10; end if;
+        return null;
+      end $$;
+      create trigger delete_once after insert on derived.values for each statement execute function delete_once()`)
+    const admin = createAdmin({ resources: [objectives, tasks], db, authenticate: () => ({ user: { id: 'u1', roles: ['admin'] } }), derived: { 'objectives.verdict': verdict }, options: { statementTimeoutMs } })
+    const runtime = await startJobs({ db, jobs: admin.jobs, work: false, onError: (error) => { throw error } })
+    try {
+      const fill = admin.jobs.find((job) => job.name === 'derived.fill')!
+      await fill.options.run({ name: 'objectives.verdict' }, { db } as never)
+    } finally {
+      await runtime.stop()
+    }
+    const { rows } = await sql<{ missing: number; queued: number }>`select count(*) filter (where v.key is null)::int as missing, count(j.id)::int as queued from objectives o
+      left join derived.values v on v.name = 'objectives.verdict' and v.key = o.id::text
+      left join jobs.job j on j.name = 'derived.compute' and j.singleton_key = 'change:objectives.verdict:' || o.id`.execute(db)
+    expect(rows).toEqual([{ missing: 0, queued: 1190 }])
   })
 })

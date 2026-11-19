@@ -1,14 +1,14 @@
 import { Kysely, PostgresDialect } from 'kysely'
 import pg from 'pg'
 import { f, resource } from '@protobase/schema'
-import type { CreateAuthOptions } from '@protobase/server'
-import { createAuth } from '@protobase/server/internal'
+import type { AuthSettings } from '@protobase/server'
+import { appAuthOptions, createAuth } from '@protobase/server/internal'
 import { supabaseUsers } from '../../packages/cli/src/supabase/auth-config'
 
 // Auth layouts other than the wizard's, on the stack's database, for what they guard: only the store's names are
 // read, so its tables need not exist.
 
-type UserTableOptions = NonNullable<CreateAuthOptions['users']>
+type UserTableOptions = NonNullable<AuthSettings['users']>
 
 /** A pool on `url`, with `searchPath` as the search path when given. */
 const poolOn = (url: string, searchPath?: string) => new pg.Pool({ connectionString: url, max: 1, ...(searchPath && { options: `-c search_path=${searchPath}` }) })
@@ -19,7 +19,8 @@ export const kyselyOn = (url: string, searchPath?: string) => new Kysely<any>({ 
 /** An auth whose store is in `schema`, with `users`, on the database at `url`; `close` ends its pool. */
 export const authOn = (url: string, schema: string, users: UserTableOptions) => {
   const pool = poolOn(url)
-  const auth = createAuth({ database: { dialect: new PostgresDialect({ pool }), type: 'postgres', schemaName: schema }, baseURL: 'http://localhost', secret: 'guard-layouts-test-secret-0123456789', mailer: false, users })
+  const db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
+  const auth = createAuth(appAuthOptions({ schema, baseURL: 'http://localhost', secret: 'guard-layouts-test-secret-0123456789', mailer: false, users }, { db }))
   return { auth, close: () => pool.end() }
 }
 

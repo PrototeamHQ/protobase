@@ -7,5 +7,5 @@ export const mailSenderNames: StoreMigration = {
   name: 'mail_sender_names',
   title: 'The display names of the From addresses people send mail from',
   tables: [],
-  statements: ({ table }) => [ddl`alter table ${table('mail_sender')} add column name text`],
+  statements: ({ table }) => [ddl`alter table ${table('mail_sender')} add column ${table('mail_sender').columns.name} text`],
 }

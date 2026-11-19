@@ -4,6 +4,7 @@ import type { KeyValue } from '@protobase/schema'
 import type { Db } from '@protobase/query'
 import type { ResourceChange } from '../../changes/resource-change'
 import { defineJob } from '../../jobs/define-job'
+import type { EnqueuedJob } from '../../jobs/job-types'
 import type { Row } from '../../types'
 import { readyAt, readyWhen, resolveTimeTerms } from '../ready/ready-when'
 import { orRefusal, readyContext, startIfReady, type ReadyInput } from '../ready/ready-start'
@@ -51,13 +52,13 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
     },
   })
 
-  // Queues the check of one record at the time it becomes ready; a record without a time it needs starts nothing.
-  const queueCheck = async (db: Db, trigger: { id: string; generation: number }, primaryKey: readonly string[], timeTerms: Parameters<typeof readyAt>[0], record: Row) => {
+  // The check of one record at the time it becomes ready, to queue; a record without a time it needs has none.
+  const checkOf = (trigger: { id: string; generation: number }, primaryKey: readonly string[], timeTerms: Parameters<typeof readyAt>[0], record: Row): EnqueuedJob<ReadyCheckPayload>[] => {
     const at = readyAt(timeTerms, record, new Date())
-    if (!at) return
+    if (!at) return []
     const key = Object.fromEntries(primaryKey.map((name) => [name, record[name]]))
     const recordKey = encodeKey(primaryKey.map((name) => record[name] as KeyValue))
-    await readyCheck.enqueue(db, { trigger: trigger.id, generation: trigger.generation, key }, { runAt: at, key: `ready:${trigger.id}:${trigger.generation}:${recordKey}:${at.toISOString()}` })
+    return [{ payload: { trigger: trigger.id, generation: trigger.generation, key }, options: { runAt: at, key: `ready:${trigger.id}:${trigger.generation}:${recordKey}:${at.toISOString()}` } }]
   }
 
   const starts = triggerStarts(input, polls)
@@ -83,7 +84,7 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
       if ('refused' in listed) return triggerFailed(db, schema, trigger, 'refused', listed.refused)
       const page = listed.value
       const timeTerms = resolveTimeTerms(model, split.when.timeTerms)
-      for (const record of page.items) await queueCheck(db, trigger, model.primaryKey, timeTerms, record)
+      await readyCheck.enqueueMany(db, page.items.flatMap((record) => checkOf(trigger, model.primaryKey, timeTerms, record)))
       if (page.next_page_token) await start.enqueue(db, { trigger: id, generation, page_token: page.next_page_token })
     },
   })
@@ -130,6 +131,7 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
     const types = [...input.readyTypes]
     if (types.length === 0) return
     const triggers = await activeTriggers(db, schema, types)
+    const checks: EnqueuedJob<ReadyCheckPayload>[] = []
     for (const trigger of triggers) {
       const spec = input.declared(trigger.type)?.ready(trigger.input)
       const model = spec && input.deps().registry.find(spec.resource)?.model
@@ -139,9 +141,10 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
       for (const change of changes) {
         if (change.resource !== spec.resource || !change.after) continue
         if (String(change.tenant ?? '') !== String(trigger.tenant_id ?? '')) continue
-        await queueCheck(db, trigger, model.primaryKey, timeTerms, change.after)
+        checks.push(...checkOf(trigger, model.primaryKey, timeTerms, change.after))
       }
     }
+    await readyCheck.enqueueMany(db, checks)
   }
 
   return { jobs: [start, stopJob, readyCheck, ...polls.jobs], start, stop: stopJob, onChanges }

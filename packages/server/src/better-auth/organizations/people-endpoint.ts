@@ -1,5 +1,7 @@
 import { APIError, createAuthEndpoint, sessionMiddleware } from 'better-auth/api'
-import { everyRow, findMember, membersOf } from './store'
+import { sql } from 'kysely'
+import { storeSqlOf } from '../store/store-sql'
+import { findMember, type AuthContext } from './store'
 
 type UserRow = { id: string; name?: string | null; image?: string | null }
 
@@ -23,7 +25,10 @@ export const peopleEndpoint = createAuthEndpoint('/organization/people', { metho
   const organizationId = (session as { activeOrganizationId?: string | null }).activeOrganizationId
   const member = organizationId ? await findMember(adapter, { organizationId, userId: user.id }) : undefined
   if (!organizationId || !member) throw new APIError('FORBIDDEN', { code: 'NOT_A_MEMBER', message: 'Only the members of the organization you work in can see its people.' })
-  const ids = (await membersOf(adapter, organizationId)).map((row) => row.userId)
-  const users = await adapter.findMany<UserRow>({ model: 'user', where: [{ field: 'id', operator: 'in', value: ids }], select: ['id', 'name', 'image'], limit: everyRow })
-  return ctx.json({ people: peopleOf(users) })
+  const store = storeSqlOf(ctx.context as unknown as AuthContext)
+  const users = store.table('user')
+  const m = store.table('member').columns
+  const { rows } = await sql<UserRow>`select u.id, u.${users.columns.name} as name, u.${users.columns.image} as image
+    from ${users} u where exists (select from ${store.table('member')} m where m.${m.user_id} = u.id and m.${m.organization_id} = ${organizationId})`.execute(store.db)
+  return ctx.json({ people: peopleOf(rows) })
 })

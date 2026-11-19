@@ -13,25 +13,33 @@ export const accountKeys: StoreMigration = {
   name: 'account_keys',
   title: 'One account per provider and account id, and per person where a provider links one, the device accounts people signed out of, and the sessions of each device',
   tables: ['refused_account', 'device_session'],
-  statements: ({ table, user, id, idRef }) => [
-    ddl`create unique index account_provider_id_account_id_uidx on ${table('account')} (provider_id, account_id)`,
-    ddl`alter table ${table('account')} add column single_subject_user_id ${idRef}`,
-    ddl`create unique index account_provider_id_single_subject_user_id_uidx on ${table('account')} (provider_id, single_subject_user_id)`,
-    ddl`create table ${table('refused_account')} (
+  statements: ({ table, user, id, idRef }) => {
+    const account = table('account')
+    const a = account.columns
+    const refused = table('refused_account')
+    const r = refused.columns
+    const device = table('device_session')
+    const d = device.columns
+    return [
+      ddl`create unique index ${account.index('account_provider_id_account_id_uidx')} on ${account} (${a.provider_id}, ${a.account_id})`,
+      ddl`alter table ${account} add column ${a.single_subject_user_id} ${idRef}`,
+      ddl`create unique index ${account.index('account_provider_id_single_subject_user_id_uidx')} on ${account} (${a.provider_id}, ${a.single_subject_user_id})`,
+      ddl`create table ${refused} (
   id ${id} primary key,
-  provider_id text not null,
-  account_id text not null,
-  user_id ${idRef} not null references ${user} (id) on delete cascade,
-  created_at timestamptz not null,
-  unique (provider_id, account_id)
+  ${r.provider_id} text not null,
+  ${r.account_id} text not null,
+  ${r.user_id} ${idRef} not null references ${user} (id) on delete cascade,
+  ${r.created_at} timestamptz not null,
+  unique (${r.provider_id}, ${r.account_id})
 )`,
-    ddl`create index refused_account_user_id_idx on ${table('refused_account')} (user_id)`,
-    ddl`create table ${table('device_session')} (
+      ddl`create index ${refused.index('refused_account_user_id_idx')} on ${refused} (${r.user_id})`,
+      ddl`create table ${device} (
   id ${id} primary key,
-  session_id ${idRef} not null unique references ${table('session')} (id) on delete cascade,
-  account_id text not null,
-  created_at timestamptz not null
+  ${d.session_id} ${idRef} not null unique references ${table('session')} (id) on delete cascade,
+  ${d.account_id} text not null,
+  ${d.created_at} timestamptz not null
 )`,
-    ddl`create index device_session_account_id_idx on ${table('device_session')} (account_id)`,
-  ],
+      ddl`create index ${device.index('device_session_account_id_idx')} on ${device} (${d.account_id})`,
+    ]
+  },
 }

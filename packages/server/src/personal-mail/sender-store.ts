@@ -4,21 +4,6 @@ import { everyRow } from '../better-auth/organizations/store'
 /** Better Auth's model for the From addresses people enter: one row per person and address. */
 export const mailSenderModel = 'mailSender'
 
-export const mailSenderSchema = {
-  [mailSenderModel]: {
-    modelName: 'mail_sender',
-    fields: {
-      userId: { type: 'string', required: true, fieldName: 'user_id' },
-      address: { type: 'string', required: true },
-      name: { type: 'string', required: false },
-      shared: { type: 'boolean', required: true },
-      signature: { type: 'string', required: false },
-      isDefault: { type: 'boolean', required: true, fieldName: 'is_default' },
-      createdAt: { type: 'date', required: true, fieldName: 'created_at' },
-    },
-  },
-} as const
-
 /**
  * A From address its owner entered, in lowercase, usable by its owner alone, with the display name the From header shows
  * beside it or none, its own signature or none, so the generic one applies, and whether it is the owner's default. `shared` stays false: sharing an address with others
@@ -33,11 +18,9 @@ export type MailSenderStore = {
 
 type Adapter = Pick<DBAdapter, 'findMany' | 'create' | 'update' | 'updateMany' | 'deleteMany'>
 
-const oldestFirst = (rows: MailSenderRow[]) => rows.toSorted((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-
 /** The user's addresses, oldest first. */
-export const sendersOf = async (adapter: Pick<Adapter, 'findMany'>, userId: string) =>
-  oldestFirst(await adapter.findMany<MailSenderRow>({ model: mailSenderModel, where: [{ field: 'userId', value: userId }], limit: everyRow }))
+export const sendersOf = (adapter: Pick<Adapter, 'findMany'>, userId: string) =>
+  adapter.findMany<MailSenderRow>({ model: mailSenderModel, where: [{ field: 'userId', value: userId }], sortBy: { field: 'createdAt', direction: 'asc' }, limit: everyRow })
 
 /** The store as sending reads it, through Better Auth's adapter. */
 export const adapterSenderStore = (adapter: () => Promise<Pick<Adapter, 'findMany'>>): MailSenderStore => ({

@@ -34,7 +34,7 @@ let client = 0
 
 const serve = async (withMobile?: MobileConfig) => {
   const sent: MailMessage[] = []
-  const mailer = { send: async (message: MailMessage) => void sent.push(message) }
+  const mailer = { send: async (message: MailMessage) => { sent.push(message); return {} } }
   const auth = createAuth({ database: { dialect: (await shared.clone()).dialect, type: 'postgres' }, baseURL: label, secret, mailer })
   // Better Auth skips its origin check under a test runner, so it is turned back on here.
   ;(await auth.$context).skipOriginCheck = false

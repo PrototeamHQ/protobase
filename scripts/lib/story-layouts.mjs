@@ -7,11 +7,35 @@ export const viewports = { desktop: { width: 1280, height: 720 }, phone: { width
 // The stories' data and "6 days ago" labels are drawn from the clock, so every run sees the same day.
 const now = new Date('2026-10-12T09:00:00Z')
 
-// The layout once it stops changing: data loads and charts draw after the story first renders.
+// The requests each page has in flight, which openStory counts: Playwright's networkidle is reached once and stays.
+const inFlight = new WeakMap()
+
+// Resolves once the page has no request in flight, or rejects after 5 s.
+const idle = async (page) => {
+  const deadline = Date.now() + 5000
+  while ((inFlight.get(page) ?? 0) > 0) {
+    if (Date.now() > deadline) throw new playwrightErrors.TimeoutError('requests still in flight after 5 s')
+    await page.waitForTimeout(50)
+  }
+}
+
+// Waits for `waiting`, at most 5 s, for a story that keeps at it.
+const atMost5s = (waiting) =>
+  waiting.catch((error) => {
+    if (!(error instanceof playwrightErrors.TimeoutError)) throw error
+  })
+
+// The layout once it stops changing: data loads, pages' code loads lazily and charts draw after the story first
+// renders. The stories' data comes a moment late, as over a network, so the first second is not a layout to settle on,
+// and a layout only counts once no request is in flight and nothing on the page says it is still loading (`aria-busy`,
+// as a page's skeleton does), each for 5 s at most.
 export const settledTree = async (page) => {
+  await page.waitForTimeout(1000)
   let last = ''
   for (let attempt = 0; attempt < 40; attempt += 1) {
     await page.waitForTimeout(250)
+    await atMost5s(idle(page))
+    await atMost5s(page.waitForFunction(() => !document.querySelector('[aria-busy="true"]'), null, { timeout: 5000 }))
     const tree = await page.evaluate(layoutTree)
     if (tree === last) return tree
     last = tree
@@ -25,6 +49,9 @@ export const openStory = async (browser, storybookDir, shot) => {
   const context = await browser.newContext({ viewport: viewports[shot.viewport] })
   const base = await routeFiles(context, storybookDir)
   const page = await context.newPage()
+  inFlight.set(page, 0)
+  page.on('request', () => inFlight.set(page, inFlight.get(page) + 1))
+  for (const ended of ['requestfinished', 'requestfailed']) page.on(ended, () => inFlight.set(page, inFlight.get(page) - 1))
   const logged = []
   page.on('console', (message) => message.type() === 'error' && logged.push(message.text()))
   page.on('requestfailed', (request) => logged.push(`${request.failure()?.errorText} ${request.url()}`))

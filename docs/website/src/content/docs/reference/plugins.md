@@ -40,7 +40,7 @@ Each place a plugin can fill is an extension point. The config names it, or a pl
 | Widget part (the [assistant](/reference/assistant/#widget-parts)) | A widget part's name | A PascalCase export | The part's props | The part's fallback card |
 | [File viewer](#file-viewers) | A file's media type | `fileViewers: { 'type': { component } }` | `{ file, siblings }` | The file's link downloads it; a viewer that throws leaves a Download button |
 | [Action handler](/reference/custom-components/#action-handlers) | `a.action('name')` in a view | `actions: { name }` | `ActionContext` | The button is disabled |
-| [Shell slot](/reference/custom-components/#shell-slots) | Nothing: drawn on every page | `shell: { actions, rightPanel, logo, bell }` | Nothing; `logo` gets `compact`, `workspace`, `appName` and `appIcon` | Not drawn; Protobase's logo for `logo`, its notification bell for `bell` |
+| [Shell slot](/reference/custom-components/#shell-slots) | Nothing: drawn on every page | `shell: { actions, rightPanel, logo, bell }` | Nothing; `logo` gets `compact`, `workspace`, `appName` and `appIcon`, and a tap on it is the [`protobase:logo-tap` event](/reference/sidebar/#the-logo) | Not drawn; Protobase's logo for `logo`, its notification bell for `bell` |
 | [Before sign-in](#before-sign-in) | `beforeSignIn: true` where the plugin is listed | `beforeSignIn` | `children`, `params`, `removeParams`, `signedIn` | The pages as they are without it |
 | Rules and hooks a view names | A [drop rule](/reference/ui-config/#drop-rules), [board drop](/reference/ui-config/#board-drops), [title rule](/reference/ui-config/#titles-per-reader) or [marks hook](/reference/sidebar/#marks-per-reader) by name in a view | `dropRules`, `boardDrops`, `titles`, `marks` | What its page says | What its page says |
 | [Presence](/reference/status/#in-the-app) | Nothing: read on the members page and the sidebar | `presence` | Nothing; a hook | No one shows as online or away |
@@ -288,6 +288,14 @@ The plugins are merged in the order listed. Two of them cannot define one name: 
 
 The components a [remote resource](/reference/remote-resources/#custom-components)'s view names are drawn from the same plugins, by name, so whoever runs a source lists the plugin that provides them with it. Inside one, `useList` and `useRecord` read the source for its resources, and `useResourceClient(resource)` gives the client of the API that serves a resource.
 
+## Reloaded while the app runs
+
+A plugin can be replaced while the app runs, and must expect to be. When a host dispatches a `protobase:plugins-changed` event on `window` (`pluginsChangedEvent` of `@protobase/ui`), the app loads its plugins again, each from its `plugin.json`. Meanwhile it keeps showing what it shows, then swaps the new code in with one render. Protobase's official app does this when it finds a workspace's plugin changed on the server. What that means for a plugin:
+
+- Its components mount afresh from the new module, so their local state starts over. Keep what must survive in the app's data or in the URL.
+- Its module is evaluated again, once per load. The old module stays in memory, as a browser cannot unload one, so code that runs when the module is evaluated must not start timers, add listeners or change globals that the old copy would keep acting on. Start them in a component's effect, which stops them as it unmounts.
+- Its stylesheet, a new file name with each build, is added beside the old one, so rules must not rely on being the only copy.
+
 ## Before sign-in
 
 Plugins load once someone has signed in, or for a visitor of a project whose anonymous role reads a resource, so no plugin code runs for someone signed out: they get the sign-in page. A plugin listed with `beforeSignIn: true`, or in `PROTOBASE_PLUGINS_BEFORE_SIGN_IN`, loads before that. The sign-in status (`GET /api/auth/status`) names it to everyone, as `plugins`, and the app loads it first and waits for it, as it waits for the others. Its `beforeSignIn` component is drawn around what someone signed out sees: the sign-in page, or the app a visitor browses. Once they are in, it is no longer drawn, and the plugin stays loaded: `/api/meta` names it to everyone, and the app merges its other parts as any plugin's, without loading it again.
@@ -386,6 +394,7 @@ From `@protobase/ui`:
 | `RouteLink`, `RouteTarget` | An ordinary link to a target's `href`, which a plain click follows in the app, as `useComponentSelect().linkTo(key)` gives it. |
 | `FieldBadge`, `ToneEdge` | A record's value of a field as a badge in its view's words and colour, and a card's left edge in that colour, as the app's related cards draw them. |
 | `AuthLayout`, `CodeForm`, `ResendCodeButton`, `Button`, `buttonClass`, `Input`, `Spinner`, `LogoMark` | The pieces of the app's sign-in pages, for a page of a plugin or a host's own that looks like them. Outside the app, `@protobase/ui/styles.css` is the stylesheet that draws them, for a Vite build with Tailwind. |
+| `showTextsIn(locale)` | Loads the app's built-in texts in a language (`'en'` or `'nl'`), each language its own download, and draws the pieces above in it. A host's own page that draws them outside the app awaits it before it renders them; the app picks its language itself. |
 | `isFramed`, `useArmedAfterFocus`, `useGuardedPress`, `allowDelayMs` | The connect page's guard against clickjacking and click-through, for a host's own consent screen: it refuses to render when `isFramed()`, and its Allow button spreads `useGuardedPress(armed, onAllow)`, so a press counts only once the page has been in front for `allowDelayMs`, and a press anywhere on the page before then starts that wait again. |
 | `pluginApi` | The plugin API of the app's `@protobase/ui`. |
 | `protobaseVersion` | The Protobase version of the app's `@protobase/ui`. |

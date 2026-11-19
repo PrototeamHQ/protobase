@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { sql } from 'kysely'
 import { PgBoss, type Db as BossDb } from 'pg-boss'
 import type { Db } from '@protobase/query'
@@ -5,12 +6,14 @@ import { runInBackground } from '../background-work'
 import type { FieldDecrypter } from '../encryption/decrypt-field-types'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
+import { appBulkMailer } from '../mail/unsubscribe/bulk-mailer'
+import type { UnsubscribeLinks } from '../mail/unsubscribe/unsubscribe-links'
 import { pushJobName } from '../notifications/push-job-name'
 import { sendNotification } from '../notifications/send-notification'
 import { busyDatabase } from './busy-database'
 import { clearCurrentJobs, setCurrentJobs, type JobsEnqueuer } from './current'
 import { jobsDatabase } from './database'
-import type { EnqueueOptions, JobDefinition } from './job-types'
+import type { EnqueuedJob, EnqueueOptions, JobDefinition } from './job-types'
 import { queueOptions, queueSettingsDiffer, sendOptions, workOptions } from './options'
 import { runJob, validatePayload } from './run-job'
 import { scheduleKey } from './schedule'
@@ -35,6 +38,11 @@ export type StartJobsOptions = {
    * `PROTOBASE_MAIL_FROM`, when set; `false` turns mail off whatever the environment says.
    */
   mailer?: Mailer | false
+  /**
+   * The links of the app's one-click unsubscribe (`admin.unsubscribe`, with `unsubscribe: true`): bulk mail through
+   * `context.mail` carries the recipient's own and skips whoever unsubscribed from its topic. Without them it refuses bulk mail.
+   */
+  unsubscribe?: UnsubscribeLinks
   /** The app's read of encrypted fields (`createAdmin(...).decryptField`), which each job's context binds to the job. */
   decryptField?: FieldDecrypter
 }
@@ -80,8 +88,9 @@ const createBoss = (db: BossDb, work: boolean) =>
  * that retries jobs whose worker died. It reads the jobs schema, never changes it: check it first with
  * `checkJobsSchema`. Enqueueing through `defineJob(...).enqueue` reaches the runtime started here.
  */
-export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdownSeconds = 30, onError, now = () => new Date(), mailer, decryptField }: StartJobsOptions): Promise<JobsRuntime> => {
-  const mail = mailer === undefined ? platformMailer() : mailer || undefined
+export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdownSeconds = 30, onError, now = () => new Date(), mailer, unsubscribe, decryptField }: StartJobsOptions): Promise<JobsRuntime> => {
+  const base = mailer === undefined ? platformMailer() : mailer || undefined
+  const mail = base && appBulkMailer(base, db, unsubscribe)
   let decrypter = decryptField
   const database = busyDatabase(jobsDatabase(db))
   const boss = createBoss(database.db, work)
@@ -172,6 +181,46 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
     return id
   }
 
+  // The jobs without a key go in one multi-row insert, which takes the queue's settings as `send` does, an ordered job's
+  // ids from uuidv7() in the list's order; those with a key go through `jobs.enqueue`, row by row in one statement, so
+  // each keeps a job waiting for its key as one enqueue does.
+  const enqueueMany = async (definition: JobDefinition, target: Db, jobs: readonly EnqueuedJob[]) => {
+    const { name } = definition
+    if (!definitions.has(name)) throw new Error(`Job "${name}" is not among the app's jobs; export it from the module protobase.config.ts passes as \`jobs\``)
+    const sends = await Promise.all(
+      jobs.map(async ({ payload, options = {} }) => {
+        if (options.mode === 'replace') throw new Error(`Job "${name}": enqueueMany keeps a waiting job of a key; replace one with enqueue`)
+        const checked = await validatePayload(definition, payload)
+        if ('invalid' in checked) throw new Error(checked.invalid)
+        return { data: checked.value ?? null, send: sendOptions(definition.options, options), key: options.key }
+      }),
+    )
+    const ids: string[] = []
+    const unkeyed = sends.flatMap((job, place) => (job.key === undefined ? [{ ...job, place }] : []))
+    if (unkeyed.length > 0) {
+      const made = definition.options.ordered
+        ? (await sql<{ ids: string[] }>`select array(select uuidv7() from generate_series(1, ${unkeyed.length})) as ids`.execute(target)).rows[0]!.ids
+        : unkeyed.map(() => randomUUID())
+      await boss.insert(name, unkeyed.map((job, n) => ({ ...job.send, id: made[n], data: job.data as object })), { db: jobsDatabase(target) })
+      unkeyed.forEach((job, n) => (ids[job.place] = made[n]!))
+    }
+    const keyed = sends.flatMap((job, place) => (job.key === undefined ? [] : [{ ...job, place }]))
+    if (keyed.length > 0) {
+      const at = (job: (typeof keyed)[number]) => job.send.startAfter
+      const { rows } = await sql<{ id: string | null }>`select ${sql.id(jobsSchema, 'enqueue')}(${name}, j.data, coalesce(j.run_at, ${sql.id(jobsSchema, 'job_now')}() + j.delay * interval '1 second'), j.key, null, j.priority) as id
+        from unnest(${keyed.map((job) => (job.data === null ? null : JSON.stringify(job.data)))}::jsonb[], ${keyed.map((job) => (at(job) instanceof Date ? at(job) : null))}::timestamptz[],
+          ${keyed.map((job) => (typeof at(job) === 'number' ? at(job) : null))}::float8[], ${keyed.map((job) => job.key!)}::text[], ${keyed.map((job) => job.send.priority ?? 0)}::integer[])
+          with ordinality as j(data, run_at, delay, key, priority, place)
+        order by j.place`.execute(target)
+      rows.forEach((row, n) => {
+        if (!row.id) throw new Error(`Job "${name}" was not enqueued`)
+        ids[keyed[n]!.place] = row.id
+      })
+    }
+    if (jobs.length > 0 && !target.isTransaction) wake(name)
+    return ids
+  }
+
   const nextDue = async () => (await sql<{ due: Date | null }>`select ${sql.id(jobsSchema, 'next_due')}() as due`.execute(db)).rows[0]!.due
 
   // Jobs of this app that are due or running now: waiting past their start time, unless a failed job holds back their
@@ -215,6 +264,7 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
   const runtime: JobsRuntime = {
     works: work,
     enqueue,
+    enqueueMany,
     definition: (name) => definitions.get(name),
     wake,
     update,

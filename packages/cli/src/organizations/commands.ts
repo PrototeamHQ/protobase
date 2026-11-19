@@ -1,7 +1,13 @@
 // The host-side organization functions of @protobase/server, injected so the commands are testable. The host acts as a
 // superuser: it may give any role.
+/** Where the next page of organizations starts: what the page before gave as `next`. */
+export type OrganizationsCursor = { createdAt: string; id: string }
+
+type ListedOrganization = { id: string; name: string; slug: string; members: { email: string; role: string; appRoles: string[] }[] }
+
 export type OrganizationsApi = {
-  listOrganizations: () => Promise<{ id: string; name: string; slug: string; members: { email: string; role: string; appRoles: string[] }[] }[]>
+  /** A page of the organizations, oldest first, from the `next` of the page before; no `next` on the last page. */
+  listOrganizations: (after?: OrganizationsCursor) => Promise<{ organizations: ListedOrganization[]; next?: OrganizationsCursor }>
   createOrganization: (input: { name: string; slug: string; owner: string; id?: string }) => Promise<{ organization: { id: string; slug: string } }>
   addMember: (input: { organization: string; email: string; role?: string; appRoles?: string[] }) => Promise<unknown>
   setMemberRoles: (input: { organization: string; email: string; role?: string; appRoles?: string[] }) => Promise<unknown>
@@ -27,14 +33,18 @@ export const slugOf = (name: string) =>
 export const parseRoleList = (text: string | undefined) => (text === undefined ? undefined : text.split(',').map((name) => name.trim()).filter(Boolean))
 
 export const listOrganizationsCommand = async (api: OrganizationsApi, out: Out) => {
-  const organizations = await api.listOrganizations()
-  if (organizations.length === 0) {
+  let page = await api.listOrganizations()
+  if (page.organizations.length === 0) {
     out('No organizations yet. Create one with: protobase organizations create "Acme" --owner you@example.com\n')
     return
   }
-  for (const organization of organizations) {
-    out(`${organization.slug}  ${organization.name}  (${organization.id})\n`)
-    for (const member of organization.members) out(`  ${member.email}  ${member.role}${member.appRoles.length > 0 ? `  ${member.appRoles.join(',')}` : ''}\n`)
+  for (;;) {
+    for (const organization of page.organizations) {
+      out(`${organization.slug}  ${organization.name}  (${organization.id})\n`)
+      for (const member of organization.members) out(`  ${member.email}  ${member.role}${member.appRoles.length > 0 ? `  ${member.appRoles.join(',')}` : ''}\n`)
+    }
+    if (!page.next) return
+    page = await api.listOrganizations(page.next)
   }
 }
 

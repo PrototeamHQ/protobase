@@ -8,7 +8,7 @@ describe('enablerMailbox', () => {
   it("sends from the mailbox of whoever turned the run's version on, read at each send", async () => {
     const sent: string[] = []
     let enabler: string | null = 'ada'
-    const mailbox = enablerMailbox(async () => enabler, (userId) => ({ send: async () => void sent.push(userId) }))
+    const mailbox = enablerMailbox(async () => enabler, (userId) => ({ send: async () => { sent.push(userId); return {} } }))
     await mailbox.send(message)
     enabler = 'grace'
     await mailbox.send(message)
@@ -16,7 +16,7 @@ describe('enablerMailbox', () => {
   })
 
   it('sends nothing and fails not_linked when nobody turned it on as themselves, or they may no longer', async () => {
-    const send = vi.fn(async () => {})
+    const send = vi.fn(async () => ({}))
     await expect(enablerMailbox(async () => null, () => ({ send })).send(message)).rejects.toEqual(new PersonalMailError('not_linked'))
     expect(send).not.toHaveBeenCalled()
   })

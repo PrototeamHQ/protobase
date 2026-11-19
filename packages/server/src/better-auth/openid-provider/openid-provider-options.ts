@@ -2,6 +2,7 @@ import { connectRoute } from '@protobase/schema'
 import type { ResolvedMcp } from '../mcp/mcp-plugins'
 import { signInTokenSeconds } from '../sign-in-token'
 import { parseAudiencePattern, type AudiencePattern } from './audience-patterns'
+import { resolveDeclaredClients, type DeclaredClient } from './declared-clients'
 
 export type OpenIdProviderOptions = {
   /** The connect page's path on the app's origin, where people sign in on the way to a client; default `/-/connect`, for a UI at the root. */
@@ -12,10 +13,22 @@ export type OpenIdProviderOptions = {
    * need no registration. No browser is ever sent to them. Default none.
    */
   audiences?: string[]
+  /**
+   * What an ID token's `sub` names: `user`, the person's id here, the same for every client and sign-in; or `grant`, an
+   * id of the client's grant, new on each fresh sign-in at the provider and kept across its refresh tokens and token
+   * exchanges, never the person's id, so each sign-in of a phone app is a device of its own to the apps that take its
+   * tokens. Default `user`.
+   */
+  subject?: 'user' | 'grant'
+  /**
+   * The app's own public clients, such as its phone app (`DeclaredClient`): served under the ids written here from the
+   * first request on, with no admin registering them, and refused once they are gone from the config. Default none.
+   */
+  clients?: DeclaredClient[]
 }
 
 /** `OpenIdProviderOptions` with the defaults filled in. */
-export type ResolvedOpenIdProvider = { connectPage: string; audiences: AudiencePattern[] }
+export type ResolvedOpenIdProvider = { connectPage: string; audiences: AudiencePattern[]; subject: 'user' | 'grant'; clients: DeclaredClient[] }
 
 /** The scopes a client gets: who the person is, by `sub`, `email` and `email_verified`, and `name`. */
 export const openIdScopes = ['openid', 'email', 'profile']
@@ -38,9 +51,11 @@ export const accessTokenSeconds = 15 * 60
  */
 export const resolveOpenIdProvider = (options: true | OpenIdProviderOptions, mcp: ResolvedMcp | undefined): ResolvedOpenIdProvider => {
   if (mcp) throw new Error('auth.openIdProvider cannot be on together with auth.mcp, whose clients register themselves; serve them from separate apps')
-  const { connectPage = connectRoute, audiences = [] } = options === true ? {} : options
+  const { connectPage = connectRoute, audiences = [], subject = 'user', clients = [] } = options === true ? {} : options
   if (!connectPage.startsWith('/')) throw new Error(`auth.openIdProvider.connectPage "${connectPage}" must be a path on the app's origin, such as ${connectRoute}`)
-  return { connectPage, audiences: audiences.map(parseAudiencePattern) }
+  if (subject !== 'user' && subject !== 'grant') throw new Error(`auth.openIdProvider.subject must be user or grant, not "${String(subject)}"`)
+  const patterns = audiences.map(parseAudiencePattern)
+  return { connectPage, audiences: patterns, subject, clients: resolveDeclaredClients(clients, patterns) }
 }
 
 /**

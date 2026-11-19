@@ -30,7 +30,7 @@ const recordingMailer = () => {
     await expect.poll(() => sent.some((message) => message.to === to), { timeout: 10_000 }).toBe(true)
     return sent.findLast((message) => message.to === to)!.text
   }
-  return { sent, last, mailer: { send: async (message: MailMessage) => void sent.push(message) } }
+  return { sent, last, mailer: { send: async (message: MailMessage) => { sent.push(message); return {} } } }
 }
 
 const resourceRequest = (token: string, scheme = 'Bearer', dpop?: string) =>

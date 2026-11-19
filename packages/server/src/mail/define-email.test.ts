@@ -11,7 +11,7 @@ const welcome = defineEmail({ name: 'welcome', subject: ({ name }: Welcome) => `
 
 const recording = () => {
   const sent: MailMessage[] = []
-  return { sent, mailer: { send: async (message: MailMessage) => void sent.push(message) } }
+  return { sent, mailer: { send: async (message: MailMessage) => { sent.push(message); return {} } } }
 }
 
 describe('defineEmail', () => {
@@ -36,6 +36,11 @@ describe('defineEmail', () => {
     expect(sent).toEqual([{ to: 'ada@example.com', subject: 'Welcome, Ada', html: expect.stringContaining('Hi Ada,'), text: expect.stringContaining('Hi Ada,') }])
   })
 
+  it('resolves to the message id the mailer gives', async () => {
+    const mailer = { send: async () => ({ messageId: '<a1@app.example.com>' }) }
+    expect(await welcome.send('ada@example.com', { name: 'Ada', url: 'https://app.example.com' }, mailer)).toEqual({ messageId: '<a1@app.example.com>' })
+  })
+
   it('sends the attachments it is given', async () => {
     const { sent, mailer } = recording()
     const attachments = [{ filename: 'invoice-7.pdf', content: new Uint8Array([37, 80, 68, 70]), contentType: 'application/pdf' }]
@@ -53,6 +58,19 @@ describe('defineEmail', () => {
     })
     await digest.send('ada@example.com', { name: 'Ada', url: 'https://app.example.com' }, mailer)
     expect(sent[0]!.headers).toEqual({ 'List-Unsubscribe': '<https://app.example.com/unsubscribe>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' })
+  })
+
+  it('marks bulk mail with its topic, for the mailer to add its unsubscribe', async () => {
+    const { sent, mailer } = recording()
+    const digest = defineEmail({ name: 'digest', subject: 'Your digest', component: Body, bulk: true, topic: 'digest' })
+    await digest.send('ada@example.com', { name: 'Ada', url: 'https://app.example.com' }, mailer)
+    expect(sent[0]).toMatchObject({ to: 'ada@example.com', bulk: true, topic: 'digest' })
+    await welcome.send('ada@example.com', { name: 'Ada', url: 'https://app.example.com' }, mailer)
+    expect(sent[1]).not.toHaveProperty('bulk')
+  })
+
+  it('refuses bulk mail without a topic as it is defined', () => {
+    expect(() => defineEmail({ name: 'digest', subject: 'Your digest', component: Body, bulk: true })).toThrow('Email "digest" is bulk mail without a topic')
   })
 
   it('refuses to send while mail is off', async () => {

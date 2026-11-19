@@ -53,7 +53,7 @@
       ]
     },
     "secret": {
-      "description": "The app's secret, made with `openssl rand -base64 32`: it signs session cookies, upload tickets and download links\nand public forms' bot checks, and encrypts the token signing keys. Default `PROTOBASE_SECRET`; required with sign-in.",
+      "description": "The app's secret, made with `openssl rand -base64 32`: it signs session cookies, upload tickets and download links,\npublic forms' bot checks and unsubscribe links, and encrypts the token signing keys. Default `PROTOBASE_SECRET`; required with sign-in.",
       "anyOf": [
         {
           "type": "string"
@@ -422,14 +422,7 @@
           "type": "object",
           "properties": {
             "sql": {
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "$ref": "#/definitions/EnvValue"
-                }
-              ]
+              "type": "boolean"
             },
             "writes": {
               "anyOf": [
@@ -640,25 +633,11 @@
             },
             "deliveryLog": {
               "description": "Also keep every try, successes too, for 30 days, listed as Webhook delivery log. Default false.",
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "$ref": "#/definitions/EnvValue"
-                }
-              ]
+              "type": "boolean"
             },
             "allowPrivateAddresses": {
               "description": "Lets subscriptions send to private, loopback and link-local addresses, for development and tests. Default false:\na URL whose host resolves to one is refused, so a subscription cannot reach the app's own network.",
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "$ref": "#/definitions/EnvValue"
-                }
-              ]
+              "type": "boolean"
             }
           },
           "additionalProperties": false
@@ -731,14 +710,7 @@
             },
             "allowPrivateAddresses": {
               "description": "Lets the `app:http` step reach private, loopback and link-local addresses, for development and tests. Default\nfalse: a URL whose host resolves to one fails the step, so a workflow cannot reach the app's own network.",
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "$ref": "#/definitions/EnvValue"
-                }
-              ]
+              "type": "boolean"
             },
             "secrets": {
               "description": "The environment variables workflows may read, each as `$states.context.Secrets.<NAME>`; no other is reachable.\nTheir values are blanked out of all a run records. Startup stops when one is unset or shorter than 8 characters.",
@@ -778,14 +750,7 @@
             },
             "customSteps": {
               "description": "Turns on custom steps, step types the app's authors keep as records, each saved version a type of its own,\n`custom:<name>:<version>`, which a workflow saves with and the app's runners run. Their jobs' arguments are sealed\nwith the app's secret, its sign-in's, else `PROTOBASE_SECRET`; startup stops without either. Default false; any\nother value than `true` or `false` stops startup.",
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "$ref": "#/definitions/EnvValue"
-                }
-              ]
+              "type": "boolean"
             },
             "runners": {
               "description": "How custom steps' jobs reach runners, in seconds: how long a claim is held open waiting for a job (`claimSeconds`,\ndefault 50), how long a runner holds a job without a heartbeat (`leaseSeconds`, 30), how long a job whose best free\nrunner lacks its image waits for one that has it (`coldWaitSeconds`, 5), and how long one whose best has its image\nwaits for a warm instance (`warmWaitSeconds`, 1). Startup stops on one that is not a number above 0, or for a wait,\n0 or more.",
@@ -900,14 +865,7 @@
             },
             "ui": {
               "description": "The bell in the top bar; default true. `false` keeps only the backend.",
-              "anyOf": [
-                {
-                  "type": "boolean"
-                },
-                {
-                  "$ref": "#/definitions/EnvValue"
-                }
-              ]
+              "type": "boolean"
             },
             "devices": {
               "description": "The devices table: its name, default `devices`, and its columns named otherwise than Protobase names them.",
@@ -930,16 +888,6 @@
                         {
                           "type": "object",
                           "properties": {
-                            "created_at": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "$ref": "#/definitions/EnvValue"
-                                }
-                              ]
-                            },
                             "auth": {
                               "anyOf": [
                                 {
@@ -950,7 +898,27 @@
                                 }
                               ]
                             },
-                            "id": {
+                            "created_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "token": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "user_agent": {
                               "anyOf": [
                                 {
                                   "type": "string"
@@ -970,7 +938,7 @@
                                 }
                               ]
                             },
-                            "kind": {
+                            "session_id": {
                               "anyOf": [
                                 {
                                   "type": "string"
@@ -980,7 +948,17 @@
                                 }
                               ]
                             },
-                            "token": {
+                            "id": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            },
+                            "kind": {
                               "anyOf": [
                                 {
                                   "type": "string"
@@ -1011,26 +989,6 @@
                               ]
                             },
                             "app_id": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "$ref": "#/definitions/EnvValue"
-                                }
-                              ]
-                            },
-                            "user_agent": {
-                              "anyOf": [
-                                {
-                                  "type": "string"
-                                },
-                                {
-                                  "$ref": "#/definitions/EnvValue"
-                                }
-                              ]
-                            },
-                            "session_id": {
                               "anyOf": [
                                 {
                                   "type": "string"
@@ -1107,7 +1065,7 @@
                                 }
                               ]
                             },
-                            "id": {
+                            "user_id": {
                               "anyOf": [
                                 {
                                   "type": "string"
@@ -1117,7 +1075,7 @@
                                 }
                               ]
                             },
-                            "user_id": {
+                            "id": {
                               "anyOf": [
                                 {
                                   "type": "string"
@@ -1224,16 +1182,13 @@
         }
       ]
     },
+    "unsubscribe": {
+      "description": "`true` gives bulk mail a one-click unsubscribe: mail a job sends with `bulk: true` and a `topic` carries the\nrecipient's own unsubscribe link, and is not sent to whoever unsubscribed from its topic. Its links are on `url`\nand signed with `secret`; `protobase migration` writes its table, `mail.unsubscribes`. The server that signs the mail must DKIM-sign\nboth unsubscribe headers, or mail clients show no button. Off by default.",
+      "type": "boolean"
+    },
     "userTables": {
       "description": "`true` keeps the tables the app's users add in its own database and serves each one like a resource of the config;\n`protobase migration` writes the schemas they need. Off by default. With organizations, each keeps its own tables;\nrefused with `authenticate.organizations` alone.",
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "$ref": "#/definitions/EnvValue"
-        }
-      ]
+      "type": "boolean"
     },
     "resources": {
       "description": "`'none'` says the app has no resources on purpose, such as an app that only signs people in: `protobase doctor`\nthen accepts a config with none, and refuses one that exports any. Unset, doctor refuses an app with none, which\nhas usually lost them by mistake.",
@@ -1541,14 +1496,7 @@
           ]
         },
         "beforeSignIn": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
+          "type": "boolean"
         }
       },
       "required": [
@@ -1882,6 +1830,17 @@
             }
           ]
         },
+        "users": {
+          "description": "The user table, when it is one another system made, such as Supabase's `auth.users`: its name, the columns named\notherwise than Protobase names them, and a JSON column for each user's metadata, for example `{ table: 'users',\ncolumns: { role: 'app_role' }, metadata: 'raw_user_meta_data' }`. The other tables keep their names. Default the\ntable `protobase auth migration` makes.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UserTableSettings"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
         "origins": {
           "description": "The other origins the app is served on, for example `['https://admin.shop.com']`. A request to one of them is\nanswered for that host: its sign-in callbacks and the links it mails, such as a password reset, stay there, and\npasskeys work on every origin. Tokens keep `baseURL` as issuer, whatever host issued them. Defaults to the\ncomma-separated list the platform passes in `PROTOBASE_ORIGINS`, when set; none otherwise.",
           "anyOf": [
@@ -1990,8 +1949,8 @@
                         "anyOf": [
                           {
                             "enum": [
-                              "email",
-                              "name"
+                              "name",
+                              "email"
                             ]
                           },
                           {
@@ -2052,9 +2011,9 @@
                   "anyOf": [
                     {
                       "enum": [
+                        "required",
                         "allowed",
-                        "forbidden",
-                        "required"
+                        "forbidden"
                       ]
                     },
                     {
@@ -2066,9 +2025,9 @@
                   "anyOf": [
                     {
                       "enum": [
+                        "required",
                         "allowed",
-                        "forbidden",
-                        "required"
+                        "forbidden"
                       ]
                     },
                     {
@@ -2170,14 +2129,7 @@
         },
         "encryptOAuthTokens": {
           "description": "Encrypt the OAuth access and refresh tokens Better Auth stores for social sign-ins, with `secret`; `personalMail` and workflow connections need it. Default off.",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
+          "type": "boolean"
         },
         "connections": {
           "description": "The OAuth client of each workflow plugin's connection that signs in through a provider of its own, by\n`<plugin>:<connection>`, such as `{ 'acme:account': { clientId, clientSecret } }`; its redirect URI is\n`{baseURL}/api/auth/callback/workflow-<plugin>-<connection>`. A connection through one of `socialProviders` needs none.",
@@ -2194,17 +2146,6 @@
                   }
                 ]
               }
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        },
-        "users": {
-          "description": "The user table, when it is one another system made, such as Supabase's `auth.users`: its name, the columns named\notherwise than Protobase names them, and a JSON column for each user's metadata, for example `{ table: 'users',\ncolumns: { role: 'app_role' }, metadata: 'raw_user_meta_data' }`. The other tables keep their names. Default the\ntable `protobase auth migration` makes.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/UserTableOptions"
             },
             {
               "$ref": "#/definitions/EnvValue"
@@ -2234,25 +2175,11 @@
         },
         "leakedPasswords": {
           "description": "Refuses a new password that appears in a known data breach, by Have I Been Pwned's password list: at sign-up, from\nan invitation, and when a password is set, changed, reset or given by an admin. Only the first five characters of\nthe password's SHA-1 hash leave the server. While the list cannot be reached, setting a password fails. Default off.",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
+          "type": "boolean"
         },
         "accountDeletion": {
           "description": "Lets the signed-in person delete their own account from the account page, with their password or from a session\nthat signed in within the last day; `false` turns it off, for apps whose accounts are managed by an organization's\nadmins. Default on, as app stores require an app that makes accounts to delete them too.",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
+          "type": "boolean"
         },
         "operator": {
           "description": "The identity provider the operator's staff sign in with to sign in as people of this app, for support. Defaults\nto the one the platform passes in `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID` and\n`PROTOBASE_OPERATOR_CLIENT_SECRET` (see `readOperatorSettings`), when set; `false` turns staff sign-in off\nwhatever the environment says.",
@@ -2269,7 +2196,7 @@
           ]
         },
         "signInProviders": {
-          "description": "The sign-in providers the platform adds for people who already have an account: OpenID Connect providers that never\nsign anyone up, each with its own id. Defaults to those the platform passes in `PROTOBASE_SIGN_IN_ISSUER`,\n`PROTOBASE_SIGN_IN_CLIENT_ID` and `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and the numbered sets after them such as\n`PROTOBASE_SIGN_IN_2_ISSUER` (see `readPlatformSignIns`); `[]` turns them off whatever the environment says. One\nis left out when `socialProviders` has a provider with its id. Without `clientSecret`, one signs in by token sign-in\nalone, with tokens for the origin of `baseURL` unless `clientId` names another.",
+          "description": "The sign-in providers the platform adds for people who already have an account: OpenID Connect providers that never\nsign anyone up, each with its own id. Defaults to those the platform passes in `PROTOBASE_SIGN_IN_ISSUER`,\n`PROTOBASE_SIGN_IN_CLIENT_ID` and `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and the sets named by a provider's id such as\n`PROTOBASE_SIGN_IN_PHONE_ISSUER` (see `readPlatformSignIns`); `[]` turns them off whatever the environment says. One\nis left out when `socialProviders` has a provider with its id. Without `clientSecret`, one signs in by token sign-in\nalone, with tokens for the origin of `baseURL` unless `clientId` names another.",
           "anyOf": [
             {
               "type": "array",
@@ -2350,204 +2277,9 @@
       },
       "additionalProperties": false
     },
-    "ConnectionClient": {
+    "UserTableSettings": {
       "type": "object",
       "properties": {
-        "clientId": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        },
-        "clientSecret": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        }
-      },
-      "required": [
-        "clientId",
-        "clientSecret"
-      ],
-      "additionalProperties": false
-    },
-    "UserTableOptions": {
-      "type": "object",
-      "properties": {
-        "table": {
-          "description": "The table's name, default `user`, for example `users` for Supabase's `auth.users`.",
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        },
-        "columns": {
-          "description": "The columns named otherwise than Protobase names them: `{ role: 'app_role' }`, where `role` holds something else\nalready, such as the Postgres role in Supabase's `auth.users`.",
-          "anyOf": [
-            {
-              "type": "object",
-              "properties": {
-                "email": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "name": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "image": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "role": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "banned": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "email_verified": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "email_confirmed_at": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "created_at": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "updated_at": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "ban_reason": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "ban_expires": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "two_factor_enabled": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "last_role": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "last_organization_id": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                }
-              },
-              "additionalProperties": false
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        },
         "metadata": {
           "description": "A JSON column that holds each user's metadata, such as `raw_user_meta_data`; none by default.",
           "anyOf": [
@@ -2560,7 +2292,7 @@
           ]
         },
         "keyTable": {
-          "description": "The table that holds the user ids, when `table` is a view over another system's user table, such as\n`{ schema: 'auth', table: 'users' }` under a view over Supabase's `auth.users`: the store's migrations then make\nnothing of the user table, which the app's own migration makes, and every foreign key points at this table.",
+          "description": "The table that holds the user ids, when the user table is a view over another system's user table, such as\n`{ schema: 'auth', table: 'users' }` under a view over Supabase's `auth.users`: the store's migrations then make\nnothing of the user table, which the app's own migration makes, and every foreign key points at this table.",
           "anyOf": [
             {
               "type": "object",
@@ -2617,8 +2349,203 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "table": {
+          "description": "The table's name, default `user`, for example `users` for Supabase's `auth.users`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "columns": {
+          "description": "The columns named otherwise than Protobase names them: `{ role: 'app_role' }`, where `role` holds something else\nalready, such as the Postgres role in Supabase's `auth.users`.",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "email": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "email_verified": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "image": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "created_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "updated_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "role": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "banned": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "ban_reason": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "ban_expires": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "last_role": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "email_confirmed_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "two_factor_enabled": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "last_organization_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
         }
       },
+      "additionalProperties": false
+    },
+    "ConnectionClient": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "clientSecret": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "clientId",
+        "clientSecret"
+      ],
       "additionalProperties": false
     },
     "OperatorProvider": {
@@ -2840,47 +2767,19 @@
         },
         "hidden": {
           "description": "Keeps people's links to the provider off their account page: not listed among the connected accounts, and not\nconnected or disconnected there. The link still signs them in, and goes with the person. Default off.",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
+          "type": "boolean"
         },
         "button": {
           "description": "Whether the sign-in page shows \"Continue with {name}\" for it. With `false`, people sign in through its pages only\nwhen something sends them there: a sign-in link (`?sign-in={provider}`) or a redirect another app starts. Only for a\nprovider with pages. Default on.",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
+          "type": "boolean"
         },
         "tokenSignIn": {
           "description": "Token sign-in: a client that holds a fresh ID token the provider issued for this app posts it instead of sending\nthe browser through the provider, and gets the app's own session (see `idTokenSignInPlugin`). Default off.",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
+          "type": "boolean"
         },
         "devices": {
           "description": "Each device is an account of its own: the provider gives every device a subject of its own, and a person holds\nas many accounts of it as they have devices, each linked by the address on its first sign-in like any other. The\naccount page lists them among the devices, named by `name` and the token's `device_name` claim, not among the\nconnected accounts; signing one out there removes it and ends its sessions, and its subject never signs in again.\nNeeds `tokenSignIn` without a `clientSecret`: a device signs in by token alone. Default off.",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
+          "type": "boolean"
         }
       },
       "required": [
@@ -3111,14 +3010,7 @@
       "properties": {
         "api": {
           "description": "OAuth clients may ask for access tokens for the app's API (`resource=<origin>/api`), such as a native app that signs\nin through the connect page, and the API takes them as `Authorization: Bearer <token>`. Off by default.",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -3157,8 +3049,113 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "subject": {
+          "description": "What an ID token's `sub` names: `user`, the person's id here, the same for every client and sign-in; or `grant`, an\nid of the client's grant, new on each fresh sign-in at the provider and kept across its refresh tokens and token\nexchanges, never the person's id, so each sign-in of a phone app is a device of its own to the apps that take its\ntokens. Default `user`.",
+          "anyOf": [
+            {
+              "enum": [
+                "user",
+                "grant"
+              ]
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "clients": {
+          "description": "The app's own public clients, such as its phone app (`DeclaredClient`): served under the ids written here from the\nfirst request on, with no admin registering them, and refused once they are gone from the config. Default none.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/DeclaredClient"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
         }
       },
+      "additionalProperties": false
+    },
+    "DeclaredClient": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "description": "The client's id, as the client sends it.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "name": {
+          "description": "Shown to nobody but the developer: no consent page asks for the client.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "redirectUris": {
+          "description": "Every address the client may be sent back to, matched exactly.",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "$ref": "#/definitions/EnvValue"
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "type": {
+          "description": "Only `public`: a declared client has no secret.",
+          "anyOf": [
+            {
+              "const": "public"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "exchange": {
+          "description": "May exchange its access token for an ID token of another client or an origin of `audiences`. Default false.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "clientId",
+        "name",
+        "redirectUris",
+        "type"
+      ],
       "additionalProperties": false
     },
     "PersonalAccessTokensOptions": {
@@ -3185,17 +3182,10 @@
       "properties": {
         "organizations": {
           "description": "Whether the tokens carry organizations; read from `auth` when given. Needed with `jwksUrl` only.",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
+          "type": "boolean"
         },
-        "jwksUrl": {
-          "description": "Or its JWKS endpoint, for an API that runs apart from the auth server. Needs `issuer`.",
+        "issuer": {
+          "description": "Defaults to the auth instance's `issuer`, its `baseURL`; it is both issuer and audience of its tokens.",
           "anyOf": [
             {
               "type": "string"
@@ -3205,8 +3195,8 @@
             }
           ]
         },
-        "issuer": {
-          "description": "Defaults to the auth instance's `issuer`, its `baseURL`; it is both issuer and audience of its tokens.",
+        "jwksUrl": {
+          "description": "Or its JWKS endpoint, for an API that runs apart from the auth server. Needs `issuer`.",
           "anyOf": [
             {
               "type": "string"
@@ -3428,14 +3418,7 @@
         },
         "longQueries": {
           "description": "Its queries through `db` may run up to 30 seconds instead of the database's own limit, on a connection kept for\nsuch work: for imports, backfills, large deletes and other bulk work.",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
+          "type": "boolean"
         },
         "concurrency": {
           "description": "Jobs of this name running at once in each worker process. Default 1.",
@@ -3450,14 +3433,7 @@
         },
         "ordered": {
           "description": "Jobs run one at a time per group, in the order they were enqueued, and every enqueue names its group. A job that is\nretrying or failed holds back the rest of its group until it succeeds, or is retried or deleted in the admin app.",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
+          "type": "boolean"
         },
         "schedule": {
           "description": "Runs the job on this cron schedule, such as `0 7 * * *` (with an optional seconds field first), with no payload: one\nrun per time, however many workers run. A run missed while no worker ran happens once, as soon as one does.",
@@ -3515,13 +3491,13 @@
               "bigint",
               "boolean",
               "uuid",
+              "date",
+              "json",
               "text",
               "integer",
               "decimal",
-              "date",
               "timestamp",
               "enum",
-              "json",
               "currency",
               "country"
             ]
@@ -3537,13 +3513,13 @@
                       "bigint",
                       "boolean",
                       "uuid",
+                      "date",
+                      "json",
                       "text",
                       "integer",
                       "decimal",
-                      "date",
                       "timestamp",
                       "enum",
-                      "json",
                       "currency",
                       "country"
                     ]
@@ -3555,14 +3531,7 @@
               },
               "optional": {
                 "description": "It may be left out.",
-                "anyOf": [
-                  {
-                    "type": "boolean"
-                  },
-                  {
-                    "$ref": "#/definitions/EnvValue"
-                  }
-                ]
+                "type": "boolean"
               },
               "values": {
                 "description": "An enum's values.",
@@ -3817,14 +3786,7 @@
                       },
                       "public": {
                         "description": "Files anyone with the link may open, served without a signature.",
-                        "anyOf": [
-                          {
-                            "type": "boolean"
-                          },
-                          {
-                            "$ref": "#/definitions/EnvValue"
-                          }
-                        ]
+                        "type": "boolean"
                       },
                       "publicUrl": {
                         "description": "Where public files are linked from instead of the app's own `/api/files/<provider>`, such as a CDN in front of it.",
@@ -3961,14 +3923,7 @@
                       },
                       "public": {
                         "description": "Files anyone with the link may open.",
-                        "anyOf": [
-                          {
-                            "type": "boolean"
-                          },
-                          {
-                            "$ref": "#/definitions/EnvValue"
-                          }
-                        ]
+                        "type": "boolean"
                       },
                       "publicUrl": {
                         "description": "The bucket's public address, such as an R2 custom domain; public files are linked from there, under `prefix`.",
@@ -4099,14 +4054,7 @@
         },
         "sqlSends": {
           "description": "`true` lets SQL in the app's database broadcast to the record channels with `channels.send()`, from the `channels`\nschema `protobase migration` writes.",
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
+          "type": "boolean"
         }
       },
       "additionalProperties": false

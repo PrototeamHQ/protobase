@@ -18,6 +18,7 @@ export const recordingMailer = () => {
   const send = async (message: MailMessage) => {
     sent.push(message)
     for (const waiter of waiting.filter((waiter) => waiter.to === message.to)) waiter.resolve(message.text)
+    return {}
   }
   const last = (to: string) => {
     const earlier = sent.findLast((message) => message.to === to)

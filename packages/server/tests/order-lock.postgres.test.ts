@@ -74,3 +74,29 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('a move and a write of 
     })
   }
 })
+
+const lines = resource('lines')
+  .table('lines')
+  .fields({ id: f.integer().readOnly().filterable().sortable(), position: f.integer().sortable() })
+  .primaryKey((r) => r.id)
+  .position((r) => r.position)
+
+// More rows than one statement could move aside: each key binds three of Postgres's 65,535 parameters.
+describe.skipIf(!(await postgresTemplateReady('empty')))('a reorder of 22,000 records under a unique index, on Postgres', () => {
+  it('moves them aside in several statements, and gives each its place', { timeout: 300_000 }, async () => {
+    const database = await openPostgresDatabase('empty')
+    await database.exec(`create table lines (id integer primary key, position integer not null unique);
+      insert into lines (id, position) select i, i from generate_series(1, 22000) i`)
+    const app = createAdmin({ resources: [lines], db: database.db, authenticate: testAuthenticator, options: { statementTimeoutMs: 120_000 } })
+    const keys = Array.from({ length: 22_000 }, (_, i) => 22_000 - i)
+    const response = await app.request('/api/v1:batchWrite', {
+      method: 'POST',
+      headers: { ...as(1, 'admin'), 'content-type': 'application/json' },
+      body: JSON.stringify({ ops: [{ op: 'reorder', resource: 'lines', field: 'position', keys, etags: Object.fromEntries(keys.map((key) => [key, '*'])) }] }),
+    })
+    expect(response.status, await response.clone().text()).toBe(200)
+    const { rows } = await sql<{ id: number; position: number }>`select id, position from lines where id in (1, 11000, 22000) order by id`.execute(database.db)
+    expect(rows).toEqual([{ id: 1, position: 22000 }, { id: 11000, position: 11001 }, { id: 22000, position: 1 }])
+    await database.close()
+  })
+})

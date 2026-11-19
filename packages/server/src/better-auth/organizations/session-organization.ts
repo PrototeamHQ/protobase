@@ -1,12 +1,11 @@
 import { globalRoles } from './app-roles'
-import { initialOrganization } from './active-organization'
-import { findMember, findOrganization, membershipsOf, organizationRoleOf, summaries, type AuthContext } from './store'
+import { findMember, findOrganization, organizationRoleOf, type AuthContext } from './store'
 
 type Adapter = AuthContext['adapter']
 type SessionUser = { id: string; role?: string | null }
 
 /** The user field that keeps the organization someone last worked in, for their next sign-in. */
-export const lastOrganizationField = { lastOrganizationId: { type: 'string', required: false, input: false, fieldName: 'last_organization_id' } } as const
+export const lastOrganizationField = 'lastOrganizationId'
 
 /** Whether someone may work in an organization: a member, or holding a global role, which enters every one. */
 export const mayEnter = async (adapter: Adapter, user: SessionUser, organizationId: string) => {
@@ -28,17 +27,15 @@ export const organizationClaims = async (adapter: Adapter, user: SessionUser, ac
 }
 
 /**
- * The organization a new session of `user` starts in (`initialOrganization`): the one they last worked in while they
- * may still enter it, else their oldest membership, else none.
+ * The organization a new session of `user` starts in: the one they last worked in while they may still enter it (a
+ * member there, or holding a global role, which enters any that still exists), else their oldest membership, else none.
+ * Asked of the store, the membership by its key and the oldest by the first of the person's.
  */
 export const startingOrganization = async (adapter: Adapter, user: SessionUser & { lastOrganizationId?: string | null }) => {
   const last = user.lastOrganizationId
-  return initialOrganization({
-    memberships: summaries(await membershipsOf(adapter, user.id)),
-    last,
-    entersAny: globalRoles(user.role).length > 0,
-    lastExists: Boolean(last) && (await findOrganization(adapter, last!)) !== null,
-  })
+  if (last && ((await findMember(adapter, { organizationId: last, userId: user.id })) || (globalRoles(user.role).length > 0 && (await findOrganization(adapter, last)) !== null))) return last
+  const [oldest] = await adapter.findMany<{ organizationId: string }>({ model: 'member', where: [{ field: 'userId', value: user.id }], sortBy: { field: 'createdAt', direction: 'asc' }, limit: 1 })
+  return oldest?.organizationId
 }
 
 type SessionRow = { userId: string; activeOrganizationId?: string | null }

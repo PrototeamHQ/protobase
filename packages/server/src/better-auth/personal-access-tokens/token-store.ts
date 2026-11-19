@@ -4,22 +4,6 @@ import { everyRow } from '../organizations/store'
 /** Better Auth's model for personal access tokens: one row per token, holding its hash and never the token. */
 export const personalAccessTokenModel = 'personalAccessToken'
 
-export const personalAccessTokenSchema = {
-  [personalAccessTokenModel]: {
-    modelName: 'personal_access_token',
-    fields: {
-      userId: { type: 'string', required: true, fieldName: 'user_id' },
-      name: { type: 'string', required: true },
-      tokenHash: { type: 'string', required: true, fieldName: 'token_hash' },
-      role: { type: 'string', required: true },
-      organizationId: { type: 'string', required: false, fieldName: 'organization_id' },
-      createdAt: { type: 'date', required: true, fieldName: 'created_at' },
-      expiresAt: { type: 'date', required: false, fieldName: 'expires_at' },
-      lastUsedAt: { type: 'date', required: false, fieldName: 'last_used_at' },
-    },
-  },
-} as const
-
 /**
  * A stored token: whose it is, its name, its hash, the role and organization it works with (those of the session that
  * made it), and when it was made, expires (never without `expiresAt`) and was last used.
@@ -58,10 +42,8 @@ export const findTokenByHash = (adapter: Pick<Adapter, 'findOne'>, tokenHash: st
   adapter.findOne<PersonalAccessTokenRow>({ model: personalAccessTokenModel, where: [{ field: 'tokenHash', value: tokenHash }] })
 
 /** The user's tokens, newest first. */
-export const tokensOf = async (adapter: Pick<Adapter, 'findMany'>, userId: string) =>
-  (await adapter.findMany<PersonalAccessTokenRow>({ model: personalAccessTokenModel, where: [{ field: 'userId', value: userId }], limit: everyRow })).toSorted(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  )
+export const tokensOf = (adapter: Pick<Adapter, 'findMany'>, userId: string) =>
+  adapter.findMany<PersonalAccessTokenRow>({ model: personalAccessTokenModel, where: [{ field: 'userId', value: userId }], sortBy: { field: 'createdAt', direction: 'desc' }, limit: everyRow })
 
 export const storeToken = (adapter: Pick<Adapter, 'create'>, data: Omit<PersonalAccessTokenRow, 'id' | 'lastUsedAt'>) =>
   adapter.create<Omit<PersonalAccessTokenRow, 'id'>, PersonalAccessTokenRow>({ model: personalAccessTokenModel, data })

@@ -27,7 +27,7 @@ describe('the auth plugins with every feature on', () => {
       database: undefined,
       baseURL: 'https://admin.example.com',
       secret: 'test-secret-test-secret-test-secret-1234',
-      mailer: { send: async () => {} },
+      mailer: { send: async () => ({}) },
       operator: false,
       signInProviders: [{ issuer: 'https://idp.example.com', clientId: 'platform-client', clientSecret: 'platform-secret', provider: 'platform' }],
       sso: { saml: [{ id: 'okta', domains: ['example.com'], idp: { metadata: '<EntityDescriptor/>' } }] },

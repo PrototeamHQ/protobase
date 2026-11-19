@@ -1,0 +1,62 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"select to_regclass($1) is not null as found","params":["mail.unsubscribes"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["f"]]}},
+      {"sql":"create schema if not exists \"mail\";\n\ncreate table if not exists mail.unsubscribes (\n  \"id\" bigint generated always as identity primary key,\n  \"recipient\" text not null check (\"recipient\" = lower(\"recipient\")),\n  \"topic\" text not null,\n  \"created_at\" timestamptz not null\n);\n\ncreate unique index if not exists \"unsubscribes_recipient_topic\" on mail.unsubscribes (\"recipient\", \"topic\");\ncreate index if not exists \"unsubscribes_topic\" on mail.unsubscribes (\"topic\");\ncreate index if not exists \"unsubscribes_created_at\" on mail.unsubscribes (\"created_at\");","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]}
+    ]
+  },
+  "one-click unsubscribe > records the opt-out once, skips that topic to that recipient, and still sends another topic": {
+    "(hooks)#0": [
+      {"sql":"select recipient from mail.unsubscribes where topic = $1 and recipient = any($2::text[])","params":["newsletter","{\"ada@example.com\"}"],"result":{"command":"SELECT","rowCount":0,"columns":[["recipient",25]],"rows":[]}},
+      {"sql":"select \"recipient\" from \"mail\".\"unsubscribes\" where \"recipient\" = $1","params":["ada@example.com"],"result":{"command":"SELECT","rowCount":0,"columns":[["recipient",25]],"rows":[]}},
+      {"sql":"insert into mail.unsubscribes (recipient, topic, created_at) values ($1, $2, now()) on conflict (recipient, topic) do nothing","params":["ada@example.com","newsletter"],"result":{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"insert into mail.unsubscribes (recipient, topic, created_at) values ($1, $2, now()) on conflict (recipient, topic) do nothing","params":["ada@example.com","newsletter"],"result":{"command":"INSERT","rowCount":0,"columns":[],"rows":[]}},
+      {"sql":"select \"recipient\", \"topic\" from \"mail\".\"unsubscribes\" where \"recipient\" = $1","params":["ada@example.com"],"result":{"command":"SELECT","rowCount":1,"columns":[["recipient",25],["topic",25]],"rows":[["ada@example.com","newsletter"]]}},
+      {"sql":"select recipient from mail.unsubscribes where topic = $1 and recipient = any($2::text[])","params":["newsletter","{\"ada@example.com\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["recipient",25]],"rows":[["ada@example.com"]]}},
+      {"sql":"select recipient from mail.unsubscribes where topic = $1 and recipient = any($2::text[])","params":["digest","{\"ada@example.com\"}"],"result":{"command":"SELECT","rowCount":0,"columns":[["recipient",25]],"rows":[]}}
+    ]
+  },
+  "one-click unsubscribe > refuses a forged link with 400 and records nothing": {
+    "(hooks)#0": [
+      {"sql":"select \"recipient\" from \"mail\".\"unsubscribes\" where \"recipient\" = $1","params":["a"],"result":{"command":"SELECT","rowCount":0,"columns":[["recipient",25]],"rows":[]}}
+    ]
+  },
+  "one-click unsubscribe > lists the opt-outs to admins, who cannot change them": {
+    "(hooks)#0": [
+      {"sql":"insert into mail.unsubscribes (recipient, topic, created_at) values ($1, $2, now()) on conflict (recipient, topic) do nothing","params":["cy@example.com","digest"],"result":{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"mail\".\"unsubscribes\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"mail\".\"unsubscribes\""],"result":{"command":"SELECT","rowCount":5,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+        ["unsubscribes_created_at","btree","f","created_at","created_at","timestamptz_ops"],
+        ["unsubscribes_pkey","btree","f","id","id","int8_ops"],
+        ["unsubscribes_recipient_topic","btree","f","recipient","recipient","text_ops"],
+        ["unsubscribes_recipient_topic","btree","f","topic","topic","text_ops"],
+        ["unsubscribes_topic","btree","f","topic","topic","text_ops"]
+      ]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"recipient\" as \"recipient\", \"t\".\"topic\" as \"topic\", \"t\".\"created_at\" as \"created_at\", \"t\".\"id\"::text as \"__pb_key0\" from \"mail\".\"unsubscribes\" as \"t\" where \"t\".\"topic\" = $1 order by \"t\".\"id\" asc limit $2","params":["digest","51"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",20],["recipient",25],["topic",25],["created_at",1184],["__pb_key0",25]],"rows":[["3","cy@example.com","digest","{{now:1: :-:+00}}","3"]]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"mail\".\"unsubscribes\" as \"t\" where \"t\".\"topic\" = $1","params":["digest"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Bitmap Heap Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"unsubscribes\",\n      \"Schema\": \"mail\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 4.18,\n      \"Total Cost\": 12.64,\n      \"Plan Rows\": 4,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Recheck Cond\": \"(t.topic = 'digest'::text)\",\n      \"Plans\": [\n        {\n          \"Node Type\": \"Bitmap Index Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Index Name\": \"unsubscribes_topic\",\n          \"Startup Cost\": 0.00,\n          \"Total Cost\": 4.18,\n          \"Plan Rows\": 4,\n          \"Plan Width\": 0,\n          \"Disabled\": false,\n          \"Index Cond\": \"(t.topic = 'digest'::text)\"\n        }\n      ]\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "one-click unsubscribe > refuses to start without the unique index an opt-out is recorded on": {
+    "(hooks)#0": [
+      {"sql":"select to_regclass($1) is not null as found","params":["mail.unsubscribes"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
+      {"sql":"select indexname as name from pg_indexes where schemaname = $1 and tablename = $2","params":["mail","unsubscribes"],"result":{"command":"SELECT","rowCount":4,"columns":[["name",19]],"rows":[
+        ["unsubscribes_pkey"],
+        ["unsubscribes_recipient_topic"],
+        ["unsubscribes_topic"],
+        ["unsubscribes_created_at"]
+      ]}},
+      {"sql":"drop index mail.unsubscribes_recipient_topic","result":{"command":"DROP","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select to_regclass($1) is not null as found","params":["mail.unsubscribes"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
+      {"sql":"select indexname as name from pg_indexes where schemaname = $1 and tablename = $2","params":["mail","unsubscribes"],"result":{"command":"SELECT","rowCount":3,"columns":[["name",19]],"rows":[
+        ["unsubscribes_pkey"],
+        ["unsubscribes_topic"],
+        ["unsubscribes_created_at"]
+      ]}},
+      {"sql":"create unique index unsubscribes_recipient_topic on mail.unsubscribes (recipient, topic)","result":{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

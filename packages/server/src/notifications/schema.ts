@@ -1,6 +1,5 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
-import { storeSchema } from '../better-auth/store/store-names'
 import type { AdminAuth } from '../better-auth/create-auth'
 import { migrationCommand } from '../changes/capture-schema'
 import { historyTableSql } from './history-sql'
@@ -9,7 +8,7 @@ import { historyNames, notificationsNames, type NotificationsNames, type Notific
 import { deviceKindChecksSql, deviceSessionColumnSql, devicesTableSql, qualified } from './schema-sql'
 
 /** Auth's users table, as the store names it: devices point at it. */
-export const authUsersTable = (auth: AdminAuth) => ({ schema: storeSchema(auth), table: auth.options.user?.modelName ?? 'user' })
+export const authUsersTable = (auth: AdminAuth) => ({ schema: auth.names.schema, table: auth.names.table('user').name })
 
 export type UsersTable = ReturnType<typeof authUsersTable>
 

@@ -54,17 +54,20 @@ export const acceptInvitation = async (context: AuthContext, invitation: StoredI
   if (!user.emailVerified) throw new APIError('FORBIDDEN', { code: 'EMAIL_NOT_VERIFIED', message: 'Verify your email address before accepting an invitation.' })
   const store = storeSqlOf(context)
   const member = store.table('member')
+  const m = member.columns
+  const invitations = store.table('invitation')
   return store.db.transaction().execute(async (trx): Promise<StoredMember> => {
     await sql`select from ${store.table('organization')} where id = ${invitation.organizationId} for update`.execute(trx)
-    const { rows: [counted] } = await sql<{ members: number; joined: boolean }>`select count(*)::int as members, count(*) filter (where user_id = ${user.id}) > 0 as joined
-      from ${member} where organization_id = ${invitation.organizationId}`.execute(trx)
+    const { rows: [counted] } = await sql<{ members: number; joined: boolean }>`select count(*)::int as members, count(*) filter (where ${m.user_id} = ${user.id}) > 0 as joined
+      from ${member} where ${m.organization_id} = ${invitation.organizationId}`.execute(trx)
     if (counted!.joined) throw new APIError('BAD_REQUEST', { code: 'ALREADY_A_MEMBER', message: 'You are a member of this organization already.' })
     if (counted!.members >= membershipLimit) throw new APIError('FORBIDDEN', { code: 'MEMBERSHIP_LIMIT_REACHED', message: 'This organization has as many members as it can have.' })
-    const accepted = await sql`update ${store.table('invitation')} set status = 'accepted' where id = ${invitation.id} and status = 'pending' returning id`.execute(trx)
+    const { status } = invitations.columns
+    const accepted = await sql`update ${invitations} set ${status} = 'accepted' where id = ${invitation.id} and ${status} = 'pending' returning id`.execute(trx)
     if (accepted.rows.length === 0) throw new APIError('BAD_REQUEST', invalidInvitation)
-    const { rows: [made] } = await sql<Omit<StoredMember, 'appRoles'>>`insert into ${member} (id, organization_id, user_id, role, app_roles, created_at)
+    const { rows: [made] } = await sql<Omit<StoredMember, 'appRoles'>>`insert into ${member} (id, ${m.organization_id}, ${m.user_id}, ${m.role}, ${m.app_roles}, ${m.created_at})
       values (${store.newId}, ${invitation.organizationId}, ${user.id}, ${invitation.role}, ${JSON.stringify(invitation.appRoles)}::jsonb, ${new Date()})
-      returning id, organization_id as "organizationId", user_id as "userId", role, created_at as "createdAt"`.execute(trx)
+      returning id, ${m.organization_id} as "organizationId", ${m.user_id} as "userId", ${m.role} as role, ${m.created_at} as "createdAt"`.execute(trx)
     return { ...made!, appRoles: invitation.appRoles }
   })
 }

@@ -10,7 +10,6 @@ import { enterAfterUpdate } from './enter-after-update'
 import { providerName, readSecondStep, withoutSignInLink } from './provider-link'
 import type { AuthState } from './auth-state'
 import { startCacheStep } from './start-session'
-import { text } from './messages'
 
 export type { AuthState } from './auth-state'
 
@@ -253,7 +252,7 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
       setState(methods ? { kind: 'two-factor', methods } : { kind: status.anonymous ? 'visitor' : 'signed-out' })
     }).catch((error: unknown) => {
       if (generation.current !== asked) return
-      setState((current) => (current.kind === 'signed-in' ? current : { kind: 'error', message: error instanceof Error ? error.message : text('noAnswer') }))
+      setState((current) => (current.kind === 'signed-in' ? current : { kind: 'error', ...(error instanceof Error && { message: error.message }) }))
     })
   }, [session, enter])
 

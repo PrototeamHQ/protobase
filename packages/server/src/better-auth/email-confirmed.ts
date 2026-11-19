@@ -3,7 +3,7 @@
 // verified before the column existed keeps it empty, and an imported one keeps the time its own system recorded.
 
 /** The user field that holds the time, in the `email_confirmed_at` column unless the app names it otherwise. */
-export const emailConfirmedField = { emailConfirmedAt: { type: 'date', required: false, input: false, fieldName: 'email_confirmed_at' } } as const
+export const emailConfirmedField = 'emailConfirmedAt'
 
 type UserWrite = { emailVerified?: unknown; email?: unknown; emailConfirmedAt?: unknown }
 

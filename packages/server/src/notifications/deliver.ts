@@ -74,8 +74,7 @@ export const deliver = async ({ to, message }: CheckedSend, given: Progress, ste
     }
   }
 
-  const settle = async (device: Device, answer: PushAnswer) => {
-    if (answer.result === 'gone') await storeCall('removeGone', () => steps.devices.removeGone([device.token]))
+  const settle = (device: Device, answer: PushAnswer) => {
     if (answer.result !== 'retry' || retried.has(device.id)) return markDone(device.id)
     retried.add(device.id)
     progress.retried.push(device.id)
@@ -122,7 +121,15 @@ export const deliver = async ({ to, message }: CheckedSend, given: Progress, ste
       const answers = await answered(sender, batch)
       if (answers === undefined) left.retried += batch.length
       const byId = new Map((answers ?? []).map((answer) => [answer.id, answer]))
-      for (const device of answers ? batch : []) await settle(device, byId.get(device.id) ?? { id: device.id, result: 'retry' })
+      const isGone = (device: Device) => byId.get(device.id)?.result === 'gone'
+      // The batch's other devices are settled and saved first, so a failed removal pushes none of them again.
+      for (const device of answers ? batch.filter((device) => !isGone(device)) : []) settle(device, byId.get(device.id) ?? { id: device.id, result: 'retry' })
+      await steps.save(progress)
+      // Its gone devices are removed together, and done with once they are.
+      const gone = answers ? batch.filter(isGone) : []
+      if (gone.length === 0) continue
+      await storeCall('removeGone', () => steps.devices.removeGone(gone.map((device) => device.token)))
+      for (const device of gone) markDone(device.id)
       await steps.save(progress)
     }
   }

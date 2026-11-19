@@ -52,7 +52,7 @@ export const signUpServer = () => {
   const serve = async (options: Partial<CreateAuthOptions> = {}, { users = true } = {}) => {
     const store = await (users ? withUsers : empty).clone()
     const sent: MailMessage[] = []
-    const auth = authOf(store, { mailer: { send: async (message) => void sent.push(message) }, ...options })
+    const auth = authOf(store, { mailer: { send: async (message) => { sent.push(message); return {} } }, ...options })
     const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })
     const address = clientAddress()
     const request = (path: string, init: { body?: unknown; cookie?: string } = {}) =>

@@ -7,7 +7,7 @@ import { AppShell, type BottomBarTab } from './app-shell'
 import { withDirectMessages } from './app-shell/direct-messages-fixtures'
 import { navOpenStorageKey } from './app-shell/nav-open-storage'
 import { App } from './app/app'
-import { AssistantButton } from './app/assistant-shell'
+import { AssistantButton } from './app/assistant-button'
 import { AssistantDock } from './assistant-dock'
 import { conversation } from './assistant-dock/fixtures'
 import { adminUser } from './website/users'
@@ -90,6 +90,48 @@ export const NavigationDrawer: Story = {
     await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Navigation' })).toBeNull())
     expect(document.body.style.overflow).toBe('')
     expect(menu).toHaveFocus()
+  },
+}
+
+const drawerShell = (
+  <div className="h-screen">
+    <AppShell navGroups={sampleNavGroups} sidebarMode="icon" activeItem="orders" breadcrumb={['Sales', 'Orders']} user={adminUser} workspace="Veldhuis Supply">
+      <div className="p-4 text-muted-foreground">The page under the drawer.</div>
+    </AppShell>
+  </div>
+)
+
+/** A host closes the phone drawer with `protobase:close-sidebar`, as an app that opens its own switcher on the logo does. */
+export const NavigationDrawerClosedByHost: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => drawerShell,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Open navigation' }))
+    await canvas.findByRole('dialog', { name: 'Navigation' })
+    window.dispatchEvent(new Event('protobase:close-sidebar'))
+    await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Navigation' })).toBeNull())
+  },
+}
+
+/** A tap on the logo alone leaves the phone drawer open, as on the web: only a host's `protobase:close-sidebar` closes it. */
+export const NavigationDrawerKeptOnLogoTap: Story = {
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone'],
+  render: () => drawerShell,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Open navigation' }))
+    const drawer = await canvas.findByRole('dialog', { name: 'Navigation' })
+    const take = (event: Event) => event.preventDefault()
+    window.addEventListener('protobase:logo-tap', take)
+    try {
+      await userEvent.click(within(drawer).getByText('Veldhuis Supply'))
+      expect(canvas.getByRole('dialog', { name: 'Navigation' })).toBeInTheDocument()
+    } finally {
+      window.removeEventListener('protobase:logo-tap', take)
+    }
   },
 }
 

@@ -22,7 +22,7 @@ export const connectionTriggers = (db: () => Db, schema: string, jobs: Pick<Trig
       await db().transaction().execute(async (trx) => {
         const { rows } = await sql<{ id: string; generation: number }>`update ${triggers} set status = 'active', consecutive_failures = 0, last_error = null, updated_at = now()
           where connection_id = ${accountId} and status = 'needs_sign_in' returning id, generation`.execute(trx)
-        for (const row of rows) await jobs.start.enqueue(trx, { trigger: row.id, generation: row.generation })
+        await jobs.start.enqueueMany(trx, rows.map((row) => ({ payload: { trigger: row.id, generation: row.generation } })))
       })
     },
     disconnected: parkTriggers(db, schema, text),

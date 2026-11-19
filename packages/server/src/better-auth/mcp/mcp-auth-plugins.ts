@@ -5,7 +5,7 @@ import type { RoleDefinitions } from '../organizations/role-definitions'
 import type { AuthContext } from '../organizations/store'
 import type { RoleSession } from '../roles/session-role'
 import type { SignInPolicy } from '../sign-in-policy'
-import { pluginNames } from '../snake-case-names'
+import type { BetterAuthNames } from '../names/better-auth-names'
 import { mcpConsentCheck } from './consent-check'
 import { mcpConnectedApps } from './connected-apps'
 import { consentReference } from './consent-reference'
@@ -34,6 +34,8 @@ export type McpAuthPluginsOptions = {
   definitions: RoleDefinitions
   /** The auth context once the instance exists. */
   context: () => Promise<AuthContext>
+  /** The names of the provider's tables and columns. */
+  names: BetterAuthNames
 }
 
 /**
@@ -47,7 +49,7 @@ export type McpAuthPluginsOptions = {
  * every client registered from then on may ask for tokens for (RFC 8707 `resource`); without a `resource`, a token is
  * still for MCP.
  */
-export const mcpAuthPlugins = ({ mcp: resolved, api, organizations, mail, defaultPolicy, definitions, context }: McpAuthPluginsOptions) => [
+export const mcpAuthPlugins = ({ mcp: resolved, api, organizations, mail, defaultPolicy, definitions, context, names }: McpAuthPluginsOptions) => [
   mcpSignedQueryGuard(),
   mcpRequestDefaults(resolved.resource),
   mcpSetupGate({ mail, defaultPolicy, connectPage: resolved.connectPage }),
@@ -72,7 +74,7 @@ export const mcpAuthPlugins = ({ mcp: resolved, api, organizations, mail, defaul
     customAccessTokenClaims: async ({ user, referenceId }) => mcpTokenClaims(await context(), { organizations, mail, defaultPolicy }, user, referenceId),
     accessTokenExpiresIn: mcpAccessTokenSeconds,
     extensions: [mcpConsentCheck()],
-    schema: pluginNames.mcp,
+    schema: names.moduleSchema('mcp'),
   }),
   cimd({ fetchClientMetadataResource: resolved.fetchClientMetadata ?? fetchClientMetadataResource, metadataProfile: 'mcp-2026-07-28' }),
   mcpGrantRevocation(),

@@ -3,12 +3,17 @@ import type { AuthContext } from '../organizations/store'
 type Row = Record<string, unknown>
 type Where = { field: string; value: unknown; operator?: string }
 
-const matches = (row: Row, where: Where[] = []) =>
-  where.every(({ field, value, operator }) => (operator === 'in' ? (value as unknown[]).includes(row[field]) : row[field] === value))
+const holds = (row: Row, { field, value, operator }: Where) => {
+  if (operator === 'in') return (value as unknown[]).includes(row[field])
+  if (operator === 'lte') return (row[field] as Date | number) <= (value as Date | number)
+  return row[field] === value
+}
+
+const matches = (row: Row, where: Where[] = []) => where.every((condition) => holds(row, condition))
 
 /**
  * An in-memory store behind the part of Better Auth's adapter the auth code uses: `findOne`, `findMany`, `count` and
- * `deleteMany` with equality and `in` conditions, on rows named by Better Auth's models and fields. `tables` holds the
+ * `deleteMany` with equality, `in` and `lte` conditions, on rows named by Better Auth's models and fields. `tables` holds the
  * rows, so a test reads what is left.
  */
 export const fakeAdapter = (tables: Record<string, Row[]> = {}) => {

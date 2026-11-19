@@ -1,6 +1,6 @@
 import type { createAuthMiddleware } from 'better-auth/api'
+import { sql, type RawBuilder } from 'kysely'
 import { parseAppRoles } from './app-roles'
-import type { MembershipSummary } from './active-organization'
 
 // Storage goes through Better Auth's adapter, which maps the models and fields to the store's snake_case names.
 // Written against better-auth 1.7.7.
@@ -26,6 +26,9 @@ export const organizationRoleOf = (member: Pick<StoredMember, 'role'>): Organiza
   return roles.includes('owner') ? 'owner' : roles.includes('admin') ? 'admin' : 'member'
 }
 
+/** A member who is an owner, in SQL: `owner` is one of the names in their role, as `organizationRoleOf` reads it. */
+export const isOwner = (role: RawBuilder<unknown>) => sql`'owner' = any(regexp_split_to_array(regexp_replace(${role}, '^\\s+|\\s+$', '', 'g'), '\\s*,\\s*'))`
+
 export const findMember = async (adapter: Adapter, where: { organizationId: string; userId: string }) => {
   const row = await adapter.findOne<MemberRow>({ model: 'member', where: [{ field: 'organizationId', value: where.organizationId }, { field: 'userId', value: where.userId }] })
   return row ? memberOf(row) : undefined
@@ -44,8 +47,6 @@ export const membersOf = async (adapter: Adapter, organizationId: string): Promi
 
 export const findOrganization = (adapter: Adapter, id: string) =>
   adapter.findOne<StoredOrganization>({ model: 'organization', where: [{ field: 'id', value: id }] })
-
-export const summaries = (members: readonly StoredMember[]): MembershipSummary[] => members.map(({ organizationId, createdAt }) => ({ organizationId, createdAt }))
 
 export const setAppRoles = (adapter: Adapter, memberId: string, appRoles: readonly string[]) =>
   adapter.update<MemberRow>({ model: 'member', where: [{ field: 'id', value: memberId }], update: { appRoles: [...appRoles] } })

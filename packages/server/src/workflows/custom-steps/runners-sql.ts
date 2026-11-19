@@ -51,6 +51,7 @@ export const runnersSql = (schema: string) => {
   "updated_at" timestamptz not null default now()
 );
 create index if not exists "runners_tenant" on ${s}."runners" ("tenant_id");
+create index if not exists "runners_tenant_key" on ${s}."runners" (coalesce("tenant_id", ''));
 create index if not exists "runners_name" on ${s}."runners" ("name");
 create index if not exists "runners_name_search" on ${s}."runners" using gin ("name" gin_trgm_ops);
 create index if not exists "runners_updated_at" on ${s}."runners" ("updated_at");

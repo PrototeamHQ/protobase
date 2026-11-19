@@ -1,4 +1,3 @@
-import { PostgresDialect, type PostgresPool } from 'kysely'
 import type { OrganizationOptions } from 'better-auth/plugins/organization'
 import type { Db } from '@protobase/query'
 import type { Mailer } from '../mail/smtp-mailer'
@@ -6,6 +5,7 @@ import { buildAuth, type CreateAuthOptions, type UserCreatedHook } from './creat
 import type { McpAuthOptions } from './mcp/mcp-plugins'
 import type { OrganizationsOptions } from './organizations/options'
 import type { StoredMember, StoredOrganization } from './organizations/store'
+import { userTableOptions, type UserTableSettings } from './user-table'
 
 /** What every hook of the project's own gets as its last argument: the app's database, the one jobs get. */
 export type HookContext = { db: Db }
@@ -33,9 +33,18 @@ export type AuthHooks = {
 
 /**
  * `auth` in `protobase.config.ts`: the sign-in settings as data. The store is the app's own database, in `schema`;
- * the hooks and a mailer of the project's own are found in auth/hooks.ts and auth/mailer.ts.
+ * the hooks and a mailer of the project's own are found in auth/hooks.ts and auth/mailer.ts. createAuth's `tables` is no
+ * setting of its own: `users` names the user table and its columns, and `userTableOptions` maps them onto `tables.user`,
+ * so the config has one place for those names. The other tables keep their built-in names.
  */
-export type AuthSettings = Omit<CreateAuthOptions, 'database' | 'secret' | 'generateUserId' | 'onUserCreated' | 'mailer' | 'organizations' | 'mcp' | 'workflowConnections'> & {
+export type AuthSettings = Omit<CreateAuthOptions, 'database' | 'secret' | 'generateUserId' | 'onUserCreated' | 'mailer' | 'organizations' | 'mcp' | 'workflowConnections' | 'tables' | 'users'> & {
+  /**
+   * The user table, when it is one another system made, such as Supabase's `auth.users`: its name, the columns named
+   * otherwise than Protobase names them, and a JSON column for each user's metadata, for example `{ table: 'users',
+   * columns: { role: 'app_role' }, metadata: 'raw_user_meta_data' }`. The other tables keep their names. Default the
+   * table `protobase auth migration` makes.
+   */
+  users?: UserTableSettings
   /** Signs cookies and encrypts the JWT private keys, such as `PROTOBASE_SECRET`. Generate with `openssl rand -base64 32`. */
   secret?: string
   /** The schema of the auth store in the app's database; default `auth`. */
@@ -51,9 +60,7 @@ export type AuthSettings = Omit<CreateAuthOptions, 'database' | 'secret' | 'gene
 }
 
 export type AppAuthInput = {
-  /** The app's pool, which the store shares (`appPool`). */
-  pool: PostgresPool
-  /** The app's database, which the hooks get. */
+  /** The app's database: sign-in queries run through it, its plugins included, and the hooks get it. */
   db: Db
   hooks?: AuthHooks
   /** A mailer of the project's own, in place of the default. */
@@ -76,8 +83,8 @@ const organizationOptions = (organizations: AuthSettings['organizations'], hooks
 }
 
 /** createAuth's options for the `auth` settings, the store in the app's own database. */
-export const appAuthOptions = (settings: AuthSettings, { pool, db, hooks = {}, mailer, workflowConnections }: AppAuthInput): CreateAuthOptions => {
-  const { schema = 'auth', secret, generateUserId, mailer: mail, organizations, mcp, ...rest } = settings
+export const appAuthOptions = (settings: AuthSettings, { db, hooks = {}, mailer, workflowConnections }: AppAuthInput): CreateAuthOptions => {
+  const { schema = 'auth', secret, generateUserId, mailer: mail, organizations, mcp, users, ...rest } = settings
   if (!secret) throw new Error("the auth secret is not set: give it the app's secret, PROTOBASE_SECRET, made with `openssl rand -base64 32`")
   const app = { db }
   const organizationsOptions = organizationOptions(organizations, hooks, app)
@@ -85,7 +92,8 @@ export const appAuthOptions = (settings: AuthSettings, { pool, db, hooks = {}, m
   const onUserCreated: UserCreatedHook | undefined = hooks.onUserCreated && ((user, context) => hooks.onUserCreated!(user, context, app))
   return {
     ...rest,
-    database: { dialect: new PostgresDialect({ pool }), type: 'postgres', schemaName: schema, transaction: true },
+    ...userTableOptions(users),
+    database: { db, type: 'postgres', schemaName: schema, transaction: true },
     secret,
     ...(userId && { generateUserId: userId }),
     ...(onUserCreated && { onUserCreated }),

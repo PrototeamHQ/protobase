@@ -90,7 +90,8 @@ export type PluginMailMessage = {
   attachments?: { filename: string; content: Uint8Array; contentType?: string }[]
 }
 
-export type PluginMail = { send(message: PluginMailMessage): Promise<void> }
+/** Sends one message, resolving to its `Message-ID` as the recipient sees it, when the mailer can tell it. */
+export type PluginMail = { send(message: PluginMailMessage): Promise<{ messageId?: string }> }
 
 /** The app a mail comes from, as a template names it: its name, and its home page. */
 export type PluginMailingApp = { name: string; url: string }
