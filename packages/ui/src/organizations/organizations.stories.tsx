@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import type { ReactNode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useState, type ReactNode } from 'react'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 import { createStaticSession, type AuthSession, type CurrentOrganization, type OrganizationMember, type RoleLabel } from '@protobase/client'
 import { ProfileMenu } from '../app-shell/profile-menu'
@@ -41,7 +42,15 @@ const sessionWith = (organizations: Partial<Organizations>): AuthSession => {
   }
 }
 
-const WithSession = ({ session, children }: { session: AuthSession; children: ReactNode }) => <AuthProvider session={session}>{children}</AuthProvider>
+// The members page reads its members as a query, as the app's pages do inside its query client
+const WithSession = ({ session, children }: { session: AuthSession; children: ReactNode }) => {
+  const [client] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }))
+  return (
+    <QueryClientProvider client={client}>
+      <AuthProvider session={session}>{children}</AuthProvider>
+    </QueryClientProvider>
+  )
+}
 
 // Sanne is an admin of Acme holding Sales; Manager would also let her give Accountant.
 const sanneAsAdmin: CurrentOrganization = { organization: acme, role: 'admin', appRoles: ['sales'], memberId: 'm-sanne', globalRoles: [] }
