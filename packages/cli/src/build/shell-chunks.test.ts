@@ -1,5 +1,8 @@
+import { createRequire } from 'node:module'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { isReactModule, isVendorModule, isWorkflowsModule, libChunkName, npmPackage } from './shell-chunks'
+import { uiEntry } from '../project/admin-app'
+import { isAppModule, isLibModule, isReactModule, isWorkflowsModule, libChunkName, npmPackage } from './shell-chunks'
 
 const bun = (name: string, file: string) => `/app/node_modules/.bun/${name.replace('/', '+')}@1.0.0/node_modules/${name}/${file}`
 
@@ -25,14 +28,14 @@ describe('the shell chunk groups', () => {
   it('put React, React DOM and the scheduler in react, from either install layout', () => {
     for (const id of [bun('react', 'index.js'), '/app/node_modules/react-dom/client.js', bun('scheduler', 'index.js')]) {
       expect(isReactModule(id)).toBe(true)
-      expect(isVendorModule(id)).toBe(false)
+      expect(isLibModule(id)).toBe(false)
     }
   })
 
-  it('put the other third-party modules in vendor, but the icons', () => {
-    expect(isVendorModule(bun('@tanstack/react-query', 'build/index.js'))).toBe(true)
-    expect(isVendorModule('/app/node_modules/clsx/dist/clsx.mjs')).toBe(true)
-    expect(isVendorModule(bun('lucide-react', 'dist/esm/icons/map.js'))).toBe(false)
+  it("put the other third-party modules in vendor or their package's chunk, but the icons", () => {
+    expect(isLibModule(bun('@tanstack/react-query', 'build/index.js'))).toBe(true)
+    expect(isLibModule('/app/node_modules/clsx/dist/clsx.mjs')).toBe(true)
+    expect(isLibModule(bun('lucide-react', 'dist/esm/icons/map.js'))).toBe(false)
     expect(isReactModule(bun('react-router', 'index.js'))).toBe(false)
   })
 
@@ -47,6 +50,15 @@ describe('the shell chunk groups', () => {
 
   it("leave the app's own modules to app", () => {
     expect(isReactModule('/app/packages/ui/src/app/main.tsx')).toBe(false)
-    expect(isVendorModule('/app/packages/ui/src/app/main.tsx')).toBe(false)
+    expect(isLibModule('/app/packages/ui/src/app/main.tsx')).toBe(false)
+    expect(isAppModule('/app/packages/ui/src/app/main.tsx')).toBe(true)
+  })
+
+  it('put in app no third-party module, virtual module, page, stylesheet or workflow engine module', () => {
+    expect(isAppModule(bun('@tanstack/react-query', 'build/index.js'))).toBe(false)
+    expect(isAppModule('\0vite/preload-helper.js')).toBe(false)
+    expect(isAppModule('/app/packages/ui/src/styles.css')).toBe(false)
+    expect(isAppModule('/app/packages/ui/src/app/index.html')).toBe(false)
+    expect(isAppModule(path.resolve(path.dirname(createRequire(uiEntry).resolve('@protobase/workflows')), 'definition/reads.ts'))).toBe(false)
   })
 })

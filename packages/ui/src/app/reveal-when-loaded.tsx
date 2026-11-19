@@ -54,6 +54,13 @@ export const RevealWhenLoaded = ({ children }: { children: ReactNode }) => {
   )
 }
 
+/** A page's skeleton where it draws, for a page whose code is still loading. */
+export const RevealSkeleton = () => (
+  <div className="relative flex min-h-0 flex-1 flex-col">
+    <PageSkeleton />
+  </div>
+)
+
 const PageSkeleton = () => (
   <div role="status" aria-label={text('loading')} className="absolute inset-x-0 top-0 flex flex-col gap-4 p-4 md:p-6">
     <Skeleton className="h-6 w-48" />

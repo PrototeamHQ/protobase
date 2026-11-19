@@ -57,7 +57,7 @@ const shellIdentity = async (): Promise<BundleShell> => {
  * names, and links the project's theme at /protobase.theme.css and its favicon at /protobase.favicon.svg, and registers its service worker. The modules plugins share with it have entries of
  * their own, which index.html's import map names. With `sourceMapsDir`, each script ends with a `//# debugId=` comment
  * and names no map, and its source map, carrying the same debug id, goes to the same place under `sourceMapsDir`. The
- * scripts split into react, vendor and app chunks (./shell-chunks), so an update mostly downloads only the app's.
+ * start loads react, vendor and app chunks and the pages load lazily (./shell-chunks), so an update mostly downloads only the app's code.
  */
 export const buildShell = async (outDir: string, sourceMapsDir?: string) => {
   const sourceMaps = sourceMapsDir !== undefined

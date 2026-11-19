@@ -13,4 +13,4 @@ export type AuthState =
   | { kind: 'setup-required'; user: AuthUser; missing: RequiredSetup[] }
   /** `staff`: staff of the operator signed in as `user`, for support; the app shows a banner to stop it. */
   | { kind: 'signed-in'; user: AuthUser; staff?: StaffSignIn }
-  | { kind: 'error'; message: string }
+  | { kind: 'error'; message?: string }

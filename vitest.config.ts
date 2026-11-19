@@ -45,6 +45,7 @@ const mocking = [
   'packages/ui/src/app/field-types/workflow-status/status-reason.test.ts',
   'packages/ui/src/app/field-types/workflow/use-layout.test.ts',
   'packages/ui/src/app/pages/action-href.test.ts',
+  'packages/ui/src/locale/load-texts.test.tsx',
   'packages/workflows/src/run/runner.test.ts',
 ]
 // Database, subprocess and build tests, and the release and docs scripts': `bun run test:integration`.
@@ -155,7 +156,7 @@ const snapshotProject = (name: string, include: string[], exclude: string[], iso
     include,
     exclude: [...configDefaults.exclude, ...integration, ...presets, ...realPostgres, ...exclude],
     // Replay connects to nothing, so a test that reaches for a database fails as a unit test does.
-    setupFiles: [...(recordSnapshots ? [] : ['test-support/no-database.setup.ts']), 'test-support/sql-snapshot/setup.ts'],
+    setupFiles: [...(recordSnapshots ? [] : ['test-support/no-database.setup.ts']), 'test-support/sql-snapshot/setup.ts', 'packages/ui/src/locale/all-texts.setup.ts'],
     globalSetup: ['test-support/sql-snapshot/global-setup.ts'],
     isolate,
     env: { TZ: 'UTC' },
@@ -188,7 +189,7 @@ export default defineConfig({
           name: 'unit',
           include: unit,
           exclude: [...configDefaults.exclude, ...mocking, ...snapshotIsolated],
-          setupFiles: ['test-support/no-database.setup.ts'],
+          setupFiles: ['test-support/no-database.setup.ts', 'packages/ui/src/locale/all-texts.setup.ts'],
           isolate: false,
         },
       },
@@ -197,7 +198,7 @@ export default defineConfig({
         test: {
           name: 'unit-isolated',
           include: mocking,
-          setupFiles: ['test-support/no-database.setup.ts'],
+          setupFiles: ['test-support/no-database.setup.ts', 'packages/ui/src/locale/all-texts.setup.ts'],
         },
       },
       snapshotProject('snapshot', databaseTests, snapshotIsolated, false),

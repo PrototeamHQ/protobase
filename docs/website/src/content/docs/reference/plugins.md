@@ -394,6 +394,7 @@ From `@protobase/ui`:
 | `RouteLink`, `RouteTarget` | An ordinary link to a target's `href`, which a plain click follows in the app, as `useComponentSelect().linkTo(key)` gives it. |
 | `FieldBadge`, `ToneEdge` | A record's value of a field as a badge in its view's words and colour, and a card's left edge in that colour, as the app's related cards draw them. |
 | `AuthLayout`, `CodeForm`, `ResendCodeButton`, `Button`, `buttonClass`, `Input`, `Spinner`, `LogoMark` | The pieces of the app's sign-in pages, for a page of a plugin or a host's own that looks like them. Outside the app, `@protobase/ui/styles.css` is the stylesheet that draws them, for a Vite build with Tailwind. |
+| `showTextsIn(locale)` | Loads the app's built-in texts in a language (`'en'` or `'nl'`), each language its own download, and draws the pieces above in it. A host's own page that draws them outside the app awaits it before it renders them; the app picks its language itself. |
 | `isFramed`, `useArmedAfterFocus`, `useGuardedPress`, `allowDelayMs` | The connect page's guard against clickjacking and click-through, for a host's own consent screen: it refuses to render when `isFramed()`, and its Allow button spreads `useGuardedPress(armed, onAllow)`, so a press counts only once the page has been in front for `allowDelayMs`, and a press anywhere on the page before then starts that wait again. |
 | `pluginApi` | The plugin API of the app's `@protobase/ui`. |
 | `protobaseVersion` | The Protobase version of the app's `@protobase/ui`. |

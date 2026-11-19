@@ -2,10 +2,8 @@ import { NativePushTap } from '../notifications/push/native-push-tap'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { AssistantClient, AuthSession, Client, RuntimeClient } from '@protobase/client'
 import { accountMenuItems, accountPath, readAccountPath, signInPolicyPath } from '../account/account-pages'
-import { AccountPage, useAccountPage } from '../account/account-page'
+import { useAccountPage } from '../account/use-account-page'
 import { connectRoute } from '@protobase/schema'
-import { ConnectRoute } from '../connect/connect-route'
-import { SignInPolicyPage } from '../account/sign-in-policy-page'
 import { AppShell, type SidebarMode } from '../app-shell'
 import { ApiProvider } from '../data/api-provider'
 import { createQueryPersistence } from '../data/start-cache/query-persistence'
@@ -18,48 +16,37 @@ import { keepsStartCache } from '../auth/start-session'
 import { useSignInAddress } from '../auth/use-sign-in-address'
 import { useLiveUpdates } from '../data/use-live-updates'
 import { useOpenedRecord } from '../data/use-record'
-import { PublicFormPage } from '../forms/public-form-page'
 import { useFormAddress } from '../forms/use-form-address'
-import { GuestCallPage } from '../calls/guest-call-page'
 import { useGuestCallAddress } from '../calls/guest-call-link'
 import { humanize } from '../live/naming'
 import { ThemeProvider, useTheme } from '../theme/theme-provider'
 import { setFallbackLocale } from '../locale/active-locale'
 import type { Locale } from '@protobase/schema/internal'
 import { ToastProvider } from '../toasts'
-import { AssistantButton, AssistantPanel } from './assistant-shell'
+import { AssistantButton } from './assistant-button'
 import { bottomBarFromMeta } from './bottom-bar-from-meta'
 import { breadcrumbFor } from './breadcrumb-for'
 import { documentTitle, titleParts, useDocumentTitle } from './document-title'
-import { CreateRoute } from './create/create-route'
-import { ListPage } from './list-page'
 import { startErrorReporting } from './error-reporting'
 import { MetaGate, Notice, useAdminMeta } from './meta-gate'
-import { InvitationsPage } from '../organizations/invitations-page'
-import { MembersPage } from '../organizations/members-page'
 import { usePresence } from '../presence/presence'
 import { PresenceProvider } from '../presence/presence-provider'
-import { OrganizationPage } from '../organizations/organization-page'
 import { invitationsPath, managesOrganization, membersPath, organizationMenuItems, organizationPageTitle, organizationPath, organizationsPath } from '../organizations/organization-paths'
-import { OrganizationsPage } from '../organizations/organizations-page'
 import { reopenIn, useOrganizations } from '../organizations/use-organizations'
 import { actingUser } from '../roles/acting-user'
 import { useActiveRole } from '../roles/use-active-role'
 import { viewOfList } from '@protobase/schema/internal'
 import { navFromMeta, navItemId } from './nav-from-meta'
 import { startAddress } from './start-address'
-import { ComposedPage } from './pages/composed-page'
 import { pageTabs, shownPageTab } from './pages/page-tabs'
 import { CustomBoundary } from './pages/custom-boundary'
 import { ProjectLogo } from './project-logo'
-import { CallRings } from '../calls/call-rings'
 import { ShellBell } from './shell-bell'
 import { ProjectUiContext, useProjectUi, type ProjectUi } from './pages/project-ui'
 import type { PluginLoader } from '../plugins/load-plugin'
 import { PluginGate, usePluginsOff } from '../plugins/plugin-gate'
 import { PluginSourceProvider, type PluginSource } from '../plugins/plugin-source'
 import { PluginNotice } from '../plugins/plugin-notice'
-import { RecordPage } from './record-page'
 import { RefreshMark } from './refresh-mark'
 import { RecordTitles, useRecordTitle } from './titles/record-titles'
 import { SourceNotice } from './source-notice'
@@ -70,7 +57,7 @@ import { NewVersionBanner } from './new-version/new-version-banner'
 import { NewVersionButton } from './new-version/new-version-button'
 import { NewVersionToast } from './new-version/new-version-toast'
 import { Router, useRouter } from './router'
-import { RuntimeUpdateButton } from './runtime/runtime-update'
+import { preloadPages, AccountPage, AssistantPanel, CallRings, ComposedPage, ConnectRoute, CreateRoute, GuestCallPage, InvitationsPage, ListPage, MembersPage, OrganizationPage, OrganizationsPage, PublicFormPage, RecordPage, RuntimeUpdateButton, SignInPolicyPage } from './lazy-routes'
 import { StaffBanner } from './staff-banner'
 import { useNavRecent } from './use-nav-recent'
 import { useAppAddress, type CurrentAddress } from './use-app-address'
@@ -292,7 +279,10 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       actions={(Actions || bell || reloadButton || runtimeButton || assistantButton) && <>{Actions && <CustomBoundary name="shell.actions" fallback={null}><Actions /></CustomBoundary>}{bell}{reloadButton}{runtimeButton}{assistantButton}</>}
       rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <CustomBoundary name="shell.rightPanel" fallback={null}><RightPanel /></CustomBoundary>}{assistantPanel}</>}
     >
-      {content}
+      {/* A page whose code or drawing fails says so in its place, and the next address draws it again */}
+      <CustomBoundary name="page" fallback={<Notice title={appText('pageNotLoaded')}>{appText('pageNotLoadedHelp')}</Notice>} resetKey={params.size > 0 ? `${path}?${params}` : path}>
+        {content}
+      </CustomBoundary>
       {status.dialog}
       {meta.calls && user && !staff && <CallRings />}
     </AppShell>
@@ -382,6 +372,8 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, plugi
     [nativeBridge],
   )
   useEffect(() => splash.start(), [splash])
+  // The pages' code loads while the start waits for the sign-in check, whose request the effects below have sent
+  useEffect(() => void preloadPages(), [])
   return (
     <SplashHoldProvider value={splash}>
       <StartCacheProvider value={startCache}>

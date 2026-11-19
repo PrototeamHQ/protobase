@@ -3,7 +3,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it } from 'vitest'
 import { setAppLocale } from '../locale/active-locale'
-import { catalogues, messages } from '../locale/messages'
+import { catalogue, messages } from '../locale/messages'
 import { EmailCodeForm } from './email-code-form'
 import { SignUpCodeForm } from './sign-up-code-form'
 import { TwoFactorForm } from './two-factor-form'
@@ -25,7 +25,7 @@ describe('the emailed code lifetime on the page', () => {
     for (const locale of locales) {
       setAppLocale(locale)
       for (const [namespace, id] of lifetimeTexts) {
-        const source = (catalogues[locale][namespace] as Record<string, string>)[id]!
+        const source = (catalogue(locale)[namespace] as Record<string, string>)[id]!
         expect(source, `${locale} ${namespace}.${id}`).toContain('{minutes, plural,')
         expect(source, `${locale} ${namespace}.${id}`).not.toMatch(/\d+ minu/)
         const text = messages(namespace) as (id: string, values: Record<string, string | number>) => string

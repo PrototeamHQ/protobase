@@ -105,9 +105,9 @@ export const ListPeriodChartChecks: StoryObj = {
     const section = (await within(canvasElement).findByRole('heading', { name: 'Orders created' })).closest('section')!
     await waitFor(() => expect(within(section).getAllByRole('row')).toHaveLength(31))
     // Today's bar, still filling up, is outlined with a dash, the days before it are not
-    const outlines = [...section.querySelectorAll('.recharts-bar-rectangle path')].map((bar) => bar.getAttribute('stroke-dasharray'))
-    expect(outlines.filter((outline) => outline !== null)).toEqual(['3 2'])
-    expect(outlines.at(-1)).toBe('3 2')
+    const outlines = () => [...section.querySelectorAll('.recharts-bar-rectangle path')].map((bar) => bar.getAttribute('stroke-dasharray'))
+    await waitFor(() => expect(outlines().filter((outline) => outline !== null)).toEqual(['3 2']))
+    expect(outlines().at(-1)).toBe('3 2')
     // A screen reader reads every day and its count in a table, the running one as today
     const rows = within(section).getAllByRole('row').map((row) => row.textContent)
     expect(rows[0]).toBe('PeriodCount')

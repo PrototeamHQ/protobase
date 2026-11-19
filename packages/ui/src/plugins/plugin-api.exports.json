@@ -80,6 +80,7 @@
     "pluginsChangedEvent",
     "protobaseVersion",
     "sameChatDay",
+    "showTextsIn",
     "siblingPage",
     "statusRefreshMs",
     "uiFromModule",

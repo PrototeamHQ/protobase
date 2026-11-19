@@ -4,10 +4,13 @@ import type { ResourceModel } from '@protobase/schema'
 import { Button } from '../../primitives/button'
 import { useAdminMeta, usePermissions } from '../meta-gate'
 import { can } from '../permissions'
-import { ImportDialog } from './import-dialog'
+import { lazyComponent } from '../lazy-component'
 import { fieldsResource } from './new-table/create-table-ops'
-import { ImportTableDialog } from './new-table/import-table-dialog'
 import { text } from './messages'
+
+// The import itself loads as its dialog opens
+const ImportDialog = lazyComponent(() => import('./import-dialog').then((module) => module.ImportDialog))
+const ImportTableDialog = lazyComponent(() => import('./new-table/import-table-dialog').then((module) => module.ImportTableDialog))
 
 /**
  * The list page's Import button, for a user who may create records of a resource whose view does not turn it off
