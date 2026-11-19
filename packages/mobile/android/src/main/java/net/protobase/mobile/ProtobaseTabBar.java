@@ -1,6 +1,8 @@
 package net.protobase.mobile;
 
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -14,7 +16,9 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  * on, and the bar's height, in CSS pixels, the navigation bar's inset included, is the `height` event each time it
  * changes, kept for the first listener, so the page keeps that much clear below its content. `set` resolves with
  * `{ height }` too while the bar shows, so a page that starts listening later, as when its bottom bar is drawn again,
- * has it. The bar goes over the view that holds the web view.
+ * has it. The bar goes over the view that holds the web view, which must draw its children over one another, as a
+ * FrameLayout or a CoordinatorLayout (Capacitor's own) does; with any other, `set` is refused, so the page keeps its own
+ * bar. A refused state takes the native bar away, so it never covers the page's own.
  */
 @CapacitorPlugin(name = "ProtobaseTabBar")
 public class ProtobaseTabBar extends Plugin {
@@ -25,13 +29,16 @@ public class ProtobaseTabBar extends Plugin {
     public void set(PluginCall call) {
         TabBarState state = TabBarState.parse(call.getData());
         if (state == null) {
+            getBridge().executeOnMainThread(() -> {
+                if (bar != null) bar.show(TabBarState.HIDDEN);
+            });
             call.reject("ProtobaseTabBar.set takes { visible, tabs: [{ label, icon }], selected }, at most " + TabBarState.MAX_TABS + " tabs");
             return;
         }
         getBridge().executeOnMainThread(() -> {
             NativeTabBar made = made();
             if (made == null) {
-                call.reject("ProtobaseTabBar has no web view to stand over");
+                call.reject("ProtobaseTabBar stands only over a web view in a FrameLayout or CoordinatorLayout");
                 return;
             }
             made.show(state);
@@ -45,7 +52,7 @@ public class ProtobaseTabBar extends Plugin {
     // The bar, made over the web view on first use
     private NativeTabBar made() {
         if (bar != null) return bar;
-        if (!(getBridge().getWebView().getParent() instanceof ViewGroup parent)) return null;
+        if (!(getBridge().getWebView().getParent() instanceof ViewGroup parent) || !(parent instanceof FrameLayout || parent instanceof CoordinatorLayout)) return null;
         bar = new NativeTabBar(
             parent,
             index -> {
