@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, it } from 'vitest'
-import { startScreenId } from './start-screen'
+import { snapshotPlaceholder, startScreenId } from './start-screen'
 
 // A phone's browser counts 100vh with its toolbars hidden, so a root of that height is taller than the screen shows
 // while they are in view: the bottom bar of a page that fills the root, such as a map, sits under the toolbar, and the
@@ -23,4 +23,12 @@ it("starts in the theme's own colours, light and dark", () => {
   expect(fallbacks('background')).toEqual([token(light, 'background'), token(dark, 'background')])
   expect(fallbacks('muted-foreground')).toEqual([token(light, 'muted-foreground'), token(dark, 'muted-foreground')])
   expect(html).toContain(`<div id="${startScreenId}"`)
+})
+
+// A host fills it with a plain string replace, so the text appears once, empty, on the start screen
+it("carries one empty placeholder for a host's snapshot, on the start screen", () => {
+  const html = readFileSync(path.join(import.meta.dirname, 'index.html'), 'utf8')
+  expect(html.split(snapshotPlaceholder)).toHaveLength(2)
+  const start = html.indexOf(`<div id="${startScreenId}"`)
+  expect(html.indexOf(snapshotPlaceholder)).toBeGreaterThan(start)
 })
