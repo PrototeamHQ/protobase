@@ -23,7 +23,7 @@
     "icon",
     "splash"
   ],
-  "nativeContract": 14,
+  "nativeContract": 15,
   "capacitor": {
     "ios": {
       "src": "ios"

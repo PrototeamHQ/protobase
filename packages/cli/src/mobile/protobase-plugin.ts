@@ -45,10 +45,10 @@ export const checkProtobasePlugin = async (ws: string) => {
 
 /**
  * The classes of Protobase's iOS plugin, by `@objc` name: the bounce Capacitor turns off, ProtobaseAuth, which keeps
- * page script away from the session, ProtobaseExternal, which opens a url outside the app, and ProtobasePush, which
- * names what the app registers its APNs token with.
+ * page script away from the session, ProtobaseExternal, which opens a url outside the app, ProtobasePush, which names
+ * what the app registers its APNs token with, and ProtobaseTabBar, the shell's mobile bottom bar as the system tab bar.
  */
-export const protobaseIosPluginClasses = ['ProtobaseBounce', 'ProtobaseAuthPlugin', 'ProtobaseExternal', 'ProtobasePush']
+export const protobaseIosPluginClasses = ['ProtobaseBounce', 'ProtobaseAuthPlugin', 'ProtobaseExternal', 'ProtobasePush', 'ProtobaseTabBar']
 
 /** The Swift package product `cap add ios` compiles @protobase/mobile into, by the name @capacitor/cli's fixName gives. */
 export const protobaseIosProduct = 'ProtobaseMobile'

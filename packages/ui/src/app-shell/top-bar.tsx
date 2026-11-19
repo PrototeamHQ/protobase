@@ -3,6 +3,8 @@ import { useLayoutEffect, useRef, useState, type ReactNode, type Ref } from 'rea
 import { cn } from '../lib/cn'
 import { backTarget } from './back-target'
 import { Breadcrumb, inApp, type Crumb } from './breadcrumb'
+import { brandBar, brandContent } from './brand-bar'
+import { leadingBox, leadingRow } from './leading-slot'
 import { GlobalSearch, type GlobalSearchModel } from './global-search'
 import { text } from './messages'
 
@@ -26,6 +28,19 @@ export type TopBarProps = {
    * spacer of its height, so it stays put while the page is pulled past its top as well, as an iOS app's bar does.
    */
   sticky?: boolean
+  /** In the app's brand colour on a phone (`brandBar`), up behind the status bar. */
+  brand?: boolean
+  /** In place of the back link and the trail, such as the app's logo and name on the app's first page. */
+  leading?: ReactNode
+  /** The back link in the leading slot, in the app logo's place, with the title where the app's name sits (`leadingRow`). */
+  backInLeadingSlot?: boolean
+  /** At the right end, after the actions, such as the account's entry on a phone. */
+  account?: ReactNode
+  /** Whether a phone gets a search button here; off where search is part of the bottom bar, which opens it instead. */
+  searchButton?: boolean
+  /** Whether the phone's search field covers the bar, for a shell that opens it from elsewhere; the bar's own otherwise. */
+  searchOpen?: boolean
+  onSearchOpenChange?: (open: boolean) => void
   /** Gets the element, shown below `md`, that a page's own controls are portalled into (see `useTopBarSlot`). */
   slotRef?: (element: HTMLDivElement | null) => void
   ref?: Ref<HTMLElement>
@@ -34,8 +49,9 @@ export type TopBarProps = {
 /**
  * An icon button of the top bar on a mobile screen, as the menu, back and search buttons are. It and its icon grow with
  * the text size beyond their default 44px and 20px only up to 13% and 6% of the screen's width, so four buttons still
- * fit at the largest text sizes, as in a native app's bar. The caps and the bar's spacing are in pixels and screen width,
- * not `rem` as other sizes are, because a size in `rem` alone grows with the text past the screen's width.
+ * fit at the largest text sizes, as in a native app's bar. The caps are in pixels and screen width, not `rem` as other
+ * sizes are, because a size in `rem` alone grows with the text past the screen's width; the bar's spacing is on the
+ * spacing scale, which grows with the text a little.
  */
 export const topBarButton = 'inline-flex size-[min(2.75rem,max(44px,13vw))] shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden [&_svg]:size-[min(1.25rem,max(20px,6vw))]'
 
@@ -49,10 +65,15 @@ export const topBarButton = 'inline-flex size-[min(2.75rem,max(44px,13vw))] shri
 const mobileSearchField = 'max-h-[max(40px,calc(13vw-4px),calc(1.25em+2px))] text-body [&>input]:leading-[1.25] [&>svg]:size-[min(1rem,max(16px,6vw))] [&>button]:size-[min(1.5rem,max(24px,9vw))] [&>button>svg]:size-[min(0.875rem,max(14px,5vw))]'
 
 /** The back button that shows the page it goes to, as the trail on a phone leaves that crumb to it: one link, one target. */
-const backWithLabel = 'inline-flex min-h-[min(2.75rem,max(44px,13vw))] min-w-0 items-center gap-[4px] rounded-md pr-[8px] pl-[12px] text-muted-foreground hover:bg-muted hover:text-foreground md:hidden [&_svg]:size-[min(1.25rem,max(20px,6vw))]'
+const backWithLabel = 'inline-flex min-h-[min(2.75rem,max(44px,13vw))] min-w-0 items-center gap-1 rounded-md pr-2 pl-3 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden [&_svg]:size-[min(1.25rem,max(20px,6vw))]'
 
-export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, onMenu, menuOpen, menuControls, search, sticky, slotRef, ref }: TopBarProps) => {
-  const [searchOpen, setSearchOpen] = useState(false)
+export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, brand, leading, backInLeadingSlot, account, searchButton = true, searchOpen: openFromOutside, onSearchOpenChange, onMenu, menuOpen, menuControls, search, sticky, slotRef, ref }: TopBarProps) => {
+  // Right after the title, never with the account: there from the first frame, so a status that comes and goes, such as
+  // the refresh spinner, changes only itself
+  const status = <span className="flex shrink-0 items-center empty:hidden">{titleStatus}</span>
+  const [ownSearchOpen, setOwnSearchOpen] = useState(false)
+  const searchOpen = openFromOutside ?? ownSearchOpen
+  const setSearchOpen = (open: boolean) => (onSearchOpenChange ? onSearchOpenChange(open) : setOwnSearchOpen(open))
   const back = backTarget(breadcrumb)
   const desktopSearch = useRef<HTMLInputElement>(null)
 
@@ -72,13 +93,43 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, o
   }, [search])
   return (
     <>
-      <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)]' : 'relative', 'flex shrink-0 items-center gap-[4px] border-b bg-background pt-[calc(var(--pb-safe-top)+1.5px)] pr-[8px] pb-[1.5px] pl-[16px] h-[calc(3rem+var(--pb-safe-top))] md:gap-4 md:px-5 md:pt-[var(--pb-safe-top)] md:pb-0')}>
+      <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)]' : 'relative', 'flex shrink-0 items-center gap-1 border-b pt-[var(--pb-safe-top,--spacing(2))] pr-2 pb-2 pl-4 h-[calc(3rem+var(--pb-safe-top))] md:gap-4 md:px-5 md:pt-[var(--pb-safe-top)] md:pb-0', brand ? brandBar : 'bg-background')}>
+        {/* In the brand colour, what a pull past the page's top reveals above the bar is the bar's colour too */}
+        {brand && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-full h-screen bg-primary md:hidden" />}
+        <div className={cn('contents', brand && brandContent)}>
         {onMenu && (
-          <button type="button" aria-label={text('openNavigation')} aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(topBarButton, '-ml-[12px]')}>
+          <button type="button" aria-label={text('openNavigation')} aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(topBarButton, '-ml-3')}>
             <Menu />
           </button>
         )}
-        {back && (
+        {leading && (
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <div className="min-w-0">{leading}</div>
+            {status}
+          </div>
+        )}
+        {!leading && backInLeadingSlot && (
+          <div className={cn(leadingRow, 'flex-1')}>
+            {back && (
+              <a
+                href={back.href}
+                aria-label={text('backTo', { label: back.label })}
+                onClick={(event) => {
+                  const follow = onBack ?? onNavigate
+                  if (!follow || !inApp(event)) return
+                  event.preventDefault()
+                  follow(back.href)
+                }}
+                // The box is the app mark's; the tap area reaches 44 points around it
+                className={cn(leadingBox, 'relative flex shrink-0 items-center justify-center rounded-full text-foreground after:absolute after:-inset-2 [&_svg]:size-6')}
+              >
+                <ChevronLeft aria-hidden />
+              </a>
+            )}
+            <Breadcrumb parts={breadcrumb} onNavigate={onNavigate} trailing={status} />
+          </div>
+        )}
+        {!leading && !backInLeadingSlot && back && (
           <a
             href={back.href}
             aria-label={text('backTo', { label: back.label })}
@@ -88,31 +139,33 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, o
               event.preventDefault()
               follow(back.href)
             }}
-            className={cn(back.shown ? backWithLabel : topBarButton, !onMenu && '-ml-[12px]')}
+            className={cn(back.shown ? backWithLabel : topBarButton, !onMenu && '-ml-3')}
           >
             <ChevronLeft className="shrink-0" aria-hidden />
             {back.shown && <span className="truncate">{back.label}</span>}
           </a>
         )}
-        <Breadcrumb parts={breadcrumb} onNavigate={onNavigate} />
-        {/* There from the first frame, so a status that comes and goes, such as the refresh spinner, changes only itself */}
-        <span className="flex shrink-0 items-center empty:hidden">{titleStatus}</span>
-        <div className="ml-auto flex items-center gap-[4px] md:gap-3">
+        {!leading && !backInLeadingSlot && <Breadcrumb parts={breadcrumb} onNavigate={onNavigate} trailing={status} />}
+        <div className="ml-auto flex items-center gap-1 md:gap-3">
           {search && (
             <>
               <div className="hidden md:block">
                 <GlobalSearch ref={desktopSearch} search={search} />
               </div>
-              <button type="button" aria-label={text('search')} aria-expanded={searchOpen} onClick={() => setSearchOpen(true)} className={topBarButton}>
-                <Search />
-              </button>
+              {searchButton && (
+                <button type="button" aria-label={text('search')} aria-expanded={searchOpen} onClick={() => setSearchOpen(true)} className={topBarButton}>
+                  <Search />
+                </button>
+              )}
           </>
         )}
         {actions}
         <div ref={slotRef} className="contents md:hidden" />
+        {account}
       </div>
+        </div>
       {search && searchOpen && (
-        <div className="absolute inset-0 z-20 flex items-center gap-[4px] bg-background px-[12px] pt-[var(--pb-safe-top)] md:hidden">
+        <div className="absolute inset-0 z-20 flex items-center gap-1 bg-background px-3 pt-[var(--pb-safe-top)] md:hidden">
           <GlobalSearch className="min-w-0 flex-1" fieldClassName={mobileSearchField} autoFocus showShortcut={false} search={{ ...search, onSelect: (href) => { search.onSelect(href); setSearchOpen(false) } }} />
           <button type="button" aria-label={text('closeSearch')} onClick={() => setSearchOpen(false)} className={topBarButton}>
             <X />

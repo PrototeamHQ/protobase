@@ -29,7 +29,7 @@ describe('a page showing data that may be out of date', () => {
     expect(shell().replace(mainOf(shell()), '')).toBe(shell('refreshing').replace(mainOf(shell('refreshing')), ''))
   })
 
-  it('puts the mark beside the page title', () => {
-    expect(shell('refreshing')).toMatch(/>Today<\/span><\/span><\/nav><span class="[^"]*"><span id="mark">/)
+  it('puts the mark right after the page title, inside the title, never with the account', () => {
+    expect(shell('refreshing')).toMatch(/>Today<\/span><span class="[^"]*"><span id="mark">/)
   })
 })

@@ -17,13 +17,17 @@ const itemErrors = (item: BottomBarItemModel, names: BottomBarNames) => {
   return []
 }
 
+// Search is no tab of its own count: on the web it takes the last tab's place, which "More" then holds
+const tabsOf = (bar: BottomBarModel) => bar.items.filter((item) => item.kind !== 'search').length
+
 const barErrors = (bar: BottomBarModel, names: BottomBarNames) => {
   const unknownRoles = names.roles ? bar.roles.filter((role) => !names.roles!.includes(role)) : []
   return [
     ...(bar.roles.length === 0 ? ['needs at least one role'] : []),
     ...unknownRoles.map((role) => `role "${role}" is not one of the roles: ${names.roles!.join(', ')}`),
     ...(bar.items.length === 0 ? ['needs at least one item'] : []),
-    ...(bar.items.length > maxBottomBarItems ? [`has ${bar.items.length} items; at most ${maxBottomBarItems} fit beside "More"`] : []),
+    ...(tabsOf(bar) > maxBottomBarItems ? [`has ${tabsOf(bar)} tabs; at most ${maxBottomBarItems} fit beside "More"`] : []),
+    ...(bar.items.filter((item) => item.kind === 'search').length > 1 ? ['has search more than once'] : []),
     ...bar.items.flatMap((item) => itemErrors(item, names)),
   ].map((error) => `Bottom bar "${bar.label}": ${error}`)
 }

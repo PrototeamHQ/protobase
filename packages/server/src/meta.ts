@@ -132,7 +132,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
     const shownPages = texts ? pages.map((page) => translatedPage(page, texts)) : pages
     const shownViews = deps.translations && language ? withBlocks.map((view) => translatedView(view, deps.translations!, language)) : withBlocks
     const shown = (item: UserMenuItemModel | BottomBarItemModel) =>
-      item.kind === 'link' || (item.kind === 'resource' ? visible.some((access) => access.entry.name === item.resource) || prompted.has(item.resource) : pages.some((page) => page.name === item.page))
+      item.kind === 'link' || item.kind === 'search' || (item.kind === 'resource' ? visible.some((access) => access.entry.name === item.resource) || prompted.has(item.resource) : pages.some((page) => page.name === item.page))
     const bar = bottomBarFor(deps.bottomBars, activeRole(session))
     const barItems = bar?.items.filter(shown) ?? []
     const plugins = pluginsFor(deps.plugins, session.user.roles)

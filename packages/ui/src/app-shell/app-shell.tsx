@@ -17,6 +17,13 @@ import type { Crumb } from './breadcrumb'
 import type { ShellLogoProps } from './logo'
 import { TopBarSlotContext } from './top-bar-slot'
 import { TopBar } from './top-bar'
+import { useMenuPageBackground } from './menu-page'
+import { accountInTopBar, searchPlacement, useMorePageMode } from './more-page'
+import { useBrandStatusBar } from './brand-status-bar'
+import { Logo } from './logo'
+import { tellLogoTap } from './logo-tap'
+import { AccountEntry } from './account-entry'
+import { text } from './messages'
 
 export type AppShellProps = {
   /** Used from the `md` breakpoint up; on phones the sidebar is always the drawer. */
@@ -64,6 +71,13 @@ export type AppShellProps = {
   signIn?: RouteTarget
   /** Tabs along the bottom on phones, before "More", which opens the drawer instead of the top bar's menu button. */
   bottomBar?: BottomBarTab[]
+  /**
+   * The sidebar as a page of its own, at `href`, and whether the address is it (`shown`): where the native tab bar draws
+   * the bottom bar, "More" goes there rather than sliding the sidebar over the page.
+   */
+  menuPage?: { href: string; shown: boolean }
+  /** Search in the bottom bar (`m.search`), with its label or `true` for the default one, in More page mode; none keeps it out. */
+  bottomBarSearch?: string | true
   /** The organizations to switch between, in the profile menu. */
   organizations?: ProfileOrganizations
   /** The roles to switch between, in the profile menu. */
@@ -87,7 +101,7 @@ const staleLook = {
   failed: 'opacity-60',
 }
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, staleContent, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, account, bottomBar, onNavigate, onBack, onSignOut, signIn, organizations, roles, theme, status, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, staleContent, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, account, bottomBar, menuPage, bottomBarSearch, onNavigate, onBack, onSignOut, signIn, organizations, roles, theme, status, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const noticeShown = useSidebarNoticeShown(sidebarMode)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -96,6 +110,26 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
   }, [desktop])
   useCloseSidebarEvent(useCallback(() => setDrawerOpen(false), []))
   const tabs = !desktop && bottomBar && bottomBar.length > 0 ? bottomBar : undefined
+  // On a phone with a bottom bar, "More" opens the sidebar as its own page, the tabs' pages show the account, search is
+  // part of the bottom bar and other pages lead back to More: all from this one decision
+  const more = useMorePageMode(tabs, menuPage)
+  const accountOnTop = accountInTopBar(desktop)
+  const onMore = more.on && onNavigate ? () => onNavigate(more.href) : () => setDrawerOpen(true)
+  const menuShown = more.on && more.shown
+  useMenuPageBackground(menuShown)
+  const [searchOpen, setSearchOpen] = useState(false)
+  // The bars are in the brand colour in More page mode, and the status bar's text reads over it
+  const brandProbe = useRef<HTMLSpanElement>(null)
+  const ShellLogo = logo ?? Logo
+  useBrandStatusBar(more.on, brandProbe)
+  // In More page mode the top bar has no search: the bottom bar has it where the app put it there, the More page otherwise
+  const searchAt = search && searchPlacement({ desktop, more: more.on, inBottomBar: Boolean(bottomBarSearch) })
+  const searchInBar = searchAt === 'bottom-bar'
+  const openSearch = () => setSearchOpen(true)
+  // In More page mode: the More page is titled "More", a page that is no tab leads back to it, and the first tab leads
+  // with the app's logo and name
+  const trail = !more.on ? breadcrumb : more.shown ? [text('more')] : more.onTab ? breadcrumb : [{ label: text('more'), href: more.href }, ...breadcrumb]
+  const firstTabShown = more.on && Boolean(tabs?.[0]?.active)
   // A page turns the document's scrolling on or off with `usePageScroll`
   const [chosen, setPageScroll] = useState<boolean>()
   const pageScroll = chosen ?? scrollsByDefault
@@ -104,13 +138,14 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
   const bottomBarRef = useRef<HTMLElement>(null)
   usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
   usePageGutter(pageScroll)
-  const sidebar = (place: Pick<SidebarProps, 'mode' | 'sticky' | 'notice' | 'fill'>) => (
-    <Sidebar {...place} activeItem={activeItem} user={user} workspace={workspace} appName={appName} appIcon={appIcon} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} account={account} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} status={status} logo={logo} />
+  const sidebar = (place: Pick<SidebarProps, 'mode' | 'sticky' | 'notice' | 'fill' | 'page'>) => (
+    <Sidebar {...place} accountInTopBar={accountOnTop} {...(place.page && search && searchAt === 'more-page' && { search })} activeItem={activeItem} user={user} workspace={workspace} appName={appName} appIcon={appIcon} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} account={account} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} status={status} logo={logo} />
   )
   return (
     <PageScrollContext.Provider value={setPageScroll}>
+      <span ref={brandProbe} aria-hidden className="hidden bg-primary" />
       {/* Relative while a box scrolls, so that it clips absolute content such as sr-only text, which otherwise makes the document taller */}
-      <div className={cn(pageScroll ? 'flex min-h-full w-full overflow-x-clip bg-background' : 'relative flex h-full min-h-0 w-full overflow-hidden bg-background', className)}>
+      <div className={cn(pageScroll ? 'flex min-h-full w-full overflow-x-clip' : 'relative flex h-full min-h-0 w-full overflow-hidden', menuShown ? 'bg-sidebar' : 'bg-background', className)}>
         {desktop ? sidebar({ mode: sidebarMode, sticky: pageScroll, notice: noticeShown && sidebarNotice }) : (
           <Drawer id={drawerId} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
             {sidebar({ mode: 'text-large', fill: true })}
@@ -118,12 +153,39 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
         )}
         {/* Without the bottom bar, the page keeps clear of the home indicator itself */}
         <div className={cn('flex min-w-0 flex-1 flex-col', !tabs && 'pb-[var(--pb-safe-bottom)]')}>
-          <TopBar ref={topBarRef} slotRef={setTopBarSlot} sticky={pageScroll} breadcrumb={breadcrumb} titleStatus={titleStatus} onNavigate={onNavigate} onBack={onBack} actions={actions} onMenu={desktop || tabs ? undefined : () => setDrawerOpen(true)} menuOpen={drawerOpen} menuControls={drawerId} search={search} />
+          {/* One top bar for every page: on the sidebar's own page it leads with the app's logo and name */}
+          <TopBar
+            ref={topBarRef}
+            slotRef={setTopBarSlot}
+            sticky={pageScroll}
+            breadcrumb={trail}
+            titleStatus={titleStatus}
+            onNavigate={onNavigate}
+            onBack={onBack}
+            actions={actions}
+            brand={more.on}
+            backInLeadingSlot={more.on}
+            {...(firstTabShown && {
+              leading: (
+                <div className="flex min-w-0 items-center" onClick={() => tellLogoTap()}>
+                  <ShellLogo compact={false} workspace={workspace} appName={appName} appIcon={appIcon} />
+                </div>
+              ),
+            })}
+            account={accountOnTop && <AccountEntry onBrand={more.on} user={user} signIn={signIn} open={profileMenuOpen} items={userMenu} account={account} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} theme={theme} status={status} />}
+            searchButton={searchAt === 'top-bar'}
+            searchOpen={searchOpen}
+            onSearchOpenChange={setSearchOpen}
+            onMenu={desktop || tabs ? undefined : () => setDrawerOpen(true)}
+            menuOpen={drawerOpen}
+            menuControls={drawerId}
+            search={search}
+          />
           {banner}
           <main className={cn(pageScroll ? 'flex flex-1 flex-col' : 'flex min-h-0 flex-1 flex-col', staleContent && staleLook[staleContent])} aria-busy={staleContent === 'refreshing' || undefined}>
-            <TopBarSlotContext.Provider value={topBarSlot}>{children}</TopBarSlotContext.Provider>
+            <TopBarSlotContext.Provider value={topBarSlot}>{menuShown ? sidebar({ mode: 'text-large', page: true }) : children}</TopBarSlotContext.Provider>
           </main>
-          {tabs && <BottomBar ref={bottomBarRef} sticky={pageScroll} tabs={tabs} onNavigate={onNavigate} onMore={() => setDrawerOpen(true)} moreOpen={drawerOpen} moreControls={drawerId} />}
+          {tabs && <BottomBar ref={bottomBarRef} sticky={pageScroll} tabs={tabs} onNavigate={onNavigate} {...(searchInBar && { onSearch: openSearch, searchLabel: bottomBarSearch === true ? undefined : bottomBarSearch })} onMore={onMore} moreOpen={drawerOpen} moreControls={drawerId} />}
         </div>
         {/* The same element either way, so that switching keeps the panel's state; it stays in view while the page scrolls */}
         {rightPanel && <div className={pageScroll ? 'sticky top-0 flex h-dvh shrink-0 self-start pt-[var(--pb-safe-top)]' : 'flex shrink-0'}>{rightPanel}</div>}
