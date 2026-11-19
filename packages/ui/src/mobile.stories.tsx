@@ -220,7 +220,7 @@ export const BottomBarTabs: Story = {
 
 // An app's native tab bar that takes the state it is sent (`accepts`) or refuses it, as for a state it cannot draw
 const nativeBar = (accepts: boolean): NativeTabBar => ({
-  set: () => (accepts ? Promise.resolve() : Promise.reject(new Error('refused'))),
+  set: () => (accepts ? Promise.resolve({}) : Promise.reject(new Error('refused'))),
   onTap: () => () => {},
   onHeight: () => () => {},
 })

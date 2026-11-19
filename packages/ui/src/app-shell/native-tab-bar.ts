@@ -14,8 +14,11 @@ export type NativeTab = { label: string; icon: string | null; search?: true }
 export type NativeTabBarState = { visible: false } | { visible: true; tabs: NativeTab[]; selected: number | null }
 
 export type NativeTabBar = {
-  /** Asks for `state`, the whole of it each time, so the bar always shows what the shell last wanted. */
-  set: (state: NativeTabBarState) => Promise<unknown>
+  /**
+   * Asks for `state`, the whole of it each time, so the bar always shows what the shell last wanted; resolves with the
+   * bar's height while it shows, as `onHeight` tells it only when it changes.
+   */
+  set: (state: NativeTabBarState) => Promise<{ height?: number }>
   /** Calls `tap` with the index of each tab tapped; returns what stops it. */
   onTap: (tap: (index: number) => void) => () => void
   /** Calls `told` with the bar's height in CSS pixels, the home indicator's inset included, whenever it changes. */
@@ -39,7 +42,10 @@ export const nativeTabBar = (bridge: NativeBridge | undefined): NativeTabBar | u
     return () => void listener.remove()
   }
   return {
-    set: (state) => bridge.nativePromise(nativeTabBarPlugin, 'set', state),
+    set: async (state) => {
+      const height = numberIn(await bridge.nativePromise(nativeTabBarPlugin, 'set', state), 'height')
+      return height !== undefined && height >= 0 ? { height } : {}
+    },
     onTap: (tap) => listen('tap', 'index', Number.isInteger, tap),
     onHeight: (told) => listen('height', 'height', (height) => height >= 0, told),
   }

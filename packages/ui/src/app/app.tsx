@@ -73,7 +73,9 @@ import { createSplashHold, SplashHoldProvider } from './splash-hold'
 import { tellUiReady } from './ui-ready'
 import { removeStartScreen } from './start-screen'
 import { nativeTabBar, NativeTabBarContext } from '../app-shell/native-tab-bar'
-import { menuPagePath, startInstead } from '../app-shell/menu-page'
+import { menuPagePath, menuPageInstead } from '../app-shell/menu-page'
+import { morePageMode } from '../app-shell/more-page'
+import { useIsDesktop } from '../lib/use-media-query'
 import { LiveUpdateCheck } from './live-update/live-update-check'
 import { LiveUpdateResume } from './live-update/live-update-resume'
 import { useStatusMenu } from '../status/use-status-menu'
@@ -207,16 +209,19 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const accountTab = accountAddress && account ? shownPageTab(pageTabs(account.tree), accountAddress.tab) : undefined
   // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
   const menuShown = path === menuPagePath
-  const tabs = bottomBarFromMeta(meta, basePath, place)
-  // The app never starts on the sidebar's own page, such as kept from before a restart: the first tab opens instead
+  const tabs = bottomBarFromMeta(meta, basePath, place, address?.kind === 'list' || address?.kind === 'page')
+  // The app never starts on the sidebar's own page, such as kept from before a restart, nor stays on it once More page
+  // mode is off, as when the window widens to a desktop's: the first tab opens instead
   const firstTab = tabs.find((tab) => !tab.external)?.href.slice(basePath.length)
+  const menuPage = { href: `${basePath}${menuPagePath}`, shown: menuShown }
+  const morePage = morePageMode({ desktop: useIsDesktop(), tabs, menuPage }).on
   const started = useRef(false)
   useEffect(() => {
-    if (started.current) return
+    const starting = !started.current
     started.current = true
-    const instead = startInstead(path, firstTab)
+    const instead = menuPageInstead(path, firstTab, { starting, morePage })
     if (instead) navigate(instead, { replace: true })
-  }, [path, firstTab, navigate])
+  }, [path, firstTab, morePage, navigate])
   const accountPage = menuShown ? appText('menu') : !user ? undefined : accountAddress ? (account?.title ?? appText('account')) : path === signInPolicyPath ? appText('signInPolicy') : organizationPage
   const resourceLabel = view?.names?.plural ?? (resource && humanize(resource))
   // A full-area record page draws no heading, so the breadcrumb names its record
@@ -272,7 +277,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       logo={ProjectLogo}
       navGroups={groups}
       bottomBar={tabs}
-      menuPage={{ href: `${basePath}${menuPagePath}`, shown: menuShown }}
+      menuPage={menuPage}
       bottomBarSearch={bottomBarSearch(meta)}
       userMenu={[userMenuFromMeta(meta, basePath, place), organizationSettings && user ? organizationMenuItems(basePath, path, current) : [], user ? accountMenuItems(basePath, path, admin) : []]}
       account={user && `${basePath}${accountPath}`}
@@ -292,14 +297,13 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       banner={(staff || pluginNotice) && <>{staff && <StaffBanner signIn={staff} onStop={stopStaffSession} />}{pluginNotice && <PluginNotice off={pluginsOff} />}</>}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
       actions={(Actions || bell || reloadButton || runtimeButton || assistantButton) && <>{Actions && <CustomBoundary name="shell.actions" fallback={null}><Actions /></CustomBoundary>}{bell}{reloadButton}{runtimeButton}{assistantButton}</>}
+      overlays={(status.dialog || (meta.calls && user && !staff)) && <>{status.dialog}{meta.calls && user && !staff && <CallRings />}</>}
       rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <CustomBoundary name="shell.rightPanel" fallback={null}><RightPanel /></CustomBoundary>}{assistantPanel}</>}
     >
       {/* A page whose code or drawing fails says so in its place, and the next address draws it again */}
       <CustomBoundary name="page" fallback={<Notice title={appText('pageNotLoaded')}>{appText('pageNotLoadedHelp')}</Notice>} resetKey={params.size > 0 ? `${path}?${params}` : path}>
         {content}
       </CustomBoundary>
-      {status.dialog}
-      {meta.calls && user && !staff && <CallRings />}
     </AppShell>
   )
 }

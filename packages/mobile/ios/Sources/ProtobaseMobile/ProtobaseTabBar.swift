@@ -5,7 +5,8 @@ import Capacitor
  * `{ visible, tabs: [{ label, icon }], selected }` (TabBarState), each time it changes, and `visible: false` while the
  * shell shows none; a tap is the `tap` event with the tab's `index`, which the shell navigates on, and the bar's height,
  * in points, the home indicator's inset included, is the `height` event each time it changes, kept for the first
- * listener, so the page keeps that much clear below its content.
+ * listener, so the page keeps that much clear below its content. `set` resolves with `{ height }` too while the bar
+ * shows, so a page that starts listening later, as when its bottom bar is drawn again, has it.
  */
 @objc(ProtobaseTabBar)
 public class ProtobaseTabBar: CAPPlugin, CAPBridgedPlugin {
@@ -23,7 +24,7 @@ public class ProtobaseTabBar: CAPPlugin, CAPBridgedPlugin {
             MainActor.assumeIsolated {
                 guard let self, let bar = self.made() else { return call.reject("ProtobaseTabBar has no web view to stand over") }
                 bar.show(state)
-                call.resolve()
+                call.resolve(bar.height.map { ["height": Double($0)] } ?? [:])
             }
         }
     }

@@ -531,7 +531,7 @@ export const CardsOnPhoneChecks: StoryObj = {
     expect(within(menu).getByRole('menuitemradio', { name: 'Table' })).toHaveFocus()
     await userEvent.keyboard('{Enter}')
     await canvas.findByText('14 rows')
-    expect(canvas.queryByRole('menu')).toBeNull()
+    expect(within(document.body).queryByRole('menu')).toBeNull()
     expect(canvas.getByRole('button', { name: 'Display: Table' })).toHaveFocus()
   },
 }

@@ -11,21 +11,33 @@ import { tabIcon } from './tab-icon'
  * bar tells, the home indicator's inset included, which the web bar then keeps clear, unseen, so the page's content
  * ends above the native bar.
  */
-export const useNativeBottomBar = (nav: RefObject<HTMLElement | null>, labels: string[], selected: number, search?: number) => {
+export const useNativeBottomBar = (nav: RefObject<HTMLElement | null>, labels: string[], selected: number, search?: number, icons: string[] = []) => {
   const bar = useNativeTabBar()
   const [refused, setRefused] = useState(false)
-  const key = JSON.stringify({ labels, selected, search })
+  const [height, setHeight] = useState<number>()
+  // What the bar shows, by its tabs, their icons (`icons`, each icon's name) and the current one: sent again when it changes
+  const key = JSON.stringify({ labels, selected, search, icons })
+  // The key the native bar last drew, and the one the web bar now has: a tap counts only while they are the same, so a
+  // tap on a tab the native bar still shows never clicks another one the web bar has in its place
+  const drawn = useRef<string | undefined>(undefined)
+  const latest = useRef(key)
+  latest.current = key
 
   useEffect(() => {
     const element = nav.current
     if (!bar || !element) return
     let current = true
-    const icons = [...element.children].map((tab) => tabIcon(tab.querySelector('svg')))
-    void Promise.all(icons).then((drawn) => {
+    const pictures = [...element.children].map((tab) => tabIcon(tab.querySelector('svg')))
+    void Promise.all(pictures).then((made) => {
       if (!current) return
       // A bar the app refuses to draw leaves the web bar shown, so the tabs are always there
-      void bar.set(nativeTabBarState(labels, drawn, selected, search)).then(
-        () => current && setRefused(false),
+      void bar.set(nativeTabBarState(labels, made, selected, search)).then(
+        (told) => {
+          if (!current) return
+          drawn.current = key
+          setRefused(false)
+          if (told.height !== undefined) setHeight(told.height)
+        },
         () => current && setRefused(true),
       )
     })
@@ -43,9 +55,16 @@ export const useNativeBottomBar = (nav: RefObject<HTMLElement | null>, labels: s
 
   const tabs = useRef(nav)
   tabs.current = nav
-  useEffect(() => bar?.onTap((index) => (tabs.current.current?.children[index] as HTMLElement | undefined)?.click()), [bar])
+  useEffect(
+    () =>
+      bar?.onTap((index) => {
+        if (drawn.current !== latest.current) return
+        const tab = tabs.current.current?.children[index] as HTMLElement | undefined
+        tab?.click()
+      }),
+    [bar],
+  )
 
-  const [height, setHeight] = useState<number>()
   useEffect(() => bar?.onHeight(setHeight), [bar])
 
   return { native: Boolean(bar) && !refused, height }

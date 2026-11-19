@@ -5,8 +5,11 @@ import { text } from './messages'
 import { useNativeBottomBar } from './use-native-bottom-bar'
 
 
-/** A tab: inside the admin it navigates, `external` opens a new tab. */
-export type BottomBarTab = { id: string; label: string; icon: LucideIcon; href: string; external?: boolean; active?: boolean }
+/**
+ * A tab: inside the admin it navigates, `external` opens a new tab. `active` while its page or one under it shows, such
+ * as one of its records; `shown` only while its own page does.
+ */
+export type BottomBarTab = { id: string; label: string; icon: LucideIcon; href: string; external?: boolean; active?: boolean; shown?: boolean }
 
 export type BottomBarProps = {
   tabs: BottomBarTab[]
@@ -48,7 +51,8 @@ export const BottomBar = ({ tabs, onNavigate, onSearch, searchLabel, onMore, mor
   useImperativeHandle(ref, () => own.current as HTMLElement)
   const labels = [...tabs.map((item) => item.label), ...(onSearch ? [searchLabel ?? text('search')] : []), text('more')]
   const more = labels.length - 1
-  const { native, height } = useNativeBottomBar(own, labels, moreCurrent ? more : tabs.findIndex((item) => item.active), onSearch ? tabs.length : undefined)
+  const icons = tabs.map((item) => item.icon.displayName ?? item.icon.name)
+  const { native, height } = useNativeBottomBar(own, labels, moreCurrent ? more : tabs.findIndex((item) => item.active), onSearch ? tabs.length : undefined, icons)
   return (
     <>
       {sticky && <div aria-hidden className="h-[var(--pb-sticky-bottom)] shrink-0 md:hidden" />}

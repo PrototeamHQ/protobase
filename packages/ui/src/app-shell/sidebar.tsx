@@ -87,8 +87,8 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, f
             <GlobalSearch search={search} className="w-full" showShortcut={false} inline />
           </div>
         )}
-        {/* While the search has a query, its results take the items' place */}
-        {!search?.text && (
+        {/* While the search has a query to show results for, its results take the items' place; short input keeps them */}
+        {!(search && (search.query !== '' || search.loading)) && (
         <div className={cn(page ? 'pb-2' : 'flex-1 overflow-y-auto overflow-x-hidden pb-2', mode === 'icon-label' ? 'px-2' : 'px-2')}>
           {groups.map((group, index) => (
             <div key={group.label} className={cn('flex flex-col gap-0.5', index > 0 && 'mt-3')}>

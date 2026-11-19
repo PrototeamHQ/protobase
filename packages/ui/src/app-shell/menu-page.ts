@@ -5,10 +5,13 @@ import { useLayoutEffect } from 'react'
 export const menuPagePath = '/-/menu'
 
 /**
- * Where the app opens instead when it starts on `path`: the first tab's address, `firstTab`, for the sidebar's own page,
- * which is somewhere to go from a tab rather than to start; nowhere else for any other page, which opens as kept.
+ * Where the app goes instead of `path`: for the sidebar's own page, the first tab's address, `firstTab`, or the app's
+ * home without one, when the app is `starting` there, as the page is somewhere to go from a tab rather than to start,
+ * and whenever More page mode is off (`morePage`), as on a desktop, whose sidebar is beside every page. Nowhere for any
+ * other page, which opens as kept.
  */
-export const startInstead = (path: string, firstTab: string | undefined) => (path === menuPagePath ? firstTab : undefined)
+export const menuPageInstead = (path: string, firstTab: string | undefined, { starting, morePage }: { starting: boolean; morePage: boolean }) =>
+  path === menuPagePath && (starting || !morePage) ? (firstTab ?? '/') : undefined
 
 /**
  * While the sidebar's own page shows, the whole document takes the sidebar's colour, so it fills the viewport behind

@@ -89,6 +89,8 @@ export type AppShellProps = {
   /** Whether the document scrolls on a page that does not choose with `usePageScroll`; otherwise the page fills a box of the screen's height. */
   pageScroll?: boolean
   className?: string
+  /** Mounted on every page, the sidebar's own page too, such as dialogs and incoming calls, which `children` are not. */
+  overlays?: ReactNode
   children: ReactNode
 }
 
@@ -101,7 +103,7 @@ const staleLook = {
   failed: 'opacity-60',
 }
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, staleContent, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, account, bottomBar, menuPage, bottomBarSearch, onNavigate, onBack, onSignOut, signIn, organizations, roles, theme, status, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, staleContent, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, account, bottomBar, menuPage, bottomBarSearch, onNavigate, onBack, onSignOut, signIn, organizations, roles, theme, status, search, pageScroll: scrollsByDefault = false, className, overlays, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const noticeShown = useSidebarNoticeShown(sidebarMode)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -129,7 +131,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
   // In More page mode: the More page is titled "More", a page that is no tab leads back to it, and the first tab leads
   // with the app's logo and name
   const trail = !more.on ? breadcrumb : more.shown ? [text('more')] : more.onTab ? breadcrumb : [{ label: text('more'), href: more.href }, ...breadcrumb]
-  const firstTabShown = more.on && Boolean(tabs?.[0]?.active)
+  const firstTabShown = more.on && Boolean(tabs?.[0]?.shown)
   // A page turns the document's scrolling on or off with `usePageScroll`
   const [chosen, setPageScroll] = useState<boolean>()
   const pageScroll = chosen ?? scrollsByDefault
@@ -183,7 +185,10 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
           />
           {banner}
           <main className={cn(pageScroll ? 'flex flex-1 flex-col' : 'flex min-h-0 flex-1 flex-col', staleContent && staleLook[staleContent])} aria-busy={staleContent === 'refreshing' || undefined}>
-            <TopBarSlotContext.Provider value={topBarSlot}>{menuShown ? sidebar({ mode: 'text-large', page: true }) : children}</TopBarSlotContext.Provider>
+            <TopBarSlotContext.Provider value={topBarSlot}>
+              {menuShown ? sidebar({ mode: 'text-large', page: true }) : children}
+              {overlays}
+            </TopBarSlotContext.Provider>
           </main>
           {tabs && <BottomBar ref={bottomBarRef} sticky={pageScroll} tabs={tabs} onNavigate={onNavigate} {...(searchInBar && { onSearch: openSearch, searchLabel: bottomBarSearch === true ? undefined : bottomBarSearch })} onMore={onMore} moreOpen={drawerOpen} moreControls={drawerId} />}
         </div>

@@ -32,6 +32,13 @@ describe('nativeTabBar', () => {
     expect(calls).toEqual([['ProtobaseTabBar', 'set', { visible: false }]])
   })
 
+  it('hands back the height the bar has, and nothing else', async () => {
+    const answering = (answer: unknown): NativeBridge => ({ ...bridge(['ProtobaseTabBar']).native, nativePromise: async () => answer })
+    expect(await nativeTabBar(answering({ height: 83 }))?.set({ visible: false })).toEqual({ height: 83 })
+    expect(await nativeTabBar(answering({ height: -1 }))?.set({ visible: false })).toEqual({})
+    expect(await nativeTabBar(answering({}))?.set({ visible: false })).toEqual({})
+  })
+
   it('hands on the index of a tapped tab, and nothing else, until stopped', () => {
     const { native, fire, remove } = bridge(['ProtobaseTabBar'])
     const taps: number[] = []

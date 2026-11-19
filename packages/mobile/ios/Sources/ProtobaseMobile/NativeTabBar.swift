@@ -57,7 +57,15 @@ final class NativeTabBar: NSObject, UITabBarDelegate {
         bar.isHidden = false
     }
 
+    /** The bar's height while it shows, the home indicator's inset included; none while hidden or not yet laid out. */
+    var height: CGFloat? { bar.isHidden || bar.bounds.height == 0 ? nil : bar.bounds.height }
+
     func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
+        // Search only opens the shell's search, so the page shown stays the current tab, as the shell last asked; a tab
+        // becomes current once the shell navigates and asks for it
+        if case let .shown(tabs, selected) = shown, tabs.indices.contains(item.tag), tabs[item.tag].search {
+            tabBar.selectedItem = selected.flatMap { index in tabBar.items?.first { $0.tag == index } }
+        }
         onTap(item.tag)
     }
 }
