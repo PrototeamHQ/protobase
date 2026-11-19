@@ -2,6 +2,7 @@ import { lazyComponent } from './lazy-component'
 import { ListSkeleton } from './list-skeleton'
 import { RecordSkeleton } from './record-skeleton'
 import { RevealSkeleton } from './reveal-when-loaded'
+import { HoldSplash } from './splash-hold'
 
 // The app's pages, each loaded as it first opens, with the skeleton it draws while its data loads in its place until then.
 
@@ -16,10 +17,11 @@ export const OrganizationsPage = lazyComponent(() => import('../organizations/or
 export const MembersPage = lazyComponent(() => import('../organizations/members-page').then((module) => module.MembersPage), () => <RevealSkeleton />)
 export const InvitationsPage = lazyComponent(() => import('../organizations/invitations-page').then((module) => module.InvitationsPage), () => <RevealSkeleton />)
 
-// What stands apart from the shell: the connect page, a public form and a guest's call.
-export const ConnectRoute = lazyComponent(() => import('../connect/connect-route').then((module) => module.ConnectRoute))
-export const PublicFormPage = lazyComponent(() => import('../forms/public-form-page').then((module) => module.PublicFormPage))
-export const GuestCallPage = lazyComponent(() => import('../calls/guest-call-page').then((module) => module.GuestCallPage))
+// What stands apart from the shell: the connect page, a public form and a guest's call, which have no skeleton of the
+// shell's, so the launch splash stays up while their code loads.
+export const ConnectRoute = lazyComponent(() => import('../connect/connect-route').then((module) => module.ConnectRoute), () => <HoldSplash />)
+export const PublicFormPage = lazyComponent(() => import('../forms/public-form-page').then((module) => module.PublicFormPage), () => <HoldSplash />)
+export const GuestCallPage = lazyComponent(() => import('../calls/guest-call-page').then((module) => module.GuestCallPage), () => <HoldSplash />)
 
 // What the shell draws only for some apps or people: the assistant, calls and the runtime's update.
 export const AssistantPanel = lazyComponent(() => import('./assistant-shell').then((module) => module.AssistantPanel))
