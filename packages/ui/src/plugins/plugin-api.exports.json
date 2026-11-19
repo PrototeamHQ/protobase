@@ -81,6 +81,7 @@
     "siblingPage",
     "statusRefreshMs",
     "uiFromModule",
+    "uiReadyEvent",
     "useApiToken",
     "useAppAddress",
     "useArmedAfterFocus",

@@ -84,6 +84,7 @@ import { updateAfterSignIn } from './live-update/sign-in-update'
 import { nativeSplash } from './native-splash'
 import { createSplashHold, SplashHoldProvider } from './splash-hold'
 import { HoldStartForFirstLoads } from './hold-start-for-first-loads'
+import { tellUiReady } from './ui-ready'
 import { removeStartScreen } from './start-screen'
 import { LiveUpdateCheck } from './live-update/live-update-check'
 import { LiveUpdateResume } from './live-update/live-update-resume'
@@ -378,6 +379,7 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, plugi
       createSplashHold(() => {
         removeStartScreen(document)
         void nativeSplash(nativeBridge)?.hide()
+        tellUiReady()
       }),
     [nativeBridge],
   )
