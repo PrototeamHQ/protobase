@@ -516,11 +516,11 @@ export const CardsOnPhoneChecks: StoryObj = {
     expect(canvas.queryByRole('combobox', { name: 'Sort' })).toBeNull()
 
     await userEvent.click(filters)
-    const sheet = await canvas.findByRole('dialog', { name: 'Filters' })
+    const sheet = await within(document.body).findByRole('dialog', { name: 'Filters' })
     await userEvent.selectOptions(within(sheet).getByRole('combobox', { name: 'Sort' }), 'booked_on asc')
     await waitFor(async () => expect((await cardTitles(canvas))[0]).toBe('Gazelle Orange'))
     await userEvent.keyboard('{Escape}')
-    await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Filters' })).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog', { name: 'Filters' })).toBeNull())
 
     await userEvent.click(display)
     const menu = within(document.body).getByRole('menu', { name: 'Display' })

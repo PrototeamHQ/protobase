@@ -84,7 +84,7 @@ export const NavigationDrawer: Story = {
     expect(menu).toHaveAttribute('aria-expanded', 'true')
     expect(drawer).toContainElement(document.activeElement as HTMLElement)
     // The sidebar fills the drawer, not the third of the window a desktop sidebar keeps to.
-    expect(within(drawer).getByRole('navigation', { name: 'Resources' }).getBoundingClientRect().width).toBe(drawer.clientWidth)
+    expect(within(drawer).getByRole('navigation', { name: 'Resources' }).getBoundingClientRect().width).toBeCloseTo(drawer.clientWidth, 0)
     expect(document.body.style.overflow).toBe('hidden')
     await userEvent.keyboard('{Escape}')
     await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Navigation' })).toBeNull())

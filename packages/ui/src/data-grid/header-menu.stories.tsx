@@ -25,10 +25,13 @@ const openMenuOnTop = async (canvasElement: HTMLElement, header: string, items: 
   await waitFor(() => expect(menu.style.visibility).not.toBe('hidden'))
   const menuItems = within(menu).getAllByRole('menuitem')
   expect(menuItems.map((item) => item.textContent)).toEqual(items)
-  for (const item of menuItems) {
-    const box = item.getBoundingClientRect()
-    expect(menu.contains(document.elementFromPoint(box.left + 8, box.top + box.height / 2))).toBe(true)
-  }
+  // On top of everything, once a phone's sheet has risen into place
+  await waitFor(() => {
+    for (const item of menuItems) {
+      const box = item.getBoundingClientRect()
+      expect(menu.contains(document.elementFromPoint(box.left + 8, box.top + box.height / 2))).toBe(true)
+    }
+  })
   return menu
 }
 
