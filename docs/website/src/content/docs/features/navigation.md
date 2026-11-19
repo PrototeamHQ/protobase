@@ -11,6 +11,7 @@ description: The sidebar, the user menu, the bottom bar on phones and the global
 - [The current organization](/reference/sidebar/#the-current-organization): A sidebar entry opens its list on the organization you work in, which you can clear to see every organization you are a member of.
 - [User menu](/reference/user-menu/): Account pages, help links, security settings, setting a status, the theme switch and Sign out.
 - [Bottom bar](/reference/bottom-bar/): On phones, tabs along the bottom for each role's main screens.
+- [Menus as sheets](/reference/sidebar/#menus-and-drawers-on-phones): On phones, menus, select lists and the account menu open as a sheet from the bottom, and the sidebar drawer and sheets move under the finger as a native drawer does.
 - [Global search](/reference/client/#global-search): A search box, also on Cmd+K or Ctrl+K, finds records in every resource and jumps to pages and New forms.
 - [Breadcrumbs](/reference/ui-config/#breadcrumbs): The top bar shows the group and list you are on, each a link back, and on a phone a back button to the one before; a record page's heading names the record.
 - [Tab titles](/reference/ui-config/#names-and-columns): Browser tabs name the record, list or page they show, then the app.

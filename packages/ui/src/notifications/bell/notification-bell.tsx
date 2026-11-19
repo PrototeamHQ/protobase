@@ -1,9 +1,9 @@
 import { Bell } from 'lucide-react'
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
 import { CountBadge } from '../../primitives/count-badge'
 import { Button } from '../../primitives/button'
 import { usePopoverMenu } from '../../primitives/popover-menu'
+import { MenuSurface } from '../../primitives/menu-surface'
 import { useRouter } from '../../app/router'
 import { usePushNotifications } from '../push/use-push-notifications'
 import { NotificationPanel } from './notification-panel'
@@ -46,8 +46,11 @@ export const NotificationBell = () => {
         <Bell className="size-4 max-md:size-5" />
         <CountBadge count={unread.data} className="pointer-events-none absolute -top-1 -right-1.5 max-md:top-0 max-md:right-0" />
       </Button>
-      {open &&
-        createPortal(
+      <MenuSurface
+        open={open}
+        title={bellLabel(undefined)}
+        onClose={() => setOpen(false)}
+        menu={
           <div ref={menu} role="dialog" aria-label={bellLabel(undefined)} style={place ?? { visibility: 'hidden' }} className="fixed z-50 w-[min(22rem,calc(100%-0.5rem))] rounded-md border bg-background shadow-pop">
             <NotificationPanel
               items={inbox.items}
@@ -68,9 +71,9 @@ export const NotificationBell = () => {
               footer={<PushControl state={push.state} busy={push.busy} failure={push.failure} onTurnOn={() => void push.turnOn()} onTurnOff={() => void push.turnOff()} />}
               now={now}
             />
-          </div>,
-          document.body,
-        )}
+          </div>
+        }
+      />
     </>
   )
 }

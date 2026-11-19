@@ -1,7 +1,7 @@
 import { MoreHorizontal } from 'lucide-react'
-import { createPortal } from 'react-dom'
 import { cn } from '../lib/cn'
 import { usePopoverMenu } from '../primitives/popover-menu'
+import { MenuSurface } from '../primitives/menu-surface'
 import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import type { GridRow } from './column-spec'
 import { text } from './messages'
@@ -32,8 +32,11 @@ export const RowMenu = ({ row, actions }: { row: GridRow; actions: RowAction[] }
       <button ref={button} type="button" aria-label={text('rowActions')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)} className="inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11">
         <MoreHorizontal className="size-4" />
       </button>
-      {open &&
-        createPortal(
+      <MenuSurface
+        open={open}
+        title={text('rowActions')}
+        onClose={() => setOpen(false)}
+        menu={
           <ul ref={menu} role="menu" onClick={(event) => event.stopPropagation()} style={place ?? { visibility: 'hidden' }} className="fixed z-50 min-w-36 rounded-md border bg-background py-1 shadow-pop">
             {actions.map((action, index) => {
               const label = labelOf(action, row)
@@ -63,9 +66,9 @@ export const RowMenu = ({ row, actions }: { row: GridRow; actions: RowAction[] }
                 </li>
               )
             })}
-          </ul>,
-          document.body,
-        )}
+          </ul>
+        }
+      />
     </div>
   )
 }
