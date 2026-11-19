@@ -14,24 +14,12 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  * on, and the bar's height, in CSS pixels, the navigation bar's inset included, is the `height` event each time it
  * changes, kept for the first listener, so the page keeps that much clear below its content. `set` resolves with
  * `{ height }` too while the bar shows, so a page that starts listening later, as when its bottom bar is drawn again,
- * has it. The bar goes over the view that holds the web view, or over the container an app that puts its web view in a
- * view of its own hands the plugin.
+ * has it. The bar goes over the view that holds the web view.
  */
 @CapacitorPlugin(name = "ProtobaseTabBar")
 public class ProtobaseTabBar extends Plugin {
 
-    private final ViewGroup container;
     private NativeTabBar bar;
-
-    /** Over the view that holds the bridge's web view, as in a Protobase app. */
-    public ProtobaseTabBar() {
-        this(null);
-    }
-
-    /** Over `container`, which holds the bridge's web view and nothing over it. */
-    public ProtobaseTabBar(ViewGroup container) {
-        this.container = container;
-    }
 
     @PluginMethod
     public void set(PluginCall call) {
@@ -57,10 +45,9 @@ public class ProtobaseTabBar extends Plugin {
     // The bar, made over the web view on first use
     private NativeTabBar made() {
         if (bar != null) return bar;
-        ViewGroup into = container != null ? container : getBridge().getWebView().getParent() instanceof ViewGroup parent ? parent : null;
-        if (into == null) return null;
+        if (!(getBridge().getWebView().getParent() instanceof ViewGroup parent)) return null;
         bar = new NativeTabBar(
-            into,
+            parent,
             index -> {
                 JSObject data = new JSObject();
                 data.put("index", index);
