@@ -81,7 +81,7 @@ export const InDutch: StoryObj = {
   },
 }
 
-/** The caller's bottom bar from `/meta`, on a phone: its tabs under their own labels, then "More". */
+/** The caller's bottom bar from `/meta`, on a phone: its tabs under their own labels, then "More", which opens the sidebar as a page of its own. */
 export const BottomBarFromMeta: StoryObj = {
   tags: ['play', 'phone'],
   parameters: { viewport: { options: { phone390: { name: 'Phone 390', styles: { width: '390px', height: '844px' }, type: 'mobile' } } } },
@@ -103,7 +103,9 @@ export const BottomBarFromMeta: StoryObj = {
     // The page starts directly below the top bar, which is fixed while the page scrolls
     expect((canvasElement.querySelector('main') as HTMLElement).getBoundingClientRect().top).toBeCloseTo((canvasElement.querySelector('header') as HTMLElement).getBoundingClientRect().bottom, 0)
     await userEvent.click(within(bar).getByRole('button', { name: 'More' }))
-    await canvas.findByRole('dialog', { name: 'Navigation' })
+    expect(await within(canvas.getByRole('main')).findByRole('navigation', { name: 'Resources' })).toBeVisible()
+    expect(canvas.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent('More')
+    expect(canvas.queryByRole('dialog', { name: 'Navigation' })).toBeNull()
   },
 }
 
