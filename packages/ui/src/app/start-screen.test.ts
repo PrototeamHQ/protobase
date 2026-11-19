@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { removeStartScreen, snapshotPlaceholder, startScreenHandOff, startScreenId, startsFromSnapshot } from './start-screen'
+import { removeStartScreen, startScreenHandOff, startScreenId } from './start-screen'
 
 describe('the start screen', () => {
   it('hands off, then goes from the page', () => {
@@ -14,13 +14,5 @@ describe('the start screen', () => {
 
   it('leaves a page without one as it is', () => {
     expect(() => removeStartScreen({ getElementById: () => null })).not.toThrow()
-  })
-
-  it("starts from a host's snapshot only when its placeholder holds something", () => {
-    const at = (nodes: number | undefined) => ({ getElementById: (id: string) => (id === 'pb-snapshot' && nodes !== undefined ? ({ childNodes: { length: nodes } } as unknown as HTMLElement) : null) })
-    expect(startsFromSnapshot(at(3))).toBe(true)
-    expect(startsFromSnapshot(at(0))).toBe(false)
-    expect(startsFromSnapshot(at(undefined))).toBe(false)
-    expect(snapshotPlaceholder).toBe('<div id="pb-snapshot"></div>')
   })
 })

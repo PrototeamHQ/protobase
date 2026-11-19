@@ -251,8 +251,8 @@ export type CreateAuthOptions = {
   /**
    * The sign-in providers the platform adds for people who already have an account: OpenID Connect providers that never
    * sign anyone up, each with its own id. Defaults to those the platform passes in `PROTOBASE_SIGN_IN_ISSUER`,
-   * `PROTOBASE_SIGN_IN_CLIENT_ID` and `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and the numbered sets after them such as
-   * `PROTOBASE_SIGN_IN_2_ISSUER` (see `readPlatformSignIns`); `[]` turns them off whatever the environment says. One
+   * `PROTOBASE_SIGN_IN_CLIENT_ID` and `PROTOBASE_SIGN_IN_CLIENT_SECRET`, and the sets named by a provider's id such as
+   * `PROTOBASE_SIGN_IN_PHONE_ISSUER` (see `readPlatformSignIns`); `[]` turns them off whatever the environment says. One
    * is left out when `socialProviders` has a provider with its id. Without `clientSecret`, one signs in by token sign-in
    * alone, with tokens for the origin of `baseURL` unless `clientId` names another.
    */
