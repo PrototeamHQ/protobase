@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
 import { useIsDesktop } from '../lib/use-media-query'
 import type { RouteTarget } from '../primitives/route-link'
 import { BottomBar, type BottomBarTab } from './bottom-bar'
+import { useCloseSidebarEvent } from './close-sidebar'
 import { Drawer } from './drawer'
 import { PageScrollContext, usePageGutter, usePageInsets } from './page-scroll'
 import type { NavGroup } from './nav'
@@ -93,6 +94,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
   useEffect(() => {
     if (desktop) setDrawerOpen(false)
   }, [desktop])
+  useCloseSidebarEvent(useCallback(() => setDrawerOpen(false), []))
   const tabs = !desktop && bottomBar && bottomBar.length > 0 ? bottomBar : undefined
   // A page turns the document's scrolling on or off with `usePageScroll`
   const [chosen, setPageScroll] = useState<boolean>()

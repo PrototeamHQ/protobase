@@ -6,7 +6,7 @@ import { cn } from '../lib/cn'
  * load that quick shows no flash, then shimmers, or stays still when less motion is asked for.
  */
 export const Skeleton = ({ className, style }: { className?: string; style?: CSSProperties }) => (
-  <span className={cn('block h-3 rounded bg-muted', skeletonMotion, className)} style={style} />
+  <span data-placeholder className={cn('block h-3 rounded bg-muted', skeletonMotion, className)} style={style} />
 )
 
 /** Blank for the first 180 ms, for a loading notice such as a spinner, so a quick load never flashes it. */

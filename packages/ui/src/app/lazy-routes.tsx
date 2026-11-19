@@ -1,10 +1,7 @@
-import { Suspense, use, useState, type ReactNode } from 'react'
 import { lazyComponent } from './lazy-component'
 import { ListSkeleton } from './list-skeleton'
 import { RecordSkeleton } from './record-skeleton'
 import { RevealSkeleton } from './reveal-when-loaded'
-import { HoldSplash } from './splash-hold'
-import { startsFromSnapshot } from './start-screen'
 
 // The app's pages, each loaded as it first opens, with the skeleton it draws while its data loads in its place until then.
 
@@ -37,23 +34,3 @@ let pages: Promise<unknown> | undefined
  * tried again as it opens.
  */
 export const preloadPages = () => (pages ??= Promise.all([ListPage.preload(), RecordPage.preload(), ComposedPage.preload()]).catch(() => undefined))
-
-const PagesLoaded = ({ children }: { children: ReactNode }) => {
-  use(preloadPages())
-  return children
-}
-
-/**
- * Draws its children once the pages' code has loaded when the start screen shows a host's snapshot, holding it until
- * then, so the first page draws at once and the snapshot gives way to it with no skeleton between them; at once on any
- * other start, where the page's skeleton shows while its code loads.
- */
-export const PagesFirst = ({ children }: { children: ReactNode }) => {
-  const [snapshot] = useState(() => typeof document !== 'undefined' && startsFromSnapshot(document))
-  if (!snapshot) return children
-  return (
-    <Suspense fallback={<HoldSplash />}>
-      <PagesLoaded>{children}</PagesLoaded>
-    </Suspense>
-  )
-}

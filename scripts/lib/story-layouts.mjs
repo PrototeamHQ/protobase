@@ -26,9 +26,11 @@ const atMost5s = (waiting) =>
   })
 
 // The layout once it stops changing: data loads, pages' code loads lazily and charts draw after the story first
-// renders, so a layout only counts once no request is in flight and nothing on the page says it is still loading
-// (`aria-busy`, as a page's skeleton does), each for 5 s at most.
+// renders. The stories' data comes a moment late, as over a network, so the first second is not a layout to settle on,
+// and a layout only counts once no request is in flight and nothing on the page says it is still loading (`aria-busy`,
+// as a page's skeleton does), each for 5 s at most.
 export const settledTree = async (page) => {
+  await page.waitForTimeout(1000)
   let last = ''
   for (let attempt = 0; attempt < 40; attempt += 1) {
     await page.waitForTimeout(250)

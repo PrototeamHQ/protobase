@@ -72,7 +72,7 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, o
   }, [search])
   return (
     <>
-      <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)]' : 'relative', 'flex shrink-0 items-center gap-[4px] border-b bg-background pt-[calc(var(--pb-safe-top)+1.5px)] pr-[8px] pb-[1.5px] pl-[16px] md:h-[calc(3rem+var(--pb-safe-top))] md:gap-4 md:px-5 md:pt-[var(--pb-safe-top)] md:pb-0')}>
+      <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)]' : 'relative', 'flex shrink-0 items-center gap-[4px] border-b bg-background pt-[calc(var(--pb-safe-top)+1.5px)] pr-[8px] pb-[1.5px] pl-[16px] h-[calc(3rem+var(--pb-safe-top))] md:gap-4 md:px-5 md:pt-[var(--pb-safe-top)] md:pb-0')}>
         {onMenu && (
           <button type="button" aria-label={text('openNavigation')} aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(topBarButton, '-ml-[12px]')}>
             <Menu />
@@ -95,7 +95,8 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, o
           </a>
         )}
         <Breadcrumb parts={breadcrumb} onNavigate={onNavigate} />
-        {titleStatus && <span className="flex shrink-0 items-center">{titleStatus}</span>}
+        {/* There from the first frame, so a status that comes and goes, such as the refresh spinner, changes only itself */}
+        <span className="flex shrink-0 items-center empty:hidden">{titleStatus}</span>
         <div className="ml-auto flex items-center gap-[4px] md:gap-3">
           {search && (
             <>
@@ -119,7 +120,8 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, o
         </div>
       )}
     </header>
-    {sticky && <div aria-hidden className="h-[var(--pb-sticky-top)] shrink-0 md:hidden" />}
+    {/* As tall as the bar from the first frame, before its height is measured: the bar's own, which a taller bar replaces */}
+    {sticky && <div aria-hidden className="h-[var(--pb-sticky-top,calc(3rem+var(--pb-safe-top)))] shrink-0 md:hidden" />}
     </>
   )
 }

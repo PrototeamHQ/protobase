@@ -288,6 +288,14 @@ The plugins are merged in the order listed. Two of them cannot define one name: 
 
 The components a [remote resource](/reference/remote-resources/#custom-components)'s view names are drawn from the same plugins, by name, so whoever runs a source lists the plugin that provides them with it. Inside one, `useList` and `useRecord` read the source for its resources, and `useResourceClient(resource)` gives the client of the API that serves a resource.
 
+## Reloaded while the app runs
+
+A plugin can be replaced while the app runs, and must expect to be. When a host dispatches a `protobase:plugins-changed` event on `window` (`pluginsChangedEvent` of `@protobase/ui`), the app loads its plugins again, each from its `plugin.json`. Meanwhile it keeps showing what it shows, then swaps the new code in with one render. Protobase's official app does this when it finds a workspace's plugin changed on the server. What that means for a plugin:
+
+- Its components mount afresh from the new module, so their local state starts over. Keep what must survive in the app's data or in the URL.
+- Its module is evaluated again, once per load. The old module stays in memory, as a browser cannot unload one, so code that runs when the module is evaluated must not start timers, add listeners or change globals that the old copy would keep acting on. Start them in a component's effect, which stops them as it unmounts.
+- Its stylesheet, a new file name with each build, is added beside the old one, so rules must not rely on being the only copy.
+
 ## Before sign-in
 
 Plugins load once someone has signed in, or for a visitor of a project whose anonymous role reads a resource, so no plugin code runs for someone signed out: they get the sign-in page. A plugin listed with `beforeSignIn: true`, or in `PROTOBASE_PLUGINS_BEFORE_SIGN_IN`, loads before that. The sign-in status (`GET /api/auth/status`) names it to everyone, as `plugins`, and the app loads it first and waits for it, as it waits for the others. Its `beforeSignIn` component is drawn around what someone signed out sees: the sign-in page, or the app a visitor browses. Once they are in, it is no longer drawn, and the plugin stays loaded: `/api/meta` names it to everyone, and the app merges its other parts as any plugin's, without loading it again.

@@ -43,39 +43,44 @@ describe('readPlatformSignIns, the first provider', () => {
   })
 })
 
-describe('readPlatformSignIns, further providers', () => {
-  const central = { PROTOBASE_SIGN_IN_2_ISSUER: 'https://id.example.net', PROTOBASE_SIGN_IN_2_PROVIDER: 'central', PROTOBASE_SIGN_IN_2_NAME: 'Central', PROTOBASE_SIGN_IN_2_TOKENS: 'true' }
+describe('readPlatformSignIns, providers named by their id', () => {
+  const phone = { PROTOBASE_SIGN_IN_PHONE_ISSUER: 'https://id.example.net', PROTOBASE_SIGN_IN_PHONE_NAME: 'Phone', PROTOBASE_SIGN_IN_PHONE_TOKENS: 'true' }
+  const phoneSettings = { issuer: 'https://id.example.net', provider: 'phone', name: 'Phone', tokenSignIn: true }
 
-  it('reads each numbered set after the first, in order, with the same rules', () => {
-    expect(readPlatformSignIns({ ...env, ...central })).toEqual([settings, { issuer: 'https://id.example.net', provider: 'central', name: 'Central', tokenSignIn: true }])
-    const third = { PROTOBASE_SIGN_IN_3_ISSUER: 'https://sso.example.org', PROTOBASE_SIGN_IN_3_CLIENT_ID: 'app', PROTOBASE_SIGN_IN_3_CLIENT_SECRET: 'other', PROTOBASE_SIGN_IN_3_PROVIDER: 'sso' }
-    expect(readPlatformSignIns({ ...env, ...central, ...third }).map(({ provider }) => provider)).toEqual([undefined, 'central', 'sso'])
-    expect(() => readPlatformSignIns({ ...env, PROTOBASE_SIGN_IN_2_ISSUER: 'https://id.example.net' })).toThrow(/PROTOBASE_SIGN_IN_2_ISSUER with PROTOBASE_SIGN_IN_2_TOKENS=true/)
-    expect(() => readPlatformSignIns({ ...env, ...central, PROTOBASE_SIGN_IN_2_TOKENS: 'on' })).toThrow(/PROTOBASE_SIGN_IN_2_TOKENS must be true or false/)
+  it('reads each after the unnamed one, in order of their id whatever the order of the variables, with the same rules', () => {
+    expect(readPlatformSignIns({ ...env, ...phone })).toEqual([settings, phoneSettings])
+    const sso = { PROTOBASE_SIGN_IN_ACME_SSO_ISSUER: 'https://sso.example.org', PROTOBASE_SIGN_IN_ACME_SSO_CLIENT_ID: 'app', PROTOBASE_SIGN_IN_ACME_SSO_CLIENT_SECRET: 'other' }
+    expect(readPlatformSignIns({ ...phone, ...sso, ...env }).map(({ provider }) => provider)).toEqual([undefined, 'acme-sso', 'phone'])
+    expect(readPlatformSignIns({ ...sso, ...phone }).map(({ provider }) => provider)).toEqual(['acme-sso', 'phone'])
+    expect(() => readPlatformSignIns({ ...env, PROTOBASE_SIGN_IN_PHONE_ISSUER: 'https://id.example.net' })).toThrow(/PROTOBASE_SIGN_IN_PHONE_ISSUER with PROTOBASE_SIGN_IN_PHONE_TOKENS=true/)
+    expect(() => readPlatformSignIns({ ...env, ...phone, PROTOBASE_SIGN_IN_PHONE_TOKENS: 'on' })).toThrow(/PROTOBASE_SIGN_IN_PHONE_TOKENS must be true or false/)
   })
 
-  it('refuses a gap in the numbers, or a set whose number is not 2 or more as written', () => {
-    expect(() => readPlatformSignIns(central)).toThrow('The platform sign-in providers are numbered without gaps, up to PROTOBASE_SIGN_IN_2_ISSUER: set PROTOBASE_SIGN_IN_ISSUER too')
-    expect(() => readPlatformSignIns({ ...env, PROTOBASE_SIGN_IN_3_ISSUER: 'https://id.example.net', PROTOBASE_SIGN_IN_3_TOKENS: 'true' })).toThrow(/set PROTOBASE_SIGN_IN_2_ISSUER too/)
-    expect(() => readPlatformSignIns({ ...env, PROTOBASE_SIGN_IN_2_NAME: 'Central' })).toThrow(/set PROTOBASE_SIGN_IN_2_ISSUER too/)
-    for (const variable of ['PROTOBASE_SIGN_IN_1_ISSUER', 'PROTOBASE_SIGN_IN_0_ISSUER', 'PROTOBASE_SIGN_IN_02_ISSUER']) {
-      expect(() => readPlatformSignIns({ ...env, [variable]: 'https://id.example.net' })).toThrow(`${variable}: the first platform sign-in provider's variables have no number`)
+  it('stands without the unnamed one', () => {
+    expect(readPlatformSignIns(phone)).toEqual([phoneSettings])
+  })
+
+  it('refuses a set without its issuer, a number or other non-id in the name, and a _PROVIDER of its own', () => {
+    expect(() => readPlatformSignIns({ ...env, PROTOBASE_SIGN_IN_PHONE_NAME: 'Phone' })).toThrow('The platform sign-in provider phone needs PROTOBASE_SIGN_IN_PHONE_ISSUER')
+    for (const variable of ['PROTOBASE_SIGN_IN_2_ISSUER', 'PROTOBASE_SIGN_IN_phone_ISSUER', 'PROTOBASE_SIGN_IN_PHONE.APP_ISSUER']) {
+      expect(() => readPlatformSignIns({ ...env, [variable]: 'https://id.example.net' })).toThrow(`${variable}: a platform sign-in provider's variables name it by its id`)
     }
+    expect(() => readPlatformSignIns({ ...env, ...phone, PROTOBASE_SIGN_IN_PHONE_PROVIDER: 'other' })).toThrow("PROTOBASE_SIGN_IN_PHONE_PROVIDER: the provider's id is already in the variable's name")
   })
 
   it('reads fixed authorization parameters as a query string, and hidden as true or false', () => {
     expect(one({ ...env, PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS: 'connection=github&audience=app', PROTOBASE_SIGN_IN_HIDDEN: 'true' })).toEqual({ ...settings, authorizationParams: { connection: 'github', audience: 'app' }, hidden: true })
-    expect(readPlatformSignIns({ ...env, ...central, PROTOBASE_SIGN_IN_2_AUTHORIZATION_PARAMS: 'connection=github', PROTOBASE_SIGN_IN_2_HIDDEN: 'false' })[1]).toMatchObject({ authorizationParams: { connection: 'github' }, hidden: false })
+    expect(readPlatformSignIns({ ...env, ...phone, PROTOBASE_SIGN_IN_PHONE_AUTHORIZATION_PARAMS: 'connection=github', PROTOBASE_SIGN_IN_PHONE_HIDDEN: 'false' })[1]).toMatchObject({ authorizationParams: { connection: 'github' }, hidden: false })
     expect(() => one({ ...env, PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS: 'connection=github&connection=other' })).toThrow('PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS names connection twice')
     expect(() => one({ ...env, PROTOBASE_SIGN_IN_AUTHORIZATION_PARAMS: '=github' })).toThrow(/must be written as name=value/)
     expect(() => one({ ...env, PROTOBASE_SIGN_IN_HIDDEN: 'yes' })).toThrow(/PROTOBASE_SIGN_IN_HIDDEN must be true or false/)
     expect(one({ ...env, PROTOBASE_SIGN_IN_BUTTON: 'false' })).toEqual({ ...settings, button: false })
     expect(() => one({ ...env, PROTOBASE_SIGN_IN_BUTTON: 'off' })).toThrow(/PROTOBASE_SIGN_IN_BUTTON must be true or false/)
-    expect(readPlatformSignIns({ ...env, ...central, PROTOBASE_SIGN_IN_2_DEVICES: 'true' })[1]).toMatchObject({ devices: true })
-    expect(() => readPlatformSignIns({ ...env, ...central, PROTOBASE_SIGN_IN_2_DEVICES: 'on' })).toThrow(/PROTOBASE_SIGN_IN_2_DEVICES must be true or false/)
+    expect(readPlatformSignIns({ ...env, ...phone, PROTOBASE_SIGN_IN_PHONE_DEVICES: 'true' })[1]).toMatchObject({ devices: true })
+    expect(() => readPlatformSignIns({ ...env, ...phone, PROTOBASE_SIGN_IN_PHONE_DEVICES: 'on' })).toThrow(/PROTOBASE_SIGN_IN_PHONE_DEVICES must be true or false/)
   })
 
-  it('leaves out an empty numbered variable', () => {
-    expect(readPlatformSignIns({ ...env, PROTOBASE_SIGN_IN_2_ISSUER: '', PROTOBASE_SIGN_IN_4_NAME: ' ' })).toEqual([settings])
+  it('leaves out an empty variable', () => {
+    expect(readPlatformSignIns({ ...env, PROTOBASE_SIGN_IN_PHONE_ISSUER: '', PROTOBASE_SIGN_IN_OTHER_NAME: ' ', PROTOBASE_SIGN_IN_2_ISSUER: '' })).toEqual([settings])
   })
 })

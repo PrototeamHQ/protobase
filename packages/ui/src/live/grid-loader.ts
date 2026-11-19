@@ -86,5 +86,7 @@ export const createGridLoader = ({ queryClient, client, resources, views, model,
 
   const loadRows = async (start: number) => (await page(Math.floor(start / gridPageSize))).rows
 
-  return { page, loadRows }
+  const cachedRows = (start: number) => queryClient.getQueryData<LoadedPage>(pageKey(Math.floor(start / gridPageSize)))?.rows
+
+  return { page, loadRows, cachedRows }
 }

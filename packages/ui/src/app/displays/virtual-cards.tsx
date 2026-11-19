@@ -52,7 +52,7 @@ export const VirtualCards = ({ source, label, initialIndex, onScrollIndex, minHe
     anchor.current = { layout, top: scroll.started() ? scroll.top : 0 }
   })
   const range = recordRange(scroll.first, scroll.last, columns, total)
-  const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, revision: source.revision, latencyMs: 0 }, range.start, range.end)
+  const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, cachedRows: source.cachedRows, revision: source.revision, latencyMs: 0 }, range.start, range.end)
 
   // The cards' width changes their height, which can bring or take away a scrollbar that changes their width: should
   // that ever loop, the guard holds a width that fits instead of the cards flashing between two
