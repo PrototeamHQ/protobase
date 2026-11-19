@@ -2,7 +2,7 @@ import { statSync } from 'node:fs'
 import path from 'node:path'
 import { Command, InvalidArgumentError } from 'commander'
 import { registerAuth } from './auth/register'
-import { isConnectionString, resolveConnectionUrl } from './db/connection-url'
+import { defaultConnectionEnv, isConnectionString, resolveConnectionUrl } from './db/connection-url'
 import { parseHosts } from './dev/hosts'
 import { loadNearestEnvFile } from './dev/env'
 import { placeholderSecretWarning } from './project/placeholder-secret'
@@ -83,12 +83,23 @@ program
 
 program
   .command('doctor')
-  .description("Check a config folder against the database, and the database against the server's startup checks")
+  .description("Check a config folder against the database, and the database against the server's startup checks; with --without-database, what the project alone tells")
   .argument('[connection]', 'connection string (default: DATABASE_URL from the environment or .env)')
   .option('--env <variable>', 'read the connection string from this environment variable')
   .option('--config <dir>', 'config folder', 'config')
+  .option('--without-database', 'check only what the config and the migrations tell, listing the checks skipped')
   .action(async (connection: string | undefined, opts) => {
     loadNearestEnvFile(process.cwd())
+    if (opts.withoutDatabase) {
+      if (connection || opts.env) throw new Error('Pass a connection string or --env, or --without-database, not both')
+      const { runDoctorWithoutDatabase } = await import('./doctor/run-without-database')
+      const { errors } = await runDoctorWithoutDatabase({ configDir: path.resolve(opts.config), projectDir: process.cwd() }, out)
+      if (errors > 0) process.exitCode = 1
+      return
+    }
+    if (!connection && !opts.env && !process.env[defaultConnectionEnv]) {
+      throw new Error(`Pass a connection string or --env <VARIABLE>, or set ${defaultConnectionEnv} in .env; --without-database checks what the project alone tells`)
+    }
     const url = resolveConnectionUrl(connection, opts.env)
     const { runDoctor } = await import('./doctor/run')
     const { errors } = await runDoctor({ url, configDir: path.resolve(opts.config), projectDir: process.cwd(), startupChecks: true }, out)

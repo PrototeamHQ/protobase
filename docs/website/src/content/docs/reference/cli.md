@@ -101,7 +101,7 @@ After each run, declared fields are compared with the database: a column that no
 ## `doctor`
 
 ```sh
-protobase doctor [connection string | --env VAR] [--config <dir>]
+protobase doctor [connection string | --env VAR | --without-database] [--config <dir>]
 ```
 
 The URL comes as for [`scaffold`](#scaffold): the connection string, the variable `--env` names, or `DATABASE_URL`, each also read from the nearest `.env`.
@@ -137,7 +137,25 @@ Imports `config/index.ts` and the views of `config/*/ui.ts`, as the config modul
 
 Doctor also lists, as a note it does not count, each custom component of a page that declares no [reads](/reference/custom-components/#reads), since it reads outside the page's plan.
 
-When the config has no errors, doctor then builds the app from `protobase.config.ts` and its own `config` folder, whatever `--config` names, as [`serve`](#serve) does and runs the server's startup checks of the database, and stops with the server's own message at the first one that fails: an auth store behind this version, a resource over a table of the auth store, [events](/reference/events/), [history](/reference/history/) or live updates without their triggers, a missing [comments](/reference/comments/#the-table) table, [rollup and formula fields](/reference/data-config/#rollups-and-formulas) without their columns or triggers, and a jobs, webhooks, workflows, notifications, status or user tables schema that is missing or behind. A change that passes doctor so starts. Sign-in is built only to read its store, so doctor needs neither `PROTOBASE_URL` nor `PROTOBASE_SECRET`. The one startup check doctor leaves out is the [model key](/reference/ai/#the-model) of AI fields and actions, which belongs to the environment the app runs in. <gap>Doctor cannot run its checks that need only the config, such as relations and sorts, without a database because a run without a connection is not implemented.</gap>
+When the config has no errors, doctor then builds the app from `protobase.config.ts` and its own `config` folder, whatever `--config` names, as [`serve`](#serve) does and runs the server's startup checks of the database, and stops with the server's own message at the first one that fails: an auth store behind this version, a resource over a table of the auth store, [events](/reference/events/), [history](/reference/history/) or live updates without their triggers, a missing [comments](/reference/comments/#the-table) table, [rollup and formula fields](/reference/data-config/#rollups-and-formulas) without their columns or triggers, and a jobs, webhooks, workflows, notifications, status or user tables schema that is missing or behind. A change that passes doctor so starts. Sign-in is built only to read its store, so doctor needs neither `PROTOBASE_URL` nor `PROTOBASE_SECRET`. The one startup check doctor leaves out is the [model key](/reference/ai/#the-model) of AI fields and actions, which belongs to the environment the app runs in.
+
+Without a connection string, `--env` or `DATABASE_URL`, doctor stops and names `--without-database`. With that flag it connects to nothing and checks what the project alone tells:
+
+| Check | Without a database | With one |
+| --- | --- | --- |
+| Relations to a resource the config does not declare, sorts by a field that is not `.sortable()`, page components without reads | yes | yes |
+| The triggers, `capture()`, outbox, history and notices tables of resources with events, history or live updates | from `db/migrations/*.sql`, for each resource whose table a migration creates | from the catalog |
+| The server's build of the app, such as an owner field that must hold sign-in's user ids | yes | yes |
+| Tables, columns, types and keys; indexes for the reads; [user tables](/reference/user-tables/); the other startup checks of the database | skipped | yes |
+
+From the migrations, a resource passes when they create its table, `capture()` in the changes schema and the outbox, the history table when it keeps history and the notices table when it is live, and a trigger of each name the server looks up on its table; a missing one fails with the server's message, as the startup check does. Statements are matched by name in the files, in any order, so a trigger a later migration drops or one created in dynamic SQL is judged only with a database. A resource whose table no migration creates, as in an app on a database of its own, is left to the database. <gap>Doctor cannot judge the jobs, comments, webhooks, workflows, notifications, status, rollup and other feature schemas without a database because reading their versions from the migration files is not implemented.</gap> Doctor ends with the checks it skipped:
+
+```
+Skipped without a database:
+  the tables, columns, types and keys of the resources, and the indexes their reads need
+  the server's startup checks of the database's schemas, but for the change capture of the resources whose table a migration creates
+  the change capture of notes, whose table no migration creates
+```
 
 Exit code is 1 when there are errors. Run it after the project's migrations and before a new version serves, as a platform's deploy does: a read it fails is one the API would refuse once the version runs. `protobase build` needs no database, so the indexes are doctor's to check.
 

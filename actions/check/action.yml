@@ -1,5 +1,5 @@
 name: Protobase check
-description: Runs the checks a Protobase deploy runs on an app, and the server's startup checks, on a fresh Postgres of its own.
+description: Runs the checks a Protobase deploy runs on an app, and the server's startup checks, on a fresh Postgres of its own when the app has migrations, and without a database otherwise.
 inputs:
   working-directory:
     description: The app's folder in the repository.

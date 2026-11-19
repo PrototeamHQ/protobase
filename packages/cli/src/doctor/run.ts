@@ -1,20 +1,15 @@
-import { existsSync } from 'node:fs'
-import path from 'node:path'
 import pg from 'pg'
 import { tableIndexes } from '@protobase/query'
 import { connect } from '../db/connect'
 import { introspect } from '../db/introspect'
 import { readOnlyDb } from '../db/read-only-db'
-import { loadSourceConfig } from '../config/source-config'
-import { loadDataConfig } from '../project/load-data-config'
 import { openAppDatabase } from '../project/pg-db'
-import { builtInIndexIssues, builtInModels } from './built-in-models'
-import { checkResource, type Issue } from './check'
+import { builtInIndexIssues } from './built-in-models'
+import { checkResource } from './check'
 import { fileIndexIssues, indexIssues } from './index-issues'
-import { unplannedBlocks } from './page-shapes'
+import { formatIssue, loadDoctorProject, unplannedNotes } from './project'
 import { readShapes } from './read-shapes'
 import { relationIssues } from './relation-issues'
-import { checkResourceCount } from './resource-count'
 import { sortIssues } from './sort-issues'
 import { checkServerStartup } from './startup'
 import { userTableModels } from './user-table-models'
@@ -28,17 +23,9 @@ export type DoctorOptions = {
   startupChecks?: boolean
 }
 
-const format = (issue: Issue) =>
-  `  ${issue.severity.padEnd(7)} ${issue.resource}: ${issue.message}${issue.suggestion ? `\n          fix: ${issue.suggestion}` : ''}\n`
-
 export const runDoctor = async (options: DoctorOptions, out: (text: string) => void) => {
-  if (!existsSync(path.join(options.configDir, 'index.ts'))) {
-    throw new Error(`No config in ${options.configDir}: write it with \`protobase scaffold\`, or pass --config <dir>`)
-  }
-  const config = await loadDataConfig(options.configDir, options.projectDir)
-  const source = await loadSourceConfig(options.projectDir, { command: 'tool' })
-  checkResourceCount(config.models.length, source.resources, `${options.configDir}/index.ts`)
-  const builtIn = builtInModels(source, config.models)
+  const project = await loadDoctorProject(options.configDir, options.projectDir)
+  const { config, source, builtIn } = project
   const sql = connect(options.url)
   const tables = await introspect(sql, { views: true }).finally(() => sql.end())
   const db = readOnlyDb(options.url)
@@ -54,9 +41,8 @@ export const runDoctor = async (options: DoctorOptions, out: (text: string) => v
     .then((found) => found.map((issues, i) => (i < builtIn.models.length ? builtInIndexIssues(issues) : issues)))
     .finally(() => db.destroy())
   const issues = [...userTables.issues, ...models.flatMap((model, i) => [...checkResource(model, tables), ...relationIssues(model, models), ...sortIssues(model, shapes), ...indexes[i]!])]
-  for (const issue of issues) out(format(issue))
-  const byName = Object.fromEntries(models.map((model) => [model.name, model]))
-  for (const block of config.pages.flatMap((page) => unplannedBlocks(page, byName))) out(`  note    ${block} declares no reads, so it is outside the page's read plan and reads whatever it reads once it draws\n`)
+  for (const issue of issues) out(formatIssue(issue))
+  for (const note of unplannedNotes(project, models)) out(note)
   const errors = issues.filter((i) => i.severity === 'error').length
   // Only a project that passes the checks above can be built as the server builds it; a refusal ends the run with the
   // server's own message. These checks are of the app `serve` runs, from the project's own config, not of `--config`:

@@ -59,7 +59,7 @@ Work down the list; the first that matches is the cause.
 The deploy does not run the project's typecheck or tests, and refuses what doctor refuses, so run them before pushing:
 
 1. The project's typecheck and tests.
-2. `protobase doctor --env DATABASE_URL` against a database with the project's migrations applied; exit code 1 means the deploy will be refused, or the new version would not start, since doctor runs the server's startup checks too.
+2. `protobase doctor --env DATABASE_URL` against a database with the project's migrations applied; exit code 1 means the deploy will be refused, or the new version would not start, since doctor runs the server's startup checks too. With no database at hand, `protobase doctor --without-database` checks what the config and the migrations alone tell, and lists the checks it skipped.
 3. `protobase build`.
 4. Migrations that work inside one transaction (no `CONCURRENTLY`), since the deploy runs them all in one.
 

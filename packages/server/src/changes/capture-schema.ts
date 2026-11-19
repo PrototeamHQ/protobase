@@ -83,7 +83,10 @@ export const checkChanges = async (db: Db, models: readonly ResourceModel[], opt
   const { plan: found } = await plan(db, models, options)
   const missing = uncaptured(found, models)
   if (missing.length === 0) return
-  throw new Error(
-    `The changes of ${missing.join(', ')} are not captured as their events, history or live updates need: their triggers, the history or notices table or the changes schema are missing or out of date. Write the change as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`,
-  )
+  throw new Error(uncapturedMessage(missing))
 }
+
+/** What the server refuses to start with while the changes of the `missing` resources are not captured. */
+export const uncapturedMessage = (missing: readonly string[]) =>
+  `The changes of ${missing.join(', ')} are not captured as their events, history or live updates need: their triggers, the history or notices table or the changes schema are missing or out of date. Write the change as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`
+
