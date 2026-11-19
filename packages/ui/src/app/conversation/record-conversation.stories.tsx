@@ -107,7 +107,8 @@ export const Checks: StoryObj = {
     await waitFor(() => expect(within(log).getByText('green').tagName).toBe('STRONG'))
     expect(within(log).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['the changelog', 'the tag'])
 
-    await userEvent.type(canvas.getByRole('textbox', { name: 'Message' }), 'Tagged *now*{Enter}')
+    // The composer's code loads on its own, so it may still be loading once the thread shows
+    await userEvent.type(await canvas.findByRole('textbox', { name: 'Message' }), 'Tagged *now*{Enter}')
     await within(log).findByText('now')
     expect(stored.task_messages!.find((row) => row.body === 'Tagged *now*')).toMatchObject({ task_id: 1, author_id: 'story' })
   },
