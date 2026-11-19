@@ -47,7 +47,9 @@ describe('updateAfterSignIn', () => {
     await vi.advanceTimersByTimeAsync(signInUpdateLimitMs)
     expect(await done).toBe(false)
     finish()
-    await vi.runAllTimersAsync()
+    // Only the timers pending now: unit tests share a worker, where another file's timer that sets itself again would
+    // keep runAllTimers going until its limit
+    await vi.runOnlyPendingTimersAsync()
     expect(steps).toEqual([])
   })
 
