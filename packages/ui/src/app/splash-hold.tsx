@@ -41,7 +41,7 @@ export const createSplashHold = (hide: () => void): SplashHold => {
   }
 }
 
-export const SplashHoldContext = createContext<SplashHold | undefined>(undefined)
+const SplashHoldContext = createContext<SplashHold | undefined>(undefined)
 
 export const SplashHoldProvider = ({ value, children }: { value: SplashHold; children: ReactNode }) => <SplashHoldContext.Provider value={value}>{children}</SplashHoldContext.Provider>
 
