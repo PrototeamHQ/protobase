@@ -12,7 +12,7 @@ description: The sidebar, the user menu, the bottom bar on phones and the global
 - [User menu](/reference/user-menu/): Account pages, help links, security settings, setting a status, the theme switch and Sign out.
 - [Bottom bar](/reference/bottom-bar/): On phones, tabs along the bottom for each role's main screens.
 - [Phone app layout](/reference/bottom-bar/#search-and-more): With a bottom bar, More opens the sidebar as a page of its own with search at its top, the top bar takes the app's brand color, and pages that are no tab lead back to More; search can join the bar with `m.search()`.
-- [System tab bar](/reference/bottom-bar/#in-the-ios-app): In the iOS app the bottom bar is the system's own tab bar.
+- [System tab bar](/reference/bottom-bar/#in-the-phone-apps): In the iOS and Android apps the bottom bar is the system's own tab bar.
 - [Menus as sheets](/reference/sidebar/#menus-and-drawers-on-phones): On phones, menus, select lists and the account menu open as a sheet from the bottom, and the sidebar drawer and sheets move under the finger as a native drawer does.
 - [Global search](/reference/client/#global-search): A search box, also on Cmd+K or Ctrl+K, finds records in every resource and jumps to pages and New forms.
 - [Breadcrumbs](/reference/ui-config/#breadcrumbs): The top bar shows the group and list you are on, each a link back, and on a phone a back button to the one before; a record page's heading names the record.
