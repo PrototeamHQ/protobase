@@ -1,10 +1,21 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { cn } from '../lib/cn'
 import { useFocusTrap } from '../lib/use-focus-trap'
 import { useDrawerDrag } from '../primitives/use-drawer-drag'
 import { text } from './messages'
 
-export type DrawerProps = { id: string; open: boolean; onClose: () => void; children: ReactNode }
+/** Moves the drawer from a drag that starts elsewhere, such as a swipe from the screen's edge (`useEdgeSwipe`). */
+export type DrawerControl = { follow: (progress: number) => void; settle: (progress: number, velocity: number) => void }
+
+export type DrawerProps = {
+  id: string
+  open: boolean
+  onClose: () => void
+  children: ReactNode
+  /** Opened by a finger from the edge, which it then follows (`control`), rather than sliding in by itself. */
+  underFinger?: boolean
+  control?: RefObject<DrawerControl | null>
+}
 
 /** How long the drawer takes to slide in and out, and its backdrop to fade. */
 export const drawerSlideMs = 200
@@ -15,7 +26,7 @@ export const drawerSlideMs = 200
  * slides in as it opens and out as it closes, however it is closed, such as a host's `protobase:close-sidebar`; with
  * less motion asked for it shows and goes at once.
  */
-export const Drawer = ({ id, open, onClose, children }: DrawerProps) => {
+export const Drawer = ({ id, open, onClose, children, underFinger, control }: DrawerProps) => {
   const panel = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLDivElement>(null)
   // A field being typed in lets go as the drawer opens, however it opens, so a phone's keyboard closes and the drawer
@@ -28,7 +39,7 @@ export const Drawer = ({ id, open, onClose, children }: DrawerProps) => {
   useFocusTrap(panel, open, onClose)
   // Dragged off the screen, it closes without sliding out again; a drag's release is no tap on the dim
   const draggedOut = useRef(false)
-  const { panelHandlers, backdropHandlers, dragged } = useDrawerDrag({
+  const { panelHandlers, backdropHandlers, dragged, follow, settle } = useDrawerDrag({
     axis: 'x',
     panel,
     backdrop,
@@ -36,6 +47,13 @@ export const Drawer = ({ id, open, onClose, children }: DrawerProps) => {
       draggedOut.current = true
       onClose()
     },
+  })
+  useLayoutEffect(() => {
+    if (!control || !open) return
+    control.current = { follow, settle }
+    return () => {
+      control.current = null
+    }
   })
   // Still drawn while it slides out
   const [leaving, setLeaving] = useState(false)
@@ -55,7 +73,8 @@ export const Drawer = ({ id, open, onClose, children }: DrawerProps) => {
     <div className={cn('fixed inset-0 z-50 md:hidden', leaving && 'pointer-events-none')}>
       <div
         ref={backdrop}
-        className={cn('absolute inset-0 touch-none bg-backdrop/40 motion-reduce:[animation:none]', leaving ? '[animation:pb-fade-out_200ms_ease-in_forwards]' : '[animation:pb-fade-in_200ms_ease-out]')}
+        className={cn('absolute inset-0 touch-none bg-backdrop/40 motion-reduce:[animation:none]', leaving ? '[animation:pb-fade-out_200ms_ease-in_forwards]' : !underFinger && '[animation:pb-fade-in_200ms_ease-out]')}
+        style={underFinger && !leaving ? { opacity: 0 } : undefined}
         onClick={() => !dragged() && onClose()}
         {...backdropHandlers}
         aria-hidden
@@ -71,8 +90,9 @@ export const Drawer = ({ id, open, onClose, children }: DrawerProps) => {
         className={cn(
           // Its colour goes on past its left edge, which a rubber band past open shows
           'absolute inset-y-0 left-0 flex w-[min(88vw,384px)] touch-pan-y bg-sidebar pl-[var(--pb-safe-left)] shadow-pop outline-none motion-reduce:[animation:none] before:absolute before:inset-y-0 before:right-full before:w-10 before:bg-sidebar',
-          leaving ? '[animation:pb-drawer-out_200ms_ease-in_forwards]' : '[animation:pb-drawer-in_200ms_ease-out]',
+          leaving ? '[animation:pb-drawer-out_200ms_ease-in_forwards]' : !underFinger && '[animation:pb-drawer-in_200ms_ease-out]',
         )}
+        style={underFinger && !leaving ? { transform: 'translateX(-100%)' } : undefined}
         onClick={(event) => (event.target as Element).closest('a') && onClose()}
         {...panelHandlers}
       >

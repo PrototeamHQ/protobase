@@ -73,6 +73,7 @@ import { createSplashHold, SplashHoldProvider } from './splash-hold'
 import { tellUiReady } from './ui-ready'
 import { removeStartScreen } from './start-screen'
 import { nativeTabBar, NativeTabBarContext } from '../app-shell/native-tab-bar'
+import { nativeEdgeSwipe, NativeEdgeSwipeContext } from '../app-shell/edge-swipe'
 import { menuPagePath, menuPageInstead } from '../app-shell/menu-page'
 import { morePageMode } from '../app-shell/more-page'
 import { useIsDesktop } from '../lib/use-media-query'
@@ -379,6 +380,7 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, plugi
   const updater = useMemo(() => appLiveUpdater({ bridge: nativeBridge, apiOrigin, userAgent: navigator.userAgent, fetch: window.fetch.bind(window) }), [nativeBridge, apiOrigin])
   const afterSignIn = useMemo(() => updater && (() => updateAfterSignIn(updater, sessionPageKeeper())), [updater])
   const tabBar = useMemo(() => nativeTabBar(nativeBridge), [nativeBridge])
+  const edgeSwipe = useMemo(() => nativeEdgeSwipe(nativeBridge), [nativeBridge])
   // The splash, and index.html's start screen below it, cover the app from launch, or from a reload into a release, until
   // it draws past its loading screens: the auth check, `/meta` and the plugins, so the first thing seen is the page, from
   // the start cache when it has one
@@ -399,6 +401,7 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, plugi
       <StartCacheProvider value={startCache}>
         <ThemeProvider>
           <NativeTabBarContext.Provider value={tabBar}>
+          <NativeEdgeSwipeContext.Provider value={edgeSwipe}>
           <LiveUpdateProvider updater={updater}>
             <AuthProvider session={auth} {...(apiOrigin && { origin: apiOrigin })} {...(nativeBridge && { nativeBridge })} {...(afterSignIn && { afterSignIn })}>
               <Router basePath={basePath} initialUrl={initialUrl}>
@@ -418,6 +421,7 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, plugi
               </Router>
             </AuthProvider>
           </LiveUpdateProvider>
+          </NativeEdgeSwipeContext.Provider>
           </NativeTabBarContext.Provider>
         </ThemeProvider>
       </StartCacheProvider>

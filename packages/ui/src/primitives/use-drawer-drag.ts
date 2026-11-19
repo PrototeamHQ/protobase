@@ -59,6 +59,13 @@ export const useDrawerDrag = ({ axis, panel, backdrop, onDraggedClosed }: Parts)
     shade.style.opacity = String(backdropAlpha(progress) / drawerDim)
   }
 
+  // Let go at `progress` and `velocity`: open, or closed and then gone
+  const settle = (progress: number, velocity: number) => {
+    if (endsOpen(Math.min(progress, 1), velocity)) return place(1, true)
+    place(0, true)
+    setTimeout(onDraggedClosed, reducedMotion() ? 0 : drawerSettleMs)
+  }
+
   const handlers = (onBackdrop: boolean) => ({
     onPointerDown: (event: PointerEvent) => {
       if (event.pointerType === 'mouse') return
@@ -94,10 +101,7 @@ export const useDrawerDrag = ({ axis, panel, backdrop, onDraggedClosed }: Parts)
       drag.current = undefined
       if (!current?.dragging) return
       wasDrag.current = true
-      const progress = dragProgress(current.from, current.along, size())
-      if (endsOpen(Math.min(progress, 1), velocityOf(current.samples))) return place(1, true)
-      place(0, true)
-      setTimeout(onDraggedClosed, reducedMotion() ? 0 : drawerSettleMs)
+      settle(dragProgress(current.from, current.along, size()), velocityOf(current.samples))
     },
     onPointerCancel: () => {
       if (drag.current?.dragging) place(1, true)
@@ -105,5 +109,12 @@ export const useDrawerDrag = ({ axis, panel, backdrop, onDraggedClosed }: Parts)
     },
   })
 
-  return { panelHandlers: handlers(false), backdropHandlers: handlers(true), dragged: () => wasDrag.current }
+  return {
+    panelHandlers: handlers(false),
+    backdropHandlers: handlers(true),
+    dragged: () => wasDrag.current,
+    // For a drag that starts elsewhere, such as from the screen's edge: the drawer under the finger, then let go
+    follow: (progress: number) => place(progress, false),
+    settle,
+  }
 }

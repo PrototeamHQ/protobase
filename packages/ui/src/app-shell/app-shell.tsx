@@ -4,7 +4,11 @@ import { useIsDesktop } from '../lib/use-media-query'
 import type { RouteTarget } from '../primitives/route-link'
 import { BottomBar, type BottomBarTab } from './bottom-bar'
 import { useCloseSidebarEvent } from './close-sidebar'
-import { Drawer } from './drawer'
+import { Drawer, type DrawerControl } from './drawer'
+import { backTarget } from './back-target'
+import { declaredEdgeSwipe, edgeSwipeAction, useDeclaredEdgeSwipe, useNativeBackSwipe } from './edge-swipe'
+import { useEntryBehind } from './history-behind'
+import { useEdgeSwipe } from './use-edge-swipe'
 import { PageScrollContext, usePageGutter, usePageInsets } from './page-scroll'
 import type { NavGroup } from './nav'
 import { Sidebar, type SidebarProps } from './sidebar'
@@ -107,10 +111,17 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
   const desktop = useIsDesktop()
   const noticeShown = useSidebarNoticeShown(sidebarMode)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  // Opened by a swipe from the edge, which it then follows, rather than by the menu button
+  const [drawerUnderFinger, setDrawerUnderFinger] = useState(false)
+  const drawerControl = useRef<DrawerControl | null>(null)
+  const closeDrawer = useCallback(() => {
+    setDrawerOpen(false)
+    setDrawerUnderFinger(false)
+  }, [])
   useEffect(() => {
     if (desktop) setDrawerOpen(false)
   }, [desktop])
-  useCloseSidebarEvent(useCallback(() => setDrawerOpen(false), []))
+  useCloseSidebarEvent(closeDrawer)
   const tabs = !desktop && bottomBar && bottomBar.length > 0 ? bottomBar : undefined
   // On a phone with a bottom bar, "More" opens the sidebar as its own page, the tabs' pages show the account, search is
   // part of the bottom bar and other pages lead back to More: all from this one decision
@@ -133,10 +144,28 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
   // with the app's logo and name
   const trail = !more.on ? breadcrumb : more.shown ? [text('more')] : more.onTab ? breadcrumb : [{ label: text('more'), href: more.href }, ...breadcrumb]
   const firstTabShown = more.on && Boolean(tabs?.[0]?.shown)
+  // A swipe from the left edge goes back a step, opens the drawer, or is left to the host app, as one rule decides; the
+  // host app learns which ahead of each gesture
+  const back = backTarget(trail)
+  const edgeSwipe = edgeSwipeAction({ desktop, back: Boolean(back), bottomBar: Boolean(tabs), drawerOpen })
+  // The host app's back swipe shows the entry behind from its snapshot, so only where that is the step back
+  const behind = useEntryBehind()
+  const declared = declaredEdgeSwipe(edgeSwipe, { nativeBack: useNativeBackSwipe(), behindIsBack: back !== undefined && behind === back.href })
+  useDeclaredEdgeSwipe(declared, JSON.stringify(trail))
+
   // A page turns the document's scrolling on or off with `usePageScroll`
   const [chosen, setPageScroll] = useState<boolean>()
   const pageScroll = chosen ?? scrollsByDefault
   const topBarRef = useRef<HTMLElement>(null)
+  useEdgeSwipe({
+    action: declared,
+    onBack: () => back && (onBack ?? onNavigate)?.(back.href),
+    openDrawer: () => {
+      setDrawerUnderFinger(true)
+      setDrawerOpen(true)
+    },
+    drawer: drawerControl,
+  })
   const [topBarSlot, setTopBarSlot] = useState<HTMLElement | null>(null)
   const bottomBarRef = useRef<HTMLElement>(null)
   usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
@@ -150,7 +179,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
       {/* Relative while a box scrolls, so that it clips absolute content such as sr-only text, which otherwise makes the document taller */}
       <div className={cn(pageScroll ? 'flex min-h-full w-full overflow-x-clip' : 'relative flex h-full min-h-0 w-full overflow-hidden', menuShown ? 'bg-sidebar' : 'bg-background', className)}>
         {desktop ? sidebar({ mode: sidebarMode, sticky: pageScroll, notice: noticeShown && sidebarNotice }) : (
-          <Drawer id={drawerId} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+          <Drawer id={drawerId} open={drawerOpen} onClose={closeDrawer} underFinger={drawerUnderFinger} control={drawerControl}>
             {sidebar({ mode: 'text-large', fill: true })}
           </Drawer>
         )}
