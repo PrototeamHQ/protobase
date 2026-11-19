@@ -150,7 +150,9 @@ export const LongLabelsChecks: StoryObj = {
       // A select list opens as a sheet at the document's root on a phone (MenuSurface)
       const option = await waitFor(() => within(document.body).getByRole(item, { name: new RegExp(longLabel) }))
       const menu = option.closest<HTMLElement>('[role="menu"]')!.getBoundingClientRect()
-      expect({ name, left: menu.left >= 4, right: menu.right <= viewportWidth() - 4 }).toEqual({ name, left: true, right: true })
+      // A sheet spans the screen; a menu beside its button keeps 4px from the screen's edges
+      const margin = name === 'presentation' ? 0 : 4
+      expect({ name, left: menu.left >= margin, right: menu.right <= viewportWidth() - margin }).toEqual({ name, left: true, right: true })
       // Wrapped onto more lines rather than running past the menu's edge
       expect({ name, wraps: option.scrollWidth <= option.clientWidth && option.getBoundingClientRect().height > 48 }).toEqual({ name, wraps: true })
       await userEvent.keyboard('{Escape}')
