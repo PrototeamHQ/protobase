@@ -49,7 +49,7 @@ export const nativeTabBar = (bridge: NativeBridge | undefined): NativeTabBar | u
  * The bar's state for tabs labelled `labels`, with `icons` in the same order, the current one at `selected` and, when
  * there is one, search at `search`.
  */
-export const nativeTabBarState = (labels: string[], icons: Array<string | null>, selected: number, search?: number): NativeTabBarState => ({
+export const nativeTabBarState = (labels: string[], icons: Array<string | null>, selected: number, search?: number): Extract<NativeTabBarState, { visible: true }> => ({
   visible: true,
   tabs: labels.map((label, index) => ({ label, icon: icons[index] ?? null, ...(index === search && { search: true as const }) })),
   selected: selected >= 0 && selected < labels.length ? selected : null,

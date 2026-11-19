@@ -13,6 +13,6 @@ export const brandContent = 'text-primary-foreground [&_*]:text-primary-foregrou
  * native SystemBars plugin names them (`DARK` for a dark background).
  */
 export const statusBarStyleOver = (color: string) => {
-  const [r, g, b] = (color.match(/\d+(\.\d+)?/g) ?? ['255', '255', '255']).map(Number)
+  const [r = 255, g = 255, b = 255] = (color.match(/\d+(\.\d+)?/g) ?? []).map(Number)
   return 0.299 * r + 0.587 * g + 0.114 * b < 150 ? 'DARK' : 'LIGHT'
 }
