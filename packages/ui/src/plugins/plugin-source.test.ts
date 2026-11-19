@@ -34,3 +34,24 @@ describe('plugins loaded before the first render', () => {
     expect(source.loaded(slow)?.kind).toBe('loaded')
   })
 })
+
+describe('plugins loaded again while the app runs', () => {
+  it('forgets every load, so each plugin is fetched afresh, and tells whoever reads the source', async () => {
+    let reads = 0
+    const counting: PluginLoader = { ...loader(Promise.resolve()), readJson: async (url) => (reads++, { json: { name: url.split('/').at(-2), api: pluginApi, protobase: `>=${protobaseVersion}`, entry: 'index.js' } }) }
+    const source = createPluginSource(counting, base)
+    await source.load(hello)
+    await source.load(hello)
+    expect(reads).toBe(1)
+    const told: number[] = []
+    const stop = source.subscribe(() => told.push(source.revision()))
+    source.forget()
+    expect(told).toEqual([1])
+    expect(source.loaded(hello)).toBeUndefined()
+    await source.load(hello)
+    expect(reads).toBe(2)
+    stop()
+    source.forget()
+    expect(told).toEqual([1])
+  })
+})

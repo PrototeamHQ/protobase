@@ -76,6 +76,7 @@
     "parseDiff",
     "parsePatch",
     "pluginApi",
+    "pluginsChangedEvent",
     "protobaseVersion",
     "sameChatDay",
     "siblingPage",
