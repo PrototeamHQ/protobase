@@ -6,6 +6,7 @@ export type { ProfileMenuItem, ProfileOrganizations, ProfileRoles, ProfileStatus
 export type { ProfileTheme } from './theme-switch'
 export { Logo, LogoMark, type ShellLogoProps } from './logo'
 export { logoTapEvent } from './logo-tap'
+export { closeSidebarEvent } from './close-sidebar'
 export { PageHeader } from './page-header'
 export { usePageScroll } from './page-scroll'
 export { useTopBarSlot } from './top-bar-slot'

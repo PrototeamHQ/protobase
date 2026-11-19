@@ -11,6 +11,8 @@ Below the `md` breakpoint (768px) the sidebar is a drawer, which the top bar's m
 
 The sidebar's top shows the app's logo, Protobase's or a plugin's [`shell.logo`](/reference/custom-components/#shell-slots). It has no action of its own. A tap on it dispatches a cancelable `protobase:logo-tap` event on `window` (`logoTapEvent` of `@protobase/ui`), so a plugin, or a host app that embeds the shell, can take the tap: it calls `preventDefault()` and does its own thing, such as opening a switcher. When the page is shown in a frame, the shell also posts `{ type: 'protobase:logo-tap' }` to the page that frames it.
 
+On a phone the sidebar is a drawer over the page. A host or a plugin closes it by dispatching a `protobase:close-sidebar` event on `window` (`closeSidebarEvent` of `@protobase/ui`), such as an app that opens its own switcher on a tap on the logo: `window.dispatchEvent(new Event('protobase:close-sidebar'))`. Where the sidebar sits beside the page, the event does nothing. A tap on the logo alone never closes it.
+
 ```ts
 window.addEventListener('protobase:logo-tap', (event) => {
   event.preventDefault()
