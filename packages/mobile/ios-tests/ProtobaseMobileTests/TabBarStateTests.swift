@@ -27,8 +27,12 @@ final class TabBarStateTests: XCTestCase {
         XCTAssertNil(TabBarState.parse([:]))
         XCTAssertNil(TabBarState.parse(["visible": true, "tabs": []]))
         XCTAssertNil(TabBarState.parse(["visible": true, "tabs": Array(repeating: ["label": "x"], count: TabBarState.maxTabs + 1)]))
-        XCTAssertNil(TabBarState.parse(["visible": true, "tabs": [["label": String(repeating: "x", count: 65)]]]))
         XCTAssertNil(TabBarState.parse(["visible": true, "tabs": [["icon": png]]]))
+    }
+
+    func testCutsALongLabelAndKeepsTheOtherTabs() {
+        let long = String(repeating: "é", count: TabBarState.maxLabel + 1)
+        XCTAssertEqual(TabBarState.parse(["visible": true, "tabs": [["label": long], ["label": "More"]]]), .shown(tabs: [.init(label: String(repeating: "é", count: TabBarState.maxLabel), icon: nil), .init(label: "More", icon: nil)], selected: nil))
     }
 
     func testAnIconThatIsNoPngIsNone() {

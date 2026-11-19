@@ -3,10 +3,7 @@ import { useImperativeHandle, useRef, type MouseEvent, type Ref } from 'react'
 import { cn } from '../lib/cn'
 import { text } from './messages'
 import { useNativeBottomBar } from './use-native-bottom-bar'
-import { useNativeTabBar } from './native-tab-bar'
 
-/** The tabs beside search and "More" on the web: five places in all. */
-const maxWebTabsBesideSearch = 3
 
 /** A tab: inside the admin it navigates, `external` opens a new tab. */
 export type BottomBarTab = { id: string; label: string; icon: LucideIcon; href: string; external?: boolean; active?: boolean }
@@ -44,10 +41,8 @@ const tab = 'flex min-h-[49px] min-w-0 flex-1 flex-col items-center justify-cent
  * keeps the tabs clear of the iPhone home indicator. In an app whose bridge offers a native tab bar, that bar draws
  * the tabs (`useNativeBottomBar`) and this one keeps its place, unseen.
  */
-export const BottomBar = ({ tabs: allTabs, onNavigate, onSearch, searchLabel, onMore, moreOpen, moreControls, sticky, ref }: BottomBarProps) => {
-  // Five places in all: search takes the last tab's on the web; the native bar draws search apart
-  const nativeBar = Boolean(useNativeTabBar())
-  const tabs = onSearch && !nativeBar ? allTabs.slice(0, maxWebTabsBesideSearch) : allTabs
+export const BottomBar = ({ tabs, onNavigate, onSearch, searchLabel, onMore, moreOpen, moreControls, sticky, ref }: BottomBarProps) => {
+  // Five places at most: beside search one tab fewer fits (bottomBarErrors)
   const moreCurrent = !tabs.some((item) => item.active)
   const own = useRef<HTMLElement>(null)
   useImperativeHandle(ref, () => own.current as HTMLElement)

@@ -16,7 +16,8 @@ enum TabBarState: Equatable {
     case shown(tabs: [Tab], selected: Int?)
 
     static let maxTabs = 8
-    private static let maxLabel = 64
+    /** In characters: a longer label is cut to it, so one long label never leaves the app without its tabs. */
+    static let maxLabel = 64
     private static let maxIcon = 64 * 1024
     private static let pngPrefix = "data:image/png;base64,"
 
@@ -26,8 +27,8 @@ enum TabBarState: Equatable {
         guard let items = options["tabs"] as? [[String: Any]], !items.isEmpty, items.count <= maxTabs else { return nil }
         var tabs: [Tab] = []
         for item in items {
-            guard let label = item["label"] as? String, label.count <= maxLabel else { return nil }
-            tabs.append(Tab(label: label, icon: icon(item["icon"]), search: item["search"] as? Bool == true))
+            guard let label = item["label"] as? String else { return nil }
+            tabs.append(Tab(label: String(label.prefix(maxLabel)), icon: icon(item["icon"]), search: item["search"] as? Bool == true))
         }
         let selected = (options["selected"] as? Int).flatMap { tabs.indices.contains($0) ? $0 : nil }
         return .shown(tabs: tabs, selected: selected)

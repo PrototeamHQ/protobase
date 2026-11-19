@@ -24,7 +24,7 @@ export const warehouseBar = bottomBar({ label: 'Warehouse', roles: ['warehouse']
 | `m.resource(name, { label, icon? })` | Opens the resource's list. Without `icon`, the resource's sidebar icon. |
 | `m.page(name, { label, icon? })` | Opens a [composed page](/reference/layouts/). Without `icon`, the page's own. |
 | `m.link(label, href, { icon? })` | Opens `href` in a new tab. Only `https://`, `http://` and `mailto:` are accepted. |
-| `m.search({ label? })` | Puts the app's search in the bar. Once at most, beside up to four tabs; without `label`, "Search" in the app's language. |
+| `m.search({ label? })` | Puts the app's search in the bar. Once at most, beside up to three tabs, as search takes a tab's place; without `label`, "Search" in the app's language. |
 
 Every tab needs its `label`: tabs are narrow, so the bar does not borrow a view's or page's longer name. `icon` takes the names the [user menu](/reference/user-menu/) does. Items keep their order. Unlike the user menu, a bar takes nothing out of the sidebar.
 
@@ -32,7 +32,7 @@ Every tab needs its `label`: tabs are narrow, so the bar does not borrow a view'
 
 With a bottom bar, a phone works as a phone app does. "More" opens the sidebar as a page of its own, at `/-/menu`, with the bar still there and More the current tab; the app never starts on it, so a restart from More opens the first tab. The top bar takes the app's brand color, the theme's `--primary` with its text in `--primary-foreground`, up behind the status bar: the first tab's page leads with the app's logo and name, More is titled "More", and every page that is no tab leads back to More from its top bar. The top bar has no search button then: with `m.search()` search is part of the bar, and without it the More page has a search field whose results show in place of the sidebar's items.
 
-On the web the bar has five places: search takes the last tab's, which More then holds. In the iOS app, where the bar is the system's own tab bar, search is the system's search item after the tabs, and all four tabs stay.
+The bar has five places at most: with search, three tabs, search and More. In the iOS app, where the bar is the system's own tab bar, search is the system's search item after the tabs.
 
 On every phone page, with or without a bottom bar, the account is at the top right of the top bar, the person's avatar or, for a visitor, a guest icon that signs in, rather than at the foot of the sidebar.
 
@@ -46,7 +46,7 @@ Each bar names its roles, and a role belongs to one bar. A caller gets the bar t
 
 ## Checks
 
-`createAdmin` refuses to start when a bar names a resource or page that does not exist, has no roles, no items or more than four, names a role the app does not have (the roles of [`auth.roles`](/reference/auth/#roles) and [`defineRoles`](/reference/access/); without either, any role is accepted), shares a role with another bar, or has the label of another bar. The checks are [`bottomBarErrors`](/api/schema/functions/bottombarerrors/) from `@protobase/schema`, a pure function of the bars and the app's names.
+`createAdmin` refuses to start when a bar names a resource or page that does not exist, has no roles, no items or more than four tabs (three beside search), names a role the app does not have (the roles of [`auth.roles`](/reference/auth/#roles) and [`defineRoles`](/reference/access/); without either, any role is accepted), shares a role with another bar, or has the label of another bar. The checks are [`bottomBarErrors`](/api/schema/functions/bottombarerrors/) from `@protobase/schema`, a pure function of the bars and the app's names.
 
 `protobase dev`, `protobase build` and `protobase serve` pick the bars up from `config/index.ts`. With `createAdmin` directly, pass them as `bottomBars`:
 

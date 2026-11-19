@@ -16,7 +16,7 @@ div | block
               span .min-w-0 items-center gap-1.5 hidden md:flex | none
                 svg .lucide lucide-chevron-right hidden size-3.5 shrink-0 text-faint-foreground md:block | none
                 a .truncate text-muted-foreground rounded-sm hover:text-foreground hover:underline | inline
-                span .flex shrink-0 items-center empty:hidden | none
+              span .flex shrink-0 items-center empty:hidden | none
             div .ml-auto flex items-center gap-1 md:gap-3 | flex row nowrap center normal
               div .hidden md:block | none
                 div .relative w-96 | block relative

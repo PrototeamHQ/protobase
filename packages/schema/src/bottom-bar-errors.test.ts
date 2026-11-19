@@ -38,9 +38,10 @@ describe('bottomBarErrors', () => {
     ])
   })
 
-  it('takes search beside four tabs, once', () => {
-    const four = Array.from({ length: 4 }, () => ({ kind: 'resource' as const, resource: 'orders', label: 'Orders' }))
-    expect(bottomBarErrors([bar('Sales', ['sales'], [...four, { kind: 'search' }])], names)).toEqual([])
+  it('takes search beside three tabs, once', () => {
+    const tabs = (count: number) => Array.from({ length: count }, () => ({ kind: 'resource' as const, resource: 'orders', label: 'Orders' }))
+    expect(bottomBarErrors([bar('Sales', ['sales'], [...tabs(3), { kind: 'search' }])], names)).toEqual([])
+    expect(bottomBarErrors([bar('Sales', ['sales'], [...tabs(4), { kind: 'search' }])], names)).toEqual(['Bottom bar "Sales": has 4 tabs; at most 3 fit beside search and "More"'])
     expect(bottomBarErrors([bar('Sales', ['sales'], [{ kind: 'search' }, { kind: 'search' }])], names)).toEqual(['Bottom bar "Sales": has search more than once'])
   })
 

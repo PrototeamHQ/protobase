@@ -5,7 +5,7 @@ import { tabIcon } from './tab-icon'
 /**
  * Draws the bottom bar `nav` as the app's native tab bar, when it has one (`NativeTabBarContext`): its tabs, by their
  * labels and the icons the web bar draws, and the current one, sent whole again whenever they change, and none once
- * the bar goes, as when `/meta` turns it off. The tab at `search`, when there is one, is search, which the native bar
+ * the bar goes, as when `/meta` turns it off. Where the app refuses the state, the web bar stays shown. The tab at `search`, when there is one, is search, which the native bar
  * draws as its own. A tap on a native tab clicks the web bar's tab of the same index, so it
  * does what a tap on that one does. While the native bar draws it, `native` is true and `height` the height the native
  * bar tells, the home indicator's inset included, which the web bar then keeps clear, unseen, so the page's content
@@ -13,6 +13,7 @@ import { tabIcon } from './tab-icon'
  */
 export const useNativeBottomBar = (nav: RefObject<HTMLElement | null>, labels: string[], selected: number, search?: number) => {
   const bar = useNativeTabBar()
+  const [refused, setRefused] = useState(false)
   const key = JSON.stringify({ labels, selected, search })
 
   useEffect(() => {
@@ -21,7 +22,12 @@ export const useNativeBottomBar = (nav: RefObject<HTMLElement | null>, labels: s
     let current = true
     const icons = [...element.children].map((tab) => tabIcon(tab.querySelector('svg')))
     void Promise.all(icons).then((drawn) => {
-      if (current) void bar.set(nativeTabBarState(labels, drawn, selected, search))
+      if (!current) return
+      // A bar the app refuses to draw leaves the web bar shown, so the tabs are always there
+      void bar.set(nativeTabBarState(labels, drawn, selected, search)).then(
+        () => current && setRefused(false),
+        () => current && setRefused(true),
+      )
     })
     return () => {
       current = false
@@ -42,5 +48,5 @@ export const useNativeBottomBar = (nav: RefObject<HTMLElement | null>, labels: s
   const [height, setHeight] = useState<number>()
   useEffect(() => bar?.onHeight(setHeight), [bar])
 
-  return { native: Boolean(bar), height }
+  return { native: Boolean(bar) && !refused, height }
 }
