@@ -39,7 +39,7 @@ describe('pinnedNative', () => {
   })
 
   it('names the native sources @protobase/mobile publishes by its native contract', () => {
-    const recorded = { contract: 15, sources: 'af5f57f0bfc5d2a372cbfe27ea3e9e2ce0faa954fd9096777f20f1d4c3a07792' }
+    const recorded = { contract: 16, sources: '3201d2428b9973333a83809fc7879480f53dd6934cf9b8d24049893763267c38' }
     expect({ contract: mobilePackage.nativeContract, sources: nativeSources() }, 'the native sources of @protobase/mobile changed: raise nativeContract in its package.json, then record both here').toEqual(recorded)
   })
 })

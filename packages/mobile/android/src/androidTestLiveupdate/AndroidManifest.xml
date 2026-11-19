@@ -9,5 +9,10 @@
             android:name="net.protobase.mobile.LiveUpdateTestActivity"
             android:exported="false"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+        <!-- The tab bar's tests (src/androidTest), on an app theme that is not Material's. -->
+        <activity
+            android:name="net.protobase.mobile.TabBarTestActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
     </application>
 </manifest>

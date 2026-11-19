@@ -61,6 +61,8 @@ repositories {
 
 dependencies {
     implementation project(':capacitor-android')
+    // The system's navigation bar ProtobaseTabBar draws the shell's mobile bottom bar as
+    implementation 'com.google.android.material:material:1.13.0'
     if (liveUpdate != null) {
         implementation liveUpdate
     }
