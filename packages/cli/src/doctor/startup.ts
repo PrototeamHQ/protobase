@@ -38,7 +38,7 @@ export const checkServerBuild = async (config: MergedConfig) => {
   const pool = new pg.Pool({ connectionString: noDatabase })
   const db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
   const build = async () => {
-    const project = await buildProject(startupConfig(config), { db, pool })
+    const project = await buildProject(startupConfig(config), { db })
     await projectAdmin(project, db).admin.stopHolding()
   }
   await build().finally(() => db.destroy())
