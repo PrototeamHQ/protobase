@@ -76,6 +76,20 @@
   from { visibility: hidden; }
 }
 
+/* The phone's sidebar drawer sliding in from the left and out again, over its backdrop fading in and out. */
+@keyframes pb-drawer-in {
+  from { transform: translateX(-100%); }
+}
+@keyframes pb-drawer-out {
+  to { transform: translateX(-100%); }
+}
+@keyframes pb-fade-in {
+  from { opacity: 0; }
+}
+@keyframes pb-fade-out {
+  to { opacity: 0; }
+}
+
 @keyframes pb-slide-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
