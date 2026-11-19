@@ -253,6 +253,8 @@
     "chooseResource": "Kies een onderdeel",
     "pickFromSidebar": "Kies er een in de zijbalk.",
     "nothingHere": "Er is niets op dit adres.",
+    "pageNotLoaded": "Deze pagina is niet geladen",
+    "pageNotLoadedHelp": "Controleer je verbinding en open de pagina opnieuw.",
     "noPage": "Er is geen pagina met de naam {page}.",
     "assistant": "Assistent",
     "operationFailed": "Bewerking {index} ({label}) mislukte: {message} Er is niets bewaard.",

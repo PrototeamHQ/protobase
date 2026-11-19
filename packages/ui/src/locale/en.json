@@ -253,6 +253,8 @@
     "chooseResource": "Choose a resource",
     "pickFromSidebar": "Pick one from the sidebar.",
     "nothingHere": "There is nothing at this address.",
+    "pageNotLoaded": "This page did not load",
+    "pageNotLoadedHelp": "Check your connection, then open the page again.",
     "noPage": "There is no page called {page}.",
     "assistant": "Assistant",
     "operationFailed": "Operation {index} ({label}) failed: {message} Nothing was saved.",

@@ -279,7 +279,10 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       actions={(Actions || bell || reloadButton || runtimeButton || assistantButton) && <>{Actions && <CustomBoundary name="shell.actions" fallback={null}><Actions /></CustomBoundary>}{bell}{reloadButton}{runtimeButton}{assistantButton}</>}
       rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <CustomBoundary name="shell.rightPanel" fallback={null}><RightPanel /></CustomBoundary>}{assistantPanel}</>}
     >
-      {content}
+      {/* A page whose code or drawing fails says so in its place, and the next address draws it again */}
+      <CustomBoundary name="page" fallback={<Notice title={appText('pageNotLoaded')}>{appText('pageNotLoadedHelp')}</Notice>} resetKey={params.size > 0 ? `${path}?${params}` : path}>
+        {content}
+      </CustomBoundary>
       {status.dialog}
       {meta.calls && user && !staff && <CallRings />}
     </AppShell>
