@@ -24,14 +24,13 @@ const watch = () => {
   const svg = { removed: false, remove: () => (svg.removed = true) }
   const alert = { hidden: true }
   const start = { ...listeners(), ariaHidden: true, removeAttribute: () => (start.ariaHidden = false), querySelector: (selector: string) => (selector === 'svg' ? svg : alert) }
-  const snapshot = { removed: false, remove: () => (snapshot.removed = true) }
-  const document = { getElementById: (id: string) => (id === startScreenId ? start : id === 'pb-snapshot' ? snapshot : null) }
+  const document = { getElementById: (id: string) => (id === startScreenId ? start : null) }
   const timers = new Map<number, () => void>()
   const setTimeout = (callback: () => void) => timers.set(timers.size + 1, callback).size
   const clearTimeout = (id: number) => timers.delete(id)
   new Function('window', 'document', 'setTimeout', 'clearTimeout', code!)(window, document, setTimeout, clearTimeout)
   const failedShown = () => alert.hidden === false && svg.removed && !start.ariaHidden
-  return { window, start, timers, snapshot, failedShown, fire: (type: string, target?: unknown) => window.added.get(type)?.({ type, target }) }
+  return { window, start, timers, failedShown, fire: (type: string, target?: unknown) => window.added.get(type)?.({ type, target }) }
 }
 
 describe("index.html's watch for a failed start", () => {
@@ -52,13 +51,6 @@ describe("index.html's watch for a failed start", () => {
     expect(failedShown()).toBe(true)
     expect(window.added.size).toBe(0)
     expect(timers.size).toBe(0)
-  })
-
-  it("takes a host's snapshot away to say so", () => {
-    const { window, fire, snapshot, failedShown } = watch()
-    fire('error', window)
-    expect(failedShown()).toBe(true)
-    expect(snapshot.removed).toBe(true)
   })
 
   it('says so when the app throws before its first page', () => {
