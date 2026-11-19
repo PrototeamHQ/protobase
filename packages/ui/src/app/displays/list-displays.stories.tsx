@@ -523,7 +523,7 @@ export const CardsOnPhoneChecks: StoryObj = {
     await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Filters' })).toBeNull())
 
     await userEvent.click(display)
-    const menu = canvas.getByRole('menu', { name: 'Display' })
+    const menu = within(document.body).getByRole('menu', { name: 'Display' })
     expect(within(menu).getAllByRole('menuitemradio').map((item) => item.textContent)).toEqual(['Table', 'Cards', 'Board', 'Calendar'])
     expect(within(menu).getByRole('menuitemradio', { name: 'Cards' })).toHaveAttribute('aria-checked', 'true')
     expect(within(menu).getByRole('menuitemradio', { name: 'Cards' })).toHaveFocus()
@@ -555,7 +555,7 @@ export const RowsOnPhoneChecks: StoryObj = {
     expect(canvas.queryByRole('grid')).toBeNull()
 
     await userEvent.click(canvas.getByRole('button', { name: 'Display: List' }))
-    const menu = canvas.getByRole('menu', { name: 'Display' })
+    const menu = within(document.body).getByRole('menu', { name: 'Display' })
     expect(within(menu).getAllByRole('menuitemradio').map((item) => item.textContent)).toEqual(['Table', 'List'])
     await userEvent.click(within(menu).getByRole('menuitemradio', { name: 'Table' }))
     expect(await canvas.findByRole('grid')).toBeVisible()

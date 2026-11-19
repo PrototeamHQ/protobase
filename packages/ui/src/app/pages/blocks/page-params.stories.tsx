@@ -89,7 +89,7 @@ const play: StoryObj['play'] = async ({ canvasElement }) => {
   expect(table.queryByText('Write the notes')).toBeNull()
 
   await userEvent.click(canvas.getByRole('button', { name: 'Window: Last 7 days' }))
-  const month = canvas.getByRole('menuitemradio', { name: 'Last 30 days' })
+  const month = within(document.body).getByRole('menuitemradio', { name: 'Last 30 days' })
   expect(month).toHaveAttribute('href', '/claims?window=30d')
   expect(canvas.getByRole('menuitemradio', { name: 'Last 7 days' })).toHaveAttribute('href', '/claims')
   await userEvent.click(month)
