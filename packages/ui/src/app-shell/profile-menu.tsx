@@ -199,7 +199,7 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], accou
           </>
         )}
       </button>
-      {controlled !== undefined ? open && menu : <MenuSurface open={open} title={text('profileMenu')} onClose={() => setLocal(false)} menu={menu} />}
+      {controlled !== undefined ? open && menu : <MenuSurface open={open} title={text('profileMenu')} onClose={() => setLocal(false)} menu={menu} inPlaceOnDesktop />}
     </div>
   )
 }

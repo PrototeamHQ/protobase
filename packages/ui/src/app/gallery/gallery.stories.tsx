@@ -244,7 +244,7 @@ export const MobilePhotoDetailsChecks: StoryObj = {
     await userEvent.click(info)
 
     // A sheet over the lower part of the screen, across it, with the photo's details
-    const sheet = await canvas.findByRole('dialog', { name: 'Photo details' })
+    const sheet = await within(document.body).findByRole('dialog', { name: 'Photo details' })
     expect(await within(sheet).findByText('Front')).toBeVisible()
     // Once it has risen into place
     const screen = dialog.getBoundingClientRect()
@@ -257,16 +257,16 @@ export const MobilePhotoDetailsChecks: StoryObj = {
 
     // Escape closes the sheet alone, and gives focus back to the button
     await userEvent.keyboard('{Escape}')
-    await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Photo details' })).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog', { name: 'Photo details' })).toBeNull())
     expect(canvas.getByRole('dialog', { name: 'Photos' })).toBeInTheDocument()
     await waitFor(() => expect(document.activeElement).toBe(info))
 
     // A swipe down on its header closes it too
     await userEvent.click(info)
-    const header = (await canvas.findByRole('dialog', { name: 'Photo details' })).querySelector('header')!
+    const header = (await within(document.body).findByRole('dialog', { name: 'Photo details' })).querySelector('header')!
     header.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'touch', clientX: 180, clientY: 400, bubbles: true }))
     header.dispatchEvent(new PointerEvent('pointerup', { pointerType: 'touch', clientX: 185, clientY: 520, bubbles: true }))
-    await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Photo details' })).toBeNull())
+    await waitFor(() => expect(within(document.body).queryByRole('dialog', { name: 'Photo details' })).toBeNull())
     expect(info.getAttribute('aria-expanded')).toBe('false')
   },
 }
