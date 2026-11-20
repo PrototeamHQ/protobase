@@ -164,6 +164,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
       setDrawerUnderFinger(true)
       setDrawerOpen(true)
     },
+    closeDrawer,
     drawer: drawerControl,
   })
   const [topBarSlot, setTopBarSlot] = useState<HTMLElement | null>(null)

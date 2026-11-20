@@ -13,6 +13,8 @@ type Parts = {
   onBack: () => void
   /** Opens the drawer under the finger, which `drawer` then moves. */
   openDrawer: () => void
+  /** Closes the drawer at once, for a swipe let go or stopped before the drawer it opened is there to move. */
+  closeDrawer: () => void
   drawer: RefObject<DrawerControl | null>
 }
 
@@ -57,15 +59,17 @@ const velocityOf = (samples: Swipe['samples'], released: number) => {
  * a round back mark in from the edge beside the finger while the page stays where it is, and goes back when let go past
  * half way or flicked, or the mark goes again. `none` leaves the edge alone, to whatever is around the page.
  */
-export const useEdgeSwipe = ({ action, onBack, openDrawer, drawer }: Parts) => {
+export const useEdgeSwipe = ({ action, onBack, openDrawer, closeDrawer, drawer }: Parts) => {
   // What this page does itself: the host app's own back swipe is the app's
   const own: 'back' | 'sidebar' | 'none' = action === 'sidebar' ? 'sidebar' : action === 'page' ? 'back' : 'none'
-  const latest = useRef({ action: own, onBack, openDrawer })
-  latest.current = { action: own, onBack, openDrawer }
+  const latest = useRef({ action: own, onBack, openDrawer, closeDrawer })
+  latest.current = { action: own, onBack, openDrawer, closeDrawer }
 
   useEffect(() => {
     let swipe: Swipe | undefined
     const width = () => window.innerWidth
+    // The drawer let go at `progress`; one opened but not drawn yet closes again
+    const settleDrawer = (progress: number, velocity: number) => (drawer.current ? drawer.current.settle(progress, velocity) : latest.current.closeDrawer())
 
     // Out again, after going back or not
     const dropMark = (mark: HTMLElement) => {
@@ -78,7 +82,7 @@ export const useEdgeSwipe = ({ action, onBack, openDrawer, drawer }: Parts) => {
       const done = swipe
       swipe = undefined
       if (!done?.dragging) return
-      if (done.action === 'sidebar') drawer.current?.settle(0, 0)
+      if (done.action === 'sidebar') settleDrawer(0, 0)
       else if (done.mark) dropMark(done.mark)
     }
 
@@ -115,7 +119,7 @@ export const useEdgeSwipe = ({ action, onBack, openDrawer, drawer }: Parts) => {
       swipe = undefined
       if (!done?.dragging) return
       const velocity = velocityOf(done.samples, event.timeStamp)
-      if (done.action === 'sidebar') return drawer.current?.settle(done.dx / Math.min(width() * 0.88, 384), velocity)
+      if (done.action === 'sidebar') return settleDrawer(done.dx / Math.min(width() * 0.88, 384), velocity)
       const mark = done.mark
       if (!mark) return
       if (endsOpen(done.dx / backReach, velocity)) latest.current.onBack()
