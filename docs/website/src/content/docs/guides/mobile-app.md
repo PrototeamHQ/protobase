@@ -187,6 +187,25 @@ mobile: {
 
 Build the binary again. Each deploy of the app then reaches it: it downloads the files that changed in the background and runs them at its next start, or when it comes back to the foreground after 5 minutes or more away, on the page it showed and still signed in, behind its splash screen. Right after someone signs in, it switches before the app opens. It never switches while in use, within 5 minutes of leaving it, or over unsaved changes on the page, and it asks nobody to reload. A release that fails to start goes back to the files the binary carries. Releases come from a server of the same Protobase minor as the binary (below 1.0) and the same native code; a newer minor, or a Protobase release that changes the native code, needs a store release. See [the live updater](/reference/cli/#the-live-updater).
 
+### In a host app's own views
+
+A native host app that embeds the shell and serves its files in its own views, rather than through the Capacitor web view, takes the same releases through the same checks with `HostedReleases` from `@protobase/mobile`'s iOS package. The host decides when a new release takes over:
+
+```swift
+let releases = try HostedReleases.make(
+  HostedReleaseSettings(apiOrigin: "https://shop.example.com", publicKey: publicKey, fingerprint: fingerprint, shellVersion: shellVersion, builtInOrder: builtInOrder),
+  builtInFiles: Bundle.main.url(forResource: "shell", withExtension: nil)!
+).get()
+
+serve(releases.currentFiles)          // the release swapped in earlier, or the binary's own files
+releases.check { outcome in           // downloads and checks a new release in the background
+  if case .ready = outcome { /* swap it in when nothing is open */ }
+}
+if releases.swap() { serve(releases.currentFiles) }
+```
+
+Each set of files a host serves takes its own `name`, so their releases stay apart. A swapped-in release that no longer passes its checks, or that an update of the app made older than the files it carries, gives way to the binary's own files at the next start.
+
 ## 8. What the stores accept
 
 You submit the app under your own developer account, on both stores: Apple rejects apps from a template or app generation service unless the provider of the app's content submits them ([App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/) 4.2.6).
