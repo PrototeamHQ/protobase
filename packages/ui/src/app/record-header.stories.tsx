@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { expect, userEvent, within } from 'storybook/test'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { createStaticSession, type ResourcePermissions } from '@protobase/client'
 import { App } from './app'
 import { fakeApi } from './testing/fake-api'
@@ -98,7 +98,8 @@ export const ActionsOnAPhone: StoryObj = {
     await userEvent.click(within(banner).getByRole('button', { name: 'Record actions' }))
     const menu = await within(document.body).findByRole('menu', { name: 'Record actions' })
     expect(within(menu).getByRole('menuitem', { name: 'Delete' })).toBeVisible()
+    // Escape slides the sheet away, as its other ways of closing do
     await userEvent.keyboard('{Escape}')
-    expect(within(document.body).queryByRole('menu', { name: 'Record actions' })).toBeNull()
+    await waitFor(() => expect(within(document.body).queryByRole('menu', { name: 'Record actions' })).toBeNull())
   },
 }

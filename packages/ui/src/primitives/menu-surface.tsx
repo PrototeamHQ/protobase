@@ -5,12 +5,12 @@ import { Sheet } from './sheet'
 
 // A menu as the sheet shows it: every row and control at a phone's list size
 // A phone list's sizes, all in `em` of the sheet's text, so rows, icons and a segmented switch such as the theme's grow
-// with the text size together: 44 pixel rows, 18 pixel icons and a 38 pixel switch at the default size. A menu's
-// heading (`data-menu-heading`), such as the account menu's name and email, reads larger, above the rows: its first
-// line a step up, its second at the rows' size. The switch is found by its own mark, as a menu's groups of items are
-// groups too
+// with the text size together, as the sidebar drawer's items do: 2.6em rows and 1.2em icons, 38 and 18 pixels beside
+// a 14 pixel text, and a switch a little shorter than a row. A menu's heading (`data-menu-heading`), such as the
+// account menu's name and email, reads larger, above the rows: its first line a step up, its second a step down. The
+// switch is found by its own mark, as a menu's groups of items are groups too
 const sheetMenu =
-  'py-1 text-menu-sheet [&>*]:min-h-[2.9em] [&_[role=menuitem]]:min-h-[2.9em] [&_svg]:size-[1.2em] [&_[data-segmented]]:h-[2.5em] [&_[data-segmented]_button]:min-w-[2.5em] [&_[data-segmented]_button]:justify-center [&_[data-menu-heading]]:py-[0.75em] [&_[data-menu-heading]>:first-child]:text-[1.2em] [&_[data-menu-heading]>:first-child]:font-semibold [&_[data-menu-heading]>:last-child]:text-[0.9em]'
+  'py-1 text-menu-sheet [&>*]:min-h-[2.6em] [&_[role=menuitem]]:min-h-[2.6em] [&_svg]:size-[1.2em] [&_[data-segmented]]:h-[2.3em] [&_[data-segmented]_button]:min-w-[2.3em] [&_[data-segmented]_button]:justify-center [&_[data-menu-heading]]:py-[0.75em] [&_[data-menu-heading]>:first-child]:text-[1.15em] [&_[data-menu-heading]>:first-child]:font-semibold [&_[data-menu-heading]>:last-child]:text-[0.9em]'
 
 export type MenuSurfaceProps = {
   open: boolean

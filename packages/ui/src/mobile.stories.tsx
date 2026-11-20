@@ -104,7 +104,7 @@ export const PhoneTopBarWithoutBottomBar: Story = {
   tags: ['play', 'phone', '!dev'],
   render: () => (
     <div className="h-screen">
-      <AppShell navGroups={sampleNavGroups} sidebarMode="icon" activeItem="orders" breadcrumb={[{ label: 'Orders', href: '#orders' }, 'SO-1']} user={adminUser} userMenu={[[{ id: 'users', label: 'Users', icon: Users, href: '#users' }], [{ id: 'account', label: 'Account', icon: UserRound, href: '#account' }, { id: 'policy', label: 'Sign-in policy', icon: ShieldCheck, href: '#policy' }]]} theme={{ preference: 'system', onChange: () => {} }}>
+      <AppShell navGroups={sampleNavGroups} sidebarMode="icon" activeItem="orders" breadcrumb={[{ label: 'Orders', href: '#orders' }, 'SO-1']} user={adminUser} account="#account" userMenu={[[{ id: 'users', label: 'Users', icon: Users, href: '#users' }], [{ id: 'account', label: 'Account', icon: UserRound, href: '#account' }, { id: 'policy', label: 'Sign-in policy', icon: ShieldCheck, href: '#policy' }]]} theme={{ preference: 'system', onChange: () => {} }}>
         <div className="p-4 text-muted-foreground">A record on a phone without a bottom bar.</div>
       </AppShell>
     </div>
@@ -133,7 +133,10 @@ export const PhoneTopBarWithoutBottomBar: Story = {
     expect(within(sheet).getAllByRole('menuitem')[0]).toHaveTextContent('Sanne M.sanne@veldhuis-supply.example')
     // The theme switch grows with the sheet's text, as its rows do
     const group = within(sheet).getByRole('group', { name: 'Theme' })
-    expect(group.getBoundingClientRect().height).toBeCloseTo(2.5 * Number.parseFloat(getComputedStyle(group).fontSize), 0)
+    expect(group.getBoundingClientRect().height).toBeCloseTo(2.3 * Number.parseFloat(getComputedStyle(group).fontSize), 0)
+    // The rows at the sidebar drawer's items' size, and the heading a step above them
+    const row = within(sheet).getByRole('menuitem', { name: 'Users' })
+    expect(getComputedStyle(row).fontSize).toBe('14px')
     // Each row below the one before, a group of two items and the theme's row too, at the default text size and larger
     const rowsApart = () => {
       const rows = [...within(sheet).getAllByRole('menuitem'), group.parentElement!].sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)
