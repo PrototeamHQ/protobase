@@ -32,13 +32,13 @@ Every tab needs its `label`: tabs are narrow, so the bar does not borrow a view'
 
 With a bottom bar, a phone works as a phone app does. "More" opens the sidebar as a page of its own, at `/-/menu`, with the bar still there and More the current tab; the app never starts on it, so a restart from More opens the first tab. The top bar takes the app's brand color, the theme's `--primary` with its text in `--primary-foreground`, up behind the status bar: the first tab's page leads with the app's logo and name, More is titled "More", and every page that is no tab leads back to More from its top bar. The top bar has no search button then: with `m.search()` search is part of the bar, and without it the More page has a search field whose results show in place of the sidebar's items.
 
-The bar has five places at most: with search, three tabs, search and More. In the iOS app, where the bar is the system's own tab bar, search is the system's search item after the tabs.
+The bar has five places at most: with search, three tabs, search and More. In the iOS app, where the bar is the system's own tab bar, search is the system's search item after the tabs; in the Android app, whose navigation bar has no search item of its own, search is a tab like the others, in its place.
 
 On every phone page, with or without a bottom bar, the account is at the top right of the top bar, the person's avatar or, for a visitor, a guest icon that signs in, rather than at the foot of the sidebar.
 
-## In the iOS app
+## In the phone apps
 
-The iOS app draws the bar as the system's tab bar, with the system's own material, through Protobase's `ProtobaseTabBar` plugin: the page sends the tabs it would draw, their icons and the current one each time they change, and the plugin hands a tap back as the tab the page then follows. The page keeps the place of its own bar, unseen, at the height the system bar reports, so nothing ends behind it. The page uses the plugin only where the app's bridge offers it, and draws its own bar otherwise.
+The iOS app draws the bar as the system's tab bar, with the system's own material, and the Android app as the system's navigation bar, in the phone's own colours where it has them, through Protobase's `ProtobaseTabBar` plugin: the page sends the tabs it would draw, their icons and the current one each time they change, and the plugin hands a tap back as the tab the page then follows. The page keeps the place of its own bar, unseen, at the height the system bar reports, the home indicator's or navigation bar's inset included, so nothing ends behind it. The page uses the plugin only where the app's bridge offers it, and draws its own bar otherwise.
 
 ## Which bar someone gets
 
