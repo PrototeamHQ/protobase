@@ -4,7 +4,10 @@ import { useIsDesktop } from '../lib/use-media-query'
 import type { RouteTarget } from '../primitives/route-link'
 import { BottomBar, type BottomBarTab } from './bottom-bar'
 import { useCloseSidebarEvent } from './close-sidebar'
-import { Drawer } from './drawer'
+import { Drawer, type DrawerControl } from './drawer'
+import { backTarget } from './back-target'
+import { declaredEdgeSwipe, edgeSwipeAction, useDeclaredEdgeSwipe, useNativeBackSwipe } from './edge-swipe'
+import { useEdgeSwipe } from './use-edge-swipe'
 import { PageScrollContext, usePageGutter, usePageInsets } from './page-scroll'
 import type { NavGroup } from './nav'
 import { Sidebar, type SidebarProps } from './sidebar'
@@ -65,6 +68,8 @@ export type AppShellProps = {
   onNavigate?: (href: string) => void
   /** Follows the top bar's back button, as the browser's Back where the page before is where it leads; without it `onNavigate`. */
   onBack?: (href: string) => void
+  /** Whether `onBack` to that href is the browser's Back, the history entry behind being that page; the host app's back swipe is used only then. */
+  backIsHistory?: (href: string) => boolean
   /** Adds "Sign out" to the profile menu. */
   onSignOut?: () => void
   /** The sign-in page, a "Sign in" link in the sidebar for a visitor, who has no `user`. */
@@ -103,14 +108,21 @@ const staleLook = {
   failed: 'opacity-60',
 }
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, staleContent, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, account, bottomBar, menuPage, bottomBarSearch, onNavigate, onBack, onSignOut, signIn, organizations, roles, theme, status, search, pageScroll: scrollsByDefault = false, className, overlays, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, staleContent, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, account, bottomBar, menuPage, bottomBarSearch, onNavigate, onBack, backIsHistory, onSignOut, signIn, organizations, roles, theme, status, search, pageScroll: scrollsByDefault = false, className, overlays, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const noticeShown = useSidebarNoticeShown(sidebarMode)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  // Opened by a swipe from the edge, which it then follows, rather than by the menu button
+  const [drawerUnderFinger, setDrawerUnderFinger] = useState(false)
+  const drawerControl = useRef<DrawerControl | null>(null)
+  const closeDrawer = useCallback(() => {
+    setDrawerOpen(false)
+    setDrawerUnderFinger(false)
+  }, [])
   useEffect(() => {
-    if (desktop) setDrawerOpen(false)
-  }, [desktop])
-  useCloseSidebarEvent(useCallback(() => setDrawerOpen(false), []))
+    if (desktop) closeDrawer()
+  }, [desktop, closeDrawer])
+  useCloseSidebarEvent(closeDrawer)
   const tabs = !desktop && bottomBar && bottomBar.length > 0 ? bottomBar : undefined
   // On a phone with a bottom bar, "More" opens the sidebar as its own page, the tabs' pages show the account, search is
   // part of the bottom bar and other pages lead back to More: all from this one decision
@@ -133,10 +145,28 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
   // with the app's logo and name
   const trail = !more.on ? breadcrumb : more.shown ? [text('more')] : more.onTab ? breadcrumb : [{ label: text('more'), href: more.href }, ...breadcrumb]
   const firstTabShown = more.on && Boolean(tabs?.[0]?.shown)
+  // A swipe from the left edge goes back a step, opens the drawer, or is left to the host app, as one rule decides; the
+  // host app learns which ahead of each gesture
+  const back = backTarget(trail)
+  const edgeSwipe = edgeSwipeAction({ desktop, back: Boolean(back), bottomBar: Boolean(tabs), drawerOpen })
+  // The host app's back swipe shows the entry behind from its snapshot, so only where that is the step back
+  const declared = declaredEdgeSwipe(edgeSwipe, { nativeBack: useNativeBackSwipe(), behindIsBack: back !== undefined && Boolean(backIsHistory?.(back.href)) })
+  useDeclaredEdgeSwipe(declared, JSON.stringify(trail))
+
   // A page turns the document's scrolling on or off with `usePageScroll`
   const [chosen, setPageScroll] = useState<boolean>()
   const pageScroll = chosen ?? scrollsByDefault
   const topBarRef = useRef<HTMLElement>(null)
+  useEdgeSwipe({
+    action: declared,
+    onBack: () => back && (onBack ?? onNavigate)?.(back.href),
+    openDrawer: () => {
+      setDrawerUnderFinger(true)
+      setDrawerOpen(true)
+    },
+    closeDrawer,
+    drawer: drawerControl,
+  })
   const [topBarSlot, setTopBarSlot] = useState<HTMLElement | null>(null)
   const bottomBarRef = useRef<HTMLElement>(null)
   usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
@@ -150,7 +180,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
       {/* Relative while a box scrolls, so that it clips absolute content such as sr-only text, which otherwise makes the document taller */}
       <div className={cn(pageScroll ? 'flex min-h-full w-full overflow-x-clip' : 'relative flex h-full min-h-0 w-full overflow-hidden', menuShown ? 'bg-sidebar' : 'bg-background', className)}>
         {desktop ? sidebar({ mode: sidebarMode, sticky: pageScroll, notice: noticeShown && sidebarNotice }) : (
-          <Drawer id={drawerId} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+          <Drawer id={drawerId} open={drawerOpen} onClose={closeDrawer} underFinger={drawerUnderFinger} control={drawerControl}>
             {sidebar({ mode: 'text-large', fill: true })}
           </Drawer>
         )}

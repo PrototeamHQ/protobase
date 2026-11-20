@@ -1,4 +1,4 @@
-import { useRef, type PointerEvent, type RefObject } from 'react'
+import { useEffect, useRef, type PointerEvent, type RefObject } from 'react'
 import { backdropAlpha, backdropSlope, dragProgress, drawerDim, drawerSettleCurve, drawerSettleMs, drawerSlope, endsOpen, startsDrag } from './drawer-math'
 
 /** Which way the drawer opens: `x` from the left edge, `y` from the bottom. */
@@ -40,6 +40,10 @@ export const useDrawerDrag = ({ axis, panel, backdrop, onDraggedClosed }: Parts)
   const drag = useRef<Drag>(undefined)
   // Whether the last touch was a drag, whose release then is no tap
   const wasDrag = useRef(false)
+  // The close that follows a drag let go closed, which a drag that takes the drawer again calls off
+  const closing = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const cancelClosing = () => clearTimeout(closing.current)
+  useEffect(() => () => clearTimeout(closing.current), [])
 
   const size = () => {
     const element = panel.current
@@ -57,6 +61,14 @@ export const useDrawerDrag = ({ axis, panel, backdrop, onDraggedClosed }: Parts)
     if (!shade) return
     shade.style.transition = transition === 'none' ? 'none' : `opacity ${transition}`
     shade.style.opacity = String(backdropAlpha(progress) / drawerDim)
+  }
+
+  // Let go at `progress` and `velocity`: open, or closed and then gone
+  const settle = (progress: number, velocity: number) => {
+    cancelClosing()
+    if (endsOpen(Math.min(progress, 1), velocity)) return place(1, true)
+    place(0, true)
+    closing.current = setTimeout(onDraggedClosed, reducedMotion() ? 0 : drawerSettleMs)
   }
 
   const handlers = (onBackdrop: boolean) => ({
@@ -79,6 +91,7 @@ export const useDrawerDrag = ({ axis, panel, backdrop, onDraggedClosed }: Parts)
           return
         }
         current.dragging = true
+        cancelClosing()
         // From here, so the drawer does not jump by the slop
         current.x = event.clientX
         current.y = event.clientY
@@ -94,10 +107,7 @@ export const useDrawerDrag = ({ axis, panel, backdrop, onDraggedClosed }: Parts)
       drag.current = undefined
       if (!current?.dragging) return
       wasDrag.current = true
-      const progress = dragProgress(current.from, current.along, size())
-      if (endsOpen(Math.min(progress, 1), velocityOf(current.samples))) return place(1, true)
-      place(0, true)
-      setTimeout(onDraggedClosed, reducedMotion() ? 0 : drawerSettleMs)
+      settle(dragProgress(current.from, current.along, size()), velocityOf(current.samples))
     },
     onPointerCancel: () => {
       if (drag.current?.dragging) place(1, true)
@@ -105,5 +115,15 @@ export const useDrawerDrag = ({ axis, panel, backdrop, onDraggedClosed }: Parts)
     },
   })
 
-  return { panelHandlers: handlers(false), backdropHandlers: handlers(true), dragged: () => wasDrag.current }
+  return {
+    panelHandlers: handlers(false),
+    backdropHandlers: handlers(true),
+    dragged: () => wasDrag.current,
+    // For a drag that starts elsewhere, such as from the screen's edge: the drawer under the finger, then let go
+    follow: (progress: number) => {
+      cancelClosing()
+      place(progress, false)
+    },
+    settle,
+  }
 }

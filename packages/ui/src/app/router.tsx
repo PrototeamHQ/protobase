@@ -24,6 +24,8 @@ type RouterValue = {
   navigate: (to: string, options?: NavigateOptions) => void
   /** Goes back to a path below the base path: as the browser's Back when the page before is that path, else as `navigate`. */
   back: (to: string) => void
+  /** Whether `back` to that path takes the browser's Back: whether the entry behind this one in history is that page. */
+  backIsHistory: (to: string) => boolean
   /**
    * Asks to be told before the page changes, or one of the page parameters `params` whose content the guard sits in;
    * returns how to stop asking. Used by `useNavigationGuard`.
@@ -67,8 +69,11 @@ type Pending = (PendingLink | { kind: 'history'; delta: number } | { kind: 'relo
 
 const pathOf = (url: string) => new URL(url, 'http://local').pathname
 
-/** `protobasePrevious` is the URL of the page this entry was opened from, so going back to it can take the browser's Back. */
-type HistoryState = { protobaseIndex?: number; protobaseEntry?: string; protobasePrevious?: string }
+/**
+ * `protobasePrevious` is the URL of the page this entry was opened from, and `protobasePreviousEntry` that page's entry,
+ * so going back to it can take the browser's Back.
+ */
+type HistoryState = { protobaseIndex?: number; protobaseEntry?: string; protobasePrevious?: string; protobasePreviousEntry?: string }
 const historyState = () => (window.history.state as HistoryState | null) ?? {}
 
 /** Our place in the browser history, so a back or forward press can be told apart and, if needed, undone. */
@@ -95,6 +100,9 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   const losesInput = () => [...guards.current.values()].some((guard) => guard.kind === 'input-lost')
   const current = useRef(page)
   current.current = page
+  // Each entry's URL as this page last saw it: an entry replaced since another was opened from it no longer leads back there
+  const entryUrls = useRef(new Map<string, string>())
+  entryUrls.current.set(page.entry, page.url)
   const position = useRef(memory ? 0 : historyIndex())
   const undoing = useRef(false)
   const proceeding = useRef(false)
@@ -109,7 +117,8 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   // a pushed entry keeps the scroll position, and a traversal restores it before the page it returns to is drawn.
   useLayoutEffect(() => restoreScroll(places.placeOf(page.entry)), [places, page.entry])
 
-  useEffect(() => {
+  // In the commit, so a page opened before passive effects run is not stamped with this entry's place in history
+  useLayoutEffect(() => {
     if (memory) return
     window.history.scrollRestoration = 'manual'
     window.history.replaceState({ ...historyState(), protobaseIndex: position.current, protobaseEntry: current.current.entry }, '')
@@ -156,11 +165,13 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
       const entry = replace ? current.current.entry : newEntry()
       if (!memory) {
         position.current += replace ? 0 : 1
-        const previous = replace ? historyState().protobasePrevious : current.current.url
-        window.history[replace ? 'replaceState' : 'pushState']({ protobaseIndex: position.current, protobaseEntry: entry, protobasePrevious: previous }, '', full)
+        const state = historyState()
+        const previous = replace ? { protobasePrevious: state.protobasePrevious, protobasePreviousEntry: state.protobasePreviousEntry } : { protobasePrevious: current.current.url, protobasePreviousEntry: current.current.entry }
+        window.history[replace ? 'replaceState' : 'pushState']({ protobaseIndex: position.current, protobaseEntry: entry, ...previous }, '', full)
       }
       rememberScroll()
       if (keepScroll) places.save(entry, window.scrollY)
+      entryUrls.current.set(entry, full)
       setPage({ url: full, entry })
     },
     [memory, rememberScroll, places],
@@ -175,13 +186,24 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
     [basePath, go],
   )
 
+  // The entry behind this one is the page it was opened from, which each entry holds (`protobasePrevious`), at the URL
+  // that entry has now where this page saw it change
+  const backIsHistory = useCallback(
+    (to: string) => {
+      if (memory) return false
+      const state = historyState()
+      const previous = (state.protobasePreviousEntry && entryUrls.current.get(state.protobasePreviousEntry)) ?? state.protobasePrevious
+      return previous !== undefined && pathOf(previous) === pathOf(`${basePath}${to}`)
+    },
+    [memory, basePath],
+  )
+
   const back = useCallback(
     (to: string) => {
-      const previous = memory ? undefined : historyState().protobasePrevious
-      if (previous !== undefined && pathOf(previous) === pathOf(`${basePath}${to}`)) return window.history.back()
+      if (backIsHistory(to)) return window.history.back()
       navigate(to)
     },
-    [memory, basePath, navigate],
+    [backIsHistory, navigate],
   )
 
   const registerGuard = useCallback((kind: GuardKind = 'draft-kept', params: readonly string[] = []) => {
@@ -221,12 +243,13 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
       entry: page.entry,
       navigate,
       back,
+      backIsHistory,
       registerGuard,
       reload,
       reloadConfirmed,
       holdsChanges,
     }
-  }, [page, basePath, navigate, back, registerGuard, reload, reloadConfirmed, holdsChanges])
+  }, [page, basePath, navigate, back, backIsHistory, registerGuard, reload, reloadConfirmed, holdsChanges])
 
   return (
     <RouterContext.Provider value={value}>
