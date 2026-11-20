@@ -1,5 +1,5 @@
 import { ChevronLeft, Menu, Search, X } from 'lucide-react'
-import { useLayoutEffect, useRef, useState, type ReactNode, type Ref } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 import { cn } from '../lib/cn'
 import { backTarget } from './back-target'
 import { Breadcrumb, inApp, type Crumb } from './breadcrumb'
@@ -7,6 +7,7 @@ import { brandBar, brandContent } from './brand-bar'
 import { leadingBox, leadingRow } from './leading-slot'
 import { GlobalSearch, type GlobalSearchModel } from './global-search'
 import { text } from './messages'
+import { topBarControl, useNativeTopBarFor } from './use-native-top-bar'
 
 export type TopBarProps = {
   breadcrumb: Crumb[]
@@ -79,6 +80,19 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, b
   const setSearchOpen = (open: boolean) => (onSearchOpenChange ? onSearchOpenChange(open) : setOwnSearchOpen(open))
   const back = backTarget(breadcrumb)
   const desktopSearch = useRef<HTMLInputElement>(null)
+  const header = useRef<HTMLElement | null>(null)
+  const setHeader = useCallback(
+    (element: HTMLElement | null) => {
+      header.current = element
+      if (typeof ref === 'function') ref(element)
+      else if (ref) ref.current = element
+    },
+    [ref],
+  )
+  // On a phone app's bar, the app's own navigation bar draws the title, the way back, search and the account, where the
+  // bar has nothing else of its own to show
+  const title = breadcrumb.at(-1)
+  const nativeBar = useNativeTopBarFor(header, Boolean(brand) && !searchOpen && !actions, typeof title === 'object' ? title.label : (title ?? ''), back?.label, Boolean(onMenu) && !back, Boolean(search) && searchButton)
 
   // ⌘K (Ctrl+K elsewhere) focuses the search box, or opens it on a phone, where it sits behind a button. A layout effect
   // listens from the commit that shows the bar, so a key pressed right after it renders is not missed.
@@ -96,12 +110,12 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, b
   }, [search])
   return (
     <>
-      <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)]' : 'relative', 'flex shrink-0 items-center gap-1 border-b pt-[var(--pb-safe-top,--spacing(2))] pr-2 pb-2 pl-4 h-[calc(3rem+var(--pb-safe-top))] md:gap-4 md:px-5 md:pt-[var(--pb-safe-top)] md:pb-0', brand ? brandBar : 'bg-background')}>
+      <header ref={setHeader} style={nativeBar.native && nativeBar.height !== undefined ? { height: nativeBar.height } : undefined} className={cn(nativeBar.native && 'invisible', sticky ? 'sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)]' : 'relative', 'flex shrink-0 items-center gap-1 border-b pt-[var(--pb-safe-top,--spacing(2))] pr-2 pb-2 pl-4 h-[calc(3rem+var(--pb-safe-top))] md:gap-4 md:px-5 md:pt-[var(--pb-safe-top)] md:pb-0', brand ? brandBar : 'bg-background')}>
         {/* In the brand colour, what a pull past the page's top reveals above the bar is the bar's colour too */}
         {brand && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-full h-screen bg-primary md:hidden" />}
         <div className={cn('contents', brand && brandContent)}>
         {onMenu && (
-          <button type="button" aria-label={text('openNavigation')} aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(topBarButton, '-ml-3')}>
+          <button type="button" {...topBarControl('menu')} aria-label={text('openNavigation')} aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(topBarButton, '-ml-3')}>
             <Menu />
           </button>
         )}
@@ -115,6 +129,7 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, b
           <div className={cn(leadingRow, 'flex-1')}>
             {back && (
               <a
+                {...topBarControl('back')}
                 href={back.href}
                 aria-label={text('backTo', { label: back.label })}
                 onClick={(event) => {
@@ -134,6 +149,7 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, b
         )}
         {!leading && !backInLeadingSlot && back && (
           <a
+            {...topBarControl('back')}
             href={back.href}
             aria-label={text('backTo', { label: back.label })}
             onClick={(event) => {
@@ -156,7 +172,7 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, b
                 <GlobalSearch ref={desktopSearch} search={search} />
               </div>
               {searchButton && (
-                <button type="button" aria-label={text('search')} aria-expanded={searchOpen} onClick={() => setSearchOpen(true)} className={topBarButton}>
+                <button type="button" {...topBarControl('search')} aria-label={text('search')} aria-expanded={searchOpen} onClick={() => setSearchOpen(true)} className={topBarButton}>
                   <Search />
                 </button>
               )}
@@ -164,7 +180,7 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, b
         )}
         {actions}
         <div ref={slotRef} className="contents md:hidden" />
-        {account}
+        {account && <div {...topBarControl('account')} className="contents">{account}</div>}
       </div>
         </div>
       {search && searchOpen && (
