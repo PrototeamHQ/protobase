@@ -83,6 +83,7 @@
     "sameChatDay",
     "showTextsIn",
     "siblingPage",
+    "signedOutEvent",
     "statusRefreshMs",
     "uiFromModule",
     "uiReadyEvent",
