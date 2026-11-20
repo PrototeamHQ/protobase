@@ -9,6 +9,9 @@ export const topBarControl = (control: NativeTopBarControl) => ({ 'data-top-bar-
 /** Marks what the top bar shows beside its own controls, such as the app's and the page's actions, which the native bar shows as its own buttons. */
 export const topBarActions = { 'data-top-bar-actions': '' }
 
+/** Marks what holds the top bar's content, whose text colour is the colour the native bar draws its title and controls in. */
+export const topBarContent = { 'data-top-bar-content': '' }
+
 const controlIn = (header: HTMLElement, control: NativeTopBarControl) => header.querySelector<HTMLElement>(`[data-top-bar-control="${control}"]`)
 
 // The account's entry as the bar shows it: the label of its link or button, and the avatar's initials, none for an icon
@@ -34,7 +37,7 @@ const colorsIn = (header: HTMLElement): NativeTopBarColors => {
   const circle = entry && [...entry.querySelectorAll('*')].find((element) => painted(getComputedStyle(element).backgroundColor))
   return {
     background: painted(getComputedStyle(header).backgroundColor),
-    foreground: painted(getComputedStyle(header.firstElementChild ?? header).color),
+    foreground: painted(getComputedStyle(header.querySelector('[data-top-bar-content]') ?? header).color),
     avatar: circle ? painted(getComputedStyle(circle).backgroundColor) : null,
     avatarText: circle ? painted(getComputedStyle(circle).color) : null,
   }

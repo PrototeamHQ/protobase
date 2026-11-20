@@ -46,9 +46,23 @@ final class NativeTopBarTests: XCTestCase {
         let slate = TopBarState.Color(red: 0.2, green: 0.25, blue: 0.3, alpha: 1)
         let white = TopBarState.Color(red: 1, green: 1, blue: 1, alpha: 1)
         bar.show(.shown(title: "Home", back: nil, menu: false, search: false, actions: [], account: nil, colors: .init(background: slate, foreground: white)))
-        XCTAssertEqual(bar.bar.standardAppearance.backgroundColor, NativeTopBar.uiColor(slate))
-        XCTAssertEqual(bar.bar.scrollEdgeAppearance?.backgroundColor, NativeTopBar.uiColor(slate))
+        XCTAssertEqual(bar.solid.backgroundColor, NativeTopBar.uiColor(slate))
+        XCTAssertFalse(bar.backdrop.isHidden)
         XCTAssertEqual(bar.bar.tintColor, NativeTopBar.uiColor(white))
+        XCTAssertEqual(bar.bar.overrideUserInterfaceStyle, .dark)
+    }
+
+    func testTheBackgroundRunsFromEdgeToEdge() {
+        let (bar, _) = made()
+        bar.show(.shown(title: "Home", back: nil, menu: false, search: false, actions: [], account: nil, colors: .init()))
+        let view = try! XCTUnwrap(bar.bar.superview)
+        view.layoutIfNeeded()
+        XCTAssertEqual(bar.backdrop.frame.minX, 0)
+        XCTAssertEqual(bar.backdrop.frame.width, view.bounds.width)
+        XCTAssertEqual(bar.backdrop.frame.minY, 0)
+        XCTAssertEqual(bar.backdrop.frame.maxY, bar.bar.frame.maxY)
+        bar.show(.hidden)
+        XCTAssertTrue(bar.backdrop.isHidden)
     }
 
     func testHidesForNoBar() {
@@ -58,5 +72,23 @@ final class NativeTopBarTests: XCTestCase {
         bar.show(.hidden)
         XCTAssertTrue(bar.bar.isHidden)
         XCTAssertNil(bar.height)
+    }
+
+    func testScrolledFadesTheBackgroundAndHidesTheTitleOnly() {
+        let (bar, _) = made()
+        bar.show(.shown(title: "Home", back: "Customers", menu: false, search: true, actions: [], account: nil, colors: .init()))
+        let title = bar.bar.topItem?.leftBarButtonItems?.last?.customView
+        XCTAssertEqual(title?.alpha, 1)
+        XCTAssertEqual(bar.fade.alpha, 0)
+        bar.scrolled(true, animated: false)
+        XCTAssertEqual(title?.alpha, 0)
+        XCTAssertEqual(bar.solid.alpha, 0)
+        XCTAssertEqual(bar.fade.alpha, 1)
+        XCTAssertEqual(bar.bar.topItem?.rightBarButtonItems?.count, 1)
+        // A new page's bar keeps the scrolled look until the page is back at its top
+        bar.show(.shown(title: "Ada", back: "Customers", menu: false, search: true, actions: [], account: nil, colors: .init()))
+        XCTAssertEqual(bar.bar.topItem?.leftBarButtonItems?.last?.customView?.alpha, 0)
+        bar.scrolled(false, animated: false)
+        XCTAssertEqual(bar.bar.topItem?.leftBarButtonItems?.last?.customView?.alpha, 1)
     }
 }

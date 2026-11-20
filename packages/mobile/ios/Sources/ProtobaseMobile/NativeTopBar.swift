@@ -14,13 +14,27 @@ final class MeasuredNavigationBar: UINavigationBar {
     }
 }
 
+/** A colour fading from solid at the top to clear at the bottom. */
+final class FadeView: UIView {
+    override class var layerClass: AnyClass { CAGradientLayer.self }
+
+    var color: UIColor = .clear {
+        didSet {
+            let layer = layer as! CAGradientLayer
+            layer.colors = [color.cgColor, color.cgColor, color.withAlphaComponent(0).cgColor]
+            layer.locations = [0, 0.5, 1]
+        }
+    }
+}
+
 /**
  * The system navigation bar over the top of a web view, up behind the status bar, laid out and coloured as the shell's
  * own bar, with the system's controls: the page's title at the leading side, after the system's back button naming the
  * page it goes to or the menu's button where there is no way back, and search, the app's actions and the account's
  * avatar at the trailing side, as the shell asks (TopBarState). A tap is handed back by control, or by the action's
  * place; the bar never pops an item itself, since the shell goes back and asks for the next page's bar. Hidden while
- * the shell draws its own.
+ * the shell draws its own. Once the page scrolls under it (`scrolled`), its background fades out towards the content and
+ * its title goes, its controls staying.
  */
 @MainActor
 final class NativeTopBar: NSObject, UINavigationBarDelegate {
@@ -29,6 +43,14 @@ final class NativeTopBar: NSObject, UINavigationBarDelegate {
     }
 
     let bar = MeasuredNavigationBar()
+    /** The bar's background, from edge to edge and up behind the status bar, which the bar itself, inset by the margin, cannot draw. */
+    let backdrop = UIView()
+    /** The background at the page's top: solid. */
+    let solid = UIView()
+    /** The background once the page scrolls under the bar: the same colour, fading out towards the content. */
+    let fade = FadeView()
+    private var title: UILabel?
+    private(set) var isScrolled = false
     /** The system's side margin on a phone, which a navigation controller gives its bar's buttons. */
     static let margin: CGFloat = 16
     private let onTap: (Control) -> Void
@@ -44,8 +66,22 @@ final class NativeTopBar: NSObject, UINavigationBarDelegate {
         bar.delegate = self
         bar.accessibilityIdentifier = "Top bar"
         bar.translatesAutoresizingMaskIntoConstraints = false
+        backdrop.isHidden = true
+        backdrop.isUserInteractionEnabled = false
+        backdrop.translatesAutoresizingMaskIntoConstraints = false
+        for layer in [solid, fade] {
+            layer.frame = backdrop.bounds
+            layer.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            backdrop.addSubview(layer)
+        }
+        fade.alpha = 0
+        view.addSubview(backdrop)
         view.addSubview(bar)
         NSLayoutConstraint.activate([
+            backdrop.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            backdrop.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            backdrop.topAnchor.constraint(equalTo: view.topAnchor),
+            backdrop.bottomAnchor.constraint(equalTo: bar.bottomAnchor),
             // Outside a navigation controller the bar's content takes no margins, its own included, and puts its buttons
             // against the screen's edges; the bar stands in by the system's margin instead
             bar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Self.margin),
@@ -59,6 +95,7 @@ final class NativeTopBar: NSObject, UINavigationBarDelegate {
         shown = state
         guard case let .shown(title, back, menu, search, actions, account, colors) = state else {
             bar.isHidden = true
+            backdrop.isHidden = true
             return
         }
         paint(colors)
@@ -73,7 +110,10 @@ final class NativeTopBar: NSObject, UINavigationBarDelegate {
             item.accessibilityLabel = NSLocalizedString("Menu", comment: "The top bar's menu button")
             leading.append(item)
         }
-        leading.append(Self.plain(UIBarButtonItem(customView: Self.titleLabel(title, color: foreground))))
+        let label = Self.titleLabel(title, color: foreground)
+        label.alpha = isScrolled ? 0 : 1
+        self.title = label
+        leading.append(Self.plain(UIBarButtonItem(customView: label)))
         page.leftBarButtonItems = leading
         // Right to left: the account, the actions, then search
         var trailing: [UIBarButtonItem] = []
@@ -95,6 +135,19 @@ final class NativeTopBar: NSObject, UINavigationBarDelegate {
         // The page the way back goes to is the item beneath, so the bar draws the system's back button with its name
         bar.setItems(back.map { [UINavigationItem(title: $0), page] } ?? [page], animated: false)
         bar.isHidden = false
+        backdrop.isHidden = false
+    }
+
+    /** Whether the page has scrolled under the bar: the background fades out towards the content and the title goes. */
+    func scrolled(_ scrolled: Bool, animated: Bool = true) {
+        guard scrolled != isScrolled else { return }
+        isScrolled = scrolled
+        let change = { [self] in
+            solid.alpha = scrolled ? 0 : 1
+            fade.alpha = scrolled ? 1 : 0
+            title?.alpha = scrolled ? 0 : 1
+        }
+        if animated { UIView.animate(withDuration: 0.2, animations: change) } else { change() }
     }
 
     /** The bar's height while it shows, the status bar included; none while hidden or not yet laid out. */
@@ -107,17 +160,14 @@ final class NativeTopBar: NSObject, UINavigationBarDelegate {
         return false
     }
 
-    // The bar in the shell's colours: its background, up behind the status bar, and its title and controls; the system's
-    // own material where the shell's bar has no colour of its own
+    // The bar in the shell's colours: its background behind it from edge to edge, the system's own where the shell's bar
+    // has no colour of its own, and its title and controls, the system's glass behind them dark or light as the background
     private func paint(_ colors: TopBarState.Colors) {
+        let background = colors.background.map(Self.uiColor)
+        solid.backgroundColor = background ?? .systemBackground
+        fade.color = background ?? .systemBackground
         let look = UINavigationBarAppearance()
-        if let background = colors.background {
-            look.configureWithOpaqueBackground()
-            look.backgroundColor = Self.uiColor(background)
-            look.shadowColor = .clear
-        } else {
-            look.configureWithDefaultBackground()
-        }
+        look.configureWithTransparentBackground()
         let foreground = colors.foreground.map(Self.uiColor)
         if let foreground {
             look.titleTextAttributes = [.foregroundColor: foreground]
@@ -130,6 +180,14 @@ final class NativeTopBar: NSObject, UINavigationBarDelegate {
         bar.scrollEdgeAppearance = look
         bar.compactAppearance = look
         bar.tintColor = foreground
+        bar.overrideUserInterfaceStyle = background.map { Self.isDark($0) ? .dark : .light } ?? .unspecified
+    }
+
+    /** Whether a colour is dark enough that light text reads on it, by its relative luminance. */
+    static func isDark(_ color: UIColor) -> Bool {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        return 0.2126 * red + 0.7152 * green + 0.0722 * blue < 0.5
     }
 
     static func uiColor(_ color: TopBarState.Color) -> UIColor {

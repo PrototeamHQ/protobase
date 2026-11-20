@@ -7,7 +7,7 @@ import { brandBar, brandContent } from './brand-bar'
 import { leadingBox, leadingRow } from './leading-slot'
 import { GlobalSearch, type GlobalSearchModel } from './global-search'
 import { text } from './messages'
-import { topBarActions, topBarControl, useNativeTopBarFor } from './use-native-top-bar'
+import { topBarActions, topBarContent, topBarControl, useNativeTopBarFor } from './use-native-top-bar'
 
 export type TopBarProps = {
   breadcrumb: Crumb[]
@@ -113,7 +113,7 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, b
       <header ref={setHeader} style={nativeBar.native && nativeBar.height !== undefined ? { height: nativeBar.height } : undefined} className={cn(nativeBar.native && 'invisible', sticky ? 'sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)]' : 'relative', 'flex shrink-0 items-center gap-1 border-b pt-[var(--pb-safe-top,--spacing(2))] pr-2 pb-2 pl-4 h-[calc(3rem+var(--pb-safe-top))] md:gap-4 md:px-5 md:pt-[var(--pb-safe-top)] md:pb-0', brand ? brandBar : 'bg-background')}>
         {/* In the brand colour, what a pull past the page's top reveals above the bar is the bar's colour too */}
         {brand && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-full h-screen bg-primary md:hidden" />}
-        <div className={cn('contents', brand && brandContent)}>
+        <div {...topBarContent} className={cn('contents', brand && brandContent)}>
         {onMenu && (
           <button type="button" {...topBarControl('menu')} aria-label={text('openNavigation')} aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(topBarButton, '-ml-3')}>
             <Menu />

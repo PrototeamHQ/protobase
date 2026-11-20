@@ -7,7 +7,8 @@ import Capacitor
  * `menu`, `search` or `account` event, or `action` with the action's `index`,
  * which the shell answers as a tap on its own link or button, and the bar's height, in points, the status bar
  * included, is the `height` event each time it changes, kept for the first listener, so the page keeps that much clear
- * above its content. `set` resolves with `{ height }` too while the bar shows.
+ * above its content. `set` resolves with `{ height }` too while the bar shows. The bar follows the web view's scrolling
+ * itself (NativeTopBar.scrolled).
  */
 @objc(ProtobaseTopBar)
 public class ProtobaseTopBar: CAPPlugin, CAPBridgedPlugin {
@@ -16,6 +17,7 @@ public class ProtobaseTopBar: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [CAPPluginMethod(name: "set", returnType: CAPPluginReturnPromise)]
 
     private var bar: NativeTopBar?
+    private var scrolling: NSKeyValueObservation?
 
     @objc func set(_ call: CAPPluginCall) {
         guard let state = TopBarState.parse(call.options) else {
@@ -40,6 +42,10 @@ public class ProtobaseTopBar: CAPPlugin, CAPBridgedPlugin {
             onAction: { [weak self] index in self?.notifyListeners("action", data: ["index": index]) },
             onHeight: { [weak self] height in self?.notifyListeners("height", data: ["height": Double(height)], retainUntilConsumed: true) })
         bar = made
+        scrolling = webView.scrollView.observe(\.contentOffset, options: [.initial, .new]) { [weak made] view, _ in
+            let under = view.contentOffset.y + view.adjustedContentInset.top > 1
+            DispatchQueue.main.async { MainActor.assumeIsolated { made?.scrolled(under) } }
+        }
         return made
     }
 }
