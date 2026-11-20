@@ -1,6 +1,6 @@
 #!/bin/sh
-# Builds the guard's tests with this harness and runs them on a headless emulator: the JVM tests, then the instrumented
-# ones. Needs ANDROID_HOME with platforms;android-36, build-tools, platform-tools, emulator and
+# Builds the native plugin's tests (the guard's and the tab bar's) with this harness and runs them on a headless emulator:
+# the JVM tests, then the instrumented ones. Needs ANDROID_HOME with platforms;android-36, build-tools, platform-tools, emulator and
 # system-images;android-36;google_apis;x86_64, KVM, and Gradle 8.14 as `gradle`. Usage:
 #   emulator-tests.sh <@capacitor/android folder> <@capawesome/capacitor-live-update folder>
 set -eu
