@@ -55,8 +55,7 @@ const velocityOf = (samples: Swipe['samples']) => {
  * A swipe from the left edge as `action` says (`edgeSwipeAction`), with the drawer engine's numbers: once past the slop
  * and within its angle, `sidebar` opens the drawer under the finger and lets go as a drag on it does, and `back` brings
  * a round back mark in from the edge beside the finger while the page stays where it is, and goes back when let go past
- * half way or flicked, or the mark goes again. `none` leaves the edge alone, to whatever is around the page. Moving at
- * the edge, the page does not scroll, so nothing but the drawer or the mark moves.
+ * half way or flicked, or the mark goes again. `none` leaves the edge alone, to whatever is around the page.
  */
 export const useEdgeSwipe = ({ action, onBack, openDrawer, drawer }: Parts) => {
   // What this page does itself: the host app's own back swipe is the app's
@@ -79,20 +78,17 @@ export const useEdgeSwipe = ({ action, onBack, openDrawer, drawer }: Parts) => {
       const dx = touch.clientX - swipe.x
       const dy = touch.clientY - swipe.y
       if (!swipe.dragging) {
-        // Held from the first move, so the page never starts to scroll under a swipe from the edge
-        if (Math.hypot(dx, dy) < drawerSlop) return event.preventDefault()
+        if (Math.hypot(dx, dy) < drawerSlop) return
         if (dx <= 0 || !startsDrag(dx, dy, drawerSlope)) {
           swipe = undefined
           return
         }
-        event.preventDefault()
         swipe.dragging = true
         swipe.x = touch.clientX
         if (swipe.action === 'sidebar') latest.current.openDrawer()
         else swipe.mark = backMark(touch.clientY)
         return
       }
-      event.preventDefault()
       swipe.dx = Math.max(0, dx)
       swipe.samples.push({ dx: swipe.dx, time: event.timeStamp })
       if (swipe.action === 'sidebar') drawer.current?.follow(swipe.dx / Math.min(width() * 0.88, 384))
@@ -114,7 +110,9 @@ export const useEdgeSwipe = ({ action, onBack, openDrawer, drawer }: Parts) => {
     }
 
     document.addEventListener('touchstart', onStart, { passive: true })
-    document.addEventListener('touchmove', onMove, { passive: false })
+    // Passive, as every touch listener of the page's, so no scroll ever waits on it; a swipe from the edge moves sideways,
+    // within the drawer's angle, which scrolls the page little if at all
+    document.addEventListener('touchmove', onMove, { passive: true })
     document.addEventListener('touchend', onEnd)
     document.addEventListener('touchcancel', onEnd)
     return () => {
