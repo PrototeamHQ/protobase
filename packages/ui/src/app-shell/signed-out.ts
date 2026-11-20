@@ -1,7 +1,7 @@
 /**
  * The event the shell dispatches on `window` once the person has signed out, for a host app around the page, such as
- * one that keeps a list of apps and their sessions and drops the app signed out of, so that reopening it does not sign
- * them back in. A page shown in a frame also posts `{ type: 'protobase:signed-out' }` to the page that frames it.
+ * one that keeps its own copy of the person's session and ends it too, so that reopening the host does not sign them
+ * back in. A page shown in a frame also posts `{ type: 'protobase:signed-out' }` to the page that frames it.
  */
 export const signedOutEvent = 'protobase:signed-out'
 

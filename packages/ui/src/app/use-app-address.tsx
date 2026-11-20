@@ -10,11 +10,12 @@ export type { CurrentAddress, ListAddress, ListChange } from './current-address'
 /**
  * The app's address as logical values, and the ways to change it: `set` changes the list in place, `listTo` is the
  * list after a change for a link to it, `go` moves to
- * another address, `href` is an address for an `<a href>`, `open` follows such an href and `back` goes back to one.
+ * another address, `href` is an address for an `<a href>`, `open` follows such an href and `back` goes back to one,
+ * as the browser's Back where `backIsHistory` says the entry behind is that page.
  * Every component reads and writes the address through this hook, never the query string or a path of its own.
  */
 export const useAppAddress = () => {
-  const { path, params, basePath, navigate, back: backTo } = useRouter()
+  const { path, params, basePath, navigate, back: backTo, backIsHistory: isHistory } = useRouter()
   const { pages, resources, views } = useAdminMeta()
   const xs = useIsXs()
   const pageNames = useMemo(() => new Set(Object.keys(pages)), [pages])
@@ -47,8 +48,9 @@ export const useAppAddress = () => {
   const below = useCallback((target: string) => (target.startsWith(`${basePath}/`) ? target.slice(basePath.length) : target), [basePath])
   const open = useCallback((target: string) => navigate(below(target)), [below, navigate])
   const back = useCallback((target: string) => backTo(below(target)), [below, backTo])
+  const backIsHistory = useCallback((target: string) => isHistory(below(target)), [below, isHistory])
 
-  return { address, set, listTo, go, href, open, back }
+  return { address, set, listTo, go, href, open, back, backIsHistory }
 }
 
 /** A link to an address in the app: an ordinary anchor that the router follows without reloading the page. */
