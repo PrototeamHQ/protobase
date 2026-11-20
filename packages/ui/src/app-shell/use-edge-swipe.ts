@@ -42,11 +42,11 @@ const placeMark = (mark: HTMLElement, progress: number, animate: boolean) => {
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-// The finger's speed rightwards over the last stretch, in pixels a second
-const velocityOf = (samples: Swipe['samples']) => {
+// The finger's speed rightwards over the stretch before it let go at `released`, in pixels a second: none once it rested
+const velocityOf = (samples: Swipe['samples'], released: number) => {
   const last = samples.at(-1)
   if (!last) return 0
-  const first = samples.find((sample) => last.time - sample.time <= 100) ?? last
+  const first = samples.find((sample) => released - sample.time <= 100) ?? last
   const elapsed = last.time - first.time
   return elapsed > 0 ? ((last.dx - first.dx) / elapsed) * 1000 : 0
 }
@@ -67,9 +67,25 @@ export const useEdgeSwipe = ({ action, onBack, openDrawer, drawer }: Parts) => {
     let swipe: Swipe | undefined
     const width = () => window.innerWidth
 
+    // Out again, after going back or not
+    const dropMark = (mark: HTMLElement) => {
+      placeMark(mark, 0, true)
+      setTimeout(() => mark.remove(), reducedMotion() ? 0 : drawerSettleMs)
+    }
+    // A swipe that stops without being let go, as when a second finger comes or the browser stops tracking the touch:
+    // the mark goes and the drawer closes, without going anywhere
+    const cancel = () => {
+      const done = swipe
+      swipe = undefined
+      if (!done?.dragging) return
+      if (done.action === 'sidebar') drawer.current?.settle(0, 0)
+      else if (done.mark) dropMark(done.mark)
+    }
+
     const onStart = (event: TouchEvent) => {
       const touch = event.touches[0]
       const action = latest.current.action
+      cancel()
       swipe = action !== 'none' && event.touches.length === 1 && touch && touch.clientX <= edgeZone ? { action, x: touch.clientX, y: touch.clientY, dragging: false, dx: 0, samples: [] } : undefined
     }
     const onMove = (event: TouchEvent) => {
@@ -94,19 +110,16 @@ export const useEdgeSwipe = ({ action, onBack, openDrawer, drawer }: Parts) => {
       if (swipe.action === 'sidebar') drawer.current?.follow(swipe.dx / Math.min(width() * 0.88, 384))
       else if (swipe.mark) placeMark(swipe.mark, swipe.dx / backReach, false)
     }
-    const onEnd = () => {
+    const onEnd = (event: TouchEvent) => {
       const done = swipe
       swipe = undefined
       if (!done?.dragging) return
-      const velocity = velocityOf(done.samples)
+      const velocity = velocityOf(done.samples, event.timeStamp)
       if (done.action === 'sidebar') return drawer.current?.settle(done.dx / Math.min(width() * 0.88, 384), velocity)
       const mark = done.mark
       if (!mark) return
-      const back = endsOpen(done.dx / backReach, velocity)
-      if (back) latest.current.onBack()
-      // Out again, after going back or not
-      placeMark(mark, 0, true)
-      setTimeout(() => mark.remove(), reducedMotion() ? 0 : drawerSettleMs)
+      if (endsOpen(done.dx / backReach, velocity)) latest.current.onBack()
+      dropMark(mark)
     }
 
     document.addEventListener('touchstart', onStart, { passive: true })
@@ -114,12 +127,13 @@ export const useEdgeSwipe = ({ action, onBack, openDrawer, drawer }: Parts) => {
     // within the drawer's angle, which scrolls the page little if at all
     document.addEventListener('touchmove', onMove, { passive: true })
     document.addEventListener('touchend', onEnd)
-    document.addEventListener('touchcancel', onEnd)
+    document.addEventListener('touchcancel', cancel)
     return () => {
+      cancel()
       document.removeEventListener('touchstart', onStart)
       document.removeEventListener('touchmove', onMove)
       document.removeEventListener('touchend', onEnd)
-      document.removeEventListener('touchcancel', onEnd)
+      document.removeEventListener('touchcancel', cancel)
     }
   }, [drawer])
 }

@@ -120,8 +120,8 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
     setDrawerUnderFinger(false)
   }, [])
   useEffect(() => {
-    if (desktop) setDrawerOpen(false)
-  }, [desktop])
+    if (desktop) closeDrawer()
+  }, [desktop, closeDrawer])
   useCloseSidebarEvent(closeDrawer)
   const tabs = !desktop && bottomBar && bottomBar.length > 0 ? bottomBar : undefined
   // On a phone with a bottom bar, "More" opens the sidebar as its own page, the tabs' pages show the account, search is
