@@ -63,6 +63,9 @@ import { useNavRecent } from './use-nav-recent'
 import { useAppAddress, type CurrentAddress } from './use-app-address'
 import { userMenuFromMeta } from './user-menu-from-meta'
 import { text as appText } from './messages'
+import { Dialog } from '../primitives/dialog'
+import { Button } from '../primitives/button'
+import { tellSignedOut } from '../app-shell/signed-out'
 import type { NativeBridge } from './native-auth-fetch'
 import { appLiveUpdater } from './live-update/app-live-updater'
 import { sessionPageKeeper } from './live-update/kept-page'
@@ -125,6 +128,13 @@ const recordOf = (address: CurrentAddress | undefined) => (address?.kind === 're
 const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, 'workspace' | 'sidebarMode' | 'assistant' | 'runtime'>) => {
   const meta = useAdminMeta()
   const { state, session, signOut, stopStaffSession, organizations: organizationSettings } = useAuth()
+  // Signing out asks first; once signed out, a host app around the page hears of it (`signedOutEvent`)
+  const [signingOut, setSigningOut] = useState(false)
+  const confirmSignOut = async () => {
+    setSigningOut(false)
+    await signOut()
+    tellSignedOut()
+  }
   const signIn = useSignInAddress()
   if (state.kind !== 'signed-in' && state.kind !== 'visitor') throw new Error('The shell is only rendered for a signed-in user or a visitor')
   // A visitor browses what the anonymous role reads: no account, roles or organizations, and a "Sign in" link.
@@ -269,7 +279,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       titleStatus={(restored === 'refreshing' || restored === 'failed') && <RefreshMark failed={restored === 'failed'} />}
       staleContent={restored === 'failed' ? 'failed' : undefined}
       user={acting && userToShell(acting)}
-      onSignOut={user && (() => void signOut())}
+      onSignOut={user && (() => setSigningOut(true))}
       signIn={user ? undefined : signIn.link()}
       workspace={current?.organization?.name ?? workspace}
       appName={meta.appName}
@@ -297,7 +307,27 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       banner={(staff || pluginNotice) && <>{staff && <StaffBanner signIn={staff} onStop={stopStaffSession} />}{pluginNotice && <PluginNotice off={pluginsOff} />}</>}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
       actions={(Actions || bell || reloadButton || runtimeButton || assistantButton) && <>{Actions && <CustomBoundary name="shell.actions" fallback={null}><Actions /></CustomBoundary>}{bell}{reloadButton}{runtimeButton}{assistantButton}</>}
-      overlays={(status.dialog || (meta.calls && user && !staff)) && <>{status.dialog}{meta.calls && user && !staff && <CallRings />}</>}
+      overlays={
+        <>
+          {status.dialog}
+          {meta.calls && user && !staff && <CallRings />}
+          {signingOut && (
+            <Dialog
+              title={appText('signOutQuestion')}
+              description={appText('signOutHelp')}
+              onClose={() => setSigningOut(false)}
+              actions={
+                <>
+                  <Button onClick={() => setSigningOut(false)}>{appText('signOutCancel')}</Button>
+                  <Button variant="primary" onClick={() => void confirmSignOut()}>
+                    {appText('signOutConfirm')}
+                  </Button>
+                </>
+              }
+            />
+          )}
+        </>
+      }
       rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <CustomBoundary name="shell.rightPanel" fallback={null}><RightPanel /></CustomBoundary>}{assistantPanel}</>}
     >
       {/* A page whose code or drawing fails says so in its place, and the next address draws it again */}

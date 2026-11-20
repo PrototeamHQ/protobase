@@ -5,6 +5,8 @@ description: The user menu at the bottom of the sidebar, with the app's own acco
 
 The signed-in user sits at the bottom of the sidebar, and on a phone at the top right of the top bar, where the menu opens as a sheet from the bottom. Clicking them opens a menu with their name and email, which link to their account, "Set a status" in an app with [status](/reference/status/), the app's own pages, the theme switch, and "Sign out". Account pages (organization, billing, users) and help links belong here rather than among the working resources.
 
+"Sign out" asks first, in the app's dialog, in a browser and in an app alike. Once the person has signed out, the shell dispatches a `protobase:signed-out` event on `window` (`signedOutEvent` of `@protobase/ui`), and posts `{ type: 'protobase:signed-out' }` to a page that frames it, for a host app around the page, such as one that keeps a list of apps and their sessions and drops the one signed out of.
+
 Export one [`userMenu(...)`](/api/schema/functions/usermenu/) from `config/index.ts`:
 
 ```ts
