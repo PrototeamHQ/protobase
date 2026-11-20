@@ -117,7 +117,8 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   // a pushed entry keeps the scroll position, and a traversal restores it before the page it returns to is drawn.
   useLayoutEffect(() => restoreScroll(places.placeOf(page.entry)), [places, page.entry])
 
-  useEffect(() => {
+  // In the commit, so a page opened before passive effects run is not stamped with this entry's place in history
+  useLayoutEffect(() => {
     if (memory) return
     window.history.scrollRestoration = 'manual'
     window.history.replaceState({ ...historyState(), protobaseIndex: position.current, protobaseEntry: current.current.entry }, '')
