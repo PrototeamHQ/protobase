@@ -24,6 +24,8 @@ type RouterValue = {
   navigate: (to: string, options?: NavigateOptions) => void
   /** Goes back to a path below the base path: as the browser's Back when the page before is that path, else as `navigate`. */
   back: (to: string) => void
+  /** Whether `back` to that path takes the browser's Back: whether the entry behind this one in history is that page. */
+  backIsHistory: (to: string) => boolean
   /**
    * Asks to be told before the page changes, or one of the page parameters `params` whose content the guard sits in;
    * returns how to stop asking. Used by `useNavigationGuard`.
@@ -175,13 +177,21 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
     [basePath, go],
   )
 
-  const back = useCallback(
+  // The entry behind this one is the page it was opened from, which each entry holds (`protobasePrevious`)
+  const backIsHistory = useCallback(
     (to: string) => {
       const previous = memory ? undefined : historyState().protobasePrevious
-      if (previous !== undefined && pathOf(previous) === pathOf(`${basePath}${to}`)) return window.history.back()
+      return previous !== undefined && pathOf(previous) === pathOf(`${basePath}${to}`)
+    },
+    [memory, basePath],
+  )
+
+  const back = useCallback(
+    (to: string) => {
+      if (backIsHistory(to)) return window.history.back()
       navigate(to)
     },
-    [memory, basePath, navigate],
+    [backIsHistory, navigate],
   )
 
   const registerGuard = useCallback((kind: GuardKind = 'draft-kept', params: readonly string[] = []) => {
@@ -221,12 +231,13 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
       entry: page.entry,
       navigate,
       back,
+      backIsHistory,
       registerGuard,
       reload,
       reloadConfirmed,
       holdsChanges,
     }
-  }, [page, basePath, navigate, back, registerGuard, reload, reloadConfirmed, holdsChanges])
+  }, [page, basePath, navigate, back, backIsHistory, registerGuard, reload, reloadConfirmed, holdsChanges])
 
   return (
     <RouterContext.Provider value={value}>

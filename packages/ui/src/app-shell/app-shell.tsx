@@ -7,7 +7,6 @@ import { useCloseSidebarEvent } from './close-sidebar'
 import { Drawer, type DrawerControl } from './drawer'
 import { backTarget } from './back-target'
 import { declaredEdgeSwipe, edgeSwipeAction, useDeclaredEdgeSwipe, useNativeBackSwipe } from './edge-swipe'
-import { useEntryBehind } from './history-behind'
 import { useEdgeSwipe } from './use-edge-swipe'
 import { PageScrollContext, usePageGutter, usePageInsets } from './page-scroll'
 import type { NavGroup } from './nav'
@@ -69,6 +68,8 @@ export type AppShellProps = {
   onNavigate?: (href: string) => void
   /** Follows the top bar's back button, as the browser's Back where the page before is where it leads; without it `onNavigate`. */
   onBack?: (href: string) => void
+  /** Whether `onBack` to that href is the browser's Back, the history entry behind being that page; the host app's back swipe is used only then. */
+  backIsHistory?: (href: string) => boolean
   /** Adds "Sign out" to the profile menu. */
   onSignOut?: () => void
   /** The sign-in page, a "Sign in" link in the sidebar for a visitor, who has no `user`. */
@@ -107,7 +108,7 @@ const staleLook = {
   failed: 'opacity-60',
 }
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, staleContent, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, account, bottomBar, menuPage, bottomBarSearch, onNavigate, onBack, onSignOut, signIn, organizations, roles, theme, status, search, pageScroll: scrollsByDefault = false, className, overlays, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, staleContent, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, banner, forceExpanded, profileMenuOpen, navGroups, userMenu, account, bottomBar, menuPage, bottomBarSearch, onNavigate, onBack, backIsHistory, onSignOut, signIn, organizations, roles, theme, status, search, pageScroll: scrollsByDefault = false, className, overlays, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const noticeShown = useSidebarNoticeShown(sidebarMode)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -149,8 +150,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
   const back = backTarget(trail)
   const edgeSwipe = edgeSwipeAction({ desktop, back: Boolean(back), bottomBar: Boolean(tabs), drawerOpen })
   // The host app's back swipe shows the entry behind from its snapshot, so only where that is the step back
-  const behind = useEntryBehind()
-  const declared = declaredEdgeSwipe(edgeSwipe, { nativeBack: useNativeBackSwipe(), behindIsBack: back !== undefined && behind === back.href })
+  const declared = declaredEdgeSwipe(edgeSwipe, { nativeBack: useNativeBackSwipe(), behindIsBack: back !== undefined && Boolean(backIsHistory?.(back.href)) })
   useDeclaredEdgeSwipe(declared, JSON.stringify(trail))
 
   // A page turns the document's scrolling on or off with `usePageScroll`
