@@ -7,7 +7,7 @@ import { brandBar, brandContent } from './brand-bar'
 import { leadingBox, leadingRow } from './leading-slot'
 import { GlobalSearch, type GlobalSearchModel } from './global-search'
 import { text } from './messages'
-import { topBarControl, useNativeTopBarFor } from './use-native-top-bar'
+import { topBarActions, topBarControl, useNativeTopBarFor } from './use-native-top-bar'
 
 export type TopBarProps = {
   breadcrumb: Crumb[]
@@ -90,9 +90,9 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, b
     [ref],
   )
   // On a phone app's bar, the app's own navigation bar draws the title, the way back, search and the account, where the
-  // bar has nothing else of its own to show
+  // bar shows nothing else of its own (`topBarActions`)
   const title = breadcrumb.at(-1)
-  const nativeBar = useNativeTopBarFor(header, Boolean(brand) && !searchOpen && !actions, typeof title === 'object' ? title.label : (title ?? ''), back?.label, Boolean(onMenu) && !back, Boolean(search) && searchButton)
+  const nativeBar = useNativeTopBarFor(header, Boolean(brand) && !searchOpen, typeof title === 'object' ? title.label : (title ?? ''), back?.label, Boolean(onMenu) && !back, Boolean(search) && searchButton)
 
   // ⌘K (Ctrl+K elsewhere) focuses the search box, or opens it on a phone, where it sits behind a button. A layout effect
   // listens from the commit that shows the bar, so a key pressed right after it renders is not missed.
@@ -178,8 +178,8 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, b
               )}
           </>
         )}
-        {actions}
-        <div ref={slotRef} className="contents md:hidden" />
+        {actions && <div {...topBarActions} className="contents">{actions}</div>}
+        <div ref={slotRef} {...topBarActions} className="contents md:hidden" />
         {account && <div {...topBarControl('account')} className="contents">{account}</div>}
       </div>
         </div>

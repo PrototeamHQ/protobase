@@ -4,6 +4,12 @@ import { useNativeTopBar, type NativeAccount, type NativeTopBarControl, type Nat
 /** Marks the top bar's own controls, which a tap on the native bar's control of the same name clicks. */
 export const topBarControl = (control: NativeTopBarControl) => ({ 'data-top-bar-control': control })
 
+/** Marks what the top bar shows beside its own controls, such as the app's actions: while any of it shows, the web bar stays. */
+export const topBarActions = { 'data-top-bar-actions': '' }
+
+// Whether anything the app put in the bar takes room on the screen; an action that draws nothing on a phone does not
+const showsActions = (header: HTMLElement) => [...header.querySelectorAll('[data-top-bar-actions] *')].some((element) => element.getClientRects().length > 0)
+
 const controlIn = (header: HTMLElement, control: NativeTopBarControl) => header.querySelector<HTMLElement>(`[data-top-bar-control="${control}"]`)
 
 // The account's entry as the bar shows it: the label of its link or button, and the avatar's initials, none for an icon
@@ -26,14 +32,18 @@ const accountIn = (header: HTMLElement): NativeAccount | null => {
 export const useNativeTopBarFor = (header: RefObject<HTMLElement | null>, on: boolean, title: string, back: string | undefined, menu: boolean, search: boolean) => {
   const bar = useNativeTopBar()
   const [refused, setRefused] = useState(false)
+  const [crowded, setCrowded] = useState(false)
   const [height, setHeight] = useState<number>()
   const sent = useRef<string | undefined>(undefined)
-  const active = Boolean(bar) && on
+  const active = Boolean(bar) && on && !crowded
 
-  // After every render, as the account's entry is read from the bar itself; only a changed state is sent
+  // After every render, as the account's entry and the app's actions are read from the bar itself; only a changed state
+  // is sent
   useEffect(() => {
     const element = header.current
     if (!bar || !element) return
+    const busy = showsActions(element)
+    if (busy !== crowded) return setCrowded(busy)
     const state: NativeTopBarState = active ? { visible: true, title, back: back ?? null, menu, search, account: accountIn(element) } : { visible: false }
     const key = JSON.stringify(state)
     if (key === sent.current) return
