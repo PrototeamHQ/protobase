@@ -9,10 +9,10 @@ description: The sidebar, the user menu, the bottom bar on phones and the global
 - [Create link](/reference/sidebar/#create-link): A sidebar entry links to its create form, such as "New message" under Direct messages, for whoever may create.
 - [Entries for creators](/reference/sidebar/#entries-for-creators): A sidebar entry shows only to those who may create its records, such as the tables list to those who may add tables.
 - [The current organization](/reference/sidebar/#the-current-organization): A sidebar entry opens its list on the organization you work in, which you can clear to see every organization you are a member of.
-- [User menu](/reference/user-menu/): Account pages, help links, security settings, setting a status, the theme switch and Sign out.
+- [User menu](/reference/user-menu/): Account pages, help links, security settings, setting a status, the theme switch and Sign out, which asks first and tells a host app around the page.
 - [Bottom bar](/reference/bottom-bar/): On phones, tabs along the bottom for each role's main screens.
 - [Phone app layout](/reference/bottom-bar/#search-and-more): With a bottom bar, More opens the sidebar as a page of its own with search at its top, the top bar takes the app's brand color, and pages that are no tab lead back to More; search can join the bar with `m.search()`.
-- [System tab bar](/reference/bottom-bar/#in-the-ios-app): In the iOS app the bottom bar is the system's own tab bar.
+- [System tab bar](/reference/bottom-bar/#in-the-phone-apps): In the iOS and Android apps the bottom bar is the system's own tab bar.
 - [Phone top bar](/reference/sidebar/#the-top-bar-on-phones): Every phone page has a phone app's top bar, with or without a bottom bar: the brand color, the way back beside the title and the account at the right.
 - [Swipe from the edge](/reference/sidebar/#swipe-from-the-edge): On phones a swipe from the left edge goes back a step, or opens the sidebar drawer under the finger where there is no step back and no bottom bar.
 - [Menus as sheets](/reference/sidebar/#menus-and-drawers-on-phones): On phones, menus, select lists and the account menu open as a sheet from the bottom, and the sidebar drawer and sheets move under the finger as a native drawer does.

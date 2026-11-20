@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { expect, userEvent, within } from 'storybook/test'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { createStaticSession, type AuthSession, type Client } from '@protobase/client'
 import type { ShellLogoProps } from '../app-shell'
 import { navOpenStorageKey } from '../app-shell/nav-open-storage'
@@ -78,6 +78,40 @@ export const InDutch: StoryObj = {
     expect(within(menu).getByRole('menuitem', { name: 'Account' })).toBeVisible()
     expect(within(menu).getByRole('menuitem', { name: 'Uitloggen' })).toBeVisible()
     expect(within(menu).getByText('Thema')).toBeVisible()
+  },
+}
+
+/** Sign out asks first; signed out, the shell tells a host app around the page (`signedOutEvent`). */
+export const SignOutAsksFirst: StoryObj = {
+  name: 'Sign out asks first (checks)',
+  tags: ['play', '!dev'],
+  render: () => (
+    <div className="h-screen">
+      <App client={fakeClient({ permissions: allowed })} auth={createStaticSession('story-token', { id: 'story', email: 'story@example.test', name: 'Story User', role: 'user' })} initialUrl="/orders" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const told: string[] = []
+    const listen = () => told.push('signed out')
+    window.addEventListener('protobase:signed-out', listen)
+    try {
+      const openMenu = async () => {
+        await userEvent.click(await canvas.findByRole('button', { name: 'Profile menu' }))
+        await userEvent.click(await within(document.body).findByRole('menuitem', { name: 'Sign out' }))
+      }
+      await openMenu()
+      const dialog = await within(document.body).findByRole('dialog', { name: 'Sign out?' })
+      // Cancel leaves the person signed in, and tells nobody
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+      await waitFor(() => expect(within(document.body).queryByRole('dialog', { name: 'Sign out?' })).toBeNull())
+      expect(told).toEqual([])
+      await openMenu()
+      await userEvent.click(within(await within(document.body).findByRole('dialog', { name: 'Sign out?' })).getByRole('button', { name: 'Sign out' }))
+      await waitFor(() => expect(told).toEqual(['signed out']))
+    } finally {
+      window.removeEventListener('protobase:signed-out', listen)
+    }
   },
 }
 
