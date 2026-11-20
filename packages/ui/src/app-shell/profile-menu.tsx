@@ -64,6 +64,8 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], accou
   useEffect(() => {
     if (!open || controlled !== undefined) return
     const close = (event: Event) => {
+      // In a phone's sheet (MenuSurface) the sheet closes it, sliding away, from its dim, its handle or Escape
+      if (menuRef.current?.closest('[aria-modal="true"]')) return
       // The menu is drawn at the document's root, outside the person's button
       const inside = root.current?.contains(event.target as Node) || menuRef.current?.contains(event.target as Node)
       if (event instanceof KeyboardEvent ? event.key === 'Escape' : !inside) setLocal(false)
@@ -96,12 +98,12 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], accou
   const menu = (
     <div ref={menuRef} role="menu" className={controlled === undefined ? 'fixed z-[60] w-56 overflow-hidden rounded-lg border bg-background py-1 shadow-pop' : 'absolute bottom-full left-0 z-50 mb-2 w-56 overflow-hidden rounded-lg border bg-background py-1 shadow-pop'} style={controlled === undefined && anchor ? { left: anchor.left, bottom: anchor.bottom } : undefined}>
       {account ? (
-        <a role="menuitem" href={account} onClick={(event) => follow(event, account)} className="block border-b px-3 pb-2 pt-1.5 hover:bg-muted">
+        <a role="menuitem" href={account} onClick={(event) => follow(event, account)} data-menu-heading="" className="block border-b px-3 pb-2 pt-1.5 hover:bg-muted">
           <div className="font-medium">{user.name}</div>
           <div className="truncate text-xs text-muted-foreground">{user.email}</div>
         </a>
       ) : (
-        <div className="border-b px-3 pb-2 pt-1.5">
+        <div data-menu-heading="" className="border-b px-3 pb-2 pt-1.5">
           <div className="font-medium">{user.name}</div>
           <div className="truncate text-xs text-muted-foreground">{user.email}</div>
         </div>
@@ -183,14 +185,14 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], accou
 
   return (
     <div ref={root} className="relative">
-      <button type="button" className={inTopBar ? cn(topBarBox, 'flex items-center justify-center rounded-md hover:bg-muted') : 'flex min-h-11 w-full items-center gap-2.5 rounded-md p-1 text-left hover:bg-muted md:min-h-0'} aria-label={label ?? text('profileMenu')} aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
+      <button type="button" className={inTopBar ? cn(topBarBox, 'flex items-center justify-center rounded-full hover:bg-muted') : 'flex min-h-11 w-full items-center gap-2.5 rounded-md p-1 text-left hover:bg-muted md:min-h-0'} aria-label={label ?? text('profileMenu')} aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
         {/* In the top bar the button names the person, and the initials are its icon, capped as the bar's icons are */}
         {inTopBar ? (
           <span aria-hidden className="contents">
-            <Avatar initials={user.initials} hue={user.hue} size="bar" className="ring-0" />
+            <Avatar initials={user.initials} hue={user.hue} size="bar" />
           </span>
         ) : (
-          <Avatar initials={user.initials} hue={user.hue} size="md" className="ring-0" />
+          <Avatar initials={user.initials} hue={user.hue} size="md" />
         )}
         {!compact && (
           <>

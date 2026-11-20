@@ -1,6 +1,6 @@
 import { House } from 'lucide-react'
 import { describe, expect, it } from 'vitest'
-import { accountInTopBar, morePageMode, searchPlacement } from './more-page'
+import { accountInTopBar, morePageMode, phoneAppLook, searchPlacement } from './more-page'
 
 const tabs = (active: boolean) => [{ id: 'home', label: 'Home', icon: House, href: '/home', active }]
 const menuPage = { href: '/-/menu', shown: false }
@@ -26,6 +26,13 @@ describe('accountInTopBar', () => {
   it('puts the account in the top bar on phones, with or without a bottom bar, and in the sidebar on a desktop', () => {
     expect(accountInTopBar(false)).toBe(true)
     expect(accountInTopBar(true)).toBe(false)
+  })
+})
+
+describe('phoneAppLook', () => {
+  it("gives every phone page the phone app's top bar, with or without a bottom bar, and a desktop its own", () => {
+    expect(phoneAppLook(false)).toBe(true)
+    expect(phoneAppLook(true)).toBe(false)
   })
 })
 

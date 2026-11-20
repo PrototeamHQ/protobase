@@ -18,7 +18,7 @@ import type { ShellLogoProps } from './logo'
 import { TopBarSlotContext } from './top-bar-slot'
 import { TopBar } from './top-bar'
 import { useMenuPageBackground } from './menu-page'
-import { accountInTopBar, searchPlacement, useMorePageMode } from './more-page'
+import { accountInTopBar, phoneAppLook, searchPlacement, useMorePageMode } from './more-page'
 import { useBrandStatusBar } from './brand-status-bar'
 import { Logo } from './logo'
 import { tellLogoTap } from './logo-tap'
@@ -116,14 +116,15 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
   // part of the bottom bar and other pages lead back to More: all from this one decision
   const more = useMorePageMode(tabs, menuPage)
   const accountOnTop = accountInTopBar(desktop)
+  const phoneLook = phoneAppLook(desktop)
   const onMore = more.on && onNavigate ? () => onNavigate(more.href) : () => setDrawerOpen(true)
   const menuShown = more.on && more.shown
   useMenuPageBackground(menuShown)
   const [searchOpen, setSearchOpen] = useState(false)
-  // The bars are in the brand colour in More page mode, and the status bar's text reads over it
+  // The top bar is in the brand colour on a phone (phoneAppLook), and the status bar's text reads over it
   const brandProbe = useRef<HTMLSpanElement>(null)
   const ShellLogo = logo ?? Logo
-  useBrandStatusBar(more.on, brandProbe)
+  useBrandStatusBar(phoneLook, brandProbe)
   // In More page mode the top bar has no search: the bottom bar has it where the app put it there, the More page otherwise
   const searchAt = search && searchPlacement({ desktop, more: more.on, inBottomBar: Boolean(bottomBarSearch) })
   const searchInBar = searchAt === 'bottom-bar'
@@ -165,8 +166,8 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
             onNavigate={onNavigate}
             onBack={onBack}
             actions={actions}
-            brand={more.on}
-            backInLeadingSlot={more.on}
+            brand={phoneLook}
+            backInLeadingSlot={phoneLook}
             {...(firstTabShown && {
               leading: (
                 <div className="flex min-w-0 items-center" onClick={() => tellLogoTap()}>
@@ -174,7 +175,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, titleStatus, sta
                 </div>
               ),
             })}
-            account={accountOnTop && <AccountEntry onBrand={more.on} user={user} signIn={signIn} open={profileMenuOpen} items={userMenu} account={account} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} theme={theme} status={status} />}
+            account={accountOnTop && <AccountEntry onBrand={phoneLook} user={user} signIn={signIn} open={profileMenuOpen} items={userMenu} account={account} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} theme={theme} status={status} />}
             searchButton={searchAt === 'top-bar'}
             searchOpen={searchOpen}
             onSearchOpenChange={setSearchOpen}

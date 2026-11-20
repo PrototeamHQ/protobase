@@ -43,8 +43,8 @@
   --font-mono: var(--font-code, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
   /* The app's base text size: the body's, and `text-body` where an element must restate it. */
   --text-body: 0.875rem;
-  /* A menu's items where it opens as a sheet on a phone, a phone's own list size. */
-  --text-menu-sheet: 1.0625rem;
+  /* A menu's items where it opens as a sheet on a phone: the sidebar drawer's items' size, as the two are side by side. */
+  --text-menu-sheet: 0.875rem;
   --text-menu-sheet--line-height: 1.4;
   /* The page's title in the top bar on a phone, a step above the body's. */
   --text-mobile-title: 1.1875rem;

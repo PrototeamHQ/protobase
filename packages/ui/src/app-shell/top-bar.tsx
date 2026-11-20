@@ -124,7 +124,7 @@ export const TopBar = ({ breadcrumb, titleStatus, onNavigate, onBack, actions, b
                   follow(back.href)
                 }}
                 // The box is the app mark's; the tap area reaches 44 points around it
-                className={cn(leadingBox, 'relative flex shrink-0 items-center justify-center rounded-full text-foreground after:absolute after:-inset-2 [&_svg]:size-6')}
+                className={cn(leadingBox, 'relative flex shrink-0 items-center justify-center rounded-full text-foreground after:absolute after:-inset-2 [&_svg]:size-[min(1.5rem,max(24px,7vw))]')}
               >
                 <ChevronLeft aria-hidden />
               </a>

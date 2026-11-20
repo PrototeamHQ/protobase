@@ -59,8 +59,10 @@ export const RecordOnPhone: StoryObj = {
     expect(trail.queryByRole('link')).toBeNull()
     const back = canvas.getByRole('link', { name: 'Back to Tenants' })
     expect(back).toHaveAttribute('href', '/admin/tenants')
-    expect(back).toHaveTextContent('Tenants')
-    expect(back.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
+    // A round mark beside the title, as a phone app's, whose tap area reaches 44 points around it
+    expect(back).toHaveTextContent('')
+    const mark = back.getBoundingClientRect()
+    expect(document.elementFromPoint(mark.left + mark.width / 2, mark.bottom + (44 - mark.height) / 2 - 1)?.closest('a')).toBe(back)
 
     await userEvent.click(canvas.getByRole('link', { name: 'Back to Tenants' }))
     await canvas.findByRole('link', { name: /New tenant/ })

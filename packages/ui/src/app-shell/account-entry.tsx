@@ -27,7 +27,7 @@ export const AccountEntry = ({ user, signIn, onBrand, ...menu }: AccountEntryPro
         <ProfileMenu user={user} compact inTopBar label={text('accountOf', { name: user.name })} {...menu} />
       ) : (
         signIn && (
-          <RouteLink to={signIn} aria-label={text('signIn')} className={cn(topBarBox, 'flex items-center justify-center rounded-md hover:bg-muted')}>
+          <RouteLink to={signIn} aria-label={text('signIn')} className={cn(topBarBox, 'flex items-center justify-center rounded-full hover:bg-muted')}>
             <span className={cn('flex size-[min(2rem,max(32px,9vw))] items-center justify-center rounded-full', onBrand ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground')}>
               <UserRound className="size-[min(1.25rem,max(20px,6vw))]" aria-hidden />
             </span>

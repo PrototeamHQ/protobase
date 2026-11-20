@@ -3,10 +3,11 @@ export const brandBar = 'bg-primary border-transparent'
 
 /**
  * The bar's content in the brand's foreground, the theme's own `primary-foreground`: its text and every icon and link in
- * it, whatever colour class they carry elsewhere. Only on the bar's content: what covers the bar, such as search, and
- * what opens from it, which is drawn at the document's root, keep the page's colours.
+ * it, whatever colour class they carry elsewhere, and a pressed or hovered button lit in it rather than the page's
+ * muted grey. Only on the bar's content: what covers the bar, such as search, and what opens from it, which is drawn at
+ * the document's root, keep the page's colours.
  */
-export const brandContent = 'text-primary-foreground [&_*]:text-primary-foreground'
+export const brandContent = 'text-primary-foreground [&_*]:text-primary-foreground [&_button:hover]:bg-primary-foreground/15'
 
 /**
  * The status bar's style over a bar of `color`: light text over a dark colour, dark text over a light one, as the

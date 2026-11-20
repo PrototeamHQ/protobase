@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { createStaticSession } from '@protobase/client'
-import { ArrowLeftRight, Boxes, LifeBuoy, ShoppingCart, StickyNote } from 'lucide-react'
+import { ArrowLeftRight, Boxes, LifeBuoy, ShieldCheck, ShoppingCart, StickyNote, UserRound, Users } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { AppShell, type BottomBarTab } from './app-shell'
@@ -91,6 +91,66 @@ export const NavigationDrawer: Story = {
     await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Navigation' })).toBeNull())
     expect(document.body.style.overflow).toBe('')
     expect(menu).toHaveFocus()
+  },
+}
+
+/**
+ * A phone without a bottom bar has the phone app's top bar too: the brand colour, the way back beside the title and the
+ * account at the right, with the menu button for the drawer; its account menu opens as a sheet of the menu alone.
+ */
+export const PhoneTopBarWithoutBottomBar: Story = {
+  name: 'Top bar on a phone without a bottom bar (checks)',
+  globals: { viewport: { value: 'phone360' } },
+  tags: ['play', 'phone', '!dev'],
+  render: () => (
+    <div className="h-screen">
+      <AppShell navGroups={sampleNavGroups} sidebarMode="icon" activeItem="orders" breadcrumb={[{ label: 'Orders', href: '#orders' }, 'SO-1']} user={adminUser} account="#account" userMenu={[[{ id: 'users', label: 'Users', icon: Users, href: '#users' }], [{ id: 'account', label: 'Account', icon: UserRound, href: '#account' }, { id: 'policy', label: 'Sign-in policy', icon: ShieldCheck, href: '#policy' }]]} theme={{ preference: 'system', onChange: () => {} }}>
+        <div className="p-4 text-muted-foreground">A record on a phone without a bottom bar.</div>
+      </AppShell>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const bar = canvasElement.querySelector('header')!
+    const brand = getComputedStyle(canvasElement.querySelector('.bg-primary')!).backgroundColor
+    expect(getComputedStyle(bar).backgroundColor).toBe(brand)
+    const menu = canvas.getByRole('button', { name: 'Open navigation' })
+    const back = canvas.getByRole('link', { name: 'Back to Orders' })
+    const title = canvas.getByText('SO-1')
+    const account = canvas.getByRole('button', { name: 'Account, Sanne M.' })
+    expect(menu.getBoundingClientRect().right).toBeLessThanOrEqual(back.getBoundingClientRect().left)
+    expect(back.getBoundingClientRect().right).toBeLessThanOrEqual(title.getBoundingClientRect().left)
+    expect(account.getBoundingClientRect().right).toBeGreaterThan(window.innerWidth - 16)
+    // Round, as the avatar is, and with no ring around the avatar
+    expect(Number.parseFloat(getComputedStyle(account).borderRadius)).toBeGreaterThan(1000)
+    expect(getComputedStyle(account.querySelector('span span')!).boxShadow).toBe('none')
+
+    await userEvent.click(account)
+    const sheet = await within(document.body).findByRole('dialog', { name: 'Profile menu' })
+    // The menu alone, as beside its button on a desktop: no title, no close button, the person first
+    expect(within(sheet).queryByRole('heading')).toBeNull()
+    expect(within(sheet).queryByRole('button', { name: 'Close' })).toBeNull()
+    expect(within(sheet).getAllByRole('menuitem')[0]).toHaveTextContent('Sanne M.sanne@veldhuis-supply.example')
+    // The theme switch grows with the sheet's text, as its rows do
+    const group = within(sheet).getByRole('group', { name: 'Theme' })
+    expect(group.getBoundingClientRect().height).toBeCloseTo(2.3 * Number.parseFloat(getComputedStyle(group).fontSize), 0)
+    // The rows at the sidebar drawer's items' size, and the heading a step above them
+    const row = within(sheet).getByRole('menuitem', { name: 'Users' })
+    expect(getComputedStyle(row).fontSize).toBe('14px')
+    // Each row below the one before, a group of two items and the theme's row too, at the default text size and larger
+    const rowsApart = () => {
+      const rows = [...within(sheet).getAllByRole('menuitem'), group.parentElement!].sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)
+      for (const [index, row] of rows.slice(1).entries()) expect({ row: row.textContent, apart: row.getBoundingClientRect().top >= rows[index]!.getBoundingClientRect().bottom - 1 }).toEqual({ row: row.textContent, apart: true })
+    }
+    rowsApart()
+    document.documentElement.style.fontSize = '150%'
+    await waitFor(rowsApart)
+    document.documentElement.style.fontSize = ''
+
+    // A tap beside it slides it away before it goes, as its other ways of closing do
+    await userEvent.click(document.body.querySelector<HTMLElement>('.bg-backdrop\\/40')!)
+    expect(within(document.body).getByRole('dialog', { name: 'Profile menu' })).toBeInTheDocument()
+    await waitFor(() => expect(within(document.body).queryByRole('dialog', { name: 'Profile menu' })).toBeNull())
   },
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
 import { useFocusTrap } from '../lib/use-focus-trap'
 import { useDrawerDrag } from '../primitives/use-drawer-drag'
@@ -18,6 +18,13 @@ export const drawerSlideMs = 200
 export const Drawer = ({ id, open, onClose, children }: DrawerProps) => {
   const panel = useRef<HTMLDivElement>(null)
   const backdrop = useRef<HTMLDivElement>(null)
+  // A field being typed in lets go as the drawer opens, however it opens, so a phone's keyboard closes and the drawer
+  // has the whole height
+  useLayoutEffect(() => {
+    if (!open) return
+    const field = document.activeElement
+    if (field instanceof HTMLElement && field.matches('input, textarea, select, [contenteditable]')) field.blur()
+  }, [open])
   useFocusTrap(panel, open, onClose)
   // Dragged off the screen, it closes without sliding out again; a drag's release is no tap on the dim
   const draggedOut = useRef(false)
