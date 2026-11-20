@@ -74,21 +74,29 @@ final class NativeTopBarTests: XCTestCase {
         XCTAssertNil(bar.height)
     }
 
-    func testScrolledFadesTheBackgroundAndHidesTheTitleOnly() {
+    func testTheScrollFadesTheBackgroundAndTheTitleLinearly() {
         let (bar, _) = made()
         bar.show(.shown(title: "Home", back: "Customers", menu: false, search: true, actions: [], account: nil, colors: .init()))
-        let title = bar.bar.topItem?.leftBarButtonItems?.last?.customView
-        XCTAssertEqual(title?.alpha, 1)
+        bar.bar.superview?.layoutIfNeeded()
+        let distance = bar.bar.bounds.height
+        let title = { bar.bar.topItem?.leftBarButtonItems?.last?.customView?.alpha }
+        XCTAssertEqual(title(), 1)
         XCTAssertEqual(bar.fade.alpha, 0)
-        bar.scrolled(true, animated: false)
-        XCTAssertEqual(title?.alpha, 0)
-        XCTAssertEqual(bar.solid.alpha, 0)
+        bar.scrolled(by: distance / 4)
+        XCTAssertEqual(title() ?? 0, 0.75, accuracy: 0.001)
+        XCTAssertEqual(bar.solid.alpha, 0.75, accuracy: 0.001)
+        XCTAssertEqual(bar.fade.alpha, 0.25, accuracy: 0.001)
+        bar.scrolled(by: distance * 3)
+        XCTAssertEqual(title(), 0)
         XCTAssertEqual(bar.fade.alpha, 1)
         XCTAssertEqual(bar.bar.topItem?.rightBarButtonItems?.count, 1)
-        // A new page's bar keeps the scrolled look until the page is back at its top
+        // A new page's bar keeps the scroll's look; back up, it reverses exactly
         bar.show(.shown(title: "Ada", back: "Customers", menu: false, search: true, actions: [], account: nil, colors: .init()))
-        XCTAssertEqual(bar.bar.topItem?.leftBarButtonItems?.last?.customView?.alpha, 0)
-        bar.scrolled(false, animated: false)
-        XCTAssertEqual(bar.bar.topItem?.leftBarButtonItems?.last?.customView?.alpha, 1)
+        XCTAssertEqual(title(), 0)
+        bar.scrolled(by: distance / 2)
+        XCTAssertEqual(title() ?? 0, 0.5, accuracy: 0.001)
+        bar.scrolled(by: -20)
+        XCTAssertEqual(title(), 1)
+        XCTAssertEqual(bar.solid.alpha, 1)
     }
 }

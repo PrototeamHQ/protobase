@@ -33,8 +33,8 @@ final class FadeView: UIView {
  * page it goes to or the menu's button where there is no way back, and search, the app's actions and the account's
  * avatar at the trailing side, as the shell asks (TopBarState). A tap is handed back by control, or by the action's
  * place; the bar never pops an item itself, since the shell goes back and asks for the next page's bar. Hidden while
- * the shell draws its own. Once the page scrolls under it (`scrolled`), its background fades out towards the content and
- * its title goes, its controls staying.
+ * the shell draws its own. As the page scrolls under it (`scrolled(by:)`), its background turns into a fade towards the
+ * content and its title goes, its controls staying, in step with the scroll over the bar's own height.
  */
 @MainActor
 final class NativeTopBar: NSObject, UINavigationBarDelegate {
@@ -50,7 +50,8 @@ final class NativeTopBar: NSObject, UINavigationBarDelegate {
     /** The background once the page scrolls under the bar: the same colour, fading out towards the content. */
     let fade = FadeView()
     private var title: UILabel?
-    private(set) var isScrolled = false
+    /** How far the page has scrolled under the bar: 0 at the top, 1 once it has scrolled the bar's height. */
+    private(set) var progress: CGFloat = 0
     /** The system's side margin on a phone, which a navigation controller gives its bar's buttons. */
     static let margin: CGFloat = 16
     private let onTap: (Control) -> Void
@@ -111,7 +112,7 @@ final class NativeTopBar: NSObject, UINavigationBarDelegate {
             leading.append(item)
         }
         let label = Self.titleLabel(title, color: foreground)
-        label.alpha = isScrolled ? 0 : 1
+        label.alpha = 1 - progress
         self.title = label
         leading.append(Self.plain(UIBarButtonItem(customView: label)))
         page.leftBarButtonItems = leading
@@ -138,16 +139,15 @@ final class NativeTopBar: NSObject, UINavigationBarDelegate {
         backdrop.isHidden = false
     }
 
-    /** Whether the page has scrolled under the bar: the background fades out towards the content and the title goes. */
-    func scrolled(_ scrolled: Bool, animated: Bool = true) {
-        guard scrolled != isScrolled else { return }
-        isScrolled = scrolled
-        let change = { [self] in
-            solid.alpha = scrolled ? 0 : 1
-            fade.alpha = scrolled ? 1 : 0
-            title?.alpha = scrolled ? 0 : 1
-        }
-        if animated { UIView.animate(withDuration: 0.2, animations: change) } else { change() }
+    /** The page scrolled `offset` points down from its top: the background and the title follow it linearly, with no animation of their own. */
+    func scrolled(by offset: CGFloat) {
+        let distance = bar.bounds.height > 0 ? bar.bounds.height : 44
+        let progress = min(max(offset / distance, 0), 1)
+        guard progress != self.progress else { return }
+        self.progress = progress
+        solid.alpha = 1 - progress
+        fade.alpha = progress
+        title?.alpha = 1 - progress
     }
 
     /** The bar's height while it shows, the status bar included; none while hidden or not yet laid out. */

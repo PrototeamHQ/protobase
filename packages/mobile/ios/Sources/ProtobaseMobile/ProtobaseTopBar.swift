@@ -43,8 +43,8 @@ public class ProtobaseTopBar: CAPPlugin, CAPBridgedPlugin {
             onHeight: { [weak self] height in self?.notifyListeners("height", data: ["height": Double(height)], retainUntilConsumed: true) })
         bar = made
         scrolling = webView.scrollView.observe(\.contentOffset, options: [.initial, .new]) { [weak made] view, _ in
-            let under = view.contentOffset.y + view.adjustedContentInset.top > 1
-            DispatchQueue.main.async { MainActor.assumeIsolated { made?.scrolled(under) } }
+            // Scrolling reports on the main thread, so the bar follows the finger in the same frame
+            MainActor.assumeIsolated { made?.scrolled(by: view.contentOffset.y + view.adjustedContentInset.top) }
         }
         return made
     }
