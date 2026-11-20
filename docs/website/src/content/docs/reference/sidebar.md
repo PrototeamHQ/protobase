@@ -19,7 +19,7 @@ Below the `md` breakpoint every menu, select list and the account menu opens as 
 
 Below the `md` breakpoint a swipe from the screen's left edge does what one rule (`edgeSwipeAction`) says for the page: where the trail has a step back, it goes back to it, a round back mark coming in beside the finger; where there is neither a step back nor a [bottom bar](/reference/bottom-bar/), it opens the sidebar drawer, which follows the finger and settles open or closed as a drag on it does; otherwise, as on a tab's page or with the drawer open, it does nothing, leaving the edge to what is around the page. The page itself never slides.
 
-A host app that uses the edge too, such as one with its own switcher, learns the page's choice ahead of every gesture: where its bridge offers a `ProtobaseEdgeSwipe` plugin, the shell calls its `set({ action })` on every navigation and change, with `back` (the app's own back swipe, asked for only where the history entry behind the page is the trail's step back), `sidebar` or `page` (the page does it), or `none` (the edge is the app's).
+A host app around the page can take the edge whenever the page declares `none`, for a gesture of its own; it learns the page's choice ahead of every gesture: where its bridge offers a `ProtobaseEdgeSwipe` plugin, the shell calls its `set({ action })` on every navigation and change, with `back` (the app's own back swipe, asked for only where the history entry behind the page is the trail's step back), `sidebar` or `page` (the page does it), or `none` (the edge is the app's).
 
 ## The logo
 

@@ -2,9 +2,9 @@ import { createContext, useContext, useEffect } from 'react'
 import type { NativeBridge } from '../app/native-auth-fetch'
 
 /**
- * What a swipe from the left edge does: goes `back` a page, with the page sliding under the finger as on iOS; opens the
- * `sidebar` drawer, which follows the finger; or `none`, which leaves the edge to whatever is around the page, such as
- * a host app's own switcher.
+ * What a swipe from the left edge does: goes `back` a step, with a round back mark beside the finger; opens the
+ * `sidebar` drawer, which follows the finger; or `none`, which leaves the edge free, for a host app around the page to
+ * take for a gesture of its own.
  */
 export type EdgeSwipeAction = 'back' | 'sidebar' | 'none'
 
@@ -41,8 +41,8 @@ export const nativeEdgeSwipe = (bridge: NativeBridge | undefined): NativeEdgeSwi
 export const NativeEdgeSwipeContext = createContext<NativeEdgeSwipe | undefined>(undefined)
 
 /**
- * Whether the host app can do the back swipe itself, as the iOS app does with the web view's own, which shows the page
- * behind; the shell then draws none where the entry behind is the trail's step back (`declaredEdgeSwipe`).
+ * Whether a host app around the page can do the back swipe itself, such as with its web view's own back gesture, which
+ * shows the page behind; the shell then draws none where the entry behind is the trail's step back (`declaredEdgeSwipe`).
  */
 export const useNativeBackSwipe = () => Boolean(useContext(NativeEdgeSwipeContext))
 
