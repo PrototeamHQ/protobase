@@ -78,12 +78,13 @@ public final class HostedReleases {
 
     /**
      * Asks the server for a release and, when it names a new one, downloads it, checks it and sets it next, in the
-     * background; `done` gets what happened, on the main queue. A check while one runs waits for it.
+     * background; `done` gets what happened, on the main queue. A check while one runs waits for it and for its `done`,
+     * so a release reported ready is still there while `done` runs.
      */
     public func check(_ done: @escaping (HostedCheck) -> Void = { _ in }) {
         checks.async { [self] in
             let outcome = run()
-            DispatchQueue.main.async { done(outcome) }
+            DispatchQueue.main.sync { done(outcome) }
         }
     }
 
@@ -126,16 +127,20 @@ public final class HostedReleases {
     }
 
     /**
-     * At the start: the release swapped in earlier stays only while it passes its check, for this binary and above its
-     * own files, which an update of the app may have raised; otherwise the host serves the binary's own files again.
+     * At the start: the release swapped in earlier, and the one set next, each stay only while it passes its check, for
+     * this binary and above its own files, which an update of the app may have raised; otherwise the host serves the
+     * binary's own files again, and nothing is set next.
      */
     private func start() {
-        if let current = state.current {
-            let path = guarded.environment.bundles + "/" + current
-            let statement = try? BundleCheck.check(path, bundleId: current, key: guarded.pins.key, binary: guarded.pins.binary)
-            if statement.map({ ReleaseOrder.compare($0.order, guarded.pins.builtInOrder) <= 0 }) ?? true { state.current = nil }
-        }
+        if let current = state.current, !holds(current) { state.current = nil }
+        if let next = state.next, !holds(next) { state.next = nil }
         prune()
+    }
+
+    // Whether release `id` passes its check and is newer than the binary's own files.
+    private func holds(_ id: String) -> Bool {
+        let statement = try? BundleCheck.check(guarded.environment.bundles + "/" + id, bundleId: id, key: guarded.pins.key, binary: guarded.pins.binary)
+        return statement.map { ReleaseOrder.compare($0.order, guarded.pins.builtInOrder) > 0 } ?? false
     }
 
     // Deletes every release folder but the current and next one.

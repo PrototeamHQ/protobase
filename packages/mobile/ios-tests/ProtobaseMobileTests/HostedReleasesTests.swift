@@ -120,6 +120,36 @@ final class HostedReleasesTests: XCTestCase {
         XCTAssertEqual(index(hosted().currentFiles), "<p>own</p>")
     }
 
+    func testARestartDropsAReleaseSetNextNotAboveTheBuiltInFilesOfAnUpdatedApp() {
+        _ = offer(2000)
+        _ = check(hosted())
+        app.builtInOrder = "5000"
+        let restarted = hosted()
+        XCTAssertNil(restarted.nextFiles)
+        XCTAssertFalse(restarted.swap())
+        XCTAssertEqual(index(restarted.currentFiles), "<p>own</p>")
+    }
+
+    func testAReadyReleaseIsThereWhileItsDoneRuns() {
+        let releases = hosted()
+        let second = offer(2000)
+        let third = offer(3000)
+        asking.answer_ = ReleaseAnswer(bundleId: second.bundleId, required: false)
+        let done = expectation(description: "both checks")
+        done.expectedFulfillmentCount = 2
+        var present: Bool?
+        releases.check { outcome in
+            if case let .ready(folder) = outcome { present = self.app.exists(folder.path) }
+            self.asking.answer_ = ReleaseAnswer(bundleId: third.bundleId, required: false)
+            done.fulfill()
+        }
+        releases.check { _ in done.fulfill() }
+        wait(for: [done], timeout: 10)
+        XCTAssertEqual(present, true)
+        XCTAssertTrue(releases.swap())
+        XCTAssertEqual(index(releases.currentFiles), "<p>3000</p>")
+    }
+
     func testMakeRefusesAName() {
         let settings = HostedReleaseSettings(apiOrigin: "https://api.example.com", publicKey: app.key.pem, fingerprint: TestRelease.fingerprint, shellVersion: TestRelease.shellVersion, builtInOrder: "1000")
         guard case .failure = HostedReleases.make(settings, builtInFiles: URL(fileURLWithPath: app.builtInFiles), name: "../x", appId: TestRelease.appId) else { return XCTFail("a name with a separator was taken") }
