@@ -7,8 +7,22 @@ export const nativeTopBarPlugin = 'ProtobaseTopBar'
 /** The account's entry as the native bar takes it: the label it is read by, and the avatar's initials, empty for the guest icon. */
 export type NativeAccount = { label: string; text: string }
 
-/** The bar the shell wants: none, or the page's title, the label of the page the way back goes to, the menu's and search's buttons and the account. */
-export type NativeTopBarState = { visible: false } | { visible: true; title: string; back: string | null; menu: boolean; search: boolean; account: NativeAccount | null }
+/**
+ * The web bar's colours as `#rrggbbaa`, which the native bar takes so it looks the same: its background, its text and
+ * icons, and the avatar's circle and initials; `null` for the system's own.
+ */
+export type NativeTopBarColors = { background: string | null; foreground: string | null; avatar: string | null; avatarText: string | null }
+
+/** One of the app's actions in the bar, such as a page's menu of more actions: the label it is read by, and its icon as a PNG data URL. */
+export type NativeTopBarAction = { label: string; icon: string | null }
+
+/**
+ * The bar the shell wants: none, or the page's title, the label of the page the way back goes to, the menu's and search's
+ * buttons, the app's actions left of the account, the account and the colours.
+ */
+export type NativeTopBarState =
+  | { visible: false }
+  | { visible: true; title: string; back: string | null; menu: boolean; search: boolean; actions: NativeTopBarAction[]; account: NativeAccount | null; colors: NativeTopBarColors }
 
 /** A tap on one of the native bar's controls, which the shell answers as a tap on its own. */
 export type NativeTopBarControl = 'back' | 'menu' | 'search' | 'account'
@@ -20,6 +34,8 @@ export type NativeTopBar = {
   set: (state: NativeTopBarState) => Promise<{ height?: number }>
   /** Calls `tap` with each control tapped; returns what stops it. */
   onTap: (tap: (control: NativeTopBarControl) => void) => () => void
+  /** Calls `tap` with the place in `actions` of each action tapped; returns what stops it. */
+  onAction: (tap: (index: number) => void) => () => void
   /** Calls `told` with the bar's height in CSS pixels, the status bar included, whenever it changes. */
   onHeight: (told: (height: number) => void) => () => void
 }
@@ -41,6 +57,13 @@ export const nativeTopBar = (bridge: NativeBridge | undefined): NativeTopBar | u
     onTap: (tap) => {
       const listeners = nativeTopBarControls.map((control) => bridge.addListener(nativeTopBarPlugin, control, () => tap(control)))
       return () => listeners.forEach((listener) => void listener.remove())
+    },
+    onAction: (tap) => {
+      const listener = bridge.addListener(nativeTopBarPlugin, 'action', (data) => {
+        const index = typeof data === 'object' && data !== null ? (data as { index?: unknown }).index : undefined
+        if (typeof index === 'number' && Number.isInteger(index) && index >= 0) tap(index)
+      })
+      return () => void listener.remove()
     },
     onHeight: (told) => {
       const listener = bridge.addListener(nativeTopBarPlugin, 'height', (data) => {

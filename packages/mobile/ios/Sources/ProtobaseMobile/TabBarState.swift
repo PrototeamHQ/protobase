@@ -34,8 +34,8 @@ enum TabBarState: Equatable {
         return .shown(tabs: tabs, selected: selected)
     }
 
-    // A PNG data URL within its size, decoded; anything else is no icon
-    private static func icon(_ value: Any?) -> Data? {
+    /** A PNG data URL within its size, decoded; anything else is no icon. */
+    static func icon(_ value: Any?) -> Data? {
         guard let text = value as? String, text.hasPrefix(pngPrefix), text.count <= maxIcon * 4 / 3 + pngPrefix.count + 4 else { return nil }
         return Data(base64Encoded: String(text.dropFirst(pngPrefix.count)))
     }

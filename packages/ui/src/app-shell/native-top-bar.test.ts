@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { NativeBridge } from '../app/native-auth-fetch'
-import { nativeTopBar } from './native-top-bar'
+import { nativeTopBar, type NativeTopBarState } from './native-top-bar'
 
 const bridge = (plugins: string[]) => {
   const listeners = new Map<string, (data: unknown) => void>()
@@ -28,7 +28,16 @@ describe('nativeTopBar', () => {
 
   it('sends the whole state each time', async () => {
     const { native, calls } = bridge(['ProtobaseTopBar'])
-    const state = { visible: true, title: 'Ada', back: 'Customers', menu: false, search: true, account: { label: 'Account, Ada', text: 'AL' } } as const
+    const state: NativeTopBarState = {
+      visible: true,
+      title: 'Ada',
+      back: 'Customers',
+      menu: false,
+      search: true,
+      actions: [{ label: 'More actions', icon: null }],
+      account: { label: 'Account, Ada', text: 'AL' },
+      colors: { background: '#374151ff', foreground: '#ffffffff', avatar: '#b45454ff', avatarText: '#ffffffff' },
+    }
     await nativeTopBar(native)?.set(state)
     expect(calls).toEqual([['ProtobaseTopBar', 'set', state]])
   })
@@ -49,6 +58,16 @@ describe('nativeTopBar', () => {
     expect(tap.mock.calls).toEqual([['back'], ['account']])
     stop()
     expect(remove).toHaveBeenCalledTimes(4)
+  })
+
+  it('tells the place of each action tapped, and only a place that is one', () => {
+    const { native, fire } = bridge(['ProtobaseTopBar'])
+    const tap = vi.fn()
+    nativeTopBar(native)!.onAction(tap)
+    fire('action', { index: 1 })
+    fire('action', { index: -1 })
+    fire('action', { index: 'first' })
+    expect(tap.mock.calls).toEqual([[1]])
   })
 
   it('tells only a height that is one', () => {
