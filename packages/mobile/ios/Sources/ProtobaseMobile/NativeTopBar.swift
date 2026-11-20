@@ -27,6 +27,8 @@ final class NativeTopBar: NSObject, UINavigationBarDelegate {
     }
 
     let bar = MeasuredNavigationBar()
+    /** The system's side margin on a phone, which a navigation controller gives its bar's buttons. */
+    static let margin: CGFloat = 16
     private let onTap: (Control) -> Void
     private var shown: TopBarState = .hidden
 
@@ -40,8 +42,10 @@ final class NativeTopBar: NSObject, UINavigationBarDelegate {
         bar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(bar)
         NSLayoutConstraint.activate([
-            bar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            bar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            // Outside a navigation controller the bar's content takes no margins, its own included, and puts its buttons
+            // against the screen's edges; the bar stands in by the system's margin instead
+            bar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Self.margin),
+            bar.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -Self.margin),
             bar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
         ])
     }
