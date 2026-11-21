@@ -16,6 +16,10 @@ export const envValueSchema: Schema = {
   additionalProperties: false,
 }
 
+// Whether a value of the schema can come from an environment variable's text, or its split list: not a boolean, nor an
+// object, which every named definition is.
+const readsText = (schema: Schema) => !(schema.type === 'boolean' || schema.type === 'object' || '$ref' in schema || typeof schema.const === 'boolean')
+
 /** The schemas of the types a program's checker gives, sharing the definitions of named types. */
 export const schemaWriter = (program: ts.Program) => {
   const checker = program.getTypeChecker()
@@ -41,12 +45,13 @@ export const schemaWriter = (program: ts.Program) => {
   }
 
   // A value position: the value's schema, or an $env value. `undefined` when JSON cannot write the value at all. A
-  // boolean takes no $env value: that reads as text, and a boolean key takes only true or false.
+  // boolean or an object takes no $env value: that reads as text, and such a key takes only what its type writes.
   const valueOf = (type: ts.Type): Schema | undefined => {
     const schema = schemaOf(type)
     if (!schema) return undefined
-    if (Object.keys(schema).length === 0 || schema.type === 'boolean') return schema
-    return { anyOf: [...(Object.keys(schema).length === 1 && Array.isArray(schema.anyOf) ? schema.anyOf : [schema]), envRef] }
+    const members = Object.keys(schema).length === 1 && Array.isArray(schema.anyOf) ? (schema.anyOf as Schema[]) : [schema]
+    if (Object.keys(schema).length === 0 || !members.some(readsText)) return schema
+    return { anyOf: [...members, envRef] }
   }
 
   const unionOf = (types: ts.Type[]): Schema | undefined => {
