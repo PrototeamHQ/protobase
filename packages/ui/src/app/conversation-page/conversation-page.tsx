@@ -1,0 +1,44 @@
+import type { ConversationPageModel } from '@protobase/schema'
+import { useOptionalAuth } from '../../auth/auth-provider'
+import { useMembers } from '../../people/use-members'
+import { keyValue } from '../create/create-values'
+import { MessageComposer } from '../conversation/message-composer'
+import { FullArea } from '../full-area-record'
+import { useAdminMeta } from '../meta-gate'
+import { useRecordTitle } from '../titles/record-titles'
+import type { LayoutRecord } from '../pages/record-scope'
+import { ConversationHeader } from './conversation-header'
+import { ConversationMessages } from './conversation-messages'
+import { matchingMembers } from './member-search'
+import { useReadPosition } from './use-read-position'
+import { text } from './messages'
+
+type Props = { page: ConversationPageModel; scope: LayoutRecord }
+
+/**
+ * A record page that is the record's conversation (`.record({ conversation })`), filling the content area: its header,
+ * its messages and the box that sends one, where `@` lists the organization's members. The page does not scroll; the
+ * messages scroll in a box of their own, so the box stays in view. Key it by the record, so another one starts afresh.
+ */
+export const ConversationPage = ({ page, scope }: Props) => {
+  const { resources, views } = useAdminMeta()
+  const title = useRecordTitle()(scope.model, views[scope.model.name], scope.record, scope.key)
+  const auth = useOptionalAuth()
+  const me = auth?.state.kind === 'signed-in' ? auth.state.user.id : undefined
+  const members = useMembers()
+  const model = resources[page.resource]!
+  const position = useReadPosition({ position: page.readPosition, model: page.readPosition && resources[page.readPosition.resource], owner: scope.model, recordKey: scope.key, me })
+  const searchPeople = page.mentions === undefined ? undefined : async (query: string) => matchingMembers(members.data ?? [], query, me)
+  return (
+    <FullArea>
+      <div className="flex min-h-0 min-w-0 flex-col">
+        <ConversationHeader page={page} scope={scope} title={title} />
+        <ConversationMessages page={page} model={model} recordKey={scope.key} me={me} position={position} />
+        {position.error !== undefined && <p className="shrink-0 px-4 text-sm text-danger-text">{text('positionNotSaved')}</p>}
+        <div className="shrink-0 px-3 pb-3">
+          <MessageComposer resource={page.resource} field={page.text} values={{ [page.field]: keyValue(scope.model, scope.key) }} placeholder={page.placeholder} searchPeople={searchPeople} mentions={page.mentions} />
+        </div>
+      </div>
+    </FullArea>
+  )
+}

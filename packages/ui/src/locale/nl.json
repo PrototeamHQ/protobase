@@ -658,7 +658,11 @@
     "callInput": "Invoer",
     "callResult": "Resultaat",
     "callError": "Fout",
-    "couldNotLoadCalls": "De toolaanroepen konden niet worden geladen"
+    "couldNotLoadCalls": "De toolaanroepen konden niet worden geladen",
+    "details": "Details",
+    "edited": "(bewerkt)",
+    "editedAt": "Bewerkt {time}",
+    "positionNotSaved": "Kon niet bewaren hoe ver je hebt gelezen"
   },
   "app/create": {
     "title": "{noun} toevoegen",

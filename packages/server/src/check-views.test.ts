@@ -417,5 +417,8 @@ describe('checkViews', () => {
       'composer of task_notes: field: "payment_id" on task_notes is not a relation to tasks',
     )
     expect(() => checkViews(conversation, [tasksView(l.composer({ resource: 'task_notes', field: 'task_id', text: 'done' }))])).toThrow('composer of task_notes: text: "done" is boolean; a message is written into a text field')
+    const page = (field: string) => view<typeof tasks>('tasks').record({ conversation: { ...thread, field } }).toModel()
+    expect(() => checkViews(conversation, [page('task_id')])).not.toThrow()
+    expect(() => checkViews(conversation, [page('payment_id')])).toThrow('View "tasks": record conversation of task_notes: field: "payment_id" on task_notes is not a relation to tasks')
   })
 })

@@ -17,6 +17,7 @@ import { cn } from '../lib/cn'
 import { Field, GroupSection, KeyFacts, MetadataCard, RecordHeader, RecordTabs, Section, SpecTable } from '../record-view'
 import { ErrorBanner } from './error-banner'
 import { CustomSection } from './custom-section'
+import { ConversationPage } from './conversation-page/conversation-page'
 import { FullAreaRecord } from './full-area-record'
 import { RecordFocusPage } from './focus/record-focus-page'
 import { openedAddress } from './opened-address'
@@ -123,8 +124,9 @@ export const RecordPage = ({ resource, recordKey }: { resource: string; recordKe
   if (!page || standardAsked) return standard
   // The app's component reads fields a list row may not have, so it waits for the whole record
   if (record.isPlaceholderData) return <RecordSkeleton />
-  if ('surface' in page || page.focus) return <RecordFocusPage model={model} recordKey={recordKey} stored={record.data} page={page} standard={standard} />
   const { record: fields, etag, permissions } = record.data
+  if ('conversation' in page) return <ConversationPage key={recordKey} page={page.conversation} scope={{ model, record: fields, key: recordKey, etag, permissions }} />
+  if ('surface' in page || page.focus) return <RecordFocusPage model={model} recordKey={recordKey} stored={record.data} page={page} standard={standard} />
   return <FullAreaRecord component={page.component} scope={{ model, record: fields, key: recordKey, etag, permissions }} standard={standard} />
 }
 

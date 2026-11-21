@@ -24,9 +24,11 @@ export const FullAreaRecord = ({ component, scope, standard }: { component: stri
   )
 }
 
-// Inside the boundary, so a component that throws takes the page's scrolling back with it. The one grid cell stretches
-// the component to the area's width and height.
-const FullArea = ({ children }: { children: ReactNode }) => {
+/**
+ * The content area of a record page that fills it, where the page does not scroll. Inside a boundary, a component that
+ * throws takes the page's scrolling back with it. The one grid cell stretches its child to the area's width and height.
+ */
+export const FullArea = ({ children }: { children: ReactNode }) => {
   usePageScroll(false)
   return <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)]">{children}</div>
 }

@@ -70,6 +70,8 @@ export default defineUi({
 })
 ```
 
+The rule `members` is built in and needs no function: `.titleFrom('members', (r) => [r.member_ids])` names the record after the people in a JSON field of user ids other than the reader, in the order they were added, joined by commas. A [conversation page](#conversation-pages) with `members` titles its record this way unless the view sets its own `.titleFrom`.
+
 The derived title names the record wherever `.title` would: the sidebar's [recent records](/reference/sidebar/#recent-records), whose list request reads the picked fields too, the record page's heading, the browser tab, the links of a record page's relation fields, related cards, the global search, unless the view's `.searchResult` gives a title, and every relation that points at such a record: a list's relation column and a card's relation field, which read the picked fields of a page's records in one request, the relation picker's options and a relation filter's values. The picker's typed text still matches the resource's search fields, or, without any, the derived titles of the records it loads. The record's key shows while the function returns nothing, such as while the members' names load, and when the reader cannot read a field it picks, or the UI config registers no function of that name. It is presentation only: no field, filter or sort reads it, and the search does not match it. Other members' names come only with organizations; without them, `member` finds no one.
 
 <gap>An export of shown values and a chart grouped by a relation cannot name a record by its derived title because titling them per reader is not implemented.</gap>
@@ -633,6 +635,54 @@ view<typeof channels>('channels').record({ component: ChannelChat })
 The standard record page, with the layout's sections, the related records, Edit and Delete, stays at the record's address with `?standard=true` (`{ kind: 'record', resource, key, standard: true }`), which the component links to. Links to the record, from relations, search and notifications, open the component's page. Without the component, from a plugin that is off for instance, and when it throws, the standard page shows instead. <gap>A full-area record component cannot take props from the view because props for `.record` are not implemented.</gap>
 
 <StoryFrame id="record-page-full-area-record-page--repair-notes-page" title="A repair's notes filling the page, with a link to its details" height={560} />
+
+### Conversation pages
+
+:::caution[Beta]
+A conversation page shows each message's text with its mentions and keeps line breaks, without markdown; it has no replies in threads, reactions, editing, deleting, files or calls yet.
+:::
+
+`.record({ conversation })` makes the record page the record's conversation, for a record that holds one, such as a chat channel, a direct message or a support case, with no component of the app's own. It fills the content area as a [full-area record page](#full-area-record-pages) does, on the web and at mobile width: a header row, the messages that point at the record, and a box that sends one, which stays in view while the messages scroll above it.
+
+```ts
+view<typeof channels>('channels').record({
+  conversation: {
+    resource: 'messages',
+    field: 'channel_id',
+    sender: 'author_id',
+    time: 'sent_at',
+    text: 'body',
+    edited: 'edited_at',
+    mentions: 'mentions',
+    subtitle: 'topic',
+    readPosition: { resource: 'read_positions', field: 'channel_id', message: 'last_read_id' },
+    placeholder: 'Message the channel',
+  },
+})
+```
+
+| `conversation` option | |
+| --- | --- |
+| `resource` | The message resource. |
+| `field` | The filterable relation of the messages that holds the record's key; each message sent gets it too. |
+| `sender` | Who wrote each message: a relation, named as the record it points at, or a text field of user ids, such as the resource's `.author()`, named after the organization's members. |
+| `time` | When each message was sent: a sortable date or timestamp field. |
+| `text` | The message: a text field the sender may set. |
+| `edited` | A date or timestamp field set when a message changes: a changed message says "(edited)", with the time on hover. |
+| `mentions` | A JSON field for the user ids a message mentions: `@` in the box lists the organization's members by name, the ids of those picked land in it, and the text shows each mention picked out. |
+| `subtitle` | A text field of the record shown beside its title, such as a channel's topic. |
+| `members` | A JSON field of the record holding user ids: the header names the other people in it, each with their presence and [status](/reference/status/#in-the-app), the status text in full beside one person and on hover beside several. The record is titled after them everywhere, as the [`members` title rule](#titles-per-reader) does. |
+| `readPosition` | Where each reader's read position is kept: `{ resource, field, message }`. |
+| `placeholder` | The hint in the empty box. |
+| `empty` | What the conversation says while it has no messages. |
+
+The header shows the record's title, which the top bar repeats at mobile width and so shows there only with `members`, the subtitle, and *Details*, a link to the record's standard page at `?standard=true`, with its sections, Edit and Delete. The latest 50 messages show oldest first, with *Load earlier messages* at the top for more. A day divider opens each day, and one person's messages sent within five minutes of each other show under their name once. A message resource with [`.live()`](/reference/live/) shows new, changed and deleted messages as they happen. Every read goes through the reader's own access: a message they may not read never shows, and a reader who may not read the messages or a field each one needs gets the standard page. The box shows for a reader who may create messages.
+
+With `readPosition`, the conversation opens on a *New messages* line above the first message someone else wrote since the reader's position, and moves the position to the newest message whenever they read to the end. The read position resource keeps one record per reader and record: its `.author()` is the reader, `field` is a relation to the record and `message` an integer field holding the key of the newest message read, so the message resource's key is one integer column that grows as messages arrive. The page reads and writes only the reader's own position. Without `readPosition`, there is no line and nothing is written.
+
+<StoryFrame id="record-page-conversation-page--channel-conversation" title="A channel's conversation, with its topic, grouped messages, a mention and the New messages line" height={560} />
+
+<gap>A conversation page cannot open at a given message, such as a search result, because opening a conversation at a message is not implemented.</gap>
 
 ### Focus pages
 

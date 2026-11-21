@@ -8,7 +8,7 @@ import type {
   LayoutItemModel,
   PageWidth,
   RecordMode,
-  RecordPageModel,
+  ConversationPageModel,
   SaveFeedback,
   SortSpec,
   NamedListModel,
@@ -28,6 +28,7 @@ import { layoutItems } from './layout-items'
 import { isMenuHref } from './menu-href'
 import { viewOfList } from './named-list'
 import { navRecentErrors } from './nav-recent'
+import { membersTitle, recordPageErrors } from './record-page'
 import { navStartErrors } from './nav-start'
 import { createRefs, ref, type FieldRefs, type Ref } from './refs'
 import { actions } from './view-actions'
@@ -389,11 +390,16 @@ export class ViewBuilder<R extends {
    * `focus: true` draws it on a focus page, with the bar's state, Save, the record's actions and panels; the form
    * `(r) => ({ surface: r.body })` needs no component: the surface is one field, drawn by its field type. See
    * [Focus pages](docs/website/src/content/docs/reference/ui-config.mdx#focus-pages).
+   *
+   * `conversation` makes the page the record's conversation, filling the area with no component of the app's own: a
+   * header, the messages that point at the record and a box that sends one. A conversation with `members` titles its
+   * record after them for each reader, as `.titleFrom('members', ...)` does, unless the view sets its own. See
+   * [Conversation pages](docs/website/src/content/docs/reference/ui-config.mdx#conversation-pages).
    */
-  record(options: { component: ComponentRef<never>; focus?: boolean } | ((r: FieldRefs<FieldsOf<R>>) => { surface: Ref })) {
-    const record: RecordPageModel =
-      typeof options === 'function' ? { surface: options(this.refs()).surface.name } : { component: customComponent(options.component, 'record component'), ...(options.focus && { focus: true }) }
-    return this.next({ record })
+  record(options: { component: ComponentRef<never>; focus?: boolean } | { conversation: ConversationPageModel } | ((r: FieldRefs<FieldsOf<R>>) => { surface: Ref })) {
+    if (typeof options === 'function') return this.next({ record: { surface: options(this.refs()).surface.name } })
+    if ('conversation' in options) return this.next({ record: { conversation: structuredClone(options.conversation) } })
+    return this.next({ record: { component: customComponent(options.component, 'record component'), ...(options.focus && { focus: true }) } })
   }
 
   /**
@@ -524,8 +530,10 @@ export class ViewBuilder<R extends {
     if (this.state.lists?.length && (listOf !== undefined || this.state.searchesOf)) {
       throw new Error(`View "${this.state.resource}": named lists cannot go with listOf or searchesOf, which replace the list page`)
     }
+    const pageErrors = resource ? recordPageErrors(this.state.record, resource) : []
+    if (pageErrors.length > 0) throw new Error(`View "${this.state.resource}": record ${pageErrors.join('; ')}`)
     for (const named of this.state.lists ?? []) new ViewBuilder<R>(viewOfList(this.state, named.name)!).toModel(resource)
-    return structuredClone(this.state)
+    return structuredClone({ ...this.state, ...(!titleFrom && membersTitle(this.state.record)) })
   }
 
   private refs() {
