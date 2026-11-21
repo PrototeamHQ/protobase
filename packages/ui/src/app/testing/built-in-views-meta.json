@@ -406,6 +406,136 @@
       "primaryKey": [
         "id"
       ]
+    },
+    {
+      "name": "mail_feedback",
+      "table": {
+        "schema": "mail",
+        "name": "feedback"
+      },
+      "fields": {
+        "id": {
+          "name": "id",
+          "column": "id",
+          "type": "bigint",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "type": {
+          "name": "type",
+          "column": "type",
+          "type": "enum",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": [],
+          "enumValues": [
+            "bounce",
+            "complaint"
+          ]
+        },
+        "bounce_type": {
+          "name": "bounce_type",
+          "column": "bounce_type",
+          "type": "enum",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": [],
+          "enumValues": [
+            "hard",
+            "soft"
+          ]
+        },
+        "recipient": {
+          "name": "recipient",
+          "column": "recipient",
+          "type": "text",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "message_id": {
+          "name": "message_id",
+          "column": "message_id",
+          "type": "text",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "provider_message_id": {
+          "name": "provider_message_id",
+          "column": "provider_message_id",
+          "type": "text",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": true,
+          "sortable": false,
+          "aliases": []
+        },
+        "reason": {
+          "name": "reason",
+          "column": "reason",
+          "type": "text",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "provider": {
+          "name": "provider",
+          "column": "provider",
+          "type": "text",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "event_id": {
+          "name": "event_id",
+          "column": "event_id",
+          "type": "text",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "column": "occurred_at",
+          "type": "timestamp",
+          "nullable": true,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": false,
+          "aliases": []
+        },
+        "created_at": {
+          "name": "created_at",
+          "column": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "readOnly": true,
+          "filterable": false,
+          "sortable": true,
+          "aliases": []
+        }
+      },
+      "primaryKey": [
+        "id"
+      ]
     }
   ],
   "views": [
@@ -720,6 +850,97 @@
         "columns": [
           "recipient",
           "topic",
+          "created_at"
+        ]
+      }
+    },
+    {
+      "resource": "mail_feedback",
+      "fields": {
+        "type": {
+          "label": "Type",
+          "valueLabels": {
+            "bounce": "Bounce",
+            "complaint": "Complaint"
+          }
+        },
+        "bounce_type": {
+          "label": "Bounce",
+          "valueLabels": {
+            "hard": "Hard",
+            "soft": "Soft"
+          }
+        },
+        "recipient": {
+          "label": "Recipient"
+        },
+        "message_id": {
+          "label": "Message-ID"
+        },
+        "provider_message_id": {
+          "label": "Provider's message id"
+        },
+        "reason": {
+          "label": "Reason"
+        },
+        "provider": {
+          "label": "Provider"
+        },
+        "event_id": {
+          "label": "Provider's report id"
+        },
+        "occurred_at": {
+          "label": "Happened"
+        },
+        "created_at": {
+          "label": "Received"
+        }
+      },
+      "filters": [],
+      "layout": [
+        {
+          "kind": "section",
+          "title": "Feedback",
+          "fields": [
+            "recipient",
+            "type",
+            "bounce_type",
+            "reason",
+            "occurred_at",
+            "created_at"
+          ]
+        },
+        {
+          "kind": "section",
+          "title": "Message",
+          "fields": [
+            "message_id",
+            "provider_message_id",
+            "provider",
+            "event_id"
+          ]
+        }
+      ],
+      "actions": [],
+      "names": {
+        "singular": "Mail feedback",
+        "plural": "Mail feedback"
+      },
+      "icon": "mail-warning",
+      "title": "recipient",
+      "help": "Every bounce and spam complaint a mail provider reported for the mail the app sends, newest first. Protobase sends on regardless: the app decides what to do.",
+      "list": {
+        "sort": [
+          [
+            "created_at",
+            "desc"
+          ]
+        ],
+        "columns": [
+          "recipient",
+          "type",
+          "bounce_type",
+          "reason",
           "created_at"
         ]
       }
