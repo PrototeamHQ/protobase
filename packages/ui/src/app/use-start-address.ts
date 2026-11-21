@@ -1,14 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
-import type { AppAddress } from '@protobase/schema'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useContext, useMemo } from 'react'
 import { useClient } from '../data/api-provider'
 import type { MetaData } from '../data/meta-data'
 import { keys } from '../data/query-keys'
-import { lastFetchFailed } from '../data/start-cache/restored-state'
+import { ClientStartContext, lastFetchFailed } from '../data/start-cache/restored-state'
+import { useMeta } from '../data/use-meta'
 import { startAddress } from './start-address'
-import { startEntry, startKey, startRequest } from './start-record'
+import { startEntry, startRequest } from './start-record'
+import { metaSettled, startTarget, type StartTarget } from './start-target'
 
-export type StartTarget = { state: 'resolving' } | { state: 'ready'; address?: AppAddress }
+export type { StartTarget } from './start-target'
 
 /**
  * What `/` opens: the record the first sidebar entry with `nav.start` finds, read with the caller's access, else the
@@ -18,10 +19,16 @@ export type StartTarget = { state: 'resolving' } | { state: 'ready'; address?: A
  * found before. The answer is a query, so the start cache has it on the next start.
  *
  * `organization` is the one the record is looked up in, `''` in an app without organizations: `undefined` while it is
- * not yet known for certain, which resolves, and `null` once it cannot be, which opens the first entry.
+ * not yet known for certain, which resolves, and `null` once it cannot be, which opens the first entry. With
+ * organizations, `/` also waits for `/meta` to be read in this page load, or to fail, rather than settle on the start
+ * cache's (see `startTarget`).
  */
 export const useStartAddress = (meta: MetaData, enabled: boolean, organization: string | null | undefined): StartTarget => {
   const client = useClient()
+  const startedAt = useContext(ClientStartContext)
+  // Draws again when `/meta` is read again, also unchanged
+  const metaQuery = useMeta()
+  const metaState = useQueryClient().getQueryState<MetaData>(keys.meta)
   const entry = useMemo(() => startEntry(meta), [meta])
   const fallback = useMemo(() => startAddress(meta), [meta])
   const request = entry && startRequest(entry, meta)
@@ -31,11 +38,12 @@ export const useStartAddress = (meta: MetaData, enabled: boolean, organization: 
     enabled: enabled && Boolean(entry) && typeof organization === 'string',
     retry: false,
   })
-  const opensFallback: StartTarget = { state: 'ready', ...(fallback && { address: fallback }) }
-  if (!entry || organization === null) return opensFallback
-  if (organization === undefined || query.isPending) return enabled ? { state: 'resolving' } : opensFallback
-  if (lastFetchFailed(query)) return opensFallback
-  const key = query.data && startKey(entry.model, query.data.items)
-  if (key !== undefined) return { state: 'ready', address: { kind: 'record', resource: entry.model.name, key } }
-  return opensFallback
+  return startTarget({
+    entry,
+    fallback,
+    enabled,
+    organization,
+    metaSettled: metaSettled(meta, metaState, startedAt, lastFetchFailed(metaQuery)),
+    lookup: { pending: query.isPending, failed: lastFetchFailed(query), ...(query.data && { rows: query.data.items }) },
+  })
 }
