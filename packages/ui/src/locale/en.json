@@ -829,6 +829,7 @@
     "enum": "Choose one of the options",
     "relation": "Choose a record",
     "json": "Enter valid JSON",
+    "mailSender": "You can't send from {address}. Choose one of your addresses, or add it on your Account page first",
     "required": "{label} is required",
     "checkField": "Check the marked field.",
     "checkFields": "Check {count} fields."

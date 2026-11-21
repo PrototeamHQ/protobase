@@ -5,6 +5,7 @@ import type { MailSender } from './mail-sender'
 
 const sameAddress = (a: unknown, b: unknown) => typeof a === 'string' && typeof b === 'string' && a.trim().toLowerCase() === b.trim().toLowerCase()
 
+// In English, as every field error of a write is: a form words it in its own language from the code and `address`.
 const refused = (field: string, address: string): FieldError => ({
   field,
   code: 'invalid-value',

@@ -829,6 +829,7 @@
     "enum": "Kies een van de opties",
     "relation": "Kies een record",
     "json": "Vul geldige JSON in",
+    "mailSender": "Je kunt niet verzenden vanaf {address}. Kies een van je adressen, of voeg het eerst toe op je accountpagina",
     "required": "{label} is verplicht",
     "checkField": "Controleer het gemarkeerde veld.",
     "checkFields": "Controleer {count} velden."
