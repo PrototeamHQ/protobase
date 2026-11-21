@@ -781,16 +781,30 @@ export type ListDragModel = {
    */
   rank?: boolean
   /**
-   * Moving a board's card to another column: `true` saves its record with that column's value; the name of a board drop
-   * in the UI config's `boardDrops` lets cards move only between the columns it names, each drop running its write, which
-   * works when the board's field is read-only, such as one the database computes.
+   * Moving a board's card to another column: `true` saves its record with that column's value; a `BoardDragModel` saves
+   * that value in another field, or lets only some columns take a card; the name of a board drop in the UI config's
+   * `boardDrops` lets cards move only between the columns it names, each drop running its write. The last two work when
+   * the board's field is read-only, such as one the database computes.
    */
-  board?: boolean | string
+  board?: boolean | string | BoardDragModel
   /**
    * Where the table's rows may land when re-ranked: the name of a drop rule in the UI config's `dropRules`. A drop where
    * it refuses lands in the first place below that it allows, with a warning saying why.
    */
   rule?: string
+}
+
+/**
+ * Which columns of a board take a card and what a drop writes, as `drag: { board: { set, columns } }`. A card dropped on
+ * another column saves its record with the column's value in `set`; the record is then read again and the card lands in
+ * the column its `by` value now puts it in. See
+ * [Moving cards by another field](docs/website/src/content/docs/reference/ui-config.mdx#moving-cards-by-another-field).
+ */
+export type BoardDragModel = {
+  /** The writable field a drop saves the column's value in, such as a `lane` a trigger turns into the computed `by`; `by` when omitted. */
+  set?: string
+  /** The values of the columns a card moves from and to; every column when omitted. A card in another column stays in it. */
+  columns?: string[]
 }
 
 /**

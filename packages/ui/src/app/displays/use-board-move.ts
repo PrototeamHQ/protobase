@@ -36,6 +36,8 @@ type Options = {
   filter: string
   /** The board's own writes for a card dropped on another column, in place of saving `by`. */
   drop?: BoardDrop | undefined
+  /** The field a card dropped on another column saves the column's value in, after which the record is read again, as with `drop`. */
+  set?: string | undefined
   /** The heading of the column of a value. */
   labelOf: (value: string | null) => string
   /** The title a card shows. */
@@ -48,14 +50,16 @@ type Options = {
  * at a place is one batch instead, that update when the column changes and a `move` by `rank` among the column's cards,
  * anchored to the card above where it was dropped (see `placeOps`).
  * With the board's `drop`, a card dropped on another column runs that column's write instead, and then reads the record
- * again to say which column it is in now. The card shows in its new place at once; a saved move says so with **Undo**,
+ * again to say which column it is in now. With `set`, it is one update of that field with the column's value, and the
+ * record read again the same way, whose ETag its **Undo** sends, since the database's triggers may have written the
+ * record again after the update. The card shows in its new place at once; a saved move says so with **Undo**,
  * which puts back the values it changed or runs the undo the drop's write gave, and a refusal puts it back and says why,
  * or that the board changed where it was dropped.
  * With the position's `after`, a card dropped above a record it depends on lands at the first place below that keeps
  * the order, or stays where it was, with a warning saying why (see `rankedPlace`).
  * Either way every list of the resource reloads, which puts the card where its record now is.
  */
-export const useBoardMove = ({ model, view, by, rank, filter, drop, labelOf, titleOf }: Options) => {
+export const useBoardMove = ({ model, view, by, rank, filter, drop, set, labelOf, titleOf }: Options) => {
   const client = useClient()
   const toast = useToast()
   const refresh = useRefreshResource()
@@ -80,6 +84,16 @@ export const useBoardMove = ({ model, view, by, rank, filter, drop, labelOf, tit
     const undoing = await write({ resource: model.name, record: row.record, recordKey: key, etag, to: to.value!, client })
     const stored = await client.get(model.name, key)
     return { landed: (stored.record[by] ?? null) as string | null, ...(undoing && { undo: undoing }) }
+  }
+
+  // A drop on another column saving `set`: the update, then the record read again for its column and current ETag
+  const setTo = async (row: ListDisplayRow, to: BoardColumn, field: string): Promise<Saved> => {
+    const key = recordKey(model, row.record) as KeyValue
+    const etag = typeof row.record.etag === 'string' ? row.record.etag : '*'
+    await client.update(model.name, key, { [field]: to.value }, etag)
+    const stored = await client.get(model.name, key)
+    const ops = undoOps(model, [{ before: row.record, record: stored.record, etag: stored.etag }], [field])
+    return { landed: (stored.record[by] ?? null) as string | null, ...(ops.length > 0 && { undo: () => client.batchWrite(ops) }) }
   }
 
   // The values a move or placing saved, which its undo puts back
@@ -118,6 +132,7 @@ export const useBoardMove = ({ model, view, by, rank, filter, drop, labelOf, tit
       if (place && !rank) throw new Error('A board places a card only by its rank')
       const from = (row.record[by] ?? null) as string | null
       if (drop && to.value !== from) return dropped(row, to)
+      if (set !== undefined && to.value !== from) return setTo(row, to, set)
       if (place) return placed(row, to, place)
       const etag = typeof row.record.etag === 'string' ? row.record.etag : '*'
       const stored = await client.update(model.name, recordKey(model, row.record) as KeyValue, { [by]: to.value }, etag)

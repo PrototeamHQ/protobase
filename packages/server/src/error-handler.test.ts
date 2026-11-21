@@ -75,6 +75,20 @@ describe('the error handler on a deadlock', () => {
   })
 })
 
+describe('the error handler on an exception a trigger raised', () => {
+  it('answers SQLSTATE P0001 with 400 invalid-record and the raised message, and reports nothing', async () => {
+    const { response, body, reported } = await answer(databaseError('It is not parked by hand, so it stays parked.', 'P0001'))
+    expect(response.status).toBe(400)
+    expect(body).toMatchObject({ type: 'urn:protobase:problem:invalid-record', detail: 'It is not parked by hand, so it stays parked.' })
+    expect(reported).not.toHaveBeenCalled()
+  })
+
+  it('keeps a check violation\'s own message out', async () => {
+    const { body } = await answer(databaseError('new row for relation "tasks" violates check constraint "tasks_lane"', '23514'))
+    expect(body).toMatchObject({ status: 400, detail: 'A check constraint rejected the record' })
+  })
+})
+
 describe('the error handler when every database connection stayed busy', () => {
   it('answers 503 with Retry-After naming the request, and reports it as that 503', async () => {
     const { response, body, reported } = await answer(new ConnectionsBusy(3, 2_000))

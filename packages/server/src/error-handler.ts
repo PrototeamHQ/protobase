@@ -45,7 +45,7 @@ const isRestarting = (error: DatabaseError) =>
 // The 503 of a database that is briefly unavailable: the request can be sent again shortly.
 const retryShortly = (slug: string, detail: string) => new HttpProblem(503, slug, 'Service Unavailable', detail, {}, { 'Retry-After': '5' })
 
-// Constraint and column names are left out: they can name a column the caller may not see.
+// Constraint and column names are left out: they can name a column the caller may not see. Only a raised exception's own message is passed on.
 const databaseProblem = (error: DatabaseError): HttpProblem | undefined => {
   // SQLSTATE 25006: the database is read-only, as during a deploy's write freeze; the write can be sent again shortly.
   if (error.code === '25006') return retryShortly(readOnlySlug, 'The app is read-only while it is being updated')
@@ -58,6 +58,8 @@ const databaseProblem = (error: DatabaseError): HttpProblem | undefined => {
   if (error.code === '40P01') return new HttpProblem(409, 'conflict', 'Conflict', 'The record was written at the same time as another; send it again')
   if (error.code === '23502') return new HttpProblem(400, 'invalid-record', 'Bad Request', 'A required column has no value')
   if (error.code === '23514') return new HttpProblem(400, 'invalid-record', 'Bad Request', 'A check constraint rejected the record')
+  // SQLSTATE P0001: a plain `raise exception` of the app's own trigger or function, whose message it wrote for the caller
+  if (error.code === 'P0001') return new HttpProblem(400, 'invalid-record', 'Bad Request', error.message)
   if (error.code.startsWith('22')) return new HttpProblem(400, 'invalid-value', 'Bad Request', 'A value has the wrong format for its column')
   return undefined
 }
