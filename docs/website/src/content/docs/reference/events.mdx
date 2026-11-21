@@ -50,7 +50,7 @@ Filters use the language of [access rules](/reference/access/) and views, on any
 
 `protobase migration` adds a `changes` schema to the database, with:
 
-- **`changes.outbox`**, one row per changed row, written in the writer's transaction, so it commits or rolls back with the change. A dispatch job reads the committed rows and deletes them once their events are delivered or queued.
+- **`changes.outbox`**, one row per changed row, written in the writer's transaction, so it commits or rolls back with the change. A dispatch job reads the committed rows and deletes them in the transaction that queues their deliveries, each a job of its own.
 - **`changes.capture()`**, the trigger function. It runs as its owner, with a fixed search path, so a role that writes the table needs no rights on `changes`: another service writing as its own role keeps working once a resource has events.
 - **Two triggers per resource with events, history, [live updates](/reference/live/) or [derived values](/reference/derived/), or read by a derived value**, on its table: `<table>_changes` for inserts and deletes, and `<table>_changes_update` for updates that change the row.
 

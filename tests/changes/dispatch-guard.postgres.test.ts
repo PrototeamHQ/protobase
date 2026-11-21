@@ -182,10 +182,11 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('dispatch when event cod
     const history = async () =>
       (await sql<{ operation: string; before: unknown; after: unknown; changed: string[] }>`select operation, before, after, changed from changes.history where record_key = '2' order by id`.execute(db)).rows
     await until(async () => expect((await history()).map((row) => row.operation)).toEqual(['create', 'update', 'delete']))
-    await until(() => expect(keysChanges.map((event) => event.type)).toEqual(['keys.updated', 'keys.deleted']))
+    // An unordered subscription's deliveries are jobs of their own, which go out in any order.
+    await until(() => expect(keysChanges.map((event) => event.type).sort()).toEqual(['keys.deleted', 'keys.updated']))
     await until(async () => expect((await failedJobs()).map((job) => job.payload)).toEqual([{ change: expect.objectContaining({ key: '2' }), subscription: 'keys_viewer' }]))
     expect(keysAll[2]!.data.after).toEqual({ id: 2, name: 'old' })
-    expect(keysChanges[0]!.data.changed.sort()).toEqual(['api_secret', 'name'])
+    expect(keysChanges.find((event) => event.type === 'keys.updated')!.data.changed.sort()).toEqual(['api_secret', 'name'])
     expect((await history())[0]!.after).toEqual({ id: 2, name: 'old' })
     expect((await history())[1]!.changed.sort()).toEqual(['api_secret', 'name'])
     expect(JSON.stringify([keysAll, keysChanges, await history(), await failedPayloads()])).not.toContain('captured-secret')

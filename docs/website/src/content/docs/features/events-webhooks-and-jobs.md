@@ -7,7 +7,7 @@ description: React to changes, deliver them to other systems, and run work in th
 - [Change capture](/reference/events/#how-changes-are-captured): Every change is captured in the database, in the same transaction, whoever made it.
 - [Webhooks](/reference/webhooks/#subscription): Events are sent to a URL, an API function or your own code, filtered by event, condition and tenant.
 - [Signed webhooks](/reference/webhooks/#what-a-receiver-gets): Deliveries are signed under the Standard Webhooks spec.
-- [Delivery retries](/reference/webhooks/#delivery-and-retries): Failed deliveries are retried for about three days.
+- [Delivery retries](/reference/webhooks/#delivery-and-retries): Each delivery is a background job of its own, so a slow receiver never holds back live updates or other deliveries; failed ones are retried for about three days.
 - [Webhooks in the admin app](/reference/webhooks/#subscriptions-in-the-admin-app): Users create subscriptions, send test events and resend failures in the app.
 - [Webhook delivery log](/reference/webhooks/#subscriptions-in-the-admin-app): Every try of the admin app's subscriptions, successes too, is kept for 30 days with its status and timing, when the app turns it on.
 - [Background jobs](/reference/jobs/#enqueueing): Jobs are kept in the app's own Postgres and can be queued in the same transaction as a write, also from SQL.

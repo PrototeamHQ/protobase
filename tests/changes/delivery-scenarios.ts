@@ -116,7 +116,7 @@ export const deliveryScenarios = (connect: () => Promise<TestDatabase>) => {
     await until(() => expect(receiver.at('/slack')).toHaveLength(1))
     expect(JSON.parse(receiver.at('/slack')[0]!.body)).toEqual({ text: 'Large order 1: €1500.00' })
     await until(async () => expect(await outboxSize()).toBe(0))
-    // Dispatch logs its first tries once the transaction that empties the outbox has committed.
+    // Each first try is a job of its own, which logs how it went.
     await until(() => expect(logged).toContain(`webhook hook orders.created ${JSON.parse(created!.body).id} delivered (200)`))
   })
 
@@ -143,7 +143,7 @@ export const deliveryScenarios = (connect: () => Promise<TestDatabase>) => {
     })
   })
 
-  it('delivers again after a dispatch that could not record what it delivered', async () => {
+  it('queues no delivery from a dispatch that could not commit, and delivers once when it is retried', async () => {
     // A sequence, since the failing transaction rolls back everything else: only the first dispatch fails.
     await database.exec(`
       create sequence dispatch_tries;
@@ -155,17 +155,17 @@ export const deliveryScenarios = (connect: () => Promise<TestDatabase>) => {
         return old;
       end $$;
       create trigger fail_once before delete on changes.outbox for each statement execute function fail_once();`)
-    // What the dispatcher sends, with how each send went (tests/changes/sent-requests.ts): the failed try's request can
-    // be lost on the local socket under load, and it is the sending again that this test proves, not the receiver's socket.
+    // What the delivery jobs send, with how each send went (tests/changes/sent-requests.ts), whatever the receiver's
+    // socket made of it.
     const sentBefore = sent.length
     const hooks = () => sent.slice(sentBefore).filter((entry) => entry.path === '/hook')
     const logStart = logged.length
     await sql`insert into orders (total) values (8)`.execute(db)
-    await reportingDelivery(until(() => expect(hooks()).toHaveLength(2), 20_000), db, logged, logStart)
-    const [first, again] = hooks()
-    expect([first!.id, first!.body]).toEqual([again!.id, again!.body])
-    await until(() => expect(logged).toContain(`webhook hook orders.created ${again!.id} delivered (200)`))
+    await reportingDelivery(until(() => expect(hooks()).toHaveLength(1), 20_000), db, logged, logStart)
+    const [delivered] = hooks()
+    await until(() => expect(logged).toContain(`webhook hook orders.created ${delivered!.id} delivered (200)`))
     await until(async () => expect(await outboxSize()).toBe(0))
+    expect(hooks()).toHaveLength(1)
     await database.exec('drop trigger fail_once on changes.outbox')
   })
 
