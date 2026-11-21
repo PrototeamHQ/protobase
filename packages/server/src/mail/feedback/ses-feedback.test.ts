@@ -36,8 +36,18 @@ describe('SES feedback', () => {
     expect(sesFeedback(JSON.stringify({ eventType: 'Complaint', ...published }))).toHaveLength(1)
   })
 
+  it("takes the Message-ID header of event publishing, whose common headers carry SES's own id", () => {
+    const published = JSON.parse(bounce.Message)
+    published.mail.commonHeaders.messageId = published.mail.messageId
+    published.mail.headers = published.mail.headers.map((header: { name: string; value: string }) => (header.name === 'Message-ID' ? { name: 'message-id', value: '<original@example.com>' } : header))
+    expect(sesFeedback(JSON.stringify(published))[0]).toMatchObject({ message_id: '<original@example.com>', provider_message_id: published.mail.messageId })
+    published.mail.headers = []
+    expect(sesFeedback(JSON.stringify(published))[0]).not.toHaveProperty('message_id')
+  })
+
   it('is nothing for a delivery, and refuses what is not a notification', () => {
     expect(sesFeedback(delivery.Message)).toEqual([])
     expect(() => sesFeedback('{"notificationType":"Bounce","bounce":{}}')).toThrow(/not an SES notification: bounce\.bounceType/)
+    expect(() => sesFeedback('{"notificationType":')).toThrow('The body is not an SES notification: it is not valid JSON')
   })
 })
