@@ -17,17 +17,26 @@ export const fetchCertificate: CertificateSource = async (url) => {
 
 /**
  * `source`, with the certificates it fetched kept for an hour, at most 16, the oldest dropped first, so a burst of
- * notifications fetches each certificate once.
+ * notifications fetches each certificate once: requests that miss while a fetch runs share it, and a failed fetch is
+ * not kept.
  */
 export const keptCertificates = (source: CertificateSource, now = Date.now): CertificateSource => {
   const kept = new Map<string, { pem: string; until: number }>()
-  return async (url) => {
-    const found = kept.get(url)
-    if (found && found.until > now()) return found.pem
+  const fetching = new Map<string, Promise<string>>()
+  const fetchAndKeep = async (url: string) => {
     const pem = await source(url)
     kept.delete(url)
     if (kept.size >= maxKept) kept.delete(kept.keys().next().value!)
     kept.set(url, { pem, until: now() + keepMs })
     return pem
+  }
+  return (url) => {
+    const found = kept.get(url)
+    if (found && found.until > now()) return Promise.resolve(found.pem)
+    const running = fetching.get(url)
+    if (running) return running
+    const fetched = fetchAndKeep(url).finally(() => fetching.delete(url))
+    fetching.set(url, fetched)
+    return fetched
   }
 }

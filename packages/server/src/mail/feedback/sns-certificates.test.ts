@@ -18,4 +18,20 @@ describe('kept certificates', () => {
     await kept('b15')
     expect(fetched).toEqual(['a'])
   })
+
+  it('share a fetch that runs, and keep no failed one', async () => {
+    let fetches = 0
+    let fail = true
+    const kept = keptCertificates(async (url) => {
+      fetches++
+      await Promise.resolve()
+      if (fail) throw new Error('down')
+      return `pem of ${url}`
+    })
+    await expect(Promise.all([kept('a'), kept('a')])).rejects.toThrow('down')
+    expect(fetches).toBe(1)
+    fail = false
+    expect(await Promise.all([kept('a'), kept('a')])).toEqual(['pem of a', 'pem of a'])
+    expect(fetches).toBe(2)
+  })
 })
