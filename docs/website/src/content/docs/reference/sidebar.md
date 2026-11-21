@@ -68,6 +68,7 @@ export const channelsView = view<typeof channels>('channels').nav({ recent: { or
 - The filter is AIP-160 text, as `?filter=` on the list API takes it, so it reads only `.filterable()` fields, which are indexed. `orderBy` picks among several matches; the list's sort when omitted.
 - The record is read with the caller's token: their access rules apply, and an entry they do not see names no start. When several entries name one, the first in the sidebar's order does.
 - When nothing matches, or the list is refused, `/` opens the first sidebar entry. Until the answer comes, `/` draws nothing, so no list shows first; the answer is kept for the next start.
+- With organizations, `/` also waits for the app's `/meta` read in this page load, as the one the [start cache](/reference/installable-app/#starting-from-the-last-pages-seen) holds may be from another organization or from none, such as right after someone creates or joins their first.
 - A [named list](/reference/ui-config/#more-than-one-list) names no start of its own.
 
 `createAdmin` refuses a filter or order that does not fit the resource; `/meta` leaves out a start whose filter or order reads a field the caller cannot read.
