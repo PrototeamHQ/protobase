@@ -3,7 +3,7 @@ import { hasUniqueIndexOn } from '../db/keys'
 import { tableKey, type DbTable } from '../db/model'
 import type { Issue } from './check'
 
-const quoteIdent = (name: string) => (/^[a-z_][a-z0-9_]*$/.test(name) ? name : `"${name.replaceAll('"', '""')}"`)
+const quoteIdent = (name: string) => `"${name.replaceAll('"', '""')}"`
 
 /**
  * A lookup field that reads the one record of another resource pointing at each record needs a unique index on that
@@ -20,6 +20,6 @@ export const lookupIssues = (model: ResourceModel, models: ResourceModel[], tabl
       severity: 'error',
       resource: model.name,
       message: `${field.name}: looks up the one ${from} record whose "${via}" points at each record, but no unique index on ${tableKey(table)} (${column}) makes it one, so a read fails once a record has two`,
-      suggestion: `ALTER TABLE ${quoteIdent(table.schema)}.${quoteIdent(table.name)} ADD UNIQUE (${quoteIdent(column)});`,
+      suggestion: `create unique index on ${quoteIdent(table.schema)}.${quoteIdent(table.name)} (${quoteIdent(column)});`,
     }]
   })

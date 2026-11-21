@@ -64,7 +64,7 @@ describe('a lookup field of the one record pointing at each record', () => {
       severity: 'error',
       resource: 'apps',
       message: 'release: looks up the one app_runtimes record whose "app_id" points at each record, but no unique index on public.app_runtimes (app_id) makes it one, so a read fails once a record has two',
-      suggestion: 'ALTER TABLE public.app_runtimes ADD UNIQUE (app_id);',
+      suggestion: 'create unique index on "public"."app_runtimes" ("app_id");',
     }])
     expect(lookupIssues(apps, [apps, runtimes], [table(true)])).toEqual([])
   })
