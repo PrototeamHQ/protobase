@@ -1,6 +1,7 @@
 import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint, createAuthMiddleware, getSessionFromCtx, sessionMiddleware } from 'better-auth/api'
 import * as z from 'zod'
+import { headersLocale } from '../locale/request-locale'
 import { idTokenAddress, storedScopes } from './linked-accounts'
 import type { PersonalMailProvider } from './personal-mail-provider'
 import { linkedMailbox } from './personal-mailer'
@@ -74,7 +75,7 @@ const nameField = z
  * changes one, `name: null` dropping its name, `signature: null` dropping its own, and `isDefault` making it, or no longer making it, the address mail goes out from when the app names
  * none; `POST /account/mail-senders/remove { id }` deletes one. Each acts on the session's own person only. While
  * records of the app hold an address (`inUse`), removing it, or disconnecting the mailbox whose own address it is
- * (`/unlink-account`), is refused with a 409 naming where it is held, and changes nothing.
+ * (`/unlink-account`), is refused with a 409, and changes nothing.
  */
 export const mailSendersPlugin = (providers: PersonalMailProvider[], names: BetterAuthNames, inUse?: MailSenderUseCheck) =>
   ({
@@ -89,7 +90,7 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[], names: Bett
             const session = inUse && typeof accountId === 'string' ? await getSessionFromCtx(ctx) : null
             if (!session) return
             const mailbox = mailboxOf(await ctx.context.internalAdapter.findAccounts(session.user.id), providers)
-            if (mailbox?.address && mailbox.accountId === accountId) await inUse!.refuse(mailbox.address)
+            if (mailbox?.address && mailbox.accountId === accountId) await inUse!.refuse(mailbox.address, headersLocale(ctx.headers))
           }),
         },
       ],
@@ -140,7 +141,7 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[], names: Bett
       removeMailSender: createAuthEndpoint(mailSenderPaths.remove, { method: 'POST', use: [sessionMiddleware], body: z.object({ id: z.string().min(1) }) }, async (ctx) => {
         const userId = ctx.context.session.user.id
         const found = (await sendersOf(ctx.context.adapter, userId)).find((row) => row.id === ctx.body.id)
-        if (found && inUse) await inUse.refuse(found.address)
+        if (found && inUse) await inUse.refuse(found.address, headersLocale(ctx.headers))
         await deleteSender(ctx.context.adapter, userId, ctx.body.id)
         return ctx.json({ removed: true })
       }),

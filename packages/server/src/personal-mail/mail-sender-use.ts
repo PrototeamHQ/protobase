@@ -3,11 +3,8 @@ import type { Db } from '@protobase/query'
 import type { Entry } from '../registry'
 import { columnId, scopeConditions, tableId } from '../sql-parts'
 
-/** How many records of `resource` hold an address in an `f.mailSender()` field. */
-export type MailSenderUse = { resource: string; count: number }
-
-/** Finds where an address is held, before its owner deletes it or disconnects its mailbox (see `mailSenderUseCheck`). */
-export type FindMailSenderUse = (address: string) => Promise<MailSenderUse[]>
+/** Whether any record holds an address, asked before its owner deletes it or disconnects its mailbox (see `mailSenderUseCheck`). */
+export type FindMailSenderUse = (address: string) => Promise<boolean>
 
 // The resources with a mail sender field, with those fields: a lookup's value lives in another table, which holds it.
 const holders = (entries: readonly Entry[]) =>
@@ -17,20 +14,21 @@ const holders = (entries: readonly Entry[]) =>
   })
 
 /**
- * The resources whose records hold `address` in an `f.mailSender()` field, every tenant's included, with how many:
- * a soft-deleted record, which no list shows to change, holds none, and shows its address as not available if restored; counted in one query; empty when none does. An address is stored as the sender spells it
- * (see `checkMailSenders`), so it is matched exactly, which an index on the column serves.
+ * Whether a record of any resource, every tenant's included, holds `address` in an `f.mailSender()` field, in one
+ * query: a soft-deleted record, which no list shows to change, holds none, and shows its address as not available if
+ * restored. The address is matched without regard to case, as sending matches it, since a mailbox's own address may
+ * be spelled otherwise than the record holds it; an index on the column's `lower()` serves it.
  */
 export const mailSenderUse = (db: Db, entries: readonly Entry[]): FindMailSenderUse => {
   const found = holders(entries)
   return async (address) => {
-    if (found.length === 0) return []
-    const counts = found.map(({ entry, fields }) => {
-      const matches = sql<SqlBool>`(${sql.join(fields.map((field) => sql`${columnId(field)} = ${address}`), sql` or `)})`
+    if (found.length === 0) return false
+    const held = found.map(({ entry, fields }) => {
+      const matches = sql<SqlBool>`(${sql.join(fields.map((field) => sql`lower(${columnId(field)}) = lower(${address})`), sql` or `)})`
       const live = scopeConditions(entry.model)
-      return sql`select ${entry.name}::text as resource, count(*)::int as count from ${tableId(entry.model)} where ${sql.join([matches, ...live], sql` and `)}`
+      return sql`exists (select from ${tableId(entry.model)} where ${sql.join([matches, ...live], sql` and `)})`
     })
-    const { rows } = await sql<MailSenderUse>`${sql.join(counts, sql` union all `)}`.execute(db)
-    return rows.filter((row) => row.count > 0)
+    const { rows } = await sql<{ used: boolean }>`select ${sql.join(held, sql` or `)} as used`.execute(db)
+    return rows[0]!.used
   }
 }

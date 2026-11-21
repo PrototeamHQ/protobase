@@ -329,7 +329,7 @@ export default defineFunction(async (request, { personalMail }) => {
 ### A From address on a record
 
 :::caution[Beta]
-A removal refused over records names only their resources and counts, not the records; and since addresses cannot be shared yet, everyone else sees an address on a shared record as not available.
+A removal refused over records does not say which records hold the address; and since addresses cannot be shared yet, everyone else sees an address on a shared record as not available.
 :::
 
 A record can hold the address its mail goes out from, such as a client's or the seller's "Send from": declare the field with `f.mailSender()`, on a `text` column, and pass its value to `send({ from })`.
@@ -345,10 +345,11 @@ send_from: f.mailSender().optional(),
 - **Removing an address in use:** while a record that is not soft-deleted holds it in an `f.mailSender()` field, removing it on the account page, or disconnecting the mailbox whose own address it is (`POST /api/auth/unlink-account`), is refused with a `409` and changes nothing:
 
   ```json
-  { "code": "MAIL_SENDER_IN_USE", "message": "billing@shop.example is still the From address of 2 Clients. Give them another From address first.", "use": [{ "resource": "clients", "count": 2 }] }
+  { "code": "MAIL_SENDER_IN_USE", "message": "billing@shop.example is still the From address of records in this app. Give them another From address first." }
   ```
 
-  Each resource is named as its view's `names` call its records. The count matches the address exactly, so an index on the column serves it.
+  The refusal names no records, since they may be records the person cannot read, such as another organization's. It is in the language the request's `Accept-Language` asks for. The address is matched without regard to case, as sending matches it, so an index on the column's `lower()` serves it.
+- <gap>A refused removal cannot name the records that hold the address because checking which of them the person may read is not implemented.</gap>
 - <gap>A mail sender field cannot offer addresses shared with the person, nor refuse unsharing one a record holds, because sharing an address is not implemented.</gap>
 
 ## In a bundle

@@ -63,5 +63,8 @@
     "button": "Afmelden",
     "doneTitle": "Afgemeld",
     "done": "{recipient} krijgt geen {topic}-mail meer."
+  },
+  "personal-mail": {
+    "MAIL_SENDER_IN_USE": "{address} is nog het afzenderadres van records in deze app. Geef ze eerst een ander afzenderadres."
   }
 }

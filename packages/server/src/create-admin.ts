@@ -95,7 +95,6 @@ import { checkStatusAuth, statusNames, type StatusOptions } from './status/optio
 import { statusRoutes } from './status/routes'
 import { liveSessions } from './better-auth/live-sessions'
 import { mailSenderUse } from './personal-mail/mail-sender-use'
-import { viewNames } from './personal-mail/view-names'
 import type { SubscriptionDefinition } from './webhooks/subscription'
 import { visitorsBrowse, withAnonymous } from './anonymous'
 import { checkBottomBars, checkShell } from './check-shell'
@@ -399,7 +398,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   }
 
   // Removing a From address, or disconnecting its mailbox, waits until no record holds it.
-  if (auth) auth.mailSenderUse.set(mailSenderUse(db, registry.entries), viewNames(viewModels))
+  if (auth) auth.mailSenderUse.set(mailSenderUse(db, registry.entries))
 
   // The tabs end in the name the app signs in and mails as, which the installed app is called too.
   const appName = shownAppName(auth, globalThis.process?.env ?? {})

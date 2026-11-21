@@ -1,29 +1,28 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mailSenderUseCheck } from './mail-sender-use-check'
-import { viewNames } from './view-names'
-import type { ViewModel } from '@protobase/schema'
-
-const views = [{ resource: 'clients', names: { singular: 'client', plural: 'clients' } }] as ViewModel[]
 
 describe('mailSenderUseCheck', () => {
   it('lets every address go until the app gives where records hold them', async () => {
-    await expect(mailSenderUseCheck().refuse('billing@acme.example')).resolves.toBeUndefined()
+    await expect(mailSenderUseCheck().refuse('billing@acme.example', 'en')).resolves.toBeUndefined()
   })
 
-  it('refuses an address records hold, naming each resource and how many by their view names', async () => {
+  it('refuses an address records hold, in the language asked for, naming no records', async () => {
     const check = mailSenderUseCheck()
-    const find = vi.fn(async () => [{ resource: 'clients', count: 1 }, { resource: 'quotes', count: 3 }])
-    check.set(find, viewNames(views))
-    await expect(check.refuse('billing@acme.example')).rejects.toMatchObject({
+    const find = vi.fn(async () => true)
+    check.set(find)
+    await expect(check.refuse('billing@acme.example', 'en')).rejects.toMatchObject({
       statusCode: 409,
-      body: { code: 'MAIL_SENDER_IN_USE', message: 'billing@acme.example is still the From address of 1 client, 3 quotes. Give them another From address first.' },
+      body: { code: 'MAIL_SENDER_IN_USE', message: 'billing@acme.example is still the From address of records in this app. Give them another From address first.' },
+    })
+    await expect(check.refuse('billing@acme.example', 'nl')).rejects.toMatchObject({
+      body: { code: 'MAIL_SENDER_IN_USE', message: 'billing@acme.example is nog het afzenderadres van records in deze app. Geef ze eerst een ander afzenderadres.' },
     })
     expect(find).toHaveBeenCalledWith('billing@acme.example')
   })
 
   it('lets an address no record holds go', async () => {
     const check = mailSenderUseCheck()
-    check.set(async () => [], viewNames(views))
-    await expect(check.refuse('billing@acme.example')).resolves.toBeUndefined()
+    check.set(async () => false)
+    await expect(check.refuse('billing@acme.example', 'en')).resolves.toBeUndefined()
   })
 })
