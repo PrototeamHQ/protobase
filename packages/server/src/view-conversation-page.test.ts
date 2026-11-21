@@ -76,7 +76,14 @@ describe('pruneConversationPage', () => {
     expect(pruned).toEqual({ resource: 'messages', field: 'channel_id', sender: 'author_id', time: 'sent_at', text: 'body', members: 'member_ids' })
   })
 
-  it('leaves out threads and a conditional delete for a caller who cannot read their fields, and keeps edit', () => {
+  it('is gone for a caller who cannot read a thread field, so replies never show among the messages', () => {
+    const threaded = { ...messages, fields: { ...messages.fields, thread_id: { ...messages.fields.channel_id!, relation: { resource: 'messages', columns: ['thread_id'] } }, reply_count: messages.fields.id! } }
+    const options = { ...page, thread: { field: 'thread_id', count: 'reply_count', last: 'sent_at' } }
+    expect(pruneConversationPage(options, 'channels', { ...models, messages: threaded })).toEqual(options)
+    expect(pruneConversationPage(options, 'channels', { ...models, messages: without(threaded, 'reply_count') })).toBeUndefined()
+  })
+
+  it('leaves out a conditional delete for a caller who cannot read its fields, and keeps edit and threads', () => {
     const options = { ...page, edit: true, delete: { unless: 'edited_at:*' }, thread: { field: 'channel_id', count: 'id', last: 'sent_at' } }
     expect(pruneConversationPage(options, 'channels', models)).toEqual(options)
     const pruned = pruneConversationPage(options, 'channels', { ...models, messages: without(messages, 'edited_at') })

@@ -58,13 +58,15 @@ export const conversationPageErrors = (page: ConversationPageModel, resource: st
  * The conversation page as a caller may see it: gone, so the standard page shows, when they cannot read the messages
  * or a field each one needs; without its edited mark, mentions, subtitle or members when they cannot read those
  * fields, without its read position when they cannot read that resource, its fields or its author, and without its
- * reactions or threads when they cannot read those fields. Delete is left out for one who cannot read the fields its
- * condition reads, so they never get a Delete the condition would forbid.
+ * reactions when they cannot read those fields. With threads, it is gone too when they cannot read the threads'
+ * fields, as the conversation would then show the replies in threads among its own messages. Delete is left out for
+ * one who cannot read the fields its condition reads, so they never get a Delete the condition would forbid.
  */
 export const pruneConversationPage = (page: ConversationPageModel, resource: string, models: Record<string, ResourceModel>): ConversationPageModel | undefined => {
   const { edited, mentions, subtitle, members, readPosition, reactions, thread, delete: deletes, ...core } = page
   if (coreErrors(page, resource, models).length > 0) return
   const target = models[page.resource]
+  if (thread && !readsThreads(thread, target)) return
   const record = models[resource]
   const position = readPosition && models[readPosition.resource]
   const keepsPosition = readPosition !== undefined && position !== undefined && [readPosition.field, readPosition.message, position.author].every((name) => readable(position, name))
@@ -76,7 +78,7 @@ export const pruneConversationPage = (page: ConversationPageModel, resource: str
     ...(readable(record, members) && { members }),
     ...(keepsPosition && { readPosition }),
     ...(reactions && readsReactions(reactions, models) && { reactions }),
-    ...(thread && readsThreads(thread, target) && { thread }),
+    ...(thread && { thread }),
     ...(deletes !== undefined && deletes !== false && readsDeleteCondition(deletes, target) && { delete: deletes }),
   }
 }
