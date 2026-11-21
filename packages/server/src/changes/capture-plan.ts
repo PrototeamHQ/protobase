@@ -44,8 +44,10 @@ export type CapturePlan = {
 const sameTrigger = (found: FoundTrigger, wanted: TriggerSpec) =>
   found.type === wanted.type && found.args.length === wanted.args.length && found.args.every((arg, index) => arg === wanted.args[index])
 
-const tableOf = (state: CaptureState, model: ResourceModel) => {
+// A table an earlier migration of the same run creates has no oid yet, and no triggers: it is keyed by its resource.
+const tableOf = (state: CaptureState, model: ResourceModel, pending: readonly string[]) => {
   const table = state.tables[model.name]
+  if (!table && pending.includes(model.name)) return `pending:${model.name}`
   if (!table) throw new Error(`The table ${tableSql(model)} of resource "${model.name}" does not exist`)
   return table
 }
@@ -53,15 +55,16 @@ const tableOf = (state: CaptureState, model: ResourceModel) => {
 /**
  * Compares the database with the resources that declare events, history or live updates. Fails on what it cannot change safely: a
  * missing table, a captured view, two captured resources on one table, or a trigger of the same name that calls another function.
+ * The tables of the `pending` resources may be missing: a migration written before this one creates them.
  */
-export const capturePlan = (schema: string, models: readonly ResourceModel[], state: CaptureState): CapturePlan => {
+export const capturePlan = (schema: string, models: readonly ResourceModel[], state: CaptureState, pending: readonly string[] = []): CapturePlan => {
   checkLiveReads(models)
   const captured = models.filter(capturedBy(models))
   const views = captured.filter((model) => state.views.includes(model.name)).map((model) => model.name)
   if (views.length > 0) throw new Error(`Resource "${views.join('", "')}" is backed by a view, which takes no trigger: give it no events, history or derived values, name it in no other resource's reads, and make it live with .live({ reads }) naming the resources of the tables it reads`)
   const capture = state.capture
   const current = capture !== undefined && capture.definer && capture.source === captureBody(schema)
-  const wanted = captured.flatMap((model) => resourceTriggers(model).map((trigger) => ({ model, trigger, table: tableOf(state, model) })))
+  const wanted = captured.flatMap((model) => resourceTriggers(model).map((trigger) => ({ model, trigger, table: tableOf(state, model, pending) })))
   const tables = new Map<string, string>()
   for (const { model, table } of wanted) {
     const other = tables.get(table)
