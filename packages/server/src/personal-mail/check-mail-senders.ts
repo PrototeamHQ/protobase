@@ -8,7 +8,7 @@ const sameAddress = (a: unknown, b: unknown) => typeof a === 'string' && typeof 
 const refused = (field: string, address: string): FieldError => ({
   field,
   code: 'invalid-value',
-  message: `${address} is not an address you may send mail from: add it to the Mailbox section of your account page first`,
+  message: `You can't send from ${address}. Add it in the Mailbox section of your Account page first.`,
   params: { address },
 })
 

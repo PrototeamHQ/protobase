@@ -16,7 +16,7 @@ describe('mailSenderUseCheck', () => {
     check.set(find, viewNames(views))
     await expect(check.refuse('billing@acme.example')).rejects.toMatchObject({
       statusCode: 409,
-      body: { code: 'MAIL_SENDER_IN_USE', message: 'billing@acme.example is the From address of 1 client, 3 quotes: choose another address there first.' },
+      body: { code: 'MAIL_SENDER_IN_USE', message: 'billing@acme.example is still the From address of 1 client, 3 quotes. Give them another From address first.' },
     })
     expect(find).toHaveBeenCalledWith('billing@acme.example')
   })

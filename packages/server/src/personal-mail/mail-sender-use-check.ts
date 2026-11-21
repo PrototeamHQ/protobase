@@ -13,7 +13,7 @@ const counted = (use: MailSenderUse, names: ResourceNames) => {
 export const mailSenderInUse = (address: string, use: MailSenderUse[], names: ResourceNames) =>
   new APIError('CONFLICT', {
     code: 'MAIL_SENDER_IN_USE',
-    message: `${address} is the From address of ${use.map((item) => counted(item, names)).join(', ')}: choose another address there first.`,
+    message: `${address} is still the From address of ${use.map((item) => counted(item, names)).join(', ')}. Give them another From address first.`,
     use,
   })
 

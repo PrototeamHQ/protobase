@@ -156,7 +156,7 @@ describe('a mail sender field', () => {
 
     const removal = await app.request('/api/auth/account/mail-senders/remove', { cookie: ana, body: { id: billing.id } })
     expect(removal.status).toBe(409)
-    expect(await removal.json()).toMatchObject({ code: 'MAIL_SENDER_IN_USE', message: 'billing@acme.example is the From address of 1 clients: choose another address there first.', use: [{ resource: 'clients', count: 1 }] })
+    expect(await removal.json()).toMatchObject({ code: 'MAIL_SENDER_IN_USE', message: 'billing@acme.example is still the From address of 1 clients. Give them another From address first.', use: [{ resource: 'clients', count: 1 }] })
     expect(await listed(app, ana)).toEqual([billing])
     const unlink = await app.request('/api/auth/unlink-account', { cookie: ana, body: { accountId: gmail.id } })
     expect(unlink.status).toBe(409)
