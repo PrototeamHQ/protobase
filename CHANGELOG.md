@@ -93,8 +93,6 @@ The releases of Protobase that the release workflow cut with a release commit. L
 
 ### ⚠ BREAKING CHANGES
 
-* **server:** further platform sign-in providers in the environment are named by their id instead of numbered: `PROTOBASE_SIGN_IN_2_ISSUER` with `PROTOBASE_SIGN_IN_2_PROVIDER=phone` is now `PROTOBASE_SIGN_IN_PHONE_ISSUER`, the id in upper case with `_` for `-`, so the order of the variables no longer matters; a numbered variable stops the server at startup, naming it. The unnamed `PROTOBASE_SIGN_IN_*` provider is unchanged. To upgrade: (1) for each numbered set, `env | grep '^PROTOBASE_SIGN_IN_[0-9]'` lists them, take its `_PROVIDER` value as the id and rename each of its variables from `PROTOBASE_SIGN_IN_<n>_<PART>` to `PROTOBASE_SIGN_IN_<ID>_<PART>`; (2) drop its `_PROVIDER` variable, which the name now gives; (3) a numbered set without `_PROVIDER` had the id `oidc`, so it becomes `PROTOBASE_SIGN_IN_OIDC_*`. The providers come in order of their id after the unnamed one. See [More than one provider](https://docs.protobase.net/reference/auth/#more-than-one-provider).
-
 * **schema:** helpers only the protobase packages use move to @protobase/schema/internal
 
 * **schema:** helpers only the protobase packages use move to @protobase/schema/internal ([fe137ad](https://github.com/PrototeamHQ/protobase/commit/fe137adbdedc2898d6f3b575a91c9c17b118b157))
@@ -143,8 +141,6 @@ The releases of Protobase that the release workflow cut with a release commit. L
 ## [0.13.0](https://github.com/PrototeamHQ/protobase/compare/v0.12.22...v0.13.0) (2026-10-13)
 
 ### ⚠ BREAKING CHANGES
-
-* **server:** further platform sign-in providers in the environment are named by their id instead of numbered: `PROTOBASE_SIGN_IN_2_ISSUER` with `PROTOBASE_SIGN_IN_2_PROVIDER=phone` is now `PROTOBASE_SIGN_IN_PHONE_ISSUER`, the id in upper case with `_` for `-`, so the order of the variables no longer matters; a numbered variable stops the server at startup, naming it. The unnamed `PROTOBASE_SIGN_IN_*` provider is unchanged. To upgrade: (1) for each numbered set, `env | grep '^PROTOBASE_SIGN_IN_[0-9]'` lists them, take its `_PROVIDER` value as the id and rename each of its variables from `PROTOBASE_SIGN_IN_<n>_<PART>` to `PROTOBASE_SIGN_IN_<ID>_<PART>`; (2) drop its `_PROVIDER` variable, which the name now gives; (3) a numbered set without `_PROVIDER` had the id `oidc`, so it becomes `PROTOBASE_SIGN_IN_OIDC_*`. The providers come in order of their id after the unnamed one. See [More than one provider](https://docs.protobase.net/reference/auth/#more-than-one-provider).
 
 * **ui:** page tables and related lists show the list's displays, capped with a link to the list
 
@@ -329,8 +325,6 @@ The releases of Protobase that the release workflow cut with a release commit. L
 
 ### ⚠ BREAKING CHANGES
 
-* **server:** further platform sign-in providers in the environment are named by their id instead of numbered: `PROTOBASE_SIGN_IN_2_ISSUER` with `PROTOBASE_SIGN_IN_2_PROVIDER=phone` is now `PROTOBASE_SIGN_IN_PHONE_ISSUER`, the id in upper case with `_` for `-`, so the order of the variables no longer matters; a numbered variable stops the server at startup, naming it. The unnamed `PROTOBASE_SIGN_IN_*` provider is unchanged. To upgrade: (1) for each numbered set, `env | grep '^PROTOBASE_SIGN_IN_[0-9]'` lists them, take its `_PROVIDER` value as the id and rename each of its variables from `PROTOBASE_SIGN_IN_<n>_<PART>` to `PROTOBASE_SIGN_IN_<ID>_<PART>`; (2) drop its `_PROVIDER` variable, which the name now gives; (3) a numbered set without `_PROVIDER` had the id `oidc`, so it becomes `PROTOBASE_SIGN_IN_OIDC_*`. The providers come in order of their id after the unnamed one. See [More than one provider](https://docs.protobase.net/reference/auth/#more-than-one-provider).
-
 * **cli:** protobase build copies the prebuilt shell and builds the project's UI as plugins
 
 ### Features
@@ -354,8 +348,6 @@ The releases of Protobase that the release workflow cut with a release commit. L
 
 ### ⚠ BREAKING CHANGES
 
-* **server:** further platform sign-in providers in the environment are named by their id instead of numbered: `PROTOBASE_SIGN_IN_2_ISSUER` with `PROTOBASE_SIGN_IN_2_PROVIDER=phone` is now `PROTOBASE_SIGN_IN_PHONE_ISSUER`, the id in upper case with `_` for `-`, so the order of the variables no longer matters; a numbered variable stops the server at startup, naming it. The unnamed `PROTOBASE_SIGN_IN_*` provider is unchanged. To upgrade: (1) for each numbered set, `env | grep '^PROTOBASE_SIGN_IN_[0-9]'` lists them, take its `_PROVIDER` value as the id and rename each of its variables from `PROTOBASE_SIGN_IN_<n>_<PART>` to `PROTOBASE_SIGN_IN_<ID>_<PART>`; (2) drop its `_PROVIDER` variable, which the name now gives; (3) a numbered set without `_PROVIDER` had the id `oidc`, so it becomes `PROTOBASE_SIGN_IN_OIDC_*`. The providers come in order of their id after the unnamed one. See [More than one provider](https://docs.protobase.net/reference/auth/#more-than-one-provider).
-
 * a link in the app goes to an address in to, and an href in the app is refused at startup
 
 ### Features
@@ -376,8 +368,6 @@ The releases of Protobase that the release workflow cut with a release commit. L
 ## [0.10.0](https://github.com/PrototeamHQ/protobase/compare/v0.9.0...v0.10.0) (2026-10-11)
 
 ### ⚠ BREAKING CHANGES
-
-* **server:** further platform sign-in providers in the environment are named by their id instead of numbered: `PROTOBASE_SIGN_IN_2_ISSUER` with `PROTOBASE_SIGN_IN_2_PROVIDER=phone` is now `PROTOBASE_SIGN_IN_PHONE_ISSUER`, the id in upper case with `_` for `-`, so the order of the variables no longer matters; a numbered variable stops the server at startup, naming it. The unnamed `PROTOBASE_SIGN_IN_*` provider is unchanged. To upgrade: (1) for each numbered set, `env | grep '^PROTOBASE_SIGN_IN_[0-9]'` lists them, take its `_PROVIDER` value as the id and rename each of its variables from `PROTOBASE_SIGN_IN_<n>_<PART>` to `PROTOBASE_SIGN_IN_<ID>_<PART>`; (2) drop its `_PROVIDER` variable, which the name now gives; (3) a numbered set without `_PROVIDER` had the id `oidc`, so it becomes `PROTOBASE_SIGN_IN_OIDC_*`. The providers come in order of their id after the unnamed one. See [More than one provider](https://docs.protobase.net/reference/auth/#more-than-one-provider).
 
 * **server:** a passkey domain for new passkeys, each passkey keeping its RP ID for sign-in
 * **server:** a session acts with one active role, its token's only one; write an auth migration
@@ -408,8 +398,6 @@ The releases of Protobase that the release workflow cut with a release commit. L
 ## [0.9.0](https://github.com/PrototeamHQ/protobase/compare/v0.8.2...v0.9.0) (2026-10-11)
 
 ### ⚠ BREAKING CHANGES
-
-* **server:** further platform sign-in providers in the environment are named by their id instead of numbered: `PROTOBASE_SIGN_IN_2_ISSUER` with `PROTOBASE_SIGN_IN_2_PROVIDER=phone` is now `PROTOBASE_SIGN_IN_PHONE_ISSUER`, the id in upper case with `_` for `-`, so the order of the variables no longer matters; a numbered variable stops the server at startup, naming it. The unnamed `PROTOBASE_SIGN_IN_*` provider is unchanged. To upgrade: (1) for each numbered set, `env | grep '^PROTOBASE_SIGN_IN_[0-9]'` lists them, take its `_PROVIDER` value as the id and rename each of its variables from `PROTOBASE_SIGN_IN_<n>_<PART>` to `PROTOBASE_SIGN_IN_<ID>_<PART>`; (2) drop its `_PROVIDER` variable, which the name now gives; (3) a numbered set without `_PROVIDER` had the id `oidc`, so it becomes `PROTOBASE_SIGN_IN_OIDC_*`. The providers come in order of their id after the unnamed one. See [More than one provider](https://docs.protobase.net/reference/auth/#more-than-one-provider).
 
 * **server:** deliver resource events to subscriptions, signed, retried and shaped per receiver
 
@@ -448,8 +436,6 @@ The releases of Protobase that the release workflow cut with a release commit. L
 
 ### ⚠ BREAKING CHANGES
 
-* **server:** further platform sign-in providers in the environment are named by their id instead of numbered: `PROTOBASE_SIGN_IN_2_ISSUER` with `PROTOBASE_SIGN_IN_2_PROVIDER=phone` is now `PROTOBASE_SIGN_IN_PHONE_ISSUER`, the id in upper case with `_` for `-`, so the order of the variables no longer matters; a numbered variable stops the server at startup, naming it. The unnamed `PROTOBASE_SIGN_IN_*` provider is unchanged. To upgrade: (1) for each numbered set, `env | grep '^PROTOBASE_SIGN_IN_[0-9]'` lists them, take its `_PROVIDER` value as the id and rename each of its variables from `PROTOBASE_SIGN_IN_<n>_<PART>` to `PROTOBASE_SIGN_IN_<ID>_<PART>`; (2) drop its `_PROVIDER` variable, which the name now gives; (3) a numbered set without `_PROVIDER` had the id `oidc`, so it becomes `PROTOBASE_SIGN_IN_OIDC_*`. The providers come in order of their id after the unnamed one. See [More than one provider](https://docs.protobase.net/reference/auth/#more-than-one-provider).
-
 * **presets:** the ERP works in organizations; run its base seed before the first user
 
 ### Features
@@ -481,8 +467,6 @@ The releases of Protobase that the release workflow cut with a release commit. L
 
 ### ⚠ BREAKING CHANGES
 
-* **server:** further platform sign-in providers in the environment are named by their id instead of numbered: `PROTOBASE_SIGN_IN_2_ISSUER` with `PROTOBASE_SIGN_IN_2_PROVIDER=phone` is now `PROTOBASE_SIGN_IN_PHONE_ISSUER`, the id in upper case with `_` for `-`, so the order of the variables no longer matters; a numbered variable stops the server at startup, naming it. The unnamed `PROTOBASE_SIGN_IN_*` provider is unchanged. To upgrade: (1) for each numbered set, `env | grep '^PROTOBASE_SIGN_IN_[0-9]'` lists them, take its `_PROVIDER` value as the id and rename each of its variables from `PROTOBASE_SIGN_IN_<n>_<PART>` to `PROTOBASE_SIGN_IN_<ID>_<PART>`; (2) drop its `_PROVIDER` variable, which the name now gives; (3) a numbered set without `_PROVIDER` had the id `oidc`, so it becomes `PROTOBASE_SIGN_IN_OIDC_*`. The providers come in order of their id after the unnamed one. See [More than one provider](https://docs.protobase.net/reference/auth/#more-than-one-provider).
-
 * **server:** snake_case auth tables and columns; protobase auth migration renames those of 0.6
 
 ### Features
@@ -492,8 +476,6 @@ The releases of Protobase that the release workflow cut with a release commit. L
 ## [0.6.0](https://github.com/PrototeamHQ/protobase/compare/v0.5.0...v0.6.0) (2026-10-10)
 
 ### ⚠ BREAKING CHANGES
-
-* **server:** further platform sign-in providers in the environment are named by their id instead of numbered: `PROTOBASE_SIGN_IN_2_ISSUER` with `PROTOBASE_SIGN_IN_2_PROVIDER=phone` is now `PROTOBASE_SIGN_IN_PHONE_ISSUER`, the id in upper case with `_` for `-`, so the order of the variables no longer matters; a numbered variable stops the server at startup, naming it. The unnamed `PROTOBASE_SIGN_IN_*` provider is unchanged. To upgrade: (1) for each numbered set, `env | grep '^PROTOBASE_SIGN_IN_[0-9]'` lists them, take its `_PROVIDER` value as the id and rename each of its variables from `PROTOBASE_SIGN_IN_<n>_<PART>` to `PROTOBASE_SIGN_IN_<ID>_<PART>`; (2) drop its `_PROVIDER` variable, which the name now gives; (3) a numbered set without `_PROVIDER` had the id `oidc`, so it becomes `PROTOBASE_SIGN_IN_OIDC_*`. The providers come in order of their id after the unnamed one. See [More than one provider](https://docs.protobase.net/reference/auth/#more-than-one-provider).
 
 * **server:** a platform sign-in provider from PROTOBASE_SIGN_IN_*; run auth:migrate to upgrade
 * **cli,server:** auth schema changes as project migrations for db:migrate, checked at startup
@@ -510,8 +492,6 @@ Moving an app back to an earlier release is not supported: below 1.0 a minor ver
 ## [0.5.0](https://github.com/PrototeamHQ/protobase/compare/v0.4.1...v0.5.0) (2026-10-10)
 
 ### ⚠ BREAKING CHANGES
-
-* **server:** further platform sign-in providers in the environment are named by their id instead of numbered: `PROTOBASE_SIGN_IN_2_ISSUER` with `PROTOBASE_SIGN_IN_2_PROVIDER=phone` is now `PROTOBASE_SIGN_IN_PHONE_ISSUER`, the id in upper case with `_` for `-`, so the order of the variables no longer matters; a numbered variable stops the server at startup, naming it. The unnamed `PROTOBASE_SIGN_IN_*` provider is unchanged. To upgrade: (1) for each numbered set, `env | grep '^PROTOBASE_SIGN_IN_[0-9]'` lists them, take its `_PROVIDER` value as the id and rename each of its variables from `PROTOBASE_SIGN_IN_<n>_<PART>` to `PROTOBASE_SIGN_IN_<ID>_<PART>`; (2) drop its `_PROVIDER` variable, which the name now gives; (3) a numbered set without `_PROVIDER` had the id `oidc`, so it becomes `PROTOBASE_SIGN_IN_OIDC_*`. The providers come in order of their id after the unnamed one. See [More than one provider](https://docs.protobase.net/reference/auth/#more-than-one-provider).
 
 * **schema,server:** a widget part an app component draws, and the widget() helper
 
@@ -532,8 +512,6 @@ Moving an app back to an earlier release is not supported: below 1.0 a minor ver
 ## [0.4.0](https://github.com/PrototeamHQ/protobase/compare/v0.3.5...v0.4.0) (2026-10-10)
 
 ### ⚠ BREAKING CHANGES
-
-* **server:** further platform sign-in providers in the environment are named by their id instead of numbered: `PROTOBASE_SIGN_IN_2_ISSUER` with `PROTOBASE_SIGN_IN_2_PROVIDER=phone` is now `PROTOBASE_SIGN_IN_PHONE_ISSUER`, the id in upper case with `_` for `-`, so the order of the variables no longer matters; a numbered variable stops the server at startup, naming it. The unnamed `PROTOBASE_SIGN_IN_*` provider is unchanged. To upgrade: (1) for each numbered set, `env | grep '^PROTOBASE_SIGN_IN_[0-9]'` lists them, take its `_PROVIDER` value as the id and rename each of its variables from `PROTOBASE_SIGN_IN_<n>_<PART>` to `PROTOBASE_SIGN_IN_<ID>_<PART>`; (2) drop its `_PROVIDER` variable, which the name now gives; (3) a numbered set without `_PROVIDER` had the id `oidc`, so it becomes `PROTOBASE_SIGN_IN_OIDC_*`. The providers come in order of their id after the unnamed one. See [More than one provider](https://docs.protobase.net/reference/auth/#more-than-one-provider).
 
 * **client,ui:** a staff sign-in page, a banner for staff sessions and the log of staff sign-ins
 * **server:** emailed codes, passkeys, two-factor and a sign-in policy; run auth:migrate to upgrade
@@ -592,8 +570,6 @@ Moving an app back to an earlier release is not supported: below 1.0 a minor ver
 
 ### ⚠ BREAKING CHANGES
 
-* **server:** further platform sign-in providers in the environment are named by their id instead of numbered: `PROTOBASE_SIGN_IN_2_ISSUER` with `PROTOBASE_SIGN_IN_2_PROVIDER=phone` is now `PROTOBASE_SIGN_IN_PHONE_ISSUER`, the id in upper case with `_` for `-`, so the order of the variables no longer matters; a numbered variable stops the server at startup, naming it. The unnamed `PROTOBASE_SIGN_IN_*` provider is unchanged. To upgrade: (1) for each numbered set, `env | grep '^PROTOBASE_SIGN_IN_[0-9]'` lists them, take its `_PROVIDER` value as the id and rename each of its variables from `PROTOBASE_SIGN_IN_<n>_<PART>` to `PROTOBASE_SIGN_IN_<ID>_<PART>`; (2) drop its `_PROVIDER` variable, which the name now gives; (3) a numbered set without `_PROVIDER` had the id `oidc`, so it becomes `PROTOBASE_SIGN_IN_OIDC_*`. The providers come in order of their id after the unnamed one. See [More than one provider](https://docs.protobase.net/reference/auth/#more-than-one-provider).
-
 * **server:** keep assistant transcripts in a conversation store and cache their prefix per turn
 
 ### Features
@@ -606,8 +582,6 @@ Moving an app back to an earlier release is not supported: below 1.0 a minor ver
 ## [0.2.0](https://github.com/PrototeamHQ/protobase/compare/v0.1.6...v0.2.0) (2026-10-10)
 
 ### ⚠ BREAKING CHANGES
-
-* **server:** further platform sign-in providers in the environment are named by their id instead of numbered: `PROTOBASE_SIGN_IN_2_ISSUER` with `PROTOBASE_SIGN_IN_2_PROVIDER=phone` is now `PROTOBASE_SIGN_IN_PHONE_ISSUER`, the id in upper case with `_` for `-`, so the order of the variables no longer matters; a numbered variable stops the server at startup, naming it. The unnamed `PROTOBASE_SIGN_IN_*` provider is unchanged. To upgrade: (1) for each numbered set, `env | grep '^PROTOBASE_SIGN_IN_[0-9]'` lists them, take its `_PROVIDER` value as the id and rename each of its variables from `PROTOBASE_SIGN_IN_<n>_<PART>` to `PROTOBASE_SIGN_IN_<ID>_<PART>`; (2) drop its `_PROVIDER` variable, which the name now gives; (3) a numbered set without `_PROVIDER` had the id `oidc`, so it becomes `PROTOBASE_SIGN_IN_OIDC_*`. The providers come in order of their id after the unnamed one. See [More than one provider](https://docs.protobase.net/reference/auth/#more-than-one-provider).
 
 * **ui:** render assistant backends with generic chat primitives in the shell's dock
 
