@@ -202,7 +202,7 @@ Any other measure, such as `average=watts_max` or `sum` of a `by` field, is refu
 - A granularity finer than the bucket, such as `15_minutes` on an hourly rollup or `hour` on a daily one.
 - For an hourly rollup, a `time_zone` whose hours or days start inside a UTC hour over the range, such as `Asia/Kolkata`. Zones a whole number of hours off UTC, such as `Europe/Amsterdam`, give their own days, weeks and months.
 - For a daily rollup, any `time_zone` but `UTC`. A chart asks for the viewer's time zone, so a chart on a daily rollup answers only to viewers in UTC; chart an hourly rollup for the others.
-- An `average` of a field that is optional in the source, since `events` counts its records without a value too. Its sum and maximum work.
+- An `average` of a field that is optional in the source, since `events` counts its records without a value too. Its sum and maximum work. <gap>A time rollup cannot average an optional field because a count of its records with a value is not implemented.</gap>
 
 A bucket counts when its start is inside the range, so a range that starts inside an hour or day counts from the next one. Facets and histograms of a rollup count its rows, as for any resource. This dashboard charts the example's readings over 90 days from the hourly rollup:
 
