@@ -14,10 +14,10 @@ vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs'>({ builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*'] })
 const workflows: WorkflowsOptions = { savedByRoles: async () => ['builder'] }
 
-// The documented series as it is, but started by hand and waiting 3 and 1 seconds in place of 3 and 11 days.
+// The documented series as it is, but started by hand and waiting 1 second in place of 3 and 11 days.
 const quick = structuredClone(welcomeSeries)
 quick.trigger = { manual: {} } as never
-quick.stateMachine.States['Three days'].Seconds = 3
+quick.stateMachine.States['Three days'].Seconds = 1
 quick.stateMachine.States['Two weeks'].Seconds = 1
 
 describe.skipIf(!(await postgresTemplateReady('jobs')))('an email series in a workflow', () => {
@@ -28,6 +28,9 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('an email series in a wo
   let folder: Awaited<ReturnType<typeof tempDir>>
   const sent: MailMessage[] = []
   const errors: unknown[] = []
+  // Ada's run stays in her first send until the test has unsubscribed her, so her next mail is checked only after that.
+  let releaseAda = () => {}
+  const adaHeld = new Promise<void>((resolve) => { releaseAda = resolve })
 
   beforeAll(async () => {
     pg = await openPostgresDatabase('jobs')
@@ -38,7 +41,13 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('an email series in a wo
     const { resources, views } = configExports(workflowsModule(workflows))
     const files = { providers: { private: localFiles({ dir: folder.dir }) }, secret: 'files-secret-for-the-email-series' }
     admin = createAdmin({ resources, views, db, files, secret: 'secret-for-the-email-series', unsubscribe: { appUrl: 'https://shop.example.com' }, authenticate: () => ({ user: { id: 'ada', roles: ['builder'] }, tenant: '1' }), workflows, options: { statementTimeoutMs, roles } })
-    const mailer = { send: async (message: MailMessage) => { sent.push(message); return { messageId: message.headers?.['Message-ID'] } } }
+    const mailer = {
+      send: async (message: MailMessage) => {
+        sent.push(message)
+        if (message.to === 'ada@example.com') await adaHeld
+        return { messageId: message.headers?.['Message-ID'] }
+      },
+    }
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, mailer, unsubscribe: admin.unsubscribe, onError: (error) => errors.push(error) })
   })
 
@@ -64,13 +73,17 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('an email series in a wo
     const ada = await post('/workflow_runs', { workflow_id: workflow, input: member('1', 'ada@example.com', 'Ada') })
     const bob = await post('/workflow_runs', { workflow_id: workflow, input: member('2', 'bob@example.com', 'Bob') })
 
-    // Ada unsubscribes with the first mail's own one-click link, while her run waits its three seconds.
-    const first = await vi.waitFor(() => sent.find((message) => message.to === 'ada@example.com') ?? Promise.reject(new Error('no mail to ada yet')), { timeout: 10_000, interval: 20 })
-    expect(first.headers).toMatchObject({ 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' })
-    const link = new URL(first.headers!['List-Unsubscribe']!.slice(1, -1))
-    expect(link.origin).toBe('https://shop.example.com')
-    const click = await admin.request(link.pathname, { method: 'POST', body: 'List-Unsubscribe=One-Click', headers: { 'content-type': 'application/x-www-form-urlencoded' } })
-    expect(click.status).toBe(200)
+    // Ada unsubscribes with the first mail's own one-click link while her run is held in that send; released even when this fails.
+    try {
+      const first = await vi.waitFor(() => sent.find((message) => message.to === 'ada@example.com') ?? Promise.reject(new Error('no mail to ada yet')), { timeout: 10_000, interval: 20 })
+      expect(first.headers).toMatchObject({ 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' })
+      const link = new URL(first.headers!['List-Unsubscribe']!.slice(1, -1))
+      expect(link.origin).toBe('https://shop.example.com')
+      const click = await admin.request(link.pathname, { method: 'POST', body: 'List-Unsubscribe=One-Click', headers: { 'content-type': 'application/x-www-form-urlencoded' } })
+      expect(click.status).toBe(200)
+    } finally {
+      releaseAda()
+    }
 
     await ended(ada)
     await ended(bob)
