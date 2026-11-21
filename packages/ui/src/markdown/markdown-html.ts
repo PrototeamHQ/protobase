@@ -1,5 +1,6 @@
 import { Marked, type Tokens } from 'marked'
 import { nestedHeadingLevel } from './nested-heading-level'
+import { escapeHtml, imageSchemes, linkSchemes, newTabLink, safeAddress, titled } from './safe-html'
 
 export type MarkdownHtmlOptions = {
   /** The HTML goes inside a link, such as a card: its links become their text and its images their alt text. */
@@ -7,30 +8,6 @@ export type MarkdownHtmlOptions = {
   /** The level of the heading the HTML sits under, whose level its own headings go below; 0, the default, keeps them. */
   headingsUnder?: number
 }
-
-const escapes: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
-const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (char) => escapes[char]!)
-
-const scheme = /^([a-z][a-z0-9+.-]*):/i
-const linkSchemes = new Set(['http', 'https', 'mailto', 'tel'])
-const imageSchemes = new Set(['http', 'https'])
-
-// The browser drops these from an address, so `java\tscript:` is still a script
-const ignoredByBrowsers = /[\u0000-\u0020\u007f]/g
-
-// An address percent-encoded as marked does, or null when it leaves the allowed schemes, such as `javascript:`.
-const safeAddress = (href: string, schemes: ReadonlySet<string>) => {
-  const named = scheme.exec(href.replace(ignoredByBrowsers, ''))?.[1]?.toLowerCase()
-  if (named !== undefined && !schemes.has(named)) return null
-  try {
-    return encodeURI(href).replace(/%25/g, '%')
-  } catch (error) {
-    if (error instanceof URIError) return null
-    throw error
-  }
-}
-
-const titled = (title: string | null | undefined) => (title ? ` title="${escapeHtml(title)}"` : '')
 
 const parser = ({ inLink = false }: MarkdownHtmlOptions) =>
   new Marked({
@@ -44,7 +21,7 @@ const parser = ({ inLink = false }: MarkdownHtmlOptions) =>
         const text = this.parser.parseInline(tokens)
         const address = inLink ? null : safeAddress(href, linkSchemes)
         if (address === null) return text
-        return `<a href="${escapeHtml(address)}"${titled(title)} target="_blank" rel="noopener noreferrer nofollow">${text}</a>`
+        return newTabLink(address, title, text)
       },
       image({ href, title, text }: Tokens.Image) {
         const address = inLink ? null : safeAddress(href, imageSchemes)
