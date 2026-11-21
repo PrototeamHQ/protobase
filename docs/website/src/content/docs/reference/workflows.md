@@ -522,6 +522,7 @@ The series is a mail category of its own, with nothing else to set up: each mail
 - **The result:** `sent` lists the addresses the mail went to and `skipped` those that unsubscribed from the series, with `message_id` when the mail went to anyone.
 - **Other steps go on:** an unsubscribe stops the series' mail only. To stop the run's other steps too, follow a mail step with a `Choice` that ends the run when nobody got it, `{% $count($states.input.sent) = 0 %}`, with the mail step's result as its input.
 - **Who unsubscribed:** they are listed under **Unsubscribes** in the admin app, with the series' name as the topic.
+- <gap>A series cannot end its run when its recipient unsubscribes because a step that ends the run it is in is not implemented; the run's later mail steps send nothing instead.</gap>
 
 A sign-up series, started for each new record of the app's `members` resource:
 
