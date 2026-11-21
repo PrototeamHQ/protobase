@@ -1,9 +1,10 @@
 import { appPath, createWhere, enumLabel, printFilter, type ResourceModel, type ViewModel } from '@protobase/schema'
-import { encodeKey, matchedSearchField } from '@protobase/schema/internal'
+import { addressPlaceholders, encodeKey, matchedSearchField } from '@protobase/schema/internal'
 import type { SearchResultGroup } from '../../app-shell'
 import type { MetaData } from '../../data/meta-data'
 import { recordKey, recordTitleField } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
+import { openedAddress } from '../opened-address'
 import { recordTitleOf, titleFieldsOf, type RecordTitleOf } from '../titles/record-title-of'
 import { text } from './messages'
 
@@ -55,11 +56,15 @@ export const subtitleField = (target: SearchTarget) => {
   return target.view?.searchResult?.subtitle ?? target.model.search?.find((name) => !title.includes(name))
 }
 
-/** The fields a result needs: the key, the title or those its derived title reads, the subtitle and the search fields, which say what the text matched. */
+/**
+ * The fields a result needs: the key, the title or those its derived title reads, the subtitle, the search fields, which
+ * say what the text matched, and those the addresses its record's page opens (`recordOpens`) are filled from.
+ */
 export const searchFields = (target: SearchTarget) => {
   const subtitle = subtitleField(target)
   const derived = derivesTitle(target) ? titleFieldsOf(target.model, target.view) : []
-  const lineFields = [...titleFields(target), ...derived, ...(subtitle ? [subtitle] : []), ...(target.model.search ?? [])]
+  const opens = (target.view?.recordOpens ?? []).flatMap(addressPlaceholders)
+  const lineFields = [...titleFields(target), ...derived, ...(subtitle ? [subtitle] : []), ...(target.model.search ?? []), ...opens]
   return [...new Set([...target.model.primaryKey, ...lineFields.filter((name) => Object.hasOwn(target.model.fields, name))])]
 }
 
@@ -73,8 +78,9 @@ const shown = (target: SearchTarget, row: Record<string, unknown>, name: string)
 /**
  * A row as a result for `text`: its title fields joined by spaces (the key when they are empty) over a subtitle, which is
  * the search field explaining the match when neither the title nor the default subtitle does (a phone number searched
- * for), else the default subtitle. `basePath` is where the app is served, so the link opens it in a new tab too; `titleOf`
- * titles a view's derived title for the reader.
+ * for), else the default subtitle. It links to the address the record's page opens in its place, when its view has one
+ * the row fits, else to the record. `basePath` is where the app is served, so the link opens it in a new tab too;
+ * `titleOf` titles a view's derived title for the reader.
  */
 export const toHit = (target: SearchTarget, row: Record<string, unknown>, text: string, basePath = '', titleOf: RecordTitleOf = recordTitleOf({}, { user: undefined, member: () => undefined })): SearchHit => {
   const key = encodeKey(recordKey(target.model, row))
@@ -86,6 +92,6 @@ export const toHit = (target: SearchTarget, row: Record<string, unknown>, text: 
     id: key,
     title: derivesTitle(target) ? titleOf(target.model, target.view, row, key) : title.map((name) => shown(target, row, name)).filter(Boolean).join(' ') || key,
     ...(subtitle && { subtitle }),
-    href: appPath({ kind: 'record', resource: target.model.name, key }, basePath),
+    href: appPath(openedAddress(target.view?.recordOpens ?? [], row) ?? { kind: 'record', resource: target.model.name, key }, basePath),
   }
 }

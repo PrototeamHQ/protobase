@@ -398,12 +398,17 @@ export class ViewBuilder<R extends {
 
   /**
    * A record's page opens `to` in its place, replacing the address in the history, `{{field}}` in its resource, key and
-   * run replaced by the record's values: a workflow run's opens its workflow's page with the run on the graph. A caller
-   * who cannot see where it leads gets the record's own page, and so does a record whose field leaves the key empty. See
-   * [The record page](docs/website/src/content/docs/reference/ui-config.mdx#a-record-page-that-opens-another).
+   * run replaced by the record's values: a workflow run's opens its workflow's page with the run on the graph. A list
+   * of addresses opens the first whose `{{field}}`s all have a value in the record, as a row button's choices do: a
+   * message opens in its channel, else in its direct message. Links that know the record's fields, such as the top bar's
+   * search results, point at it too. A caller who cannot see where a choice leads skips it, and a record no choice fits
+   * gets its own page. Throws on an empty list. See
+   * [Open elsewhere](docs/website/src/content/docs/reference/ui-config.mdx#open-elsewhere).
    */
-  recordOpens(to: AppAddress) {
-    return this.next({ recordOpens: structuredClone(to) })
+  recordOpens(to: AppAddress | readonly AppAddress[]) {
+    const choices = Array.isArray(to) ? [...to] : [to as AppAddress]
+    if (choices.length === 0) throw new Error(`View "${this.state.resource}": recordOpens needs at least one address`)
+    return this.next({ recordOpens: structuredClone(choices) })
   }
 
   /**
@@ -514,7 +519,7 @@ export class ViewBuilder<R extends {
     if (recentErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.recent ${recentErrors.join('; ')}`)
     const startErrors = resource && nav?.start ? navStartErrors(nav.start, resource) : []
     if (startErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.start ${startErrors.join('; ')}`)
-    const opensUnknown = resource && this.state.recordOpens ? addressPlaceholders(this.state.recordOpens).find((name) => !Object.hasOwn(resource.fields, name)) : undefined
+    const opensUnknown = resource ? (this.state.recordOpens ?? []).flatMap(addressPlaceholders).find((name) => !Object.hasOwn(resource.fields, name)) : undefined
     if (opensUnknown !== undefined) throw new Error(`View "${this.state.resource}": recordOpens names field "${opensUnknown}", which the resource does not have`)
     if (this.state.lists?.length && (listOf !== undefined || this.state.searchesOf)) {
       throw new Error(`View "${this.state.resource}": named lists cannot go with listOf or searchesOf, which replace the list page`)

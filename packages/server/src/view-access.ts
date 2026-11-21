@@ -262,6 +262,9 @@ const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>
 
 // A sidebar group whose status field the caller cannot read lists its records without dots; one whose filter or order
 // reads a hidden field goes.
+// None for an empty list, which the view then leaves out
+const nonEmpty = <T>(list: T[]) => (list.length > 0 ? list : undefined)
+
 const recentFor = (recent: NavRecentModel, model: ResourceModel) => {
   const { status, tones, pulse, ...rest } = recent
   const shown = status === undefined || Object.hasOwn(model.fields, status) ? recent : rest
@@ -317,8 +320,8 @@ const viewShape = (
     create: s.data,
     // A caller who cannot read the field a focus page draws gets the form
     record: s.map<RecordPageModel>((page) => ('surface' in page && !Object.hasOwn(model.fields, page.surface) ? undefined : page)),
-    // A caller who cannot follow where a record's page leads gets the record's own page
-    recordOpens: s.map<AppAddress>((to) => (addressErrors(to, { models, source: model, createPages }).length === 0 ? to : undefined)),
+    // A caller skips the choices of where a record's page leads that they cannot follow, and without one gets the record's own page
+    recordOpens: s.map<AppAddress[]>((choices) => nonEmpty(choices.filter((to) => addressErrors(to, { models, source: model, createPages }).length === 0))),
     createOpens: s.map<AppAddress>((to) => (addressErrors(to, { models, source: model, createPages }).length === 0 ? to : undefined)),
     // Public forms have a route of their own, which serves each to anyone; `/meta` never carries them
     forms: s.map<FormModel[]>(() => undefined),
@@ -357,9 +360,10 @@ const leadsOutside = (to: AppAddress | undefined, pages: ReadonlySet<string>) =>
 /** The pruned view without a record or create destination that leads to a page outside `pages`, those the caller may open. */
 export const prunePageDestinations = (view: ViewModel, pages: ReadonlySet<string>): ViewModel => {
   const { recordOpens, createOpens, ...rest } = view
+  const opens = nonEmpty((recordOpens ?? []).filter((to) => !leadsOutside(to, pages)))
   return {
     ...rest,
-    ...(recordOpens && !leadsOutside(recordOpens, pages) && { recordOpens }),
+    ...(opens && { recordOpens: opens }),
     ...(createOpens && !leadsOutside(createOpens, pages) && { createOpens }),
   }
 }

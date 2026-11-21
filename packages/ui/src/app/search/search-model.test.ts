@@ -84,6 +84,26 @@ describe('a derived title', () => {
   })
 })
 
+describe('a record page that opens elsewhere', () => {
+  const fields = Object.fromEntries(['id', 'text', 'channel_id', 'direct_message_id'].map((name) => [name, { name, type: 'text' }]))
+  const messages = model('messages', { fields: fields as never, search: ['text'] })
+  const recordOpens = [
+    { kind: 'record' as const, resource: 'channels', key: '{{channel_id}}' },
+    { kind: 'record' as const, resource: 'direct_messages', key: '{{direct_message_id}}' },
+  ]
+  const target = searchTargets(meta([messages], [view('messages', { title: 'text', recordOpens })]))[0]!
+
+  it('asks for the fields its addresses are filled from', () => {
+    expect(searchFields(target)).toEqual(['id', 'text', 'channel_id', 'direct_message_id'])
+  })
+
+  it('links to the first address the row fits, else to the record', () => {
+    expect(toHit(target, { id: 'm1', text: 'Lunch?', channel_id: 'c7', direct_message_id: null }, 'lunch').href).toBe('/channels/c7')
+    expect(toHit(target, { id: 'm2', text: 'Lunch?', channel_id: null, direct_message_id: 'd3' }, 'lunch', '/admin').href).toBe('/admin/direct_messages/d3')
+    expect(toHit(target, { id: 'm3', text: 'Lunch?', channel_id: null, direct_message_id: null }, 'lunch').href).toBe('/messages/m3')
+  })
+})
+
 describe('result lines', () => {
   const fields = Object.fromEntries(['id', 'firstName', 'lastName', 'email', 'phone', 'city', 'secret'].map((name) => [name, { name, type: 'text' }]))
   const people = model('people', { fields: fields as never, search: ['firstName', 'lastName', 'email', 'phone', 'city'], searchMatch: { phone: 'digitsEnd' } })

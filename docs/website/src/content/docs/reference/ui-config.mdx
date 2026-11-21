@@ -591,13 +591,32 @@ view<typeof objectives>('objectives')
 
 ### A record page that opens another
 
-`.recordOpens(to)` sends a record's page to another address in its place, its `{{field}}`s, in the resource, the key and `run`, filled from the record, replacing the record's address in the history so Back skips it: a workflow run's page opens its workflow's page with the run on the graph. A caller who cannot follow it, such as one who may not read the resource it names or open the page it names, gets the record's own page, and so does a record whose field leaves the key empty, such as a custom step's test run, which has no workflow. The record's own page stays at its address with `?standard=true`.
+`.recordOpens(to)` sends a record's page to another address in its place, its `{{field}}`s, in the resource, the key and `run`, filled from the record, replacing the record's address in the history so Back skips it: a workflow run's page opens its workflow's page with the run on the graph. A caller who cannot follow it, such as one who may not read the resource it names or open the page it names, gets the record's own page, and so does a record without a value for a field it names, such as a custom step's test run, which has no workflow. A list of addresses [opens the first the record fits](#open-elsewhere). The record's own page stays at its address with `?standard=true`.
 
 ```ts
 view<typeof workflowRuns>('workflow_runs').recordOpens({ kind: 'record', resource: 'workflows', key: '{{workflow_id}}', run: '{{id}}' })
 ```
 
 A record address can also carry `version`, an earlier saved version of the record shown by a field type that keeps versions, such as the `workflow` field type: the record page then shows its read view, without Save or Edit.
+
+### Open elsewhere
+
+:::caution[Beta]
+The target page opens as it would from a link: opening at the record's place inside it, such as scrolled to a message, is not built yet.
+:::
+
+A record that is read and used on another page, such as a chat message in its channel, can open there wherever it is found. Give `.recordOpens(...)` a list of addresses built from the record's fields: the first whose `{{field}}`s all have a value in the record opens in place of the record's own page, as a [row button](/reference/blocks/#row-buttons) picks its choice. A record that fits none shows its own page.
+
+```ts
+view<typeof messages>('messages').recordOpens([
+  { kind: 'record', resource: 'channels', key: '{{channel_id}}' },
+  { kind: 'record', resource: 'direct_messages', key: '{{direct_message_id}}' },
+])
+```
+
+- The record is read first, with the reader's own access: a record they may not read shows the usual not-found notice, and the page it opens applies its own access rules. A choice the reader cannot follow, such as one naming a resource or field they may not read, is skipped.
+- The top bar's search results link straight to the address their record opens, so the link preview shows where it goes. Any other link to `/<resource>/<key>` opens the record's address first and then replaces it in the history with the target, so Back returns to the page before.
+- The record's own page stays at its address with `?standard=true`.
 
 ### Full-area record pages
 

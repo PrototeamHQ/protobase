@@ -246,8 +246,15 @@ describe('view builder', () => {
 
   it("opens another address in place of a record's page, naming only the record's fields", () => {
     const to = { kind: 'record' as const, resource: 'issues', key: '{{title}}', run: '{{id}}' }
-    expect(view<typeof article>('article').recordOpens(to).toModel(article.toModel()).recordOpens).toEqual(to)
+    expect(view<typeof article>('article').recordOpens(to).toModel(article.toModel()).recordOpens).toEqual([to])
     expect(() => view<typeof article>('article').recordOpens({ kind: 'record', resource: 'issues', key: '{{issue_id}}' }).toModel(article.toModel())).toThrow('recordOpens names field "issue_id", which the resource does not have')
+  })
+
+  it('opens the first of several addresses, each naming only the record\'s fields', () => {
+    const choices = [{ kind: 'record' as const, resource: 'issues', key: '{{title}}' }, { kind: 'page' as const, page: 'inbox' }]
+    expect(view<typeof article>('article').recordOpens(choices).toModel(article.toModel()).recordOpens).toEqual(choices)
+    expect(() => view<typeof article>('article').recordOpens([choices[1]!, { kind: 'record', resource: 'issues', key: '{{issue_id}}' }]).toModel(article.toModel())).toThrow('recordOpens names field "issue_id"')
+    expect(() => view<typeof article>('article').recordOpens([])).toThrow('View "article": recordOpens needs at least one address')
   })
 
   it("names where a card's further photos come from, as data the caller's photos cannot change", () => {

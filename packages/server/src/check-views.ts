@@ -122,9 +122,12 @@ const linkErrors = (view: ViewModel, model: ResourceModel, models: Record<string
     return 'to' in run ? addressErrors(run.to, { models, pages, source: model, createPages }).map((error) => `action "${name}": ${error}`) : []
   })
 
-// A record's page opens an address the app has, its `{{field}}`s fields of the record
-const opensErrors = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, pages: ReadonlySet<string>, createPages: ReadonlySet<string>) =>
-  view.recordOpens ? addressErrors(view.recordOpens, { models, pages, source: model, createPages }).map((error) => `recordOpens: ${error}`) : []
+// Each address a record's page may open is one the app has, its `{{field}}`s fields of the record
+const opensErrors = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, pages: ReadonlySet<string>, createPages: ReadonlySet<string>) => {
+  const choices = view.recordOpens ?? []
+  const where = (index: number) => (choices.length > 1 ? `recordOpens choice ${index + 1}` : 'recordOpens')
+  return choices.flatMap((to, index) => addressErrors(to, { models, pages, source: model, createPages }).map((error) => `${where(index)}: ${error}`))
+}
 
 // An AI action writes, through the API, a text or enum field of the record, from a prompt that reads fields it has.
 const aiActionErrors = (view: ViewModel, model: ResourceModel) =>
