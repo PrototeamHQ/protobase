@@ -60,12 +60,13 @@ const Chat = ({ session, start, filter = 'name = "general"' }: { session: AuthSe
 // Never settle, so the story stays on the screen instead of opening the app again.
 const pending = () => ({ create: fn(() => new Promise<never>(() => {})), acceptMine: fn(() => new Promise<never>(() => {})) })
 
-// The first call gets no answer, as offline; the next stays pending.
+// The first call gets no answer, as offline; the next stays pending. Counted from the mock's own calls, which Storybook
+// clears before each render, so a replayed play starts offline again.
 const offlineFirst = () => {
-  let calls = 0
-  return () => (++calls === 1 ? Promise.reject(new NetworkError()) : new Promise<never>(() => {}))
+  const mock = fn(() => (mock.mock.calls.length === 1 ? Promise.reject(new NetworkError()) : new Promise<never>(() => {})))
+  return mock
 }
-const offlineOnce = () => ({ create: fn(offlineFirst()), acceptMine: fn(offlineFirst()) })
+const offlineOnce = () => ({ create: offlineFirst(), acceptMine: offlineFirst() })
 
 // What the status beside a busy button announces; nothing while the button is not busy.
 const busyLabel = (button: HTMLElement) => (button.matches(':disabled[aria-busy="true"]') ? button.parentElement?.querySelector('[role="status"]')?.textContent : undefined)
