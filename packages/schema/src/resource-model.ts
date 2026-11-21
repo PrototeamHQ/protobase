@@ -11,6 +11,7 @@ import type { FieldsInput } from './refs'
 import type { BucketsModel } from './buckets/buckets-model'
 import type { DerivedModel } from './derived/derived-model'
 import { derivedProblems } from './derived/derived-problems'
+import { lookupProblems } from './lookup/lookup-problems'
 
 export type ResourceState = {
   name: string
@@ -91,23 +92,30 @@ const fieldModel = (name: string, field: AnyField): FieldModel => {
     ...(meta.ai && { ai: { prompt: meta.ai.prompt } }),
     ...(meta.rollup && { rollup: { ...meta.rollup } }),
     ...(meta.formula !== undefined && { formula: meta.formula }),
+    ...(meta.lookup && { lookup: { ...meta.lookup } }),
     ...((meta.rollup || meta.formula !== undefined) && meta.precision !== undefined && { decimal: { precision: meta.precision, scale: meta.scale! } }),
   }
 }
+
+// A lookup field has no column, so it is kept apart from the fields every statement on the table reads and writes.
+const fieldModels = (fields: FieldsInput, lookups: boolean) =>
+  Object.fromEntries(
+    Object.entries(fields)
+      .filter((entry): entry is [string, AnyField] => entry[1] !== null && (entry[1].meta.lookup !== undefined) === lookups)
+      .map(([key, field]) => [key, fieldModel(key, field)]),
+  )
 
 const assembleModel = (state: ResourceState): ResourceModel => {
   const { name, table, fields, primaryKey } = state
   if (!table) throw new Error(`Resource "${name}" has no table`)
   if (!fields) throw new Error(`Resource "${name}" has no fields`)
   if (!primaryKey) throw new Error(`Resource "${name}" has no primary key`)
+  const lookups = fieldModels(fields, true)
   return {
     name,
     table: parseTable(table),
-    fields: Object.fromEntries(
-      Object.entries(fields)
-        .filter((entry): entry is [string, AnyField] => entry[1] !== null)
-        .map(([key, field]) => [key, fieldModel(key, field)]),
-    ),
+    fields: fieldModels(fields, false),
+    ...(Object.keys(lookups).length > 0 && { lookups }),
     primaryKey: [...primaryKey],
     ...(state.softDelete && { softDelete: state.softDelete }),
     ...(state.tenant && { tenant: state.tenant }),
@@ -298,7 +306,7 @@ const liveReadsProblems = (model: ResourceModel) => {
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...sharedTargetProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...bucketsProblems(model), ...derivedProblems(model), ...liveReadsProblems(model), ...historyIgnoreProblems(model), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...sharedTargetProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...bucketsProblems(model), ...derivedProblems(model), ...liveReadsProblems(model), ...historyIgnoreProblems(model), ...lookupProblems(model, state.fields ?? {}), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }

@@ -209,6 +209,11 @@ export const resolveAccess = async (
       if (await verdict(rules?.[operation], fieldContext(operation), true, `The ${operation} rule of field "${name}"`)) writable[operation].push(name)
     }
   }
+  // A lookup field is only read; whether the caller reads its linked field too is the server's to tell
+  for (const name of Object.keys(model.lookups ?? {})) {
+    if (!(allowed.list || allowed.read) || !inList(lists.read, name)) continue
+    if (await verdict(fieldRules[name]?.read, fieldContext('read'), true, `The read rule of field "${name}"`)) readableFields.push(name)
+  }
 
   const readFilter = filters.list && filters.read ? andResults(filters.list, filters.read) : (filters.read ?? filters.list)
   const rowFilter: ResolvedAccess['rowFilter'] = {}

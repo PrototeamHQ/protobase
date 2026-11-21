@@ -4,7 +4,7 @@ import type { ResolvedAccess } from './resolve'
 /**
  * The resource as one user may see it: only readable fields remain, and a field is `readOnly`
  * unless it is writable on create or update. `search` (and `searchMatch`) shrinks to readable fields, and `tenant` (with
- * `tenantAcross`), `softDelete`, `owner` and `author` are dropped when their field is hidden, `position` when its field or its `within` is, and each of `parents` whose field is. The event catalogue, whose conditions may use any
+ * `tenantAcross`), `softDelete`, `owner` and `author` are dropped when their field is hidden, `lookups` keep the readable ones, `position` when its field or its `within` is, and each of `parents` whose field is. The event catalogue, whose conditions may use any
  * field, is dropped. Key columns always stay,
  * because records are addressed by them.
  *
@@ -22,13 +22,14 @@ export const restrictModel = (
   const keep = (name: string | undefined) => (name !== undefined && visible.has(name) ? name : undefined)
   const search = model.search?.filter((name) => visible.has(name))
   const searchMatch = model.searchMatch && Object.entries(model.searchMatch).filter(([name]) => visible.has(name))
-  const { search: _search, searchMatch: _searchMatch, tenant: _tenant, tenantAcross: _tenantAcross, softDelete: _softDelete, owner: _owner, author: _author, position: _position, parents: _parents, links: _links, events: _events, ...rest } = model
+  const { lookups: _lookups, search: _search, searchMatch: _searchMatch, tenant: _tenant, tenantAcross: _tenantAcross, softDelete: _softDelete, owner: _owner, author: _author, position: _position, parents: _parents, links: _links, events: _events, ...rest } = model
   const tenant = keep(model.tenant)
   const softDelete = keep(model.softDelete)
   const owner = keep(model.owner)
   const author = keep(model.author)
   const position = model.position && keep(model.position.field) && (model.position.within === undefined || keep(model.position.within)) ? model.position : undefined
   const parents = model.parents?.filter((parent) => visible.has(parent.field))
+  const lookups = Object.entries(model.lookups ?? {}).filter(([name]) => visible.has(name))
   return {
     ...rest,
     fields: Object.fromEntries(
@@ -36,6 +37,7 @@ export const restrictModel = (
         .filter(([name]) => visible.has(name))
         .map(([name, field]) => [name, { ...field, readOnly: !writable.has(name) }]),
     ),
+    ...(lookups.length > 0 && { lookups: Object.fromEntries(lookups) }),
     ...(search?.length && { search }),
     ...(searchMatch?.length && { searchMatch: Object.fromEntries(searchMatch) }),
     ...(tenant && { tenant }),

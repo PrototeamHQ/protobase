@@ -14,7 +14,9 @@ export const fetchReadable = async (trx: Db, access: RequestAccess, key: (string
   const tenant = tenantScope(entry, access.session)?.tenantValue
   const recordRule = access.resolved.recordChecks.includes('read')
   const filter = targetFilter(access, 'read')
-  const current = await fetchRecord(trx, entry, key, tenant, { deleted, ...(filter && { filter }), parents: access.parents, ...(lock && { lock }), ...shape, ...(!recordRule && fields && { fields }) })
+  // A record-level rule reads the whole row, and the lookup fields asked for beside it
+  const read = recordRule && fields ? [...Object.values(entry.model.fields), ...fields.filter((field) => field.lookup)] : fields
+  const current = await fetchRecord(trx, entry, key, tenant, { deleted, ...(filter && { filter }), parents: access.parents, ...(lock && { lock }), ...shape, ...(read && { fields: read }) })
   if (!current || !recordRule) return current
   const decision = await recordDecision(access, 'read', current.record)
   if (decision === false) return undefined

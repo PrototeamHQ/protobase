@@ -4,7 +4,7 @@ import type { JWTPayload } from 'jose'
 import { accountPage, accountPageName, checkPages, settingsResources, translationProblems, withSettingsFields, type Translations } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarSource, UserMenuSource } from '@protobase/schema'
-import { guestCallsPath, ringsPath, statusPath, workflowRunsPath, workflowTypesPath } from '@protobase/schema/internal'
+import { guestCallsPath, ringsPath, statusPath, workflowRunsPath, workflowTypesPath, withLookups } from '@protobase/schema/internal'
 import { aiModel } from './ai/ai-model'
 import { hasAiActions, hasAiFields } from './ai/ai-fields'
 import { fillHook } from './ai/fill-hook'
@@ -101,6 +101,7 @@ import { checkOwnerFields } from './check-owners'
 import { checkRoleLimits } from './check-roles'
 import { checkBuckets } from './check-buckets'
 import { checkParents, parentWarnings } from './check-parents'
+import { checkLookups } from './check-lookups'
 import { checkLiveReads } from './check-live-reads'
 import { checkPositionAfter } from './check-position-after'
 import { checkRecordBlocks } from './view-blocks'
@@ -289,6 +290,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   checkShell(registry, viewModels, userMenuModel, pageModels.map((entry) => entry.name))
   const bottomBarModels = bottomBars.map((bar) => bar.toBottomBarModel())
   checkBottomBars(registry, bottomBarModels, pageModels.map((entry) => entry.name), declaredRoles(auth, options.roles))
+  checkLookups(registry)
   checkViews(registry, viewModels, pageModels.map((entry) => entry.name), fieldTypes)
   checkRoleLimits(registry, options.roles?.limits ?? [])
   checkBuckets(registry, options.roles?.definitions)
@@ -299,7 +301,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   checkLiveReads(registry.entries.map((entry) => entry.model))
   checkParents(registry)
   for (const warning of parentWarnings(registry)) console.warn(warning)
-  const resourceModels = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
+  const resourceModels = Object.fromEntries(registry.entries.map((entry) => [entry.name, withLookups(entry.model)]))
   const pageCheck = {
     models: resourceModels,
     actions: (resource: string) => new Set(viewModels.filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name))),

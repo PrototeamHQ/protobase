@@ -1,4 +1,5 @@
 import type { Rollup } from './computed/rollup'
+import type { Lookup } from './lookup/lookup'
 import type { DerivedModel } from './derived/derived-model'
 import type { BucketsModel } from './buckets/buckets-model'
 import type { ImageVariant } from './files/file-options'
@@ -74,6 +75,8 @@ export type FieldModel = {
   rollup?: Rollup
   /** The database computes it from the record's other fields (`.formula()`). */
   formula?: string
+  /** A lookup field: the linked record's field it shows, which has no column of this table (`.lookup()`). */
+  lookup?: Lookup
   /** A rollup's or formula's decimal, for the column `protobase migration` adds. */
   decimal?: {
     /** Its number of digits. */
@@ -124,8 +127,13 @@ export type ResourceModel = {
     /** The table's name. */
     name: string
   }
-  /** Its fields, by field name. */
+  /** Its fields, by field name: each a column of its table. */
   fields: Record<string, FieldModel>
+  /**
+   * Its lookup fields, by field name (`.lookup()`): each shows a field of a linked record and has no column of its own.
+   * A read's model, such as `/meta`'s, has those the caller may read among its `fields` instead.
+   */
+  lookups?: Record<string, FieldModel>
   /** The fields of its key, in order; records are addressed by it. */
   primaryKey: string[]
   /** The field a delete sets instead of removing the row, and lists leave such rows out (`.softDelete()`). */

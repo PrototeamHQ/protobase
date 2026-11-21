@@ -1,9 +1,9 @@
-import type { FieldModel, ResourceModel, SortSpec } from '@protobase/schema'
+import type { ResourceModel, SortSpec } from '@protobase/schema'
 import { primaryKeyFields, requireField } from './columns'
 import { QueryError } from './errors'
+import type { Direction, SortKey } from './sort-key'
 
-export type Direction = 'asc' | 'desc'
-export type SortKey = { field: FieldModel; direction: Direction }
+export type { Direction, SortKey }
 
 export const flip = (direction: Direction): Direction => (direction === 'asc' ? 'desc' : 'asc')
 

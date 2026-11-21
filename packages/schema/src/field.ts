@@ -6,6 +6,7 @@ import type { FileOptions } from './files/file-options'
 import { parseFormula } from './computed/formula'
 import type { Rollup } from './computed/rollup'
 import type { Encrypted } from './encrypted-value'
+import type { Lookup } from './lookup/lookup'
 
 /** A check on the value that only some field types take: `.min()`, `.max()` and `.regex()`. */
 export type Constraint = 'min' | 'max' | 'regex'
@@ -78,6 +79,8 @@ export type FieldMeta = {
   rollup?: Rollup
   /** The expression the database computes it from, over the record's other fields (`.formula()`). */
   formula?: string
+  /** The linked record's field it shows (`.lookup()`). */
+  lookup?: Lookup
 }
 
 /** A field type: its name, the constraints it takes and how it builds the schema that checks a value. */
@@ -246,6 +249,23 @@ export class Field<V> {
   formula(expression: string) {
     parseFormula(expression)
     return this.with({ formula: expression, readOnly: true })
+  }
+
+  /**
+   * Shows a field of the record this one is linked to, read with the record in the same query. Without `from` that
+   * record is the one this record's relation `via` points at; with `from` it is the one record of `from` whose relation
+   * `via` points at this record. The field's type is the linked field's. It is read-only and empty when there is no
+   * linked record or the caller may not read it; a caller who may not read the linked field does not see it at all. See
+   * [Lookups](docs/website/src/content/docs/reference/data-config.mdx#lookups).
+   *
+   * @example
+   * ```ts
+   * customer_name: f.text().lookup({ via: 'customer_id', field: 'name' }).filterable(),
+   * release: f.text().lookup({ from: 'app_runtimes', via: 'app_id', field: 'release' }),
+   * ```
+   */
+  lookup(o: Lookup) {
+    return this.with({ lookup: { ...o }, readOnly: true, nullable: true }) as unknown as Field<V | null>
   }
 
   /** A copy of the field with `patch` applied, which every option returns. */

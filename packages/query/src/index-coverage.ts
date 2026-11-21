@@ -1,5 +1,6 @@
 import type { CheckedFilter, FieldModel, ResourceModel, SortSpec } from '@protobase/schema'
 import { isPatternCompare } from './compile-compare'
+import { lookupReadOf } from './lookup-read'
 import { fullModelOf, type Scope } from './scope'
 import type { TableIndex, TableIndexes } from './table-indexes'
 
@@ -13,9 +14,10 @@ export type IndexNeed = 'btree' | 'trigram' | 'digits' | 'gin' | 'file'
 /**
  * Where a column is read: the caller's filter, the access rule's row filter, the relation to a parent the caller must
  * read (`.parent(fk, 'read')`), a `related()` term, the sort, a facet's grouping, the field a read keeps the first rows
- * per value of (`limit_per`), or the file cleanup's check that no row holds a file it is about to delete.
+ * per value of (`limit_per`), the file cleanup's check that no row holds a file it is about to delete, or the field a
+ * lookup field finds each record's linked record by.
  */
-export type ColumnUse = 'filter' | 'access' | 'parent' | 'related' | 'sort' | 'facet' | 'per' | 'cleanup'
+export type ColumnUse = 'filter' | 'access' | 'parent' | 'related' | 'sort' | 'facet' | 'per' | 'cleanup' | 'lookup'
 /** A column read without an index that serves it, and a statement that adds one. */
 export type UncoveredColumn = { field: string; column: string; use: ColumnUse; need: IndexNeed; suggestion: string }
 /**
@@ -49,6 +51,8 @@ const suggestion = (model: ResourceModel, column: string, need: IndexNeed, under
 const pinnedColumns = (filter?: CheckedFilter): string[] => {
   if (!filter) return []
   if (filter.kind === 'and') return filter.args.flatMap(pinnedColumns)
+  // A lookup field has no column of this table to pin
+  if ('field' in filter && filter.field.lookup) return []
   if (filter.kind === 'compare') return filter.op === '=' && !isPatternCompare(filter) ? [filter.field.column] : []
   if (filter.kind === 'in' || filter.kind === 'isNull') return [filter.field.column]
   return []
@@ -124,6 +128,10 @@ const perNeed = (ctx: Context, per: FieldModel, sort: FieldModel | undefined, pi
   return [{ field: per.name, column: per.column, use: ctx.use, need: 'btree', suggestion: suggestion(ctx.model, per.column, 'btree', sort.column) }]
 }
 
+// A lookup field is read through its link, the relation or key the linked records are matched with, by `in` and by
+// one linked record per row; its linked field is judged against the linked table (see `lookupQueries`).
+const linkOf = (field: FieldModel) => lookupReadOf(field)?.link ?? field
+
 const compareNeed = (ctx: Context, node: Extract<CheckedFilter, { kind: 'compare' }>, pinned: Set<string>) => {
   if (isPatternCompare(node)) return need(ctx, node.field, 'trigram', pinned)
   return need(ctx, node.field, 'btree', pinned, node.op === '=' && node.field.type === 'text' ? 'trigram' : undefined)
@@ -138,6 +146,7 @@ const searchNeeds = (ctx: Context, pinned: Set<string>) =>
 
 // Negation keeps the columns it reads but pins none, so an OR branch under NOT adds nothing to what is pinned
 const walk = (ctx: Context, node: CheckedFilter, pinned: Set<string>, negated: boolean): UncoveredColumn[] => {
+  if ('field' in node && node.field.lookup) return need(ctx, linkOf(node.field), 'btree', pinned)
   switch (node.kind) {
     case 'and':
       return node.args.flatMap((arg) => walk(ctx, arg, pinned, negated))
@@ -175,7 +184,8 @@ const unique = (columns: UncoveredColumn[]) =>
  * btree index serves under them. A `related()` term is judged as a parent is and pins its relation as `in()` does, and
  * the read of its resource also needs a btree index on the key it selects. A read that keeps the first rows per value
  * of a field needs a btree index on that field with the sort's first field under it, which serves the sort too.
- * A plain view or a foreign table has no
+ * A lookup field read in any of these ways needs a btree index on its link instead; what it reads of the linked
+ * table is judged against that table (`lookupQueries`). A plain view or a foreign table has no
  * indexes of its own and is not judged.
  */
 export const uncoveredColumns = (model: ResourceModel, table: TableIndexes, query: CoverageQuery, scope?: Scope): UncoveredColumn[] => {
@@ -191,9 +201,10 @@ export const uncoveredColumns = (model: ResourceModel, table: TableIndexes, quer
     ...(scope?.parents ?? []).flatMap((read) => (read.related ? [read.field.column] : [])),
   ])
   const ctx = (use: ColumnUse, of = model): Context => ({ model: of, indexes: table.indexes, use })
-  const sortField = query.sort?.[0] && model.fields[query.sort[0][0]]
-  const groupField = query.groupBy !== undefined ? model.fields[query.groupBy] : undefined
-  const perField = query.per !== undefined ? model.fields[query.per] : undefined
+  const own = (name: string | undefined) => (name !== undefined && model.fields[name] ? linkOf(model.fields[name]) : undefined)
+  const sortField = own(query.sort?.[0]?.[0])
+  const groupField = own(query.groupBy)
+  const perField = own(query.per)
   return unique([
     ...(perField ? perNeed(ctx('per'), perField, sortField, pinned) : []),
     ...(scope?.rowFilter ? walk(ctx('access', full), scope.rowFilter, pinned, false) : []),

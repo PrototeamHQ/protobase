@@ -1,5 +1,5 @@
 import { sql, type Expression, type SqlBool } from 'kysely'
-import { compileFilter } from '@protobase/query'
+import { columnRef, compileFilter } from '@protobase/query'
 import type { CheckedFilter, FieldModel, ResourceModel } from '@protobase/schema'
 import type { Entry } from './registry'
 import type { TenantValue } from './types'
@@ -13,9 +13,13 @@ export const tableId = (model: ResourceModel) => {
 
 export const columnId = (field: FieldModel) => sql<unknown>`${sql.id(field.column)}`
 
-export const aliasedColumn = (field: FieldModel) => sql`${columnId(field)} as ${sql.id(field.name)}`
+// A lookup field has no column: its value is read from the linked table, matched with the row aliased `t`
+export const aliasedColumn = (field: FieldModel) => sql`${field.lookup ? columnRef(field) : columnId(field)} as ${sql.id(field.name)}`
 
-/** `column as "field"` for the given fields (default: all), plus the ETag source column as exact text when the table has one. */
+/**
+ * `column as "field"` for the given fields (default: every column), plus the ETag source column as exact text when the
+ * table has one. A lookup field among them reads the table as `t`.
+ */
 export const returningList = (entry: Entry, fields: FieldModel[] = Object.values(entry.model.fields)) => {
   const columns = fields.map(aliasedColumn)
   if (entry.etag) columns.push(sql`${columnId(entry.etag.field)}::text as ${sql.id(etagAlias)}`)

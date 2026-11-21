@@ -8,6 +8,8 @@ import { builtInIndexIssues } from './built-in-models'
 import { checkResource } from './check'
 import { fileIndexIssues, indexIssues } from './index-issues'
 import { formatIssue, loadDoctorProject, unplannedNotes } from './project'
+import { lookupIssues } from './lookup-issues'
+import { lookupReadModels } from './lookup-models'
 import { readShapes } from './read-shapes'
 import { relationIssues } from './relation-issues'
 import { sortIssues } from './sort-issues'
@@ -31,16 +33,17 @@ export const runDoctor = async (options: DoctorOptions, out: (text: string) => v
   const db = readOnlyDb(options.url)
   const userTables = userTablesOn(source) ? await userTableModels(db, [...builtIn.models, ...config.models]) : { models: [], issues: [] }
   const models = [...builtIn.models, ...config.models, ...userTables.models]
-  const shapes = readShapes({ models, views: [...builtIn.views, ...config.views], pages: config.pages })
+  const read = lookupReadModels(models)
+  const shapes = readShapes({ models: read, views: [...builtIn.views, ...config.views], pages: config.pages })
   const indexes = await Promise.all(
-    models.map(async (model) => {
+    models.map(async (model, i) => {
       const table = await tableIndexes(db, model)
-      return [...indexIssues(model, table, shapes), ...fileIndexIssues(model, table)]
+      return [...indexIssues(read[i]!, table, shapes), ...fileIndexIssues(model, table)]
     }),
   )
     .then((found) => found.map((issues, i) => (i < builtIn.models.length ? builtInIndexIssues(issues) : issues)))
     .finally(() => db.destroy())
-  const issues = [...userTables.issues, ...models.flatMap((model, i) => [...checkResource(model, tables), ...relationIssues(model, models), ...sortIssues(model, shapes), ...indexes[i]!])]
+  const issues = [...userTables.issues, ...models.flatMap((model, i) => [...checkResource(model, tables), ...relationIssues(model, models), ...lookupIssues(model, models, tables), ...sortIssues(read[i]!, shapes), ...indexes[i]!])]
   for (const issue of issues) out(formatIssue(issue))
   for (const note of unplannedNotes(project, models)) out(note)
   const errors = issues.filter((i) => i.severity === 'error').length

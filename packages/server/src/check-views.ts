@@ -1,6 +1,6 @@
 import { conditionProblems } from '@protobase/layout'
 import { isRecordCondition, type ActionInputModel, type ActionRun, type CardPhotosModel, type GalleryModel, type ResourceModel, type ViewModel } from '@protobase/schema'
-import { actionInputErrors, addressErrors, builtInFieldTypes, addressPlaceholders, boardErrors, datesErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, layoutItems, linkActionError, promptError, promptFields, textPlaceholders, updateSetErrors, viewOfList } from '@protobase/schema/internal'
+import { actionInputErrors, addressErrors, builtInFieldTypes, addressPlaceholders, boardErrors, datesErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, layoutItems, linkActionError, promptError, promptFields, textPlaceholders, updateSetErrors, viewOfList, withLookups } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -248,7 +248,7 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
  * record's position or a map display that cannot find the records in its view, a board whose columns are no filterable enum, a calendar or timeline whose dates are no filterable date or timestamp fields, a link to an address the app does not have, an action whose `when` reads what the record does not have, an AI action that cannot write its field, action inputs that do not fit, or a create page that is not one of `pages`.
  */
 export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = [], fieldTypes: Readonly<Record<string, readonly string[]>> = {}) => {
-  const models = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
+  const models = Object.fromEntries(registry.entries.map((entry) => [entry.name, withLookups(entry.model)]))
   const pageNames = new Set(pages)
   const createPages = new Set(views.filter((view) => view.create).map((view) => view.resource))
   const viewProblems = (view: ViewModel, model: ResourceModel) => {

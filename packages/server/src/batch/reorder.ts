@@ -104,11 +104,14 @@ export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, inpu
   }
   if (changing.length > 0) await moveAside(trx, access, input.field, changing.map((i) => input.keys[i]!))
 
-  const results: NumberedResult[] = []
+  const written = []
   for (const [i, key] of input.keys.entries()) {
     const plan = plans.get(i)
-    results.push({ ...(await shown(access, plan ? await applyUpdate(trx, deps, access, key, plan, removed) : current[i]!)), previous: current[i]!.record[input.field] })
+    written.push(plan ? await applyUpdate(trx, deps, access, key, plan, removed) : current[i]!)
   }
   await checkRankAfter(trx, deps, access, input.field, changing.map((i) => ({ key: input.keys[i]!, before: current[i]!.record[input.field] })))
+  // Once every rank is final, so a lookup field never shows another record's rank on its way
+  const results: NumberedResult[] = []
+  for (const [i, record] of written.entries()) results.push({ ...(await shown(trx, access, record)), previous: current[i]!.record[input.field] })
   return results
 }
