@@ -474,8 +474,9 @@ A get and a list only read; a create and an update are recorded. They go through
 | `subject` | One line of text. |
 | `text`, `html` | The body as text, and optionally as HTML. |
 | `attachments` | A list of file values the run keeps, at most 10 MiB together. |
+| `series` | Optional: the [email series](#email-series) the mail belongs to, such as `welcome`. |
 
-The mail goes from the app's own sender with the app's mailer; a workflow cannot set the sender. The result is `{ message_id }`, the Message-ID the step sets, the same for each try of the step. Without mail the step fails.
+The mail goes from the app's own sender with the app's mailer; a workflow cannot set the sender. The result is `{ message_id }`, the Message-ID the step sets, the same for each try of the step; with a `series`, `{ message_id, sent, skipped }`, as [Email series](#email-series) says. Without mail the step fails.
 
 ### app:mail.template
 
@@ -487,6 +488,7 @@ The mail goes from the app's own sender with the app's mailer; a workflow cannot
 | `to` | One address. |
 | `locale` | Optional: a BCP 47 language tag, such as `nl` or `en-GB`. The mail is in the template's language closest to it, so `nl-BE` picks `nl`. Without it, the mail is in the app's `locale` when the template has that language. Otherwise it is in English when the template has it, else in the template's first language. |
 | `data` | The template's data, as its schema takes it. |
+| `series` | Optional: the [email series](#email-series) the mail belongs to, such as `welcome`. |
 
 ```json
 {
@@ -504,7 +506,71 @@ The mail goes from the app's own sender with the app's mailer; a workflow cannot
 
 The editor draws one input pin for each field of the chosen template's data, and offers the template's languages for `locale`. A save checks each value read by name in `data` against the type of that field, as it checks a record's fields. `list_workflow_types` lists the app's template names in the step's `template` argument, and each template's languages and data schema under `templates`.
 
-The mail goes from the app's own sender, as `app:mail.send`'s does. The result is `{ message_id, locale }`: the Message-ID the step sets, the same for each try of the step, and the language the mail was sent in. Data the template's schema refuses fails the step with `Mail.InvalidData`, its cause naming each path, such as `data.name: Invalid input`. A template the app does not have fails it with `Mail.UnknownTemplate`, and a `to` or `locale` of the wrong kind, such as a locale that is no language tag, with `Mail.InvalidArguments`. Without mail the step fails.
+The mail goes from the app's own sender, as `app:mail.send`'s does. The result is `{ message_id, locale }`: the Message-ID the step sets, the same for each try of the step, and the language the mail was sent in; with a `series`, `sent` and `skipped` too, as [Email series](#email-series) says. Data the template's schema refuses fails the step with `Mail.InvalidData`, its cause naming each path, such as `data.name: Invalid input`. A template the app does not have fails it with `Mail.UnknownTemplate`, and a `to` or `locale` of the wrong kind, such as a locale that is no language tag, with `Mail.InvalidArguments`. Without mail the step fails.
+
+### Email series
+
+:::caution[Beta]
+A run goes on to its end after an unsubscribe, sending nothing more in the series: a series has no step that ends the run by itself.
+:::
+
+An email series is mail a workflow sends over time, such as a welcome mail on sign-up, tips three days later and a check-in after two weeks. Give each mail step of the series the same `series`, a name such as `welcome`: a lowercase letter, then lowercase letters, digits, `_` and `-`, at most 63 characters. The `Wait` states between them set the timing. A trigger such as [`app:record`](#apprecord) starts one run per person, so each person has a series of their own.
+
+The series is a mail category of its own, with nothing else to set up: each mail in it is bulk mail whose topic is the series' name, and carries its recipient's own [one-click unsubscribe](/reference/email/#unsubscribe) from that series. It needs `unsubscribe: true` in the config; without it, the step fails before it sends anything.
+
+- **After an unsubscribe:** every later mail step of the series sends that person nothing, so the rest of the series stops for them, in this run and any other. Their other series, and other people's runs of this one, go on. The step does not fail: its result is `{ sent: [], skipped: ['ada@example.com'] }`, and the run passes its remaining waits and ends as succeeded.
+- **The result:** `sent` lists the addresses the mail went to and `skipped` those that unsubscribed from the series, with `message_id` when the mail went to anyone.
+- **Other steps go on:** an unsubscribe stops the series' mail only. To stop the run's other steps too, follow a mail step with a `Choice` that ends the run when nobody got it, `{% $count($states.input.sent) = 0 %}`, with the mail step's result as its input.
+- **Who unsubscribed:** they are listed under **Unsubscribes** in the admin app, with the series' name as the topic.
+
+A sign-up series, started for each new record of the app's `members` resource:
+
+```json
+{
+  "trigger": { "app:record": { "resource": "members" } },
+  "stateMachine": {
+    "QueryLanguage": "JSONata",
+    "StartAt": "Welcome",
+    "States": {
+      "Welcome": {
+        "Type": "Task",
+        "Resource": "app:mail.send",
+        "Arguments": {
+          "to": "{% $states.context.Execution.Input.record.email %}",
+          "subject": "{% 'Welcome, ' & $states.context.Execution.Input.record.name %}",
+          "text": "Thanks for signing up. Here is how to get started.",
+          "series": "welcome"
+        },
+        "Next": "Three days"
+      },
+      "Three days": { "Type": "Wait", "Seconds": 259200, "Next": "Tips" },
+      "Tips": {
+        "Type": "Task",
+        "Resource": "app:mail.send",
+        "Arguments": {
+          "to": "{% $states.context.Execution.Input.record.email %}",
+          "subject": "Three tips for your first week",
+          "text": "Here are three things most people set up first.",
+          "series": "welcome"
+        },
+        "Next": "Two weeks"
+      },
+      "Two weeks": { "Type": "Wait", "Seconds": 950400, "Next": "Check-in" },
+      "Check-in": {
+        "Type": "Task",
+        "Resource": "app:mail.send",
+        "Arguments": {
+          "to": "{% $states.context.Execution.Input.record.email %}",
+          "subject": "How is it going?",
+          "text": "You signed up two weeks ago. Reply to this mail and tell us how it is going.",
+          "series": "welcome"
+        },
+        "End": true
+      }
+    }
+  }
+}
+```
 
 ### app:piece
 

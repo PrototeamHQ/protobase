@@ -88,10 +88,17 @@ export type PluginMailMessage = {
   html?: string
   headers?: Record<string, string>
   attachments?: { filename: string; content: Uint8Array; contentType?: string }[]
+  /** Marks bulk mail: each recipient gets a one-click unsubscribe from its `topic`, and whoever unsubscribed from it gets nothing. */
+  bulk?: boolean
+  /** The kind of mail a recipient unsubscribes from, such as `newsletter`; required with `bulk`. */
+  topic?: string
 }
 
-/** Sends one message, resolving to its `Message-ID` as the recipient sees it, when the mailer can tell it. */
-export type PluginMail = { send(message: PluginMailMessage): Promise<{ messageId?: string }> }
+/**
+ * Sends one message, resolving to its `Message-ID` as the recipient sees it, when the mailer can tell it; of bulk
+ * mail, also to the recipients who unsubscribed from its topic (`skipped`) and each one it went to (`sent`).
+ */
+export type PluginMail = { send(message: PluginMailMessage): Promise<{ messageId?: string; skipped?: string[]; sent?: { to: string; messageId?: string }[] }> }
 
 /** The app a mail comes from, as a template names it: its name, and its home page. */
 export type PluginMailingApp = { name: string; url: string }
