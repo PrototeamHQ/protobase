@@ -10,7 +10,8 @@
     "mailbox/use-mailbox-toast-action#useMailboxToastAction": "the framework's action dialogs and toasts use it; an app gets the mailbox offer by marking an action mailbox: true",
     "notifications/push/native-push-tap#NativePushTap": "the shell mounts it in the Android app; an app gets push taps opened by turning notifications() on",
     "primitives/true-mark#TrueMark": "table cells and BooleanField draw a true boolean with it; a layout gets it from BooleanField",
-    "primitives/use-drawer-drag#useDrawerDrag": "the shell's sidebar drawer moves under the finger with it; a plugin's sheet gets that from Sheet and its menus from MenuSurface"
+    "primitives/use-drawer-drag#useDrawerDrag": "the shell's sidebar drawer moves under the finger with it; a plugin's sheet gets that from Sheet and its menus from MenuSurface",
+    "relay/relay-provider#RelayProvider": "the shell mounts it for someone signed in to an app with realtime.relay; an app gets it by configuring the relay"
   },
   "pending": [
     "account/account-section#AccountSection",
