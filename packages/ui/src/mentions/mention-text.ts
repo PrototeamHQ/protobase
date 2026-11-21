@@ -32,6 +32,9 @@ export const mentionedIds = (text: string, picked: readonly PickedUser[]) => {
   return [...new Set(picked.filter((user) => written.has(user.name)).map((user) => user.id))]
 }
 
+/** The class of a mention's `@{name}`, as it shows in message text: tinted, so it stands out inside bold text too, where it stays bold. */
+export const mentionClass = 'rounded-sm bg-primary/10 px-0.5 font-medium text-primary [strong_&]:font-bold'
+
 export type BodyPart = { text: string } | { mention: string }
 
 /** A comment's text split into plain text and the `@{name}` of each person it mentions whose name is known. */

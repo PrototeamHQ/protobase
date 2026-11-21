@@ -30,10 +30,21 @@ const comments: Record<string, RecordComment[]> = {
     { id: '2', createdAt: ago(3), body: '@Ann de Vries I called the supplier,\nthey come tomorrow.', author: bo, mentions: [ann] },
     { id: '3', createdAt: ago(1), body: 'Thanks, I put a sign on it.', author: { id: 'story', name: 'Story User' }, mentions: [] },
   ],
+  'tickets/3': [
+    {
+      id: '4',
+      createdAt: ago(2),
+      body: '**Heads up @Ann de Vries:** the reset is _done_, ~~tomorrow~~ today.\n\n- run `make reset`\n- check https://status.example.com\n\n> it was the fan\n\n```\nexit **1** <b>\n```',
+      author: bo,
+      mentions: [ann],
+    },
+    { id: '5', createdAt: ago(1), body: '[click](javascript:alert(1)) <img src=x onerror="alert(1)">\n[https://acme.example/billing](https://elsewhere.example)', author: ann, mentions: [] },
+    { id: '6', createdAt: ago(0.5), body: '> it was the fan\nAgreed, the fan goes.\n>5 failed logins on __init__', author: bo, mentions: [] },
+  ],
 }
 const users: MentionableUser[] = [ann, bo, { id: 'vera', name: 'Vera Vrij' }]
 
-const rows = { tickets: [{ id: 1, title: 'Printer on fire', status: 'open' }, { id: 2, title: 'Broken chair', status: 'open' }] }
+const rows = { tickets: [{ id: 1, title: 'Printer on fire', status: 'open' }, { id: 2, title: 'Broken chair', status: 'open' }, { id: 3, title: 'Server reset', status: 'done' }] }
 const permissions: Record<string, ResourcePermissions> = { tickets: { read: true, create: true, update: true, delete: false, conditional: [] } }
 
 const Tickets = ({ laidOut = true, record = 1, onApi }: { laidOut?: boolean; record?: number; onApi?: (api: ReturnType<typeof fakeApi>) => void }) => {
@@ -63,9 +74,38 @@ export const Thread: StoryObj = {
       expect.stringMatching(/^SUStory User · 1 hour agoThanks/),
     ])
     // The mention is picked out, and the comment keeps its line break
-    const mention = within(items[1]!).getByText('@Ann de Vries')
+    expect(within(items[1]!).getByText('@Ann de Vries').className).toContain('text-primary')
+    await waitFor(() => expect(within(items[1]!).getByText('@Ann de Vries').parentElement!.innerHTML).toContain('I called the supplier,<br>they come tomorrow.'))
+  },
+}
+
+export const Formatted: StoryObj = {
+  tags: ['play'],
+  render: () => <Tickets record={3} />,
+  play: async ({ canvasElement }) => {
+    const thread = await section(canvasElement)
+    // The thread's own entries, not the list items a formatted comment holds
+    const [entries] = await thread.findAllByRole('list')
+    const [formatted, unsafe, typed] = [...entries!.children] as HTMLElement[]
+    // Once the renderer has loaded, a mention inside bold text is still picked out
+    await within(formatted!).findByText('done', { selector: 'em' })
+    const mention = within(formatted!).getByText('@Ann de Vries')
     expect(mention.className).toContain('text-primary')
-    expect(mention.parentElement!.textContent).toBe('@Ann de Vries I called the supplier,\nthey come tomorrow.')
+    expect(mention.closest('strong')).not.toBeNull()
+    expect(within(formatted!).getByText('tomorrow').tagName).toBe('DEL')
+    expect(within(formatted!).getByText('make reset').tagName).toBe('CODE')
+    expect(within(formatted!).getByRole('link', { name: 'https://status.example.com' })).toHaveAttribute('target', '_blank')
+    expect(within(formatted!).getByText('it was the fan').closest('blockquote')).not.toBeNull()
+    expect(within(formatted!).getByText('exit **1** <b>').tagName).toBe('CODE')
+    // A script link and raw HTML show as text
+    expect(within(unsafe!).queryByRole('link', { name: 'click' })).toBeNull()
+    expect(unsafe!.querySelector('img')).toBeNull()
+    expect(unsafe!.textContent).toContain('click <img src=x onerror="alert(1)">')
+    // A link whose text names another address shows the address it opens
+    expect(within(unsafe!).getByRole('link')).toHaveTextContent('https://elsewhere.example')
+    // A reply under a quote is no part of it, and `>5` and `__init__` stay as typed
+    expect(typed!.querySelector('blockquote')!.textContent).not.toContain('Agreed')
+    expect(typed!.textContent).toContain('>5 failed logins on __init__')
   },
 }
 
