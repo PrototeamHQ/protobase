@@ -1,7 +1,7 @@
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import pg from 'pg'
-import { checkJobsSchema, configExports, isCaptured, startJobs } from '@protobase/server'
+import { checkJobsSchema, configExports, hasBuckets, isCaptured, startJobs } from '@protobase/server'
 import { buildProject, type AppDatabase } from '../config/build-project'
 import type { MergedConfig } from '../config/merge-config'
 import { projectAdmin } from '../project/project-admin'
@@ -35,12 +35,13 @@ export const startWorker = async ({ config, databaseUrl, openDb = (url) => openA
   const { db } = database
   const start = async () => {
     const project = await buildProject(config, database)
-    // Events and history are captured, mentions in comments mailed and AI fields filled by Protobase's own jobs.
+    // Events and history are captured, mentions in comments mailed, AI fields filled and time rollups refreshed by
+    // Protobase's own jobs.
     const builtIn = configExports(project.config).resources.some((resource) => {
       const model = resource.toModel()
-      return isCaptured(model) || model.live || model.comments || Object.values(model.fields).some((field) => field.ai)
+      return isCaptured(model) || model.live || model.comments || Object.values(model.fields).some((field) => field.ai) || hasBuckets(model)
     })
-    if (project.jobs.length === 0 && !builtIn) throw new Error('The bundle has no jobs: name their module in protobase.config.ts as `jobs`, or give a resource events, history, comments or an AI field')
+    if (project.jobs.length === 0 && !builtIn) throw new Error('The bundle has no jobs: name their module in protobase.config.ts as `jobs`, or give a resource events, history, comments or an AI field, or declare a time rollup')
     const { admin, jobs: definitions } = projectAdmin(project, db)
     await checkJobsSchema(db)
     return { definitions, runtime: await startJobs({ db, jobs: definitions, decryptField: admin.decryptField, ...(project.mailer && { mailer: project.mailer }), ...(admin.unsubscribe && { unsubscribe: admin.unsubscribe }), onError: (error) => console.error(error) }) }

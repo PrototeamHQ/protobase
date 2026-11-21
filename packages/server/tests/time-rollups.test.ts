@@ -1,7 +1,7 @@
 import { Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { checkComputed, computedMigration, createAdmin } from '../src/index'
+import { checkComputed, computedMigration, createAdmin, type JobContext } from '../src/index'
 import { as, testAuthenticator } from '../../../test-support/server'
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
@@ -74,6 +74,16 @@ describe('a time rollup', () => {
     expect((await pg.query(compared)).rows[0].differ).toBeGreaterThan(0)
     await pg.query(`select rollups.readings_hourly_refresh('2026-07-07 10:30:00+00')`)
     expect((await pg.query(compared)).rows).toEqual([{ expected: 645, actual: 645, differ: 0 }])
+  })
+
+  it("is brought up to date by the app's recurring job, from late before now", async () => {
+    await pg.exec(`
+      insert into readings (org_id, kind, taken_at, watts) values (1, 'solar', now() - interval '30 minutes', 5), (1, 'solar', now() - interval '1 minute', 6), (1, 'tidal', now() - interval '5 hours', 7);
+    `)
+    const refresh = createAdmin({ resources: [readings, hourly], db, authenticate: testAuthenticator }).jobs.find((job) => job.name === 'buckets.refresh')!
+    await refresh.options.run(undefined, { db } as JobContext)
+    const added = `select kind, sum(events)::int as events, sum(watts_sum)::int as watts from readings_hourly where kind in ('solar', 'tidal') group by kind`
+    expect((await pg.query(added)).rows).toEqual([{ kind: 'solar', events: 2, watts: 11 }])
   })
 
   it('is listed in the caller tenant through the indexes, and never written', async () => {
