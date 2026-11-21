@@ -16,7 +16,7 @@ import { tenantScope } from './tenant'
 import { actorSettings, wakeDispatch } from './changes/actor'
 import { writeTransaction } from './transactions'
 import type { Row, Session, WriteCheck } from './types'
-import { validateBody } from './validate-body'
+import { checkRules, validateFields } from './validate-body'
 import { applyUpdate, planUpdate } from './write-update'
 import { assertWritten, checkParents, checkPrecondition, decide, denied, firstKeyField, keyOf, missing, notifier, shown, type WriteResult } from './write-shared'
 import { checkRankAfter } from './rank-after'
@@ -59,7 +59,9 @@ const create = async (trx: Db, deps: Deps, access: RequestAccess, body: unknown,
   const preset = typeof body === 'object' && body !== null && !Array.isArray(body) && writableFields(access, 'create').includes(full.owner ?? '')
     ? withOwner(access, body as Row)
     : body
-  const values = await attachFiles(access, await checkMailSenders(access, withAuthor(access, withOwner(access, validateBody(access, 'create', preset, tenantValues)))))
+  // The rules see the mail senders as they are stored.
+  const checked = checkRules(access, 'create', await checkMailSenders(access, validateFields(access, 'create', preset)), tenantValues)
+  const values = await attachFiles(access, withAuthor(access, withOwner(access, checked)))
   const row = { ...values, ...tenantValues }
   const filter = await decide(access, 'create', undefined, row)
   // Before the insert, so a missing parent answers as an invisible one does rather than as a foreign key conflict; after

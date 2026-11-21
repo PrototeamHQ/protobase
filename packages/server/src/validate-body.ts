@@ -54,7 +54,10 @@ export const requiredOnCreate = (field: FieldModel, schema: z.ZodType) => !(fiel
  * `current` is the stored record an update merges into for `.validate()` rules, which get a set encrypted field of it as
  * `encrypted`: they see an encrypted value as text only when this write gives it.
  */
-export const validateBody = (access: RequestAccess, mode: 'create' | 'update', body: unknown, current: Row = {}) => {
+export const validateBody = (access: RequestAccess, mode: 'create' | 'update', body: unknown, current: Row = {}) => checkRules(access, mode, validateFields(access, mode, body), current)
+
+/** `validateBody` without its `.validate()` rules, for a write that changes the values before `checkRules` sees them. */
+export const validateFields = (access: RequestAccess, mode: 'create' | 'update', body: unknown) => {
   if (!isObject(body)) throw badRequest('invalid-record', 'The request body must be a JSON object')
   const { entry, readable: model, full } = access
   const writable = new Set(writableFields(access, mode))
@@ -90,7 +93,13 @@ export const validateBody = (access: RequestAccess, mode: 'create' | 'update', b
     else errors.push(...parsed.error.issues.map((issue) => invalidValue(name, issue)))
   }
   if (errors.length > 0) throw fail(errors)
+  return values
+}
 
+/** Runs the `.validate()` rules on `values` merged into `current`, as `validateBody` does, and gives `values` back. */
+export const checkRules = (access: RequestAccess, mode: 'create' | 'update', values: Row, current: Row = {}) => {
+  const { entry, readable: model, full } = access
+  const writable = new Set(writableFields(access, mode))
   const merged = { ...maskEncrypted(full, current), ...values }
   const issues = entry.source.validators.flatMap((validate) => validate(merged) ?? [])
   if (issues.length > 0) throw fail(issues.map((issue): FieldError => ({ field: Object.hasOwn(model.fields, issue.field) || writable.has(issue.field) ? issue.field : '_record', code: 'invalid-record', message: issue.message })))
