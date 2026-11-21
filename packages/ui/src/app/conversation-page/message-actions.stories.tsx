@@ -338,6 +338,16 @@ export const ThreadOnAPhoneChecks: StoryObj = {
 // A finger's press on a point, held for `ms`, through the browser's own input (scripts/play-tests/touch-input.mjs)
 const press = (at: { x: number; y: number; ms: number }) => (window as unknown as { pbPress: (at: { x: number; y: number; ms: number }) => Promise<void> }).pbPress(at)
 
+// The next time an event of `type` has gone all the way through the page, its own handlers done
+const after = (type: 'click' | 'touchend') => new Promise<void>((resolve) => window.addEventListener(type, () => setTimeout(resolve), { once: true }))
+
+// A finger's tap on a point, done once the page has handled its click, so the next press never meets a finger still down
+const tap = async (at: { x: number; y: number }) => {
+  const clicked = after('click')
+  await press({ ...at, ms: 60 })
+  await clicked
+}
+
 // A point on a message, beside its author's avatar and off its links
 const pointOn = (element: Element) => {
   const box = element.getBoundingClientRect()
@@ -353,6 +363,7 @@ export const TouchChecks: StoryObj = {
     const canvas = within(canvasElement)
     const row = await rowOf(canvasElement, 'Nice work')
     // A long-press opens it while the finger rests
+    const lifted = after('touchend')
     await press({ ...pointOn(row), ms: 800 })
     const sheet = within(await screen.findByRole('dialog', { name: 'Your message' }, { timeout: 2000 }))
     expect(sheet.getAllByRole('button', { name: /^React with / })).toHaveLength(3)
@@ -365,13 +376,14 @@ export const TouchChecks: StoryObj = {
     await userEvent.click(sheet.getByRole('button', { name: 'Copy text' }))
     await waitFor(() => expect(copied).toEqual(['Nice work']))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Your message' })).toBeNull())
+    await lifted
     // While the reader types, a tap only lowers the keyboard; then a tap opens it too, and an emoji in it reacts
     const morning = pointOn(await rowOf(canvasElement, 'Morning all'))
     screen.getByRole('combobox', { name: 'Message' }).focus()
-    await press({ ...morning, ms: 60 })
-    await waitFor(() => expect(document.activeElement).not.toBe(screen.getByRole('combobox', { name: 'Message' })))
+    await tap(morning)
+    expect(document.activeElement).not.toBe(screen.getByRole('combobox', { name: 'Message' }))
     expect(screen.queryByRole('dialog')).toBeNull()
-    await press({ ...morning, ms: 60 })
+    await tap(morning)
     const other = within(await screen.findByRole('dialog', { name: 'Message from Sam Okafor' }, { timeout: 2000 }))
     expect(other.queryByRole('button', { name: 'Edit' })).toBeNull()
     expect(other.queryByRole('button', { name: 'Delete' })).toBeNull()
@@ -381,8 +393,7 @@ export const TouchChecks: StoryObj = {
     const link = within(await rowOf(canvasElement, 'Notes at https://example.com/notes')).getByRole('link', { name: 'https://example.com/notes' })
     link.addEventListener('click', (event) => event.preventDefault())
     const box = link.getBoundingClientRect()
-    await press({ x: box.left + 4, y: box.top + box.height / 2, ms: 60 })
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    await tap({ x: box.left + 4, y: box.top + box.height / 2 })
     expect(screen.queryByRole('dialog')).toBeNull()
   },
 }
