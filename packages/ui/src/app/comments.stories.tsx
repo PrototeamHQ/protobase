@@ -84,7 +84,9 @@ export const Formatted: StoryObj = {
   render: () => <Tickets record={3} />,
   play: async ({ canvasElement }) => {
     const thread = await section(canvasElement)
-    const [formatted, unsafe, typed] = await thread.findAllByRole('listitem')
+    // The thread's own entries, not the list items a formatted comment holds
+    const [entries] = await thread.findAllByRole('list')
+    const [formatted, unsafe, typed] = [...entries!.children] as HTMLElement[]
     // Once the renderer has loaded, a mention inside bold text is still picked out
     await within(formatted!).findByText('done', { selector: 'em' })
     const mention = within(formatted!).getByText('@Ann de Vries')
