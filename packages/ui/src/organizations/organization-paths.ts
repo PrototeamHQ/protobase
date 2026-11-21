@@ -2,25 +2,35 @@ import { Building2, Mail, Network, Users } from 'lucide-react'
 import type { CurrentOrganization, OrganizationRole, RoleLabel } from '@protobase/client'
 import type { ProfileMenuItem } from '../app-shell'
 import { text } from './messages'
+import type { OrganizationText } from './organization-word'
 
 // Under `/-/`, like the account pages: page names start with a letter, and a resource would need a table named `-`.
 export const organizationsPath = '/-/organizations'
 export const organizationPath = '/-/organization'
 export const membersPath = '/-/organization/members'
 export const invitationsPath = '/-/organization/invitations'
+// Where someone in no organization names their first one, or joins one they are invited to; the form alone, below the
+// invitations, at the second.
+export const firstOrganizationPath = '/-/first-organization'
+export const firstOrganizationFormPath = '/-/first-organization/new'
 
-const pageTitles: Record<string, 'organizations' | 'organization' | 'members' | 'invitations'> = {
+const pageTitles: Record<string, 'organizations' | 'organization' | 'members' | 'invitations' | 'createTitle'> = {
   [organizationsPath]: 'organizations',
   [organizationPath]: 'organization',
   [membersPath]: 'members',
   [invitationsPath]: 'invitations',
+  [firstOrganizationPath]: 'createTitle',
+  [firstOrganizationFormPath]: 'createTitle',
 }
 
 /** The title of the organization page at `path`; undefined for any other path. */
-export const organizationPageTitle = (path: string) => {
+export const organizationPageTitle = (path: string, t: OrganizationText) => {
   const id = pageTitles[path]
-  return id && text(id)
+  return id && t(id)
 }
+
+/** Whether `path` is the screen where someone in no organization names or joins their first. */
+export const isFirstOrganizationPath = (path: string) => path === firstOrganizationPath || path === firstOrganizationFormPath
 
 /** The word for an organization role. */
 export const organizationRoleLabel = (role: OrganizationRole) => text(role)
@@ -36,12 +46,12 @@ export const managesOrganization = (current?: CurrentOrganization) => current?.r
  * details, and for its owners and admins its members and invitations. The first is "Manage organizations", as the
  * switcher above it already lists the organizations.
  */
-export const organizationMenuItems = (basePath: string, path: string, current?: CurrentOrganization): ProfileMenuItem[] => {
+export const organizationMenuItems = (basePath: string, path: string, t: OrganizationText, current?: CurrentOrganization): ProfileMenuItem[] => {
   const item = (id: string, label: string, icon: ProfileMenuItem['icon'], target: string) => ({ id, label, icon, href: `${basePath}${target}`, active: path === target })
   return [
-    item('organizations', text('manageOrganizations'), Network, organizationsPath),
-    ...(current?.organization ? [item('organization', text('organization'), Building2, organizationPath)] : []),
-    ...(managesOrganization(current) ? [item('members', text('members'), Users, membersPath), item('invitations', text('invitations'), Mail, invitationsPath)] : []),
+    item('organizations', t('manageOrganizations'), Network, organizationsPath),
+    ...(current?.organization ? [item('organization', t('organization'), Building2, organizationPath)] : []),
+    ...(managesOrganization(current) ? [item('members', t('members'), Users, membersPath), item('invitations', t('invitations'), Mail, invitationsPath)] : []),
   ]
 }
 

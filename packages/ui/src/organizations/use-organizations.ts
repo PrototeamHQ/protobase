@@ -4,7 +4,7 @@ import { AuthError, type CurrentOrganization, type Organization } from '@protoba
 import { authMessage } from '../auth/auth-messages'
 import { useAuth } from '../auth/auth-provider'
 import { keys } from '../data/query-keys'
-import { text } from './messages'
+import { useOrganizationText } from './organization-word'
 
 export type OrganizationsState = {
   /** The organization the session works in, `undefined` while it loads. */
@@ -23,6 +23,7 @@ const none: Organization[] = []
  */
 export const useOrganizations = (enabled: boolean): OrganizationsState => {
   const { session } = useAuth()
+  const t = useOrganizationText()
   const query = useQuery({
     queryKey: keys.organizations,
     queryFn: async () => {
@@ -35,7 +36,7 @@ export const useOrganizations = (enabled: boolean): OrganizationsState => {
   const { refetch } = query
   const reload = useCallback(() => void refetch(), [refetch])
   const data = enabled ? query.data : undefined
-  const error = enabled && query.error ? (query.error instanceof AuthError ? authMessage(query.error) : text('couldNotReadOrganizations')) : undefined
+  const error = enabled && query.error ? (query.error instanceof AuthError ? authMessage(query.error) : t('couldNotReadOrganizations')) : undefined
   return { current: data?.current, organizations: data?.organizations ?? none, ...(error && { error }), reload }
 }
 

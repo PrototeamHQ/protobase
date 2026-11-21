@@ -15,12 +15,14 @@ import { AppRolesPicker } from './app-roles-picker'
 import { grantableRoles, organizationRoleLabel } from './organization-paths'
 import { useAction } from './use-action'
 import { text } from './messages'
+import { useOrganizationText } from './organization-word'
 
 /** The organization roles the person may set: owners every one, admins those below owner. */
 export const assignableOrganizationRoles = (current?: CurrentOrganization): OrganizationRole[] => (current?.role === 'owner' ? ['owner', 'admin', 'member'] : ['admin', 'member'])
 
 const MemberRow = ({ member, current, status, presence, onChanged }: { member: OrganizationMember; current: CurrentOrganization; status?: PersonStatus | undefined; presence?: Presence | undefined; onChanged: () => void }) => {
   const { session, organizations } = useAuth()
+  const t = useOrganizationText()
   const organizationId = current.organization!.id
   const { busy, error, run } = useAction()
   const roles = organizations?.roles ?? []
@@ -39,7 +41,7 @@ const MemberRow = ({ member, current, status, presence, onChanged }: { member: O
       actions={
         <>
           <select
-            aria-label={text('roleOf', { name: member.name })}
+            aria-label={t('roleOf', { name: member.name })}
             value={member.role}
             disabled={busy || roleLocked}
             onChange={(event) => void run(async () => { await session.organizations.setRole(organizationId, member.id, event.target.value as OrganizationRole); onChanged() })}
@@ -68,6 +70,7 @@ const MemberRow = ({ member, current, status, presence, onChanged }: { member: O
  */
 export const MembersPage = ({ current, statuses, presence }: { current?: CurrentOrganization; statuses?: readonly PersonStatus[] | undefined; presence?: PresenceByUser | undefined }) => {
   const { session } = useAuth()
+  const t = useOrganizationText()
   const organizationId = current?.organization?.id
   // A query, so the start cache keeps the members and the page's first frame lists them
   const query = useQuery({ queryKey: keys.organizationMembers(organizationId ?? ''), queryFn: () => session.organizations.members(organizationId!), enabled: Boolean(organizationId), retry: false })
@@ -79,7 +82,7 @@ export const MembersPage = ({ current, statuses, presence }: { current?: Current
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">
       <PageHeader title={text('members')} subtitle={text('whoWorks', { organization: current.organization.name })} />
-      <AccountSection title={text('members')} description={text('membersDescription')}>
+      <AccountSection title={text('members')} description={t('membersDescription')}>
         <SectionError message={error} />
         {members ? (
           <ul className="divide-y rounded-md border">

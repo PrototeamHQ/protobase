@@ -6,19 +6,21 @@ import { OrganizationRow } from './organization-row'
 import { useAction } from './use-action'
 import { reopenIn } from './use-organizations'
 import { text } from './messages'
+import { useOrganizationText } from './organization-word'
 
 /** Every organization in the app for people with a global role, who may work in any of them. */
 export const AllOrganizations = ({ basePath, currentId }: { basePath: string; currentId?: string }) => {
   const { session } = useAuth()
+  const t = useOrganizationText()
   const [query, setQuery] = useState('')
   const search = useCallback((term: string, offset: number) => session.organizations.search(term, offset).then((page) => ({ items: page.organizations, total: page.total })), [session])
   const list = usePagedSearch(search, query)
   const { busy, error, run } = useAction()
   return (
     <PagedSearchList
-      title={text('allOrganizations')}
-      description={text('allOrganizationsDescription')}
-      searchLabel={text('findOrganization')}
+      title={t('allOrganizations')}
+      description={t('allOrganizationsDescription')}
+      searchLabel={t('findOrganization')}
       placeholder={text('nameOrSlug')}
       query={query}
       onQuery={setQuery}

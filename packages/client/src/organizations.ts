@@ -108,8 +108,11 @@ export const organizationsClient = (client: BetterAuthClient, refreshToken: () =
     search: (query: string, offset = 0) =>
       call<OrganizationsFound>('/organization/search', 'Could not search the organizations', { query: { query, ...(offset > 0 && { offset: String(offset) }) } }),
 
-    /** Creates an organization, owned by the person with every app role, and works in it. */
-    create: async (input: { name: string; slug: string }) => thenRefresh(await call<Organization>('/organization/create', 'Could not create the organization', { body: input })),
+    /**
+     * Creates an organization, owned by the person with every app role, and works in it; without a `slug`, the server
+     * makes one from the name.
+     */
+    create: async (input: { name: string; slug?: string }) => thenRefresh(await call<Organization>('/organization/create', 'Could not create the organization', { body: input })),
 
     rename: (organizationId: string, data: { name?: string; slug?: string }) =>
       call<Organization>('/organization/update', 'Could not change the organization', { body: { organizationId, data } }),

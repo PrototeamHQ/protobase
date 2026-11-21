@@ -11,7 +11,6 @@
     "primitives/use-drawer-drag#useDrawerDrag": "the shell's sidebar drawer moves under the finger with it; a plugin's sheet gets that from Sheet and its menus from MenuSurface"
   },
   "pending": [
-    "account/use-account-page#useAccountPage",
     "account/account-section#AccountSection",
     "account/account-section#SectionError",
     "account/blocks/connected-accounts-block#ConnectedAccountsBlock",
@@ -27,6 +26,7 @@
     "account/blocks/two-factor-block#TwoFactorBlock",
     "account/copy-field#CopyField",
     "account/two-factor-setup#TwoFactorSetup",
+    "account/use-account-page#useAccountPage",
     "activity-chart/activity-chart-fixtures#SampleActivityChart",
     "app-shell/sidebar-notice#useSidebarNoticeShown",
     "app-shell/status-dot#StatusDot",
@@ -41,6 +41,7 @@
     "app/pages/project-ui#ProjectUiContext",
     "app/pages/project-ui#useProjectUi",
     "app/pages/render-node#RenderNode",
+    "app/router#Link",
     "app/router#useRouter",
     "app/use-focus-first-invalid#useFocusFirstInvalid",
     "auth/auth-locale#AuthLocale",
@@ -87,6 +88,7 @@
     "notifications/bell/notification-bell#NotificationBell",
     "organizations/app-roles-picker#AppRolesPicker",
     "organizations/invitation-page#InvitationPage",
+    "organizations/organization-word#useOrganizationText",
     "organizations/use-action#useAction",
     "organizations/use-organizations#useOrganizations",
     "people/person-row#PersonRow",

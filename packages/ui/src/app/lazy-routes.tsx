@@ -13,6 +13,7 @@ export const ComposedPage = lazyComponent(() => import('./pages/composed-page').
 export const AccountPage = lazyComponent(() => import('../account/account-page').then((module) => module.AccountPage), () => <RevealSkeleton />)
 export const SignInPolicyPage = lazyComponent(() => import('../account/sign-in-policy-page').then((module) => module.SignInPolicyPage), () => <RevealSkeleton />)
 export const OrganizationPage = lazyComponent(() => import('../organizations/organization-page').then((module) => module.OrganizationPage), () => <RevealSkeleton />)
+export const FirstOrganizationPage = lazyComponent(() => import('../organizations/first-organization-page').then((module) => module.FirstOrganizationPage), () => <RevealSkeleton />)
 export const OrganizationsPage = lazyComponent(() => import('../organizations/organizations-page').then((module) => module.OrganizationsPage), () => <RevealSkeleton />)
 export const MembersPage = lazyComponent(() => import('../organizations/members-page').then((module) => module.MembersPage), () => <RevealSkeleton />)
 export const InvitationsPage = lazyComponent(() => import('../organizations/invitations-page').then((module) => module.InvitationsPage), () => <RevealSkeleton />)

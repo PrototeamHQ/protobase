@@ -13,6 +13,7 @@ import { managesOrganization, organizationRoleLabel } from './organization-paths
 import { useAction } from './use-action'
 import { reopenIn } from './use-organizations'
 import { text } from './messages'
+import { useOrganizationText } from './organization-word'
 
 type Organization = NonNullable<CurrentOrganization['organization']>
 
@@ -61,11 +62,12 @@ const Delete = ({ organization, basePath }: { organization: Organization; basePa
   const [confirming, setConfirming] = useState(false)
   const [typed, setTyped] = useState('')
   const { busy, error, run } = useAction()
+  const t = useOrganizationText()
   const remove = () => run(async () => { await session.organizations.remove(organization.id); reopenIn(basePath) })
   return (
-    <AccountSection title={text('deleteOrganization')} description={text('deleteDescription')}>
+    <AccountSection title={t('deleteOrganization')} description={t('deleteDescription')}>
       <SectionError message={confirming ? undefined : error} />
-      <Button variant="danger" onClick={() => setConfirming(true)}>{text('deleteOrganization')}</Button>
+      <Button variant="danger" onClick={() => setConfirming(true)}>{t('deleteOrganization')}</Button>
       {confirming && (
         <Dialog
           title={text('deleteTitle', { name: organization.name })}
@@ -79,7 +81,7 @@ const Delete = ({ organization, basePath }: { organization: Organization; basePa
           }
         >
           <SectionError message={error} />
-          <Input aria-label={text('organizationName')} value={typed} onChange={(event) => setTyped(event.target.value)} />
+          <Input aria-label={t('organizationName')} value={typed} onChange={(event) => setTyped(event.target.value)} />
         </Dialog>
       )}
     </AccountSection>
@@ -127,11 +129,12 @@ const Leave = ({ organization, basePath, owner }: { organization: Organization; 
  */
 export const OrganizationPage = ({ current, basePath, onChanged }: { current?: CurrentOrganization; basePath: string; onChanged: () => void }) => {
   const calls = useMeta().data?.calls === true
+  const t = useOrganizationText()
   const organization = current?.organization
   if (!organization) {
     return (
       <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6">
-        <PageHeader title={text('organization')} subtitle={text('noOrganization')} />
+        <PageHeader title={t('organization')} subtitle={t('noOrganization')} />
       </div>
     )
   }

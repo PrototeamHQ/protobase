@@ -48,20 +48,21 @@ const useFollowRecords = (groups: Group[]) => {
  * The records of every sidebar group (`nav.recent`), one list request each, under the `list` query key so that any
  * write to the resource refreshes them, as does reading one of their records anew. The server applies the caller's
  * access, as on the list page. A group that names `marks` gets the project UI's hook, which the sidebar calls, its
- * marks' people given their presence and status.
+ * marks' people given their presence and status. With `enabled` false, such as outside any organization, there are none.
  */
-export const useNavRecent = (meta: MetaData, basePath: string, active: { resource?: string; key?: string }): Record<string, NavRecent> => {
+export const useNavRecent = (meta: MetaData, basePath: string, active: { resource?: string; key?: string }, enabled = true): Record<string, NavRecent> => {
   const client = useClient()
   const titleOf = useRecordTitle()
   const { marks } = useProjectUi()
   const groups = useMemo(() => {
+    if (!enabled) return []
     const inMenu = userMenuResources(meta)
     return Object.values(meta.views).flatMap((view) => {
       const model = meta.resources[view.resource]
       const recent = view.nav?.recent
       return model && recent && !view.nav?.hidden && !inMenu.has(model.name) ? [{ model, view, recent, request: recentRequest(model, view, recent), useMarks: withPeople(recentMarks(model.name, recent, marks)) }] : []
     })
-  }, [meta, marks])
+  }, [meta, marks, enabled])
   useFollowRecords(groups)
   const results = useQueries({
     queries: groups.map((group) => ({
