@@ -604,7 +604,26 @@
     "mail.unsubscribes.fields.recipient.label": "Recipient",
     "mail.unsubscribes.fields.topic.label": "Topic",
     "mail.unsubscribes.fields.created_at.label": "Unsubscribed",
-    "mail.unsubscribes.layout.0.title": "Unsubscribe"
+    "mail.unsubscribes.layout.0.title": "Unsubscribe",
+    "mail.feedback.names.singular": "Mail feedback",
+    "mail.feedback.names.plural": "Mail feedback",
+    "mail.feedback.help": "Every bounce and spam complaint a mail provider reported for the mail the app sends, newest first. Protobase sends on regardless: the app decides what to do.",
+    "mail.feedback.fields.type.label": "Type",
+    "mail.feedback.fields.type.values.bounce": "Bounce",
+    "mail.feedback.fields.type.values.complaint": "Complaint",
+    "mail.feedback.fields.bounce_type.label": "Bounce",
+    "mail.feedback.fields.bounce_type.values.hard": "Hard",
+    "mail.feedback.fields.bounce_type.values.soft": "Soft",
+    "mail.feedback.fields.recipient.label": "Recipient",
+    "mail.feedback.fields.message_id.label": "Message-ID",
+    "mail.feedback.fields.provider_message_id.label": "Provider's message id",
+    "mail.feedback.fields.reason.label": "Reason",
+    "mail.feedback.fields.provider.label": "Provider",
+    "mail.feedback.fields.event_id.label": "Provider's report id",
+    "mail.feedback.fields.occurred_at.label": "Happened",
+    "mail.feedback.fields.created_at.label": "Received",
+    "mail.feedback.layout.0.title": "Feedback",
+    "mail.feedback.layout.1.title": "Message"
   },
   "app/change-confirm": {
     "title": "Change {label}?",
@@ -833,6 +852,7 @@
     "enum": "Choose one of the options",
     "relation": "Choose a record",
     "json": "Enter valid JSON",
+    "mailSender": "You can't send from {address}. Choose one of your addresses, or add it on your Account page first",
     "required": "{label} is required",
     "checkField": "Check the marked field.",
     "checkFields": "Check {count} fields."
@@ -2079,7 +2099,14 @@
     "expired": "{names} no longer accepts mail from this app, as when the link was removed or ran out. Connecting it again asks you to sign in there, then brings you back here.",
     "signInOnly": "You sign in with {provider}, but that sign-in does not allow sending mail: connect {name} to send from it.",
     "connect": "Connect {name}",
-    "connectAgain": "Connect {name} again"
+    "connectAgain": "Connect {name} again",
+    "defaultSender": "Sender's default address",
+    "senderNotAvailable": "{address} (not available)",
+    "chooseSender": "Choose an address",
+    "senderNotYours": "You can't send from this address. Choose one of yours, or add it on your {account}.",
+    "accountPage": "Account page",
+    "sendersNotRead": "Your addresses could not be read. Check your connection.",
+    "tryAgain": "Try again"
   },
   "markdown": {
     "write": "Write",

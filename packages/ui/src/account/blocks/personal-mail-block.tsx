@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/auth-provider'
 import { providerName } from '../../auth/provider-link'
 import { mailboxOffers, type LinkedAccounts } from '../../mailbox/mailbox-offers'
 import { text as mailboxText } from '../../mailbox/messages'
+import { forgetSenderOptions } from '../../mailbox/sender-options-read'
 import { MailSendersSection } from '../mail-senders-section'
 import { SignInProvidersSection } from '../sign-in-providers-section'
 import { text } from '../messages'
@@ -48,15 +49,18 @@ const Mailboxes = ({ links }: { links: PersonalMailLink[] }) => {
         senders={data.senders}
         onAdd={async (input) => {
           const added = await account.addMailSender(input)
+          forgetSenderOptions()
           await reload()
           return added
         }}
         onUpdate={async (id, change) => {
           await account.updateMailSender(id, change)
+          forgetSenderOptions()
           await reload()
         }}
         onRemove={async (id) => {
           await account.removeMailSender(id)
+          forgetSenderOptions()
           await reload()
         }}
       />

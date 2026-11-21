@@ -20,6 +20,12 @@ describe('fieldMessage', () => {
     expect(fieldMessage(field('text'), 'Code', invalid({ min: 1 }))).toBe('Code moet minstens 1 teken hebben')
   })
 
+  it('words a mail sender the saving person cannot send from, in the app\'s language', () => {
+    expect(fieldMessage(field('mail_sender'), 'Send from', invalid({ address: 'ceo@acme.example' }))).toBe("You can't send from ceo@acme.example. Choose one of your addresses, or add it on your Account page first")
+    setAppLocale('nl')
+    expect(fieldMessage(field('mail_sender'), 'Verzenden vanaf', invalid({ address: 'ceo@acme.example' }))).toBe('Je kunt niet verzenden vanaf ceo@acme.example. Kies een van je adressen, of voeg het eerst toe op je accountpagina')
+  })
+
   it('names the label of a field left empty', () => {
     expect(fieldMessage(field('country'), 'Country', { field: 'country_code', code: 'required', message: '"country_code" is required' })).toBe('Country is required')
   })

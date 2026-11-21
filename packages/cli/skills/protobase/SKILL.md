@@ -84,6 +84,7 @@ Reference:
 - When adding comments to records → read [Record comments](references/reference/comments.md)
 - When open pages should refresh as records change → read [Live updates](references/reference/live.md)
 - When pages on a record should see who else is there or send each other short-lived events (presence, broadcast) → read [Channels](references/reference/channels.md)
+- When the app should hand its realtime connections to a relay, so it can sleep while people stay connected (tickets, channel members, change notices) → read [Realtime relay](references/reference/realtime-relay.md)
 - When an app uses supabase-js Realtime (`postgres_changes` under RLS, broadcast, presence) → read [Supabase Realtime](references/reference/supabase-realtime.md)
 - When filling fields with a model → read [AI fields and actions](references/reference/ai.md)
 - When letting people without an account create records → read [Public forms](references/reference/forms.md)

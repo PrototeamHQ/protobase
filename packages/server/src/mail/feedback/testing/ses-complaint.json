@@ -1,0 +1,11 @@
+{
+  "Type": "Notification",
+  "MessageId": "f2a6a8f1-8b7c-4c4e-8a51-5b8b3b0f6c21",
+  "TopicArn": "arn:aws:sns:us-west-2:123456789012:MyTopic",
+  "Message": "{\"notificationType\":\"Complaint\",\"complaint\":{\"userAgent\":\"AnyCompany Feedback Loop (V0.01)\",\"complainedRecipients\":[{\"emailAddress\":\"richard@example.com\"}],\"complaintFeedbackType\":\"abuse\",\"arrivalDate\":\"2016-01-27T14:59:38.237Z\",\"timestamp\":\"2016-01-27T14:59:38.237Z\",\"feedbackId\":\"000001378603177f-18c07c78-fa81-4a58-9dd1-fedc3cb8f49a-000000\"},\"mail\":{\"timestamp\":\"2016-01-27T14:59:38.237Z\",\"messageId\":\"000001378603177f-7a5433e7-8edb-42ae-af10-f0181f34d6ee-000000\",\"source\":\"john@example.com\",\"sourceArn\":\"arn:aws:ses:us-east-1:888888888888:identity/example.com\",\"sourceIp\":\"127.0.3.0\",\"sendingAccountId\":\"123456789012\",\"callerIdentity\":\"IAM_user_or_role_name\",\"destination\":[\"jane@example.com\",\"mary@example.com\",\"richard@example.com\"],\"commonHeaders\":{\"from\":[\"John Doe <john@example.com>\"],\"date\":\"Wed, 27 Jan 2016 14:05:45 +0000\",\"to\":[\"Jane Doe <jane@example.com>, Mary Doe <mary@example.com>, Richard Doe <richard@example.com>\"],\"messageId\":\"custom-message-ID\",\"subject\":\"Hello\"}}}",
+  "Timestamp": "2016-01-27T14:59:38.300Z",
+  "SignatureVersion": "1",
+  "Signature": "EXAMPLElDMXvB8r9R83tGoNn0ecwd5UjllzsvSvbItzfaMpN2nk5HVSw7XnOn/49IkxDKz8YrlH2qJXj2iZB0Zo2O71c4qQk1fMUDi3LGpij7RCW7AW9vYYsSqIKRnFS94ilu7NFhUzLiieYr4BKHpdTmdD6c0esKEYBpabxDSc=",
+  "SigningCertURL": "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-f3ecfb7224c7233fe7bb5f59f96de52f.pem",
+  "UnsubscribeURL": "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:123456789012:MyTopic:c9135db0-26c4-47ec-8998-413945fb5a96"
+}

@@ -137,6 +137,20 @@ describe('capturePlan', () => {
     expect(() => capturePlan('changes', [withEvents, twin], installed({ tables: { orders: '500', twin: '500' } }))).toThrow('both have events or history on table')
   })
 
+  it('writes the triggers of a table an earlier migration creates, as for a new table', () => {
+    const plan = capturePlan('changes', [withEvents], installed({ outbox: false, triggers: [], tables: { orders: null } }), ['orders'])
+    expect(plan.create.map(({ trigger }) => trigger.name)).toEqual(['orders_changes', 'orders_changes_update'])
+    expect(planSql('changes', plan)).toContain('create trigger "orders_changes" after insert or delete on "sales"."orders"')
+  })
+
+  it('refuses two resources on one table an earlier migration creates, and takes them on two', () => {
+    const twin = { ...withEvents, name: 'twin' }
+    const pending = installed({ outbox: false, triggers: [], tables: { orders: null, twin: null } })
+    expect(() => capturePlan('changes', [withEvents, twin], pending, ['orders', 'twin'])).toThrow('both have events or history on table')
+    const elsewhere = { ...twin, table: { ...twin.table, name: 'returns' } }
+    expect(capturePlan('changes', [withEvents, elsewhere], pending, ['orders', 'twin']).create).toHaveLength(4)
+  })
+
   it('captures a resource with history and no events, and adds the history table once', () => {
     const withHistory = orders.history().toModel()
     const plan = capturePlan('changes', [withHistory], { outbox: false, history: false, historyIndexed: false, notices: false, triggers: [], views: [], tables: { orders: '500' } })

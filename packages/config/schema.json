@@ -718,7 +718,7 @@
       "additionalProperties": false
     },
     "realtime": {
-      "description": "How the record channels and supabase-js's Realtime are served: `{ processes: 'many' }` when several processes serve the app, `{ sqlSends: true }` to broadcast to channels from SQL (see `RealtimeOptions`).",
+      "description": "How the record channels and supabase-js's Realtime are served: `{ processes: 'many' }` when several processes serve the app, `{ sqlSends: true }` to broadcast to channels from SQL, `{ relay }` to hand the connections to a realtime relay (see `RealtimeOptions`).",
       "$ref": "#/definitions/RealtimeOptions"
     },
     "notifications": {
@@ -1003,6 +1003,10 @@
     },
     "unsubscribe": {
       "description": "`true` gives bulk mail a one-click unsubscribe: mail a job sends with `bulk: true` and a `topic` carries the\nrecipient's own unsubscribe link, and is not sent to whoever unsubscribed from its topic. Its links are on `url`\nand signed with `secret`; `protobase migration` writes its table, `mail.unsubscribes`. The server that signs the mail must DKIM-sign\nboth unsubscribe headers, or mail clients show no button. Off by default.",
+      "type": "boolean"
+    },
+    "mailFeedback": {
+      "description": "`true` takes the bounces and spam complaints of the mail the app sends as `mail_feedback` records, with the events\n`mail_feedback.bounced` and `mail_feedback.complained`, at `POST /api/mail/feedback/<provider>`: `ses` once\n`PROTOBASE_MAIL_FEEDBACK_SES_TOPICS` names its SNS topics, `resend` once `PROTOBASE_MAIL_FEEDBACK_RESEND_SECRET` is\nset, and `protobase` with `PROTOBASE_SECRET`. `protobase migration` writes its table, `mail.feedback`. Protobase\nsends on regardless: the app decides what a bounce means. Off by default.",
       "type": "boolean"
     },
     "userTables": {
@@ -6313,8 +6317,141 @@
         "sqlSends": {
           "description": "`true` lets SQL in the app's database broadcast to the record channels with `channels.send()`, from the `channels`\nschema `protobase migration` writes.",
           "type": "boolean"
+        },
+        "relay": {
+          "description": "The relay the app hands realtime connections to, beside its own channels, so the app can sleep while people stay\nconnected (see `RealtimeRelayOptions`).",
+          "$ref": "#/definitions/RealtimeRelayOptions"
         }
       },
+      "additionalProperties": false
+    },
+    "RealtimeRelayOptions": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "The relay's address, such as `https://relay.example.com`: its app commands, and its socket at `/socket`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "app": {
+          "description": "The app's id on the relay.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "apiKey": {
+          "description": "One of the app's API keys on the relay, which its commands carry.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "ticketKey": {
+          "description": "One of the app's ticket keys on the relay, which signs the connect tickets.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "channels": {
+          "description": "The channel resources by name.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/RelayChannelOptions"
+          }
+        }
+      },
+      "required": [
+        "url",
+        "app",
+        "apiKey",
+        "ticketKey",
+        "channels"
+      ],
+      "additionalProperties": false
+    },
+    "RelayChannelOptions": {
+      "type": "object",
+      "properties": {
+        "members": {
+          "description": "Who is in each channel. Without it the channel is open: whoever may read the record gets it in a ticket when they\nask for it, a visitor of the anonymous role too.",
+          "$ref": "#/definitions/RelayMembers"
+        },
+        "mentions": {
+          "description": "A field of the records noticed on the channel that lists the user ids a record mentions, such as a message's `mentions`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "RelayMembers": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "description": "The resource, such as `conversation_members`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "channel": {
+          "description": "Its relation field to the channel resource, such as `conversation_id`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "user": {
+          "description": "Its field holding the person's user id, such as `user_id`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "resource",
+        "channel",
+        "user"
+      ],
       "additionalProperties": false
     },
     "StatusOptions": {

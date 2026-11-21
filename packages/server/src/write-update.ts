@@ -4,6 +4,7 @@ import type { Deps } from './deps'
 import { bindingOf } from './encryption/binding'
 import { sealValues } from './encryption/seal-values'
 import { attachFiles } from './files/attach'
+import { checkMailSenders } from './personal-mail/check-mail-senders'
 import type { ScheduledDelete } from './files/cleanup-schedule'
 import { badRequest } from './problem'
 import { fetchRecord, updateRecord, type StoredRecord } from './records'
@@ -11,7 +12,7 @@ import { targetFilter, type RequestAccess } from './request-access'
 import { assertWritten, checkParents, checkPrecondition, decide, denied, firstKeyField, missing, notifier } from './write-shared'
 import { tenantScope } from './tenant'
 import type { Row } from './types'
-import { validateBody } from './validate-body'
+import { checkRules, validateFields } from './validate-body'
 
 /** An update that was loaded, locked and checked but not yet written; `parents` checks the record as written. */
 export type UpdatePlan = { current: StoredRecord; values: Row; filter?: CheckedFilter; parents: (record: Row) => Promise<void> }
@@ -28,7 +29,9 @@ export const planUpdate = async (trx: Db, access: RequestAccess, key: (string | 
   const current = await fetchRecord(trx, entry, key, tenant, { deleted: 'hide', lock: true, ...(target && { filter: target }), etagFields: Object.keys(access.model.fields) })
   if (!current) throw missing(entry)
   checkPrecondition(current, ifMatch, required)
-  const values = await attachFiles(access, validateBody(access, 'update', body, current.record), current.record)
+  // The rules see the mail senders as they are stored.
+  const checked = checkRules(access, 'update', await checkMailSenders(access, validateFields(access, 'update', body), current.record), current.record)
+  const values = await attachFiles(access, checked, current.record)
   const filter = Object.keys(values).length === 0 ? undefined : await decide(access, 'update', current.record, values)
   if (filter && !(await fetchRecord(trx, entry, key, tenant, { filter, fields: [firstKeyField(access)] }))) throw denied(entry, 'update')
   const parents = checkParents(trx, access, 'update')

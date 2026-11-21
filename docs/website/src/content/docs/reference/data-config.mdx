@@ -60,6 +60,7 @@ Field and resource names are snake_case by convention, like the columns: they ar
 | `f.relation('resource')` | the key column(s) of another resource | its key | `.columns([...])` |
 | `f.currency()` | `text` | ISO 4217 code (`EUR`) | |
 | `f.country()` | `text` | ISO 3166-1 alpha-2 code (`NL`) | |
+| `f.mailSender()` | `text` | a From address the saver may send from (`billing@shop.example`) | the form offers the saver's addresses as a dropdown; see [A From address on a record](/reference/email/#a-from-address-on-a-record) |
 | `f.file()` | `text` | `{ uri, name, type, size, url }`; written with a ticket from `:upload` | `.accept([...])`, `.maxSize(size)`, `.public()`, `.storage(name)`, `.derive({...})`; see [Files](/reference/files/) |
 
 A constraint a type does not support (`f.boolean().min(1)`) throws when the config loads. The builders are the members of [`f`](/api/schema/variables/f/).

@@ -57,19 +57,19 @@ const readCaptureState = async (db: Db, schema: string, models: readonly Resourc
   }
 }
 
-const plan = async (db: Db, models: readonly ResourceModel[], options?: EventsOptions) => {
+const plan = async (db: Db, models: readonly ResourceModel[], options?: EventsOptions, pending: readonly string[] = []) => {
   const schema = changesSchema(options)
-  return { schema, plan: capturePlan(schema, models, await readCaptureState(db, schema, models.filter(capturedBy(models)))) }
+  return { schema, plan: capturePlan(schema, models, await readCaptureState(db, schema, models.filter(capturedBy(models))), pending) }
 }
 
 /**
  * The SQL that brings the database to the capture the resources' events, history and live updates need: the schema
  * with the outbox and `capture()`, the history and notices tables, and a trigger pair per resource with any of them, recreated when its fields changed;
  * triggers of resources without any of them any more are dropped. `undefined` when the database is current. Tables are
- * never dropped.
+ * never dropped. The tables of the `pending` resources are created by a migration written before this one.
  */
-export const changesMigration = async (db: Db, models: readonly ResourceModel[], options?: EventsOptions) => {
-  const { schema, plan: found } = await plan(db, models, options)
+export const changesMigration = async (db: Db, models: readonly ResourceModel[], options?: EventsOptions, pending: readonly string[] = []) => {
+  const { schema, plan: found } = await plan(db, models, options, pending)
   return planSql(schema, found)
 }
 

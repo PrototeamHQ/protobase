@@ -604,7 +604,26 @@
     "mail.unsubscribes.fields.recipient.label": "Ontvanger",
     "mail.unsubscribes.fields.topic.label": "Onderwerp",
     "mail.unsubscribes.fields.created_at.label": "Afgemeld",
-    "mail.unsubscribes.layout.0.title": "Afmelding"
+    "mail.unsubscribes.layout.0.title": "Afmelding",
+    "mail.feedback.names.singular": "Mailfeedback",
+    "mail.feedback.names.plural": "Mailfeedback",
+    "mail.feedback.help": "Elke bounce en spamklacht die een mailprovider meldde voor de mail die de app verstuurt, nieuwste eerst. Protobase blijft gewoon versturen: de app beslist wat er gebeurt.",
+    "mail.feedback.fields.type.label": "Soort",
+    "mail.feedback.fields.type.values.bounce": "Bounce",
+    "mail.feedback.fields.type.values.complaint": "Klacht",
+    "mail.feedback.fields.bounce_type.label": "Bounce",
+    "mail.feedback.fields.bounce_type.values.hard": "Hard",
+    "mail.feedback.fields.bounce_type.values.soft": "Zacht",
+    "mail.feedback.fields.recipient.label": "Ontvanger",
+    "mail.feedback.fields.message_id.label": "Message-ID",
+    "mail.feedback.fields.provider_message_id.label": "Berichtnummer bij de provider",
+    "mail.feedback.fields.reason.label": "Reden",
+    "mail.feedback.fields.provider.label": "Provider",
+    "mail.feedback.fields.event_id.label": "Meldingnummer bij de provider",
+    "mail.feedback.fields.occurred_at.label": "Gebeurd",
+    "mail.feedback.fields.created_at.label": "Ontvangen",
+    "mail.feedback.layout.0.title": "Feedback",
+    "mail.feedback.layout.1.title": "Bericht"
   },
   "app/change-confirm": {
     "title": "{label} wijzigen?",
@@ -833,6 +852,7 @@
     "enum": "Kies een van de opties",
     "relation": "Kies een record",
     "json": "Vul geldige JSON in",
+    "mailSender": "Je kunt niet verzenden vanaf {address}. Kies een van je adressen, of voeg het eerst toe op je accountpagina",
     "required": "{label} is verplicht",
     "checkField": "Controleer het gemarkeerde veld.",
     "checkFields": "Controleer {count} velden."
@@ -2079,7 +2099,14 @@
     "expired": "{names} neemt geen mail van deze app meer aan, bijvoorbeeld omdat de koppeling is verwijderd of verlopen. Opnieuw koppelen vraagt je daar in te loggen en brengt je daarna hier terug.",
     "signInOnly": "Je logt in met {provider}, maar daarmee mag de app geen mail versturen: koppel {name} om ermee te versturen.",
     "connect": "{name} koppelen",
-    "connectAgain": "{name} opnieuw koppelen"
+    "connectAgain": "{name} opnieuw koppelen",
+    "defaultSender": "Standaardadres van de verzender",
+    "senderNotAvailable": "{address} (niet beschikbaar)",
+    "chooseSender": "Kies een adres",
+    "senderNotYours": "Vanaf dit adres kun je niet versturen. Kies een van jouw adressen, of voeg het toe op je {account}.",
+    "accountPage": "accountpagina",
+    "sendersNotRead": "Je adressen konden niet worden gelezen. Controleer je verbinding.",
+    "tryAgain": "Opnieuw proberen"
   },
   "markdown": {
     "write": "Schrijven",

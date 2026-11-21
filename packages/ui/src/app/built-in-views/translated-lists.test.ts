@@ -15,7 +15,7 @@ afterEach(() => setAppLocale(undefined))
 
 describe('translatedView of the lists Protobase adds', () => {
   it('gives the English the server sends, text for text', () => {
-    for (const name of ['failed_jobs', 'record_history', 'record_comments', 'mail_unsubscribes']) expect(translated(name)).toEqual(views[name])
+    for (const name of ['failed_jobs', 'record_history', 'record_comments', 'mail_unsubscribes', 'mail_feedback']) expect(translated(name)).toEqual(views[name])
   })
 
   it('puts Failed jobs in Dutch: names, help, labels, sections and actions', () => {
@@ -60,6 +60,16 @@ describe('translatedView of the lists Protobase adds', () => {
     expect(view.help).toMatch(/^Iedereen die zich heeft afgemeld/)
     expect(labels(view)).toEqual({ recipient: 'Ontvanger', topic: 'Onderwerp', created_at: 'Afgemeld' })
     expect(titles(view)).toEqual(['Afmelding'])
+  })
+
+  it('puts Mail feedback in Dutch, its values too', () => {
+    setAppLocale('nl')
+    const view = translated('mail_feedback')
+    expect(view.names).toEqual({ singular: 'Mailfeedback', plural: 'Mailfeedback' })
+    expect(view.help).toMatch(/^Elke bounce en spamklacht/)
+    expect(view.fields.type!.valueLabels).toEqual({ bounce: 'Bounce', complaint: 'Klacht' })
+    expect(view.fields.bounce_type!.valueLabels).toEqual({ hard: 'Hard', soft: 'Zacht' })
+    expect(titles(view)).toEqual(['Feedback', 'Bericht'])
   })
 
   it("leaves an app's own resource over a table named history as it is", () => {

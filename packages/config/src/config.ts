@@ -115,7 +115,7 @@ export type ProtobaseConfig = AppKeys &
       /** Packages of workflow plugins the app runs beside the built-in types and its own plugins, by package name. */
       plugins?: string[]
     }
-    /** How the record channels and supabase-js's Realtime are served: `{ processes: 'many' }` when several processes serve the app, `{ sqlSends: true }` to broadcast to channels from SQL (see `RealtimeOptions`). */
+    /** How the record channels and supabase-js's Realtime are served: `{ processes: 'many' }` when several processes serve the app, `{ sqlSends: true }` to broadcast to channels from SQL, `{ relay }` to hand the connections to a realtime relay (see `RealtimeOptions`). */
     realtime?: RealtimeOptions
     /** Each user's devices and inbox (see `NotificationsOptions`); `{}` turns them on. */
     notifications?: Omit<NotificationsOptions, 'store' | 'historyStore' | 'senders'>
@@ -132,6 +132,14 @@ export type ProtobaseConfig = AppKeys &
      * both unsubscribe headers, or mail clients show no button. Off by default.
      */
     unsubscribe?: boolean
+    /**
+     * `true` takes the bounces and spam complaints of the mail the app sends as `mail_feedback` records, with the events
+     * `mail_feedback.bounced` and `mail_feedback.complained`, at `POST /api/mail/feedback/<provider>`: `ses` once
+     * `PROTOBASE_MAIL_FEEDBACK_SES_TOPICS` names its SNS topics, `resend` once `PROTOBASE_MAIL_FEEDBACK_RESEND_SECRET` is
+     * set, and `protobase` with `PROTOBASE_SECRET`. `protobase migration` writes its table, `mail.feedback`. Protobase
+     * sends on regardless: the app decides what a bounce means. Off by default.
+     */
+    mailFeedback?: boolean
     /**
      * `true` keeps the tables the app's users add in its own database and serves each one like a resource of the config;
      * `protobase migration` writes the schemas they need. Off by default. With organizations, each keeps its own tables;
