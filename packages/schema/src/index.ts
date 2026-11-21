@@ -42,6 +42,8 @@ export type {
   RecordPageModel,
   ConversationPageModel,
   ReadPositionModel,
+  ReactionsModel,
+  ConversationThreadModel,
   SearchesOfModel,
   SignInPromptModel,
   SignInViewModel,

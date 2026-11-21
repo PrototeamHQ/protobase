@@ -1,17 +1,13 @@
 import { messageFieldsProblems, messageTextProblems } from '@protobase/layout'
 import type { ConversationPageModel, ReadPositionModel, ResourceModel } from '@protobase/schema'
 import { keyFieldErrors, ownerErrors, sensitiveErrors, typeErrors } from './view-conversation'
+import { deleteErrors, readsDeleteCondition } from './view-conversation-delete'
+import { reactionsErrors, readsReactions } from './view-conversation-reactions'
+import { readsThreads, threadErrors } from './view-conversation-thread'
 import { matchErrors } from './view-related'
+import { readable, typedErrors } from './view-typed-field'
 
 const datedTypes = ['date', 'timestamp']
-
-// A field of `model` the page reads, of one of `types`
-const typedErrors = (model: ResourceModel, prop: string, name: string | undefined, types: string[], what: string) => {
-  if (name === undefined) return []
-  const field = Object.hasOwn(model.fields, name) ? model.fields[name]! : undefined
-  if (!field) return [`${prop}: unknown field "${name}" on ${model.name}`]
-  return types.includes(field.type) ? [] : [`${prop}: "${name}" is ${field.type}; ${what}`]
-}
 
 // The reader's own position: a record per reader, by its author, pointing at the record, holding a message's integer key
 const readPositionErrors = (position: ReadPositionModel, resource: string, messages: ResourceModel, models: Record<string, ResourceModel>) => {
@@ -52,20 +48,25 @@ export const conversationPageErrors = (page: ConversationPageModel, resource: st
     ...typedErrors(record, 'subtitle', page.subtitle, ['text'], 'a subtitle is a text field'),
     ...typedErrors(record, 'members', page.members, ['json'], 'members are a JSON field of user ids'),
     ...(page.readPosition ? readPositionErrors(page.readPosition, resource, target, models).map((error) => `readPosition: ${error}`) : []),
+    ...(page.reactions ? reactionsErrors(page.reactions, page.resource, models).map((error) => `reactions: ${error}`) : []),
+    ...(page.thread ? threadErrors(page.thread, target).map((error) => `thread: ${error}`) : []),
+    ...deleteErrors(page.delete, target).map((error) => `delete: ${error}`),
   ]
 }
-
-const readable = (model: ResourceModel | undefined, name: string | undefined) => name !== undefined && model !== undefined && Object.hasOwn(model.fields, name)
 
 /**
  * The conversation page as a caller may see it: gone, so the standard page shows, when they cannot read the messages
  * or a field each one needs; without its edited mark, mentions, subtitle or members when they cannot read those
- * fields, and without its read position when they cannot read that resource, its fields or its author.
+ * fields, without its read position when they cannot read that resource, its fields or its author, and without its
+ * reactions when they cannot read those fields. With threads, it is gone too when they cannot read the threads'
+ * fields, as the conversation would then show the replies in threads among its own messages. Delete is left out for
+ * one who cannot read the fields its condition reads, so they never get a Delete the condition would forbid.
  */
 export const pruneConversationPage = (page: ConversationPageModel, resource: string, models: Record<string, ResourceModel>): ConversationPageModel | undefined => {
-  const { edited, mentions, subtitle, members, readPosition, ...core } = page
+  const { edited, mentions, subtitle, members, readPosition, reactions, thread, delete: deletes, ...core } = page
   if (coreErrors(page, resource, models).length > 0) return
   const target = models[page.resource]
+  if (thread && !readsThreads(thread, target)) return
   const record = models[resource]
   const position = readPosition && models[readPosition.resource]
   const keepsPosition = readPosition !== undefined && position !== undefined && [readPosition.field, readPosition.message, position.author].every((name) => readable(position, name))
@@ -76,5 +77,8 @@ export const pruneConversationPage = (page: ConversationPageModel, resource: str
     ...(readable(record, subtitle) && { subtitle }),
     ...(readable(record, members) && { members }),
     ...(keepsPosition && { readPosition }),
+    ...(reactions && readsReactions(reactions, models) && { reactions }),
+    ...(thread && { thread }),
+    ...(deletes !== undefined && deletes !== false && readsDeleteCondition(deletes, target) && { delete: deletes }),
   }
 }

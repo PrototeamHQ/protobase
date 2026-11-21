@@ -129,6 +129,13 @@ describe('readAppPath', () => {
     expect(readAppPath('/attachments/7?file=', pages)).toEqual({ kind: 'record', resource: 'attachments', key: '7' })
   })
 
+  it("writes a conversation's open thread as thread=<key>, and reads an empty one as none", () => {
+    const address: AppAddress = { kind: 'record', resource: 'channels', key: '1', thread: '12' }
+    expect(appPath(address)).toBe('/channels/1?thread=12')
+    expect(readAppPath(appPath(address), pages)).toEqual(address)
+    expect(readAppPath('/channels/1?thread=', pages)).toEqual({ kind: 'record', resource: 'channels', key: '1' })
+  })
+
   it('reads only edit=true as the form', () => {
     expect(readAppPath('/listings/42?edit=1', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })
     expect(readAppPath('/listings/42?edit=false', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })
