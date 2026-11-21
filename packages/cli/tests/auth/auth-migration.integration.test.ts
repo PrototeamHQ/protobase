@@ -103,7 +103,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     expect(text).toContain('create table "auth_migrations"')
     expect(text).toContain('create table if not exists "user"')
     expect(text).toContain('"platform_sign_in" text not null')
-    expect(text).toContain('-- 7 mcp: ')
+    expect(text).toContain('-- mcp 1 mcp: ')
 
     await applyAll(databaseUrl, folder)
     await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
@@ -198,12 +198,34 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const text = await readFile(file!, 'utf8')
     expect(text).not.toContain('create table if not exists "user"')
     expect(text).not.toContain('create table "auth_migrations"')
-    expect(text).toContain('-- 7 mcp: ')
+    expect(text).toContain('-- mcp 1 mcp: ')
     const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
     await sql.begin((tx) => tx.unsafe(text))
     await sql.end()
     await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
     expect(await versions(databaseUrl)).toEqual(every)
+  })
+
+  it('refuses a step whose check fails before it changes anything, naming the rows to fix by hand', async () => {
+    const databaseUrl = await createDatabase()
+    const auth = authOn(databaseUrl)
+    const folder = await migrationsDir()
+    await writeAuthMigration({ auth, dir: folder, name: 'auth' })
+    await applyAll(databaseUrl, folder)
+    // The store before the step that makes one account per provider and account id, with one such account twice.
+    await query(
+      databaseUrl,
+      `drop table refused_account, device_session; drop index account_provider_id_account_id_uidx, account_provider_id_single_subject_user_id_uidx; alter table account drop column single_subject_user_id; delete from auth_migrations where version = 11`,
+    )
+    await query(databaseUrl, `insert into "user" (id, name, email, email_verified) values ('u1', 'Root', 'root@example.com', true)`)
+    await query(databaseUrl, `insert into account (id, account_id, provider_id, user_id, updated_at) values ('a1', 's1', 'idp', 'u1', now()), ('a2', 's1', 'idp', 'u1', now())`)
+
+    const text = await readFile((await writeAuthMigration({ auth, dir: folder, name: 'auth' }))!, 'utf8')
+    expect(text).toContain('-- auth 2 account_keys: ')
+    const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
+    await expect(sql.begin((tx) => tx.unsafe(text))).rejects.toThrow(/more than one account for a provider and account id: idp s1 \(accounts a1, a2\)\. Keep one of each in a migration of the project's own written before this one/)
+    await sql.end()
+    expect(await versions(databaseUrl)).toEqual(every.filter((version) => version !== 11))
   })
 
   // A store an earlier Protobase made by comparing its tables with Better Auth's: organizations on, MCP off, a user in it.
@@ -224,7 +246,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const text = await readFile((await writeAuthMigration({ auth, dir: folder, name: 'auth' }))!, 'utf8')
     expect(text).toContain('adopted: 1 core, 2 two_factor, 3 passkeys, 4 sign_in_policy, 5 staff_sign_in, 6 organizations')
     expect(text).not.toContain('create table if not exists "user"')
-    expect(text).toContain('-- 7 mcp: ')
+    expect(text).toContain('-- mcp 1 mcp: ')
 
     await applyAll(databaseUrl, folder)
     await expect(checkAuthSchema(auth)).resolves.toBeUndefined()

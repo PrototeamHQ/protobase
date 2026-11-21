@@ -1,8 +1,9 @@
-import { ddl } from '../ddl'
-import type { StoreMigration } from './migration'
+import { ddl } from '../../ddl'
+import type { Step } from '../step'
 
 /** The OAuth provider MCP clients sign in through: its clients, resources, tokens and consents. */
-export const mcp: StoreMigration = {
+export const mcp: Step = {
+  step: 1,
   version: 7,
   name: 'mcp',
   title: 'The clients, resources, tokens and consents of the OAuth provider for MCP',

@@ -1,8 +1,9 @@
-import { ddl } from '../ddl'
-import type { StoreMigration } from './migration'
+import { ddl } from '../../ddl'
+import type { Step } from '../step'
 
 /** Sign-in itself: users, with their roles and bans, sessions, accounts, codes and the token signing keys. */
-export const core: StoreMigration = {
+export const core: Step = {
+  step: 1,
   version: 1,
   name: 'core',
   title: "Better Auth's users, sessions, accounts, verifications and signing keys",

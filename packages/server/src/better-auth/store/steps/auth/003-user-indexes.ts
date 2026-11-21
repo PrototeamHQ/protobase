@@ -1,9 +1,10 @@
-import { activeAdmin } from '../active-admin'
-import { ddl } from '../ddl'
-import type { StoreMigration } from './migration'
+import { activeAdmin } from '../../active-admin'
+import { ddl } from '../../ddl'
+import type { Step } from '../step'
 
 /** The indexes that find the other active admins and page through the users by creation; none on a view (`users.keyTable`). */
-export const userIndexes: StoreMigration = {
+export const userIndexes: Step = {
+  step: 3,
   version: 12,
   name: 'user_indexes',
   title: 'The indexes that find the active admins and page through the users',

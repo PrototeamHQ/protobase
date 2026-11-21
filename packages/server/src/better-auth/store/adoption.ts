@@ -1,14 +1,16 @@
 import { sql, type Kysely } from 'kysely'
 import { resolveNames } from '../names/resolve-names'
 import { ddl } from './ddl'
-import { migrationNames, type StoreMigration } from './migrations/migration'
-import { storeMigrations } from './migrations'
 import { recordMigrations } from './migrations-table'
 import { statementsSql } from './migration-sql'
+import { moduleSteps } from './steps'
+import { legacyVersions, type LegacyVersion } from './steps/legacy-versions'
+import { renderSteps } from './steps/render'
+import { migrationNames } from './steps/step'
 import type { StoreNames } from './store-names'
 
 // A store an earlier Protobase made by comparing its tables with Better Auth's, without a record of migrations. Each
-// migration whose columns the store has, with their types, is recorded as applied; one whose columns it has none of is
+// version whose columns the store has, with their types, is recorded as applied; one whose columns it has none of is
 // still to apply; one it has only some of means the store matches no version, which is an error.
 
 type Column = { table: string; column: string; type: string }
@@ -24,18 +26,21 @@ const columnsIn = async (db: Kysely<any>, schema: string | undefined) =>
 // Never a schema of the app's: it exists only inside the transaction that is rolled back.
 const scratchSchema = 'protobase_auth_adoption'
 
-/** For each migration, the columns it makes: every one runs in a scratch schema, in a transaction that is rolled back. */
+/**
+ * For each version, the columns its steps make: every step of every module runs in a scratch schema, in a transaction
+ * that is rolled back.
+ */
 const madeColumns = async (db: Kysely<any>, names: StoreNames) => {
   const tx = await db.startTransaction().execute()
   const run = async () => {
     await sql`create schema ${sql.id(scratchSchema)}`.execute(tx)
-    const scratch = migrationNames({ ...names, schema: scratchSchema, names: resolveNames({ ...names.names.input, schema: scratchSchema }) })
-    const made: Column[][] = []
+    const scratch = resolveNames({ ...names.names.input, schema: scratchSchema })
+    const made = new Map<number, Column[]>(legacyVersions.map(({ version }) => [version, []]))
     let before: Column[] = []
-    for (const migration of storeMigrations) {
-      for (const statement of migration.statements(scratch)) await statement.execute(tx)
+    for (const part of renderSteps(migrationNames({ ...names, schema: scratchSchema, names: scratch }), scratch.modules, () => false)) {
+      for (const statement of part.statements) await statement.execute(tx)
       const after = await columnsIn(tx, scratchSchema)
-      made.push(after.filter((column) => !before.some((earlier) => key(earlier) === key(column))))
+      made.get(part.version)!.push(...after.filter((column) => !before.some((earlier) => key(earlier) === key(column))))
       before = after
     }
     return made
@@ -43,22 +48,22 @@ const madeColumns = async (db: Kysely<any>, names: StoreNames) => {
   return run().finally(() => tx.rollback().execute())
 }
 
-/** Whether the store has any table of the migrations besides the user table, which may be another system's. */
+/** Whether the store has any table of the steps besides the user table, which may be another system's. */
 export const storeHasTables = async (db: Kysely<any>, names: StoreNames) => {
   const tables = new Set((await columnsIn(db, names.schema)).map((column) => column.table))
-  return storeMigrations.some((migration) => migration.tables.some((table) => tables.has(names.names.tables[table]!.name)))
+  return Object.values(moduleSteps).some((steps) => steps.some((step) => step.tables.some((table) => tables.has(names.names.tables[table]!.name))))
 }
 
-type Adoption = { adopted: Array<{ migration: StoreMigration; columns: Column[] }>; pending: StoreMigration[] }
+type Adoption = { adopted: Array<{ migration: LegacyVersion; columns: Column[] }>; pending: LegacyVersion[] }
 
-/** Which migrations the store matches and which it still needs; a migration it matches only partly is an error. */
+/** Which versions the store matches and which it still needs; a version it matches only partly is an error. */
 export const planAdoption = async (db: Kysely<any>, names: StoreNames): Promise<Adoption> => {
   const made = await madeColumns(db, names)
   const found = new Map((await columnsIn(db, names.schema)).map((column) => [key(column), column.type]))
   const adoption: Adoption = { adopted: [], pending: [] }
   const problems: string[] = []
-  storeMigrations.forEach((migration, i) => {
-    const columns = made[i]!
+  legacyVersions.forEach((migration) => {
+    const columns = made.get(migration.version)!
     const there = columns.filter((column) => found.has(key(column)))
     if (there.length === 0) return void adoption.pending.push(migration)
     const missing = columns.filter((column) => !found.has(key(column))).map((column) => `lacks ${key(column)}`)

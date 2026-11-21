@@ -1,8 +1,9 @@
-import { ddl } from '../ddl'
-import type { StoreMigration } from './migration'
+import { ddl } from '../../ddl'
+import type { Step } from '../step'
 
 /** Passkeys, each with the RP ID it was made for. */
-export const passkeys: StoreMigration = {
+export const passkeys: Step = {
+  step: 1,
   version: 3,
   name: 'passkeys',
   title: "The users' passkeys",
