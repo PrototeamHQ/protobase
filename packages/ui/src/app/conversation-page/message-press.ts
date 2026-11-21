@@ -6,9 +6,10 @@ export const pressSlop = 10
 
 /**
  * Where a finger came down on a message, while it may still become a tap or long-press. `tapOpens`: a tap opens the
- * actions too, unless it came while the reader was typing, when it only lowers the keyboard.
+ * actions too, unless it came while the reader was typing, when it only lowers the keyboard. `lifted`: the finger is
+ * up, so only the tap's click may still come, however late the browser sends it.
  */
-export type Press = { x: number; y: number; tapOpens: boolean } | undefined
+export type Press = { x: number; y: number; tapOpens: boolean; lifted?: true } | undefined
 
 export type PressEvent =
   /**
@@ -17,6 +18,8 @@ export type PressEvent =
    */
   | { type: 'down'; x: number; y: number; touch: boolean; onControl: boolean; typing: boolean }
   | { type: 'move'; x: number; y: number }
+  /** The finger lifted. */
+  | { type: 'up' }
   /** The browser took the touch over, such as to scroll. */
   | { type: 'cancel' }
   /** The finger stayed down for `longPressMs`. */
@@ -34,11 +37,13 @@ export const nextPress = (press: Press, event: PressEvent): { press: Press; open
     return { press: event.touch && !event.onControl ? { x: event.x, y: event.y, tapOpens: !event.typing } : undefined, open: false }
   }
   if (event.type === 'cancel') return { press: undefined, open: false }
+  if (event.type === 'up') return { press: press && { ...press, lifted: true }, open: false }
   if (event.type === 'move') {
     if (!press) return { press, open: false }
     const drifted = Math.hypot(event.x - press.x, event.y - press.y) > pressSlop
     return { press: drifted ? undefined : press, open: false }
   }
   if (event.type === 'tap') return { press: undefined, open: press?.tapOpens === true }
+  if (press?.lifted) return { press, open: false }
   return { press: undefined, open: press !== undefined }
 }

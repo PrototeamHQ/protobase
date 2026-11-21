@@ -63,6 +63,11 @@ export const useMessagePress = (onOpen: () => void) => {
       }, longPressMs)
     },
     onPointerMove: (event: PointerEvent) => step({ type: 'move', x: event.clientX, y: event.clientY }),
+    // A lifted finger is no long-press, even when the browser sends the tap's click later than `longPressMs`
+    onPointerUp: () => {
+      clearTimeout(timer.current)
+      step({ type: 'up' })
+    },
     onPointerCancel: () => step({ type: 'cancel' }),
     onClick: () => {
       const lowersKeyboard = press.current?.tapOpens === false
