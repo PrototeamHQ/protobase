@@ -11,7 +11,15 @@ describe('sharedImports', () => {
   })
 
   it('takes a whole module imported with import * as, export * or import()', () => {
-    expect(sharedImports([chunk(`import * as ui from '@protobase/ui'\nexport * from 'react'\nconst dom = () => import('react-dom')\n`, ['react-dom'])])).toEqual({ '@protobase/ui': ['*'], react: ['*'], 'react-dom': ['*'] })
+    expect(sharedImports([chunk(`import * as jsx from 'react/jsx-runtime'\nexport * from 'react'\nconst dom = () => import('react-dom')\n`, ['react-dom'])])).toEqual({ react: ['*'], 'react-dom': ['*'], 'react/jsx-runtime': ['*'] })
+  })
+
+  it.each([
+    ['import * as', chunk(`import * as ui from '@protobase/ui'\n`)],
+    ['export *', chunk(`export * from '@protobase/ui'\n`)],
+    ['import()', chunk(`const ui = () => import('@protobase/ui')\n`, ['@protobase/ui'])],
+  ])('fails on all of @protobase/ui taken with %s, whose names an app could not check', (_, taken) => {
+    expect(() => sharedImports([taken])).toThrow('import the names it uses instead')
   })
 
   it("leaves out the plugin's own chunks and anything not shared", () => {
