@@ -1877,7 +1877,8 @@
     "couldNotLink": "Your {name} account could not be linked. Try again.",
     "accessDenied": "{name} did not let you in, or you cancelled.",
     "domainNotAllowed": "{name} signed you in with an address this app does not accept from it. Sign in another way.",
-    "providerFailed": "Signing in with {name} did not go through. Try again."
+    "providerFailed": "Signing in with {name} did not go through. Try again.",
+    "unreachable": "Could not reach the server. Try again."
   },
   "calls": {
     "accept": "Accept",

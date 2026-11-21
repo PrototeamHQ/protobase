@@ -1877,7 +1877,8 @@
     "couldNotLink": "Je {name}-account kon niet worden gekoppeld. Probeer het opnieuw.",
     "accessDenied": "{name} liet je niet binnen, of je hebt geannuleerd.",
     "domainNotAllowed": "{name} logde je in met een adres dat deze app daarvan niet accepteert. Log op een andere manier in.",
-    "providerFailed": "Inloggen met {name} lukte niet. Probeer het opnieuw."
+    "providerFailed": "Inloggen met {name} lukte niet. Probeer het opnieuw.",
+    "unreachable": "De server is niet bereikbaar. Probeer het opnieuw."
   },
   "calls": {
     "accept": "Opnemen",
