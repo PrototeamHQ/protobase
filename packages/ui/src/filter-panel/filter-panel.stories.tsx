@@ -181,3 +181,18 @@ export const BarWithActiveSecondaryFilter: Story = {
     expect(canvas.queryByRole('menuitem', { name: 'Country' })).toBeNull()
   },
 }
+
+/** Counts and bounds that could not be loaded say so, rather than showing no values, zero counts or no slider. */
+export const CountsFailed: Story = {
+  args: {
+    config: {
+      ...listingFilters,
+      facets: listingFilters.facets.map((group, index) => (index === 0 ? { ...group, options: [], failed: true } : group)),
+      ranges: (listingFilters.ranges ?? []).map((range, index) => (index === 0 ? { ...range, failed: true } : range)),
+    },
+  },
+  tags: ['play'],
+  play: async ({ canvasElement }) => {
+    expect(within(canvasElement).getAllByText('Could not load the counts')).toHaveLength(2)
+  },
+}

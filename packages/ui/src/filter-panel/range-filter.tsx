@@ -27,6 +27,8 @@ export const RangeFilter = ({ config, value, onChange }: RangeFilterProps) => {
     if (rested) commit()
   }, [rested])
 
+  if (config.failed) return <p className="text-xs text-danger-text">{text('couldNotLoadCounts')}</p>
+
   return (
     <div className="w-full">
       <div className="px-[7px]">

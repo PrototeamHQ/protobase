@@ -19,7 +19,7 @@ import { notificationHistoryClient } from './notification-history'
 import { recordCallsClient } from './record-calls'
 import { ringsClient } from './rings'
 import { callGuestsClient } from './call-guests'
-import type { Aggregate, AggregateParams, BatchOp, BatchResult, CommentPage, Facet, FormChallenge, FormProof, Histogram, HistoryChange, HistoryPage, ListPage, MapResult, MentionableUser, Meta, MetaResult, PublicForm, RecordComment, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
+import type { Aggregate, AggregateBatch, AggregateBatchResult, AggregateParams, BatchOp, BatchResult, CommentPage, Facet, FormChallenge, FormProof, Histogram, HistoryChange, HistoryPage, ListPage, MapResult, MentionableUser, Meta, MetaResult, PublicForm, RecordComment, RecordOf, ResourceRef, Series, SeriesParams, SeriesPoint, Stored } from './types'
 
 type Json = Record<string, any>
 
@@ -280,6 +280,25 @@ export const createClient = (options: ClientOptions = {}) => {
     return response.json()
   }
 
+  /** Several `facets`, `histogram` and `series` reads in one request (`:batchAggregates`); reads with the same filter share their scans. */
+  const batchAggregates = async (resource: ResourceRef, batch: AggregateBatch): Promise<AggregateBatchResult> => {
+    const response = await send({
+      method: 'POST',
+      path: `/${nameOf(resource)}:batchAggregates`,
+      body: {
+        facets: (batch.facets ?? []).map((facet) => ({ ...facet, filter: filterText(facet.filter) || undefined })),
+        histograms: (batch.histograms ?? []).map((histogram) => ({ ...histogram, filter: filterText(histogram.filter) || undefined })),
+        series: (batch.series ?? []).map(({ timeZone, filter, ...params }) => ({ ...params, time_zone: timeZone, filter: filterText(filter) || undefined })),
+      },
+    })
+    const body = await response.json()
+    return {
+      facets: body.facets.map((facet: { facets: Facet[] }) => facet.facets),
+      histograms: body.histograms,
+      series: body.series.map((one: { field: string; granularity: string; time_zone: string; points: SeriesPoint[] }) => ({ field: one.field, granularity: one.granularity, timeZone: one.time_zone, points: one.points })),
+    }
+  }
+
   /**
    * The records in a map's view, its bounding box being part of `filter`: the records themselves when few match or the
    * map is close, else buckets of them on a grid sized for `zoom`.
@@ -433,7 +452,7 @@ export const createClient = (options: ClientOptions = {}) => {
   /** Where a page reads the bytes of a file of `resource` with `fetch`, from this API's own origin (see `fileReadUrl`). */
   const readUrl = (_resource: ResourceRef, file: { uri: string; url: string }) => fileReadUrl(file, systemUrlOf(options.baseUrl))
 
-  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, bridges, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes, workflowRunTrace, runnerRegistration, fileReadUrl: readUrl }
+  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, batchAggregates, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, bridges, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes, workflowRunTrace, runnerRegistration, fileReadUrl: readUrl }
 }
 
 export type Client = ReturnType<typeof createClient>

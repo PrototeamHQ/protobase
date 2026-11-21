@@ -1,5 +1,6 @@
 import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { enumLabel, type FilterExpr, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { loaderOf } from '../data/aggregate-loader'
 import { useClient } from '../data/api-provider'
 import { keys } from '../data/query-keys'
 import type { FacetOption, FilterConfig, FilterState, RangeConfig } from '../filter-panel'
@@ -28,11 +29,13 @@ export type FilterConfigParams = {
 const histogramBuckets = 24
 
 /**
- * The panel's config for a view: facet counts come from `:facets` and each range's bounds from `:histogram`, each
- * computed with every other active filter applied but not its own, so choosing one value does not hide the rest.
+ * The panel's config for a view: facet counts and each range's bounds, each computed with every other active filter
+ * applied but not its own, so choosing one value does not hide the rest. They load together, with the list's chart, as
+ * one `:batchAggregates` request. A count that failed to load shows as failed, never as zero or as no values.
  */
 export const useFilterConfig = ({ model, resources, views, view, state, extras, titleOf }: FilterConfigParams): FilterConfig => {
   const client = useClient()
+  const loader = loaderOf(client)
   const queryClient = useQueryClient()
   const skeleton = widgetFields(view, model)
   const label = (name: string) => view?.fields[name]?.label ?? humanize(name)
@@ -51,10 +54,11 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras, 
       const filter = stateToText(skeleton, { ...state, facets: { ...state.facets, [group]: [] } }, extras)
       const target = targetOf(field)
       const label = target?.primaryKey.length === 1 && !derives(target) ? labelFieldOf(target, views[target.name]) : undefined
-      return { queryKey: keys.facets(model.name, field, filter), queryFn: () => client.facets(model.name, field, { filter, limit: 50, ...(label && { label }) }) }
+      return { queryKey: keys.facets(model.name, field, filter), queryFn: () => loader.facets(model.name, field, { filter, limit: 50, ...(label && { label }) }) }
     }),
   })
-  const counts = (group: string, field: string) => facetQueries[counted.findIndex((entry) => entry.group === group && entry.field === field)]?.data
+  const countQuery = (group: string, field: string) => facetQueries[counted.findIndex((entry) => entry.group === group && entry.field === field)]
+  const counts = (group: string, field: string) => countQuery(group, field)?.data
 
   const countedKeys = (group: string) => (counts(group, group) ?? []).flatMap((facet) => (facet.value === null ? [] : [String(facet.value)]))
   const labelQueries = useQueries({
@@ -98,14 +102,20 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras, 
     queries: ranges.map((range) => {
       const filter = stateToText(skeleton, setRange(state, range.id, undefined), extras)
       const buckets = rangeHistogram(view, range.id) ? histogramBuckets : 1
-      return { queryKey: keys.histogram(model.name, range.id, buckets, filter), queryFn: () => client.histogram(model.name, range.id, { filter, buckets }) }
+      return { queryKey: keys.histogram(model.name, range.id, buckets, filter), queryFn: () => loader.histogram(model.name, range.id, { filter, buckets }) }
     }),
   })
 
   const facetGroup = (group: FilterConfig['facets'][number], index: number) => {
     if (group.flags) {
-      const options = group.options.map(({ value }) => ({ value, label: label(value), count: counts(group.id, value)?.find((facet) => String(facet.value) === 'true')?.count ?? 0 }))
-      return { ...group, options }
+      // A flag's count is known once its counts are: without a true value it has none
+      const countOf = (value: string) => {
+        const facets = counts(group.id, value)
+        return facets && { count: facets.find((facet) => String(facet.value) === 'true')?.count ?? 0 }
+      }
+      const options = group.options.map(({ value }) => ({ value, label: label(value), ...countOf(value) }))
+      const failed = group.options.some(({ value }) => countQuery(group.id, value)?.isError)
+      return { ...group, options, ...(failed && { failed }) }
     }
     const field = model.fields[group.id]
     const named = (counts(group.id, group.id) ?? []).flatMap((facet): Array<[string, string]> => (facet.label === undefined ? [] : [[String(facet.value), facet.label]]))
@@ -118,9 +128,11 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras, 
         : [{ value: String(facet.value), label: names.get(String(facet.value)) ?? String(facet.value), count: facet.count }],
     )
     const search = searches[index]!
+    const failed = countQuery(group.id, group.id)?.isError
     return {
       ...group,
       label: label(group.id),
+      ...(failed && { failed }),
       options: search.matches ? matchOptions(search.matches, values) : values,
       ...(names.size > 0 && { labels: Object.fromEntries(names) }),
       ...(search.onSearch && { onSearch: search.onSearch }),
@@ -128,7 +140,9 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras, 
   }
 
   const rangeConfig = (range: RangeConfig, index: number): RangeConfig[] => {
-    const data = histogramQueries[index]?.data
+    const query = histogramQueries[index]
+    if (query?.isError) return [{ ...range, label: label(range.id), min: 0, max: 0, step: 1, histogram: [], format: rangeFormat(view, range.id), failed: true }]
+    const data = query?.data
     if (!data || data.min === null || data.max === null) return []
     return [
       {

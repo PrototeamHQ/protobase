@@ -15,3 +15,8 @@ type Story = StoryObj<typeof meta>
 export const Daily: Story = {}
 
 export const Weekly: Story = { args: { defaultGranularity: 'week' } }
+
+/** The counts could not be loaded: no total and no bars that read as zero. */
+export const Failed: Story = { args: { state: 'failed' } }
+
+export const Loading: Story = { args: { state: 'loading' } }

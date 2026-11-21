@@ -13,4 +13,15 @@ describe('ActivityChart', () => {
     const html = renderToStaticMarkup(createElement(ActivityChart, { title: 'Sign-ups', data: [{ at: 0, count: 3 }, { at: 86_400_000, count: 4 }] }))
     expect(html).toContain('<span class="font-semibold tabular-nums">7</span>')
   })
+
+  it('says the counts could not be loaded instead of drawing an empty chart with a zero total', () => {
+    const html = renderToStaticMarkup(createElement(ActivityChart, { title: 'Sign-ups', data: [], state: 'failed' }))
+    expect(html).toContain('Could not load the chart.')
+    expect(html).not.toContain('tabular-nums')
+  })
+
+  it('shows no total while the counts load', () => {
+    const html = renderToStaticMarkup(createElement(ActivityChart, { title: 'Sign-ups', data: [], state: 'loading' }))
+    expect(html).not.toContain('tabular-nums')
+  })
 })

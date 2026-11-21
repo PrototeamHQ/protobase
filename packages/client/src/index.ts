@@ -46,6 +46,8 @@ export type {
   SeriesParams,
   Histogram,
   HistogramBucket,
+  AggregateBatch,
+  AggregateBatchResult,
   MapBounds,
   MapBucket,
   MapResult,

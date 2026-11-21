@@ -32,6 +32,9 @@ const hash = (text: string) => {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36)
 }
 
+/** What a read keeps to, as text: equal for two reads that filter the same rows, however their filters were written. */
+export const readIdentity = (filter: CheckedFilter | undefined, scope?: Scope) => canonical({ filter, terms: relatedTerms(scope), within: scope?.within })
+
 /** A short fingerprint of the filter a cursor was issued for and what its scope narrows it by; empty without either. */
 export const filterFingerprint = (filter: CheckedFilter | undefined, scope?: Scope) => {
   const terms = relatedTerms(scope)

@@ -19,6 +19,8 @@ export type FacetGroupConfig = {
   flags?: boolean
   /** Behind the bar's "More filters" menu until picked there or set. */
   secondary?: boolean
+  /** The counts could not be loaded: it says so instead of showing no values or zero counts. */
+  failed?: boolean
 }
 
 export type RangeConfig = {
@@ -32,6 +34,8 @@ export type RangeConfig = {
   format: (value: number) => string
   /** Behind the bar's "More filters" menu until picked there or set. */
   secondary?: boolean
+  /** The bounds could not be loaded: it says so instead of a slider. */
+  failed?: boolean
 }
 
 export type DatePresetId = DatePreset

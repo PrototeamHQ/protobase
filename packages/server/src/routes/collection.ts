@@ -1,4 +1,5 @@
 import { Hono, type Context } from 'hono'
+import { batchAggregates } from '../aggregate-batch'
 import { aggregate } from '../aggregate-groups'
 import { facets, numericHistogram, timeSeries } from '../aggregate-service'
 import { belongingFilter } from '../belongs-to'
@@ -74,6 +75,11 @@ export const collectionRoutes = (deps: Deps) => {
 
   app.post('/:parent/:key/:target', async (c) => {
     const { parent, entry, action, key } = underRecord(c)
+    if (action === 'batchAggregates') {
+      const within = await belongingFilter(deps, entry, c.get('session'), parent, key)
+      const { body, warning } = await batchAggregates(deps, entry, c.get('session'), await c.req.json(), within)
+      return c.json(body, 200, warningHeader(warning))
+    }
     if (action !== 'search') return unknownAction(action)
     const body = parseParams(listParams, await c.req.json())
     const within = await belongingFilter(deps, entry, c.get('session'), parent, key)
@@ -90,6 +96,10 @@ export const collectionRoutes = (deps: Deps) => {
     if (action === 'search') {
       const { body: page, warning } = await listRecords(deps, entry, session, body, searchFilterLength)
       return c.json(page, 200, warningHeader(warning))
+    }
+    if (action === 'batchAggregates') {
+      const { body: read, warning } = await batchAggregates(deps, entry, session, body)
+      return c.json(read, 200, warningHeader(warning))
     }
     if (action !== '') return unknownAction(action)
     const created = await runWrite(deps, entry, session, { operation: 'create', body })

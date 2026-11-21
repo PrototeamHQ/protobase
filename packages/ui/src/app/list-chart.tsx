@@ -6,7 +6,7 @@ import { viewerZone } from '../format/zone'
 
 const periods = { '7d': 'last 7 days', '30d': 'last 30 days', '90d': 'last 90 days', '1y': 'last year', all: 'all time' }
 
-/** The view's chart, drawn from `:series` with the list's current filter. */
+/** The view's chart, drawn from `:series` with the list's current filter; a series that failed to load shows as failed, never as an empty chart. */
 export const ListChart = ({ resource, chart, title, filter }: { resource: string; chart: PeriodChartModel; title: string; filter: string }) => {
   const [granularity, setGranularity] = useState<'day' | 'week'>(chart.granularity === 'week' ? 'week' : 'day')
   const range = granularity === 'week' ? '90d' : chart.range
@@ -19,6 +19,7 @@ export const ListChart = ({ resource, chart, title, filter }: { resource: string
       granularity={granularity}
       onGranularityChange={setGranularity}
       periodLabel={granularity === 'week' ? 'last 12 weeks' : periods[range]}
+      state={series.isError ? 'failed' : series.isPending ? 'loading' : undefined}
     />
   )
 }
