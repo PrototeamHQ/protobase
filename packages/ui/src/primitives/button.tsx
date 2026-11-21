@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, Ref } from 'react'
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 import { cn } from '../lib/cn'
 import { Spinner } from './spinner'
 
@@ -7,6 +7,8 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   /** `icon` is a square of the height of `sm`, for a button with an icon alone. */
   size?: 'sm' | 'md' | 'icon'
   loading?: boolean
+  /** What the button says while `loading`, such as "Saving…", which a screen reader announces as the button's new name. */
+  busyLabel?: ReactNode
   ref?: Ref<HTMLButtonElement>
 }
 
@@ -27,7 +29,7 @@ export const buttonClass = ({ variant = 'secondary', size = 'md' }: Pick<ButtonP
     sizes[size],
   )
 
-export const Button = ({ variant = 'secondary', size = 'md', loading, className, children, disabled, ...rest }: ButtonProps) => (
+export const Button = ({ variant = 'secondary', size = 'md', loading, busyLabel, className, children, disabled, ...rest }: ButtonProps) => (
   <button
     type="button"
     disabled={disabled || loading}
@@ -35,8 +37,8 @@ export const Button = ({ variant = 'secondary', size = 'md', loading, className,
     className={cn(buttonClass({ variant, size }), className)}
     {...rest}
   >
-    {/* The button keeps its own name while busy, which aria-busy says */}
+    {/* Without a busy label the button keeps its own name while busy, which aria-busy says */}
     {loading && <Spinner hidden className="size-3.5" />}
-    {children}
+    {busyLabel === undefined ? children : <span aria-live="polite">{loading ? busyLabel : children}</span>}
   </button>
 )

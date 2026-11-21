@@ -5,8 +5,11 @@ import { Button } from '../primitives/button'
 import { roleLabel } from './organization-paths'
 import type { OrganizationText } from './organization-word'
 
-/** An invitation for the person's own address: where to, with which app roles, until when, and Join. */
-export const MyInvitationRow = ({ invitation, t, busy, onJoin }: { invitation: OrganizationInvitation; t: OrganizationText; busy: boolean; onJoin: () => void }) => {
+/**
+ * An invitation for the person's own address: where to, with which app roles, until when, and Join, which says it is
+ * joining while `joining`; `busy` while any invitation is being joined.
+ */
+export const MyInvitationRow = ({ invitation, t, busy, joining, onJoin }: { invitation: OrganizationInvitation; t: OrganizationText; busy: boolean; joining: boolean; onJoin: () => void }) => {
   const roles = useAuth().organizations?.roles ?? []
   const name = invitation.organizationName ?? t('anOrganization')
   const appRoles = invitation.appRoles.map((role) => roleLabel(roles, role)).join(', ')
@@ -18,7 +21,9 @@ export const MyInvitationRow = ({ invitation, t, busy, onJoin }: { invitation: O
         <span className="block break-words font-medium">{name}</span>
         <span className="block text-xs text-muted-foreground">{appRoles ? `${appRoles} · ${expires}` : expires}</span>
       </span>
-      <Button variant="primary" loading={busy} onClick={onJoin} className="min-h-10 w-full sm:min-h-0 sm:w-auto">{t('join', { name })}</Button>
+      <Button variant="primary" disabled={busy} loading={joining} busyLabel={t('joining', { name })} onClick={onJoin} className="min-h-10 w-full sm:min-h-0 sm:w-auto">
+        {t('join', { name })}
+      </Button>
     </li>
   )
 }

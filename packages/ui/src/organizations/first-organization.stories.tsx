@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
-import { createStaticSession, type AuthSession, type CurrentOrganization, type OrganizationInvitation } from '@protobase/client'
+import { createStaticSession, NetworkError, type AuthSession, type CurrentOrganization, type OrganizationInvitation } from '@protobase/client'
 import { f, resource, view } from '@protobase/schema'
 import { App } from '../app/app'
 import { fakeApi } from '../app/testing/fake-api'
@@ -60,6 +60,16 @@ const Chat = ({ session, start, filter = 'name = "general"' }: { session: AuthSe
 // Never settle, so the story stays on the screen instead of opening the app again.
 const pending = () => ({ create: fn(() => new Promise<never>(() => {})), acceptMine: fn(() => new Promise<never>(() => {})) })
 
+// The first call gets no answer, as offline; the next stays pending.
+const offlineFirst = () => {
+  let calls = 0
+  return () => (++calls === 1 ? Promise.reject(new NetworkError()) : new Promise<never>(() => {}))
+}
+const offlineOnce = () => ({ create: fn(offlineFirst()), acceptMine: fn(offlineFirst()) })
+
+// What a busy button says, when it is in a live region and the button is disabled while it is busy; otherwise nothing.
+const busyLabel = (button: HTMLElement) => (button.matches(':disabled[aria-busy="true"]') ? button.querySelector('[aria-live="polite"]')?.textContent : undefined)
+
 const createPlay: StoryObj<Args>['play'] = async ({ canvasElement, args }) => {
   const canvas = within(canvasElement)
   expect(await canvas.findByRole('heading', { name: 'Create your workspace' })).toBeVisible()
@@ -80,6 +90,8 @@ const createPlay: StoryObj<Args>['play'] = async ({ canvasElement, args }) => {
   await userEvent.click(create)
   await waitFor(() => expect(args.create).toHaveBeenCalledTimes(1))
   expect(args.create).toHaveBeenCalledWith({ name: 'Acme' })
+  // While it is made, the button says so, in a live region a screen reader announces
+  expect(busyLabel(canvas.getByRole('button', { name: 'Creating workspace…' }))).toBe('Creating workspace…')
 }
 
 /** Someone in no workspace who opens one of its lists gets the one-step screen that names their first, on a laptop. */
@@ -106,6 +118,7 @@ const joinPlay: StoryObj<Args>['play'] = async ({ canvasElement, args }) => {
   expect(instead.getAttribute('href')).toBe('/-/first-organization/new')
   await userEvent.click(canvas.getByRole('button', { name: 'Join Acme' }))
   await waitFor(() => expect(args.acceptMine).toHaveBeenCalledWith('i1'))
+  expect(busyLabel(canvas.getByRole('button', { name: 'Joining Acme…' }))).toBe('Joining Acme…')
   await userEvent.click(instead)
   expect(await canvas.findByLabelText('Workspace name')).toBeVisible()
   expect(canvas.getByRole('link', { name: 'Back to your invitations' }).getAttribute('href')).toBe('/-/first-organization')
@@ -125,6 +138,62 @@ export const JoinOnAPhone: StoryObj<Args> = {
   args: pending(),
   render: (args) => <Chat session={sessionFor(nowhere, [invitation], args)} start="/" />,
   play: joinPlay,
+}
+
+const createOfflinePlay: StoryObj<Args>['play'] = async ({ canvasElement, args }) => {
+  const canvas = within(canvasElement)
+  await userEvent.type(await canvas.findByLabelText('Workspace name'), 'Acme')
+  await userEvent.click(canvas.getByRole('button', { name: 'Create workspace' }))
+  expect(await canvas.findByRole('alert')).toHaveTextContent('Could not reach the server. Try again.')
+  // The button works again, and a second press sends again
+  const create = canvas.getByRole('button', { name: 'Create workspace' })
+  expect(create).toBeEnabled()
+  await userEvent.click(create)
+  await waitFor(() => expect(args.create).toHaveBeenCalledTimes(2))
+  expect(busyLabel(canvas.getByRole('button', { name: 'Creating workspace…' }))).toBe('Creating workspace…')
+}
+
+/** A create that gets no answer says so by the button, which can be pressed again, on a laptop. */
+export const CreateOfflineOnALaptop: StoryObj<Args> = {
+  tags: ['play', 'laptop'],
+  args: offlineOnce(),
+  render: (args) => <Chat session={sessionFor(nowhere, [], args)} start="/" />,
+  play: createOfflinePlay,
+}
+
+/** The same on a phone. */
+export const CreateOfflineOnAPhone: StoryObj<Args> = {
+  tags: ['play', 'touch'],
+  args: offlineOnce(),
+  render: (args) => <Chat session={sessionFor(nowhere, [], args)} start="/" />,
+  play: createOfflinePlay,
+}
+
+const joinOfflinePlay: StoryObj<Args>['play'] = async ({ canvasElement, args }) => {
+  const canvas = within(canvasElement)
+  await userEvent.click(await canvas.findByRole('button', { name: 'Join Acme' }))
+  expect(await canvas.findByRole('alert')).toHaveTextContent('Could not reach the server. Try again.')
+  const join = canvas.getByRole('button', { name: 'Join Acme' })
+  expect(join).toBeEnabled()
+  await userEvent.click(join)
+  await waitFor(() => expect(args.acceptMine).toHaveBeenCalledTimes(2))
+  expect(busyLabel(canvas.getByRole('button', { name: 'Joining Acme…' }))).toBe('Joining Acme…')
+}
+
+/** A join that gets no answer says so above the invitations, and Join can be pressed again, on a laptop. */
+export const JoinOfflineOnALaptop: StoryObj<Args> = {
+  tags: ['play', 'laptop'],
+  args: offlineOnce(),
+  render: (args) => <Chat session={sessionFor(nowhere, [invitation], args)} start="/" />,
+  play: joinOfflinePlay,
+}
+
+/** The same on a phone. */
+export const JoinOfflineOnAPhone: StoryObj<Args> = {
+  tags: ['play', 'touch'],
+  args: offlineOnce(),
+  render: (args) => <Chat session={sessionFor(nowhere, [invitation], args)} start="/" />,
+  play: joinOfflinePlay,
 }
 
 /** The workspaces page opens outside any workspace too, in a shell without the workspace's resources. */

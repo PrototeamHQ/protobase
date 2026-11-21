@@ -53,7 +53,9 @@ export const NewOrganizationForm = ({ onCreated, autoFocus = false }: { onCreate
         </label>
         {problem && <p id={hint} role="alert" className="text-body font-medium text-danger-text">{problem}</p>}
       </div>
-      <Button variant="primary" type="submit" loading={busy} className="min-h-10">{t('createButton')}</Button>
+      <Button variant="primary" type="submit" loading={busy} busyLabel={t('creating')} className="min-h-10">
+        {t('createButton')}
+      </Button>
     </form>
   )
 }

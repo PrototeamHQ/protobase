@@ -37,7 +37,7 @@ description: Sign-in methods, users, roles, organizations and tokens.
 - [Staff sign-in](/reference/auth/#staff-sign-in): The team that runs an app signs in as a person to help them, with a reason and a log entry.
 - [Roles](/reference/auth/#roles): A user holds one or more roles and switches between them without signing in again.
 - [Organizations](/reference/auth/#organizations): People work in one organization at a time, see only its records, and are invited with their own roles.
-- [First organization](/reference/auth/#first-organization-and-start-address) (beta): People outside any organization name their first one in one step, or join one they are invited to, and land on the start address your app sets. You choose the word your app uses for an organization, such as workspace.
+- [First organization](/reference/auth/#first-organization-and-start-address) (beta): People outside any organization name their first one in one step, or join one they are invited to, and land on the start address your app sets. The screen says what it is doing while it creates or joins, and lets them try again after a network failure. You choose the word your app uses for an organization, such as workspace.
 - [Status](/reference/status/) (beta): People set themselves busy or do not disturb, with a text of their own such as "Having lunch" and a time it clears, from the user menu; the people they share an organization with see it beside their name, with your app's online or away mark on the members page and in the sidebar.
 - [API tokens](/reference/auth/#tokens-and-roles): A signed-in session gets short-lived tokens for the API.
 - [Immediate revocation](/reference/auth/#when-a-token-stops-working): A ban, removed role or ended session takes effect on the next request.
