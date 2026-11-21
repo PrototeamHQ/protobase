@@ -38,6 +38,10 @@ export const createRelayStore = () => {
     onNotice: (notice) => {
       for (const listener of [...noticeListeners]) listener(notice)
     },
+    // Typing cannot be known while the relay is down: nobody shows as typing then.
+    onStatus: (status) => {
+      if (status !== 'open') set(new Map())
+    },
     onResync: () => {
       set(new Map())
       for (const listener of [...resyncListeners]) listener()

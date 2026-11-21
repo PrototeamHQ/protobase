@@ -137,6 +137,17 @@ export const relaySocket = ({ ticket, socket: open, retryDelay, final, onOpen, o
       dropPending()
       current?.close(1000)
     },
+    /**
+     * Connects at once instead of waiting out the pause before the next try, such as when the page shows again or the
+     * device is back online; nothing while the socket is open or connecting.
+     */
+    wake: () => {
+      if (!wanted || retry === undefined) return
+      clearTimeout(retry)
+      retry = undefined
+      failures = 0
+      void connect()
+    },
     /** Sends an event on a topic and resolves once the relay answered `ok`, or rejects with its `RelayRefusal`. */
     request: (topic: string, event: string, payload: Record<string, unknown>, joinRef: string | null = null) =>
       new Promise<void>((resolve, reject) => {

@@ -8,7 +8,7 @@ const conversationOf = (view: ViewModel) => (view.record && 'conversation' in vi
 
 /**
  * The sidebar's marks of a group's records from the relay, as its `nav.recent` asks: bold with the count of unread
- * messages (`unread`), and "typing…" while someone else types in it (`typing`). Undefined for a group that asks for neither.
+ * messages (`unread`), and "typing…" while someone else types in it (`typing`), but in the one open. Undefined for a group that asks for neither.
  */
 export const relayMarks = (view: ViewModel, recent: NavRecentModel) => {
   if (!recent.typing && !recent.unread) return
@@ -19,7 +19,8 @@ export const relayMarks = (view: ViewModel, recent: NavRecentModel) => {
     const marks: Record<string, RecordMark> = {}
     for (const record of records) {
       const count = unread?.[record.id] ?? 0
-      const typed = recent.typing && typing.has(`${view.resource}/${record.id}`)
+      // The open conversation's own line says who types there, so its row does not.
+      const typed = recent.typing && !record.active && typing.has(`${view.resource}/${record.id}`)
       if (count === 0 && !typed) continue
       marks[record.id] = { ...(count > 0 && { strong: true, count, label: text('unread', { count }) }), ...(typed && { typing: true }) }
     }

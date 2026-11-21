@@ -11,7 +11,7 @@ const presenceOfPage = () => (document.visibilityState === 'hidden' ? 'away' : '
 /**
  * Follows the app's realtime relay for someone signed in, when the app has one: one socket for the page, which the
  * conversation pages, the sidebar and the live updates beneath it share. It tells the relay the person is away while
- * the page is hidden, and online again once it shows.
+ * the page is hidden, and online again once it shows, connecting again at once then if it was down.
  */
 export const RelayProvider = ({ children }: { children: ReactNode }) => {
   const meta = useAdminMeta()
@@ -25,12 +25,19 @@ export const RelayProvider = ({ children }: { children: ReactNode }) => {
     if (!on) return
     const store = createRelayStore()
     const stop = client.relay.follow(store.handlers)
-    const tell = () => client.relay.presence(presenceOfPage())
+    // A page that shows again, or a device back online, connects at once rather than on the next try's schedule.
+    const tell = () => {
+      client.relay.presence(presenceOfPage())
+      if (presenceOfPage() === 'online') client.relay.reconnect()
+    }
+    const online = () => client.relay.reconnect()
     tell()
     document.addEventListener('visibilitychange', tell)
+    window.addEventListener('online', online)
     setValue({ relay: client.relay, store, me: me! })
     return () => {
       document.removeEventListener('visibilitychange', tell)
+      window.removeEventListener('online', online)
       stop()
       store.stop()
       setValue(undefined)

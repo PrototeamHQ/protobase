@@ -141,6 +141,8 @@ export const relayClient = (options: Options) => {
       else viewing.delete(channel)
       if (joined.has(channel)) void socket.request(channel, 'interest', keys ? { viewing: keys } : {}).catch(quietly)
     },
+    /** Connects again at once when the socket is down and waiting to try again, such as when the page shows again or the device is back online. */
+    reconnect: () => socket.wake(),
     /** Tells the relay whether the person is at the page, as the app's presence takes it over all their devices. */
     presence: (next: OwnPresence) => {
       if (next === presence) return

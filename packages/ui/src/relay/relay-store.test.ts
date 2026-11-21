@@ -20,6 +20,13 @@ describe('createRelayStore', () => {
     expect(listener).toHaveBeenCalledTimes(2)
   })
 
+  it('shows nobody typing while the relay is down', () => {
+    const store = createRelayStore()
+    store.handlers.onEvent!({ event: 'typing', payload: { typing: true }, from: { user: 'u2', connection: 'c' }, at: 0, channel: 'a/1' })
+    store.handlers.onStatus!('connecting')
+    expect(store.typers().size).toBe(0)
+  })
+
   it("shows every notice while it views no channel, and then only the viewed channel's and those of channel records", () => {
     const store = createRelayStore()
     expect(store.shows(notice('messages', '1', 'conversations/8'))).toBe(true)

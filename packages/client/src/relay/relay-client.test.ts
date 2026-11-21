@@ -164,6 +164,16 @@ describe('relayClient', () => {
     expect(relay.sockets).toHaveLength(1)
   })
 
+  it('connects at once on reconnect instead of waiting out the pause', async () => {
+    const { relay, client, open } = setup()
+    client.follow({})
+    await open()
+    relay.latest().drop()
+    client.reconnect()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(relay.sockets).toHaveLength(2)
+  })
+
   it('opens one socket for every follower and closes it after the last', async () => {
     const { relay, client, open } = setup()
     const stopOne = client.follow({})
