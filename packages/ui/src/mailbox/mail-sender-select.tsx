@@ -1,4 +1,5 @@
 import type { FieldModel } from '@protobase/schema'
+import { Button } from '../primitives/button'
 import { Select } from '../primitives/select'
 import { accountPath } from '../account/account-pages'
 import { Link } from '../app/router'
@@ -17,7 +18,7 @@ type MailSenderSelectProps = { field: FieldModel; value: unknown; invalid?: bool
 export const MailSenderSelect = (props: MailSenderSelectProps) => <MailSenderChoices {...props} {...useSenderOptions()} />
 
 /** `MailSenderSelect` with the person's addresses given: `options` undefined while they are read. */
-export const MailSenderChoices = ({ field, value, invalid, onChange, options, error }: MailSenderSelectProps & SenderOptionsState) => {
+export const MailSenderChoices = ({ field, value, invalid, onChange, options, error, retry }: MailSenderSelectProps & SenderOptionsState) => {
   const stored = String(value ?? '')
   const offered = options?.find((option) => stored !== '' && sameAddress(option.address, stored))
   const unavailable = stored !== '' && options !== undefined && !offered
@@ -37,7 +38,12 @@ export const MailSenderChoices = ({ field, value, invalid, onChange, options, er
           {text.rich('senderNotYours', { account: <Link to={accountPath} className="font-medium text-primary-text hover:underline">{text('accountPage')}</Link> })}
         </p>
       )}
-      {error && <p role="alert" className="text-danger-text">{error}</p>}
+      {error && (
+        <div className="flex flex-wrap items-center gap-2">
+          <p role="alert" className="text-danger-text">{error}</p>
+          {retry && <Button size="sm" onClick={retry}>{text('tryAgain')}</Button>}
+        </div>
+      )}
     </div>
   )
 }

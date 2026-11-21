@@ -2081,7 +2081,9 @@
     "senderNotAvailable": "{address} (not available)",
     "chooseSender": "Choose an address",
     "senderNotYours": "You can't send from this address. Choose one of yours, or add it on your {account}.",
-    "accountPage": "Account page"
+    "accountPage": "Account page",
+    "sendersNotRead": "Your addresses could not be read. Check your connection.",
+    "tryAgain": "Try again"
   },
   "markdown": {
     "write": "Write",

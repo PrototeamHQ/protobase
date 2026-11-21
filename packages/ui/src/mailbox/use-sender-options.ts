@@ -1,54 +1,45 @@
-import { useEffect, useState } from 'react'
-import { AuthError, type MailSenders } from '@protobase/client'
+import { useCallback, useEffect, useState } from 'react'
+import { AuthError, NetworkError } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
 import { useOptionalAuth } from '../auth/auth-provider'
-import { senderOptions, type SenderOption } from './sender-options'
+import { text } from './messages'
+import type { SenderOption } from './sender-options'
+import { onForgetSenderOptions, readSenderOptions } from './sender-options-read'
 
-type Reader = { owner: string; mailSenders: () => Promise<MailSenders> }
-
-// The latest read alone, for half a minute: every mail sender field of a page shares it, and a field shown after a
-// change on the account page reads again soon.
-const freshMs = 30_000
-let latest: { owner: string; at: number; read: Promise<SenderOption[]> } | undefined
-
-const readOptions = ({ owner, mailSenders }: Reader) => {
-  if (latest && latest.owner === owner && Date.now() - latest.at < freshMs) return latest.read
-  const read = mailSenders().then(senderOptions)
-  latest = { owner, at: Date.now(), read }
-  // A failed read is not kept: the field that asked shows the failure, and the next one reads again.
-  read.then(undefined, () => {
-    if (latest?.read === read) latest = undefined
-  })
-  return read
-}
-
-export type SenderOptionsState = { options?: SenderOption[]; error?: string }
+export type SenderOptionsState = { options?: SenderOption[]; error?: string; retry?: () => void }
 
 /**
  * The addresses the signed-in person may send from, as a mail sender field offers them: `options` undefined while
- * they are read, and with `error` when they could not be; none for a visitor or on an app without personal mail.
+ * they are read, and with `error` and `retry` when they could not be; none for a visitor or on an app without personal
+ * mail. They are read again when the person changes their addresses (`forgetSenderOptions`).
  */
 export const useSenderOptions = (): SenderOptionsState => {
   const auth = useOptionalAuth()
   const owner = auth && auth.personalMail.length > 0 && auth.state.kind === 'signed-in' ? auth.state.user.id : undefined
   const account = auth?.session.account
-  const [state, setState] = useState<SenderOptionsState & { owner?: string }>({})
+  const [reads, setReads] = useState(0)
+  const reread = useCallback(() => setReads((count) => count + 1), [])
+  useEffect(() => onForgetSenderOptions(reread), [reread])
+  const [state, setState] = useState<SenderOptionsState & { owner?: string; reads?: number }>({})
   useEffect(() => {
     if (owner === undefined || !account) return
     let current = true
-    readOptions({ owner, mailSenders: account.mailSenders }).then(
+    readSenderOptions({ owner, mailSenders: account.mailSenders }).then(
       (options) => {
-        if (current) setState({ owner, options })
+        if (current) setState({ owner, reads, options })
       },
       (failure: unknown) => {
-        if (!(failure instanceof AuthError)) throw failure
-        if (current) setState({ owner, error: authMessage(failure) })
+        if (!(failure instanceof AuthError) && !(failure instanceof NetworkError)) throw failure
+        const error = failure instanceof AuthError ? authMessage(failure) : text('sendersNotRead')
+        if (current) setState({ owner, reads, error, retry: reread })
       },
     )
     return () => {
       current = false
     }
-  }, [owner, account])
+  }, [owner, account, reads, reread])
   if (owner === undefined) return { options: [] }
-  return state.owner === owner ? state : {}
+  if (state.owner !== owner) return {}
+  // While it reads again, the field keeps the addresses it has, so nothing moves; after a failure it shows it reads.
+  return state.reads === reads || state.options ? state : {}
 }

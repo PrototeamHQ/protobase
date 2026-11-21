@@ -8,7 +8,7 @@ import type { SenderOption } from './sender-options'
 const sendFrom: FieldModel = { name: 'send_from', column: 'send_from', type: 'mail_sender', nullable: true, readOnly: false, filterable: false, sortable: false, aliases: [] }
 const options: SenderOption[] = [{ address: 'ana@gmail.example' }, { address: 'billing@acme.example', name: 'Acme billing' }]
 
-const choices = (value: string, given: { options?: SenderOption[]; error?: string } = { options }, field = sendFrom) =>
+const choices = (value: string, given: { options?: SenderOption[]; error?: string; retry?: () => void } = { options }, field = sendFrom) =>
   renderToStaticMarkup(
     <Router initialUrl="/clients/1">
       <MailSenderChoices field={field} value={value} onChange={() => {}} {...given} />
@@ -47,5 +47,11 @@ describe('a mail sender dropdown', () => {
     expect(optionTexts(html)).toEqual(['Choose an address'])
     expect(html).toContain('role="alert"')
     expect(html).not.toContain('disabled=""')
+  })
+
+  it('offers to read the addresses again when reading them failed for want of a connection', () => {
+    const html = choices('', { error: 'Your addresses could not be read. Check your connection.', retry: () => {} })
+    expect(html).toContain('role="alert"')
+    expect(html).toMatch(/<button[^>]*>Try again<\/button>/)
   })
 })
