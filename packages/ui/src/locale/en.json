@@ -2075,7 +2075,12 @@
     "expired": "{names} no longer accepts mail from this app, as when the link was removed or ran out. Connecting it again asks you to sign in there, then brings you back here.",
     "signInOnly": "You sign in with {provider}, but that sign-in does not allow sending mail: connect {name} to send from it.",
     "connect": "Connect {name}",
-    "connectAgain": "Connect {name} again"
+    "connectAgain": "Connect {name} again",
+    "defaultSender": "Sender's default address",
+    "senderNotAvailable": "{address} (not available)",
+    "chooseSender": "Choose an address",
+    "senderNotYours": "You can't send from this address. Choose one of yours, or add it on your {account}.",
+    "accountPage": "Account page"
   },
   "markdown": {
     "write": "Write",

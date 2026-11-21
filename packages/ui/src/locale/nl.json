@@ -2075,7 +2075,12 @@
     "expired": "{names} neemt geen mail van deze app meer aan, bijvoorbeeld omdat de koppeling is verwijderd of verlopen. Opnieuw koppelen vraagt je daar in te loggen en brengt je daarna hier terug.",
     "signInOnly": "Je logt in met {provider}, maar daarmee mag de app geen mail versturen: koppel {name} om ermee te versturen.",
     "connect": "{name} koppelen",
-    "connectAgain": "{name} opnieuw koppelen"
+    "connectAgain": "{name} opnieuw koppelen",
+    "defaultSender": "Standaardadres van de verzender",
+    "senderNotAvailable": "{address} (niet beschikbaar)",
+    "chooseSender": "Kies een adres",
+    "senderNotYours": "Vanaf dit adres kun je niet versturen. Kies een van jouw adressen, of voeg het toe op je {account}.",
+    "accountPage": "accountpagina"
   },
   "markdown": {
     "write": "Schrijven",
