@@ -21,6 +21,11 @@ describe('the migration parts', () => {
     const thread = resource('thread').table('thread').fields({ id: f.text() }).primaryKey((r) => r.id).live({ reads: ['tickets'] })
     expect(names(migrationParts(project([tickets.toModel(), thread.toModel()])))).toEqual(['jobs', 'changes', 'computed', 'derived'])
   })
+  it('add the jobs schema once a resource is a time rollup, which a recurring job refreshes', () => {
+    const readings = resource('readings').table('readings').fields({ id: f.bigint().readOnly(), taken_at: f.timestamp() }).primaryKey((r) => r.id)
+    const hourly = resource('readings_hourly').table('readings_hourly').bucketsOf(readings, { time: (r) => r.taken_at, every: 'hour', by: () => [], late: '2 hours' })
+    expect(names(migrationParts(project([readings.toModel(), hourly.toModel()])))).toEqual(['jobs', 'changes', 'computed', 'derived'])
+  })
   it("add the query role only with the built-in assistant's read-only queries", () => {
     expect(names(migrationParts(project([tickets.toModel()], true)))).toEqual(['changes', 'computed', 'query', 'derived'])
   })
