@@ -1833,8 +1833,8 @@ export type CreateModel = {
 
 /**
  * The record page as something else than the form (`.record(...)`): a component of the app's own, filling the content
- * area, on a focus page with its bar and Save when `focus`; or a focus page whose surface is one field, drawn by its
- * field type and saved by the framework.
+ * area, on a focus page with its bar and Save when `focus`; a focus page whose surface is one field, drawn by its
+ * field type and saved by the framework; or the record's conversation, filling the content area.
  */
 export type RecordPageModel =
   | {
@@ -1847,6 +1847,55 @@ export type RecordPageModel =
       /** The field the page's surface draws. */
       surface: string
     }
+  | {
+      /** The record's conversation, its whole page. */
+      conversation: ConversationPageModel
+    }
+
+/**
+ * A record page that is the record's conversation (`.record({ conversation })`): a header, the messages that point at
+ * the record, and a box that sends one. Its message fields name fields of `resource`; `subtitle` and `members` name
+ * fields of the record.
+ */
+export type ConversationPageModel = {
+  /** The message resource. */
+  resource: string
+  /** The filterable relation of `resource` that holds this record's key, which each message sent gets too. */
+  field: string
+  /** Who wrote each message: a relation, named as the record it points at, or a text field of user ids, named after the organization's members. */
+  sender: string
+  /** When each message was sent: a date or timestamp field the API can sort by. */
+  time: string
+  /** The message itself: a text field. */
+  text: string
+  /** When the message was last changed, a date or timestamp field, empty for one never changed: a changed one says "(edited)". */
+  edited?: string
+  /** The user ids a message mentions, a JSON field: `@` in the box lists the organization's members, and each pick lands here. */
+  mentions?: string
+  /** A text field of the record shown beside its title in the header, such as a channel's topic. */
+  subtitle?: string
+  /** A JSON field of the record holding user ids: the header names the people other than the reader, with their status, in place of the title. */
+  members?: string
+  /** Where each reader's read position in the record is kept: the conversation opens on a "New messages" line and moves it as they read to the end. */
+  readPosition?: ReadPositionModel
+  /** The hint in the empty box. */
+  placeholder?: string
+  /** What the conversation says while it has no messages. */
+  empty?: string
+}
+
+/**
+ * The resource that keeps how far each reader has read a record's conversation: one record per reader and record, its
+ * `.author()` the reader, `field` a relation to the record and `message` the key of the newest message they read.
+ */
+export type ReadPositionModel = {
+  /** The read position resource, which has an `.author()` field. */
+  resource: string
+  /** The relation of `resource` that holds the record's key. */
+  field: string
+  /** The integer field that holds the key of the newest message read; the message resource's key is one integer column. */
+  message: string
+}
 
 /** The list page's Export (`.export(...)`): how many rows a file may hold. */
 export type ExportModel = {

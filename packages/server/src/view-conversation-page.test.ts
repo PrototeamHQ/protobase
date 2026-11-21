@@ -1,0 +1,78 @@
+import { describe, expect, it } from 'vitest'
+import { f, resource, type ResourceModel } from '@protobase/schema'
+import { conversationPageErrors, pruneConversationPage } from './view-conversation-page'
+
+const channels = resource('channels')
+  .table('channels')
+  .fields({ id: f.integer().readOnly(), name: f.text(), topic: f.text().optional(), member_ids: f.json().optional(), open: f.boolean() })
+  .primaryKey((r) => r.id)
+  .toModel()
+
+const messages = resource('messages')
+  .table('messages')
+  .fields({
+    id: f.integer().readOnly().filterable().sortable(),
+    channel_id: f.relation('channels').filterable(),
+    author_id: f.text().readOnly(),
+    body: f.text(),
+    sent_at: f.timestamp().readOnly().sortable(),
+    edited_at: f.timestamp().optional(),
+    mentions: f.json(),
+  })
+  .primaryKey((r) => r.id)
+  .author((r) => r.author_id)
+  .toModel()
+
+const positions = resource('read_positions')
+  .table('read_positions')
+  .fields({ id: f.integer().readOnly(), user_id: f.text().readOnly().filterable(), channel_id: f.relation('channels').filterable(), last_read_id: f.integer(), note: f.text() })
+  .primaryKey((r) => r.id)
+  .author((r) => r.user_id)
+  .toModel()
+
+const models = { channels, messages, read_positions: positions }
+
+const readPosition = { resource: 'read_positions', field: 'channel_id', message: 'last_read_id' }
+const page = { resource: 'messages', field: 'channel_id', sender: 'author_id', time: 'sent_at', text: 'body', edited: 'edited_at', mentions: 'mentions', subtitle: 'topic', members: 'member_ids', readPosition }
+
+// A caller's models: the same, without the fields they may not read
+const without = (model: ResourceModel, ...names: string[]): ResourceModel => ({ ...model, fields: Object.fromEntries(Object.entries(model.fields).filter(([name]) => !names.includes(name))) })
+
+describe('conversationPageErrors', () => {
+  it('takes a conversation of messages pointing at the record, with its read position', () => {
+    expect(conversationPageErrors(page, 'channels', models)).toEqual([])
+  })
+
+  it('names fields of the wrong kind', () => {
+    expect(conversationPageErrors({ ...page, edited: 'body', mentions: 'body', subtitle: 'open', members: 'name' }, 'channels', models)).toEqual([
+      'edited: "body" is text; a message is marked edited by a date or timestamp field',
+      'mentions: "body" is text; mentions are a JSON field of user ids',
+      'subtitle: "open" is boolean; a subtitle is a text field',
+      'members: "name" is text; members are a JSON field of user ids',
+    ])
+    expect(conversationPageErrors({ ...page, field: 'author_id' }, 'channels', models)).toEqual(['field: "author_id" on messages is not filterable'])
+    expect(conversationPageErrors({ ...page, resource: 'nope' }, 'channels', models)).toEqual(['unknown resource "nope"'])
+  })
+
+  it("needs a read position kept per reader, of a message's integer key", () => {
+    expect(conversationPageErrors({ ...page, readPosition: { ...readPosition, message: 'note' } }, 'channels', models)).toEqual(['readPosition: message: "note" is text; it holds a message\'s key, an integer'])
+    expect(conversationPageErrors(page, 'channels', { ...models, read_positions: { ...positions, author: undefined } })).toEqual(["readPosition: read_positions has no .author(), so it cannot keep each reader's own position"])
+    expect(conversationPageErrors(page, 'channels', { ...models, messages: { ...messages, primaryKey: ['body'] } })).toEqual(['readPosition: messages needs a key of one integer column, which grows as messages arrive'])
+  })
+})
+
+describe('pruneConversationPage', () => {
+  it('keeps the whole page for a caller who reads everything', () => {
+    expect(pruneConversationPage(page, 'channels', models)).toEqual(page)
+  })
+
+  it('is gone for a caller who cannot read the messages or a field each one needs, so the standard page shows', () => {
+    expect(pruneConversationPage(page, 'channels', { channels, read_positions: positions })).toBeUndefined()
+    expect(pruneConversationPage(page, 'channels', { ...models, messages: without(messages, 'body') })).toBeUndefined()
+  })
+
+  it('leaves out what the caller cannot read', () => {
+    const pruned = pruneConversationPage(page, 'channels', { channels: without(channels, 'topic'), messages: without(messages, 'edited_at', 'mentions'), read_positions: without(positions, 'user_id') })
+    expect(pruned).toEqual({ resource: 'messages', field: 'channel_id', sender: 'author_id', time: 'sent_at', text: 'body', members: 'member_ids' })
+  })
+})

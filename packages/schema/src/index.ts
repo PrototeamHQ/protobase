@@ -40,6 +40,8 @@ export type {
   ExportModel,
   CreateModel,
   RecordPageModel,
+  ConversationPageModel,
+  ReadPositionModel,
   SearchesOfModel,
   SignInPromptModel,
   SignInViewModel,
@@ -128,6 +130,7 @@ export { resource, type ResourceBuilder, type DerivedSpec, type SearchRef, type 
 export type { EventActor, EventContext, EventMatch, EventSpec, EventHelpers, CreatedOptions, UpdatedOptions, DeletedOptions, UndeletedOptions } from './events/event-helpers'
 export { isRecordCondition } from './record-when'
 export { view, type ViewBuilder, type FieldViews } from './view'
+export { membersRule } from './record-page'
 export type { FieldView } from './view-field'
 export type { ComponentRef, ViewProps } from './view-displays'
 export type { ListColumn } from './view-columns'

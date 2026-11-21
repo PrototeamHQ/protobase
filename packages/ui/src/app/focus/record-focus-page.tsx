@@ -32,7 +32,7 @@ type RecordFocusPageProps = {
   model: ResourceModel
   recordKey: string
   stored: LiveRecord
-  page: RecordPageModel
+  page: Exclude<RecordPageModel, { conversation: unknown }>
   /** The record's standard page, which shows when the surface throws or its component is missing. */
   standard: ReactElement
 }

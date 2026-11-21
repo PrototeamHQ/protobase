@@ -658,7 +658,11 @@
     "callInput": "Input",
     "callResult": "Result",
     "callError": "Error",
-    "couldNotLoadCalls": "Could not load the tool calls"
+    "couldNotLoadCalls": "Could not load the tool calls",
+    "details": "Details",
+    "edited": "(edited)",
+    "editedAt": "Edited {time}",
+    "positionNotSaved": "Could not keep how far you read"
   },
   "app/create": {
     "title": "New <lower>{noun}</lower>",

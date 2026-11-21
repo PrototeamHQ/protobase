@@ -4,18 +4,18 @@ import { matchErrors } from './view-related'
 import { pruneRecordToolCalls, toolCallsErrors } from './view-tool-calls'
 
 // The conversation hangs off one record by its key, so the record page's resource needs a key of one column
-const ownerErrors = (item: { resource: string }, resource: string, models: Record<string, ResourceModel>) => {
+export const ownerErrors = (item: { resource: string }, resource: string, models: Record<string, ResourceModel>) => {
   const owner = models[resource]
   if (!owner || !models[item.resource]) return [`unknown resource "${owner ? item.resource : resource}"`]
   return owner.primaryKey.length === 1 ? [] : [`${resource} has a composite key, so its messages cannot point at a record`]
 }
 
 // A sensitive value never leaves the server, so a message would show without it
-const sensitiveErrors = (item: ThreadSectionModel, model: ResourceModel) =>
+export const sensitiveErrors = (item: Pick<ThreadSectionModel, 'sender' | 'time' | 'text' | 'status'>, model: ResourceModel) =>
   [...(item.sender === undefined ? [] : [item.sender]), item.time, item.text, ...(item.status === undefined ? [] : [item.status])].flatMap((name) => (model.fields[name]?.sensitive ? [`"${name}" on ${model.name} is sensitive`] : []))
 
 // A message shows its sender's name and its text, so the sender is a relation or a text field and the text a text field
-const typeErrors = (item: ThreadSectionModel, model: ResourceModel) => {
+export const typeErrors = (item: Pick<ThreadSectionModel, 'sender' | 'text'>, model: ResourceModel) => {
   const sender = item.sender === undefined ? undefined : model.fields[item.sender]!
   const body = model.fields[item.text]!
   return [
@@ -57,7 +57,7 @@ export const pruneThreadSection = (item: ThreadSectionModel, resource: string, m
 }
 
 // Each message gets the record's key in a relation to it the sender may set
-const keyFieldErrors = (model: ResourceModel, name: string, resource: string) => {
+export const keyFieldErrors = (model: ResourceModel, name: string, resource: string) => {
   const field = Object.hasOwn(model.fields, name) ? model.fields[name]! : undefined
   if (!field) return [`unknown field "${name}" on ${model.name}`]
   if (field.relation?.resource !== resource) return [`"${name}" on ${model.name} is not a relation to ${resource}`]

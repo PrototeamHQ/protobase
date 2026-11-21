@@ -1,5 +1,6 @@
-import type { ResourceModel, ViewModel } from '@protobase/schema'
+import { membersRule, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { recordTitle } from '../../live/model-helpers'
+import { memberNames } from './member-names'
 import type { TitleReader, TitleRule } from './title-rule'
 
 /** A record's title as the framework shows it, else `fallback`, the record's key. */
@@ -9,7 +10,8 @@ export type RecordTitleOf = (model: ResourceModel, view: ViewModel | undefined, 
 export const titleFieldsOf = (model: ResourceModel, view: ViewModel | undefined) => view?.titleFrom?.fields ?? []
 
 /**
- * Titles records for this reader: a view's `titleFrom` by its rule, else its stored title as `recordTitle` does. The key
+ * Titles records for this reader: a view's `titleFrom` by its rule, the built-in `members` one or one of `rules`, else
+ * its stored title as `recordTitle` does. The key
  * shows when the rule returns nothing, is not registered, or a field it reads is unreadable or was not read with the record.
  */
 export const recordTitleOf =
@@ -17,7 +19,7 @@ export const recordTitleOf =
   (model, view, record, fallback) => {
     const from = view?.titleFrom
     if (!from) return recordTitle(model, view, record, fallback)
-    const rule = rules[from.rule]
+    const rule = from.rule === membersRule ? memberNames(from.fields[0]!) : rules[from.rule]
     if (!rule || from.unreadable || from.fields.some((name) => record[name] === undefined)) return fallback
     return rule(record, reader) || fallback
   }

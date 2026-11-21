@@ -5,6 +5,7 @@ import { addressErrors, chartFields, followableRowButton, hrefPlaceholders, prom
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { pruneThreadSection } from './view-conversation'
+import { pruneConversationPage } from './view-conversation-page'
 import { recordChartErrors } from './view-record-chart'
 import { recordTrendErrors } from './view-record-trend'
 import { openErrors, relatedSectionErrors } from './view-related'
@@ -177,6 +178,13 @@ const fieldHints = (model: ResourceModel, writeOnly: ReadonlySet<string>) =>
 // Startup checked its fields against the full models; the caller need not read them, as a write-only text is still sent.
 const creates = (item: ComposerSectionModel, creatable: Readonly<Record<string, readonly string[]>>) => [item.field, item.text].every((name) => creatable[item.resource]?.includes(name))
 
+const recordPageFor = (page: RecordPageModel, resource: string, model: ResourceModel, models: Record<string, ResourceModel>): RecordPageModel | undefined => {
+  if ('surface' in page) return Object.hasOwn(model.fields, page.surface) ? page : undefined
+  if (!('conversation' in page)) return page
+  const conversation = pruneConversationPage(page.conversation, resource, models)
+  return conversation && { conversation }
+}
+
 const layoutShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, writeOnly: ReadonlySet<string>, creatable: Readonly<Record<string, readonly string[]>>) => {
   const when = recordWhenShape(resource, models)
   const section = s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, when, fields: sectionFields(model, writeOnly) }, { requires: ['fields', 'when'] })
@@ -318,8 +326,8 @@ const viewShape = (
     import: s.data,
     export: s.data,
     create: s.data,
-    // A caller who cannot read the field a focus page draws gets the form
-    record: s.map<RecordPageModel>((page) => ('surface' in page && !Object.hasOwn(model.fields, page.surface) ? undefined : page)),
+    // A caller who cannot read the field a focus page draws gets the form, and one who cannot read a conversation's messages the standard page
+    record: s.map<RecordPageModel>((page) => recordPageFor(page, resource, model, models)),
     // A caller skips the choices of where a record's page leads that they cannot follow, and without one gets the record's own page
     recordOpens: s.map<AppAddress[]>((choices) => nonEmpty(choices.filter((to) => addressErrors(to, { models, source: model, createPages }).length === 0))),
     createOpens: s.map<AppAddress>((to) => (addressErrors(to, { models, source: model, createPages }).length === 0 ? to : undefined)),

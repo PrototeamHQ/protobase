@@ -21,8 +21,8 @@ export type ThreadItem =
   | { kind: 'message'; key: string; author?: ChatAuthor; time: string | undefined; text: string; status?: string; continued: boolean }
   | ToolCall
 
-// A relation comes named as `{ id, name }` (`withLabels`); any other sender is its own name
-const authorOf = (value: unknown): ChatAuthor => {
+/** Who sent a message: a relation comes named as `{ id, name }` (`withLabels`); any other sender is its own name. */
+export const authorOf = (value: unknown): ChatAuthor => {
   if (typeof value === 'object' && value !== null && 'id' in value) {
     const { id, name } = value as { id: unknown; name?: unknown }
     return { id: String(id), ...(typeof name === 'string' && { name }) }
