@@ -56,6 +56,7 @@ Guides:
 - When showing another Protobase app's records → read [Showing another app's records](references/guides/remote-resources.md)
 - When letting users save a list as Excel or CSV → read [Exporting a list](references/guides/export-a-list.md)
 - When importing records from a spreadsheet → read [Importing records from a spreadsheet](references/guides/import-records.md)
+- When charting a large events table over months, from an hourly rollup → read [Charts over millions of events](references/guides/event-charts.md)
 - When telling users about a change, in the bell and as push on their browsers → read [Send notifications](references/guides/push-notifications.md)
 - When sending mail from a person's own Gmail, such as an invoice with its PDF attached → read [Send mail from Gmail](references/guides/send-from-gmail.md)
 - When replacing a resource's create form with a page of your own → read [A create page of your own](references/guides/create-page.md)
