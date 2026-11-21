@@ -302,16 +302,10 @@ Some boards are by a field the database computes, such as a task's status, from 
 
 A card moves only from and to the columns `columns` names, every column when it is left out: a card in another column stays in it, as does one dropped on another column. A drop is one update of the record, `set` set to the column's value with the ETag the card was listed with, which the resource's access rules, `validate` and the database's triggers decide. After the update the record is read again, and the card lands in the column its `by` value now puts it in, which may not be the one it was dropped on; the toast says which, with **Undo**, which puts back the value `set` had with the ETag of the record as read again, so a trigger that wrote the record again after the update does not make it stale. On a ranked board a card dropped in another column lands where its rank puts it. `set` must be a field the API writes, and every column a value it takes, or the view is refused; without `set` the drop saves `by`, which must be writable.
 
-A trigger refuses a drop with a plain `raise exception`, whose message the [REST API](/reference/api/#errors) passes on, so the card goes back with that reason:
+A trigger refuses a drop by naming a check the resource declares with [`.checks()`](/reference/data-config/#checks-the-database-makes), so the card goes back with that check's label, filled with the card's values; a check it does not declare says only that the database refused the change:
 
 ```sql
-create function tasks_lane_check() returns trigger language plpgsql as $$
-begin
-  if new.lane = 'queued' and new.waits_until > now() then
-    raise exception 'It waits for a day, so it stays parked.';
-  end if;
-  return new;
-end $$;
+raise exception 'Task % waits until %', new.id, new.waits_until using errcode = 'check_violation', constraint = 'tasks_parked_by_hand';
 ```
 
 ## A filter the list opens with

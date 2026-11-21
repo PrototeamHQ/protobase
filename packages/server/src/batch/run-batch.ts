@@ -16,6 +16,7 @@ import { moveIn, moveList, type MoveList } from './move'
 import { lockOrders, orderLockName, writeOrderLocks } from './order-lock'
 import { checkOrderField, reorderIn, type NumberedResult } from './reorder'
 import type { BatchOperation } from './schema'
+import { declaredCheckProblem, withDeclaredChecks } from '../declared-checks'
 
 export type BatchResult =
   | { op: 'create'; resource: string; ref?: string; record: Row; etag: string }
@@ -30,9 +31,9 @@ const entryOf = (deps: Deps, name: string): Entry => {
   return entry
 }
 
-// A failure keeps its problem, and says which operation it was.
-const atOperation = (error: unknown, index: number, operation: BatchOperation) => {
-  const known = problemOf(error)
+// A failure keeps its problem, a declared database check's included, and says which operation it was.
+const atOperation = (deps: Deps, error: unknown, index: number, operation: BatchOperation) => {
+  const known = declaredCheckProblem(deps.registry, error) ?? problemOf(error)
   if (!known) throw error
   return new HttpProblem(known.status, known.slug, known.title, known.detail, { ...known.extras, operation: index, op: operation.op, resource: operation.resource }, known.headers)
 }
@@ -60,7 +61,7 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
   for (const [index, operation] of operations.entries()) {
     if (operation.op !== 'create' && operation.op !== 'update') continue
     await checkBeforeWrite(deps, { resource: operation.resource, operation: operation.op, body: operation.data }).catch((error: unknown) => {
-      throw atOperation(error, index, operation)
+      throw atOperation(deps, error, index, operation)
     })
   }
   const lists = new Map<number, MoveList>()
@@ -80,12 +81,13 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
       if (operation.op === 'move') lists.set(index, await moveList(deps, access, operation.field, operation.filter))
     }
     await order().catch((error: unknown) => {
-      throw atOperation(error, index, operation)
+      throw atOperation(deps, error, index, operation)
     })
   }
 
   const removed: ScheduledDelete[] = []
-  const written = await writeTransaction(deps.db, deps.statementTimeoutMs, (trx) => once(trx, idempotency, async () => {
+  // A check deferred to the commit refuses the whole batch, as its 400
+  const written = await withDeclaredChecks(deps.registry, () => writeTransaction(deps.db, deps.statementTimeoutMs, (trx) => once(trx, idempotency, async () => {
     await lockOrders(trx, locks)
     const created = new Map<string, Created>()
     const results: BatchResult[] = []
@@ -113,11 +115,11 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
           results.push({ op: 'reorder', resource: entry.name, records })
         }
       } catch (error) {
-        throw atOperation(error, index, operation)
+        throw atOperation(deps, error, index, operation)
       }
     }
     return results
-  }), actorSettings(deps, session))
+  }), actorSettings(deps, session)))
   await scheduleRemovedFiles(deps, removed)
   wakeDispatch(deps)
   return written

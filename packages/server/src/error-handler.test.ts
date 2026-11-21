@@ -76,16 +76,17 @@ describe('the error handler on a deadlock', () => {
 })
 
 describe('the error handler on an exception a trigger raised', () => {
-  it('answers SQLSTATE P0001 with 400 invalid-record and the raised message, and reports nothing', async () => {
-    const { response, body, reported } = await answer(databaseError('It is not parked by hand, so it stays parked.', 'P0001'))
-    expect(response.status).toBe(400)
-    expect(body).toMatchObject({ type: 'urn:protobase:problem:invalid-record', detail: 'It is not parked by hand, so it stays parked.' })
-    expect(reported).not.toHaveBeenCalled()
+  it('keeps a plain raise, SQLSTATE P0001, a reported 500 that names nothing it raised', async () => {
+    const { response, body, reported } = await answer(databaseError('Failed to process the row: secret value', 'P0001'))
+    expect(response.status).toBe(500)
+    expect(JSON.stringify(body)).not.toContain('secret')
+    expect(reported).toHaveBeenCalledOnce()
   })
 
   it('keeps a check violation\'s own message out', async () => {
-    const { body } = await answer(databaseError('new row for relation "tasks" violates check constraint "tasks_lane"', '23514'))
+    const { body } = await answer(Object.assign(databaseError('new row for relation "tasks" violates check constraint "tasks_lane"', '23514'), { constraint: 'tasks_lane' }))
     expect(body).toMatchObject({ status: 400, detail: 'A check constraint rejected the record' })
+    expect(JSON.stringify(body)).not.toContain('tasks_lane')
   })
 })
 

@@ -30,6 +30,7 @@ export type {
   ListModel,
   ListDragModel,
   BoardDragModel,
+  CheckModel,
   PositionAfterModel,
   ParentAccess,
   ParentModel,

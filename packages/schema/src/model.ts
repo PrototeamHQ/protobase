@@ -190,6 +190,11 @@ export type ResourceModel = {
    * who may read it (`.openExisting()`).
    */
   openExisting?: string[]
+  /**
+   * The database checks whose refusal the API names, by constraint name, each with the label shown for it
+   * (`.checks()`).
+   */
+  checks?: Record<string, CheckModel>
   /** The resource it is a time rollup of, and how (`.bucketsOf()`): the database writes its rows, the API only reads them. */
   buckets?: BucketsModel
   /** The values worked out from other records for each of its records, kept current by Protobase (`.derive()`). */
@@ -743,6 +748,19 @@ export type ParentModel = {
   field: string
   /** The access on the parent record that writing needs. */
   access: ParentAccess
+}
+
+/**
+ * A database check that refuses a write, named by its constraint: a `CHECK` constraint of that name, or a trigger's
+ * `raise exception ... using errcode = 'check_violation', constraint = '<name>'`. See
+ * [Checks the database makes](docs/website/src/content/docs/reference/data-config.mdx#checks-the-database-makes).
+ */
+export type CheckModel = {
+  /**
+   * What the app shows when the check refuses a write, an ICU message whose `{field}` values come from the record as
+   * the app has it, never from the database's error. Translated as `resources.<resource>.checks.<name>.label`.
+   */
+  label: string
 }
 
 /** A view's list page (`.list(...)`). */

@@ -820,6 +820,7 @@
     "features": "Kenmerken",
     "couldNotReorder": "Kon de volgorde niet wijzigen",
     "couldNotMoveTo": "Kon het niet naar {to} verplaatsen",
+    "checkRefused": "De database weigerde deze wijziging.",
     "moreHidden": "+{count} meer"
   },
   "app/embedded-list": {

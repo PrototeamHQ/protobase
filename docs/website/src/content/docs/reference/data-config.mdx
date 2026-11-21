@@ -33,6 +33,7 @@ A **resource** describes one table of a database you already have: its columns a
 | `.position((r) => r.position, { within?, after? })` | The integer field holding the records' order by hand, 1 the first, which a list's **Reorder** button changes by dragging; with `within: (r) => r.invoice_id`, a filterable relation, each parent's records have an order of their own, sorted in its related section; with `after`, a record never ranks above the records it depends on. The field must be sortable. See [Reordering by hand](/reference/ui-config/#reordering-by-hand) and [Ranked after what they depend on](/reference/ui-config/#ranked-after-what-they-depend-on). |
 | `.parent((r) => r.vm_id, 'update')` | The relation whose record each record belongs to, and the access on it (`'read'` or `'update'`) that creating, changing, deleting and undeleting a record needs, checked with the caller's own rules on that resource. With `'read'`, every read of its records also keeps to those whose parent the caller reads. The relation is one column, to a resource with a key of one field. See [Records that belong to another](/reference/access/#records-that-belong-to-another). |
 | `.links((r) => [r.objective_id, r.task_id])` | Its records link records of two resources, so each side lists the other, and what points at it, at [`/{parent}/{key}/{resource}`](/reference/api/#lists-under-a-record). Two different filterable relations of one column. [`protobase doctor`](/reference/cli/#doctor) asks for the indexes reading either side needs. |
+| `.checks({ tasks_parked_by_hand: { label: '{title} waits for a day.' } })` | The database checks whose refusal the API names, each by its constraint name, with the label the app shows. See [Checks the database makes](#checks-the-database-makes). |
 | `.openExisting((r) => [r.organization_id, r.member_key])` | A unique key of the table whose conflict on create opens the record already holding those values, such as a direct message with the same members. See [Opening an existing record](#opening-an-existing-record). |
 | `.validate((record) => issues)` | A rule over the whole record, run after the field checks on every create and update. It returns `[{ field, message }]` or `undefined`; issues answer `400` with the field named. |
 | `.access({ ... })` | Rules per operation. See [Access](#access). |
@@ -329,6 +330,35 @@ resource('direct_messages')
 - Two creates of the same values at the same moment both end on one record: the second waits for the first and then answers with its key.
 - The [create form](/reference/ui-config/#opening-the-existing-record) then opens that record instead of saying it could not save.
 - An encrypted or file field cannot be part of the key: the API stores those as values that never match another record's.
+
+## Checks the database makes
+
+A rule the database keeps, such as a task that waits for a day staying parked, refuses a write with a check violation. The API leaves the database's own message out, since it can name values the caller may not see, so by default the refusal says only that a check constraint rejected the record. `.checks()` names the checks whose refusal the app can explain, each by its constraint name, with a label:
+
+```ts
+resource('tasks')
+  .table('tasks')
+  .fields({ id: f.integer().readOnly().dbDefault(), title: f.text(), lane: f.enum(['parked', 'queued']), waits_until: f.timestamp().optional() })
+  .primaryKey((r) => r.id)
+  .checks({ tasks_parked_by_hand: { label: '{title} waits for a day, so it stays parked.' } })
+```
+
+The name is a `CHECK` constraint's, or one a trigger gives with Postgres's own fields: `using errcode = 'check_violation', constraint = '<name>'`. Its message is for the database's logs and never leaves the server:
+
+```sql
+create function tasks_lane_check() returns trigger language plpgsql as $$
+begin
+  if new.lane = 'queued' and new.waits_until > now() then
+    raise exception 'Task % waits until %', new.id, new.waits_until using errcode = 'check_violation', constraint = 'tasks_parked_by_hand';
+  end if;
+  return new;
+end $$;
+```
+
+- A write the check refuses is a [`400` `invalid-record`](/reference/api/#errors) whose one error is `{ field: '_record', code: '<name>', message: '<label>' }`, built from the config alone: nothing of the database's message, detail or hint. A batch names the operation, as for any refusal.
+- The label is an ICU message whose `{field}` values the admin app fills from the record it shows, such as the card dropped on a board, never from the database. Each value must be a field of the resource, or the server does not start. It is translated as `resources.<resource>.checks.<name>.label` in the app's [texts](/reference/languages/#your-own-texts).
+- A name is declared once across the app, since the error names only the check: a second resource declaring it stops the server at startup. A name cannot be one of the API's own error codes, such as `required`, and is at most 63 bytes, the most of a name Postgres keeps.
+- A check violation naming a check no resource declares keeps the generic refusal, and the server logs a warning with its name only. A plain `raise exception` without these fields is an unexpected error, a `500`, reported to the app's error hook.
 
 ## Keys and relations
 

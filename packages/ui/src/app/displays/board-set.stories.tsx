@@ -23,6 +23,7 @@ const tasks = resource('tasks')
     status: f.enum(['parked', 'queued', 'running']).readOnly().filterable().sortable(),
   })
   .primaryKey((r) => r.id)
+  .checks({ tasks_parked_by_hand: { label: '{title} waits for a day, so it stays parked.' } })
 
 const tasksView = view<typeof tasks>('tasks')
   .title((r) => r.title)
@@ -32,10 +33,11 @@ type Row = Record<string, unknown>
 
 const statusOf = (task: Row) => (task.started ? 'running' : task.waits ? 'parked' : task.lane)
 
-// What a database trigger would do: refuse to queue a task that waits for a day, in its own words
+// What a database trigger would do: refuse to queue a task that waits for a day, naming the check, as the API answers it
 const refuse = (name: string, row: Row) => {
   if (name !== 'tasks' || !row.waits || row.lane !== 'queued') return
-  throw new ApiError({ type: 'urn:protobase:problem:invalid-record', title: 'Bad Request', status: 400, detail: 'It waits for a day, so it stays parked.' })
+  const errors = [{ field: '_record', code: 'tasks_parked_by_hand', message: '{title} waits for a day, so it stays parked.' }]
+  throw new ApiError({ type: 'urn:protobase:problem:invalid-record', title: 'Bad Request', status: 400, detail: 'The database check tasks_parked_by_hand refused the record', errors })
 }
 
 // And keep the status in step with the lane, writing the task again
@@ -109,9 +111,9 @@ export const TasksChecks: StoryObj = {
     // Undo sends the ETag of the task as read again, not the stale one the update returned
     await userEvent.click(within(document.body).getByRole('button', { name: 'Undo' }))
     await waitFor(() => expect(titles(queued)).toEqual(['Order brake pads']))
-    // A refused drop puts the card back with the database's own reason
+    // A drop a declared check refuses puts the card back with the check's label, filled with the card's values
     await move(within(parked).getByRole('link', { name: /Call the wheel supplier/ }), '{ArrowRight}', ['queued'])
-    expect(await within(document.body).findByText('It waits for a day, so it stays parked.')).toBeInTheDocument()
+    expect(await within(document.body).findByText('Call the wheel supplier waits for a day, so it stays parked.')).toBeInTheDocument()
     await waitFor(() => expect(titles(parked)).toEqual(['Call the wheel supplier']))
     // A column the drag does not name takes no card
     const running = await column(canvas, 'running')

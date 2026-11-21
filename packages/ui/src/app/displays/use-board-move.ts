@@ -2,15 +2,19 @@ import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import type { KeyValue, ResourceModel, ViewModel } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
+import { activeLocale } from '../../locale/active-locale'
 import { recordKey } from '../../live/model-helpers'
 import { useToast } from '../../toasts'
 import { text as orderText } from '../hand-order/messages'
 import { moveRefusal } from '../hand-order/move-refusal'
 import { undoOps, type DragWrite } from '../hand-order/undo-ops'
+import { useAdminMeta } from '../meta-gate'
+import { useAppTexts } from '../pages/app-texts'
 import { useRefreshResource } from '../pages/use-layout-data'
 import { rankBounds } from '../rank-after/rank-bounds'
 import { rankedPlace, type RankedPlace } from '../rank-after/ranked-place'
 import type { BoardColumn } from './board-columns'
+import { checkReason } from './check-reason'
 import { dropWrite, type BoardDrop } from './board-drop'
 import { boardWrites, placeOps, placing, type BoardPlace } from './board-place'
 import type { ListDisplayRow } from './list-displays'
@@ -54,7 +58,8 @@ type Options = {
  * record read again the same way, whose ETag its **Undo** sends, since the database's triggers may have written the
  * record again after the update. The card shows in its new place at once; a saved move says so with **Undo**,
  * which puts back the values it changed or runs the undo the drop's write gave, and a refusal puts it back and says why,
- * or that the board changed where it was dropped.
+ * in a declared database check's own label when one refused it (see `checkReason`), or that the board changed where it
+ * was dropped.
  * With the position's `after`, a card dropped above a record it depends on lands at the first place below that keeps
  * the order, or stays where it was, with a warning saying why (see `rankedPlace`).
  * Either way every list of the resource reloads, which puts the card where its record now is.
@@ -63,6 +68,8 @@ export const useBoardMove = ({ model, view, by, rank, filter, drop, set, labelOf
   const client = useClient()
   const toast = useToast()
   const refresh = useRefreshResource()
+  const { resources } = useAdminMeta()
+  const locale = useAppTexts()?.locale ?? activeLocale()
   const [moves, setMoves] = useState<BoardMove[]>([])
   // Only the latest move can be undone, so its toast replaces the one before
   const undoToast = useRef<number>(undefined)
@@ -167,7 +174,9 @@ export const useBoardMove = ({ model, view, by, rank, filter, drop, set, labelOf
     onError: (error, { row, to }) => {
       settle(row.key)
       const title = (row.record[by] ?? null) === to.value ? text('couldNotReorder') : text('couldNotMoveTo', { to: to.label })
-      toast.show(moveRefusal(error, title, { place: 'board', title: titleOf(row) }))
+      // A database check the config declares says why in its own label, with the card's values
+      const reason = checkReason(error, Object.values(resources), row.record, locale)
+      toast.show(reason === undefined ? moveRefusal(error, title, { place: 'board', title: titleOf(row) }) : { state: 'error', title, description: reason })
     },
     onSettled: async (_result, _error, { row }) => {
       await refresh(model.name)
