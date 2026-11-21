@@ -44,10 +44,11 @@ export type CapturePlan = {
 const sameTrigger = (found: FoundTrigger, wanted: TriggerSpec) =>
   found.type === wanted.type && found.args.length === wanted.args.length && found.args.every((arg, index) => arg === wanted.args[index])
 
-// A table an earlier migration of the same run creates has no oid yet, and no triggers: it is keyed by its resource.
+// A table an earlier migration of the same run creates has no oid yet, and no triggers: it is keyed by its qualified
+// name, so two resources on one such table are refused as on any other.
 const tableOf = (state: CaptureState, model: ResourceModel, pending: readonly string[]) => {
   const table = state.tables[model.name]
-  if (!table && pending.includes(model.name)) return `pending:${model.name}`
+  if (!table && pending.includes(model.name)) return `pending:${tableSql(model)}`
   if (!table) throw new Error(`The table ${tableSql(model)} of resource "${model.name}" does not exist`)
   return table
 }
