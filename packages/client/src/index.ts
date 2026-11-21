@@ -65,6 +65,7 @@ export type {
   BatchRef,
   BatchResult,
 } from './types'
+export { NetworkError } from './network-error'
 export { createAuthSession, AuthError, tokenExpiry, type AuthSession, type AuthSessionOptions } from './auth'
 export { createStaticSession } from './static-session'
 export type { AuthUser, PersonalMailLink, PlatformSignIn, RoleLabel, SamlSignIn, SetupStatus, SignInMethod, SignInResult, SignUpField, TwoFactorMethod } from './auth-types'

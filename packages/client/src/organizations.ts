@@ -81,7 +81,7 @@ const invitation = (raw: RawInvitation): OrganizationInvitation => ({
 /**
  * The signed-in person's organizations: switching, creating and managing them, their members and invitations, and
  * invitation links. A change of the organization one works in fetches a new token at once (`refreshToken`), since the
- * token names it. Each call rejects with `AuthError`.
+ * token names it. Each call rejects with `AuthError`, or `NetworkError` when it gets no answer.
  */
 export const organizationsClient = (client: BetterAuthClient, refreshToken: () => Promise<unknown>) => {
   const call = async <T>(path: string, fallback: string, init: { method?: 'GET' | 'POST'; body?: object; query?: Record<string, string> } = {}) => {
