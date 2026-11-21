@@ -76,4 +76,14 @@ describe('view nav.recent', () => {
     expect(() => view<typeof service>('services').nav({ recent: { status: 'status', tones: {}, orderBy: 'notes asc' } }).toModel(model)).toThrow(/View "services": nav.recent orderBy: /)
     expect(() => view<typeof service>('services').nav({ recent: { marks: '' } }).toModel(model)).toThrow(/View "services": nav.recent marks needs the name of a hook/)
   })
+
+  it('takes typing and unread as true, from a conversation page that has typing and read positions', () => {
+    expect(navRecentErrors(recent({ typing: 'yes' as unknown as true }), model)).toEqual(['typing is true or left out'])
+    const conversation = { resource: 'services', field: 'id', sender: 'name', time: 'updatedAt', text: 'notes' }
+    const withPage = view<typeof service>('services').record({ conversation: { ...conversation, typing: true, readPosition: { resource: 'reads', field: 'service_id', message: 'last_id' } } })
+    expect(withPage.nav({ recent: { typing: true, unread: true } }).toModel(model).nav).toEqual({ recent: { typing: true, unread: true } })
+    const plain = view<typeof service>('services').record({ conversation })
+    expect(() => plain.nav({ recent: { unread: true } }).toModel(model)).toThrow(/nav.recent.unread counts from the conversation's read positions/)
+    expect(() => plain.nav({ recent: { typing: true } }).toModel(model)).toThrow(/nav.recent.typing shows the typing of the record's conversation/)
+  })
 })
