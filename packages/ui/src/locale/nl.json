@@ -239,7 +239,8 @@
   },
   "activity-chart": {
     "day": "Dag",
-    "week": "Week"
+    "week": "Week",
+    "couldNotLoad": "Kon de grafiek niet laden."
   },
   "app": {
     "notFound": "Niet gevonden",
@@ -2010,7 +2011,8 @@
     "date": "Datum",
     "showOnly": "Alleen tonen",
     "minimum": "{label} minimum",
-    "maximum": "{label} maximum"
+    "maximum": "{label} maximum",
+    "couldNotLoadCounts": "Kon de aantallen niet laden"
   },
   "format": {
     "rows": "{count} {n, plural, one {rij} other {rijen}}",

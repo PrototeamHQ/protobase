@@ -34,6 +34,7 @@ export const routedClient = (own: Client, sourceOf: (resource: string) => Client
     aggregate: (resource, params) => to(resource).aggregate(resource, params),
     series: (resource, params) => to(resource).series(resource, params),
     histogram: (resource, field, options) => to(resource).histogram(resource, field, options),
+    batchAggregates: (resource, batch) => to(resource).batchAggregates(resource, batch),
     map: (resource, params) => to(resource).map(resource, params),
     seek: (resource, params) => to(resource).seek(resource, params),
     meta: (etag, options) => own.meta(etag, options),

@@ -239,7 +239,8 @@
   },
   "activity-chart": {
     "day": "Day",
-    "week": "Week"
+    "week": "Week",
+    "couldNotLoad": "Could not load the chart."
   },
   "app": {
     "notFound": "Not found",
@@ -2010,7 +2011,8 @@
     "date": "Date",
     "showOnly": "Show only",
     "minimum": "{label} minimum",
-    "maximum": "{label} maximum"
+    "maximum": "{label} maximum",
+    "couldNotLoadCounts": "Could not load the counts"
   },
   "format": {
     "rows": "{count} {n, plural, one {row} other {rows}}",

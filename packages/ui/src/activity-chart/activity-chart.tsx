@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { formatInt } from '../format/number'
 import { Segmented } from '../primitives/segmented'
+import { Skeleton } from '../primitives/skeleton'
 import { cn } from '../lib/cn'
 import { PeriodChart } from '../app/charts/lazy-charts'
 import { halfOverHalfDelta, totalCount } from './activity-math'
@@ -18,11 +19,13 @@ export type ActivityChartProps = {
   onGranularityChange?: (granularity: ActivityGranularity) => void
   /** Text after the total, for example "last 30 days". */
   periodLabel?: string
+  /** `loading` while the counts are on their way, `failed` when they could not be loaded: no total or bars then. */
+  state?: 'loading' | 'failed'
   className?: string
 }
 
 /** Counts per day or week under their total and change, drawn as a date chart's bars with its tooltip, keys and table. */
-export const ActivityChart = ({ title, defaultGranularity = 'day', data, granularity: controlled, onGranularityChange, periodLabel, className }: ActivityChartProps) => {
+export const ActivityChart = ({ title, defaultGranularity = 'day', data, granularity: controlled, onGranularityChange, periodLabel, state, className }: ActivityChartProps) => {
   const [local, setLocal] = useState(defaultGranularity)
   const granularity = controlled ?? local
   const setGranularity = onGranularityChange ?? setLocal
@@ -34,11 +37,15 @@ export const ActivityChart = ({ title, defaultGranularity = 'day', data, granula
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-baseline gap-2">
           <h2 className="font-semibold">{title}</h2>
-          <span className="font-semibold tabular-nums">{formatInt(totalCount(data))}</span>
-          <span className={cn('text-xs font-medium tabular-nums', delta >= 0 ? 'text-success-text' : 'text-danger-text')}>
-            {delta >= 0 ? '+' : '−'}
-            {Math.abs(delta).toFixed(1)}%
-          </span>
+          {state === undefined && (
+            <>
+              <span className="font-semibold tabular-nums">{formatInt(totalCount(data))}</span>
+              <span className={cn('text-xs font-medium tabular-nums', delta >= 0 ? 'text-success-text' : 'text-danger-text')}>
+                {delta >= 0 ? '+' : '−'}
+                {Math.abs(delta).toFixed(1)}%
+              </span>
+            </>
+          )}
           <span className="hidden text-xs text-muted-foreground sm:inline">{periodLabel ?? `last ${granularity === 'day' ? '30 days' : '12 weeks'}`}</span>
         </div>
         <Segmented
@@ -48,7 +55,9 @@ export const ActivityChart = ({ title, defaultGranularity = 'day', data, granula
         />
       </header>
       <div className="mt-2">
-        <PeriodChart points={points} measure={{ kind: 'count' }} bucket={granularity} type="bar" compact />
+        {state === 'failed' && <p className="py-6 text-danger-text">{text('couldNotLoad')}</p>}
+        {state === 'loading' && <Skeleton className="h-24 w-full" />}
+        {state === undefined && <PeriodChart points={points} measure={{ kind: 'count' }} bucket={granularity} type="bar" compact />}
       </div>
     </section>
   )

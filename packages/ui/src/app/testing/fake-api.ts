@@ -377,6 +377,12 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
       for (const value of values) buckets[Math.min(count - 1, Math.floor((value - min) / width))]!.count += 1
       return values.length > 0 ? { min, max, buckets } : { min: null, max: null, buckets: [] }
     },
+    // Each read answered as its own method answers it
+    batchAggregates: async (resource: string, batch: { facets?: Array<{ field: string; filter?: string; label?: string }>; histograms?: Array<{ field: string; filter?: string; buckets?: number }>; series?: Array<{ field: string; filter?: string; granularity?: string }> }) => ({
+      facets: await Promise.all((batch.facets ?? []).map((facet) => client.facets(resource, facet.field, facet))),
+      histograms: await Promise.all((batch.histograms ?? []).map((histogram) => client.histogram(resource, histogram.field, histogram))),
+      series: await Promise.all((batch.series ?? []).map((params) => client.series(resource, params))),
+    }),
     // Like the real `:aggregate`, except that a date field's buckets run from its earliest to its latest record and
     // ignore the range, so a story shows the same chart whatever day it runs.
     aggregate: async (resource: string, params: { groupBy: string; filter?: string; sum?: string; average?: string; maximum?: string; limit?: number; label?: string; granularity?: string; splitBy?: string; splitLimit?: number; splitLabel?: string }) => {

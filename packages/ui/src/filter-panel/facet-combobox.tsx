@@ -124,7 +124,8 @@ export const FacetCombobox = ({ config, selected, onToggle, inline = false }: Fa
               </li>
             )
           })}
-          {options.length === 0 && <li className="px-1.5 py-1 text-xs text-faint-foreground">{text('noMatches')}</li>}
+          {config.failed && <li className="px-1.5 py-1 text-xs text-danger-text">{text('couldNotLoadCounts')}</li>}
+          {!config.failed && options.length === 0 && <li className="px-1.5 py-1 text-xs text-faint-foreground">{text('noMatches')}</li>}
         </ul>
       )}
     </div>

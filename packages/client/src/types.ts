@@ -189,6 +189,16 @@ export type HistogramBucket = { from: number; to: number; count: number }
 
 export type Histogram = { min: number | null; max: number | null; buckets: HistogramBucket[] }
 
+/** Several facet, histogram and series reads of one resource, sent as one `:batchAggregates` request. */
+export type AggregateBatch = {
+  facets?: Array<{ field: string; filter?: FilterInput; limit?: number; label?: string }>
+  histograms?: Array<{ field: string; filter?: FilterInput; buckets?: number }>
+  series?: Array<SeriesParams & { filter?: FilterInput }>
+}
+
+/** The answers to an `AggregateBatch` in its order, each as `facets`, `histogram` and `series` return it. */
+export type AggregateBatchResult = { facets: Facet[][]; histograms: Histogram[]; series: Series[] }
+
 /** The corners around some records, in decimal degrees. */
 export type MapBounds = { south: number; west: number; north: number; east: number }
 

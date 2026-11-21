@@ -1,6 +1,7 @@
 import { mapCellPixels, maxMapBuckets, maxMapZoom } from '@protobase/query'
 import { pickView } from '@protobase/schema'
 import type { Entry } from '../registry'
+import { maxBatchReads } from '../aggregate-batch'
 import { mapRecordsLimit, mapRecordsZoom } from '../map-service'
 import { writableFields, type RequestAccess } from '../request-access'
 import { pascal } from './naming'
@@ -72,7 +73,7 @@ const mapResult = (name: string) => json({
 
 // The operation each documented method needs; methods the caller may not use are left out of their document.
 const needs: Record<string, 'list' | 'read' | 'create' | 'update' | 'delete'> = {
-  list: 'list', search: 'list', facets: 'list', aggregate: 'list', series: 'list', histogram: 'list', map: 'list', seek: 'list',
+  list: 'list', search: 'list', facets: 'list', batchAggregates: 'list', aggregate: 'list', series: 'list', histogram: 'list', map: 'list', seek: 'list',
   get: 'read', reveal: 'read', create: 'create', update: 'update', undelete: 'update', generate: 'update', delete: 'delete',
 }
 
@@ -287,6 +288,29 @@ export const resourcePaths = (access: RequestAccess) => {
         ],
         responses: {
           200: { description: 'Counts, most frequent first', content: json({ type: 'object', properties: { field: { type: 'string' }, facets: { type: 'array', items: { type: 'object', properties: { value: {}, count: { type: 'integer' }, label: { type: 'string', description: 'Only with `label`, for a record the caller may name' } } } } } }) },
+          400: error('BadRequest'), ...auth,
+        },
+      },
+    },
+    [`/${entry.name}:batchAggregates`]: {
+      post: {
+        operationId: `batchAggregates_${entry.name}`,
+        tags: tag,
+        summary: `Several facet, histogram and series reads of ${entry.name} in one request`,
+        description: `Each read takes the parameters of its own method and is answered as that method answers it, in request order; at most ${maxBatchReads} of each kind. Reads that filter the same rows share their scans of the table: one for the bounds of every histogram, and one per four facets, histograms of several buckets and series.`,
+        requestBody: {
+          required: true,
+          content: json({
+            type: 'object',
+            properties: {
+              facets: { type: 'array', description: 'As `:facets`', items: { type: 'object', required: ['field'], properties: { field: { type: 'string' }, filter: { type: 'string' }, limit: { type: 'integer' }, label: { type: 'string' } } } },
+              histograms: { type: 'array', description: 'As `:histogram`', items: { type: 'object', required: ['field'], properties: { field: { type: 'string' }, filter: { type: 'string' }, buckets: { type: 'integer' } } } },
+              series: { type: 'array', description: 'As `:series`', items: { type: 'object', required: ['field'], properties: { field: { type: 'string' }, filter: { type: 'string' }, range: { type: 'string' }, from: { type: 'string' }, to: { type: 'string' }, granularity: { type: 'string' }, time_zone: { type: 'string' } } } },
+            },
+          }),
+        },
+        responses: {
+          200: { description: 'The answers by kind, each as its own method\'s', content: json({ type: 'object', properties: { facets: { type: 'array', items: {} }, histograms: { type: 'array', items: {} }, series: { type: 'array', items: {} } } }) },
           400: error('BadRequest'), ...auth,
         },
       },

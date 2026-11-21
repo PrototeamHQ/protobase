@@ -16,13 +16,18 @@ const maxLimit = 1000
 export type FacetOptions = { statementTimeoutMs: number; limit?: number; scope?: Scope }
 export type FacetCount = { value: unknown; count: number }
 
-/** Counts per value of `field`, with every filter applied except the ones on `field` itself. */
-export const facetCounts = async (db: Db, model: ResourceModel, field: string, filter: CheckedFilter | undefined, options: FacetOptions): Promise<FacetCount[]> => {
-  const column = columnRef(requireField(model, field, 'filterable'))
-  const limit = options.limit ?? defaultLimit
+/** How many values a facet keeps, the most frequent first: `limit`, 100 by default, or a `QueryError`. */
+export const facetLimit = (limit = defaultLimit) => {
   if (!Number.isInteger(limit) || limit < 1 || limit > maxLimit) {
     throw new QueryError('invalid_option', `limit must be between 1 and ${maxLimit}`)
   }
+  return limit
+}
+
+/** Counts per value of `field`, with every filter applied except the ones on `field` itself. */
+export const facetCounts = async (db: Db, model: ResourceModel, field: string, filter: CheckedFilter | undefined, options: FacetOptions): Promise<FacetCount[]> => {
+  const column = columnRef(requireField(model, field, 'filterable'))
+  const limit = facetLimit(options.limit)
   const others = withoutField(filter, field)
   await assertFilterRequirements(db, others, options.scope)
   return withStatementTimeout(db, options.statementTimeoutMs, async trx => {

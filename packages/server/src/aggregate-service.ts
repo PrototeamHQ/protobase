@@ -1,12 +1,12 @@
 import { sql } from 'kysely'
 import { z } from 'zod'
-import { facetCounts, histogram, series, withoutField } from '@protobase/query'
+import { facetCounts, histogram, series, withoutField, type Db, type FacetCount } from '@protobase/query'
 import { parentCondition, tenantCondition, type Granularity, type Scope } from '@protobase/query'
 import type { Deps } from './deps'
 import type { FilterExpr, ResourceModel } from '@protobase/schema'
 import { badRequest } from './problem'
 import { parseParams } from './params'
-import { labelRequests, relatedLabels } from './related-labels'
+import { labelRequests, relatedLabels, type LabelRequest } from './related-labels'
 import type { Entry } from './registry'
 import { rangeEnd, rangeStart } from './range-ends'
 import { readFilter } from './related-filter'
@@ -18,8 +18,8 @@ import type { Session } from './types'
 const field = z.string().min(1)
 const filter = z.string().optional()
 
-const facetParams = z.object({ field, filter, limit: z.coerce.number().int().optional(), label: z.string().min(1).optional() })
-const seriesParams = z.object({
+export const facetParams = z.object({ field, filter, limit: z.coerce.number().int().optional(), label: z.string().min(1).optional() })
+export const seriesParams = z.object({
   field,
   filter,
   range: z.enum(['1h', '24h', '7d', '30d', '90d', '1y', 'all']).optional(),
@@ -28,7 +28,7 @@ const seriesParams = z.object({
   granularity: z.enum(['minute', '5_minutes', '15_minutes', 'hour', 'day', 'week', 'month']).default('day'),
   time_zone: z.string().optional(),
 })
-const histogramParams = z.object({ field, filter, buckets: z.coerce.number().int().default(20) })
+export const histogramParams = z.object({ field, filter, buckets: z.coerce.number().int().default(20) })
 
 const hourMs = 3_600_000
 const rangeMs = { '1h': hourMs, '24h': 24 * hourMs, '7d': 7 * 24 * hourMs, '30d': 30 * 24 * hourMs, '90d': 90 * 24 * hourMs, '1y': 365 * 24 * hourMs }
@@ -57,14 +57,18 @@ export const facets = async (deps: Deps, entry: Entry, session: Session, input: 
       ...(params.limit !== undefined && { limit: params.limit }),
       scope,
     })
-    const names = (await relatedLabels(trx, labels, counts.map((facet) => ({ [params.field]: facet.value }))))[params.field] ?? {}
-    const named = counts.map((facet) => {
-      const label = facet.value === null ? undefined : names[String(facet.value)]
-      return label === undefined ? facet : { ...facet, label }
-    })
-    return { field: params.field, facets: named }
+    return { field: params.field, facets: await namedFacets(trx, labels, params.field, counts) }
   })
   return { body, warning }
+}
+
+/** A facet's counts, each value of a relation with the `label` of the record it points at when `labels` asks for it. */
+export const namedFacets = async (db: Db, labels: LabelRequest[], field: string, counts: FacetCount[]) => {
+  const names = (await relatedLabels(db, labels, counts.map((facet) => ({ [field]: facet.value }))))[field] ?? {}
+  return counts.map((facet) => {
+    const label = facet.value === null ? undefined : names[String(facet.value)]
+    return label === undefined ? facet : { ...facet, label }
+  })
 }
 
 const earliest = async (deps: Deps, access: RequestAccess, fieldName: string, scope: Scope) => {
