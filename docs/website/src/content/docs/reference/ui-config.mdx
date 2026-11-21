@@ -639,7 +639,7 @@ The standard record page, with the layout's sections, the related records, Edit 
 ### Conversation pages
 
 :::caution[Beta]
-A conversation page shows each message's text with its mentions and keeps line breaks, without markdown; it has no replies in threads, reactions, editing, deleting, files or calls yet.
+A conversation page shows each message's text with its mentions and keeps line breaks, without markdown; it has no files or calls yet, and a deleted message leaves no trace in its place.
 :::
 
 `.record({ conversation })` makes the record page the record's conversation, for a record that holds one, such as a chat channel, a direct message or a support case, with no component of the app's own. It fills the content area as a [full-area record page](#full-area-record-pages) does, on the web and at mobile width: a header row, the messages that point at the record, and a box that sends one, which stays in view while the messages scroll above it.
@@ -657,6 +657,16 @@ view<typeof channels>('channels').record({
     subtitle: 'topic',
     readPosition: { resource: 'read_positions', field: 'channel_id', message: 'last_read_id' },
     placeholder: 'Message the channel',
+    edit: true,
+    delete: { unless: 'reply_count > 0' },
+    reactions: {
+      resource: 'reactions',
+      field: 'message_id',
+      user: 'user_id',
+      emoji: 'emoji',
+      labels: { thumbs_up: { symbol: '👍', name: 'Thumbs up' }, heart: { symbol: '❤️', name: 'Heart' } },
+    },
+    thread: { field: 'thread_id', count: 'reply_count', last: 'last_reply_at' },
   },
 })
 ```
@@ -675,12 +685,29 @@ view<typeof channels>('channels').record({
 | `readPosition` | Where each reader's read position is kept: `{ resource, field, message }`. |
 | `placeholder` | The hint in the empty box. |
 | `empty` | What the conversation says while it has no messages. |
+| `edit` | `true`: a message's author changes its text and mentions in place, as the message resource's update access allows. |
+| `delete` | `true`: anyone the message resource's delete access allows deletes a message, after confirming; or `{ unless }`, a condition on the message's own fields that keeps it, such as `reply_count > 0`. |
+| `reactions` | Emoji reactions under each message: `{ resource, field, user, emoji, labels }`. |
+| `thread` | Replies in a thread under a message, in a panel beside the conversation: `{ field, count, last }`. |
 
 The header shows the record's title, which the top bar repeats at mobile width and so shows there only with `members`, the subtitle, and *Details*, a link to the record's standard page at `?standard=true`, with its sections, Edit and Delete. The latest 50 messages show oldest first, with *Load earlier messages* at the top for more. A day divider opens each day, and one person's messages sent within five minutes of each other show under their name once. A message resource with [`.live()`](/reference/live/) shows new, changed and deleted messages as they happen. Every read goes through the reader's own access: a message they may not read never shows, and a reader who may not read the messages or a field each one needs gets the standard page. The box shows for a reader who may create messages.
 
 With `readPosition`, the conversation opens on a *New messages* line above the first message someone else wrote since the reader's position, and moves the position to the newest message whenever they read to the end. The read position resource keeps one record per reader and record: its `.author()` is the reader, `field` is a relation to the record and `message` an integer field holding the key of the newest message read, so the message resource's key is one integer column that grows as messages arrive. The page reads and writes only the reader's own position. Without `readPosition`, there is no line and nothing is written.
 
 <StoryFrame id="record-page-conversation-page--channel-conversation" title="A channel's conversation, with its topic, grouped messages, a mention and the New messages line" height={560} />
+
+#### Reactions, edits, deletes and threads
+
+With `reactions`, `edit`, `delete` or `thread`, people act on the messages where they read them. With a pointer, a bar over a message's corner shows while they point at it or move into it with the keyboard: an emoji they have not reacted with yet, *Reply in thread*, *Edit* and *Delete*. On a touch screen, a tap or a long-press of half a second opens the same actions in a sheet from the bottom at mobile width, with every emoji and *Copy text*; a tap while the reader types only lowers the keyboard, and a button that only a keyboard or screen reader reaches opens the sheet too. The message's own links and buttons keep their tap and click. Each action shows only where the reader's access allows it, and the server checks every write again: a refused one changes nothing and shows the server's reason.
+
+- **Reactions**: `resource` keeps one record per person, message and emoji: `field` is its filterable relation to the message, `user` the text field of the user id of the person who reacted, set by the server, such as its `.author()`, and `emoji` an enum field whose values, in their order, are the emoji offered. `labels` gives each value its `symbol` and its `name`, which a screen reader reads. Under a message, one chip per emoji shows how many reacted, naming them on hover: pressing your own takes it back, and another's adds yours. The reactions of a page of messages are read together with it, and with [`.live()`](/reference/live/) they change as people react.
+- **Edit**: *Edit* turns the author's message into a box with its mentions kept: Enter saves, Shift+Enter starts a new line and Escape cancels.
+- **Delete**: *Delete* asks before the message goes for everyone. A reader who may not read the fields `unless` reads gets no *Delete*.
+- **Threads**: `field` is the filterable relation of the messages to themselves that holds a reply's first message, empty for a message of the conversation itself, `count` an integer field holding a first message's number of replies and `last` a date or timestamp field holding when its last reply came, both kept by the database, such as by a trigger. The conversation shows only messages outside threads; under a message with replies, a link names how many and when the last came. It and *Reply in thread* open the thread at `?thread=<key>`, so a link can open it too: in a panel beside the conversation, covering the screen at mobile width, with the first message, its replies and a box of its own that replies in the thread.
+
+<StoryFrame id="record-page-conversation-page-message-actions--message-actions" title="Reactions under messages, a thread's replies under its first message, and the actions bar" height={560} />
+
+<gap>A conversation page cannot offer *Edit* when its `sender` is a relation because matching a related record to the reader is not implemented; a `sender` of user ids, such as the resource's `.author()`, gets it.</gap>
 
 <gap>A conversation page cannot open at a given message, such as a search result, because opening a conversation at a message is not implemented.</gap> <gap>A conversation page cannot show a message's markdown because rendering markdown together with mentions is not implemented.</gap>
 

@@ -75,4 +75,12 @@ describe('pruneConversationPage', () => {
     const pruned = pruneConversationPage(page, 'channels', { channels: without(channels, 'topic'), messages: without(messages, 'edited_at', 'mentions'), read_positions: without(positions, 'user_id') })
     expect(pruned).toEqual({ resource: 'messages', field: 'channel_id', sender: 'author_id', time: 'sent_at', text: 'body', members: 'member_ids' })
   })
+
+  it('leaves out threads and a conditional delete for a caller who cannot read their fields, and keeps edit', () => {
+    const options = { ...page, edit: true, delete: { unless: 'edited_at:*' }, thread: { field: 'channel_id', count: 'id', last: 'sent_at' } }
+    expect(pruneConversationPage(options, 'channels', models)).toEqual(options)
+    const pruned = pruneConversationPage(options, 'channels', { ...models, messages: without(messages, 'edited_at') })
+    expect(pruned).toMatchObject({ edit: true, thread: options.thread })
+    expect(pruned).not.toHaveProperty('delete')
+  })
 })

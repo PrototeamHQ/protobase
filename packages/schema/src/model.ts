@@ -342,6 +342,8 @@ export type AppAddress =
       run?: string
       /** The panel a focus page opens with, by a name its surface knows (`?panel=`). */
       panel?: string
+      /** The message whose thread a conversation page opens beside it, by its key (`?thread=`). */
+      thread?: string
       /**
        * A file field of the record, by name, opened in the viewer the admin app has for its file's media type (`?file=`),
        * in place of the record page; the plain record page without a viewer for it.
@@ -1878,6 +1880,22 @@ export type ConversationPageModel = {
   members?: string
   /** Where each reader's read position in the record is kept: the conversation opens on a "New messages" line and moves it as they read to the end. */
   readPosition?: ReadPositionModel
+  /** Emoji reactions under each message, kept in a resource of their own. */
+  reactions?: ReactionsModel
+  /** The author changes their message's text and mentions in place, as the resource's update access allows. */
+  edit?: boolean
+  /**
+   * Anyone the resource's delete access allows deletes a message, after confirming: `true`, or `{ unless }`, a condition
+   * on the message's own fields that keeps it, such as `reply_count > 0`.
+   */
+  delete?:
+    | boolean
+    | {
+        /** A condition on the message's own fields that keeps it from being deleted, such as `reply_count > 0`. */
+        unless: string
+      }
+  /** Replies in a thread under a message, shown in a panel beside the conversation rather than in it. */
+  thread?: ConversationThreadModel
   /** The hint in the empty box. */
   placeholder?: string
   /** What the conversation says while it has no messages. */
@@ -1895,6 +1913,41 @@ export type ReadPositionModel = {
   field: string
   /** The integer field that holds the key of the newest message read; the message resource's key is one integer column. */
   message: string
+}
+
+/**
+ * The reactions under a conversation's messages: one record per person, message and emoji, its `user` the person who
+ * reacted, set by the server, such as the resource's `.author()`.
+ */
+export type ReactionsModel = {
+  /** The reaction resource. */
+  resource: string
+  /** The filterable relation of `resource` to the message reacted to. */
+  field: string
+  /** The text field of the user id of the person who reacted. */
+  user: string
+  /** The enum field of the emoji; its values, in their order, are the set offered. */
+  emoji: string
+  /** Each value of `emoji` as it is drawn (`symbol`) and named (`name`), such as `{ thumbs_up: { symbol: '👍', name: 'Thumbs up' } }`. */
+  labels: Record<
+    string,
+    {
+      /** The emoji as it is drawn, such as `👍`. */
+      symbol: string
+      /** The emoji's name, such as `Thumbs up`, which its button's label and tooltip use. */
+      name: string
+    }
+  >
+}
+
+/** Threads under a conversation's messages: a reply points at the thread's first message, which counts its replies. */
+export type ConversationThreadModel = {
+  /** The filterable relation of the message resource to itself that holds a reply's first message, empty for a message of the conversation. */
+  field: string
+  /** The integer field of a first message holding its number of replies. */
+  count: string
+  /** The date or timestamp field of a first message holding when its last reply came. */
+  last: string
 }
 
 /** The list page's Export (`.export(...)`): how many rows a file may hold. */
