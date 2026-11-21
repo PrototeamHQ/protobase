@@ -10,7 +10,7 @@ export type BucketsSource = { model: ResourceModel; fields: FieldsInput }
 const everies = ['hour', 'day']
 const measures: readonly BucketMeasure[] = ['sum', 'max']
 const numberTypes = ['integer', 'bigint', 'decimal']
-const groupTypes = ['text', 'integer', 'bigint', 'decimal', 'boolean', 'date', 'uuid', 'enum', 'relation', 'currency', 'country']
+const groupTypes = ['text', 'integer', 'bigint', 'decimal', 'boolean', 'date', 'uuid', 'enum', 'relation', 'currency', 'country', 'mail_sender']
 // The rollup's own fields besides the groups and measures.
 const ownNames = ['id', 'bucket', 'events']
 const lateShape = /^\d+ (minute|hour|day)s?$/

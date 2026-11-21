@@ -11,6 +11,7 @@ import { enumLabel, type AppAddress, type FieldModel, type FieldViewModel, type 
 import { RelationPicker } from './relation-picker'
 import { SensitiveField } from './sensitive-field'
 import { FileField } from './file-field'
+import { MailSenderSelect } from '../mailbox/mail-sender-select'
 import { fromDraft, isEditable, toFieldDraft } from '../live/field-values'
 import { useShownWidget } from './field-types/shown-widget'
 import { WidgetPart } from './field-types/widget-part'
@@ -75,6 +76,7 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
   if (field.type === 'boolean') return <Switch checked={Boolean(value)} onChange={onChange} label={hints?.label ?? humanize(field.name)} />
   const multiline = Boolean(hints?.multiline) && field.type === 'text'
   if (isMarkdown(field, hints)) return <MarkdownEditor label={hints?.label ?? humanize(field.name)} invalid={invalid} placeholder={placeholder} value={String(value)} onChange={onChange} />
+  if (field.type === 'mail_sender') return <MailSenderSelect field={field} value={value} invalid={invalid} onChange={onChange} />
   if (field.type === 'enum') {
     return (
       <Select invalid={invalid} value={String(value)} onChange={(event) => onChange(event.target.value)}>

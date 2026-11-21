@@ -14,6 +14,7 @@ description: Mail the app sends, the PDF documents it makes, and forms for peopl
 - [PDF documents](/reference/pdf/#documents): PDF files such as invoices and quotes are React components with typed data, rendered from jobs, hooks or functions and attached to mail as they are.
 - [Mail from your own mailbox](/reference/email/#from-someones-own-mailbox) (beta): People link their Gmail on the account page, and the app's functions send mail from it; an action offers to connect the mailbox right there when the link is missing or expired.
 - [From addresses](/reference/email/#from-addresses): People enter their mailbox's other send-as addresses once on the account page, each with a display name and a signature of its own, and the app sends from the one it names or their default.
+- [A From address on a record](/reference/email/#a-from-address-on-a-record) (beta): A field such as a client's "Send from" is a dropdown of the person's addresses, and an address a record holds cannot be removed.
 - [Public forms](/reference/forms/#what-the-visitor-sees): A form at its own address lets people without an account create a record, such as a contact request.
 - [Bot check](/reference/forms/#bot-check): Each submission passes a check in the browser, without a third-party service or a puzzle.
 - [Form rate limit](/reference/forms/#rate-limit): Each client sends only a set number of submissions per minute.

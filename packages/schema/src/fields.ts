@@ -9,6 +9,7 @@ import { enumeration } from './fields/enum'
 import { file } from './fields/file'
 import { integer } from './fields/integer'
 import { json } from './fields/json'
+import { mailSender } from './fields/mail-sender'
 import { relation } from './fields/relation'
 import { text } from './fields/text'
 import { timestamp } from './fields/timestamp'
@@ -80,4 +81,10 @@ export const f = {
   currency: () => make<string>(currency),
   /** An ISO 3166-1 alpha-2 country code such as `NL`, in a `text` column. */
   country: () => make<string>(country),
+  /**
+   * A From address the person saving may send mail from (`personalMail.senders()`), in a `text` column holding the
+   * address, as `personalMail.send({ from })` takes it; empty sends from their default. The form offers their senders
+   * as a dropdown, and an address in use cannot be deleted from the account page.
+   */
+  mailSender: () => make<string>(mailSender),
 }

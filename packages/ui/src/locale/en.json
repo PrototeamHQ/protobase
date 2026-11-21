@@ -833,6 +833,7 @@
     "enum": "Choose one of the options",
     "relation": "Choose a record",
     "json": "Enter valid JSON",
+    "mailSender": "You can't send from {address}. Choose one of your addresses, or add it on your Account page first",
     "required": "{label} is required",
     "checkField": "Check the marked field.",
     "checkFields": "Check {count} fields."
@@ -2079,7 +2080,14 @@
     "expired": "{names} no longer accepts mail from this app, as when the link was removed or ran out. Connecting it again asks you to sign in there, then brings you back here.",
     "signInOnly": "You sign in with {provider}, but that sign-in does not allow sending mail: connect {name} to send from it.",
     "connect": "Connect {name}",
-    "connectAgain": "Connect {name} again"
+    "connectAgain": "Connect {name} again",
+    "defaultSender": "Sender's default address",
+    "senderNotAvailable": "{address} (not available)",
+    "chooseSender": "Choose an address",
+    "senderNotYours": "You can't send from this address. Choose one of yours, or add it on your {account}.",
+    "accountPage": "Account page",
+    "sendersNotRead": "Your addresses could not be read. Check your connection.",
+    "tryAgain": "Try again"
   },
   "markdown": {
     "write": "Write",

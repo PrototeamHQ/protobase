@@ -73,6 +73,9 @@ export const checkValue = (field: FieldModel, value: FilterValue): Problem | und
     case 'country':
       if (value.kind === 'string' && /^[A-Z]{2}$/.test(value.value)) return undefined
       return expected('an ISO 3166-1 country code', 'Use two capital letters, for example "NL"')
+    case 'mail_sender':
+      if (value.kind === 'string') return undefined
+      return expected('a mail address', 'Quote the address: "billing@example.com"')
     case 'relation':
       if (value.kind === 'string' || (value.kind === 'number' && Number.isSafeInteger(value.value))) return undefined
       return expected('a record key', 'Use the related record key: 42 or "abc"')

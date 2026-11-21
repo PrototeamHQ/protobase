@@ -94,6 +94,7 @@ import { onDoNotDisturb } from './status/do-not-disturb'
 import { checkStatusAuth, statusNames, type StatusOptions } from './status/options'
 import { statusRoutes } from './status/routes'
 import { liveSessions } from './better-auth/live-sessions'
+import { mailSenderUse } from './personal-mail/mail-sender-use'
 import type { SubscriptionDefinition } from './webhooks/subscription'
 import { visitorsBrowse, withAnonymous } from './anonymous'
 import { checkBottomBars, checkShell } from './check-shell'
@@ -383,6 +384,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     ...(withHistory && { history: { schema: changes, ...(auth && { actorNames: betterAuthActorNames(auth) }) } }),
     ...(mentions && { comments: { ...(commentUsers && { users: commentUsers }), mentionJob: mentions, appOrigin: appOrigin(auth?.origins ?? []) } }),
     ...(withAi && { ai: { ...(model && { model }), ...(options.onUnhandledError && { report: options.onUnhandledError }) } }),
+    ...(auth && auth.personalMail.length > 0 && { mailSenders: (userId: string) => auth.personalMailer(userId).senders() }),
     ...(calls && {
       calls: callsService(() => deps, calls, {
         notices: changes,
@@ -394,6 +396,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
       }),
     }),
   }
+
+  // Removing a From address, or disconnecting its mailbox, waits until no record holds it.
+  if (auth) auth.mailSenderUse.set(mailSenderUse(db, registry.entries))
 
   // The tabs end in the name the app signs in and mails as, which the installed app is called too.
   const appName = shownAppName(auth, globalThis.process?.env ?? {})
