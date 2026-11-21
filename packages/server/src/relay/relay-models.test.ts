@@ -17,6 +17,15 @@ describe('relayModels', () => {
     expect(models.channels.get('rooms')).toEqual({})
   })
 
+  it("places a channel resource's records on their own channel when its key is also a relation", () => {
+    const profiles = resource('profiles').table('profiles').fields({ user_id: f.relation('conversations') }).primaryKey((r) => r.user_id).live().toModel()
+    const models = relayModels({ ...chatRelay, channels: { ...chatRelay.channels, profiles: {} } }, [...chatModels(), profiles])
+    expect(models.placements.get('profiles')).toEqual([
+      { field: 'user_id', channel: 'profiles' },
+      { field: 'user_id', channel: 'conversations' },
+    ])
+  })
+
   it('refuses a channel resource the app does not have', () => {
     expect(() => relayModels({ ...chatRelay, channels: { threads: {} } }, chatModels())).toThrow('realtime.relay.channels.threads: the app has no resource "threads"')
   })

@@ -43,10 +43,13 @@ export const relayModels = (options: RealtimeRelayOptions, models: readonly Reso
   }
   const placements = new Map(
     models.filter(captured).flatMap((model) => {
-      const fields = Object.values(model.fields).flatMap((field) => {
-        const target = relatedTarget(model, field)
-        return target !== undefined && channels.has(target) ? [{ field: field.name, channel: target }] : []
+      // A channel resource's own key places its records on their own channel, even when that key is a relation too.
+      const own = channels.has(model.name) ? [{ field: model.primaryKey[0]!, channel: model.name }] : []
+      const related = Object.values(model.fields).flatMap((field) => {
+        const target = field.relation && relatedTarget(model, field)
+        return target && channels.has(target) ? [{ field: field.name, channel: target }] : []
       })
+      const fields = [...own, ...related]
       return fields.length > 0 ? [[model.name, fields] as const] : []
     }),
   )
