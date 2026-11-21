@@ -1852,17 +1852,6 @@
             }
           ]
         },
-        "users": {
-          "description": "The user table, when it is one another system made, such as Supabase's `auth.users`: its name, the columns named\notherwise than Protobase names them, and a JSON column for each user's metadata, for example `{ table: 'users',\ncolumns: { role: 'app_role' }, metadata: 'raw_user_meta_data' }`. The other tables keep their names. Default the\ntable `protobase auth migration` makes.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/UserTableSettings"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        },
         "origins": {
           "description": "The other origins the app is served on, for example `['https://admin.shop.com']`. A request to one of them is\nanswered for that host: its sign-in callbacks and the links it mails, such as a password reset, stay there, and\npasskeys work on every origin. Tokens keep `baseURL` as issuer, whatever host issued them. Defaults to the\ncomma-separated list the platform passes in `PROTOBASE_ORIGINS`, when set; none otherwise.",
           "anyOf": [
@@ -1971,8 +1960,8 @@
                         "anyOf": [
                           {
                             "enum": [
-                              "name",
-                              "email"
+                              "email",
+                              "name"
                             ]
                           },
                           {
@@ -2033,9 +2022,9 @@
                   "anyOf": [
                     {
                       "enum": [
-                        "required",
                         "allowed",
-                        "forbidden"
+                        "forbidden",
+                        "required"
                       ]
                     },
                     {
@@ -2047,9 +2036,9 @@
                   "anyOf": [
                     {
                       "enum": [
-                        "required",
                         "allowed",
-                        "forbidden"
+                        "forbidden",
+                        "required"
                       ]
                     },
                     {
@@ -2168,6 +2157,28 @@
                   }
                 ]
               }
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "tables": {
+          "description": "The names of the store's tables and columns where the app wants others than the built-in ones (see `TableNames`),\nsuch as `{ user: { name: 'users', columns: { role: 'app_role' } } }` for Supabase's `auth.users`. Default the\nbuilt-in names.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TableNames"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "users": {
+          "description": "The user table, when it is one another system made, such as Supabase's `auth.users`: a JSON column for each user's\nmetadata, the table under a view over it, and the schemas the other system keeps its sign-in data in, for example\n`{ metadata: 'raw_user_meta_data' }`. `tables.user` names the table and its columns.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UserTableOptions"
             },
             {
               "$ref": "#/definitions/EnvValue"
@@ -2329,7 +2340,3117 @@
       ],
       "additionalProperties": false
     },
-    "UserTableSettings": {
+    "ConnectionClient": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "clientSecret": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "clientId",
+        "clientSecret"
+      ],
+      "additionalProperties": false
+    },
+    "TableNames": {
+      "type": "object",
+      "properties": {
+        "prefix": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "passkey": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "public_key": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "credential_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "counter": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "device_type": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "backed_up": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "transports": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "aaguid": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "rp_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "user": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "email": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "email_verified": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "image": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "role": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "banned": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "ban_reason": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "ban_expires": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "last_role": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "email_confirmed_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "two_factor_enabled": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "last_organization_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "organization": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "slug": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "logo": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "metadata": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "session": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "expires_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "token": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "ip_address": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_agent": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "impersonated_by": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "active_role": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "active_organization_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "account": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "password": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "account_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "provider_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "access_token": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "refresh_token": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "id_token": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "access_token_expires_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "refresh_token_expires_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "scope": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "single_subject_user_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "verification": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "expires_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "identifier": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "jwks": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "expires_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "public_key": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "private_key": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "alg": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "crv": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "auth_migrations": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "version": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "applied_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "two_factor": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "secret": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "backup_codes": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "verified": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "failed_verification_count": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "locked_until": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "sign_in_policy": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "password": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "passkey": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "two_factor": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "email_code": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "staff_access": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "platform_sign_in": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "created_by": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "staff_sign_in": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "expires_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_email": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "staff": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "staff_name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "staff_subject": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "issuer": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "reason": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "session_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "started_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "ended_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "member": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "role": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "organization_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "app_roles": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "invitation": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "email": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "role": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "expires_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "organization_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "app_roles": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "inviter_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "personal_access_token": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "role": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "expires_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "organization_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "token_hash": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "last_used_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "oauth_client": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "jwks": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "metadata": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "client_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "client_secret": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "client_discovery_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "disabled": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "skip_consent": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "enable_end_session": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "subject_type": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "scopes": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "client_credentials_scopes": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "uri": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "icon": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "contacts": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "tos": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "policy": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "software_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "software_version": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "software_statement": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "redirect_uris": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "post_logout_redirect_uris": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "backchannel_logout_uri": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "backchannel_logout_session_required": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "token_endpoint_auth_method": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "application_type": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "jwks_uri": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "grant_types": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "response_types": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "require_pkce": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "dpop_bound_access_tokens": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "reference_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "oauth_resource": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "identifier": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "metadata": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "disabled": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "access_token_ttl": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "refresh_token_ttl": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "signing_algorithm": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "signing_key_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "allowed_scopes": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "custom_claims": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "dpop_bound_access_tokens_required": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "policy_version": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "oauth_client_resource": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "metadata": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "client_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "resource_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "oauth_refresh_token": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "expires_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "token": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "session_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "client_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "scopes": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "reference_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "authorization_code_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "resources": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "requested_user_info_claims": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "revoked": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "rotated_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "rotation_replay_response": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "rotation_replay_expires_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "auth_time": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "confirmation": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "oauth_access_token": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "expires_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "token": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "session_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "client_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "scopes": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "reference_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "authorization_code_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "resources": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "requested_user_info_claims": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "revoked": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "confirmation": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "refresh_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "oauth_consent": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "updated_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "client_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "scopes": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "reference_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "resources": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "requested_user_info_claims": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "oauth_client_assertion": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "expires_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "mail_sender": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "address": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "shared": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "signature": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "is_default": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "refused_account": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "user_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "account_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "provider_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "device_session": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "columns": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "created_at": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "account_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        },
+                        "session_id": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/definitions/EnvValue"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "UserTableOptions": {
       "type": "object",
       "properties": {
         "metadata": {
@@ -2401,203 +5522,8 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
-        },
-        "table": {
-          "description": "The table's name, default `user`, for example `users` for Supabase's `auth.users`.",
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        },
-        "columns": {
-          "description": "The columns named otherwise than Protobase names them: `{ role: 'app_role' }`, where `role` holds something else\nalready, such as the Postgres role in Supabase's `auth.users`.",
-          "anyOf": [
-            {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "email": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "email_verified": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "image": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "created_at": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "updated_at": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "role": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "banned": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "ban_reason": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "ban_expires": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "last_role": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "email_confirmed_at": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "two_factor_enabled": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "last_organization_id": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                }
-              },
-              "additionalProperties": false
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
         }
       },
-      "additionalProperties": false
-    },
-    "ConnectionClient": {
-      "type": "object",
-      "properties": {
-        "clientId": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        },
-        "clientSecret": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/EnvValue"
-            }
-          ]
-        }
-      },
-      "required": [
-        "clientId",
-        "clientSecret"
-      ],
       "additionalProperties": false
     },
     "OperatorProvider": {
