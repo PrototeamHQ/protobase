@@ -4,6 +4,7 @@ import type { Deps } from './deps'
 import { bindingOf } from './encryption/binding'
 import { sealValues } from './encryption/seal-values'
 import { attachFiles } from './files/attach'
+import { checkMailSenders } from './personal-mail/check-mail-senders'
 import type { ScheduledDelete } from './files/cleanup-schedule'
 import { badRequest } from './problem'
 import { fetchRecord, updateRecord, type StoredRecord } from './records'
@@ -28,7 +29,7 @@ export const planUpdate = async (trx: Db, access: RequestAccess, key: (string | 
   const current = await fetchRecord(trx, entry, key, tenant, { deleted: 'hide', lock: true, ...(target && { filter: target }), etagFields: Object.keys(access.model.fields) })
   if (!current) throw missing(entry)
   checkPrecondition(current, ifMatch, required)
-  const values = await attachFiles(access, validateBody(access, 'update', body, current.record), current.record)
+  const values = await attachFiles(access, await checkMailSenders(access, validateBody(access, 'update', body, current.record), current.record), current.record)
   const filter = Object.keys(values).length === 0 ? undefined : await decide(access, 'update', current.record, values)
   if (filter && !(await fetchRecord(trx, entry, key, tenant, { filter, fields: [firstKeyField(access)] }))) throw denied(entry, 'update')
   const parents = checkParents(trx, access, 'update')

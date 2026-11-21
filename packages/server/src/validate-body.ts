@@ -8,7 +8,8 @@ import type { Row } from './types'
 /** `params` is the limit an invalid value broke, such as `{ max: 200 }` or a decimal's `{ precision, scale }`, so a client can word the problem itself. */
 export type FieldError = { field: string; code: 'unknown-field' | 'read-only' | 'required' | 'invalid-value' | 'invalid-record'; message: string; params?: Record<string, unknown> }
 
-const fail = (errors: FieldError[]) =>
+/** The 400 for `errors` in a create or update body, naming the first. */
+export const fail = (errors: FieldError[]) =>
   badRequest('invalid-record', `The request body is invalid: ${errors[0]!.field}: ${errors[0]!.message}`, { errors })
 
 const paramsOf = (issue: z.core.$ZodIssue): Record<string, unknown> | undefined => {

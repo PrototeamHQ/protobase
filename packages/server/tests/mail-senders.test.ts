@@ -1,4 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { base64url } from 'jose'
+import { f, resource } from '@protobase/schema'
+import { gmailSendScope } from '../src/personal-mail/gmail'
 import { MailSenderRefusedError } from '../src/personal-mail/mail-sender-refused'
 import { mcpStores, serveMcp, type McpStores } from './support/mcp-app'
 
@@ -88,5 +91,80 @@ describe('the From addresses on the account page', () => {
     for (const address of ['sales@acme.example', 'ana@private.example']) await expect(boMail.sender(address)).rejects.toEqual(new MailSenderRefusedError(address))
     expect(await boMail.senders()).toEqual([])
     expect(await app.auth.personalMailer(anaId).sender('sales@acme.example')).toEqual({ address: 'sales@acme.example', ownerId: anaId })
+  })
+})
+
+// The fixture's labels as an app's clients, each with the address its mail goes out from.
+const clients = resource('clients')
+  .table('labels')
+  .fields({ id: f.integer().readOnly().filterable(), organizationId: f.integer(), name: f.text(), sendFrom: f.mailSender().optional().column('color') })
+  .primaryKey((r) => r.id)
+
+const withClients = () => serveMcp(stores, { auth: personalMail, resources: [clients] })
+
+// A Gmail linked to the person, as linking it leaves it: its scope sends mail, its ID token names its own address.
+const linkGmail = async (app: Served, email: string, address: string) => {
+  const idToken = `${base64url.encode(JSON.stringify({ alg: 'none' }))}.${base64url.encode(JSON.stringify({ sub: address, email: address, email_verified: true }))}.`
+  const { internalAdapter } = await app.auth.$context
+  return internalAdapter.createAccount({ userId: await app.userId(email), providerId: 'google', accountId: `google-${address}`, scope: gmailSendScope, idToken })
+}
+
+const rest = async (app: Served, cookie: string) => {
+  const token = ((await (await app.request('/api/auth/token', { cookie })).json()) as { token: string }).token
+  return (path: string, init: { method?: string; body?: object } = {}) =>
+    app.request(`/api/v1/${path}`, { ...(init.method && { method: init.method }), ...(init.body && { body: init.body }), headers: { authorization: `Bearer ${token}`, ...(init.method === 'PATCH' && { 'if-match': '*' }) } })
+}
+
+type Client = { id: number; sendFrom: string | null }
+
+describe('a mail sender field', () => {
+  it('holds an address the person saving may send from, as their sender spells it, and refuses any other', async () => {
+    const app = await withClients()
+    const ana = await app.signIn('ana@example.com')
+    await add(app, ana, { address: 'billing@acme.example' })
+    await linkGmail(app, 'ana@example.com', 'Ana@Gmail.example')
+    const api = await rest(app, ana)
+
+    const created = await api('clients', { body: { organizationId: 1, name: 'Initech', sendFrom: 'Billing@Acme.example' } })
+    expect(created.status, await created.clone().text()).toBe(201)
+    const client = (await created.json()) as Client
+    expect(client.sendFrom).toBe('billing@acme.example')
+    const mailbox = await api(`clients/${client.id}`, { method: 'PATCH', body: { sendFrom: 'ana@gmail.example' } })
+    expect(((await mailbox.json()) as Client).sendFrom).toBe('Ana@Gmail.example')
+
+    const bo = await rest(app, await app.signIn('bo@example.com'))
+    const refused = await bo(`clients/${client.id}`, { method: 'PATCH', body: { sendFrom: 'billing@acme.example' } })
+    expect(refused.status).toBe(400)
+    expect(await refused.json()).toMatchObject({ errors: [{ field: 'sendFrom', code: 'invalid-value', params: { address: 'billing@acme.example' } }] })
+    expect((await bo('clients', { body: { organizationId: 1, name: 'Hooli', sendFrom: 'nobody@acme.example' } })).status).toBe(400)
+
+    // Bo has no such address, yet an edit that leaves it as stored, or changes another field, keeps it as it is.
+    const kept = await bo(`clients/${client.id}`, { method: 'PATCH', body: { name: 'Initech BV', sendFrom: 'ANA@gmail.example' } })
+    expect(kept.status, await kept.clone().text()).toBe(200)
+    expect(await kept.json()).toMatchObject({ name: 'Initech BV', sendFrom: 'Ana@Gmail.example' })
+    expect((await bo(`clients/${client.id}`, { method: 'PATCH', body: { sendFrom: null } })).status).toBe(200)
+  })
+
+  it('keeps an address from being removed, or its mailbox disconnected, while a record holds it', async () => {
+    const app = await withClients()
+    const ana = await app.signIn('ana@example.com')
+    const billing = await add(app, ana, { address: 'billing@acme.example' })
+    const gmail = await linkGmail(app, 'ana@example.com', 'ana@gmail.example')
+    const api = await rest(app, ana)
+    const client = (await (await api('clients', { body: { organizationId: 1, name: 'Initech', sendFrom: 'billing@acme.example' } })).json()) as Client
+    const other = (await (await api('clients', { body: { organizationId: 1, name: 'Hooli', sendFrom: 'ana@gmail.example' } })).json()) as Client
+
+    const removal = await app.request('/api/auth/account/mail-senders/remove', { cookie: ana, body: { id: billing.id } })
+    expect(removal.status).toBe(409)
+    expect(await removal.json()).toMatchObject({ code: 'MAIL_SENDER_IN_USE', message: 'billing@acme.example is the From address of 1 clients: choose another address there first.', use: [{ resource: 'clients', count: 1 }] })
+    expect(await listed(app, ana)).toEqual([billing])
+    const unlink = await app.request('/api/auth/unlink-account', { cookie: ana, body: { accountId: gmail.id } })
+    expect(unlink.status).toBe(409)
+    expect(await unlink.json()).toMatchObject({ code: 'MAIL_SENDER_IN_USE', use: [{ resource: 'clients', count: 1 }] })
+
+    for (const { id } of [client, other]) expect((await api(`clients/${id}`, { method: 'PATCH', body: { sendFrom: null } })).status).toBe(200)
+    expect((await app.request('/api/auth/account/mail-senders/remove', { cookie: ana, body: { id: billing.id } })).status).toBe(200)
+    expect(await listed(app, ana)).toEqual([])
+    expect((await app.request('/api/auth/unlink-account', { cookie: ana, body: { accountId: gmail.id } })).status).toBe(200)
   })
 })

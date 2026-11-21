@@ -17,6 +17,7 @@ import type { SourceOption } from './sources/source-settings'
 import type { ScanGuard } from './scan-guard'
 import type { AuditQueue, PipelineHook, Session, WriteCheck } from './types'
 import type { CallsService } from './calls/calls-service-type'
+import type { MailSender } from './personal-mail/mail-sender'
 
 /** Everything a route needs, built once by `createAdmin` and passed down explicitly. */
 export type Deps = {
@@ -90,6 +91,8 @@ export type Deps = {
    * that fails an action is reported.
    */
   ai?: { model?: ModelSettings; report?: (error: unknown) => void }
+  /** With personal mail: every sender `userId` may choose, which an `f.mailSender()` field may hold (see `checkMailSenders`). */
+  mailSenders?: (userId: string) => Promise<MailSender[]>
   /** With `calls`: the app's calls, which functions admit members to and the records' readers follow. */
   calls?: CallsService
 }

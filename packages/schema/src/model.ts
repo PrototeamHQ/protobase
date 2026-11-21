@@ -8,7 +8,7 @@ import type { BadgeTone } from './badge-tones'
 /** A field's storage type, as `f.*` declares it; see [Field types](docs/website/src/content/docs/reference/data-config.mdx#field-types). */
 export type FieldType =
   | 'text' | 'integer' | 'bigint' | 'decimal' | 'boolean' | 'date' | 'timestamp'
-  | 'uuid' | 'enum' | 'json' | 'relation' | 'file' | 'currency' | 'country'
+  | 'uuid' | 'enum' | 'json' | 'relation' | 'file' | 'currency' | 'country' | 'mail_sender'
 
 /**
  * A field of a resource as the server and the app see it, built from its `f.*` builder and options; see
