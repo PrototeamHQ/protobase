@@ -4,6 +4,7 @@ import { userTablesOn } from '../config/user-tables-config'
 import { captureFileIssues } from './capture-files'
 import { readMigrationSql } from './migration-sql'
 import { formatIssue, loadDoctorProject, unplannedNotes } from './project'
+import { lookupReadModels } from './lookup-models'
 import { readShapes } from './read-shapes'
 import { relationIssues } from './relation-issues'
 import { sortIssues } from './sort-issues'
@@ -19,10 +20,11 @@ export const runDoctorWithoutDatabase = async (options: { configDir: string; pro
   const project = await loadDoctorProject(options.configDir, options.projectDir)
   const { config, source, builtIn } = project
   const models = [...builtIn.models, ...config.models]
-  const shapes = readShapes({ models, views: [...builtIn.views, ...config.views], pages: config.pages })
+  const read = lookupReadModels(models)
+  const shapes = readShapes({ models: read, views: [...builtIn.views, ...config.views], pages: config.pages })
   const served = configExports(await projectResources(source)).resources.map((resource) => resource.toModel())
   const capture = captureFileIssues(served, source.events, (await readMigrationSql(options.projectDir)) ?? '')
-  const issues = [...models.flatMap((model) => [...relationIssues(model, models), ...sortIssues(model, shapes)]), ...capture.issues]
+  const issues = [...models.flatMap((model, i) => [...relationIssues(model, models), ...sortIssues(read[i]!, shapes)]), ...capture.issues]
   for (const issue of issues) out(formatIssue(issue))
   for (const note of unplannedNotes(project, models)) out(note)
   const errors = issues.filter((i) => i.severity === 'error').length
