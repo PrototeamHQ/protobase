@@ -124,6 +124,8 @@ await call.publish({ camera: media.getVideoTracks()[0], microphone: media.getAud
 | `connections()` | How each of the member's connections fares now, to each other member peer-to-peer or to the media server with LiveKit: `{ member?, state, roundTripMs?, lostRatio? }`, the round trip and the share of received media lost once connected. |
 | `leave()` | Leaves the call. |
 
+`client.functionSocketUrl(name, query)` of `@protobase/client` gives the socket of your function beside the client's API, such as `wss://app.example/api/functions/meeting?meeting=7` for `('meeting', { meeting: '7' })`, to pass as `url`.
+
 `call.id` is the call, as the record's calls list it and `calls.remove` takes it. `onSpeakers` gets who speaks how loudly, and `onUnpublished` a source the media server stopped, such as after the member lost the right to send.
 
 A call that is left rejects the join, or ends a joined call, with its reason in `onState`: `ended`, `removed` (by `calls.remove`, or by a check that refused the member), `full`, `refused` (the function refused the caller), or `unavailable`, when the server failed to take the member in `maxRetries` times in a row.
