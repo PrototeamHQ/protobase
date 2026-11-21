@@ -16,6 +16,8 @@ export type BucketsModel = {
   by: string[]
   /** The number fields of `from` it keeps, with what it keeps of each, as the fields `<name>_sum` and `<name>_max`. */
   measures: Record<string, BucketMeasure[]>
+  /** The measured fields of `from` that are optional: `events` counts their records without a value too, so a bucket cannot give their average. */
+  optional: string[]
   /** How late a record may arrive and still be counted by a refresh, such as `2 hours`. */
   late: string
 }

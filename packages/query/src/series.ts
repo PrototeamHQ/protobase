@@ -5,6 +5,8 @@ import type { Db } from './db'
 import { assertFilterRequirements } from './filter-requirements'
 import { toNumber } from './numbers'
 import { measureSql, measureValue, type Measure } from './measure'
+import { countSql } from './rollup-measure'
+import { assertBucketBoundaries } from './rollup-series'
 import { seriesBuckets, type BucketOptions } from './series-buckets'
 import type { Scope } from './scope'
 
@@ -24,23 +26,24 @@ export type SeriesPoint = { bucket: string; count: number; sum?: number | null; 
  * up has `null` for it.
  */
 export const series = async (db: Db, model: ResourceModel, field: string, options: SeriesOptions): Promise<SeriesPoint[]> => {
-  const { col, from, to, truncate, step, bound, local, laterBucket, isDate } = seriesBuckets(model, field, options)
+  const { col, from, to, truncate, step, bound, local, firstBucket, laterBucket, isDate, timeZone } = seriesBuckets(model, field, options)
   const { measure } = options
   const amount = measure ? measureSql(model, measure) : undefined
   await assertFilterRequirements(db, options.filter, options.scope)
+  await assertBucketBoundaries(db, model, field, { first: firstBucket, last: laterBucket, step, timeZone })
 
   const counts = baseQuery(db, model, options.filter, options.scope)
     .where(sql<SqlBool>`${col} >= ${from}::${bound} and ${col} < ${to}::${bound}`)
     .select([
       truncate(isDate ? sql`${col}::timestamp` : local(col)).as('bucket'),
-      sql`count(*)::text`.as('n'),
+      sql`${countSql(model)}::text`.as('n'),
       ...(amount ? [sql`${amount}::text`.as('m')] : []),
     ])
     .groupBy(sql`1`)
 
   const result = await sql<{ bucket: string; n: unknown; m?: unknown }>`
     with b as (
-      select generate_series(${truncate(local(from))}, ${laterBucket}, ${step}) as bucket
+      select generate_series(${firstBucket}, ${laterBucket}, ${step}) as bucket
     ), c as (${counts})
     select to_char(b.bucket, 'YYYY-MM-DD"T"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n${amount ? sql`, c.m` : sql``}
     from b left join c on c.bucket = b.bucket

@@ -9,7 +9,7 @@ import { bucketOf, histogramColumn, histogramOf, type Histogram } from './histog
 import { histogramBounds } from './histogram-bounds'
 import { toNumber } from './numbers'
 import type { Scope } from './scope'
-import type { SeriesPoint } from './series'
+import { series as seriesOf, type SeriesPoint } from './series'
 import { seriesBuckets, type BucketOptions } from './series-buckets'
 
 export type ScanRequests = {
@@ -69,10 +69,14 @@ export const aggregateScan = async (db: Db, model: ResourceModel, filter: Checke
     // `least` passes over a null, so a row without a value would count in the last bucket
     return add(`histogram:${field}:${buckets}`, { key: sql`case when ${column} is not null then ${bucketOf(column, min, max, buckets)} end`, ranked: false })
   })
-  const seriesSets = series.map(({ id, buckets }) => add(`series:${id}`, { key: seriesKey(buckets), ranked: false }))
+  // A time rollup's series add up the records its buckets count, which the shared row counts do not: each is its own query
+  const ownSeries = model.buckets !== undefined
+  const seriesSets = ownSeries ? [] : series.map(({ id, buckets }) => add(`series:${id}`, { key: seriesKey(buckets), ranked: false }))
   const counted = await groupedCounts(db, model, filter, scope, sets, Math.max(0, ...facets.map(({ limit }) => limit)))
   const lists: string[][] = []
-  for (const { buckets } of series) lists.push(await bucketList(db, buckets))
+  if (!ownSeries) for (const { buckets } of series) lists.push(await bucketList(db, buckets))
+  const own: SeriesPoint[][] = []
+  if (ownSeries) for (const { field, ...options } of requests.series ?? []) own.push(await seriesOf(db, model, field, { ...options, ...(filter && { filter }), ...(scope && { scope }) }))
 
   return {
     facets: facets.map(({ limit }, index) => counted[facetSets[index]!]!.slice(0, limit)),
@@ -84,7 +88,7 @@ export const aggregateScan = async (db: Db, model: ResourceModel, filter: Checke
       if (set === undefined) return histogramOf(min, max, buckets, new Map([[1, count]]))
       return histogramOf(min, max, buckets, new Map(counted[set]!.flatMap(({ value, count }) => (value === null ? [] : [[toNumber(value), count]]))))
     }),
-    series: series.map((_, index) => {
+    series: ownSeries ? own : series.map((_, index) => {
       const counts = new Map(counted[seriesSets[index]!]!.flatMap(({ value, count }) => (value === null ? [] : [[String(value), count]])))
       return lists[index]!.map((bucket) => ({ bucket, count: counts.get(bucket) ?? 0 }))
     }),

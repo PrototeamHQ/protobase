@@ -3,7 +3,7 @@ import { f } from '../fields'
 import { resource } from '../resource'
 import type { InferRecord } from '../resource-types'
 import type { BucketsModel } from './buckets-model'
-import { bucketsState } from './buckets-of'
+import { bucketsState, keptMeasure } from './buckets-of'
 
 const readings = resource('readings')
   .table('readings')
@@ -14,6 +14,7 @@ const readings = resource('readings')
     kind: f.enum(['power', 'heat']),
     taken_at: f.timestamp().filterable(),
     watts: f.integer(),
+    peak: f.integer().optional(),
     cost: f.decimal({ precision: 10, scale: 2 }),
     note: f.text().optional(),
     secret: f.text().sensitive(),
@@ -42,7 +43,12 @@ describe('.bucketsOf()', () => {
     expect(model.fields.watts_sum).toMatchObject({ type: 'bigint', nullable: true })
     expect(model.fields.watts_max).toMatchObject({ type: 'integer', nullable: true })
     expect(model.fields.cost_sum).toMatchObject({ type: 'decimal', nullable: true })
-    expect(model.buckets).toEqual({ from: 'readings', time: 'taken_at', every: 'hour', by: ['org_id', 'device_id'], measures: { watts: ['sum', 'max'], cost: ['sum'] }, late: '2 hours' })
+    expect(model.buckets).toEqual({ from: 'readings', time: 'taken_at', every: 'hour', by: ['org_id', 'device_id'], measures: { watts: ['sum', 'max'], cost: ['sum'] }, late: '2 hours', optional: [] })
+  })
+
+  it('names the measured fields that are optional, whose average a bucket cannot give', () => {
+    const model = hourly().bucketsOf(readings, { time: (r) => r.taken_at, every: 'hour', by: () => [], measures: { watts: ['sum'], peak: ['sum', 'max'] }, late: '2 hours' }).toModel()
+    expect(model.buckets!.optional).toEqual(['peak'])
   })
 
   it('types its records from the source', () => {
@@ -92,5 +98,14 @@ describe('.bucketsOf()', () => {
   it('refuses options that write its rows', () => {
     const rollup = hourly().bucketsOf(readings, { time: (r) => r.taken_at, every: 'hour', by: (r) => [r.kind], late: '2 hours' })
     expect(() => rollup.author((r) => r.kind).toModel()).toThrow('a time rollup cannot have .author(), as only the database writes its rows')
+  })
+})
+
+describe('keptMeasure', () => {
+  it('names the source field and measure a rollup field keeps', () => {
+    const { buckets } = hourly().bucketsOf(readings, { time: (r) => r.taken_at, every: 'hour', by: () => [], measures: { watts: ['sum', 'max'] }, late: '2 hours' }).toModel()
+    expect(keptMeasure(buckets!, 'watts_sum')).toEqual({ field: 'watts', measure: 'sum' })
+    expect(keptMeasure(buckets!, 'watts_max')).toEqual({ field: 'watts', measure: 'max' })
+    expect(keptMeasure(buckets!, 'events')).toBeUndefined()
   })
 })

@@ -46,6 +46,15 @@ const sumField = (field: FieldModel, declared: AnyField) => {
 /** The names of the measure fields of a time rollup, by source field and measure. */
 export const measureFieldName = (field: string, measure: BucketMeasure) => `${field}_${measure}`
 
+/** The source field and measure that a time rollup's field `name`, such as `watts_sum`, keeps; `undefined` for any other field. */
+export const keptMeasure = (buckets: BucketsModel, name: string) => {
+  for (const [field, fns] of Object.entries(buckets.measures)) {
+    const measure = fns.find((fn) => measureFieldName(field, fn) === name)
+    if (measure) return { field, measure }
+  }
+  return
+}
+
 const timeProblems = (source: ResourceModel, time: string) => {
   const field = source.fields[time]
   if (!field) return [`time "${time}" is not a field of "${source.name}"`]
@@ -92,7 +101,7 @@ const measureProblems = (source: BucketsSource, kept: Record<string, readonly Bu
  * a rollup the source cannot give: a time field that is not a timestamp, a group the bucket's key cannot hold, a
  * measure that is no number, or a tenant-scoped source whose tenant field is not one of the groups.
  */
-export const bucketsState = (name: string, source: BucketsSource, buckets: BucketsModel) => {
+export const bucketsState = (name: string, source: BucketsSource, buckets: Omit<BucketsModel, 'optional'>) => {
   const { model } = source
   const problems = [
     ...(model.buckets ? [`rolls up "${model.name}", which is a time rollup itself`] : []),
@@ -123,6 +132,11 @@ export const bucketsState = (name: string, source: BucketsSource, buckets: Bucke
     primaryKey: ['id'],
     ...(model.tenant && { tenant: model.tenant, ...(model.tenantAcross && { tenantAcross: model.tenantAcross }) }),
     ...(model.owner && buckets.by.includes(model.owner) && { owner: model.owner }),
-    buckets: { ...buckets, by: [...buckets.by], measures: Object.fromEntries(Object.entries(buckets.measures).map(([field, fns]) => [field, [...fns]])) },
+    buckets: {
+      ...buckets,
+      by: [...buckets.by],
+      measures: Object.fromEntries(Object.entries(buckets.measures).map(([field, fns]) => [field, [...fns]])),
+      optional: Object.keys(buckets.measures).filter((field) => model.fields[field]!.nullable),
+    },
   }
 }

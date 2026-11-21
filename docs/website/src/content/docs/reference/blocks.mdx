@@ -472,7 +472,7 @@ Counts, sums or averages of the records that match `filter`, per value of a fiel
 <Chart title="Revenue per day by status" resource="orders" groupBy="created_at" splitBy="status" sum="total" />
 ```
 
-Each value takes its colour from the view's `valueColors`, else an enum value's place among its values, from the [chart tokens](/reference/theme/#tokens). A chart whose field the user cannot read is left out of their page, and a field it cannot group or add up stops the server at startup.
+Each value takes its colour from the view's `valueColors`, else an enum value's place among its values, from the [chart tokens](/reference/theme/#tokens). A chart whose field the user cannot read is left out of their page, and a field it cannot group or add up stops the server at startup. On a [time rollup](/reference/data-config/#charts-over-a-rollup) it adds up the stored buckets, such as `average="watts_sum"`, and gives what the source's records give.
 
 ### Timeline
 
