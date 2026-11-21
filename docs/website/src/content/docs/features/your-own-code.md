@@ -22,7 +22,7 @@ description: React components, field types, pages and handlers of your own, load
 - [Shell slots](/reference/custom-components/#shell-slots): Your own components in the top bar, in a panel beside every page, or as the sidebar logo.
 - [Plugins](/reference/plugins/#how-a-plugin-stays-working): Your React code is a plugin that the app loads at start and that keeps working across Protobase releases without changes.
 - [Plugin settings](/reference/plugins/#loading): Plugins are loaded from the config, limited to roles and given settings.
-- [Plugins load where the app has what they use](/reference/plugins/#versions): The plugin build records the Protobase exports and extension points a plugin needs, and an app turns a plugin off only when one is missing, naming it.
+- [Plugins load where the app has what they use](/reference/plugins/#versions): The plugin build records the Protobase exports and extension points a plugin needs, and an app turns a plugin off when one is missing, naming it, rather than for its version; the plugin API and a range the plugin names itself still count.
 - [Plugin fallbacks](/reference/plugins/#when-a-plugin-is-off): A plugin that fails or does not fit the app is turned off alone, and admins see why.
 - [Before sign-in](/reference/plugins/#before-sign-in): A plugin can run around the sign-in page, for example to sign someone in from a link.
 - [Unstable modules](/reference/plugins/#the-unstable-entry): UI with its own build imports any module of the app's UI, without a promise that it stays the same, instead of copying it.
