@@ -5,9 +5,10 @@ import { compiled } from '../../../test-support/compile-sql'
 import { columnRef } from './columns'
 import { compileFilter } from './compile-filter'
 import { lookupRead } from './linked-read'
-import { withLookupRead } from './lookup-read'
+import { lookupReadOf, withLookupRead } from './lookup-read'
+import { lookupLink } from '@protobase/schema/internal'
 import { uncoveredColumns } from './index-coverage'
-import { lookupQueries } from './lookup-coverage'
+import { lookupQueries, uncoveredLookupMatch } from './lookup-coverage'
 import type { TableIndexes } from './table-indexes'
 
 const customers = resource('customers').table('shop.customers')
@@ -66,5 +67,34 @@ describe('the indexes a read of a lookup field needs', () => {
     expect(sort).toMatchObject({ field: 'customer_name', query: { sort: [['name', 'desc']] } })
     expect(uncoveredColumns(customers, table(btree('id')), term!.query, read.scope)[0]).toMatchObject({ column: 'name', use: 'filter', suggestion: 'create index on "shop"."customers" ("name")' })
     expect(uncoveredColumns(customers, table(btree('tenant_id', 'name')), term!.query, read.scope)).toEqual([])
+  })
+})
+
+describe('a lookup field of the one record pointing at each record', () => {
+  const runtimes = resource('runtimes').table('runtimes')
+    .fields({ id: f.integer(), app_id: f.relation('apps').columns(['app_fk']).optional(), release: f.text() })
+    .primaryKey((r) => r.id).toModel()
+  const apps = resource('apps').table('apps')
+    .fields({ id: f.integer(), release: f.text().lookup({ from: 'runtimes', via: 'app_id', field: 'release' }).filterable() })
+    .primaryKey((r) => r.id).toModel()
+  const link = lookupLink(apps, apps.lookups!.release!, (name) => (name === 'runtimes' ? runtimes : undefined))!
+  const release = withLookupRead(apps.lookups!.release!, lookupRead({ model: runtimes, scope: {}, value: link.value, match: link.match, link: link.link }))
+  const appModel: ResourceModel = { ...apps, fields: { ...apps.fields, release } }
+  const btree = (...columns: string[]) => ({ name: columns.join('_'), method: 'btree', partial: false, keys: columns.map((column) => ({ column, definition: column, opclass: 'int4_ops' })) })
+
+  it("matches by the relation's own column and leaves null keys out, so empty holds without one", () => {
+    const empty = checkFilter(appModel, where.isNull('release'))
+    if (!empty.ok) throw new Error('The test filter does not check')
+    expect(compiled(sql`${compileFilter(appModel, empty.filter)}`).sql).toBe('not "t"."id" in (select "t"."app_fk" from "runtimes" as "t" where "t"."app_fk" is not null and "t"."release" is not null)')
+    expect(lookupQueries(appModel, { filter: empty.filter })[0]!.query.filter).toMatchObject({ kind: 'not', arg: { kind: 'isNull', field: { name: 'release' } } })
+  })
+
+  it('needs an index on that column of the linked table to show it', () => {
+    expect(uncoveredLookupMatch(lookupReadOf(release)!, { kind: 'table', indexes: [btree('id')] })).toMatchObject([{ column: 'app_fk', use: 'lookup', suggestion: 'create index on "runtimes" ("app_fk")' }])
+    expect(uncoveredLookupMatch(lookupReadOf(release)!, { kind: 'table', indexes: [btree('app_fk')] })).toEqual([])
+  })
+
+  it('finds the first rows per value by the linked field, which is no sort', () => {
+    expect(lookupQueries(appModel, { per: 'release' })[0]!.query).toEqual({ groupBy: 'release' })
   })
 })

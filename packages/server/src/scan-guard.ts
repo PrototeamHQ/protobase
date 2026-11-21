@@ -1,4 +1,4 @@
-import { lookupQueries, tableIndexes, uncoveredColumns, type CoverageQuery, type Db, type Scope, type TableIndexes, type UncoveredColumn } from '@protobase/query'
+import { lookupQueries, lookupReadOf, tableIndexes, uncoveredLookupMatch, uncoveredColumns, type CoverageQuery, type Db, type Scope, type TableIndexes, type UncoveredColumn } from '@protobase/query'
 import type { ResourceModel } from '@protobase/schema'
 import { HttpProblem } from './problem'
 import type { Entry } from './registry'
@@ -23,6 +23,8 @@ const reading = (column: UncoveredColumn) => {
       return `Counting the values of "${column.field}"`
     case 'per':
       return `Keeping the first rows per value of "${column.field}"`
+    case 'lookup':
+      return `Showing a lookup field, which finds each record's linked record by "${column.field}",`
   }
 }
 
@@ -67,13 +69,17 @@ export const createScanGuard = (db: Db, options: { mode?: ScanGuardMode } = {}) 
   }
 
   // A lookup field's linked records are read by their own scope too, by the linked field a term, sort or grouping names,
-  // judged against the linked table's indexes; its link on this table is judged with the read's other columns.
+  // judged against the linked table's indexes; its link on this table is judged with the read's other columns. Every
+  // lookup field the caller reads finds each record's linked record by its key or relation, whatever the read names.
   const lookupColumns = async (model: ResourceModel, query: CoverageQuery): Promise<UncoveredColumn[]> => {
+    const linkedName = (read: { model: ResourceModel }) => (column: UncoveredColumn) => ({ ...column, field: `${read.model.name}.${column.field}` })
+    const reads = Object.values(model.fields).flatMap((field) => lookupReadOf(field) ?? [])
+    const matches = await Promise.all(reads.map(async (read) => uncoveredLookupMatch(read, await indexesOfModel(read.model)).map(linkedName(read))))
     const columns = await Promise.all(lookupQueries(model, query).map(async ({ read, query: linked }) => [
-      ...uncoveredColumns(read.model, await indexesOfModel(read.model), linked, read.scope).map((column) => ({ ...column, field: `${read.model.name}.${column.field}` })),
+      ...uncoveredColumns(read.model, await indexesOfModel(read.model), linked, read.scope).map(linkedName(read)),
       ...(await parentColumns(read.scope)),
     ]))
-    return columns.flat()
+    return [...matches.flat(), ...columns.flat()]
   }
 
   /** Throws a 400 problem for a column no index serves in `reject` mode; in `warn` mode returns the warning text. */

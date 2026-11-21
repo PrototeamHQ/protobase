@@ -14,9 +14,10 @@ export type IndexNeed = 'btree' | 'trigram' | 'digits' | 'gin' | 'file'
 /**
  * Where a column is read: the caller's filter, the access rule's row filter, the relation to a parent the caller must
  * read (`.parent(fk, 'read')`), a `related()` term, the sort, a facet's grouping, the field a read keeps the first rows
- * per value of (`limit_per`), or the file cleanup's check that no row holds a file it is about to delete.
+ * per value of (`limit_per`), the file cleanup's check that no row holds a file it is about to delete, or the field a
+ * lookup field finds each record's linked record by.
  */
-export type ColumnUse = 'filter' | 'access' | 'parent' | 'related' | 'sort' | 'facet' | 'per' | 'cleanup'
+export type ColumnUse = 'filter' | 'access' | 'parent' | 'related' | 'sort' | 'facet' | 'per' | 'cleanup' | 'lookup'
 /** A column read without an index that serves it, and a statement that adds one. */
 export type UncoveredColumn = { field: string; column: string; use: ColumnUse; need: IndexNeed; suggestion: string }
 /**

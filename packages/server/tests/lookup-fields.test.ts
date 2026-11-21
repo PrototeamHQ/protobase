@@ -56,6 +56,17 @@ const appRuntimes = resource('app_runtimes')
   .fields({ app_id: f.relation('apps').filterable().sortable(), release: f.text().sortable() })
   .primaryKey((r) => r.app_id)
 
+// No index serves finding a team's lead by its team
+const teams = resource('teams')
+  .table('teams')
+  .fields({ id: f.integer().filterable().sortable(), lead: f.text().lookup({ from: 'team_leads', via: 'team_id', field: 'name' }) })
+  .primaryKey((r) => r.id)
+
+const teamLeads = resource('team_leads')
+  .table('team_leads')
+  .fields({ id: f.integer().filterable().sortable(), team_id: f.relation('teams'), name: f.text() })
+  .primaryKey((r) => r.id)
+
 let pg: SnapshotDb
 let db: Kysely<any>
 let app: ReturnType<typeof createAdmin>
@@ -76,9 +87,11 @@ beforeAll(async () => {
     insert into orders values (1, 1, 2, 'A-1'), (2, 1, 1, 'A-2'), (3, 1, 3, 'A-3'), (4, 1, 4, 'A-4'), (5, 1, null, 'A-5');
     insert into apps values (1, 'shop'), (2, 'blog'), (3, 'wiki');
     insert into app_runtimes values (1, '2.0.0'), (2, '1.4.0');
+    create table teams (id integer primary key);
+    create table team_leads (id integer primary key, team_id integer not null references teams, name text not null);
   `)
   db = new Kysely({ dialect: pg.dialect })
-  app = createAdmin({ resources: [customers, orders, apps, appRuntimes], db, authenticate: testAuthenticator })
+  app = createAdmin({ resources: [customers, orders, apps, appRuntimes, teams, teamLeads], db, authenticate: testAuthenticator })
 })
 afterAll(async () => { await db.destroy() })
 
@@ -135,5 +148,11 @@ describe('a lookup field of the one record of another resource that points at it
   it('shows and sorts by that record\'s field, empty without one', async () => {
     const releases = (await items('/apps?order_by=release desc&fields=id,release')).map((item) => [item.id, item.release])
     expect(releases).toEqual([[3, null], [1, '2.0.0'], [2, '1.4.0']])
+  })
+
+  it('refuses a list whose linked records no index finds by the relation that points at them', async () => {
+    const response = await get('/teams?order_by=id')
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ type: 'urn:protobase:problem:expensive-query', columns: [{ field: 'team_leads.team_id', column: 'team_id', use: 'lookup', need: 'btree' }] })
   })
 })

@@ -26,7 +26,9 @@ type Term = Exclude<CheckedFilter, { kind: 'and' | 'or' | 'not' | 'search' }>
 // linked record whose field is not empty, so no linked record, or one the caller does not read, is empty too.
 const lookupTerm = (node: Term, read: LookupRead, threshold: number) => {
   const held = node.kind === 'isNull' ? sql<SqlBool>`${columnRef(read.value)} is not null` : compileNode(read.model, { ...node, field: read.value }, threshold)
-  const keys = sql`select ${columnRef(read.match)} from ${tableSource(read.model)} where ${sql.join([...read.conditions, held], sql` and `)}`
+  // A null key matches no record, and in a list of keys would make `not in` unknown
+  const matched = read.match.nullable ? [sql<SqlBool>`${columnRef(read.match)} is not null`] : []
+  const keys = sql`select ${columnRef(read.match)} from ${tableSource(read.model)} where ${sql.join([...read.conditions, ...matched, held], sql` and `)}`
   const link = columnRef(read.link)
   const linked = read.link.nullable ? sql<SqlBool>`(${link} is not null and ${link} in (${keys}))` : sql<SqlBool>`${link} in (${keys})`
   return node.kind === 'isNull' ? sql<SqlBool>`not ${linked}` : linked
