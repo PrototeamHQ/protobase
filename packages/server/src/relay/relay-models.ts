@@ -18,8 +18,8 @@ export type RelayModels = {
    * channel resource. Only resources whose changes are captured, such as live ones, are here.
    */
   placements: Map<string, Placement[]>
-  /** The members resources, by name, with the channel resource each fills (`channel`). */
-  members: Map<string, { channel: string } & MembersModel>
+  /** The members resources, by name, with the channel resources each fills (`channel`), one entry for each. */
+  members: Map<string, Array<{ channel: string } & MembersModel>>
 }
 
 /**
@@ -38,7 +38,7 @@ export const relayModels = (options: RealtimeRelayOptions, models: readonly Reso
     if (model.primaryKey.length !== 1) throw new Error(`${at}: a channel resource needs a key of one field, as a channel is named <resource>/<key>`)
     const own = channel.members && membersModel(channel.members, name, byName, `${at}.members`)
     if (own && !captured(own.model)) throw new Error(`${at}.members: the changes of "${own.model.name}" are not captured, so the relay would not hear of them: declare .live() on it`)
-    if (own) members.set(own.model.name, { ...own, channel: name })
+    if (own) members.set(own.model.name, [...(members.get(own.model.name) ?? []), { ...own, channel: name }])
     channels.set(name, { ...(own && { members: own }), ...(channel.mentions !== undefined && { mentions: channel.mentions }) })
   }
   const placements = new Map(

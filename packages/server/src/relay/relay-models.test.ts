@@ -13,7 +13,7 @@ describe('relayModels', () => {
       rooms: [{ field: 'id', channel: 'rooms' }],
       posts: [{ field: 'room_id', channel: 'rooms' }],
     })
-    expect(models.members.get('conversation_members')).toMatchObject({ channel: 'conversations', field: 'conversation_id', user: 'user_id' })
+    expect(models.members.get('conversation_members')).toMatchObject([{ channel: 'conversations', field: 'conversation_id', user: 'user_id' }])
     expect(models.channels.get('rooms')).toEqual({})
   })
 

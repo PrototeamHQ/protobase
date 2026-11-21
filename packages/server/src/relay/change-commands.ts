@@ -1,7 +1,7 @@
 import type { ResourceChange } from '../changes/resource-change'
 import type { Row } from '../types'
 import type { MembersCommand, PublishCommand, RelayCommand } from './relay-commands'
-import type { RelayModels } from './relay-models'
+import type { MembersModel, RelayModels } from './relay-models'
 
 /** The event every notice of a change is published as. */
 export const changeEvent = 'change'
@@ -25,26 +25,29 @@ export const noticedChannels = (models: RelayModels, change: ResourceChange) => 
 export const audienceChannels = (models: RelayModels, changes: readonly ResourceChange[]) =>
   [...new Set(changes.flatMap((change) => noticedChannels(models, change)))].filter((channel) => models.channels.get(channel.slice(0, channel.indexOf('/')))?.members)
 
-// A members record's person in a channel, as one state of it has it.
-const membership = (models: RelayModels, change: ResourceChange, record: Row | undefined) => {
-  const members = models.members.get(change.resource)
-  if (!members || !record || !present(record[members.field]) || !present(record[members.user])) return
+type Membership = { channel: string; user: string }
+type Members = { channel: string } & MembersModel
+
+// A members record's person in a channel, as one state of it has it; a soft-deleted record puts nobody in one.
+const membership = (members: Members, record: Row | undefined): Membership | undefined => {
+  if (!record || !present(record[members.field]) || !present(record[members.user])) return
+  if (members.model.softDelete !== undefined && present(record[members.model.softDelete])) return
   return { channel: channelName(members.channel, record[members.field]), user: String(record[members.user]) }
 }
 
-const sameMembership = (a?: { channel: string; user: string }, b?: { channel: string; user: string }) => a?.channel === b?.channel && a?.user === b?.user
+const sameMembership = (a?: Membership, b?: Membership) => a?.channel === b?.channel && a?.user === b?.user
 
-// A soft delete takes the person out, an undelete puts them back.
-const membersCommands = (models: RelayModels, change: ResourceChange): { add?: MembersCommand; remove?: MembersCommand } => {
-  const gone = change.operation === 'delete'
-  const before = change.operation === 'create' || change.operation === 'undelete' ? undefined : membership(models, change, change.before)
-  const after = gone ? undefined : membership(models, change, change.after)
-  if (sameMembership(before, after)) return {}
-  return {
-    ...(after && { add: { kind: 'add', channel: after.channel, users: [after.user] } }),
-    ...(before && { remove: { kind: 'remove', channel: before.channel, users: [before.user] } }),
-  }
-}
+// For each channel resource the members resource fills: a soft delete takes the person out, an undelete puts them back.
+const membersCommands = (models: RelayModels, change: ResourceChange) =>
+  (models.members.get(change.resource) ?? []).flatMap((members) => {
+    const before = change.operation === 'create' || change.operation === 'undelete' ? undefined : membership(members, change.before)
+    const after = change.operation === 'delete' ? undefined : membership(members, change.after)
+    if (sameMembership(before, after)) return []
+    return [
+      ...(after ? [{ kind: 'add', channel: after.channel, users: [after.user] } satisfies MembersCommand] : []),
+      ...(before ? [{ kind: 'remove', channel: before.channel, users: [before.user] } satisfies MembersCommand] : []),
+    ]
+  })
 
 const mentionsOf = (record: Row | undefined, field: string | undefined) => {
   if (field === undefined || !record) return
@@ -53,10 +56,11 @@ const mentionsOf = (record: Row | undefined, field: string | undefined) => {
   return present(value) ? [String(value)] : []
 }
 
-// One notice of the change on a channel: the same bytes to everyone it reaches.
-const notice = (models: RelayModels, change: ResourceChange, channel: string, members: ChannelMembers, extra: string[]): PublishCommand => {
+// One notice of the change on a channel: the same bytes to everyone it reaches, the people who join or leave that channel included.
+const notice = (models: RelayModels, change: ResourceChange, channel: string, members: ChannelMembers, moved: MembersCommand[]): PublishCommand => {
   const options = models.channels.get(channel.slice(0, channel.indexOf('/')))!
   const mentions = mentionsOf(change.after ?? change.before, options.mentions)
+  const extra = moved.filter((command) => command.channel === channel).flatMap((command) => command.users)
   const users = options.members ? [...new Set([...(members.get(channel) ?? []), ...extra])] : undefined
   return {
     kind: 'publish',
@@ -76,10 +80,9 @@ const notice = (models: RelayModels, change: ResourceChange, channel: string, me
  */
 export const changeCommands = (models: RelayModels, changes: readonly ResourceChange[], members: ChannelMembers): RelayCommand[] =>
   changes.flatMap((change) => {
-    const { add, remove } = membersCommands(models, change)
-    const moved = [...(add?.users ?? []), ...(remove?.users ?? [])]
+    const moved = membersCommands(models, change)
     const notices = noticedChannels(models, change)
       .map((channel) => notice(models, change, channel, members, moved))
       .filter((command) => command.users === undefined || command.users.length > 0)
-    return [...(add ? [add] : []), ...notices, ...(remove ? [remove] : [])]
+    return [...moved.filter((command) => command.kind === 'add'), ...notices, ...moved.filter((command) => command.kind === 'remove')]
   })

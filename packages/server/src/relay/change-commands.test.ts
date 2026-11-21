@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
+import { f, resource } from '@protobase/schema'
 import { audienceChannels, changeCommands, noticedChannels } from './change-commands'
 import { relayModels } from './relay-models'
 import { change, chatModels, chatRelay } from './testing/chat-models'
 
 const models = relayModels(chatRelay, chatModels())
+const roomMembers = resource('room_members').table('room_members')
+  .fields({ id: f.integer(), room_id: f.relation('rooms').filterable(), conversation_id: f.relation('conversations').filterable(), user_id: f.text() })
+  .primaryKey((r) => r.id)
+  .live()
+  .toModel()
 const members = new Map([['conversations/7', ['u1', 'u2']]])
 
 describe('changeCommands', () => {
@@ -54,6 +60,32 @@ describe('changeCommands', () => {
     expect(commands).toEqual([
       { kind: 'add', channel: 'conversations/8', users: ['u3'] },
       { kind: 'remove', channel: 'conversations/7', users: ['u3'] },
+    ])
+  })
+
+  it('notices a member who moved and changed person only to the person on each side', () => {
+    const moved = change('conversation_members', 'update', { before: { id: 1, conversation_id: 7, user_id: 'u3' }, after: { id: 1, conversation_id: 8, user_id: 'u4' } })
+    const notices = changeCommands(models, [moved], members).filter((command) => command.kind === 'publish')
+    expect(notices).toMatchObject([
+      { channel: 'conversations/7', users: ['u1', 'u2', 'u3'] },
+      { channel: 'conversations/8', users: ['u4'] },
+    ])
+  })
+
+  it('puts nobody in a channel with a member record created already soft-deleted', () => {
+    const created = change('conversation_members', 'create', { after: { id: 1, conversation_id: 7, user_id: 'u3', deleted_at: '2026-11-21T00:00:00Z' } })
+    const commands = changeCommands(models, [created], members)
+    expect(commands.filter((command) => command.kind !== 'publish')).toEqual([])
+    expect(commands[0]).toMatchObject({ kind: 'publish', users: ['u1', 'u2'] })
+  })
+
+  it('keeps every channel resource a members resource fills current', () => {
+    const relay = { ...chatRelay, channels: { ...chatRelay.channels, rooms: { members: { resource: 'room_members', channel: 'room_id', user: 'user_id' } }, conversations: { members: { resource: 'room_members', channel: 'conversation_id', user: 'user_id' } } } }
+    const both = relayModels(relay, [...chatModels(), roomMembers])
+    const joined = change('room_members', 'create', { after: { id: 1, room_id: 1, conversation_id: 7, user_id: 'u3' } })
+    expect(changeCommands(both, [joined], members).filter((command) => command.kind !== 'publish')).toEqual([
+      { kind: 'add', channel: 'conversations/7', users: ['u3'] },
+      { kind: 'add', channel: 'rooms/1', users: ['u3'] },
     ])
   })
 
