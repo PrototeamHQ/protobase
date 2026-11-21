@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
+import { anonymousSession } from '../anonymous'
 import { channelRecord } from '../channels/channel-name'
 import { recordReadable } from '../channels/record-readable'
 import type { Deps } from '../deps'
@@ -41,15 +42,17 @@ type TicketRouteInput = { deps: Deps; options: RealtimeRelayOptions; models: Rel
  * `POST /` with `{ channels?: [...] }`: a connect ticket for the relay, `{ ticket, url, expiresAt }`. A signed-in
  * person's ticket names their sign-in session, so a device that connects adds no session, and lists every channel
  * they are a member of, as the members resources have it; a visitor's names an anonymous session of its own and only
- * receives. Both list the open channels asked for that the caller may read, as a read of the record decides it; one
- * there is none of, or of a resource with members, is refused alike with `404`. A signed-in person's ticket queues the close
+ * receives. Both list the open channels asked for whose records are public, read by the anonymous role, as a read of the
+ * record decides it; one there is none of, one that is not public and one of a resource with members are refused alike
+ * with `404`. A signed-in person's ticket queues the close
  * of their session's sockets at its expiry, once for each session.
  */
 export const ticketRoutes = ({ deps, options, models, jobs, sessionEnd }: TicketRouteInput) => {
   const app = new Hono<AdminEnv>()
 
-  // An open channel the caller may read; anything else answers as for no record at all.
-  const openChannel = async (session: Session, name: string) => {
+  // An open channel of a public record, one a visitor may read, so no one's own access to it can end while their
+  // socket stays open; anything else answers as for no record at all.
+  const openChannel = async (name: string) => {
     const slash = name.indexOf('/')
     const resource = slash < 0 ? '' : name.slice(0, slash)
     const refuse = () => notFound(`There is no channel ${name}`)
@@ -57,7 +60,7 @@ export const ticketRoutes = ({ deps, options, models, jobs, sessionEnd }: Ticket
     if (!channel || channel.members) throw refuse()
     const record = channelRecord(deps.registry, resource, name.slice(slash + 1))
     if (record === undefined || record === 'too-long' || record.name !== name) throw refuse()
-    if (!(await recordReadable(deps, session, record))) throw refuse()
+    if (!(await recordReadable(deps, anonymousSession(), record))) throw refuse()
     return name
   }
 
@@ -76,7 +79,7 @@ export const ticketRoutes = ({ deps, options, models, jobs, sessionEnd }: Ticket
     const asked = requestedChannels(await jsonBody(c))
     // One read at a time, so a long list holds one connection of the pool.
     const open: string[] = []
-    for (const name of asked) open.push(await openChannel(session, name))
+    for (const name of asked) open.push(await openChannel(name))
     const subject = await subjectOf(session)
     const member = 'user' in subject ? await memberships(deps.db, models, subject.user) : []
     const channels = [...new Set([...member, ...open])]

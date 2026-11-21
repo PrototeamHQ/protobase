@@ -37,7 +37,7 @@ export default defineConfig(({ env }) => ({
 | `app` | The app's id on the relay: 1 to 64 of `a-z`, `0-9`, `_` and `-`. |
 | `apiKey`, `ticketKey` | One of the app's API keys and one of its ticket keys on the relay, each at least 32 characters. |
 | `channels` | The channel resources, by name. Each record of one is a channel, `<resource>/<key>`, named as its [record channel](/reference/channels/) is; the resource needs a key of one field. |
-| `channels.<resource>.members` | Where the channel's members come from: a resource whose records each put one person in one channel, with its relation field to the channel resource (`channel`) and its field of the person's user id (`user`). Index both columns: tickets read by the user, notices by the channel. Without `members`, the channel is open (see [Tickets](#tickets)). |
+| `channels.<resource>.members` | Where the channel's members come from: a resource whose records each put one person in one channel, with its relation field to the channel resource (`channel`) and its field of the person's user id (`user`). Index both columns: tickets read by the user, notices by the channel. Without `members`, the channel is open: a channel of a public record, which tickets list when asked (see [Tickets](#tickets)). |
 | `channels.<resource>.mentions` | A field of the records noticed on the channel that lists the user ids they mention, an array or one id, which [notices](#notices) carry. |
 
 The relay needs the app's own [sign-in](/reference/auth/), whose sessions its tickets name. A members resource's changes must be captured, so declare [`.live()`](/reference/live/) on it; the relay hears of the changes of every resource whose changes are captured, such as a live one, that is a channel resource or has a relation field to one. [`protobase migration`](/reference/cli/#migration) writes the trigger that ends a deleted session's sockets, in the `relay` schema, and the server checks it at start.
@@ -50,7 +50,7 @@ A client connects to the relay with a ticket from `POST /api/relay/ticket`, with
 
 - **Signed in:** the ticket names the person and the sign-in session they called with, so a device that connects makes no new session, and lists every channel they are a member of, as the members resources hold it. A caller without a session of the app, such as an API key or an outside app acting for the user, is refused with `403`; a session that ended with `401`.
 - **Visitors:** with an `anonymous` role, a caller without a token gets a ticket of an anonymous session of its own, which receives and never sends.
-- **Open channels:** both list the channels of resources without `members` that they ask for in `channels` and may read, as `GET /api/v1/<resource>/<key>` decides it. A channel there is none of, one they may not read and one of a resource with members are refused alike with `404`. A ticket lists at most 200 channels (`400`, or `422` when the memberships are more).
+- **Open channels:** both list the channels they ask for in `channels` of resources without `members` whose records are public: the `anonymous` role may read them, as `GET /api/v1/<resource>/<key>` decides it for a visitor. Someone's own access to a record never makes its channel open, so no one's access to one can end while their socket stays open. A channel there is none of, one whose record is not public and one of a resource with members are refused alike with `404`; a record only some people may read takes `members`. A ticket lists at most 200 channels (`400`, or `422` when the memberships are more).
 
 ## Notices
 
@@ -64,7 +64,7 @@ The [dispatch](/reference/events/) that turns each transaction's changes into ev
 
 A members record that is created or undeleted adds its person to the channel on the sockets they have open, before its notice, and one that is deleted or soft-deleted takes them out after it: they can join, or are closed out, without connecting again. Commands go in commit order, one job at a time; while the relay is down, they wait and try again, once a minute at most. A command the relay refuses, such as one over its size limit, goes to the app's error reporter and is passed over.
 
-<gap>An open channel's notices still reach someone who could read the record when they connected and no longer can, until they reconnect, because checking read access again on the relay is not implemented.</gap>
+<gap>An open channel's notices still reach the sockets joined to it after its record stops being public, until they reconnect, because checking read access again on the relay is not implemented.</gap>
 
 ## Sessions
 

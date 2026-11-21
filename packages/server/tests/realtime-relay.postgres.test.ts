@@ -5,11 +5,12 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { sql } from 'kysely'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { f, resource } from '@protobase/schema'
+import { defineRoles, f, resource } from '@protobase/schema'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth } from '../src/better-auth/create-auth'
 import { createUser } from '../src/better-auth/users'
 import { changesMigration } from '../src/changes/capture-schema'
+import { withAnonymous } from '../src/anonymous'
 import { createAdmin } from '../src/create-admin'
 import { jobsSchemaMigration } from '../src/jobs/schema'
 import { startJobs, type JobsRuntime } from '../src/jobs/runtime'
@@ -18,7 +19,8 @@ import { npmWs } from './support/npm-ws'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
 // The app's side of the realtime relay against a real relay process and real Postgres: tickets, change notices to a
-// conversation's members, membership that follows the members table, and a sign-out closing that session's sockets.
+// conversation's members, membership that follows the members table, open channels of public records only, and a
+// sign-out closing that session's sockets.
 // `TEST_RELAY_BINARY` names the relay's binary (`go build ./cmd/relay` of protobase-realtime); without it the test
 // is skipped.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 })
@@ -37,7 +39,12 @@ const resources = [
     .primaryKey((r) => r.id)
     .live(),
   resource('messages').table('messages').fields({ id: f.integer().readOnly(), conversation_id: f.relation('conversations').filterable(), body: f.text() }).primaryKey((r) => r.id).live(),
+  resource('rooms').table('rooms').fields({ id: f.integer().readOnly(), name: f.text(), public: f.boolean().filterable() }).primaryKey((r) => r.id).live(),
+  resource('posts').table('posts').fields({ id: f.integer().readOnly(), room_id: f.relation('rooms').filterable(), body: f.text() }).primaryKey((r) => r.id).live(),
 ]
+
+// Signed-in people read every room, visitors only the public ones.
+const roles = defineRoles<'rooms'>({ user: ['rooms.read'], anonymous: [{ 'rooms.read': { fields: ['id', 'name'], filter: 'public = true' } }] })
 
 const tables = `
 create table conversations (id integer generated always as identity primary key, title text not null);
@@ -45,6 +52,9 @@ create table conversation_members (id integer generated always as identity prima
 create index on conversation_members (conversation_id);
 create index on conversation_members (user_id);
 create table messages (id integer generated always as identity primary key, conversation_id integer not null references conversations, body text not null);
+create table rooms (id integer generated always as identity primary key, name text not null, public boolean not null);
+create index on rooms (public);
+create table posts (id integer generated always as identity primary key, room_id integer not null references rooms, body text not null);
 `
 
 const freePort = () =>
@@ -105,8 +115,8 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     return { cookie, token }
   }
 
-  const connect = async (token: string, channels: string[] = []) => {
-    const answer = await request('/api/relay/ticket', { token, body: { channels } })
+  const connect = async (token: string | undefined, channels: string[] = []) => {
+    const answer = await request('/api/relay/ticket', { ...(token && { token }), body: { channels } })
     expect(answer.status).toBe(200)
     const { ticket, url } = (await answer.json()) as { ticket: string; url: string }
     const socket = await relaySocket(url, ticket)
@@ -136,12 +146,13 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     app = createAdmin({
       resources,
       db: pg.db,
-      authenticate: betterAuthAuthenticator({ auth }),
+      authenticate: withAnonymous(betterAuthAuthenticator({ auth }), roles),
       auth,
-      realtime: { relay: { url: relayUrl, app: 'chat', ...keys, channels: { conversations: { members: { resource: 'conversation_members', channel: 'conversation_id', user: 'user_id' } } } } },
-      options: { onUnhandledError: (error) => errors.push(error) },
+      realtime: { relay: { url: relayUrl, app: 'chat', ...keys, channels: { conversations: { members: { resource: 'conversation_members', channel: 'conversation_id', user: 'user_id' } }, rooms: {} } } },
+      options: { roles, onUnhandledError: (error) => errors.push(error) },
     })
     runtime = await startJobs({ db: pg.db, jobs: app.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
+    await sql`insert into rooms (name, public) values ('Lobby', true), ('Staff', false)`.execute(pg.db)
     await sql`insert into conversations (title) values ('Planning'), ('Lunch')`.execute(pg.db)
     await sql`insert into conversation_members (conversation_id, user_id) values (1, ${people.alice}), (1, ${people.bob}), (2, ${people.carol})`.execute(pg.db)
     await drained()
@@ -175,6 +186,21 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     await vi.waitFor(() => expect(alice.notices()).toEqual([notice]))
     await vi.waitFor(() => expect(bob.notices()).toEqual([notice]))
     expect(carol.notices()).toEqual([])
+  })
+
+  it('gives visitors and signed-in people the open channels of public records only, and notices them to everyone joined', async () => {
+    const visitor = await connect(undefined, ['rooms/1'])
+    expect(await visitor.join('rooms/1')).toBe('ok')
+    // Bob may read the staff room, but it is not public: its channel is refused as for no record at all.
+    const { token } = await signIn('bob@example.com')
+    expect((await request('/api/relay/ticket', { token, body: { channels: ['rooms/2'] } })).status).toBe(404)
+    expect((await request('/api/relay/ticket', { body: { channels: ['rooms/2'] } })).status).toBe(404)
+    // A channel with members is never asked for.
+    expect((await request('/api/relay/ticket', { token, body: { channels: ['conversations/1'] } })).status).toBe(404)
+
+    const [{ id }] = (await sql<{ id: number }>`insert into posts (room_id, body) values (1, 'Welcome') returning id`.execute(pg.db)).rows as [{ id: number }]
+    await drained()
+    await vi.waitFor(() => expect(visitor.notices()).toEqual([{ kind: 'create', resource: 'posts', key: String(id), channel: 'rooms/1' }]))
   })
 
   it('lets someone added to a conversation hear its next message without connecting again, and stops once they are removed', async () => {
