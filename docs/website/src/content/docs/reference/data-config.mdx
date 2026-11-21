@@ -9,6 +9,7 @@ import keys from '../../../../../../docs-examples/reference/keys.ts?raw'
 import rollups from '../../../../../../docs-examples/reference/rollups.ts?raw'
 import lookups from '../../../../../../docs-examples/reference/lookups.ts?raw'
 import timeRollups from '../../../../../../docs-examples/reference/time-rollups.ts?raw'
+import timeRollupsPage from '../../../../../../docs-examples/reference/time-rollups-page.tsx?raw'
 import access from '../../../../../../docs-examples/reference/access.ts?raw'
 import products from '../../../../../../tests/apps/erp/config/products/data.ts?raw'
 import orders from '../../../../../../tests/apps/erp/config/orders/data.ts?raw'
@@ -148,10 +149,10 @@ A **lookup field** shows a field of the record its record is linked to, such as 
 
 ## Time rollups
 
-:::caution[In development]
-Coming soon:
+:::caution[Beta]
+Not yet:
 
-- <gap>Charts and `:aggregate` and `:series` cannot read a time rollup's counts, sums and averages correctly because mapping them onto its stored columns is not implemented.</gap>
+- <gap>A time rollup cannot average an optional field because a count of its records with a value is not implemented.</gap>
 :::
 
 A large events table, such as millions of meter readings, gets a **time rollup**: a table with one row per hour or day and per group, holding how many records fell in it and the sums and greatest values of their numbers. A chart over months then reads a few thousand rows instead of millions. You declare the rollup as a resource over the events resource, and [`protobase migration`](/reference/cli/#migration) writes its table, indexes and refresh function into the project's next migration (`NNN_computed.sql`), with the rollup filled once. From then on the app keeps it up to date by itself, at most a minute behind. It is plain Postgres: no extension.
@@ -190,6 +191,28 @@ The app's [jobs](/reference/jobs/) keep every time rollup up to date: a built-in
 A record that arrives, or changes, later than `late` after its time, such as one imported from an older history, is counted only by a refresh from before it: [`protobase buckets rebuild`](/reference/cli/#buckets-rebuild) recounts a rollup from an earlier time, such as `protobase buckets rebuild readings_hourly --from 2026-07-01`, which recomputes every bucket from that day's first hour in one statement, or every bucket without `--from`.
 
 The server does not start while a rollup's table or function is missing or out of date, with a message that names the rollup; the migration fixes that. It stops with an error, without writing anything, when the table already exists as the project's own.
+
+### Charts over a rollup
+
+A [`Chart`](/reference/blocks/#chart), [`:aggregate`](/reference/api/#routes) and `:series` read a rollup as they read any resource, and give the counts, sums, averages and maxima the source's records give over the same buckets. Group by `bucket` for a chart over time, or by a `by` field. A group's count is the records its buckets hold, and a measure names the rollup's field that keeps it:
+
+| Over the source | Over the rollup |
+| --- | --- |
+| The count | The count, or `sum=events` |
+| `sum=watts` | `sum=watts_sum` |
+| `average=watts` | `average=watts_sum`: the sum divided by the records it holds, not an average of hourly averages |
+| `maximum=watts` | `maximum=watts_max` |
+
+Any other measure, such as `average=watts_max` or `sum` of a `by` field, is refused with `400 invalid-option`, and so is what the buckets cannot tell apart:
+
+- A granularity finer than the bucket, such as `15_minutes` on an hourly rollup or `hour` on a daily one.
+- For an hourly rollup, a `time_zone` whose hours or days start inside a UTC hour over the range, such as `Asia/Kolkata`. Zones a whole number of hours off UTC, such as `Europe/Amsterdam`, give their own days, weeks and months.
+- For a daily rollup, any `time_zone` but `UTC`. A chart asks for the viewer's time zone, so a chart on a daily rollup answers only to viewers in UTC; chart an hourly rollup for the others.
+- An `average` of a field that is optional in the source, since `events` counts its records without a value too. Its sum and maximum work. <gap>A time rollup cannot average an optional field because a count of its records with a value is not implemented.</gap>
+
+A bucket counts when its start is inside the range, so a range that starts inside an hour or day counts from the next one. Facets and histograms of a rollup count its rows, as for any resource. This dashboard charts the example's readings over 90 days from the hourly rollup:
+
+<Code code={timeRollupsPage} lang="tsx" title="docs-examples/reference/time-rollups-page.tsx" />
 
 ## Sensitive fields
 
