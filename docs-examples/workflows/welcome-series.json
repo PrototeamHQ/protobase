@@ -1,0 +1,44 @@
+{
+  "trigger": { "app:record": { "resource": "members" } },
+  "stateMachine": {
+    "QueryLanguage": "JSONata",
+    "StartAt": "Welcome",
+    "States": {
+      "Welcome": {
+        "Type": "Task",
+        "Resource": "app:mail.send",
+        "Arguments": {
+          "to": "{% $states.context.Execution.Input.record.email %}",
+          "subject": "{% 'Welcome, ' & $states.context.Execution.Input.record.name %}",
+          "text": "Thanks for signing up. Here is how to get started.",
+          "series": "welcome"
+        },
+        "Next": "Three days"
+      },
+      "Three days": { "Type": "Wait", "Seconds": 259200, "Next": "Tips" },
+      "Tips": {
+        "Type": "Task",
+        "Resource": "app:mail.send",
+        "Arguments": {
+          "to": "{% $states.context.Execution.Input.record.email %}",
+          "subject": "Three tips for your first week",
+          "text": "Here are three things most people set up first.",
+          "series": "welcome"
+        },
+        "Next": "Two weeks"
+      },
+      "Two weeks": { "Type": "Wait", "Seconds": 950400, "Next": "Check-in" },
+      "Check-in": {
+        "Type": "Task",
+        "Resource": "app:mail.send",
+        "Arguments": {
+          "to": "{% $states.context.Execution.Input.record.email %}",
+          "subject": "How is it going?",
+          "text": "You signed up two weeks ago. Reply to this mail and tell us how it is going.",
+          "series": "welcome"
+        },
+        "End": true
+      }
+    }
+  }
+}
