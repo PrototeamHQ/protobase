@@ -281,7 +281,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
   "api": ["/api", "/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource", "/.well-known/openid-configuration"],
   "theme": "protobase.theme.css",
   "plugins": [
-    { "name": "app", "path": "plugins/app/plugin.json", "api": 1, "protobase": ">=0.12.0", "fields": { "steps": ["enum"] } }
+    { "name": "app", "path": "plugins/app/plugin.json", "api": 1, "fields": { "steps": ["enum"] } }
   ],
   "shell": { "protobase": "0.12.0", "pluginApi": 1, "paths": ["/index.html", "/assets", "/protobase.sw.js"] },
   "native": { "@capacitor/core": "8.5.3", "@capacitor/ios": "8.5.3" },
@@ -421,7 +421,7 @@ dist/
 - The output folder is emptied first, so it must not be the plugin's folder or hold it.
 - The module is `protobase.ui.tsx` with everything it imports bundled, except the four modules the app shares (`react`, `react/jsx-runtime`, `react-dom`, `@protobase/ui`), which stay imports by those names. Any other module of those packages, such as `react-dom/client`, fails the build. React's production build and JSX runtime are used, whatever `NODE_ENV` says, and every export of `protobase.ui.tsx` is kept.
 - The stylesheet is Tailwind's utilities for the classes in the plugin's folder: no reset, no theme values. Each utility reads the theme of the app that loads it, with Tailwind's default as the fallback (`text-sm` is `font-size: var(--text-sm, 0.875rem)`).
-- `plugin.json` names the plugin (`--name`, else its `package.json`'s `name`, else its folder's), its own `version`, the plugin API (`api`) and the Protobase versions (`protobase`) it is built for, the module (`entry`) and stylesheet (`css`), relative to it, and the [field types](/reference/plugins/#field-types) it registers (`fields`), each with the storage types it shows. Both versions come from the `@protobase/ui` installed for the plugin, else for the project it extends, else the CLI's own: `api` is its plugin API, and `protobase` is `>=` its version unless the plugin's `package.json` names a range in `engines.protobase` (see [Plugins](/reference/plugins/#versions)).
+- `plugin.json` names the plugin (`--name`, else its `package.json`'s `name`, else its folder's), its own `version`, the plugin API it is built for (`api`), what it uses (`imports` and `extensionPoints`), the Protobase versions its `package.json` names in `engines.protobase`, if any (`protobase`), the module (`entry`) and stylesheet (`css`), relative to it, and the [field types](/reference/plugins/#field-types) it registers (`fields`), each with the storage types it shows. `api` and the extension points come from the `@protobase/ui` installed for the plugin, else for the project it extends, else the CLI's own (see [Plugins](/reference/plugins/#versions)).
 - `--source-maps` ends each script with a `//# debugId=<uuid>` comment, naming no map, and writes its source map, `<script>.js.map` carrying the same `debugId`, beside it, for an error tracker to read the browser's stack frames with.
 
 To read its field types, the build loads the plugin's module once in Node, with everything bundled; nothing is rendered, but code at the top level of its modules runs, so keep browser-only work (`window`, `document`) inside components and handlers. The app loads it from wherever `plugin.json` is served, listed in `PROTOBASE_PLUGINS` or the config's `plugins` (see [loading](/reference/plugins/#loading)).

@@ -76,17 +76,18 @@ bun run protobase build-plugin
 ```
 
 ```
-built dist: plugin.json, assets/index-DDnoullN.js and assets/styles-CToS5pKa.css (sales-tools, plugin API 1, Protobase >=0.11.1)
+built dist: plugin.json, assets/index-DDnoullN.js and assets/styles-CToS5pKa.css (sales-tools, plugin API 1)
 ```
 
-`dist/assets/index-<hash>.js` is the plugin's module: its own code, with `react`, `react/jsx-runtime`, `react-dom` and `@protobase/ui` left as imports for the app to supply. `styles-<hash>.css` holds the utilities its classes use, and nothing else. `plugin.json` names both, the plugin API they are built for and the Protobase versions they run on:
+`dist/assets/index-<hash>.js` is the plugin's module: its own code, with `react`, `react/jsx-runtime`, `react-dom` and `@protobase/ui` left as imports for the app to supply. `styles-<hash>.css` holds the utilities its classes use, and nothing else. `plugin.json` names both, the plugin API they are built for and what the plugin uses from the app, which the app checks it has before it loads the plugin:
 
 ```json
 {
   "name": "sales-tools",
   "version": "1.0.0",
   "api": 1,
-  "protobase": ">=0.11.1",
+  "imports": { "@protobase/ui": ["RecordLink", "definePlugin", "useList", "usePlugin"], "react/jsx-runtime": ["jsx", "jsxs"] },
+  "extensionPoints": ["components"],
   "entry": "assets/index-DDnoullN.js",
   "css": "assets/styles-CToS5pKa.css"
 }

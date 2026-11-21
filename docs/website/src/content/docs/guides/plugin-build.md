@@ -61,4 +61,4 @@ Nothing changes: `protobase dev` builds `protobase.ui.tsx` into its page with ho
 
 ## After the move
 
-From now on, a release of Protobase within the same minor needs no rebuild of the project's UI: the app it runs in is the release's, and the plugin keeps working within its [plugin API](/reference/plugins/#versions). The server config runs on the runtime the project is pinned to (see [Bundles and runtimes](/reference/versioning/#bundles-and-runtimes)), so moving the pin to a new minor below 1.0 is still a rebuild.
+From now on, a release of Protobase within the same minor needs no rebuild of the project's UI: the app it runs in is the release's, and the plugin keeps working within its [plugin API](/reference/plugins/#versions). A plugin built on a newer release also loads in an app on an older one, as long as that app has every export and extension point the plugin uses. The server config runs on the runtime the project is pinned to (see [Bundles and runtimes](/reference/versioning/#bundles-and-runtimes)), so moving the pin to a new minor below 1.0 is still a rebuild.

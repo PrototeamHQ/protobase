@@ -2230,7 +2230,8 @@
     "notObject": "de plugin.json is geen object",
     "noName": "de plugin.json noemt geen plug-in",
     "noApi": "de plugin.json noemt geen plug-in-API",
-    "noVersions": "de plugin.json noemt geen Protobase-versies",
+    "badVersions": "de plugin.json noemt Protobase-versies die geen tekst zijn",
+    "noUses": "de plugin.json zegt niet wat hij van Protobase gebruikt; bouw hem opnieuw met protobase build-plugin",
     "noModule": "de plugin.json noemt geen module",
     "badStylesheet": "de plugin.json noemt een stylesheet die geen URL is",
     "badVersion": "de plugin.json heeft een versie die geen tekst is"
