@@ -74,6 +74,7 @@
     "isFramed",
     "logoTapEvent",
     "mentionedIds",
+    "menuItemClass",
     "mergeUi",
     "parseDiff",
     "parsePatch",
@@ -114,6 +115,7 @@
     "useMeta",
     "useOwnStatus",
     "usePlugin",
+    "usePopoverMenu",
     "usePresence",
     "usePushNotifications",
     "useQuery",
@@ -126,6 +128,7 @@
     "useSiblingPage",
     "useSignedInUser",
     "useStatuses",
+    "useToast",
     "useUnreadNotifications",
     "useUpdateRecord"
   ]
