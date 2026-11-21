@@ -11,6 +11,8 @@ export type OrganizationsState = {
   current?: CurrentOrganization
   /** The person's organizations. */
   organizations: Organization[]
+  /** Whether `current` was read in this page load, rather than restored from the start cache. */
+  fresh: boolean
   error?: string
   reload: () => void
 }
@@ -37,7 +39,7 @@ export const useOrganizations = (enabled: boolean): OrganizationsState => {
   const reload = useCallback(() => void refetch(), [refetch])
   const data = enabled ? query.data : undefined
   const error = enabled && query.error ? (query.error instanceof AuthError ? authMessage(query.error) : t('couldNotReadOrganizations')) : undefined
-  return { current: data?.current, organizations: data?.organizations ?? none, ...(error && { error }), reload }
+  return { current: data?.current, organizations: data?.organizations ?? none, fresh: enabled && query.isFetchedAfterMount, ...(error && { error }), reload }
 }
 
 /**

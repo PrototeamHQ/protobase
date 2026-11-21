@@ -185,7 +185,7 @@ export const AllOrganizations: StoryObj<{ search: Organizations['search'] }> = {
   args: { search: fn(searchEvery) },
   render: (args) => (
     <WithSession session={sessionWith({ search: args.search })}>
-      <OrganizationsPage basePath="" state={{ organizations: [], current: { organization: null, globalRoles: ['support'] }, reload: fn() }} />
+      <OrganizationsPage basePath="" state={{ organizations: [], current: { organization: null, globalRoles: ['support'] }, reload: fn(), fresh: true }} />
     </WithSession>
   ),
   play: async ({ canvasElement }) => {
@@ -211,7 +211,7 @@ export const InvitationsForYou: StoryObj<{ acceptMine: Organizations['acceptMine
   args: { acceptMine: fn(() => new Promise<void>(() => {})) },
   render: (args) => (
     <WithSession session={sessionWith({ myInvitations: async () => [{ id: 'i1', email: 'sanne@acme.example', role: 'member', appRoles: ['sales'], status: 'pending', expiresAt: '2026-10-17T09:00:00.000Z', organizationName: 'Acme' }], acceptMine: args.acceptMine })}>
-      <OrganizationsPage basePath="" state={{ organizations: [], current: { organization: null, globalRoles: [] }, reload: fn() }} />
+      <OrganizationsPage basePath="" state={{ organizations: [], current: { organization: null, globalRoles: [] }, reload: fn(), fresh: true }} />
     </WithSession>
   ),
   play: async ({ canvasElement, args }) => {
@@ -228,7 +228,7 @@ export const NotAnAdmin: StoryObj = {
   tags: ['play'],
   render: () => (
     <WithSession session={sessionWith({})}>
-      <OrganizationsPage basePath="" state={{ organizations: [acme], current: { organization: acme, role: 'member', appRoles: [], memberId: 'm-sanne', globalRoles: [] }, reload: fn() }} />
+      <OrganizationsPage basePath="" state={{ organizations: [acme], current: { organization: acme, role: 'member', appRoles: [], memberId: 'm-sanne', globalRoles: [] }, reload: fn(), fresh: true }} />
     </WithSession>
   ),
   play: async ({ canvasElement }) => {

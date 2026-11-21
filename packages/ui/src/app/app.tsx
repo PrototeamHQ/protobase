@@ -153,8 +153,9 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const organizations = useOrganizations(Boolean(organizationSettings && user))
   const current = organizations.current
   const organizationText = useOrganizationText()
-  const outsideOrganizations = Boolean(organizationSettings) && current !== undefined && !current.organization
-  const organizationsPending = Boolean(organizationSettings && user) && current === undefined && !organizations.error
+  // Only a fresh answer puts someone outside: the start cache may still hold the one from before they made or joined one.
+  const outsideOrganizations = Boolean(organizationSettings) && current !== undefined && !current.organization && organizations.fresh
+  const organizationsPending = Boolean(organizationSettings && user) && !organizations.error && (current === undefined || (!current.organization && !organizations.fresh))
   const inOrganization = !outsideOrganizations && !organizationsPending
   const recent = useNavRecent(meta, basePath, { resource: shown?.resource, key: shown?.key }, inOrganization)
   // Data from the start cache shows muted, with a spinner by the title, until it is fetched again
@@ -225,9 +226,12 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   // Outside any organization, only the screen that names or joins one, the organizations page and the account pages
   // open; any other address goes to that screen.
   const staysOutside = isFirstOrganizationPath(path) || path === organizationsPath || path === signInPolicyPath || path === menuPagePath || Boolean(accountAddress)
+  // Someone in an organization who opens that screen, such as from history, goes on to the start address.
+  const firstOrganizationShown = isFirstOrganizationPath(path)
   useEffect(() => {
     if (outsideOrganizations && !staysOutside) navigate(firstOrganizationPath, { replace: true })
-  }, [outsideOrganizations, staysOutside, navigate])
+    else if (inOrganization && Boolean(current?.organization) && firstOrganizationShown) navigate('/', { replace: true })
+  }, [outsideOrganizations, staysOutside, inOrganization, current, firstOrganizationShown, navigate])
   const accountTab = accountAddress && account ? shownPageTab(pageTabs(account.tree), accountAddress.tab) : undefined
   // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
   const menuShown = path === menuPagePath

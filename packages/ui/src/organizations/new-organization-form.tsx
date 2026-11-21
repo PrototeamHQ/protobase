@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { useAuth } from '../auth/auth-provider'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
@@ -16,10 +16,12 @@ export const NewOrganizationForm = ({ onCreated, autoFocus = false }: { onCreate
   const [missing, setMissing] = useState(false)
   const { busy, error, run } = useAction()
   const hint = useId()
+  const field = useRef<HTMLInputElement>(null)
   const submit = () => {
     if (busy) return
     if (name.trim() === '') {
       setMissing(true)
+      field.current?.focus()
       return
     }
     void run(async () => {
@@ -34,6 +36,7 @@ export const NewOrganizationForm = ({ onCreated, autoFocus = false }: { onCreate
         <label className="flex flex-col gap-1.5 font-medium">
           {t('organizationName')}
           <Input
+            ref={field}
             name="organization"
             autoComplete="organization"
             autoFocus={autoFocus}
