@@ -17,6 +17,7 @@ export { fieldRefsIn, isFieldRef, markFieldRefs, unmarkFieldRefs } from './field
 export { pruneByShape, shapes, type PropShapes, type RefShape } from './ref-shape'
 export { matchesSearch, matchedSearchField, searchTerms, termMatches, type SearchTerm } from './search-match'
 export { navRecentErrors, statusTones, defaultRecentLimit } from './nav-recent'
+export { navStartErrors } from './nav-start'
 export { bottomBarFor } from './bottom-bar'
 export { encodeKey, decodeKey } from './keys'
 export { inRange, pluginProblem, type PluginHost, type PluginRequirement } from './plugin-version'

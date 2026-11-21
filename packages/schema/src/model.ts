@@ -1532,6 +1532,17 @@ export type NavRecentModel = {
   marks?: string
 }
 
+/**
+ * The record the app opens at `/`: the first that the filter finds in the order given, read with the caller's access, such
+ * as a chat's default channel. With no match, the app opens the first sidebar entry.
+ */
+export type NavStartModel = {
+  /** AIP-160 filter choosing the record, as the list API takes it, such as `name = "general"`. */
+  filter: string
+  /** AIP-132 order, when more than one may match; the list's sort when omitted. */
+  orderBy?: string
+}
+
 /** Where a resource sits in the sidebar (`.nav(...)`); see [Sidebar](docs/website/src/content/docs/reference/sidebar.md). */
 export type NavModel = {
   /** Hide the resource from the sidebar, for line or link tables. */
@@ -1544,6 +1555,8 @@ export type NavModel = {
   order?: number
   /** A few of its records listed under its entry. */
   recent?: NavRecentModel
+  /** The record the app opens at `/`, when the entry comes first of those that name one and a record matches. */
+  start?: NavStartModel
   /**
    * `current`: the entry opens the list on the caller's own tenant, and its recent records are that tenant's, for a
    * resource whose lists read across tenants (`.tenant(pick, { across })`). `/meta` writes it into the list's opening

@@ -28,6 +28,7 @@ import { layoutItems } from './layout-items'
 import { isMenuHref } from './menu-href'
 import { viewOfList } from './named-list'
 import { navRecentErrors } from './nav-recent'
+import { navStartErrors } from './nav-start'
 import { createRefs, ref, type FieldRefs, type Ref } from './refs'
 import { actions } from './view-actions'
 import { chartModel, type ChartInput } from './view-chart'
@@ -132,7 +133,8 @@ export class ViewBuilder<R extends {
    * Where the resource sits in the sidebar; `recent` lists a few of its records under the entry (see
    * [Sidebar](docs/website/src/content/docs/reference/sidebar.md#recent-records)), and `tenant: 'current'` opens it on the
    * caller's own tenant (see [The current organization](docs/website/src/content/docs/reference/sidebar.md#the-current-organization)),
-   * and `create` links to the create form under it (see [Create link](docs/website/src/content/docs/reference/sidebar.md#create-link)).
+   * `create` links to the create form under it (see [Create link](docs/website/src/content/docs/reference/sidebar.md#create-link)),
+   * and `start` names the record the app opens at `/` (see [Start record](docs/website/src/content/docs/reference/sidebar.md#start-record)).
    */
   nav(nav: NavInput<R>) {
     return this.next({ nav })
@@ -510,6 +512,8 @@ export class ViewBuilder<R extends {
     if (typeof nav?.create === 'object' && nav.create.label.trim() === '') throw new Error(`View "${this.state.resource}": nav.create needs a label, or true for "New <singular>"`)
     const recentErrors = resource && nav?.recent ? navRecentErrors(nav.recent, resource) : []
     if (recentErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.recent ${recentErrors.join('; ')}`)
+    const startErrors = resource && nav?.start ? navStartErrors(nav.start, resource) : []
+    if (startErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.start ${startErrors.join('; ')}`)
     const opensUnknown = resource && this.state.recordOpens ? addressPlaceholders(this.state.recordOpens).find((name) => !Object.hasOwn(resource.fields, name)) : undefined
     if (opensUnknown !== undefined) throw new Error(`View "${this.state.resource}": recordOpens names field "${opensUnknown}", which the resource does not have`)
     if (this.state.lists?.length && (listOf !== undefined || this.state.searchesOf)) {
