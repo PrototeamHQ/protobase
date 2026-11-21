@@ -523,6 +523,9 @@ export class ViewBuilder<R extends {
     if (typeof nav?.create === 'object' && nav.create.label.trim() === '') throw new Error(`View "${this.state.resource}": nav.create needs a label, or true for "New <singular>"`)
     const recentErrors = resource && nav?.recent ? navRecentErrors(nav.recent, resource) : []
     if (recentErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.recent ${recentErrors.join('; ')}`)
+    const conversation = this.state.record && 'conversation' in this.state.record ? this.state.record.conversation : undefined
+    if (nav?.recent?.unread && !conversation?.readPosition) throw new Error(`View "${this.state.resource}": nav.recent.unread counts from the conversation's read positions, so the view needs .record({ conversation }) with readPosition`)
+    if (nav?.recent?.typing && !conversation?.typing) throw new Error(`View "${this.state.resource}": nav.recent.typing shows the typing of the record's conversation, so the view needs .record({ conversation }) with typing`)
     const startErrors = resource && nav?.start ? navStartErrors(nav.start, resource) : []
     if (startErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.start ${startErrors.join('; ')}`)
     const opensUnknown = resource ? (this.state.recordOpens ?? []).flatMap(addressPlaceholders).find((name) => !Object.hasOwn(resource.fields, name)) : undefined

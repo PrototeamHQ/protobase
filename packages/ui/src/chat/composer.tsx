@@ -26,6 +26,8 @@ export type ComposerProps = {
   canSendEmpty?: boolean
   /** Gets the files pasted into the box or dropped on the composer; the composer itself uploads and sends nothing. A paste that holds text stays text. */
   onFiles?: (files: File[]) => void
+  /** Gets the box's text each time the person changes it, such as to tell others they type. */
+  onDraft?: (text: string) => void
 }
 
 /**
@@ -33,8 +35,12 @@ export type ComposerProps = {
  * Shift+Enter starts a new line; while the list of people to mention is open, Enter picks from it instead. With `canSendEmpty`,
  * such as while files are picked, it sends with no text too.
  */
-export const Composer = ({ onSend, busy, placeholder, inputRef, searchPeople, attachments, actions, canSendEmpty, onFiles }: ComposerProps) => {
+export const Composer = ({ onSend, busy, placeholder, inputRef, searchPeople, attachments, actions, canSendEmpty, onFiles, onDraft }: ComposerProps) => {
   const [draft, setDraft] = useState<MentionDraft>(emptyDraft)
+  const edit = (next: MentionDraft) => {
+    setDraft(next)
+    onDraft?.(next.text)
+  }
   const message = draft.text.trim()
   const sendable = canSend(message, { busy, canSendEmpty })
   const send = () => {
@@ -85,7 +91,7 @@ export const Composer = ({ onSend, busy, placeholder, inputRef, searchPeople, at
       {attachments && <div className="basis-full">{attachments}</div>}
       {actions}
       <div className="min-w-0 flex-1">
-        <MentionBox ref={inputRef} rows={1} aria-label={text('message')} placeholder={placeholder} value={draft} onChange={setDraft} searchPeople={searchPeople} listAt="above" onKeyDown={onKeyDown} onPaste={onPaste} />
+        <MentionBox ref={inputRef} rows={1} aria-label={text('message')} placeholder={placeholder} value={draft} onChange={edit} searchPeople={searchPeople} listAt="above" onKeyDown={onKeyDown} onPaste={onPaste} />
       </div>
       <Button type="submit" variant="primary" className="w-8 px-0" aria-label={text('send')} disabled={!sendable}>
         <SendHorizontal className="size-4" />

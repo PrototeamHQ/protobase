@@ -98,6 +98,7 @@ import { statusRoutes } from './status/routes'
 import { relayRuntime } from './relay/relay-runtime'
 import { relayPresencePath } from './relay/presence-route'
 import { relayTicketPath } from './relay/ticket-route'
+import { typingViewErrors } from './relay/typing-views'
 import { liveSessions } from './better-auth/live-sessions'
 import { mailSenderUse } from './personal-mail/mail-sender-use'
 import type { SubscriptionDefinition } from './webhooks/subscription'
@@ -413,6 +414,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   }
 
   const relay = realtime?.relay && relayRuntime(realtime.relay, auth, deps)
+  const typingErrors = typingViewErrors(viewModels, realtime?.relay && new Set(Object.keys(realtime.relay.channels)))
+  if (typingErrors.length > 0) throw new Error(typingErrors.join('\n'))
 
   // Removing a From address, or disconnecting its mailbox, waits until no record holds it.
   if (auth) auth.mailSenderUse.set(mailSenderUse(db, registry.entries))
@@ -420,7 +423,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   // The tabs end in the name the app signs in and mails as, which the installed app is called too.
   const appName = shownAppName(auth, globalThis.process?.env ?? {})
   const appIcon = icons?.favicon ? faviconPath : undefined
-  const meta = createMeta(deps, appName, appIcon)
+  const meta = createMeta(deps, appName, appIcon, relay ? { resources: relay.noticed } : undefined)
   const onError = createErrorHandler(options.onUnhandledError, deps.statementTimeoutMs)
   // Every response of the resources API and of the system endpoints names the models version; every request needs a
   // token, but one to the resources API or `/meta` when the project has an anonymous role.

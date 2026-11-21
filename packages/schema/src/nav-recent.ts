@@ -34,4 +34,5 @@ export const navRecentErrors = (recent: NavRecentModel, model: ResourceModel): s
   ...(recent.filter === undefined ? [] : filterErrors(model, recent.filter).map((error) => `filter: ${error.message}`)),
   ...(recent.orderBy === undefined ? [] : orderByErrors(model, recent.orderBy).map((error) => `orderBy: ${error.message}`)),
   ...(recent.marks === undefined || (typeof recent.marks === 'string' && recent.marks !== '') ? [] : ['marks needs the name of a hook in the project UI\'s marks']),
+  ...(['typing', 'unread'] as const).flatMap((name) => (recent[name] === undefined || recent[name] === true ? [] : [`${name} is true or left out`])),
 ]

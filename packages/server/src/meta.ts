@@ -66,6 +66,8 @@ export type CallerMeta = {
   status?: true
   /** With `calls`: the app's calls ring people, on any page they have open, through the live stream. */
   calls?: true
+  /** With `realtime.relay`: the resources whose changes the relay notices on its channels, which pages hear of from it. */
+  relay?: { resources: string[] }
   /** The language the admin app's screens are in, when the app sets one for everyone. */
   locale?: Locale
   /** With the app's translations: the reader's language of them and the messages their pages' `<Trans>` elements name. */
@@ -95,7 +97,7 @@ const modelsHash = (deps: Deps) => sha256Hex(stableJson(deps.registry.entries.ma
  * they could use once signed in, which keep their place in the bottom bar and the user menu.
  * The ETag hashes all of it, so it differs per user and per roles.
  */
-export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
+export const createMeta = (deps: Deps, appName: string, appIcon?: string, relay?: CallerMeta['relay']) => {
   const base = modelsHash(deps)
 
   const forCaller = async (session: Session, preferred: readonly string[] = []) => {
@@ -162,6 +164,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       ...((deps.bell || deps.webPushKey) && { notifications: { ...(deps.bell && { bell: true as const }), ...(deps.webPushKey && { webPushKey: deps.webPushKey }) } }),
       ...(deps.status && { status: true as const }),
       ...(deps.calls && { calls: true as const }),
+      ...(relay && { relay }),
       ...(deps.locale && { locale: deps.locale }),
       ...(texts && { texts }),
       ...(deps.files && deps.files.trustedHosts.length > 0 && { files: { trustedHosts: deps.files.trustedHosts } }),

@@ -40,14 +40,14 @@ const requestedChannels = (body: unknown) => {
 type TicketRouteInput = { deps: Deps; options: RealtimeRelayOptions; models: RelayModels; jobs: RelayJobs; sessionEnd: (session: string) => Promise<Date | undefined> }
 
 /**
- * `POST /` with `{ channels?: [...] }`: a connect ticket for the relay, `{ ticket, url, expiresAt }`. A signed-in
- * person's ticket names their sign-in session, so a device that connects adds no session, and lists every channel
- * they are a member of, as the members resources have it, and `people`, which every signed-in person has and their
- * contacts' presence is published on; a visitor's names an anonymous session of its own and only
- * receives. Both list the open channels asked for whose records are public, read by the anonymous role, as a read of the
- * record decides it; one there is none of, one that is not public and one of a resource with members are refused alike
- * with `404`. A signed-in person's ticket queues the close
- * of their session's sockets at its expiry, once for each session.
+ * `POST /` with `{ channels?: [...] }`: a connect ticket for the relay, `{ ticket, url, channels, expiresAt }`, with the
+ * channels it lists, the same list as its claims. A signed-in person's ticket names their sign-in session, so a device
+ * that connects adds no session, and lists every channel they are a member of, as the members resources have it, and
+ * `people`, which every signed-in person has and their contacts' presence is published on; a visitor's names an
+ * anonymous session of its own and only receives. Both list the open channels asked for whose records are public, read
+ * by the anonymous role, as a read of the record decides it; one there is none of, one that is not public and one of a
+ * resource with members are refused alike with `404`. A signed-in person's ticket queues the close of their session's
+ * sockets at its expiry, once for each session.
  */
 export const ticketRoutes = ({ deps, options, models, jobs, sessionEnd }: TicketRouteInput) => {
   const app = new Hono<AdminEnv>()
@@ -87,7 +87,7 @@ export const ticketRoutes = ({ deps, options, models, jobs, sessionEnd }: Ticket
     const channels = [...new Set([...member, ...open])]
     if (channels.length > maxTicketChannels) throw new HttpProblem(422, 'too-many-channels', 'Unprocessable Content', `The ticket would list ${channels.length} channels, over the ${maxTicketChannels} the relay takes`)
     const { ticket, expiresAt } = await signTicket(options, subject, channels)
-    return c.json({ ticket, url: relaySocketUrl(options.url), expiresAt: expiresAt.toISOString() }, 200, noStore)
+    return c.json({ ticket, url: relaySocketUrl(options.url), channels, expiresAt: expiresAt.toISOString() }, 200, noStore)
   })
 
   return app

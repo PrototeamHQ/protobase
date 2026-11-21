@@ -356,7 +356,9 @@
     "loading": "Loading...",
     "couldNotLoad": "Could not load",
     "viewAll": "View all",
-    "couldNotSearch": "Could not search <lower>{label}</lower>"
+    "couldNotSearch": "Could not search <lower>{label}</lower>",
+    "typing": "typing…",
+    "unread": "{count, plural, one {# unread message} other {# unread messages}}"
   },
   "app/built-in-views": {
     "table_definitions.tables.names.singular": "Table",
@@ -727,7 +729,10 @@
     "fileNotUploaded": "Not uploaded: {reason}",
     "uploadedPercent": "{percent}%",
     "fileMissing": "This file is missing",
-    "couldNotLoadFiles": "Could not load the files"
+    "couldNotLoadFiles": "Could not load the files",
+    "typingOne": "{name} is typing…",
+    "typingTwo": "{first} and {second} are typing…",
+    "typingMany": "Several people are typing…"
   },
   "app/create": {
     "title": "New <lower>{noun}</lower>",
