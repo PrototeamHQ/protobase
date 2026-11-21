@@ -711,6 +711,10 @@ With `reactions`, `edit`, `delete` or `thread`, people act on the messages where
 
 #### Calls
 
+:::caution[Beta]
+Calls on a conversation page may still change, and they carry the limits of [calls](/reference/calls/) themselves. Joining or leaving the call closes an open thread.
+:::
+
 With `call`, people start or join the record's call from the conversation's header, and talk in it beside the messages, while what they write stays the conversation's own messages. `call` names the [API function](/guides/api-functions/) that admits people to the call with `calls.join`, as in [Admitting members](/reference/calls/#admitting-members); the page opens its socket with the record's key as `key`:
 
 ```ts
