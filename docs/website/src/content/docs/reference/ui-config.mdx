@@ -639,7 +639,7 @@ The standard record page, with the layout's sections, the related records, Edit 
 ### Conversation pages
 
 :::caution[Beta]
-A conversation page shows each message's text with its mentions and keeps line breaks, without markdown; it has no files or calls yet, and a deleted message leaves no trace in its place.
+A conversation page shows each message's text with its mentions and keeps line breaks, without markdown; it has no files yet, and a deleted message leaves no trace in its place.
 :::
 
 `.record({ conversation })` makes the record page the record's conversation, for a record that holds one, such as a chat channel, a direct message or a support case, with no component of the app's own. It fills the content area as a [full-area record page](#full-area-record-pages) does, on the web and at mobile width: a header row, the messages that point at the record, and a box that sends one, which stays in view while the messages scroll above it.
@@ -667,6 +667,7 @@ view<typeof channels>('channels').record({
       labels: { thumbs_up: { symbol: '👍', name: 'Thumbs up' }, heart: { symbol: '❤️', name: 'Heart' } },
     },
     thread: { field: 'thread_id', count: 'reply_count', last: 'last_reply_at' },
+    call: 'call',
   },
 })
 ```
@@ -689,8 +690,9 @@ view<typeof channels>('channels').record({
 | `delete` | `true`: anyone the message resource's delete access allows deletes a message, after confirming; or `{ unless }`, a condition on the message's own fields that keeps it, such as `reply_count > 0`. |
 | `reactions` | Emoji reactions under each message: `{ resource, field, user, emoji, labels }`. |
 | `thread` | Replies in a thread under a message, in a panel beside the conversation: `{ field, count, last }`. |
+| `call` | The record's [call](/reference/calls/), by the name of the [API function](/guides/api-functions/) that admits people to it. |
 
-The header shows the record's title, which the top bar repeats at mobile width and so shows there only with `members`, the subtitle, and *Details*, a link to the record's standard page at `?standard=true`, with its sections, Edit and Delete. The latest 50 messages show oldest first, with *Load earlier messages* at the top for more. A day divider opens each day, and one person's messages sent within five minutes of each other show under their name once. A message resource with [`.live()`](/reference/live/) shows new, changed and deleted messages as they happen. Every read goes through the reader's own access: a message they may not read never shows, and a reader who may not read the messages, a field each one needs or the fields of `thread` gets the standard page. The box shows for a reader who may create messages.
+The header shows the record's title, which the top bar repeats at mobile width and so shows there only with `members`, the subtitle, the call with `call`, and *Details*, a link to the record's standard page at `?standard=true`, with its sections, Edit and Delete. The latest 50 messages show oldest first, with *Load earlier messages* at the top for more. A day divider opens each day, and one person's messages sent within five minutes of each other show under their name once. A message resource with [`.live()`](/reference/live/) shows new, changed and deleted messages as they happen. Every read goes through the reader's own access: a message they may not read never shows, and a reader who may not read the messages, a field each one needs or the fields of `thread` gets the standard page. The box shows for a reader who may create messages.
 
 With `readPosition`, the conversation opens on a *New messages* line above the first message someone else wrote since the reader's position, and moves the position to the newest message whenever they read to the end. The read position resource keeps one record per reader and record: its `.author()` is the reader, `field` is a relation to the record and `message` an integer field holding the key of the newest message read, so the message resource's key is one integer column that grows as messages arrive. The page reads and writes only the reader's own position. Without `readPosition`, there is no line and nothing is written.
 
@@ -706,6 +708,26 @@ With `reactions`, `edit`, `delete` or `thread`, people act on the messages where
 - **Threads**: `field` is the filterable relation of the messages to themselves that holds a reply's first message, empty for a message of the conversation itself, `count` an integer field holding a first message's number of replies and `last` a date or timestamp field holding when its last reply came, both kept by the database, such as by a trigger. The conversation shows only messages outside threads; under a message with replies, a link names how many and when the last came. It and *Reply in thread* open the thread at `?thread=<key>`, so a link can open it too: in a panel beside the conversation, covering the screen at mobile width, with the first message, its replies and a box of its own that replies in the thread. An address naming a message of another conversation opens no thread there. A reply gets its first message's conversation from the box, so keep the two the same in the database, such as by a check in the trigger that counts the replies, as an API create can set them apart.
 
 <StoryFrame id="record-page-conversation-page-message-actions--message-actions" title="Reactions under messages, a thread's replies under its first message, and the actions bar" height={560} />
+
+#### Calls
+
+With `call`, people start or join the record's call from the conversation's header, and talk in it beside the messages, while what they write stays the conversation's own messages. `call` names the [API function](/guides/api-functions/) that admits people to the call with `calls.join`, as in [Admitting members](/reference/calls/#admitting-members); the page opens its socket with the record's key as `key`:
+
+```ts
+// functions/call.ts
+import { defineFunction } from '@protobase/server'
+
+export default defineFunction(async (request, { session, acceptWebSocket, calls }) => {
+  const key = new URL(request.url).searchParams.get('key')!
+  return acceptWebSocket(await calls.join({ record: { resource: 'channels', key }, member: String(session.user.id), publish: true }))
+})
+```
+
+The header shows *Start call* while no call goes on, and "Call in progress · 3 · Join" while one does, live, as the [call mark](/reference/calls/#a-records-call) does. *Start call* and *Join* are links to the record's page joining its call, `?call=join`, which shows the [call view](/reference/calls/#the-call-view) beside the messages, or above them at mobile width, each taking half the space, so the box stays in view. People in the call are named after the organization's members. A thread opens after both, covering the screen at mobile width while the call goes on under it, and opening or closing a thread keeps the call. *Leave* goes back to the conversation alone.
+
+<StoryFrame id="record-page-conversation-page-call--joining-with-thread" title="The call beside the messages, with a thread open" height={560} />
+
+<gap>Joining or leaving the call from a conversation page cannot keep an open thread because the call's links do not carry the page's other address values.</gap>
 
 <gap>A conversation page cannot offer *Edit* when its `sender` is a relation because matching a related record to the reader is not implemented; a `sender` of user ids, such as the resource's `.author()`, gets it.</gap>
 
