@@ -44,9 +44,18 @@ export const mailFeedbackBody = z.strictObject({
 export const stated = (record: { [K in keyof MailFeedback]: MailFeedback[K] | null | undefined }): MailFeedback =>
   Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined && value !== null && value !== '')) as MailFeedback
 
+const parseJson = (text: string, what: string): unknown => {
+  try {
+    return JSON.parse(text)
+  } catch (error) {
+    if (error instanceof SyntaxError) throw badRequest('invalid-mail-feedback', `The body is not ${what}: it is not valid JSON`)
+    throw error
+  }
+}
+
 /** `text` as JSON of `schema`; anything else is a 400 that names what the endpoint takes. */
 export const parseReport = <T extends z.ZodType>(schema: T, text: string, what: string): z.infer<T> => {
-  const parsed = schema.safeParse(JSON.parse(text))
+  const parsed = schema.safeParse(parseJson(text, what))
   if (!parsed.success) throw badRequest('invalid-mail-feedback', `The body is not ${what}: ${parsed.error.issues[0]!.path.join('.') || 'body'}: ${parsed.error.issues[0]!.message}`)
   return parsed.data
 }
