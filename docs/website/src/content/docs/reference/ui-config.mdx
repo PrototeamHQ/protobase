@@ -727,6 +727,8 @@ The header shows *Start call* while no call goes on, and "Call in progress · 3 
 
 <StoryFrame id="record-page-conversation-page-call--joining-with-thread" title="The call beside the messages, with a thread open" height={560} />
 
+<gap>Joining or leaving the call from a conversation page cannot keep an open thread because the call's links do not carry the page's other address values.</gap>
+
 <gap>A conversation page cannot offer *Edit* when its `sender` is a relation because matching a related record to the reader is not implemented; a `sender` of user ids, such as the resource's `.author()`, gets it.</gap>
 
 <gap>A conversation page cannot open at a given message, such as a search result, because opening a conversation at a message is not implemented.</gap> <gap>A conversation page cannot show a message's markdown because rendering markdown together with mentions is not implemented.</gap>
