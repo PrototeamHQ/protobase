@@ -707,6 +707,8 @@ With `reactions`, `edit`, `delete` or `thread`, people act on the messages where
 
 <StoryFrame id="record-page-conversation-page-message-actions--message-actions" title="Reactions under messages, a thread's replies under its first message, and the actions bar" height={560} />
 
+<gap>A conversation page cannot offer *Edit* when its `sender` is a relation because matching a related record to the reader is not implemented; a `sender` of user ids, such as the resource's `.author()`, gets it.</gap>
+
 <gap>A conversation page cannot open at a given message, such as a search result, because opening a conversation at a message is not implemented.</gap> <gap>A conversation page cannot show a message's markdown because rendering markdown together with mentions is not implemented.</gap>
 
 ### Focus pages
