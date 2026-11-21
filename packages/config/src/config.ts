@@ -115,7 +115,7 @@ export type ProtobaseConfig = AppKeys &
       /** Packages of workflow plugins the app runs beside the built-in types and its own plugins, by package name. */
       plugins?: string[]
     }
-    /** How the record channels and supabase-js's Realtime are served: `{ processes: 'many' }` when several processes serve the app, `{ sqlSends: true }` to broadcast to channels from SQL (see `RealtimeOptions`). */
+    /** How the record channels and supabase-js's Realtime are served: `{ processes: 'many' }` when several processes serve the app, `{ sqlSends: true }` to broadcast to channels from SQL, `{ relay }` to hand the connections to a realtime relay (see `RealtimeOptions`). */
     realtime?: RealtimeOptions
     /** Each user's devices and inbox (see `NotificationsOptions`); `{}` turns them on. */
     notifications?: Omit<NotificationsOptions, 'store' | 'historyStore' | 'senders'>
