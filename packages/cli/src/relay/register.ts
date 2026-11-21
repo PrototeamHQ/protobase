@@ -16,6 +16,6 @@ export const registerRelay = (program: Command) => {
       const config = await loadSourceConfig(process.cwd(), { command: 'tool' })
       if (!config.realtime?.relay) throw new Error('The config has no realtime.relay')
       const url = config.url ?? process.env.PROTOBASE_URL
-      process.stdout.write(`${JSON.stringify(relayAppEntry(checkRelayOptions(config.realtime.relay), url), null, 2)}\n`)
+      process.stdout.write(`${JSON.stringify(relayAppEntry(checkRelayOptions(config.realtime.relay), url, config.apiPath), null, 2)}\n`)
     })
 }

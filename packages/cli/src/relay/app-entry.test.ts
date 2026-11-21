@@ -10,3 +10,10 @@ test("the entry names the app, its keys and the origin of the app's URL", () => 
 test('without a URL the entry allows no browser origin', () => {
   expect(relayAppEntry(relay, undefined).origins).toEqual([])
 })
+
+test('with presence the entry names where the relay posts its reports, with their key', () => {
+  const presence = { resource: 'presences', user: 'user_id', status: 'status', at: 'since', key: 'p'.repeat(32) }
+  expect(relayAppEntry({ ...relay, presence }, 'https://chat.example.com/some/path').presence).toEqual({ url: 'https://chat.example.com/api/relay/presence', key: 'p'.repeat(32), grace_seconds: 30 })
+  expect(relayAppEntry({ ...relay, presence }, 'https://chat.example.com', '/v2/rest').presence?.url).toBe('https://chat.example.com/v2/relay/presence')
+  expect(() => relayAppEntry({ ...relay, presence }, undefined)).toThrow("realtime.relay.presence needs the app's url")
+})
