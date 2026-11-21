@@ -1,0 +1,47 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"\n    create table tasks (id integer generated always as identity primary key, title text not null, lane text not null, waits boolean not null,\n      estimate integer not null constraint tasks_estimate_positive check (estimate > 0));\n    create function tasks_lane() returns trigger language plpgsql as $$\n    begin\n      if new.waits and new.lane = 'queued' then\n        raise exception 'Task % (%) is not parked by hand', new.id, new.title using errcode = 'check_violation', constraint = 'tasks_parked_by_hand';\n      end if;\n      if new.lane = 'broken' then\n        raise exception 'Failed to process the row: %', new.title;\n      end if;\n      return new;\n    end $$;\n    create trigger tasks_lane before update on tasks for each row execute function tasks_lane();\n  ","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]}
+    ]
+  },
+  "a database check the resource declares > refuses the write a trigger raises it for with its name as the code and its label, nothing from the database": {
+    "(hooks)#0": [
+      {"sql":"truncate tasks restart identity;\n    insert into tasks (title, lane, waits, estimate) values ('Call the supplier', 'parked', true, 2);","result":[{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}]},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"lane\" as \"lane\", \"waits\" as \"waits\", \"estimate\" as \"estimate\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["lane",25],["waits",16],["estimate",23]],"rows":[["1","Call the supplier","parked","t","2"]]}},
+      {"sql":"update \"tasks\" as t set \"lane\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"title\" as \"title\", \"lane\" as \"lane\", \"waits\" as \"waits\", \"estimate\" as \"estimate\"","params":["queued","1"],"error":{"message":"Task 1 (Call the supplier) is not parked by hand","severity":"ERROR","code":"23514","where":"PL/pgSQL function tasks_lane() line 4 at RAISE","constraint":"tasks_parked_by_hand"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a database check the resource declares > names the operation of a batch it refuses": {
+    "(hooks)#0": [
+      {"sql":"truncate tasks restart identity;\n    insert into tasks (title, lane, waits, estimate) values ('Call the supplier', 'parked', true, 2);","result":[{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}]},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"lane\" as \"lane\", \"waits\" as \"waits\", \"estimate\" as \"estimate\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["lane",25],["waits",16],["estimate",23]],"rows":[["1","Call the supplier","parked","t","2"]]}},
+      {"sql":"update \"tasks\" as t set \"lane\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"title\" as \"title\", \"lane\" as \"lane\", \"waits\" as \"waits\", \"estimate\" as \"estimate\"","params":["queued","1"],"error":{"message":"Task 1 (Call the supplier) is not parked by hand","severity":"ERROR","code":"23514","where":"PL/pgSQL function tasks_lane() line 4 at RAISE","constraint":"tasks_parked_by_hand"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a database check the resource declares > keeps the generic 400 for a CHECK constraint it does not declare, its name out of the answer": {
+    "(hooks)#0": [
+      {"sql":"truncate tasks restart identity;\n    insert into tasks (title, lane, waits, estimate) values ('Call the supplier', 'parked', true, 2);","result":[{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}]},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"lane\" as \"lane\", \"waits\" as \"waits\", \"estimate\" as \"estimate\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["lane",25],["waits",16],["estimate",23]],"rows":[["1","Call the supplier","parked","t","2"]]}},
+      {"sql":"update \"tasks\" as t set \"estimate\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"title\" as \"title\", \"lane\" as \"lane\", \"waits\" as \"waits\", \"estimate\" as \"estimate\"","params":["0","1"],"error":{"message":"new row for relation \"tasks\" violates check constraint \"tasks_estimate_positive\"","severity":"ERROR","code":"23514","detail":"Failing row contains (1, Call the supplier, parked, t, 0).","schema":"public","table":"tasks","constraint":"tasks_estimate_positive"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a database check the resource declares > keeps a plain raise a reported 500 that names nothing it raised": {
+    "(hooks)#0": [
+      {"sql":"truncate tasks restart identity;\n    insert into tasks (title, lane, waits, estimate) values ('Call the supplier', 'parked', true, 2);","result":[{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}]},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"lane\" as \"lane\", \"waits\" as \"waits\", \"estimate\" as \"estimate\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["lane",25],["waits",16],["estimate",23]],"rows":[["1","Call the supplier","parked","t","2"]]}},
+      {"sql":"update \"tasks\" as t set \"lane\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"title\" as \"title\", \"lane\" as \"lane\", \"waits\" as \"waits\", \"estimate\" as \"estimate\"","params":["broken","1"],"error":{"message":"Failed to process the row: Call the supplier","severity":"ERROR","code":"P0001","where":"PL/pgSQL function tasks_lane() line 7 at RAISE"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}
