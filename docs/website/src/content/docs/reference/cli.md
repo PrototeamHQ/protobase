@@ -642,6 +642,15 @@ bun run protobase migration       # writes db/migrations/NNN_auth.sql, NNN_jobs.
 bun run db:migrate                # applies them
 ```
 
+## `buckets rebuild`
+
+```sh
+protobase buckets rebuild <resource>                     # every bucket
+protobase buckets rebuild <resource> --from 2026-07-01   # from the bucket of that day's first hour on
+```
+
+Recounts a [time rollup](/reference/data-config/#keeping-it-up-to-date)'s buckets from the one `--from` falls in, or all of them without it, in one statement through the rollup's refresh function, such as after importing records older than its `late`. `--from` takes a date or a date and time, such as `2026-07-01T10:00`, in UTC unless it names a zone (`2026-07-01T10:00+02:00`); anything else stops with an error naming it. It writes only the rollup's table, and refuses a resource that is not a time rollup. It reads the `.env` nearest the current directory and needs `DATABASE_URL`.
+
 ## `relay app`
 
 ```sh

@@ -2,6 +2,7 @@ import { statSync } from 'node:fs'
 import path from 'node:path'
 import { Command, InvalidArgumentError } from 'commander'
 import { registerAuth } from './auth/register'
+import { registerBuckets } from './buckets/register'
 import { defaultConnectionEnv, isConnectionString, resolveConnectionUrl } from './db/connection-url'
 import { parseHosts } from './dev/hosts'
 import { loadNearestEnvFile } from './dev/env'
@@ -272,6 +273,7 @@ registerOrganizations(program)
 registerToken(program)
 registerAuth(program)
 registerMigration(program)
+registerBuckets(program)
 registerEject(program)
 registerFiles(program)
 registerEncryption(program)
