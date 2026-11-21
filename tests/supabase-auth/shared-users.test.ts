@@ -98,7 +98,8 @@ describe.skipIf(!stackUrl)('a project on a Supabase database it shares with Supa
   })
 
   it('writes the config and migrations under create protobase, and the migrations apply as postgres', async () => {
-    expect(await project.config()).toContain("users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', guardedSchemas: ['auth'], keyTable: { schema: 'auth', table: 'users' } }")
+    expect(await project.config()).toContain("tables: { user: { name: 'users', columns: { role: 'app_role' } } },")
+    expect(await project.config()).toContain("users: { metadata: 'raw_user_meta_data', guardedSchemas: ['auth'], keyTable: { schema: 'auth', table: 'users' } }")
     expect(Object.keys(project.migrations)).toEqual(['001_auth.sql', '002_supabase_users.sql'])
     expect(project.migrations['001_auth.sql']).toMatch(/^-- .*, written by `create protobase`\./)
     expect(project.migrations['002_supabase_users.sql']).toMatch(/^-- .*, written by `create protobase`:/)

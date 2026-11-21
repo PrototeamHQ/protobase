@@ -3,6 +3,7 @@ import type { AdminAuth, AdminOptions, AuthHooks, AppIdentity, Authenticator, Ca
 import { buildAppAuth, buildAuthenticator, checkCallsOptions, checkStatusOptions, isOverSignIn, workflowPlugins } from '@protobase/server/internal'
 import type { MergedConfig } from './merge-config'
 import { projectDerived, projectFiles, projectFunctions, projectJobs, projectNotifications, projectOptions, projectResources, projectWebhooks, projectWorkflows } from './project-parts'
+import { mailFeedbackOn } from './mail-feedback-config'
 import { projectUnsubscribe } from './unsubscribe-config'
 import { userTablesOn } from './user-tables-config'
 
@@ -69,6 +70,8 @@ export type BuiltProject = {
   status?: StatusOptions
   /** The one-click unsubscribe of bulk mail, on the app's URL (`projectUnsubscribe`). */
   unsubscribe?: { appUrl: string }
+  /** Whether the app takes its mail's bounces and complaints (`mailFeedback`). */
+  mailFeedback?: boolean
   calls?: CallsOptions
   jobs: JobDefinition[]
   /** The derived values' compute functions, by `<resource>.<name>` (`projectDerived`). */
@@ -118,6 +121,7 @@ export const buildProject = async (config: MergedConfig, database: AppDatabase):
     ...(config.status && { status: checkStatusOptions(config.status) }),
     ...(config.calls && { calls: checkCallsOptions(config.calls) }),
     ...(unsubscribe && { unsubscribe }),
+    ...(mailFeedbackOn(config) && { mailFeedback: true }),
     ...(mailer && { mailer }),
     ...(config.mobile && { mobile: config.mobile }),
     ...(config.secret && { secret: config.secret }),

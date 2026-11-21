@@ -20,7 +20,8 @@ export default defineConfig({
     // trigger and policy naming it keeps working. Its passwords are bcrypt hashes, its ids UUIDs, and its \`role\` the
     // Postgres role, so the app's roles go to a column of their own. No resource may be over a table of auth, where
     // Supabase Auth keeps its sessions, tokens and secrets, and the assistant never reads one.
-    users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] },
+    tables: { user: { name: 'users', columns: { role: 'app_role' } } },
+    users: { metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] },
     passwordHashes: ['bcrypt'],
     generateUserId: 'uuid',
     roles: ['admin'],
@@ -40,7 +41,8 @@ export default defineConfig({
     // column of their own. No resource may be over a table of auth, where Supabase Auth keeps its sessions, tokens and
     // secrets, and the assistant never reads one.
     schema: 'app_auth',
-    users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', guardedSchemas: ['auth'], keyTable: { schema: 'auth', table: 'users' } },
+    tables: { user: { name: 'users', columns: { role: 'app_role' } } },
+    users: { metadata: 'raw_user_meta_data', guardedSchemas: ['auth'], keyTable: { schema: 'auth', table: 'users' } },
     passwordHashes: ['bcrypt'],
     generateUserId: 'uuid',
     roles: ['admin'],
@@ -51,8 +53,32 @@ export default defineConfig({
 
   it('adds an auth of the settings to a config without one, sign-in being on by default', () => {
     expect(withSupabaseUsers("export default { timezone: 'UTC' }\n", 'protobase.config.ts', importedUsersConfig)).toBe(
-      "export default { timezone: 'UTC', auth: { users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] }, passwordHashes: ['bcrypt'], generateUserId: 'uuid' } }\n",
+      "export default { timezone: 'UTC', auth: { tables: { user: { name: 'users', columns: { role: 'app_role' } } }, users: { metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] }, passwordHashes: ['bcrypt'], generateUserId: 'uuid' } }\n",
     )
+  })
+
+  it("puts the import's user table first in the config's own tables, keeping its prefix and other tables", () => {
+    expect(withSupabaseUsers(configFile.replace("roles: ['admin'],", "tables: { prefix: 'app_' },"), 'protobase.config.ts', importedUsersConfig)).toBe(`import { defineConfig } from '@protobase/config'
+
+export default defineConfig({
+  auth: {
+    // Supabase's own auth.users as the app's user table, written by \`protobase import supabase\`: every foreign key,
+    // trigger and policy naming it keeps working. Its passwords are bcrypt hashes, its ids UUIDs, and its \`role\` the
+    // Postgres role, so the app's roles go to a column of their own. No resource may be over a table of auth, where
+    // Supabase Auth keeps its sessions, tokens and secrets, and the assistant never reads one.
+    users: { metadata: 'raw_user_meta_data', guardedSchemas: ['auth'] },
+    passwordHashes: ['bcrypt'],
+    generateUserId: 'uuid',
+    tables: { user: { name: 'users', columns: { role: 'app_role' } }, prefix: 'app_' },
+  },
+})
+`)
+    expect(withSupabaseUsers('export default { auth: { tables: {} } }\n', 'protobase.config.ts', importedUsersConfig)).toContain("tables: { user: { name: 'users', columns: { role: 'app_role' } } }")
+  })
+
+  it('fails, naming the settings, when the config names the user table itself or its tables are not an object', () => {
+    expect(() => withSupabaseUsers("export default { auth: { tables: { user: { name: 'people' } } } }\n", 'protobase.config.ts', importedUsersConfig)).toThrow('must export a config with an `auth')
+    expect(() => withSupabaseUsers('export default { auth: { tables: names } }\n', 'protobase.config.ts', importedUsersConfig)).toThrow('must export a config with an `auth')
   })
 
   it('fails, naming the settings, unless it can see the config and its auth is an object', () => {

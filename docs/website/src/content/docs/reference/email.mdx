@@ -229,10 +229,42 @@ await mail.send({ to: member.email, subject: 'News', text: '...', bulk: true, to
 - **The click:** the mail client's `POST` with `List-Unsubscribe=One-Click` records the opt-out and answers `200`; doing it again changes nothing. Opening the link in a browser shows a page with an **Unsubscribe** button that sends that `POST`, so a scanner that follows links in mail unsubscribes no one. A link the app did not sign answers `400` and records nothing.
 - **Skipped sends:** whoever unsubscribed from the topic is left out, found in one query, and the send resolves to them as `skipped` beside `sent`, each recipient it went to with its message id: `{ skipped: ['bob@example.com'], sent: [{ to: 'ada@example.com', messageId: '<…>' }], messageId: '<…>' }`, with `messageId` only when it went to exactly one. Other topics still reach them. Who unsubscribed is read once, before the first message goes out; one who unsubscribes while a send to several is going out is skipped from the next send on.
 - **A refused message:** when the server refuses one recipient's message, the send rejects with a `BulkMailError` (exported by `@protobase/server`, its `code` `BULK_MAIL_FAILED`) after the messages before it went out. It fails the try, which is retried, and names the recipient it failed on as `to`, those it went to as `sent`, those skipped as `skipped`, and the server's error as `cause`. A retried try sends to everyone again, so catch it, record `error.sent`, rethrow, and leave those addresses out of the next try; or send to one recipient per call.
+- **From a workflow:** a workflow's mail steps send bulk mail as an [email series](/reference/workflows/#email-series), whose name is the topic.
 - **Who unsubscribed:** admins see each recipient, topic and time under **Unsubscribes** in the admin app, and the app's code reads them as the `mail_unsubscribes` resource, `GET /api/v1/mail_unsubscribes?filter=topic = "newsletter"`. Nobody changes them but the link.
 - **Refused:** `bulk` without a `topic` is refused, as the email is defined or the message sent. Bulk mail without `unsubscribe: true`, or sent another way than a job's `mail`, such as through `PROTOBASE_SMTP_URL` directly or from someone's own mailbox, is refused before anything is sent. A mailer of the project's own (`auth/mailer.ts`) that is handed bulk mail directly, outside a job's `mail`, gets it without its unsubscribe: send it through the job's `mail` instead.
 - <gap>Bulk mail cannot be sent from an API function because only a job's `mail` adds the unsubscribe; enqueue a job instead.</gap>
 - <gap>Email templates cannot be marked bulk because `defineTemplate` does not take `bulk` and `topic` yet.</gap>
+
+## Bounces and complaints
+
+:::caution[Beta]
+Amazon SES (through SNS) and Resend report to their own endpoints so far, beside the `protobase` one a platform reports to.
+:::
+
+A mail provider tells the app when a message bounced or its recipient marked it as spam. With `mailFeedback` on, each report becomes a `mail_feedback` record, one per recipient, with the events `mail_feedback.bounced` and `mail_feedback.complained`, which [workflows](/reference/workflows/), [subscriptions](/reference/webhooks/) and your own code act on, such as marking a contact's address undeliverable. Protobase records and notifies only: it keeps sending to the address, and the app decides what a bounce means.
+
+Turn it on in the config, then run `protobase migration`, which writes its table, `mail.feedback`, and the capture of its events as migrations of the project's own; apply them with the project's migrations, as `protobase serve` refuses to start while the table is missing:
+
+```ts
+export default defineConfig({ mailFeedback: true })
+```
+
+Each provider reports to `POST /api/mail/feedback/<provider>` with the default [`apiPath`](/reference/config/api/#apipath), without sign-in, and has that endpoint only once its variable is set:
+
+| Provider | Variable | |
+| --- | --- | --- |
+| `ses` | `PROTOBASE_MAIL_FEEDBACK_SES_TOPICS` | The ARNs of the SNS topics SES publishes bounces and complaints to, separated by commas. Subscribe the endpoint to each topic over HTTPS: the endpoint confirms the subscription itself. |
+| `resend` | `PROTOBASE_MAIL_FEEDBACK_RESEND_SECRET` | The webhook's signing secret, `whsec_...`, of a webhook that sends `email.bounced` and `email.complained` to the endpoint. |
+| `protobase` | `PROTOBASE_SECRET` | The platform secret, which a hosting platform reports bounces and complaints with. |
+
+A value that is not a topic ARN or a signing secret stops startup, naming the variable.
+
+- **Signatures:** a report writes nothing unless its signature checks out. `ses` takes SNS's signature, versions 1 and 2, with the signing certificate fetched from an SNS host over HTTPS and kept an hour, and only messages of the named topics, since anyone can sign with a topic of their own. `resend` and `protobase` take [Standard Webhooks](https://www.standardwebhooks.com) signatures, made at most five minutes before. A missing or wrong signature answers `401`, another topic `403`.
+- **The record:** `type` is `bounce` or `complaint`; `bounce_type` `hard` (permanent) or `soft` (transient), and empty when the provider could not tell; `recipient`, lower-cased; `message_id`, the `Message-ID` header of the message it is about, when the report states it; `provider_message_id`, the provider's own id of that message; `reason`, as the provider gives it, such as the receiving server's diagnostic, a bounce subtype or a complaint's feedback type; `occurred_at`, when the provider says it happened; `provider`, `event_id`, the provider's id of the report, and `created_at`. A value the report does not state is empty, never guessed. Match it to the mail it answers by the [message id](#message-id) you stored.
+- **Once:** a provider sends a report again when it got no answer in time; the same report writes nothing new. A report of another kind, such as a delivery, answers `204` and writes nothing.
+- **Who sees it:** admins see the reports under **Mail feedback** in the admin app, and the app's code reads them as the `mail_feedback` resource, `GET /api/v1/mail_feedback?filter=recipient = "ada@example.com"`, filtered by `recipient`, `type`, `message_id` or `provider_message_id`. Nobody changes them but the endpoints.
+- **The `protobase` endpoint:** its body is one record as above, without `provider`, `event_id` and `created_at`, such as `{ "type": "bounce", "bounce_type": "hard", "recipient": "ada@example.com", "message_id": "<...>", "reason": "smtp; 550 5.1.1 user unknown" }`, signed as Standard Webhooks with a key derived from `PROTOBASE_SECRET`, so the secret itself never travels: `mailFeedbackHeaders(secret, id, body)` of `@protobase/server` makes the headers. `webhook-id` names the report, and a retry keeps it.
+- <gap>Other mail providers cannot report bounces and complaints because only the `ses`, `resend` and `protobase` endpoints are implemented.</gap>
 
 ## Attachments
 
@@ -290,6 +322,7 @@ export default defineFunction(async (request, { personalMail }) => {
 - **Sign-in is not a mailbox:** under **Mailbox**, the account page says when someone signs in with Google without having allowed it to send mail, so a linked Google sign-in is not taken for a connected mailbox.
 - <gap>The account page cannot show which account a mailbox is linked through or disconnect it because unlinking a mailbox is not implemented.</gap>
 - <gap>Mailboxes other than Gmail cannot be linked because no other mail provider is implemented.</gap>
+- **Bounces:** mail sent from someone's own mailbox bounces back to the sender, not to the app. It reaches none of the [mail feedback](#bounces-and-complaints) endpoints, so it makes no `mail_feedback` records and no `bounced` or `complained` events. Handling its bounces is the sender's own concern.
 - <gap>A send through Gmail cannot return its [message id](#message-id) because Gmail sets its own and reading it back needs a scope that reads the mailbox, which the link does not ask for.</gap>
 
 ### From addresses
@@ -325,6 +358,32 @@ export default defineFunction(async (request, { personalMail }) => {
 - **The account page's calls:** `GET /api/auth/account/mail-senders` lists the person's addresses with their mailbox's own `address`; `POST .../mail-senders/add { address, name?, signature? }`, `POST .../mail-senders/update { id, name?, signature?, isDefault? }` (`name: null` drops the name, `signature: null` drops its own) and `POST .../mail-senders/remove { id }` change them. Each acts on the signed-in person's own addresses only.
 - <gap>An entered address cannot be checked to work before mail goes out from it because the test mail through the mailbox is not implemented.</gap>
 - <gap>An address cannot be shared with others who send mail because proving that the person owns the address is not implemented.</gap>
+
+### A From address on a record
+
+:::caution[Beta]
+A removal refused over records does not say which records hold the address; and since addresses cannot be shared yet, everyone else sees an address on a shared record as not available.
+:::
+
+A record can hold the address its mail goes out from, such as a client's or the seller's "Send from": declare the field with `f.mailSender()`, on a `text` column, and pass its value to `send({ from })`.
+
+```ts
+send_from: f.mailSender().optional(),
+```
+
+- **The form:** a dropdown of the signed-in person's addresses, their mailbox's own first, then those they entered, each as `Name <address>` when it has a name. The empty choice, **Sender's default address**, stores `null`: mail goes out from the default address of whoever sends it.
+- **Saving:** a create or update may only set an address the saving person may send from, by the rule `send` uses; the address is stored as their sender spells it. Any other is refused with a `400` naming the field and the address. A visitor, and anyone on an app without personal mail, can set none.
+- **An address no longer offered,** such as one another person entered, still shows, marked **not available**, with a link to the account page. Saving other fields, or giving the same address again, leaves it as it is.
+- **Read views** show the address, with its name when it is one of the reader's.
+- **Removing an address in use:** while a record that is not soft-deleted holds it in an `f.mailSender()` field, removing it on the account page, or disconnecting the mailbox whose own address it is (`POST /api/auth/unlink-account`), is refused with a `409` and changes nothing:
+
+  ```json
+  { "code": "MAIL_SENDER_IN_USE", "message": "billing@shop.example is still the From address of records in this app. Give them another From address first." }
+  ```
+
+  The refusal names no records, since they may be records the person cannot read, such as another organization's. It is in the language the request's `Accept-Language` asks for. The address is matched without regard to case, as sending matches it, so an index on the column's `lower()` serves it.
+- <gap>A refused removal cannot name the records that hold the address because checking which of them the person may read is not implemented.</gap>
+- <gap>A mail sender field cannot offer addresses shared with the person, nor refuse unsharing one a record holds, because sharing an address is not implemented.</gap>
 
 ## In a bundle
 

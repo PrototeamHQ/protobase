@@ -1,4 +1,5 @@
 import semver from 'semver'
+import { missingCapabilities, type PluginCapabilities } from './plugin-capabilities'
 
 // Whether `text` is one comparator, `>=`, `>`, `<=`, `<` or `=` and a version: every app reads ranges of those, the
 // oldest included, which a caret or x-range written by a newer plugin would not be.
@@ -23,20 +24,28 @@ export const inRange = (version: string, range: string): boolean | undefined => 
   return semver.satisfies(version, range, { includePrerelease: true })
 }
 
-/** What a plugin's plugin.json says it is built for: a plugin API, and the Protobase versions it runs on. */
-export type PluginRequirement = { api: number; protobase: string }
+/**
+ * What a plugin's plugin.json says it is built for: a plugin API, what it uses from Protobase, and the Protobase versions
+ * it runs on when its author names them (`engines.protobase`).
+ */
+export type PluginRequirement = PluginCapabilities & { api: number; protobase?: string }
 
-/** An app that loads plugins: the plugin API its @protobase/ui provides, and its Protobase version. */
-export type PluginHost = { api: number; version: string }
+/** An app that loads plugins: the plugin API its @protobase/ui provides, its Protobase version, and what it provides. */
+export type PluginHost = PluginCapabilities & { api: number; version: string }
 
 /**
  * Why an app does not load a plugin built for `requirement`, or undefined when it does: the plugin API must be the
- * app's, and the app's Protobase version in the plugin's range.
+ * app's, the app's Protobase version in the plugin's range when it names one, and the app must provide everything the
+ * plugin uses.
  */
 export const pluginProblem = (requirement: PluginRequirement, host: PluginHost): string | undefined => {
   if (requirement.api !== host.api) return `it is built for plugin API ${requirement.api}, and this app has plugin API ${host.api}`
-  const fits = inRange(host.version, requirement.protobase)
-  if (fits === undefined) return `its Protobase range "${requirement.protobase}" is not one this app reads, such as >=0.12.0`
-  if (!fits) return `it needs Protobase ${requirement.protobase}, and this app runs ${host.version}`
+  if (requirement.protobase !== undefined) {
+    const fits = inRange(host.version, requirement.protobase)
+    if (fits === undefined) return `its Protobase range "${requirement.protobase}" is not one this app reads, such as >=0.12.0`
+    if (!fits) return `it needs Protobase ${requirement.protobase}, and this app runs ${host.version}`
+  }
+  const missing = missingCapabilities(requirement, host)
+  if (missing.length > 0) return `it uses what this app does not have: ${missing.join(', ')}`
   return undefined
 }

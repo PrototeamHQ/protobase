@@ -1,4 +1,6 @@
-/** How `/api/channels` and `/api/sb/realtime/v1` are served (`realtime` in `protobase.config.ts`). */
+import type { RealtimeRelayOptions } from '../../relay/relay-options'
+
+/** How `/api/channels` and `/api/sb/realtime/v1` are served, and the relay (`realtime` in `protobase.config.ts`). */
 export type RealtimeOptions = {
   /**
    * `'one'`, the default, when one process serves the app: broadcasts and presence go between its channels in memory.
@@ -11,6 +13,11 @@ export type RealtimeOptions = {
    * schema `protobase migration` writes.
    */
   sqlSends?: boolean
+  /**
+   * The relay the app hands realtime connections to, beside its own channels, so the app can sleep while people stay
+   * connected (see `RealtimeRelayOptions`).
+   */
+  relay?: RealtimeRelayOptions
 }
 
 /** Whether the options share broadcasts and presence between processes. */

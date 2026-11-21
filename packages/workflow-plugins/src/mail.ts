@@ -1,4 +1,5 @@
 import { StepError, type PluginMailMessage, type StepContext, type StepType } from '@protobase/workflows/plugin'
+import { sendInSeries, seriesInput, seriesOf, seriesOutput, type SeriesResult } from './mail-series'
 
 /** The most addresses one `app:mail.send` step sends to. */
 export const mailRecipients = 50
@@ -52,16 +53,15 @@ const send = async (context: StepContext) => {
   if (!mail) throw mailOff()
   if (typeof input.text !== 'string') throw invalid('text must be text')
   if (input.html !== undefined && typeof input.html !== 'string') throw invalid('html must be text')
-  const messageId = messageIdOf(idempotencyKey)
-  await mail.send({
+  const series = seriesOf(input.series)
+  const message = {
     to: recipients(input.to),
     subject: line(input.subject, 'subject'),
     text: input.text,
     ...(input.html !== undefined && { html: input.html }),
-    headers: { 'Message-ID': messageId },
     attachments: await attachmentsOf(input.attachments, context),
-  })
-  return { message_id: messageId }
+  }
+  return sendInSeries(mail, message, messageIdOf(idempotencyKey), series)
 }
 
 // The paths and messages of data a template's schema refused, as its send rejects it
@@ -86,11 +86,19 @@ const sendTemplate = async ({ input, mail, templates, idempotencyKey }: StepCont
       throw invalid('locale must be a BCP 47 language tag, such as nl or en-GB')
     }
   }
+  const series = seriesOf(input.series)
   const messageId = messageIdOf(idempotencyKey)
-  const mailer = { send: (message: PluginMailMessage) => mail.send({ ...message, headers: { ...message.headers, 'Message-ID': messageId } }) }
+  // The result of the one message the template sends, as the step gives it.
+  let result: SeriesResult = {}
+  const mailer = {
+    send: async (message: PluginMailMessage) => {
+      result = await sendInSeries(mail, message, messageId, series)
+      return {}
+    },
+  }
   try {
     const sent = await template.send(to, (input.data ?? {}) as object, { ...(locale !== undefined && { locale }), mailer, app: templates.app })
-    return { message_id: messageId, locale: sent.locale }
+    return { ...result, locale: sent.locale }
   } catch (error) {
     const issues = dataIssues(error)
     if (!issues) throw error
@@ -102,7 +110,7 @@ const sendTemplate = async ({ input, mail, templates, idempotencyKey }: StepCont
  * `app:mail.send`: one message from the app's own sender; a workflow cannot set the sender. `app:mail.template`: one of
  * the app's email templates, rendered with the step's data in the language closest to its locale, from the same
  * sender. Each one's Message-ID comes from the step's idempotency key, the same for each try, so a receiver can tell a
- * repeated try from a new mail.
+ * repeated try from a new mail. With a `series`, either is bulk mail of the series' topic (`sendInSeries`).
  */
 export const mailSteps: Record<string, StepType> = {
   'mail.send': {
@@ -119,9 +127,10 @@ export const mailSteps: Record<string, StepType> = {
         text: { description: 'the body as text' },
         html: { description: 'the body as HTML too' },
         attachments: { description: 'a list of file values the run keeps, at most 10 MiB together' },
+        series: seriesInput,
       },
     },
-    output: { type: 'object', description: '{ message_id }', properties: { message_id: { type: 'string' } } },
+    output: { type: 'object', description: '{ message_id }, with series { message_id, sent, skipped }', properties: { message_id: { type: 'string' }, ...seriesOutput } },
     errors: { InvalidArguments: 'an argument has the wrong type, named in the cause' },
     run: send,
   },
@@ -138,9 +147,10 @@ export const mailSteps: Record<string, StepType> = {
         to: { type: 'string', description: 'one address' },
         locale: { type: 'string', 'x-email-of': 'template', 'x-email-use': 'locale', description: "a BCP 47 language tag, such as nl or en-GB; the template's language closest to it, else the app's" },
         data: { type: 'object', 'x-email-of': 'template', description: "the template's data, as its schema takes it" },
+        series: seriesInput,
       },
     },
-    output: { type: 'object', description: '{ message_id, locale }', properties: { message_id: { type: 'string' }, locale: { type: 'string' } } },
+    output: { type: 'object', description: '{ message_id, locale }, with series { message_id, sent, skipped, locale }', properties: { message_id: { type: 'string' }, ...seriesOutput, locale: { type: 'string' } } },
     errors: {
       InvalidArguments: 'an argument has the wrong type, named in the cause',
       InvalidData: "the template's schema refused the data, each path named in the cause",

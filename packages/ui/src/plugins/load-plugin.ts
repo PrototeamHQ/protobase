@@ -5,6 +5,7 @@ import type { PluginInfo } from './plugin-context'
 import { parseManifest } from './plugin-manifest'
 import { pluginUi } from './plugin-ui'
 import { pluginApi, protobaseVersion } from './plugin-api'
+import { hostCapabilities } from './host-capabilities'
 import { text } from './messages'
 
 /** A plugin the app loaded, with its UI config, or one it did not load and why. */
@@ -35,7 +36,7 @@ export const browserLoader: PluginLoader = {
 }
 
 /** This app, as a plugin's plugin.json is checked against. */
-const thisApp: PluginHost = { api: pluginApi, version: protobaseVersion }
+const thisApp: PluginHost = { api: pluginApi, version: protobaseVersion, ...hostCapabilities }
 
 const describe = (error: unknown) => (error instanceof Error ? error.message : String(error))
 

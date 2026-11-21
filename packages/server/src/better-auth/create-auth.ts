@@ -10,6 +10,7 @@ import { resolvePersonalMail, type PersonalMailProviderId } from '../personal-ma
 import { personalMailer } from '../personal-mail/personal-mailer'
 import { mailLinkHooks } from '../personal-mail/mail-link-hooks'
 import { mailSendersPlugin } from '../personal-mail/mail-senders-plugin'
+import { mailSenderUseCheck, type MailSenderUseCheck } from '../personal-mail/mail-sender-use-check'
 import { adapterSenderStore } from '../personal-mail/sender-store'
 import { bothAccountHooks, connectionAccountHooks } from './connections/connection-account-hooks'
 import { connectionEvents, type ConnectionEvents } from './connections/connection-events'
@@ -395,6 +396,8 @@ type Resolved = {
   mobile?: MobileRequests
   /** What runs when a user is deleted (see `userDeletion`). */
   deletion?: UserDeletion
+  /** Whether records of the app hold a From address, asked before one goes (see `mailSenderUseCheck`). */
+  mailSenderUse?: MailSenderUseCheck
   /** The addresses of the accounts no one changes or deletes, from `PROTOBASE_LOCKED_ACCOUNTS` (see `lockAccounts`). */
   lockedAccounts?: string[]
   /** The workflow connections, from `resolveConnections`, and the listener of their links and disconnects. */
@@ -434,7 +437,7 @@ const pageLoadReads = ['/get-session', '/role/current', '/token']
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn = [], saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, lockedAccounts = [], connections, names = resolveNames({ schema: storeSchema({ options }), tables: options.tables }), ...plugins }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn = [], saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, mailSenderUse, lockedAccounts = [], connections, names = resolveNames({ schema: storeSchema({ options }), tables: options.tables }), ...plugins }: Resolved) => {
   const named = betterAuthNames(names)
   const mailProviders = resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true)
   const connectionHooks = connections && connections.resolved.length > 0 ? connectionAccountHooks(connections.resolved, connections.events) : undefined
@@ -581,7 +584,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       }),
       ...(passwordHashes.length > 0 ? [rehashPasswordsPlugin(passwordHashes)] : []),
       ...(personalAccessTokens ? [personalAccessTokensPlugin({ options: personalAccessTokens, definitions, names: named })] : []),
-      ...(mailProviders.length > 0 ? [mailSendersPlugin(mailProviders, named)] : []),
+      ...(mailProviders.length > 0 ? [mailSendersPlugin(mailProviders, named, mailSenderUse)] : []),
       // Last, so the staff plugin refuses staff sessions on the provider's paths before its own hooks run.
       ...(mcp ? loaded(plugins.mcpAuthPlugins, 'mcp')({ mcp, ...(api && { api }), organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context, names: named }) : []),
       ...(openId ? loaded(plugins.openIdProviderPlugins, 'openIdProvider')({ openId, mail: Boolean(mailer), defaultPolicy: signInPolicy, names: named }) : []),
@@ -710,11 +713,12 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const context = () => instance?.$context ?? Promise.reject(new Error('The auth instance is not made yet'))
   const mobile = mobileRequests()
   const deletion = userDeletion()
+  const senderUse = mailSenderUseCheck()
   // Deleting a user revokes their connected accounts and parks the triggers on them, as disconnecting each would.
   if (resolvedConnections.length > 0) deletion.set('connections', releaseUserConnections({ connections: resolvedConnections, events, allowPrivateAddresses, context }))
   const lockedAccounts = platformLockedAccounts()
   const names = resolveNames({ schema: storeSchema({ options }), tables: options.tables })
-  const authOptions = betterAuthOptions(options, { ...plugins, names, mobile, deletion, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
+  const authOptions = betterAuthOptions(options, { ...plugins, names, mobile, deletion, mailSenderUse: senderUse, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
@@ -732,6 +736,11 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
      * such as their devices; `run` is for a deletion outside Better Auth's endpoints (`deleteUser`).
      */
     userDeletion: { set: deletion.set, run: deletion.run },
+    /**
+     * Where records hold a From address, which the app `set`s once built: removing an address, or disconnecting the
+     * mailbox whose own address it is, is refused while records hold it.
+     */
+    mailSenderUse: { set: senderUse.set },
     /** Issuer and audience of the tokens: `baseURL`, on every origin. */
     issuer: options.baseURL,
     /** Every origin the app is served on, `baseURL`'s first. */

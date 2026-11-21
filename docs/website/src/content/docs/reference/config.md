@@ -29,7 +29,7 @@ Each key is described with its type and default in the option pages:
 | [Sign-in options](/reference/config/sign-in/) | `auth`, `authenticate`, `signingKeyDays`, `signingKeyGraceDays` |
 | [API options](/reference/config/api/) | `apiPath`, `apiKeys`, `cors`, `defaultAccess`, `rowPermissions`, `statementTimeoutMs`, `scanGuard`, `errorReporting`, `writeHooks`, `mcpEndpoint`, `remoteResources`, `runtimeUpdates`, `realtime`, `calls`, `userTables` |
 | [Admin app options](/reference/config/admin-app/) | `assistant`, `maps`, `plugins` |
-| [Jobs and events options](/reference/config/jobs-and-events/) | `jobs`, `events`, `history`, `webhooks`, `workflows`, `notifications`, `status`, `unsubscribe` |
+| [Jobs and events options](/reference/config/jobs-and-events/) | `jobs`, `events`, `history`, `webhooks`, `workflows`, `notifications`, `status`, `unsubscribe`, `mailFeedback` |
 | [Files options](/reference/config/files/) | `files` |
 
 ## Config types
@@ -105,7 +105,7 @@ The app's database is `DATABASE_URL`'s, with the pool size of `PROTOBASE_DB_CONN
 }
 ```
 
-JSON cannot branch on the command or compute a value; a config that needs to is written in TypeScript. `$schema` points the editor at the file's JSON Schema, which `@protobase/config` ships as `schema.json`, made from the same types as a TypeScript config: it completes and checks every key and value as it is typed, and takes an `$env` value wherever a value goes. Protobase itself leaves `$schema` out. Where a key holds the settings of a library underneath, such as `auth.socialProviders`, the schema takes any object, and the app checks it when it starts.
+JSON cannot branch on the command or compute a value; a config that needs to is written in TypeScript. `$schema` points the editor at the file's JSON Schema, which `@protobase/config` ships as `schema.json`, made from the same types as a TypeScript config: it completes and checks every key and value as it is typed, and takes an `$env` value wherever text, a number or a list goes, but not for a boolean or an object, which `$env` text cannot be. Protobase itself leaves `$schema` out. Where a key holds the settings of a library underneath, such as `auth.socialProviders`, the schema takes any object, and the app checks it when it starts.
 
 ## One config per project
 

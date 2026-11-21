@@ -69,6 +69,7 @@
     "defineUi",
     "diffStats",
     "emptyDraft",
+    "extensionPointsOf",
     "fileNamed",
     "isConflict",
     "isFramed",

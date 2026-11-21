@@ -46,6 +46,7 @@ const invalidValue: Record<string, (label: string, params: Params) => string | u
   enum: () => text('enum'),
   relation: () => text('relation'),
   json: () => text('json'),
+  mail_sender: (_, params) => (typeof params?.address === 'string' ? text('mailSender', { address: params.address }) : undefined),
 }
 
 /**

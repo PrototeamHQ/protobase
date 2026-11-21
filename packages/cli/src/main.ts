@@ -13,6 +13,7 @@ import { registerEncryption } from './encryption/register'
 import { registerMigration } from './migration/register'
 import { registerMobile } from './mobile/register'
 import { registerNotifications } from './notifications/register'
+import { registerRelay } from './relay/register'
 import { registerSkill } from './skill/register'
 import { registerImport } from './supabase/register'
 import { registerToken, registerUsers } from './users/register'
@@ -203,7 +204,7 @@ program
     const { buildPlugin, pluginManifestFile } = await import('./build/plugin-build')
     const manifest = await buildPlugin({ pluginDir, outDir, sourceMaps: opts.sourceMaps, ...(opts.name && { name: opts.name }) })
     const shown = path.relative(process.cwd(), outDir)
-    out(`built ${shown.startsWith('..') ? outDir : shown || '.'}: ${pluginManifestFile}, ${manifest.entry} and ${manifest.css} (${manifest.name}, plugin API ${manifest.api}, Protobase ${manifest.protobase})\n`)
+    out(`built ${shown.startsWith('..') ? outDir : shown || '.'}: ${pluginManifestFile}, ${manifest.entry} and ${manifest.css} (${manifest.name}, plugin API ${manifest.api}${manifest.protobase ? `, Protobase ${manifest.protobase}` : ''})\n`)
   })
 
 program
@@ -278,6 +279,7 @@ registerSkill(program)
 registerImport(program)
 registerMobile(program)
 registerNotifications(program)
+registerRelay(program)
 
 // Central error handler: commands throw, the user sees one line.
 export const run = (argv: string[]) =>

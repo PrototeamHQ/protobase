@@ -44,6 +44,8 @@ export const addressWords = {
   panel: 'panel',
   /** A record's file field opened in the viewer for its media type, by field name. */
   file: 'file',
+  /** The message whose thread a conversation page opens beside it, by its key. */
+  thread: 'thread',
 } as const
 
 const listWords = ['list', 'display', 'filter', 'orderBy', 'filterLayout', 'savedSearch'] as const
@@ -105,6 +107,7 @@ const recordQuery = (address: Extract<AppAddress, { kind: 'record' }>) => {
   if (address.run) query.set(addressWords.run, address.run)
   if (address.panel) query.set(addressWords.panel, address.panel)
   if (address.file) query.set(addressWords.file, address.file)
+  if (address.thread) query.set(addressWords.thread, address.thread)
   const text = query.toString()
   return text ? `?${text}` : ''
 }
@@ -172,6 +175,7 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
     const run = url.searchParams.get(addressWords.run) || undefined
     const panel = url.searchParams.get(addressWords.panel) || undefined
     const file = url.searchParams.get(addressWords.file) || undefined
+    const thread = url.searchParams.get(addressWords.thread) || undefined
     return {
       kind: 'record',
       resource: first,
@@ -185,6 +189,7 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
       ...(run && { run }),
       ...(panel && { panel }),
       ...(file && { file }),
+      ...(thread && { thread }),
     }
   }
   const params = url.searchParams

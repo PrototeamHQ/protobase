@@ -22,7 +22,7 @@ export const maybe: Condition = { maybe: true }
 type Truth = boolean | undefined
 
 // Types whose values compare exactly as text, whichever of number or text a row or a parameter holds them as.
-const exactTypes = new Set(['integer', 'bigint', 'text', 'uuid', 'enum', 'boolean', 'relation', 'currency', 'country'])
+const exactTypes = new Set(['integer', 'bigint', 'text', 'uuid', 'enum', 'boolean', 'relation', 'currency', 'country', 'mail_sender'])
 const numberTypes = new Set(['integer', 'bigint', 'decimal'])
 const timeTypes = new Set(['timestamp', 'date'])
 

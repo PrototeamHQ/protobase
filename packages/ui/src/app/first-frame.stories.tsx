@@ -37,7 +37,7 @@ const memoryStore = (): StartCacheStore => {
 const warmMs = 2500
 
 // A plugin served as its plugin.json and module would be, which `/meta` names
-const pluginFiles: Record<string, unknown> = { 'https://cdn.example.com/frame/plugin.json': { name: 'frame', api: pluginApi, protobase: '>=0.0.1', entry: 'index.js' } }
+const pluginFiles: Record<string, unknown> = { 'https://cdn.example.com/frame/plugin.json': { name: 'frame', api: pluginApi, imports: {}, extensionPoints: [], entry: 'index.js' } }
 const pluginLoader: PluginLoader = {
   readJson: async (url) => (url in pluginFiles ? { json: pluginFiles[url] } : { status: 404 }),
   addStylesheet: () => undefined,

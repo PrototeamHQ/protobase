@@ -63,5 +63,8 @@
     "button": "Unsubscribe",
     "doneTitle": "Unsubscribed",
     "done": "{recipient} gets no more {topic} mail."
+  },
+  "personal-mail": {
+    "MAIL_SENDER_IN_USE": "{address} is still the From address of records in this app. Give them another From address first."
   }
 }

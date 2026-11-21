@@ -57,7 +57,7 @@ let loaded: string[] = []
 const loaderFor = (module: Record<string, unknown>): PluginLoader => ({
   readJson: async (url) => {
     loaded.push(url)
-    return url === cloud ? { json: { name: 'cloud', api: 1, protobase: '>=0.0.1', entry: 'index.js' } } : { status: 404 }
+    return url === cloud ? { json: { name: 'cloud', api: 1, imports: {}, extensionPoints: [], entry: 'index.js' } } : { status: 404 }
   },
   addStylesheet: () => undefined,
   importModule: async (url) => {

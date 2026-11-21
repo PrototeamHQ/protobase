@@ -7,10 +7,10 @@ export const manifestFile = 'protobase.bundle.json'
 
 /**
  * A plugin the bundle carries under `public`: the project's own UI (`app`) or an `--extend` folder's. `path` is its
- * plugin.json inside `public`; `api` and `protobase` are what it is built for, and `fields` the field types it
- * provides with the storage types each shows.
+ * plugin.json inside `public`; `api` is the plugin API it is built for, `protobase` the Protobase versions its author
+ * names, if any, and `fields` the field types it provides with the storage types each shows.
  */
-export type BundlePlugin = { name: string; path: string; api: number; protobase: string; fields?: Record<string, string[]> }
+export type BundlePlugin = { name: string; path: string; api: number; protobase?: string; fields?: Record<string, string[]> }
 
 /**
  * The prebuilt app the bundle's `public` holds a copy of: the Protobase version and plugin API it is, and the paths
@@ -93,7 +93,7 @@ const isPlugin = (value: unknown): value is BundlePlugin =>
   typeof value.name === 'string' &&
   typeof value.path === 'string' &&
   Number.isInteger(value.api) &&
-  typeof value.protobase === 'string' &&
+  (value.protobase === undefined || typeof value.protobase === 'string') &&
   (value.fields === undefined || isFieldTypes(value.fields))
 
 const isShell = (value: unknown): value is BundleShell =>
@@ -116,7 +116,7 @@ export const parseManifest = (value: unknown, file: string): BundleLayout => {
   if (typeof server !== 'string' || typeof publicDir !== 'string' || typeof spa !== 'string' || typeof theme !== 'string' || !isStringList(api)) {
     throw new Error(`${file} needs server, public, spa and theme paths and an api list`)
   }
-  if (!Array.isArray(plugins) || !plugins.every(isPlugin)) throw new Error(`${file} needs a plugins list, each with a name, path, api and protobase`)
+  if (!Array.isArray(plugins) || !plugins.every(isPlugin)) throw new Error(`${file} needs a plugins list, each with a name, path and api`)
   if (!isShell(shell)) throw new Error(`${file} needs a shell with its protobase version, pluginApi and paths`)
   if (builtAt !== undefined && !isTime(builtAt)) throw new Error(`${file} has a builtAt that is no time in ms`)
   if (icons !== undefined && !isIcons(icons)) throw new Error(`${file} has icons that are not a favicon flag and a list of PNG icons`)

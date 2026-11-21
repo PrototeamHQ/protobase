@@ -17,6 +17,7 @@ import { linkTextOf, type RelationLabels } from '../../live/link-text'
 import { JsonBlock } from '../field-types/json/json-block'
 import { text as appText } from '../messages'
 import { FileLink } from '../file-viewers/file-link'
+import { MailSenderValue } from '../../mailbox/mail-sender-select'
 
 // A relation's target named as the record page names it, read unless the page already knows the name
 const RelationLink = ({ target, id, known }: { target: ResourceModel; id: string; known?: string }) => {
@@ -68,7 +69,7 @@ type ShownValueProps = {
 
 /**
  * A stored value as the view's `hints` show it, with no field type's display: a dash when empty, names for relations,
- * badges in the view's `valueColors` for enums and the `badge` format, timestamps as the `relative` format says, JSON
+ * badges in the view's `valueColors` for enums and the `badge` format, a mail sender as `Name <address>` when it is the reader's, timestamps as the `relative` format says, JSON
  * written out whole, an address as a link showing `linkText` when given and a file as a link to its download, or to its
  * viewer (`fileViewers`) when given its `model` and `record`.
  */
@@ -87,6 +88,7 @@ export const ShownValue = ({ field, value, hints, relationLabel, linkText, model
   }
   if (isMarkdown(field, hints)) return <Markdown source={String(value)} />
   if (field.type === 'json') return <JsonBlock value={value} />
+  if (field.type === 'mail_sender') return <MailSenderValue value={String(value)} />
   const text = displayValue(field, value, hints)
   const contact = field.type === 'text' ? contactFormat(hints) : undefined
   if (contact) return <ContactLink format={contact} value={text} label={linkText} />

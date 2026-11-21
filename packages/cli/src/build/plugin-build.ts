@@ -12,7 +12,8 @@ import { extensionImports } from '../project/extensions'
 import { sharedModules } from '../project/shared-modules'
 import { projectPackages } from '../version/project-packages'
 import { findPackageDirSync, readPackageJson, type PackageJson } from './packages/package-dir'
-import { pluginFieldTypes } from './plugin-fields'
+import { readPluginConfig } from './plugin-config'
+import { sharedImports } from './shared-imports'
 import { layerPluginUtilities } from './plugin-styles'
 import { firstPartyCode } from './first-party-code'
 
@@ -23,10 +24,22 @@ export const pluginEntryFile = 'protobase.ui.tsx'
 export const pluginManifestFile = 'plugin.json'
 
 /**
- * A plugin.json: the plugin's name and own version, the plugin API and Protobase versions it is built for, its module
- * and stylesheet relative to it, and the field types it registers with the storage types each shows.
+ * A plugin.json: the plugin's name and own version, the plugin API it is built for, the Protobase versions its author
+ * names in `engines.protobase`, if any, what it uses from Protobase (the names it imports from each shared module and
+ * the extension points it fills), its module and stylesheet relative to it, and the field types it registers with the
+ * storage types each shows. An app loads it when it has the plugin API and everything the plugin uses.
  */
-export type PluginManifest = { name: string; version?: string; api: number; protobase: string; entry: string; css: string; fields?: Record<string, string[]> }
+export type PluginManifest = {
+  name: string
+  version?: string
+  api: number
+  protobase?: string
+  imports: Record<string, string[]>
+  extensionPoints: string[]
+  entry: string
+  css: string
+  fields?: Record<string, string[]>
+}
 
 type UiPackageJson = PackageJson & { protobase?: { pluginApi?: number }; exports?: Record<string, unknown>; engines?: Record<string, string> }
 
@@ -41,9 +54,9 @@ const targetUiDir = (pluginDir: string, projectDir: string | undefined, bundled:
 }
 
 /**
- * What the plugin is built for, from its @protobase/ui (see `targetUiDir`): its plugin API, and Protobase from its
- * version on, unless the plugin's package.json names other versions in `engines.protobase`. Also that version's theme,
- * which the plugin's stylesheet draws with, and its folder.
+ * What the plugin is built for, from its @protobase/ui (see `targetUiDir`): its plugin API, and the Protobase versions
+ * the plugin's package.json names in `engines.protobase`, if any. Also that version's theme, which the plugin's
+ * stylesheet draws with, and its folder.
  */
 const pluginTarget = async (pluginDir: string, own: UiPackageJson, projectDir: string | undefined, bundled: boolean) => {
   const uiDir = targetUiDir(pluginDir, projectDir, bundled)
@@ -51,9 +64,9 @@ const pluginTarget = async (pluginDir: string, own: UiPackageJson, projectDir: s
   const api = ui.protobase?.pluginApi
   const theme = ui.exports?.['./theme.css']
   if (api === undefined || typeof theme !== 'string') throw new Error(`@protobase/ui ${ui.version} loads no plugins; install a version that does`)
-  const protobase = own.engines?.protobase ?? `>=${ui.version}`
+  const protobase = own.engines?.protobase
   // Only the range's form is checked here; which versions it holds is the app's to compare when it loads the plugin.
-  if (inRange(ui.version ?? '', protobase) === undefined) throw new Error(`engines.protobase "${protobase}" is not a range the app reads; write comparators such as >=0.12.0 <1.0.0`)
+  if (protobase !== undefined && inRange(ui.version ?? '', protobase) === undefined) throw new Error(`engines.protobase "${protobase}" is not a range the app reads; write comparators such as >=0.12.0 <1.0.0`)
   return { api, protobase, theme: path.join(uiDir, theme), uiDir }
 }
 
@@ -196,12 +209,15 @@ export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore 
   const module = output.find((file) => file.type === 'chunk' && file.isEntry && file.facadeModuleId === entry)
   const css = output.find((file) => file.type === 'asset' && file.fileName.endsWith('.css'))
   if (!module || !css) throw new Error('The plugin build wrote no module or no stylesheet')
-  const fields = stylesOnly ? {} : await pluginFieldTypes({ pluginDir, entry, uiDir: target.uiDir, projectDir, bundled })
+  const { fields, extensionPoints } = stylesOnly ? { fields: {}, extensionPoints: [] } : await readPluginConfig({ pluginDir, entry, uiDir: target.uiDir, projectDir, bundled })
+  const chunks = output.flatMap((file) => (file.type === 'chunk' ? [file] : []))
   const manifest: PluginManifest = {
     name: pluginName,
     ...(own.version && { version: own.version }),
     api: target.api,
-    protobase: target.protobase,
+    ...(target.protobase !== undefined && { protobase: target.protobase }),
+    imports: sharedImports(chunks),
+    extensionPoints,
     entry: module.fileName,
     css: css.fileName,
     ...(Object.keys(fields).length > 0 && { fields }),

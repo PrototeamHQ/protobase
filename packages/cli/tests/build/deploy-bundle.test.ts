@@ -126,7 +126,7 @@ describe('buildDeployBundle', () => {
     const outDir = path.join(projectDir, 'dist')
     const manifest = await buildDeployBundle({ projectDir, outDir })
     expect(manifest.protobase).toBe(protobaseVersion)
-    expect(manifest.plugins).toEqual([{ name: 'app', path: 'plugins/app/plugin.json', api: 1, protobase: `>=${protobaseVersion}` }])
+    expect(manifest.plugins).toEqual([{ name: 'app', path: 'plugins/app/plugin.json', api: 1 }])
     const code = await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')
     expect(code).toContain('from "@protobase/config"')
     expect(code).toContain('from "@protobase/server"')
@@ -285,7 +285,7 @@ describe('buildDeployBundle', () => {
     })
     const outDir = path.join(projectDir, 'dist')
     const manifest = await buildDeployBundle({ projectDir, outDir })
-    expect(manifest.plugins).toEqual([{ name: 'app', path: 'plugins/app/plugin.json', api: 1, protobase: `>=${protobaseVersion}` }])
+    expect(manifest.plugins).toEqual([{ name: 'app', path: 'plugins/app/plugin.json', api: 1 }])
     const plugin = JSON.parse(await readFile(path.join(outDir, 'public/plugins/app/plugin.json'), 'utf8')) as { entry: string; css: string }
     const code = await readFile(path.join(outDir, 'public/plugins/app', plugin.entry), 'utf8')
     expect(code).toContain('Board by')
@@ -302,7 +302,7 @@ describe('buildDeployBundle', () => {
     projectDir = await createProject({ 'config/index.ts': `${things}export { home } from './home/page'\n`, 'config/home/page.tsx': layout })
     const outDir = path.join(projectDir, 'dist')
     const manifest = await buildDeployBundle({ projectDir, outDir })
-    expect(manifest.plugins).toEqual([{ name: 'app', path: 'plugins/app/plugin.json', api: 1, protobase: `>=${protobaseVersion}` }])
+    expect(manifest.plugins).toEqual([{ name: 'app', path: 'plugins/app/plugin.json', api: 1 }])
     const plugin = JSON.parse(await readFile(path.join(outDir, 'public/plugins/app/plugin.json'), 'utf8')) as { css: string }
     expect(await readFile(path.join(outDir, 'public/plugins/app', plugin.css), 'utf8')).toContain('.tracking-\\[0\\.42em\\]{')
 
