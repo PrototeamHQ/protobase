@@ -44,6 +44,18 @@ The relay needs the app's own [sign-in](/reference/auth/), whose sessions its ti
 
 [`protobase relay app`](/reference/cli/#relay-app) prints the app's entry for the relay's apps file, from this config and the app's `url`.
 
+## Local development
+
+[`protobase dev`](/reference/cli/#dev) runs a relay of its own when `realtime.relay` has no `url`, such as with `RELAY_URL` unset in `.env`, so local realtime needs no second command. Add the relay's npm package to the project once:
+
+```sh
+npm install --save-dev @protobase/realtime
+```
+
+<gap>`protobase dev` cannot run the relay without the project installing `@protobase/realtime` because the CLI does not depend on it until the package is published.</gap>
+
+It starts the relay on the first load of a config with `realtime.relay`, an edit that adds it included, on a free port of `127.0.0.1`, serving this one app with the dev server's origin, and gives the app its address. The keys are the config's when it sets them, and otherwise made anew for each `protobase dev`. An edit that changes the app's id or keys starts it again, one that removes `realtime.relay` or sets a `url` stops it, and it stops with `dev`. Its own messages, such as an apps file it refuses, show in the terminal. With a `url`, the app uses that relay and `dev` starts none.
+
 ## Tickets
 
 A client connects to the relay with a ticket from `POST /api/relay/ticket`, with `{ "channels": [...] }`, optional, as JSON. The answer is `{ ticket, url, expiresAt }`: the relay's socket address and a ticket that connects once, within a minute. Every connection, a reconnect too, takes a new ticket.
