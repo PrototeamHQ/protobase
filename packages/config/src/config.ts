@@ -133,6 +133,14 @@ export type ProtobaseConfig = AppKeys &
      */
     unsubscribe?: boolean
     /**
+     * `true` takes the bounces and spam complaints of the mail the app sends as `mail_feedback` records, with the events
+     * `mail_feedback.bounced` and `mail_feedback.complained`, at `POST /api/mail/feedback/<provider>`: `ses` once
+     * `PROTOBASE_MAIL_FEEDBACK_SES_TOPICS` names its SNS topics, `resend` once `PROTOBASE_MAIL_FEEDBACK_RESEND_SECRET` is
+     * set, and `protobase` with `PROTOBASE_SECRET`. `protobase migration` writes its table, `mail.feedback`. Protobase
+     * sends on regardless: the app decides what a bounce means. Off by default.
+     */
+    mailFeedback?: boolean
+    /**
      * `true` keeps the tables the app's users add in its own database and serves each one like a resource of the config;
      * `protobase migration` writes the schemas they need. Off by default. With organizations, each keeps its own tables;
      * refused with `authenticate.organizations` alone.

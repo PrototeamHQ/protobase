@@ -385,3 +385,14 @@ Gives bulk mail a one-click unsubscribe: mail a job sends with `bulk: true` and 
 ```ts
 export default defineConfig({ unsubscribe: true })
 ```
+
+## mailFeedback
+
+- **Type:** `boolean`
+- **Default:** `false`
+
+Takes the bounces and spam complaints of the mail the app sends as `mail_feedback` records, with the events `mail_feedback.bounced` and `mail_feedback.complained`, at `POST /api/mail/feedback/<provider>` for each provider whose variable is set. The table, `mail.feedback`, and the capture of its events are written by `protobase migration` as migrations of the project's own: apply them with the project's migrations, as `protobase serve` refuses to start while the table is missing. See [Bounces and complaints](/reference/email/#bounces-and-complaints).
+
+```ts
+export default defineConfig({ mailFeedback: true })
+```

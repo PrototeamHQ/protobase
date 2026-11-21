@@ -5,7 +5,7 @@ import { migrationParts, type MigrationPart } from './parts'
 import type { MigrationProject } from './load-project'
 
 const tickets = resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
-const project = (models: MigrationProject['models'], readOnlyQueries = false) => ({ models, db: {} as MigrationProject['db'], jobs: [], userTables: false, unsubscribe: false, readOnlyQueries, authTables: { tables: [], schemas: [] }, close: async () => {} }) satisfies MigrationProject
+const project = (models: MigrationProject['models'], readOnlyQueries = false) => ({ models, db: {} as MigrationProject['db'], jobs: [], userTables: false, unsubscribe: false, mailFeedback: false, readOnlyQueries, authTables: { tables: [], schemas: [] }, close: async () => {} }) satisfies MigrationProject
 const names = (parts: MigrationPart[]) => parts.map((part) => part.name)
 
 describe('the migration parts', () => {
@@ -41,6 +41,10 @@ describe('the migration parts', () => {
   it('add the unsubscribes table only with unsubscribe', () => {
     expect(names(migrationParts({ ...project([]), unsubscribe: true }))).toEqual(['changes', 'computed', 'derived', 'unsubscribes'])
     expect(names(migrationParts(project([])))).not.toContain('unsubscribes')
+  })
+  it('add the jobs schema and the feedback table, before the changes that capture its events, only with mailFeedback', () => {
+    expect(names(migrationParts({ ...project([]), mailFeedback: true }))).toEqual(['jobs', 'mail_feedback', 'changes', 'computed', 'derived'])
+    expect(names(migrationParts(project([])))).not.toContain('mail_feedback')
   })
   it('add the schemas of user tables, then the delete of the definitions code owns, only with userTables', () => {
     expect(names(migrationParts({ ...project([]), userTables: true }))).toEqual(['changes', 'computed', 'derived', 'user_tables', 'owned_definitions'])
