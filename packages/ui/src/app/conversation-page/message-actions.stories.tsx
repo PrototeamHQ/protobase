@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, fireEvent, userEvent, waitFor, within } from 'storybook/test'
-import { ApiError, createStaticSession, type AuthSession, type LiveHandlers, type OrganizationPerson } from '@protobase/client'
+import { ApiError, createStaticSession, type Client, type AuthSession, type LiveHandlers, type OrganizationPerson } from '@protobase/client'
 import { f, resource, view } from '@protobase/schema'
 import { App } from '../app'
 import { fakeApi } from '../testing/fake-api'
@@ -129,8 +129,19 @@ const rows = () => ({
 /** The rows the fake server holds, so a play can check what the page wrote. */
 let stored: Record<string, Array<Record<string, unknown>>> = {}
 
+/** Lets through the held save of a message saying "slow", which waits until a play calls it. */
+let releaseSlowSave: () => void = () => undefined
+
 // The server's own refusals: a message saying "secret" is not saved, and Sam's messages are not Maya's to delete
 const refusal = (detail: string) => new ApiError({ type: 'urn:protobase:problem:forbidden', title: 'Forbidden', status: 403, detail })
+
+// An update that waits for releaseSlowSave when it writes a text saying "slow"
+const held =
+  (update: Client['update']): Client['update'] =>
+  async (resource, key, patch, etag) => {
+    if (String((patch as Record<string, unknown>).body).includes('slow')) await new Promise<void>((resolve) => (releaseSlowSave = resolve))
+    return update(resource, key, patch, etag)
+  }
 
 const Chat = ({ url }: { url: string }) => {
   const [client] = useState(() => {
@@ -154,6 +165,7 @@ const Chat = ({ url }: { url: string }) => {
     stored = created.rows
     return {
       ...created.client,
+      update: held(created.client.update),
       remove: async (...args: Parameters<typeof created.client.remove>) => {
         const [name, key] = args
         if (name === 'messages' && stored.messages!.find((row) => String(row.id) === String(key))?.author_id !== 'u-maya') throw refusal('Only its author deletes a message')
@@ -262,6 +274,34 @@ export const EditChecks: StoryObj = {
     const reason = await screen.findByText('Messages may not hold secrets')
     await waitFor(() => expect(reason).toBeVisible())
     expect(stored.messages!.find((row) => row.id === 2)!.body).toBe('Nice work\nthanks @Sam Okafor')
+  },
+}
+
+export const EditSavingChecks: StoryObj = {
+  ...MessageActions,
+  ...atDesktop,
+  name: 'Edit keeps its box read-only while it saves, and a late save closes no newer box (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click((await barOf(canvasElement, 'Nice work')).getByRole('button', { name: 'Edit' }))
+    const box = await canvas.findByRole<HTMLTextAreaElement>('combobox', { name: 'Edit the message' })
+    await userEvent.clear(box)
+    await userEvent.type(box, 'slow change{Enter}')
+    // Nothing typed while it saves goes in, so nothing is lost when it closes
+    await waitFor(() => expect(box).toHaveAttribute('readonly'))
+    await userEvent.type(box, ' more')
+    expect(box.value).toBe('slow change')
+    // Closed and opened again before the save ends, the new box stays open once it does
+    await userEvent.type(box, '{Escape}')
+    await waitFor(() => expect(canvas.queryByRole('combobox', { name: 'Edit the message' })).toBeNull())
+    await userEvent.click((await barOf(canvasElement, 'Nice work')).getByRole('button', { name: 'Edit' }))
+    const again = await canvas.findByRole<HTMLTextAreaElement>('combobox', { name: 'Edit the message' })
+    expect(again).not.toHaveAttribute('readonly')
+    releaseSlowSave()
+    await waitFor(() => expect(stored.messages!.find((row) => row.id === 2)!.body).toBe('slow change'))
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(canvas.getByRole('combobox', { name: 'Edit the message' })).toBe(again)
   },
 }
 

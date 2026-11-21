@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { MentionBox, mentionedIds, type MentionDraft, type PeopleSearch, type PickedUser } from '../../mentions'
 import { Button } from '../../primitives/button'
 import { text } from './messages'
@@ -18,20 +18,31 @@ type Props = {
 /**
  * A message's text in a box to change it, its mentions kept while their `@name` stays: Enter or Save keeps the trimmed
  * text, Shift+Enter starts a new line, Escape or Cancel leaves it as it was. An empty text is no edit: deleting is.
+ * The box is read-only while it saves, so nothing typed then is lost, and a save that ends after the box closed
+ * closes nothing, such as the box opened again on the same message.
  */
 export const MessageEditor = ({ body, picked, searchPeople, onSave, onCancel }: Props) => {
   const [draft, setDraft] = useState<MentionDraft>({ text: body, picked })
   const [saving, setSaving] = useState(false)
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   const trimmed = draft.text.trim()
   const save = async () => {
     if (trimmed === '' || saving) return
     if (trimmed === body) return onCancel()
     setSaving(true)
     const saved = await onSave(trimmed, mentionedIds(trimmed, draft.picked))
+    if (!mounted.current) return
     setSaving(false)
     if (saved) onCancel()
   }
   const keys = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.nativeEvent.isComposing) return
     if (event.key === 'Escape') return onCancel()
     if (event.key !== 'Enter' || event.shiftKey) return
     event.preventDefault()
@@ -39,7 +50,7 @@ export const MessageEditor = ({ body, picked, searchPeople, onSave, onCancel }: 
   }
   return (
     <div className="flex flex-col gap-2 whitespace-normal">
-      <MentionBox value={draft} onChange={setDraft} searchPeople={searchPeople} onKeyDown={keys} aria-label={text('editMessage')} autoFocus />
+      <MentionBox value={draft} onChange={setDraft} searchPeople={searchPeople} onKeyDown={keys} readOnly={saving} aria-label={text('editMessage')} autoFocus />
       <div className="flex gap-2">
         <Button size="sm" variant="primary" disabled={trimmed === ''} loading={saving} onClick={() => void save()}>
           {text('save')}
