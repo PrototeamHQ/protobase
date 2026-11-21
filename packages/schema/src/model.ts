@@ -1888,7 +1888,12 @@ export type ConversationPageModel = {
    * Anyone the resource's delete access allows deletes a message, after confirming: `true`, or `{ unless }`, a condition
    * on the message's own fields that keeps it, such as `reply_count > 0`.
    */
-  delete?: boolean | { unless: string }
+  delete?:
+    | boolean
+    | {
+        /** A condition on the message's own fields that keeps it from being deleted, such as `reply_count > 0`. */
+        unless: string
+      }
   /** Replies in a thread under a message, shown in a panel beside the conversation rather than in it. */
   thread?: ConversationThreadModel
   /** The hint in the empty box. */
@@ -1924,7 +1929,15 @@ export type ReactionsModel = {
   /** The enum field of the emoji; its values, in their order, are the set offered. */
   emoji: string
   /** Each value of `emoji` as it is drawn (`symbol`) and named (`name`), such as `{ thumbs_up: { symbol: '👍', name: 'Thumbs up' } }`. */
-  labels: Record<string, { symbol: string; name: string }>
+  labels: Record<
+    string,
+    {
+      /** The emoji as it is drawn, such as `👍`. */
+      symbol: string
+      /** The emoji's name, such as `Thumbs up`, which its button's label and tooltip use. */
+      name: string
+    }
+  >
 }
 
 /** Threads under a conversation's messages: a reply points at the thread's first message, which counts its replies. */
