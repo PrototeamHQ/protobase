@@ -1,8 +1,9 @@
-import { ddl } from '../ddl'
-import type { StoreMigration } from './migration'
+import { ddl } from '../../ddl'
+import type { Step } from '../step'
 
 /** The log of the operator's staff signing in as the app's people. */
-export const staffSignIn: StoreMigration = {
+export const staffSignIn: Step = {
+  step: 1,
   version: 5,
   name: 'staff_sign_in',
   title: "The log of staff sign-ins as the app's people",

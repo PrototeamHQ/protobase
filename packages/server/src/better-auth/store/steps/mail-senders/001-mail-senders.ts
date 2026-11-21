@@ -1,8 +1,9 @@
-import { ddl } from '../ddl'
-import type { StoreMigration } from './migration'
+import { ddl } from '../../ddl'
+import type { Step } from '../step'
 
 /** The From addresses people enter for the mailbox they linked, such as their Gmail's send-as aliases. */
-export const mailSenders: StoreMigration = {
+export const mailSenders: Step = {
+  step: 1,
   version: 9,
   name: 'mail_senders',
   title: 'The From addresses people send mail from through the mailbox they linked',

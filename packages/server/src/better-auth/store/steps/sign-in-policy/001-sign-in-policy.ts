@@ -1,8 +1,9 @@
-import { ddl } from '../ddl'
-import type { StoreMigration } from './migration'
+import { ddl } from '../../ddl'
+import type { Step } from '../step'
 
 /** The sign-in policy admins save, each save a row of its own. */
-export const signInPolicy: StoreMigration = {
+export const signInPolicy: Step = {
+  step: 1,
   version: 4,
   name: 'sign_in_policy',
   title: 'The sign-in policies admins saved',
