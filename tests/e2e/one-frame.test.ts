@@ -27,7 +27,7 @@ const overview = page(
 // A plugin of the app's bundle, which `/meta` names to everyone: the app loads it before it draws
 const pluginApi = (JSON.parse(await readFile(path.join(import.meta.dirname, '../../packages/ui/package.json'), 'utf8')) as { protobase: { pluginApi: number } }).protobase.pluginApi
 const pluginFiles: Record<string, { body: string; type: string }> = {
-  '/plugins/frame/plugin.json': { body: JSON.stringify({ name: 'frame', api: pluginApi, protobase: '>=0.0.0', entry: './index.js' }), type: 'application/json' },
+  '/plugins/frame/plugin.json': { body: JSON.stringify({ name: 'frame', api: pluginApi, imports: {}, extensionPoints: [], entry: './index.js' }), type: 'application/json' },
   '/plugins/frame/index.js': { body: 'export default {}', type: 'text/javascript' },
 }
 
