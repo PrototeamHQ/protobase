@@ -223,7 +223,7 @@ export default defineConfig({ auth: { accountDeletion: false } })
 
 ## auth.tables
 
-- **Type:** `{ prefix?: string } & { [table: string]: { name?: string; columns?: Record<string, string> } }`
+- **Type:** `{ prefix?: string }`, and for each [built-in table](/reference/auth/#table-and-column-names), by its name, `{ name?: string; columns?: { [column]?: string } }` with its built-in columns as keys
 - **Default:** the built-in names
 
 The names of the auth store's tables and columns in the database, where the app wants others than the built-in ones: `prefix` goes before the name of every table it does not name, and each table, by its built-in name, takes its own `name` and `columns`, each column by its built-in name. `id` keeps its name. A name past Postgres's 63 bytes is refused. See [Table and column names](/reference/auth/#table-and-column-names).
