@@ -1,7 +1,13 @@
 import { useState } from 'react'
+import type { AttachmentsModel } from '@protobase/schema'
 import { Composer } from '../../chat'
 import type { PeopleSearch } from '../../mentions'
 import { useClient } from '../../data/api-provider'
+import { acceptOf } from '../../live/file-values'
+import { AttachmentPicker } from '../conversation-page/attachment-picker'
+import { sendOps } from '../conversation-page/message-ops'
+import { PendingAttachments } from '../conversation-page/pending-attachments'
+import { useAttachmentUploads } from '../conversation-page/use-attachment-uploads'
 import { ErrorBanner } from '../error-banner'
 import { useAdminMeta, usePermissions } from '../meta-gate'
 import { can } from '../permissions'
@@ -19,26 +25,38 @@ export type MessageComposerProps = {
   searchPeople?: PeopleSearch
   /** The JSON field the ids of the people a message mentions go in. */
   mentions?: string
+  /** The files a message carries, picked, pasted or dropped in the box and uploaded at once. */
+  attachments?: AttachmentsModel
 }
 
 /**
  * A box that sends a message: each send creates a record of `resource` with the text in `field`, the ids of the people
- * it mentions in `mentions` and the `values`, for a user who may create one.
+ * it mentions in `mentions` and the `values`, for a user who may create one. With `attachments`, a button left of the box
+ * picks files, and pasted and dropped ones join them: each uploads at once and shows above the box, the message waits
+ * for their uploads and is written with them in one batch, and once one is uploaded it may go without text.
  */
-export const MessageComposer = ({ resource, field, values, placeholder, searchPeople, mentions }: MessageComposerProps) => {
+export const MessageComposer = ({ resource, field, values, placeholder, searchPeople, mentions, attachments }: MessageComposerProps) => {
   const { resources } = useAdminMeta()
   const client = useClient()
   const refresh = useRefreshResource()
   const permissions = usePermissions(resource)
   const [sending, setSending] = useState(false)
   const [failure, setFailure] = useState<unknown>()
+  const files = useAttachmentUploads(attachments)
   if (!resources[resource] || !can(permissions, 'create')) return null
+
+  const fileField = attachments && resources[attachments.resource]?.fields[attachments.file]
+  const fileAccept = fileField && acceptOf(fileField)
 
   // The text stays in the box until the server took it, so a refused message can be sent again
   const send = async (message: string, mentioned: string[]) => {
     setSending(true)
     setFailure(undefined)
-    const sent = await client.create(resource, { ...values, [field]: message, ...(mentions !== undefined && { [mentions]: mentioned }) }).then(
+    const tickets = files.tickets
+    // A message of files alone has no text
+    const data = { ...values, ...(message !== '' && { [field]: message }), ...(mentions !== undefined && { [mentions]: mentioned }) }
+    const write = attachments && tickets.length > 0 ? client.batchWrite(sendOps(resource, data, attachments, tickets)) : client.create(resource, data)
+    const sent = await write.then(
       () => true,
       (error: unknown) => {
         setFailure(error)
@@ -46,14 +64,28 @@ export const MessageComposer = ({ resource, field, values, placeholder, searchPe
       },
     )
     setSending(false)
-    if (sent) void refresh(resource)
-    return sent
+    if (!sent) return false
+    void refresh(resource)
+    if (attachments) files.sent(tickets)
+    if (attachments && tickets.length > 0) void refresh(attachments.resource)
+    return true
   }
 
   return (
     <div className="flex flex-col gap-2">
       {failure !== undefined && <ErrorBanner title={text('notSent')} error={failure} />}
-      <Composer onSend={send} busy={sending} placeholder={placeholder} searchPeople={searchPeople} />
+      <Composer
+        onSend={send}
+        busy={sending || files.uploading}
+        placeholder={placeholder}
+        searchPeople={searchPeople}
+        {...(attachments && {
+          actions: <AttachmentPicker onPick={files.pick} accept={fileAccept} />,
+          attachments: files.uploads.length > 0 && <PendingAttachments uploads={files.uploads} onRemove={files.remove} />,
+          canSendEmpty: files.ready,
+          onFiles: files.pick,
+        })}
+      />
     </div>
   )
 }

@@ -26,6 +26,8 @@ export const keys = {
   startRecord: (resource: string, filter: string, orderBy: string, organization: string) => ['list', resource, filter, orderBy, 'start-record', organization] as const,
   /** Every reaction to a page of a conversation's messages; starts with `list`, so it refreshes with the reactions' lists. */
   reactionsOf: (resource: string, filter: string) => ['list', resource, filter, 'reactions-of'] as const,
+  /** Every file of a page of a conversation's messages; starts with `list`, so it refreshes with the files' lists. */
+  attachmentsOf: (resource: string, filter: string) => ['list', resource, filter, 'attachments-of'] as const,
   first: (resource: string, filter: string, orderBy: string) => ['first-page', resource, filter, orderBy] as const,
   record: (resource: string, key: string) => ['record', resource, key] as const,
   /** The picture an API function draws for an `Image` block, at a size and theme. */

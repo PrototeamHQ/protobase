@@ -42,7 +42,7 @@ export const ConversationPage = ({ page, scope }: Props) => {
           <ConversationMessages page={page} model={model} recordKey={scope.key} me={me} position={position} threadTo={threaded && thread.to} searchPeople={searchPeople} />
           {position.error !== undefined && <p className="shrink-0 px-4 text-sm text-danger-text">{text('positionNotSaved')}</p>}
           <div className="shrink-0 px-3 pb-3">
-            <MessageComposer resource={page.resource} field={page.text} values={{ [page.field]: keyValue(scope.model, scope.key) }} placeholder={page.placeholder} searchPeople={searchPeople} mentions={page.mentions} />
+            <MessageComposer resource={page.resource} field={page.text} values={{ [page.field]: keyValue(scope.model, scope.key) }} placeholder={page.placeholder} searchPeople={searchPeople} mentions={page.mentions} attachments={page.attachments} />
           </div>
         </div>
         {threaded && thread.open !== undefined && <ThreadPanel key={thread.open} page={threaded} owner={scope.model} recordKey={scope.key} first={thread.open} me={me} searchPeople={searchPeople} onClose={thread.close} />}

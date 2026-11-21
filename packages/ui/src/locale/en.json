@@ -713,7 +713,16 @@
     "couldNotLoadThread": "Could not load the thread",
     "threadElsewhere": "This thread is not in this conversation",
     "couldNotLoadReactions": "Could not load the reactions",
-    "notCopied": "Not copied"
+    "notCopied": "Not copied",
+    "attachFiles": "Attach files",
+    "filesToAttach": "Files to attach",
+    "filesToSend": "Files to send",
+    "takeFileOff": "Take {name} off",
+    "fileTooLarge": "Too large: {size}, at most {max}",
+    "fileNotUploaded": "Not uploaded: {reason}",
+    "uploadedPercent": "{percent}%",
+    "fileMissing": "This file is missing",
+    "couldNotLoadFiles": "Could not load the files"
   },
   "app/create": {
     "title": "New <lower>{noun}</lower>",

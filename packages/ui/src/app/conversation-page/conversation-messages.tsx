@@ -32,7 +32,8 @@ type Props = {
  * The record's messages, the latest page with earlier ones on request, read with the reader's own access and their
  * senders' names in the same read, kept current as the live updates tell of new, changed and deleted ones. They show
  * once the read position is there too, so they open on the "New messages" line, and reading to the end moves it. They
- * scroll in a box of their own, so the box that sends one stays in view. Their reactions are read a page at a time.
+ * scroll in a box of their own, so the box that sends one stays in view. Their reactions and files are read a page at a
+ * time.
  */
 export const ConversationMessages = ({ page, model, recordKey, me, position, threadTo, searchPeople }: Props) => {
   const { resources, views } = useAdminMeta()
@@ -40,7 +41,7 @@ export const ConversationMessages = ({ page, model, recordKey, me, position, thr
   const list = useList(model.name, { ...messagesRequest(page, recordKey), labels: listLabels(resources, views, model, senders) })
   const oldestFirst = withLabels(resources, model, senders, list.items, list.labels).reverse()
   const key = (row: Record<string, unknown>) => String(keyOf(model, row))
-  const { setup, reactionsError } = useMessageSetup({ page, me, pages: (list.data?.pages ?? []).map((read) => read.items.map(key)), threadTo, searchPeople })
+  const { setup, reactionsError, attachmentsError } = useMessageSetup({ page, me, pages: (list.data?.pages ?? []).map((read) => read.items.map(key)), threadTo, searchPeople })
   const state = threadState(list)
   const loaded = state === 'messages' && !list.isLoading && position.ready
   const newLineAbove = useNewLine(loaded && oldestFirst.length > 0 && position.openedAt !== undefined && me !== undefined, () =>
@@ -58,6 +59,7 @@ export const ConversationMessages = ({ page, model, recordKey, me, position, thr
     <>
       {showsErrorAbove(list) && <div className="shrink-0 p-2"><ErrorBanner title={text('couldNotLoad')} error={list.error} onRetry={retryOf(list)} /></div>}
       {reactionsError !== undefined && <div className="shrink-0 p-2"><ErrorBanner title={text('couldNotLoadReactions')} error={reactionsError} /></div>}
+      {attachmentsError !== undefined && <div className="shrink-0 p-2"><ErrorBanner title={text('couldNotLoadFiles')} error={attachmentsError} /></div>}
       <ChatThread
         length={oldestFirst.length}
         followKey={own?.key}

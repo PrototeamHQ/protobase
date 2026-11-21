@@ -43,6 +43,7 @@ export type {
   ConversationPageModel,
   ReadPositionModel,
   ReactionsModel,
+  AttachmentsModel,
   ConversationThreadModel,
   SearchesOfModel,
   SignInPromptModel,

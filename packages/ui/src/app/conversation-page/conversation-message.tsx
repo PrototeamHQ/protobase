@@ -7,6 +7,7 @@ import { buttonClass } from '../../primitives/button'
 import { DeleteMessageDialog } from './delete-message-dialog'
 import { MessageActionsBar } from './message-actions-bar'
 import { MessageActionsSheet } from './message-actions-sheet'
+import { MessageAttachments } from './message-attachments'
 import { MessageEditor } from './message-editor'
 import type { MessageSetup } from './message-setup'
 import { ReactionChips } from './reaction-chips'
@@ -29,8 +30,8 @@ const idsOf = (value: unknown) => (Array.isArray(value) ? value.filter((id): id 
 
 /**
  * One message under its author, named after the organization's member with their id when there is one: its text with
- * the people it mentions picked out as `MentionedText` does, or a box to change it while its author edits it; in the
- * conversation itself its thread's replies; and a footer of "(edited)" once changed and its reactions. What the reader
+ * the people it mentions picked out as `MentionedText` does, or a box to change it while its author edits it; its files;
+ * in the conversation itself its thread's replies; and a footer of "(edited)" once changed and its reactions. What the reader
  * can do to it shows in a bar while they point at it, or, by touch, in a sheet a tap or long-press opens, which also
  * copies its text; a button only a keyboard or screen reader reaches opens that sheet on a touch screen too.
  */
@@ -43,6 +44,7 @@ export const ConversationMessage = ({ setup, row, messageKey, author, time, cont
   const body = row[page.text] == null ? '' : String(row[page.text])
   const mine = me !== undefined && author.id === me
   const name = member(author.id)?.name ?? author.name
+  const files = setup.attachmentsOf(messageKey)
   const mentionIds = page.mentions === undefined ? [] : idsOf(row[page.mentions])
   const controls = useMessageControls(setup, { row, key: messageKey, mine, body, onEdit: () => setEditing(true), onDelete: () => setDeleting(true) })
   const edited = page.edited === undefined ? undefined : row[page.edited]
@@ -85,8 +87,9 @@ export const ConversationMessage = ({ setup, row, messageKey, author, time, cont
               onCancel={() => setEditing(false)}
             />
           ) : (
-            <MentionedText text={body} mentions={mentionIds.map((id) => ({ name: member(id)?.name }))} />
+            body !== '' && <MentionedText text={body} mentions={mentionIds.map((id) => ({ name: member(id)?.name }))} />
           )}
+          {files.length > 0 && <MessageAttachments attachments={files} />}
           {replies > 0 && controls.thread && <ThreadSummary count={replies} last={last} to={controls.thread} />}
         </ChatMessage>
       </div>
@@ -95,7 +98,7 @@ export const ConversationMessage = ({ setup, row, messageKey, author, time, cont
           onClose={() => setDeleting(false)}
           onDelete={() => {
             setDeleting(false)
-            void setup.writes.remove(messageKey)
+            void setup.writes.remove(messageKey, files)
           }}
         />
       )}
