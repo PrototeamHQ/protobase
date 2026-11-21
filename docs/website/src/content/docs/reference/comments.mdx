@@ -7,7 +7,7 @@ import { Code } from '@astrojs/starlight/components'
 import StoryFrame from '../../../components/StoryFrame.astro'
 import tickets from '../../../../../../docs-examples/comments/tickets.ts?raw'
 
-A resource with [`.comments()`](/api/schema/interfaces/resourcebuilder/#comments) takes comments on its records: plain text, each with its author and time. Typing `@` in a comment mentions someone, who gets an email with a link to the record. <gap>Comments cannot be edited.</gap> <gap>Comments have no replies.</gap> <gap>Comments have no reactions.</gap>
+A resource with [`.comments()`](/api/schema/interfaces/resourcebuilder/#comments) takes comments on its records: text with [formatting](#formatting), each with its author and time. Typing `@` in a comment mentions someone, who gets an email with a link to the record. <gap>Comments cannot be edited.</gap> <gap>Comments have no replies.</gap> <gap>Comments have no reactions.</gap>
 
 <Code code={tickets} lang="ts" title="config/tickets.ts" />
 
@@ -16,6 +16,14 @@ A resource with [`.comments()`](/api/schema/interfaces/resourcebuilder/#comments
 [`l.comments(title?, { when })`](/api/schema/variables/l/#comments) shows the record's comments oldest first, the newest just above the box to write one; Show earlier comments loads those before. ⌘/Ctrl+Enter or the Comment button posts. A view without a layout shows Comments last by itself. A view that names `l.comments()` for a resource without `.comments()` stops startup. A visitor who is not signed in sees the comments but no box.
 
 <StoryFrame id="record-page-comments--thread" title="A ticket's comments, one mentioning a colleague" height={620} />
+
+## Formatting
+
+A comment is stored as written and shown with a chat's markdown: `**bold**`, `_italic_`, `~~strikethrough~~`, `` `code` ``, code blocks between ```` ``` ```` lines, `-` and `1.` lists and `> ` quotes, with each line break kept. Web addresses, `www.` ones included, and `[text](address)` links open in a new tab; a link whose text names another web address than the one it opens shows the address it opens. A mention is picked out inside formatted text too, but not inside code.
+
+It follows chat habits where markdown would surprise: a line under a quote or a list item is no part of it, a quote needs the space after `>` (`>5 failed logins` stays as typed), bold comes only from `**` (`__init__` stays as typed), and only fences make code blocks, not indented lines. What a message rarely means stays as typed too: `#` headings, `---` rules, tables, images and link definitions. Raw HTML shows as text, and a link goes only to an `http(s)`, `mailto` or `tel` address or a relative one, so a `javascript:` link shows as its text; the result is sanitised again before it reaches the page.
+
+<StoryFrame id="record-page-comments--formatted" title="A formatted comment, and one whose script link and HTML show as text" height={620} />
 
 ## Mentions
 
