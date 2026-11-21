@@ -149,13 +149,14 @@ A **lookup field** shows a field of the record its record is linked to, such as 
 
 ## Time rollups
 
-:::caution[In development]
-Coming soon:
+:::caution[Beta]
+Not yet:
 
-- <gap>A time rollup cannot keep itself up to date because the recurring job that refreshes its latest buckets is not implemented.</gap> Until then the migration fills it once, and calling its refresh function brings it up to date.
+- <gap>A time rollup cannot recount records that arrive later than `late` by itself because a rebuild command for older ranges is not implemented.</gap>
+- <gap>A time rollup cannot average an optional field because a count of its records with a value is not implemented.</gap>
 :::
 
-A large events table, such as millions of meter readings, gets a **time rollup**: a table with one row per hour or day and per group, holding how many records fell in it and the sums and greatest values of their numbers. A chart over months then reads a few thousand rows instead of millions. You declare the rollup as a resource over the events resource, and [`protobase migration`](/reference/cli/#migration) writes its table, indexes and refresh function into the project's next migration (`NNN_computed.sql`), with the rollup filled once. It is plain Postgres: no extension.
+A large events table, such as millions of meter readings, gets a **time rollup**: a table with one row per hour or day and per group, holding how many records fell in it and the sums and greatest values of their numbers. A chart over months then reads a few thousand rows instead of millions. You declare the rollup as a resource over the events resource, and [`protobase migration`](/reference/cli/#migration) writes its table, indexes and refresh function into the project's next migration (`NNN_computed.sql`), with the rollup filled once. From then on the app keeps it up to date by itself, at most a minute behind. It is plain Postgres: no extension.
 
 <Code code={timeRollups} lang="ts" title="docs-examples/reference/time-rollups.ts" />
 
@@ -180,9 +181,15 @@ The rollup's records have these fields, all read-only:
 | `<field>_sum` | The sum of the field: a bigint for an integer, a decimal of ten more digits for a bigint or a decimal. Empty when every value was. |
 | `<field>_max` | The greatest value of the field, of its type. Empty when every value was. |
 
-Records the source soft deleted are left out. The migration creates the table in the rollup's schema, with a unique index on `(bucket, by...)` and an index on `(group, bucket)` per group, so a list filtered on the bucket, on a group or on both passes the [scan guard](/reference/api/#safety). It writes `rollups.<table>_refresh(from timestamptz)`, which recomputes every bucket from the one `from` falls in, in one statement: it upserts their counts and sums and deletes those left without records. `select rollups.readings_hourly_refresh(now() - interval '2 hours')` brings the example up to date. When the rollup's declaration changes, the migration drops its table and creates and fills it again. The table and function of a rollup the config no longer has stay; a migration of your own drops them, in a deploy after the one that stops reading them.
+Records the source soft deleted are left out. The migration creates the table in the rollup's schema, with a unique index on `(bucket, by...)` and an index on `(group, bucket)` per group, so a list filtered on the bucket, on a group or on both passes the [scan guard](/reference/api/#safety). It writes `rollups.<table>_refresh(from timestamptz)`, which recomputes every bucket from the one `from` falls in, in one statement: it upserts their counts and sums and deletes those left without records. When the rollup's declaration changes, the migration drops its table and creates and fills it again. The table and function of a rollup the config no longer has stay; a migration of your own drops them, in a deploy after the one that stops reading them.
 
 Only the database writes a rollup's rows: creates, updates and deletes are refused whatever its rules say, and it cannot have soft delete, a manual order, an author, a parent or `.openExisting()`. Its access is its own `.access()`: the source's rules do not reach it, so give it rules that let read only those who may see every record of a group. Its tenant is the source's, which is why `by` includes it. A field that is sensitive or has its own read rule, such as `.access({ read: roles.can('costs.read') })`, cannot be grouped by or measured, and one with its own read rule cannot be the rollup's `time`, since a bucket would show it to anyone who reads the rollup. The server does not start while the source has its own `read` or `list` rule in `.access()`, whatever the rule returns, or while a role reads only some of the source's records that a bucket mixes with others: `.own` or `.team` while `by` does not include the source's owner field, or a role's filter on fields outside `by`. <gap>A time rollup cannot group by an optional field because a bucket key with empty parts is not implemented.</gap> <gap>A time rollup cannot roll up a resource whose reads follow a parent because applying the parent's access to buckets is not implemented.</gap> <gap>A time rollup cannot roll up a resource with its own `read` or `list` access rule because declaring the fields such a rule filters on is not implemented.</gap>
+
+### Keeping it up to date
+
+The app's [jobs](/reference/jobs/) keep every time rollup up to date: a built-in [recurring job](/reference/jobs/#recurring-jobs), `buckets.refresh`, runs every minute and calls each rollup's refresh function from `late` before now, one query per rollup, such as `select rollups.readings_hourly_refresh(now() - interval '2 hours')` for the example. So the buckets from that time on take in the records added, changed and deleted since, and a dashboard on the rollup is at most a minute behind, while one run only reads the source's records of the last `late`. A failed run is not retried, as the next minute's run recomputes the same buckets; it is listed on the [Failed jobs page](/reference/jobs/#failed-jobs-page). A time rollup turns jobs on, so [`protobase migration`](/reference/cli/#migration) writes the [jobs schema](/reference/jobs/#the-jobs-schema) too, and the rollup is refreshed wherever the app runs its jobs, such as `protobase serve` or a [`protobase worker`](/reference/cli/#worker).
+
+A record that arrives, or changes, later than `late` after its time is counted only by a refresh from before it: call the rollup's function yourself with an earlier time, such as `select rollups.readings_hourly_refresh('2026-07-01')`, which recomputes every bucket from that day's first hour in one statement. <gap>A time rollup cannot recount records that arrive later than `late` by itself because a rebuild command for older ranges is not implemented.</gap>
 
 The server does not start while a rollup's table or function is missing or out of date, with a message that names the rollup; the migration fixes that. It stops with an error, without writing anything, when the table already exists as the project's own.
 

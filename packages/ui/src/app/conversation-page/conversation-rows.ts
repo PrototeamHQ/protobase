@@ -42,14 +42,19 @@ export const conversationRows = (oldestFirst: Row[], { key, sender, time }: Mess
     ]
   })
 
+const keysOf = (rows: Row[], key: (row: Row) => string) => rows.map((row) => Number(key(row)))
+
 /**
  * The key of the message the "New messages" line goes above: the first after `lastRead`, the key of the newest message
- * the reader read, by someone other than `me`; none when none is unread. When that is the first message loaded and
- * earlier ones are not, the first unread one may be among those, so there is no line rather than one in the wrong place.
+ * the reader read, by someone other than `me`; none when none is unread. When earlier messages are not loaded and the
+ * lowest loaded key is past `lastRead`, the first unread one may be among those, so there is no line rather than one in
+ * the wrong place.
  */
 export const firstUnreadKey = (oldestFirst: Row[], { key, sender }: Omit<MessageFields, 'time'>, lastRead: number, me: string, hasEarlier: boolean) => {
-  const index = oldestFirst.findIndex((row) => Number(key(row)) > lastRead && authorOf(row[sender]).id !== me)
-  if (index === -1) return
-  if (index === 0 && hasEarlier) return
-  return key(oldestFirst[index]!)
+  if (hasEarlier && Math.min(...keysOf(oldestFirst, key)) > lastRead) return
+  const found = oldestFirst.find((row) => Number(key(row)) > lastRead && authorOf(row[sender]).id !== me)
+  return found && key(found)
 }
+
+/** The highest key among the messages, the one reading them all reads to, whatever order their times put them in. */
+export const highestKey = (rows: Row[], key: (row: Row) => string) => (rows.length === 0 ? undefined : Math.max(...keysOf(rows, key)))

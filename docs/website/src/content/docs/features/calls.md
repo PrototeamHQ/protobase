@@ -4,6 +4,7 @@ description: Audio and video calls between an app's users, through LiveKit or pe
 ---
 
 - [Calls](/reference/calls/) (beta): Voice and video calls on any record, with screen sharing, a ready-made call view and ringing on any open page, and guest links that let someone from outside join one call.
+- [Calls on conversation pages](/reference/ui-config/#calls) (beta): A configured conversation starts and joins its record's call from its header, and shows the call beside the messages, or above them at mobile width, with no component of your own.
 - [LiveKit](/reference/calls/#livekit) (in development): The media goes through a LiveKit server, self-hosted or LiveKit Cloud, which Protobase speaks to for each member.
 - [Peer to peer](/reference/calls/#peer-to-peer) (in development): With no media server, the members' browsers send their media straight to each other, for small calls.
 - [Admitting members](/reference/calls/#admitting-members) (in development): A function of your own admits the caller to a call with what they may send and whose tracks they hear.

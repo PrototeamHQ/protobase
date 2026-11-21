@@ -1,11 +1,12 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
-import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
+import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkRelaySchema, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
 import { projectIcons } from '../build/app-icons'
 import { projectErrorReporter } from '../project/error-reporter'
 import { servedAdmin } from '../project/served-admin'
 import { buildProject } from '../config/build-project'
 import { devJobs } from './dev-jobs'
+import { withDevRelay } from './dev-relay'
 import { devRealtimePrune } from './dev-prune'
 import { devDatabase, loadDevConfig } from './project'
 import { withDevServiceWorker } from './service-worker-route'
@@ -14,7 +15,8 @@ import { setMissing, supabaseEnv } from './supabase-env'
 // Loaded by Vite's SSR module graph (see run.ts). Editing any file it imports re-evaluates this module
 // on the next request, which rebuilds the API; `/meta` then reports a new X-Meta-Version.
 const projectDir = process.env.PROTOBASE_PROJECT!
-const config = await loadDevConfig(projectDir, JSON.parse(process.env.PROTOBASE_EXTENSIONS ?? '[]'))
+// A `realtime.relay` without a url gets the relay protobase dev runs (see dev-relay.ts).
+const config = await withDevRelay(await loadDevConfig(projectDir, JSON.parse(process.env.PROTOBASE_EXTENSIONS ?? '[]')), projectDir, process.env.PROTOBASE_DEV_URL!)
 const database = devDatabase(projectDir)
 const { db } = database
 // The app as it serves, built from the config: its references loaded, auth and the authenticator made.
@@ -44,6 +46,7 @@ if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
 if (project.workflows) await checkWorkflowsSchema(db, project.workflows)
 if (relayed(project.realtime)) await checkRealtimeRelay(db)
 if (sqlSends(project.realtime)) await checkChannelSends(db)
+if (project.realtime?.relay) await checkRelaySchema(db, project.auth)
 if (project.notifications) await checkNotificationsSchema(db, project.notifications, project.auth)
 if (project.status) await checkStatusSchema(db, project.status, project.auth)
 if (project.userTables) await checkUserTablesSchema(db)

@@ -44,6 +44,8 @@ describe('the error handler while the database or its pooler restarts', () => {
     ['57P01', 'terminating connection due to administrator command'],
     ['57P03', 'the database system is starting up'],
     ['08P01', 'server shutting down'],
+    ['08P01', 'server login has been failing, cached error: the database system is in recovery mode (server_login_retry)'],
+    ['08P01', 'server login has been failing, cached error: the database system is starting up'],
   ])('answers SQLSTATE %s with 503 and Retry-After, and reports nothing', async (code, message) => {
     const { response, body, reported } = await answer(databaseError(message, code))
     expect(response.status).toBe(503)
@@ -54,6 +56,13 @@ describe('the error handler while the database or its pooler restarts', () => {
 
   it('keeps any other SQLSTATE 08P01, such as a login refusal, a reported 500', async () => {
     const { response, reported } = await answer(databaseError('no such user: app', '08P01'))
+    expect(response.status).toBe(500)
+    expect(reported).toHaveBeenCalledOnce()
+  })
+
+  it("keeps the pooler's cached login error of any other kind, such as a password failure, a reported 500", async () => {
+    const message = 'server login has been failing, cached error: password authentication failed for user "app" (server_login_retry)'
+    const { response, reported } = await answer(databaseError(message, '08P01'))
     expect(response.status).toBe(500)
     expect(reported).toHaveBeenCalledOnce()
   })
