@@ -454,3 +454,18 @@ describe("a person's own invitations", () => {
     expect(await (await app.request('/api/auth/invitation/accept-own', { cookie: ana, body: { invitationId: id } })).json()).toMatchObject({ code: 'INVITATION_INVALID' })
   })
 })
+
+describe('creating an organization by its name', () => {
+  it('derives the slug from the name, adds a suffix when another has it, and names the app\'s word in the status', async () => {
+    const names = { singular: 'Workspace', plural: 'Workspaces' }
+    const ids = ['3', '4']
+    const app = await serve({ organizations: { generateId: () => ids.shift()!, create: 'everyone', names, createDescription: 'Where your team talks.' } }, { people: true })
+    const bo = await app.signIn('bo@example.com')
+    const fresh = await app.request('/api/auth/organization/create', { cookie: bo, body: { name: ' Initech  ' } })
+    expect(await fresh.json()).toMatchObject({ id: '3', name: 'Initech', slug: 'initech' })
+    const clash = await (await app.request('/api/auth/organization/create', { cookie: bo, body: { name: 'Acme' } })).json()
+    expect(clash).toMatchObject({ id: '4', name: 'Acme', slug: expect.stringMatching(/^acme-[a-z0-9]{6}$/) })
+    expect((await app.request('/api/auth/organization/create', { cookie: bo, body: { name: '  ' } })).status).toBe(400)
+    expect((await (await app.request('/api/auth/status')).json()).organizations).toMatchObject({ create: 'everyone', names, createDescription: 'Where your team talks.' })
+  })
+})

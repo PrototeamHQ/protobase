@@ -753,7 +753,29 @@ await listOrganizations(auth, { after?, size? })                                
 await addAppRoleToOwners(auth, appRole)                                               // a role the project added later, to every owner
 ```
 
-The app's own pages are under the profile menu: the switcher, "Manage organizations" (theirs, a new one, and for global roles any one), "Organization" (details, leaving, handing over, deleting), and for owners and admins "Members" and "Invitations". The client has them as `session.organizations` (`list`, `current`, `switchTo`, `members`, `invite`, ...).
+The app's own pages are under the profile menu: the switcher, "Manage organizations" (theirs, a new one, and for global roles any one), "Organization" (details, leaving, handing over, deleting), and for owners and admins "Members" and "Invitations". The client has them as `session.organizations` (`list`, `current`, `switchTo`, `members`, `invite`, ...). `session.organizations.create({ name })` makes one from its name alone: the server makes the slug from the name, and when another organization has that slug, adds a dash and six random letters and digits, such as `acme-k3x9q2`. The organization page changes the slug afterwards.
+
+### First organization and start address
+
+:::caution[Beta]
+The start address is the same for everyone in an app; it does not yet remember where each person was last.
+:::
+
+Someone signed in who works in no organization, such as the first person in a new app, sees one screen before anything else, whatever address they opened: at `/-/first-organization`, with the app's mark and no sidebar entries, they name their first organization in one field and press Create. With invitations waiting for their address, the screen lists those first, each with Join, and "Create a new organization instead" leads to the form at `/-/first-organization/new`. Someone who may not create one (`create: 'admins'`) and has no invitation is told to ask for one. The screen names who is signed in, with Sign out, and for someone with a global role links to every organization. Creating or joining opens the app at its start address. Until they work in one, the shell shows none of the app's resources, on the account pages and the organizations page too.
+
+The word the screens use for an organization is yours: `names` takes it as a view's names are written, and `createDescription` adds a line under the screen's title. The built-in texts around the word come in English and Dutch, on this screen, the organization pages and the profile menu:
+
+```ts
+auth: {
+  organizations: {
+    create: 'everyone',
+    names: { singular: 'Workspace', plural: 'Workspaces' },
+    createDescription: 'Your team talks here, in channels.',
+  },
+}
+```
+
+The screen then reads "Create your workspace", its field "Workspace name" and its button "Create workspace". <gap>The organization word cannot come in each reader's language because translations of `auth.organizations.names` are not implemented.</gap> `/` opens the record a sidebar entry names with [`nav({ start })`](/reference/sidebar/#start-record), such as a chat's #general channel, found by a filter on an indexed field; without one, or when nothing matches, the first sidebar entry, as before.
 
 ## Tokens and roles
 

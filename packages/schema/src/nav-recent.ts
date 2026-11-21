@@ -8,7 +8,7 @@ export const defaultRecentLimit = 3
 
 const maxLimit = 20
 
-const filterErrors = (model: ResourceModel, source: string) => {
+export const filterErrors = (model: ResourceModel, source: string) => {
   const parsed = parseFilter(source)
   if (!parsed.ok) return parsed.errors
   if (!parsed.ast) return []
@@ -16,7 +16,7 @@ const filterErrors = (model: ResourceModel, source: string) => {
   return checked.ok ? [] : checked.errors
 }
 
-const orderByErrors = (model: ResourceModel, source: string) => {
+export const orderByErrors = (model: ResourceModel, source: string) => {
   const parsed = parseOrderBy(source)
   if (!parsed.ok) return parsed.errors
   const checked = checkOrderBy(model, parsed.items)

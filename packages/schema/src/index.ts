@@ -93,6 +93,7 @@ export type {
   NamedListModel,
   NavModel,
   NavRecentModel,
+  NavStartModel,
   StatusTone,
   UserMenuItemModel,
   UserMenuModel,

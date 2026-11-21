@@ -7,6 +7,12 @@ export const ClientStartContext = createContext(0)
 /** The answer a query holds came from the start cache and has not been fetched again since the client started. */
 export const isRestored = (state: Pick<QueryState, 'data' | 'dataUpdatedAt'>, startedAt: number) => state.data !== undefined && state.dataUpdatedAt < startedAt
 
+/** The query holds an answer fetched since the client started, rather than one restored from the start cache. */
+export const isAnsweredNow = (state: Pick<QueryState, 'data' | 'dataUpdatedAt'>, startedAt: number) => state.data !== undefined && !isRestored(state, startedAt)
+
+/** The query's last fetch failed, also when `keepCachedOnFailure` kept its cached answer a success. */
+export const lastFetchFailed = (result: { isError: boolean; failureCount: number }) => result.isError || result.failureCount > 0
+
 /**
  * What the page shows of the start cache: `stale` while a query on screen still holds a cached answer, `refreshing`
  * while one of those is being fetched again, `failed` once one could not be, as its fetch failed (see

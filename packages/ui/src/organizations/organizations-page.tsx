@@ -1,76 +1,30 @@
-import { useEffect, useState } from 'react'
-import type { Organization, OrganizationInvitation } from '@protobase/client'
 import { AccountSection, SectionError } from '../account/account-section'
 import { PageHeader } from '../app-shell'
 import { useAuth } from '../auth/auth-provider'
 import { isAdmin } from '../auth/user-to-shell'
-import { Button } from '../primitives/button'
-import { Input } from '../primitives/input'
 import { AllOrganizations } from './all-organizations'
+import { MyInvitationRow } from './my-invitation-row'
+import { NewOrganizationForm } from './new-organization-form'
 import { OrganizationRow } from './organization-row'
-import { roleLabel } from './organization-paths'
+import { useOrganizationText } from './organization-word'
 import { useAction } from './use-action'
+import { useMyInvitations } from './use-my-invitations'
 import { reopenIn, type OrganizationsState } from './use-organizations'
-import { formatTag } from '../locale/active-locale'
-import { text } from './messages'
 
-/** A slug from a name: lowercase ASCII words joined by dashes, as the server accepts them. */
-export const slugOf = (name: string) =>
-  name
-    .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 63)
-
-const NewOrganization = ({ basePath }: { basePath: string }) => {
-  const { session } = useAuth()
-  const [name, setName] = useState('')
-  const [slug, setSlug] = useState<string>()
-  const { busy, error, run } = useAction()
-  const create = () => run(async () => {
-    await session.organizations.create({ name: name.trim(), slug: slug ?? slugOf(name) })
-    reopenIn(basePath)
-  })
-  return (
-    <AccountSection title={text('newOrganization')} description={text('newOrganizationDescription')}>
-      <SectionError message={error} />
-      <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); void create() }}>
-        <Input aria-label={text('name')} placeholder={text('name')} value={name} onChange={(event) => setName(event.target.value)} wrapperClassName="flex-1" />
-        <Input aria-label={text('slug')} placeholder="slug" value={slug ?? slugOf(name)} onChange={(event) => setSlug(event.target.value)} wrapperClassName="sm:w-48" />
-        <Button type="submit" variant="primary" loading={busy} disabled={!name.trim()}>{text('create')}</Button>
-      </form>
-    </AccountSection>
-  )
-}
-
-/** The invitations for the person's own address, each to accept, which opens the app in its organization. */
+/** The invitations for the person's own address, each to join, which opens the app in its organization. */
 const YourInvitations = ({ basePath }: { basePath: string }) => {
-  const { session, organizations } = useAuth()
-  const [invitations, setInvitations] = useState<OrganizationInvitation[]>([])
+  const { session } = useAuth()
+  const t = useOrganizationText()
+  const read = useMyInvitations()
+  const invitations = read.state === 'ready' ? read.invitations : undefined
   const { busy, error, run } = useAction()
-  useEffect(() => {
-    void session.organizations.myInvitations().then(setInvitations, () => setInvitations([]))
-  }, [session])
-  if (invitations.length === 0) return null
-  const roles = organizations?.roles ?? []
-  const accept = (invitationId: string) => run(async () => {
-    await session.organizations.acceptMine(invitationId)
-    reopenIn(basePath)
-  })
+  if (!invitations || invitations.length === 0) return null
   return (
-    <AccountSection title={text('invitationsForYou')} description={text('invitationsForYouDescription')}>
+    <AccountSection title={t('invitationsForYou')} description={t('invitationsForYouDescription')}>
       <SectionError message={error} />
       <ul className="divide-y rounded-md border">
         {invitations.map((invitation) => (
-          <li key={invitation.id} className="flex items-center gap-3 px-3 py-2.5">
-            <span className="min-w-0 flex-1">
-              <span className="font-medium">{invitation.organizationName ?? text('anOrganization')}</span>: {invitation.appRoles.map((name) => roleLabel(roles, name)).join(', ') || text('noAppRoles')}
-              <span className="block text-xs text-muted-foreground">{text('until', { date: new Date(invitation.expiresAt).toLocaleDateString(formatTag()) })}</span>
-            </span>
-            <Button size="sm" variant="primary" loading={busy} onClick={() => void accept(invitation.id)}>{text('accept')}</Button>
-          </li>
+          <MyInvitationRow key={invitation.id} invitation={invitation} t={t} busy={busy} onJoin={() => void run(async () => { await session.organizations.acceptMine(invitation.id); reopenIn(basePath) })} />
         ))}
       </ul>
     </AccountSection>
@@ -83,14 +37,15 @@ const YourInvitations = ({ basePath }: { basePath: string }) => {
  */
 export const OrganizationsPage = ({ state, basePath }: { state: OrganizationsState; basePath: string }) => {
   const { session, organizations: settings, state: auth } = useAuth()
+  const t = useOrganizationText()
   const { busy, error, run } = useAction()
   const user = auth.kind === 'signed-in' ? auth.user : undefined
   const mayCreate = settings?.create === 'everyone' || (user !== undefined && isAdmin(user))
   const currentId = state.current?.organization?.id
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">
-      <PageHeader title={text('organizations')} subtitle={text('organizationsSubtitle')} />
-      <AccountSection title={text('yourOrganizations')} description={state.organizations.length > 0 ? text('memberOf') : text('notMember')}>
+      <PageHeader title={t('organizations')} subtitle={t('organizationsSubtitle')} />
+      <AccountSection title={t('yourOrganizations')} description={state.organizations.length > 0 ? t('memberOf') : t('notMember')}>
         <SectionError message={error ?? state.error} />
         {state.organizations.length > 0 && (
           <ul className="divide-y rounded-md border">
@@ -101,7 +56,11 @@ export const OrganizationsPage = ({ state, basePath }: { state: OrganizationsSta
         )}
       </AccountSection>
       <YourInvitations basePath={basePath} />
-      {mayCreate && <NewOrganization basePath={basePath} />}
+      {mayCreate && (
+        <AccountSection title={t('newOrganization')} description={t('newOrganizationDescription')}>
+          <NewOrganizationForm onCreated={() => reopenIn(basePath)} />
+        </AccountSection>
+      )}
       {(state.current?.globalRoles.length ?? 0) > 0 && <AllOrganizations basePath={basePath} currentId={currentId} />}
     </div>
   )

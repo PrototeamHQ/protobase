@@ -1,7 +1,7 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
-import type { RecordPageModel, ActionInputModel, AppAddress, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, RecordTrendModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ThreadSectionModel, ViewModel } from '@protobase/schema'
-import { addressErrors, chartFields, followableRowButton, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay, textPlaceholders, type RefShape } from '@protobase/schema/internal'
+import type { RecordPageModel, ActionInputModel, AppAddress, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, ComposerSectionModel, CustomFallbackItemModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, RecordTrendModel, NavModel, NavRecentModel, NavStartModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TitleFromModel, TabModel, ThreadSectionModel, ViewModel } from '@protobase/schema'
+import { addressErrors, chartFields, followableRowButton, hrefPlaceholders, promptFields, navRecentErrors, navStartErrors, pruneByShape, shapes as s, tableDisplay, textPlaceholders, type RefShape } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { pruneThreadSection } from './view-conversation'
@@ -268,6 +268,9 @@ const recentFor = (recent: NavRecentModel, model: ResourceModel) => {
   return navRecentErrors(shown, model).length === 0 ? shown : undefined
 }
 
+// A start record whose filter or order reads a field the caller cannot read goes, and the app opens the first entry.
+const startFor = (start: NavStartModel, model: ResourceModel) => (navStartErrors(start, model).length === 0 ? start : undefined)
+
 // Every part of a view, and what a field the caller cannot read does to it. The compiler wants a shape for each part,
 // so a part added to ViewModel is named here before it reaches anyone.
 const viewShape = (
@@ -279,7 +282,7 @@ const viewShape = (
   writeOnly: ReadonlySet<string>,
   creatable: Readonly<Record<string, readonly string[]>>,
 ) => {
-  const nav = s.object<NavModel>({ hidden: s.data, creatorsOnly: s.data, group: s.data, order: s.data, tenant: s.data, create: s.data, recent: s.map<NavRecentModel>((recent) => recentFor(recent, model)) })
+  const nav = s.object<NavModel>({ hidden: s.data, creatorsOnly: s.data, group: s.data, order: s.data, tenant: s.data, create: s.data, recent: s.map<NavRecentModel>((recent) => recentFor(recent, model)), start: s.map<NavStartModel>((start) => startFor(start, model)) })
   // A chart goes when the caller cannot read a field it groups, counts over or adds up
   const chart = s.map<ChartModel>((chart) => (chartFields(chart).every((name) => Object.hasOwn(model.fields, name)) ? chart : undefined))
   return s.object<ViewModel>({

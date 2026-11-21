@@ -15,7 +15,13 @@ export type ShellUser = { name: string; email: string; initials: string; hue: nu
 export type ProfileMenuItem = { id: string; label: string; icon: LucideIcon; href: string; external?: boolean; active?: boolean }
 
 /** The organizations to switch between: the one worked in, and the person's others. */
-export type ProfileOrganizations = { current?: { id: string; name: string }; others: { id: string; name: string }[]; onSwitch: (id: string) => void }
+export type ProfileOrganizations = {
+  /** The switcher's heading, such as the app's own word for its organizations; "Organizations" by default. */
+  label?: string
+  current?: { id: string; name: string }
+  others: { id: string; name: string }[]
+  onSwitch: (id: string) => void
+}
 
 /** The person's own status: its mark beside their name, and the item that opens the picker, named for whether they have one. */
 export type ProfileStatus = { mark?: ReactNode; label: ReactNode; onOpen: () => void }
@@ -126,7 +132,7 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], accou
       )}
       {organizations && (organizations.current || organizations.others.length > 0) && (
         <SwitchGroup
-          label={text('organizations')}
+          label={organizations.label ?? text('organizations')}
           {...(organizations.current && { current: { id: organizations.current.id, label: organizations.current.name } })}
           others={organizations.others.map(({ id, name }) => ({ id, label: name }))}
           rowClassName={menuRow}

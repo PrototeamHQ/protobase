@@ -8,6 +8,8 @@ export const keys = {
   organizations: ['session', 'organizations'] as const,
   /** The members of the organization `id`, with their roles, for its members page. */
   organizationMembers: (id: string) => ['session', 'members', id] as const,
+  /** The invitations for the signed-in person's own address. */
+  myInvitations: ['session', 'my-invitations'] as const,
   /** A source's `/meta`, as far as the app draws it: its URL, and the resources the app lists for it. */
   sourceMeta: (url: string, resources: readonly string[]) => ['source-meta', url, resources.join(',')] as const,
   /** Every `/meta` query of the source at `url`. */
@@ -20,6 +22,8 @@ export const keys = {
   pages: (resource: string, filter: string, orderBy: string) => ['page', resource, filter, orderBy] as const,
   /** A sidebar group's records; starts with `list`, so invalidating a resource's lists refreshes it too. */
   navRecent: (resource: string, filter: string, orderBy: string, pageSize: number) => ['list', resource, filter, orderBy, pageSize, 'nav-recent'] as const,
+  /** The record the app opens at `/` in `organization` (`''` without), found by its sidebar entry's `nav.start` (`useStartAddress`). */
+  startRecord: (resource: string, filter: string, orderBy: string, organization: string) => ['list', resource, filter, orderBy, 'start-record', organization] as const,
   first: (resource: string, filter: string, orderBy: string) => ['first-page', resource, filter, orderBy] as const,
   record: (resource: string, key: string) => ['record', resource, key] as const,
   /** The picture an API function draws for an `Image` block, at a size and theme. */

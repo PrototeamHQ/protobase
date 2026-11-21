@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CurrentOrganization, RoleLabel } from '@protobase/client'
 import { grantableRoles, organizationMenuItems } from './organization-paths'
+import { wordedText } from './organization-word'
 
 const roles: RoleLabel[] = [
   { name: 'admin', label: 'Superuser', membership: false, grants: [] },
@@ -10,19 +11,24 @@ const roles: RoleLabel[] = [
   { name: 'user', label: 'No global role', membership: false, grants: [] },
 ]
 const acme = { id: '1', name: 'Acme', slug: 'acme' }
-const ids = (current?: CurrentOrganization) => organizationMenuItems('/admin', '/-/organization', current).map((item) => item.id)
+const ids = (current?: CurrentOrganization) => organizationMenuItems('/admin', '/-/organization', wordedText(), current).map((item) => item.id)
 
 describe('the organization menu items', () => {
   it('give everyone their organizations, members the current one, and owners and admins its people', () => {
     expect(ids(undefined)).toEqual(['organizations'])
     expect(ids({ organization: acme, role: 'member', appRoles: [], globalRoles: [] })).toEqual(['organizations', 'organization'])
     expect(ids({ organization: acme, role: 'admin', appRoles: [], globalRoles: [] })).toEqual(['organizations', 'organization', 'members', 'invitations'])
-    expect(organizationMenuItems('/admin', '/-/organization', { organization: acme, globalRoles: [] })[1]).toMatchObject({ href: '/admin/-/organization', active: true })
+    expect(organizationMenuItems('/admin', '/-/organization', wordedText(), { organization: acme, globalRoles: [] })[1]).toMatchObject({ href: '/admin/-/organization', active: true })
   })
 
   it('name the organizations page apart from the switcher above them, which lists the organizations already', () => {
-    const labels = organizationMenuItems('/admin', '/-/organization', { organization: acme, role: 'member', appRoles: [], globalRoles: [] }).map((item) => item.label)
+    const labels = organizationMenuItems('/admin', '/-/organization', wordedText(), { organization: acme, role: 'member', appRoles: [], globalRoles: [] }).map((item) => item.label)
     expect(labels).toEqual(['Manage organizations', 'Organization'])
+  })
+
+  it("name the app's word for an organization when it sets one", () => {
+    const labels = organizationMenuItems('/admin', '/-/organization', wordedText({ singular: 'Workspace', plural: 'Workspaces' }), { organization: acme, role: 'member', appRoles: [], globalRoles: [] }).map((item) => item.label)
+    expect(labels).toEqual(['Manage workspaces', 'Workspace'])
   })
 })
 

@@ -223,6 +223,15 @@ describe('pruneView', () => {
     expect(pruneView(dotted, all.repairs, all).nav).toEqual(dotted.nav)
   })
 
+  it('keeps a start record unless its filter or order names a hidden field', () => {
+    const cheap = view<typeof repairs>('repairs').nav({ start: { filter: 'number = "R-1"' } }).toModel()
+    const byCost = view<typeof repairs>('repairs').nav({ start: { filter: 'number = "R-1"', orderBy: 'costPrice desc' } }).toModel()
+    const hidden = without({ repairs: ['costPrice'] })
+    expect(pruneView(cheap, hidden.repairs!, hidden).nav).toEqual({ start: { filter: 'number = "R-1"' } })
+    expect(pruneView(byCost, hidden.repairs!, hidden).nav).toEqual({})
+    expect(pruneView(byCost, all.repairs, all).nav).toEqual(byCost.nav)
+  })
+
   it("keeps the sidebar entry's create link, for the admin to offer to whoever may create", () => {
     const labelled = view<typeof repairs>('repairs').nav({ create: { label: 'Book a repair' } }).toModel()
     expect(pruneView(labelled, all.repairs, all).nav).toEqual({ create: { label: 'Book a repair' } })

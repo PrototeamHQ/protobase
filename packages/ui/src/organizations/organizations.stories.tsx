@@ -185,19 +185,19 @@ export const AllOrganizations: StoryObj<{ search: Organizations['search'] }> = {
   args: { search: fn(searchEvery) },
   render: (args) => (
     <WithSession session={sessionWith({ search: args.search })}>
-      <OrganizationsPage basePath="" state={{ organizations: [], current: { organization: null, globalRoles: ['support'] }, reload: fn() }} />
+      <OrganizationsPage basePath="" state={{ organizations: [], current: { organization: null, globalRoles: ['support'] }, reload: fn(), fresh: true, failed: false }} />
     </WithSession>
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    expect(await canvas.findByText('You are not a member of an organization yet.')).toBeVisible()
+    expect(await canvas.findByText('You are not a member of any organization yet.')).toBeVisible()
     expect(await canvas.findByText('Customer 00')).toBeVisible()
     expect(await canvas.findByText('20 of 25')).toBeVisible()
     await userEvent.click(canvas.getByRole('button', { name: 'Show more' }))
     expect(await canvas.findByText('Customer 24')).toBeVisible()
     expect(canvas.getByText('25 of 25')).toBeVisible()
     expect(canvas.queryByRole('button', { name: 'Show more' })).toBeNull()
-    await userEvent.type(canvas.getByRole('textbox', { name: 'Find an organization' }), 'glo')
+    await userEvent.type(canvas.getByRole('textbox', { name: 'Search organizations' }), 'glo')
     expect(await canvas.findByText('1 of 1')).toBeVisible()
     expect(canvas.getByText('Globex')).toBeVisible()
     expect(canvas.queryByText('Customer 00')).toBeNull()
@@ -211,14 +211,14 @@ export const InvitationsForYou: StoryObj<{ acceptMine: Organizations['acceptMine
   args: { acceptMine: fn(() => new Promise<void>(() => {})) },
   render: (args) => (
     <WithSession session={sessionWith({ myInvitations: async () => [{ id: 'i1', email: 'sanne@acme.example', role: 'member', appRoles: ['sales'], status: 'pending', expiresAt: '2026-10-17T09:00:00.000Z', organizationName: 'Acme' }], acceptMine: args.acceptMine })}>
-      <OrganizationsPage basePath="" state={{ organizations: [], current: { organization: null, globalRoles: [] }, reload: fn() }} />
+      <OrganizationsPage basePath="" state={{ organizations: [], current: { organization: null, globalRoles: [] }, reload: fn(), fresh: true, failed: false }} />
     </WithSession>
   ),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
     expect(await canvas.findByText('Invitations for you')).toBeVisible()
     expect(canvas.getByText('Acme')).toBeVisible()
-    await userEvent.click(canvas.getByRole('button', { name: 'Accept' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Join Acme' }))
     await waitFor(() => expect(args.acceptMine).toHaveBeenCalledWith('i1'))
   },
 }
@@ -228,14 +228,14 @@ export const NotAnAdmin: StoryObj = {
   tags: ['play'],
   render: () => (
     <WithSession session={sessionWith({})}>
-      <OrganizationsPage basePath="" state={{ organizations: [acme], current: { organization: acme, role: 'member', appRoles: [], memberId: 'm-sanne', globalRoles: [] }, reload: fn() }} />
+      <OrganizationsPage basePath="" state={{ organizations: [acme], current: { organization: acme, role: 'member', appRoles: [], memberId: 'm-sanne', globalRoles: [] }, reload: fn(), fresh: true, failed: false }} />
     </WithSession>
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     expect(await canvas.findByText('Acme')).toBeVisible()
     expect(canvas.queryByText('All organizations')).toBeNull()
-    expect(canvas.queryByRole('textbox', { name: 'Find an organization' })).toBeNull()
+    expect(canvas.queryByRole('textbox', { name: 'Search organizations' })).toBeNull()
   },
 }
 

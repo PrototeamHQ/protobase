@@ -45,6 +45,7 @@ import { lastOrganizationField, sessionOrganizationHooks } from './organizations
 import { resolvePersonalAccessTokens, type PersonalAccessTokensOptions } from './personal-access-tokens/options'
 import { personalAccessTokensPlugin } from './personal-access-tokens/token-plugin'
 import { organizationPlugin } from './organizations/organization-plugin'
+import { derivedSlugPlugin } from './organizations/derived-slug'
 import { protobaseOrganizationPlugin } from './organizations/protobase-plugin'
 import { resolveOrganizations, type OrganizationsOptions, type ResolvedOrganizations } from './organizations/options'
 import { noGlobalRole, roleDefinitions, type RoleDefinitions, type RolesInput } from './organizations/role-definitions'
@@ -568,7 +569,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       // After the last-admin guard, so a refused removal deletes nothing of the user.
       ...(deletion ? [deletion.plugin] : []),
       ...(organizations
-        ? [organizationPlugin({ resolved: organizations, secret: options.secret, ...(mail && { mail }), context, names: named }), protobaseOrganizationPlugin({ resolved: organizations, mail: Boolean(mailer) })]
+        ? [organizationPlugin({ resolved: organizations, secret: options.secret, ...(mail && { mail }), context, names: named }), protobaseOrganizationPlugin({ resolved: organizations, mail: Boolean(mailer) }), derivedSlugPlugin()]
         : []),
       usersPlugin({
         definitions,

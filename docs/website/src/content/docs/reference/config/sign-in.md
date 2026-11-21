@@ -49,13 +49,13 @@ export default defineConfig({ auth: { roles: ['admin', 'sales', 'warehouse'], de
 
 ## auth.organizations
 
-- **Type:** `true | { create?: 'admins' | 'everyone'; creatorAppRoles?: 'all' | string[]; invitationDays?: number; membershipLimit?: number; deleteRecords?: 'refuse' | 'cascade'; invitationUrl?: string }`
+- **Type:** `true | { create?: 'admins' | 'everyone'; names?: { singular: string; plural: string }; createDescription?: string; creatorAppRoles?: 'all' | string[]; invitationDays?: number; membershipLimit?: number; deleteRecords?: 'refuse' | 'cascade'; invitationUrl?: string }`
 - **Default:** off: the app works as one organization
 
-Turns on organizations: people work in one at a time, records of `.tenant` resources are scoped to it, and roles are held globally or per membership. `create` is who may create one (default `admins`), `creatorAppRoles` the roles its creator holds there (default `all`), `invitationDays` how long an invitation works (default 7), `membershipLimit` the most members (default 1000), `deleteRecords` whether deleting one is refused while it has records (`refuse`, the default) or left to the foreign keys (`cascade`), and `invitationUrl` the page an invitation opens (default `/-/invitation` on the origin the invitation was made on). Its hooks are in `auth/hooks.ts`. See [Organizations](/reference/auth/#organizations).
+Turns on organizations: people work in one at a time, records of `.tenant` resources are scoped to it, and roles are held globally or per membership. `create` is who may create one (default `admins`), `names` what the screens call an organization, as a view's names are written (default Organization), `createDescription` a line under the title of the screen where someone names their first, `creatorAppRoles` the roles its creator holds there (default `all`), `invitationDays` how long an invitation works (default 7), `membershipLimit` the most members (default 1000), `deleteRecords` whether deleting one is refused while it has records (`refuse`, the default) or left to the foreign keys (`cascade`), and `invitationUrl` the page an invitation opens (default `/-/invitation` on the origin the invitation was made on). Its hooks are in `auth/hooks.ts`. See [Organizations](/reference/auth/#organizations) and [First organization](/reference/auth/#first-organization-and-start-address).
 
 ```ts
-export default defineConfig({ auth: { organizations: { create: 'everyone', invitationDays: 14 } } })
+export default defineConfig({ auth: { organizations: { create: 'everyone', invitationDays: 14, names: { singular: 'Workspace', plural: 'Workspaces' } } } })
 ```
 
 ## auth.signUp

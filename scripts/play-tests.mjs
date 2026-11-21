@@ -89,12 +89,12 @@ const timedOut = Symbol('timed out')
 // goes on with the next story (play-tests/deadline.mjs).
 const playStory = async (story) => {
   // The Storybook viewport toolbar does not apply when an iframe is opened directly, so phone stories get a phone-sized page,
-  // "keyboard" stories the part of an iPhone 17 above its keyboard, which the app shrinks the page to, and "wide" stories a
-  // desktop screen wider than a page's centred column beside the sidebar. "touch" stories get a 390 px phone that takes
-  // touch input, as an iPhone does.
+  // "keyboard" stories the part of an iPhone 17 above its keyboard, which the app shrinks the page to, "wide" stories a
+  // desktop screen wider than a page's centred column beside the sidebar, and "laptop" stories a 1440 px laptop screen.
+  // "touch" stories get a 390 px phone that takes touch input, as an iPhone does.
   // Times show in the viewer's zone, so every page has the same one, whatever the machine's, and one that is not UTC.
   const touch = story.tags.includes('touch')
-  const viewport = story.tags.includes('keyboard') ? { width: 402, height: 478 } : touch ? { width: 390, height: 844 } : story.tags.includes('phone') ? { width: 360, height: 740 } : story.tags.includes('wide') ? { width: 1920, height: 1080 } : { width: 1280, height: 720 }
+  const viewport = story.tags.includes('keyboard') ? { width: 402, height: 478 } : touch ? { width: 390, height: 844 } : story.tags.includes('phone') ? { width: 360, height: 740 } : story.tags.includes('wide') ? { width: 1920, height: 1080 } : story.tags.includes('laptop') ? { width: 1440, height: 900 } : { width: 1280, height: 720 }
   const setUp = (story.tags.includes('scrollbars') ? scrollbars : browser).newContext({ viewport, timezoneId: 'Europe/Amsterdam', ...(touch && { hasTouch: true, isMobile: true }) })
   const progress = { step: 'setting up the page' }
   const outcome = await withDeadline(setUp.then((context) => playIn(context, story, progress)), storySeconds * 1000, timedOut)

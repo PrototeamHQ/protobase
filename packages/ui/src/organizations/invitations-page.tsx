@@ -9,9 +9,11 @@ import { AppRolesPicker } from './app-roles-picker'
 import { assignableOrganizationRoles } from './members-page'
 import { grantableRoles, organizationRoleLabel, roleLabel } from './organization-paths'
 import { text } from './messages'
+import { useOrganizationText } from './organization-word'
 
 const InviteToOrganization = ({ current, onSent }: { current: CurrentOrganization; onSent: () => void }) => {
   const { session, organizations } = useAuth()
+  const t = useOrganizationText()
   const roles = organizations?.roles ?? []
   const [role, setRole] = useState<OrganizationRole>('member')
   const [appRoles, setAppRoles] = useState<string[]>([])
@@ -27,7 +29,7 @@ const InviteToOrganization = ({ current, onSent }: { current: CurrentOrganizatio
       description={text('inviteDescription')}
       onInvite={invite}
       beside={
-        <select aria-label={text('organizationRole')} value={role} onChange={(event) => setRole(event.target.value as OrganizationRole)} className="h-8 rounded-md border border-border-strong bg-background px-2">
+        <select aria-label={t('organizationRole')} value={role} onChange={(event) => setRole(event.target.value as OrganizationRole)} className="h-8 rounded-md border border-border-strong bg-background px-2">
           {assignableOrganizationRoles(current).map((option) => <option key={option} value={option}>{organizationRoleLabel(option)}</option>)}
         </select>
       }

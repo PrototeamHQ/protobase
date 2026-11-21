@@ -31,13 +31,14 @@ import { startErrorReporting } from './error-reporting'
 import { MetaGate, Notice, useAdminMeta } from './meta-gate'
 import { usePresence } from '../presence/presence'
 import { PresenceProvider } from '../presence/presence-provider'
-import { invitationsPath, managesOrganization, membersPath, organizationMenuItems, organizationPageTitle, organizationPath, organizationsPath } from '../organizations/organization-paths'
+import { firstOrganizationPath, invitationsPath, isFirstOrganizationPath, managesOrganization, membersPath, organizationMenuItems, organizationPageTitle, organizationPath, organizationsPath } from '../organizations/organization-paths'
+import { useOrganizationText } from '../organizations/organization-word'
 import { reopenIn, useOrganizations } from '../organizations/use-organizations'
 import { actingUser } from '../roles/acting-user'
 import { useActiveRole } from '../roles/use-active-role'
 import { viewOfList } from '@protobase/schema/internal'
 import { navFromMeta, navItemId } from './nav-from-meta'
-import { startAddress } from './start-address'
+import { useStartAddress } from './use-start-address'
 import { pageTabs, shownPageTab } from './pages/page-tabs'
 import { CustomBoundary } from './pages/custom-boundary'
 import { ProjectLogo } from './project-logo'
@@ -57,7 +58,7 @@ import { NewVersionBanner } from './new-version/new-version-banner'
 import { NewVersionButton } from './new-version/new-version-button'
 import { NewVersionToast } from './new-version/new-version-toast'
 import { Router, useRouter } from './router'
-import { preloadPages, AccountPage, AssistantPanel, CallRings, ComposedPage, ConnectRoute, CreateRoute, GuestCallPage, InvitationsPage, ListPage, MembersPage, OrganizationPage, OrganizationsPage, PublicFormPage, RecordPage, RuntimeUpdateButton, SignInPolicyPage } from './lazy-routes'
+import { preloadPages, AccountPage, AssistantPanel, CallRings, ComposedPage, ConnectRoute, CreateRoute, FirstOrganizationPage, GuestCallPage, InvitationsPage, ListPage, MembersPage, OrganizationPage, OrganizationsPage, PublicFormPage, RecordPage, RuntimeUpdateButton, SignInPolicyPage } from './lazy-routes'
 import { StaffBanner } from './staff-banner'
 import { useNavRecent } from './use-nav-recent'
 import { useAppAddress, type CurrentAddress } from './use-app-address'
@@ -147,21 +148,33 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const shown = recordOf(address)
   const search = useGlobalSearch()
   const theme = useTheme()
-  const recent = useNavRecent(meta, basePath, { resource: shown?.resource, key: shown?.key })
+  // With organizations, the app works in one at a time; someone in none names or joins their first before anything
+  // else, and the shell shows none of the resources, which they cannot read.
+  const organizations = useOrganizations(Boolean(organizationSettings && user))
+  const current = organizations.current
+  const organizationText = useOrganizationText()
+  // Only a fresh answer puts someone outside: the start cache may still hold the one from before they made or joined one.
+  const outsideOrganizations = Boolean(organizationSettings) && current !== undefined && !current.organization && organizations.fresh
+  const organizationsPending = Boolean(organizationSettings && user) && !organizations.error && (current === undefined || (!current.organization && !organizations.fresh))
+  const inOrganization = !outsideOrganizations && !organizationsPending
+  const recent = useNavRecent(meta, basePath, { resource: shown?.resource, key: shown?.key }, inOrganization)
   // Data from the start cache shows muted, with a spinner by the title, until it is fetched again
   const restored = useRestoredState()
   useLiveUpdates(meta)
-  const groups = navFromMeta(meta, basePath, recent)
-  const start = useMemo(() => startAddress(meta), [meta])
+  const groups = inOrganization ? navFromMeta(meta, basePath, recent) : []
+  // The start record is the organization's own: only this page load's answer names it, as the start cache's may be from
+  // before a switch; when that answer cannot be read, `/` opens the first sidebar entry.
+  const startOrganization = !organizationSettings || !user ? '' : organizations.fresh ? (current?.organization?.id ?? '') : organizations.failed ? null : undefined
+  const start = useStartAddress(meta, path === '/' && inOrganization, startOrganization)
   const page = address?.kind === 'page' ? meta.pages[address.page] : undefined
 
-  // The root opens the first entry of the sidebar; with nothing to open, such as an app with no resources or pages, a
-  // signed-in person's account page
+  // The root opens the app's start record, else the first entry of the sidebar; with nothing to open, such as an app
+  // with no resources or pages, a signed-in person's account page
   useEffect(() => {
-    if (path !== '/') return
-    if (start) go(start, { replace: true })
+    if (path !== '/' || !inOrganization || start.state === 'resolving') return
+    if (start.address) go(start.address, { replace: true })
     else if (user) navigate(accountPath, { replace: true })
-  }, [path, start, go, user, navigate])
+  }, [path, inOrganization, start, go, user, navigate])
 
   const resource = address?.kind === 'page' ? undefined : address?.resource
   // A resource drawn from another API waits for that API's `/meta`, and says so when it cannot be read.
@@ -209,18 +222,23 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const admin = acting ? isAdmin(acting) : false
   // Admins hear about plugins the app should load but did not, and why
   const pluginsOff = usePluginsOff()
-  // With organizations, the app works in one at a time; someone in none chooses or makes one first.
-  const organizations = useOrganizations(Boolean(organizationSettings && user))
-  const current = organizations.current
-  const outsideOrganizations = Boolean(organizationSettings) && current !== undefined && !current.organization
-  const organizationPage = organizationSettings && user ? organizationPageTitle(path) : undefined
+  const organizationPage = organizationSettings && user ? organizationPageTitle(path, organizationText) : undefined
   // The account page, the app's own or the standard one, and its tab, at `/-/account[/<tab>]`
   const account = useAccountPage()
   const accountAddress = user ? readAccountPath(path) : undefined
+  // Outside any organization, only the screen that names or joins one, the organizations page and the account pages
+  // open; any other address goes to that screen.
+  const staysOutside = isFirstOrganizationPath(path) || path === organizationsPath || path === signInPolicyPath || path === menuPagePath || Boolean(accountAddress)
+  // Someone in an organization who opens that screen, such as from history, goes on to the start address.
+  const firstOrganizationShown = isFirstOrganizationPath(path)
+  useEffect(() => {
+    if (outsideOrganizations && !staysOutside) navigate(firstOrganizationPath, { replace: true })
+    else if (inOrganization && Boolean(current?.organization) && firstOrganizationShown) navigate('/', { replace: true })
+  }, [outsideOrganizations, staysOutside, inOrganization, current, firstOrganizationShown, navigate])
   const accountTab = accountAddress && account ? shownPageTab(pageTabs(account.tree), accountAddress.tab) : undefined
   // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
   const menuShown = path === menuPagePath
-  const tabs = bottomBarFromMeta(meta, basePath, place, address?.kind === 'list' || address?.kind === 'page')
+  const tabs = inOrganization ? bottomBarFromMeta(meta, basePath, place, address?.kind === 'list' || address?.kind === 'page') : []
   // The app never starts on the sidebar's own page, such as kept from before a restart, nor stays on it once More page
   // mode is off, as when the window widens to a desktop's: the first tab opens instead
   const firstTab = tabs.find((tab) => !tab.external)?.href.slice(basePath.length)
@@ -252,10 +270,16 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       <OrganizationPage current={current} basePath={basePath} onChanged={organizations.reload} />
     ) : organizationPage && (path === membersPath || path === invitationsPath) ? (
       !managesOrganization(current) ? <Notice title={appText('ownersOnly')}>{appText('onlyOwners')}</Notice> : path === membersPath ? <MembersPage current={current} statuses={statuses} presence={presence} /> : <InvitationsPage current={current} />
-    ) : (organizationPage && path === organizationsPath) || outsideOrganizations ? (
+    ) : organizationPage && path === organizationsPath ? (
       <OrganizationsPage state={organizations} basePath={basePath} />
-    ) : !address ? (
-      path === '/' ? <Notice title={appText('chooseResource')}>{appText('pickFromSidebar')}</Notice> : <Notice title={appText('notFound')}>{appText('nothingHere')}</Notice>
+    ) : organizationsPending && organizations.failed ? (
+      // The start cache says they are in no organization; only this page load's answer may send them to name one
+      <Notice title={organizationText('couldNotReadOrganizations')}>
+        <Button className="mt-3" onClick={organizations.reload}>{organizationText('tryAgain')}</Button>
+      </Notice>
+    ) : outsideOrganizations || organizationsPending ? null : !address ? (
+      // The root draws nothing while it opens the start address, rather than a notice it then leaves
+      path === '/' ? start.state === 'resolving' || start.address ? null : <Notice title={appText('chooseResource')}>{appText('pickFromSidebar')}</Notice> : <Notice title={appText('notFound')}>{appText('nothingHere')}</Notice>
     ) : address.kind === 'page' ? (
       page ? <ComposedPage key={page.name} name={page.name} {...(address.tab && { tab: address.tab })} {...(address.params && { params: address.params })} /> : <Notice title={appText('notFound')}>{appText.rich('noPage', { page: address.page })}</Notice>
     ) : drawnFrom && drawnFrom.state !== 'ready' ? (
@@ -271,6 +295,37 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   // Staff signed in as the user: their banner shows below the top bar until they stop or the session ends. Below it,
   // the plugins that are off, for an admin.
   const pluginNotice = admin && pluginsOff.length > 0
+  const signOutDialog = signingOut && (
+    <Dialog
+      title={appText('signOutQuestion')}
+      description={appText('signOutHelp')}
+      onClose={() => setSigningOut(false)}
+      actions={
+        <>
+          <Button onClick={() => setSigningOut(false)}>{appText('signOutCancel')}</Button>
+          <Button variant="primary" onClick={() => void confirmSignOut()}>
+            {appText('signOutConfirm')}
+          </Button>
+        </>
+      }
+    />
+  )
+  // The screen that names or joins a first organization stands alone, as the sign-in screens before it do
+  if (user && outsideOrganizations && isFirstOrganizationPath(path)) {
+    return (
+      <>
+        <FirstOrganizationPage
+          path={path}
+          basePath={basePath}
+          email={user.email}
+          mayCreate={organizationSettings?.create === 'everyone' || isAdmin(user)}
+          seesAll={(current?.globalRoles.length ?? 0) > 0}
+          onSignOut={() => setSigningOut(true)}
+        />
+        {signOutDialog}
+      </>
+    )
+  }
   return (
     <AppShell
       pageScroll
@@ -290,10 +345,11 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       bottomBar={tabs}
       menuPage={menuPage}
       bottomBarSearch={bottomBarSearch(meta)}
-      userMenu={[userMenuFromMeta(meta, basePath, place), organizationSettings && user ? organizationMenuItems(basePath, path, current) : [], user ? accountMenuItems(basePath, path, admin) : []]}
+      userMenu={[inOrganization ? userMenuFromMeta(meta, basePath, place) : [], organizationSettings && user ? organizationMenuItems(basePath, path, organizationText, current) : [], user ? accountMenuItems(basePath, path, admin) : []]}
       account={user && `${basePath}${accountPath}`}
       organizations={
         organizationSettings && {
+          label: organizationText('organizations'),
           ...(current?.organization && { current: { id: current.organization.id, name: current.organization.name } }),
           others: organizations.organizations.filter((organization) => organization.id !== current?.organization?.id),
           onSwitch: (id) => void session.organizations.switchTo(id).then(() => reopenIn(basePath)),
@@ -307,27 +363,13 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       backIsHistory={backIsHistory}
       sidebarNotice={<NewVersionBanner />}
       banner={(staff || pluginNotice) && <>{staff && <StaffBanner signIn={staff} onStop={stopStaffSession} />}{pluginNotice && <PluginNotice off={pluginsOff} />}</>}
-      search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
+      search={search.available && inOrganization ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
       actions={(Actions || bell || reloadButton || runtimeButton || assistantButton) && <>{Actions && <CustomBoundary name="shell.actions" fallback={null}><Actions /></CustomBoundary>}{bell}{reloadButton}{runtimeButton}{assistantButton}</>}
       overlays={
         <>
           {status.dialog}
           {meta.calls && user && !staff && <CallRings />}
-          {signingOut && (
-            <Dialog
-              title={appText('signOutQuestion')}
-              description={appText('signOutHelp')}
-              onClose={() => setSigningOut(false)}
-              actions={
-                <>
-                  <Button onClick={() => setSigningOut(false)}>{appText('signOutCancel')}</Button>
-                  <Button variant="primary" onClick={() => void confirmSignOut()}>
-                    {appText('signOutConfirm')}
-                  </Button>
-                </>
-              }
-            />
-          )}
+          {signOutDialog}
         </>
       }
       rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <CustomBoundary name="shell.rightPanel" fallback={null}><RightPanel /></CustomBoundary>}{assistantPanel}</>}
