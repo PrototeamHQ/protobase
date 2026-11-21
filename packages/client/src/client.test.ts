@@ -340,6 +340,14 @@ describe('errors', () => {
   })
 })
 
+describe('functionSocketUrl', () => {
+  it('is the socket of a function beside the API, with its query', () => {
+    const client = createClient({ baseUrl: 'https://app.example/api/v1' })
+    expect(client.functionSocketUrl('call', { key: '7' })).toBe('wss://app.example/api/functions/call?key=7')
+    expect(client.functionSocketUrl('room call')).toBe('wss://app.example/api/functions/room%20call')
+  })
+})
+
 describe('invoke', () => {
   it('calls a function beside the API with the token: GET without a body, POST with JSON', async () => {
     const { calls, fetch } = fakeFetch(() => json({ ok: true }))

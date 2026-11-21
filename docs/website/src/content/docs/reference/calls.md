@@ -158,6 +158,8 @@ The view checks the microphone and camera first, with a preview of the camera, a
 | `url` | Your function's socket, which admits the member. |
 | `nameOf` | A person's name by the member your function admits them as, such as a user id; the member itself by default. |
 
+A [conversation page](/reference/ui-config/#calls) with `call` places the call view and the call mark for you.
+
 `CallView` is the view on its own, with `leave`, where Leave goes, in place of the record: for a call you place without the record's address.
 
 ### A record's call

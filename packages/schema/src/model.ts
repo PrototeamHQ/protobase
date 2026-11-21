@@ -1896,6 +1896,12 @@ export type ConversationPageModel = {
       }
   /** Replies in a thread under a message, shown in a panel beside the conversation rather than in it. */
   thread?: ConversationThreadModel
+  /**
+   * The record's call, by the name of the API function that admits people to it with `calls.join`: the header shows
+   * Start call, or the call going on with Join, and the page that joins it (`?call=join`) shows the call beside the
+   * messages. The page opens the function's socket with the record's key as `key`, `/api/functions/<call>?key=<key>`.
+   */
+  call?: string
   /** The hint in the empty box. */
   placeholder?: string
   /** What the conversation says while it has no messages. */

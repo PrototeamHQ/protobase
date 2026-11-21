@@ -76,6 +76,11 @@ describe('pruneConversationPage', () => {
     expect(pruned).toEqual({ resource: 'messages', field: 'channel_id', sender: 'author_id', time: 'sent_at', text: 'body', members: 'member_ids' })
   })
 
+  it('keeps the call for every reader: its function decides who joins', () => {
+    const pruned = pruneConversationPage({ ...page, call: 'call' }, 'channels', { ...models, messages: without(messages, 'edited_at') })
+    expect(pruned).toMatchObject({ call: 'call' })
+  })
+
   it('is gone for a caller who cannot read a thread field, so replies never show among the messages', () => {
     const threaded = { ...messages, fields: { ...messages.fields, thread_id: { ...messages.fields.channel_id!, relation: { resource: 'messages', columns: ['thread_id'] } }, reply_count: messages.fields.id! } }
     const options = { ...page, thread: { field: 'thread_id', count: 'reply_count', last: 'sent_at' } }
