@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { Node } from 'ts-morph'
+import { Node, type ObjectLiteralExpression } from 'ts-morph'
 import type { AuthSettings } from '@protobase/server'
 import { exportedConfigObject } from './config-object'
 
@@ -67,7 +67,8 @@ const settingsText = ({ settings, comment }: UsersConfig, indent: string) =>
 
 /**
  * protobase.config.ts with the settings first in its `auth`, or with an `auth` of them when it has none, sign-in being
- * on by default; fails, naming what to add, when it exports no object the import can see or its `auth` is not one.
+ * on by default; fails, naming what to add, when it exports no object the import can see, its `auth` is not one, or
+ * its `auth.tables` is not one or names a table the settings name.
  */
 export const withSupabaseUsers = (text: string, file: string, users: UsersConfig) => {
   const config = exportedConfigObject(text).object
@@ -82,10 +83,31 @@ export const withSupabaseUsers = (text: string, file: string, users: UsersConfig
   }
   const object = Node.isPropertyAssignment(auth) ? auth.getInitializer() : undefined
   if (!object || !Node.isObjectLiteralExpression(object)) throw refused()
+  // An `auth.tables` of the app's own keeps its prefix and other tables, with the settings' tables first in it.
+  const ownTables = ownTablesOf(object, users, refused)
+  const { tables: settingsTables, ...settings } = users.settings
+  const merged = ownTables && settingsTables ? withTables(text, ownTables.getStart() + 1, settingsTables, ownTables.getProperties().length > 0) : text
   const first = object.getProperties()[0]
   const indent = first ? ' '.repeat(first.getStartLinePos() === first.getStart() ? 0 : first.getStart() - first.getStartLinePos()) : '  '
   const at = object.getStart() + 1
-  return `${text.slice(0, at)}\n${settingsText(users, indent)}${first ? '' : '\n'}${text.slice(at)}`
+  const written = { ...users, settings: ownTables ? settings : users.settings }
+  return `${merged.slice(0, at)}\n${settingsText(written, indent)}${first ? '' : '\n'}${merged.slice(at)}`
+}
+
+// The config's own `auth.tables` object, if it has one; refused when it is not an object or names a table of the settings.
+const ownTablesOf = (auth: ObjectLiteralExpression, users: UsersConfig, refused: () => Error) => {
+  const tables = auth.getProperty('tables')
+  if (!tables) return
+  const own = Node.isPropertyAssignment(tables) ? tables.getInitializer() : undefined
+  if (!own || !Node.isObjectLiteralExpression(own)) throw refused()
+  if (Object.keys(users.settings.tables ?? {}).some((table) => own.getProperty(table))) throw refused()
+  return own
+}
+
+// The text with the settings' tables first in the `tables` object whose `{` ends at `at`.
+const withTables = (text: string, at: number, tables: object, more: boolean) => {
+  const entries = Object.entries(tables).map(([table, names]) => `${table}: ${literal(names)}`).join(', ')
+  return `${text.slice(0, at)} ${entries}${more ? ',' : ' '}${text.slice(at)}`
 }
 
 /** Where the app's Better Auth settings live, and what they become; fails before anything is written when it cannot. */
