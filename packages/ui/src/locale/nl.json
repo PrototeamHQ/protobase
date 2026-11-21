@@ -677,7 +677,12 @@
     "callInput": "Invoer",
     "callResult": "Resultaat",
     "callError": "Fout",
-    "couldNotLoadCalls": "De toolaanroepen konden niet worden geladen",
+    "couldNotLoadCalls": "De toolaanroepen konden niet worden geladen"
+  },
+  "app/conversation-page": {
+    "couldNotLoad": "Kon de berichten niet laden",
+    "noMessages": "Nog geen berichten.",
+    "loadingMessages": "Berichten laden…",
     "details": "Details",
     "edited": "(bewerkt)",
     "editedAt": "Bewerkt {time}",

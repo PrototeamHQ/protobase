@@ -10,7 +10,7 @@ import { Quiet } from '../pages/blocks/card-frame'
 import { retryOf, showsErrorAbove, threadState } from '../conversation/thread-state'
 import { ConversationMessage } from './conversation-message'
 import { messagesRequest } from './conversation-reads'
-import { conversationRows, firstUnreadKey } from './conversation-rows'
+import { conversationRows, firstUnreadKey, highestKey } from './conversation-rows'
 import { useMessageSetup } from './use-message-setup'
 import { useNewLine } from './use-new-line'
 import { text } from './messages'
@@ -50,7 +50,7 @@ export const ConversationMessages = ({ page, model, recordKey, me, position, thr
   // The live region mounts with the messages it opens on, so a screen reader announces only those that arrive later
   if (!loaded) return <div className="flex-1 p-4"><Quiet>{text('loadingMessages')}</Quiet></div>
   const rows = conversationRows(oldestFirst, { key, sender: page.sender, time: page.time }, newLineAbove)
-  const newest = oldestFirst.at(-1)
+  const readEnd = highestKey(oldestFirst, key)
   // The reader's own newest message: when one arrives, the thread goes to the end wherever they were
   const own = rows.findLast((line) => line.kind === 'message' && me !== undefined && line.author.id === me)
   const readTo = position.readTo
@@ -64,7 +64,7 @@ export const ConversationMessages = ({ page, model, recordKey, me, position, thr
         empty={page.empty ?? text('noMessages')}
         onLoadEarlier={list.hasNextPage ? () => void list.fetchNextPage() : undefined}
         loadingEarlier={list.isFetchingNextPage}
-        onReadToEnd={readTo && newest ? () => readTo(Number(key(newest))) : undefined}
+        onReadToEnd={readTo && readEnd !== undefined ? () => readTo(readEnd) : undefined}
       >
         {rows.map((line) =>
           line.kind === 'day' ? (
