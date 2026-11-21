@@ -24,7 +24,7 @@ Code built together with the app is frozen at the app it was built with: a newer
 1. **The app is built once per release.** The admin app, the shell, is the same for every project. Each release of `@protobase/ui` ships it prebuilt, and `protobase build` copies it into the bundle beside the project's plugins and theme. A host that has the shell of a newer release can serve that one in its place (see [the shell](#the-shell)), so an app gets the release's fixes without a rebuild of its own code.
 2. **The app shares its modules.** The admin app hands four modules to plugins: `react`, `react/jsx-runtime`, `react-dom` and `@protobase/ui`. Its `index.html` maps those names to the app's own files with an [import map](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script/type/importmap), so a plugin's `import { useList } from '@protobase/ui'` runs on the app's copy: one React, one query cache, one signed-in session and the app's version of every hook and component. A plugin carries only its own code, and gets the fixes of every release the app moves to.
 3. **The plugin API is a promise.** What a plugin can import, the four modules and every export of `@protobase/ui`, is the plugin API, numbered: `pluginApi` is 1. Releases add to it but never remove or change what is in it; only a new plugin API does, as for a new major version of React. So a plugin keeps working on every release of the plugin API it was built for, with no rebuild. Below 1.0 a minor release may change how a project's config is written, but not the plugin API.
-4. **The app checks before it loads.** A plugin's `plugin.json` says which plugin API and which Protobase versions it is built for. The app loads a plugin only when it has that plugin API and its own version is in the plugin's range; it never runs the code of one that does not fit.
+4. **The app checks before it loads.** A plugin's `plugin.json` says which plugin API it is built for and what it uses: the names it imports from the shared modules and the extension points it fills. The app loads a plugin only when it has that plugin API and everything the plugin uses, whichever release built the plugin; it never runs the code of one that does not fit.
 5. **A plugin that does not fit is turned off, not the app.** Each place it would fill draws a fallback, the app's admins see why it is off, and everything else works as before. A component that throws while drawing shows its fallback in its own place.
 6. **The look is values, not rules.** A project themes the app with a [`protobase.theme.css`](/reference/theme/) that holds only values of the app's tokens, and a plugin's stylesheet holds only utilities that read those tokens. Neither reaches into the app's markup, so neither breaks when the app's markup changes.
 
@@ -71,7 +71,7 @@ export default definePlugin({ name: 'sales-tools', actions: { remindCustomer } }
 
 It is written as a project's `protobase.ui.tsx` is: each component exported under the PascalCase name the config declares, from a file of its own, and the rest in the default export, `definePlugin({ name, actions, fields, shell, beforeSignIn, extends, ... })` (`defineUi` is the same function), with the keys of [Extension points](#extension-points). Its components use the hooks and components of `@protobase/ui`, which read the API as the signed-in user, under the same access rules as everything else.
 
-**Imports.** `react`, `react/jsx-runtime` (the JSX), `react-dom` and `@protobase/ui`, by those names, come from the app. Everything else a plugin imports, its own files, icons or a chart library, is built into it. Other modules of those packages, such as `react-dom/client` or a file inside `@protobase/ui`, fail the build: a copy of its own would not work with the app's. Read data with `@protobase/ui`'s hooks (`useList`, `useRecord`, `useClient`), which share the app's cache: a data library of the plugin's own keeps a cache of its own. For anything else, such as another API's answer, `useQuery` and `useQueryClient` from `@protobase/ui` are TanStack Query's, on the app's own client, so their answers are kept in the [start cache](/reference/installable-app/#starting-from-the-last-pages-seen) and draw on the next start before the network answers.
+**Imports.** `react`, `react/jsx-runtime` (the JSX), `react-dom` and `@protobase/ui`, by those names, come from the app. Everything else a plugin imports, its own files, icons or a chart library, is built into it. Other modules of those packages, such as `react-dom/client` or a file inside `@protobase/ui`, fail the build: a copy of its own would not work with the app's. So does taking all of `@protobase/ui` at once (`import * as`, `export *` or `import()`), since the app could not check that it has the names the plugin reads: import them by name. Read data with `@protobase/ui`'s hooks (`useList`, `useRecord`, `useClient`), which share the app's cache: a data library of the plugin's own keeps a cache of its own. For anything else, such as another API's answer, `useQuery` and `useQueryClient` from `@protobase/ui` are TanStack Query's, on the app's own client, so their answers are kept in the [start cache](/reference/installable-app/#starting-from-the-last-pages-seen) and draw on the next start before the network answers.
 
 **Styling.** Use Tailwind classes, as the app's own code does. The plugin's stylesheet holds the utilities its files use and nothing else, no reset and no global style, and each reads the app's [tokens](/reference/theme/): `bg-primary` is the app's primary color and `rounded-md` its radius, whatever the app's version and whatever its theme, and a token the app does not set falls back to Tailwind's default.
 
@@ -232,7 +232,8 @@ The output folder is emptied first, so it must not hold the plugin's own files. 
   "name": "sales-tools",
   "version": "1.0.0",
   "api": 1,
-  "protobase": ">=0.12.0",
+  "imports": { "@protobase/ui": ["definePlugin", "useList"], "react/jsx-runtime": ["jsx", "jsxs"] },
+  "extensionPoints": ["components", "fields"],
   "entry": "assets/index-DDnoullN.js",
   "css": "assets/styles-CToS5pKa.css",
   "fields": { "steps": ["enum"] }
@@ -244,7 +245,9 @@ The output folder is emptied first, so it must not hold the plugin's own files. 
 | `name` | The plugin's name: `--name`, else its `package.json`'s `name`, else its folder's. A project's own is `app`. |
 | `version` | Its `package.json`'s `version`, when it has one. |
 | `api` | The plugin API of the `@protobase/ui` it is built with. |
-| `protobase` | The Protobase versions it runs on: from that `@protobase/ui`'s version on, unless its `package.json` says otherwise (see [versions](#versions)). |
+| `imports` | The names its built code imports from each module the app shares, `*` for a whole module of React (`import * as`, `import()`); code the build leaves out does not count (see [versions](#versions)). |
+| `extensionPoints` | The [extension points](#extension-points) it fills, such as `components` or `shell.rightPanel`. |
+| `protobase` | The Protobase versions its `package.json` names in `engines.protobase`, only when it names some (see [versions](#versions)). |
 | `entry`, `css` | The module and the stylesheet, relative to `plugin.json`. |
 | `fields` | The field types it registers, each with the storage types it shows. Only when it registers some. |
 
@@ -344,18 +347,23 @@ A host that keeps the shells of its releases can serve the shell of a newer one 
 
 ## Versions
 
-A plugin is built for one plugin API and a range of Protobase versions, both written by `build-plugin` into `plugin.json`:
+A plugin is built for one plugin API and records what it uses, both written by `build-plugin` into `plugin.json`:
 
 - `api` is the plugin API of the `@protobase/ui` installed for the plugin, else the CLI's own (always the CLI's for the UI of a bundled project).
-- `protobase` is `>=` that `@protobase/ui`'s version: the plugin may use anything that version has. To run on older releases too, name the range in the plugin's `package.json`:
+- `imports` names what the plugin's built code imports from `react`, `react/jsx-runtime`, `react-dom` and `@protobase/ui`, read from the build's output, so an import only an unused file or a re-export nobody reads makes is not in it, and one its own files make is.
+- `extensionPoints` names the extension points its config fills, as that `@protobase/ui` reads them.
 
-  ```json
-  { "engines": { "protobase": ">=0.12.0" } }
-  ```
+The app loads a plugin when the plugin's `api` is its own and it has every name in `imports` and every extension point in `extensionPoints`, whatever its version; only a plugin that names a `protobase` range also needs the app's version in it. A plugin built with a newer `@protobase/ui` loads in an app on an older release that checks what plugins use, as long as the older release has what the plugin uses; when something is missing, the plugin stays off and its notice names what, such as "it uses what this app does not have: NewPicker from @protobase/ui, the extension point shell.bell". Releases from before that check compare versions only: they need a `protobase` range in `plugin.json`, turn off a plugin without one, and do not read `imports` or `extensionPoints`.
 
-  A range is comparators separated by spaces, all of which must hold: `>=`, `>`, `<=`, `<` or `=` and an `x.y.z` version, such as `>=0.12.0 <2.0.0`. The build checks only the range's form; which versions it holds is the app's to compare when it loads the plugin, where a prerelease such as a build from main counts too, just before its own release: `0.94.4-main.4f8859dd` is in `>=0.12.9`, and `0.13.0-main.4f8859dd` is in `<0.13.0` but not in `>=0.13.0`. If the plugin uses something an older release in its range does not have, it fails to load there and is turned off, as described below.
+A plugin author who wants to limit the plugin to some releases anyway names a range in its `package.json`, which the build copies into `plugin.json` as `protobase`:
 
-The app loads a plugin when the plugin's `api` is its own and its version is in the plugin's `protobase` range. Protobase keeps the plugin API through its releases and starts a new one only when a plugin built for the old one could break:
+```json
+{ "engines": { "protobase": ">=0.12.0 <2.0.0" } }
+```
+
+The app then also needs its version in that range. A range is comparators separated by spaces, all of which must hold: `>=`, `>`, `<=`, `<` or `=` and an `x.y.z` version. The build checks only the range's form; which versions it holds is the app's to compare when it loads the plugin, where a prerelease such as a build from main counts too, just before its own release: `0.94.4-main.4f8859dd` is in `>=0.12.9`, and `0.13.0-main.4f8859dd` is in `<0.13.0` but not in `>=0.13.0`.
+
+Protobase keeps the plugin API through its releases and starts a new one only when a plugin built for the old one could break:
 
 - an export of `@protobase/ui` removed, or changed in a way its users would notice;
 - an extension point's props changed in a way a plugin would notice;
@@ -370,10 +378,11 @@ Nothing a plugin does stops the app. Each of these turns off that plugin alone:
 
 - its `plugin.json` cannot be read, or is not one;
 - it is built for another plugin API, or for a range without the app's version;
+- it uses an export, a shared module or an extension point the app does not have;
 - its module cannot be loaded, or does not link: it imports something the app's `@protobase/ui` does not have;
 - it defines a name an earlier plugin defines.
 
-Every place it would fill then draws its fallback (see [Extension points](#extension-points)). The app's admins (the `admin` role) see a notice below the top bar naming each plugin that is off and why, such as "The plugin sales-tools is off: it needs Protobase >=0.12.3, and this app runs 0.12.1." Everyone else sees only the fallbacks. An action handler that throws shows its error in a toast, as a project's does, and a part that throws while drawing shows its fallback in its own place.
+Every place it would fill then draws its fallback (see [Extension points](#extension-points)). The app's admins (the `admin` role) see a notice below the top bar naming each plugin that is off and why, such as "The plugin sales-tools is off: it uses what this app does not have: NewPicker from @protobase/ui." Everyone else sees only the fallbacks. An action handler that throws shows its error in a toast, as a project's does, and a part that throws while drawing shows its fallback in its own place.
 
 ## API
 

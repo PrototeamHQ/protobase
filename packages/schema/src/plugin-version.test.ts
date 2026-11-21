@@ -34,18 +34,29 @@ describe('inRange', () => {
 })
 
 describe('pluginProblem', () => {
-  const host = { api: 1, version: '0.12.4' }
+  const host = { api: 1, version: '0.12.4', imports: { '@protobase/ui': ['Button', 'definePlugin'], react: ['default', 'useState'] }, extensionPoints: ['components', 'shell.actions'] }
+  const uses = { imports: { '@protobase/ui': ['definePlugin'] }, extensionPoints: ['components'] }
 
-  it('loads a plugin of the same plugin API whose range holds the app', () => {
-    expect(pluginProblem({ api: 1, protobase: '>=0.12.0' }, host)).toBeUndefined()
+  it('loads a plugin of the same plugin API that uses only what the app has, whichever version built it', () => {
+    expect(pluginProblem({ api: 1, ...uses }, host)).toBeUndefined()
+    expect(pluginProblem({ api: 1, protobase: '>=0.12.0', ...uses }, host)).toBeUndefined()
   })
 
-  it('refuses another plugin API, whatever the range', () => {
-    expect(pluginProblem({ api: 2, protobase: '>=0.12.0' }, host)).toBe('it is built for plugin API 2, and this app has plugin API 1')
+  it('refuses another plugin API, whatever it uses', () => {
+    expect(pluginProblem({ api: 2, ...uses }, host)).toBe('it is built for plugin API 2, and this app has plugin API 1')
   })
 
-  it('refuses a range without the app, or one it cannot read', () => {
-    expect(pluginProblem({ api: 1, protobase: '>=0.13.0' }, host)).toBe('it needs Protobase >=0.13.0, and this app runs 0.12.4')
-    expect(pluginProblem({ api: 1, protobase: '^0.12.0' }, host)).toBe('its Protobase range "^0.12.0" is not one this app reads, such as >=0.12.0')
+  it('refuses a range its author named without the app, or one it cannot read', () => {
+    expect(pluginProblem({ api: 1, protobase: '>=0.13.0', ...uses }, host)).toBe('it needs Protobase >=0.13.0, and this app runs 0.12.4')
+    expect(pluginProblem({ api: 1, protobase: '^0.12.0', ...uses }, host)).toBe('its Protobase range "^0.12.0" is not one this app reads, such as >=0.12.0')
+  })
+
+  it('refuses a plugin that uses an export, a module or an extension point the app lacks, naming each', () => {
+    const lacking = { imports: { '@protobase/ui': ['Button', 'NewPicker'], react: ['use'], 'react-dom': ['*'] }, extensionPoints: ['components', 'shell.bell'] }
+    expect(pluginProblem({ api: 1, ...lacking }, host)).toBe('it uses what this app does not have: NewPicker from @protobase/ui, use from react, react-dom, the extension point shell.bell')
+  })
+
+  it('takes a whole module, as import * takes it, as had when the app shares it', () => {
+    expect(pluginProblem({ api: 1, imports: { react: ['*'] }, extensionPoints: [] }, host)).toBeUndefined()
   })
 })

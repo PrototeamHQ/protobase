@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pluginApi, protobaseVersion } from './plugin-api'
+import { pluginApi } from './plugin-api'
 import type { PluginLoader } from './load-plugin'
 import { createPluginSource, preloadPlugins } from './plugin-source'
 
@@ -9,7 +9,7 @@ const slow = { url: 'https://cdn.example.com/slow/plugin.json' }
 const loader = (stall: Promise<unknown>): PluginLoader => ({
   readJson: async (url) => {
     if (url === slow.url) await stall
-    return { json: { name: url.split('/').at(-2), api: pluginApi, protobase: `>=${protobaseVersion}`, entry: 'index.js' } }
+    return { json: { name: url.split('/').at(-2), api: pluginApi, imports: {}, extensionPoints: [], entry: 'index.js' } }
   },
   addStylesheet: () => undefined,
   importModule: async () => ({}),
@@ -38,7 +38,7 @@ describe('plugins loaded before the first render', () => {
 describe('plugins loaded again while the app runs', () => {
   it('forgets every load, so each plugin is fetched afresh, and tells whoever reads the source', async () => {
     let reads = 0
-    const counting: PluginLoader = { ...loader(Promise.resolve()), readJson: async (url) => (reads++, { json: { name: url.split('/').at(-2), api: pluginApi, protobase: `>=${protobaseVersion}`, entry: 'index.js' } }) }
+    const counting: PluginLoader = { ...loader(Promise.resolve()), readJson: async (url) => (reads++, { json: { name: url.split('/').at(-2), api: pluginApi, imports: {}, extensionPoints: [], entry: 'index.js' } }) }
     const source = createPluginSource(counting, base)
     await source.load(hello)
     await source.load(hello)

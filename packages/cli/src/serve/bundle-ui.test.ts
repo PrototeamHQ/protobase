@@ -12,8 +12,8 @@ describe('bundleUi', () => {
       api: ['/api'],
       theme: 'protobase.theme.css',
       plugins: [
-        { name: 'crm', path: 'plugins/crm/plugin.json', api: 1, protobase: '>=0.12.0', fields: { phone: ['text'] } },
-        { name: 'app', path: 'plugins/app/plugin.json', api: 1, protobase: '>=0.12.0', fields: { rating: ['integer', 'decimal'] } },
+        { name: 'crm', path: 'plugins/crm/plugin.json', api: 1, fields: { phone: ['text'] } },
+        { name: 'app', path: 'plugins/app/plugin.json', api: 1, fields: { rating: ['integer', 'decimal'] } },
       ],
       shell: { protobase: '0.12.0', pluginApi: 1, paths: ['/index.html', '/assets'] },
     }

@@ -49,7 +49,14 @@ describe('buildPlugin', () => {
     const outDir = path.join(pluginDir, 'dist')
     const manifest = await buildPlugin({ pluginDir, outDir })
 
-    expect(manifest).toEqual({ name: 'hello', version: '1.2.0', api: 1, protobase: `>=${uiVersion}`, entry: expect.stringMatching(/^assets\/index-[\w-]+\.js$/), css: expect.stringMatching(/^assets\/styles-[\w-]+\.css$/) })
+    expect(manifest).toEqual({
+      name: 'hello',
+      version: '1.2.0',
+      api: 1,
+      imports: { '@protobase/ui': ['definePlugin', 'usePlugin'], react: ['useState'], 'react-dom': ['createPortal'], 'react/jsx-runtime': ['jsx', 'jsxs'] },
+      extensionPoints: ['components', 'actions'],
+      entry: expect.stringMatching(/^assets\/index-[\w-]+\.js$/), css: expect.stringMatching(/^assets\/styles-[\w-]+\.css$/),
+    })
     expect(JSON.parse(await readFile(path.join(outDir, 'plugin.json'), 'utf8'))).toEqual(manifest)
     expect((await readdir(path.join(outDir, 'assets'))).sort()).toEqual([path.basename(manifest.entry), path.basename(manifest.css)].sort())
 
@@ -142,7 +149,19 @@ export default definePlugin({ extends: [imageViewer, pdfViewer] })
     expect((await buildPlugin({ pluginDir, outDir: path.join(pluginDir, 'dist'), name: 'board' })).name).toBe('board')
   }, buildTimeout)
 
-  it('takes the Protobase versions engines.protobase names, whichever versions they hold', async () => {
+  it('records the names it takes from @protobase/ui once unused code is gone, those its own files import included', async () => {
+    const helpers = `import { buttonClass } from '@protobase/ui'\nexport { Button, Spinner } from '@protobase/ui'\nexport const styled = buttonClass\n`
+    const board = `import { Button, styled } from './helpers'\nexport const Board = () => <Button className={String(styled)}>Board</Button>\n`
+    pluginDir = await createPlugin({ 'protobase.ui.tsx': board, 'helpers.ts': helpers })
+    const manifest = await buildPlugin({ pluginDir, outDir: path.join(pluginDir, 'dist') })
+    expect(manifest.imports).toEqual({ '@protobase/ui': ['Button', 'buttonClass'], 'react/jsx-runtime': ['jsx'] })
+    expect(manifest.extensionPoints).toEqual(['components'])
+  }, buildTimeout)
+
+  it('names no Protobase versions of its own, only those engines.protobase names, whichever versions they hold', async () => {
+    pluginDir = await createPlugin({ 'protobase.ui.tsx': `export const Board = () => null\n` })
+    expect(await buildPlugin({ pluginDir, outDir: path.join(pluginDir, 'dist') })).not.toHaveProperty('protobase')
+    await rm(pluginDir, { recursive: true, force: true })
     pluginDir = await createPlugin({ 'package.json': JSON.stringify({ name: 'wide', engines: { protobase: '>=0.1.0 <9.0.0' } }), 'protobase.ui.tsx': `export const Board = () => null\n` })
     expect((await buildPlugin({ pluginDir, outDir: path.join(pluginDir, 'dist') })).protobase).toBe('>=0.1.0 <9.0.0')
     await writeFile(path.join(pluginDir, 'package.json'), JSON.stringify({ name: 'wide', engines: { protobase: '>=99.0.0' } }))

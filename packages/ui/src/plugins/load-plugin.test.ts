@@ -6,9 +6,10 @@ import { definePlugin } from '../app/pages/project-ui'
 import { loadPlugin, type PluginLoader } from './load-plugin'
 import { usePlugin } from './plugin-context'
 
-const host = { api: 1, version: '0.12.4' }
+const host = { api: 1, version: '0.12.4', imports: { '@protobase/ui': ['definePlugin', 'usePlugin'], 'react/jsx-runtime': ['jsx'] }, extensionPoints: ['components', 'actions', 'fields'] }
 const base = 'https://app.example.com/orders'
-const manifest = { name: 'hello', version: '1.2.0', api: 1, protobase: '>=0.12.0', entry: 'assets/index-abc.js', css: 'assets/index-def.css' }
+const uses = { imports: { '@protobase/ui': ['definePlugin', 'usePlugin'] }, extensionPoints: ['components', 'actions'] }
+const manifest = { name: 'hello', version: '1.2.0', api: 1, ...uses, entry: 'assets/index-abc.js', css: 'assets/index-def.css' }
 
 const Greeting = () => {
   const plugin = usePlugin()
@@ -74,13 +75,28 @@ describe('loadPlugin', () => {
     expect(imported).toEqual([])
   })
 
-  it('turns off a plugin built for another plugin API or Protobase version, importing nothing', async () => {
+  it('loads a plugin built with a newer Protobase that uses only what the app has', async () => {
+    const { loader } = memoryLoader({ 'https://cdn.example.com/hello/plugin.json': manifest }, { 'https://cdn.example.com/hello/assets/index-abc.js': {} })
+    expect((await loadPlugin({ url: 'https://cdn.example.com/hello/plugin.json' }, loader, base, { ...host, version: '0.11.0' })).kind).toBe('loaded')
+  })
+
+  it('turns off a plugin built for another plugin API or outside the Protobase range its author named, importing nothing', async () => {
     const { loader, imported, stylesheets } = memoryLoader({
       'https://cdn.example.com/next/plugin.json': { ...manifest, name: 'next', api: 2 },
       'https://cdn.example.com/newer/plugin.json': { ...manifest, name: 'newer', protobase: '>=0.13.0' },
     })
     expect(await loadPlugin({ url: 'https://cdn.example.com/next/plugin.json' }, loader, base, host)).toEqual({ kind: 'off', url: 'https://cdn.example.com/next/plugin.json', name: 'next', reason: 'it is built for plugin API 2, and this app has plugin API 1' })
     expect(await loadPlugin({ url: 'https://cdn.example.com/newer/plugin.json' }, loader, base, host)).toEqual({ kind: 'off', url: 'https://cdn.example.com/newer/plugin.json', name: 'newer', reason: 'it needs Protobase >=0.13.0, and this app runs 0.12.4' })
+    expect([...imported, ...stylesheets]).toEqual([])
+  })
+
+  it('turns off a plugin that uses an export or an extension point the app lacks, naming it, importing nothing', async () => {
+    const { loader, imported, stylesheets } = memoryLoader({
+      'https://cdn.example.com/picker/plugin.json': { ...manifest, name: 'picker', imports: { '@protobase/ui': ['definePlugin', 'NewPicker'] } },
+      'https://cdn.example.com/bell/plugin.json': { ...manifest, name: 'bell', extensionPoints: ['components', 'shell.bell'] },
+    })
+    expect(await loadPlugin({ url: 'https://cdn.example.com/picker/plugin.json' }, loader, base, host)).toMatchObject({ kind: 'off', name: 'picker', reason: 'it uses what this app does not have: NewPicker from @protobase/ui' })
+    expect(await loadPlugin({ url: 'https://cdn.example.com/bell/plugin.json' }, loader, base, host)).toMatchObject({ kind: 'off', name: 'bell', reason: 'it uses what this app does not have: the extension point shell.bell' })
     expect([...imported, ...stylesheets]).toEqual([])
   })
 

@@ -203,7 +203,7 @@ program
     const { buildPlugin, pluginManifestFile } = await import('./build/plugin-build')
     const manifest = await buildPlugin({ pluginDir, outDir, sourceMaps: opts.sourceMaps, ...(opts.name && { name: opts.name }) })
     const shown = path.relative(process.cwd(), outDir)
-    out(`built ${shown.startsWith('..') ? outDir : shown || '.'}: ${pluginManifestFile}, ${manifest.entry} and ${manifest.css} (${manifest.name}, plugin API ${manifest.api}, Protobase ${manifest.protobase})\n`)
+    out(`built ${shown.startsWith('..') ? outDir : shown || '.'}: ${pluginManifestFile}, ${manifest.entry} and ${manifest.css} (${manifest.name}, plugin API ${manifest.api}${manifest.protobase ? `, Protobase ${manifest.protobase}` : ''})\n`)
   })
 
 program

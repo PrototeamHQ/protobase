@@ -69,7 +69,7 @@ export const buildBundlePlugins = async ({
   for (const source of await sources(projectDir, extensions, styles)) {
     const folder = path.join(pluginsFolder, folderOf(source.name))
     const manifest = await buildPlugin({ pluginDir: source.dir, outDir: path.join(publicDir, folder), name: source.name, projectDir, ignore, sourceMaps, stylesOnly: source.stylesOnly })
-    plugins.push({ name: manifest.name, path: `${folder}/${pluginManifestFile}`, api: manifest.api, protobase: manifest.protobase, ...(manifest.fields && { fields: manifest.fields }) })
+    plugins.push({ name: manifest.name, path: `${folder}/${pluginManifestFile}`, api: manifest.api, ...(manifest.protobase && { protobase: manifest.protobase }), ...(manifest.fields && { fields: manifest.fields }) })
   }
   return plugins
 }

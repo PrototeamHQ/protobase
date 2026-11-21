@@ -76,17 +76,18 @@ bun run protobase build-plugin
 ```
 
 ```
-built dist: plugin.json, assets/index-DDnoullN.js and assets/styles-CToS5pKa.css (sales-tools, plugin API 1, Protobase >=0.11.1)
+built dist: plugin.json, assets/index-DDnoullN.js and assets/styles-CToS5pKa.css (sales-tools, plugin API 1)
 ```
 
-`dist/assets/index-<hash>.js` is the plugin's module: its own code, with `react`, `react/jsx-runtime`, `react-dom` and `@protobase/ui` left as imports for the app to supply. `styles-<hash>.css` holds the utilities its classes use, and nothing else. `plugin.json` names both, the plugin API they are built for and the Protobase versions they run on:
+`dist/assets/index-<hash>.js` is the plugin's module: its own code, with `react`, `react/jsx-runtime`, `react-dom` and `@protobase/ui` left as imports for the app to supply. `styles-<hash>.css` holds the utilities its classes use, and nothing else. `plugin.json` names both, the plugin API they are built for and what the plugin uses from the app, which the app checks it has before it loads the plugin:
 
 ```json
 {
   "name": "sales-tools",
   "version": "1.0.0",
   "api": 1,
-  "protobase": ">=0.11.1",
+  "imports": { "@protobase/ui": ["RecordLink", "definePlugin", "useList", "usePlugin"], "react/jsx-runtime": ["jsx", "jsxs"] },
+  "extensionPoints": ["components"],
   "entry": "assets/index-DDnoullN.js",
   "css": "assets/styles-CToS5pKa.css"
 }
@@ -162,4 +163,4 @@ Put `dist/` on a static host, and list its `plugin.json` in the deployed app's `
 
 The app updates to a new release of Protobase. Nothing happens to the plugin: within plugin API 1, every release keeps what the plugin imports, and the plugin runs on the newer `@protobase/ui` it is handed, its fixes included.
 
-If the app were older than the plugin needs, it would not load the plugin at all. Its admins would see a notice below the top bar, such as "The plugin sales-tools is off: it needs Protobase >=0.12.0, and this app runs 0.11.1.", and the card would show a warning in place of the drafts, while the rest of the app works as before. [Versions](/reference/plugins/#versions) has the rules.
+If the app lacked something the plugin uses, such as an export of `@protobase/ui` from a newer release, it would not load the plugin at all. Its admins would see a notice below the top bar naming what is missing, such as "The plugin sales-tools is off: it uses what this app does not have: useList from @protobase/ui.", and the card would show a warning in place of the drafts, while the rest of the app works as before. [Versions](/reference/plugins/#versions) has the rules.

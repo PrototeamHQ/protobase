@@ -30,8 +30,8 @@ const Faulty = () => {
 
 // The plugins as their plugin.json files and modules would be served; `gone` has no plugin.json at all.
 const files: Record<string, unknown> = {
-  'https://cdn.example.com/hello/plugin.json': { name: 'hello', version: '1.0.0', api: 1, protobase: '>=0.0.1', entry: 'index.js' },
-  'https://cdn.example.com/next/plugin.json': { name: 'next', api: 2, protobase: '>=0.0.1', entry: 'index.js' },
+  'https://cdn.example.com/hello/plugin.json': { name: 'hello', version: '1.0.0', api: 1, imports: {}, extensionPoints: [], entry: 'index.js' },
+  'https://cdn.example.com/next/plugin.json': { name: 'next', api: 2, imports: {}, extensionPoints: [], entry: 'index.js' },
 }
 const modules: Record<string, Record<string, unknown>> = {
   'https://cdn.example.com/hello/index.js': { Greeting, Faulty, default: definePlugin({ name: 'hello' }) },

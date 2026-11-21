@@ -22,13 +22,14 @@ describe('isApiPath', () => {
 })
 
 describe('parseManifest', () => {
-  const plugin = { name: 'app', path: 'plugins/app/plugin.json', api: 1, protobase: '>=0.12.0' }
+  const plugin = { name: 'app', path: 'plugins/app/plugin.json', api: 1 }
   const shell = { protobase: '0.12.0', pluginApi: 1, paths: ['/index.html', '/assets'] }
   const manifest = { version: 3, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api'], plugins: [plugin], theme: 'protobase.theme.css', shell }
 
   it('accepts a version 3 manifest, with or without node_modules and migrations', () => {
     expect(parseManifest(manifest, 'm.json')).toEqual(manifest)
     expect(parseManifest({ ...manifest, plugins: [] }, 'm.json')).toEqual({ ...manifest, plugins: [] })
+    expect(parseManifest({ ...manifest, plugins: [{ ...plugin, protobase: '>=0.12.0' }] }, 'm.json')).toEqual({ ...manifest, plugins: [{ ...plugin, protobase: '>=0.12.0' }] })
     expect(parseManifest({ ...manifest, nodeModules: 'node_modules' }, 'm.json')).toEqual({ ...manifest, nodeModules: 'node_modules' })
     expect(parseManifest({ ...manifest, migrations: 'migrations' }, 'm.json')).toEqual({ ...manifest, migrations: 'migrations' })
     expect(parseManifest({ ...manifest, native: { '@capacitor/core': '8.5.3' } }, 'm.json')).toEqual({ ...manifest, native: { '@capacitor/core': '8.5.3' } })
@@ -47,7 +48,7 @@ describe('parseManifest', () => {
     expect(() => parseManifest({ ...manifest, version: 2 }, 'm.json')).toThrow('m.json is not a version 3 bundle manifest; rebuild it with `protobase build`')
     expect(() => parseManifest(null, 'm.json')).toThrow('not a version 3 bundle manifest')
     expect(() => parseManifest({ ...manifest, api: '/api' }, 'm.json')).toThrow('m.json needs server, public, spa and theme paths and an api list')
-    expect(() => parseManifest({ ...manifest, plugins: [{ ...plugin, api: '1' }] }, 'm.json')).toThrow('m.json needs a plugins list, each with a name, path, api and protobase')
+    expect(() => parseManifest({ ...manifest, plugins: [{ ...plugin, api: '1' }] }, 'm.json')).toThrow('m.json needs a plugins list, each with a name, path and api')
     expect(() => parseManifest({ ...manifest, shell: { ...shell, paths: '/assets' } }, 'm.json')).toThrow('m.json needs a shell with its protobase version, pluginApi and paths')
     expect(() => parseManifest({ ...manifest, native: { '@capacitor/core': 8 } }, 'm.json')).toThrow('m.json has a native that is not a map of package names to versions')
     expect(() => parseManifest({ ...manifest, mobile: {} }, 'm.json')).toThrow('m.json has a mobile that is not { appId, plugins, push } with an app id, a map of package names to versions and true or false')

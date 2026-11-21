@@ -2234,7 +2234,8 @@
     "notObject": "its plugin.json is not an object",
     "noName": "its plugin.json names no plugin",
     "noApi": "its plugin.json names no plugin API",
-    "noVersions": "its plugin.json names no Protobase versions",
+    "badVersions": "its plugin.json names Protobase versions that are no text",
+    "noUses": "its plugin.json does not say what it uses from Protobase; rebuild it with protobase build-plugin",
     "noModule": "its plugin.json names no module",
     "badStylesheet": "its plugin.json names a stylesheet that is no URL",
     "badVersion": "its plugin.json has a version that is no text"

@@ -86,7 +86,7 @@ Nothing else compares versions: not the build, not the serve runtime. `protobase
 
 ## Plugins
 
-[Plugins](/reference/plugins/) are versioned by a plugin API of their own: `@protobase/ui`'s `pluginApi`, 1 so far. A plugin's `plugin.json` names the plugin API it is built for and a range of Protobase versions, from the `@protobase/ui` it is built with on. An app loads a plugin of its own plugin API whose range holds its version, and turns off any other, telling its admins why.
+[Plugins](/reference/plugins/) are versioned by a plugin API of their own: `@protobase/ui`'s `pluginApi`, 1 so far. A plugin's `plugin.json` names the plugin API it is built for and what it uses: the names it imports from the modules the app shares and the extension points it fills. An app loads a plugin of its own plugin API when it has everything the plugin uses, whichever release built it, and turns off any other, telling its admins what is missing. A plugin whose author names a range of Protobase versions (`engines.protobase`) also needs the app's version in it (see [versions](/reference/plugins/#versions)).
 
 A project's own `protobase.ui.tsx` is a plugin of its bundle, so the same rule holds for it. The admin app it runs in, the shell, is prebuilt once per release; a host that serves a newer release's shell for a bundle whose plugins all load in it gives the app that release's fixes without a rebuild (see [the shell](/reference/plugins/#the-shell)).
 
