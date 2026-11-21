@@ -61,6 +61,7 @@
     "StepList",
     "Textarea",
     "ToneEdge",
+    "TypingLine",
     "allowDelayMs",
     "buttonClass",
     "chatDayLabel",
@@ -124,13 +125,17 @@
     "useRecord",
     "useRecordCallAddress",
     "useRecordCalls",
+    "useRelay",
     "useResourceClient",
     "useSeries",
     "useSiblingPage",
     "useSignedInUser",
     "useStatuses",
     "useToast",
+    "useTypers",
+    "useTypingSender",
     "useUnreadNotifications",
-    "useUpdateRecord"
+    "useUpdateRecord",
+    "useViewChannel"
   ]
 }
