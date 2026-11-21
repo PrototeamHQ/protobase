@@ -639,7 +639,7 @@ The standard record page, with the layout's sections, the related records, Edit 
 ### Conversation pages
 
 :::caution[Beta]
-A conversation page shows each message's text with its mentions and keeps line breaks, without markdown; it has no files or calls yet, and a deleted message leaves no trace in its place.
+A conversation page shows each message's text with its mentions and keeps line breaks, without markdown; it has no calls yet, and a deleted message leaves no trace in its place.
 :::
 
 `.record({ conversation })` makes the record page the record's conversation, for a record that holds one, such as a chat channel, a direct message or a support case, with no component of the app's own. It fills the content area as a [full-area record page](#full-area-record-pages) does, on the web and at mobile width: a header row, the messages that point at the record, and a box that sends one, which stays in view while the messages scroll above it.
@@ -667,6 +667,7 @@ view<typeof channels>('channels').record({
       labels: { thumbs_up: { symbol: '👍', name: 'Thumbs up' }, heart: { symbol: '❤️', name: 'Heart' } },
     },
     thread: { field: 'thread_id', count: 'reply_count', last: 'last_reply_at' },
+    attachments: { resource: 'attachments', field: 'message_id', file: 'file', width: 'width', height: 'height' },
   },
 })
 ```
@@ -689,6 +690,7 @@ view<typeof channels>('channels').record({
 | `delete` | `true`: anyone the message resource's delete access allows deletes a message, after confirming; or `{ unless }`, a condition on the message's own fields that keeps it, such as `reply_count > 0`. |
 | `reactions` | Emoji reactions under each message: `{ resource, field, user, emoji, labels }`. |
 | `thread` | Replies in a thread under a message, in a panel beside the conversation: `{ field, count, last }`. |
+| `attachments` | [Files](#files-in-messages) a message carries, kept in a resource of their own: `{ resource, field, file, width, height }`. |
 
 The header shows the record's title, which the top bar repeats at mobile width and so shows there only with `members`, the subtitle, and *Details*, a link to the record's standard page at `?standard=true`, with its sections, Edit and Delete. The latest 50 messages show oldest first, with *Load earlier messages* at the top for more. A day divider opens each day, and one person's messages sent within five minutes of each other show under their name once. A message resource with [`.live()`](/reference/live/) shows new, changed and deleted messages as they happen. Every read goes through the reader's own access: a message they may not read never shows, and a reader who may not read the messages, a field each one needs or the fields of `thread` gets the standard page. The box shows for a reader who may create messages.
 
@@ -706,6 +708,19 @@ With `reactions`, `edit`, `delete` or `thread`, people act on the messages where
 - **Threads**: `field` is the filterable relation of the messages to themselves that holds a reply's first message, empty for a message of the conversation itself, `count` an integer field holding a first message's number of replies and `last` a date or timestamp field holding when its last reply came, both kept by the database, such as by a trigger. The conversation shows only messages outside threads; under a message with replies, a link names how many and when the last came. It and *Reply in thread* open the thread at `?thread=<key>`, so a link can open it too: in a panel beside the conversation, covering the screen at mobile width, with the first message, its replies and a box of its own that replies in the thread. An address naming a message of another conversation opens no thread there. A reply gets its first message's conversation from the box, so keep the two the same in the database, such as by a check in the trigger that counts the replies, as an API create can set them apart.
 
 <StoryFrame id="record-page-conversation-page-message-actions--message-actions" title="Reactions under messages, a thread's replies under its first message, and the actions bar" height={560} />
+
+#### Files in messages
+
+With `attachments`, people share files in a message and see them under it. A button left of the box opens the file picker, and files pasted into the box or dropped on it join the message too. Each file uploads as soon as it is picked and shows above the box with its size, how far its upload is, or why it was refused, with a button that takes it off: a file larger than the file field's [`maxSize`](/reference/files/) is refused before it uploads, and one the server refuses shows the server's reason. The message waits for the uploads still on their way, and once a file is uploaded it may go without text. The message and its files are written in one [batch](/reference/api/#batch-writes), so the message never shows without them.
+
+Under a message, an image shows as a preview at most 240 pixels high that opens it in a new tab, and any other file as a link with its name and size that downloads it. The files of a page of messages are read together with it, through the reader's own access, and their links are those the API signs for the reader. *Delete* deletes a message's files first, in the same batch.
+
+- `resource` keeps one record per file: `field` is its filterable relation to the message and `file` its file field, whose value gives the file's name, type and size.
+- `width` and `height` are integer fields of an image's size in pixels, such as those a `.derive({ width: imageSize('width'), height: imageSize('height') })` on the file fills, so an image takes its place before it loads. Both are optional.
+
+A message of files alone has no text, so the message resource's text field is optional. A reader who may not read `field` or `file` sees no files, and the box offers none.
+
+<StoryFrame id="record-page-conversation-page-files--message-files" title="An image and a file under their messages, and files picked for the next one" height={560} />
 
 <gap>A conversation page cannot offer *Edit* when its `sender` is a relation because matching a related record to the reader is not implemented; a `sender` of user ids, such as the resource's `.author()`, gets it.</gap>
 
