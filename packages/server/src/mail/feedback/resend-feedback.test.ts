@@ -7,7 +7,7 @@ import { resendFeedback } from './resend-feedback'
 describe('Resend feedback', () => {
   it('is a hard bounce per recipient of a permanent bounce, with its message as the reason', () => {
     expect(resendFeedback(JSON.stringify(bounced))).toEqual([
-      { type: 'bounce', bounce_type: 'hard', recipient: 'delivered@resend.dev', message_id: '<111-222-333@email.example.com>', provider_message_id: '56761188-7520-42d8-8898-ff6fc54ce618', reason: bounced.data.bounce.message, occurred_at: '2026-11-22T23:41:12.126Z' },
+      { type: 'bounce', bounce_type: 'hard', recipient: 'delivered@resend.dev', message_id: '<111-222-333@email.example.com>', provider_message_id: '56761188-7520-42d8-8898-ff6fc54ce618', reason: bounced.data.bounce.message, occurred_at: '2026-02-22T23:41:12.126Z' },
     ])
   })
 
