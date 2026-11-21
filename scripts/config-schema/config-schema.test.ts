@@ -35,4 +35,11 @@ describe('the JSON Schema of protobase.config.json', () => {
     expect(validate({ unsubscribe: { $env: 'UNSUBSCRIBE' } })).toBe(false)
     expect(validate({ userTables: { $env: 'USER_TABLES', default: true } })).toBe(false)
   })
+
+  it('takes an object key only as an object, with $env values inside it, not as an $env value that reads as text', () => {
+    expect(validate({ auth: { tables: { prefix: { $env: 'AUTH_PREFIX' }, user: { name: { $env: 'USER_TABLE' } } } } })).toBe(true)
+    expect(validate({ auth: { tables: { $env: 'AUTH_TABLES' } } })).toBe(false)
+    expect(validate({ auth: { tables: { user: { $env: 'USER_TABLE' } } } })).toBe(false)
+    expect(validate({ auth: { $env: 'AUTH' } })).toBe(false)
+  })
 })

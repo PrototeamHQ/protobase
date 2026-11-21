@@ -14,7 +14,7 @@ import { authSchemaDrift } from '../src/better-auth/store/drift'
 import { createUser, listUsers } from '../src/better-auth/users'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
 
-// The store with every built-in table and column under another name, through createAuth's `tables` alone: its migrations make
+// The store with every built-in table and column under another name, through `auth.tables` alone: its migrations make
 // them so, and sign-in, sessions, tokens, memberships and the store's own SQL read and write them so.
 vi.setConfig({ testTimeout: 30_000 })
 
@@ -31,7 +31,7 @@ const tables = Object.fromEntries(
 const serve = async () => {
   const store = await openPostgresDatabase('empty')
   const db = new Kysely<any>({ dialect: store.dialect })
-  const auth = await buildAuth({ ...appAuthOptions({ baseURL, secret: 'table-names-test-secret-0123456789', schema: 'login', mailer: false, organizations: true, personalAccessTokens: { prefix: 'test_' } }, { db }), tables })
+  const auth = await buildAuth(appAuthOptions({ baseURL, secret: 'table-names-test-secret-0123456789', schema: 'login', mailer: false, organizations: true, personalAccessTokens: { prefix: 'test_' }, tables }, { db }))
   await store.exec((await authSchemaMigration(auth))!)
   const request = (path: string, init: { cookie?: string; body?: unknown } = {}) =>
     auth.handler(

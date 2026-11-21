@@ -93,7 +93,10 @@ import { pushJob } from './notifications/push-job'
 import { onDoNotDisturb } from './status/do-not-disturb'
 import { checkStatusAuth, statusNames, type StatusOptions } from './status/options'
 import { statusRoutes } from './status/routes'
+import { relayRuntime } from './relay/relay-runtime'
+import { relayTicketPath } from './relay/ticket-route'
 import { liveSessions } from './better-auth/live-sessions'
+import { mailSenderUse } from './personal-mail/mail-sender-use'
 import type { SubscriptionDefinition } from './webhooks/subscription'
 import { visitorsBrowse, withAnonymous } from './anonymous'
 import { checkBottomBars, checkShell } from './check-shell'
@@ -390,6 +393,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     ...(withHistory && { history: { schema: changes, ...(auth && { actorNames: betterAuthActorNames(auth) }) } }),
     ...(mentions && { comments: { ...(commentUsers && { users: commentUsers }), mentionJob: mentions, appOrigin: appOrigin(auth?.origins ?? []) } }),
     ...(withAi && { ai: { ...(model && { model }), ...(options.onUnhandledError && { report: options.onUnhandledError }) } }),
+    ...(auth && auth.personalMail.length > 0 && { mailSenders: (userId: string) => auth.personalMailer(userId).senders() }),
     ...(calls && {
       calls: callsService(() => deps, calls, {
         notices: changes,
@@ -401,6 +405,11 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
       }),
     }),
   }
+
+  const relay = realtime?.relay && relayRuntime(realtime.relay, auth, deps)
+
+  // Removing a From address, or disconnecting its mailbox, waits until no record holds it.
+  if (auth) auth.mailSenderUse.set(mailSenderUse(db, registry.entries))
 
   // The tabs end in the name the app signs in and mails as, which the installed app is called too.
   const appName = shownAppName(auth, globalThis.process?.env ?? {})
@@ -516,6 +525,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   }
   if (engine) app.route(workflowTypesPath(systemPath), guarded((routes) => void routes.route('/', workflowTypesRoute(deps, engine.types.types, engine.customTypes, engine.types.templates))))
   if (engine) app.route(workflowRunsPath(systemPath), guarded((routes) => void routes.route('/', workflowTraceRoute(deps, engine.readTrace))))
+  if (relay) app.route(relayTicketPath(systemPath), guarded((routes) => void routes.route('/', relay.routes()), withAnonymous(authenticate, options.roles)))
   if (statusTables) app.route(statusPath(systemPath), guarded((routes) => void routes.route('/', statusRoutes(db, statusTables))))
   if (deps.calls) app.route(ringsPath(systemPath), guarded((routes) => void routes.route('/', ringRoutes(deps.calls!))))
   // The guests' lobby and call socket, which take only guests' tokens; with organizations, the admin's switch for them.
@@ -563,10 +573,10 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   app.route(systemPath || '/', webManifestRoute(appName, identity, icons))
   app.route(deps.systemPath || '/', system)
   const derived = createDerived({ deps, computes, jobNames: jobs.map((job) => job.name) })
-  const onChanges = [engine?.onChanges, derived?.onChanges].filter((hook) => hook !== undefined)
+  const onChanges = [engine?.onChanges, derived?.onChanges, relay?.onChanges].filter((hook) => hook !== undefined)
   const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, channels, schema: changes, log: (line) => console.log(line), ...(table && { table }), ...(onChanges.length > 0 && { onChanges: async (trx: Db, batch: readonly ResourceChange[]) => { for (const hook of onChanges) await hook(trx, batch) } }) })
   const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), sqlSends: sqlSends(realtime), report })
   // The requests held open waiting, as runners' claims are, answered at once as the process closes.
   const stopHolding = async () => void (await engine?.stop())
-  return Object.assign(app, { startRealtimePrune: prune, stopHolding, decryptField, metaPath: `${deps.systemPath}/meta`, ...(links && { unsubscribe: links }), jobs: [...webhooks.jobs, ...(engine ? engine.jobs : []), ...(derived ? derived.jobs : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
+  return Object.assign(app, { startRealtimePrune: prune, stopHolding, decryptField, metaPath: `${deps.systemPath}/meta`, ...(links && { unsubscribe: links }), jobs: [...webhooks.jobs, ...(relay ? relay.jobs : []), ...(engine ? engine.jobs : []), ...(derived ? derived.jobs : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
 }

@@ -3,6 +3,7 @@ import { sql } from 'kysely'
 import { PgBoss, type Db as BossDb } from 'pg-boss'
 import type { Db } from '@protobase/query'
 import { runInBackground } from '../background-work'
+import { afterCommit } from '../commit-hooks'
 import type { FieldDecrypter } from '../encryption/decrypt-field-types'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
@@ -25,7 +26,10 @@ export type StartJobsOptions = {
   jobs: JobDefinition[]
   /** Runs the jobs in this process; `false` only enqueues them, for a process whose jobs another one runs. Default true. */
   work?: boolean
-  /** Seconds between a worker's checks for due jobs; an enqueue outside a transaction wakes this process's worker at once. Default 2. */
+  /**
+   * Seconds between a worker's checks for due jobs. An enqueue wakes this process's worker at once, or after its
+   * transaction commits, on the app's database driver (`appDialect`). Default 2.
+   */
   pollSeconds?: number
   /** Seconds running jobs get to finish when the jobs stop, before they are failed and retried later. Default 30. */
   shutdownSeconds?: number
@@ -176,8 +180,7 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
     }
     const id = options.key === undefined ? await boss.send(name, data as object, send) : await keyed(options.key)
     if (!id) throw new Error(`Job "${name}" was not enqueued`)
-    // A job enqueued in a transaction is not visible before it commits; the worker's next poll finds it.
-    if (!target.isTransaction) wake(name)
+    await wakeWhenVisible(target, name)
     return id
   }
 
@@ -217,7 +220,7 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
         ids[keyed[n]!.place] = row.id
       })
     }
-    if (jobs.length > 0 && !target.isTransaction) wake(name)
+    if (jobs.length > 0) await wakeWhenVisible(target, name)
     return ids
   }
 
@@ -246,7 +249,7 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
     for (;;) {
       // A worker fetches when woken, rather than at its next poll.
-      for (const worker of workers.values()) boss.notifyWorker(worker.id)
+      for (const name of workers.keys()) wake(name)
       const remaining = await pending()
       if (remaining === 0 || Date.now() >= deadline) return { drained: remaining === 0, remaining, nextDue: await nextDue() }
       // Counts again once the woken workers ran what they fetched, so the counts follow the jobs rather than how fast
@@ -256,9 +259,21 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
     }
   }
 
+  // Every lane of the job's worker, so up to its concurrency of the due jobs start at once.
   const wake = (name: string) => {
     const worker = workers.get(name)
-    if (worker) boss.notifyWorker(worker.id)
+    if (!worker) return
+    for (const lane of boss.getWipData()) if (lane.workId === worker.id) boss.notifyWorker(lane.id)
+  }
+
+  // A job enqueued in a transaction is not visible before it commits, so its worker wakes after the commit, and not
+  // when it rolls back; on a driver other than the app's, the worker's next poll finds it.
+  const wakeWhenVisible = async (target: Db, name: string) => {
+    if (!target.isTransaction) {
+      wake(name)
+      return
+    }
+    await afterCommit(target, () => wake(name))
   }
 
   const runtime: JobsRuntime = {

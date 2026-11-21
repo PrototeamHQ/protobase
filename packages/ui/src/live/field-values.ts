@@ -5,7 +5,7 @@ import { fileDiffers, filePatchValue } from './file-values'
 /** What the editor's text input holds for a stored value. */
 export const toDraft = (value: unknown) => (value === null || value === undefined ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value))
 
-const textEdited = new Set(['text', 'integer', 'bigint', 'decimal', 'date', 'currency', 'country'])
+const textEdited = new Set(['text', 'integer', 'bigint', 'decimal', 'date', 'currency', 'country', 'mail_sender'])
 
 const uneditable = new Set(['uuid', 'timestamp', 'relation'])
 

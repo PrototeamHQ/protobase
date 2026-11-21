@@ -1,10 +1,12 @@
 import type { BetterAuthPlugin } from 'better-auth'
-import { APIError, createAuthEndpoint, sessionMiddleware } from 'better-auth/api'
+import { APIError, createAuthEndpoint, createAuthMiddleware, getSessionFromCtx, sessionMiddleware } from 'better-auth/api'
 import * as z from 'zod'
+import { headersLocale } from '../locale/request-locale'
 import { idTokenAddress, storedScopes } from './linked-accounts'
 import type { PersonalMailProvider } from './personal-mail-provider'
 import { linkedMailbox } from './personal-mailer'
 import type { BetterAuthNames } from '../better-auth/names/better-auth-names'
+import type { MailSenderUseCheck } from './mail-sender-use-check'
 import { changeSender, clearDefault, deleteSender, mailSenderModel, sendersOf, storeSender, type MailSenderRow } from './sender-store'
 
 /** The paths of the person's From addresses, as Better Auth names them under the auth base path. */
@@ -39,6 +41,22 @@ const tooMany = { code: 'TOO_MANY_MAIL_SENDERS', message: `You can enter at most
 const taken = { code: 'MAIL_SENDER_EXISTS', message: 'You entered this address already.' }
 const notFound = { code: 'MAIL_SENDER_NOT_FOUND', message: 'This address is not one you entered.' }
 
+type StoredAccount = { id: string; providerId: string; scope?: string | null; idToken?: string | null; createdAt: Date }
+
+// The account the person's mail goes through, with its own address when its link names it.
+const mailboxOf = (accounts: StoredAccount[], providers: PersonalMailProvider[]) => {
+  const linked = linkedMailbox(
+    accounts.map((account) => ({ id: account.id, providerId: account.providerId, scopes: storedScopes(account.scope), createdAt: account.createdAt })),
+    providers,
+  )
+  if (!linked) return
+  const address = idTokenAddress(accounts.find((account) => account.id === linked.account.id)?.idToken)
+  return { accountId: linked.account.id, ...(address && { address }) }
+}
+
+// Better Auth's own path that disconnects one of the person's accounts, their mailbox's included.
+const unlinkPath = '/unlink-account'
+
 // A signature of only blanks is none, so the generic one applies.
 const signatureField = z.string().max(maxSignatureLength).transform((value) => (value.trim() ? value : null))
 
@@ -55,21 +73,33 @@ const nameField = z
  * when its link names it; `POST /account/mail-senders/add { address, name?, signature? }` enters one, usable by them alone,
  * with the display name the From header shows beside it; `POST /account/mail-senders/update { id, name?, signature?, isDefault? }`
  * changes one, `name: null` dropping its name, `signature: null` dropping its own, and `isDefault` making it, or no longer making it, the address mail goes out from when the app names
- * none; `POST /account/mail-senders/remove { id }` deletes one. Each acts on the session's own person only.
+ * none; `POST /account/mail-senders/remove { id }` deletes one. Each acts on the session's own person only. While
+ * records of the app hold an address (`inUse`), removing it, or disconnecting the mailbox whose own address it is
+ * (`/unlink-account`), is refused with a 409, and changes nothing.
  */
-export const mailSendersPlugin = (providers: PersonalMailProvider[], names: BetterAuthNames) =>
+export const mailSendersPlugin = (providers: PersonalMailProvider[], names: BetterAuthNames, inUse?: MailSenderUseCheck) =>
   ({
     id: 'protobase-mail-senders',
     schema: names.tables(mailSenderModel),
+    hooks: {
+      before: [
+        {
+          matcher: (context) => context.path === unlinkPath,
+          handler: createAuthMiddleware(async (ctx) => {
+            const accountId = (ctx.body as { accountId?: unknown } | undefined)?.accountId
+            const session = inUse && typeof accountId === 'string' ? await getSessionFromCtx(ctx) : null
+            if (!session) return
+            const mailbox = mailboxOf(await ctx.context.internalAdapter.findAccounts(session.user.id), providers)
+            if (mailbox?.address && mailbox.accountId === accountId) await inUse!.refuse(mailbox.address, headersLocale(ctx.headers))
+          }),
+        },
+      ],
+    },
     endpoints: {
       listMailSenders: createAuthEndpoint(mailSenderPaths.list, { method: 'GET', use: [sessionMiddleware] }, async (ctx) => {
         const userId = ctx.context.session.user.id
         const [rows, accounts] = await Promise.all([sendersOf(ctx.context.adapter, userId), ctx.context.internalAdapter.findAccounts(userId)])
-        const linked = linkedMailbox(
-          accounts.map((account) => ({ id: account.id, providerId: account.providerId, scopes: storedScopes(account.scope), createdAt: account.createdAt })),
-          providers,
-        )
-        const address = linked && idTokenAddress(accounts.find((account) => account.id === linked.account.id)?.idToken)
+        const address = mailboxOf(accounts, providers)?.address
         return ctx.json({ ...(address && { address }), senders: rows.map(listed) })
       }),
 
@@ -109,7 +139,10 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[], names: Bett
       ),
 
       removeMailSender: createAuthEndpoint(mailSenderPaths.remove, { method: 'POST', use: [sessionMiddleware], body: z.object({ id: z.string().min(1) }) }, async (ctx) => {
-        await deleteSender(ctx.context.adapter, ctx.context.session.user.id, ctx.body.id)
+        const userId = ctx.context.session.user.id
+        const found = (await sendersOf(ctx.context.adapter, userId)).find((row) => row.id === ctx.body.id)
+        if (found && inUse) await inUse.refuse(found.address, headersLocale(ctx.headers))
+        await deleteSender(ctx.context.adapter, userId, ctx.body.id)
         return ctx.json({ removed: true })
       }),
     },

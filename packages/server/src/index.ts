@@ -134,6 +134,8 @@ export { mailFeedbackHeaders, mailFeedbackSecret } from './mail/feedback/feedbac
 export type { MailFeedback } from './mail/feedback/feedback-record'
 export { onDoNotDisturb } from './status/do-not-disturb'
 export { statusNames, type StatusOptions } from './status/options'
+export { checkRelayOptions, type RealtimeRelayOptions, type RelayChannelOptions, type RelayMembers } from './relay/relay-options'
+export { relayMigration, checkRelaySchema } from './relay/relay-schema'
 export type { OrganizationsOptions } from './better-auth/organizations/options'
 export type { RoleDefinition, RolesInput } from './better-auth/organizations/role-definitions'
 export type { OrganizationRole, StoredMember, StoredOrganization } from './better-auth/organizations/store'

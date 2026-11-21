@@ -1,8 +1,9 @@
 import { randomBytes } from 'node:crypto'
-import { Kysely, PostgresDialect, sql } from 'kysely'
+import { Kysely, sql } from 'kysely'
 import pg from 'pg'
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest'
 import { checkJobsSchema, defineJob, startJobs, type JobDefinition, type JobsRuntime } from '@protobase/server'
+import { appDialect } from '@protobase/server/internal'
 
 /**
  * The job queue on a real database at `url`, on the runtime that runs Vitest, Node or Bun: committed with the caller's
@@ -15,7 +16,8 @@ export const jobsScenarios = (url: () => string) => {
   let errors: unknown[] = []
 
   beforeAll(() => {
-    db = new Kysely<any>({ dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString: url(), max: 5 }) }) })
+    // On the app's driver, as `protobase dev`, `serve` and `worker` run it.
+    db = new Kysely<any>({ dialect: appDialect(new pg.Pool({ connectionString: url(), max: 5 })) })
   })
   afterEach(async () => {
     await runtime?.stop()
@@ -33,24 +35,27 @@ export const jobsScenarios = (url: () => string) => {
   }
   const until = (check: () => unknown, timeout = 10_000) => vi.waitFor(check, { timeout, interval: 10 })
 
-  it("runs a job committed with the caller's transaction at the next poll, and one enqueued outside at once", async () => {
+  it("runs a job enqueued outside a transaction at once, and one in the caller's transaction once it commits, never one rolled back", async () => {
     const seen: Array<{ n: number; at: number }> = []
-    const job = defineJob<{ n: number }>({ name: `count-${randomBytes(3).toString('hex')}`, run: ({ n }) => { seen.push({ n, at: Date.now() }) } })
+    const job = defineJob<{ n: number }>({ name: `count-${randomBytes(3).toString('hex')}`, concurrency: 3, run: ({ n }) => { seen.push({ n, at: Date.now() }) } })
+    // Woken at once rather than at the next poll, 30 seconds away.
     await start([job], 30)
     const enqueued = Date.now()
     await job.enqueue(db, { n: 1 })
-    await until(() => expect(seen.map(({ n }) => n)).toEqual([1]), 10_000)
-    // Woken at once rather than at the next poll, 30 seconds away.
+    await until(() => expect(seen.map(({ n }) => n)).toEqual([1]))
     expect(seen[0]!.at - enqueued).toBeLessThan(5_000)
     await expect(db.transaction().execute(async (trx) => {
       await job.enqueue(trx, { n: 2 })
       throw new Error('the write failed')
     })).rejects.toThrow('the write failed')
-    await runtime!.stop()
-    runtime = undefined
-    await start([job], 0.5)
-    await db.transaction().execute((trx) => job.enqueue(trx, { n: 3 }))
-    await until(() => expect(seen.map(({ n }) => n)).toEqual([1, 3]))
+    await db.transaction().execute(async (trx) => {
+      await job.enqueue(trx, { n: 3 })
+      await job.enqueueMany(trx, [{ payload: { n: 4 } }, { payload: { n: 5 }, options: { key: 'five' } }])
+    })
+    const committed = Date.now()
+    // Each of the worker's three lanes takes one.
+    await until(() => expect(seen.map(({ n }) => n).sort()).toEqual([1, 3, 4, 5]))
+    for (const { at } of seen.slice(1)) expect(at - committed).toBeLessThan(5_000)
   })
 
   it('picks up a job enqueued from SQL on another connection by polling, and retries a failed try', async () => {

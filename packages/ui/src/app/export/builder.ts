@@ -17,7 +17,7 @@ export type ExportPlan = {
 export type ExportRecord = Record<string, unknown>
 
 // Fields whose CSV text is free text someone typed, which a spreadsheet could take for a formula.
-const typedText = new Set(['text', 'uuid', 'enum', 'relation', 'file', 'json', 'currency', 'country'])
+const typedText = new Set(['text', 'uuid', 'enum', 'relation', 'file', 'json', 'currency', 'country', 'mail_sender'])
 
 const minWidth = 8
 const maxWidth = 60

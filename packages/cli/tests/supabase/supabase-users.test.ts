@@ -43,9 +43,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-// The import's settings, with `auth.users`' table and columns as the user table's names, as the app's config gives them.
-const { users: { table, columns, ...users }, ...settings } = supabaseUsers
-
 // Its schema check starts once its context is made; let it finish before the test's next queries.
 const authOn = async (pg: SnapshotDb) => {
   const auth = createAuth({
@@ -56,9 +53,7 @@ const authOn = async (pg: SnapshotDb) => {
     operator: false,
     signInProviders: [],
     socialProviders: { github: { clientId: 'Iv1.client', clientSecret: 'client-secret' } },
-    ...settings,
-    tables: { user: { name: table, columns } },
-    users,
+    ...supabaseUsers,
   })
   await auth.$context
   await settled()

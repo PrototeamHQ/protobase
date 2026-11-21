@@ -55,7 +55,7 @@ await enqueueJob(db, 'send-invoice', { invoiceId: 7 }, { delay: '5 minutes', key
 | `key` and `mode` | One waiting job per key: with `mode: 'dedupe'` (the default) an enqueue while one waits returns that one's id and leaves it as it is; with `mode: 'replace'` the waiting job takes this payload and these options. A job that is running does not count, so a change made while it runs gets a job of its own. |
 | `group` | The group of an [ordered](#ordered-groups) job: required there, refused elsewhere. |
 
-A job enqueued outside a transaction starts at once when this process runs its jobs. One enqueued in a transaction, or by another process, is picked up within the poll interval, 2 seconds.
+A job this process enqueues starts at once when this process runs its jobs, and one enqueued in a transaction starts once that transaction commits, never when it rolls back; a wake starts up to the job's `concurrency` of its due jobs. A job enqueued by another process, or from SQL, is picked up within the poll interval, 2 seconds, and so is one enqueued in a transaction of a Kysely instance the app built itself rather than its `db`.
 
 Each worker takes one job per poll, so a queue that fills faster drains one job per worker every 2 seconds at first. Once the queue maintenance, about every minute, counts more jobs ready than the job's `concurrency`, a worker that found a job fetches the next one at once, until a fetch finds none: a backlog then drains as fast as its jobs run.
 

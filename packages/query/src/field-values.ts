@@ -7,6 +7,7 @@ import { toParam as date } from './fields/date'
 import { toParam as decimal } from './fields/decimal'
 import { toParam as enumeration } from './fields/enum'
 import { toParam as integer } from './fields/integer'
+import { toParam as mailSender } from './fields/mail-sender'
 import { toParam as relation } from './fields/relation'
 import { toParam as text } from './fields/text'
 import { toParam as timestamp } from './fields/timestamp'
@@ -15,7 +16,7 @@ import type { ToParam } from './fields/sql-common'
 import { QueryError } from './errors'
 
 const byType: Partial<Record<FieldType, ToParam>> = {
-  text, integer, bigint, decimal, boolean, date, timestamp, uuid, currency, country, relation, enum: enumeration,
+  text, integer, bigint, decimal, boolean, date, timestamp, uuid, currency, country, mail_sender: mailSender, relation, enum: enumeration,
 }
 
 /** json and file fields have no scalar comparison; the checker rejects them before they reach here. */

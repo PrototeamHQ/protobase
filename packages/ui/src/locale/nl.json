@@ -852,6 +852,7 @@
     "enum": "Kies een van de opties",
     "relation": "Kies een record",
     "json": "Vul geldige JSON in",
+    "mailSender": "Je kunt niet verzenden vanaf {address}. Kies een van je adressen, of voeg het eerst toe op je accountpagina",
     "required": "{label} is verplicht",
     "checkField": "Controleer het gemarkeerde veld.",
     "checkFields": "Controleer {count} velden."
@@ -2098,7 +2099,14 @@
     "expired": "{names} neemt geen mail van deze app meer aan, bijvoorbeeld omdat de koppeling is verwijderd of verlopen. Opnieuw koppelen vraagt je daar in te loggen en brengt je daarna hier terug.",
     "signInOnly": "Je logt in met {provider}, maar daarmee mag de app geen mail versturen: koppel {name} om ermee te versturen.",
     "connect": "{name} koppelen",
-    "connectAgain": "{name} opnieuw koppelen"
+    "connectAgain": "{name} opnieuw koppelen",
+    "defaultSender": "Standaardadres van de verzender",
+    "senderNotAvailable": "{address} (niet beschikbaar)",
+    "chooseSender": "Kies een adres",
+    "senderNotYours": "Vanaf dit adres kun je niet versturen. Kies een van jouw adressen, of voeg het toe op je {account}.",
+    "accountPage": "accountpagina",
+    "sendersNotRead": "Je adressen konden niet worden gelezen. Controleer je verbinding.",
+    "tryAgain": "Opnieuw proberen"
   },
   "markdown": {
     "write": "Schrijven",
