@@ -13,15 +13,27 @@ const typedErrors = (model: ResourceModel, prop: string, name: string | undefine
   return types.includes(field.type) ? [] : [`${prop}: "${name}" is ${field.type}; ${what}`]
 }
 
+// The reader finds their own position by its author, which the server sets, so it is filterable rather than sendable
+const authorErrors = (model: ResourceModel) => {
+  if (model.author === undefined) return [`${model.name} has no .author(), so it cannot keep each reader's own position`]
+  return model.fields[model.author]?.filterable ? [] : [`"${model.author}" on ${model.name} is not filterable, so a reader's own position cannot be found`]
+}
+
+// The reader's first read creates their position with these fields and later reads move it, so the page sends them
+const sentErrors = (model: ResourceModel, prop: string, name: string, checked: string[]) => {
+  if (checked.length > 0) return checked
+  return model.fields[name]!.readOnly || name === model.tenant || name === model.author ? [`${prop}: "${name}" is read-only on ${model.name}`] : []
+}
+
 // The reader's own position: a record per reader, by its author, pointing at the record, holding a message's integer key
 const readPositionErrors = (position: ReadPositionModel, resource: string, messages: ResourceModel, models: Record<string, ResourceModel>) => {
   const model = models[position.resource]
   if (!model) return [`unknown resource "${position.resource}"`]
   const keyField = messages.primaryKey.length === 1 ? messages.fields[messages.primaryKey[0]!] : undefined
   return [
-    ...(model.author === undefined ? [`${position.resource} has no .author(), so it cannot keep each reader's own position`] : []),
-    ...matchErrors(model, position.field, resource).map((error) => `field: ${error}`),
-    ...typedErrors(model, 'message', position.message, ['integer'], "it holds a message's key, an integer"),
+    ...authorErrors(model),
+    ...sentErrors(model, 'field', position.field, matchErrors(model, position.field, resource).map((error) => `field: ${error}`)),
+    ...sentErrors(model, 'message', position.message, typedErrors(model, 'message', position.message, ['integer'], "it holds a message's key, an integer")),
     ...(keyField?.type === 'integer' ? [] : [`${messages.name} needs a key of one integer column, which grows as messages arrive`]),
   ]
 }
