@@ -6378,6 +6378,10 @@
           "additionalProperties": {
             "$ref": "#/definitions/RelayChannelOptions"
           }
+        },
+        "presence": {
+          "description": "Turns on presence: the relay reports who is online, away or offline, and the app keeps it in this resource.",
+          "$ref": "#/definitions/RelayPresence"
         }
       },
       "required": [
@@ -6451,6 +6455,74 @@
         "resource",
         "channel",
         "user"
+      ],
+      "additionalProperties": false
+    },
+    "RelayPresence": {
+      "type": "object",
+      "properties": {
+        "resource": {
+          "description": "The resource, such as `presences`: captured, such as with `.live()`, and keyed by its user field.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "user": {
+          "description": "Its field holding the person's user id, its key, such as `user_id`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "status": {
+          "description": "Its field holding `online`, `away` or `offline`, such as `status`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "at": {
+          "description": "Its timestamp field holding when the status began, such as `since`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "key": {
+          "description": "The bearer token the relay's presence reports carry, at least 32 characters.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "resource",
+        "user",
+        "status",
+        "at",
+        "key"
       ],
       "additionalProperties": false
     },

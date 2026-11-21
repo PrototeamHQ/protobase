@@ -28,4 +28,11 @@ describe('checkRelayOptions', () => {
       'realtime.relay.channels.conversations.members must be { resource, channel, user }',
     )
   })
+
+  it('refuses presence without its fields or with a short key', () => {
+    const presence = { resource: 'presences', user: 'user_id', status: 'status', at: 'since', key: 'p'.repeat(32) }
+    expect(checkRelayOptions({ ...chatRelay, presence }).presence).toBe(presence)
+    expect(() => checkRelayOptions({ ...chatRelay, presence: { ...presence, at: '' } })).toThrow('realtime.relay.presence must be { resource, user, status, at, key }')
+    expect(() => checkRelayOptions({ ...chatRelay, presence: { ...presence, key: 'short' } })).toThrow('realtime.relay.presence.key must be a string of at least 32 characters')
+  })
 })

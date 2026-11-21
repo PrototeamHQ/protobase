@@ -14,6 +14,7 @@ export const chatModels = () => [
   resource('messages').table('messages').fields({ id: f.integer(), conversation_id: f.relation('conversations').filterable(), body: f.text(), mentions: f.json().optional() }).primaryKey((r) => r.id).live().toModel(),
   resource('rooms').table('rooms').fields({ id: f.integer(), name: f.text() }).primaryKey((r) => r.id).live().toModel(),
   resource('posts').table('posts').fields({ id: f.integer(), room_id: f.relation('rooms').filterable(), body: f.text() }).primaryKey((r) => r.id).live().toModel(),
+  resource('presences').table('presences').fields({ user_id: f.text(), status: f.enum(['online', 'away', 'offline']), since: f.timestamp() }).primaryKey((r) => r.user_id).live().toModel(),
   resource('notes').table('notes').fields({ id: f.integer(), conversation_id: f.relation('conversations').filterable() }).primaryKey((r) => r.id).toModel(),
 ]
 
@@ -27,6 +28,9 @@ export const chatRelay: RealtimeRelayOptions = {
     rooms: {},
   },
 }
+
+/** The chat's presence, in its own `presences` resource. */
+export const chatPresence = { resource: 'presences', user: 'user_id', status: 'status', at: 'since', key: 'p'.repeat(32) }
 
 let sequence = 0
 

@@ -96,6 +96,7 @@ import { onDoNotDisturb } from './status/do-not-disturb'
 import { checkStatusAuth, statusNames, type StatusOptions } from './status/options'
 import { statusRoutes } from './status/routes'
 import { relayRuntime } from './relay/relay-runtime'
+import { relayPresencePath } from './relay/presence-route'
 import { relayTicketPath } from './relay/ticket-route'
 import { liveSessions } from './better-auth/live-sessions'
 import { mailSenderUse } from './personal-mail/mail-sender-use'
@@ -531,6 +532,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   if (engine) app.route(workflowTypesPath(systemPath), guarded((routes) => void routes.route('/', workflowTypesRoute(deps, engine.types.types, engine.customTypes, engine.types.templates))))
   if (engine) app.route(workflowRunsPath(systemPath), guarded((routes) => void routes.route('/', workflowTraceRoute(deps, engine.readTrace))))
   if (relay) app.route(relayTicketPath(systemPath), guarded((routes) => void routes.route('/', relay.routes()), withAnonymous(authenticate, options.roles)))
+  // The relay's presence reports carry the presence key, never a sign-in.
+  if (relay?.presenceRoutes) app.route(relayPresencePath(systemPath), relay.presenceRoutes)
   if (statusTables) app.route(statusPath(systemPath), guarded((routes) => void routes.route('/', statusRoutes(db, statusTables))))
   if (deps.calls) app.route(ringsPath(systemPath), guarded((routes) => void routes.route('/', ringRoutes(deps.calls!))))
   // The guests' lobby and call socket, which take only guests' tokens; with organizations, the admin's switch for them.
