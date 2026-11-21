@@ -7,7 +7,7 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   /** `icon` is a square of the height of `sm`, for a button with an icon alone. */
   size?: 'sm' | 'md' | 'icon'
   loading?: boolean
-  /** What the button says while `loading`, such as "Saving…", which a screen reader announces as the button's new name. */
+  /** What the button says while `loading`, such as "Saving…", which a screen reader announces as a status. */
   busyLabel?: ReactNode
   ref?: Ref<HTMLButtonElement>
 }
@@ -29,16 +29,26 @@ export const buttonClass = ({ variant = 'secondary', size = 'md' }: Pick<ButtonP
     sizes[size],
   )
 
-export const Button = ({ variant = 'secondary', size = 'md', loading, busyLabel, className, children, disabled, ...rest }: ButtonProps) => (
-  <button
-    type="button"
-    disabled={disabled || loading}
-    aria-busy={loading || undefined}
-    className={cn(buttonClass({ variant, size }), className)}
-    {...rest}
-  >
-    {/* Without a busy label the button keeps its own name while busy, which aria-busy says */}
-    {loading && <Spinner hidden className="size-3.5" />}
-    {busyLabel === undefined ? children : <span aria-live="polite">{loading ? busyLabel : children}</span>}
-  </button>
-)
+export const Button = ({ variant = 'secondary', size = 'md', loading, busyLabel, className, children, disabled, ...rest }: ButtonProps) => {
+  const button = (
+    <button
+      type="button"
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      className={cn(buttonClass({ variant, size }), className)}
+      {...rest}
+    >
+      {/* Without a busy label the button keeps its own name while busy, which aria-busy says */}
+      {loading && <Spinner hidden className="size-3.5" />}
+      {loading && busyLabel !== undefined ? busyLabel : children}
+    </button>
+  )
+  if (busyLabel === undefined) return button
+  // The busy label is announced from a status of its own, so the button's own label coming back is not read out again
+  return (
+    <>
+      {button}
+      <span role="status" className="sr-only">{loading && busyLabel}</span>
+    </>
+  )
+}

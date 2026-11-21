@@ -67,8 +67,8 @@ const offlineFirst = () => {
 }
 const offlineOnce = () => ({ create: fn(offlineFirst()), acceptMine: fn(offlineFirst()) })
 
-// What a busy button says, when it is in a live region and the button is disabled while it is busy; otherwise nothing.
-const busyLabel = (button: HTMLElement) => (button.matches(':disabled[aria-busy="true"]') ? button.querySelector('[aria-live="polite"]')?.textContent : undefined)
+// What the status beside a busy button announces; nothing while the button is not busy.
+const busyLabel = (button: HTMLElement) => (button.matches(':disabled[aria-busy="true"]') ? button.parentElement?.querySelector('[role="status"]')?.textContent : undefined)
 
 const createPlay: StoryObj<Args>['play'] = async ({ canvasElement, args }) => {
   const canvas = within(canvasElement)
@@ -90,7 +90,7 @@ const createPlay: StoryObj<Args>['play'] = async ({ canvasElement, args }) => {
   await userEvent.click(create)
   await waitFor(() => expect(args.create).toHaveBeenCalledTimes(1))
   expect(args.create).toHaveBeenCalledWith({ name: 'Acme' })
-  // While it is made, the button says so, in a live region a screen reader announces
+  // While it is made, the button says so, and a status announces it
   expect(busyLabel(canvas.getByRole('button', { name: 'Creating workspace…' }))).toBe('Creating workspace…')
 }
 
