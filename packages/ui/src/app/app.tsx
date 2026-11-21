@@ -162,7 +162,10 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const restored = useRestoredState()
   useLiveUpdates(meta)
   const groups = inOrganization ? navFromMeta(meta, basePath, recent) : []
-  const start = useStartAddress(meta, path === '/' && inOrganization)
+  // The start record is the organization's own: only this page load's answer names it, as the start cache's may be from
+  // before a switch; when that answer cannot be read, `/` opens the first sidebar entry.
+  const startOrganization = !organizationSettings || !user ? '' : organizations.fresh ? (current?.organization?.id ?? '') : organizations.failed ? null : undefined
+  const start = useStartAddress(meta, path === '/' && inOrganization, startOrganization)
   const page = address?.kind === 'page' ? meta.pages[address.page] : undefined
 
   // The root opens the app's start record, else the first entry of the sidebar; with nothing to open, such as an app
@@ -269,6 +272,11 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       !managesOrganization(current) ? <Notice title={appText('ownersOnly')}>{appText('onlyOwners')}</Notice> : path === membersPath ? <MembersPage current={current} statuses={statuses} presence={presence} /> : <InvitationsPage current={current} />
     ) : organizationPage && path === organizationsPath ? (
       <OrganizationsPage state={organizations} basePath={basePath} />
+    ) : organizationsPending && organizations.failed ? (
+      // The start cache says they are in no organization; only this page load's answer may send them to name one
+      <Notice title={organizationText('couldNotReadOrganizations')}>
+        <Button className="mt-3" onClick={organizations.reload}>{organizationText('tryAgain')}</Button>
+      </Notice>
     ) : outsideOrganizations || organizationsPending ? null : !address ? (
       // The root draws nothing while it opens the start address, rather than a notice it then leaves
       path === '/' ? start.state === 'resolving' || start.address ? null : <Notice title={appText('chooseResource')}>{appText('pickFromSidebar')}</Notice> : <Notice title={appText('notFound')}>{appText('nothingHere')}</Notice>

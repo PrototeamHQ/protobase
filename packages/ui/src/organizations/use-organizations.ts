@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { useCallback } from 'react'
+import { useCallback, useContext } from 'react'
 import { AuthError, type CurrentOrganization, type Organization } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
 import { useAuth } from '../auth/auth-provider'
 import { keys } from '../data/query-keys'
+import { ClientStartContext, isAnsweredNow, lastFetchFailed } from '../data/start-cache/restored-state'
 import { useOrganizationText } from './organization-word'
 
 export type OrganizationsState = {
@@ -13,6 +14,8 @@ export type OrganizationsState = {
   organizations: Organization[]
   /** Whether `current` was read in this page load, rather than restored from the start cache. */
   fresh: boolean
+  /** Whether the last read failed, also when the start cache's answer stays on screen. */
+  failed: boolean
   error?: string
   reload: () => void
 }
@@ -26,6 +29,7 @@ const none: Organization[] = []
 export const useOrganizations = (enabled: boolean): OrganizationsState => {
   const { session } = useAuth()
   const t = useOrganizationText()
+  const startedAt = useContext(ClientStartContext)
   const query = useQuery({
     queryKey: keys.organizations,
     queryFn: async () => {
@@ -39,7 +43,7 @@ export const useOrganizations = (enabled: boolean): OrganizationsState => {
   const reload = useCallback(() => void refetch(), [refetch])
   const data = enabled ? query.data : undefined
   const error = enabled && query.error ? (query.error instanceof AuthError ? authMessage(query.error) : t('couldNotReadOrganizations')) : undefined
-  return { current: data?.current, organizations: data?.organizations ?? none, fresh: enabled && query.isFetchedAfterMount, ...(error && { error }), reload }
+  return { current: data?.current, organizations: data?.organizations ?? none, fresh: enabled && isAnsweredNow(query, startedAt), failed: enabled && lastFetchFailed(query), ...(error && { error }), reload }
 }
 
 /**

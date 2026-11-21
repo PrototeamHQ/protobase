@@ -22,8 +22,8 @@ export const keys = {
   pages: (resource: string, filter: string, orderBy: string) => ['page', resource, filter, orderBy] as const,
   /** A sidebar group's records; starts with `list`, so invalidating a resource's lists refreshes it too. */
   navRecent: (resource: string, filter: string, orderBy: string, pageSize: number) => ['list', resource, filter, orderBy, pageSize, 'nav-recent'] as const,
-  /** The record the app opens at `/`, found by its sidebar entry's `nav.start` (`useStartAddress`). */
-  startRecord: (resource: string, filter: string, orderBy: string) => ['list', resource, filter, orderBy, 'start-record'] as const,
+  /** The record the app opens at `/` in `organization` (`''` without), found by its sidebar entry's `nav.start` (`useStartAddress`). */
+  startRecord: (resource: string, filter: string, orderBy: string, organization: string) => ['list', resource, filter, orderBy, 'start-record', organization] as const,
   first: (resource: string, filter: string, orderBy: string) => ['first-page', resource, filter, orderBy] as const,
   record: (resource: string, key: string) => ['record', resource, key] as const,
   /** The picture an API function draws for an `Image` block, at a size and theme. */
