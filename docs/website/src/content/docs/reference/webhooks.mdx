@@ -60,7 +60,7 @@ A function target is called as the subscription's `as`, so `context.caller()` an
 
 ## Delivery and retries
 
-- **Every delivery is a job of its own:** the dispatch job queues a `webhooks.deliver` job for each delivery, in the transaction that writes the change's history and live notices, and tries none itself, so a slow receiver never holds back a live update or another delivery. A worker makes the first try right after the write: within milliseconds for a write through the API, within two seconds for one from elsewhere.
+- **Every delivery is a job of its own:** the dispatch job queues a `webhooks.deliver` job for each delivery, in the transaction that writes the change's history and live notices, and tries none itself, so a slow receiver never holds back a live update or another delivery. A write through the API starts the dispatch at once, and a write from elsewhere at the dispatch's next poll. The first try then waits for a worker's next poll, since the delivery job is queued in a transaction: within about two seconds of an API write and about four of one from elsewhere, with the default [poll interval](/reference/jobs/) of 2 seconds.
 - **A failed try** queues the next `webhooks.deliver` job, retried on the Standard Webhooks schedule with up to 10% jitter: 5 s, 5 m, 30 m, 2 h, 5 h, 10 h, 14 h, 20 h and 24 h, 10 tries over about three days. A `Retry-After` header makes the wait longer, up to a day.
 - **`410 Gone`** fails the delivery at once.
 - **After the last try** the job is kept as failed, on the [failed jobs page](/reference/jobs/#failed-jobs-page), where it can be retried.
