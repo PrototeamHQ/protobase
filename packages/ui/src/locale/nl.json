@@ -692,6 +692,7 @@
     "thread": "Draad",
     "replyPlaceholder": "Antwoorden…",
     "couldNotLoadThread": "Kon de draad niet laden",
+    "threadElsewhere": "Deze draad hoort niet bij dit gesprek",
     "couldNotLoadReactions": "Kon de reacties niet laden",
     "notCopied": "Niet gekopieerd"
   },

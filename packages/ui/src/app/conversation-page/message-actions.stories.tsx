@@ -111,13 +111,17 @@ const message = (id: number, author: string, body: string, minutes: number, extr
 })
 
 const rows = () => ({
-  channels: [{ id: 1, name: 'general' }],
+  channels: [
+    { id: 1, name: 'general' },
+    { id: 2, name: 'random' },
+  ],
   messages: [
     message(1, 'u-sam', 'Morning all', 0, { reply_count: 2, last_reply_at: today(9, 20) }),
     message(2, 'u-maya', 'Nice work', 10),
     message(3, 'u-sam', 'Notes at https://example.com/notes', 30),
     message(4, 'u-lin', 'Morning Sam', 15, { thread_id: 1 }),
     message(5, 'u-maya', 'Coffee first', 20, { thread_id: 1 }),
+    message(6, 'u-sam', 'Over in random', 25, { channel_id: 2 }),
   ],
   reactions: [
     { id: 1, message_id: 1, user_id: 'u-sam', emoji: 'heart' },
@@ -355,6 +359,19 @@ export const ThreadChecks: StoryObj = {
     await waitFor(() => expect(stored.messages!.at(-1)).toMatchObject({ channel_id: 1, thread_id: 1, body: 'On my way' }))
     await userEvent.click(panel.getByRole('button', { name: 'Close' }))
     await waitFor(() => expect(canvas.queryByRole('complementary', { name: 'Thread' })).toBeNull())
+  },
+}
+
+export const ThreadElsewhereChecks: StoryObj = {
+  ...atDesktop,
+  name: 'A thread of another conversation shows as not found, with no box to reply (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Chat url="/channels/1?thread=6" />,
+  play: async ({ canvasElement }) => {
+    const panel = within(await within(canvasElement).findByRole('complementary', { name: 'Thread' }))
+    expect(await panel.findByText('This thread is not in this conversation')).toBeVisible()
+    expect(panel.queryByText('Over in random')).toBeNull()
+    expect(panel.queryByRole('combobox', { name: 'Message' })).toBeNull()
   },
 }
 

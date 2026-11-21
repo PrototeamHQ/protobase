@@ -692,6 +692,7 @@
     "thread": "Thread",
     "replyPlaceholder": "Reply…",
     "couldNotLoadThread": "Could not load the thread",
+    "threadElsewhere": "This thread is not in this conversation",
     "couldNotLoadReactions": "Could not load the reactions",
     "notCopied": "Not copied"
   },
