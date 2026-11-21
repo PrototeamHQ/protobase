@@ -155,6 +155,8 @@ import { builtInResources } from './built-in-resources'
 import { unsubscribeLinks, unsubscribePath, unsubscribeSecret } from './mail/unsubscribe/unsubscribe-links'
 import { unsubscribeRoutes } from './mail/unsubscribe/unsubscribe-routes'
 import { recordUnsubscribe } from './mail/unsubscribe/unsubscribe-store'
+import { mailFeedbackPath } from './mail/feedback/feedback-routes'
+import { mailFeedbackApp } from './mail/feedback/mail-feedback-app'
 import { adminUserTables } from './user-tables/admin-user-tables'
 import type { UserTableSources } from './user-tables/served-user-tables'
 import type { JobDefinition } from './jobs/job-types'
@@ -213,6 +215,11 @@ export type CreateAdminInput = {
    * `admin.unsubscribe`, for `startJobs`.
    */
   unsubscribe?: { appUrl: string }
+  /**
+   * `true`, from `mailFeedback: true`, takes the bounces and spam complaints of the mail the app sends at
+   * `/api/mail/feedback/<provider>` as `mail_feedback` records, whose events are `bounced` and `complained`.
+   */
+  mailFeedback?: boolean
   /** The media server behind the calls functions admit members to with `calls.join` (see `CallsOptions`). */
   calls?: CallsOptions
   /**
@@ -261,7 +268,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], translations, templates = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], derived: computes = {}, webhooks: webhooksOptions, workflows: workflowsOptions, realtime, notifications, status, unsubscribe, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], userTables, pages = [], translations, templates = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, secret, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], derived: computes = {}, webhooks: webhooksOptions, workflows: workflowsOptions, realtime, notifications, status, unsubscribe, mailFeedback = false, calls, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed, AI fields filled and notifications sent by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -271,7 +278,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const withHistory = appModels.some((model) => model.history)
   const changes = changesSchema(events)
   const days = historyDays(historyOptions)
-  const builtIn = builtInResources({ models: appModels, jobs: jobs.length > 0, notifications: notifications !== undefined, unsubscribe: unsubscribe !== undefined, ...(events && { events }) })
+  const builtIn = builtInResources({ models: appModels, jobs: jobs.length > 0, notifications: notifications !== undefined, unsubscribe: unsubscribe !== undefined, mailFeedback, ...(events && { events }) })
   const served = adminUserTables(userTables, [...appModels, ...builtIn.resources.map((resource) => resource.toModel())].map((model) => model.name), options.roles !== undefined, userTables?.organizations ?? Boolean(auth?.organizations))
   for (const warning of served.warnings) console.warn(warning)
   const resources = [...appResources, ...builtIn.resources, ...served.resources]
@@ -520,6 +527,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   if (forms) app.route(`${systemPath}/forms`, formRoutes(deps, forms))
   const links = unsubscribe && unsubscribeLinks({ appUrl: unsubscribe.appUrl, path: unsubscribePath(systemPath), secret: unsubscribeSecret(secret) })
   if (links) app.route(unsubscribePath(systemPath), unsubscribeRoutes(links, (target) => recordUnsubscribe(db, target), locale))
+  if (mailFeedback) app.route(mailFeedbackPath(systemPath), mailFeedbackApp(db, globalThis.process?.env ?? {}))
   // The notices are read only while a page or channel listens.
   const feed = tableFeed({ db, schema: changes, report })
   // supabase-js's `from()`, `rpc()`, `channel()` and `storage`, admitted by the app's keys and the tokens `/api/sb/auth/v1` signs.

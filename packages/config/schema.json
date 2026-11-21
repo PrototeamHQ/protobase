@@ -1186,6 +1186,10 @@
       "description": "`true` gives bulk mail a one-click unsubscribe: mail a job sends with `bulk: true` and a `topic` carries the\nrecipient's own unsubscribe link, and is not sent to whoever unsubscribed from its topic. Its links are on `url`\nand signed with `secret`; `protobase migration` writes its table, `mail.unsubscribes`. The server that signs the mail must DKIM-sign\nboth unsubscribe headers, or mail clients show no button. Off by default.",
       "type": "boolean"
     },
+    "mailFeedback": {
+      "description": "`true` takes the bounces and spam complaints of the mail the app sends as `mail_feedback` records, with the events\n`mail_feedback.bounced` and `mail_feedback.complained`, at `POST /api/mail/feedback/<provider>`: `ses` once\n`PROTOBASE_MAIL_FEEDBACK_SES_TOPICS` names its SNS topics, `resend` once `PROTOBASE_MAIL_FEEDBACK_RESEND_SECRET` is\nset, and `protobase` with `PROTOBASE_SECRET`. `protobase migration` writes its table, `mail.feedback`. Protobase\nsends on regardless: the app decides what a bounce means. Off by default.",
+      "type": "boolean"
+    },
     "userTables": {
       "description": "`true` keeps the tables the app's users add in its own database and serves each one like a resource of the config;\n`protobase migration` writes the schemas they need. Off by default. With organizations, each keeps its own tables;\nrefused with `authenticate.organizations` alone.",
       "type": "boolean"

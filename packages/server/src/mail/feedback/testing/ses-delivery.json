@@ -1,0 +1,11 @@
+{
+  "Type": "Notification",
+  "MessageId": "0bf8f0b9-7f1c-4d0b-9c6a-1b9a4a2f2e10",
+  "TopicArn": "arn:aws:sns:us-west-2:123456789012:MyTopic",
+  "Message": "{\"notificationType\":\"Delivery\",\"mail\":{\"timestamp\":\"2016-01-27T14:59:38.237Z\",\"messageId\":\"0000014644fe5ef6-9a483358-9170-4cb4-a269-f5dcdf415321-000000\",\"source\":\"john@example.com\",\"destination\":[\"jane@example.com\"]},\"delivery\":{\"timestamp\":\"2016-01-27T14:59:38.237Z\",\"recipients\":[\"jane@example.com\"],\"processingTimeMillis\":546,\"reportingMTA\":\"a8-70.smtp-out.amazonses.com\",\"smtpResponse\":\"250 ok:  Message 64111812 accepted\",\"remoteMtaIp\":\"127.0.2.0\"}}",
+  "Timestamp": "2016-01-27T14:59:38.300Z",
+  "SignatureVersion": "1",
+  "Signature": "EXAMPLElDMXvB8r9R83tGoNn0ecwd5UjllzsvSvbItzfaMpN2nk5HVSw7XnOn/49IkxDKz8YrlH2qJXj2iZB0Zo2O71c4qQk1fMUDi3LGpij7RCW7AW9vYYsSqIKRnFS94ilu7NFhUzLiieYr4BKHpdTmdD6c0esKEYBpabxDSc=",
+  "SigningCertURL": "https://sns.us-west-2.amazonaws.com/SimpleNotificationService-f3ecfb7224c7233fe7bb5f59f96de52f.pem",
+  "UnsubscribeURL": "https://sns.us-west-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-west-2:123456789012:MyTopic:c9135db0-26c4-47ec-8998-413945fb5a96"
+}

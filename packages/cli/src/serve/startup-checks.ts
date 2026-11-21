@@ -1,5 +1,5 @@
 import type { Db } from '@protobase/query'
-import { assistantSettings, authStoreTables, checkAuthSchema, checkCalls, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUnsubscribesSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, configExports, relayed, sqlSends } from '@protobase/server'
+import { assistantSettings, authStoreTables, checkAuthSchema, checkCalls, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkMailFeedbackSchema, mailFeedbackResource, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUnsubscribesSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, configExports, relayed, sqlSends } from '@protobase/server'
 import type { BuiltProject } from '../config/build-project'
 
 /**
@@ -9,9 +9,12 @@ import type { BuiltProject } from '../config/build-project'
  */
 export const checkStartup = async (project: BuiltProject, db: Db) => {
   const models = configExports(project.config).resources.map((resource) => resource.toModel())
+  // Mail feedback's events are captured from its table like the app's own resources' events.
+  const captured = project.mailFeedback ? [...models, mailFeedbackResource.toModel()] : models
   if (project.auth) await checkAuthSchema(project.auth)
   if (project.auth) await checkResourcesOutsideAuthStore(db, models, project.auth)
-  await checkChanges(db, models, project.events)
+  if (project.mailFeedback) await checkMailFeedbackSchema(db)
+  await checkChanges(db, captured, project.events)
   await checkComments(db, models)
   await checkDerived(db, models)
   await checkCalls(db, project.calls, project.events)
