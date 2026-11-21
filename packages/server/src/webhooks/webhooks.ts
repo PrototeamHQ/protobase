@@ -63,21 +63,8 @@ type Failure = { change: ResourceChange; subscription: string; error: EventCodeE
 /** Outbox rows one dispatch reads at a time. */
 const batchSize = 500
 
-/** Receivers tried at once by one dispatch. */
+/** Receivers tried at once by one worker process, for each of the delivery jobs. */
 const parallelAttempts = 16
-
-const mapLimit = async <T, R>(items: readonly T[], limit: number, run: (item: T) => Promise<R>) => {
-  const results: R[] = new Array(items.length)
-  let next = 0
-  const lane = async () => {
-    while (next < items.length) {
-      const index = next++
-      results[index] = await run(items[index]!)
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, lane))
-  return results
-}
 
 /** The key of an unordered delivery: one waiting retry per event and subscription. */
 const deliveryKey = (payload: Pick<DeliveryPayload, 'subscription' | 'event'>) => `${payload.event.id}:${payload.subscription}`
@@ -89,16 +76,16 @@ const deliveryGroup = ({ subscription, change }: Delivery) => `${subscription.na
  * Resource events delivered to the config's subscriptions, as three jobs the app's workers run:
  *
  * - `changes.dispatch`, which `capture()` enqueues once per writing transaction, in one ordered group so one runs at a
- *   time: it turns the committed outbox rows into events, makes the first try of every unordered delivery itself,
- *   queues the failures and the ordered deliveries, keeps the changes of resources with history, and deletes the rows
- *   in that same transaction. A process that dies
- *   before that commits leaves the rows, and the job's retry delivers them again, under the same `webhook-id`.
+ *   time: it turns the committed outbox rows into events and, in one transaction, queues a job for every delivery,
+ *   keeps the changes of resources with history, writes the live notices and deletes the rows. It never waits on a
+ *   receiver, so a slow one holds back no notice. A process that dies before that commits leaves the rows and queues
+ *   nothing, and the job's retry queues them, under the same `webhook-id`.
  * - `webhooks.dispatch-change`, one change whose app code threw in dispatch: an event's `match` or filter, a
  *   subscription's `when`, or an access rule of its roles. Kept as failed, so dispatch moves on to later changes; a
  *   retry after the fix queues the change's deliveries. An access rule's failure keeps the change for that subscription
  *   only: the others still receive it, and the retry delivers to that subscription alone. Any other error fails the
  *   whole dispatch, which is retried.
- * - `webhooks.deliver`, one try of an unordered delivery; a failure queues the next try on the Standard Webhooks
+ * - `webhooks.deliver`, one try of an unordered delivery, the first one included; a failure queues the next try on the Standard Webhooks
  *   schedule, or Retry-After, and the last one is kept as failed. Each try, and each of the job below, shapes its event
  *   again for the subscription as it is now, and sends nothing when it may no longer read the record.
  * - `webhooks.deliver-ordered`, the ordered deliveries of one dispatch for one subscription and record, retried with
@@ -251,8 +238,13 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
     }
   }
 
-  // Ordered deliveries as one job per subscription and record.
-  const queueOrdered = async (db: Db, deliveries: Delivery[]) => {
+  // A job for each unordered delivery's first try, and the ordered deliveries as one job per subscription and record.
+  const queueDeliveries = async (db: Db, deliveries: Delivery[]) => {
+    const unordered = deliveries.filter(({ subscription }) => !subscription.options.ordered)
+    await deliver.enqueueMany(db, unordered.map(({ subscription, event }) => {
+      const payload = { subscription: subscription.name, event, attempt: 1 }
+      return { payload, options: { key: deliveryKey(payload) } }
+    }))
     const groups = new Map<string, OrderedDeliveryPayload>()
     for (const delivery of deliveries.filter(({ subscription }) => subscription.options.ordered)) {
       const group = deliveryGroup(delivery)
@@ -275,18 +267,13 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
       const { deliveries, failures } = await (await changeDeliveries(db, only))(change)
       if (only !== undefined && failures.length > 0) throw failures[0]!.error
       await db.transaction().execute(async (trx) => {
-        const unordered = deliveries.filter(({ subscription }) => !subscription.options.ordered)
-        await deliver.enqueueMany(trx, unordered.map(({ subscription, event }) => {
-          const payload = { subscription: subscription.name, event, attempt: 1 }
-          return { payload, options: { key: deliveryKey(payload) } }
-        }))
-        await queueOrdered(trx, deliveries)
+        await queueDeliveries(trx, deliveries)
         await dispatchChange.enqueueMany(trx, failures.map(({ subscription }) => ({ payload: { change, subscription } })))
       })
     },
   })
 
-  const dispatchBatch = async (db: Db, signal: AbortSignal) => {
+  const dispatchBatch = async (db: Db) => {
     const rows = await readOutbox(db, schema, models, batchSize)
     if (rows.length === 0) return 0
     const changes = coalesce(rows, keyColumns).flatMap((change) => {
@@ -306,26 +293,14 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
         failures.push({ change, error })
       }
     }
-    const now = deliveries.filter(({ subscription }) => !subscription.options.ordered)
-    const results = await mapLimit(now, parallelAttempts, ({ subscription, event }) => attempt(subscription, event, db, 1, signal))
     await db.transaction().execute(async (trx) => {
-      const retries = now.flatMap((delivery, index) => {
-        const result = results[index]!
-        if (result.ok) return []
-        const delay = result.final ? undefined : nextRetryDelay(1, result.retryAfterMs)
-        if (delay === undefined) return []
-        const payload = { subscription: delivery.subscription.name, event: delivery.event, attempt: 2, lastError: result.error }
-        return [{ payload, options: { key: deliveryKey(payload), delay } }]
-      })
-      await deliver.enqueueMany(trx, retries)
-      await queueOrdered(trx, deliveries)
+      await queueDeliveries(trx, deliveries)
       await dispatchChange.enqueueMany(trx, failures.map(({ change, subscription }) => ({ payload: { change, ...(subscription !== undefined && { subscription }) } })))
       await writeHistory(trx, schema, changes.filter((change) => deps.registry.find(change.resource)?.model.history))
       await writeNotices(trx, schema, liveNotices(models, changes))
       await onChanges?.(trx, changes)
       await deleteOutbox(trx, schema, rows.map((row) => row.id))
     })
-    for (const [index, { subscription, event }] of now.entries()) report(subscription.name, event, 1, results[index]!)
     for (const { error } of failures) log(`events kept as failed (webhooks.dispatch-change): ${error.message}`)
     return rows.length
   }
@@ -339,7 +314,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
     maxRetryDelay: '1 minute',
     timeout: '5 minutes',
     run: async (_payload, { db, signal }) => {
-      while ((await dispatchBatch(db, signal)) === batchSize && !signal.aborted);
+      while ((await dispatchBatch(db)) === batchSize && !signal.aborted);
     },
   })
 
