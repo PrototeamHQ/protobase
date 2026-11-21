@@ -71,7 +71,7 @@ Reference:
 - When setting the assistant, maps or plugins in the config → read [Admin app options](references/reference/config/admin-app.md)
 - When setting `jobs`, `events`, `history`, `webhooks` or `notifications` in the config → read [Jobs and events options](references/reference/config/jobs-and-events.md)
 - When setting `files` in the config → read [Files options](references/reference/config/files.md)
-- When defining resources, fields, keys, relations, rollups, formulas and validation → read [Data config](references/reference/data-config.md)
+- When defining resources, fields, keys, relations, rollups, formulas, lookups and validation → read [Data config](references/reference/data-config.md)
 - When defining views, columns, filters, charts, related records and actions → read [UI config](references/reference/ui-config.md)
 - When asking how the packages fit together → read [Architecture](references/reference/architecture.md)
 - When calling or changing the REST API, its filters, writes and errors → read [REST API](references/reference/api.md)

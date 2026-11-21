@@ -7,6 +7,7 @@ import { Code } from '@astrojs/starlight/components'
 import bikeShop from '../../../../../../docs-examples/bike-shop/data.ts?raw'
 import keys from '../../../../../../docs-examples/reference/keys.ts?raw'
 import rollups from '../../../../../../docs-examples/reference/rollups.ts?raw'
+import lookups from '../../../../../../docs-examples/reference/lookups.ts?raw'
 import timeRollups from '../../../../../../docs-examples/reference/time-rollups.ts?raw'
 import access from '../../../../../../docs-examples/reference/access.ts?raw'
 import products from '../../../../../../tests/apps/erp/config/products/data.ts?raw'
@@ -84,6 +85,7 @@ Every option returns a new [field](/api/schema/interfaces/field/), so they chain
 | `.ai({ prompt })` | A job fills the field from `prompt`, `{{field}}` replaced by the record's values, after a create and after an update of a field the prompt reads, as the user who wrote. Text or enum, optional. See [AI fields and actions](/reference/ai/). |
 | `.rollup({ from, via, fn, field })` | The database keeps the field from the records of another resource: their count, sum, average, least or greatest value. Read-only. See [Rollups and formulas](#rollups-and-formulas). |
 | `.formula(expression)` | The database computes the field from the record's other number fields, as a generated column. Read-only. See [Rollups and formulas](#rollups-and-formulas). |
+| `.lookup({ via, field, from? })` | Shows a field of the record this one is linked to, read with the record. Read-only. See [Lookups](#lookups). |
 
 The ERP's products show most of them, together with soft delete and a tenant:
 
@@ -117,6 +119,31 @@ Empty values of `field` are left out, as in SQL. The migration adds the column, 
 `.formula(expression)` is a Postgres generated column. The expression reads the record's number fields, and takes numbers, `+ - * /`, parentheses, `coalesce(a, b, ...)` and `round(x)` or `round(x, digits)`. It is computed exactly as decimals, so `7 / 2` is 3.5, and is stored as the field's type, so an integer field rounds the result. A formula that reads an optional field is `.optional()` too, unless `coalesce()` gives that field a value. A formula cannot read another formula. When the expression changes, the migration drops the column and adds it again, so an index on it must be created again in the same migration.
 
 Neither field can be written through the API, have a default, or be sensitive, an AI field, a file, or the key, tenant, owner or soft delete field, and a formula cannot read a sensitive field. The server does not start while a declared column, function or trigger is missing or out of date, with a message that names the fields; the migration fixes that. It stops with an error, without writing anything, when the column already exists as the project's own: a plain column where a formula is declared, a generated column it did not write, or a rollup column of another type.
+
+## Lookups
+
+:::caution[Beta]
+Not yet:
+
+- <gap>Sorting by a lookup field reads every record the list keeps before it returns a page, because no index orders one table by another table's column.</gap>
+- <gap>A lookup field cannot show a relation or a file because reading the linked record's key or stored file for it is not implemented.</gap>
+- <gap>A lookup through a relation of several columns, or to a resource with a key of several fields, is not supported yet.</gap>
+- <gap>A list across organizations (`across: 'memberships'`) cannot show lookup fields of another organization's records because reading their linked records under that organization's access is not implemented.</gap> They are empty there.
+- <gap>An open page of a [live](/reference/live/) resource cannot refresh when only a linked record changes because capturing those changes for the lookup fields that read them is not implemented.</gap>
+:::
+
+A **lookup field** shows a field of the record its record is linked to, such as an order's customer name. It has no column of its own: the API reads it with the record, in the same query, from the linked table, so it always shows the linked record's current value.
+
+<Code code={lookups} lang="ts" title="docs-examples/reference/lookups.ts" />
+
+`.lookup({ via, field })` reads `field` of the record that the record's relation `via` points at. `.lookup({ from, via, field })` reads it of the one record of resource `from` whose relation `via` points at the record, such as a customer's account manager. That needs a unique index on `via`, which [`protobase doctor`](/reference/cli/#doctor) asks for, since a second such record makes every read of the field fail.
+
+- It is declared with the linked field's type, and for an enum its values. The server does not start while they differ, or while a resource or field it names is missing or the linked field is sensitive.
+- It is read-only and optional: empty when there is no linked record, or none the caller may read.
+- It shows in lists, record pages, `/meta` and the API as any read-only field does, and the response of a write has it too.
+- `.filterable()` and `.sortable()` take it when the linked field takes them. A filter on it keeps the records whose link is among the keys of the linked records that match, so it needs an index on the linked field in the linked table and one on `via` in this one; the [scan guard](/reference/api/#safety) and doctor ask for both, as for any other read. A sort by it needs them too. <gap>Sorting by a lookup field reads every record the list keeps before it returns a page, because no index orders one table by another table's column.</gap>
+- It reads the linked records as the caller would: in their tenant, without soft-deleted ones, inside their row filter and the parents they read. A caller who may not read the linked resource, whose read rule there needs the record, or who may not read the linked field or the relation it goes through, does not have the lookup field at all: responses, `/meta`, filters and sorts leave it out, as they leave out any field the caller may not read. Its own `.access({ read })` narrows that further.
+- It is not stored with the record, so the record's ETag, events, history and the filters of access rules do not see it, and it cannot be a key, tenant, owner, author, soft delete, position, parent, link or search field, or have a column, a default, a rollup, a formula or an AI prompt.
 
 ## Time rollups
 
