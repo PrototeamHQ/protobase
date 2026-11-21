@@ -1,8 +1,7 @@
 import { sql, type Expression, type SqlBool } from 'kysely'
 import type { CheckedFilter, FieldModel, ResourceModel, SortSpec } from '@protobase/schema'
-import { columnRef } from './columns'
 import { QueryError } from './errors'
-import type { SortKey } from './sort'
+import type { SortKey } from './sort-key'
 
 /**
  * Who is asking, and which rows they may see.
@@ -53,7 +52,8 @@ export const tenantCondition = (model: ResourceModel, scope?: Scope): Expression
   const tenant = full.tenant ?? model.tenant
   if (!tenant) return undefined
   const field = Object.hasOwn(full.fields, tenant) ? full.fields[tenant] : undefined
-  const column = field ? columnRef(field) : sql<unknown>`${sql.id('t', tenant)}`
+  // The tenant is a column of the table, never a lookup field
+  const column = sql<unknown>`${sql.id('t', field?.column ?? tenant)}`
   if (scope?.tenantValues) {
     if (scope.tenantValues.length === 0) return sql<SqlBool>`false`
     return sql<SqlBool>`${column} in (${sql.join(scope.tenantValues)})`

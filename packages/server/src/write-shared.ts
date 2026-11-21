@@ -62,14 +62,23 @@ export const assertWritten = async (trx: Db, access: RequestAccess, written: Sto
   if (!visible) throw denied(access.entry, `leave in that state (${operation})`)
 }
 
+// The lookup fields the caller reads, of the record as written, read after the write as a read of it would; a deleted
+// record has none.
+const lookupValues = async (trx: Db, access: RequestAccess, written: StoredRecord) => {
+  const lookups = Object.values(access.model.fields).filter((field) => field.lookup)
+  if (lookups.length === 0) return {}
+  const found = await fetchRecord(trx, access.entry, keyOf(access, written.record), tenantScope(access.entry, access.session)?.tenantValue, { deleted: 'show', fields: lookups })
+  return found?.record ?? {}
+}
+
 /**
- * The caller sees the readable fields only, files as objects with their URL; hooks get the whole record, a set encrypted
- * field as `encrypted`.
+ * The caller sees the readable fields only, its lookup fields among them, files as objects with their URL; hooks get
+ * the whole record, a set encrypted field as `encrypted`.
  */
-export const shown = async (access: RequestAccess, written: StoredRecord): Promise<WriteResult> => ({
-  record: (await presentFiles(access, [pickFields(written.record, Object.keys(access.model.fields))]))[0]!,
-  etag: written.etag,
-})
+export const shown = async (trx: Db, access: RequestAccess, written: StoredRecord): Promise<WriteResult> => {
+  const record = { ...written.record, ...(await lookupValues(trx, access, written)) }
+  return { record: (await presentFiles(access, [pickFields(record, Object.keys(access.model.fields))]))[0]!, etag: written.etag }
+}
 
 /**
  * Runs the pipeline hooks for one write, inside the transaction, and adds the files it took out of its row to `removed`,

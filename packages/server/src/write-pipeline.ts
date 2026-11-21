@@ -73,16 +73,16 @@ const create = async (trx: Db, deps: Deps, access: RequestAccess, body: unknown,
   // A new record had no rank before, so any pair it ranks out of order counts
   if (full.position) await checkRankAfter(trx, deps, access, full.position.field, [{ key: keyOf(access, created.record), before: null }])
   await notifier(deps, access, removed)(trx, 'create', undefined, created.record)
-  return shown(access, created)
+  return shown(trx, access, created)
 }
 
 const update = async (trx: Db, deps: Deps, access: RequestAccess, request: Extract<WriteRequest, { operation: 'update' }>, removed: ScheduledDelete[]): Promise<WriteResult> => {
   const plan = await planUpdate(trx, access, request.key, request.body, request.ifMatch)
-  if (Object.keys(plan.values).length === 0) return shown(access, plan.current)
+  if (Object.keys(plan.values).length === 0) return shown(trx, access, plan.current)
   const updated = await applyUpdate(trx, deps, access, request.key, plan, removed)
   const rank = access.full.position?.field
   if (rank && rank in plan.values) await checkRankAfter(trx, deps, access, rank, [{ key: keyOf(access, updated.record), before: plan.current.record[rank] }])
-  return shown(access, updated)
+  return shown(trx, access, updated)
 }
 
 const removeOrRestore = async (trx: Db, deps: Deps, access: RequestAccess, request: Extract<WriteRequest, { operation: 'delete' | 'undelete' }>, removed: ScheduledDelete[]): Promise<WriteResult> => {
@@ -110,7 +110,7 @@ const removeOrRestore = async (trx: Db, deps: Deps, access: RequestAccess, reque
     const restored = await restoreRecord(trx, entry, request.key, scope?.tenantValue, shape)
     await assertWritten(trx, access, restored, 'undelete', access.resolved.rowFilter.update, filter)
     await notify(trx, 'undelete', current.record, restored.record)
-    return shown(access, restored)
+    return shown(trx, access, restored)
   }
   const gone = await deleteRecord(trx, entry, request.key, scope?.tenantValue, shape).catch(async (error: unknown) => {
     // Other records still point at it: say which, as far as the caller may know
@@ -118,7 +118,7 @@ const removeOrRestore = async (trx: Db, deps: Deps, access: RequestAccess, reque
     throw error
   })
   await notify(trx, 'delete', current.record, undefined)
-  return shown(access, gone)
+  return shown(trx, access, gone)
 }
 
 /**

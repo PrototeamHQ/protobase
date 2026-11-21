@@ -6,12 +6,14 @@ import type { Row } from './types'
 /**
  * The version of a row. With a version or `updated_at` column it is a hash of that column's exact text (so a hidden column's
  * value is never shown, yet every change moves it); without one it is a hash of the exposed fields, which are only the
- * fields the caller may read, so a change to a hidden field cannot be detected.
+ * fields the caller may read, so a change to a hidden field cannot be detected. Lookup fields are left out: they are
+ * the linked records', which a write of this one neither reads nor changes.
  */
 export const etagOf = async (entry: Entry, raw: Row, exposed: Row) => {
   const hash = async (text: string) => (await sha256Hex(text)).slice(0, 32)
   if (entry.etag) return `"${entry.etag.kind === 'version' ? 'v' : 't'}${await hash(String(raw[etagAlias]))}"`
-  return `"h${await hash(stableJson(exposed))}"`
+  const own = Object.fromEntries(Object.entries(exposed).filter(([name]) => !Object.hasOwn(entry.model.lookups ?? {}, name)))
+  return `"h${await hash(stableJson(own))}"`
 }
 
 const tags = (header: string) => header.split(',').map((tag) => tag.trim().replace(/^W\//, ''))

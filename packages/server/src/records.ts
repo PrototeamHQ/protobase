@@ -13,9 +13,15 @@ export type StoredRecord = { record: Row; etag: string }
 /** Which columns an operation reads or returns, and which of them the ETag hash covers. Default: every field. */
 export type Shape = { fields?: FieldModel[]; etagFields?: string[] }
 
+// The lookup fields a shape reads are exposed with the row's own fields.
+const exposedModel = (entry: Entry, fields: FieldModel[] = []) => {
+  const lookups = fields.filter((field) => field.lookup)
+  return lookups.length === 0 ? entry.model : { ...entry.model, fields: { ...entry.model.fields, ...Object.fromEntries(lookups.map((field) => [field.name, field])) } }
+}
+
 const stored = async (entry: Entry, raw: Row | undefined, shape: Shape = {}): Promise<StoredRecord | undefined> => {
   if (!raw) return undefined
-  const record = exposeRow(entry.model, raw)
+  const record = exposeRow(exposedModel(entry, shape.fields), raw)
   return { record, etag: await etagOf(entry, raw, shape.etagFields ? pickFields(record, shape.etagFields) : record) }
 }
 

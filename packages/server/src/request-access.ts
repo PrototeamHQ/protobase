@@ -2,6 +2,7 @@ import { checkFilter, restrictModel, resolveAccess, where, type AccessAction, ty
 import type { Deps } from './deps'
 import { maskEncrypted } from './encryption/mask-stored'
 import { checkedFilter } from './filter-input'
+import { lookupFields } from './lookup-fields'
 import { checkOwnerId } from './owner-id'
 import { parentReads } from './parent-reads'
 import type { ParentRead, Scope } from '@protobase/query'
@@ -20,9 +21,16 @@ export type RequestAccess = {
   resolved: ResolvedAccess
   /** The full model: for access rules, tenant, soft delete and ETag columns. Never for anything the user names. */
   full: ResourceModel
-  /** Readable fields, sensitive ones included; `readOnly` unless writable. For writing, `/meta` and revealing only. */
+  /**
+   * Readable fields, sensitive ones included, and the lookup fields the caller reads; `readOnly` unless writable. For
+   * writing, `/meta` and revealing only.
+   */
   readable: ResourceModel
-  /** Readable fields without the sensitive ones: everything a request names and every response carries. */
+  /**
+   * Readable fields without the sensitive ones, lookup fields with how the caller reads them: everything a request names
+   * and every response carries. Never sent to the caller, as its lookup fields hold the caller's scope on their linked
+   * resources.
+   */
   model: ResourceModel
   /** The parents the caller must read for a record to be seen (`.parent(fk, 'read')`); every read keeps to them. */
   parents: ParentRead[]
@@ -68,22 +76,34 @@ const ownOnly = (resolved: ResolvedAccess, entry: Entry, session: Session): Reso
   return { ...resolved, rowFilter: { read: narrowed('read'), create: narrowed('create'), update: narrowed('update'), delete: narrowed('delete') } }
 }
 
+const withFields = (model: ResourceModel, fields: Record<string, FieldModel>): ResourceModel => {
+  const { lookups: _lookups, ...rest } = model
+  return { ...rest, fields: { ...model.fields, ...fields } }
+}
+
 /**
  * `form` is the public form a visitor sends, the only way a caller without a token creates. `chain` holds the resources
- * whose parents led to this one (see `parentReads`).
+ * whose parents led to this one (see `parentReads`). `lookups: false` leaves the lookup fields out, for the access on a
+ * parent or a linked resource, whose own lookup fields a read of this one never reads.
  */
-export const requestAccess = async (deps: Deps, entry: Entry, session: Session, form?: FormModel, chain: readonly string[] = []): Promise<RequestAccess> => {
+export const requestAccess = async (deps: Deps, entry: Entry, session: Session, form?: FormModel, chain: readonly string[] = [], options: { lookups?: boolean } = {}): Promise<RequestAccess> => {
   const all = await resolveAccess(entry.source, { user: { id: session.user.id, roles: session.user.roles }, ...organizationOf(session) }, deps.accessOptions)
   const allowed = form ? throughForm(all, form) : withoutAnonymousCreate(all, session)
   const resolved = deps.settingsResources.has(entry.name) ? ownOnly(allowed, entry, session) : allowed
   checkOwnerId(entry, session.user, resolved)
-  const readable = restrictModel(entry.model, resolved)
+  const restricted = restrictModel(entry.model, resolved)
   const parentAccess = async (parent: Entry, along: readonly string[]) => {
-    const access = await requestAccess(deps, parent, session, undefined, along)
+    const access = await requestAccess(deps, parent, session, undefined, along, { lookups: false })
     return { resolved: access.resolved, full: access.full, scope: ownScope(access) }
   }
+  const linkedAccess = async (linked: Entry) => {
+    const access = await requestAccess(deps, linked, session, undefined, [], { lookups: false })
+    return { resolved: access.resolved, full: access.full, model: access.model, scope: ownScope(access) }
+  }
   const parents = await parentReads(entry, session, chain, parentAccess, deps.registry.find)
-  return { entry, session, resolved, full: entry.model, readable, model: withoutSensitive(readable), parents, deps }
+  const lookups = options.lookups === false ? { shown: {}, read: {} } : await lookupFields(entry, session, restricted, linkedAccess, deps.registry.find)
+  const readable = withFields(restricted, lookups.shown)
+  return { entry, session, resolved, full: entry.model, readable, model: withFields(withoutSensitive(restricted), lookups.read), parents, deps }
 }
 
 export const hasNoAccess = (resolved: ResolvedAccess) => !Object.values(resolved.operations).some(Boolean)

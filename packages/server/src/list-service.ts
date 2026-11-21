@@ -62,7 +62,9 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
   const across = model.tenantAcross && model.tenant !== undefined ? [model.tenant] : []
   // `etag=false` hashes nothing, so like a version column it needs no field beyond the selection
   const etags = params.etag !== false
-  const read = (entry.etag || !etags) && withKey ? [...new Set([...withKey, ...across])] : Object.keys(model.fields)
+  // A lookup field is no part of the hash, so only one the caller selects is read
+  const hashed = Object.keys(model.fields).filter((name) => !model.fields[name]!.lookup || !columns || columns.includes(name))
+  const read = (entry.etag || !etags) && withKey ? [...new Set([...withKey, ...across])] : hashed
 
   const shape = { ...(filter && { filter }), ...(sort && { sort }), limit }
   const warning = await deps.guard(entry, { ...shape, ...(per && { per: per.field }) }, { model: queryModel, scope })

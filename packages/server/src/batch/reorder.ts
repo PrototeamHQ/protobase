@@ -107,7 +107,7 @@ export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, inpu
   const results: NumberedResult[] = []
   for (const [i, key] of input.keys.entries()) {
     const plan = plans.get(i)
-    results.push({ ...(await shown(access, plan ? await applyUpdate(trx, deps, access, key, plan, removed) : current[i]!)), previous: current[i]!.record[input.field] })
+    results.push({ ...(await shown(trx, access, plan ? await applyUpdate(trx, deps, access, key, plan, removed) : current[i]!)), previous: current[i]!.record[input.field] })
   }
   await checkRankAfter(trx, deps, access, input.field, changing.map((i) => ({ key: input.keys[i]!, before: current[i]!.record[input.field] })))
   return results

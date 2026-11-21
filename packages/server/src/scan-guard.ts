@@ -1,4 +1,4 @@
-import { tableIndexes, uncoveredColumns, type CoverageQuery, type Db, type Scope, type TableIndexes, type UncoveredColumn } from '@protobase/query'
+import { lookupQueries, tableIndexes, uncoveredColumns, type CoverageQuery, type Db, type Scope, type TableIndexes, type UncoveredColumn } from '@protobase/query'
 import type { ResourceModel } from '@protobase/schema'
 import { HttpProblem } from './problem'
 import type { Entry } from './registry'
@@ -66,10 +66,20 @@ export const createScanGuard = (db: Db, options: { mode?: ScanGuardMode } = {}) 
     return columns.flat()
   }
 
+  // A lookup field's linked records are read by their own scope too, by the linked field a term, sort or grouping names,
+  // judged against the linked table's indexes; its link on this table is judged with the read's other columns.
+  const lookupColumns = async (model: ResourceModel, query: CoverageQuery): Promise<UncoveredColumn[]> => {
+    const columns = await Promise.all(lookupQueries(model, query).map(async ({ read, query: linked }) => [
+      ...uncoveredColumns(read.model, await indexesOfModel(read.model), linked, read.scope).map((column) => ({ ...column, field: `${read.model.name}.${column.field}` })),
+      ...(await parentColumns(read.scope)),
+    ]))
+    return columns.flat()
+  }
+
   /** Throws a 400 problem for a column no index serves in `reject` mode; in `warn` mode returns the warning text. */
   const check = async (entry: Entry, query: CoverageQuery, context: GuardContext) => {
     if (mode === 'off') return undefined
-    const columns = [...uncoveredColumns(context.model, await indexesOf(entry), query, context.scope), ...(await parentColumns(context.scope))]
+    const columns = [...uncoveredColumns(context.model, await indexesOf(entry), query, context.scope), ...(await parentColumns(context.scope)), ...(await lookupColumns(context.model, query))]
     const first = columns[0]
     if (!first) return undefined
     const detail = describe(first)

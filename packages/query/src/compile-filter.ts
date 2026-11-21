@@ -3,8 +3,9 @@ import type { CheckedFilter, ResourceModel } from '@protobase/schema'
 import { jsonHas, jsonPresent } from './fields/json'
 import { compileCompare, compileIn } from './compile-compare'
 import { compileRegex, compileSearch, compileSimilar } from './compile-text-match'
-import { columnRef } from './columns'
+import { columnRef, tableSource } from './columns'
 import { QueryError } from './errors'
+import { lookupReadOf, type LookupRead } from './lookup-read'
 
 export type CompileOptions = {
   /** Minimum pg_trgm similarity for `similar`, from 0.3 (the `%` operator's own floor) to 1. */
@@ -18,7 +19,22 @@ const combine = (parts: Expression<SqlBool>[], joiner: 'and' | 'or') => {
   return sql<SqlBool>`(${sql.join(parts, sql` ${sql.raw(joiner)} `)})`
 }
 
+type Term = Exclude<CheckedFilter, { kind: 'and' | 'or' | 'not' | 'search' }>
+
+// A term on a lookup field holds when the one linked record the caller reads holds it on its field: the record's link
+// is among the keys of the linked records that do, which an index on each table serves. Empty is the opposite of a
+// linked record whose field is not empty, so no linked record, or one the caller does not read, is empty too.
+const lookupTerm = (node: Term, read: LookupRead, threshold: number) => {
+  const held = node.kind === 'isNull' ? sql<SqlBool>`${columnRef(read.value)} is not null` : compileNode(read.model, { ...node, field: read.value }, threshold)
+  const keys = sql`select ${columnRef(read.match)} from ${tableSource(read.model)} where ${sql.join([...read.conditions, held], sql` and `)}`
+  const link = columnRef(read.link)
+  const linked = read.link.nullable ? sql<SqlBool>`(${link} is not null and ${link} in (${keys}))` : sql<SqlBool>`${link} in (${keys})`
+  return node.kind === 'isNull' ? sql<SqlBool>`not ${linked}` : linked
+}
+
 const compileNode = (model: ResourceModel, node: CheckedFilter, threshold: number): Expression<SqlBool> => {
+  const read = 'field' in node ? lookupReadOf(node.field) : undefined
+  if (read) return lookupTerm(node as Term, read, threshold)
   switch (node.kind) {
     case 'and':
     case 'or':
