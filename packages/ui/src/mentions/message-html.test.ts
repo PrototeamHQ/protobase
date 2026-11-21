@@ -59,6 +59,8 @@ describe('messageHtml', () => {
       '<p><a href="https://evil.example" target="_blank" rel="noopener noreferrer nofollow">https://evil.example</a></p>\n',
     )
     expect(messageHtml('[acme.example](https://acme.example/billing)', [])).toContain('>acme.example</a>')
+    expect(messageHtml('[**acme.exa*m*ple**](https://evil.example)', [])).toContain('>https://evil.example</a>')
+    expect(messageHtml('[a\u05d0.com](https://example.com)', [])).toContain('>https://example.com</a>')
   })
 
   it('picks out a mention inside formatted text, and not one of someone it does not mention', () => {

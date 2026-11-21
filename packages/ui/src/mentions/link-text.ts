@@ -13,5 +13,8 @@ const hostOf = (address: string) => {
 export const misleadingLinkText = (text: string, href: string) => {
   const named = addressLike.exec(text.trim())?.[1]
   if (!named) return false
-  return hostOf(href) !== new URL(`http://${named}`).hostname.toLowerCase()
+  // A name no browser takes as a host, such as one mixing writing directions, may still read as one: show the link's own
+  const namedHost = hostOf(`http://${named}`)
+  if (!namedHost) return true
+  return hostOf(href) !== namedHost
 }

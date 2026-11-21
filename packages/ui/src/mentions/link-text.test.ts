@@ -6,6 +6,7 @@ describe('misleadingLinkText', () => {
     expect(misleadingLinkText('https://acme.example/billing', 'https://evil.example')).toBe(true)
     expect(misleadingLinkText('www.acme.example', 'https://evil.example/www.acme.example')).toBe(true)
     expect(misleadingLinkText('acme.example', 'mailto:a@acme.example')).toBe(true)
+    expect(misleadingLinkText('a\u05d0.com', 'https://example.com')).toBe(true)
   })
 
   it('keeps text on the host the link opens, and text that names no address', () => {
