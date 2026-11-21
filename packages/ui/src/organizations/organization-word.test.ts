@@ -22,8 +22,8 @@ describe('wordedText', () => {
   it('writes the Dutch texts around the word', () => {
     setFallbackLocale('nl')
     const text = wordedText({ singular: 'Werkruimte', plural: 'Werkruimtes' })
-    expect(text('createTitle')).toBe('Maak je werkruimte')
-    expect(text('createButton')).toBe('Werkruimte maken')
+    expect(text('createTitle')).toBe('Maak je werkruimte aan')
+    expect(text('createButton')).toBe('Werkruimte aanmaken')
     expect(wordedText()('organizationName')).toBe('Organisatienaam')
   })
 })
