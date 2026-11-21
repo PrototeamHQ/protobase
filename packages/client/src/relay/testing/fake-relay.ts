@@ -2,7 +2,7 @@ import { vi } from 'vitest'
 import { encodeFrame, type Frame } from '../phoenix-frame'
 import type { RelaySocketLike } from '../relay-socket'
 
-type TestSocket = RelaySocketLike & { url: string; sent: Frame[]; frame: (frame: Frame) => void; reply: (to: Frame, status: 'ok' | 'error', reason?: string) => void; drop: () => void; opened: () => void }
+type TestSocket = Omit<RelaySocketLike, 'readyState'> & { readyState: number; url: string; sent: Frame[]; frame: (frame: Frame) => void; reply: (to: Frame, status: 'ok' | 'error', reason?: string) => void; drop: () => void; opened: () => void }
 
 /** The relay's end of the sockets a test's client opens: what each was sent, as frames, and a way to answer. */
 export const fakeRelay = () => {
