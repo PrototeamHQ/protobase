@@ -37,10 +37,26 @@ export const readOnlySlug = 'read-only'
 
 // PgBouncer's safe-shutdown refusal of a client asking for a server connection; its SQLSTATE 08P01 also covers login refusals.
 const POOLER_SHUTDOWN_MESSAGE = 'server shutting down'
+// PgBouncer's refusal while it waits `server_login_retry` after a failed server login, with that login's error after the prefix.
+const POOLER_CACHED_LOGIN_ERROR = 'server login has been failing, cached error: '
+const POOLER_LOGIN_RETRY_SUFFIX = ' (server_login_retry)'
+// Postgres's 57P03 and 57P01 login refusals while it recovers from a crash, starts up or shuts down.
+const RESTARTING_LOGIN_MESSAGES = new Set(['the database system is in recovery mode', 'the database system is starting up', 'the database system is shutting down'])
 
-// SQLSTATE 57P01 and 57P03: Postgres is shutting down or starting up; 08P01 with the pooler's shutdown message: the pooler is.
+// The pooler's cached login error, when the login it cached was refused by a restarting Postgres.
+const isPoolerCachedRestart = (message: string) => {
+  if (!message.startsWith(POOLER_CACHED_LOGIN_ERROR)) return false
+  const cached = message.slice(POOLER_CACHED_LOGIN_ERROR.length)
+  const login = cached.endsWith(POOLER_LOGIN_RETRY_SUFFIX) ? cached.slice(0, -POOLER_LOGIN_RETRY_SUFFIX.length) : cached
+  return RESTARTING_LOGIN_MESSAGES.has(login)
+}
+
+// SQLSTATE 57P01 and 57P03: Postgres is shutting down or starting up; 08P01 with the pooler's shutdown message: the pooler is,
+// and 08P01 with the pooler's cached login error of a restarting Postgres: Postgres is, seen through the pooler.
 const isRestarting = (error: DatabaseError) =>
-  error.code === '57P01' || error.code === '57P03' || (error.code === '08P01' && error.message === POOLER_SHUTDOWN_MESSAGE)
+  error.code === '57P01' ||
+  error.code === '57P03' ||
+  (error.code === '08P01' && (error.message === POOLER_SHUTDOWN_MESSAGE || isPoolerCachedRestart(error.message)))
 
 // The 503 of a database that is briefly unavailable: the request can be sent again shortly.
 const retryShortly = (slug: string, detail: string) => new HttpProblem(503, slug, 'Service Unavailable', detail, {}, { 'Retry-After': '5' })

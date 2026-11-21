@@ -1898,6 +1898,12 @@ export type ConversationPageModel = {
   thread?: ConversationThreadModel
   /** Files a message carries, kept in a resource of their own: picked, pasted or dropped in the box and shown under the message. */
   attachments?: AttachmentsModel
+  /**
+   * The record's call, by the name of the API function that admits people to it with `calls.join`: the header shows
+   * Start call, or the call going on with Join, and the page that joins it (`?call=join`) shows the call beside the
+   * messages. The page opens the function's socket with the record's key as `key`, `/api/functions/<call>?key=<key>`.
+   */
+  call?: string
   /** The hint in the empty box. */
   placeholder?: string
   /** What the conversation says while it has no messages. */

@@ -59,6 +59,23 @@ describe('conversationPageErrors', () => {
     expect(conversationPageErrors(page, 'channels', { ...models, read_positions: { ...positions, author: undefined } })).toEqual(["readPosition: read_positions has no .author(), so it cannot keep each reader's own position"])
     expect(conversationPageErrors(page, 'channels', { ...models, messages: { ...messages, primaryKey: ['body'] } })).toEqual(['readPosition: messages needs a key of one integer column, which grows as messages arrive'])
   })
+
+  it('finds the reader\'s own position by a filterable author', () => {
+    const user_id = { ...positions.fields.user_id!, filterable: false }
+    expect(conversationPageErrors(page, 'channels', { ...models, read_positions: { ...positions, fields: { ...positions.fields, user_id } } })).toEqual([
+      'readPosition: "user_id" on read_positions is not filterable, so a reader\'s own position cannot be found',
+    ])
+  })
+
+  it('sends the record and the message it was read to, so neither is read-only', () => {
+    const channel_id = { ...positions.fields.channel_id!, readOnly: true }
+    const last_read_id = { ...positions.fields.last_read_id!, readOnly: true }
+    expect(conversationPageErrors(page, 'channels', { ...models, read_positions: { ...positions, fields: { ...positions.fields, channel_id, last_read_id } } })).toEqual([
+      'readPosition: field: "channel_id" is read-only on read_positions',
+      'readPosition: message: "last_read_id" is read-only on read_positions',
+    ])
+    expect(conversationPageErrors(page, 'channels', { ...models, read_positions: { ...positions, tenant: 'last_read_id' } })).toEqual(['readPosition: message: "last_read_id" is read-only on read_positions'])
+  })
 })
 
 describe('pruneConversationPage', () => {
@@ -74,6 +91,11 @@ describe('pruneConversationPage', () => {
   it('leaves out what the caller cannot read', () => {
     const pruned = pruneConversationPage(page, 'channels', { channels: without(channels, 'topic'), messages: without(messages, 'edited_at', 'mentions'), read_positions: without(positions, 'user_id') })
     expect(pruned).toEqual({ resource: 'messages', field: 'channel_id', sender: 'author_id', time: 'sent_at', text: 'body', members: 'member_ids' })
+  })
+
+  it('keeps the call for every reader: its function decides who joins', () => {
+    const pruned = pruneConversationPage({ ...page, call: 'call' }, 'channels', { ...models, messages: without(messages, 'edited_at') })
+    expect(pruned).toMatchObject({ call: 'call' })
   })
 
   it('is gone for a caller who cannot read a thread field, so replies never show among the messages', () => {

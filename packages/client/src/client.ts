@@ -449,10 +449,13 @@ export const createClient = (options: ClientOptions = {}) => {
   /** Whether the calls of the organization the signed-in user works in take guests (see `callGuestsClient`). */
   const callGuests = callGuestsClient(send)
 
+  /** The socket URL of one of the app's API functions, `/api/functions/<name>`, with `query`, such as for `joinCall`. */
+  const functionSocketUrl = (name: string, query?: Record<string, string>) => systemSocketUrl(options.baseUrl, `/functions/${encodeURIComponent(name)}${query ? `?${new URLSearchParams(query)}` : ''}`)
+
   /** Where a page reads the bytes of a file of `resource` with `fetch`, from this API's own origin (see `fileReadUrl`). */
   const readUrl = (_resource: ResourceRef, file: { uri: string; url: string }) => fileReadUrl(file, systemUrlOf(options.baseUrl))
 
-  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, batchAggregates, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, bridges, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes, workflowRunTrace, runnerRegistration, fileReadUrl: readUrl }
+  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, batchAggregates, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, bridges, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes, workflowRunTrace, runnerRegistration, functionSocketUrl, fileReadUrl: readUrl }
 }
 
 export type Client = ReturnType<typeof createClient>

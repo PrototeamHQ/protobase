@@ -71,14 +71,18 @@ const listen = (server: Server) =>
     })
   })
 
-// Lets running jobs finish and stops them and the realtime prune, then the process: run.ts stops it on SIGTERM, and it stops itself when
-// run.ts is gone. Ctrl-C reaches every process of the terminal, so SIGINT is left to run.ts, which stops this one.
-const stop = async () => {
+// Lets running jobs finish and stops them, the realtime prune and the relay, then the process: run.ts stops it on SIGTERM, and it stops itself when
+// run.ts is gone. Ctrl-C reaches every process of the terminal, so SIGINT is left to run.ts, which stops this one. It
+// runs once: run.ts's SIGTERM and its disconnect both ask, and a second run's exit would cut the first one short.
+let stopping: Promise<void> | undefined
+const stop = () => (stopping ??= stopOnce())
+const stopOnce = async () => {
   server?.close()
   server?.closeAllConnections()
   const devSupport = await vite.ssrLoadModule(support)
   await devSupport.stopDevJobs()
   await devSupport.stopDevRealtimePrune()
+  await devSupport.stopDevRelay()
   await vite.close()
   process.exit(process.exitCode ?? 0)
 }

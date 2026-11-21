@@ -5,7 +5,7 @@ const nameOf = (resource: ResourceRef) => (typeof resource === 'string' ? resour
 
 /**
  * One client over the app's own API and the sources it draws resources from: a call about a resource goes to the API
- * that serves it (`sourceOf` gives a source's client, or `undefined` for the app's own), and `meta`, `invoke`, the
+ * that serves it (`sourceOf` gives a source's client, or `undefined` for the app's own), and `meta`, `invoke`, function sockets, the
  * public forms, `live`, the bridges and the user's devices, notifications and status go to the app's own. A batch goes to the one API all its writes are for; one that writes to two cannot be atomic, so it is
  * refused before anything is sent.
  */
@@ -40,6 +40,7 @@ export const routedClient = (own: Client, sourceOf: (resource: string) => Client
     meta: (etag, options) => own.meta(etag, options),
     fileReadUrl: (resource, file) => to(resource).fileReadUrl(resource, file),
     invoke: (name, options) => own.invoke(name, options),
+    functionSocketUrl: (name, query) => own.functionSocketUrl(name, query),
     upload: (resource, field, file, options) => to(resource).upload(resource, field, file, options),
     form: (name) => own.form(name),
     formChallenge: (name) => own.formChallenge(name),

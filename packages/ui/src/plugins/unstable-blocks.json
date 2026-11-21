@@ -110,7 +110,6 @@
     "primitives/kbd#Kbd",
     "primitives/menu-edge#useMenuRight",
     "primitives/menu-edge#useMenuTop",
-    "primitives/popover-menu#usePopoverMenu",
     "primitives/sheet#Sheet",
     "primitives/skeleton#Skeleton",
     "primitives/snap-row#SnapRow",
@@ -132,7 +131,6 @@
     "status/use-status-menu#useStatusMenu",
     "theme/theme-provider#ThemeProvider",
     "theme/theme-provider#useTheme",
-    "toasts/toast-provider#useToast",
     "users/users-block#UsersBlock"
   ]
 }

@@ -6,6 +6,7 @@ import { projectErrorReporter } from '../project/error-reporter'
 import { servedAdmin } from '../project/served-admin'
 import { buildProject } from '../config/build-project'
 import { devJobs } from './dev-jobs'
+import { withDevRelay } from './dev-relay'
 import { devRealtimePrune } from './dev-prune'
 import { devDatabase, loadDevConfig } from './project'
 import { withDevServiceWorker } from './service-worker-route'
@@ -14,7 +15,8 @@ import { setMissing, supabaseEnv } from './supabase-env'
 // Loaded by Vite's SSR module graph (see run.ts). Editing any file it imports re-evaluates this module
 // on the next request, which rebuilds the API; `/meta` then reports a new X-Meta-Version.
 const projectDir = process.env.PROTOBASE_PROJECT!
-const config = await loadDevConfig(projectDir, JSON.parse(process.env.PROTOBASE_EXTENSIONS ?? '[]'))
+// A `realtime.relay` without a url gets the relay protobase dev runs (see dev-relay.ts).
+const config = await withDevRelay(await loadDevConfig(projectDir, JSON.parse(process.env.PROTOBASE_EXTENSIONS ?? '[]')), projectDir, process.env.PROTOBASE_DEV_URL!)
 const database = devDatabase(projectDir)
 const { db } = database
 // The app as it serves, built from the config: its references loaded, auth and the authenticator made.

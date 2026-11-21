@@ -1,4 +1,4 @@
-import { authSchemaMigration, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, capturedBy, derivedMigration, jobsSchemaMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, relayMigration, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
+import { authSchemaMigration, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, capturedBy, derivedMigration, hasBuckets, jobsSchemaMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, relayMigration, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
 import { authMigrationTitle } from '../auth/migration-file'
 import type { MigrationProject } from './load-project'
 
@@ -22,8 +22,9 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
   return [
     ...(project.auth ? [{ name: 'auth', title: authMigrationTitle, sql: () => authSchemaMigration(project.auth!) }] : []),
     // Events and history are captured with a dispatch job, events delivered, mentions mailed, AI fields filled and
-    // notifications sent by jobs, whose waiting and failed ones webhooks lists, and workflows run by them.
-    ...(project.jobs.length > 0 || captured.some(capturedBy(captured)) || comments || aiFields || project.webhooks || project.workflows || project.notifications || project.realtime?.relay ? [{ name: 'jobs', title: 'The jobs schema this version of Protobase needs', sql: () => jobsSchemaMigration(project.db) }] : []),
+    // notifications sent by jobs, whose waiting and failed ones webhooks lists, workflows run by them, and time rollups
+    // refreshed by one.
+    ...(project.jobs.length > 0 || captured.some(capturedBy(captured)) || comments || aiFields || project.models.some(hasBuckets) || project.webhooks || project.workflows || project.notifications || project.realtime?.relay ? [{ name: 'jobs', title: 'The jobs schema this version of Protobase needs', sql: () => jobsSchemaMigration(project.db) }] : []),
     ...(project.mailFeedback ? [{ name: 'mail_feedback', title: 'The table of the bounces and complaints of the mail the app sends', sql: () => mailFeedbackMigration(project.db) }] : []),
     { name: 'changes', title: "The change capture the resources' events and history need", sql: () => changesMigration(project.db, captured, project.events, feedback.map((model) => model.name)) },
     // Always compared, so that the function and trigger of a rollup the config no longer has are dropped.

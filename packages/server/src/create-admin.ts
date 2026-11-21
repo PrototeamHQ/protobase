@@ -64,6 +64,8 @@ import { mentionJob } from './comments/mention-job'
 import { betterAuthActorNames } from './history/actor-names'
 import { historyDays, type HistoryOptions } from './history/options'
 import { pruneHistoryJob } from './history/prune-history'
+import { bucketsRefreshJob } from './computed/buckets-job'
+import { hasBuckets } from './computed/buckets-schema'
 import { createWebhooks } from './webhooks/webhooks'
 import { webhookTable } from './webhooks/table/webhook-table'
 import { subscriptionUrlCheck, subscriptionWriteCheck } from './webhooks/table/validate-hook'
@@ -578,5 +580,5 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), sqlSends: sqlSends(realtime), report })
   // The requests held open waiting, as runners' claims are, answered at once as the process closes.
   const stopHolding = async () => void (await engine?.stop())
-  return Object.assign(app, { startRealtimePrune: prune, stopHolding, decryptField, metaPath: `${deps.systemPath}/meta`, ...(links && { unsubscribe: links }), jobs: [...webhooks.jobs, ...(relay ? relay.jobs : []), ...(engine ? engine.jobs : []), ...(derived ? derived.jobs : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
+  return Object.assign(app, { startRealtimePrune: prune, stopHolding, decryptField, metaPath: `${deps.systemPath}/meta`, ...(links && { unsubscribe: links }), jobs: [...webhooks.jobs, ...(relay ? relay.jobs : []), ...(engine ? engine.jobs : []), ...(derived ? derived.jobs : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(appModels.some(hasBuckets) ? [bucketsRefreshJob(appModels)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
 }

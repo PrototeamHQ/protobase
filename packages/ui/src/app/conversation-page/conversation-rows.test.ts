@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { conversationRows, firstUnreadKey } from './conversation-rows'
+import { conversationRows, firstUnreadKey, highestKey } from './conversation-rows'
 
 const fields = { key: (row: Record<string, unknown>) => String(row.id), sender: 'author_id', time: 'sent_at' }
 const message = (id: number, author: string, sentAt: string) => ({ id, author_id: author, sent_at: sentAt })
@@ -56,5 +56,19 @@ describe('firstUnreadKey', () => {
   it('is none when the first loaded message is unread and earlier ones are not loaded, rather than a line in the wrong place', () => {
     expect(firstUnreadKey(rows, fields, 0, 'me', true)).toBeUndefined()
     expect(firstUnreadKey(rows, fields, 10, 'me', true)).toBe('12')
+  })
+
+  it('is none when earlier messages are not loaded and the loaded ones start past the read position, wherever the match is', () => {
+    const mineFirst = [message(10, 'me', 'a'), message(11, 'sam', 'b')]
+    expect(firstUnreadKey(mineFirst, fields, 5, 'me', true)).toBeUndefined()
+    expect(firstUnreadKey(mineFirst, fields, 5, 'me', false)).toBe('11')
+    expect(firstUnreadKey(mineFirst, fields, 10, 'me', true)).toBe('11')
+  })
+})
+
+describe('highestKey', () => {
+  it('is the highest key, not the newest by time', () => {
+    expect(highestKey([message(12, 'sam', '2026-10-27T09:00:00Z'), message(14, 'sam', '2026-10-27T09:01:00Z'), message(13, 'sam', '2026-10-27T09:02:00Z')], fields.key)).toBe(14)
+    expect(highestKey([], fields.key)).toBeUndefined()
   })
 })
