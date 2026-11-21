@@ -1775,6 +1775,28 @@
                     }
                   ]
                 },
+                "names": {
+                  "description": "What the app calls an organization, such as `{ singular: 'Workspace', plural: 'Workspaces' }`. Default the built-in \"Organization\".",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/OrganizationNames"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "createDescription": {
+                  "description": "A line under the title of the screen where someone names their first organization, such as what one is for.",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
                 "invitationDays": {
                   "description": "How long an invitation works, in days. Default 7.",
                   "anyOf": [
@@ -2275,6 +2297,36 @@
           ]
         }
       },
+      "additionalProperties": false
+    },
+    "OrganizationNames": {
+      "type": "object",
+      "properties": {
+        "singular": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "plural": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "singular",
+        "plural"
+      ],
       "additionalProperties": false
     },
     "UserTableSettings": {
