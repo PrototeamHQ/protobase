@@ -29,6 +29,8 @@ export { parseTemplatePath, recordValueAt, templatePlaceholders, wholePlaceholde
 export { followableRowButton, rowButtonChoiceFields, rowButtonChoices, rowButtonErrors, rowButtonFields, rowButtonTarget } from './row-button'
 export { promptError, promptFields, renderPrompt } from './ai-prompt'
 export { parseFormula, type FormulaNode } from './computed/formula'
+export { withLookups } from './lookup/with-lookups'
+export { lookupLink } from './lookup/lookup-link'
 export { addressErrors, type AddressCheck } from './address-errors'
 export { checkedAccept, checkedProvider, parseSize } from './files/file-options'
 export { applyAssistantEvent, emptyAssistantState } from './assistant/apply-event'
