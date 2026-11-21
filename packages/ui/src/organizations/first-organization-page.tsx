@@ -8,7 +8,7 @@ import { MyInvitationRow } from './my-invitation-row'
 import { NewOrganizationForm } from './new-organization-form'
 import { firstOrganizationFormPath, firstOrganizationPath, organizationsPath } from './organization-paths'
 import { useOrganizationText } from './organization-word'
-import { useAction } from './use-action'
+import { useJoinInvitation } from './use-join-invitation'
 import { useMyInvitations } from './use-my-invitations'
 import { reopenIn } from './use-organizations'
 
@@ -47,11 +47,11 @@ const SignedInAs = ({ email, onSignOut, children }: { email: string; onSignOut: 
  * opens the app afresh at its start address. Someone who may not create and has no invitation is told to ask for one.
  */
 export const FirstOrganizationPage = ({ path, basePath, email, mayCreate, seesAll, onSignOut }: FirstOrganizationPageProps) => {
-  const { session, organizations: settings } = useAuth()
+  const { organizations: settings } = useAuth()
   const t = useOrganizationText()
   const read = useMyInvitations()
-  const { busy, error, run } = useAction()
   const opened = () => reopenIn(basePath)
+  const { busy, error, joining, join } = useJoinInvitation(opened)
   const all = seesAll && <Link to={organizationsPath} className={linkClass}>{t('allOrganizations')}</Link>
   const footer = <SignedInAs email={email} onSignOut={onSignOut}>{all}</SignedInAs>
 
@@ -74,7 +74,7 @@ export const FirstOrganizationPage = ({ path, basePath, email, mayCreate, seesAl
         <SectionError message={error} />
         <ul className="divide-y rounded-md border">
           {invitations.map((invitation) => (
-            <MyInvitationRow key={invitation.id} invitation={invitation} t={t} busy={busy} onJoin={() => void run(async () => { await session.organizations.acceptMine(invitation.id); opened() })} />
+            <MyInvitationRow key={invitation.id} invitation={invitation} t={t} busy={busy} joining={joining === invitation.id} onJoin={() => join(invitation.id)} />
           ))}
         </ul>
         {mayCreate && (

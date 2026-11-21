@@ -8,23 +8,23 @@ import { NewOrganizationForm } from './new-organization-form'
 import { OrganizationRow } from './organization-row'
 import { useOrganizationText } from './organization-word'
 import { useAction } from './use-action'
+import { useJoinInvitation } from './use-join-invitation'
 import { useMyInvitations } from './use-my-invitations'
 import { reopenIn, type OrganizationsState } from './use-organizations'
 
 /** The invitations for the person's own address, each to join, which opens the app in its organization. */
 const YourInvitations = ({ basePath }: { basePath: string }) => {
-  const { session } = useAuth()
   const t = useOrganizationText()
   const read = useMyInvitations()
   const invitations = read.state === 'ready' ? read.invitations : undefined
-  const { busy, error, run } = useAction()
+  const { busy, error, joining, join } = useJoinInvitation(() => reopenIn(basePath))
   if (!invitations || invitations.length === 0) return null
   return (
     <AccountSection title={t('invitationsForYou')} description={t('invitationsForYouDescription')}>
       <SectionError message={error} />
       <ul className="divide-y rounded-md border">
         {invitations.map((invitation) => (
-          <MyInvitationRow key={invitation.id} invitation={invitation} t={t} busy={busy} onJoin={() => void run(async () => { await session.organizations.acceptMine(invitation.id); reopenIn(basePath) })} />
+          <MyInvitationRow key={invitation.id} invitation={invitation} t={t} busy={busy} joining={joining === invitation.id} onJoin={() => join(invitation.id)} />
         ))}
       </ul>
     </AccountSection>

@@ -258,7 +258,7 @@ export default { send: async ({ to, subject, text }) => { /* deliver it */ retur
 
 ## Name, password and devices
 
-The signed-in person changes their own name and password, and signs out their other devices, with Better Auth's own endpoints. The client has them in `session.account`, each rejecting with `AuthError`:
+The signed-in person changes their own name and password, and signs out their other devices, with Better Auth's own endpoints. The client has them in `session.account`, each rejecting with `AuthError`, or with `NetworkError` when the server cannot be reached:
 
 | Client | Endpoint |
 | --- | --- |
@@ -761,7 +761,7 @@ The app's own pages are under the profile menu: the switcher, "Manage organizati
 The start address is the same for everyone in an app; it does not yet remember where each person was last.
 :::
 
-Someone signed in who works in no organization, such as the first person in a new app, sees one screen before anything else, whatever address they opened: at `/-/first-organization`, with the app's mark and no sidebar entries, they name their first organization in one field and press Create. With invitations waiting for their address, the screen lists those first, each with Join, and "Create a new organization instead" leads to the form at `/-/first-organization/new`. Someone who may not create one (`create: 'admins'`) and has no invitation is told to ask for one. The screen names who is signed in, with Sign out, and for someone with a global role links to every organization. Creating or joining opens the app at its start address. Until they work in one, the shell shows none of the app's resources, on the account pages and the organizations page too.
+Someone signed in who works in no organization, such as the first person in a new app, sees one screen before anything else, whatever address they opened: at `/-/first-organization`, with the app's mark and no sidebar entries, they name their first organization in one field and press Create. With invitations waiting for their address, the screen lists those first, each with Join, and "Create a new organization instead" leads to the form at `/-/first-organization/new`. Someone who may not create one (`create: 'admins'`) and has no invitation is told to ask for one. The screen names who is signed in, with Sign out, and for someone with a global role links to every organization. While it creates or joins, the button says so, such as "Creating workspace…" or "Joining Acme…"; when the server cannot be reached, the screen says so and the button works again. <gap>A request the server takes but never answers keeps the button busy until the browser gives up because a time limit on sign-in and organization calls is not implemented.</gap> Creating or joining opens the app at its start address. Until they work in one, the shell shows none of the app's resources, on the account pages and the organizations page too.
 
 The word the screens use for an organization is yours: `names` takes it as a view's names are written, and `createDescription` adds a line under the screen's title. The built-in texts around the word come in English and Dutch, on this screen, the organization pages and the profile menu:
 

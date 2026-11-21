@@ -29,6 +29,7 @@ export const NewOrganizationForm = ({ onCreated, autoFocus = false }: { onCreate
       onCreated()
     })
   }
+  // Only a missing name is the field's fault; why the server refused, or could not be reached, stays beside it
   const problem = missing ? t('nameNeeded') : error
   return (
     <form className="flex flex-col gap-4" noValidate onSubmit={(event) => { event.preventDefault(); submit() }}>
@@ -42,8 +43,8 @@ export const NewOrganizationForm = ({ onCreated, autoFocus = false }: { onCreate
             autoFocus={autoFocus}
             maxLength={200}
             value={name}
-            invalid={Boolean(problem)}
-            aria-describedby={problem ? hint : undefined}
+            invalid={missing}
+            aria-describedby={missing ? hint : undefined}
             onChange={(event) => {
               setName(event.target.value)
               setMissing(false)
@@ -53,7 +54,9 @@ export const NewOrganizationForm = ({ onCreated, autoFocus = false }: { onCreate
         </label>
         {problem && <p id={hint} role="alert" className="text-body font-medium text-danger-text">{problem}</p>}
       </div>
-      <Button variant="primary" type="submit" loading={busy} className="min-h-10">{t('createButton')}</Button>
+      <Button variant="primary" type="submit" loading={busy} busyLabel={t('creating')} className="min-h-10">
+        {t('createButton')}
+      </Button>
     </form>
   )
 }

@@ -62,13 +62,11 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
   }
 
   const load = async () => {
+    // Dropped first, so a token naming the session as it was never outlives a fetch that got no answer
+    forget()
     const { data } = await client.$fetch<{ token: string }>('/token')
-    if (!data?.token) {
-      forget()
-      return undefined
-    }
+    if (!data?.token) return
     cached = { token: data.token, expiresAt: tokenExpiry(data.token) }
-    clearTimeout(timer)
     timer = setTimeout(() => void token({ refresh: true }).then((fresh) => fresh || options.onSignedOut?.()), Math.max(1000, cached.expiresAt - Date.now() - margin))
     return cached.token
   }

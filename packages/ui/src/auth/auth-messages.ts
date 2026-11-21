@@ -43,6 +43,9 @@ const known = (error: AuthError) => lookup(messages, error.code)
 /** Better Auth's error from a sign-in step or an account change, in words for the person at the keyboard. */
 export const authMessage = (error: AuthError) => known(error) ?? (error.status === 429 ? text('tooManyRequests') : error.message)
 
+/** That a change got no answer from the server, such as offline. */
+export const unreachableMessage = () => text('unreachable')
+
 /** As `authMessage`, for the password form: any other 401 is a wrong email or password. */
 export const signInMessage = (error: AuthError) => known(error) ?? (error.status === 429 ? text('tooManyRequests') : error.status === 401 ? text('wrongEmailOrPassword') : error.message)
 
