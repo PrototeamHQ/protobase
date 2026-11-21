@@ -1,12 +1,15 @@
 import type { Db } from '@protobase/query'
 import type { AdminAuth } from '../better-auth/create-auth'
 import type { ResourceChange } from '../changes/resource-change'
+import { anonymousSession } from '../anonymous'
+import { readableKeys } from '../channels/records-readable'
 import type { Deps } from '../deps'
-import { audienceChannels, changeCommands } from './change-commands'
+import { audienceChannels, changeCommands, openChannels } from './change-commands'
 import { channelMembers } from './members-sql'
 import { relayClient } from './relay-commands'
 import { relayJobs } from './relay-jobs'
 import { relayModels } from './relay-models'
+import { publicChannels } from './public-channels'
 import { checkRelayOptions, type RealtimeRelayOptions } from './relay-options'
 import { sessionEnd } from './session-end'
 import { ticketRoutes } from './ticket-route'
@@ -22,10 +25,12 @@ export const relayRuntime = (options: RealtimeRelayOptions, auth: AdminAuth | un
   const ends = sessionEnd(auth)
   const jobs = relayJobs({ client: relayClient(options), sessionEnd: ends, report: (error) => deps.report(error) })
 
-  // The batch's commands, each change's audience read once from the members tables, in the dispatch's transaction.
+  // The batch's commands, each change's audience read once in the dispatch's transaction: the members tables, and which
+  // open channels' records the anonymous role reads as they stand now, after every change of the batch.
   const onChanges = async (trx: Db, changes: readonly ResourceChange[]) => {
     const members = await channelMembers(trx, models, audienceChannels(models, changes))
-    await jobs.queue(trx, changeCommands(models, changes, members))
+    const open = await publicChannels(deps.registry, (entry, keys) => readableKeys(deps, trx, anonymousSession(), entry, keys), openChannels(models, changes))
+    await jobs.queue(trx, changeCommands(models, changes, members, open))
   }
 
   return { jobs: jobs.jobs, onChanges, routes: () => ticketRoutes({ deps, options, models, jobs, sessionEnd: ends }) }
