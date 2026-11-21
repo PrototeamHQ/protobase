@@ -326,6 +326,30 @@ export default defineFunction(async (request, { personalMail }) => {
 - <gap>An entered address cannot be checked to work before mail goes out from it because the test mail through the mailbox is not implemented.</gap>
 - <gap>An address cannot be shared with others who send mail because proving that the person owns the address is not implemented.</gap>
 
+### A From address on a record
+
+:::caution[Beta]
+A removal refused over records names only their resources and counts, not the records; and since addresses cannot be shared yet, everyone else sees an address on a shared record as not available.
+:::
+
+A record can hold the address its mail goes out from, such as a client's or the seller's "Send from": declare the field with `f.mailSender()`, on a `text` column, and pass its value to `send({ from })`.
+
+```ts
+send_from: f.mailSender().optional(),
+```
+
+- **The form:** a dropdown of the signed-in person's addresses, their mailbox's own first, then those they entered, each as `Name <address>` when it has a name. The empty choice, **Sender's default address**, stores `null`: mail goes out from the default address of whoever sends it.
+- **Saving:** a create or update may only set an address the saving person may send from, by the rule `send` uses; the address is stored as their sender spells it. Any other is refused with a `400` naming the field and the address. A visitor, and anyone on an app without personal mail, can set none.
+- **An address no longer offered,** such as one another person entered, still shows, marked **not available**, with a link to the account page. Saving other fields, or giving the same address again, leaves it as it is.
+- **Read views** show the address, with its name when it is one of the reader's.
+- **Removing an address in use:** while a record that is not soft-deleted holds it in an `f.mailSender()` field, removing it on the account page, or disconnecting the mailbox whose own address it is (`POST /api/auth/unlink-account`), is refused with a `409` and changes nothing:
+
+  ```json
+  { "code": "MAIL_SENDER_IN_USE", "message": "billing@shop.example is still the From address of 2 Clients. Give them another From address first.", "use": [{ "resource": "clients", "count": 2 }] }
+  ```
+
+  Each resource is named as its view's `names` call its records. The count matches the address exactly, so an index on the column serves it.
+
 ## In a bundle
 
 A [bundle](/reference/cli/#the-config-module) gets React and React Email's renderer from the serve runtime, as it gets `@protobase/server` and `@protobase/server/email`, so an email's component and the renderer share one React and hooks such as `useContext` work. React Email's other components are inlined, though `@protobase/server` uses them too: it loads them only to send its own mail, so the runtime does not supply them. Its `<Tailwind>` component needs `tailwindcss`, which the runtime does not supply, so a served config cannot use it: style with `style` props instead.
