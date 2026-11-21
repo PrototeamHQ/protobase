@@ -39,12 +39,22 @@ $$`,
   `create trigger ${triggerName} after delete on ${sessions} referencing old table as ended for each statement execute function ${relaySchema}.session_ended()`,
 ]
 
-// Whether the trigger stands on the sessions table, with the function of this version.
+/**
+ * Refuses a sessions table the app's database does not have: the trigger queues its job in the app's jobs queue, so
+ * the relay needs the auth store in the app's own database, as the `auth` config puts it.
+ */
+export const refuseSessionsElsewhere = (table: boolean, sessions: string) => {
+  if (table) return
+  throw new Error(`The relay needs the sign-in sessions table ${sessions} in the app's own database, whose jobs queue closes ended sessions' sockets, but the app's database has no such table: keep the auth store in the app's database to use the relay.`)
+}
+
+// Whether the trigger stands on the sessions table, with the function of this version; refuses a table elsewhere.
 const current = async (db: Db, sessions: string) => {
-  const { rows } = await sql<{ found: boolean }>`select exists (
+  const { rows } = await sql<{ here: boolean; found: boolean }>`select to_regclass(${sessions}) is not null as here, exists (
       select from pg_trigger t join pg_proc p on p.oid = t.tgfoid
       where t.tgrelid = to_regclass(${sessions}) and t.tgname = ${triggerName} and obj_description(p.oid, 'pg_proc') = ${sessionsComment}
     ) as found`.execute(db)
+  refuseSessionsElsewhere(rows[0]!.here, sessions)
   return rows[0]!.found
 }
 
