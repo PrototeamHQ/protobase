@@ -2204,11 +2204,16 @@
     "nameNeeded": "Give your <lower>{word}</lower> a name",
     "signedInAs": "Signed in as {email}",
     "invitedTitle": "You are invited",
-    "invitedSubtitle": "Join your team where they invited you, or create a <lower>{word}</lower> of your own.",
+    "invitedSubtitle": "Join your team, or create a <lower>{word}</lower> of your own.",
     "createInstead": "Create a new <lower>{word}</lower> instead",
     "backToInvitations": "Back to your invitations",
     "notInAnyTitle": "No <lower>{word}</lower> yet",
-    "notInAny": "Ask someone in your team to invite you, then open the link in their email."
+    "notInAny": "Ask someone in your team to invite {email}. Then open the link in the invitation email.",
+    "invitedSubtitleJoinOnly": "Join your team.",
+    "expires": "Expires {date}",
+    "invitationsNotLoaded": "Your invitations did not load",
+    "invitationsNotLoadedHelp": "Check your connection, then try again.",
+    "tryAgain": "Try again"
   },
   "plugins": {
     "loading": "Loading",

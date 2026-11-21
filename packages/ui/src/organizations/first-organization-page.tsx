@@ -3,6 +3,7 @@ import { AuthLayout } from '../auth/auth-layout'
 import { useAuth } from '../auth/auth-provider'
 import { SectionError } from '../account/account-section'
 import { Link } from '../app/router'
+import { Button } from '../primitives/button'
 import { MyInvitationRow } from './my-invitation-row'
 import { NewOrganizationForm } from './new-organization-form'
 import { firstOrganizationFormPath, firstOrganizationPath, organizationsPath } from './organization-paths'
@@ -48,17 +49,27 @@ const SignedInAs = ({ email, onSignOut, children }: { email: string; onSignOut: 
 export const FirstOrganizationPage = ({ path, basePath, email, mayCreate, seesAll, onSignOut }: FirstOrganizationPageProps) => {
   const { session, organizations: settings } = useAuth()
   const t = useOrganizationText()
-  const invitations = useMyInvitations()
+  const read = useMyInvitations()
   const { busy, error, run } = useAction()
   const opened = () => reopenIn(basePath)
   const all = seesAll && <Link to={organizationsPath} className={linkClass}>{t('allOrganizations')}</Link>
   const footer = <SignedInAs email={email} onSignOut={onSignOut}>{all}</SignedInAs>
 
   // Blank for the moment the invitations take, rather than a title that may change to the invitations' own
-  if (invitations === undefined) return <div className="min-h-full" aria-busy />
+  if (read.state === 'loading') return <div className="min-h-full" aria-busy />
+  // A failed read never falls back to the form: someone invited would make an empty organization instead of joining
+  if (read.state === 'failed') {
+    return (
+      <AuthLayout title={t('invitationsNotLoaded')} description={t('invitationsNotLoadedHelp')}>
+        <Button variant="primary" className="min-h-10 w-full" onClick={read.retry}>{t('tryAgain')}</Button>
+        {footer}
+      </AuthLayout>
+    )
+  }
+  const invitations = read.invitations
   if (invitations.length > 0 && path !== firstOrganizationFormPath) {
     return (
-      <AuthLayout title={t('invitedTitle')} description={mayCreate ? t('invitedSubtitle') : undefined}>
+      <AuthLayout title={t('invitedTitle')} description={mayCreate ? t('invitedSubtitle') : t('invitedSubtitleJoinOnly')}>
         <SectionError message={error} />
         <ul className="divide-y rounded-md border">
           {invitations.map((invitation) => (
@@ -76,7 +87,7 @@ export const FirstOrganizationPage = ({ path, basePath, email, mayCreate, seesAl
   }
   if (!mayCreate) {
     return (
-      <AuthLayout title={t('notInAnyTitle')} description={t('notInAny')}>
+      <AuthLayout title={t('notInAnyTitle')} description={t('notInAny', { email })}>
         {footer}
       </AuthLayout>
     )

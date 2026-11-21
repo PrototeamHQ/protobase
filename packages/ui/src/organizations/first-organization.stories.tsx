@@ -159,3 +159,18 @@ export const StartFallsBack: StoryObj = {
     expect(await canvas.findByText('Welcome')).toBeVisible()
   },
 }
+
+/** When the invitations cannot be read, the screen says so with Try again, never the form someone invited should not use. */
+export const InvitationsNotLoaded: StoryObj = {
+  tags: ['play'],
+  render: () => {
+    const session = sessionFor(nowhere, [])
+    return <Chat session={{ ...session, organizations: { ...session.organizations, myInvitations: () => Promise.reject(new Error('offline')) } }} start="/" />
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByRole('heading', { name: 'Your invitations did not load' })).toBeVisible()
+    expect(canvas.getByRole('button', { name: 'Try again' })).toBeVisible()
+    expect(canvas.queryByLabelText('Workspace name')).toBeNull()
+  },
+}

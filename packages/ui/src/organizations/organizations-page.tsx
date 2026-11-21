@@ -15,7 +15,8 @@ import { reopenIn, type OrganizationsState } from './use-organizations'
 const YourInvitations = ({ basePath }: { basePath: string }) => {
   const { session } = useAuth()
   const t = useOrganizationText()
-  const invitations = useMyInvitations()
+  const read = useMyInvitations()
+  const invitations = read.state === 'ready' ? read.invitations : undefined
   const { busy, error, run } = useAction()
   if (!invitations || invitations.length === 0) return null
   return (
