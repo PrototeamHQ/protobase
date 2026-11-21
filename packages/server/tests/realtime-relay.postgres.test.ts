@@ -1,0 +1,223 @@
+import { spawn, type ChildProcess } from 'node:child_process'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createServer } from 'node:net'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { sql } from 'kysely'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { f, resource } from '@protobase/schema'
+import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
+import { createAuth } from '../src/better-auth/create-auth'
+import { createUser } from '../src/better-auth/users'
+import { changesMigration } from '../src/changes/capture-schema'
+import { createAdmin } from '../src/create-admin'
+import { jobsSchemaMigration } from '../src/jobs/schema'
+import { startJobs, type JobsRuntime } from '../src/jobs/runtime'
+import { relayMigration } from '../src/relay/relay-schema'
+import { npmWs } from './support/npm-ws'
+import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
+
+// The app's side of the realtime relay against a real relay process and real Postgres: tickets, change notices to a
+// conversation's members, membership that follows the members table, and a sign-out closing that session's sockets.
+// `TEST_RELAY_BINARY` names the relay's binary (`go build ./cmd/relay` of protobase-realtime); without it the test
+// is skipped.
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 })
+
+const relayBinary = process.env.TEST_RELAY_BINARY
+const origin = 'http://localhost:5173'
+const secret = 'relay-test-secret-relay-test-secret-1234'
+const password = 'correct horse battery'
+const keys = { apiKey: 'relay-test-api-key-0123456789abcdef', ticketKey: 'relay-test-ticket-key-0123456789abcd' }
+
+const resources = [
+  resource('conversations').table('conversations').fields({ id: f.integer().readOnly(), title: f.text() }).primaryKey((r) => r.id).live(),
+  resource('conversation_members')
+    .table('conversation_members')
+    .fields({ id: f.integer().readOnly(), conversation_id: f.relation('conversations').filterable(), user_id: f.text().filterable() })
+    .primaryKey((r) => r.id)
+    .live(),
+  resource('messages').table('messages').fields({ id: f.integer().readOnly(), conversation_id: f.relation('conversations').filterable(), body: f.text() }).primaryKey((r) => r.id).live(),
+]
+
+const tables = `
+create table conversations (id integer generated always as identity primary key, title text not null);
+create table conversation_members (id integer generated always as identity primary key, conversation_id integer not null references conversations, user_id text not null);
+create index on conversation_members (conversation_id);
+create index on conversation_members (user_id);
+create table messages (id integer generated always as identity primary key, conversation_id integer not null references conversations, body text not null);
+`
+
+const freePort = () =>
+  new Promise<number>((resolve) => {
+    const server = createServer()
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address() as { port: number }
+      server.close(() => resolve(port))
+    })
+  })
+
+type Frame = [string | null, string | null, string, string, Record<string, unknown>]
+
+// A socket on the relay that keeps every frame it hears and how it closed.
+const relaySocket = async (url: string, ticket: string) => {
+  const socket = new npmWs.WebSocket(`${url}/websocket?vsn=2.0.0&ticket=${encodeURIComponent(ticket)}`)
+  const frames: Frame[] = []
+  let closed: number | undefined
+  socket.on('message', (data) => frames.push(JSON.parse(String(data)) as Frame))
+  socket.on('close', (code) => (closed = code))
+  await new Promise((resolve, reject) => (socket.once('open', resolve), socket.once('error', reject)))
+  let ref = 0
+  const join = async (channel: string) => {
+    const id = String(++ref)
+    socket.send(JSON.stringify([id, id, channel, 'phx_join', {}]))
+    await vi.waitFor(() => expect(frames.some((frame) => frame[1] === id)).toBe(true))
+    return (frames.find((frame) => frame[1] === id)![4] as { status: string }).status
+  }
+  const notices = () => frames.filter((frame) => frame[3] === 'change').map((frame) => frame[4])
+  return { socket, frames, join, notices, closed: () => closed }
+}
+
+describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the realtime relay with a real relay', () => {
+  let pg: PostgresDatabase
+  let relay: ChildProcess
+  let dir: string
+  let app: ReturnType<typeof createAdmin>
+  let runtime: JobsRuntime
+  let relayUrl: string
+  const errors: unknown[] = []
+  const sockets: Awaited<ReturnType<typeof relaySocket>>[] = []
+  const people: Record<'alice' | 'bob' | 'carol', string> = {} as never
+
+  const request = (route: string, init: { body?: unknown; token?: string; cookie?: string } = {}) =>
+    app.request(`${origin}${route}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin, ...(init.cookie && { cookie: init.cookie }), ...(init.token && { authorization: `Bearer ${init.token}` }) },
+      body: JSON.stringify(init.body ?? {}),
+    })
+
+  // A new sign-in session of the person: its cookie, and the bearer token that names it.
+  const signIn = async (email: string) => {
+    const signedIn = await request('/api/auth/sign-in/email', { body: { email, password } })
+    expect(signedIn.status).toBe(200)
+    const cookie = signedIn.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
+    const tokenAnswer = await app.request(`${origin}/api/auth/token`, { headers: { cookie, origin } })
+    const { token } = (await tokenAnswer.json()) as { token: string }
+    return { cookie, token }
+  }
+
+  const connect = async (token: string, channels: string[] = []) => {
+    const answer = await request('/api/relay/ticket', { token, body: { channels } })
+    expect(answer.status).toBe(200)
+    const { ticket, url } = (await answer.json()) as { ticket: string; url: string }
+    const socket = await relaySocket(url, ticket)
+    sockets.push(socket)
+    return socket
+  }
+
+  const drained = async () => expect((await runtime.drain(20)).drained).toBe(true)
+
+  beforeAll(async () => {
+    pg = await openPostgresDatabase('auth')
+    const auth = createAuth({ database: { dialect: pg.dialect, type: 'postgres' }, baseURL: origin, secret, mailer: false, signInPerMinute: 100 })
+    await auth.$context
+    for (const name of ['alice', 'bob', 'carol'] as const) people[name] = String((await createUser(auth, { email: `${name}@example.com`, name, password })).id)
+    await pg.exec((await jobsSchemaMigration(pg.db))!)
+    await pg.exec(tables)
+    await pg.exec((await changesMigration(pg.db, resources.map((entry) => entry.toModel())))!)
+    await pg.exec((await relayMigration(pg.db, auth))!)
+
+    const port = await freePort()
+    relayUrl = `http://127.0.0.1:${port}`
+    dir = await mkdtemp(path.join(tmpdir(), 'relay-test-'))
+    await writeFile(path.join(dir, 'apps.json'), JSON.stringify({ apps: [{ id: 'chat', api_keys: [keys.apiKey], ticket_keys: [keys.ticketKey], origins: [origin], limits: { connections: 100, channels_per_ticket: 200, request_bytes: 65536 } }] }))
+    relay = spawn(relayBinary!, [], { env: { RELAY_APPS_FILE: path.join(dir, 'apps.json'), RELAY_ADDR: `127.0.0.1:${port}` }, stdio: 'ignore' })
+    await vi.waitFor(async () => expect((await fetch(`${relayUrl}/apps/chat/sessions/close`, { method: 'POST' }).catch(() => undefined))?.status).toBe(401), { timeout: 10_000, interval: 100 })
+
+    app = createAdmin({
+      resources,
+      db: pg.db,
+      authenticate: betterAuthAuthenticator({ auth }),
+      auth,
+      realtime: { relay: { url: relayUrl, app: 'chat', ...keys, channels: { conversations: { members: { resource: 'conversation_members', channel: 'conversation_id', user: 'user_id' } } } } },
+      options: { onUnhandledError: (error) => errors.push(error) },
+    })
+    runtime = await startJobs({ db: pg.db, jobs: app.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
+    await sql`insert into conversations (title) values ('Planning'), ('Lunch')`.execute(pg.db)
+    await sql`insert into conversation_members (conversation_id, user_id) values (1, ${people.alice}), (1, ${people.bob}), (2, ${people.carol})`.execute(pg.db)
+    await drained()
+  })
+
+  afterEach(() => {
+    for (const socket of sockets.splice(0)) socket.socket.close()
+  })
+
+  afterAll(async () => {
+    await runtime?.stop()
+    relay?.kill()
+    if (dir) await rm(dir, { recursive: true, force: true })
+    await pg?.close()
+    expect(errors).toEqual([])
+  })
+
+  it("notices a message to its conversation's members, and not to anyone else", async () => {
+    const alice = await connect((await signIn('alice@example.com')).token)
+    const bob = await connect((await signIn('bob@example.com')).token)
+    const carol = await connect((await signIn('carol@example.com')).token)
+    expect(await alice.join('conversations/1')).toBe('ok')
+    expect(await bob.join('conversations/1')).toBe('ok')
+    // Carol is in no list of the conversation's: the relay refuses her join.
+    expect(await carol.join('conversations/1')).toBe('error')
+    expect(await carol.join('conversations/2')).toBe('ok')
+
+    const [{ id }] = (await sql<{ id: number }>`insert into messages (conversation_id, body) values (1, 'Hi') returning id`.execute(pg.db)).rows as [{ id: number }]
+    await drained()
+    const notice = { kind: 'create', resource: 'messages', key: String(id), channel: 'conversations/1' }
+    await vi.waitFor(() => expect(alice.notices()).toEqual([notice]))
+    await vi.waitFor(() => expect(bob.notices()).toEqual([notice]))
+    expect(carol.notices()).toEqual([])
+  })
+
+  it('lets someone added to a conversation hear its next message without connecting again, and stops once they are removed', async () => {
+    const carol = await connect((await signIn('carol@example.com')).token)
+    expect(await carol.join('conversations/1')).toBe('error')
+
+    await sql`insert into conversation_members (conversation_id, user_id) values (1, ${people.carol})`.execute(pg.db)
+    await drained()
+    await vi.waitFor(async () => expect(await carol.join('conversations/1')).toBe('ok'))
+    await sql`insert into messages (conversation_id, body) values (1, 'Welcome')`.execute(pg.db)
+    await drained()
+    await vi.waitFor(() => expect(carol.notices().filter((notice) => notice.resource === 'messages')).toHaveLength(1))
+
+    await sql`delete from conversation_members where conversation_id = 1 and user_id = ${people.carol}`.execute(pg.db)
+    await drained()
+    await vi.waitFor(() => expect(carol.frames.some((frame) => frame[2] === 'conversations/1' && frame[3] === 'phx_close')).toBe(true))
+    await sql`insert into messages (conversation_id, body) values (1, 'After you left')`.execute(pg.db)
+    await drained()
+    // Bob hears it; by then the relay would have sent Carol hers too.
+    const bob = await connect((await signIn('bob@example.com')).token)
+    await bob.join('conversations/1')
+    await sql`insert into messages (conversation_id, body) values (1, 'Once more')`.execute(pg.db)
+    await drained()
+    await vi.waitFor(() => expect(bob.notices()).toHaveLength(1))
+    expect(carol.notices().filter((notice) => notice.resource === 'messages')).toHaveLength(1)
+  })
+
+  it("closes the sockets of a session that signs out, and leaves the person's other sessions connected", async () => {
+    const phone = await signIn('alice@example.com')
+    const laptop = await signIn('alice@example.com')
+    const onPhone = await connect(phone.token)
+    const onLaptop = await connect(laptop.token)
+    await onPhone.join('conversations/1')
+    await onLaptop.join('conversations/1')
+
+    expect((await request('/api/auth/sign-out', { cookie: phone.cookie })).status).toBe(200)
+    await drained()
+    await vi.waitFor(() => expect(onPhone.closed()).toBe(1000))
+    await sql`insert into messages (conversation_id, body) values (1, 'Still here?')`.execute(pg.db)
+    await drained()
+    await vi.waitFor(() => expect(onLaptop.notices()).toHaveLength(1))
+    expect(onLaptop.closed()).toBeUndefined()
+    // A ticket for the ended session is refused.
+    expect((await request('/api/relay/ticket', { token: phone.token })).status).toBeGreaterThanOrEqual(401)
+  })
+})
