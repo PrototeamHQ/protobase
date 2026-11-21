@@ -22,8 +22,8 @@ type Props = {
  * they opened it, 0 for none, and undefined while it loads or without a read position: it stays put while the page is
  * open, so the "New messages" line does not move as they read. `readTo` moves the position to a message they read; it
  * never moves back, not even over a further move another tab stored, a move to where it is writes nothing, and moves go
- * one after another. Without a read position,
- * `ready` holds at once and there is no `readTo`, so nothing is read or written; one that could not be read is ready too.
+ * one after another. Without a read position, `ready` holds at once and there is no `readTo`, so nothing is read or
+ * written; one that could not be read is ready too.
  */
 export const useReadPosition = ({ position, model, owner, recordKey, me }: Props) => {
   const client = useClient()
