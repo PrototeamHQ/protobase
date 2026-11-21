@@ -67,7 +67,8 @@ export const FirstOrganizationPage = ({ path, basePath, email, mayCreate, seesAl
     )
   }
   const invitations = read.invitations
-  if (invitations.length > 0 && path !== firstOrganizationFormPath) {
+  // The form's own address shows the form, when they may create one; otherwise their invitations stay the way in
+  if (invitations.length > 0 && (path !== firstOrganizationFormPath || !mayCreate)) {
     return (
       <AuthLayout title={t('invitedTitle')} description={mayCreate ? t('invitedSubtitle') : t('invitedSubtitleJoinOnly')}>
         <SectionError message={error} />

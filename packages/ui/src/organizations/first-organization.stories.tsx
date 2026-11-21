@@ -174,3 +174,25 @@ export const InvitationsNotLoaded: StoryObj = {
     expect(canvas.queryByLabelText('Workspace name')).toBeNull()
   },
 }
+
+/** Someone who may not create a workspace, at the form's address, such as a saved one, still gets their invitations to join. */
+export const JoinOnlyAtTheFormAddress: StoryObj<Args> = {
+  tags: ['play'],
+  args: pending(),
+  render: (args) => {
+    const session = sessionFor(nowhere, [invitation], args)
+    const status = async () => {
+      const read = await session.status()
+      return { ...read, ...(read.organizations && { organizations: { ...read.organizations, create: 'admins' as const } }) }
+    }
+    return <Chat session={{ ...session, status }} start="/-/first-organization/new" />
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByRole('heading', { name: 'You are invited' })).toBeVisible()
+    expect(canvas.queryByLabelText('Workspace name')).toBeNull()
+    expect(canvas.queryByRole('link', { name: 'Create a new workspace instead' })).toBeNull()
+    await userEvent.click(canvas.getByRole('button', { name: 'Join Acme' }))
+    await waitFor(() => expect(args.acceptMine).toHaveBeenCalledWith('i1'))
+  },
+}
