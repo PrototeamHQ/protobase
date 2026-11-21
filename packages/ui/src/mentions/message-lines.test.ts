@@ -27,4 +27,11 @@ describe('chatLines', () => {
     expect(chatLines('```\n```js\n>5\n```\n>5')).toBe('```\n```js\n>5\n```\n\\>5')
     expect(chatLines('~~~\n>5\n~~~~  \n>5')).toBe('~~~\n>5\n~~~~  \n\\>5')
   })
+
+  it('reads `\\r\\n` and a lone `\\r` as line breaks', () => {
+    const fenced = '```\n> not a quote\n- x\ny\n---\n```\ndone\n---\n- a\nb'
+    const lf = chatLines(fenced)
+    expect(chatLines(fenced.replaceAll('\n', '\r\n'))).toBe(lf)
+    expect(chatLines(fenced.replaceAll('\n', '\r'))).toBe(lf)
+  })
 })
