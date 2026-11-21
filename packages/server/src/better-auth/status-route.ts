@@ -68,6 +68,8 @@ export const statusRoute = (auth: AdminAuth, { anonymous = false, plugins = [], 
         organizations: {
           create: auth.organizations.create,
           roles: roleLabels(auth.roleDefinitions),
+          ...(auth.organizations.options.names && { names: auth.organizations.options.names }),
+          ...(auth.organizations.options.createDescription && { createDescription: auth.organizations.options.createDescription }),
         },
       }),
     })

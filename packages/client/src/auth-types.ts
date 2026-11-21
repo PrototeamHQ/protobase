@@ -67,8 +67,12 @@ export type SetupStatus = {
    * for first. A passkey sign-in asks for one at a time (see `signInWithPasskey`).
    */
   passkeyDomains?: string[]
-  /** With organizations: who may create them, and every role with its label, `membership` for those a member can hold. */
-  organizations?: { create: 'admins' | 'everyone'; roles: RoleLabel[] }
+  /**
+   * With organizations: who may create them, and every role with its label, `membership` for those a member can hold;
+   * what the app calls an organization, and the line under the title of the screen where someone names their first one,
+   * when it sets them.
+   */
+  organizations?: { create: 'admins' | 'everyone'; roles: RoleLabel[]; names?: { singular: string; plural: string }; createDescription?: string }
   anonymous?: boolean
   mcp?: { url: string }
   /** People may make personal access tokens for their scripts, on the account page. */

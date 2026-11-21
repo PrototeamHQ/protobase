@@ -4,11 +4,18 @@ import type { StoredMember, StoredOrganization } from './store'
 
 type OrganizationHooks = NonNullable<OrganizationOptions['organizationHooks']>
 
+/** The app's word for an organization, as a view's `names` are written: capitalised, in the app's language. */
+export type OrganizationNames = { singular: string; plural: string }
+
 export type OrganizationsOptions = {
   /** The app roles an organization's creator holds there: `'all'` (default), every role a member can hold, or a list. */
   creatorAppRoles?: 'all' | string[]
   /** Who may create organizations: `'admins'` (default), superusers only, or `'everyone'` signed in. */
   create?: 'admins' | 'everyone'
+  /** What the app calls an organization, such as `{ singular: 'Workspace', plural: 'Workspaces' }`. Default the built-in "Organization". */
+  names?: OrganizationNames
+  /** A line under the title of the screen where someone names their first organization, such as what one is for. */
+  createDescription?: string
   /** How long an invitation works, in days. Default 7. */
   invitationDays?: number
   /** The most members an organization can have. Default 1000. */
@@ -50,6 +57,11 @@ export const resolveOrganizations = (options: OrganizationsOptions, definitions:
   const creatorAppRoles = options.creatorAppRoles === undefined || options.creatorAppRoles === 'all' ? holdable : options.creatorAppRoles
   const unknown = creatorAppRoles.find((name) => !holdable.includes(name))
   if (unknown !== undefined) throw new Error(`creatorAppRoles names "${unknown}", which a member cannot hold: ${holdable.join(', ')}`)
+  const names = options.names
+  if (names !== undefined && (typeof names.singular !== 'string' || names.singular.trim() === '' || typeof names.plural !== 'string' || names.plural.trim() === '')) {
+    throw new Error('organizations.names needs a singular and a plural, such as { singular: "Workspace", plural: "Workspaces" }')
+  }
+  if (options.createDescription !== undefined && options.createDescription.trim() === '') throw new Error('organizations.createDescription cannot be empty')
   const days = options.invitationDays ?? 7
   if (!(days > 0)) throw new Error('invitationDays must be more than 0')
   return {
