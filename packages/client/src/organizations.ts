@@ -1,5 +1,6 @@
 import { authError } from './auth-error'
 import type { BetterAuthClient } from './better-auth-client'
+import { NetworkError } from './network-error'
 
 /** Who manages an organization: owners everything, admins its members and details, members nothing. */
 export type OrganizationRole = 'owner' | 'admin' | 'member'
@@ -89,8 +90,11 @@ export const organizationsClient = (client: BetterAuthClient, refreshToken: () =
     if (error) throw authError(error, fallback)
     return data as T
   }
+  // The change is made: a new token that gets no answer is fetched on the next call instead, so a retry never repeats it
   const thenRefresh = async <T>(result: T) => {
-    await refreshToken()
+    await refreshToken().catch((failure: unknown) => {
+      if (!(failure instanceof NetworkError)) throw failure
+    })
     return result
   }
 

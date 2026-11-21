@@ -40,6 +40,26 @@ describe('the organizations client', () => {
     expect(JSON.parse(atob((await session.token())!.split('.')[1]!.replace(/-/g, '+').replace(/_/g, '/')))).toMatchObject({ org: '2' })
   })
 
+  it('resolves a create whose new token got no answer, and fetches that token on the next call', async () => {
+    let offline = false
+    let org: string | undefined
+    const acme = { id: '2', name: 'Acme', slug: 'acme' }
+    const { calls, session } = setup((call) => {
+      if (call.path === '/organization/create') {
+        offline = true
+        org = acme.id
+        return json(acme)
+      }
+      if (offline) throw new TypeError('Failed to fetch')
+      return json({ token: jwt({ org }) })
+    })
+    await session.token()
+    expect(await session.organizations.create({ name: 'Acme' })).toEqual(acme)
+    offline = false
+    expect(JSON.parse(atob((await session.token())!.split('.')[1]!.replace(/-/g, '+').replace(/_/g, '/')))).toMatchObject({ org: '2' })
+    expect(calls.map((call) => call.path)).toEqual(['/token', '/organization/create', '/token', '/token'])
+  })
+
   it('searches the organizations a page at a time', async () => {
     const found = { organizations: [{ id: '2', name: 'Globex', slug: 'globex' }], total: 21 }
     const { calls, session } = setup(() => json(found))
