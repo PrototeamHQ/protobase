@@ -6,6 +6,7 @@ import type { Db } from './db'
 import { QueryError } from './errors'
 import { assertFilterRequirements } from './filter-requirements'
 import { measureSql, measureValue, type Measure } from './measure'
+import { countSql } from './rollup-measure'
 import { toNumber } from './numbers'
 import { checkPerLimit, firstPerValue, ownerAlias, rankAlias } from './related-rows'
 import type { Scope } from './scope'
@@ -44,9 +45,9 @@ export const groupTotals = async (db: Db, model: ResourceModel, field: string, o
   const amount = measure ? measureSql(model, measure) : undefined
   const column = columnRef(target)
   await assertFilterRequirements(db, options.filter, options.scope)
-  const order = amount ? sql`${amount} desc nulls last, ${column} asc` : sql`count(*) desc, ${column} asc`
+  const order = amount ? sql`${amount} desc nulls last, ${column} asc` : sql`${countSql(model)} desc, ${column} asc`
   const groups = (trx: Db) => baseQuery(trx, model, options.filter, options.scope)
-    .select([sql`${column}`.as('value'), sql`count(*)::text`.as('n'), ...(amount ? [sql`${amount}::text`.as('m')] : [])])
+    .select([sql`${column}`.as('value'), sql`${countSql(model)}::text`.as('n'), ...(amount ? [sql`${amount}::text`.as('m')] : [])])
     .groupBy(column)
     .orderBy(order)
   const { per } = options

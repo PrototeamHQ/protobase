@@ -3,6 +3,7 @@ import type { ResourceModel } from '@protobase/schema'
 import { columnRef, requireField } from './columns'
 import { QueryError } from './errors'
 import { rangeBound } from './range-bound'
+import { checkBucketSeries } from './rollup-series'
 
 const maxBuckets = 10_000
 const approxMs = { minute: 60_000, '5_minutes': 300_000, '15_minutes': 900_000, hour: 3_600_000, day: 86_400_000, week: 604_800_000, month: 2_629_800_000, year: 31_557_600_000 }
@@ -27,7 +28,7 @@ const checkTimeZone = (timeZone: string) => {
 
 /**
  * Validates a date or timestamp field, range, granularity and time zone, and builds the SQL pieces that bucket the
- * field over time. Shared by `series` and `splitSeries`.
+ * field over time. Shared by `series` and `splitSeries`; a time rollup's buckets also refuse what they cannot give.
  */
 export const seriesBuckets = (model: ResourceModel, field: string, options: BucketOptions) => {
   const target = requireField(model, field, 'filterable')
@@ -37,6 +38,7 @@ export const seriesBuckets = (model: ResourceModel, field: string, options: Buck
   if (!Object.hasOwn(approxMs, options.granularity)) throw new QueryError('invalid_option', 'Unknown granularity')
   const timeZone = options.timeZone ?? 'UTC'
   checkTimeZone(timeZone)
+  checkBucketSeries(model, field, options.granularity, timeZone)
 
   const from = rangeBound(options.range.from, target)
   const to = rangeBound(options.range.to, target)
@@ -55,6 +57,7 @@ export const seriesBuckets = (model: ResourceModel, field: string, options: Buck
   const bound = sql.raw(isDate ? 'date' : 'timestamptz')
   const local = (value: Parameters<typeof sql>[1] | unknown) =>
     isDate ? sql`${value}::timestamp` : sql`(${value}::timestamptz at time zone ${timeZone}::text)`
+  const firstBucket = truncate(local(from))
   const laterBucket = truncate(sql`${local(to)} - interval '1 microsecond'`)
-  return { target, col, from, to, truncate, step, bound, local, laterBucket, isDate }
+  return { target, col, from, to, truncate, step, bound, local, firstBucket, laterBucket, isDate, timeZone }
 }

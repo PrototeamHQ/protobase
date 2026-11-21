@@ -6,6 +6,8 @@ import type { Db } from './db'
 import { QueryError } from './errors'
 import { assertFilterRequirements } from './filter-requirements'
 import { measureSql, measureValue } from './measure'
+import { countSql } from './rollup-measure'
+import { assertBucketBoundaries } from './rollup-series'
 import { toNumber } from './numbers'
 import { seriesBuckets } from './series-buckets'
 import type { SeriesOptions } from './series'
@@ -31,7 +33,7 @@ export const splitSeries = async (
   split: string,
   options: SplitSeriesOptions,
 ): Promise<{ splits: unknown[]; points: SplitPoint[] }> => {
-  const { col, from, to, truncate, bound, local, isDate } = seriesBuckets(model, field, options)
+  const { col, from, to, truncate, step, bound, local, firstBucket, laterBucket, isDate, timeZone } = seriesBuckets(model, field, options)
   const splitField = requireField(model, split, 'filterable')
   if (unsplittable.includes(splitField.type)) {
     throw new QueryError('unsupported_field_type', `Cannot split by "${split}", which is ${splitField.type}`)
@@ -47,6 +49,7 @@ export const splitSeries = async (
   const { measure } = options
   const amount = measure ? measureSql(model, measure) : undefined
   await assertFilterRequirements(db, options.filter, options.scope)
+  await assertBucketBoundaries(db, model, field, { first: firstBucket, last: laterBucket, step, timeZone })
   const splitCol = columnRef(splitField)
   const bucketSql = sql`to_char(${truncate(isDate ? sql`${col}::timestamp` : local(col))}, 'YYYY-MM-DD"T"HH24:MI:SS')`
 
@@ -55,7 +58,7 @@ export const splitSeries = async (
     .select([
       bucketSql.as('bucket'),
       sql`${splitCol}`.as('split'),
-      sql`count(*)`.as('n'),
+      countSql(model).as('n'),
       ...(amount ? [sql`${amount}`.as('m')] : []),
     ])
     .groupBy([sql`1`, sql`2`])

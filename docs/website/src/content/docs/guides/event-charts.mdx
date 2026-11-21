@@ -1,0 +1,26 @@
+---
+title: Charts over millions of events
+description: Give a large events table an hourly rollup and chart months of it on a dashboard in milliseconds.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import timeRollups from '../../../../../../docs-examples/reference/time-rollups.ts?raw'
+import timeRollupsPage from '../../../../../../docs-examples/reference/time-rollups-page.tsx?raw'
+
+Every meter of an energy company sends a reading a minute, so `metering.readings` grows by millions of rows a month. A chart of 90 days over those rows reads them all each time someone opens the dashboard. This guide gives the readings an hourly [time rollup](/reference/data-config/#time-rollups) and charts that instead: a few thousand rows, the same answers.
+
+## 1. The events and their rollup
+
+<Code code={timeRollups} lang="ts" title="config/metering/data.ts" />
+
+`readings` is the table the meters write to. `readings_hourly` is a resource over it with one row per hour, organization and meter: how many readings fell in it (`events`), their total and highest watts (`watts_sum`, `watts_max`) and their total cost (`cost_sum`). Run [`protobase migration`](/reference/cli/#migration) and apply the file it writes: it creates the rollup's table and indexes and fills it.
+
+## 2. A dashboard on the rollup
+
+<Code code={timeRollupsPage} lang="tsx" title="config/metering/page.tsx" />
+
+Each [`Chart`](/reference/blocks/#chart) names the rollup as its `resource` and groups by `bucket`, or by `meter_id`. A chart counts the readings the buckets hold, and its measure names the rollup's field: `average="watts_sum"` divides the watts by the readings, as an average over the readings themselves would. The days, weeks and months are the viewer's, for any time zone a whole number of hours off UTC.
+
+## 3. What a rollup cannot answer
+
+A rollup knows nothing finer than its hour, so a chart of 15 minutes, or of days that start at half past the hour, such as India's, is refused rather than answered wrongly. Point such a chart at `readings` instead. [Charts over a rollup](/reference/data-config/#charts-over-a-rollup) lists every measure and what is refused.

@@ -69,3 +69,4 @@ export { callsChannelEvent, declineWord, ringNotice, ringsPath, type CallRing } 
 export { isUserTableName, maxLabelLength, maxNameBytes, maxOrganizationNameBytes, organizationColumn, reservedFieldNames, reservedWords, userTableName } from './user-tables/names'
 export { reorderSpan, type ReorderSpan } from './reorder-span'
 export { movePlan, type MovePlan, type Ranked } from './move-plan'
+export { keptMeasure } from './buckets/buckets-of'

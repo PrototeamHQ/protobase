@@ -1,0 +1,273 @@
+{
+  "(repeated)": [
+    {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"bucket\"::timestamptz at time zone $5::text)) as \"bucket\", sum(\"t\".\"events\")::text as \"n\" from \"readings_hourly\" as \"t\" where \"t\".\"org_id\" = $6 and \"t\".\"bucket\" >= $7::timestamptz and \"t\".\"bucket\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam","1","2026-07-02T00:00:00+02:00","2026-07-09T00:00:00+02:00"],"result":{"command":"SELECT","rowCount":7,"columns":[["bucket",25],["n",25]],"rows":[
+      ["2026-07-02T00:00:00","164"],
+      ["2026-07-03T00:00:00","165"],
+      ["2026-07-04T00:00:00","164"],
+      ["2026-07-05T00:00:00","164"],
+      ["2026-07-06T00:00:00","164"],
+      ["2026-07-07T00:00:00","165"],
+      ["2026-07-08T00:00:00","164"]
+    ]}},
+    {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"bucket\"::timestamptz at time zone $5::text)) as \"bucket\", sum(\"t\".\"events\")::text as \"n\", (sum(\"t\".\"watts_sum\") / sum(\"t\".\"events\"))::text as \"m\" from \"readings_hourly\" as \"t\" where \"t\".\"org_id\" = $6 and \"t\".\"bucket\" >= $7::timestamptz and \"t\".\"bucket\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam","1","2026-07-02T00:00:00+02:00","2026-07-09T00:00:00+02:00"],"result":{"command":"SELECT","rowCount":7,"columns":[["bucket",25],["n",25],["m",25]],"rows":[
+      ["2026-07-02T00:00:00","164","266.8292682926829268"],
+      ["2026-07-03T00:00:00","165","294.0000000000000000"],
+      ["2026-07-04T00:00:00","164","183.9756097560975610"],
+      ["2026-07-05T00:00:00","164","274.1707317073170732"],
+      ["2026-07-06T00:00:00","164","279.0000000000000000"],
+      ["2026-07-07T00:00:00","165","192.8484848484848485"],
+      ["2026-07-08T00:00:00","164","281.5121951219512195"]
+    ]}}
+  ],
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"\n    create table readings (id bigint generated always as identity primary key, org_id integer not null, kind text not null, taken_at timestamptz not null, watts integer not null, cost numeric(10,2) not null, peak integer);\n    create index on readings (taken_at);\n    create index on readings (org_id, kind);\n    insert into readings (org_id, kind, taken_at, watts, cost, peak)\n      select 1 + i % 2, case when i % 3 = 0 then 'heat' else 'power' end, timestamptz '2026-07-01 00:00:00+00' + i * interval '263 seconds',\n        i % 500, (i % 1000) / 100.0, case when i % 7 > 0 then i % 90 end\n      from generate_series(1, 3000) as i;\n  ","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":3000,"columns":[],"rows":[]}]},
+      {"sql":"select a.attrelid::text as \"table\", a.attname as name, format_type(a.atttypid, a.atttypmod) as type, a.attgenerated <> '' as generated, col_description(a.attrelid, a.attnum) as comment\n      from pg_attribute a where a.attnum > 0 and not a.attisdropped and a.attrelid::text || ':' || a.attname = any($1::text[])","params":["{}"],"result":{"command":"SELECT","rowCount":0,"columns":[["table",25],["name",19],["type",25],["generated",16],["comment",25]],"rows":[]}},
+      {"sql":"select p.oid::text as oid, p.proname as name, p.prosrc as source, p.prosecdef as definer from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = $1 and p.prorettype = 'trigger'::regtype","params":["rollups"],"result":{"command":"SELECT","rowCount":0,"columns":[["oid",25],["name",19],["source",25],["definer",16]],"rows":[]}},
+      {"sql":"select t.tgrelid::text as \"table\", format('%I.%I', ns.nspname, c.relname) as \"tableSql\", t.tgname as name, t.tgfoid::text as \"function\"\n      from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace ns on ns.oid = c.relnamespace\n      where not t.tgisinternal and (t.tgfoid::text = any($1::text[]) or t.tgrelid::text = any($2::text[]))","params":["{}","{}"],"result":{"command":"SELECT","rowCount":0,"columns":[["table",25],["tableSql",25],["name",19],["function",25]],"rows":[]}},
+      {"sql":"select current_schema() as schema","result":{"command":"SELECT","rowCount":1,"columns":[["schema",19]],"rows":[["public"]]}},
+      {"sql":"select c.oid::text as oid, format('%I.%I', n.nspname, c.relname) as sql from pg_class c join pg_namespace n on n.oid = c.relnamespace where c.oid = to_regclass($1)","params":["\"readings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["oid",25],["sql",25]],"rows":[["{{oid:1}}","public.readings"]]}},
+      {"sql":"select attname as name, format_type(atttypid, atttypmod) as type from pg_attribute where attrelid = $1::oid and attnum > 0 and not attisdropped","params":["{{oid:1}}"],"result":{"command":"SELECT","rowCount":7,"columns":[["name",19],["type",25]],"rows":[
+        ["id","bigint"],
+        ["org_id","integer"],
+        ["kind","text"],
+        ["taken_at","timestamp with time zone"],
+        ["watts","integer"],
+        ["cost","numeric(10,2)"],
+        ["peak","integer"]
+      ]}},
+      {"sql":"select n.nspname as schema, obj_description(c.oid, 'pg_class') as comment from pg_class c join pg_namespace n on n.oid = c.relnamespace where c.oid = to_regclass($1)","params":["\"readings_hourly\""],"result":{"command":"SELECT","rowCount":0,"columns":[["schema",19],["comment",25]],"rows":[]}},
+      {"sql":"select p.prosrc as source from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = $1 and p.proname = $2 and p.pronargs = 1 and p.proargtypes[0] = 'timestamptz'::regtype","params":["rollups","readings_hourly_refresh"],"result":{"command":"SELECT","rowCount":0,"columns":[["source",25]],"rows":[]}},
+      {"sql":"select c.oid::text as oid, format('%I.%I', n.nspname, c.relname) as sql from pg_class c join pg_namespace n on n.oid = c.relnamespace where c.oid = to_regclass($1)","params":["\"readings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["oid",25],["sql",25]],"rows":[["{{oid:1}}","public.readings"]]}},
+      {"sql":"select attname as name, format_type(atttypid, atttypmod) as type from pg_attribute where attrelid = $1::oid and attnum > 0 and not attisdropped","params":["{{oid:1}}"],"result":{"command":"SELECT","rowCount":7,"columns":[["name",19],["type",25]],"rows":[
+        ["id","bigint"],
+        ["org_id","integer"],
+        ["kind","text"],
+        ["taken_at","timestamp with time zone"],
+        ["watts","integer"],
+        ["cost","numeric(10,2)"],
+        ["peak","integer"]
+      ]}},
+      {"sql":"select n.nspname as schema, obj_description(c.oid, 'pg_class') as comment from pg_class c join pg_namespace n on n.oid = c.relnamespace where c.oid = to_regclass($1)","params":["\"readings_daily\""],"result":{"command":"SELECT","rowCount":0,"columns":[["schema",19],["comment",25]],"rows":[]}},
+      {"sql":"select p.prosrc as source from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = $1 and p.proname = $2 and p.pronargs = 1 and p.proargtypes[0] = 'timestamptz'::regtype","params":["rollups","readings_daily_refresh"],"result":{"command":"SELECT","rowCount":0,"columns":[["source",25]],"rows":[]}},
+      {"sql":"create schema if not exists \"rollups\";\n\ncreate table \"public\".\"readings_hourly\" (\"id\" bigint generated always as identity primary key, \"bucket\" timestamptz not null, \"org_id\" integer not null, \"kind\" text not null, \"events\" bigint not null, \"watts_sum\" bigint, \"watts_max\" integer, \"cost_sum\" numeric(20,2), \"peak_sum\" bigint);\n\ncreate unique index \"readings_hourly_bucket_key\" on \"public\".\"readings_hourly\" (\"bucket\", \"org_id\", \"kind\");\n\ncreate index \"readings_hourly_org_id_bucket\" on \"public\".\"readings_hourly\" (\"org_id\", \"bucket\");\n\ncreate index \"readings_hourly_kind_bucket\" on \"public\".\"readings_hourly\" (\"kind\", \"bucket\");\n\ncomment on table \"public\".\"readings_hourly\" is 'protobase time rollup: create table \"public\".\"readings_hourly\" (\"id\" bigint generated always as identity primary key, \"bucket\" timestamptz not null, \"org_id\" integer not null, \"kind\" text not null, \"events\" bigint not null, \"watts_sum\" bigint, \"watts_max\" integer, \"cost_sum\" numeric(20,2), \"peak_sum\" bigint); create unique index \"readings_hourly_bucket_key\" on \"public\".\"readings_hourly\" (\"bucket\", \"org_id\", \"kind\"); create index \"readings_hourly_org_id_bucket\" on \"public\".\"readings_hourly\" (\"org_id\", \"bucket\"); create index \"readings_hourly_kind_bucket\" on \"public\".\"readings_hourly\" (\"kind\", \"bucket\")';\n\ncreate or replace function \"rollups\".\"readings_hourly_refresh\"(\"from\" timestamptz) returns void language sql set search_path = pg_catalog, pg_temp set timezone = 'UTC' as $buckets$\nwith fresh as (\n  select date_trunc('hour', c.\"taken_at\"::timestamptz) as \"bucket\", c.\"org_id\" as \"org_id\", c.\"kind\" as \"kind\", count(*) as \"events\", sum(c.\"watts\") as \"watts_sum\", max(c.\"watts\") as \"watts_max\", sum(c.\"cost\") as \"cost_sum\", sum(c.\"peak\") as \"peak_sum\"\n  from public.readings as c\n  where c.\"taken_at\" >= date_trunc('hour', $1)\n  group by 1, 2, 3\n), gone as (\n  delete from \"public\".\"readings_hourly\" as r where r.\"bucket\" >= date_trunc('hour', $1) and not exists (select from fresh where fresh.\"bucket\" = r.\"bucket\" and fresh.\"org_id\" = r.\"org_id\" and fresh.\"kind\" = r.\"kind\")\n)\ninsert into \"public\".\"readings_hourly\" (\"bucket\", \"org_id\", \"kind\", \"events\", \"watts_sum\", \"watts_max\", \"cost_sum\", \"peak_sum\")\nselect \"bucket\", \"org_id\", \"kind\", \"events\", \"watts_sum\", \"watts_max\", \"cost_sum\", \"peak_sum\" from fresh\non conflict (\"bucket\", \"org_id\", \"kind\") do update set \"events\" = excluded.\"events\", \"watts_sum\" = excluded.\"watts_sum\", \"watts_max\" = excluded.\"watts_max\", \"cost_sum\" = excluded.\"cost_sum\", \"peak_sum\" = excluded.\"peak_sum\"\n$buckets$;\n\nselect \"rollups\".\"readings_hourly_refresh\"('-infinity');\n\ncreate table \"public\".\"readings_daily\" (\"id\" bigint generated always as identity primary key, \"bucket\" timestamptz not null, \"org_id\" integer not null, \"events\" bigint not null, \"watts_sum\" bigint);\n\ncreate unique index \"readings_daily_bucket_key\" on \"public\".\"readings_daily\" (\"bucket\", \"org_id\");\n\ncreate index \"readings_daily_org_id_bucket\" on \"public\".\"readings_daily\" (\"org_id\", \"bucket\");\n\ncomment on table \"public\".\"readings_daily\" is 'protobase time rollup: create table \"public\".\"readings_daily\" (\"id\" bigint generated always as identity primary key, \"bucket\" timestamptz not null, \"org_id\" integer not null, \"events\" bigint not null, \"watts_sum\" bigint); create unique index \"readings_daily_bucket_key\" on \"public\".\"readings_daily\" (\"bucket\", \"org_id\"); create index \"readings_daily_org_id_bucket\" on \"public\".\"readings_daily\" (\"org_id\", \"bucket\")';\n\ncreate or replace function \"rollups\".\"readings_daily_refresh\"(\"from\" timestamptz) returns void language sql set search_path = pg_catalog, pg_temp set timezone = 'UTC' as $buckets$\nwith fresh as (\n  select date_trunc('day', c.\"taken_at\"::timestamptz) as \"bucket\", c.\"org_id\" as \"org_id\", count(*) as \"events\", sum(c.\"watts\") as \"watts_sum\"\n  from public.readings as c\n  where c.\"taken_at\" >= date_trunc('day', $1)\n  group by 1, 2\n), gone as (\n  delete from \"public\".\"readings_daily\" as r where r.\"bucket\" >= date_trunc('day', $1) and not exists (select from fresh where fresh.\"bucket\" = r.\"bucket\" and fresh.\"org_id\" = r.\"org_id\")\n)\ninsert into \"public\".\"readings_daily\" (\"bucket\", \"org_id\", \"events\", \"watts_sum\")\nselect \"bucket\", \"org_id\", \"events\", \"watts_sum\" from fresh\non conflict (\"bucket\", \"org_id\") do update set \"events\" = excluded.\"events\", \"watts_sum\" = excluded.\"watts_sum\"\n$buckets$;\n\nselect \"rollups\".\"readings_daily_refresh\"('-infinity');","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"COMMENT","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"SELECT","rowCount":1,"columns":[["readings_hourly_refresh",2278]],"rows":[[null]]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"COMMENT","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"SELECT","rowCount":1,"columns":[["readings_daily_refresh",2278]],"rows":[[null]]}]}
+    ]
+  },
+  "a time rollup read by :aggregate and :series > gives the counts of the records its buckets hold": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"taken_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\" from \"readings\" as \"t\" where \"t\".\"org_id\" = $6 and \"t\".\"taken_at\" >= $7::timestamptz and \"t\".\"taken_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam","1","2026-07-02T00:00:00+02:00","2026-07-09T00:00:00+02:00"],"result":{"command":"SELECT","rowCount":7,"columns":[["bucket",25],["n",25]],"rows":[
+        ["2026-07-02T00:00:00","164"],
+        ["2026-07-03T00:00:00","165"],
+        ["2026-07-04T00:00:00","164"],
+        ["2026-07-05T00:00:00","164"],
+        ["2026-07-06T00:00:00","164"],
+        ["2026-07-07T00:00:00","165"],
+        ["2026-07-08T00:00:00","164"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    select exists (\n      select 1 from generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond') + '1 day'::interval, '1 day'::interval) as b\n      where extract(epoch from b at time zone $5::text) % 3600 <> 0\n    ) as inside\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam"],"result":{"command":"SELECT","rowCount":1,"columns":[["inside",16]],"rows":[["f"]]}},
+      {"repeated":0},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    select exists (\n      select 1 from generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond') + '1 day'::interval, '1 day'::interval) as b\n      where extract(epoch from b at time zone $5::text) % 3600 <> 0\n    ) as inside\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam"],"result":{"command":"SELECT","rowCount":1,"columns":[["inside",16]],"rows":[["f"]]}},
+      {"repeated":0},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a time rollup read by :aggregate and :series > gives the average, sum and maximum the records give, per day of the time zone": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"readings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"readings\""],"result":{"command":"SELECT","rowCount":4,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+        ["readings_org_id_kind_idx","btree","f","org_id","org_id","int4_ops"],
+        ["readings_org_id_kind_idx","btree","f","kind","kind","text_ops"],
+        ["readings_pkey","btree","f","id","id","int8_ops"],
+        ["readings_taken_at_idx","btree","f","taken_at","taken_at","timestamptz_ops"]
+      ]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"taken_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\", avg(\"t\".\"watts\")::text as \"m\" from \"readings\" as \"t\" where \"t\".\"org_id\" = $6 and \"t\".\"taken_at\" >= $7::timestamptz and \"t\".\"taken_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam","1","2026-07-02T00:00:00+02:00","2026-07-09T00:00:00+02:00"],"result":{"command":"SELECT","rowCount":7,"columns":[["bucket",25],["n",25],["m",25]],"rows":[
+        ["2026-07-02T00:00:00","164","266.8292682926829268"],
+        ["2026-07-03T00:00:00","165","294.0000000000000000"],
+        ["2026-07-04T00:00:00","164","183.9756097560975610"],
+        ["2026-07-05T00:00:00","164","274.1707317073170732"],
+        ["2026-07-06T00:00:00","164","279.0000000000000000"],
+        ["2026-07-07T00:00:00","165","192.8484848484848485"],
+        ["2026-07-08T00:00:00","164","281.5121951219512195"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"readings_hourly\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"readings_hourly\""],"result":{"command":"SELECT","rowCount":8,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+        ["readings_hourly_bucket_key","btree","f","bucket","bucket","timestamptz_ops"],
+        ["readings_hourly_bucket_key","btree","f","org_id","org_id","int4_ops"],
+        ["readings_hourly_bucket_key","btree","f","kind","kind","text_ops"],
+        ["readings_hourly_kind_bucket","btree","f","kind","kind","text_ops"],
+        ["readings_hourly_kind_bucket","btree","f","bucket","bucket","timestamptz_ops"],
+        ["readings_hourly_org_id_bucket","btree","f","org_id","org_id","int4_ops"],
+        ["readings_hourly_org_id_bucket","btree","f","bucket","bucket","timestamptz_ops"],
+        ["readings_hourly_pkey","btree","f","id","id","int8_ops"]
+      ]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    select exists (\n      select 1 from generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond') + '1 day'::interval, '1 day'::interval) as b\n      where extract(epoch from b at time zone $5::text) % 3600 <> 0\n    ) as inside\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam"],"result":{"command":"SELECT","rowCount":1,"columns":[["inside",16]],"rows":[["f"]]}},
+      {"repeated":1},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"taken_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\", sum(\"t\".\"cost\")::text as \"m\" from \"readings\" as \"t\" where \"t\".\"org_id\" = $6 and \"t\".\"taken_at\" >= $7::timestamptz and \"t\".\"taken_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam","1","2026-07-02T00:00:00+02:00","2026-07-09T00:00:00+02:00"],"result":{"command":"SELECT","rowCount":7,"columns":[["bucket",25],["n",25],["m",25]],"rows":[
+        ["2026-07-02T00:00:00","164","762.60"],
+        ["2026-07-03T00:00:00","165","1310.10"],
+        ["2026-07-04T00:00:00","164","401.72"],
+        ["2026-07-05T00:00:00","164","739.64"],
+        ["2026-07-06T00:00:00","164","1277.56"],
+        ["2026-07-07T00:00:00","165","458.20"],
+        ["2026-07-08T00:00:00","164","716.68"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    select exists (\n      select 1 from generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond') + '1 day'::interval, '1 day'::interval) as b\n      where extract(epoch from b at time zone $5::text) % 3600 <> 0\n    ) as inside\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam"],"result":{"command":"SELECT","rowCount":1,"columns":[["inside",16]],"rows":[["f"]]}},
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"bucket\"::timestamptz at time zone $5::text)) as \"bucket\", sum(\"t\".\"events\")::text as \"n\", sum(\"t\".\"cost_sum\")::text as \"m\" from \"readings_hourly\" as \"t\" where \"t\".\"org_id\" = $6 and \"t\".\"bucket\" >= $7::timestamptz and \"t\".\"bucket\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam","1","2026-07-02T00:00:00+02:00","2026-07-09T00:00:00+02:00"],"result":{"command":"SELECT","rowCount":7,"columns":[["bucket",25],["n",25],["m",25]],"rows":[
+        ["2026-07-02T00:00:00","164","762.60"],
+        ["2026-07-03T00:00:00","165","1310.10"],
+        ["2026-07-04T00:00:00","164","401.72"],
+        ["2026-07-05T00:00:00","164","739.64"],
+        ["2026-07-06T00:00:00","164","1277.56"],
+        ["2026-07-07T00:00:00","165","458.20"],
+        ["2026-07-08T00:00:00","164","716.68"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"taken_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\", max(\"t\".\"watts\")::text as \"m\" from \"readings\" as \"t\" where \"t\".\"org_id\" = $6 and \"t\".\"taken_at\" >= $7::timestamptz and \"t\".\"taken_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam","1","2026-07-02T00:00:00+02:00","2026-07-09T00:00:00+02:00"],"result":{"command":"SELECT","rowCount":7,"columns":[["bucket",25],["n",25],["m",25]],"rows":[
+        ["2026-07-02T00:00:00","164","498"],
+        ["2026-07-03T00:00:00","165","458"],
+        ["2026-07-04T00:00:00","164","498"],
+        ["2026-07-05T00:00:00","164","498"],
+        ["2026-07-06T00:00:00","164","442"],
+        ["2026-07-07T00:00:00","165","498"],
+        ["2026-07-08T00:00:00","164","498"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    select exists (\n      select 1 from generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond') + '1 day'::interval, '1 day'::interval) as b\n      where extract(epoch from b at time zone $5::text) % 3600 <> 0\n    ) as inside\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam"],"result":{"command":"SELECT","rowCount":1,"columns":[["inside",16]],"rows":[["f"]]}},
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"bucket\"::timestamptz at time zone $5::text)) as \"bucket\", sum(\"t\".\"events\")::text as \"n\", max(\"t\".\"watts_max\")::text as \"m\" from \"readings_hourly\" as \"t\" where \"t\".\"org_id\" = $6 and \"t\".\"bucket\" >= $7::timestamptz and \"t\".\"bucket\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam","1","2026-07-02T00:00:00+02:00","2026-07-09T00:00:00+02:00"],"result":{"command":"SELECT","rowCount":7,"columns":[["bucket",25],["n",25],["m",25]],"rows":[
+        ["2026-07-02T00:00:00","164","498"],
+        ["2026-07-03T00:00:00","165","458"],
+        ["2026-07-04T00:00:00","164","498"],
+        ["2026-07-05T00:00:00","164","498"],
+        ["2026-07-06T00:00:00","164","442"],
+        ["2026-07-07T00:00:00","165","498"],
+        ["2026-07-08T00:00:00","164","498"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"taken_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\", avg(\"t\".\"cost\")::text as \"m\" from \"readings\" as \"t\" where \"t\".\"org_id\" = $6 and \"t\".\"taken_at\" >= $7::timestamptz and \"t\".\"taken_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam","1","2026-07-02T00:00:00+02:00","2026-07-09T00:00:00+02:00"],"result":{"command":"SELECT","rowCount":7,"columns":[["bucket",25],["n",25],["m",25]],"rows":[
+        ["2026-07-02T00:00:00","164","4.6500000000000000"],
+        ["2026-07-03T00:00:00","165","7.9400000000000000"],
+        ["2026-07-04T00:00:00","164","2.4495121951219512"],
+        ["2026-07-05T00:00:00","164","4.5100000000000000"],
+        ["2026-07-06T00:00:00","164","7.7900000000000000"],
+        ["2026-07-07T00:00:00","165","2.7769696969696970"],
+        ["2026-07-08T00:00:00","164","4.3700000000000000"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    select exists (\n      select 1 from generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond') + '1 day'::interval, '1 day'::interval) as b\n      where extract(epoch from b at time zone $5::text) % 3600 <> 0\n    ) as inside\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam"],"result":{"command":"SELECT","rowCount":1,"columns":[["inside",16]],"rows":[["f"]]}},
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"bucket\"::timestamptz at time zone $5::text)) as \"bucket\", sum(\"t\".\"events\")::text as \"n\", (sum(\"t\".\"cost_sum\") / sum(\"t\".\"events\"))::text as \"m\" from \"readings_hourly\" as \"t\" where \"t\".\"org_id\" = $6 and \"t\".\"bucket\" >= $7::timestamptz and \"t\".\"bucket\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam","1","2026-07-02T00:00:00+02:00","2026-07-09T00:00:00+02:00"],"result":{"command":"SELECT","rowCount":7,"columns":[["bucket",25],["n",25],["m",25]],"rows":[
+        ["2026-07-02T00:00:00","164","4.6500000000000000"],
+        ["2026-07-03T00:00:00","165","7.9400000000000000"],
+        ["2026-07-04T00:00:00","164","2.4495121951219512"],
+        ["2026-07-05T00:00:00","164","4.5100000000000000"],
+        ["2026-07-06T00:00:00","164","7.7900000000000000"],
+        ["2026-07-07T00:00:00","165","2.7769696969696970"],
+        ["2026-07-08T00:00:00","164","4.3700000000000000"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    select exists (\n      select 1 from generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond') + '1 day'::interval, '1 day'::interval) as b\n      where extract(epoch from b at time zone $5::text) % 3600 <> 0\n    ) as inside\n  ","params":["2026-07-02T00:00:00+02:00","Europe/Amsterdam","2026-07-09T00:00:00+02:00","Europe/Amsterdam","Europe/Amsterdam"],"result":{"command":"SELECT","rowCount":1,"columns":[["inside",16]],"rows":[["f"]]}},
+      {"repeated":1},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a time rollup read by :aggregate and :series > gives the totals per value of a field the records give": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"t\".\"kind\" as \"value\", count(*)::text as \"n\", avg(\"t\".\"watts\")::text as \"m\" from \"readings\" as \"t\" where \"t\".\"org_id\" = $1 group by \"t\".\"kind\" order by avg(\"t\".\"watts\") desc nulls last, \"t\".\"kind\" asc limit $2","params":["1","100"],"result":{"command":"SELECT","rowCount":2,"columns":[["value",25],["n",25],["m",25]],"rows":[
+        ["heat","500","249.0000000000000000"],
+        ["power","1000","249.0000000000000000"]
+      ]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"select \"t\".\"kind\" as \"value\", sum(\"t\".\"events\")::text as \"n\", (sum(\"t\".\"watts_sum\") / sum(\"t\".\"events\"))::text as \"m\" from \"readings_hourly\" as \"t\" where \"t\".\"org_id\" = $1 group by \"t\".\"kind\" order by (sum(\"t\".\"watts_sum\") / sum(\"t\".\"events\")) desc nulls last, \"t\".\"kind\" asc limit $2","params":["1","100"],"result":{"command":"SELECT","rowCount":2,"columns":[["value",25],["n",25],["m",25]],"rows":[
+        ["heat","500","249.0000000000000000"],
+        ["power","1000","249.0000000000000000"]
+      ]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a time rollup read by :aggregate and :series > refuses what its buckets cannot give": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    select exists (\n      select 1 from generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond') + '1 day'::interval, '1 day'::interval) as b\n      where extract(epoch from b at time zone $5::text) % 3600 <> 0\n    ) as inside\n  ","params":["2026-07-02T00:00:00Z","Asia/Kolkata","2026-07-04T00:00:00Z","Asia/Kolkata","Asia/Kolkata"],"result":{"command":"SELECT","rowCount":1,"columns":[["inside",16]],"rows":[["t"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    select exists (\n      select 1 from generate_series(date_trunc('week', ($1::timestamptz at time zone $2::text)), date_trunc('week', ($3::timestamptz at time zone $4::text) - interval '1 microsecond') + '1 week'::interval, '1 week'::interval) as b\n      where extract(epoch from b at time zone $5::text) % 86400 <> 0\n    ) as inside\n  ","params":["2026-06-29T00:00:00Z","UTC","2026-07-13T00:00:00Z","UTC","UTC"],"result":{"command":"SELECT","rowCount":1,"columns":[["inside",16]],"rows":[["f"]]}},
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('week', ($1::timestamptz at time zone $2::text)), date_trunc('week', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 week'::interval) as bucket\n    ), c as ((select date_trunc('week', (\"t\".\"bucket\"::timestamptz at time zone $5::text)) as \"bucket\", sum(\"t\".\"events\")::text as \"n\" from \"readings_daily\" as \"t\" where \"t\".\"org_id\" = $6 and \"t\".\"bucket\" >= $7::timestamptz and \"t\".\"bucket\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-06-29T00:00:00Z","UTC","2026-07-13T00:00:00Z","UTC","UTC","1","2026-06-29T00:00:00Z","2026-07-13T00:00:00Z"],"result":{"command":"SELECT","rowCount":2,"columns":[["bucket",25],["n",25]],"rows":[
+        ["2026-06-29T00:00:00","821"],
+        ["2026-07-06T00:00:00","679"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

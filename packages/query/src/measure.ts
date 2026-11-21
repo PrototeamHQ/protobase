@@ -2,6 +2,7 @@ import { sql } from 'kysely'
 import type { ResourceModel } from '@protobase/schema'
 import { columnRef, findField } from './columns'
 import { QueryError } from './errors'
+import { rollupMeasureSql } from './rollup-measure'
 
 const numericTypes = ['integer', 'bigint', 'decimal']
 
@@ -10,7 +11,10 @@ export type Measure = { kind: 'sum' | 'average' | 'maximum'; field: string }
 
 const aggregates = { sum: 'sum', average: 'avg', maximum: 'max' }
 
-/** The SQL aggregate of a measure; select it `::text`, so a decimal keeps its digits until it is read. */
+/**
+ * The SQL aggregate of a measure, over a time rollup's stored columns for a rollup; select it `::text`, so a decimal keeps
+ * its digits until it is read.
+ */
 export const measureSql = (model: ResourceModel, measure: Measure) => {
   const field = findField(model, measure.field)
   if (!numericTypes.includes(field.type)) {
@@ -19,6 +23,7 @@ export const measureSql = (model: ResourceModel, measure: Measure) => {
   // A sensitive value never leaves the server, not even added up
   if (field.sensitive) throw new QueryError('unsupported_field_type', `"${measure.field}" is sensitive, so it cannot be added up`)
   const column = columnRef(field)
+  if (model.buckets) return rollupMeasureSql(model, model.buckets, measure, column)
   return sql`${sql.raw(aggregates[measure.kind])}(${column})`
 }
 
