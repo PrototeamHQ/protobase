@@ -29,7 +29,7 @@ It follows chat habits where markdown would surprise: a line under a quote or a 
 
 Typing `@` and part of a name lists up to 8 people to mention: the arrows move, Enter, Tab or a click picks, Escape closes. Only people who may read the record themselves are listed, never one who is banned or has no name, and the server refuses a mention of anyone else, so a mention email never shows a record to someone who cannot open it. The comment keeps `@Name` as written, and the record page picks it out.
 
-Each person mentioned gets one email from the app's own mail: who mentioned them on which record, the comment, and a button that opens the record. The emails are sent by the job `comments.mention`, enqueued with the comment, so mentions need:
+Each person mentioned gets one email from the app's own mail: who mentioned them on which record, the comment, and a button that opens the record. <gap>Mention emails cannot show a comment's formatting because rendering markdown in email is not implemented.</gap> The emails are sent by the job `comments.mention`, enqueued with the comment, so mentions need:
 
 - the project's [Better Auth](/reference/auth/), whose users are the people listed; without it, comments work and nobody can be mentioned;
 - [mail](/reference/email/#configuration); without it, the job sends nothing;
