@@ -1,12 +1,12 @@
-import { lazy, Suspense } from 'react'
+import { lazyPart } from '../lib/lazy-part'
 import { bodyParts, mentionClass } from './mention-text'
 import type { MessageContentProps } from './message-content'
 
 // marked and DOMPurify load with the first message shown, as they do for the first markdown field
-const MessageContent = lazy(() => import('./message-content').then((module) => ({ default: module.MessageContent })))
+export const loadMessageContent = () => import('./message-content').then((module) => module.MessageContent)
 
-// The text as written, line breaks kept, until the renderer has loaded
-const AsWritten = ({ text, mentions }: MessageContentProps) => (
+/** The text as written, line breaks kept, until the renderer has loaded or when it does not load. */
+export const AsWritten = ({ text, mentions }: MessageContentProps) => (
   <div className="whitespace-pre-wrap break-words">
     {bodyParts(text, mentions).map((part, index) =>
       'mention' in part ? (
@@ -25,8 +25,4 @@ const AsWritten = ({ text, mentions }: MessageContentProps) => (
  * addresses as links opening in a new tab, and each `@{name}` of someone it mentions picked out; a name not in `mentions`
  * stays plain.
  */
-export const MentionedText = (props: MessageContentProps) => (
-  <Suspense fallback={<AsWritten {...props} />}>
-    <MessageContent {...props} />
-  </Suspense>
-)
+export const MentionedText = lazyPart(loadMessageContent, AsWritten)
