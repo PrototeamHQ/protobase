@@ -2,7 +2,10 @@
 // - a line under a quote or a list item that is neither starts a block of its own, rather than joining it lazily;
 // - a quote needs `> ` with a space, so `>5 failed logins` stays as typed;
 // - a `---` or `___` line under text stays a line of that text.
-const fence = /^ {0,3}(`{3,}|~{3,})/
+// A backtick fence's info string holds no backtick, so ```inline``` is code within a line
+const fence = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/
+// A fence closes on a line of its marker, at least as long, and nothing after it but spaces
+const closesFence = (line: string, open: string) => new RegExp(`^ {0,3}${open}[~\`]* *$`).test(line)
 const quote = /^ {0,3}>/
 const quoteAsTyped = /^( {0,3})>(?=[^ \t>])/
 const listItem = /^ {0,3}([-*+]|\d{1,9}[.)])([ \t]|$)/
@@ -15,19 +18,19 @@ export const chatLines = (text: string) => {
   let inFence: string | undefined
   let inBlock = false
   for (const line of text.split('\n')) {
-    const marker = fence.exec(line)?.[1]
     if (inFence) {
-      if (marker && marker[0] === inFence[0] && marker.length >= inFence.length) inFence = undefined
+      if (closesFence(line, inFence)) inFence = undefined
       lines.push(line)
       continue
     }
+    const marker = fence.exec(line)?.[1]
     if (marker) {
       inFence = marker
       inBlock = false
       lines.push(line)
       continue
     }
-    const typed = line.replace(quoteAsTyped, '$1\\>').replace(rule, (match) => `\\${match.trimStart()}`)
+    const typed = line.replace(quoteAsTyped, '$1\\>').replace(rule, (match) => match.replace(/^ */, '$&\\'))
     const blank = typed.trim() === ''
     const opensBlock = quote.test(typed) || listItem.test(typed)
     if (inBlock && !blank && !opensBlock && !indented.test(typed)) lines.push('')
