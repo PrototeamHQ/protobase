@@ -6,7 +6,7 @@ description: Hand the app's realtime connections to a relay, so the app and its 
 The app can hand its realtime connections to a relay, the open source [protobase-realtime](https://github.com/PrototeamHQ/protobase-realtime) server: the relay holds everyone's WebSocket, and the app talks to it only when something changes, so a quiet app and its database sleep while people stay connected. The relay keeps no data and never reads the app's database: the app tells it who is in which channel, what changed and for whom, and which sign-in sessions ended. It works beside the app's own [channels](/reference/channels/) and [live updates](/reference/live/), which stay as they are.
 
 :::caution[In development]
-The app's side is built: tickets, membership, change notices, session ends and presence. <gap>Pages cannot connect to the relay from `@protobase/client` because its relay client is not implemented.</gap> <gap>Clients cannot send each other events such as typing through the relay because declaring client events per channel resource is not implemented.</gap>
+The app's side is built: tickets, membership, change notices, session ends and presence, and so are pages' side in `@protobase/client` and the admin app: [live updates, typing and unread marks](#pages). <gap>The config cannot declare the events clients send each other, such as typing, because declaring client events per channel resource is not implemented, so the relay's apps file declares them by hand.</gap>
 :::
 
 ## Config
@@ -60,7 +60,7 @@ It starts the relay on the first load of a config with `realtime.relay`, an edit
 
 ## Tickets
 
-A client connects to the relay with a ticket from `POST /api/relay/ticket`, with `{ "channels": [...] }`, optional, as JSON. The answer is `{ ticket, url, expiresAt }`: the relay's socket address and a ticket that connects once, within a minute. Every connection, a reconnect too, takes a new ticket.
+A client connects to the relay with a ticket from `POST /api/relay/ticket`, with `{ "channels": [...] }`, optional, as JSON. The answer is `{ ticket, url, channels, expiresAt }`: the relay's socket address, a ticket that connects once, within a minute, and the channels it lists, which the client joins. Every connection, a reconnect too, takes a new ticket.
 
 - **Signed in:** the ticket names the person and the sign-in session they called with, so a device that connects makes no new session, and lists every channel they are a member of, as the members resources hold it, and `people`, which every signed-in person has and [presence](#presence) is published on. A caller without a session of the app, such as an API key or an outside app acting for the user, is refused with `403`; a session that ended with `401`.
 - **Visitors:** with an `anonymous` role, a caller without a token gets a ticket of an anonymous session of its own, which receives and never sends.
@@ -112,3 +112,57 @@ Each change of a person's presence is also published on `people` as a `presence_
 
 A person who shares no channel is published to no one. <gap>A page cannot show who of the others is online because reading presence in the pages is not implemented.</gap>
 
+## Pages
+
+With `realtime.relay`, the admin app follows the relay for someone signed in, on one socket per page, and `/meta` names the resources whose changes the relay notices:
+
+- **Live updates:** the lists, records and counts of those resources are read again as the relay notices their changes, new, edited and deleted records alike, instead of through [`/api/live`](/reference/live/), which stays for the other `.live()` resources. While a [conversation page](/reference/ui-config/#conversation-pages) is open, only its own channel's notices read it again; the notices of other channels only move the [unread marks](/reference/sidebar/#typing-and-unread-from-the-relay). After the socket was down, everything shown is read again once.
+- **Typing:** a conversation page with `typing` says who else types, above its box, and tells the others while the reader types, as `typing` events on the record's channel. A sidebar group with [`typing`](/reference/sidebar/#typing-and-unread-from-the-relay) says "typing…" beside a record someone types in, wherever the reader is.
+- **Unread:** a sidebar group with [`unread`](/reference/sidebar/#typing-and-unread-from-the-relay) counts each conversation's unread messages once, then adds the relay's notices without reading.
+- **Presence:** the page tells the relay the person is away while it is hidden and online once it shows; a page that shows again, or a device back online, connects again at once.
+
+The relay refuses events the app did not declare, so declare typing in the relay's apps file, on each channel resource with typing:
+
+```json
+"client_events": {
+  "channels": {
+    "conversations": {
+      "events": {
+        "typing": { "schema": { "type": "object", "properties": { "typing": { "type": "boolean" } }, "required": ["typing"] }, "max_bytes": 64, "per_second": 2, "burst": 4 }
+      }
+    }
+  }
+}
+```
+
+A conversation page's `typing` needs its resource among `channels`: the server refuses to start otherwise.
+
+<gap>A page does not hear of a channel the person joined after it connected, such as a new direct message, until it opens that conversation or connects again, because telling a person's sockets of a new channel is not implemented.</gap> <gap>An unread count also counts the reader's own messages sent from another device or tab, until they open the conversation, because notices do not name who made the change.</gap>
+
+### From code
+
+`client.relay` follows the relay from any page or app with `@protobase/client`:
+
+```ts
+const stop = client.relay.follow({
+  onNotice: (notice) => {}, // { kind, resource, key, channel, mentions? }
+  onEvent: (event) => {}, // { event, payload, from: { user, connection }, at, channel } or, direct, { ..., to }
+  onResync: () => {}, // connected again after a drop: read again what is shown
+  onStatus: (status) => {}, // 'connecting', 'open' or 'ended'
+})
+await client.relay.send('conversations/7', 'typing', { typing: true })
+await client.relay.direct('u2', 'ring', { call: 12 })
+client.relay.view('conversations/7', ['thread:3'])
+client.relay.presence('away')
+```
+
+| | |
+| --- | --- |
+| `follow(handlers)` | Hears every notice and event until the returned function is called. The first follower opens the socket and the last closes it. The socket connects with a fresh ticket each time, joins the relay's own topic and every channel the ticket lists, and connects again after a pause that grows with each failure, up to 30 seconds; an app that refuses a ticket with a client error, such as for a session that ended, ends it (`ended`). |
+| `send(channel, event, payload)` | Sends a declared event to the channel's other sockets. Rejects with a `RelayRefusal` and the relay's reason, such as `rate_limited` or `event_not_allowed`, or `not_joined`. |
+| `direct(to, event, payload)` | Sends a declared direct event to every device of a person who shares a channel with the sender. |
+| `join(channel)` | Joins a channel the ticket did not list, such as one the person joined since, until the returned function is called. |
+| `view(channel, keys)` | Says which keys the page views in the channel, so the app's publishes about other keys pass it by; `undefined` views everything. |
+| `presence(status)` | `away` or `online`, as the relay combines it over the person's devices. |
+| `reconnect()` | Connects at once when the socket is down and waiting to try again. |
+| `joined(channel)`, `status()` | Whether the socket joined a channel, and the connection's status. |
