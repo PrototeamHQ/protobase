@@ -11,13 +11,15 @@ const quoteAsTyped = /^( {0,3})>(?=[^ \t>])/
 const listItem = /^ {0,3}([-*+]|\d{1,9}[.)])([ \t]|$)/
 const rule = /^ {0,3}([-_])[ \t]*(\1[ \t]*){2,}$/
 const indented = /^[ \t]/
+// Text from the API or an import can end its lines with `\r\n` or a lone `\r`
+const lineBreak = /\r\n?|\n/
 
 /** A message's text with the chat line rules above made explicit for the markdown parser. */
 export const chatLines = (text: string) => {
   const lines: string[] = []
   let inFence: string | undefined
   let inBlock = false
-  for (const line of text.split('\n')) {
+  for (const line of text.split(lineBreak)) {
     if (inFence) {
       if (closesFence(line, inFence)) inFence = undefined
       lines.push(line)

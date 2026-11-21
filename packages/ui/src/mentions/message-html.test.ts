@@ -63,6 +63,13 @@ describe('messageHtml', () => {
     expect(messageHtml('[a\u05d0.com](https://example.com)', [])).toContain('>https://example.com</a>')
   })
 
+  it('renders a message with `\\r\\n` or lone `\\r` line endings like the same message with `\\n`', () => {
+    const message = '```\n> not a quote\n- x\n---\n```\ndone\n---\n- a\nb'
+    const lf = messageHtml(message, [])
+    expect(messageHtml(message.replaceAll('\n', '\r\n'), [])).toBe(lf)
+    expect(messageHtml(message.replaceAll('\n', '\r'), [])).toBe(lf)
+  })
+
   it('picks out a mention inside formatted text, and not one of someone it does not mention', () => {
     const mention = (name: string) => `<span class="${mentionClass.replace('&', '&amp;')}">@${name}</span>`
     expect(messageHtml('**Thanks @Ann!** and @Bo', ann)).toBe(`<p><strong>Thanks ${mention('Ann')}!</strong> and @Bo</p>\n`)
