@@ -15,7 +15,7 @@ const offline = () => Promise.reject(new TypeError('Failed to fetch dynamically 
 
 type Args = { load: () => ReturnType<typeof loadMessageContent>; report: () => void }
 
-/** A renderer that does not load, then loads: the message reads as typed, mentions picked out, and shows formatted once drawn again. */
+/** A renderer that does not load, then loads: messages read as typed, mentions picked out, and all show formatted once a third is drawn. */
 export const DoesNotLoad: StoryObj<Args> = {
   tags: ['play'],
   args: { load: fn(), report: fn() },
@@ -24,33 +24,42 @@ export const DoesNotLoad: StoryObj<Args> = {
   },
   render: function Render({ load, report }) {
     const [Text] = useState(() => lazyPart(load, AsWritten, report))
-    const [drawn, setDrawn] = useState(1)
+    const [more, setMore] = useState(false)
     return (
       <div>
-        <div key={drawn} data-testid="message">
-          <Text text={body} mentions={[ann]} />
-        </div>
-        <button type="button" onClick={() => setDrawn(drawn + 1)}>
-          Draw again
+        {[1, 2].map((key) => (
+          <div key={key} data-testid="message">
+            <Text text={body} mentions={[ann]} />
+          </div>
+        ))}
+        {more && (
+          <div data-testid="message">
+            <Text text={body} mentions={[ann]} />
+          </div>
+        )}
+        <button type="button" onClick={() => setMore(true)}>
+          Show another
         </button>
       </div>
     )
   },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement)
-    const message = canvas.getByTestId('message')
-    // As typed, the mention picked out, no error in its place, and the failure reported once
+    // Both as typed, mentions picked out, no error in their place, and the failure reported once
     await waitFor(() => expect(args.report).toHaveBeenCalledTimes(1))
-    expect(message.textContent).toBe(body)
-    expect(within(message).getByText('@Ann de Vries')).toHaveClass('text-primary')
-    expect(message.querySelector('strong')).toBeNull()
+    for (const message of canvas.getAllByTestId('message')) {
+      expect(message.textContent).toBe(body)
+      expect(within(message).getByText('@Ann de Vries')).toHaveClass('text-primary')
+      expect(message.querySelector('strong')).toBeNull()
+    }
     expect(canvas.queryByRole('alert')).toBeNull()
-    // Drawn again, it imports again and shows the formatted text
-    await userEvent.click(canvas.getByRole('button', { name: 'Draw again' }))
-    const formatted = canvas.getByTestId('message')
-    await within(formatted).findByText('done', { selector: 'em' })
-    expect(within(formatted).getByText('@Ann de Vries').closest('strong')).not.toBeNull()
-    expect(within(formatted).getByRole('link', { name: 'https://status.example.com' })).toBeVisible()
+    // A third message drawn imports again, and once it loads all three show formatted
+    await userEvent.click(canvas.getByRole('button', { name: 'Show another' }))
+    for (const formatted of canvas.getAllByTestId('message')) {
+      await within(formatted).findByText('done', { selector: 'em' })
+      expect(within(formatted).getByText('@Ann de Vries').closest('strong')).not.toBeNull()
+      expect(within(formatted).getByRole('link', { name: 'https://status.example.com' })).toBeVisible()
+    }
     expect(args.load).toHaveBeenCalledTimes(2)
     expect(args.report).toHaveBeenCalledTimes(1)
   },
