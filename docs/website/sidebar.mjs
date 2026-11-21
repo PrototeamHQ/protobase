@@ -51,6 +51,7 @@ export const guides = [
   'guides/remote-resources',
   'guides/export-a-list',
   'guides/import-records',
+  'guides/event-charts',
   'guides/push-notifications',
   'guides/send-from-gmail',
   'guides/create-page',
