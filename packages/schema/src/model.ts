@@ -1771,8 +1771,8 @@ export type ViewModel = {
   create?: CreateModel
   /** The component of the app's own that is the whole record page, in place of the standard one. */
   record?: RecordPageModel
-  /** The address a record's page opens in its place, `{{field}}` replaced by the record's values. */
-  recordOpens?: AppAddress
+  /** The addresses a record's page may open in its place, in order: the first whose `{{field}}`s all have a value in the record, filled with them. */
+  recordOpens?: AppAddress[]
   /** Its create address opens this in place of the form (`.createOpens(...)`). */
   createOpens?: AppAddress
   /** Public forms that create its records for people without an account, each at `/-/forms/<name>`. */

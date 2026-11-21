@@ -70,7 +70,7 @@ describe('pages in /meta', () => {
     const opensAudit = view<typeof ledger>('ledger').recordOpens({ kind: 'page', page: 'audit' }).createOpens({ kind: 'page', page: 'audit' })
     const audited = createAdmin({ resources: [ledger], views: [opensAudit], pages: [adminOnly], db: db(), authenticate: testAuthenticator })
     const viewFor = async (roles: string) => (await (await audited.request('/api/meta', { headers: as(1, roles) })).json()).views[0]
-    expect(await viewFor('admin')).toMatchObject({ recordOpens: { kind: 'page', page: 'audit' }, createOpens: { kind: 'page', page: 'audit' } })
+    expect(await viewFor('admin')).toMatchObject({ recordOpens: [{ kind: 'page', page: 'audit' }], createOpens: { kind: 'page', page: 'audit' } })
     const refused = await viewFor('viewer')
     expect(refused).not.toHaveProperty('recordOpens')
     expect(refused).not.toHaveProperty('createOpens')

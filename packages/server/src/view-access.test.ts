@@ -78,12 +78,14 @@ describe('pruneView', () => {
     expect(names(without({ repairs: ['customerId'] }))).toEqual(['quote'])
   })
 
-  it("keeps the address a record's page opens only while the caller can follow it", () => {
-    const repairsView = view<typeof repairs>('repairs').recordOpens({ kind: 'record', resource: 'customers', key: '{{customerId}}' }).toModel()
+  it("keeps the addresses a record's page opens only while the caller can follow them, in order", () => {
+    const customer = { kind: 'record' as const, resource: 'customers', key: '{{customerId}}' }
+    const own = { kind: 'list' as const, resource: 'repairs', filter: 'number = "{{number}}"' }
+    const repairsView = view<typeof repairs>('repairs').recordOpens([customer, own]).toModel()
     const opens = (models: Record<string, ResourceModel>) => pruneView(repairsView, models.repairs!, models).recordOpens
-    expect(opens(all)).toEqual({ kind: 'record', resource: 'customers', key: '{{customerId}}' })
-    expect(opens(without({}, ['customers']))).toBeUndefined()
-    expect(opens(without({ repairs: ['customerId'] }))).toBeUndefined()
+    expect(opens(all)).toEqual([customer, own])
+    expect(opens(without({}, ['customers']))).toEqual([own])
+    expect(opens(without({ repairs: ['customerId', 'number'] }))).toBeUndefined()
   })
 
   it('keeps a create link with values beyond the fields only when the resource opens a create page', () => {
@@ -578,7 +580,7 @@ describe('prunePageDestinations', () => {
     const opensPage = (page: string) => view<typeof repairs>('repairs').recordOpens({ kind: 'page', page }).createOpens({ kind: 'page', page }).toModel()
     const pages = new Set(['workshop'])
     const kept = prunePageDestinations(opensPage('workshop'), pages)
-    expect(kept.recordOpens).toEqual({ kind: 'page', page: 'workshop' })
+    expect(kept.recordOpens).toEqual([{ kind: 'page', page: 'workshop' }])
     expect(kept.createOpens).toEqual({ kind: 'page', page: 'workshop' })
     const refused = prunePageDestinations(opensPage('payroll'), pages)
     expect(refused.recordOpens).toBeUndefined()

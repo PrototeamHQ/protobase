@@ -135,9 +135,10 @@ describe('checkViews', () => {
   })
 
   it("wants a record's page to open an address the app has", () => {
-    const opens = (to: AppAddress) => view<typeof payments>('payments').recordOpens(to).toModel()
+    const opens = (to: AppAddress | AppAddress[]) => view<typeof payments>('payments').recordOpens(to).toModel()
     expect(() => checkViews(registry, [opens({ kind: 'record', resource: 'payments', key: '{{reference}}', run: '{{id}}' })])).not.toThrow()
     expect(() => checkViews(registry, [opens({ kind: 'record', resource: 'refunds', key: '{{id}}' })])).toThrow('View "payments": recordOpens: unknown resource "refunds"')
+    expect(() => checkViews(registry, [opens([{ kind: 'record', resource: 'payments', key: '{{id}}' }, { kind: 'page', page: 'refunds' }])])).toThrow('View "payments": recordOpens choice 2: unknown page "refunds"')
   })
 
   it('wants action inputs to fit: a handler to get them, and a choice of records to pick from a resource the app has', () => {
