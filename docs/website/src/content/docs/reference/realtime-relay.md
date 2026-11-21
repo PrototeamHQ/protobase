@@ -72,11 +72,11 @@ The [dispatch](/reference/events/) that turns each transaction's changes into ev
 { "kind": "create", "resource": "messages", "key": "42", "channel": "conversations/7", "mentions": ["u2"] }
 ```
 
-`kind` is `create`, `update`, `delete` or `undelete`; `mentions` is there with `mentions` set. A notice tells clients what changed, so they read only the records they show. On a channel with members it reaches its members as the database holds them at dispatch, and a person who joined or left with that change; on an open channel, everyone joined to it. The relay sends a notice once, however often the job sends it again.
+`kind` is `create`, `update`, `delete` or `undelete`; `mentions` is there with `mentions` set. A notice tells clients what changed, so they read only the records they show. On a channel with members it reaches its members as the database holds them at dispatch, and a person who joined or left with that change; on an open channel, everyone joined to it, while the anonymous role reads its record as it stands at dispatch. The relay sends a notice once, however often the job sends it again.
 
 A members record that is created or undeleted adds its person to the channel on the sockets they have open, before its notice, and one that is deleted or soft-deleted takes them out after it: they can join, or are closed out, without connecting again. Commands go in commit order, one job at a time; while the relay is down, they wait and try again, once a minute at most. A command the relay refuses, such as one over its size limit, goes to the app's error reporter and is passed over.
 
-<gap>An open channel's notices still reach the sockets joined to it after its record stops being public, until they reconnect, because checking read access again on the relay is not implemented.</gap>
+Once an open channel's record stops being public, its notices stop, and a new ticket refuses it. <gap>Sockets that joined an open channel stay joined after its record stops being public, hearing nothing of it, until they reconnect, because closing a channel on every socket is not implemented.</gap>
 
 ## Sessions
 

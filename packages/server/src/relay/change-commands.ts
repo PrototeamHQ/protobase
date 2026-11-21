@@ -25,6 +25,10 @@ export const noticedChannels = (models: RelayModels, change: ResourceChange) => 
 export const audienceChannels = (models: RelayModels, changes: readonly ResourceChange[]) =>
   [...new Set(changes.flatMap((change) => noticedChannels(models, change)))].filter((channel) => models.channels.get(channel.slice(0, channel.indexOf('/')))?.members)
 
+/** The open channels, without members, that a batch's notices go to everyone joined to, whose records `publicChannels` reads. */
+export const openChannels = (models: RelayModels, changes: readonly ResourceChange[]) =>
+  [...new Set(changes.flatMap((change) => noticedChannels(models, change)))].filter((channel) => !models.channels.get(channel.slice(0, channel.indexOf('/')))?.members)
+
 type Membership = { channel: string; user: string }
 type Members = { channel: string } & MembersModel
 
@@ -72,17 +76,21 @@ const notice = (models: RelayModels, change: ResourceChange, channel: string, me
   }
 }
 
+// A notice to everyone joined goes out only on a channel whose record is public (`open`); one to people, to someone.
+const reaches = (command: PublishCommand, open: ReadonlySet<string>) => (command.users === undefined ? open.has(command.channel) : command.users.length > 0)
+
 /**
  * The relay's commands for a dispatched batch, in commit order: for each change, a person who joins a channel joins it
  * first, then each channel the record was or is on hears one notice, then a person who left it leaves. A channel with
  * members hears it only through its members as the app's database has them (`members`), and the person who joined or
- * left; an open one through everyone joined to it. A notice of a channel with no one to reach is left out.
+ * left; an open one through everyone joined to it, and only while its record is public (`open`), so sockets that joined
+ * it before hear nothing once it is not. A notice of a channel with no one to reach is left out.
  */
-export const changeCommands = (models: RelayModels, changes: readonly ResourceChange[], members: ChannelMembers): RelayCommand[] =>
+export const changeCommands = (models: RelayModels, changes: readonly ResourceChange[], members: ChannelMembers, open: ReadonlySet<string>): RelayCommand[] =>
   changes.flatMap((change) => {
     const moved = membersCommands(models, change)
     const notices = noticedChannels(models, change)
       .map((channel) => notice(models, change, channel, members, moved))
-      .filter((command) => command.users === undefined || command.users.length > 0)
+      .filter((command) => reaches(command, open))
     return [...moved.filter((command) => command.kind === 'add'), ...notices, ...moved.filter((command) => command.kind === 'remove')]
   })

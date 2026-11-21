@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { audienceChannels, changeCommands, noticedChannels } from './change-commands'
+import { audienceChannels, changeCommands, noticedChannels, openChannels } from './change-commands'
 import { relayModels } from './relay-models'
 import { change, chatModels, chatRelay } from './testing/chat-models'
 
@@ -11,11 +11,14 @@ const roomMembers = resource('room_members').table('room_members')
   .live()
   .toModel()
 const members = new Map([['conversations/7', ['u1', 'u2']]])
+// The open channels whose records are public: none, or the lobby.
+const none = new Set<string>()
+const lobby = new Set(['rooms/1'])
 
 describe('changeCommands', () => {
   it("notices a message on its conversation to the conversation's members, with its mentions", () => {
     const message = change('messages', 'create', { after: { id: 42, conversation_id: 7, body: 'Hi @u2', mentions: ['u2'] } })
-    expect(changeCommands(models, [message], members)).toEqual([
+    expect(changeCommands(models, [message], members, none)).toEqual([
       {
         kind: 'publish',
         id: `${message.sequence}:conversations/7`,
@@ -29,19 +32,19 @@ describe('changeCommands', () => {
 
   it('notices a record of an open channel to everyone joined to it', () => {
     const post = change('posts', 'update', { before: { id: 3, room_id: 1, body: 'a' }, after: { id: 3, room_id: 1, body: 'b' } })
-    expect(changeCommands(models, [post], members)).toEqual([{ kind: 'publish', id: `${post.sequence}:rooms/1`, channel: 'rooms/1', event: 'change', payload: { kind: 'update', resource: 'posts', key: '3', channel: 'rooms/1' } }])
+    expect(changeCommands(models, [post], members, lobby)).toEqual([{ kind: 'publish', id: `${post.sequence}:rooms/1`, channel: 'rooms/1', event: 'change', payload: { kind: 'update', resource: 'posts', key: '3', channel: 'rooms/1' } }])
   })
 
   it('adds a new member to the channel before the notice, which reaches them too', () => {
     const joined = change('conversation_members', 'create', { after: { id: 1, conversation_id: 7, user_id: 'u3' } })
-    const [add, notice] = changeCommands(models, [joined], members)
+    const [add, notice] = changeCommands(models, [joined], members, none)
     expect(add).toEqual({ kind: 'add', channel: 'conversations/7', users: ['u3'] })
     expect(notice).toMatchObject({ kind: 'publish', channel: 'conversations/7', users: ['u1', 'u2', 'u3'] })
   })
 
   it('removes a member after the notice of their leaving, which reaches them too', () => {
     const left = change('conversation_members', 'delete', { before: { id: 1, conversation_id: 7, user_id: 'u3' } })
-    const commands = changeCommands(models, [left], members)
+    const commands = changeCommands(models, [left], members, none)
     expect(commands.map((command) => command.kind)).toEqual(['publish', 'remove'])
     expect(commands[0]).toMatchObject({ users: ['u1', 'u2', 'u3'] })
     expect(commands[1]).toEqual({ kind: 'remove', channel: 'conversations/7', users: ['u3'] })
@@ -50,13 +53,13 @@ describe('changeCommands', () => {
   it('takes a soft-deleted member out and an undeleted one back in', () => {
     const deleted = change('conversation_members', 'delete', { before: { id: 1, conversation_id: 7, user_id: 'u3', deleted_at: null }, after: { id: 1, conversation_id: 7, user_id: 'u3', deleted_at: '2026-11-21T00:00:00Z' } })
     const undeleted = change('conversation_members', 'undelete', { before: { id: 1, conversation_id: 7, user_id: 'u3', deleted_at: '2026-11-21T00:00:00Z' }, after: { id: 1, conversation_id: 7, user_id: 'u3', deleted_at: null } })
-    expect(changeCommands(models, [deleted], members).filter((command) => command.kind !== 'publish')).toEqual([{ kind: 'remove', channel: 'conversations/7', users: ['u3'] }])
-    expect(changeCommands(models, [undeleted], members).filter((command) => command.kind !== 'publish')).toEqual([{ kind: 'add', channel: 'conversations/7', users: ['u3'] }])
+    expect(changeCommands(models, [deleted], members, none).filter((command) => command.kind !== 'publish')).toEqual([{ kind: 'remove', channel: 'conversations/7', users: ['u3'] }])
+    expect(changeCommands(models, [undeleted], members, none).filter((command) => command.kind !== 'publish')).toEqual([{ kind: 'add', channel: 'conversations/7', users: ['u3'] }])
   })
 
   it('moves a member whose record moved to another conversation', () => {
     const moved = change('conversation_members', 'update', { before: { id: 1, conversation_id: 7, user_id: 'u3' }, after: { id: 1, conversation_id: 8, user_id: 'u3' } })
-    const commands = changeCommands(models, [moved], members).filter((command) => command.kind !== 'publish')
+    const commands = changeCommands(models, [moved], members, none).filter((command) => command.kind !== 'publish')
     expect(commands).toEqual([
       { kind: 'add', channel: 'conversations/8', users: ['u3'] },
       { kind: 'remove', channel: 'conversations/7', users: ['u3'] },
@@ -65,7 +68,7 @@ describe('changeCommands', () => {
 
   it('notices a member who moved and changed person only to the person on each side', () => {
     const moved = change('conversation_members', 'update', { before: { id: 1, conversation_id: 7, user_id: 'u3' }, after: { id: 1, conversation_id: 8, user_id: 'u4' } })
-    const notices = changeCommands(models, [moved], members).filter((command) => command.kind === 'publish')
+    const notices = changeCommands(models, [moved], members, none).filter((command) => command.kind === 'publish')
     expect(notices).toMatchObject([
       { channel: 'conversations/7', users: ['u1', 'u2', 'u3'] },
       { channel: 'conversations/8', users: ['u4'] },
@@ -74,7 +77,7 @@ describe('changeCommands', () => {
 
   it('puts nobody in a channel with a member record created already soft-deleted', () => {
     const created = change('conversation_members', 'create', { after: { id: 1, conversation_id: 7, user_id: 'u3', deleted_at: '2026-11-21T00:00:00Z' } })
-    const commands = changeCommands(models, [created], members)
+    const commands = changeCommands(models, [created], members, none)
     expect(commands.filter((command) => command.kind !== 'publish')).toEqual([])
     expect(commands[0]).toMatchObject({ kind: 'publish', users: ['u1', 'u2'] })
   })
@@ -83,7 +86,7 @@ describe('changeCommands', () => {
     const relay = { ...chatRelay, channels: { ...chatRelay.channels, rooms: { members: { resource: 'room_members', channel: 'room_id', user: 'user_id' } }, conversations: { members: { resource: 'room_members', channel: 'conversation_id', user: 'user_id' } } } }
     const both = relayModels(relay, [...chatModels(), roomMembers])
     const joined = change('room_members', 'create', { after: { id: 1, room_id: 1, conversation_id: 7, user_id: 'u3' } })
-    expect(changeCommands(both, [joined], members).filter((command) => command.kind !== 'publish')).toEqual([
+    expect(changeCommands(both, [joined], members, none).filter((command) => command.kind !== 'publish')).toEqual([
       { kind: 'add', channel: 'conversations/7', users: ['u3'] },
       { kind: 'add', channel: 'rooms/1', users: ['u3'] },
     ])
@@ -91,11 +94,54 @@ describe('changeCommands', () => {
 
   it('leaves out the notice of a channel with members that has none', () => {
     const message = change('messages', 'create', { after: { id: 1, conversation_id: 99, body: 'x' } })
-    expect(changeCommands(models, [message], members)).toEqual([])
+    expect(changeCommands(models, [message], members, none)).toEqual([])
   })
 
   it('notices nothing of a resource that is on no channel', () => {
-    expect(changeCommands(models, [change('notes', 'create', { after: { id: 1, conversation_id: 7 } })], members)).toEqual([])
+    expect(changeCommands(models, [change('notes', 'create', { after: { id: 1, conversation_id: 7 } })], members, none)).toEqual([])
+  })
+})
+
+describe('changeCommands on an open channel', () => {
+  const post = (room: number) => change('posts', 'create', { after: { id: room * 10, room_id: room, body: 'a' } })
+  const publishedTo = (open: ReadonlySet<string>, changes: ReturnType<typeof change>[]) => changeCommands(models, changes, members, open).map((command) => command.channel)
+
+  it('publishes while its record is public, nothing while it is not, and again once it is public again', () => {
+    const flipped = change('rooms', 'update', { before: { id: 1, name: 'Lobby' }, after: { id: 1, name: 'Lobby' } })
+    expect(publishedTo(lobby, [post(1)])).toEqual(['rooms/1'])
+    expect(publishedTo(none, [flipped])).toEqual([])
+    expect(publishedTo(none, [post(1)])).toEqual([])
+    expect(publishedTo(lobby, [post(1)])).toEqual(['rooms/1'])
+  })
+
+  it('decides each channel of a batch on its own record', () => {
+    expect(publishedTo(lobby, [post(1), post(2)])).toEqual(['rooms/1'])
+  })
+
+  it('publishes neither change of a batch that edits a record and then makes it not public', () => {
+    const edited = change('rooms', 'update', { before: { id: 2, name: 'Staff' }, after: { id: 2, name: 'Team' } })
+    const hidden = change('rooms', 'update', { before: { id: 2, name: 'Team' }, after: { id: 2, name: 'Team' } })
+    expect(publishedTo(lobby, [edited, hidden])).toEqual([])
+  })
+
+  it('publishes nothing of a record deleted, or created not public', () => {
+    expect(publishedTo(none, [change('rooms', 'delete', { before: { id: 1, name: 'Lobby' } })])).toEqual([])
+    expect(publishedTo(none, [change('rooms', 'create', { after: { id: 3, name: 'New' } })])).toEqual([])
+  })
+
+  it('still notices a channel with members beside an open one that is not public', () => {
+    const message = change('messages', 'create', { after: { id: 1, conversation_id: 7, body: 'x' } })
+    expect(changeCommands(models, [post(1), message], members, none)).toMatchObject([{ channel: 'conversations/7', users: ['u1', 'u2'] }])
+  })
+
+  it('publishes no mentions of an open channel that is not public', () => {
+    const mentioning = relayModels({ ...chatRelay, channels: { ...chatRelay.channels, rooms: { mentions: 'mentions' } } }, [
+      ...chatModels().filter((model) => model.name !== 'posts'),
+      resource('posts').table('posts').fields({ id: f.integer(), room_id: f.relation('rooms').filterable(), mentions: f.json().optional() }).primaryKey((r) => r.id).live().toModel(),
+    ])
+    const mention = change('posts', 'create', { after: { id: 1, room_id: 1, mentions: ['u9'] } })
+    expect(changeCommands(mentioning, [mention], members, none)).toEqual([])
+    expect(changeCommands(mentioning, [mention], members, lobby)).toMatchObject([{ channel: 'rooms/1', payload: { mentions: ['u9'] } }])
   })
 })
 
@@ -110,5 +156,12 @@ describe('audienceChannels', () => {
   it('names each channel with members a batch notices once, and no open one', () => {
     const changes = [change('messages', 'create', { after: { id: 1, conversation_id: 7 } }), change('messages', 'create', { after: { id: 2, conversation_id: 7 } }), change('posts', 'create', { after: { id: 1, room_id: 1 } })]
     expect(audienceChannels(models, changes)).toEqual(['conversations/7'])
+  })
+})
+
+describe('openChannels', () => {
+  it('names each channel without members a batch notices once, and no channel with members', () => {
+    const changes = [change('posts', 'create', { after: { id: 1, room_id: 1 } }), change('posts', 'create', { after: { id: 2, room_id: 1 } }), change('messages', 'create', { after: { id: 1, conversation_id: 7 } })]
+    expect(openChannels(models, changes)).toEqual(['rooms/1'])
   })
 })

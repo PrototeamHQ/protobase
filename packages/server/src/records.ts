@@ -52,14 +52,17 @@ export const fetchRecord = async (db: Db, entry: Entry, key: readonly (string | 
 /** The key of a stored record, as `fetchRecords` names it: its primary key's values as text. */
 export const recordKey = (entry: Entry, record: Row) => JSON.stringify(entry.model.primaryKey.map((name) => String(record[name])))
 
-/** The rows of the caller's tenant with these keys, live unless `deleted` says otherwise, in one read, by `recordKey`. */
-export const fetchRecords = async (db: Db, entry: Entry, keys: readonly (readonly (string | number)[])[], tenant?: TenantValue, options: Shape & Pick<FetchOptions, 'deleted'> = {}) => {
-  const { deleted, ...shape } = options
+/**
+ * The rows of the caller's tenant with these keys, live unless `deleted` says otherwise, optionally narrowed by a filter
+ * and the parents the caller reads, in one read, by `recordKey`.
+ */
+export const fetchRecords = async (db: Db, entry: Entry, keys: readonly (readonly (string | number)[])[], tenant?: TenantValue, options: Shape & Pick<FetchOptions, 'deleted' | 'filter' | 'parents'> = {}) => {
+  const { deleted, filter, parents = [], ...shape } = options
   const found = new Map<string, StoredRecord>()
   if (keys.length === 0) return found
   const keyColumns = sql.join(entry.model.primaryKey.map((name) => columnId(entry.model.fields[name]!)))
   const tuples = sql.join(keys.map((key) => sql`(${sql.join(key.map((value) => sql`${value}`))})`))
-  const conditions = [...scopeConditions(entry.model, tenant, deleted), sql<SqlBool>`(${keyColumns}) in (${tuples})`]
+  const conditions = [...scopeConditions(entry.model, tenant, deleted), sql<SqlBool>`(${keyColumns}) in (${tuples})`, ...filterCondition(entry.model, filter), ...parents.map(parentCondition)]
   for (const raw of await rowsOf(db, sql`select ${returningList(entry, shape.fields)} from ${tableId(entry.model)} as t${whereClause(conditions)}`)) {
     const record = (await stored(entry, raw, shape))!
     found.set(recordKey(entry, record.record), record)

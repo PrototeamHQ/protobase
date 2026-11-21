@@ -201,6 +201,17 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     const [{ id }] = (await sql<{ id: number }>`insert into posts (room_id, body) values (1, 'Welcome') returning id`.execute(pg.db)).rows as [{ id: number }]
     await drained()
     await vi.waitFor(() => expect(visitor.notices()).toEqual([{ kind: 'create', resource: 'posts', key: String(id), channel: 'rooms/1' }]))
+
+    // While the lobby is not public, a socket that joined it hears nothing of it, and a new ticket is refused; notices
+    // go in order, so the ones after it is public again, of that change and a post, show nothing came between.
+    await sql`update rooms set public = false where id = 1`.execute(pg.db)
+    await sql`insert into posts (room_id, body) values (1, 'Staff only')`.execute(pg.db)
+    await drained()
+    expect((await request('/api/relay/ticket', { body: { channels: ['rooms/1'] } })).status).toBe(404)
+    await sql`update rooms set public = true where id = 1`.execute(pg.db)
+    const [{ id: next }] = (await sql<{ id: number }>`insert into posts (room_id, body) values (1, 'Open again') returning id`.execute(pg.db)).rows as [{ id: number }]
+    await drained()
+    await vi.waitFor(() => expect(visitor.notices().map((notice) => `${notice.resource}/${notice.key}`)).toEqual([`posts/${id}`, 'rooms/1', `posts/${next}`]))
   })
 
   it('lets someone added to a conversation hear its next message without connecting again, and stops once they are removed', async () => {
