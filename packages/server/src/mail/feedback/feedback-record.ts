@@ -15,8 +15,11 @@ export const bounceTypes = ['hard', 'soft'] as const
 export type MailFeedback = {
   type: (typeof feedbackTypes)[number]
   bounce_type?: (typeof bounceTypes)[number]
-  /** The recipient's address. */
-  recipient: string
+  /**
+   * The recipient's address. A complaint may leave it out, as a provider that hides who complained does, and then
+   * names the message it is about; a bounce always names it.
+   */
+  recipient?: string
   /** The `Message-ID` header of the message it is about. */
   message_id?: string
   /** The provider's own id of that message. */
@@ -33,12 +36,15 @@ const text = z.string().trim().min(1).max(998)
 export const mailFeedbackBody = z.strictObject({
   type: z.enum(feedbackTypes),
   bounce_type: z.enum(bounceTypes).optional(),
-  recipient: z.email().max(320),
+  recipient: z.email().max(320).optional(),
   message_id: text.optional(),
   provider_message_id: text.optional(),
   reason: z.string().trim().min(1).max(10_000).optional(),
   occurred_at: z.iso.datetime({ offset: true }).optional(),
-}).refine((body) => body.type === 'bounce' || body.bounce_type === undefined, { message: 'Only a bounce has a bounce_type', path: ['bounce_type'] })
+})
+  .refine((body) => body.type === 'bounce' || body.bounce_type === undefined, { message: 'Only a bounce has a bounce_type', path: ['bounce_type'] })
+  .refine((body) => body.type === 'complaint' || body.recipient !== undefined, { message: 'A bounce names its recipient', path: ['recipient'] })
+  .refine((body) => body.recipient !== undefined || body.message_id !== undefined, { message: 'A complaint without a recipient names its message_id', path: ['message_id'] })
 
 /** Drops the fields whose value is missing, so a record names only what its source stated. */
 export const stated = (record: { [K in keyof MailFeedback]: MailFeedback[K] | null | undefined }): MailFeedback =>
