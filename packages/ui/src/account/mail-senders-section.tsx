@@ -1,6 +1,6 @@
 import { AtSign, Plus } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { AuthError, type MailSender, type MailSenderChange, type MailSenders } from '@protobase/client'
+import { AuthError, type MailSender, type MailSenderChange, type MailSenderCheck, type MailSenders } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
 import { Badge } from '../primitives/badge'
 import { Button } from '../primitives/button'
@@ -15,17 +15,23 @@ export type MailSendersSectionProps = {
   onAdd: (input: { address: string; name?: string; signature?: string }) => Promise<MailSender>
   onUpdate: (id: string, change: MailSenderChange) => Promise<unknown>
   onRemove: (id: string) => Promise<void>
+  /** Sends a test message from an address, and asks where that check stands (`senders.checks`). */
+  onCheck: (id: string) => Promise<MailSenderCheck>
+  onCheckResult: (id: string, check: string) => Promise<MailSenderCheck>
 }
 
-type Editing = { kind: 'add' } | { kind: 'change'; sender: MailSender } | { kind: 'remove'; sender: MailSender }
+// Changing an address just added checks it at once (`autoCheck`).
+type Editing = { kind: 'add' } | { kind: 'change'; sender: MailSender; autoCheck?: boolean } | { kind: 'remove'; sender: MailSender }
 
 const detailsOf = (sender: MailSender) => (sender.signature ? text('ownSignature') : text('genericSignature'))
 
 /**
  * The From addresses the person's mail goes out from, under their mailbox: its own and those they entered once, such
- * as its send-as addresses, each with its own signature or the generic one; one is the default.
+ * as its send-as addresses, each with its own signature or the generic one; one is the default. Where the app can
+ * check addresses, adding one sends a test message from it at once to see the From it arrives with, and its dialog
+ * checks it again; elsewhere the dialog says it cannot.
  */
-export const MailSendersSection = ({ senders: { address, senders }, onAdd, onUpdate, onRemove }: MailSendersSectionProps) => {
+export const MailSendersSection = ({ senders: { address, senders, checks = false }, onAdd, onUpdate, onRemove, onCheck, onCheckResult }: MailSendersSectionProps) => {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [editing, setEditing] = useState<Editing>()
@@ -38,14 +44,14 @@ export const MailSendersSection = ({ senders: { address, senders }, onAdd, onUpd
     setError(undefined)
   }
 
-  const attempt = async (action: () => Promise<unknown>) => {
+  // What the action answers is the dialog to show next, if any.
+  const attempt = async (action: () => Promise<Editing | void>) => {
     if (inFlight.current) return
     inFlight.current = true
     setBusy(true)
     setError(undefined)
     try {
-      await action()
-      setEditing(undefined)
+      setEditing((await action()) || undefined)
     } catch (failure) {
       // The browser's fetch rejects with a TypeError when the connection fails, before or after the server acted.
       if (failure instanceof TypeError) return setError(text('noAnswerFromServer'))
@@ -62,10 +68,17 @@ export const MailSendersSection = ({ senders: { address, senders }, onAdd, onUpd
     attempt(async () => {
       const name = input.name || null
       const signature = input.signature.trim() ? input.signature : null
-      if (editing?.kind === 'change') return onUpdate(editing.sender.id, { name, signature, isDefault: input.isDefault })
+      if (editing?.kind === 'change') return void (await onUpdate(editing.sender.id, { name, signature, isDefault: input.isDefault }))
       const added = await onAdd({ address: input.address, ...(name && { name }), ...(signature && { signature }) })
       if (input.isDefault) await onUpdate(added.id, { isDefault: true })
+      if (checks) return { kind: 'change', sender: { ...added, isDefault: input.isDefault }, autoCheck: true }
     })
+
+  const checkOf = (sender: MailSender, auto = false) => ({
+    available: checks,
+    calls: { start: () => onCheck(sender.id), result: (check: string) => onCheckResult(sender.id, check) },
+    ...(auto && { auto }),
+  })
 
   return (
     <div className="mt-5 border-t pt-4">
@@ -82,7 +95,7 @@ export const MailSendersSection = ({ senders: { address, senders }, onAdd, onUpd
                 <span className="block text-xs text-muted-foreground">{text('mailboxOwnAddress')}</span>
               </span>
               {chosen ? (
-                <Button size="sm" variant="ghost" loading={busy} onClick={() => void attempt(() => onUpdate(chosen.id, { isDefault: false }))}>
+                <Button size="sm" variant="ghost" loading={busy} onClick={() => void attempt(async () => void (await onUpdate(chosen.id, { isDefault: false })))}>
                   {text('makeDefault')}
                 </Button>
               ) : (
@@ -113,8 +126,10 @@ export const MailSendersSection = ({ senders: { address, senders }, onAdd, onUpd
         <Plus className="size-3.5" />
         {text('addFromAddress')}
       </Button>
-      {editing?.kind === 'add' && <MailSenderDialog busy={busy} error={error} onSave={(input) => void save(input)} onClose={close} />}
-      {editing?.kind === 'change' && <MailSenderDialog key={editing.sender.id} sender={editing.sender} busy={busy} error={error} onSave={(input) => void save(input)} onClose={close} />}
+      {editing?.kind === 'add' && <MailSenderDialog check={{ available: checks }} busy={busy} error={error} onSave={(input) => void save(input)} onClose={close} />}
+      {editing?.kind === 'change' && (
+        <MailSenderDialog key={editing.sender.id} sender={editing.sender} check={checkOf(editing.sender, editing.autoCheck)} busy={busy} error={error} onSave={(input) => void save(input)} onClose={close} />
+      )}
       {editing?.kind === 'remove' && (
         <Dialog
           title={text('removeFromAddress', { address: editing.sender.address })}

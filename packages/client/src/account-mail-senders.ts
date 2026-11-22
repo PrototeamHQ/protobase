@@ -8,8 +8,17 @@ import type { BetterAuthClient } from './better-auth-client'
  */
 export type MailSender = { id: string; address: string; name?: string; signature?: string; isDefault: boolean }
 
-/** The person's From addresses, and their mailbox's own address when its link names it. */
-export type MailSenders = { address?: string; senders: MailSender[] }
+/**
+ * The person's From addresses, their mailbox's own address when its link names it, and whether the app can check that
+ * mail from an address really goes out from it (`checkMailSender`).
+ */
+export type MailSenders = { address?: string; senders: MailSender[]; checks?: boolean }
+
+/**
+ * Where a check of a From address stands: its test message is on its way (`check` names it), arrived from that
+ * address, arrived from another address (`from`), as when the mailbox does not have it set up, or the app cannot check.
+ */
+export type MailSenderCheck = { status: 'waiting'; check: string } | { status: 'confirmed'; from: string } | { status: 'mismatch'; from: string } | { status: 'unchecked' }
 
 /** What changes of an address: `name: null` drops its name; `signature: null` drops its own, so the generic one applies. */
 export type MailSenderChange = { name?: string | null; signature?: string | null; isDefault?: boolean }
@@ -41,5 +50,19 @@ export const accountMailSenders = (client: BetterAuthClient) => ({
   removeMailSender: async (id: string) => {
     const { error } = await client.$fetch('/account/mail-senders/remove', { method: 'POST', body: { id } })
     if (error) throw authError(error, 'Could not remove the From address')
+  },
+
+  /** Sends a test message from an address through the person's mailbox, to see the From it arrives with. */
+  checkMailSender: async (id: string): Promise<MailSenderCheck> => {
+    const { data, error } = await client.$fetch<MailSenderCheck>('/account/mail-senders/check', { method: 'POST', body: { id } })
+    if (error || !data) throw authError(error, 'Could not check the From address')
+    return data
+  },
+
+  /** Where the check `check` of an address stands: `waiting` until its test message arrived. */
+  mailSenderCheckResult: async (id: string, check: string): Promise<MailSenderCheck> => {
+    const { data, error } = await client.$fetch<{ status: 'waiting' } | MailSenderCheck>('/account/mail-senders/check-result', { method: 'POST', body: { id, check } })
+    if (error || !data) throw authError(error, 'Could not check the From address')
+    return data.status === 'waiting' ? { status: 'waiting', check } : data
   },
 })
