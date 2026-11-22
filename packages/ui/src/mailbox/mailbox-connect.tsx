@@ -18,9 +18,21 @@ type MailboxConnectProps = {
 /**
  * Why mail cannot go out from the person's own mailbox, with a button to connect each mailbox the app offers: it starts
  * the same sign-in as the account page's, which comes back to this page. A sign-in through the mailbox's provider that
- * did not allow sending mail is named, so it is not taken for a mailbox.
+ * did not allow sending mail is named, so it is not taken for a mailbox. For an address another person shared
+ * (`owner: 'other'`), only they can connect their mailbox again: it says so, with nothing to connect.
  */
 export const MailboxConnect = ({ offers, problem, onConnect }: MailboxConnectProps) => {
+  if (problem?.owner === 'other') return <OthersMailbox problem={problem} />
+  return <OwnMailbox offers={offers} {...(problem && { problem })} onConnect={onConnect} />
+}
+
+const OthersMailbox = ({ problem }: { problem: MailboxProblem }) => (
+  <ActionCard title={text('othersTitle')} tone="warning">
+    <p className="text-body">{text(problem.code === 'link_expired' ? 'othersExpired' : 'othersMissing', { address: problem.address ?? '' })}</p>
+  </ActionCard>
+)
+
+const OwnMailbox = ({ offers, problem, onConnect }: MailboxConnectProps) => {
   const signInProviders = useOptionalAuth()?.signInProviders ?? []
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()

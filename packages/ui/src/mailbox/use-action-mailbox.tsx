@@ -1,7 +1,6 @@
 import type { ActionModel } from '@protobase/schema'
 import { MailboxConnect } from './mailbox-connect'
 import { mailboxProblem } from './mailbox-problem'
-import { OthersMailbox } from './others-mailbox'
 import { useMailboxOffers } from './use-mailbox-offers'
 
 /**
@@ -18,7 +17,7 @@ export const useActionMailbox = (action: ActionModel, failure: unknown) => {
   const check = action.mailbox === true
   const { offers, error, connect } = useMailboxOffers(others ? undefined : problem, check)
   const offered = offers !== undefined && offers.length > 0
-  if (others && !offered) return { notice: <OthersMailbox problem={others} />, explained: true, blocked: check && offers === undefined }
+  if (others && !offered) return { notice: <MailboxConnect offers={[]} problem={others} onConnect={connect} />, explained: true, blocked: check && offers === undefined }
   const notice = offered ? (
     <MailboxConnect offers={offers} problem={problem} onConnect={connect} />
   ) : error ? (

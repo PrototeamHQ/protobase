@@ -1348,7 +1348,7 @@ An `a.action` whose handler sends mail from the signed-in person's [own mailbox]
 a.action('send_invoice', { label: 'Send', icon: 'send', mailbox: true, confirm: 'Send the invoice from your own mailbox?' })
 ```
 
-Any action whose handler fails with a function's [mailbox problem](/reference/email/#from-someones-own-mailbox) (`not_linked` or `link_expired`) gets the same offer in place of the bare error, worded **Connect Gmail again** for an expired link: in its dialog, or as its error toast's button. A failure that is not about the mailbox shows as it is. <gap>An action that comes back from connecting a mailbox cannot reopen its dialog because keeping an open dialog in the page's address is not implemented; the person presses the button again.</gap>
+Any action whose handler fails with a function's [mailbox problem](/reference/email/#from-someones-own-mailbox) (`not_linked` or `link_expired`) gets the same offer in place of the bare error, worded **Connect Gmail again** for an expired link: in its dialog, or as its error toast's button. When the mailbox at fault is that of a colleague who [shared the From address](/reference/email/#sharing-a-from-address) (`owner: "other"`), the dialog says instead that the address's owner must connect their mailbox again, and offers nothing to connect; the toast has no button. A failure that is not about the mailbox shows as it is. <gap>An action that comes back from connecting a mailbox cannot reopen its dialog because keeping an open dialog in the page's address is not implemented; the person presses the button again.</gap>
 
 <StoryFrame id="record-page-send-from-a-mailbox--no-mailbox" title="Send with no mailbox linked, offering to connect Gmail" height={600} />
 
