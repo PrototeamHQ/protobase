@@ -127,6 +127,7 @@
     "useRecordCalls",
     "useResourceClient",
     "useSeries",
+    "useShownPeople",
     "useSiblingPage",
     "useSignedInUser",
     "useStatuses",
