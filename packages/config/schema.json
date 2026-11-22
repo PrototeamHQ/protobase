@@ -6410,6 +6410,13 @@
               "$ref": "#/definitions/EnvValue"
             }
           ]
+        },
+        "events": {
+          "description": "The events its members may send each other on a channel through the relay, by name, such as `{ ring: ... }`; the\nrelay refuses any other. A conversation page with `typing` declares `typing` itself.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/RelayClientEvent"
+          }
         }
       },
       "additionalProperties": false
@@ -6455,6 +6462,56 @@
         "resource",
         "channel",
         "user"
+      ],
+      "additionalProperties": false
+    },
+    "RelayClientEvent": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "description": "The payload's JSON schema, draft 2020-12 unless it names another; it may load no other document.",
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "maxBytes": {
+          "description": "The payload's largest size in bytes, 1 to 65536.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "perSecond": {
+          "description": "How often one person may send it, a second, over all their sockets.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        },
+        "burst": {
+          "description": "How many one person may send at once before `perSecond` holds them back.",
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "maxBytes",
+        "perSecond",
+        "burst"
       ],
       "additionalProperties": false
     },

@@ -17,6 +17,23 @@ export type RelayChannelOptions = {
   members?: RelayMembers
   /** A field of the records noticed on the channel that lists the user ids a record mentions, such as a message's `mentions`. */
   mentions?: string
+  /**
+   * The events its members may send each other on a channel through the relay, by name, such as `{ ring: ... }`; the
+   * relay refuses any other. A conversation page with `typing` declares `typing` itself.
+   */
+  events?: Record<string, RelayClientEvent>
+}
+
+/** An event clients may send on a channel: its payload's JSON schema and size, and how often one person may send it. */
+export type RelayClientEvent = {
+  /** The payload's JSON schema, draft 2020-12 unless it names another; it may load no other document. */
+  schema: Record<string, unknown>
+  /** The payload's largest size in bytes, 1 to 65536. */
+  maxBytes: number
+  /** How often one person may send it, a second, over all their sockets. */
+  perSecond: number
+  /** How many one person may send at once before `perSecond` holds them back. */
+  burst: number
 }
 
 /**
@@ -55,7 +72,30 @@ export type RealtimeRelayOptions = {
 const appPattern = /^[a-z0-9_-]{1,64}$/
 const minKeyLength = 32
 
+const maxEventBytes = 65536
+// Names the relay keeps for its own frames.
+const reservedEvents = new Set(['heartbeat', 'interest', 'presence', 'client_event'])
+
+/**
+ * An event's limit as a number: one read from the environment (`{ "$env": ... }` in a JSON config) is text, such as
+ * `"128"`, and counts as the number it writes; any other value stays as it is, for the check to refuse.
+ */
+export const eventLimit = (value: unknown) => (typeof value === 'string' && value.trim() !== '' ? Number(value) : value)
+
 const nonEmpty = (value: unknown): value is string => typeof value === 'string' && value.length > 0
+
+const checkEvents = (where: string, events: unknown) => {
+  if (typeof events !== 'object' || events === null || Array.isArray(events)) throw new Error(`${where} must be an object of events by name`)
+  for (const [name, event] of Object.entries(events as Record<string, RelayClientEvent>)) {
+    if (name.length === 0 || new TextEncoder().encode(name).length > 64 || reservedEvents.has(name) || name.startsWith('phx_')) throw new Error(`${where}: "${name}" must be 1 to 64 bytes and none of heartbeat, interest, presence, client_event and phx_*`)
+    const schema = event?.schema
+    if (typeof schema !== 'object' || schema === null || Array.isArray(schema)) throw new Error(`${where}.${name}.schema must be a JSON schema object`)
+    const [maxBytes, perSecond, burst] = [event.maxBytes, event.perSecond, event.burst].map(eventLimit)
+    if (!Number.isInteger(maxBytes) || (maxBytes as number) < 1 || (maxBytes as number) > maxEventBytes) throw new Error(`${where}.${name}.maxBytes must be a whole number from 1 to ${maxEventBytes}`)
+    if (typeof perSecond !== 'number' || !(perSecond > 0) || !Number.isFinite(perSecond)) throw new Error(`${where}.${name}.perSecond must be a positive number`)
+    if (!Number.isInteger(burst) || (burst as number) < 1) throw new Error(`${where}.${name}.burst must be a positive whole number`)
+  }
+}
 
 /** The options, or an error naming what is wrong with their shape; `relayModels` checks them against the resources. */
 export const checkRelayOptions = (options: RealtimeRelayOptions) => {
@@ -69,6 +109,7 @@ export const checkRelayOptions = (options: RealtimeRelayOptions) => {
     const members = channel?.members
     if (members !== undefined && !(nonEmpty(members.resource) && nonEmpty(members.channel) && nonEmpty(members.user))) throw new Error(`realtime.relay.channels.${name}.members must be { resource, channel, user }`)
     if (channel?.mentions !== undefined && !nonEmpty(channel.mentions)) throw new Error(`realtime.relay.channels.${name}.mentions must name a field`)
+    if (channel?.events !== undefined) checkEvents(`realtime.relay.channels.${name}.events`, channel.events)
   }
   const presence = options.presence
   if (presence !== undefined) {
