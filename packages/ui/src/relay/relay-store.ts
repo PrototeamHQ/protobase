@@ -13,6 +13,7 @@ export const createRelayStore = () => {
   const typers = createTypersStore()
   const noticeListeners = new Set<(notice: RelayNotice) => void>()
   const resyncListeners = new Set<() => void>()
+  const joinedListeners = new Set<(channel: string) => void>()
   const own: string[] = []
   const viewed = new Map<string, number>()
   const viewListeners = new Set<(channel: string) => void>()
@@ -38,6 +39,9 @@ export const createRelayStore = () => {
       typers.clear()
       for (const listener of [...resyncListeners]) listener()
     },
+    onJoined: (channel) => {
+      for (const listener of [...joinedListeners]) listener(channel)
+    },
   }
 
   return {
@@ -45,6 +49,8 @@ export const createRelayStore = () => {
     subscribe: typers.subscribe,
     onNotice: (listener: (notice: RelayNotice) => void) => listen(noticeListeners, listener),
     onResync: (listener: () => void) => listen(resyncListeners, listener),
+    /** Hears of each channel the person was added to after the page connected, such as a new direct message, once joined. */
+    onJoined: (listener: (channel: string) => void) => listen(joinedListeners, listener),
     /** Remembers a message the page itself sent, by key, which no unread count takes; only the latest few. */
     sent: (key: string) => {
       own.push(key)

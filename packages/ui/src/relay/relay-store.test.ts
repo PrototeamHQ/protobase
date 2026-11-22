@@ -67,4 +67,14 @@ describe('createRelayStore', () => {
     expect(store.own().has('59')).toBe(true)
     expect(store.own().size).toBe(50)
   })
+
+  it('hands each channel the person was added to on, keeping who types', () => {
+    const store = createRelayStore()
+    const joined = vi.fn()
+    store.onJoined(joined)
+    store.handlers.onEvent!({ event: 'typing', payload: { typing: true }, from: { user: 'u2', connection: 'c' }, at: 0, channel: 'a/1' })
+    store.handlers.onJoined!('a/2')
+    expect(joined).toHaveBeenCalledWith('a/2')
+    expect(store.typers().size).toBe(1)
+  })
 })

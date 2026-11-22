@@ -2,9 +2,13 @@ import type { ResourceChange } from '../changes/resource-change'
 import type { Row } from '../types'
 import type { MembersCommand, PublishCommand, RelayCommand } from './relay-commands'
 import type { MembersModel, RelayModels } from './relay-models'
+import { peopleChannel } from './presence-commands'
 
 /** The event every notice of a change is published as. */
 export const changeEvent = 'change'
+
+/** The event that tells a person on `people` of a channel they were added to, so their open pages join it. */
+export const joinedEvent = 'joined'
 
 /** A channel by name: `<resource>/<key>`, as the record channels name it too. */
 export const channelName = (resource: string, key: unknown) => `${resource}/${String(key)}`
@@ -76,14 +80,24 @@ const notice = (models: RelayModels, change: ResourceChange, channel: string, me
   }
 }
 
+// Tells only the people added to a channel, on `people`, which channel it is: nobody else learns who joined what.
+const joinedCommand = (sequence: string, add: MembersCommand): PublishCommand => ({
+  kind: 'publish',
+  id: `${sequence}:${add.channel}:${joinedEvent}`,
+  channel: peopleChannel,
+  users: add.users,
+  event: joinedEvent,
+  payload: { channel: add.channel },
+})
+
 // A notice to everyone joined goes out only on a channel whose record is public (`open`); one to people, to someone.
 const reaches = (command: PublishCommand, open: ReadonlySet<string>) => (command.users === undefined ? open.has(command.channel) : command.users.length > 0)
 
 /**
  * The relay's commands for a dispatched batch, in commit order: for each change, a person who joins a channel joins it
- * first, then each channel the record was or is on hears one notice, then a person who left it leaves. A channel with
- * members hears it only through its members as the app's database has them (`members`), and the person who joined or
- * left; an open one through everyone joined to it, and only while its record is public (`open`), so sockets that joined
+ * first and hears `joined` of it on `people`, then each channel the record was or is on hears one notice, then a person
+ * who left it leaves. A channel with members hears it only through its members as the app's database has them
+ * (`members`), and the person who joined or left; an open one through everyone joined to it, and only while its record is public (`open`), so sockets that joined
  * it before hear nothing once it is not. A notice of a channel with no one to reach is left out.
  */
 export const changeCommands = (models: RelayModels, changes: readonly ResourceChange[], members: ChannelMembers, open: ReadonlySet<string>): RelayCommand[] =>
@@ -92,5 +106,6 @@ export const changeCommands = (models: RelayModels, changes: readonly ResourceCh
     const notices = noticedChannels(models, change)
       .map((channel) => notice(models, change, channel, members, moved))
       .filter((command) => reaches(command, open))
-    return [...moved.filter((command) => command.kind === 'add'), ...notices, ...moved.filter((command) => command.kind === 'remove')]
+    const adds = moved.filter((command) => command.kind === 'add')
+    return [...adds.flatMap((add) => [add, joinedCommand(change.sequence, add)]), ...notices, ...moved.filter((command) => command.kind === 'remove')]
   })

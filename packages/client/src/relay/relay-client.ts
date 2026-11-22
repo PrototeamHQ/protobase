@@ -5,6 +5,9 @@ import { RelayRefusal, type RelayEvent, type RelayHandlers, type RelayNotice, ty
 /** The relay's own topic: direct events, and the person's presence. */
 export const relayTopic = 'relay'
 
+/** The channel every signed-in person's ticket lists, on which the app tells them of a channel they were added to. */
+export const peopleTopic = 'people'
+
 /** Whether someone is at the page: `away` while it is hidden or the device sleeps, `online` once it is back. */
 export type OwnPresence = 'online' | 'away'
 
@@ -24,8 +27,9 @@ const isEvent = (payload: Record<string, unknown>): payload is RelayEvent =>
 
 /**
  * The client's realtime relay: one socket for every caller of `follow`, opened by the first and closed after the last.
- * It joins the relay topic and every channel the ticket lists, and any channel asked for with `join`, and tells each
- * follower every change notice and client event. Once it connected again after a drop, followers hear `onResync`.
+ * It joins the relay topic and every channel the ticket lists, any channel asked for with `join`, and each channel a
+ * `joined` event on `people` names, and tells each follower every change notice and client event, and each channel it
+ * joined so. Once it connected again after a drop, followers hear `onResync`.
  */
 export const relayClient = (options: Options) => {
   const followers = new Set<RelayHandlers>()
@@ -45,18 +49,32 @@ export const relayClient = (options: Options) => {
     each((handlers) => handlers.onStatus?.(next))
   }
 
-  const join = (topic: string) => {
+  const join = (topic: string, then?: () => void) => {
     const interest = viewing.get(topic)
     socket
       .request(topic, 'phx_join', interest ? { viewing: interest } : {}, String(++joins))
-      .then(() => void joined.add(topic))
+      .then(() => {
+        joined.add(topic)
+        then?.()
+      })
       .catch(quietly)
+  }
+
+  // The app added the person to a channel after the socket connected, such as a new direct message: join it, and once
+  // joined tell the followers, who read again what they show. The relay refuses a channel it did not allow them.
+  const added = (channel: string) => {
+    if (joined.has(channel)) return
+    join(channel, () => each((handlers) => handlers.onJoined?.(channel)))
   }
 
   const hear = (frame: Frame) => {
     if (frame.event === 'phx_close' || frame.event === 'phx_error') return void joined.delete(frame.topic)
     if (frame.event === 'change') {
       if (isNotice(frame.payload)) each((handlers) => handlers.onNotice?.(frame.payload as RelayNotice))
+      return
+    }
+    if (frame.topic === peopleTopic && frame.event === 'joined') {
+      if (typeof frame.payload.channel === 'string') added(frame.payload.channel)
       return
     }
     if (frame.event === 'client_event') {

@@ -78,7 +78,7 @@ The [dispatch](/reference/events/) that turns each transaction's changes into ev
 
 `kind` is `create`, `update`, `delete` or `undelete`; `mentions` is there with `mentions` set. A notice tells clients what changed, so they read only the records they show. On a channel with members it reaches its members as the database holds them at dispatch, and a person who joined or left with that change; on an open channel, everyone joined to it, while the anonymous role reads its record as it stands at dispatch. The relay sends a notice once, however often the job sends it again.
 
-A members record that is created or undeleted adds its person to the channel on the sockets they have open, before its notice, and one that is deleted or soft-deleted takes them out after it: they can join, or are closed out, without connecting again. Commands go in commit order, one job at a time; while the relay is down, they wait and try again, once a minute at most. A command the relay refuses, such as one over its size limit, goes to the app's error reporter and is passed over.
+A members record that is created or undeleted adds its person to the channel on the sockets they have open, before its notice, and one that is deleted or soft-deleted takes them out after it: they can join, or are closed out, without connecting again. The person added, and no one else, also hears a `joined` event on `people` that names the channel, `{ "channel": "conversations/7" }`, so their pages join it. Commands go in commit order, one job at a time; while the relay is down, they wait and try again, once a minute at most. A command the relay refuses, such as one over its size limit, goes to the app's error reporter and is passed over.
 
 Once an open channel's record stops being public, its notices stop, and a new ticket refuses it. <gap>Sockets that joined an open channel stay joined after its record stops being public, hearing nothing of it, until they reconnect, because closing a channel on every socket is not implemented.</gap>
 
@@ -139,7 +139,7 @@ A conversation page with `typing` declares the event on its resource's channels:
 
 With the relay, a conversation page's `typing` needs its resource among `channels`: the server refuses to start otherwise.
 
-<gap>A page does not hear of a channel the person joined after it connected, such as a new direct message, until it opens that conversation or connects again, because telling a person's sockets of a new channel is not implemented.</gap> <gap>An unread count also counts the reader's own messages sent from another device or tab, until they open the conversation, because notices do not name who made the change.</gap>
+A page joins a channel the person is added to while it is open, such as a new direct message, as it hears `joined`, and reads again what it shows once, so a sidebar group lists the conversation with who types and its unread count at once. <gap>An unread count also counts the reader's own messages sent from another device or tab, until they open the conversation, because notices do not name who made the change.</gap>
 
 ### From code
 
@@ -151,6 +151,7 @@ const stop = client.relay.follow({
   onEvent: (event) => {}, // { event, payload, from: { user, connection }, at, channel } or, direct, { ..., to }
   onResync: () => {}, // connected again after a drop: read again what is shown
   onStatus: (status) => {}, // 'connecting', 'open' or 'ended'
+  onJoined: (channel) => {}, // joined a channel the person was added to: read again what is shown
 })
 await client.relay.send('conversations/7', 'typing', { typing: true })
 await client.relay.direct('u2', 'ring', { call: 12 })
@@ -160,7 +161,7 @@ client.relay.presence('away')
 
 | | |
 | --- | --- |
-| `follow(handlers)` | Hears every notice and event until the returned function is called. The first follower opens the socket and the last closes it. The socket connects with a fresh ticket each time, joins the relay's own topic and every channel the ticket lists, and connects again after a pause that grows with each failure, up to 30 seconds; an app that refuses a ticket with a client error, such as for a session that ended, ends it (`ended`). |
+| `follow(handlers)` | Hears every notice and event until the returned function is called. The first follower opens the socket and the last closes it. The socket connects with a fresh ticket each time, joins the relay's own topic and every channel the ticket lists, and each channel a `joined` event names, telling `onJoined` once it joined it, and connects again after a pause that grows with each failure, up to 30 seconds; an app that refuses a ticket with a client error, such as for a session that ended, ends it (`ended`). |
 | `send(channel, event, payload)` | Sends a declared event to the channel's other sockets. Rejects with a `RelayRefusal` and the relay's reason, such as `rate_limited` or `event_not_allowed`, or `not_joined`. |
 | `direct(to, event, payload)` | Sends a declared direct event to every device of a person who shares a channel with the sender. |
 | `join(channel)` | Joins a channel the ticket did not list, such as one the person joined since, and again after each reconnect until the returned function is called. The socket stays in the channel until it next connects. |

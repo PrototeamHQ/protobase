@@ -11,7 +11,7 @@ import { sourceStatusOf } from './with-sources'
  * Keeps what the page shows of the app's `.live()` resources current: hears which records change and reads again the
  * lists, records and counts of their resources. With the app's realtime relay, the resources it notices are heard of
  * from it, only those of the channel an open conversation shows while one is open, and all of them read again once
- * after it reconnects; the others from `client.live`, which connects only when
+ * after it reconnects or joins a channel the person was added to, such as a new direct message; the others from `client.live`, which connects only when
  * the caller reads such a resource.
  */
 export const useLiveUpdates = (meta: MetaData) => {
@@ -27,9 +27,11 @@ export const useLiveUpdates = (meta: MetaData) => {
     const refresh = liveRefresh(queryClient, () => focusRefresh?.paused() ?? false)
     const stopNotices = relay.store.onNotice((notice) => relay.store.shows(notice) && refresh.changed([notice.resource]))
     const stopResync = relay.store.onResync(() => refresh.changed(noticed))
+    const stopJoined = relay.store.onJoined(() => refresh.changed(noticed))
     return () => {
       stopNotices()
       stopResync()
+      stopJoined()
       refresh.stop()
     }
   }, [relay, noticed, queryClient, focusRefresh])
