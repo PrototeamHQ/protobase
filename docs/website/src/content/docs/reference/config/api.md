@@ -111,6 +111,14 @@ The write hooks by name, run in this order inside each create's, update's and de
 export default defineConfig({ writeHooks: ['queue-sent-invoice'] })
 ```
 
+A token made on create, by contrast, goes in the resource, so its `not null` column is written with the record:
+
+```ts
+resource('api_tokens')
+  // ...
+  .prepare((values, { operation }) => (operation === 'create' ? { ...values, token: randomBytes(24).toString('base64url') } : values))
+```
+
 ## mcpEndpoint
 
 - **Type:** `{ sql?: boolean; writes?: boolean | { resources?: string[]; rolesWithoutApproval?: string[] }; instructions?: string } | false`
