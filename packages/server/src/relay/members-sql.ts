@@ -2,6 +2,7 @@ import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import { quoteIdent, tableSql } from '../changes/capture-sql'
 import { channelName, type ChannelMembers } from './change-commands'
+import type { CoMembers } from './presence-commands'
 import type { MembersModel, RelayModels } from './relay-models'
 
 const column = (members: MembersModel, field: string) => sql.raw(quoteIdent(members.model.fields[field]!.column))
@@ -47,4 +48,29 @@ export const memberships = async (db: Db, models: RelayModels, user: string) => 
     channels.push(...rows.map((row) => channelName(resource, row.channel)))
   }
   return channels
+}
+
+const aliased = (alias: string, members: MembersModel, field: string) => sql.raw(`${alias}.${quoteIdent(members.model.fields[field]!.column)}`)
+
+const liveAs = (alias: string, members: MembersModel) => {
+  const field = members.model.softDelete
+  return field === undefined ? sql`true` : sql`${aliased(alias, members, field)} is null`
+}
+
+/**
+ * By person, everyone who shares a channel with members with them, themselves included, in one query over every
+ * members table, in the caller's transaction: who hears of their presence. Its user and relation columns need indexes.
+ */
+export const coMembers = async (db: Db, models: RelayModels, people: readonly string[]): Promise<CoMembers> => {
+  const found: CoMembers = new Map()
+  const tables = [...models.channels.values()].flatMap(({ members }) => (members ? [members] : []))
+  if (people.length === 0 || tables.length === 0) return found
+  const pairs = tables.map(
+    (members) => sql`select ${aliased('a', members, members.user)}::text as person, ${aliased('b', members, members.user)}::text as other
+      from ${sql.raw(tableSql(members.model))} a join ${sql.raw(tableSql(members.model))} b on ${aliased('b', members, members.field)} = ${aliased('a', members, members.field)}
+      where ${aliased('a', members, members.user)} = any(${people}) and ${liveAs('a', members)} and ${liveAs('b', members)}`,
+  )
+  const { rows } = await sql<{ person: string; other: string }>`${sql.join(pairs, sql` union `)}`.execute(db)
+  for (const row of rows) found.set(row.person, [...(found.get(row.person) ?? []), row.other])
+  return found
 }

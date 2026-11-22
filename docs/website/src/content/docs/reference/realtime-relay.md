@@ -6,7 +6,7 @@ description: Hand the app's realtime connections to a relay, so the app and its 
 The app can hand its realtime connections to a relay, the open source [protobase-realtime](https://github.com/PrototeamHQ/protobase-realtime) server: the relay holds everyone's WebSocket, and the app talks to it only when something changes, so a quiet app and its database sleep while people stay connected. The relay keeps no data and never reads the app's database: the app tells it who is in which channel, what changed and for whom, and which sign-in sessions ended. It works beside the app's own [channels](/reference/channels/) and [live updates](/reference/live/), which stay as they are.
 
 :::caution[In development]
-The app's side is built: tickets, membership, change notices and session ends. <gap>Pages cannot connect to the relay from `@protobase/client` because its relay client is not implemented.</gap> <gap>The relay cannot report presence to the app because the app's presence endpoint is not implemented.</gap> <gap>Clients cannot send each other events such as typing through the relay because declaring client events per channel resource is not implemented.</gap>
+The app's side is built: tickets, membership, change notices, session ends and presence. <gap>Pages cannot connect to the relay from `@protobase/client` because its relay client is not implemented.</gap> <gap>Clients cannot send each other events such as typing through the relay because declaring client events per channel resource is not implemented.</gap>
 :::
 
 ## Config
@@ -26,6 +26,7 @@ export default defineConfig(({ env }) => ({
         },
         rooms: {},
       },
+      presence: { resource: 'presences', user: 'user_id', status: 'status', at: 'since', key: env.RELAY_PRESENCE_KEY! },
     },
   },
 }))
@@ -39,6 +40,7 @@ export default defineConfig(({ env }) => ({
 | `channels` | The channel resources, by name. Each record of one is a channel, `<resource>/<key>`, named as its [record channel](/reference/channels/) is; the resource needs a key of one field. |
 | `channels.<resource>.members` | Where the channel's members come from: a resource whose records each put one person in one channel, with its relation field to the channel resource (`channel`) and its field of the person's user id (`user`). Index both columns: tickets read by the user, notices by the channel. Without `members`, the channel is open: a channel of a public record, which tickets list when asked (see [Tickets](#tickets)). |
 | `channels.<resource>.mentions` | A field of the records noticed on the channel that lists the user ids they mention, an array or one id, which [notices](#notices) carry. |
+| `presence` | Turns on [presence](#presence): the app's own resource it is kept in, its fields of the person's user id (`user`), the status (`status`) and when it began (`at`), and the bearer token of the relay's reports (`key`), at least 32 characters. |
 
 The relay needs the app's own [sign-in](/reference/auth/), whose sessions its tickets name, with its store in the app's own database, as the `auth` config puts it: an auth store in another database is refused. A members resource's changes must be captured, so declare [`.live()`](/reference/live/) on it; the relay hears of the changes of every resource whose changes are captured, such as a live one, that is a channel resource or has a relation field to one. [`protobase migration`](/reference/cli/#migration) writes the trigger that ends a deleted session's sockets, in the `relay` schema, and the server checks it at start.
 
@@ -60,7 +62,7 @@ It starts the relay on the first load of a config with `realtime.relay`, an edit
 
 A client connects to the relay with a ticket from `POST /api/relay/ticket`, with `{ "channels": [...] }`, optional, as JSON. The answer is `{ ticket, url, expiresAt }`: the relay's socket address and a ticket that connects once, within a minute. Every connection, a reconnect too, takes a new ticket.
 
-- **Signed in:** the ticket names the person and the sign-in session they called with, so a device that connects makes no new session, and lists every channel they are a member of, as the members resources hold it. A caller without a session of the app, such as an API key or an outside app acting for the user, is refused with `403`; a session that ended with `401`.
+- **Signed in:** the ticket names the person and the sign-in session they called with, so a device that connects makes no new session, and lists every channel they are a member of, as the members resources hold it, and `people`, which every signed-in person has and [presence](#presence) is published on. A caller without a session of the app, such as an API key or an outside app acting for the user, is refused with `403`; a session that ended with `401`.
 - **Visitors:** with an `anonymous` role, a caller without a token gets a ticket of an anonymous session of its own, which receives and never sends.
 - **Open channels:** both list the channels they ask for in `channels` of resources without `members` whose records are public: the `anonymous` role may read them, as `GET /api/v1/<resource>/<key>` decides it for a visitor. Someone's own access to a record never makes its channel open, so no one's access to one can end while their socket stays open. A channel there is none of, one whose record is not public and one of a resource with members are refused alike with `404`; a record only some people may read takes `members`. A ticket lists at most 200 channels (`400`, or `422` when the memberships are more).
 
@@ -81,3 +83,32 @@ Once an open channel's record stops being public, its notices stop, and a new ti
 ## Sessions
 
 When a sign-in session ends, its sockets close: a trigger on the sessions table queues a `relay.close-sessions` job in the deleting transaction, for a sign-out, a revoke, a ban, a newer sign-in in the same browser or a delete in SQL alike, and the job tells the relay to close them. A ticket also queues a `relay.session-expiry` job for its session's expiry, once for each session: it closes the session's sockets once the session expired, and waits for the new expiry of one that was extended meanwhile. The person's other sessions stay connected. The relay itself keeps no timers.
+
+## Presence
+
+With `presence`, the relay reports who comes online, goes away and goes offline, combined over their devices, and the app keeps it in a resource of its own, one record per person:
+
+```ts
+export const presences = resource('presences')
+  .fields({ user_id: f.text(), status: f.enum(['online', 'away', 'offline']), since: f.timestamp() })
+  .primaryKey((r) => r.user_id)
+  .live()
+  .events((e) => [e.updated('wentOffline', { when: 'status = "offline"' })])
+```
+
+The resource is keyed by its user field, its status field is text or an enum of `online`, `away` and `offline`, and its `at` field a timestamp; its changes must be captured, such as with [`.live()`](/reference/live/). The server refuses to start otherwise. Protobase adds no table of its own.
+
+Only the relay writes the records, so give no role `presences.create`, `presences.update` or `presences.delete`: whoever may write one can set anyone's presence and raise its events. A role that reads the resource reads the presence of everyone its rows allow, which can reach further than `people` does, so grant `presences.read` no wider than that.
+
+The relay posts its reports to `POST /api/relay/presence` with the presence key as its bearer token, never a sign-in; the [apps file entry](/reference/cli/#relay-app) names the address. A report holds at most 500 changes, each a person's status and when it began. The app writes them in one statement, which replaces a record's status only with one that began later, and answers `204`: a report the relay sends again, or one that arrives late, changes nothing. A report with a missing or wrong key is refused with `401` before its body is read. To change the key, change it in the config and in the apps file; the relay sends a refused report again, waiting up to a minute between tries, until the app takes it, so no change is lost. When the relay restarted, which a report says with its start time, everyone it has not reported since and who is not offline yet is set offline as of that start, once in each server process for each start; the relay sends no report until someone's status changes, so this waits for the first one.
+
+Each write goes through the resource's table, so its changes raise the resource's [events](/reference/events/), [webhooks](/reference/webhooks/) and [workflows](/reference/workflows/) as any other record's do, such as a workflow on `presences.wentOffline`. An offline report raises its event once.
+
+Each change of a person's presence is also published on `people` as a `presence_changed` event, the same bytes to everyone who shares a channel with members with them, themselves included, as the members tables hold it at dispatch, read for the whole batch in one query:
+
+```json
+{ "user": "u1", "status": "offline", "at": "2026-11-21T10:00:00.000Z" }
+```
+
+A person who shares no channel is published to no one. <gap>A page cannot show who of the others is online because reading presence in the pages is not implemented.</gap>
+

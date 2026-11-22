@@ -19,6 +19,23 @@ export type RelayChannelOptions = {
   mentions?: string
 }
 
+/**
+ * Where the relay's presence reports go: a resource of the app's own with one record per person, which the reports
+ * keep current, so its changes raise the app's events as any other record's do.
+ */
+export type RelayPresence = {
+  /** The resource, such as `presences`: captured, such as with `.live()`, and keyed by its user field. */
+  resource: string
+  /** Its field holding the person's user id, its key, such as `user_id`. */
+  user: string
+  /** Its field holding `online`, `away` or `offline`, such as `status`. */
+  status: string
+  /** Its timestamp field holding when the status began, such as `since`. */
+  at: string
+  /** The bearer token the relay's presence reports carry, at least 32 characters. */
+  key: string
+}
+
 /** The realtime relay the app hands its connections to (`realtime.relay` in `protobase.config.ts`). */
 export type RealtimeRelayOptions = {
   /** The relay's address, such as `https://relay.example.com`: its app commands, and its socket at `/socket`. */
@@ -31,6 +48,8 @@ export type RealtimeRelayOptions = {
   ticketKey: string
   /** The channel resources by name. */
   channels: Record<string, RelayChannelOptions>
+  /** Turns on presence: the relay reports who is online, away or offline, and the app keeps it in this resource. */
+  presence?: RelayPresence
 }
 
 const appPattern = /^[a-z0-9_-]{1,64}$/
@@ -50,6 +69,11 @@ export const checkRelayOptions = (options: RealtimeRelayOptions) => {
     const members = channel?.members
     if (members !== undefined && !(nonEmpty(members.resource) && nonEmpty(members.channel) && nonEmpty(members.user))) throw new Error(`realtime.relay.channels.${name}.members must be { resource, channel, user }`)
     if (channel?.mentions !== undefined && !nonEmpty(channel.mentions)) throw new Error(`realtime.relay.channels.${name}.mentions must name a field`)
+  }
+  const presence = options.presence
+  if (presence !== undefined) {
+    if (!(nonEmpty(presence?.resource) && nonEmpty(presence.user) && nonEmpty(presence.status) && nonEmpty(presence.at))) throw new Error('realtime.relay.presence must be { resource, user, status, at, key }')
+    if (typeof presence.key !== 'string' || presence.key.length < minKeyLength) throw new Error(`realtime.relay.presence.key must be a string of at least ${minKeyLength} characters, such as from an environment variable`)
   }
   return options
 }

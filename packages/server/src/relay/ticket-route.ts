@@ -8,6 +8,7 @@ import { jsonBody, jsonOnly } from '../notifications/history-request'
 import { badRequest, forbidden, HttpProblem, notFound } from '../problem'
 import type { AdminEnv, Session } from '../types'
 import { memberships } from './members-sql'
+import { peopleChannel } from './presence-commands'
 import type { RelayJobs } from './relay-jobs'
 import type { RelayModels } from './relay-models'
 import type { RealtimeRelayOptions } from './relay-options'
@@ -41,7 +42,8 @@ type TicketRouteInput = { deps: Deps; options: RealtimeRelayOptions; models: Rel
 /**
  * `POST /` with `{ channels?: [...] }`: a connect ticket for the relay, `{ ticket, url, expiresAt }`. A signed-in
  * person's ticket names their sign-in session, so a device that connects adds no session, and lists every channel
- * they are a member of, as the members resources have it; a visitor's names an anonymous session of its own and only
+ * they are a member of, as the members resources have it, and `people`, which every signed-in person has and their
+ * contacts' presence is published on; a visitor's names an anonymous session of its own and only
  * receives. Both list the open channels asked for whose records are public, read by the anonymous role, as a read of the
  * record decides it; one there is none of, one that is not public and one of a resource with members are refused alike
  * with `404`. A signed-in person's ticket queues the close
@@ -81,7 +83,7 @@ export const ticketRoutes = ({ deps, options, models, jobs, sessionEnd }: Ticket
     const open: string[] = []
     for (const name of asked) open.push(await openChannel(name))
     const subject = await subjectOf(session)
-    const member = 'user' in subject ? await memberships(deps.db, models, subject.user) : []
+    const member = 'user' in subject ? [peopleChannel, ...(await memberships(deps.db, models, subject.user))] : []
     const channels = [...new Set([...member, ...open])]
     if (channels.length > maxTicketChannels) throw new HttpProblem(422, 'too-many-channels', 'Unprocessable Content', `The ticket would list ${channels.length} channels, over the ${maxTicketChannels} the relay takes`)
     const { ticket, expiresAt } = await signTicket(options, subject, channels)

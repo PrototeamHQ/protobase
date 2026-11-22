@@ -1,8 +1,10 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import type { Server } from 'node:http'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { createAdaptorServer } from '@hono/node-server'
 import { sql } from 'kysely'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
@@ -15,12 +17,14 @@ import { createAdmin } from '../src/create-admin'
 import { jobsSchemaMigration } from '../src/jobs/schema'
 import { startJobs, type JobsRuntime } from '../src/jobs/runtime'
 import { relayMigration } from '../src/relay/relay-schema'
+import { subscription, type SubscriptionEvent } from '../src/webhooks/subscription'
 import { npmWs } from './support/npm-ws'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
 // The app's side of the realtime relay against a real relay process and real Postgres: tickets, change notices to a
 // conversation's members, membership that follows the members table, open channels of public records only, and a
-// sign-out closing that session's sockets.
+// sign-out closing that session's sockets, and presence the relay reports, kept in the app's own resource, raising its
+// events and published to those who share a conversation.
 // `TEST_RELAY_BINARY` names the relay's binary (`go build ./cmd/relay` of protobase-realtime); without it the test
 // is skipped.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 })
@@ -30,6 +34,7 @@ const origin = 'http://localhost:5173'
 const secret = 'relay-test-secret-relay-test-secret-1234'
 const password = 'correct horse battery'
 const keys = { apiKey: 'relay-test-api-key-0123456789abcdef', ticketKey: 'relay-test-ticket-key-0123456789abcd' }
+const presenceKey = 'relay-test-presence-key-0123456789ab'
 
 const resources = [
   resource('conversations').table('conversations').fields({ id: f.integer().readOnly(), title: f.text() }).primaryKey((r) => r.id).live(),
@@ -41,6 +46,12 @@ const resources = [
   resource('messages').table('messages').fields({ id: f.integer().readOnly(), conversation_id: f.relation('conversations').filterable(), body: f.text() }).primaryKey((r) => r.id).live(),
   resource('rooms').table('rooms').fields({ id: f.integer().readOnly(), name: f.text(), public: f.boolean().filterable() }).primaryKey((r) => r.id).live(),
   resource('posts').table('posts').fields({ id: f.integer().readOnly(), room_id: f.relation('rooms').filterable(), body: f.text() }).primaryKey((r) => r.id).live(),
+  resource('presences')
+    .table('presences')
+    .fields({ user_id: f.text(), status: f.enum(['online', 'away', 'offline']), since: f.timestamp() })
+    .primaryKey((r) => r.user_id)
+    .live()
+    .events((e) => [e.updated('wentOffline', { when: 'status = "offline"' })]),
 ]
 
 // Signed-in people read every room, visitors only the public ones.
@@ -55,6 +66,7 @@ create table messages (id integer generated always as identity primary key, conv
 create table rooms (id integer generated always as identity primary key, name text not null, public boolean not null);
 create index on rooms (public);
 create table posts (id integer generated always as identity primary key, room_id integer not null references rooms, body text not null);
+create table presences (user_id text primary key, status text not null, since timestamptz not null);
 `
 
 const freePort = () =>
@@ -84,7 +96,8 @@ const relaySocket = async (url: string, ticket: string) => {
     return (frames.find((frame) => frame[1] === id)![4] as { status: string }).status
   }
   const notices = () => frames.filter((frame) => frame[3] === 'change').map((frame) => frame[4])
-  return { socket, frames, join, notices, closed: () => closed }
+  const presences = (user: string) => frames.filter((frame) => frame[2] === 'people' && frame[3] === 'presence_changed' && frame[4].user === user).map((frame) => frame[4].status)
+  return { socket, frames, join, notices, presences, closed: () => closed }
 }
 
 describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the realtime relay with a real relay', () => {
@@ -92,6 +105,9 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
   let relay: ChildProcess
   let dir: string
   let app: ReturnType<typeof createAdmin>
+  let server: Server
+  let appUrl: string
+  const wentOffline: SubscriptionEvent[] = []
   let runtime: JobsRuntime
   let relayUrl: string
   const errors: unknown[] = []
@@ -137,9 +153,13 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     await pg.exec((await relayMigration(pg.db, auth))!)
 
     const port = await freePort()
+    const appPort = await freePort()
     relayUrl = `http://127.0.0.1:${port}`
+    appUrl = `http://127.0.0.1:${appPort}`
     dir = await mkdtemp(path.join(tmpdir(), 'relay-test-'))
-    await writeFile(path.join(dir, 'apps.json'), JSON.stringify({ apps: [{ id: 'chat', api_keys: [keys.apiKey], ticket_keys: [keys.ticketKey], origins: [origin], limits: { connections: 100, channels_per_ticket: 200, request_bytes: 65536 } }] }))
+    // No grace, so a closed socket is reported offline once that held for the relay's two seconds.
+    const presence = { url: `${appUrl}/api/relay/presence`, key: presenceKey, grace_seconds: 0 }
+    await writeFile(path.join(dir, 'apps.json'), JSON.stringify({ apps: [{ id: 'chat', api_keys: [keys.apiKey], ticket_keys: [keys.ticketKey], origins: [origin], presence, limits: { connections: 100, channels_per_ticket: 200, request_bytes: 65536 } }] }))
     relay = spawn(relayBinary!, [], { env: { RELAY_APPS_FILE: path.join(dir, 'apps.json'), RELAY_ADDR: `127.0.0.1:${port}` }, stdio: 'ignore' })
     await vi.waitFor(async () => expect((await fetch(`${relayUrl}/apps/chat/sessions/close`, { method: 'POST' }).catch(() => undefined))?.status).toBe(401), { timeout: 10_000, interval: 100 })
 
@@ -148,9 +168,20 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
       db: pg.db,
       authenticate: withAnonymous(betterAuthAuthenticator({ auth }), roles),
       auth,
-      realtime: { relay: { url: relayUrl, app: 'chat', ...keys, channels: { conversations: { members: { resource: 'conversation_members', channel: 'conversation_id', user: 'user_id' } }, rooms: {} } } },
+      realtime: {
+        relay: {
+          url: relayUrl,
+          app: 'chat',
+          ...keys,
+          channels: { conversations: { members: { resource: 'conversation_members', channel: 'conversation_id', user: 'user_id' } }, rooms: {} },
+          presence: { resource: 'presences', user: 'user_id', status: 'status', at: 'since', key: presenceKey },
+        },
+      },
+      subscriptions: [subscription('went_offline', { events: ['presences.wentOffline'], run: (event) => void wentOffline.push(event) })],
       options: { roles, onUnhandledError: (error) => errors.push(error) },
     })
+    server = createAdaptorServer({ fetch: app.fetch }) as Server
+    await new Promise<void>((resolve) => server.listen(appPort, '127.0.0.1', resolve))
     runtime = await startJobs({ db: pg.db, jobs: app.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
     await sql`insert into rooms (name, public) values ('Lobby', true), ('Staff', false)`.execute(pg.db)
     await sql`insert into conversations (title) values ('Planning'), ('Lunch')`.execute(pg.db)
@@ -165,6 +196,7 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
   afterAll(async () => {
     await runtime?.stop()
     relay?.kill()
+    await new Promise((resolve) => (server ? server.close(resolve) : resolve(undefined)))
     if (dir) await rm(dir, { recursive: true, force: true })
     await pg?.close()
     expect(errors).toEqual([])
@@ -256,5 +288,53 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     expect(onLaptop.closed()).toBeUndefined()
     // A ticket for the ended session is refused.
     expect((await request('/api/relay/ticket', { token: phone.token })).status).toBeGreaterThanOrEqual(401)
+  })
+
+  it('keeps the presence the relay reports, raises the offline event once, and tells only those who share a conversation', async () => {
+    const statusOf = async (user: string) => (await sql<{ status: string; since: Date }>`select status, since from presences where user_id = ${user}`.execute(pg.db)).rows[0]
+    const bob = await connect((await signIn('bob@example.com')).token)
+    const carol = await connect((await signIn('carol@example.com')).token)
+    expect(await bob.join('people')).toBe('ok')
+    expect(await carol.join('people')).toBe('ok')
+
+    const alice = await connect((await signIn('alice@example.com')).token)
+    await vi.waitFor(async () => expect((await statusOf(people.alice))?.status).toBe('online'), { timeout: 10_000, interval: 200 })
+    await drained()
+    const offlineBefore = wentOffline.filter((event) => event.data.key === people.alice).length
+
+    alice.socket.close()
+    await vi.waitFor(async () => expect((await statusOf(people.alice))?.status).toBe('offline'), { timeout: 10_000, interval: 200 })
+    await drained()
+    await vi.waitFor(() => expect(bob.presences(people.alice).at(-1)).toBe('offline'))
+    expect(wentOffline.filter((event) => event.data.key === people.alice)).toHaveLength(offlineBefore + 1)
+
+    // The relay sends a report again when it hears no answer: the same change changes nothing and raises nothing.
+    const { since } = (await statusOf(people.alice))!
+    const { started } = (await (await fetch(`${relayUrl}/health`)).json()) as { started: number }
+    const again = await fetch(`${appUrl}/api/relay/presence`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${presenceKey}` },
+      body: JSON.stringify({ started, changes: [{ user: people.alice, status: 'offline', at: since.getTime() }] }),
+    })
+    expect(again.status).toBe(204)
+    await drained()
+    expect(wentOffline.filter((event) => event.data.key === people.alice)).toHaveLength(offlineBefore + 1)
+    // Carol shares no conversation with Alice: she hears none of her presence.
+    expect(carol.presences(people.alice)).toEqual([])
+    expect((await fetch(`${appUrl}/api/relay/presence`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status).toBe(401)
+    // A report with another key changes no one's presence.
+    const forged = await fetch(`${appUrl}/api/relay/presence`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${keys.apiKey}` },
+      body: JSON.stringify({ started, changes: [{ user: people.alice, status: 'online', at: since.getTime() + 60_000 }] }),
+    })
+    expect(forged.status).toBe(401)
+    expect((await statusOf(people.alice))?.status).toBe('offline')
+  })
+
+  it('gives visitors no people channel: their ticket cannot ask for it and their socket cannot join it', async () => {
+    expect((await request('/api/relay/ticket', { body: { channels: ['people'] } })).status).toBe(404)
+    const visitor = await connect(undefined)
+    expect(await visitor.join('people')).not.toBe('ok')
   })
 })

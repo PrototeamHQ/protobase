@@ -1,6 +1,7 @@
 import type { ResourceModel } from '@protobase/schema'
 import { relatedTarget } from '@protobase/schema/internal'
 import { capturedBy } from '../changes/capture-sql'
+import { presenceModel, type PresenceModel } from './presence-model'
 import type { RealtimeRelayOptions } from './relay-options'
 
 /** A channel resource's members resource, by its model. */
@@ -20,6 +21,8 @@ export type RelayModels = {
   placements: Map<string, Placement[]>
   /** The members resources, by name, with the channel resources each fills (`channel`), one entry for each. */
   members: Map<string, Array<{ channel: string } & MembersModel>>
+  /** The presence resource, when the relay reports presence. */
+  presence?: PresenceModel
 }
 
 /**
@@ -58,7 +61,7 @@ export const relayModels = (options: RealtimeRelayOptions, models: readonly Reso
     const has = [...placements].some(([resource, fields]) => fields.some((placement) => placement.channel === name) && Object.hasOwn(byName.get(resource)!.fields, mentions))
     if (!has) throw new Error(`realtime.relay.channels.${name}.mentions: no captured resource noticed on the channel has a field "${mentions}"`)
   }
-  return { channels, placements, members }
+  return { channels, placements, members, ...(options.presence && { presence: presenceModel(options.presence, byName, captured) }) }
 }
 
 const membersModel = (members: NonNullable<RealtimeRelayOptions['channels'][string]['members']>, channel: string, byName: Map<string, ResourceModel>, at: string): MembersModel => {
