@@ -155,6 +155,7 @@ export { connectParams, connectPath, connectRoute, readConnectAddress, type Conn
 export { readSignInAddress, signInParams, signInPath, signInRoute, signInSteps, type SignInAddress, type SignInStep } from './sign-in-address'
 export type { KeyType } from './keys'
 export type { InferRecord, RecordKey, RecordOf, KeyOf, KeyRefs, Access, Issue } from './resource-types'
+export { FieldIssue, type PrepareContext, type PrepareSession, type Preparer } from './prepare'
 export type { Ref, Refs, FieldRefs, FieldsInput } from './refs'
 export type { Field, AnyField, FieldMeta, FieldTypeDef, Constraint } from './field'
 export { encrypted, type Encrypted } from './encrypted-value'
