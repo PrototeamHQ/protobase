@@ -39,7 +39,14 @@ const shops = resource('shops')
   .fields({ id: f.integer().readOnly(), name: f.text(), token: f.text().readOnly() })
   .primaryKey((r) => r.id)
 
-const served = (prepared: typeof shops, hooks: PipelineHook[] = []) => {
+// The author the server sets from the caller
+const authored = resource('shops')
+  .table('shops')
+  .fields({ id: f.integer().readOnly(), name: f.text(), token: f.text().readOnly(), author_id: f.text().readOnly() })
+  .primaryKey((r) => r.id)
+  .author((r) => r.author_id)
+
+const served = (prepared: typeof shops | typeof authored, hooks: PipelineHook[] = []) => {
   const log: string[] = []
   const deps = { db: recorder(log), registry: buildRegistry([prepared]), accessOptions: {}, settingsResources: new Set(), hooks, writeChecks: [], statementTimeoutMs: 1000 } as unknown as Deps
   const write = (body: unknown) => runWrite(deps, deps.registry.find('shops')!, { user: { id: 'u1', roles: [] } }, { operation: 'create', body })
@@ -81,6 +88,12 @@ describe('.prepare() in the write pipeline', () => {
     const { log, write } = served(shops.prepare((values) => ({ ...values, name: `${values.name}-a` })).prepare((values) => ({ ...values, name: `${values.name}-b`, token: 't' })))
     await write({ name: 'shop' })
     expect(log).toContain('insert ["shop-a-b","t"]')
+  })
+
+  it('sets the author after the hooks, which neither see it nor can drop it', async () => {
+    const { log, write } = served(authored.prepare((values) => ({ name: values.name, token: Object.hasOwn(values, 'author_id') ? 'saw-author' : 't' })))
+    expect(await outcome(write({ name: 'shop' }))).toBe('written')
+    expect(log).toContain('insert ["shop","t","u1"]')
   })
 
   it('stops at a value for a field the resource does not have', async () => {

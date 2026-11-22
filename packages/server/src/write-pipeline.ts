@@ -63,7 +63,9 @@ const create = async (trx: Db, deps: Deps, access: RequestAccess, body: unknown,
     : body
   // The rules see the mail senders as they are stored.
   const checked = checkRules(access, 'create', await checkMailSenders(access, validateFields(access, 'create', preset)), tenantValues)
-  const values = await prepareValues(trx, access, 'create', await attachFiles(access, withAuthor(access, withOwner(access, checked))))
+  // The rules check what the caller sent; what `.prepare()` returns is the server's own, written as it is. The author is
+  // set after it, so a hook neither returns it nor drops it.
+  const values = withAuthor(access, await prepareValues(trx, access, 'create', await attachFiles(access, withOwner(access, checked))))
   const row = { ...values, ...tenantValues }
   const filter = await decide(access, 'create', undefined, row)
   // Before the insert, so a missing parent answers as an invisible one does rather than as a foreign key conflict; after
