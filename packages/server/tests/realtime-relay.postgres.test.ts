@@ -322,5 +322,19 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     // Carol shares no conversation with Alice: she hears none of her presence.
     expect(carol.presences(people.alice)).toEqual([])
     expect((await fetch(`${appUrl}/api/relay/presence`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status).toBe(401)
+    // A report with another key changes no one's presence.
+    const forged = await fetch(`${appUrl}/api/relay/presence`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${keys.apiKey}` },
+      body: JSON.stringify({ started, changes: [{ user: people.alice, status: 'online', at: since.getTime() + 60_000 }] }),
+    })
+    expect(forged.status).toBe(401)
+    expect((await statusOf(people.alice))?.status).toBe('offline')
+  })
+
+  it('gives visitors no people channel: their ticket cannot ask for it and their socket cannot join it', async () => {
+    expect((await request('/api/relay/ticket', { body: { channels: ['people'] } })).status).toBe(404)
+    const visitor = await connect(undefined)
+    expect(await visitor.join('people')).not.toBe('ok')
   })
 })
