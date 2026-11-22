@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { messagesRequest, ownPositionFilter, reactionsPageSize, readReactions, repliesRequest } from './conversation-reads'
+import { messagesRequest, ownPositionFilter, recordsPageSize, readOfMessages, repliesRequest } from './conversation-reads'
 
 describe('messagesRequest', () => {
   it("reads only the record's messages, newest first, a page at a time", () => {
@@ -31,15 +31,24 @@ describe('repliesRequest', () => {
   })
 })
 
-describe('readReactions', () => {
+describe('readOfMessages', () => {
   it("reads a page of messages' reactions in one read, and on while the API has more", async () => {
     const calls: unknown[] = []
     const pages = [{ items: [{ id: 1 }], nextPageToken: 'next' }, { items: [{ id: 2 }], nextPageToken: '' }]
     const client = { list: async (resource: string, params: unknown) => (calls.push([resource, params]), pages[calls.length - 1]!) }
-    expect(await readReactions(client as never, { resource: 'reactions', field: 'message_id' }, ['5', '6'])).toEqual([{ id: 1 }, { id: 2 }])
+    expect(await readOfMessages(client as never, { resource: 'reactions', field: 'message_id' }, ['5', '6'])).toEqual([{ id: 1 }, { id: 2 }])
     expect(calls).toEqual([
-      ['reactions', { filter: 'in(message_id, "5", "6")', pageSize: reactionsPageSize, pageToken: '' }],
-      ['reactions', { filter: 'in(message_id, "5", "6")', pageSize: reactionsPageSize, pageToken: 'next' }],
+      ['reactions', { filter: 'in(message_id, "5", "6")', pageSize: recordsPageSize, pageToken: '' }],
+      ['reactions', { filter: 'in(message_id, "5", "6")', pageSize: recordsPageSize, pageToken: 'next' }],
     ])
+  })
+})
+
+describe('the files of a page of messages', () => {
+  it('are read in one request for the whole page, not one per message', async () => {
+    const calls: unknown[] = []
+    const client = { list: async (resource: string, params: unknown) => (calls.push([resource, params]), { items: [{ id: 1 }, { id: 2 }], nextPageToken: '' }) }
+    expect(await readOfMessages(client as never, { resource: 'attachments', field: 'message_id' }, ['5', '6', '7'])).toEqual([{ id: 1 }, { id: 2 }])
+    expect(calls).toEqual([['attachments', { filter: 'in(message_id, "5", "6", "7")', pageSize: recordsPageSize, pageToken: '' }]])
   })
 })

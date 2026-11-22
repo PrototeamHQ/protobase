@@ -1,4 +1,6 @@
 import type { ConversationPageModel } from '@protobase/schema'
+import type { Attachment } from './attachments'
+import { deleteOps } from './message-ops'
 import { useClient } from '../../data/api-provider'
 import { recordKey as keyOf } from '../../live/model-helpers'
 import { useToast } from '../../toasts/toast-provider'
@@ -10,7 +12,7 @@ import { text } from './messages'
 
 /**
  * The writes a reader makes to a conversation's messages, each resolving whether the server took it: edit a message's
- * text and mentions, delete one, and react to one or take a reaction back. A refused write changes nothing on screen
+ * text and mentions, delete one after its files, and react to one or take a reaction back. A refused write changes nothing on screen
  * and shows the server's reason in a toast; a taken one reads the resource again.
  */
 export const useMessageWrites = (page: ConversationPageModel) => {
@@ -35,7 +37,9 @@ export const useMessageWrites = (page: ConversationPageModel) => {
 
   const edit = (key: string, body: string, mentions: string[]) =>
     run(page.resource, text('notSaved'), () => client.update(page.resource, key, { [page.text]: body, ...(page.mentions !== undefined && { [page.mentions]: mentions }) }, '*'))
-  const remove = (key: string) => run(page.resource, text('notDeleted'), () => client.remove(page.resource, key))
+  // Its files first, in the same batch: a message's files never outlive it
+  const remove = (key: string, files: readonly Attachment[]) =>
+    run(page.resource, text('notDeleted'), () => (page.attachments && files.length > 0 ? client.batchWrite(deleteOps(page, model, key, files)) : client.remove(page.resource, key)))
   const react = reactions && ((key: string, emoji: string) => run(reactions.resource, text('reactionNotSaved'), () => client.create(reactions.resource, { [reactions.field]: keyValue(model, key), [reactions.emoji]: emoji })))
   const unreact = reactions && ((row: Record<string, unknown>) => run(reactions.resource, text('reactionNotSaved'), () => client.remove(reactions.resource, keyOf(resources[reactions.resource]!, row))))
   return { edit, remove, react, unreact }

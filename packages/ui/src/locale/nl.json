@@ -718,7 +718,16 @@
     "couldNotLoadThread": "Kon de draad niet laden",
     "threadElsewhere": "Deze draad hoort niet bij dit gesprek",
     "couldNotLoadReactions": "Kon de reacties niet laden",
-    "notCopied": "Niet gekopieerd"
+    "notCopied": "Niet gekopieerd",
+    "attachFiles": "Bestanden toevoegen",
+    "filesToAttach": "Bestanden om toe te voegen",
+    "filesToSend": "Bestanden om te versturen",
+    "takeFileOff": "{name} weghalen",
+    "fileTooLarge": "Te groot: {size}, hooguit {max}",
+    "fileNotUploaded": "Niet geüpload: {reason}",
+    "uploadedPercent": "{percent}%",
+    "fileMissing": "Dit bestand ontbreekt",
+    "couldNotLoadFiles": "Kon de bestanden niet laden"
   },
   "app/create": {
     "title": "{noun} toevoegen",

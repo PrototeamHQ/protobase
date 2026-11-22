@@ -238,6 +238,10 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
       if (![undefined, '*', find(op.resource, key).etag].includes(op.etag)) throw stale()
       return { op: 'update', resource: op.resource, ...(await client.update(op.resource, key, op.data!)) }
     }
+    if (op.op === 'delete') {
+      await client.remove(op.resource, String(resolved(op.key)))
+      return { op: 'delete', resource: op.resource, deleted: true }
+    }
     if (op.op === 'move') {
       const { resource, field } = op as { resource: string; field: string }
       const listed = select(resource, { ...(op.filter && { filter: op.filter }), orderBy: `${field} asc` }).map((row) => ({ key: keyOf(models[resource]!, row), rank: row[field] }))
@@ -247,7 +251,7 @@ export const fakeApi = ({ resources, views = [], pages = [], account, rows: init
       const reordered: { records?: unknown[] } = plan.keys.length === 0 ? { records: [] } : await batchOp({ op: 'reorder', resource, field, keys: plan.keys, start: plan.start, etags: Object.fromEntries(plan.keys.map((key) => [key, '*'])) }, made)
       return { op: 'move', resource, records: reordered.records }
     }
-    if (op.op !== 'reorder') throw new Error(`Not implemented: the fake API's batch writes only create, update, reorder and move, not ${op.op}`)
+    if (op.op !== 'reorder') throw new Error(`Not implemented: the fake API's batch writes only create, update, delete, reorder and move, not ${op.op}`)
     const { resource, field } = op as { resource: string; field: string }
     const keys = op.keys!.map(String)
     const start = op.start ?? 1

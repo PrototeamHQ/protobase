@@ -44,9 +44,9 @@ export const ThreadPanel = ({ page, owner, recordKey, first, me, searchPeople, o
   const list = useList(page.resource, { ...repliesRequest(page, page.thread, first), labels: listLabels(resources, views, model, senders) })
   const oldestFirst = withLabels(resources, model, senders, list.items, list.labels).reverse()
   const key = (row: Record<string, unknown>) => String(keyOf(model, row))
-  const { setup, reactionsError } = useMessageSetup({ page, me, pages: [[first], ...(list.data?.pages ?? []).map((read) => read.items.map(key))], searchPeople })
+  const { setup, reactionsError, attachmentsError } = useMessageSetup({ page, me, pages: [[first], ...(list.data?.pages ?? []).map((read) => read.items.map(key))], searchPeople })
   const headRow = head.row
-  const error = head.error ?? list.error ?? reactionsError
+  const error = head.error ?? list.error ?? reactionsError ?? attachmentsError
   const rows = conversationRows(oldestFirst, { key, sender: page.sender, time: page.time })
   const own = rows.findLast((line) => line.kind === 'message' && me !== undefined && line.author.id === me)
   const replies = headRow ? Number(headRow[page.thread.count] ?? 0) : 0
@@ -62,6 +62,7 @@ export const ThreadPanel = ({ page, owner, recordKey, first, me, searchPeople, o
           placeholder={text('replyPlaceholder')}
           searchPeople={searchPeople}
           mentions={page.mentions}
+          attachments={page.attachments}
         />
       }
     >

@@ -1896,6 +1896,8 @@ export type ConversationPageModel = {
       }
   /** Replies in a thread under a message, shown in a panel beside the conversation rather than in it. */
   thread?: ConversationThreadModel
+  /** Files a message carries, kept in a resource of their own: picked, pasted or dropped in the box and shown under the message. */
+  attachments?: AttachmentsModel
   /**
    * The record's call, by the name of the API function that admits people to it with `calls.join`: the header shows
    * Start call, or the call going on with Join, and the page that joins it (`?call=join`) shows the call beside the
@@ -1944,6 +1946,23 @@ export type ReactionsModel = {
       name: string
     }
   >
+}
+
+/**
+ * The files under a conversation's messages: one record per file, pointing at its message, written together with the
+ * message and deleted before it.
+ */
+export type AttachmentsModel = {
+  /** The attachment resource. */
+  resource: string
+  /** The filterable relation of `resource` to the message the file is in. */
+  field: string
+  /** The file field, whose value gives the file's name, type, size and signed link, and whose `maxSize` the box checks before uploading. */
+  file: string
+  /** The integer field of an image's width in pixels, such as one `.derive()` fills with `imageSize('width')`. */
+  width?: string
+  /** The integer field of an image's height in pixels. */
+  height?: string
 }
 
 /** Threads under a conversation's messages: a reply points at the thread's first message, which counts its replies. */
