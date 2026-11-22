@@ -1,6 +1,7 @@
 import { Field, type AnyField, type FieldMeta } from '../field'
 import { f } from '../fields'
 import type { FieldModel, ResourceModel } from '../model'
+import { snakeCase } from '../naming'
 import type { FieldsInput } from '../refs'
 import type { BucketMeasure, BucketsModel } from './buckets-model'
 
@@ -43,13 +44,16 @@ const sumField = (field: FieldModel, declared: AnyField) => {
   return f.decimal({ precision: Math.min(declared.meta.precision! + sumDigits, 1000), scale: declared.meta.scale! }).readOnly().optional()
 }
 
-/** The names of the measure fields of a time rollup, by source field and measure. */
-export const measureFieldName = (field: string, measure: BucketMeasure) => `${field}_${measure}`
+/** What a time rollup keeps of a measured field: the measures it names, and always the count of records with a value. */
+export type KeptMeasure = BucketMeasure | 'count'
 
-/** The source field and measure that a time rollup's field `name`, such as `watts_sum`, keeps; `undefined` for any other field. */
+/** The names of the measure fields of a time rollup, by source field and measure. */
+export const measureFieldName = (field: string, measure: KeptMeasure) => `${field}_${measure}`
+
+/** The source field and measure that a time rollup's field `name`, such as `watts_sum` or `watts_count`, keeps; `undefined` for any other field. */
 export const keptMeasure = (buckets: BucketsModel, name: string) => {
   for (const [field, fns] of Object.entries(buckets.measures)) {
-    const measure = fns.find((fn) => measureFieldName(field, fn) === name)
+    const measure = [...fns, 'count' as const].find((fn) => measureFieldName(field, fn) === name)
     if (measure) return { field, measure }
   }
   return
@@ -93,15 +97,25 @@ const measureProblems = (source: BucketsSource, kept: Record<string, readonly Bu
         ...(fns.indexOf(fn) !== index ? [`measures "${name}" with ${fn} twice`] : []),
         ...(by.includes(measureFieldName(name, fn)) ? [`measures "${name}" with ${fn}, whose field "${measureFieldName(name, fn)}" it groups by`] : []),
       ]),
+      ...(by.includes(measureFieldName(name, 'count')) ? [`measures "${name}", whose count field "${measureFieldName(name, 'count')}" it groups by`] : []),
     ]
   })
+
+// Fields of different names whose snake_case is one column, such as a group `wattsCount` and the count of `watts`.
+const columnProblems = (by: readonly string[], kept: Record<string, readonly BucketMeasure[]>) => {
+  const names = [...ownNames, ...by, ...Object.entries(kept).flatMap(([field, fns]) => [...fns, 'count' as const].map((fn) => measureFieldName(field, fn)))]
+  return names.flatMap((name, index) => {
+    const first = names.find((other) => other !== name && snakeCase(other) === snakeCase(name))
+    return first && names.indexOf(first) < index ? [`has fields "${first}" and "${name}" in one column "${snakeCase(name)}"`] : []
+  })
+}
 
 /**
  * What `.bucketsOf()` sets on a resource: its fields, its key `id`, the tenant and owner from the source's, and the rollup. Throws on
  * a rollup the source cannot give: a time field that is not a timestamp, a group the bucket's key cannot hold, a
  * measure that is no number, or a tenant-scoped source whose tenant field is not one of the groups.
  */
-export const bucketsState = (name: string, source: BucketsSource, buckets: Omit<BucketsModel, 'optional'>) => {
+export const bucketsState = (name: string, source: BucketsSource, buckets: BucketsModel) => {
   const { model } = source
   const problems = [
     ...(model.buckets ? [`rolls up "${model.name}", which is a time rollup itself`] : []),
@@ -112,6 +126,7 @@ export const bucketsState = (name: string, source: BucketsSource, buckets: Omit<
     ...byProblems(source, buckets.by),
     ...(model.tenant && !buckets.by.includes(model.tenant) ? [`does not group by "${model.tenant}", the tenant field of "${model.name}"`] : []),
     ...measureProblems(source, buckets.measures, buckets.by),
+    ...columnProblems(buckets.by, buckets.measures),
     ...(lateShape.test(buckets.late) ? [] : [`late "${buckets.late}" is not a number of minutes, hours or days, such as "2 hours"`]),
   ]
   if (problems.length > 0) throw new Error(`Resource "${name}": the time rollup ${problems.join('; ')}`)
@@ -123,7 +138,10 @@ export const bucketsState = (name: string, source: BucketsSource, buckets: Omit<
     events: f.bigint().readOnly(),
     ...Object.fromEntries(
       Object.entries(buckets.measures).flatMap(([field, fns]) =>
-        fns.map((fn) => [measureFieldName(field, fn), fn === 'sum' ? sumField(model.fields[field]!, declared(field)) : copied(declared(field), { nullable: true })]),
+        [
+          ...fns.map((fn) => [measureFieldName(field, fn), fn === 'sum' ? sumField(model.fields[field]!, declared(field)) : copied(declared(field), { nullable: true })]),
+          [measureFieldName(field, 'count'), f.bigint().readOnly()],
+        ],
       ),
     ),
   }
@@ -136,7 +154,6 @@ export const bucketsState = (name: string, source: BucketsSource, buckets: Omit<
       ...buckets,
       by: [...buckets.by],
       measures: Object.fromEntries(Object.entries(buckets.measures).map(([field, fns]) => [field, [...fns]])),
-      optional: Object.keys(buckets.measures).filter((field) => model.fields[field]!.nullable),
     },
   }
 }

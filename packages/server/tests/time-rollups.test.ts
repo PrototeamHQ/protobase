@@ -28,9 +28,10 @@ const models = [readings.toModel(), hourly.toModel()]
 // The rollup's rows that a GROUP BY over the live records does not give, and those it gives that the rollup lacks.
 const compared = `
 with expected as (
-  select date_trunc('hour', taken_at, 'UTC') as bucket, org_id, kind, count(*) as events, sum(watts) as watts_sum, max(watts) as watts_max, sum(cost) as cost_sum
+  select date_trunc('hour', taken_at, 'UTC') as bucket, org_id, kind, count(*) as events, sum(watts) as watts_sum, max(watts) as watts_max, sum(cost) as cost_sum,
+    count(watts) as watts_count, count(cost) as cost_count
   from readings where deleted_at is null group by 1, 2, 3
-), actual as (select bucket, org_id, kind, events, watts_sum, watts_max, cost_sum from readings_hourly)
+), actual as (select bucket, org_id, kind, events, watts_sum, watts_max, cost_sum, watts_count, cost_count from readings_hourly)
 select (select count(*)::int from expected) as expected, (select count(*)::int from actual) as actual,
   (select count(*)::int from ((select * from expected except all select * from actual) union all (select * from actual except all select * from expected)) as d) as differ`
 
@@ -65,14 +66,24 @@ describe('a time rollup', () => {
     await expect(checkComputed(db, models)).resolves.toBeUndefined()
   })
 
-  it('recomputes the buckets from the one a refresh starts in, dropping those left without records', async () => {
+  it('recomputes the buckets from the one a refresh starts in, with their counts of values, dropping those left without records', async () => {
     await pg.exec(`
       insert into readings (org_id, kind, taken_at, watts, cost) values (1, 'heat', '2026-07-07 15:10:00+00', 40, 1.25), (2, 'wind', '2026-07-07 16:59:59+00', 7, 0.5);
-      update readings set watts = watts + 1 where taken_at >= '2026-07-07 10:00:00+00';
+      update readings set watts = coalesce(watts, 3) + 1 where taken_at >= '2026-07-07 10:00:00+00';
+      update readings set cost = null where taken_at >= '2026-07-07 12:00:00+00' and taken_at < '2026-07-07 13:00:00+00';
       update readings set deleted_at = '2026-07-08 00:00:00+00' where taken_at >= '2026-07-07 14:00:00+00' and taken_at < '2026-07-07 15:00:00+00';
     `)
     expect((await pg.query(compared)).rows[0].differ).toBeGreaterThan(0)
     await pg.query(`select rollups.readings_hourly_refresh('2026-07-07 10:30:00+00')`)
+    expect((await pg.query(compared)).rows).toEqual([{ expected: 645, actual: 645, differ: 0 }])
+  })
+
+  it('recounts the values of older buckets when rebuilt from every bucket, as protobase buckets rebuild does', async () => {
+    await pg.exec(`
+      update readings set watts = null, cost = 2 where taken_at >= '2026-07-01 02:00:00+00' and taken_at < '2026-07-01 03:00:00+00';
+    `)
+    expect((await pg.query(compared)).rows[0].differ).toBeGreaterThan(0)
+    await pg.query(`select rollups.readings_hourly_refresh('-infinity')`)
     expect((await pg.query(compared)).rows).toEqual([{ expected: 645, actual: 645, differ: 0 }])
   })
 

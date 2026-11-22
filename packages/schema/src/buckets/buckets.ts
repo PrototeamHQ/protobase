@@ -19,7 +19,7 @@ export type BucketsSpec<S, B extends readonly Ref[], M extends BucketMeasuresInp
   late: string
 }
 
-/** The fields of a time rollup: its key `id`, `bucket`, the `by` fields, the count `events`, and the measures' `<name>_sum` and `<name>_max`. */
+/** The fields of a time rollup: its key `id`, `bucket`, the `by` fields, the count `events`, and the measures' `<name>_sum`, `<name>_max` and `<name>_count`. */
 export type BucketFields<S, B extends readonly Ref[], M> = {
   /** The record's key, a bigint. */
   id: Field<string>
@@ -31,6 +31,8 @@ export type BucketFields<S, B extends readonly Ref[], M> = {
   [R in B[number] as R['name']]: R['name'] extends keyof S ? (S[R['name']] extends Field<infer V> ? Field<V> : never) : never
 } & {
   [K in keyof M & string as M[K] extends readonly (infer A)[] ? ('sum' extends A ? `${K}_sum` : never) : never]: Field<string | null>
+} & {
+  [K in keyof M & string as `${K}_count`]: Field<string>
 } & {
   [K in keyof M & string as M[K] extends readonly (infer A)[] ? ('max' extends A ? `${K}_max` : never) : never]: K extends keyof S ? (S[K] extends Field<infer V> ? Field<V | null> : never) : never
 }

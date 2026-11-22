@@ -18,7 +18,9 @@ const text = (kind: 'sum' | 'average' | 'maximum', field: string) => compiled(me
 describe('a measure over a time rollup', () => {
   it('reads the stored columns, so it gives what the same measure over the records gives', () => {
     expect(text('sum', 'watts_sum')).toBe('sum("t"."watts_sum")')
-    expect(text('average', 'watts_sum')).toBe('(sum("t"."watts_sum") / sum("t"."events"))')
+    expect(text('average', 'watts_sum')).toBe('(sum("t"."watts_sum") / nullif(sum("t"."watts_count"), 0))')
+    expect(text('average', 'peak_sum')).toBe('(sum("t"."peak_sum") / nullif(sum("t"."peak_count"), 0))')
+    expect(text('sum', 'peak_count')).toBe('sum("t"."peak_count")')
     expect(text('maximum', 'watts_max')).toBe('max("t"."watts_max")')
     expect(text('sum', 'events')).toBe('sum("t"."events")')
   })
@@ -35,7 +37,7 @@ describe('a measure over a time rollup', () => {
     expect(() => text('average', 'events')).toThrow('gives only their sum, the count')
     expect(() => text('maximum', 'events')).toThrow('gives only their sum, the count')
     expect(() => text('sum', 'id')).toThrow('"id" is no measure of the time rollup "readings_hourly"')
-    expect(() => text('average', 'peak_sum')).toThrow('"peak" is optional in "readings"')
+    expect(() => text('average', 'peak_count')).toThrow(`"peak_count" counts each bucket's records with a value, so a time rollup gives only their sum`)
     expect(text('sum', 'peak_sum')).toBe('sum("t"."peak_sum")')
   })
 

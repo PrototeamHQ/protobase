@@ -33,7 +33,7 @@ describe('the time rollup SQL', () => {
   it('creates the table, its indexes and function, and fills it', () => {
     expect(created).toEqual([
       'create schema if not exists "rollups"',
-      `create table ${table} ("id" bigint generated always as identity primary key, "bucket" timestamptz not null, "org_id" integer not null, "device_id" uuid not null, "events" bigint not null, "watts_sum" bigint, "watts_max" integer, "cost_sum" numeric(20,2))`,
+      `create table ${table} ("id" bigint generated always as identity primary key, "bucket" timestamptz not null, "org_id" integer not null, "device_id" uuid not null, "events" bigint not null, "watts_sum" bigint, "watts_max" integer, "cost_sum" numeric(20,2), "watts_count" bigint not null, "cost_count" bigint not null)`,
       `create unique index "readings_hourly_bucket_key" on ${table} ("bucket", "org_id", "device_id")`,
       `create index "readings_hourly_org_id_bucket" on ${table} ("org_id", "bucket")`,
       `create index "readings_hourly_device_id_bucket" on ${table} ("device_id", "bucket")`,
@@ -46,16 +46,16 @@ describe('the time rollup SQL', () => {
   it('recomputes and upserts the buckets from the one `from` falls in, and deletes the emptied ones, in one statement', () => {
     expect(created[6]).toContain(`
 with fresh as (
-  select date_trunc('hour', c."taken_at"::timestamptz) as "bucket", c."org_id" as "org_id", c."device_id" as "device_id", count(*) as "events", sum(c."watts") as "watts_sum", max(c."watts") as "watts_max", sum(c."cost") as "cost_sum"
+  select date_trunc('hour', c."taken_at"::timestamptz) as "bucket", c."org_id" as "org_id", c."device_id" as "device_id", count(*) as "events", sum(c."watts") as "watts_sum", max(c."watts") as "watts_max", sum(c."cost") as "cost_sum", count(c."watts") as "watts_count", count(c."cost") as "cost_count"
   from public.readings as c
   where c."taken_at" >= date_trunc('hour', $1) and c."deleted_at" is null
   group by 1, 2, 3
 ), gone as (
   delete from ${table} as r where r."bucket" >= date_trunc('hour', $1) and not exists (select from fresh where fresh."bucket" = r."bucket" and fresh."org_id" = r."org_id" and fresh."device_id" = r."device_id")
 )
-insert into ${table} ("bucket", "org_id", "device_id", "events", "watts_sum", "watts_max", "cost_sum")
-select "bucket", "org_id", "device_id", "events", "watts_sum", "watts_max", "cost_sum" from fresh
-on conflict ("bucket", "org_id", "device_id") do update set "events" = excluded."events", "watts_sum" = excluded."watts_sum", "watts_max" = excluded."watts_max", "cost_sum" = excluded."cost_sum"
+insert into ${table} ("bucket", "org_id", "device_id", "events", "watts_sum", "watts_max", "cost_sum", "watts_count", "cost_count")
+select "bucket", "org_id", "device_id", "events", "watts_sum", "watts_max", "cost_sum", "watts_count", "cost_count" from fresh
+on conflict ("bucket", "org_id", "device_id") do update set "events" = excluded."events", "watts_sum" = excluded."watts_sum", "watts_max" = excluded."watts_max", "cost_sum" = excluded."cost_sum", "watts_count" = excluded."watts_count", "cost_count" = excluded."cost_count"
 `)
   })
 
@@ -71,6 +71,7 @@ on conflict ("bucket", "org_id", "device_id") do update set "events" = excluded.
       table: `"public"."${name}"`,
       by: [{ column: 'organization_id', from: 'organization_id', type: 'integer' }, { column: 'organization_unit', from: 'organization_unit', type: 'integer' }],
       measures: [],
+      counts: [],
     } as unknown as BucketsTarget
     const names = bucketsTableSql(target).flatMap((statement) => /^create (?:unique )?index "([^"]+)"/.exec(statement)?.[1] ?? [])
     expect(names).toHaveLength(3)

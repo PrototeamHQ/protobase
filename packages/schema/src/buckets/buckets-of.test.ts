@@ -23,6 +23,8 @@ const readings = resource('readings')
     region: f.text().access({ read: () => false }),
     tag: f.text().access({ update: () => false }),
     user_id: f.text(),
+    wattsCount: f.integer().column('watts_tally'),
+    Kind: f.text().column('kind_label'),
   })
   .primaryKey((r) => r.id)
 
@@ -33,7 +35,7 @@ describe('.bucketsOf()', () => {
     const model = hourly()
       .bucketsOf(readings.tenant((r) => r.org_id), { time: (r) => r.taken_at, every: 'hour', by: (r) => [r.org_id, r.device_id], measures: { watts: ['sum', 'max'], cost: ['sum'] }, late: '2 hours' })
       .toModel()
-    expect(Object.keys(model.fields)).toEqual(['id', 'bucket', 'org_id', 'device_id', 'events', 'watts_sum', 'watts_max', 'cost_sum'])
+    expect(Object.keys(model.fields)).toEqual(['id', 'bucket', 'org_id', 'device_id', 'events', 'watts_sum', 'watts_max', 'watts_count', 'cost_sum', 'cost_count'])
     expect(model.primaryKey).toEqual(['id'])
     expect(model.tenant).toBe('org_id')
     expect(Object.values(model.fields).every((field) => field.readOnly)).toBe(true)
@@ -43,17 +45,13 @@ describe('.bucketsOf()', () => {
     expect(model.fields.watts_sum).toMatchObject({ type: 'bigint', nullable: true })
     expect(model.fields.watts_max).toMatchObject({ type: 'integer', nullable: true })
     expect(model.fields.cost_sum).toMatchObject({ type: 'decimal', nullable: true })
-    expect(model.buckets).toEqual({ from: 'readings', time: 'taken_at', every: 'hour', by: ['org_id', 'device_id'], measures: { watts: ['sum', 'max'], cost: ['sum'] }, late: '2 hours', optional: [] })
-  })
-
-  it('names the measured fields that are optional, whose average a bucket cannot give', () => {
-    const model = hourly().bucketsOf(readings, { time: (r) => r.taken_at, every: 'hour', by: () => [], measures: { watts: ['sum'], peak: ['sum', 'max'] }, late: '2 hours' }).toModel()
-    expect(model.buckets!.optional).toEqual(['peak'])
+    expect(model.fields.cost_count).toMatchObject({ type: 'bigint', nullable: false, filterable: false })
+    expect(model.buckets).toEqual({ from: 'readings', time: 'taken_at', every: 'hour', by: ['org_id', 'device_id'], measures: { watts: ['sum', 'max'], cost: ['sum'] }, late: '2 hours' })
   })
 
   it('types its records from the source', () => {
     const rollup = hourly().bucketsOf(readings, { time: (r) => r.taken_at, every: 'day', by: (r) => [r.kind], measures: { watts: ['max'] }, late: '1 day' })
-    expectTypeOf<InferRecord<typeof rollup>>().toEqualTypeOf<{ id: string; bucket: string; events: string; kind: 'power' | 'heat'; watts_max: number | null }>()
+    expectTypeOf<InferRecord<typeof rollup>>().toEqualTypeOf<{ id: string; bucket: string; events: string; kind: 'power' | 'heat'; watts_max: number | null; watts_count: string }>()
   })
 
   it('keeps the owner when it groups by it', () => {
@@ -85,6 +83,8 @@ describe('.bucketsOf()', () => {
     expect(() => rollup({ measures: { watts: [] } })).toThrow('measures "watts" with nothing')
     expect(() => rollup({ measures: { watts: ['avg' as 'sum'] } })).toThrow('measures "watts" with "avg", not sum or max')
     expect(() => rollup({ measures: { watts: ['sum', 'sum'] } })).toThrow('measures "watts" with sum twice')
+    expect(() => rollup({ by: ['wattsCount'], measures: { watts: ['sum'] } })).toThrow('has fields "wattsCount" and "watts_count" in one column "watts_count"')
+    expect(() => rollup({ by: ['kind', 'Kind'] })).toThrow('has fields "kind" and "Kind" in one column "kind"')
     expect(() => rollup({ late: 'soon' })).toThrow('late "soon" is not a number of minutes, hours or days')
   })
 
@@ -106,6 +106,7 @@ describe('keptMeasure', () => {
     const { buckets } = hourly().bucketsOf(readings, { time: (r) => r.taken_at, every: 'hour', by: () => [], measures: { watts: ['sum', 'max'] }, late: '2 hours' }).toModel()
     expect(keptMeasure(buckets!, 'watts_sum')).toEqual({ field: 'watts', measure: 'sum' })
     expect(keptMeasure(buckets!, 'watts_max')).toEqual({ field: 'watts', measure: 'max' })
+    expect(keptMeasure(buckets!, 'watts_count')).toEqual({ field: 'watts', measure: 'count' })
     expect(keptMeasure(buckets!, 'events')).toBeUndefined()
   })
 })
