@@ -9,10 +9,11 @@ import path from 'node:path'
 // tests run this over every step Protobase ships.
 
 /**
- * The Squawk rules a step must not break. Its others are about locks and online changes, which do not apply as the
- * migrations run while nothing else writes, or about style.
+ * The Squawk rules a step must not break, a step it cannot parse included. Its others are about locks and online
+ * changes, which do not apply as the migrations run while nothing else writes, or about style.
  */
 const refusedRules = [
+  'syntax-error',
   'ban-drop-column',
   'ban-drop-table',
   'ban-drop-database',
@@ -50,7 +51,8 @@ const squawkFindings = (steps: LintedStep[]): StepFinding[] => {
     .map((finding) => ({ step: steps[files.indexOf(finding.file)]!.label, rule: finding.rule_name, message: finding.message }))
 }
 
-const uniqueIndexOn = /^create unique index (?:if not exists )?(?:"[^"]+"|\w+) on ((?:(?:"[^"]+"|\w+)\.)?(?:"[^"]+"|\w+))/gm
+// Keywords in any case and after any indentation; the table as the SQL writes it.
+const uniqueIndexOn = /^\s*create\s+unique\s+index\s+(?:if\s+not\s+exists\s+)?(?:"[^"]+"|\w+)\s+on\s+((?:(?:"[^"]+"|\w+)\.)?(?:"[^"]+"|\w+))/gim
 
 /** A unique index over the rows of a table the step did not make holds only when they are unique: the step checks that first. */
 const uncheckedUniqueIndexes = (steps: LintedStep[]): StepFinding[] =>

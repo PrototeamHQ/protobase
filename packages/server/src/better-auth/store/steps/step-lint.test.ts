@@ -29,6 +29,13 @@ describe('the step lint', () => {
     expect(rules('alter table "t" add constraint "t_x_key" unique ("x");')).toEqual(['disallowed-unique-constraint'])
     expect(rules('create unique index "t_x_uidx" on "s"."t" ("x");')).toEqual(['unique-index-without-check'])
     expect(rules('create unique index "t_x_uidx" on "s"."t" ("x");', { checked: true })).toEqual([])
+    expect(rules('CREATE UNIQUE INDEX "t_x_uidx" ON "t" ("x");')).toEqual(['unique-index-without-check'])
+    expect(rules('  create  unique index if not exists "t_x_uidx"\n  on "t" ("x");')).toEqual(['unique-index-without-check'])
+    expect(rules('CREATE UNIQUE INDEX "a_x_uidx" ON "a" ("x");', { made: ['"a"'] })).toEqual([])
+  })
+
+  it('refuses a step it cannot parse', () => {
+    expect(new Set(rules('create tabel "t" (id text);'))).toEqual(new Set(['syntax-error']))
   })
 
   it('names the step each finding is in', () => {
