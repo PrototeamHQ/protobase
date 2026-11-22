@@ -124,7 +124,7 @@ A channel resource's `events` say what its signed-in members may send each other
 | `maxBytes` | The payload's largest size in bytes, 1 to 65536. |
 | `perSecond`, `burst` | How often one person may send it a second, over all their sockets, and how many at once: positive, `burst` a whole number. |
 
-An event's name is 1 to 64 bytes and none of `heartbeat`, `interest`, `presence`, `client_event` and `phx_*`, which the relay keeps for itself; the server refuses to start otherwise. The relay checks the schemas when it reads its apps file. Visitors send nothing. A page sends one with [`client.relay.send`](#from-code), and the others hear it with `from`, the channel and the time the relay stamps on it.
+An event's name is 1 to 64 bytes and none of `heartbeat`, `interest`, `presence`, `client_event` and `phx_*`, which the relay keeps for itself; the server refuses to start otherwise. The relay checks the schemas when it reads its apps file. Visitors send nothing. A page sends one with [`client.relay.send`](#from-code), and the others hear it with `from`, the channel and the time the relay stamps on it. <gap>The config cannot declare direct events, which `client.relay.direct` sends to a person, because declaring direct client events is not implemented, so the relay's apps file declares them by hand.</gap>
 
 ## Pages
 
