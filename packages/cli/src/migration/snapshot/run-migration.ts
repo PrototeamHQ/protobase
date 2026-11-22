@@ -41,7 +41,7 @@ export const runMigration = async ({ projectDir, dir, auth, database, protobaseV
   if (database && difference.migration && difference.migration.checks.length > 0) await runPreconditions(database.url, difference.migration.checks)
   const compared: Array<{ name: string; text: string }> = []
   for (const part of database?.parts ?? []) {
-    const sql = await part.sql()
+    const sql = await part.sql({ authWritten: Boolean(difference.migration) })
     if (sql !== undefined) compared.push({ name: part.name, text: section(part.title, sql) })
   }
   const sections = [...(difference.migration ? [{ name: 'auth', text: section(authMigrationTitle, difference.migration.sql) }] : []), ...compared]

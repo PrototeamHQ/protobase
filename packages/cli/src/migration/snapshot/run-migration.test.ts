@@ -1,6 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import type { MigrationPart } from '../parts'
+import { runMigration } from './run-migration'
 import { authOf, cleanProjects, counterIds, migrate, migrationsOf, newProject, olderProject, projectFiles } from './project-fixture'
 import { readSnapshot } from './snapshot-file'
 
@@ -86,5 +88,32 @@ describe('protobase migration', () => {
     await mkdir(migrationsOf(dir), { recursive: true })
     await writeFile(path.join(migrationsOf(dir), '007_orders.sql'), 'create table orders (id int);\n')
     expect(path.basename((await migrate(dir, authOf()))!)).toBe('008_auth.sql')
+  })
+
+  describe("the relay's part, on a database without the sessions table", () => {
+    // As the relay's part compares there: the trigger is missing, and only the auth store's steps create the table.
+    const relay: MigrationPart = {
+      name: 'relay',
+      title: 'The relay trigger',
+      sql: async ({ authWritten }) => {
+        if (!authWritten) throw new Error('no sessions table')
+        return 'create trigger relay_session_ended;'
+      },
+    }
+    const withRelay = (dir: string) => runMigration({ projectDir: dir, dir: migrationsOf(dir), auth: authOf(), database: { url: 'postgres://unused', parts: [relay] }, protobaseVersion: '1.0.0', newId: counterIds() })
+
+    it("is written after the auth store's steps the same file writes", async () => {
+      const dir = await newProject()
+      const file = await withRelay(dir)
+      expect(path.basename(file!)).toBe('001_auth_relay.sql')
+      const text = await readFile(file!, 'utf8')
+      expect(text.indexOf('-- The auth schema changes this version of Protobase needs.')).toBeLessThan(text.indexOf('-- The relay trigger.'))
+    })
+
+    it("is compared without the auth store's steps once the file writes none", async () => {
+      const dir = await newProject()
+      await migrate(dir, authOf())
+      await expect(withRelay(dir)).rejects.toThrow('no sessions table')
+    })
   })
 })
