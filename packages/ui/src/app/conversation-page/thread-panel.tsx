@@ -10,6 +10,9 @@ import { MessageComposer } from '../conversation/message-composer'
 import { keyValue } from '../create/create-values'
 import { ErrorBanner } from '../error-banner'
 import { useAdminMeta } from '../meta-gate'
+import type { ConversationTyping } from '../../typing/conversation-typing'
+import { TypingNames } from '../../typing/typing-names'
+import { useTypingBox } from '../../typing/use-typing-box'
 import { Quiet } from '../pages/blocks/card-frame'
 import { ConversationMessage } from './conversation-message'
 import { repliesRequest } from './conversation-reads'
@@ -27,6 +30,8 @@ type Props = {
   first: string
   me: string | undefined
   searchPeople?: PeopleSearch
+  /** The conversation's typing, which the panel shows and sends for its own thread alone. */
+  typing?: ConversationTyping
   onClose: () => void
 }
 
@@ -34,11 +39,13 @@ type Props = {
  * A thread beside its conversation, covering the screen at mobile width: its first message, its replies kept current
  * as the live updates tell of changes, and a box of its own that replies in it. The reader reacts to, edits and deletes
  * its messages as in the conversation. A first message of another conversation shows as not found, with no box, so no
- * reply joins a thread of another conversation from here. Key it by the first message, so another thread starts afresh.
+ * reply joins a thread of another conversation from here. With `typing`, a line above its box says who else types in
+ * the thread. Key it by the first message, so another thread starts afresh.
  */
-export const ThreadPanel = ({ page, owner, recordKey, first, me, searchPeople, onClose }: Props) => {
+export const ThreadPanel = ({ page, owner, recordKey, first, me, searchPeople, typing, onClose }: Props) => {
   const { resources, views } = useAdminMeta()
   const model = resources[page.resource]!
+  const typed = useTypingBox(typing, keyValue(model, first))
   const senders = [page.sender]
   const head = useThreadHead(page, model, recordKey, first)
   const list = useList(page.resource, { ...repliesRequest(page, page.thread, first), labels: listLabels(resources, views, model, senders) })
@@ -55,15 +62,22 @@ export const ThreadPanel = ({ page, owner, recordKey, first, me, searchPeople, o
       title={text('thread')}
       onClose={onClose}
       footer={
-        !head.elsewhere && <MessageComposer
-          resource={page.resource}
-          field={page.text}
-          values={{ [page.field]: keyValue(owner, recordKey), [page.thread.field]: keyValue(model, first) }}
-          placeholder={text('replyPlaceholder')}
-          searchPeople={searchPeople}
-          mentions={page.mentions}
-          attachments={page.attachments}
-        />
+        !head.elsewhere && (
+          <>
+            {typing && <TypingNames users={typing.typers(first)} />}
+            <MessageComposer
+              resource={page.resource}
+              field={page.text}
+              values={{ [page.field]: keyValue(owner, recordKey), [page.thread.field]: keyValue(model, first) }}
+              placeholder={text('replyPlaceholder')}
+              searchPeople={searchPeople}
+              mentions={page.mentions}
+              attachments={page.attachments}
+              onDraft={typed.onText}
+              onSent={typed.onSent}
+            />
+          </>
+        )
       }
     >
       {error && <div className="shrink-0 p-2"><ErrorBanner title={text('couldNotLoadThread')} error={error} /></div>}

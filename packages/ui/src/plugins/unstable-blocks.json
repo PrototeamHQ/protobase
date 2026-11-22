@@ -12,7 +12,11 @@
     "primitives/true-mark#TrueMark": "table cells and BooleanField draw a true boolean with it; a layout gets it from BooleanField",
     "primitives/use-drawer-drag#useDrawerDrag": "the shell's sidebar drawer moves under the finger with it; a plugin's sheet gets that from Sheet and its menus from MenuSurface",
     "relay/relay-context#useRelay": "the framework's pages and live updates share the page's relay store through it; a component reaches the same socket through useClient().relay, and typing through useTypers, useTypingSender and TypingLine",
-    "relay/relay-provider#RelayProvider": "the shell mounts it for someone signed in to an app with realtime.relay; an app gets it by configuring the relay"
+    "relay/relay-provider#RelayProvider": "the shell mounts it for someone signed in to an app with realtime.relay; an app gets it by configuring the relay",
+    "relay/use-relay-typing#useRelayTyping": "the conversation page carries its typing over the relay with it; a component reaches the same through useTypers and useTypingSender",
+    "typing/typing-names#TypingNames": "the conversation page and its thread panel draw their typing line with it; a component draws the relay's with TypingLine",
+    "typing/use-record-typing#useRecordTyping": "the conversation page carries its typing over the record's channel with it without a relay; a component reaches that channel through useClient().channel",
+    "typing/use-typing-box#useTypingBox": "the conversation page and its thread panel send their reader's typing with it; a component sends the relay's with useTypingSender"
   },
   "pending": [
     "account/account-section#AccountSection",

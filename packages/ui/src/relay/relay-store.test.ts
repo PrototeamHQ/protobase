@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RelayNotice } from '@protobase/client'
 import { createRelayStore } from './relay-store'
-import { typingShownMs } from './typing'
+import { typingShownMs, typingSpot } from '../typing/typing'
 
 const notice = (resource: string, key: string, channel: string): RelayNotice => ({ kind: 'create', resource, key, channel })
 
@@ -18,6 +18,14 @@ describe('createRelayStore', () => {
     vi.advanceTimersByTime(typingShownMs)
     expect(store.typers().size).toBe(0)
     expect(listener).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps typing in a thread apart, and passes over a direct event and another event', () => {
+    const store = createRelayStore()
+    store.handlers.onEvent!({ event: 'typing', payload: { typing: true, thread: 4 }, from: { user: 'u2', connection: 'c' }, at: 0, channel: 'a/1' })
+    store.handlers.onEvent!({ event: 'typing', payload: { typing: true }, from: { user: 'u3', connection: 'c' }, at: 0, to: 'u1' })
+    store.handlers.onEvent!({ event: 'ring', payload: { typing: true }, from: { user: 'u4', connection: 'c' }, at: 0, channel: 'a/1' })
+    expect([...store.typers().keys()]).toEqual([typingSpot('a/1', 4)])
   })
 
   it('shows nobody typing while the relay is down', () => {
