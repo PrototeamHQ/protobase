@@ -7,6 +7,7 @@ import type { PersonalMailProvider } from './personal-mail-provider'
 import { linkedMailbox } from './personal-mailer'
 import type { BetterAuthNames } from '../better-auth/names/better-auth-names'
 import type { MailSenderUseCheck } from './mail-sender-use-check'
+import type { AliasChecks } from './alias-checks'
 import { changeSender, clearDefault, deleteSender, mailSenderModel, sendersOf, storeSender, type MailSenderRow } from './sender-store'
 
 /** The paths of the person's From addresses, as Better Auth names them under the auth base path. */
@@ -15,6 +16,8 @@ export const mailSenderPaths = {
   add: '/account/mail-senders/add',
   update: '/account/mail-senders/update',
   remove: '/account/mail-senders/remove',
+  check: '/account/mail-senders/check',
+  checkResult: '/account/mail-senders/check-result',
 }
 
 /** The most addresses one person may enter, well above the send-as addresses a mailbox has. */
@@ -76,8 +79,13 @@ const nameField = z
  * none; `POST /account/mail-senders/remove { id }` deletes one. Each acts on the session's own person only. While
  * records of the app hold an address (`inUse`), removing it, or disconnecting the mailbox whose own address it is
  * (`/unlink-account`), is refused with a 409, and changes nothing.
+ *
+ * With `checks`, the list says `checks: true`, and `POST /account/mail-senders/check { id }` sends a test message from
+ * one of the person's addresses through their mailbox and answers `{ status: 'waiting', check }`; `POST
+ * /account/mail-senders/check-result { id, check }` answers where it stands (`AliasCheckResult`). Without, the check
+ * answers `{ status: 'unchecked' }` and sends nothing.
  */
-export const mailSendersPlugin = (providers: PersonalMailProvider[], names: BetterAuthNames, inUse?: MailSenderUseCheck) =>
+export const mailSendersPlugin = (providers: PersonalMailProvider[], names: BetterAuthNames, inUse?: MailSenderUseCheck, checks?: AliasChecks) =>
   ({
     id: 'protobase-mail-senders',
     schema: names.tables(mailSenderModel),
@@ -100,7 +108,7 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[], names: Bett
         const userId = ctx.context.session.user.id
         const [rows, accounts] = await Promise.all([sendersOf(ctx.context.adapter, userId), ctx.context.internalAdapter.findAccounts(userId)])
         const address = mailboxOf(accounts, providers)?.address
-        return ctx.json({ ...(address && { address }), senders: rows.map(listed) })
+        return ctx.json({ ...(address && { address }), senders: rows.map(listed), checks: Boolean(checks) })
       }),
 
       addMailSender: createAuthEndpoint(
@@ -145,5 +153,25 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[], names: Bett
         await deleteSender(ctx.context.adapter, userId, ctx.body.id)
         return ctx.json({ removed: true })
       }),
+
+      checkMailSender: createAuthEndpoint(mailSenderPaths.check, { method: 'POST', use: [sessionMiddleware], body: z.object({ id: z.string().min(1) }) }, async (ctx) => {
+        const userId = ctx.context.session.user.id
+        const found = (await sendersOf(ctx.context.adapter, userId)).find((row) => row.id === ctx.body.id)
+        if (!found) throw new APIError('NOT_FOUND', notFound)
+        if (!checks) return ctx.json({ status: 'unchecked' as const })
+        const check = await checks.start(userId, found.address, headersLocale(ctx.headers))
+        return ctx.json({ status: 'waiting' as const, check })
+      }),
+
+      checkMailSenderResult: createAuthEndpoint(
+        mailSenderPaths.checkResult,
+        { method: 'POST', use: [sessionMiddleware], body: z.object({ id: z.string().min(1), check: z.string().min(1).max(200) }) },
+        async (ctx) => {
+          const found = (await sendersOf(ctx.context.adapter, ctx.context.session.user.id)).find((row) => row.id === ctx.body.id)
+          if (!found) throw new APIError('NOT_FOUND', notFound)
+          if (!checks) return ctx.json({ status: 'unchecked' as const })
+          return ctx.json(await checks.result(ctx.body.check, found.address))
+        },
+      ),
     },
   }) satisfies BetterAuthPlugin

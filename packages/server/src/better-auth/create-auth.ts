@@ -10,6 +10,9 @@ import { resolvePersonalMail, type PersonalMailProviderId } from '../personal-ma
 import { personalMailer } from '../personal-mail/personal-mailer'
 import { mailLinkHooks } from '../personal-mail/mail-link-hooks'
 import { mailSendersPlugin } from '../personal-mail/mail-senders-plugin'
+import { aliasChecks, type AliasChecks } from '../personal-mail/alias-checks'
+import { mailCheckService } from '../personal-mail/mail-check-service'
+import { readMailCheckSettings } from '../personal-mail/mail-check-settings'
 import { mailSenderUseCheck, type MailSenderUseCheck } from '../personal-mail/mail-sender-use-check'
 import { adapterSenderStore } from '../personal-mail/sender-store'
 import { bothAccountHooks, connectionAccountHooks } from './connections/connection-account-hooks'
@@ -335,6 +338,8 @@ const platformPasskeyDomain = () => readPasskeyDomain(globalThis.process?.env ??
 
 const platformLockedAccounts = () => readLockedAccounts(globalThis.process?.env ?? {})
 
+const platformMailCheck = () => readMailCheckSettings(globalThis.process?.env ?? {})
+
 const tokenLifetime = '15m'
 
 export { authBasePath }
@@ -398,6 +403,8 @@ type Resolved = {
   deletion?: UserDeletion
   /** Whether records of the app hold a From address, asked before one goes (see `mailSenderUseCheck`). */
   mailSenderUse?: MailSenderUseCheck
+  /** The checks that mail from a From address goes out from it, when the platform names a mail check service (see `aliasChecks`). */
+  aliasChecks?: AliasChecks
   /** The addresses of the accounts no one changes or deletes, from `PROTOBASE_LOCKED_ACCOUNTS` (see `lockAccounts`). */
   lockedAccounts?: string[]
   /** The workflow connections, from `resolveConnections`, and the listener of their links and disconnects. */
@@ -437,7 +444,7 @@ const pageLoadReads = ['/get-session', '/role/current', '/token']
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn = [], saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, mailSenderUse, lockedAccounts = [], connections, names = resolveNames({ schema: storeSchema({ options }), tables: options.tables }), ...plugins }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn = [], saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, mailSenderUse, aliasChecks, lockedAccounts = [], connections, names = resolveNames({ schema: storeSchema({ options }), tables: options.tables }), ...plugins }: Resolved) => {
   const named = betterAuthNames(names)
   const mailProviders = resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true)
   const connectionHooks = connections && connections.resolved.length > 0 ? connectionAccountHooks(connections.resolved, connections.events) : undefined
@@ -584,7 +591,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       }),
       ...(passwordHashes.length > 0 ? [rehashPasswordsPlugin(passwordHashes)] : []),
       ...(personalAccessTokens ? [personalAccessTokensPlugin({ options: personalAccessTokens, definitions, names: named })] : []),
-      ...(mailProviders.length > 0 ? [mailSendersPlugin(mailProviders, named, mailSenderUse)] : []),
+      ...(mailProviders.length > 0 ? [mailSendersPlugin(mailProviders, named, mailSenderUse, aliasChecks)] : []),
       // Last, so the staff plugin refuses staff sessions on the provider's paths before its own hooks run.
       ...(mcp ? loaded(plugins.mcpAuthPlugins, 'mcp')({ mcp, ...(api && { api }), organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context, names: named }) : []),
       ...(openId ? loaded(plugins.openIdProviderPlugins, 'openIdProvider')({ openId, mail: Boolean(mailer), defaultPolicy: signInPolicy, names: named }) : []),
@@ -714,11 +721,15 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const mobile = mobileRequests()
   const deletion = userDeletion()
   const senderUse = mailSenderUseCheck()
+  // Read once a request needs them: the instance and the sender store are made below.
+  const mailboxOf = (userId: string) => personalMailer(betterAuthLinkedAccounts(auth as unknown as TokenAuth), personalMail, senderStore, userId)
+  const mailCheck = personalMail.length > 0 ? platformMailCheck() : undefined
+  const checks = mailCheck && aliasChecks(mailCheckService(mailCheck), mailboxOf)
   // Deleting a user revokes their connected accounts and parks the triggers on them, as disconnecting each would.
   if (resolvedConnections.length > 0) deletion.set('connections', releaseUserConnections({ connections: resolvedConnections, events, allowPrivateAddresses, context }))
   const lockedAccounts = platformLockedAccounts()
   const names = resolveNames({ schema: storeSchema({ options }), tables: options.tables })
-  const authOptions = betterAuthOptions(options, { ...plugins, names, mobile, deletion, mailSenderUse: senderUse, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
+  const authOptions = betterAuthOptions(options, { ...plugins, names, mobile, deletion, mailSenderUse: senderUse, ...(checks && { aliasChecks: checks }), lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
@@ -790,7 +801,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     /** The mail providers people link their own mailbox with (`personalMail`). */
     personalMail,
     /** Mail from `userId`'s own mailbox, through the mail provider they linked, from the addresses they may use (see `personalMailer`). */
-    personalMailer: (userId: string) => personalMailer(betterAuthLinkedAccounts(auth as unknown as TokenAuth), personalMail, senderStore, userId),
+    personalMailer: mailboxOf,
     /** What workflow connections can sign in with: whether tokens are stored encrypted, the sign-in providers, the connections with a client. */
     connectionSupport: { encrypted: options.encryptOAuthTokens === true, signInProviders: socialProviders, clients: connectionClients },
     /**

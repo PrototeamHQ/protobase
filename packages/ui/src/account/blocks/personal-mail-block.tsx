@@ -63,6 +63,8 @@ const Mailboxes = ({ links }: { links: PersonalMailLink[] }) => {
           forgetSenderOptions()
           await reload()
         }}
+        onCheck={(id) => account.checkMailSender(id)}
+        onCheckResult={(id, check) => account.mailSenderCheckResult(id, check)}
       />
     </SignInProvidersSection>
   )
