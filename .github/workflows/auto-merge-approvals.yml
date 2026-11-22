@@ -1,8 +1,6 @@
-# Merges a pull request with the auto-merge-approvals label once CodeRabbit approved its head, before or after the label
-# was added, or anyone with write access approved it after the label, and every check on its head passed;
-# scripts/auto-merge-approvals/decision.ts holds the rules. On a pull request from a branch of this repository by an author with write access, a clean verdict of the head
-# from coderabbit-follow-up.yml counts as an approval too. A merge with GITHUB_TOKEN starts no workflow, so the script
-# then starts release.yml and docs.yml with workflow_dispatch. No checkout here takes anything from the pull request.
+# Merges a pull request with the auto-merge-approvals label through the shared workflow in protobase-community/.github,
+# which holds the rules (.github/auto-merge-approvals/decision.ts there). A merge with GITHUB_TOKEN starts no workflow,
+# so it then starts release.yml and docs.yml with workflow_dispatch.
 name: auto-merge-approvals
 
 on:
@@ -10,7 +8,7 @@ on:
   # leaving draft can merge too.
   pull_request_target: # zizmor: ignore[dangerous-triggers] nothing from the pull request runs
     types: [labeled, ready_for_review, unlabeled]
-  # An approval, or a dismissed change request. It runs this file from the pull request's merge commit.
+  # An approval, or a dismissed change request.
   pull_request_review:
     types: [submitted, dismissed]
   # The repository's CI workflows, by name: each run that finishes tries again. Never list auto-merge-approvals itself.
@@ -24,8 +22,7 @@ on:
     types: [completed]
   status:
 
-# Merging takes contents: write, as does deleting the branch: https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps#repository-permissions-for-contents
-# Starting release.yml and docs.yml after a merge takes actions: write.
+# Merging and deleting the branch take contents: write, and starting release.yml and docs.yml takes actions: write.
 permissions:
   actions: write
   checks: read
@@ -35,35 +32,8 @@ permissions:
 
 jobs:
   merge:
-    # A fork's pull request, branch or check suite runs nothing, and neither does a pull request without the label,
-    # which also keeps a review of the pull request that adds this file from looking for a script main lacks. Adding
-    # another label runs nothing either.
-    if: >-
-      (github.event_name == 'workflow_run' && github.event.workflow_run.head_repository.full_name == github.repository) ||
-      (github.event_name == 'check_suite' && github.event.check_suite.pull_requests[0] != null) ||
-      (github.event_name == 'status' && github.event.state != 'pending') ||
-      ((github.event_name == 'pull_request_review' || github.event_name == 'pull_request_target') &&
-        github.event.pull_request.head.repo.full_name == github.repository &&
-        contains(github.event.pull_request.labels.*.name, 'auto-merge-approvals') &&
-        (github.event.action != 'labeled' || github.event.label.name == 'auto-merge-approvals'))
-    # GitHub answers two merges of one head at the same moment with the same merge commit, so two runs that both found
-    # it open would both start the release. Runs for one head take turns, and a later one finds it merged and stops.
-    # Every run waits its turn instead of replacing a waiting one.
-    concurrency:
-      group: auto-merge-approvals-${{ github.event.workflow_run.head_sha || github.event.check_suite.head_sha || github.event.pull_request.head.sha || github.event.sha }}
-      queue: max
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      # A review event's default ref is the pull request's merge commit, so main is named.
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.repository.default_branch }}
-          persist-credentials: false
-          sparse-checkout: scripts/auto-merge-approvals
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.4
-      - run: bun scripts/auto-merge-approvals/main.ts
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+    # Adding another label runs nothing.
+    if: github.event.action != 'labeled' || github.event.label.name == 'auto-merge-approvals'
+    uses: protobase-community/.github/.github/workflows/auto-merge-approvals.yml@main
+    with:
+      dispatch-after-merge: release.yml docs.yml

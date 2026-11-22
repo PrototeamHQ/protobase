@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   # A merge with the workflow's own token pushes without starting a workflow, so what merged it starts this one
-  # (scripts/auto-merge-approvals/after-merge.ts).
+  # (auto-merge-approvals.yml, with dispatch-after-merge).
   workflow_dispatch:
 
 concurrency:
