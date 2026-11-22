@@ -113,7 +113,9 @@ const playStory = async (story) => {
   // below stands for. The close has a deadline of its own, as does everything a story waits on.
   const close = () => withDeadline(setUp.then((context) => context.close()), closeSeconds * 1000, timedOut)
   // Where the script of a page that stopped answering stands, before its context closes, which it does even when
-  // reading that fails.
+  // reading that fails. Whatever the page does, reading it resolves to a line: a pause, a refused pause, a closed page
+  // or no pause in time (play-tests/stuck-script.mjs). So a rejection here is a bug in the runner, and it stops the run
+  // rather than being swallowed.
   let scriptAt
   let closed
   try {
