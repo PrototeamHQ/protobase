@@ -96,6 +96,13 @@ describe('.prepare() in the write pipeline', () => {
     expect(log).toContain('insert ["shop","t","u1"]')
   })
 
+  it('checks what it returns against the .validate() rules, refusing before anything is written', async () => {
+    const named = shops.validate((r) => (r.name ? [] : [{ field: 'name', message: 'A shop has a name' }]))
+    const { log, write } = served(named.prepare((values) => ({ ...values, name: '', token: 't' })))
+    expect(await outcome(write({ name: 'shop' }))).toEqual({ status: 400, extras: { errors: [{ field: 'name', code: 'invalid-record', message: 'A shop has a name' }] } })
+    expect(log).toEqual(['begin', 'select', 'rollback'])
+  })
+
   it('stops at a value for a field the resource does not have', async () => {
     const { write } = served(shops.prepare((values) => ({ ...values, nothing: 1 }) as never))
     expect(await outcome(write({ name: 'shop' }))).toBe('Error: Resource "shops": .prepare() returned "nothing", which is not one of its fields')

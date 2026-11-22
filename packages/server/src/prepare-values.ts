@@ -4,6 +4,7 @@ import { maskEncrypted } from './encryption/mask-stored'
 import { HttpProblem } from './problem'
 import { writableFields, type RequestAccess } from './request-access'
 import type { Row } from './types'
+import { checkRules } from './validate-body'
 
 // The 422 for a refusal: the field named when the caller reads it, as `.validate()` rules name theirs, `_record` otherwise.
 const unprocessable = (access: RequestAccess, operation: 'create' | 'update', issue: FieldIssue) => {
@@ -30,9 +31,11 @@ const runPreparers = async (access: RequestAccess, values: Row, context: Prepare
 
 /**
  * A create's or update's values as the resource's `.prepare()` hooks rewrite them, in order, inside the write's
- * transaction `trx`; `before` is the stored record an update changes. A `FieldIssue` they throw answers 422.
+ * transaction `trx`, checked again by the `.validate()` rules on `current` as the write leaves it: the stored record
+ * an update changes, which the hooks get as `before`, or the server's values a create adds. A `FieldIssue` they throw
+ * answers 422.
  */
-export const prepareValues = async (trx: Db, access: RequestAccess, operation: 'create' | 'update', values: Row, before?: Row) => {
+export const prepareValues = async (trx: Db, access: RequestAccess, operation: 'create' | 'update', values: Row, current: Row = {}) => {
   if (!access.entry.source.preparers?.length) return values
   const { session, full } = access
   const context: PrepareContext<Row> = {
@@ -42,10 +45,10 @@ export const prepareValues = async (trx: Db, access: RequestAccess, operation: '
     ...(session.tenant !== undefined && { tenant: session.tenant }),
     trx,
     // A copy, so a hook that changes it leaves the stored record the update goes on with alone
-    ...(before && { before: { ...maskEncrypted(full, before) } }),
+    ...(operation === 'update' && { before: { ...maskEncrypted(full, current) } }),
   }
   try {
-    return await runPreparers(access, values, context)
+    return checkRules(access, operation, await runPreparers(access, values, context), current)
   } catch (error) {
     if (error instanceof FieldIssue) throw unprocessable(access, operation, error)
     throw error

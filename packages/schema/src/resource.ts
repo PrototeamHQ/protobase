@@ -379,8 +379,8 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never, N extends st
 
   /**
    * Fills in or rewrites the values of every create and update on the server before they are written, inside the
-   * write's transaction, after the field checks and `.validate()` rules: it returns the values to write, and may set
-   * read-only fields, such as a generated key, which no request can. It throws a `FieldIssue` to refuse the write with
+   * write's transaction, after the field checks and `.validate()` rules, which check what it returns again: it returns
+   * the values to write, and may set read-only fields, such as a generated key, which no request can. It throws a `FieldIssue` to refuse the write with
    * `422` and the field named. It does database and CPU work only; work that waits on the network goes in a job a write
    * hook enqueues. Each call adds one, run in order. See
    * [Preparing a record](docs/website/src/content/docs/reference/data-config.mdx#preparing-a-record).
