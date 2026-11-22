@@ -1,6 +1,7 @@
 import type { MailMessage, SentMail } from '../mail/smtp-mailer'
 import type { LinkedAccount, LinkedAccounts } from './linked-accounts'
-import { chooseSender, usableSenders, type MailSender } from './mail-sender'
+import { chooseSender, usableSenders, type ChosenSender, type MailSender } from './mail-sender'
+import { MailSenderRefusedError } from './mail-sender-refused'
 import { PersonalMailError } from './personal-mail-error'
 import type { PersonalMailProvider } from './personal-mail-provider'
 import type { MailSenderStore } from './sender-store'
@@ -40,23 +41,39 @@ export type PersonalMail = {
   senders: () => Promise<MailSender[]>
 }
 
+const publicSender = ({ through: _through, ...sender }: ChosenSender): MailSender => sender
+
+// A failure of another person's mailbox, told as theirs and naming only the address they shared.
+const asOthers = (chosen: ChosenSender) => (error: unknown) => {
+  if (error instanceof PersonalMailError) throw new PersonalMailError(error.code, undefined, { owner: 'other', address: chosen.address! })
+  throw error
+}
+
 /**
  * Mail from `userId`'s own mailbox: each message goes out through the mail provider they linked, with an access token
- * refreshed when it expired, from a From address they may use (`chooseSender`). Rejects with a `PersonalMailError` and
- * sends nothing when the mailbox it goes through is not linked (`not_linked`) or the provider no longer honours the link (`link_expired`).
+ * refreshed when it expired, from a From address they may use (`chooseSender`). An address another person shared goes
+ * out through that person's mailbox, only while it is still the account a check proved it through; else it is refused
+ * as any address they may not use. Rejects with a `PersonalMailError` and sends nothing when the mailbox it goes through
+ * is not linked (`not_linked`) or the provider no longer honours the link (`link_expired`), told as another's for a
+ * shared address.
  */
 export const personalMailer = (accounts: LinkedAccounts, providers: PersonalMailProvider[], senders: MailSenderStore, userId: string): PersonalMail => {
   const ownAddress = async () => (await linkedProvider(accounts, providers, userId))?.account.address
-  const sender = (from?: string) => chooseSender(senders, userId, ownAddress, from)
+  const choose = (from?: string) => chooseSender(senders, userId, ownAddress, from)
+  const sendAs = async (chosen: ChosenSender, message: MailMessage) => {
+    const linked = await linkedProvider(accounts, providers, chosen.ownerId)
+    if (!linked) throw new PersonalMailError('not_linked')
+    if (chosen.through !== undefined && chosen.through !== linked.account.id) throw new MailSenderRefusedError(chosen.address!)
+    const accessToken = await accounts.accessToken(chosen.ownerId, linked.account, linked.provider.id)
+    return linked.provider.send(message, accessToken, chosen.address ? { address: chosen.address, ...(chosen.name && { name: chosen.name }) } : undefined)
+  }
   return {
     send: async ({ from, ...message }) => {
-      const chosen = await sender(from)
-      const linked = await linkedProvider(accounts, providers, chosen.ownerId)
-      if (!linked) throw new PersonalMailError('not_linked')
-      const accessToken = await accounts.accessToken(chosen.ownerId, linked.account, linked.provider.id)
-      return linked.provider.send(message, accessToken, chosen.address ? { address: chosen.address, ...(chosen.name && { name: chosen.name }) } : undefined)
+      const chosen = await choose(from)
+      if (chosen.ownerId === userId) return sendAs(chosen, message)
+      return sendAs(chosen, message).catch(asOthers(chosen))
     },
-    sender,
+    sender: async (from) => publicSender(await choose(from)),
     senders: () => usableSenders(senders, userId, ownAddress),
   }
 }

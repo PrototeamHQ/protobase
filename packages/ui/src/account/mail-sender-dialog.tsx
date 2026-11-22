@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { MailSender } from '@protobase/client'
 import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
@@ -10,8 +10,11 @@ import { AliasCheck, type AliasCheckProps } from './alias-check'
 import { AliasCheckUnavailable } from './alias-check-panel'
 import { text } from './messages'
 
-/** What the dialog asks: the address, when it is a new one, its display name, its own signature, and if it is the default. */
-export type MailSenderInput = { address: string; name: string; signature: string; isDefault: boolean }
+/**
+ * What the dialog asks: the address, when it is a new one, its display name, its own signature, if it is the default,
+ * and, for an address entered, whether the app's other senders may send from it.
+ */
+export type MailSenderInput = { address: string; name: string; signature: string; isDefault: boolean; shared: boolean }
 
 type MailSenderDialogProps = {
   /** The address to change; without it, the dialog enters a new one. */
@@ -24,13 +27,20 @@ type MailSenderDialogProps = {
   onClose: () => void
 }
 
-/** Enters a From address, or changes one: its display name, whether it is the default, and its own signature. */
+/**
+ * Enters a From address, or changes one: its display name, whether it is the default, its own signature, and whether
+ * it is shared. Only an address a check proved can be shared: for another, where the app can check, the dialog says to check it first. A shared
+ * address that is no longer verified can still be unshared.
+ */
 export const MailSenderDialog = ({ sender, check, busy, error, onSave, onClose }: MailSenderDialogProps) => {
   const [address, setAddress] = useState(sender?.address ?? '')
   const [name, setName] = useState(sender?.name ?? '')
   const [signature, setSignature] = useState(sender?.signature ?? '')
   const [isDefault, setDefault] = useState(sender?.isDefault ?? false)
-  const save = () => onSave({ address: address.trim(), name: name.trim(), signature, isDefault })
+  const [shared, setShared] = useState(sender?.shared ?? false)
+  const [verified, setVerified] = useState(sender?.verified ?? false)
+  const confirmed = useCallback(() => setVerified(true), [])
+  const save = () => onSave({ address: address.trim(), name: name.trim(), signature, isDefault, shared })
   return (
     <Dialog
       title={sender ? sender.address : text('addFromAddress')}
@@ -59,13 +69,20 @@ export const MailSenderDialog = ({ sender, check, busy, error, onSave, onClose }
         <span>{text('defaultFromAddress')}</span>
         <Switch checked={isDefault} onChange={setDefault} label={text('defaultFromAddress')} />
       </label>
+      {sender && (verified || sender.shared) && (
+        <label className="mt-3 flex cursor-pointer items-center justify-between gap-3">
+          <span>{text('shareFromAddress')}</span>
+          <Switch checked={shared} onChange={setShared} label={text('shareFromAddress')} />
+        </label>
+      )}
+      {sender && !verified && check?.available && <p className="mt-3 text-muted-foreground">{text('shareNeedsCheck')}</p>}
       <label className="mt-3 flex flex-col gap-1.5 font-medium">
         {text('signature')}
         <Textarea value={signature} maxLength={2000} placeholder={text('signaturePlaceholder')} onChange={(event) => setSignature(event.target.value)} />
       </label>
       <SectionError message={error} />
       {check && !check.available && <AliasCheckUnavailable />}
-      {sender && check?.available && check.calls && <AliasCheck address={sender.address} calls={check.calls} {...(check.auto && { auto: true })} />}
+      {sender && check?.available && check.calls && <AliasCheck address={sender.address} calls={check.calls} {...(check.auto && { auto: true })} onConfirmed={confirmed} />}
     </Dialog>
   )
 }

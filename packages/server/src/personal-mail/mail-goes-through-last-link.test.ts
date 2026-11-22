@@ -55,7 +55,7 @@ const stubGoogle = (refused: string[] = []) => {
 
 // Better Auth with Protobase's options and Google sign-in on a store in memory, and Ada signed in with her password.
 const setUp = async () => {
-  const store: Record<string, Record<string, unknown>[]> = { user: [], account: [], session: [], verification: [], two_factor: [], passkey: [], sign_in_policy: [], jwks: [] }
+  const store: Record<string, Record<string, unknown>[]> = { user: [], account: [], session: [], verification: [], two_factor: [], passkey: [], sign_in_policy: [], jwks: [], mail_sender: [] }
   const resolved = { roles: ['admin', 'user'], definitions: roleDefinitions(), defaultRole: 'user' }
   // Without rate limits: Better Auth keeps their counts per process, which other test files in this worker share.
   const auth = betterAuth({ ...betterAuthOptions(base, resolved), database: memoryAdapter(store), rateLimit: { enabled: false } })

@@ -9,12 +9,12 @@ export default meta
 const senders: MailSendersSectionProps['senders'] = {
   address: 'ana@gmail.example',
   senders: [
-    { id: 's1', address: 'billing@shop.example', name: 'Shop billing', signature: 'Warm regards,\nAna, Shop billing', isDefault: false },
-    { id: 's2', address: 'ana@studio.example', isDefault: false },
+    { id: 's1', address: 'billing@shop.example', name: 'Shop billing', signature: 'Warm regards,\nAna, Shop billing', isDefault: false, verified: false, shared: false },
+    { id: 's2', address: 'ana@studio.example', isDefault: false, verified: false, shared: false },
   ],
 }
 
-const added = { id: 's3', address: 'sales@shop.example', name: 'Shop sales', signature: 'The Shop sales team', isDefault: false }
+const added = { id: 's3', address: 'sales@shop.example', name: 'Shop sales', signature: 'The Shop sales team', isDefault: false, verified: false, shared: false }
 
 /** The mailbox's own address as the default, the entered ones with their name and their own signature or the generic one, adding one with a name as the default, and removing one after asking. */
 export const FromAddresses: StoryObj<MailSendersSectionProps> = {
@@ -96,8 +96,38 @@ export const CheckedFromAddress: StoryObj<MailSendersSectionProps> = {
     expect(await dialog.findByText(/^The test message arrived from ana@gmail\.example instead of sales@shop\.example/, {}, answered)).toBeVisible()
     expect(args.onCheckResult).toHaveBeenCalledWith('s3', 'token-1')
 
+    // Only an address the check proved can be shared.
+    expect(dialog.queryByRole('switch', { name: /other senders/ })).toBeNull()
+    expect(dialog.getByText(/^To share this address with the app's other senders, check it first/)).toBeVisible()
+
     await userEvent.click(dialog.getByRole('button', { name: 'Check again' }))
     expect(await dialog.findByText('The test message arrived from sales@shop.example. Your mailbox can send from this address.', {}, answered)).toBeVisible()
+    expect(dialog.getByRole('switch', { name: "Let the app's other senders send from this address through your mailbox" })).toBeVisible()
+  },
+}
+
+const verified = { id: 's4', address: 'team@shop.example', isDefault: false, verified: true, shared: false }
+
+/** A verified address can be shared with the app's other senders, and a shared one shows so in the list. */
+export const SharedFromAddress: StoryObj<MailSendersSectionProps> = {
+  tags: ['play'],
+  args: {
+    senders: { ...senders, checks: true, senders: [verified, { ...verified, id: 's5', address: 'office@shop.example', shared: true }] },
+    onAdd: fn(),
+    onUpdate: fn(async () => undefined),
+    onRemove: fn(),
+    onCheck: fn(),
+    onCheckResult: fn(),
+  },
+  render: (args) => <MailSendersSection {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    const page = within(document.body)
+    expect(canvas.getByText('Shared')).toBeVisible()
+    await userEvent.click(canvas.getAllByRole('button', { name: 'Edit' })[0]!)
+    await userEvent.click(page.getByRole('switch', { name: "Let the app's other senders send from this address through your mailbox" }))
+    await userEvent.click(page.getByRole('button', { name: 'Save' }))
+    expect(args.onUpdate).toHaveBeenCalledWith('s4', { name: null, signature: null, isDefault: false, shared: true })
   },
 }
 

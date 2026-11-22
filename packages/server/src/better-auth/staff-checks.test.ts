@@ -73,8 +73,8 @@ describe('isRefusedForStaff', () => {
     expect(isRefusedForStaff('/policy/sign-in', 'POST')).toBe(true)
   })
 
-  it("refuses changes to the person's From addresses but lets staff list them", () => {
-    for (const path of ['/account/mail-senders/add', '/account/mail-senders/update', '/account/mail-senders/remove', '/account/mail-senders/check']) expect(isRefusedForStaff(path, 'POST')).toBe(true)
+  it("refuses changes to the person's From addresses, sharing and their checks included, but lets staff list them", () => {
+    for (const path of ['/account/mail-senders/add', '/account/mail-senders/update', '/account/mail-senders/remove', '/account/mail-senders/check', '/account/mail-senders/check-result']) expect(isRefusedForStaff(path, 'POST')).toBe(true)
     expect(isRefusedForStaff('/account/mail-senders', 'GET')).toBe(false)
   })
 

@@ -13,7 +13,7 @@ let stores: McpStores
 beforeAll(async () => { stores = await mcpStores() })
 afterAll(async () => { await stores.fixture.db.destroy() })
 
-type Sender = { id: string; address: string; name?: string; signature?: string; isDefault: boolean }
+type Sender = { id: string; address: string; name?: string; signature?: string; isDefault: boolean; verified: boolean; shared: boolean }
 type Served = Awaited<ReturnType<typeof serveMcp>>
 
 const personalMail = { personalMail: ['gmail' as const], encryptOAuthTokens: true, socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } } }
@@ -34,7 +34,7 @@ describe('the From addresses on the account page', () => {
     const app = await served()
     const cookie = await app.signIn('ana@example.com')
     const billing = await add(app, cookie, { address: 'Billing@Acme.example', signature: 'Warm regards,\nAna' })
-    expect(billing).toEqual({ id: expect.any(String), address: 'billing@acme.example', signature: 'Warm regards,\nAna', isDefault: false })
+    expect(billing).toEqual({ id: expect.any(String), address: 'billing@acme.example', signature: 'Warm regards,\nAna', isDefault: false, verified: false, shared: false })
     const sales = await add(app, cookie, { address: 'sales@acme.example' })
 
     const twice = await app.request('/api/auth/account/mail-senders/add', { cookie, body: { address: 'billing@acme.example' } })
@@ -54,18 +54,18 @@ describe('the From addresses on the account page', () => {
 
     // The display name, which the From header shows beside the address, until they clear it.
     const ops = await add(app, cookie, { address: 'ops@acme.example', name: '  Ana of Acme ' })
-    expect(ops).toEqual({ id: ops.id, address: 'ops@acme.example', name: 'Ana of Acme', isDefault: false })
+    expect(ops).toEqual({ id: ops.id, address: 'ops@acme.example', name: 'Ana of Acme', isDefault: false, verified: false, shared: false })
     const anaMail = app.auth.personalMailer(await app.userId('ana@example.com'))
     expect(await anaMail.sender('ops@acme.example')).toMatchObject({ address: 'ops@acme.example', name: 'Ana of Acme' })
     const broken = await update(app, cookie, { id: ops.id, name: 'Ana\r\nBcc: eve@example.com' })
     expect(broken.status).toBe(400)
     expect((await update(app, cookie, { id: ops.id, name: 'Acme ops' })).status).toBe(200)
-    expect((await listed(app, cookie))[1]).toEqual({ ...ops, name: 'Acme ops' })
+    expect((await listed(app, cookie)).find(({ id }) => id === ops.id)).toEqual({ ...ops, name: 'Acme ops' })
     expect((await update(app, cookie, { id: ops.id, name: null })).status).toBe(200)
-    expect((await listed(app, cookie))[1]).toEqual({ id: ops.id, address: 'ops@acme.example', isDefault: false })
+    expect((await listed(app, cookie)).find(({ id }) => id === ops.id)).toEqual({ id: ops.id, address: 'ops@acme.example', isDefault: false, verified: false, shared: false })
   })
 
-  it("serve their owner alone, also one sent as shared, and leave another person's alone", async () => {
+  it("serve their owner alone, also one sent as shared when added, and leave another person's alone", async () => {
     const app = await served()
     const ana = await app.signIn('ana@example.com')
     const bo = await app.signIn('bo@example.com')
@@ -76,7 +76,7 @@ describe('the From addresses on the account page', () => {
     expect(await listed(app, bo)).toEqual([])
     expect(await listed(app, ana)).toEqual([billing])
 
-    expect(await add(app, ana, { address: 'sales@acme.example', shared: true })).not.toHaveProperty('shared')
+    expect(await add(app, ana, { address: 'sales@acme.example', shared: true })).toMatchObject({ shared: false, verified: false })
     const anaId = await app.userId('ana@example.com')
     const boMail = app.auth.personalMailer(await app.userId('bo@example.com'))
     for (const address of ['sales@acme.example', 'billing@acme.example']) await expect(boMail.sender(address)).rejects.toEqual(new MailSenderRefusedError(address))

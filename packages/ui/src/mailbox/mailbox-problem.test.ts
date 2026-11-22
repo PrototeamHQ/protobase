@@ -15,6 +15,11 @@ describe('mailboxProblem', () => {
     expect(mailboxProblem(problem('personal-mail-link-expired', { code: 'link_expired', provider: 'gmail' }))).toEqual({ code: 'link_expired', provider: 'gmail' })
   })
 
+  it("reads another person's mailbox with the shared address alone, leaving out any provider", () => {
+    expect(mailboxProblem(problem('personal-mail-not-linked', { code: 'not_linked', owner: 'other', address: 'billing@acme.example' }))).toEqual({ code: 'not_linked', owner: 'other', address: 'billing@acme.example' })
+    expect(mailboxProblem(problem('personal-mail-link-expired', { code: 'link_expired', owner: 'other', address: 'billing@acme.example', provider: 'gmail' }))).toEqual({ code: 'link_expired', owner: 'other', address: 'billing@acme.example' })
+  })
+
   it('finds none in a failure that is not about the mailbox', () => {
     expect(mailboxProblem(problem('send-failed'))).toBeUndefined()
     expect(mailboxProblem(problem('constructor'))).toBeUndefined()

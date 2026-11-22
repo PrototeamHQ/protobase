@@ -36,7 +36,7 @@ const secrets = [google.access_token, google.refresh_token, google.id_token]
 
 // Better Auth with Protobase's options and Google sign-in on a store in memory, and Ada signed in with her password.
 const setUp = async () => {
-  const store: Record<string, Record<string, unknown>[]> = { user: [], account: [], session: [], verification: [], two_factor: [], passkey: [], sign_in_policy: [], jwks: [] }
+  const store: Record<string, Record<string, unknown>[]> = { user: [], account: [], session: [], verification: [], two_factor: [], passkey: [], sign_in_policy: [], jwks: [], mail_sender: [] }
   let instance: { $context: Promise<{ adapter: never }> } | undefined
   const resolved = { roles: ['admin', 'user'], definitions: roleDefinitions(), defaultRole: 'user', context: (() => instance!.$context) as never }
   const auth = betterAuth({ ...betterAuthOptions(base, resolved), database: memoryAdapter(store) })

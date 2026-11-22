@@ -32,6 +32,9 @@ export type ProblemDetails = {
   code?: string
   /** For a mailbox link that expired: its mail provider, such as `gmail`. */
   provider?: string
+  /** For a message from an address another person shared, whose mailbox is at fault: `other`, with that `address`. */
+  owner?: string
+  address?: string
 }
 
 /** A non-2xx response, parsed from `application/problem+json`. */

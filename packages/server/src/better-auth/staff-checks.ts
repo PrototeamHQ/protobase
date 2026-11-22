@@ -102,8 +102,9 @@ const accountChanges = [
   '/account/mail-senders/add',
   '/account/mail-senders/update',
   '/account/mail-senders/remove',
-  // A check sends a test message through the person's mailbox.
+  // A check sends a test message through the person's mailbox, and its result makes the address verified.
   '/account/mail-senders/check',
+  '/account/mail-senders/check-result',
 ]
 
 export const staffCannotChange: StaffRefusal = { code: 'STAFF_CANNOT_CHANGE_SIGN_IN', message: "Staff cannot change a person's sign-in or the sign-in policy." }

@@ -44,7 +44,7 @@ describe('chooseSender', () => {
     expect(await chooseSender(store, 'ann', annsMailbox, 'ann@gmail.example')).toEqual({ address: 'Ann@gmail.example', ownerId: 'ann' })
   })
 
-  it('refuses an address another person marked shared, until sharing proves they own it', async () => {
+  it('refuses an address another person marked shared while no check proved it', async () => {
     await expect(chooseSender(store, 'ann', annsMailbox, 'sales@acme.example')).rejects.toEqual(new MailSenderRefusedError('sales@acme.example'))
     expect(await usableSenders(store, 'ann', annsMailbox)).not.toContainEqual(expect.objectContaining({ address: 'sales@acme.example' }))
   })

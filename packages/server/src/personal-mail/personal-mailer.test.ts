@@ -129,7 +129,7 @@ describe('personalMailer', () => {
       expect(gmail.send).not.toHaveBeenCalled()
     })
 
-    it("refuses another person's address, also one they marked shared, before any call to their mailbox", async () => {
+    it("refuses another person's address, also one they marked shared that no check proved, before any call to their mailbox", async () => {
       const gmail = provider()
       const accounts = both()
       for (const from of ['u2@private.example', 'sales@acme.example']) {

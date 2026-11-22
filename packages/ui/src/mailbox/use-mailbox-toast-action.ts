@@ -8,7 +8,7 @@ import { text } from './messages'
 /**
  * For the toast of a failure: a button that connects the mailbox when the failure was for want of one, or as its link
  * expired, starting the same sign-in as the account page's, which comes back to this page. None for any other failure,
- * or when the app has no mailbox the failure points at.
+ * for another person's mailbox, which only they can connect, or when the app has no mailbox the failure points at.
  */
 export const useMailboxToastAction = () => {
   const auth = useOptionalAuth()
@@ -16,7 +16,7 @@ export const useMailboxToastAction = () => {
   return (error: unknown): ToastAction | undefined => {
     const problem = mailboxProblem(error)
     const links = auth?.personalMail ?? []
-    if (!auth || !problem) return
+    if (!auth || !problem || problem.owner === 'other') return
     const link = links.find((entry) => entry.id === problem.provider) ?? (links.length === 1 ? links[0] : undefined)
     if (!link) return
     const connect = async () => {

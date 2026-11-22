@@ -91,7 +91,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     return [...rows]
   }
   const versions = async (databaseUrl: string, table = 'auth_migrations') => (await query<{ version: number }>(databaseUrl, `select version from ${table} order by version`)).map((row) => row.version)
-  const every = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+  const every = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
   // Every feature that keeps something in the store: organizations, the OAuth provider for MCP, personal access tokens
   // and the From addresses of personal mail.
   const personalMail = { personalMail: ['gmail' as const], encryptOAuthTokens: true, socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } } }
@@ -287,9 +287,9 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const folder = await migrationsDir()
     await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })
     await applyAll(databaseUrl, folder)
-    await query(databaseUrl, "insert into auth_migrations (version, name) values (15, 'later')")
-    await expect(checkAuthSchema(auth)).rejects.toThrow('The auth store is at migration 15, newer than the 14 this version of Protobase knows; upgrade Protobase')
-    await expect(writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })).rejects.toThrow(/newer than the 14/)
+    await query(databaseUrl, "insert into auth_migrations (version, name) values (16, 'later')")
+    await expect(checkAuthSchema(auth)).rejects.toThrow('The auth store is at migration 16, newer than the 15 this version of Protobase knows; upgrade Protobase')
+    await expect(writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })).rejects.toThrow(/newer than the 15/)
   })
 
   it('compares the tables only in the development check, which names what drifted', async () => {

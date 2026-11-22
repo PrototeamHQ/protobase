@@ -14,6 +14,8 @@ const gmail = { id: 'gmail', name: 'Gmail', provider: 'google', scopes: ['https:
 const mailboxFailure = (slug: string, extras: Record<string, string>) => new ApiError({ type: `urn:protobase:problem:${slug}`, title: 'Conflict', status: 409, ...extras })
 const notLinked = mailboxFailure('personal-mail-not-linked', { code: 'not_linked', detail: 'Link a mailbox to send mail from it' })
 const expired = mailboxFailure('personal-mail-link-expired', { code: 'link_expired', provider: 'gmail', detail: 'The link to your mailbox has expired: link it again to send mail from it' })
+// As it answers for an address another person shared, whose mailbox is not connected: its owner, not the sender, connects it.
+const othersNotLinked = mailboxFailure('personal-mail-not-linked', { code: 'not_linked', owner: 'other', address: 'billing@shop.example', detail: 'The person who shared billing@shop.example must link their mailbox again to send mail from it' })
 const refused = new ApiError({ type: 'urn:protobase:problem:send-failed', title: 'Cannot send', status: 502, detail: 'The mailbox did not take the message' })
 
 // Refuses to start, so the story stays on the page instead of leaving for Google; it records where the link comes back to.
@@ -122,6 +124,20 @@ export const FailedLinkExpired: StoryObj = {
     await userEvent.click(dialog.getByRole('button', { name: 'Resend' }))
     expect(await dialog.findByRole('region', { name: 'Connect your mailbox again' })).toBeVisible()
     expect(dialog.getByRole('button', { name: 'Connect Gmail again' })).toBeEnabled()
+  },
+}
+
+/** A send from an address a colleague shared, whose mailbox is not connected, says the colleague must connect it, and offers nothing to connect. */
+export const FailedOthersMailbox: StoryObj = {
+  tags: ['play'],
+  render: () => <MailboxApp mail={['gmail']} failure={othersNotLinked} />,
+  play: async ({ canvasElement }) => {
+    const dialog = await openDialog(canvasElement, 'Resend')
+    await userEvent.click(dialog.getByRole('button', { name: 'Resend' }))
+    expect(await dialog.findByRole('region', { name: "The address's owner must connect their mailbox" })).toBeVisible()
+    expect(dialog.getByText(/Mail from billing@shop\.example goes out through the mailbox of the person who shared it/)).toBeVisible()
+    expect(dialog.queryByRole('button', { name: /Connect Gmail/ })).toBeNull()
+    expect(dialog.queryByRole('link', { name: /Connect/ })).toBeNull()
   },
 }
 

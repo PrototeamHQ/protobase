@@ -92,6 +92,9 @@
     "fromName": "Naam",
     "fromNamePlaceholder": "Getoond naast het adres, zoals Acme Facturen",
     "defaultFromAddress": "Verstuur vanaf dit adres tenzij een ander is gekozen",
+    "shareFromAddress": "Laat de andere afzenders van de app vanaf dit adres versturen via je mailbox",
+    "shareNeedsCheck": "Controleer dit adres eerst om het te delen met de andere afzenders van de app: alleen een adres dat de controle bevestigde kan worden gedeeld.",
+    "sharedFromAddress": "Gedeeld",
     "signature": "Handtekening",
     "signaturePlaceholder": "Laat leeg om de algemene handtekening te gebruiken",
     "removeFromAddress": "{address} verwijderen?",
@@ -2165,7 +2168,10 @@
     "senderNotYours": "Vanaf dit adres kun je niet versturen. Kies een van jouw adressen, of voeg het toe op je {account}.",
     "accountPage": "accountpagina",
     "sendersNotRead": "Je adressen konden niet worden gelezen. Controleer je verbinding.",
-    "tryAgain": "Opnieuw proberen"
+    "tryAgain": "Opnieuw proberen",
+    "othersTitle": "De eigenaar van het adres moet de mailbox koppelen",
+    "othersMissing": "Mail vanaf {address} gaat via de mailbox van wie het adres deelde, en die is niet gekoppeld. Vraag diegene de mailbox opnieuw te koppelen, of kies een ander adres.",
+    "othersExpired": "Mail vanaf {address} gaat via de mailbox van wie het adres deelde, en die koppeling is verlopen. Vraag diegene de mailbox opnieuw te koppelen, of kies een ander adres."
   },
   "markdown": {
     "write": "Schrijven",

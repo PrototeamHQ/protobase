@@ -561,7 +561,7 @@
         ["user.last_organization_id"]
       ]}},
       {"sql":"select to_regclass($1) is not null as found","params":["\"auth_migrations\""],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
-      {"sql":"select \"version\" as version from \"auth_migrations\" order by \"version\"","result":{"command":"SELECT","rowCount":14,"columns":[["version",23]],"rows":[
+      {"sql":"select \"version\" as version from \"auth_migrations\" order by \"version\"","result":{"command":"SELECT","rowCount":15,"columns":[["version",23]],"rows":[
         ["1"],
         ["2"],
         ["3"],
@@ -575,10 +575,11 @@
         ["11"],
         ["12"],
         ["13"],
-        ["14"]
+        ["14"],
+        ["15"]
       ]}},
       {"sql":"select to_regclass($1) is not null as found","params":["\"auth_migrations\""],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
-      {"sql":"select \"version\" as version from \"auth_migrations\" order by \"version\"","result":{"command":"SELECT","rowCount":14,"columns":[["version",23]],"rows":[
+      {"sql":"select \"version\" as version from \"auth_migrations\" order by \"version\"","result":{"command":"SELECT","rowCount":15,"columns":[["version",23]],"rows":[
         ["1"],
         ["2"],
         ["3"],
@@ -592,14 +593,15 @@
         ["11"],
         ["12"],
         ["13"],
-        ["14"]
+        ["14"],
+        ["15"]
       ]}}
     ]
   },
   "the auth schema with organizations > needs no migration to turn organizations off": {
     "the auth schema with organizations > needs no migration to turn organizations off#0": [
       {"sql":"select to_regclass($1) is not null as found","params":["\"auth_migrations\""],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
-      {"sql":"select \"version\" as version from \"auth_migrations\" order by \"version\"","result":{"command":"SELECT","rowCount":14,"columns":[["version",23]],"rows":[
+      {"sql":"select \"version\" as version from \"auth_migrations\" order by \"version\"","result":{"command":"SELECT","rowCount":15,"columns":[["version",23]],"rows":[
         ["1"],
         ["2"],
         ["3"],
@@ -613,10 +615,11 @@
         ["11"],
         ["12"],
         ["13"],
-        ["14"]
+        ["14"],
+        ["15"]
       ]}},
       {"sql":"select to_regclass($1) is not null as found","params":["\"auth_migrations\""],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
-      {"sql":"select \"version\" as version from \"auth_migrations\" order by \"version\"","result":{"command":"SELECT","rowCount":14,"columns":[["version",23]],"rows":[
+      {"sql":"select \"version\" as version from \"auth_migrations\" order by \"version\"","result":{"command":"SELECT","rowCount":15,"columns":[["version",23]],"rows":[
         ["1"],
         ["2"],
         ["3"],
@@ -630,7 +633,8 @@
         ["11"],
         ["12"],
         ["13"],
-        ["14"]
+        ["14"],
+        ["15"]
       ]}}
     ]
   },

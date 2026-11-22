@@ -68,7 +68,10 @@ export const MailSendersSection = ({ senders: { address, senders, checks = false
     attempt(async () => {
       const name = input.name || null
       const signature = input.signature.trim() ? input.signature : null
-      if (editing?.kind === 'change') return void (await onUpdate(editing.sender.id, { name, signature, isDefault: input.isDefault }))
+      if (editing?.kind === 'change') {
+        const sharing = input.shared !== editing.sender.shared ? { shared: input.shared } : {}
+        return void (await onUpdate(editing.sender.id, { name, signature, isDefault: input.isDefault, ...sharing }))
+      }
       const added = await onAdd({ address: input.address, ...(name && { name }), ...(signature && { signature }) })
       if (input.isDefault) await onUpdate(added.id, { isDefault: true })
       if (checks) return { kind: 'change', sender: { ...added, isDefault: input.isDefault }, autoCheck: true }
@@ -111,6 +114,7 @@ export const MailSendersSection = ({ senders: { address, senders, checks = false
                 {sender.name && <bdi className="block truncate">{sender.name}</bdi>}
                 <span className="block text-xs text-muted-foreground">{detailsOf(sender)}</span>
               </span>
+              {sender.shared && <Badge>{text('sharedFromAddress')}</Badge>}
               {sender.isDefault && <Badge tone="blue">{text('default')}</Badge>}
               <Button size="sm" variant="ghost" onClick={() => setEditing({ kind: 'change', sender })}>
                 {text('edit')}

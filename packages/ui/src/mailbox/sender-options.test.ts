@@ -3,12 +3,12 @@ import { sameAddress, senderLabel, senderOptions } from './sender-options'
 
 describe('senderOptions', () => {
   it("lists the mailbox's own address first, then the entered ones with their names", () => {
-    const senders = [{ id: '1', address: 'billing@acme.example', name: 'Acme billing', isDefault: false }, { id: '2', address: 'sales@acme.example', isDefault: true }]
+    const senders = [{ id: '1', address: 'billing@acme.example', name: 'Acme billing', isDefault: false, verified: false, shared: false }, { id: '2', address: 'sales@acme.example', isDefault: true, verified: false, shared: false }]
     expect(senderOptions({ address: 'Ana@Gmail.example', senders })).toEqual([{ address: 'Ana@Gmail.example' }, { address: 'billing@acme.example', name: 'Acme billing' }, { address: 'sales@acme.example' }])
   })
 
   it("lists the mailbox's own address once when it was entered too, and leaves it out when the link names none", () => {
-    const senders = [{ id: '1', address: 'ana@gmail.example', name: 'Ana', isDefault: false }]
+    const senders = [{ id: '1', address: 'ana@gmail.example', name: 'Ana', isDefault: false, verified: false, shared: false }]
     expect(senderOptions({ address: 'Ana@Gmail.example', senders })).toEqual([{ address: 'ana@gmail.example', name: 'Ana' }])
     expect(senderOptions({ senders: [] })).toEqual([])
   })

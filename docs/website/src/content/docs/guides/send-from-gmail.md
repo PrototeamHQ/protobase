@@ -75,3 +75,5 @@ A Gmail account may send as other addresses of yours, such as a company address 
 3. **Name it when sending:** `personalMail.send({ from: 'billing@shop.example', to, subject, text })`.
 
 Gmail sends from your primary address instead, without an error, when the address is not verified under **Send mail as**, so check the first message's From in the Sent folder. The app sends only from addresses entered this way: any other `from` is refused with a `403` before anything is sent. [From addresses](/reference/email/#from-addresses) has the details.
+
+To let the app's other senders send from the address too, such as a team's billing address, check it under **Edit** → **Check address** first: once the check confirms that mail from it arrives from it, the dialog offers to share it. Their mail then goes out through your Gmail. Connecting Gmail with another account ends the proof until you check it again. [Sharing a From address](/reference/email/#sharing-a-from-address) has the details.

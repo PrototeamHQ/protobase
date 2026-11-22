@@ -2,11 +2,12 @@ import { authError } from './auth-error'
 import type { BetterAuthClient } from './better-auth-client'
 
 /**
- * A From address the person entered for the mailbox they linked, such as a send-as address of their Gmail, theirs
- * alone: the display name the From header shows beside it, if any; its own signature, else the generic one applies; and
- * whether mail goes out from it when the app names no address.
+ * A From address the person entered for the mailbox they linked, such as a send-as address of their Gmail: the display
+ * name the From header shows beside it, if any; its own signature, else the generic one applies; whether mail goes out
+ * from it when the app names no address; whether a check proved it goes out from it through the mailbox linked now
+ * (`verified`); and whether the app's other senders may send from it through that mailbox (`shared`).
  */
-export type MailSender = { id: string; address: string; name?: string; signature?: string; isDefault: boolean }
+export type MailSender = { id: string; address: string; name?: string; signature?: string; isDefault: boolean; verified: boolean; shared: boolean }
 
 /**
  * The person's From addresses, their mailbox's own address when its link names it, and whether the app can check that
@@ -20,8 +21,11 @@ export type MailSenders = { address?: string; senders: MailSender[]; checks?: bo
  */
 export type MailSenderCheck = { status: 'waiting'; check: string } | { status: 'confirmed'; from: string } | { status: 'mismatch'; from: string } | { status: 'unchecked' }
 
-/** What changes of an address: `name: null` drops its name; `signature: null` drops its own, so the generic one applies. */
-export type MailSenderChange = { name?: string | null; signature?: string | null; isDefault?: boolean }
+/**
+ * What changes of an address: `name: null` drops its name; `signature: null` drops its own, so the generic one applies;
+ * `shared: true` shares a verified address, and is refused (`MAIL_SENDER_NOT_VERIFIED`) for another.
+ */
+export type MailSenderChange = { name?: string | null; signature?: string | null; isDefault?: boolean; shared?: boolean }
 
 /** The signed-in person's From addresses, on an app with personal mail (`personalMail` in its status). */
 export const accountMailSenders = (client: BetterAuthClient) => ({

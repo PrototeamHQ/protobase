@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint, createAuthMiddleware, getSessionFromCtx, sessionMiddleware } from 'better-auth/api'
 import * as z from 'zod'
@@ -8,7 +9,8 @@ import { linkedMailbox } from './personal-mailer'
 import type { BetterAuthNames } from '../better-auth/names/better-auth-names'
 import type { MailSenderUseCheck } from './mail-sender-use-check'
 import type { AliasChecks } from './alias-checks'
-import { changeSender, clearDefault, deleteSender, mailSenderModel, sendersOf, storeSender, type MailSenderRow } from './sender-store'
+import { PersonalMailError } from './personal-mail-error'
+import { changeSender, clearDefault, deleteSender, endCheck, mailSenderModel, sendersOf, startCheck, storeSender, type MailSenderRow } from './sender-store'
 
 /** The paths of the person's From addresses, as Better Auth names them under the auth base path. */
 export const mailSenderPaths = {
@@ -29,8 +31,11 @@ export const maxSignatureLength = 2000
 /** The longest display name, in characters: a person's or a business's name, with a department. */
 export const maxSenderNameLength = 100
 
-/** An address as one entered it, as the account page lists it. */
-export type ListedMailSender = { id: string; address: string; name?: string; signature?: string; isDefault: boolean }
+/**
+ * An address as one entered it, as the account page lists it: `verified` once a check proved it goes out from it
+ * through the mailbox linked now, and `shared` while the app's other senders may send from it.
+ */
+export type ListedMailSender = { id: string; address: string; name?: string; signature?: string; isDefault: boolean; verified: boolean; shared: boolean }
 
 const listed = (row: MailSenderRow): ListedMailSender => ({
   id: row.id,
@@ -38,11 +43,18 @@ const listed = (row: MailSenderRow): ListedMailSender => ({
   ...(row.name && { name: row.name }),
   ...(row.signature && { signature: row.signature }),
   isDefault: row.isDefault,
+  verified: Boolean(row.verifiedAccountId),
+  shared: row.shared,
 })
 
 const tooMany = { code: 'TOO_MANY_MAIL_SENDERS', message: `You can enter at most ${maxSenders} From addresses.` }
 const taken = { code: 'MAIL_SENDER_EXISTS', message: 'You entered this address already.' }
 const notFound = { code: 'MAIL_SENDER_NOT_FOUND', message: 'This address is not one you entered.' }
+const notVerified = { code: 'MAIL_SENDER_NOT_VERIFIED', message: 'Check this address before you share it: only an address a check proved can be shared.' }
+const checkInvalid = { code: 'MAIL_SENDER_CHECK_INVALID', message: 'This check is not the one waiting for this address through your mailbox. Check the address again.' }
+
+// The check stored with its address: a hash of its token, which is as secret as a session's.
+const checkHash = (check: string) => createHash('sha256').update(check).digest('hex')
 
 type StoredAccount = { id: string; providerId: string; scope?: string | null; idToken?: string | null; createdAt: Date }
 
@@ -74,16 +86,19 @@ const nameField = z
  * The From addresses the signed-in person sends mail from through the mailbox they linked, such as the send-as
  * addresses of their Gmail: `GET /account/mail-senders` lists them, oldest first, with their mailbox's own `address`
  * when its link names it; `POST /account/mail-senders/add { address, name?, signature? }` enters one, usable by them alone,
- * with the display name the From header shows beside it; `POST /account/mail-senders/update { id, name?, signature?, isDefault? }`
- * changes one, `name: null` dropping its name, `signature: null` dropping its own, and `isDefault` making it, or no longer making it, the address mail goes out from when the app names
- * none; `POST /account/mail-senders/remove { id }` deletes one. Each acts on the session's own person only. While
+ * with the display name the From header shows beside it; `POST /account/mail-senders/update { id, name?, signature?, isDefault?, shared? }`
+ * changes one, `name: null` dropping its name, `signature: null` dropping its own, `isDefault` making it, or no longer making it, the address mail goes out from when the app names
+ * none, and `shared` letting the app's other senders send from it, which only a verified address may (`MAIL_SENDER_NOT_VERIFIED`);
+ * `POST /account/mail-senders/remove { id }` deletes one. Each acts on the session's own person only. While
  * records of the app hold an address (`inUse`), removing it, or disconnecting the mailbox whose own address it is
  * (`/unlink-account`), is refused with a 409, and changes nothing.
  *
  * With `checks`, the list says `checks: true`, and `POST /account/mail-senders/check { id }` sends a test message from
  * one of the person's addresses through their mailbox and answers `{ status: 'waiting', check }`; `POST
- * /account/mail-senders/check-result { id, check }` answers where it stands (`AliasCheckResult`). Without, the check
- * answers `{ status: 'unchecked' }` and sends nothing.
+ * /account/mail-senders/check-result { id, check }` answers where it stands (`AliasCheckResult`). A confirmed check makes
+ * the address verified through that mailbox, now. Only the latest check of an address answers, once it has a result, and
+ * only while mail still goes through the mailbox it was sent through; any other is `MAIL_SENDER_CHECK_INVALID`. Without
+ * `checks`, the check answers `{ status: 'unchecked' }` and sends nothing.
  */
 export const mailSendersPlugin = (providers: PersonalMailProvider[], names: BetterAuthNames, inUse?: MailSenderUseCheck, checks?: AliasChecks) =>
   ({
@@ -120,7 +135,7 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[], names: Bett
           const rows = await sendersOf(ctx.context.adapter, userId)
           if (rows.length >= maxSenders) throw new APIError('BAD_REQUEST', tooMany)
           if (rows.some((row) => row.address === address)) throw new APIError('BAD_REQUEST', taken)
-          // Never shared: sharing an address with others waits until the person can prove it is theirs.
+          // Never shared: only an address a check proved may be, through `update`.
           const { name = null, signature = null } = ctx.body
           const row = await storeSender(ctx.context.adapter, { userId, address, name, shared: false, signature, isDefault: false, createdAt: new Date() })
           return ctx.json({ sender: listed(row) })
@@ -129,13 +144,14 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[], names: Bett
 
       updateMailSender: createAuthEndpoint(
         mailSenderPaths.update,
-        { method: 'POST', use: [sessionMiddleware], body: z.object({ id: z.string().min(1), name: nameField.nullable().optional(), signature: signatureField.nullable().optional(), isDefault: z.boolean().optional() }),
+        { method: 'POST', use: [sessionMiddleware], body: z.object({ id: z.string().min(1), name: nameField.nullable().optional(), signature: signatureField.nullable().optional(), isDefault: z.boolean().optional(), shared: z.boolean().optional() }),
         },
         async (ctx) => {
           const userId = ctx.context.session.user.id
           const { id, isDefault, ...update } = ctx.body
           const found = (await sendersOf(ctx.context.adapter, userId)).find((row) => row.id === id)
           if (!found) throw new APIError('NOT_FOUND', notFound)
+          if (update.shared === true && !found.verifiedAccountId) throw new APIError('BAD_REQUEST', notVerified)
           const changes = { ...update, ...(isDefault !== undefined && { isDefault }) }
           if (Object.keys(changes).length === 0) return ctx.json({ sender: listed(found) })
           // One default at most: the old one gives way first, as the store's unique index on it requires.
@@ -159,7 +175,10 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[], names: Bett
         const found = (await sendersOf(ctx.context.adapter, userId)).find((row) => row.id === ctx.body.id)
         if (!found) throw new APIError('NOT_FOUND', notFound)
         if (!checks) return ctx.json({ status: 'unchecked' as const })
+        const mailbox = mailboxOf(await ctx.context.internalAdapter.findAccounts(userId), providers)
+        if (!mailbox) throw new PersonalMailError('not_linked')
         const check = await checks.start(userId, found.address, headersLocale(ctx.headers))
+        await startCheck(ctx.context.adapter, userId, found.id, { checkToken: checkHash(check), checkAccountId: mailbox.accountId })
         return ctx.json({ status: 'waiting' as const, check })
       }),
 
@@ -167,10 +186,20 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[], names: Bett
         mailSenderPaths.checkResult,
         { method: 'POST', use: [sessionMiddleware], body: z.object({ id: z.string().min(1), check: z.string().min(1).max(200) }) },
         async (ctx) => {
-          const found = (await sendersOf(ctx.context.adapter, ctx.context.session.user.id)).find((row) => row.id === ctx.body.id)
+          const userId = ctx.context.session.user.id
+          const found = (await sendersOf(ctx.context.adapter, userId)).find((row) => row.id === ctx.body.id)
           if (!found) throw new APIError('NOT_FOUND', notFound)
           if (!checks) return ctx.json({ status: 'unchecked' as const })
-          return ctx.json(await checks.result(ctx.body.check, found.address))
+          const token = checkHash(ctx.body.check)
+          if (!found.checkAccountId || found.checkToken !== token) throw new APIError('BAD_REQUEST', checkInvalid)
+          const mailbox = mailboxOf(await ctx.context.internalAdapter.findAccounts(userId), providers)
+          if (mailbox?.accountId !== found.checkAccountId) throw new APIError('BAD_REQUEST', checkInvalid)
+          const result = await checks.result(ctx.body.check, found.address)
+          if (result.status === 'waiting') return ctx.json(result)
+          // Ending the check where it still waits makes it answer once, however many ask at the same time.
+          const verified = result.status === 'confirmed' ? { accountId: found.checkAccountId, at: new Date() } : undefined
+          if (!(await endCheck(ctx.context.adapter, userId, found.id, token, verified))) throw new APIError('BAD_REQUEST', checkInvalid)
+          return ctx.json(result)
         },
       ),
     },

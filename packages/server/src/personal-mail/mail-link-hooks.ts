@@ -2,6 +2,7 @@ import type { BetterAuthOptions } from 'better-auth'
 import { getOAuthState } from 'better-auth/api'
 import { storedScopes } from './linked-accounts'
 import type { PersonalMailProvider } from './personal-mail-provider'
+import { unverifyOtherAccounts } from './sender-store'
 
 type AccountHooks = NonNullable<NonNullable<BetterAuthOptions['databaseHooks']>['account']>
 type AfterWrite = NonNullable<NonNullable<AccountHooks['update']>['after']>
@@ -23,7 +24,8 @@ export const scopesHandedOver = (provider: PersonalMailProvider, linked: Account
 
 /**
  * Better Auth's `databaseHooks.account`: an account written by a link, whose OAuth state names the person it links to,
- * becomes the one mail goes through when it holds a mail provider's scopes (see `scopesHandedOver`); other writes read nothing. Only a link
+ * becomes the one mail goes through when it holds a mail provider's scopes (see `scopesHandedOver`), and the person's
+ * From addresses a check proved through another account are no longer verified; other writes read nothing. Only a link
  * writes an existing account's scopes: a sign-in or a token refresh rewrites its tokens and leaves its scopes as they
  * were, so signing in with an older account does not take the mail back to it.
  */
@@ -34,6 +36,7 @@ export const mailLinkHooks = (providers: PersonalMailProvider[]): AccountHooks =
     const adapter = context.context.internalAdapter
     // Each update runs this hook again, for an account that no longer holds the mail scopes: it hands nothing over.
     for (const { id, scope } of scopesHandedOver(provider, account, await adapter.findAccounts(account.userId))) await adapter.updateAccount(id, { scope })
+    await unverifyOtherAccounts(context.context.adapter, account.userId, account.id)
   }
   return { create: { after: handOver }, update: { after: handOver } }
 }

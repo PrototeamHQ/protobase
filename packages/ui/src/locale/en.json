@@ -92,6 +92,9 @@
     "fromName": "Name",
     "fromNamePlaceholder": "Shown beside the address, such as Acme Billing",
     "defaultFromAddress": "Send from this address unless another is chosen",
+    "shareFromAddress": "Let the app's other senders send from this address through your mailbox",
+    "shareNeedsCheck": "To share this address with the app's other senders, check it first: only an address the check proved can be shared.",
+    "sharedFromAddress": "Shared",
     "signature": "Signature",
     "signaturePlaceholder": "Leave empty to use the generic signature",
     "removeFromAddress": "Remove {address}?",
@@ -2165,7 +2168,10 @@
     "senderNotYours": "You can't send from this address. Choose one of yours, or add it on your {account}.",
     "accountPage": "Account page",
     "sendersNotRead": "Your addresses could not be read. Check your connection.",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "othersTitle": "The address's owner must connect their mailbox",
+    "othersMissing": "Mail from {address} goes out through the mailbox of the person who shared it, and theirs is not connected. Ask them to connect their mailbox again, or choose another address.",
+    "othersExpired": "Mail from {address} goes out through the mailbox of the person who shared it, and their link to it ran out. Ask them to connect their mailbox again, or choose another address."
   },
   "markdown": {
     "write": "Write",
