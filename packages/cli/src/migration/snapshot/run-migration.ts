@@ -21,7 +21,8 @@ export type MigrationRun = {
 
 const section = (title: string, sql: string) => `-- ${title}.\n${sql}\n`
 
-const intro = `-- Written by \`protobase migration\` from the config and ${snapshotFile}; applied with the project's other migrations.\n`
+/** The line `protobase migration`'s files open with, under their header. */
+export const intro = `-- Written by \`protobase migration\` from the config and ${snapshotFile}; applied with the project's other migrations.\n`
 
 /**
  * `protobase migration`: writes what the config needs as the project's next migration, one file, and rewrites the

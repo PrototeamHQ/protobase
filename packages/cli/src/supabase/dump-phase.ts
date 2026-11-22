@@ -18,7 +18,7 @@ import { replayScript } from './replay'
 import { schemaMigration } from './schema-migration'
 import { countSsoUsers, refuseSsoUsers } from './sso-users'
 import { appSchemas, cronJobs, cronTimezone, dumpedTables, extensions, httpTriggers, hypertables, pgmqQueues, pgsodiumColumns, platformMigrationTables, realtimeTables, routinesIn, tablesSize, vaultSecretValues, vaultSecrets } from './source-facts'
-import { authStoreMigrations, removeStoreMigrations } from './store-migrations'
+import { authStoreMigrations, refuseStoreRemoval, removeStoreMigrations } from './store-migrations'
 import { ensureApiRoles, existingSchemas, existingTables } from './target-checks'
 import { creatableExtensions } from './target-extensions'
 import { usersColumnsMigration } from './users-migrations'
@@ -114,6 +114,7 @@ const pattern = (name: string) => `"${name.replaceAll('"', '""')}"`
 export const runDumpPhase = async (options: DumpOptions, out: (text: string) => void) => {
   const authConfig = await planAuthConfig(options.projectDir, importedUsersConfig)
   const storeMigrations = await authStoreMigrations(options.migrationsDir)
+  await refuseStoreRemoval(options.migrationsDir, storeMigrations)
   const checkout = checkoutMarkers(options.projectDir)
   if (checkout.length > 0) out(`found the Supabase project's ${checkout.join(', ')}\n`)
   // Before the dump, so a function in the way stops the import before it starts.
