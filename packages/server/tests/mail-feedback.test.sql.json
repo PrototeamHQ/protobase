@@ -1,4 +1,8 @@
 {
+  "(repeated)": [
+    {"sql":"create schema if not exists \"mail\";\ncreate table if not exists mail.feedback (\n  \"id\" bigint generated always as identity primary key,\n  \"provider\" text not null,\n  \"event_id\" text not null,\n  \"type\" text not null check (\"type\" in ('bounce', 'complaint')),\n  \"bounce_type\" text check (\"bounce_type\" is null or (\"bounce_type\" in ('hard', 'soft') and \"type\" = 'bounce')),\n  \"recipient\" text not null check (\"recipient\" = lower(\"recipient\")),\n  \"message_id\" text,\n  \"provider_message_id\" text,\n  \"reason\" text,\n  \"occurred_at\" timestamptz,\n  \"created_at\" timestamptz not null\n);\ncreate unique index if not exists \"feedback_provider_event_recipient\" on mail.feedback (\"provider\", \"event_id\", \"recipient\");\ncreate index if not exists \"feedback_recipient\" on mail.feedback (\"recipient\");\ncreate index if not exists \"feedback_message_id\" on mail.feedback (\"message_id\");\ncreate index if not exists \"feedback_provider_message_id\" on mail.feedback (\"provider_message_id\");\ncreate index if not exists \"feedback_type\" on mail.feedback (\"type\");\ncreate index if not exists \"feedback_created_at\" on mail.feedback (\"created_at\");","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]},
+    {"sql":"alter table mail.feedback alter column \"recipient\" drop not null,\n  drop constraint if exists \"feedback_names_recipient\",\n  add constraint \"feedback_names_recipient\" check (\"recipient\" is not null or (\"type\" = 'complaint' and \"message_id\" is not null));\ncreate unique index if not exists \"feedback_provider_event_recipient_once\" on mail.feedback (\"provider\", \"event_id\", \"recipient\") nulls not distinct;\ncreate index if not exists \"feedback_recipient\" on mail.feedback (\"recipient\");\ncreate index if not exists \"feedback_message_id\" on mail.feedback (\"message_id\");\ncreate index if not exists \"feedback_provider_message_id\" on mail.feedback (\"provider_message_id\");\ncreate index if not exists \"feedback_type\" on mail.feedback (\"type\");\ncreate index if not exists \"feedback_created_at\" on mail.feedback (\"created_at\");\ndrop index if exists \"mail\".\"feedback_provider_event_recipient\";","result":[{"command":"ALTER","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"DROP","rowCount":null,"columns":[],"rows":[]}]}
+  ],
   "(hooks)": {
     "(hooks)#0": [
       {"sql":"select to_regclass($1) is not null as found","params":["mail.feedback"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["f"]]}},
@@ -116,7 +120,7 @@
   },
   "an earlier version's mail feedback table > takes a complaint without a recipient once migrated, still once per report, and refuses a bounce without one": {
     "an earlier version's mail feedback table > takes a complaint without a recipient once migrated, still once per report, and refuses a bounce without one#0": [
-      {"sql":"create schema if not exists \"mail\";\ncreate table if not exists mail.feedback (\n  \"id\" bigint generated always as identity primary key,\n  \"provider\" text not null,\n  \"event_id\" text not null,\n  \"type\" text not null check (\"type\" in ('bounce', 'complaint')),\n  \"bounce_type\" text check (\"bounce_type\" is null or (\"bounce_type\" in ('hard', 'soft') and \"type\" = 'bounce')),\n  \"recipient\" text not null check (\"recipient\" = lower(\"recipient\")),\n  \"message_id\" text,\n  \"provider_message_id\" text,\n  \"reason\" text,\n  \"occurred_at\" timestamptz,\n  \"created_at\" timestamptz not null\n);\ncreate unique index if not exists \"feedback_provider_event_recipient\" on mail.feedback (\"provider\", \"event_id\", \"recipient\");\ncreate index if not exists \"feedback_recipient\" on mail.feedback (\"recipient\");\ncreate index if not exists \"feedback_message_id\" on mail.feedback (\"message_id\");\ncreate index if not exists \"feedback_provider_message_id\" on mail.feedback (\"provider_message_id\");\ncreate index if not exists \"feedback_type\" on mail.feedback (\"type\");\ncreate index if not exists \"feedback_created_at\" on mail.feedback (\"created_at\");","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]},
+      {"repeated":0},
       {"sql":"select to_regclass($1) is not null as found","params":["mail.feedback"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
       {"sql":"select indexname as name from pg_indexes where schemaname = $1 and tablename = $2","params":["mail","feedback"],"result":{"command":"SELECT","rowCount":7,"columns":[["name",19]],"rows":[
         ["feedback_pkey"],
@@ -137,7 +141,7 @@
         ["feedback_type"],
         ["feedback_created_at"]
       ]}},
-      {"sql":"alter table mail.feedback alter column \"recipient\" drop not null;\nalter table mail.feedback add constraint \"feedback_names_recipient\" check (\"recipient\" is not null or (\"type\" = 'complaint' and \"message_id\" is not null));\ncreate unique index if not exists \"feedback_provider_event_recipient_once\" on mail.feedback (\"provider\", \"event_id\", \"recipient\") nulls not distinct;\ncreate index if not exists \"feedback_recipient\" on mail.feedback (\"recipient\");\ncreate index if not exists \"feedback_message_id\" on mail.feedback (\"message_id\");\ncreate index if not exists \"feedback_provider_message_id\" on mail.feedback (\"provider_message_id\");\ncreate index if not exists \"feedback_type\" on mail.feedback (\"type\");\ncreate index if not exists \"feedback_created_at\" on mail.feedback (\"created_at\");\ndrop index if exists \"mail\".\"feedback_provider_event_recipient\";","result":[{"command":"ALTER","rowCount":null,"columns":[],"rows":[]},{"command":"ALTER","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"DROP","rowCount":null,"columns":[],"rows":[]}]},
+      {"repeated":1},
       {"sql":"select to_regclass($1) is not null as found","params":["mail.feedback"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
       {"sql":"select indexname as name from pg_indexes where schemaname = $1 and tablename = $2","params":["mail","feedback"],"result":{"command":"SELECT","rowCount":7,"columns":[["name",19]],"rows":[
         ["feedback_pkey"],
@@ -171,6 +175,53 @@
       {"sql":"insert into mail.feedback (provider, event_id, type, bounce_type, recipient, message_id, provider_message_id, reason, occurred_at, created_at)\n    select $1, $2, row.type, row.bounce_type, row.recipient, row.message_id, row.provider_message_id, row.reason, row.occurred_at, now()\n    from jsonb_to_recordset($3::jsonb) as row(type text, bounce_type text, recipient text, message_id text, provider_message_id text, reason text, occurred_at timestamptz)\n    on conflict (provider, event_id, recipient) do nothing","params":["protobase","report-1","[{\"type\":\"complaint\",\"message_id\":\"<1@shop.example.com>\"}]"],"result":{"command":"INSERT","rowCount":0,"columns":[],"rows":[]}},
       {"sql":"select \"recipient\", \"message_id\" from \"mail\".\"feedback\"","result":{"command":"SELECT","rowCount":1,"columns":[["recipient",25],["message_id",25]],"rows":[[null,"<1@shop.example.com>"]]}},
       {"sql":"insert into mail.feedback (provider, event_id, type, bounce_type, recipient, message_id, provider_message_id, reason, occurred_at, created_at)\n    select $1, $2, row.type, row.bounce_type, row.recipient, row.message_id, row.provider_message_id, row.reason, row.occurred_at, now()\n    from jsonb_to_recordset($3::jsonb) as row(type text, bounce_type text, recipient text, message_id text, provider_message_id text, reason text, occurred_at timestamptz)\n    on conflict (provider, event_id, recipient) do nothing","params":["protobase","report-2","[{\"type\":\"bounce\",\"message_id\":\"<1@shop.example.com>\"}]"],"error":{"message":"new row for relation \"feedback\" violates check constraint \"feedback_names_recipient\"","severity":"ERROR","code":"23514","detail":"Failing row contains (3, protobase, report-2, bounce, null, null, <1@shop.example.com>, null, null, null, {{now:2: :-:+00}}).","schema":"mail","table":"feedback","constraint":"feedback_names_recipient"}}
+    ]
+  },
+  "an earlier version's mail feedback table > gets its unique index back once migrated again after losing it": {
+    "an earlier version's mail feedback table > gets its unique index back once migrated again after losing it#0": [
+      {"repeated":0},
+      {"sql":"select to_regclass($1) is not null as found","params":["mail.feedback"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
+      {"sql":"select indexname as name from pg_indexes where schemaname = $1 and tablename = $2","params":["mail","feedback"],"result":{"command":"SELECT","rowCount":7,"columns":[["name",19]],"rows":[
+        ["feedback_pkey"],
+        ["feedback_provider_event_recipient"],
+        ["feedback_recipient"],
+        ["feedback_message_id"],
+        ["feedback_provider_message_id"],
+        ["feedback_type"],
+        ["feedback_created_at"]
+      ]}},
+      {"repeated":1},
+      {"sql":"drop index mail.feedback_provider_event_recipient_once","result":{"command":"DROP","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select to_regclass($1) is not null as found","params":["mail.feedback"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
+      {"sql":"select indexname as name from pg_indexes where schemaname = $1 and tablename = $2","params":["mail","feedback"],"result":{"command":"SELECT","rowCount":6,"columns":[["name",19]],"rows":[
+        ["feedback_pkey"],
+        ["feedback_recipient"],
+        ["feedback_message_id"],
+        ["feedback_provider_message_id"],
+        ["feedback_type"],
+        ["feedback_created_at"]
+      ]}},
+      {"sql":"select to_regclass($1) is not null as found","params":["mail.feedback"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
+      {"sql":"select indexname as name from pg_indexes where schemaname = $1 and tablename = $2","params":["mail","feedback"],"result":{"command":"SELECT","rowCount":6,"columns":[["name",19]],"rows":[
+        ["feedback_pkey"],
+        ["feedback_recipient"],
+        ["feedback_message_id"],
+        ["feedback_provider_message_id"],
+        ["feedback_type"],
+        ["feedback_created_at"]
+      ]}},
+      {"repeated":1},
+      {"sql":"select to_regclass($1) is not null as found","params":["mail.feedback"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
+      {"sql":"select indexname as name from pg_indexes where schemaname = $1 and tablename = $2","params":["mail","feedback"],"result":{"command":"SELECT","rowCount":7,"columns":[["name",19]],"rows":[
+        ["feedback_pkey"],
+        ["feedback_recipient"],
+        ["feedback_message_id"],
+        ["feedback_provider_message_id"],
+        ["feedback_type"],
+        ["feedback_created_at"],
+        ["feedback_provider_event_recipient_once"]
+      ]}},
+      {"sql":"insert into mail.feedback (provider, event_id, type, bounce_type, recipient, message_id, provider_message_id, reason, occurred_at, created_at)\n    select $1, $2, row.type, row.bounce_type, row.recipient, row.message_id, row.provider_message_id, row.reason, row.occurred_at, now()\n    from jsonb_to_recordset($3::jsonb) as row(type text, bounce_type text, recipient text, message_id text, provider_message_id text, reason text, occurred_at timestamptz)\n    on conflict (provider, event_id, recipient) do nothing","params":["protobase","report-1","[{\"type\":\"complaint\"}]"],"error":{"message":"new row for relation \"feedback\" violates check constraint \"feedback_names_recipient\"","severity":"ERROR","code":"23514","detail":"Failing row contains (1, protobase, report-1, complaint, null, null, null, null, null, null, {{now:3: :-:+00}}).","schema":"mail","table":"feedback","constraint":"feedback_names_recipient"}}
     ]
   }
 }

@@ -43,6 +43,7 @@ export const mailFeedbackBody = z.strictObject({
 })
   .refine((body) => body.type === 'bounce' || body.bounce_type === undefined, { message: 'Only a bounce has a bounce_type', path: ['bounce_type'] })
   .refine((body) => body.type === 'complaint' || body.recipient !== undefined, { message: 'A bounce names its recipient', path: ['recipient'] })
+  // The type predicate narrows the output to `MailFeedback`, as Zod's `refine` declares for a predicate.
   .refine((body): body is typeof body & MailFeedback => body.recipient !== undefined || (body.type === 'complaint' && body.message_id !== undefined), { message: 'A complaint without a recipient names its message_id', path: ['message_id'] })
 
 /** Drops the fields whose value is missing, so a record names only what its source stated. */

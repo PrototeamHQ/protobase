@@ -44,10 +44,12 @@ ${indexesSql()}`
 
 /**
  * A table of an earlier version, whose every record named its recipient, made to take a complaint without one: its
- * unique index replaced by one that counts a missing recipient as one, which a write of that version stands on too.
+ * unique index replaced by one that counts a missing recipient as one, which a write of that version stands on too. It
+ * runs again on a table that has the constraint but lost that index, so it replaces the constraint rather than adding it.
  */
-const recipientOptionalSql = () => `alter table ${feedbackTable} alter column "recipient" drop not null;
-alter table ${feedbackTable} add ${namesRecipient};
+const recipientOptionalSql = () => `alter table ${feedbackTable} alter column "recipient" drop not null,
+  drop constraint if exists "feedback_names_recipient",
+  add ${namesRecipient};
 ${indexesSql()}
 drop index if exists "${feedbackSchema}"."feedback_provider_event_recipient";`
 

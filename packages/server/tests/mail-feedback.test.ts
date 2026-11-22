@@ -125,4 +125,18 @@ describe("an earlier version's mail feedback table", () => {
     await expect(recordFeedback(earlier, { provider: 'protobase', eventId: 'report-2', records: [{ type: 'bounce', message_id: '<1@shop.example.com>' }] })).rejects.toThrow('feedback_names_recipient')
     await earlier.destroy()
   })
+
+  it('gets its unique index back once migrated again after losing it', async () => {
+    const pg = await openSnapshotDb('jobs')
+    const earlier = new Kysely<any>({ dialect: pg.dialect })
+    await pg.exec(earlierTable)
+    await pg.exec((await mailFeedbackMigration(earlier))!)
+    await pg.exec('drop index mail.feedback_provider_event_recipient_once')
+    await expect(checkMailFeedbackSchema(earlier)).rejects.toThrow('feedback_provider_event_recipient_once')
+    await pg.exec((await mailFeedbackMigration(earlier))!)
+    await expect(checkMailFeedbackSchema(earlier)).resolves.toBeUndefined()
+    // @ts-expect-error A complaint naming neither its recipient nor its message, to show the constraint is still there.
+    await expect(recordFeedback(earlier, { provider: 'protobase', eventId: 'report-1', records: [{ type: 'complaint' }] })).rejects.toThrow('feedback_names_recipient')
+    await earlier.destroy()
+  })
 })
