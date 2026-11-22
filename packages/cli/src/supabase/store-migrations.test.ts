@@ -41,6 +41,14 @@ it('refuses, deleting nothing, when Protobase wrote a migration that stays after
   expect(existsSync(path.join(projectDir, snapshotFile))).toBe(true)
 })
 
+it('finds an auth migration with Windows line endings', async () => {
+  const projectDir = await newProject()
+  await migrate(projectDir, authOf())
+  const file = path.join(migrationsOf(projectDir), '001_auth.sql')
+  await writeFile(file, (await readFile(file, 'utf8')).replaceAll('\n', '\r\n'))
+  expect(await authStoreMigrations(migrationsOf(projectDir))).toEqual(['001_auth.sql'])
+})
+
 it('refuses, deleting nothing, when the auth migration Protobase wrote holds other features\' statements too', async () => {
   const projectDir = await newProject()
   await migrate(projectDir, authOf())

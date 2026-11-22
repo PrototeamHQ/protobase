@@ -17,7 +17,7 @@ const headerLine = /^-- protobase:[a-z-]+(?: .*)?$/
  * lines and `protobase migration`'s intro.
  */
 const isAuthMigration = (text: string) => {
-  const lines = text.split('\n')
+  const lines = text.replaceAll('\r\n', '\n').split('\n')
   const body = lines.slice(lines.findIndex((row) => !headerLine.test(row))).join('\n')
   const rest = body.startsWith(intro) ? body.slice(intro.length).trimStart() : body
   return rest.startsWith(`-- ${authMigrationTitle}`)
