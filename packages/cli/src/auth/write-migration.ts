@@ -6,7 +6,7 @@ import { readMigrationFiles } from '../migration/snapshot/migration-files'
 import { readSnapshot } from '../migration/snapshot/snapshot-file'
 import { writeMigrationFile } from '../migration/snapshot/write-file'
 import { protobaseVersion } from '../version/version'
-import { migrationText } from './migration-file'
+import { currentStoreText, migrationText } from './migration-file'
 
 export type WriteAuthMigrationOptions = {
   auth: AdminAuth
@@ -23,14 +23,15 @@ export type WriteAuthMigrationOptions = {
  * `undefined` when the database is current. The changes are found by comparing the database with what Better Auth
  * needs, so the project's earlier migrations must be applied to it first. The file brings the store to every step of
  * this version, so the project's snapshot, started here when it has none, ends at it with the store there, and
- * `protobase migration` goes on from it.
+ * `protobase migration` goes on from it. A project without a snapshot whose store is current, such as one whose auth
+ * migrations came before the snapshot, gets a file without statements that starts it.
  */
 export const writeAuthMigration = async ({ auth, projectDir, dir, name, writer }: WriteAuthMigrationOptions) => {
   const snapshot = await readSnapshot(projectDir)
   refuseInconsistent(snapshot, await readMigrationFiles(dir))
   const sql = await authSchemaMigration(auth)
-  if (sql === undefined) return undefined
+  if (sql === undefined && snapshot) return
   const names = storeNames(auth)
   const draft = { previous: snapshot, auth: storeModel(names, latestSteps(names.names.modules)), organizationsOn: Boolean(auth.organizations), protobaseVersion }
-  return writeMigrationFile(projectDir, dir, { name, body: migrationText(sql, writer) }, draft, randomUUID())
+  return writeMigrationFile(projectDir, dir, { name, body: sql === undefined ? currentStoreText(writer) : migrationText(sql, writer) }, draft, randomUUID())
 }

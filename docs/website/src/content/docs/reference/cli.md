@@ -632,7 +632,7 @@ Applies the project's `db/migrations/*.sql` that the database has not applied ye
 ## `migration`
 
 :::caution[Beta]
-The snapshot cannot start from a project with auth migrations written before it yet, since `protobase migration baseline` is not built.
+A project with auth migrations written before the snapshot starts it with [`auth migration`](#auth-migration), against its database with those migrations applied; `migration` and `check` refuse such a project until then.
 :::
 
 ```sh
@@ -685,7 +685,7 @@ Prints the app's entry for the apps file of the [realtime relay](/reference/real
 protobase auth migration [--dir db/migrations] [--name auth]
 ```
 
-Run inside a project, against its database with the project's migrations applied. It reads the versions the store applied from its `auth_migrations` table and writes the auth migrations of this Protobase it has not, each followed by its row there, as the next migration in `--dir`: `009_auth.sql` after `008_...`, with the store's schema, user table, columns and id type as the config's `auth` names them. Nothing is written when the store is current, nor with sign-in off, when it says so and exits 0. The file only adds, never drops; apply it with the project's other migrations. It starts with Protobase's lines and starts the project's `protobase.snapshot.json`, or moves it on, with the store at every step, so [`migration`](#migration) goes on from it. For a store made before 0.48, without `auth_migrations`, it writes the step that adopts it once, and refuses one that matches no version, naming what differs. See [migrations](/reference/auth/#migrations).
+Run inside a project, against its database with the project's migrations applied. It reads the versions the store applied from its `auth_migrations` table and writes the auth migrations of this Protobase it has not, each followed by its row there, as the next migration in `--dir`: `009_auth.sql` after `008_...`, with the store's schema, user table, columns and id type as the config's `auth` names them. Nothing is written when the store is current and the project has a snapshot, nor with sign-in off, when it says so and exits 0. The file only adds, never drops; apply it with the project's other migrations. It starts with Protobase's lines and starts the project's `protobase.snapshot.json`, or moves it on, with the store at every step, so [`migration`](#migration) goes on from it. A project without a snapshot whose store is current, such as one whose auth migrations an earlier Protobase wrote, gets a file without statements that starts it. For a store made before 0.48, without `auth_migrations`, it writes the step that adopts it once, and refuses one that matches no version, naming what differs. See [migrations](/reference/auth/#migrations).
 
 ## `import supabase`
 

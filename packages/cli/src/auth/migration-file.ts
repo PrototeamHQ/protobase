@@ -19,3 +19,7 @@ export const authMigrationTitle = 'The auth schema changes this version of Proto
 /** The file's contents: what wrote it, `writer`, and why, then Better Auth's statements, one per paragraph. */
 export const migrationText = (sql: string, writer = 'protobase auth migration') =>
   `-- ${authMigrationTitle}, written by \`${writer}\`.\n-- Applied with the project's other migrations; edit or remove statements the project handles differently.\n\n${sql}\n`
+
+/** The text of the file that starts the snapshot of a project whose store is current already: no statements. */
+export const currentStoreText = (writer = 'protobase auth migration') =>
+  `-- ${authMigrationTitle}, written by \`${writer}\`: none, the store has every step of this version already.\n-- It starts protobase.snapshot.json from the project's earlier migrations.\n`

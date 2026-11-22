@@ -19,7 +19,7 @@ export const checkMigrations = async (projectDir: string, dir: string, auth: Aut
   const before = snapshot?.model.auth
   const refusals = authRefusals(snapshot, auth)
   if (!snapshot && auth && files.some(({ text }) => text.includes(authMigrationTitle))) {
-    found.push(`the project has auth migrations from before ${snapshotFile}, which needs \`protobase migration baseline\`, not available yet`)
+    found.push(`the project has auth migrations from before ${snapshotFile}: start it with \`protobase auth migration\`, against the database with the project's migrations applied`)
   } else if (refusals.length > 0) {
     found.push(...refusals)
   } else if (auth && offlineStepsMigration(auth.names, before && lastStepsOf(before))) {
