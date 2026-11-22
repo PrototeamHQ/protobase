@@ -15,6 +15,7 @@ import { rankBounds } from '../rank-after/rank-bounds'
 import { rankedPlace, type RankedPlace } from '../rank-after/ranked-place'
 import type { BoardColumn } from './board-columns'
 import { checkReason } from './check-reason'
+import { setUndo } from './set-undo'
 import { dropWrite, type BoardDrop } from './board-drop'
 import { boardWrites, placeOps, placing, type BoardPlace } from './board-place'
 import type { ListDisplayRow } from './list-displays'
@@ -55,9 +56,9 @@ type Options = {
  * anchored to the card above where it was dropped (see `placeOps`).
  * With the board's `drop`, a card dropped on another column runs that column's write instead, and then reads the record
  * again to say which column it is in now. With `set`, it is one update of that field with the column's value, and the
- * record read again the same way, whose ETag its **Undo** sends, since the database's triggers may have written the
- * record again after the update. The card shows in its new place at once; a saved move says so with **Undo**,
- * which puts back the values it changed or runs the undo the drop's write gave, and a refusal puts it back and says why,
+ * record read again the same way, whose ETag its **Undo** sends while it still holds the value saved, since the
+ * database's triggers may have written the record again after the update (see `setUndo`). The card shows in its new
+ * place at once; a saved move says so with **Undo**, which puts back the values it changed or runs the undo the drop's write gave, and a refusal puts it back and says why,
  * in a declared database check's own label when one refused it (see `checkReason`), or that the board changed where it
  * was dropped.
  * With the position's `after`, a card dropped above a record it depends on lands at the first place below that keeps
@@ -97,9 +98,9 @@ export const useBoardMove = ({ model, view, by, rank, filter, drop, set, labelOf
   const setTo = async (row: ListDisplayRow, to: BoardColumn, field: string): Promise<Saved> => {
     const key = recordKey(model, row.record) as KeyValue
     const etag = typeof row.record.etag === 'string' ? row.record.etag : '*'
-    await client.update(model.name, key, { [field]: to.value }, etag)
+    const written = await client.update(model.name, key, { [field]: to.value }, etag)
     const stored = await client.get(model.name, key)
-    const ops = undoOps(model, [{ before: row.record, record: stored.record, etag: stored.etag }], [field])
+    const ops = undoOps(model, [setUndo(row.record, field, to.value, written, stored)], [field])
     return { landed: (stored.record[by] ?? null) as string | null, ...(ops.length > 0 && { undo: () => client.batchWrite(ops) }) }
   }
 

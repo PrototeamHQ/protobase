@@ -11,7 +11,7 @@ import { useProjectUi } from '../pages/project-ui'
 import { boardCard, boardColumns, boardRank, type BoardColumn, type BoardDisplayModel } from './board-columns'
 import { cardCoordinates, collision, columnId } from './board-dnd'
 import type { BoardPlace } from './board-place'
-import { boardSet, boardTakes } from './board-takes'
+import { boardSet, boardTakes, readsSet } from './board-takes'
 import type { ListDisplayRow } from './list-displays'
 import { RecordCard } from './record-card'
 import { useBoardMove } from './use-board-move'
@@ -60,8 +60,8 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
   const set = boardSet(drag?.board, display.by)
   const columnTakes = boardTakes(model, display.by, drag?.board, drop)
   const takes = (value: string | null) => can(permissions, 'update') && columnTakes(value)
-  // Undo puts back the set field's value, so the cards carry it
-  const loaded = set === undefined || fields.includes(set) ? fields : [...fields, set]
+  // Undo puts back the set field's value, so the cards carry it when the caller reads it
+  const loaded = set === undefined || fields.includes(set) || !readsSet(model, set) ? fields : [...fields, set]
   const movable = columns.some((column) => takes(column.value))
   const rank = boardRank(model)
   // Changing the order takes the same right as sorting the list by hand
