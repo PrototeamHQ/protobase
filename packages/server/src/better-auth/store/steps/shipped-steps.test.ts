@@ -40,6 +40,32 @@ describe('the steps Protobase ships', () => {
     for (const steps of Object.values(moduleSteps)) for (const step of steps) expect(versions).toContain(step.version)
   })
 
+  // `auth_migrations` records versions, not steps, so a store that has a version has every step naming it: a step
+  // released at a version keeps it, and a new step takes a version after every released one, or stores past that
+  // version would skip it.
+  it('keep the versions they were released with, and a new step takes a later one', () => {
+    const released: Record<string, number> = {
+      'auth 1': 1, 'auth 2': 11, 'auth 3': 12, 'auth 4': 13, 'auth 5': 14,
+      'two_factor 1': 2,
+      'passkeys 1': 3, 'passkeys 2': 13,
+      'sign_in_policy 1': 4,
+      'staff_sign_in 1': 5, 'staff_sign_in 2': 13,
+      'organizations 1': 6, 'organizations 2': 13,
+      'mcp 1': 7,
+      'personal_access_tokens 1': 8,
+      'mail_senders 1': 9, 'mail_senders 2': 10,
+      'platform_devices 1': 11,
+    }
+    const latestReleased = Math.max(...Object.values(released))
+    for (const [module, steps] of Object.entries(moduleSteps)) {
+      for (const { step, version } of steps) {
+        const key = `${module} ${step}`
+        if (key in released) expect(version, key).toBe(released[key])
+        else expect(version, key).toBeGreaterThan(latestReleased)
+      }
+    }
+  })
+
   for (const [label, { input, users = {}, uuidIds = false }] of Object.entries(configs)) {
     it(`are each safe to apply unattended, with ${label}`, () => {
       const names = resolveNames(input)

@@ -25,7 +25,9 @@ const refuseNewer = (applied: number[]) => {
 
 /**
  * The steps whose versions `applied` lacks, each version followed by its row in `auth_migrations`; written only with
- * every module on (`refuseModulesOff`).
+ * every module on (`refuseModulesOff`). A version stands for every step naming it, whatever its module: a released
+ * step keeps its version and a new one takes a later version (`shipped-steps.test.ts`), so the version alone tells
+ * whether the store has a step until the record holds the steps themselves.
  */
 const pendingSql = (names: StoreNames, applied: number[]) => {
   const rendered = renderSteps(migrationNames(names), names.names.modules, (_module, step) => applied.includes(step.version))
