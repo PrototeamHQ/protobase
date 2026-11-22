@@ -165,7 +165,7 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     await pg.exec((await jobsSchemaMigration(pg.db))!)
     await pg.exec(tables)
     await pg.exec((await changesMigration(pg.db, resources.map((entry) => entry.toModel())))!)
-    await pg.exec((await relayMigration(pg.db, auth))!)
+    await pg.exec((await relayMigration(pg.db, auth, false))!)
 
     const port = await freePort()
     const appPort = await freePort()

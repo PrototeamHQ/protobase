@@ -3,10 +3,14 @@ import { refuseSessionsElsewhere } from './sessions-sql'
 
 describe('refuseSessionsElsewhere', () => {
   it("refuses a sessions table the app's database does not have, as an auth store in another database", () => {
-    expect(() => refuseSessionsElsewhere(false, 'auth.session')).toThrow("The relay needs the sign-in sessions table auth.session in the app's own database")
+    expect(() => refuseSessionsElsewhere(false, false, 'auth.session')).toThrow("The relay needs the sign-in sessions table auth.session in the app's own database")
   })
 
   it("takes a sessions table in the app's database", () => {
-    expect(() => refuseSessionsElsewhere(true, 'auth.session')).not.toThrow()
+    expect(() => refuseSessionsElsewhere(true, false, 'auth.session')).not.toThrow()
+  })
+
+  it("takes a sessions table the same migration's auth store steps create before the trigger", () => {
+    expect(() => refuseSessionsElsewhere(false, true, 'auth.session')).not.toThrow()
   })
 })

@@ -8,7 +8,13 @@ export type MigrationPart = {
   /** What the statements are, the comment above them. */
   title: string
   /** The statements, compared with the database; `undefined` when it is current. */
-  sql: () => Promise<string | undefined>
+  sql: (run: PartsRun) => Promise<string | undefined>
+}
+
+/** What the migration the parts go into writes besides them. */
+export type PartsRun = {
+  /** Whether it writes the auth store's steps, before the parts, so their tables exist once it is applied. */
+  authWritten: boolean
 }
 
 /**
@@ -50,8 +56,8 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
     ...(project.userTables ? [{ name: 'user_tables', title: 'The schemas of the tables users add and of their definitions, and pg_trgm', sql: () => userTablesMigration(project.db) }] : []),
     // Run after the deploy that brought the code of an ejected table, so its definition goes in a later deploy.
     ...(project.userTables ? [{ name: 'owned_definitions', title: 'The delete of the definitions of user tables that resources in code own now', sql: () => ownedDefinitionsMigration(project.db, project.models) }] : []),
-    // After the jobs schema, whose enqueue the trigger calls.
-    ...(project.realtime?.relay ? [{ name: 'relay', title: "The trigger that closes a deleted sign-in session's sockets on the realtime relay", sql: () => relayMigration(project.db, project.auth) }] : []),
+    // After the jobs schema, whose enqueue the trigger calls, and the auth store's steps, which create the sessions table.
+    ...(project.realtime?.relay ? [{ name: 'relay', title: "The trigger that closes a deleted sign-in session's sockets on the realtime relay", sql: ({ authWritten }: PartsRun) => relayMigration(project.db, project.auth, authWritten) }] : []),
     ...(sqlSends(project.realtime) ? [{ name: 'channel_sends', title: "SQL's broadcasts to the record channels, channels.send()", sql: () => channelSendsMigration(project.db) }] : []),
   ]
 }

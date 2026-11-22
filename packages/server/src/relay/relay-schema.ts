@@ -8,8 +8,11 @@ const needsAuth = (auth: AdminAuth | undefined) => {
   return auth
 }
 
-/** The SQL the relay needs of the app's database: the trigger that closes a deleted session's sockets; `undefined` when it is current. */
-export const relayMigration = (db: Db, auth: AdminAuth | undefined) => relaySessionsMigration(db, sessionsTable(needsAuth(auth)))
+/**
+ * The SQL the relay needs of the app's database: the trigger that closes a deleted session's sockets; `undefined` when
+ * it is current. `authWritten`: the same migration writes the auth store's steps before it.
+ */
+export const relayMigration = (db: Db, auth: AdminAuth | undefined, authWritten: boolean) => relaySessionsMigration(db, sessionsTable(needsAuth(auth)), authWritten)
 
 /** Refuses to start while the relay's trigger is missing or out of date. */
 export const checkRelaySchema = (db: Db, auth: AdminAuth | undefined) => checkRelaySessions(db, sessionsTable(needsAuth(auth)))
