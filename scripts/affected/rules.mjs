@@ -21,7 +21,7 @@ export const runEverything = [
 ]
 
 // Files that are no module and that no test reads; tests/upgrade/ is the upgrade check's (`upgradeCheck` below).
-export const readByNoTest = ['**/*.md', '**/*.mdx', '**/LICENSE', '**/.gitignore', '**/.env.example', '.githooks/**', 'docker/**', 'docs/website/**', 'scripts/dom-snapshots/layouts/**', 'scripts/release-speed/config.json', 'cubic.yaml', '.coderabbit.yaml', 'tests/upgrade/**']
+export const readByNoTest = ['**/*.md', '**/*.mdx', '**/LICENSE', '**/.gitignore', '**/.env.example', '.githooks/**', 'docker/**', 'docs/website/**', 'scripts/dom-snapshots/layouts/**', 'scripts/release-speed/config.json', '.coderabbit.yaml', 'tests/upgrade/**']
 
 // Tests that run on every push, whatever it changed: the ERP built and served by the CLI, as on Node after the tests.
 export const alwaysRun = ['tests/smoke/**']
