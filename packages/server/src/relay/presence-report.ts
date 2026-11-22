@@ -12,7 +12,10 @@ export const maxPresenceChanges = 500
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
-const isTime = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+// The latest time a date holds, in milliseconds; a later one has no timestamp to be written as.
+const maxTime = 8.64e15
+
+const isTime = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= maxTime
 
 const presenceChange = (value: unknown): PresenceChange => {
   if (!isRecord(value)) throw badRequest('invalid-change', 'A change is { user, status, at }')

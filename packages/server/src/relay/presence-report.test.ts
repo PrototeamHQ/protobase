@@ -18,6 +18,8 @@ describe('presenceReport', () => {
     expect(() => presenceReport({ started: 1, changes: [{ ...change, user: '' }] })).toThrow("A change's user is a user id")
     expect(() => presenceReport({ started: 1, changes: [{ ...change, status: 'busy' }] })).toThrow("A change's status is one of online, away, offline")
     expect(() => presenceReport({ started: 1, changes: [{ ...change, at: 1.5 }] })).toThrow("A change's at is a time in milliseconds")
+    expect(() => presenceReport({ started: 1, changes: [{ ...change, at: 8.64e15 + 1 }] })).toThrow("A change's at is a time in milliseconds")
+    expect(() => presenceReport({ started: Number.MAX_SAFE_INTEGER, changes: [] })).toThrow('started is a time in milliseconds')
   })
 
   it('refuses more changes than the relay batches', () => {
