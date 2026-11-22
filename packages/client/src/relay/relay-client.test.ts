@@ -147,6 +147,44 @@ describe('relayClient', () => {
     expect(relay.latest().sent.some((frame) => frame.topic === 'conversations/9')).toBe(false)
   })
 
+  it('joins the channel a joined event on people names, tells followers once joined, and hears its notices', async () => {
+    const { relay, client, open, follower } = setup(['people', 'conversations/7'])
+    const one = follower()
+    const joinedTo = vi.fn()
+    client.follow({ ...one.handlers, onJoined: joinedTo })
+    await open()
+    relay.latest().frame({ joinRef: null, ref: null, topic: 'people', event: 'joined', payload: { channel: 'conversations/9' } })
+    const join = relay.latest().sent.at(-1)!
+    expect(join).toMatchObject({ topic: 'conversations/9', event: 'phx_join' })
+    expect(joinedTo).not.toHaveBeenCalled()
+    relay.latest().reply(join, 'ok')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(client.joined('conversations/9')).toBe(true)
+    expect(joinedTo).toHaveBeenCalledWith('conversations/9')
+    const notice = { kind: 'create', resource: 'messages', key: '1', channel: 'conversations/9' }
+    relay.latest().frame({ joinRef: join.joinRef, ref: null, topic: 'conversations/9', event: 'change', payload: notice })
+    expect(one.heard.notices).toEqual([notice])
+  })
+
+  it('joins nothing for a joined event on another channel, or one already joined, and leaves a refused channel unjoined', async () => {
+    const { relay, client, open } = setup(['people', 'conversations/7'])
+    const joinedTo = vi.fn()
+    const published = vi.fn()
+    client.follow({ onJoined: joinedTo, onPublished: published })
+    await open()
+    const sent = relay.latest().sent.length
+    relay.latest().frame({ joinRef: null, ref: null, topic: 'conversations/7', event: 'joined', payload: { channel: 'conversations/9' } })
+    relay.latest().frame({ joinRef: null, ref: null, topic: 'people', event: 'joined', payload: { channel: 'conversations/7' } })
+    relay.latest().frame({ joinRef: null, ref: null, topic: 'people', event: 'joined', payload: { channel: 9 } })
+    expect(relay.latest().sent).toHaveLength(sent)
+    expect(published).toHaveBeenCalledTimes(1)
+    relay.latest().frame({ joinRef: null, ref: null, topic: 'people', event: 'joined', payload: { channel: 'conversations/8' } })
+    relay.latest().reply(relay.latest().sent.at(-1)!, 'error', 'unauthorized')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(client.joined('conversations/8')).toBe(false)
+    expect(joinedTo).not.toHaveBeenCalled()
+  })
+
   it('stays down once the app refuses a ticket for good, and tries again after any other failure', async () => {
     const { relay, ticket, client, follower } = setup()
     const one = follower()

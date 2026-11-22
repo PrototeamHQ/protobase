@@ -10,7 +10,8 @@ import type { RelaySocketLike } from '../src/relay/relay-socket'
 import type { RelayEvent, RelayNotice } from '../src/relay/relay-types'
 
 // The client's relay against a real relay process: one socket per client joining the channels its ticket lists, a
-// declared typing event from one person to another, the app's notices, and a new ticket and one resync after a drop.
+// declared typing event from one person to another, the app's notices, a new ticket and one resync after a drop, and a
+// channel the person was added to, joined as the app tells them on `people`.
 // `TEST_RELAY_BINARY` names the relay's binary (`go build ./cmd/relay` of protobase-realtime); without it the test is
 // skipped. The tickets are signed here, as the app's ticket endpoint signs them.
 vi.setConfig({ testTimeout: 20_000, hookTimeout: 30_000 })
@@ -57,13 +58,21 @@ describe.skipIf(!relayBinary)('the client relay with a real relay', () => {
       retryDelay: () => 100,
       final: () => false,
     })
-    const heard = { notices: [] as RelayNotice[], events: [] as RelayEvent[], resyncs: 0 }
-    stops.push(client.follow({ onNotice: (notice) => heard.notices.push(notice), onEvent: (event) => heard.events.push(event), onResync: () => void (heard.resyncs += 1) }))
+    const heard = { notices: [] as RelayNotice[], events: [] as RelayEvent[], resyncs: 0, joined: [] as string[] }
+    stops.push(
+      client.follow({
+        onNotice: (notice) => heard.notices.push(notice),
+        onEvent: (event) => heard.events.push(event),
+        onResync: () => void (heard.resyncs += 1),
+        onJoined: (channel) => void heard.joined.push(channel),
+      }),
+    )
     return { client, heard, ticket, sockets }
   }
 
-  const publish = (body: Record<string, unknown>) =>
-    fetch(`${url}/apps/chat/publish`, { method: 'POST', headers: { authorization: `Bearer ${keys.api}`, 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  const command = (route: string, body: Record<string, unknown>) =>
+    fetch(`${url}/apps/chat/${route}`, { method: 'POST', headers: { authorization: `Bearer ${keys.api}`, 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  const publish = (body: Record<string, unknown>) => command('publish', body)
 
   beforeAll(async () => {
     const port = await freePort()
@@ -108,5 +117,19 @@ describe.skipIf(!relayBinary)('the client relay with a real relay', () => {
     const notice = { kind: 'update', resource: 'messages', key: '7', channel: 'conversations/2' }
     await publish({ id: randomUUID(), channel: 'conversations/2', event: 'change', payload: notice })
     await vi.waitFor(() => expect(carol.heard.notices).toEqual([notice]))
+  })
+
+  it('joins a channel the person was added to once the app tells them on people, and hears its notices', async () => {
+    const dave = person('dave', ['people'])
+    await vi.waitFor(() => expect(dave.client.joined('people')).toBe(true))
+    // As the app does when a members record adds them: allow the channel on their sockets, then tell them alone.
+    expect((await command('channels/add', { channel: 'conversations/3', users: ['dave'] })).status).toBe(200)
+    expect((await publish({ id: randomUUID(), channel: 'people', users: ['dave'], event: 'joined', payload: { channel: 'conversations/3' } })).status).toBe(200)
+    await vi.waitFor(() => expect(dave.heard.joined).toEqual(['conversations/3']))
+    expect(dave.client.joined('conversations/3')).toBe(true)
+
+    const notice = { kind: 'create', resource: 'messages', key: '9', channel: 'conversations/3' }
+    await publish({ id: randomUUID(), channel: 'conversations/3', event: 'change', payload: notice })
+    await vi.waitFor(() => expect(dave.heard.notices).toEqual([notice]))
   })
 })

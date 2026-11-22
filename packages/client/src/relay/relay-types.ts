@@ -37,6 +37,11 @@ export type RelayHandlers = {
    */
   onResync?: () => void
   onStatus?: (status: RelayStatus) => void
+  /**
+   * The socket joined a channel the person was added to after it connected, such as a new direct message, `<resource>/<key>`:
+   * its notices come from now on, so read again what is shown.
+   */
+  onJoined?: (channel: string) => void
   /** Any other event the app publishes on a channel, such as one of its functions' own, with its channel. */
   onPublished?: (published: { channel: string; event: string; payload: Record<string, unknown> }) => void
 }
