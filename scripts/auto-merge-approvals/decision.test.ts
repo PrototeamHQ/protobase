@@ -40,42 +40,57 @@ describe('refusal', () => {
     expect(decide({ reviews: [review({ login: 'person' })], roles: { person: role } })).toBeNull()
   })
 
-  it('refuses an approval from before the label', () => {
-    expect(decide({ reviews: [review({ submitted_at: beforeLabel })] })).toContain('came after')
+  it('merges on an approval of the head from the review bot that came before the label', () => {
+    expect(decide({ reviews: [review({ submitted_at: beforeLabel })] })).toBeNull()
+    expect(decide({ reviews: [review({ submitted_at: labelAt })] })).toBeNull()
+    expect(decide({ timeline: [] })).toBeNull()
   })
 
-  it('refuses an approval in the same second as the label', () => {
-    expect(decide({ reviews: [review({ submitted_at: labelAt })] })).toContain('came after')
+  it('refuses the review bot approving before the label while its check on the head has not finished', () => {
+    expect(decide({ reviews: [review({ submitted_at: beforeLabel })], reviewBotFinished: false })).toContain('no approval of')
   })
 
-  it('refuses an approval from before the label was added again', () => {
+  it('refuses the review bot approving before the label over its own change request on the head', () => {
+    const reviews = [review({ state: 'CHANGES_REQUESTED', submitted_at: beforeLabel }), review({ submitted_at: beforeLabel })]
+    expect(decide({ reviews })).toContain('after its own change request')
+  })
+
+  it('refuses an approval from an account with write access from before the label', () => {
+    expect(decide({ reviews: [review({ login: 'person', submitted_at: beforeLabel })], roles: { person: 'write' } })).toContain('no approval of')
+  })
+
+  it('refuses an approval from an account with write access in the same second as the label', () => {
+    expect(decide({ reviews: [review({ login: 'person', submitted_at: labelAt })], roles: { person: 'write' } })).toContain('no approval of')
+  })
+
+  it('refuses an approval from an account with write access from before the label was added again', () => {
     const timeline = [
       labelled,
       { event: 'unlabeled', created_at: '2026-11-06T11:30:00Z', label: { name: 'auto-merge-approvals' } },
       { event: 'labeled', created_at: '2026-11-06T12:00:00Z', label: { name: 'auto-merge-approvals' } },
     ]
-    expect(decide({ timeline })).toContain('came after')
+    expect(decide({ timeline, reviews: [review({ login: 'person' })], roles: { person: 'write' } })).toContain('no approval of')
   })
 
   it('reads the time of the approval label, not of another label', () => {
     const timeline = [labelled, { event: 'labeled', created_at: '2026-11-06T12:00:00Z', label: { name: 'bug' } }]
-    expect(decide({ timeline })).toBeNull()
+    expect(decide({ timeline, reviews: [review({ login: 'person' })], roles: { person: 'write' } })).toBeNull()
   })
 
-  it('refuses when the timeline shows no label event', () => {
-    expect(decide({ timeline: [] })).toContain('came after')
+  it('refuses an approval from an account with write access when the timeline shows no label event', () => {
+    expect(decide({ timeline: [], reviews: [review({ login: 'person' })], roles: { person: 'write' } })).toContain('no approval of')
   })
 
   it('refuses an approval of an older head', () => {
-    expect(decide({ reviews: [review({ commit_id: older })] })).toContain('came after')
+    expect(decide({ reviews: [review({ commit_id: older })] })).toContain('no approval of')
   })
 
   it.each(['read', 'triage', ''])('refuses an approver with role "%s"', (role) => {
-    expect(decide({ reviews: [review({ login: 'person' })], roles: { person: role } })).toContain('came after')
+    expect(decide({ reviews: [review({ login: 'person' })], roles: { person: role } })).toContain('no approval of')
   })
 
   it('refuses an approval that was dismissed', () => {
-    expect(decide({ reviews: [review({ state: 'DISMISSED' })] })).toContain('came after')
+    expect(decide({ reviews: [review({ state: 'DISMISSED' })] })).toContain('no approval of')
   })
 
   it('refuses a red check', () => {
@@ -144,7 +159,7 @@ describe('refusal', () => {
   })
 
   it('refuses the bot approving a head its check has not finished, as its approve command can', () => {
-    expect(decide({ reviewBotFinished: false })).toContain('came after')
+    expect(decide({ reviewBotFinished: false })).toContain('no approval of')
   })
 
   it('refuses the bot approving over its own change request on the head, as its approve command can', () => {
@@ -174,6 +189,15 @@ describe('refusal', () => {
     expect(decide({ ...real, reviews: dismissed })).toBeNull()
   })
 
+  it('merges on the review bot approving the head before the label, on the real reviews and timeline of a pull request', () => {
+    // PrototeamHQ/protobase#522's reviews and its approval label, cut to the fields the decision reads.
+    const sha = '4725eb1a'.padEnd(40, '0')
+    const at = (state: string, submitted_at: string) => ({ user: { login: 'coderabbitai[bot]' }, state, commit_id: sha, submitted_at })
+    const reviews = [at('COMMENTED', '2026-11-22T10:10:26Z'), at('APPROVED', '2026-11-22T10:10:32Z')]
+    const timeline = [{ event: 'labeled', created_at: '2026-11-22T10:11:03Z', label: { name: 'auto-merge-approvals' } }]
+    expect(decide({ pull: { ...pull, head: { ...pull.head, sha } }, reviews, timeline })).toBeNull()
+  })
+
   it('takes an approval from an account with write access in those two cases', () => {
     const reviews = [review({ state: 'CHANGES_REQUESTED' }), review(), review({ login: 'person' })]
     expect(decide({ reviews, roles: { person: 'write' }, reviewBotFinished: false })).toBeNull()
@@ -196,20 +220,20 @@ describe('refusal with the follow-up check', () => {
   })
 
   it('refuses without a clean follow-up of the head', () => {
-    expect(decide({ ...author, followUpCleanAt: null })).toContain('came after')
+    expect(decide({ ...author, followUpCleanAt: null })).toContain('no approval of')
   })
 
   it('refuses a clean follow-up from before the label, or in the same second', () => {
-    expect(decide({ ...author, followUpCleanAt: Date.parse(beforeLabel) })).toContain('came after')
-    expect(decide({ ...author, followUpCleanAt: Date.parse(labelAt) })).toContain('came after')
+    expect(decide({ ...author, followUpCleanAt: Date.parse(beforeLabel) })).toContain('no approval of')
+    expect(decide({ ...author, followUpCleanAt: Date.parse(labelAt) })).toContain('no approval of')
   })
 
   it.each(['read', 'triage', ''])('refuses a clean follow-up on a pull request by an author with role "%s"', (role) => {
-    expect(decide({ roles: { author: role }, reviews: [], followUpCleanAt: clean })).toContain('came after')
+    expect(decide({ roles: { author: role }, reviews: [], followUpCleanAt: clean })).toContain('no approval of')
   })
 
   it('refuses a clean follow-up on a pull request by a deleted account', () => {
-    expect(decide({ ...author, pull: { ...pull, user: null }, followUpCleanAt: clean })).toContain('came after')
+    expect(decide({ ...author, pull: { ...pull, user: null }, followUpCleanAt: clean })).toContain('no approval of')
   })
 
   it('still merges a read-only author on an approval from the review bot', () => {

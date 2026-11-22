@@ -60,8 +60,8 @@ function workflowChangeRefusal(pull: PullRequest, files: PullFile[]) {
   return paths.some((path) => path.startsWith(workflowFolder)) ? workflowRefusal : null
 }
 
-// When the label was last added, so taking it off and adding it again asks for a new approval. GitHub lists no event
-// when the label's history is gone, and then no approval counts.
+// When the label was last added, so taking it off and adding it again asks a person or the follow-up check for a new
+// approval. GitHub lists no event when the label's history is gone, and then only the review bot's approval counts.
 function labelledAt(timeline: TimelineEvent[]) {
   const added = timeline.filter((item) => item.event === 'labeled' && item.label?.name === approvalLabel)
   return added.length === 0 ? null : Math.max(...added.map((item) => Date.parse(item.created_at ?? '')))
@@ -98,8 +98,10 @@ function followUpCounts(pull: PullRequest, repository: string, roles: Record<str
   return pull.head.repo?.full_name === repository && writeRoles.has(roles[pull.user?.login ?? ''] ?? '')
 }
 
-// Why the pull request may not merge as it is now, or null when its head may. Timestamps have whole seconds, and an
-// approval in the same second as the label does not count, as it cannot be shown to have come after it.
+// Why the pull request may not merge as it is now, or null when its head may. The review bot's approval of the head
+// counts whenever it came, as the label is the opt-in and the head is what it approved. Anyone else's approval and the
+// follow-up check's verdict must come after the label. Timestamps have whole seconds, and one in the same second as the
+// label does not count, as it cannot be shown to have come after it.
 export function refusal({ repository, pull, timeline, reviews, files, roles, followUpCleanAt, checks, reviewBotFinished }: Decision) {
   const refused = pullRefusal(pull, repository) ?? workflowChangeRefusal(pull, files)
   if (refused) return refused
@@ -108,21 +110,23 @@ export function refusal({ repository, pull, timeline, reviews, files, roles, fol
   const requesters = standingChangeRequests(reviews, head)
   if (requesters.length > 0) return `changes are requested by ${requesters.join(', ')}`
 
-  const unapproved = `no approval of ${head.slice(0, 7)} came after the ${approvalLabel} label`
   const labelled = labelledAt(timeline)
-  if (labelled === null) return unapproved
-
+  const afterLabel = (at: number) => labelled !== null && at > labelled
   const botRequested = botRequestedChanges(reviews, head)
   const botCounts = reviewBotFinished && !botRequested
-  const mayApprove = (login: string | undefined) => (login === reviewBot ? botCounts : writeRoles.has(roles[login ?? ''] ?? ''))
-  const approvals = onHead(reviews, head).filter((review) => review.state === 'APPROVED' && Date.parse(review.submitted_at) > labelled)
-  const reviewed = approvals.some((review) => mayApprove(review.user?.login))
-  const followedUp = followUpCleanAt !== null && followUpCleanAt > labelled && followUpCounts(pull, repository, roles)
+  const counts = (review: Review) => {
+    const login = review.user?.login
+    if (login === reviewBot) return botCounts
+    return writeRoles.has(roles[login ?? ''] ?? '') && afterLabel(Date.parse(review.submitted_at))
+  }
+  const approvals = onHead(reviews, head).filter((review) => review.state === 'APPROVED')
+  const reviewed = approvals.some(counts)
+  const followedUp = followUpCleanAt !== null && afterLabel(followUpCleanAt) && followUpCounts(pull, repository, roles)
   if (!reviewed && !followedUp) {
     const botApproved = approvals.some((review) => review.user?.login === reviewBot)
     if (botApproved && botRequested)
       return `${reviewBot} approved ${head.slice(0, 7)} after its own change request on it, so it needs an approval from an account with write access or that change request dismissed`
-    return unapproved
+    return `no approval of ${head.slice(0, 7)} counts: one from ${reviewBot} needs its check on it finished, any other must come after the ${approvalLabel} label`
   }
 
   if (checks.state === 'red') return `these did not pass: ${checks.names.join(', ')}`
