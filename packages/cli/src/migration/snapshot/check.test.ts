@@ -1,4 +1,4 @@
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { checkMigrations } from './check'
@@ -31,6 +31,15 @@ describe('protobase migration check', () => {
     await migrate(dir, authOf())
     await writeFile(path.join(migrationsOf(dir), '001_orders.sql'), 'create table orders (id int);\n')
     expect(await check(dir)).toEqual(['001_auth.sql and 001_orders.sql share a number'])
+  })
+
+  it('leaves hand-written files that shared a number before the snapshot', async () => {
+    const dir = await newProject()
+    await mkdir(migrationsOf(dir), { recursive: true })
+    await writeFile(path.join(migrationsOf(dir), '001_orders.sql'), 'create table orders (id int);\n')
+    await writeFile(path.join(migrationsOf(dir), '001_photos.sql'), 'create table photos (id int);\n')
+    await migrate(dir, authOf())
+    expect(await check(dir)).toEqual([])
   })
 
   it('reports a snapshot that does not end at the newest file Protobase wrote', async () => {

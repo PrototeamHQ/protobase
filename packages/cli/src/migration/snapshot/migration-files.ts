@@ -22,9 +22,14 @@ export const readMigrationFiles = async (dir: string): Promise<MigrationFile[]> 
   return files.sort((a, b) => a.number - b.number || a.file.localeCompare(b.file))
 }
 
-/** The files of each number two or more of them share, such as one from each of two merged branches. */
+/**
+ * The files of each number two or more of them share, one of them written by Protobase, such as one from each of two
+ * merged branches. Hand-written files that shared a number before the snapshot are history already applied, and stay.
+ */
 export const sharedNumbers = (files: MigrationFile[]) =>
-  [...new Set(files.map(({ number }) => number))].map((number) => files.filter((file) => file.number === number)).filter((same) => same.length > 1)
+  [...new Set(files.map(({ number }) => number))]
+    .map((number) => files.filter((file) => file.number === number))
+    .filter((same) => same.length > 1 && same.some((file) => file.header !== undefined))
 
 /** The files Protobase wrote, in order. */
 export const protobaseFiles = (files: MigrationFile[]) => files.filter((file): file is MigrationFile & { header: Header } => file.header !== undefined)
