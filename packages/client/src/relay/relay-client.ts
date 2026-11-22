@@ -110,8 +110,9 @@ export const relayClient = (options: Options) => {
     /** Whether the socket joined the channel, `<resource>/<key>`: the person is a member, or it is an open channel they asked for. */
     joined: (channel: string) => joined.has(channel),
     /**
-     * Joins a channel the ticket did not list, such as one the person was added to after connecting, until the returned
-     * function is called. A channel the relay refuses stays unjoined.
+     * Joins a channel the ticket did not list, such as one the person was added to after connecting, and joins it again
+     * after each reconnect until the returned function is called. The socket stays in the channel until it next
+     * connects, so its notices keep coming meanwhile. A channel the relay refuses stays unjoined.
      */
     join: (channel: string) => {
       asked.set(channel, (asked.get(channel) ?? 0) + 1)

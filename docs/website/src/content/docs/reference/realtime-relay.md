@@ -161,7 +161,7 @@ client.relay.presence('away')
 | `follow(handlers)` | Hears every notice and event until the returned function is called. The first follower opens the socket and the last closes it. The socket connects with a fresh ticket each time, joins the relay's own topic and every channel the ticket lists, and connects again after a pause that grows with each failure, up to 30 seconds; an app that refuses a ticket with a client error, such as for a session that ended, ends it (`ended`). |
 | `send(channel, event, payload)` | Sends a declared event to the channel's other sockets. Rejects with a `RelayRefusal` and the relay's reason, such as `rate_limited` or `event_not_allowed`, or `not_joined`. |
 | `direct(to, event, payload)` | Sends a declared direct event to every device of a person who shares a channel with the sender. |
-| `join(channel)` | Joins a channel the ticket did not list, such as one the person joined since, until the returned function is called. |
+| `join(channel)` | Joins a channel the ticket did not list, such as one the person joined since, and again after each reconnect until the returned function is called. The socket stays in the channel until it next connects. |
 | `view(channel, keys)` | Says which keys the page views in the channel, so the app's publishes about other keys pass it by; `undefined` views everything. |
 | `presence(status)` | `away` or `online`, as the relay combines it over the person's devices. |
 | `reconnect()` | Connects at once when the socket is down and waiting to try again. |
