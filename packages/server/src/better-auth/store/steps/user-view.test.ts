@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { resolveNames } from '../../names/resolve-names'
 import { userTable, type UserTableOptions } from '../../user-table'
 import { ddlText } from '../ddl'
-import { migrationNames } from './migration'
-import { storeMigrations } from '.'
+import { renderSteps } from './render'
+import { migrationNames } from './step'
 
 // A user table that is a view over another system's (`users.keyTable`), such as one over Supabase's auth.users: the
 // app's own migration makes the view, so the store's leave it alone and point every foreign key at the key table.
@@ -11,8 +11,9 @@ import { storeMigrations } from '.'
 const users: UserTableOptions = { metadata: 'raw_user_meta_data' }
 const tables = { user: { name: 'users', columns: { role: 'app_role' } } }
 const statementsOf = (options: UserTableOptions) => {
-  const names = migrationNames({ schema: 'app_auth', names: resolveNames({ schema: 'app_auth', tables }), users: userTable(options), uuidIds: true })
-  return storeMigrations.flatMap((migration) => migration.statements(names).map(ddlText))
+  const names = resolveNames({ schema: 'app_auth', tables })
+  const rendered = renderSteps(migrationNames({ schema: 'app_auth', names, users: userTable(options), uuidIds: true }), names.modules, () => false)
+  return rendered.flatMap((part) => part.statements.map(ddlText))
 }
 const userDdl = (statement: string) => /^(create table if not exists|alter table|create index if not exists "\w+" on) "app_auth"\."users"/.test(statement) || statement === pgTrgm
 // Only the index of the users' names needs pg_trgm, so a store over a view makes neither.
@@ -40,13 +41,13 @@ describe('the store over a user view', () => {
       'create table if not exists "app_auth"."users" (id uuid default pg_catalog.gen_random_uuid() primary key)',
       expect.stringMatching(/^alter table "app_auth"\."users"\n {2}add column if not exists "name" text not null,/),
       'alter table "app_auth"."users" add column if not exists "raw_user_meta_data" jsonb',
-      'alter table "app_auth"."users" add column if not exists "two_factor_enabled" boolean',
-      'alter table "app_auth"."users" add column if not exists "last_organization_id" text',
       expect.stringMatching(/^create index if not exists "users_active_admin_idx" on "app_auth"\."users" \(id\) where "banned" is not true and 'admin' = any\(.*"app_role"/),
       'create index if not exists "users_created_at_id_idx" on "app_auth"."users" ("created_at", id)',
       pgTrgm,
       'create index if not exists "users_name_id_idx" on "app_auth"."users" ("name", id)',
       'create index if not exists "users_name_trgm_idx" on "app_auth"."users" using gin ("name" gin_trgm_ops)',
+      'alter table "app_auth"."users" add column if not exists "two_factor_enabled" boolean',
+      'alter table "app_auth"."users" add column if not exists "last_organization_id" text',
     ])
     expect(new Set(references(plain))).toEqual(new Set(['references "app_auth"."users" (id)']))
   })

@@ -1,8 +1,9 @@
-import { ddl } from '../ddl'
-import type { StoreMigration } from './migration'
+import { ddl } from '../../ddl'
+import type { Step } from '../step'
 
 /** The display name of each From address, shown beside it in the From header; NULL when the person entered none. */
-export const mailSenderNames: StoreMigration = {
+export const mailSenderNames: Step = {
+  step: 2,
   version: 10,
   name: 'mail_sender_names',
   title: 'The display names of the From addresses people send mail from',

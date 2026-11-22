@@ -1,10 +1,10 @@
 import { sql, type Kysely } from 'kysely'
 import { ddl } from './ddl'
-import type { StoreMigration } from './migrations/migration'
+import type { LegacyVersion } from './steps/legacy-versions'
 import type { StoreNames } from './store-names'
 
-// The record of the store's applied migrations, one row per version, so a deploy reads where the store is without
-// comparing its tables.
+// The record of the store's applied migrations, one row per version of its former single chain
+// (`steps/legacy-versions.ts`), so a deploy reads where the store is without comparing its tables.
 
 /** The table, in the store's schema, as the store's names resolve `auth_migrations`. */
 export const migrationsTable = ({ names }: Pick<StoreNames, 'names'>) => names.table('auth_migrations')
@@ -21,7 +21,7 @@ export const createMigrationsTable = (names: StoreNames) => {
 }
 
 /** The statement that records `migrations` as applied. */
-export const recordMigrations = (names: StoreNames, migrations: StoreMigration[]) =>
+export const recordMigrations = (names: StoreNames, migrations: LegacyVersion[]) =>
   ddl`insert into ${migrationsTable(names)} (${migrationsTable(names).columns.version}, ${migrationsTable(names).columns.name}) values ${sql.join(migrations.map(({ version, name }) => ddl`(${sql.lit(version)}, ${sql.lit(name)})`))}`
 
 /** The versions the store has applied, in order; `undefined` when it has no migrations table. */

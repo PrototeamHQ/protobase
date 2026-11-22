@@ -93,9 +93,9 @@ describe('protobase users disable and enable', () => {
   it('refuse on a store behind its migrations, changing nobody, and act once it is current', async () => {
     const store = await openSnapshotDb('empty')
     const made = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: 'http://localhost:1', secret: 'users-test-secret-users-test-secret-1234' })
-    const migration = (await authSchemaMigration(made))!
     // Every migration but the last applied, as a deploy of an older version left it.
-    await store.exec(migration.slice(0, migration.lastIndexOf('\n\n-- ')))
+    await store.exec((await authSchemaMigration(made))!)
+    await store.exec('drop index user_name_id_idx, user_name_trgm_idx; delete from auth_migrations where version = 14')
     const create = (email: string) => createUserCommand(usersApi(made), { email, passwordStdin: true, generatePassword: false }, { stdin: Readable.from(['a-long-test-password\n']), prompt: async () => '' }, () => {})
     await create('root@example.com')
     await create('ana@example.com')
