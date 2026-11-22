@@ -7,7 +7,7 @@ import { renderSteps } from './store/steps/render'
 import { migrationNames } from './store/steps/step'
 import { plainStoreDb } from './store/store-db'
 import { storeNames, type StoreNames } from './store/store-names'
-import { allModules } from './names/modules-on'
+import { refuseModulesOff } from './store/modules-off'
 
 // The admin store is versioned: each module's steps ship with Protobase (`store/steps`), and `auth_migrations` records
 // the versions of its former single chain applied, which each step names. Writing the next migration reads that record, and so does the check before serving: neither
@@ -24,13 +24,10 @@ const refuseNewer = (applied: number[]) => {
 }
 
 /**
- * The steps whose versions `applied` lacks, each version followed by its row in `auth_migrations`. The record holds
- * versions, not steps, so it tells which steps the store has only while every module is on, as the steps of one version
- * may belong to several modules.
+ * The steps whose versions `applied` lacks, each version followed by its row in `auth_migrations`; written only with
+ * every module on (`refuseModulesOff`).
  */
 const pendingSql = (names: StoreNames, applied: number[]) => {
-  const off = allModules.filter((module) => !names.names.modules.includes(module))
-  if (off.length > 0) throw new Error(`The auth store's migrations are written with every module on, and ${off.join(', ')} is off`)
   const rendered = renderSteps(migrationNames(names), names.names.modules, (_module, step) => applied.includes(step.version))
   const versions = legacyVersions.map(({ version }) => version).filter((version) => !applied.includes(version))
   return rendered.length === 0 ? undefined : stepsSql(names, rendered, versions)
@@ -44,6 +41,7 @@ const pendingSql = (names: StoreNames, applied: number[]) => {
  */
 export const authSchemaMigration = async (auth: AdminAuth) => {
   const names = storeNames(auth)
+  refuseModulesOff(names)
   const db = plainStoreDb(auth)
   const applied = await appliedVersions(db, names)
   if (applied !== undefined) {
