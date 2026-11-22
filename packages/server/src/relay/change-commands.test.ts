@@ -35,10 +35,11 @@ describe('changeCommands', () => {
     expect(changeCommands(models, [post], members, lobby)).toEqual([{ kind: 'publish', id: `${post.sequence}:rooms/1`, channel: 'rooms/1', event: 'change', payload: { kind: 'update', resource: 'posts', key: '3', channel: 'rooms/1' } }])
   })
 
-  it('adds a new member to the channel before the notice, which reaches them too', () => {
+  it('adds a new member to the channel and tells them alone of it on people, before the notice, which reaches them too', () => {
     const joined = change('conversation_members', 'create', { after: { id: 1, conversation_id: 7, user_id: 'u3' } })
-    const [add, notice] = changeCommands(models, [joined], members, none)
+    const [add, told, notice] = changeCommands(models, [joined], members, none)
     expect(add).toEqual({ kind: 'add', channel: 'conversations/7', users: ['u3'] })
+    expect(told).toEqual({ kind: 'publish', id: `${joined.sequence}:conversations/7:joined`, channel: 'people', users: ['u3'], event: 'joined', payload: { channel: 'conversations/7' } })
     expect(notice).toMatchObject({ kind: 'publish', channel: 'conversations/7', users: ['u1', 'u2', 'u3'] })
   })
 
@@ -68,7 +69,7 @@ describe('changeCommands', () => {
 
   it('notices a member who moved and changed person only to the person on each side', () => {
     const moved = change('conversation_members', 'update', { before: { id: 1, conversation_id: 7, user_id: 'u3' }, after: { id: 1, conversation_id: 8, user_id: 'u4' } })
-    const notices = changeCommands(models, [moved], members, none).filter((command) => command.kind === 'publish')
+    const notices = changeCommands(models, [moved], members, none).filter((command) => command.kind === 'publish' && command.event === 'change')
     expect(notices).toMatchObject([
       { channel: 'conversations/7', users: ['u1', 'u2', 'u3'] },
       { channel: 'conversations/8', users: ['u4'] },

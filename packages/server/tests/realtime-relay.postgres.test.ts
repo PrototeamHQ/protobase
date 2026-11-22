@@ -25,7 +25,8 @@ import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } fr
 // The app's side of the realtime relay against a real relay process and real Postgres: tickets, change notices to a
 // conversation's members, membership that follows the members table, open channels of public records only, and a
 // sign-out closing that session's sockets, and presence the relay reports, kept in the app's own resource, raising its
-// events and published to those who share a conversation, and client events the config declares on a channel resource.
+// events and published to those who share a conversation, client events the config declares on a channel resource, and
+// a person added to a conversation told alone which one, so their socket joins it.
 // `TEST_RELAY_BINARY` names the relay's binary (`go build ./cmd/relay` of protobase-realtime); without it the test
 // is skipped.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 })
@@ -126,7 +127,7 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
   let relayUrl: string
   const errors: unknown[] = []
   const sockets: Awaited<ReturnType<typeof relaySocket>>[] = []
-  const people: Record<'alice' | 'bob' | 'carol', string> = {} as never
+  const people: Record<'alice' | 'bob' | 'carol' | 'dave', string> = {} as never
 
   const request = (route: string, init: { body?: unknown; token?: string; cookie?: string } = {}) =>
     app.request(`${origin}${route}`, {
@@ -160,7 +161,7 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     pg = await openPostgresDatabase('auth')
     const auth = createAuth({ database: { dialect: pg.dialect, type: 'postgres' }, baseURL: origin, secret, mailer: false, signInPerMinute: 100 })
     await auth.$context
-    for (const name of ['alice', 'bob', 'carol'] as const) people[name] = String((await createUser(auth, { email: `${name}@example.com`, name, password })).id)
+    for (const name of ['alice', 'bob', 'carol', 'dave'] as const) people[name] = String((await createUser(auth, { email: `${name}@example.com`, name, password })).id)
     await pg.exec((await jobsSchemaMigration(pg.db))!)
     await pg.exec(tables)
     await pg.exec((await changesMigration(pg.db, resources.map((entry) => entry.toModel())))!)
@@ -286,6 +287,29 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     await drained()
     await vi.waitFor(() => expect(bob.notices()).toHaveLength(1))
     expect(carol.notices().filter((notice) => notice.resource === 'messages')).toHaveLength(1)
+  })
+
+  it('tells only the person added to a conversation which one, so their socket joins it and hears its next message', async () => {
+    const carol = await connect((await signIn('carol@example.com')).token)
+    const bob = await connect((await signIn('bob@example.com')).token)
+    const dave = await connect((await signIn('dave@example.com')).token)
+    for (const socket of [carol, bob, dave]) expect(await socket.join('people')).toBe('ok')
+    const told = (socket: typeof carol) => socket.frames.filter((frame) => frame[2] === 'people' && frame[3] === 'joined').map((frame) => frame[4])
+
+    await sql`insert into conversation_members (conversation_id, user_id) values (1, ${people.carol})`.execute(pg.db)
+    await drained()
+    await vi.waitFor(() => expect(told(carol)).toEqual([{ channel: 'conversations/1' }]))
+    // As the client does on hearing it: join the channel it names.
+    expect(await carol.join(told(carol)[0]!.channel as string)).toBe('ok')
+    const [{ id }] = (await sql<{ id: number }>`insert into messages (conversation_id, body) values (1, 'Hi Carol') returning id`.execute(pg.db)).rows as [{ id: number }]
+    await drained()
+    await vi.waitFor(() => expect(carol.notices().filter((notice) => notice.resource === 'messages')).toEqual([{ kind: 'create', resource: 'messages', key: String(id), channel: 'conversations/1' }]))
+    // Bob, already in it, and Dave, who is not, hear nothing of who joined.
+    expect(told(bob)).toEqual([])
+    expect(told(dave)).toEqual([])
+
+    await sql`delete from conversation_members where conversation_id = 1 and user_id = ${people.carol}`.execute(pg.db)
+    await drained()
   })
 
   it("closes the sockets of a session that signs out, and leaves the person's other sessions connected", async () => {
