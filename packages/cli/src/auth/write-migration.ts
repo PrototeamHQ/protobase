@@ -1,10 +1,17 @@
-import { mkdir, readdir, writeFile } from 'node:fs/promises'
-import path from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { authSchemaMigration, type AdminAuth } from '@protobase/server'
-import { migrationText, nextMigrationName } from './migration-file'
+import { latestSteps, storeModel, storeNames } from '@protobase/server/internal'
+import { refuseInconsistent } from '../migration/snapshot/consistency'
+import { readMigrationFiles } from '../migration/snapshot/migration-files'
+import { readSnapshot } from '../migration/snapshot/snapshot-file'
+import { writeMigrationFile } from '../migration/snapshot/write-file'
+import { protobaseVersion } from '../version/version'
+import { migrationText } from './migration-file'
 
 export type WriteAuthMigrationOptions = {
   auth: AdminAuth
+  /** The project's folder, which holds `protobase.snapshot.json`. */
+  projectDir: string
   dir: string
   name: string
   /** The command the file names as its writer, `protobase auth migration` by default. */
@@ -14,13 +21,16 @@ export type WriteAuthMigrationOptions = {
 /**
  * Writes the auth schema changes the database still needs as the next migration in `dir`, and returns its path;
  * `undefined` when the database is current. The changes are found by comparing the database with what Better Auth
- * needs, so the project's earlier migrations must be applied to it first.
+ * needs, so the project's earlier migrations must be applied to it first. The file brings the store to every step of
+ * this version, so the project's snapshot, started here when it has none, ends at it with the store there, and
+ * `protobase migration` goes on from it.
  */
-export const writeAuthMigration = async ({ auth, dir, name, writer }: WriteAuthMigrationOptions) => {
+export const writeAuthMigration = async ({ auth, projectDir, dir, name, writer }: WriteAuthMigrationOptions) => {
+  const snapshot = await readSnapshot(projectDir)
+  refuseInconsistent(snapshot, await readMigrationFiles(dir))
   const sql = await authSchemaMigration(auth)
   if (sql === undefined) return undefined
-  await mkdir(dir, { recursive: true })
-  const file = path.join(dir, nextMigrationName(await readdir(dir), name))
-  await writeFile(file, migrationText(sql, writer), { flag: 'wx' })
-  return file
+  const names = storeNames(auth)
+  const draft = { previous: snapshot, auth: storeModel(names, latestSteps(names.names.modules)), organizationsOn: Boolean(auth.organizations), protobaseVersion }
+  return writeMigrationFile(projectDir, dir, { name, body: migrationText(sql, writer) }, draft, randomUUID())
 }
