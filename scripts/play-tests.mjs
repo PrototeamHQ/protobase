@@ -109,11 +109,18 @@ const playStory = async (story) => {
     throw error
   })
   const outcome = await withDeadline(played, storySeconds * 1000, timedOut)
-  // Where the script of a page that stopped answering stands, before its context closes.
-  const scriptAt = outcome === timedOut && progress.scriptAt ? await progress.scriptAt(pauseSeconds * 1000) : undefined
   // Closing the context ends the calls still waiting on its page: they fail as their target closed, which the timeout
   // below stands for. The close has a deadline of its own, as does everything a story waits on.
-  const closed = await withDeadline(setUp.then((context) => context.close()), closeSeconds * 1000, timedOut)
+  const close = () => withDeadline(setUp.then((context) => context.close()), closeSeconds * 1000, timedOut)
+  // Where the script of a page that stopped answering stands, before its context closes, which it does even when
+  // reading that fails.
+  let scriptAt
+  let closed
+  try {
+    scriptAt = outcome === timedOut && progress.scriptAt ? await progress.scriptAt(pauseSeconds * 1000) : undefined
+  } finally {
+    closed = await close()
+  }
   if (outcome === timedOut) return { name: 'storyTimedOut', message: [`did not finish within ${storySeconds} s while ${progress.step}`, scriptAt].filter(Boolean).join('; ') }
   if (closed === timedOut) return { name: 'storyTimedOut', message: `its page did not close within ${closeSeconds} s` }
   return outcome
