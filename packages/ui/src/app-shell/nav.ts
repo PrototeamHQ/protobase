@@ -9,9 +9,10 @@ export type NavRecord = { id: string; label: string; href: string; status?: { la
  * How a record under a sidebar entry stands out for the person reading, such as an unread conversation: `strong` draws
  * its title bold, `count` a badge at the end of its row (none at 0), and `label`, such as "3 mentions", is added to its
  * name for screen readers and its tooltip. `person`, a user id, names the one person the record stands for, such as
- * the other person in a direct message: the row shows their presence and status beside its title.
+ * the other person in a direct message: the row shows their presence and status beside its title. `typing` says
+ * "typing…" beside it, while someone else types in it.
  */
-export type RecordMark = { strong?: boolean; count?: number; label?: string; person?: string }
+export type RecordMark = { strong?: boolean; count?: number; label?: string; person?: string; typing?: boolean }
 
 /** A record's mark as the sidebar draws it: its person, when it names one, as their presence and status. */
 export type ShownMark = Omit<RecordMark, 'person'> & { person?: Pick<StatusMarkProps, 'status' | 'presence'> }
@@ -20,8 +21,8 @@ export type ShownMark = Omit<RecordMark, 'person'> & { person?: Pick<StatusMarkP
 export type NavRecent =
   | { state: 'loading' }
   | { state: 'error' }
-  /** `useMarks`, a React hook the group calls while it shows the records, marks them by their `id`. */
-  | { state: 'ready'; records: NavRecord[]; useMarks?: () => Record<string, ShownMark> | undefined }
+  /** `useMarks`, a React hook the group calls with the records while it shows them, marks them by their `id`. */
+  | { state: 'ready'; records: NavRecord[]; useMarks?: (records: readonly NavRecord[]) => Record<string, ShownMark> | undefined }
 
 export type NavItem = {
   id: string

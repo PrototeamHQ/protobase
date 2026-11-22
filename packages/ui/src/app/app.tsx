@@ -31,6 +31,7 @@ import { startErrorReporting } from './error-reporting'
 import { MetaGate, Notice, useAdminMeta } from './meta-gate'
 import { usePresence } from '../presence/presence'
 import { PresenceProvider } from '../presence/presence-provider'
+import { RelayProvider } from '../relay/relay-provider'
 import { firstOrganizationPath, invitationsPath, isFirstOrganizationPath, managesOrganization, membersPath, organizationMenuItems, organizationPageTitle, organizationPath, organizationsPath } from '../organizations/organization-paths'
 import { useOrganizationText } from '../organizations/organization-word'
 import { reopenIn, useOrganizations } from '../organizations/use-organizations'
@@ -406,9 +407,11 @@ const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, a
           ) : (
             <PluginGate ui={ui}>
               <PresenceProvider>
-                <RecordTitles>
-                  <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
-                </RecordTitles>
+                <RelayProvider>
+                  <RecordTitles>
+                    <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
+                  </RecordTitles>
+                </RelayProvider>
               </PresenceProvider>
             </PluginGate>
           )}

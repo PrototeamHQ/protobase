@@ -8,6 +8,8 @@ import { fetchWithProgress, type UploadProgress } from './upload-request'
 import { followLive, type LiveHandlers } from './live'
 import { sharedLive } from './shared-live'
 import { channelsClient } from './channels'
+import { relayClient } from './relay/relay-client'
+import { fetchTicket, ticketRefused } from './relay/relay-ticket'
 import { bridgesClient } from './bridges'
 import type { SocketLike } from './channel-connection'
 import { devicesClient } from './devices'
@@ -419,6 +421,17 @@ export const createClient = (options: ClientOptions = {}) => {
     retryDelay: (attempt) => Math.min(30_000, 1000 * 2 ** attempt),
   })
 
+  /**
+   * The app's realtime relay (`realtime.relay`): change notices of the channels the person is in, the events clients
+   * send each other, what the page views and whether its person is at it, all on one socket (see `relayClient`).
+   */
+  const relay = relayClient({
+    ticket: () => fetchTicket(send),
+    socket: (url) => openSocket(url, []),
+    retryDelay: (attempt) => Math.min(30_000, 1000 * 2 ** attempt),
+    final: ticketRefused,
+  })
+
   /** The app's TCP bridges, to services only its server reaches, over a WebSocket each (see `bridgesClient`). */
   const bridges = bridgesClient({ send, socketUrl: (path) => systemSocketUrl(options.baseUrl, path), socket: openSocket })
 
@@ -455,7 +468,7 @@ export const createClient = (options: ClientOptions = {}) => {
   /** Where a page reads the bytes of a file of `resource` with `fetch`, from this API's own origin (see `fileReadUrl`). */
   const readUrl = (_resource: ResourceRef, file: { uri: string; url: string }) => fileReadUrl(file, systemUrlOf(options.baseUrl))
 
-  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, batchAggregates, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, bridges, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes, workflowRunTrace, runnerRegistration, functionSocketUrl, fileReadUrl: readUrl }
+  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, batchAggregates, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live, channel, relay, bridges, devices, notifications, status, calls, watchCalls, rings, callGuests, workflowTypes, workflowRunTrace, runnerRegistration, functionSocketUrl, fileReadUrl: readUrl }
 }
 
 export type Client = ReturnType<typeof createClient>

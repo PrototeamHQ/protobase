@@ -53,6 +53,7 @@ export const useMeta = (): UseQueryResult<MetaData> => {
         ...(result.meta.notifications?.bell && { bell: true }),
         ...(result.meta.status && { status: true }),
         ...(result.meta.calls && { calls: true }),
+        ...(result.meta.relay && { relay: result.meta.relay }),
         ...(result.meta.locale && { locale: result.meta.locale }),
         ...(result.meta.texts && { texts: result.meta.texts }),
         ...(result.meta.files && { files: result.meta.files }),

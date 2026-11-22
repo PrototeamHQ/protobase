@@ -132,6 +132,8 @@ export const channelsView = view<typeof channels>('channels').nav({ recent: { or
 | `orderBy` | AIP-132 order, as `?order_by=`; the list's `sort` when omitted. |
 | `limit` | How many records, 1 to 20; 3 when omitted. |
 | `marks` | The name of a hook in the UI config's `marks` that marks each record for the person reading, such as an unread conversation in bold with a count. See [Marks per reader](#marks-per-reader). Optional. |
+| `typing` | `true`: "typing…" beside a record while someone else types in it, from the [realtime relay](/reference/realtime-relay/#pages). Needs the view's conversation page with `typing`. See [Typing and unread from the relay](#typing-and-unread-from-the-relay). Optional. |
+| `unread` | `true`: a record bold with the count of its unread messages, from the view's conversation page and its `readPosition`, kept by the realtime relay. See [Typing and unread from the relay](#typing-and-unread-from-the-relay). Optional. |
 
 The entry then works like this:
 
@@ -141,6 +143,21 @@ The entry then works like this:
 - Only text sidebars (`text-large`, `text-small`, and the phone drawer) show the records; icon sidebars keep a plain entry.
 
 The records come from the list API with the caller's token, so they follow the same access rules as the list page: row filters such as `.own` apply, and when the list is refused the group says it could not load. Any write to the resource made in the admin refreshes them, and so does returning to the window, unless a record has unsaved changes, so statuses changed elsewhere show up. A record read anew, by its record page or by project code refetching `useRecord`, refreshes its group too when it shows another status or title than the group's row.
+
+### Typing and unread from the relay
+
+With the app's [realtime relay](/reference/realtime-relay/#pages), a group of conversations needs no hook of its own for typing and unread messages:
+
+```ts
+view<typeof conversations>('conversations')
+  .nav({ recent: { orderBy: 'name asc', limit: 20, typing: true, unread: true } })
+  .record({ conversation: { resource: 'messages', field: 'conversation_id', sender: 'author_id', time: 'sent_at', text: 'body', readPosition: { resource: 'read_positions', field: 'conversation_id', message: 'last_read_id' }, typing: true } })
+```
+
+- `typing` says "typing…" after a record's title while someone else types in it, wherever the reader is in the app, for six seconds after the last they heard, and not while the relay is down. The open conversation's row leaves it out: the line above its box says who types.
+- `unread` draws a record bold, with the count of the messages others wrote after the reader's read position. It is counted as the group shows, in two requests, the reader's read positions and one aggregate of the messages grouped by conversation in the database, and again after the relay reconnects. In between, each new message the relay notices on a conversation adds one without reading anything; the open conversation counts none, and opening one clears its count.
+
+Both mark the group's own records over a `marks` hook's, so a direct message's row can still name its person.
 
 ### Marks per reader
 

@@ -2,7 +2,8 @@ import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 import type { ListPage } from '@protobase/client'
 import type { ResourceModel } from '@protobase/schema'
-import type { NavRecent, RecordMark } from '../app-shell'
+import type { NavRecent, NavRecord, RecordMark } from '../app-shell'
+import { mergeMarks, relayMarks } from '../relay/use-relay-marks'
 import { useClient } from '../data/api-provider'
 import type { MetaData } from '../data/meta-data'
 import { keys } from '../data/query-keys'
@@ -16,8 +17,10 @@ import { userMenuResources } from './user-menu-from-meta'
 
 type Group = { model: ResourceModel; request: ReturnType<typeof recentRequest> }
 
+type MarksOf = (records: readonly NavRecord[]) => Record<string, RecordMark> | undefined
+
 // The group's marks hook, with each person a mark names given their presence and status.
-const withPeople = (useMarks: (() => Record<string, RecordMark> | undefined) | undefined) => useMarks && (() => markPeople(useMarks(), usePresence(), useStatuses().data))
+const withPeople = (useMarks: MarksOf | undefined) => useMarks && ((records: readonly NavRecord[]) => markPeople(useMarks(records), usePresence(), useStatuses().data))
 
 const groupKey = ({ model, request }: Group) => keys.navRecent(model.name, request.filter, request.orderBy, request.pageSize)
 
@@ -47,8 +50,8 @@ const useFollowRecords = (groups: Group[]) => {
 /**
  * The records of every sidebar group (`nav.recent`), one list request each, under the `list` query key so that any
  * write to the resource refreshes them, as does reading one of their records anew. The server applies the caller's
- * access, as on the list page. A group that names `marks` gets the project UI's hook, which the sidebar calls, its
- * marks' people given their presence and status. With `enabled` false, such as outside any organization, there are none.
+ * access, as on the list page. A group that names `marks` gets the project UI's hook, which the sidebar calls, and one
+ * with `typing` or `unread` the relay's marks over it, its marks' people given their presence and status. With `enabled` false, such as outside any organization, there are none.
  */
 export const useNavRecent = (meta: MetaData, basePath: string, active: { resource?: string; key?: string }, enabled = true): Record<string, NavRecent> => {
   const client = useClient()
@@ -60,7 +63,7 @@ export const useNavRecent = (meta: MetaData, basePath: string, active: { resourc
     return Object.values(meta.views).flatMap((view) => {
       const model = meta.resources[view.resource]
       const recent = view.nav?.recent
-      return model && recent && !view.nav?.hidden && !inMenu.has(model.name) ? [{ model, view, recent, request: recentRequest(model, view, recent), useMarks: withPeople(recentMarks(model.name, recent, marks)) }] : []
+      return model && recent && !view.nav?.hidden && !inMenu.has(model.name) ? [{ model, view, recent, request: recentRequest(model, view, recent), useMarks: withPeople(mergeMarks(recentMarks(model.name, recent, marks), relayMarks(view, recent))) }] : []
     })
   }, [meta, marks, enabled])
   useFollowRecords(groups)

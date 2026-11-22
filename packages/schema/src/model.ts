@@ -1572,6 +1572,16 @@ export type NavRecentModel = {
    * project UI's `marks`, which the sidebar calls in the browser. Presentation only: it is no field, filter or sort key.
    */
   marks?: string
+  /**
+   * Says "typing…" beside a record while someone else types in it, wherever the reader is in the app: a record of a
+   * channel resource of the app's realtime relay, whose conversation page has `typing`.
+   */
+  typing?: true
+  /**
+   * Draws a record bold with the count of its unread messages, from the view's conversation page and its `readPosition`:
+   * counted once as the app opens and after the relay reconnects, then kept by the relay's notices without reading.
+   */
+  unread?: true
 }
 
 /**
@@ -1940,6 +1950,11 @@ export type ConversationPageModel = {
   placeholder?: string
   /** What the conversation says while it has no messages. */
   empty?: string
+  /**
+   * Says who else types, above the box, and tells the others while the reader types: `typing` events on the record's
+   * channel of the app's realtime relay, which declares them.
+   */
+  typing?: true
 }
 
 /**

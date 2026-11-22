@@ -211,6 +211,9 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     // Carol is in no list of the conversation's: the relay refuses her join.
     expect(await carol.join('conversations/1')).toBe('error')
     expect(await carol.join('conversations/2')).toBe('ok')
+    // The answer lists the channels the ticket does, so a client joins them without reading the ticket.
+    const answer = await request('/api/relay/ticket', { token: (await signIn('carol@example.com')).token })
+    expect(((await answer.json()) as { channels: string[] }).channels).toEqual(['people', 'conversations/2'])
 
     const [{ id }] = (await sql<{ id: number }>`insert into messages (conversation_id, body) values (1, 'Hi') returning id`.execute(pg.db)).rows as [{ id: number }]
     await drained()

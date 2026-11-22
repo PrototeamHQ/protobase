@@ -356,7 +356,9 @@
     "loading": "Laden...",
     "couldNotLoad": "Kon niet laden",
     "viewAll": "Alles bekijken",
-    "couldNotSearch": "Kon niet zoeken in <lower>{label}</lower>"
+    "couldNotSearch": "Kon niet zoeken in <lower>{label}</lower>",
+    "typing": "typt…",
+    "unread": "{count, plural, one {# ongelezen bericht} other {# ongelezen berichten}}"
   },
   "app/built-in-views": {
     "table_definitions.tables.names.singular": "Tabel",
@@ -727,7 +729,10 @@
     "fileNotUploaded": "Niet geüpload: {reason}",
     "uploadedPercent": "{percent}%",
     "fileMissing": "Dit bestand ontbreekt",
-    "couldNotLoadFiles": "Kon de bestanden niet laden"
+    "couldNotLoadFiles": "Kon de bestanden niet laden",
+    "typingOne": "{name} typt…",
+    "typingTwo": "{first} en {second} typen…",
+    "typingMany": "Meerdere mensen typen…"
   },
   "app/create": {
     "title": "{noun} toevoegen",

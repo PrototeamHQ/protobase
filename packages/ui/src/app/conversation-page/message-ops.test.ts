@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { deleteOps, sendOps } from './message-ops'
+import { deleteOps, sendOps, sentMessage } from './message-ops'
 
 const messages = resource('messages').table('messages').fields({ id: f.integer().readOnly().filterable(), body: f.text() }).primaryKey((r) => r.id).toModel()
 const attachments = { resource: 'attachments', field: 'message_id', file: 'file' }
@@ -13,6 +13,15 @@ describe('sendOps', () => {
       { op: 'create', resource: 'attachments', data: { message_id: { $ref: 'message' }, file: 't-1' } },
       { op: 'create', resource: 'attachments', data: { message_id: { $ref: 'message' }, file: 't-2' } },
     ])
+  })
+})
+
+describe('sentMessage', () => {
+  it("is the message a send's batch created, its first result", () => {
+    const message = { op: 'create' as const, resource: 'messages', ref: 'message', record: { id: 12 }, etag: 'a' }
+    const file = { op: 'create' as const, resource: 'attachments', record: { id: 3 }, etag: 'b' }
+    expect(sentMessage({ results: [message, file] })).toEqual({ id: 12 })
+    expect(() => sentMessage({ results: [] })).toThrow('A message batch starts with the message it creates')
   })
 })
 

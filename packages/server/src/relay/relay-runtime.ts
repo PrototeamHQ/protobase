@@ -53,5 +53,8 @@ export const relayRuntime = (options: RealtimeRelayOptions, auth: AdminAuth | un
     })
   }
 
-  return { jobs: jobs.jobs, onChanges, routes: () => ticketRoutes({ deps, options, models, jobs, sessionEnd: ends }), ...(options.presence && models.presence && { presenceRoutes: presenceApp(options.presence.key, models.presence) }) }
+  // The resources whose changes the relay notices, which pages then hear of from it.
+  const noticed = [...models.placements.keys()].sort()
+
+  return { jobs: jobs.jobs, onChanges, noticed, routes: () => ticketRoutes({ deps, options, models, jobs, sessionEnd: ends }), ...(options.presence && models.presence && { presenceRoutes: presenceApp(options.presence.key, models.presence) }) }
 }

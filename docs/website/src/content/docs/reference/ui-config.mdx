@@ -710,6 +710,7 @@ view<typeof channels>('channels').record({
 | `thread` | Replies in a thread under a message, in a panel beside the conversation: `{ field, count, last }`. |
 | `attachments` | [Files](#files-in-messages) a message carries, kept in a resource of their own: `{ resource, field, file, width, height }`. |
 | `call` | The record's [call](/reference/calls/), by the name of the [API function](/guides/api-functions/) that admits people to it. |
+| `typing` | `true`: a line above the box says who else types, by their names among the organization's members, and the others hear while the reader types, through the app's [realtime relay](/reference/realtime-relay/#pages); the record's resource is one of its channel resources. |
 
 The header shows the record's title, which the top bar repeats at mobile width and so shows there only with `members`, the subtitle, the call with `call`, and *Details*, a link to the record's standard page at `?standard=true`, with its sections, Edit and Delete. The latest 50 messages show oldest first, with *Load earlier messages* at the top for more. A day divider opens each day, and one person's messages sent within five minutes of each other show under their name once. A message resource with [`.live()`](/reference/live/) shows new, changed and deleted messages as they happen. Every read goes through the reader's own access: a message they may not read never shows, and a reader who may not read the messages, a field each one needs or the fields of `thread` gets the standard page. The box shows for a reader who may create messages.
 

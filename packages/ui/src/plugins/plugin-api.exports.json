@@ -61,6 +61,7 @@
     "StepList",
     "Textarea",
     "ToneEdge",
+    "TypingLine",
     "allowDelayMs",
     "buttonClass",
     "chatDayLabel",
@@ -130,7 +131,10 @@
     "useSignedInUser",
     "useStatuses",
     "useToast",
+    "useTypers",
+    "useTypingSender",
     "useUnreadNotifications",
-    "useUpdateRecord"
+    "useUpdateRecord",
+    "useViewChannel"
   ]
 }
