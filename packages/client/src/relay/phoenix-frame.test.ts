@@ -12,6 +12,7 @@ describe('phoenix frames', () => {
     expect(decodeFrame('[null,null,"conversations/7","change",{"kind":"create"}]')).toEqual({ joinRef: null, ref: null, topic: 'conversations/7', event: 'change', payload: { kind: 'create' } })
     expect(decodeFrame('{"topic":"x"}')).toBeUndefined()
     expect(decodeFrame('[null,null,"x","y"]')).toBeUndefined()
+    expect(decodeFrame('not json')).toBeUndefined()
   })
 
   it('reads a reply as ok, or as an error with its reason', () => {
