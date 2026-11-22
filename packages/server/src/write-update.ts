@@ -32,6 +32,7 @@ export const planUpdate = async (trx: Db, access: RequestAccess, key: (string | 
   checkPrecondition(current, ifMatch, required)
   // The rules see the mail senders as they are stored.
   const checked = checkRules(access, 'update', await checkMailSenders(access, validateFields(access, 'update', body), current.record), current.record)
+  // The rules check what the caller sent; what `.prepare()` returns is the server's own, written as it is.
   const values = await prepareValues(trx, access, 'update', await attachFiles(access, checked, current.record), current.record)
   const filter = Object.keys(values).length === 0 ? undefined : await decide(access, 'update', current.record, values)
   if (filter && !(await fetchRecord(trx, entry, key, tenant, { filter, fields: [firstKeyField(access)] }))) throw denied(entry, 'update')

@@ -41,7 +41,8 @@ export const prepareValues = async (trx: Db, access: RequestAccess, operation: '
     session,
     ...(session.tenant !== undefined && { tenant: session.tenant }),
     trx,
-    ...(before && { before: maskEncrypted(full, before) }),
+    // A copy, so a hook that changes it leaves the stored record the update goes on with alone
+    ...(before && { before: { ...maskEncrypted(full, before) } }),
   }
   try {
     return await runPreparers(access, values, context)
