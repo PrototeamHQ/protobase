@@ -76,6 +76,12 @@ const maxEventBytes = 65536
 // Names the relay keeps for its own frames.
 const reservedEvents = new Set(['heartbeat', 'interest', 'presence', 'client_event'])
 
+/**
+ * An event's limit as a number: one read from the environment (`{ "$env": ... }` in a JSON config) is text, such as
+ * `"128"`, and counts as the number it writes; any other value stays as it is, for the check to refuse.
+ */
+export const eventLimit = (value: unknown) => (typeof value === 'string' && value.trim() !== '' ? Number(value) : value)
+
 const nonEmpty = (value: unknown): value is string => typeof value === 'string' && value.length > 0
 
 const checkEvents = (where: string, events: unknown) => {
@@ -84,9 +90,10 @@ const checkEvents = (where: string, events: unknown) => {
     if (name.length === 0 || new TextEncoder().encode(name).length > 64 || reservedEvents.has(name) || name.startsWith('phx_')) throw new Error(`${where}: "${name}" must be 1 to 64 bytes and none of heartbeat, interest, presence, client_event and phx_*`)
     const schema = event?.schema
     if (typeof schema !== 'object' || schema === null || Array.isArray(schema)) throw new Error(`${where}.${name}.schema must be a JSON schema object`)
-    if (!Number.isInteger(event.maxBytes) || event.maxBytes < 1 || event.maxBytes > maxEventBytes) throw new Error(`${where}.${name}.maxBytes must be a whole number from 1 to ${maxEventBytes}`)
-    if (typeof event.perSecond !== 'number' || !(event.perSecond > 0) || !Number.isFinite(event.perSecond)) throw new Error(`${where}.${name}.perSecond must be a positive number`)
-    if (!Number.isInteger(event.burst) || event.burst < 1) throw new Error(`${where}.${name}.burst must be a positive whole number`)
+    const [maxBytes, perSecond, burst] = [event.maxBytes, event.perSecond, event.burst].map(eventLimit)
+    if (!Number.isInteger(maxBytes) || (maxBytes as number) < 1 || (maxBytes as number) > maxEventBytes) throw new Error(`${where}.${name}.maxBytes must be a whole number from 1 to ${maxEventBytes}`)
+    if (typeof perSecond !== 'number' || !(perSecond > 0) || !Number.isFinite(perSecond)) throw new Error(`${where}.${name}.perSecond must be a positive number`)
+    if (!Number.isInteger(burst) || (burst as number) < 1) throw new Error(`${where}.${name}.burst must be a positive whole number`)
   }
 }
 

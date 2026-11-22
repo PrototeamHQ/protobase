@@ -61,6 +61,12 @@ describe('checkRelayOptions of client events', () => {
     for (const maxBytes of [0, 65537, 1.5]) expect(() => checkRelayOptions(withEvents({ typing: { ...typing, maxBytes } }))).toThrow('typing.maxBytes must be a whole number from 1 to 65536')
     expect(checkRelayOptions(withEvents({ typing: { ...typing, maxBytes: 65536, perSecond: 0.5 } }))).toBeTruthy()
     for (const perSecond of [0, -1, Infinity, Number.NaN]) expect(() => checkRelayOptions(withEvents({ typing: { ...typing, perSecond } }))).toThrow('typing.perSecond must be a positive number')
-    for (const burst of [0, 1.5]) expect(() => checkRelayOptions(withEvents({ typing: { ...typing, burst } }))).toThrow('typing.burst must be a positive whole number')
+    for (const burst of [0, 1.5, 'many']) expect(() => checkRelayOptions(withEvents({ typing: { ...typing, burst } }))).toThrow('typing.burst must be a positive whole number')
+  })
+
+  it('takes limits read from the environment, which are text, as the numbers they write', () => {
+    expect(checkRelayOptions(withEvents({ typing: { ...typing, maxBytes: '128', perSecond: '0.5', burst: '4' } }))).toBeTruthy()
+    expect(() => checkRelayOptions(withEvents({ typing: { ...typing, maxBytes: '' } }))).toThrow('typing.maxBytes must be a whole number')
+    expect(() => checkRelayOptions(withEvents({ typing: { ...typing, perSecond: '2/s' } }))).toThrow('typing.perSecond must be a positive number')
   })
 })

@@ -25,4 +25,9 @@ describe('relayClientEvents', () => {
     expect(schema).toMatchObject({ required: ['typing'], properties: { thread: { type: ['string', 'number', 'null'] } } })
     expect(new TextEncoder().encode(JSON.stringify({ typing: false, thread: 'f'.repeat(200) })).length).toBeLessThan(maxBytes)
   })
+
+  it('writes limits read from the environment as the numbers the relay reads', () => {
+    const ring = { schema: { type: 'object' }, maxBytes: '512', perSecond: '0.5', burst: '2' } as never
+    expect(relayClientEvents({ rooms: { events: { ring } } }, new Set())?.channels.rooms?.events.ring).toEqual({ schema: { type: 'object' }, max_bytes: 512, per_second: 0.5, burst: 2 })
+  })
 })
