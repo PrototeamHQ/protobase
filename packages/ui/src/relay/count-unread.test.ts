@@ -29,4 +29,17 @@ describe('countUnread', () => {
     expect(await countUnread(client, models, { ...page, readPosition: undefined }, ['7'], 'u1')).toEqual({})
     expect(client.list).not.toHaveBeenCalled()
   })
+
+  it("reads only the reader's own positions, and nothing when the position resource has no author", async () => {
+    const list = vi.fn(async () => ({ items: [] }))
+    const aggregate = vi.fn(async () => ({ groupBy: 'conversation_id', groups: [] }))
+    const client = { list, aggregate } as unknown as Client
+    const unfiltered = { ...models, read_positions: { ...models.read_positions!, fields: {} } }
+    await countUnread(client, unfiltered, page, ['7'], 'u1')
+    expect(list).toHaveBeenCalledWith('read_positions', expect.objectContaining({ filter: 'user_id = "u1" AND (conversation_id = 7)' }))
+    const authorless = { ...models, read_positions: { ...models.read_positions!, author: undefined } }
+    list.mockClear()
+    expect(await countUnread(client, authorless, page, ['7'], 'u1')).toEqual({})
+    expect(list).not.toHaveBeenCalled()
+  })
 })

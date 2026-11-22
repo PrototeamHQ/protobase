@@ -23,8 +23,8 @@ export const countNotice = (counts: UnreadCounts, notice: RelayNotice, source: U
 /** The counts with the open conversation read: nothing unread while the reader has it open. */
 export const opened = (counts: UnreadCounts, key: string): UnreadCounts => (counts[key] ? { ...counts, [key]: 0 } : counts)
 
-// A key as the filter takes it: a whole number bare, anything else quoted.
-const literal = (key: string) => (/^-?\d+$/.test(key) ? key : JSON.stringify(key))
+/** A key as the filter takes it: a whole number bare, anything else quoted. */
+export const literal = (key: string) => (/^-?\d+$/.test(key) ? key : JSON.stringify(key))
 
 /**
  * The filter of the unread messages of `conversations`, each after its own read position and by someone else, which the
