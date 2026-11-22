@@ -35,13 +35,12 @@ export const watchScript = async (context, page) => {
     const paused = new Promise((resolve) => {
       reportPause = resolve
     })
-    // The pause can come before the command's answer; a page closed meanwhile rejects the command.
-    const pausedOrClosed = cdp.send('Debugger.pause').then(() => paused, (error) => {
-      if (page.isClosed()) return 'closed'
-      throw error
-    })
-    const event = await withDeadline(pausedOrClosed, ms, undefined)
+    // The pause can come before the command's answer; a page closed meanwhile rejects the command. A rejection on a page
+    // still open is reported too, so the story still fails as timed out, naming what it waited on.
+    const pausedOrRefused = cdp.send('Debugger.pause').then(() => paused, () => (page.isClosed() ? 'closed' : 'refused'))
+    const event = await withDeadline(pausedOrRefused, ms, undefined)
     if (event === 'closed') return 'its page closed before its script could pause'
+    if (event === 'refused') return 'its script could not be paused, as the debugger refused the pause'
     if (!event) return `its script did not pause within ${ms / 1000} s`
     return `its script was running:${stackOf(event)}`
   }

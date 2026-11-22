@@ -56,10 +56,10 @@ describe('watchScript', () => {
     await expect(scriptAt(5000)).resolves.toBe('its page closed before its script could pause')
   })
 
-  it('passes on a failed pause of a page that is still open', async () => {
+  it('says when the debugger refused to pause a page that is still open', async () => {
     const { context, page } = fakeSession({ fail: ['Debugger.pause'] })
     const scriptAt = await watchScript(context, page)
-    await expect(scriptAt(5000)).rejects.toThrow('has been closed')
+    await expect(scriptAt(5000)).resolves.toBe('its script could not be paused, as the debugger refused the pause')
   })
 
   it('lets a resume go when the page closed before it', async () => {
