@@ -15,3 +15,4 @@ description: Show a list as cards, a map, a board, a calendar or a timeline, and
 - [Drop rules](/reference/ui-config/#drop-rules): Rules for where a dragged record may land, such as never above a task it waits for.
 - [Ranked after dependencies](/reference/ui-config/#ranked-after-what-they-depend-on): Ranked records stay below the records they depend on while those are pending.
 - [Board drops](/reference/ui-config/#board-drops): Dropping a card on a board column can run your own write, such as creating an approval.
+- [Moving cards by another field](/reference/ui-config/#moving-cards-by-another-field): A board by a status the database computes can still take cards in the columns you name, saving another field the status follows, with a declared check's label when the database refuses.

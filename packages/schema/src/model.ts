@@ -190,6 +190,11 @@ export type ResourceModel = {
    * who may read it (`.openExisting()`).
    */
   openExisting?: string[]
+  /**
+   * The database checks whose refusal the API names, by constraint name, each with the label shown for it
+   * (`.checks()`).
+   */
+  checks?: Record<string, CheckModel>
   /** The resource it is a time rollup of, and how (`.bucketsOf()`): the database writes its rows, the API only reads them. */
   buckets?: BucketsModel
   /** The values worked out from other records for each of its records, kept current by Protobase (`.derive()`). */
@@ -745,6 +750,19 @@ export type ParentModel = {
   access: ParentAccess
 }
 
+/**
+ * A database check that refuses a write, named by its constraint: a `CHECK` constraint of that name, or a trigger's
+ * `raise exception ... using errcode = 'check_violation', constraint = '<name>'`. See
+ * [Checks the database makes](docs/website/src/content/docs/reference/data-config.mdx#checks-the-database-makes).
+ */
+export type CheckModel = {
+  /**
+   * What the app shows when the check refuses a write, an ICU message whose `{field}` values come from the record as
+   * the app has it, never from the database's error. Translated as `resources.<resource>.checks.<name>.label`.
+   */
+  label: string
+}
+
 /** A view's list page (`.list(...)`). */
 export type ListModel = {
   /** The table's columns, in order. */
@@ -781,16 +799,30 @@ export type ListDragModel = {
    */
   rank?: boolean
   /**
-   * Moving a board's card to another column: `true` saves its record with that column's value; the name of a board drop
-   * in the UI config's `boardDrops` lets cards move only between the columns it names, each drop running its write, which
-   * works when the board's field is read-only, such as one the database computes.
+   * Moving a board's card to another column: `true` saves its record with that column's value; a `BoardDragModel` saves
+   * that value in another field, or lets only some columns take a card; the name of a board drop in the UI config's
+   * `boardDrops` lets cards move only between the columns it names, each drop running its write. The last two work when
+   * the board's field is read-only, such as one the database computes.
    */
-  board?: boolean | string
+  board?: boolean | string | BoardDragModel
   /**
    * Where the table's rows may land when re-ranked: the name of a drop rule in the UI config's `dropRules`. A drop where
    * it refuses lands in the first place below that it allows, with a warning saying why.
    */
   rule?: string
+}
+
+/**
+ * Which columns of a board take a card and what a drop writes, as `drag: { board: { set, columns } }`. A card dropped on
+ * another column saves its record with the column's value in `set`; the record is then read again and the card lands in
+ * the column its `by` value now puts it in. See
+ * [Moving cards by another field](docs/website/src/content/docs/reference/ui-config.mdx#moving-cards-by-another-field).
+ */
+export type BoardDragModel = {
+  /** The writable field a drop saves the column's value in, such as a `lane` a trigger turns into the computed `by`; `by` when omitted. */
+  set?: string
+  /** The values of the columns a card moves from and to; every column when omitted. A card in another column stays in it. */
+  columns?: string[]
 }
 
 /**

@@ -1,5 +1,5 @@
 import { fieldRefsIn, markFieldRefs } from './field-ref'
-import type { CardFavoriteModel, CardPhotosModel, JsonValue, ListDisplayModel, RelatedColumnModel, ResourceModel } from './model'
+import type { BoardDragModel, CardFavoriteModel, CardPhotosModel, JsonValue, ListDisplayModel, ListDragModel, RelatedColumnModel, ResourceModel } from './model'
 import type { Ref } from './refs'
 import type { ListColumn } from './view-columns'
 
@@ -206,13 +206,29 @@ const approximateErrors = (display: Extract<ListDisplayModel, { kind: 'map' }>) 
   ]
 }
 
-/** What makes a board unable to put the records in columns: a `by` field that is no filterable enum. */
-export const boardErrors = (display: Extract<ListDisplayModel, { kind: 'board' }>, model: ResourceModel): string[] => {
+/**
+ * What makes a board unable to put the records in columns, a `by` field that is no filterable enum, or unable to move
+ * its cards as the list's `drag.board` says: a `set` field it cannot write, or a column it names that `by` or `set` has
+ * no value for.
+ */
+export const boardErrors = (display: Extract<ListDisplayModel, { kind: 'board' }>, model: ResourceModel, drag?: ListDragModel['board']): string[] => {
   const field = Object.hasOwn(model.fields, display.by) ? model.fields[display.by]! : undefined
   // An unknown field is reported with every display's fields
   if (!field) return []
   if (field.type !== 'enum') return [`"${display.by}" on ${model.name} is ${field.type}, not an enum, whose values are the board's columns`]
-  return field.filterable ? [] : [`"${display.by}" on ${model.name} is not filterable, and each column of the board filters by its value`]
+  if (!field.filterable) return [`"${display.by}" on ${model.name} is not filterable, and each column of the board filters by its value`]
+  return typeof drag === 'object' ? boardDragErrors(display.by, field.enumValues ?? [], drag, model) : []
+}
+
+// What keeps a `drag.board` of `set` and `columns` from moving the cards of a board by `by`, whose columns are `values`
+const boardDragErrors = (by: string, values: string[], { set = by, columns }: BoardDragModel, model: ResourceModel): string[] => {
+  const unknown = columns?.filter((value) => !values.includes(value)) ?? []
+  if (unknown.length > 0) return unknown.map((value) => `drag.board takes cards in column "${value}", which is no value of "${by}"`)
+  const target = Object.hasOwn(model.fields, set) ? model.fields[set]! : undefined
+  if (!target) return [`drag.board sets "${set}", which ${model.name} does not have`]
+  if (target.readOnly) return [`drag.board sets "${set}", which is read-only`]
+  if (target.type !== 'enum') return []
+  return (columns ?? values).filter((value) => !target.enumValues?.includes(value)).map((value) => `drag.board sets "${set}" to "${value}", which is no value of "${set}"`)
 }
 
 /** What makes a calendar or a timeline unable to place the records on days: a `start` that is no filterable date or timestamp, or an `end` that is no filterable field of its type. */

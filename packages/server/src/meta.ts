@@ -1,4 +1,4 @@
-import { readerTexts, textsLanguage, translatedPage, translatedView } from './meta-texts'
+import { readerTexts, textsLanguage, translatedPage, translatedResource, translatedView } from './meta-texts'
 import type { ReaderTexts } from '@protobase/layout'
 import { prunePage, type PageModel } from '@protobase/layout'
 import { pickView, type BottomBarItemModel, type ResourceModel, type SignInViewModel, type UserMenuItemModel, type UserMenuModel, type ViewModel } from '@protobase/schema'
@@ -141,7 +141,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       appName,
       protobaseVersion,
       ...(appIcon && { appIcon }),
-      resources: visible.map(metaModel),
+      resources: visible.map((access) => (deps.translations && language ? translatedResource(metaModel(access), deps.translations, language) : metaModel(access))),
       views: shownViews.map((view) => prunePageDestinations(view, pageNames)),
       pages: shownPages,
       ...(account && { account: texts ? translatedPage(account, texts) : account }),

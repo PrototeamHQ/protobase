@@ -180,6 +180,30 @@ describe('view builder', () => {
     expect(() => board('title')).toThrow('View "task": display "board": "title" on task is text, not an enum, whose values are the board\'s columns')
   })
 
+  it('moves a board\'s cards by another field, and refuses a set field or a column it cannot write', () => {
+    const task = resource('task')
+      .table('tasks')
+      .fields({
+        id: f.integer(),
+        title: f.text(),
+        status: f.enum(['parked', 'queued', 'running', 'done']).filterable().readOnly(),
+        lane: f.enum(['parked', 'queued']).optional(),
+        note: f.text().readOnly(),
+      })
+      .primaryKey((r) => r.id)
+    const board = (drag: { set?: string; columns?: string[] }) =>
+      view<typeof task>('task')
+        .list((r, d) => ({ columns: [r.title], displays: [d.board({ by: r.status })], drag: { board: drag } }))
+        .toModel(task.toModel())
+    expect(board({ set: 'lane', columns: ['parked', 'queued'] }).list?.drag).toEqual({ board: { set: 'lane', columns: ['parked', 'queued'] } })
+    expect(() => board({ set: 'lane', columns: ['parked', 'later'] })).toThrow('display "board": drag.board takes cards in column "later", which is no value of "status"')
+    expect(() => board({ set: 'lane', columns: ['parked', 'running'] })).toThrow('display "board": drag.board sets "lane" to "running", which is no value of "lane"')
+    expect(() => board({ set: 'lane' })).toThrow('drag.board sets "lane" to "running", which is no value of "lane"')
+    expect(() => board({ set: 'gone' })).toThrow('drag.board sets "gone", which task does not have')
+    expect(() => board({ set: 'note' })).toThrow('drag.board sets "note", which is read-only')
+    expect(() => board({ columns: ['parked'] })).toThrow('drag.board sets "status", which is read-only')
+  })
+
   it('adds a calendar by a filterable date, and refuses one by another type, an unfilterable field or an end of another type', () => {
     const task = resource('task')
       .table('tasks')

@@ -834,6 +834,7 @@
     "features": "Features",
     "couldNotReorder": "Could not change the order",
     "couldNotMoveTo": "Could not move it to {to}",
+    "checkRefused": "The database refused this change.",
     "moreHidden": "+{count} more"
   },
   "app/embedded-list": {

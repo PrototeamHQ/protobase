@@ -2,15 +2,20 @@ import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import type { KeyValue, ResourceModel, ViewModel } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
+import { activeLocale } from '../../locale/active-locale'
 import { recordKey } from '../../live/model-helpers'
 import { useToast } from '../../toasts'
 import { text as orderText } from '../hand-order/messages'
 import { moveRefusal } from '../hand-order/move-refusal'
 import { undoOps, type DragWrite } from '../hand-order/undo-ops'
+import { useAdminMeta } from '../meta-gate'
+import { useAppTexts } from '../pages/app-texts'
 import { useRefreshResource } from '../pages/use-layout-data'
 import { rankBounds } from '../rank-after/rank-bounds'
 import { rankedPlace, type RankedPlace } from '../rank-after/ranked-place'
 import type { BoardColumn } from './board-columns'
+import { checkReason } from './check-reason'
+import { setUndo } from './set-undo'
 import { dropWrite, type BoardDrop } from './board-drop'
 import { boardWrites, placeOps, placing, type BoardPlace } from './board-place'
 import type { ListDisplayRow } from './list-displays'
@@ -36,6 +41,8 @@ type Options = {
   filter: string
   /** The board's own writes for a card dropped on another column, in place of saving `by`. */
   drop?: BoardDrop | undefined
+  /** The field a card dropped on another column saves the column's value in, after which the record is read again, as with `drop`. */
+  set?: string | undefined
   /** The heading of the column of a value. */
   labelOf: (value: string | null) => string
   /** The title a card shows. */
@@ -48,17 +55,22 @@ type Options = {
  * at a place is one batch instead, that update when the column changes and a `move` by `rank` among the column's cards,
  * anchored to the card above where it was dropped (see `placeOps`).
  * With the board's `drop`, a card dropped on another column runs that column's write instead, and then reads the record
- * again to say which column it is in now. The card shows in its new place at once; a saved move says so with **Undo**,
- * which puts back the values it changed or runs the undo the drop's write gave, and a refusal puts it back and says why,
- * or that the board changed where it was dropped.
+ * again to say which column it is in now. With `set`, it is one update of that field with the column's value, and the
+ * record read again the same way, whose ETag its **Undo** sends while it still holds the value saved, since the
+ * database's triggers may have written the record again after the update (see `setUndo`). The card shows in its new
+ * place at once; a saved move says so with **Undo**, which puts back the values it changed or runs the undo the drop's write gave, and a refusal puts it back and says why,
+ * in a declared database check's own label when one refused it (see `checkReason`), or that the board changed where it
+ * was dropped.
  * With the position's `after`, a card dropped above a record it depends on lands at the first place below that keeps
  * the order, or stays where it was, with a warning saying why (see `rankedPlace`).
  * Either way every list of the resource reloads, which puts the card where its record now is.
  */
-export const useBoardMove = ({ model, view, by, rank, filter, drop, labelOf, titleOf }: Options) => {
+export const useBoardMove = ({ model, view, by, rank, filter, drop, set, labelOf, titleOf }: Options) => {
   const client = useClient()
   const toast = useToast()
   const refresh = useRefreshResource()
+  const { resources } = useAdminMeta()
+  const locale = useAppTexts()?.locale ?? activeLocale()
   const [moves, setMoves] = useState<BoardMove[]>([])
   // Only the latest move can be undone, so its toast replaces the one before
   const undoToast = useRef<number>(undefined)
@@ -80,6 +92,16 @@ export const useBoardMove = ({ model, view, by, rank, filter, drop, labelOf, tit
     const undoing = await write({ resource: model.name, record: row.record, recordKey: key, etag, to: to.value!, client })
     const stored = await client.get(model.name, key)
     return { landed: (stored.record[by] ?? null) as string | null, ...(undoing && { undo: undoing }) }
+  }
+
+  // A drop on another column saving `set`: the update, then the record read again for its column and current ETag
+  const setTo = async (row: ListDisplayRow, to: BoardColumn, field: string): Promise<Saved> => {
+    const key = recordKey(model, row.record) as KeyValue
+    const etag = typeof row.record.etag === 'string' ? row.record.etag : '*'
+    const written = await client.update(model.name, key, { [field]: to.value }, etag)
+    const stored = await client.get(model.name, key)
+    const ops = undoOps(model, [setUndo(row.record, field, to.value, written, stored)], [field])
+    return { landed: (stored.record[by] ?? null) as string | null, ...(ops.length > 0 && { undo: () => client.batchWrite(ops) }) }
   }
 
   // The values a move or placing saved, which its undo puts back
@@ -118,6 +140,7 @@ export const useBoardMove = ({ model, view, by, rank, filter, drop, labelOf, tit
       if (place && !rank) throw new Error('A board places a card only by its rank')
       const from = (row.record[by] ?? null) as string | null
       if (drop && to.value !== from) return dropped(row, to)
+      if (set !== undefined && to.value !== from) return setTo(row, to, set)
       if (place) return placed(row, to, place)
       const etag = typeof row.record.etag === 'string' ? row.record.etag : '*'
       const stored = await client.update(model.name, recordKey(model, row.record) as KeyValue, { [by]: to.value }, etag)
@@ -152,7 +175,9 @@ export const useBoardMove = ({ model, view, by, rank, filter, drop, labelOf, tit
     onError: (error, { row, to }) => {
       settle(row.key)
       const title = (row.record[by] ?? null) === to.value ? text('couldNotReorder') : text('couldNotMoveTo', { to: to.label })
-      toast.show(moveRefusal(error, title, { place: 'board', title: titleOf(row) }))
+      // A database check the config declares says why in its own label, with the card's values
+      const reason = checkReason(error, Object.values(resources), row.record, locale)
+      toast.show(reason === undefined ? moveRefusal(error, title, { place: 'board', title: titleOf(row) }) : { state: 'error', title, description: reason })
     },
     onSettled: async (_result, _error, { row }) => {
       await refresh(model.name)

@@ -282,7 +282,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
       ...layoutItems(view.layout).flatMap((item) => (item.kind === 'map' ? mapErrors(item, model).map((error) => `map "${item.title}": ${error}`) : [])),
       ...(view.list?.displays ?? []).flatMap((display) => (display.kind === 'map' ? mapDisplayErrors(display, model).map((error) => `display "${display.name}": ${error}`) : [])),
     ]
-    const boards = (view.list?.displays ?? []).flatMap((display) => (display.kind === 'board' ? boardErrors(display, model).map((error) => `display "${display.name}": ${error}`) : []))
+    const boards = (view.list?.displays ?? []).flatMap((display) => (display.kind === 'board' ? boardErrors(display, model, view.list?.drag?.board).map((error) => `display "${display.name}": ${error}`) : []))
     const calendars = (view.list?.displays ?? []).flatMap((display) => (display.kind === 'calendar' || display.kind === 'timeline' ? datesErrors(display, model).map((error) => `display "${display.name}": ${error}`) : []))
     const chart = [
       ...(view.chart ? chartErrors(view.chart, model).map((error) => `chart: ${error}`) : []),

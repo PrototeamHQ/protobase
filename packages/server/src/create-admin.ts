@@ -117,6 +117,7 @@ import { liveRoutes } from './live/live-route'
 import { tableFeed } from './live/notice-feed'
 import { visibleNotices } from './live/visible-notices'
 import { createErrorHandler } from './error-handler'
+import { checkLabelProblems } from './check-labels'
 import { defaultStatementTimeoutMs } from './statement-timeout'
 import { errorReportingSettings } from './error-reporting/error-reporting-settings'
 import type { FilesOptions } from './files/options'
@@ -327,6 +328,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     translations,
   )
   if (textProblems.length > 0) throw new Error(`The app's texts do not cover its layouts:\n${textProblems.map((problem) => `  - ${problem}`).join('\n')}`)
+  const labelProblems = checkLabelProblems(registry.entries.map((entry) => entry.model), translations)
+  if (labelProblems.length > 0) throw new Error(`The labels of the database checks ask for values the app cannot give:\n${labelProblems.map((problem) => `  - ${problem}`).join('\n')}`)
   const forms = createFormsRuntime({ registry, views: viewModels, limits: options.roles?.limits ?? [], env: globalThis.process?.env ?? {}, ...(secret && { secret }), ...(formsDifficulty && { difficulty: formsDifficulty }) })
   const systemPath = basePath.slice(0, basePath.lastIndexOf('/'))
   const assistant = assistantSettings(options.assistant, globalThis.process?.env ?? {})

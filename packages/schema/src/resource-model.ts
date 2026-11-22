@@ -2,9 +2,10 @@ import { buildEventModels } from './events/event-models'
 import type { EventSpec } from './events/event-helpers'
 import type { AnyField } from './field'
 import type { FileOptions } from './files/file-options'
-import type { FieldModel, ParentModel, PositionAfterModel, ResourceModel, SearchMatch } from './model'
+import type { CheckModel, FieldModel, ParentModel, PositionAfterModel, ResourceModel, SearchMatch } from './model'
 import { promptFields } from './ai-prompt'
 import { computedProblems } from './computed/computed-problems'
+import { checksProblems } from './checks-problems'
 import { openExistingProblems } from './open-existing-problems'
 import { snakeCase } from './naming'
 import type { FieldsInput } from './refs'
@@ -37,6 +38,7 @@ export type ResourceState = {
   explicitGrants?: boolean
   etagFrom?: string
   openExisting?: string[]
+  checks?: Record<string, CheckModel>
   buckets?: BucketsModel
   derived?: DerivedModel[]
 }
@@ -135,6 +137,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.parents && { parents: state.parents.map((parent) => ({ ...parent })) }),
     ...(state.links && { links: state.links }),
     ...(state.openExisting && { openExisting: [...state.openExisting] }),
+    ...(state.checks && { checks: Object.fromEntries(Object.entries(state.checks).map(([name, check]) => [name, { ...check }])) }),
     ...(state.buckets && { buckets: structuredClone(state.buckets) }),
     ...(state.derived && { derived: state.derived.map((value) => ({ ...value, reads: [...value.reads] })) }),
   }
@@ -306,7 +309,7 @@ const liveReadsProblems = (model: ResourceModel) => {
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...sharedTargetProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...computedProblems(model), ...bucketsProblems(model), ...derivedProblems(model), ...liveReadsProblems(model), ...historyIgnoreProblems(model), ...lookupProblems(model, state.fields ?? {}), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...sharedTargetProblems(model), ...positionProblems(model), ...parentProblems(model), ...linkProblems(model), ...aiProblems(model), ...openExistingProblems(model), ...checksProblems(model), ...computedProblems(model), ...bucketsProblems(model), ...derivedProblems(model), ...liveReadsProblems(model), ...historyIgnoreProblems(model), ...lookupProblems(model, state.fields ?? {}), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }

@@ -84,6 +84,21 @@ describe('the error handler on a deadlock', () => {
   })
 })
 
+describe('the error handler on an exception a trigger raised', () => {
+  it('keeps a plain raise, SQLSTATE P0001, a reported 500 that names nothing it raised', async () => {
+    const { response, body, reported } = await answer(databaseError('Failed to process the row: secret value', 'P0001'))
+    expect(response.status).toBe(500)
+    expect(JSON.stringify(body)).not.toContain('secret')
+    expect(reported).toHaveBeenCalledOnce()
+  })
+
+  it('keeps a check violation\'s own message out', async () => {
+    const { body } = await answer(Object.assign(databaseError('new row for relation "tasks" violates check constraint "tasks_lane"', '23514'), { constraint: 'tasks_lane' }))
+    expect(body).toMatchObject({ status: 400, detail: 'A check constraint rejected the record' })
+    expect(JSON.stringify(body)).not.toContain('tasks_lane')
+  })
+})
+
 describe('the error handler when every database connection stayed busy', () => {
   it('answers 503 with Retry-After naming the request, and reports it as that 503', async () => {
     const { response, body, reported } = await answer(new ConnectionsBusy(3, 2_000))

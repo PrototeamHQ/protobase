@@ -43,6 +43,19 @@ const userIdType = (model: ResourceModel, name: string | undefined, resolve: (na
   return target && keyTypes(target, resolve)[0]
 }
 
+// A check name two resources declare, which an error naming it could not tell apart
+const repeatedCheck = (entries: Entry[]) => {
+  const seen = new Map<string, string>()
+  for (const { name: resource, model } of entries) {
+    for (const name of Object.keys(model.checks ?? {})) {
+      const first = seen.get(name)
+      if (first !== undefined) return { name, first, second: resource }
+      seen.set(name, resource)
+    }
+  }
+  return undefined
+}
+
 export const buildRegistry = (resources: ResourceSource[]): Registry => {
   const built = resources.map((source) => ({ source, model: source.toModel() }))
   const models = new Map(built.map(({ model }) => [model.name, model]))
@@ -68,5 +81,7 @@ export const buildRegistry = (resources: ResourceSource[]): Registry => {
   })
   const byName = new Map(entries.map((entry) => [entry.name, entry]))
   if (byName.size !== entries.length) throw new Error('Resource names must be unique')
+  const twice = repeatedCheck(entries)
+  if (twice) throw new Error(`Check "${twice.name}" is declared by both ${twice.first} and ${twice.second}: a check's name says which one refused a write, so it is declared once`)
   return { entries, find: (name) => byName.get(name) }
 }

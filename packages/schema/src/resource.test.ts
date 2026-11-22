@@ -57,6 +57,14 @@ describe('resource builder', () => {
     })
   })
 
+  it('names the database checks a write may break, and refuses a name or label it cannot use', () => {
+    const tasks = (checks: Record<string, { label: string }>) => resource('tasks').table('tasks').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id).checks(checks)
+    expect(tasks({ tasks_parked_by_hand: { label: '{title} waits for a day.' } }).toModel().checks).toEqual({ tasks_parked_by_hand: { label: '{title} waits for a day.' } })
+    expect(() => tasks({ required: { label: 'Needed' } }).toModel()).toThrow('Resource "tasks": check "required" has the name of an error code the API uses itself')
+    expect(() => tasks({ tasks_lane: { label: ' ' } }).toModel()).toThrow('check "tasks_lane" has no label')
+    expect(() => tasks({ ['x'.repeat(64)]: { label: 'Too long' } }).toModel()).toThrow('is longer than the 63 bytes Postgres keeps of a name')
+  })
+
   it('exposes defaults, serializable', () => {
     const fields = article.toModel().fields
     expect(fields.status!.default).toEqual({ value: 'draft' })

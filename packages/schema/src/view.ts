@@ -480,7 +480,7 @@ export class ViewBuilder<R extends {
       }
       const flag = display.kind === 'cards' ? display.flags?.find((name) => resource!.fields[name]!.type !== 'boolean') : undefined
       if (flag !== undefined) throw new Error(`View "${this.state.resource}": display "${display.name}" shows "${flag}" as a flag, which is not a boolean field`)
-      const board = display.kind === 'board' ? boardErrors(display, resource!) : []
+      const board = display.kind === 'board' ? boardErrors(display, resource!, list?.drag?.board) : []
       if (board.length > 0) throw new Error(`View "${this.state.resource}": display "${display.name}": ${board.join('; ')}`)
       const dates = display.kind === 'calendar' || display.kind === 'timeline' ? datesErrors(display, resource!) : []
       if (dates.length > 0) throw new Error(`View "${this.state.resource}": display "${display.name}": ${dates.join('; ')}`)

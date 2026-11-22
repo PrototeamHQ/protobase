@@ -227,6 +227,7 @@ Nothing in a list moves by dragging unless its `.list(...)` says so with `drag`,
 | --- | --- |
 | `rank: true` | The records of a resource with a [`.position(...)`](#reordering-by-hand) and no `within`, at any time: the table's rows by their handles while the list shows every record in the position's order, ascending, without a filter or search, instead of after **Reorder**; and a [board's](#boards) cards to their place in a column. |
 | `board: true` | A board's card to another column, which saves the record with that column's value. |
+| `board: { set?, columns? }` | A board's card between the `columns` it names, by value, or every column, which saves the column's value in the field `set`, or in `by` when it names none. See [Moving cards by another field](#moving-cards-by-another-field). |
 | `board: 'name'` | A board's card between the columns the board drop of that name in the UI config's `boardDrops` lists, each running its own write. See [Board drops](#board-drops). |
 | `rule: 'name'` | Where the table's rows may land when re-ranked, by **Reorder** or `rank`: the drop rule of that name in the UI config's `dropRules`. See [Drop rules](#drop-rules). |
 
@@ -290,6 +291,22 @@ export default defineUi({
 ```
 
 The list names it with `drag: { board: 'decide' }`, which works when `by` is read-only. A card moves only from and to the columns the board drop lists: one in another column stays in it, as does a card dropped on another column, or on the column of records without a value. After the write the record is read again, and the card lands in the column its value now puts it in, which may not be the one it was dropped on; the toast says which, with **Undo** when the write gave an undo. A refused write puts the card back with the reason. Moving a card still takes the right to update the resource and the record, and on a ranked board a card dropped in another column lands where its rank puts it. A list naming a board drop the UI config does not register says so in place of its board.
+
+#### Moving cards by another field
+
+Some boards are by a field the database computes, such as a task's status, from a field people do write, such as the lane a task waits in. `drag: { board: { set, columns } }` saves the column's value in that field instead, and only in the columns it names:
+
+```ts
+.list((r, d) => ({ columns: [r.title, r.status], displays: [d.board({ by: r.status })], drag: { board: { set: 'lane', columns: ['parked', 'queued'] } } }))
+```
+
+A card moves only from and to the columns `columns` names, every column when it is left out: a card in another column stays in it, as does one dropped on another column. A drop is one update of the record, `set` set to the column's value with the ETag the card was listed with, which the resource's access rules, `validate` and the database's triggers decide. After the update the record is read again, and the card lands in the column its `by` value now puts it in, which may not be the one it was dropped on; the toast says which, with **Undo**, which puts back the value `set` had with the ETag of the record as read again, so a trigger that wrote the record again after the update does not make it stale. On a ranked board a card dropped in another column lands where its rank puts it. `set` must be a field the API writes, and every column a value it takes, or the view is refused; without `set` the drop saves `by`, which must be writable.
+
+A trigger refuses a drop by naming a check the resource declares with [`.checks()`](/reference/data-config/#checks-the-database-makes), so the card goes back with that check's label, filled with the card's values; a check it does not declare says only that the database refused the change:
+
+```sql
+raise exception 'Task % waits until %', new.id, new.waits_until using errcode = 'check_violation', constraint = 'tasks_parked_by_hand';
+```
 
 ## A filter the list opens with
 

@@ -23,6 +23,7 @@ import { checkRankAfter } from './rank-after'
 import { withAuthor } from './author'
 import type { Entry } from './registry'
 import { lockOrders, writeOrderLocks } from './batch/order-lock'
+import { withDeclaredChecks } from './declared-checks'
 
 export type { WriteResult }
 
@@ -147,7 +148,7 @@ export const checkBeforeWrite = async (deps: Deps, write: Parameters<WriteCheck>
 /**
  * The path every single write takes: resolve access once, the checks that come before the transaction, then `writeIn`
  * in its own transaction with a statement timeout, under the order lock when it sets the hand-order field (see `writeOrderLocks`). The caller has already authenticated `session`; `form` is the
- * public form a visitor creates through.
+ * public form a visitor creates through. A write a declared database check refuses is its 400 (`withDeclaredChecks`).
  */
 export const runWrite = async (deps: Deps, entry: Entry, session: Session, request: WriteRequest, form?: FormModel): Promise<WriteResult> => {
   const access = await requestAccess(deps, entry, session, form)
@@ -155,10 +156,10 @@ export const runWrite = async (deps: Deps, entry: Entry, session: Session, reque
   if (request.operation === 'create' || request.operation === 'update') await checkBeforeWrite(deps, { resource: entry.name, operation: request.operation, body: request.body })
   const removed: ScheduledDelete[] = []
   const locks = request.operation === 'create' || request.operation === 'update' ? writeOrderLocks(access, request.body) : []
-  const result = await writeTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
+  const result = await withDeclaredChecks(deps.registry, () => writeTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
     await lockOrders(trx, locks)
     return writeIn(trx, deps, access, request, removed)
-  }, actorSettings(deps, session))
+  }, actorSettings(deps, session)))
   await scheduleRemovedFiles(deps, removed)
   wakeDispatch(deps)
   return result

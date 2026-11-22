@@ -6,7 +6,7 @@ import type { ComputedReveal } from './computed/computed-reveal'
 import type { BucketFields, BucketMeasuresInput, BucketsSpec } from './buckets/buckets'
 import type { BucketMeasure } from './buckets/buckets-model'
 import { bucketsState } from './buckets/buckets-of'
-import type { ParentAccess, PositionAfterModel, ResourceModel, SearchMatch } from './model'
+import type { CheckModel, ParentAccess, PositionAfterModel, ResourceModel, SearchMatch } from './model'
 import type { DerivedModel, DerivedTarget } from './derived/derived-model'
 import { buildResourceModel, ignoredColumns, type ResourceState } from './resource-model'
 import type { Access, Issue, KeyRefs, RecordOf } from './resource-types'
@@ -156,6 +156,23 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never, N extends st
     const picked = pick(refs)
     const searchMatch = Object.fromEntries(picked.flatMap((ref) => (ref.match ? [[ref.name, ref.match]] : [])))
     return this.next({ search: picked.map((ref) => ref.name), searchMatch })
+  }
+
+  /**
+   * The database checks whose refusal the API names, by constraint name: a `CHECK` constraint, or a trigger's
+   * `raise exception ... using errcode = 'check_violation', constraint = '<name>'`. A write one refuses is a `400`
+   * `invalid-record` whose error has the name as its `code` and the label as its message, never the database's own text;
+   * the admin app shows the label, translated as `resources.<resource>.checks.<name>.label`, with `{field}` values from
+   * the record. A name is declared once across the app. See
+   * [Checks the database makes](docs/website/src/content/docs/reference/data-config.mdx#checks-the-database-makes).
+   *
+   * @example
+   * ```ts
+   * .checks({ tasks_parked_by_hand: { label: '{title} waits for a day, so it stays parked.' } })
+   * ```
+   */
+  checks(checks: Record<string, CheckModel>) {
+    return this.next({ checks })
   }
 
   /** The field holding the owning user's id, which `.own` capability scopes filter on. */

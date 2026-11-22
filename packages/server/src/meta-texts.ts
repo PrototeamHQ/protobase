@@ -1,5 +1,5 @@
 import { formatText, isTrans, readerLanguage, transKeys, type PageModel, type ReaderTexts, type Translations } from '@protobase/layout'
-import type { ActionModel, FieldViewModel, LayoutItemModel, ViewModel } from '@protobase/schema'
+import type { ActionModel, FieldViewModel, LayoutItemModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { layoutItems } from '@protobase/schema/internal'
 
 // The app's own texts for one reader: their language, the messages the pages and record blocks they see name, and the
@@ -27,6 +27,18 @@ export const translatedPage = (page: PageModel, texts: ReaderTexts): PageModel =
 }
 
 const keyed = (all: Readonly<Record<string, string>>, locale: string) => (key: string, given: string) => (Object.hasOwn(all, key) ? formatText({ locale, messages: all }, key) : given)
+
+/**
+ * A resource with its checks' labels in the reader's language, `resources.<name>.checks.<check>.label`, as the message
+ * itself: the app fills in its `{field}` values from the record it shows. A label the translations leave out stays as
+ * the config writes it.
+ */
+export const translatedResource = (model: ResourceModel, translations: Translations, language: string): ResourceModel => {
+  if (!model.checks) return model
+  const messages = translations.languages[language] ?? {}
+  const label = (name: string, given: string) => messages[`resources.${model.name}.checks.${name}.label`] ?? given
+  return { ...model, checks: Object.fromEntries(Object.entries(model.checks).map(([name, check]) => [name, { ...check, label: label(name, check.label) }])) }
+}
 
 /**
  * A view with the labels the app's translations give it in the reader's language, keyed by its resource:

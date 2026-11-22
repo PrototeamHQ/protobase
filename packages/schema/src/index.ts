@@ -29,6 +29,8 @@ export type {
   BadgeShape,
   ListModel,
   ListDragModel,
+  BoardDragModel,
+  CheckModel,
   PositionAfterModel,
   ParentAccess,
   ParentModel,
