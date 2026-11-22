@@ -1,0 +1,20 @@
+import type { StoreModel } from './store-model'
+
+// What a migration of Protobase's steps cannot write: a name or a type the store has already, changed in the config.
+// A module or table a newer Protobase adds, or a column or index a later step adds, is new rather than changed.
+
+type Value = string | number | boolean | null | { [key: string]: Value }
+
+const changes = (before: Value, after: Value | undefined, at: string): string[] => {
+  if (after === undefined) return [`${at} is gone`]
+  if (typeof before !== 'object' || before === null || typeof after !== 'object' || after === null) {
+    return before === after ? [] : [`${at} is ${JSON.stringify(before)} in the snapshot and ${JSON.stringify(after)} now`]
+  }
+  return Object.entries(before).flatMap(([key, value]) => changes(value, after[key], at === '' ? key : `${at}.${key}`))
+}
+
+/** How `after` changes what `before` has, one line each, the last steps aside; none when it only adds. */
+export const nameChanges = (before: StoreModel, after: StoreModel) => {
+  const withoutSteps = (model: StoreModel) => ({ ...model, modules: Object.fromEntries(Object.entries(model.modules).map(([module, entry]) => [module, entry!.tables])) })
+  return changes(withoutSteps(before) as Value, withoutSteps(after) as Value, '')
+}

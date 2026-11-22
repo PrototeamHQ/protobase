@@ -13,13 +13,12 @@ import type { Extension } from '../project/extensions'
 import { openAppDatabase } from '../project/pg-db'
 
 /**
- * The project in `dir` as `protobase dev` merges it, for what its database needs: protobase.config.ts, with the
- * convention's resources when it names none, after the configs of `extensions` and the configs it extends. `close`
- * ends the pool it opened.
+ * The config of the project in `dir` as `protobase dev` merges it: protobase.config.ts, with the convention's resources
+ * when it names none, after the configs of `extensions` and the configs it extends, with the `.env` nearest it read.
  */
-export const loadMigrationProject = async (dir: string, extensions: Extension[] = []) => {
+export const loadMigrationConfig = async (dir: string, extensions: Extension[] = []) => {
   loadNearestEnvFile(dir)
-  return migrationProject(await loadSourceConfig(dir, { command: 'tool', extensions }), process.env.DATABASE_URL)
+  return loadSourceConfig(dir, { command: 'tool', extensions })
 }
 
 /**

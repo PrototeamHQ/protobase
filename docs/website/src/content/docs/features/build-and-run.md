@@ -9,8 +9,9 @@ description: Develop, build and run an app, on servers, in containers and on pho
 - [UI-only dev server](/reference/cli/#ui-only) (beta): `protobase dev --api <url>` serves the app's UI from the project with the API of an app already running, such as its staging deploy, with no database.
 - [Editor types](/reference/cli/#types): `protobase types` gives the editor and `tsc` the types of the CLI that builds the app, with nothing installed.
 - [Project scripts](/reference/cli/#run): `protobase run` runs a seed or a migration script on the CLI's packages.
-- [Migrate command](/reference/cli/#migrate): `protobase migrate` applies the project's SQL migrations in one transaction, with nothing installed.
+- [Migrate command](/reference/cli/#migrate): `protobase migrate` applies the project's SQL migrations in one transaction, with nothing installed, and `--plan` prints the SQL it would apply.
 - [Migrations from config](/reference/cli/#migration): Writes the SQL migrations for what the config turns on, as files of the project.
+- [Schema snapshot](/reference/cli/#migration) (beta): `protobase.snapshot.json` in the project describes the schema its migrations make, so each new migration is the next numbered file and the change shows in review. The sign-in tables are worked out from it without a database, `protobase migration check` fails CI when the config has a change the migrations lack, and `drop` takes the newest file back.
 - [User and organization commands](/reference/cli/#users): Create users, set roles and manage organizations from the terminal.
 - [Encryption commands](/reference/cli/#encryption-status): Report and fix plaintext or old-key values of encrypted fields.
 - [One bundle](/reference/cli/#build): `protobase build` writes one folder with everything the app needs, without a database or secrets. It fails on a view that filters, sorts or searches by a field its resource does not allow.

@@ -46,6 +46,8 @@ describe('protobase migrate', { timeout: 60_000 }, () => {
   it('leaves `migration` the command that writes migrations', async () => {
     const result = await runCommand(['migration', '--help'])
     expect(result.exitCode).toBe(0)
-    expect(result.stdout).toContain("as the project's next SQL migrations")
+    expect(result.stdout).toContain("as the project's next numbered SQL migration")
+    for (const command of ['check', 'drop', 'up']) expect(result.stdout).toContain(command)
+    expect(result.stdout).toContain('--custom <name>')
   })
 })
