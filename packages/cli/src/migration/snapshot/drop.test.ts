@@ -31,7 +31,7 @@ describe('protobase migration drop', () => {
     await migrate(dir, authOf())
     await writeFile(path.join(migrationsOf(dir), '001_orders.sql'), '')
     await expect(dropMigration(dir, migrationsOf(dir))).rejects.toThrow("001_auth.sql and 001_orders.sql share a number. Delete this branch's newest migration")
-    expect(await readdir(migrationsOf(dir))).toEqual(['001_auth.sql', '001_orders.sql'])
+    expect((await readdir(migrationsOf(dir))).sort()).toEqual(['001_auth.sql', '001_orders.sql'])
   })
 
   it('drops a hand-written file, but refuses one that recorded a changed config', async () => {
