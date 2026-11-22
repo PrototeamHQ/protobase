@@ -78,6 +78,15 @@ describe('a time rollup', () => {
     expect((await pg.query(compared)).rows).toEqual([{ expected: 645, actual: 645, differ: 0 }])
   })
 
+  it('recounts the values of older buckets when rebuilt from every bucket, as protobase buckets rebuild does', async () => {
+    await pg.exec(`
+      update readings set watts = null, cost = 2 where taken_at >= '2026-07-01 02:00:00+00' and taken_at < '2026-07-01 03:00:00+00';
+    `)
+    expect((await pg.query(compared)).rows[0].differ).toBeGreaterThan(0)
+    await pg.query(`select rollups.readings_hourly_refresh('-infinity')`)
+    expect((await pg.query(compared)).rows).toEqual([{ expected: 645, actual: 645, differ: 0 }])
+  })
+
   it("is brought up to date by the app's recurring job, from late before now", async () => {
     await pg.exec(`
       insert into readings (org_id, kind, taken_at, watts) values (1, 'solar', now() - interval '30 minutes', 5), (1, 'solar', now() - interval '1 minute', 6), (1, 'tidal', now() - interval '5 hours', 7);
