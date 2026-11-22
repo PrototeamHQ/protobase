@@ -1,6 +1,7 @@
 import { Field, type AnyField, type FieldMeta } from '../field'
 import { f } from '../fields'
 import type { FieldModel, ResourceModel } from '../model'
+import { snakeCase } from '../naming'
 import type { FieldsInput } from '../refs'
 import type { BucketMeasure, BucketsModel } from './buckets-model'
 
@@ -100,6 +101,15 @@ const measureProblems = (source: BucketsSource, kept: Record<string, readonly Bu
     ]
   })
 
+// Fields of different names whose snake_case is one column, such as a group `wattsCount` and the count of `watts`.
+const columnProblems = (by: readonly string[], kept: Record<string, readonly BucketMeasure[]>) => {
+  const names = [...ownNames, ...by, ...Object.entries(kept).flatMap(([field, fns]) => [...fns, 'count' as const].map((fn) => measureFieldName(field, fn)))]
+  return names.flatMap((name, index) => {
+    const first = names.find((other) => other !== name && snakeCase(other) === snakeCase(name))
+    return first && names.indexOf(first) < index ? [`has fields "${first}" and "${name}" in one column "${snakeCase(name)}"`] : []
+  })
+}
+
 /**
  * What `.bucketsOf()` sets on a resource: its fields, its key `id`, the tenant and owner from the source's, and the rollup. Throws on
  * a rollup the source cannot give: a time field that is not a timestamp, a group the bucket's key cannot hold, a
@@ -116,6 +126,7 @@ export const bucketsState = (name: string, source: BucketsSource, buckets: Bucke
     ...byProblems(source, buckets.by),
     ...(model.tenant && !buckets.by.includes(model.tenant) ? [`does not group by "${model.tenant}", the tenant field of "${model.name}"`] : []),
     ...measureProblems(source, buckets.measures, buckets.by),
+    ...columnProblems(buckets.by, buckets.measures),
     ...(lateShape.test(buckets.late) ? [] : [`late "${buckets.late}" is not a number of minutes, hours or days, such as "2 hours"`]),
   ]
   if (problems.length > 0) throw new Error(`Resource "${name}": the time rollup ${problems.join('; ')}`)

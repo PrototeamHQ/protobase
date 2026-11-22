@@ -23,6 +23,8 @@ const readings = resource('readings')
     region: f.text().access({ read: () => false }),
     tag: f.text().access({ update: () => false }),
     user_id: f.text(),
+    wattsCount: f.integer().column('watts_tally'),
+    Kind: f.text().column('kind_label'),
   })
   .primaryKey((r) => r.id)
 
@@ -81,6 +83,8 @@ describe('.bucketsOf()', () => {
     expect(() => rollup({ measures: { watts: [] } })).toThrow('measures "watts" with nothing')
     expect(() => rollup({ measures: { watts: ['avg' as 'sum'] } })).toThrow('measures "watts" with "avg", not sum or max')
     expect(() => rollup({ measures: { watts: ['sum', 'sum'] } })).toThrow('measures "watts" with sum twice')
+    expect(() => rollup({ by: ['wattsCount'], measures: { watts: ['sum'] } })).toThrow('has fields "wattsCount" and "watts_count" in one column "watts_count"')
+    expect(() => rollup({ by: ['kind', 'Kind'] })).toThrow('has fields "kind" and "Kind" in one column "kind"')
     expect(() => rollup({ late: 'soon' })).toThrow('late "soon" is not a number of minutes, hours or days')
   })
 
