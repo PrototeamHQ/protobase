@@ -35,7 +35,7 @@ export const runMigration = async ({ projectDir, dir, auth, database, protobaseV
   const files = await readMigrationFiles(dir)
   refuseInconsistent(snapshot, files)
   if (!snapshot && auth && files.some(({ text }) => text.includes(authMigrationTitle))) {
-    throw new Error(`The project has auth migrations from before ${snapshotFile}, which needs \`protobase migration baseline\` to start from them, and that is not available yet`)
+    throw new Error(`The project has auth migrations from before ${snapshotFile}: start it with \`protobase auth migration\`, run against the database with the project's migrations applied, then run \`protobase migration\` again`)
   }
   const difference = authDifference(snapshot, auth)
   if (database && difference.migration && difference.migration.checks.length > 0) await runPreconditions(database.url, difference.migration.checks)

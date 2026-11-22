@@ -78,7 +78,7 @@ describe('protobase migration', () => {
     const dir = await newProject()
     await mkdir(migrationsOf(dir), { recursive: true })
     await writeFile(path.join(migrationsOf(dir), '001_auth.sql'), '-- The auth schema changes this version of Protobase needs, written by `protobase auth migration`.\n')
-    await expect(migrate(dir, authOf())).rejects.toThrow('which needs `protobase migration baseline` to start from them, and that is not available yet')
+    await expect(migrate(dir, authOf())).rejects.toThrow('start it with `protobase auth migration`, run against the database')
   })
 
   it("numbers after the project's own migrations", async () => {

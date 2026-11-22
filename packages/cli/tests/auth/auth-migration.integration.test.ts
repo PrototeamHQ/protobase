@@ -12,6 +12,7 @@ import { authSchemaDrift, authSchemaMigration, checkAuthSchema, checkResourcesOu
 import { buildAuth, createAuth, storeNames } from '@protobase/server/internal'
 import { checkMigrations } from '../../src/migration/snapshot/check'
 import { readSnapshot } from '../../src/migration/snapshot/snapshot-file'
+import { migrationText } from '../../src/auth/migration-file'
 import { writeAuthMigration } from '../../src/auth/write-migration'
 import { startServe } from '../../src/serve/lifecycle'
 import { servedConfig } from '../support/served-config'
@@ -119,6 +120,28 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     // The file starts the project's snapshot, at every step, so `protobase migration` goes on from it.
     expect(await readSnapshot(projectOf(folder))).toMatchObject({ endsAt: { file: '001_auth.sql' } })
     expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: false })).toEqual([])
+  })
+
+  it('starts the snapshot of a project whose auth migrations came before it with a file without statements', async () => {
+    const databaseUrl = await createDatabase()
+    const auth = authOn(databaseUrl)
+    const folder = await migrationsDir()
+    // The project's auth migration as an earlier Protobase wrote it, without Protobase's lines or a snapshot.
+    await writeFile(path.join(folder, '001_auth.sql'), migrationText((await authSchemaMigration(auth))!))
+    await applyAll(databaseUrl, folder)
+    expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: false })).toEqual([
+      "the project has auth migrations from before protobase.snapshot.json: start it with `protobase auth migration`, against the database with the project's migrations applied",
+    ])
+
+    const file = await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })
+    expect(path.basename(file!)).toBe('002_auth.sql')
+    const text = await readFile(file!, 'utf8')
+    expect(withoutHeader(text)).not.toMatch(/^[^-\n]/m)
+    await query(databaseUrl, text)
+    expect(await versions(databaseUrl)).toEqual(every)
+    expect(await readSnapshot(projectOf(folder))).toMatchObject({ endsAt: { file: '002_auth.sql' } })
+    expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: false })).toEqual([])
+    expect(await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })).toBeUndefined()
   })
 
   it('writes the same migrations whatever features the app turns on, with every table each of them needs', async () => {
