@@ -6,6 +6,7 @@ import { withDeadline } from './play-tests/deadline.mjs'
 import { trackFrameRequests } from './play-tests/frame-requests.mjs'
 import { reportLine } from './play-tests/report.mjs'
 import { parseShard, shardOf } from './play-tests/shard.mjs'
+import { watchScript } from './play-tests/stuck-script.mjs'
 import { exposeTouchInput } from './play-tests/touch-input.mjs'
 
 /**
@@ -24,10 +25,13 @@ const browser = await chromium.launch()
 const scrollbars = stories.some((story) => story.tags.includes('scrollbars')) ? await chromium.launch({ ignoreDefaultArgs: ['--hide-scrollbars'] }) : undefined
 
 // The error a story's play function raised, or undefined when it rendered and played. `progress.step` says what it
-// waits on, for a story that hangs.
+// waits on and `progress.scriptAt` where the page's script stands (play-tests/stuck-script.mjs), for a story that hangs;
+// `progress.crashed` that its page crashed, which ends every call waiting on it.
 const playIn = async (context, story, progress) => {
   const base = await routeFiles(context, storybookDir)
   const page = await context.newPage()
+  page.on('crash', () => { progress.crashed = true })
+  progress.scriptAt = await watchScript(context, page)
   if (story.tags.includes('touch')) await exposeTouchInput(page)
   // A "mouse" story clicks with the real mouse, which reaches into frames of other origins as a person's click does.
   if (story.tags.includes('mouse')) await page.exposeFunction('pbClick', ({ x, y, button }) => page.mouse.click(x, y, { button }))
@@ -66,11 +70,12 @@ const playIn = async (context, story, progress) => {
     if (error instanceof playwrightErrors.TimeoutError) return undefined
     throw error
   })
-  progress.step = 'reading what Storybook sent'
   if (!settled) {
+    progress.step = 'reading the render phase, as Storybook sent no event within 30 s'
     const phase = await page.evaluate(() => window.__sbPhase ?? 'no channel installed')
     return { name: 'noStoryEvent', message: [`Storybook sent no event within 30 s (last phase: ${phase})`, ...logged].join('\n  ') }
   }
+  progress.step = 'reading the events Storybook sent'
   const events = await page.evaluate(() => window.__sbEvents.map((event) => ({ name: event.name, message: String(event.payload?.message ?? event.payload?.description ?? '') })))
   const error = events.find((event) => event.name !== 'storyRendered')
   const requested = frameRequests()
@@ -83,6 +88,8 @@ const playIn = async (context, story, progress) => {
 const storySeconds = 60
 // Closing a page takes well under a second.
 const closeSeconds = 10
+// A pause interrupts a running script at once.
+const pauseSeconds = 5
 const timedOut = Symbol('timed out')
 
 // A story that has not finished within storySeconds fails, naming what it waited on, and its context closes, so the run
@@ -97,11 +104,17 @@ const playStory = async (story) => {
   const viewport = story.tags.includes('keyboard') ? { width: 402, height: 478 } : touch ? { width: 390, height: 844 } : story.tags.includes('phone') ? { width: 360, height: 740 } : story.tags.includes('wide') ? { width: 1920, height: 1080 } : story.tags.includes('laptop') ? { width: 1440, height: 900 } : { width: 1280, height: 720 }
   const setUp = (story.tags.includes('scrollbars') ? scrollbars : browser).newContext({ viewport, timezoneId: 'Europe/Amsterdam', ...(touch && { hasTouch: true, isMobile: true }) })
   const progress = { step: 'setting up the page' }
-  const outcome = await withDeadline(setUp.then((context) => playIn(context, story, progress)), storySeconds * 1000, timedOut)
+  const played = setUp.then((context) => playIn(context, story, progress)).catch((error) => {
+    if (progress.crashed) return { name: 'pageCrashed', message: `its page crashed while ${progress.step}` }
+    throw error
+  })
+  const outcome = await withDeadline(played, storySeconds * 1000, timedOut)
+  // Where the script of a page that stopped answering stands, before its context closes.
+  const scriptAt = outcome === timedOut && progress.scriptAt ? await progress.scriptAt(pauseSeconds * 1000) : undefined
   // Closing the context ends the calls still waiting on its page: they fail as their target closed, which the timeout
   // below stands for. The close has a deadline of its own, as does everything a story waits on.
   const closed = await withDeadline(setUp.then((context) => context.close()), closeSeconds * 1000, timedOut)
-  if (outcome === timedOut) return { name: 'storyTimedOut', message: `did not finish within ${storySeconds} s while ${progress.step}` }
+  if (outcome === timedOut) return { name: 'storyTimedOut', message: [`did not finish within ${storySeconds} s while ${progress.step}`, scriptAt].filter(Boolean).join('; ') }
   if (closed === timedOut) return { name: 'storyTimedOut', message: `its page did not close within ${closeSeconds} s` }
   return outcome
 }
