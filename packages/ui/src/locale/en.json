@@ -2384,7 +2384,8 @@
     "couldNotSave": "Could not save your status",
     "until": "Until {time}",
     "online": "Online",
-    "away": "Away"
+    "away": "Away",
+    "offline": "Offline"
   },
   "toasts": {
     "dismiss": "Dismiss"

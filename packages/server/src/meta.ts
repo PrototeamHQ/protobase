@@ -66,8 +66,11 @@ export type CallerMeta = {
   status?: true
   /** With `calls`: the app's calls ring people, on any page they have open, through the live stream. */
   calls?: true
-  /** With `realtime.relay`: the resources whose changes the relay notices on its channels, which pages hear of from it. */
-  relay?: { resources: string[] }
+  /**
+   * With `realtime.relay`: the resources whose changes the relay notices on its channels, which pages hear of from it,
+   * and, with its presence, the resource and fields pages read who is online, away or offline from.
+   */
+  relay?: { resources: string[]; presence?: { resource: string; user: string; status: string; at: string } }
   /** The language the admin app's screens are in, when the app sets one for everyone. */
   locale?: Locale
   /** With the app's translations: the reader's language of them and the messages their pages' `<Trans>` elements name. */

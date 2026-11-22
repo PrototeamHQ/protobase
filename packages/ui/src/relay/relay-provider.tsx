@@ -1,7 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useContext, useEffect, useState, type ReactNode } from 'react'
 import { useOptionalAuth } from '../auth/auth-provider'
 import { useClient } from '../data/api-provider'
 import { useAdminMeta } from '../app/meta-gate'
+import { PresenceContext } from '../presence/presence'
+import { followPresence } from './follow-presence'
 import { RelayContext, type RelayContextValue } from './relay-context'
 import { createRelayStore } from './relay-store'
 
@@ -11,7 +13,8 @@ const presenceOfPage = () => (document.visibilityState === 'hidden' ? 'away' : '
 /**
  * Follows the app's realtime relay for someone signed in, when the app has one: one socket for the page, which the
  * conversation pages, the sidebar and the live updates beneath it share. It tells the relay the person is away while
- * the page is hidden, and online again once it shows, connecting again at once then if it was down.
+ * the page is hidden, and online again once it shows, connecting again at once then if it was down. With the relay's
+ * presence, it keeps who of the people the page shows is online, away or offline in the page's presence store.
  */
 export const RelayProvider = ({ children }: { children: ReactNode }) => {
   const meta = useAdminMeta()
@@ -19,6 +22,8 @@ export const RelayProvider = ({ children }: { children: ReactNode }) => {
   const auth = useOptionalAuth()
   const me = auth?.state.kind === 'signed-in' ? auth.state.user.id : undefined
   const on = Boolean(meta.relay) && me !== undefined
+  const presenceFields = meta.relay?.presence
+  const presence = useContext(PresenceContext)
   const [value, setValue] = useState<RelayContextValue>()
 
   useEffect(() => {
@@ -43,6 +48,12 @@ export const RelayProvider = ({ children }: { children: ReactNode }) => {
       setValue(undefined)
     }
   }, [client, on, me])
+
+  // Its own effect, so a fresh `/meta` follows presence anew without connecting the socket again.
+  useEffect(() => {
+    if (!value || !presenceFields || !presence) return
+    return followPresence(client, presenceFields, presence, value.store)
+  }, [client, value, presenceFields, presence])
 
   return <RelayContext.Provider value={value}>{children}</RelayContext.Provider>
 }

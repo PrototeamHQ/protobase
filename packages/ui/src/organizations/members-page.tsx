@@ -7,7 +7,7 @@ import { PageHeader } from '../app-shell'
 import { authMessage } from '../auth/auth-messages'
 import { useAuth } from '../auth/auth-provider'
 import { PersonRow } from '../people/person-row'
-import { presenceOf, type Presence, type PresenceByUser } from '../presence/presence'
+import { presenceOf, useShownPeople, type Presence, type PresenceByUser } from '../presence/presence'
 import { StatusMark } from '../status/status-mark'
 import { Button } from '../primitives/button'
 import { Spinner } from '../primitives/spinner'
@@ -75,6 +75,7 @@ export const MembersPage = ({ current, statuses, presence }: { current?: Current
   // A query, so the start cache keeps the members and the page's first frame lists them
   const query = useQuery({ queryKey: keys.organizationMembers(organizationId ?? ''), queryFn: () => session.organizations.members(organizationId!), enabled: Boolean(organizationId), retry: false })
   const members = query.data
+  useShownPeople(members?.map((member) => member.userId) ?? [])
   const error = query.error ? (query.error instanceof AuthError ? authMessage(query.error) : text('couldNotReadMembers')) : undefined
   const { refetch } = query
   const load = useCallback(() => void refetch(), [refetch])

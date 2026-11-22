@@ -56,5 +56,8 @@ export const relayRuntime = (options: RealtimeRelayOptions, auth: AdminAuth | un
   // The resources whose changes the relay notices, which pages then hear of from it.
   const noticed = [...models.placements.keys()].sort()
 
-  return { jobs: jobs.jobs, onChanges, noticed, routes: () => ticketRoutes({ deps, options, models, jobs, sessionEnd: ends }), ...(options.presence && models.presence && { presenceRoutes: presenceApp(options.presence.key, models.presence) }) }
+  // What `/meta` names for pages: the noticed resources, and where presence is read, never the reports' key.
+  const meta = { resources: noticed, ...(models.presence && { presence: { resource: models.presence.model.name, user: models.presence.user, status: models.presence.status, at: models.presence.at } }) }
+
+  return { jobs: jobs.jobs, onChanges, meta, routes: () => ticketRoutes({ deps, options, models, jobs, sessionEnd: ends }), ...(options.presence && models.presence && { presenceRoutes: presenceApp(options.presence.key, models.presence) }) }
 }

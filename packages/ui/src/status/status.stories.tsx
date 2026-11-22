@@ -11,7 +11,7 @@ export default meta
 
 const inAnHour = () => new Date(Date.now() + 3_600_000).toISOString()
 
-/** Each mark beside a name: busy, do not disturb, a custom text in full or on hover, and the online or away dot first. */
+/** Each mark beside a name: busy, do not disturb, a custom text in full or on hover, and the online, away or offline dot first. */
 export const Marks: StoryObj = {
   tags: ['play'],
   render: () => (
@@ -22,11 +22,12 @@ export const Marks: StoryObj = {
         <li className="flex items-center gap-2">Dee <StatusMark status={{ availability: 'busy', text: 'Having lunch', clearsAt: null }} textShown="hover" /></li>
         <li className="flex items-center gap-2">Eli <StatusMark status={{ availability: 'busy', text: 'Gone', clearsAt: '2020-01-01T00:00:00.000Z' }} presence="away" /></li>
         <li className="flex items-center gap-2">Fay <StatusMark presence="online" /></li>
+        <li className="flex items-center gap-2">Gus <StatusMark presence="offline" /></li>
       </ul>
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const [ana, bo, cas, dee, eli, fay] = canvas.getAllByRole('listitem')
+    const [ana, bo, cas, dee, eli, fay, gus] = canvas.getAllByRole('listitem')
     expect(within(ana!).getByRole('img', { name: 'Busy' })).toBeVisible()
     expect(within(bo!).getByRole('img', { name: 'Do not disturb' })).toBeVisible()
     expect(within(bo!).getByText('Focus time')).toBeVisible()
@@ -42,6 +43,7 @@ export const Marks: StoryObj = {
     expect(within(eli!).queryByText('Gone', { selector: 'span' })).toBeNull()
     // No status at all: the dot alone.
     expect(within(fay!).getByRole('img', { name: 'Online' })).toHaveAttribute('title', 'Online')
+    expect(within(gus!).getByRole('img', { name: 'Offline' })).toHaveAttribute('title', 'Offline')
   },
 }
 

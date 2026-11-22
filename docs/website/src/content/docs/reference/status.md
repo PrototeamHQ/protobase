@@ -63,7 +63,7 @@ Your own server code asks the same question with `onDoNotDisturb(db, statusNames
 
 ## In the app
 
-The members page and the sidebar can show who is online or away beside each person's status. Who is online or away is your app's own, from its [presence](/reference/channels/#presence), and you give it to Protobase once, as `presence` in `protobase.ui.tsx`: a React hook that answers each person's presence, `'online'` or `'away'`, by their user id, and leaves out someone with no page open. Protobase calls it once while the app shows, so it may use your own [channels](/reference/channels/) and live updates, and the marks follow it without a reload; Protobase opens no connection of its own for it, and a channel shares the socket the page already has.
+The members page and the sidebar can show who is online, away or offline beside each person's status. With the [realtime relay's presence](/reference/realtime-relay/#presence), they show it with no code of yours. Otherwise who is online or away is your app's own, from its [presence](/reference/channels/#presence), and you give it to Protobase once, as `presence` in `protobase.ui.tsx`: a React hook that answers each person's presence, `'online'` or `'away'`, by their user id, and leaves out someone with no page open. Protobase calls it once while the app shows, so it may use your own [channels](/reference/channels/) and live updates, and the marks follow it without a reload; Protobase opens no connection of its own for it, and a channel shares the socket the page already has.
 
 ```tsx
 // protobase.ui.tsx
@@ -103,13 +103,14 @@ export default defineUi({ presence: usePeoplePresence })
 
 The organization's members page then shows each member as online or away beside their status, and a sidebar record whose mark names a person, such as a direct message, shows that person's presence and status beside its title, with the status text on hover and in the row's name (see [Marks per reader](/reference/sidebar/#marks-per-reader)). Someone the hook leaves out shows no presence, and without the hook nothing shows but the statuses. <gap>A sidebar row cannot show the presence of several people, such as a group conversation's, because a mark naming more than one person is not implemented.</gap>
 
-`useMembers()` from `@protobase/ui` gives each member their `status` when they have one, beside their name and photo, `useStatuses()` the statuses alone, and `usePresence()` the presence your hook gives, by user id. `StatusMark` draws them beside a name: the online or away dot for `presence`, a mark for busy, one for do not disturb, and the text, in full or, with `textShown="hover"`, on hover:
+`useMembers()` from `@protobase/ui` gives each member their `status` when they have one, beside their name and photo, `useStatuses()` the statuses alone, and `usePresence()` the presence, by user id: your hook's over the relay's. `useShownPeople(ids)` says your page shows those people, so the relay's presence is read for them. `StatusMark` draws them beside a name: the online, away or offline dot for `presence`, a mark for busy, one for do not disturb, and the text, in full or, with `textShown="hover"`, on hover:
 
 ```tsx
-import { StatusMark, useMembers, usePresence } from '@protobase/ui'
+import { StatusMark, useMembers, usePresence, useShownPeople } from '@protobase/ui'
 
 export const Person = ({ id }: { id: string }) => {
   const person = useMembers().member(id)
+  useShownPeople([id])
   const presence = usePresence()?.[id]
   if (!person) return null
   return (

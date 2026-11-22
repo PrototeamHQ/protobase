@@ -2384,7 +2384,8 @@
     "couldNotSave": "Je status kon niet worden opgeslagen",
     "until": "Tot {time}",
     "online": "Online",
-    "away": "Afwezig"
+    "away": "Afwezig",
+    "offline": "Offline"
   },
   "toasts": {
     "dismiss": "Sluiten"
