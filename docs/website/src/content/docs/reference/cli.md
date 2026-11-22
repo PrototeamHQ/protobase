@@ -677,7 +677,7 @@ Recounts a [time rollup](/reference/data-config/#keeping-it-up-to-date)'s bucket
 protobase relay app
 ```
 
-Prints the app's entry for the apps file of the [realtime relay](/reference/realtime-relay/), as JSON: its `id`, `api_keys` and `ticket_keys` from `realtime.relay`, and in `origins` the origin of the app's `url` (or `PROTOBASE_URL`); with [presence](/reference/realtime-relay/#presence), `presence` with the app's presence endpoint at that `url`, the presence key and a `grace_seconds` of 30. Add the relay's limits and options to it there. It reads `protobase.config.ts` with `command: 'tool'` and the `.env` nearest the current directory.
+Prints the app's entry for the apps file of the [realtime relay](/reference/realtime-relay/), as JSON: its `id`, `api_keys` and `ticket_keys` from `realtime.relay`, and in `origins` the origin of the app's `url` (or `PROTOBASE_URL`); in `client_events` each channel resource's [client events](/reference/realtime-relay/#client-events), with `typing` on those whose conversation page types; with [presence](/reference/realtime-relay/#presence), `presence` with the app's presence endpoint at that `url`, the presence key and a `grace_seconds` of 30. Add the relay's limits and options to it there. It reads `protobase.config.ts` with `command: 'tool'` and the `.env` nearest the current directory.
 
 ## `auth migration`
 

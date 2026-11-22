@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import type { ProtobaseConfig } from '@protobase/config'
+import type { ViewModel } from '@protobase/schema'
 import { checkRelayOptions } from '@protobase/server'
 import { relayAppEntry } from '../relay/app-entry'
 import { relayBinary } from './relay-binary'
@@ -25,10 +26,10 @@ const relayEnded = (code: number | null) => {
 /**
  * The config with a relay of its own when `realtime.relay` names none: without a `url`, protobase dev runs the relay
  * from its npm package for the app at `devUrl`, with keys it makes unless the config sets them, and gives the app its
- * address and keys. It starts on the first load whose config has `realtime.relay`, and again when an edit changes the
+ * address and keys; its apps file declares the events of `views`' typing conversation pages too. It starts on the first load whose config has `realtime.relay`, and again when an edit changes the
  * app's entry in its apps file; a config without `realtime.relay`, or one with a `url`, stops it.
  */
-export const withDevRelay = async <Config extends Pick<ProtobaseConfig, 'realtime'>>(config: Config, projectDir: string, devUrl: string): Promise<Config> => {
+export const withDevRelay = async <Config extends Pick<ProtobaseConfig, 'realtime'>>(config: Config, projectDir: string, devUrl: string, views: readonly ViewModel[]): Promise<Config> => {
   const relay = config.realtime?.relay
   if (!relay || relay.url) {
     await stopDevRelay()
@@ -36,7 +37,7 @@ export const withDevRelay = async <Config extends Pick<ProtobaseConfig, 'realtim
   }
   const keys = devKeys()
   const options = { ...relay, apiKey: relay.apiKey || keys.apiKey, ticketKey: relay.ticketKey || keys.ticketKey }
-  const entry = JSON.stringify({ ...relayAppEntry(options, devUrl), limits: devLimits })
+  const entry = JSON.stringify({ ...relayAppEntry(options, { url: devUrl, views }), limits: devLimits })
   if (store.__protobaseDevRelay?.entry !== entry) {
     await stopDevRelay()
     const port = await freePort()

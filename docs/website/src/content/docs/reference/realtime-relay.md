@@ -6,7 +6,7 @@ description: Hand the app's realtime connections to a relay, so the app and its 
 The app can hand its realtime connections to a relay, the open source [protobase-realtime](https://github.com/PrototeamHQ/protobase-realtime) server: the relay holds everyone's WebSocket, and the app talks to it only when something changes, so a quiet app and its database sleep while people stay connected. The relay keeps no data and never reads the app's database: the app tells it who is in which channel, what changed and for whom, and which sign-in sessions ended. It works beside the app's own [channels](/reference/channels/) and [live updates](/reference/live/), which stay as they are.
 
 :::caution[In development]
-The app's side is built: tickets, membership, change notices, session ends and presence, and so are pages' side in `@protobase/client` and the admin app: [live updates, typing and unread marks](#pages). <gap>The config cannot declare the events clients send each other, such as typing, because declaring client events per channel resource is not implemented, so the relay's apps file declares them by hand.</gap>
+The app's side is built: tickets, membership, change notices, session ends, presence and the [events clients send each other](#client-events), and so are pages' side in `@protobase/client` and the admin app: [live updates, typing and unread marks](#pages).
 :::
 
 ## Config
@@ -23,6 +23,7 @@ export default defineConfig(({ env }) => ({
         conversations: {
           members: { resource: 'conversation_members', channel: 'conversation_id', user: 'user_id' },
           mentions: 'mentions',
+          events: { ring: { schema: { type: 'object', properties: { call: { type: 'integer' } } }, maxBytes: 128, perSecond: 1, burst: 2 } },
         },
         rooms: {},
       },
@@ -40,6 +41,7 @@ export default defineConfig(({ env }) => ({
 | `channels` | The channel resources, by name. Each record of one is a channel, `<resource>/<key>`, named as its [record channel](/reference/channels/) is; the resource needs a key of one field. |
 | `channels.<resource>.members` | Where the channel's members come from: a resource whose records each put one person in one channel, with its relation field to the channel resource (`channel`) and its field of the person's user id (`user`). Index both columns: tickets read by the user, notices by the channel. Without `members`, the channel is open: a channel of a public record, which tickets list when asked (see [Tickets](#tickets)). |
 | `channels.<resource>.mentions` | A field of the records noticed on the channel that lists the user ids they mention, an array or one id, which [notices](#notices) carry. |
+| `channels.<resource>.events` | The [events](#client-events) the channel's members may send each other, by name, each with its payload's `schema`, its `maxBytes` and the rate one person may send it at, `perSecond` in bursts of `burst`. |
 | `presence` | Turns on [presence](#presence): the app's own resource it is kept in, its fields of the person's user id (`user`), the status (`status`) and when it began (`at`), and the bearer token of the relay's reports (`key`), at least 32 characters. |
 
 The relay needs the app's own [sign-in](/reference/auth/), whose sessions its tickets name, with its store in the app's own database, as the `auth` config puts it: an auth store in another database is refused. A members resource's changes must be captured, so declare [`.live()`](/reference/live/) on it; the relay hears of the changes of every resource whose changes are captured, such as a live one, that is a channel resource or has a relation field to one. [`protobase migration`](/reference/cli/#migration) writes the trigger that ends a deleted session's sockets, in the `relay` schema, and the server checks it at start.
@@ -112,6 +114,18 @@ Each change of a person's presence is also published on `people` as a `presence_
 
 A person who shares no channel is published to no one. <gap>A page cannot show who of the others is online because reading presence in the pages is not implemented.</gap>
 
+## Client events
+
+A channel resource's `events` say what its signed-in members may send each other on its channels through the relay, such as a call ringing; the relay refuses any other event there with `event_not_allowed`, and a payload outside its schema or size, or sent more often than its rate, likewise. A conversation page with `typing` declares `typing` on its resource itself (see [Pages](#pages)). Each event takes:
+
+| Key | |
+| --- | --- |
+| `schema` | The payload's JSON schema, draft 2020-12 unless it names another; it may load no other document. |
+| `maxBytes` | The payload's largest size in bytes, 1 to 65536. |
+| `perSecond`, `burst` | How often one person may send it a second, over all their sockets, and how many at once: positive, `burst` a whole number. |
+
+An event's name is 1 to 64 bytes and none of `heartbeat`, `interest`, `presence`, `client_event` and `phx_*`, which the relay keeps for itself; the server refuses to start otherwise. The relay checks the schemas when it reads its apps file. Visitors send nothing. A page sends one with [`client.relay.send`](#from-code), and the others hear it with `from`, the channel and the time the relay stamps on it.
+
 ## Pages
 
 With `realtime.relay`, the admin app follows the relay for someone signed in, on one socket per page, and `/meta` names the resources whose changes the relay notices:
@@ -121,19 +135,7 @@ With `realtime.relay`, the admin app follows the relay for someone signed in, on
 - **Unread:** a sidebar group with [`unread`](/reference/sidebar/#typing-and-unread-from-the-relay) counts each conversation's unread messages once, then adds the relay's notices without reading.
 - **Presence:** the page tells the relay the person is away while it is hidden and online once it shows; a page that shows again, or a device back online, connects again at once.
 
-The relay refuses events the app did not declare, so declare typing in the relay's apps file, on each channel resource with typing. A page sends `{ typing, thread }`, `thread` the key of the thread's first message or null, so the size leaves room for a key:
-
-```json
-"client_events": {
-  "channels": {
-    "conversations": {
-      "events": {
-        "typing": { "schema": { "type": "object", "properties": { "typing": { "type": "boolean" } }, "required": ["typing"] }, "max_bytes": 128, "per_second": 2, "burst": 4 }
-      }
-    }
-  }
-}
-```
+A conversation page with `typing` declares the event on its resource's channels: `protobase relay app` prints it in the apps file entry, and the relay `protobase dev` runs takes it too. A page sends `{ typing, thread }`, `thread` the key of the thread's first message or null, at most 256 bytes, 2 a second in bursts of 4. A `typing` the resource declares in its own `events` takes its place.
 
 With the relay, a conversation page's `typing` needs its resource among `channels`: the server refuses to start otherwise.
 

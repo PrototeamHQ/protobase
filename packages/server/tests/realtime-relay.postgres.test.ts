@@ -16,6 +16,7 @@ import { withAnonymous } from '../src/anonymous'
 import { createAdmin } from '../src/create-admin'
 import { jobsSchemaMigration } from '../src/jobs/schema'
 import { startJobs, type JobsRuntime } from '../src/jobs/runtime'
+import { relayClientEvents } from '../src/relay/client-events'
 import { relayMigration } from '../src/relay/relay-schema'
 import { subscription, type SubscriptionEvent } from '../src/webhooks/subscription'
 import { npmWs } from './support/npm-ws'
@@ -24,7 +25,7 @@ import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } fr
 // The app's side of the realtime relay against a real relay process and real Postgres: tickets, change notices to a
 // conversation's members, membership that follows the members table, open channels of public records only, and a
 // sign-out closing that session's sockets, and presence the relay reports, kept in the app's own resource, raising its
-// events and published to those who share a conversation.
+// events and published to those who share a conversation, and client events the config declares on a channel resource.
 // `TEST_RELAY_BINARY` names the relay's binary (`go build ./cmd/relay` of protobase-realtime); without it the test
 // is skipped.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 })
@@ -35,6 +36,10 @@ const secret = 'relay-test-secret-relay-test-secret-1234'
 const password = 'correct horse battery'
 const keys = { apiKey: 'relay-test-api-key-0123456789abcdef', ticketKey: 'relay-test-ticket-key-0123456789abcd' }
 const presenceKey = 'relay-test-presence-key-0123456789ab'
+
+// A conversation declares `nudge`, and types as a conversation page with `typing` does.
+const nudge = { schema: { type: 'object', properties: { to: { type: 'string' } }, required: ['to'] }, maxBytes: 128, perSecond: 5, burst: 5 }
+const channels = { conversations: { members: { resource: 'conversation_members', channel: 'conversation_id', user: 'user_id' }, events: { nudge } }, rooms: {} }
 
 const resources = [
   resource('conversations').table('conversations').fields({ id: f.integer().readOnly(), title: f.text() }).primaryKey((r) => r.id).live(),
@@ -95,9 +100,18 @@ const relaySocket = async (url: string, ticket: string) => {
     await vi.waitFor(() => expect(frames.some((frame) => frame[1] === id)).toBe(true))
     return (frames.find((frame) => frame[1] === id)![4] as { status: string }).status
   }
+  // Sends a client event on the channel: the relay's reply to it, `ok` or the reason it was refused.
+  const send = async (channel: string, event: string, payload: unknown) => {
+    const id = String(++ref)
+    socket.send(JSON.stringify([null, id, channel, event, payload]))
+    await vi.waitFor(() => expect(frames.some((frame) => frame[1] === id)).toBe(true))
+    const reply = frames.find((frame) => frame[1] === id)![4] as { status: string; response?: { reason?: string } }
+    return reply.status === 'ok' ? 'ok' : reply.response?.reason
+  }
+  const events = () => frames.filter((frame) => frame[3] === 'client_event').map((frame) => frame[4])
   const notices = () => frames.filter((frame) => frame[3] === 'change').map((frame) => frame[4])
   const presences = (user: string) => frames.filter((frame) => frame[2] === 'people' && frame[3] === 'presence_changed' && frame[4].user === user).map((frame) => frame[4].status)
-  return { socket, frames, join, notices, presences, closed: () => closed }
+  return { socket, frames, join, send, events, notices, presences, closed: () => closed }
 }
 
 describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the realtime relay with a real relay', () => {
@@ -159,7 +173,7 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     dir = await mkdtemp(path.join(tmpdir(), 'relay-test-'))
     // No grace, so a closed socket is reported offline once that held for the relay's two seconds.
     const presence = { url: `${appUrl}/api/relay/presence`, key: presenceKey, grace_seconds: 0 }
-    await writeFile(path.join(dir, 'apps.json'), JSON.stringify({ apps: [{ id: 'chat', api_keys: [keys.apiKey], ticket_keys: [keys.ticketKey], origins: [origin], presence, limits: { connections: 100, channels_per_ticket: 200, request_bytes: 65536 } }] }))
+    await writeFile(path.join(dir, 'apps.json'), JSON.stringify({ apps: [{ id: 'chat', api_keys: [keys.apiKey], ticket_keys: [keys.ticketKey], origins: [origin], client_events: relayClientEvents(channels, new Set(['conversations'])), presence, limits: { connections: 100, channels_per_ticket: 200, request_bytes: 65536 } }] }))
     relay = spawn(relayBinary!, [], { env: { RELAY_APPS_FILE: path.join(dir, 'apps.json'), RELAY_ADDR: `127.0.0.1:${port}` }, stdio: 'ignore' })
     await vi.waitFor(async () => expect((await fetch(`${relayUrl}/apps/chat/sessions/close`, { method: 'POST' }).catch(() => undefined))?.status).toBe(401), { timeout: 10_000, interval: 100 })
 
@@ -173,7 +187,7 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
           url: relayUrl,
           app: 'chat',
           ...keys,
-          channels: { conversations: { members: { resource: 'conversation_members', channel: 'conversation_id', user: 'user_id' } }, rooms: {} },
+          channels,
           presence: { resource: 'presences', user: 'user_id', status: 'status', at: 'since', key: presenceKey },
         },
       },
@@ -333,6 +347,27 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     })
     expect(forged.status).toBe(401)
     expect((await statusOf(people.alice))?.status).toBe('offline')
+  })
+
+  it("passes the events declared for a conversation to its other members' sockets, and refuses any other", async () => {
+    const alice = await connect((await signIn('alice@example.com')).token)
+    const bob = await connect((await signIn('bob@example.com')).token)
+    expect(await alice.join('conversations/1')).toBe('ok')
+    expect(await bob.join('conversations/1')).toBe('ok')
+
+    expect(await alice.send('conversations/1', 'typing', { typing: true, thread: null })).toBe('ok')
+    expect(await alice.send('conversations/1', 'nudge', { to: people.bob })).toBe('ok')
+    await vi.waitFor(() => expect(bob.events().map((event) => [event.event, event.payload])).toEqual([['typing', { typing: true, thread: null }], ['nudge', { to: people.bob }]]))
+    expect(bob.events()[0]).toMatchObject({ from: { user: people.alice }, channel: 'conversations/1' })
+
+    expect(await alice.send('conversations/1', 'shout', {})).toBe('event_not_allowed')
+    // Rooms declare no events: a typing page there would need its own declaration.
+    const inRoom = await connect((await signIn('bob@example.com')).token, ['rooms/1'])
+    expect(await inRoom.join('rooms/1')).toBe('ok')
+    expect(await inRoom.send('rooms/1', 'typing', { typing: true, thread: null })).toBe('event_not_allowed')
+    expect(await alice.send('conversations/1', 'typing', { typing: 'yes' })).toBe('invalid_payload')
+    expect(alice.events()).toEqual([])
+    expect(bob.events()).toHaveLength(2)
   })
 
   it('gives visitors no people channel: their ticket cannot ask for it and their socket cannot join it', async () => {
