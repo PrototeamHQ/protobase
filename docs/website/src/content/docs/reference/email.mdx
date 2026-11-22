@@ -264,6 +264,7 @@ A value that is not a topic ARN or a signing secret stops startup, naming the va
 - **Once:** a provider sends a report again when it got no answer in time; the same report writes nothing new. A report of another kind, such as a delivery, answers `204` and writes nothing.
 - **Who sees it:** admins see the reports under **Mail feedback** in the admin app, and the app's code reads them as the `mail_feedback` resource, `GET /api/v1/mail_feedback?filter=recipient = "ada@example.com"`, filtered by `recipient`, `type`, `message_id` or `provider_message_id`. Nobody changes them but the endpoints.
 - **The `protobase` endpoint:** its body is one record as above, without `provider`, `event_id` and `created_at`, such as `{ "type": "bounce", "bounce_type": "hard", "recipient": "ada@example.com", "message_id": "<...>", "reason": "smtp; 550 5.1.1 user unknown" }`, a bounce with its `recipient` and a complaint with its `recipient`, its `message_id` or both, signed as Standard Webhooks with a key derived from `PROTOBASE_SECRET`, so the secret itself never travels: `mailFeedbackHeaders(secret, id, body)` of `@protobase/server` makes the headers. `webhook-id` names the report, and a retry keeps it.
+- <gap>The generated type of a `mail_feedback` record cannot say that `message_id` is set when `recipient` is empty because field types that depend on another field's value are not implemented.</gap>
 - <gap>Other mail providers cannot report bounces and complaints because only the `ses`, `resend` and `protobase` endpoints are implemented.</gap>
 
 ## Attachments
