@@ -32,12 +32,19 @@ export const authStoreMigrations = async (dir: string) => {
   return found
 }
 
+// `protobase migration` names a file after its sections, the auth store's first: one named anything but `auth` after
+// its number also holds other features' statements, which removing it would lose.
+const authOnly = /^\d+_auth\.sql$/
+
 /**
- * Refuses when Protobase wrote one of `files`, the auth store's migrations of `dir`, and one of the migrations that
- * stay, since removing the snapshot with the first leaves no snapshot ending at the second.
+ * Refuses when one of `files`, the auth store's migrations of `dir`, that Protobase wrote holds other features'
+ * statements too, or when Protobase wrote one of them and one of the migrations that stay, since removing the snapshot
+ * with the first leaves no snapshot ending at the second.
  */
 export const refuseStoreRemoval = async (dir: string, files: string[]) => {
   const migrations = await readMigrationFiles(dir)
+  const mixed = migrations.filter(({ file, header }) => header && files.includes(file) && !authOnly.test(file)).map(({ file }) => file)
+  if (mixed.length > 0) throw new Error(`${mixed.join(', ')} ${mixed.length === 1 ? 'holds' : 'hold'} other features' statements next to the auth migrations Supabase's users replace; move them to a migration of their own first, leaving the auth statements in a file named \`<number>_auth.sql\``)
   const headed = migrations.some(({ file, header }) => header && files.includes(file))
   const kept = migrations.filter(({ file, header }) => header && !files.includes(file)).map(({ file }) => file)
   if (headed && kept.length > 0) throw new Error(`${kept.join(', ')} ${kept.length === 1 ? 'was' : 'were'} written by \`protobase migration\` after the auth migrations Supabase's users replace; drop ${kept.length === 1 ? 'it' : 'them'} with \`protobase migration drop\` first`)

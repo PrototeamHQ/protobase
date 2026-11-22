@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, expect, it } from 'vitest'
@@ -38,5 +38,18 @@ it('refuses, deleting nothing, when Protobase wrote a migration that stays after
   expect(before).toHaveLength(2)
   await expect(removeStoreMigrations(projectDir, dir, ['001_auth.sql'])).rejects.toThrow(`${before[1]} was written by \`protobase migration\``)
   expect((await readdir(dir)).sort()).toEqual(before)
+  expect(existsSync(path.join(projectDir, snapshotFile))).toBe(true)
+})
+
+it('refuses, deleting nothing, when the auth migration Protobase wrote holds other features\' statements too', async () => {
+  const projectDir = await newProject()
+  await migrate(projectDir, authOf())
+  const dir = migrationsOf(projectDir)
+  const mixed = path.join(dir, '001_auth_jobs.sql')
+  await rename(path.join(dir, '001_auth.sql'), mixed)
+  await writeFile(mixed, `${await readFile(mixed, 'utf8')}\n-- The jobs schema this version of Protobase needs.\ncreate schema "jobs";\n`)
+  expect(await authStoreMigrations(dir)).toEqual(['001_auth_jobs.sql'])
+  await expect(removeStoreMigrations(projectDir, dir, ['001_auth_jobs.sql'])).rejects.toThrow("001_auth_jobs.sql holds other features' statements")
+  expect(await readdir(dir)).toEqual(['001_auth_jobs.sql'])
   expect(existsSync(path.join(projectDir, snapshotFile))).toBe(true)
 })
