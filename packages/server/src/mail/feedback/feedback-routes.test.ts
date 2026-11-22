@@ -118,6 +118,23 @@ describe('the protobase endpoint', () => {
     expect(reports).toEqual([])
   })
 
+  it('writes a complaint that names its message but not who complained', async () => {
+    const { post, reports } = serve()
+    const anonymous = { type: 'complaint', message_id: record.message_id, reason: 'abuse' }
+    const body = JSON.stringify(anonymous)
+    expect((await post('protobase', body, await mailFeedbackHeaders('platform secret', 'report-1', body))).status).toBe(204)
+    expect(reports).toEqual([{ provider: 'protobase', eventId: 'report-1', records: [anonymous] }])
+  })
+
+  it('refuses a complaint that names neither its recipient nor its message, and a bounce without its recipient', async () => {
+    const { post, reports } = serve()
+    for (const wrong of [{ type: 'complaint', reason: 'abuse' }, { type: 'bounce', message_id: record.message_id }]) {
+      const body = JSON.stringify(wrong)
+      expect((await post('protobase', body, await mailFeedbackHeaders('platform secret', 'report-1', body))).status).toBe(400)
+    }
+    expect(reports).toEqual([])
+  })
+
   it('refuses a record that is not the normalized shape', async () => {
     const { post, reports } = serve()
     for (const wrong of [{ ...record, type: 'spam' }, { ...record, bounce_type: 'hard' }, { ...record, recipient: 'not an address' }, { ...record, extra: 1 }]) {

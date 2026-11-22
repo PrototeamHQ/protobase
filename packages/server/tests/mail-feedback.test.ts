@@ -67,10 +67,76 @@ describe('mail feedback', () => {
     expect(await captured()).toEqual([{ resource: 'mail_feedback', type: 'complaint' }, { resource: 'mail_feedback', type: 'bounce' }])
   })
 
+  it('writes a complaint that names its message but not who complained once, and captures it for its event', async () => {
+    const body = JSON.stringify({ type: 'complaint', message_id: '<2@shop.example.com>', reason: 'abuse' })
+    const headers = await mailFeedbackHeaders('platform secret', 'report-2', body)
+    expect((await feedback.request('/protobase', { method: 'POST', body, headers })).status).toBe(204)
+    expect((await feedback.request('/protobase', { method: 'POST', body, headers })).status).toBe(204)
+    expect((await rows()).slice(2)).toEqual([{ provider: 'protobase', event_id: 'report-2', type: 'complaint', bounce_type: null, recipient: null, message_id: '<2@shop.example.com>', reason: 'abuse' }])
+    expect((await captured()).slice(2)).toEqual([{ resource: 'mail_feedback', type: 'complaint' }])
+    const event = (await sql<{ recipient: string | null; message_id: string }>`select new->>'recipient' as recipient, new->>'message_id' as message_id from changes.outbox order by id desc limit 1`.execute(db)).rows
+    expect(event).toEqual([{ recipient: null, message_id: '<2@shop.example.com>' }])
+  })
+
   it('lists the feedback to admins, by recipient, who cannot change it', async () => {
     const listed = await asAdmin(`/mail_feedback?filter=${encodeURIComponent('recipient = "jane@example.com"')}`)
     expect(listed.status).toBe(200)
     expect(await listed.json()).toMatchObject({ items: [{ recipient: 'jane@example.com', type: 'bounce', bounce_type: 'hard' }] })
     expect((await asAdmin('/mail_feedback', { method: 'POST', body: JSON.stringify({ type: 'bounce', recipient: 'bo@example.com' }) })).status).toBe(403)
+  })
+})
+
+// The table as the first version with mail feedback made it, every record naming its recipient.
+const earlierTable = `create schema if not exists "mail";
+create table if not exists mail.feedback (
+  "id" bigint generated always as identity primary key,
+  "provider" text not null,
+  "event_id" text not null,
+  "type" text not null check ("type" in ('bounce', 'complaint')),
+  "bounce_type" text check ("bounce_type" is null or ("bounce_type" in ('hard', 'soft') and "type" = 'bounce')),
+  "recipient" text not null check ("recipient" = lower("recipient")),
+  "message_id" text,
+  "provider_message_id" text,
+  "reason" text,
+  "occurred_at" timestamptz,
+  "created_at" timestamptz not null
+);
+create unique index if not exists "feedback_provider_event_recipient" on mail.feedback ("provider", "event_id", "recipient");
+create index if not exists "feedback_recipient" on mail.feedback ("recipient");
+create index if not exists "feedback_message_id" on mail.feedback ("message_id");
+create index if not exists "feedback_provider_message_id" on mail.feedback ("provider_message_id");
+create index if not exists "feedback_type" on mail.feedback ("type");
+create index if not exists "feedback_created_at" on mail.feedback ("created_at");`
+
+describe("an earlier version's mail feedback table", () => {
+  it('takes a complaint without a recipient once migrated, still once per report, and refuses a bounce without one', async () => {
+    const pg = await openSnapshotDb('jobs')
+    const earlier = new Kysely<any>({ dialect: pg.dialect })
+    await pg.exec(earlierTable)
+    await expect(checkMailFeedbackSchema(earlier)).rejects.toThrow('feedback_provider_event_recipient_once')
+    await pg.exec((await mailFeedbackMigration(earlier))!)
+    await expect(checkMailFeedbackSchema(earlier)).resolves.toBeUndefined()
+    expect(await mailFeedbackMigration(earlier)).toBeUndefined()
+    const report = { provider: 'protobase', eventId: 'report-1', records: [{ type: 'complaint', message_id: '<1@shop.example.com>' }] } as const
+    await recordFeedback(earlier, report)
+    await recordFeedback(earlier, report)
+    expect(await earlier.selectFrom('mail.feedback').select(['recipient', 'message_id']).execute()).toEqual([{ recipient: null, message_id: '<1@shop.example.com>' }])
+    // @ts-expect-error A bounce without its recipient, which the endpoints never write, to show the table refuses it too.
+    await expect(recordFeedback(earlier, { provider: 'protobase', eventId: 'report-2', records: [{ type: 'bounce', message_id: '<1@shop.example.com>' }] })).rejects.toThrow('feedback_names_recipient')
+    await earlier.destroy()
+  })
+
+  it('gets its unique index back once migrated again after losing it', async () => {
+    const pg = await openSnapshotDb('jobs')
+    const earlier = new Kysely<any>({ dialect: pg.dialect })
+    await pg.exec(earlierTable)
+    await pg.exec((await mailFeedbackMigration(earlier))!)
+    await pg.exec('drop index mail.feedback_provider_event_recipient_once')
+    await expect(checkMailFeedbackSchema(earlier)).rejects.toThrow('feedback_provider_event_recipient_once')
+    await pg.exec((await mailFeedbackMigration(earlier))!)
+    await expect(checkMailFeedbackSchema(earlier)).resolves.toBeUndefined()
+    // @ts-expect-error A complaint naming neither its recipient nor its message, to show the constraint is still there.
+    await expect(recordFeedback(earlier, { provider: 'protobase', eventId: 'report-1', records: [{ type: 'complaint' }] })).rejects.toThrow('feedback_names_recipient')
+    await earlier.destroy()
   })
 })

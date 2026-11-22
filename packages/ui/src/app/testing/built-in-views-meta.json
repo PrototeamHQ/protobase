@@ -456,7 +456,7 @@
           "name": "recipient",
           "column": "recipient",
           "type": "text",
-          "nullable": false,
+          "nullable": true,
           "readOnly": true,
           "filterable": true,
           "sortable": false,

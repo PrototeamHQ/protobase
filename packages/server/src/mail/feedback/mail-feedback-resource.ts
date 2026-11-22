@@ -15,7 +15,7 @@ export const mailFeedbackResource = resource('mail_feedback')
     id: f.bigint().readOnly(),
     type: f.enum(feedbackTypes).readOnly().filterable(),
     bounce_type: f.enum(bounceTypes).optional().readOnly(),
-    recipient: f.text().readOnly().filterable(),
+    recipient: f.text().optional().readOnly().filterable(),
     message_id: f.text().optional().readOnly().filterable(),
     provider_message_id: f.text().optional().readOnly().filterable(),
     reason: f.text().optional().readOnly(),
