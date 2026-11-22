@@ -7,7 +7,7 @@ import { renderSteps } from './store/steps/render'
 import { migrationNames } from './store/steps/step'
 import { plainStoreDb } from './store/store-db'
 import { storeNames, type StoreNames } from './store/store-names'
-import { refuseModulesOff } from './store/modules-off'
+import { hadByVersion, refuseModulesOff } from './store/modules-off'
 
 // The admin store is versioned: each module's steps ship with Protobase (`store/steps`), and `auth_migrations` records
 // the versions of its former single chain applied, which each step names. Writing the next migration reads that record, and so does the check before serving: neither
@@ -25,12 +25,10 @@ const refuseNewer = (applied: number[]) => {
 
 /**
  * The steps whose versions `applied` lacks, each version followed by its row in `auth_migrations`; written only with
- * every module on (`refuseModulesOff`). A version stands for every step naming it, whatever its module: a released
- * step keeps its version and a new one takes a later version (`shipped-steps.test.ts`), so the version alone tells
- * whether the store has a step until the record holds the steps themselves.
+ * every module on (`refuseModulesOff`, `hadByVersion`).
  */
 const pendingSql = (names: StoreNames, applied: number[]) => {
-  const rendered = renderSteps(migrationNames(names), names.names.modules, (_module, step) => applied.includes(step.version))
+  const rendered = renderSteps(migrationNames(names), names.names.modules, hadByVersion(applied))
   const versions = legacyVersions.map(({ version }) => version).filter((version) => !applied.includes(version))
   return rendered.length === 0 ? undefined : stepsSql(names, rendered, versions)
 }

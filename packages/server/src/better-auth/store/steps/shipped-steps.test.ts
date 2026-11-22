@@ -41,9 +41,9 @@ describe('the steps Protobase ships', () => {
   })
 
   // `auth_migrations` records versions, not steps, so a store that has a version has every step naming it: a step
-  // released at a version keeps it, and a new step takes a version after every released one, or stores past that
-  // version would skip it.
-  it('keep the versions they were released with, and a new step takes a later one', () => {
+  // released at a version keeps it, and a new step takes a version after every released one that no other step has,
+  // or stores past that version would skip it.
+  it('keep the versions they were released with, and a new step takes a later one of its own', () => {
     const released: Record<string, number> = {
       'auth 1': 1, 'auth 2': 11, 'auth 3': 12, 'auth 4': 13, 'auth 5': 14,
       'two_factor 1': 2,
@@ -61,7 +61,11 @@ describe('the steps Protobase ships', () => {
       for (const { step, version } of steps) {
         const key = `${module} ${step}`
         if (key in released) expect(version, key).toBe(released[key])
-        else expect(version, key).toBeGreaterThan(latestReleased)
+        else {
+          expect(version, key).toBeGreaterThan(latestReleased)
+          const sharing = Object.entries(moduleSteps).flatMap(([other, steps]) => steps.filter((step) => step.version === version).map((step) => `${other} ${step.step}`))
+          expect(sharing, key).toEqual([key])
+        }
       }
     }
   })
