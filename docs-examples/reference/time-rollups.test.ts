@@ -9,7 +9,7 @@ const meters = resource('meters').table('metering.meters').fields({ id: f.intege
 describe('the time rollups example', () => {
   it('declares an hourly rollup per organization and meter', () => {
     const model = readingsHourly.toModel()
-    expect(Object.keys(model.fields)).toEqual(['id', 'bucket', 'organization_id', 'meter_id', 'events', 'watts_sum', 'watts_max', 'cost_sum'])
+    expect(Object.keys(model.fields)).toEqual(['id', 'bucket', 'organization_id', 'meter_id', 'events', 'watts_sum', 'watts_max', 'watts_count', 'cost_sum', 'cost_count'])
     expect(model.tenant).toBe('organization_id')
   })
 

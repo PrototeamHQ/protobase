@@ -18,6 +18,8 @@ export type BucketsTarget = {
   time: { column: string; zoned: boolean }
   by: BucketColumn[]
   measures: (BucketColumn & { fn: BucketMeasure })[]
+  /** The count of records with a value of each measured source column. */
+  counts: Omit<BucketColumn, 'type'>[]
   /** The source's soft delete column, whose deleted records it leaves out. */
   softDelete?: string
 }
@@ -54,8 +56,8 @@ const indexName = (target: BucketsTarget, suffix: string) => {
 const groupColumns = (target: BucketsTarget) => ['bucket', ...target.by.map((column) => column.column)].map(quoteIdent)
 
 /**
- * The statements that create a time rollup's table: its key `id`, `bucket`, the groups, the count `events` and the
- * measures; a unique btree index on `(bucket, groups...)`, which serves `bucket` and the refresh's upsert; and one on
+ * The statements that create a time rollup's table: its key `id`, `bucket`, the groups, the count `events`, the
+ * measures and the counts of values; a unique btree index on `(bucket, groups...)`, which serves `bucket` and the refresh's upsert; and one on
  * `(group, bucket)` per group, so a filter on a group alone or with a range of buckets is served too.
  */
 export const bucketsTableSql = (target: BucketsTarget) => [
@@ -65,6 +67,7 @@ export const bucketsTableSql = (target: BucketsTarget) => [
     ...target.by.map(({ column, type }) => `${quoteIdent(column)} ${type} not null`),
     `${quoteIdent('events')} bigint not null`,
     ...target.measures.map(({ column, type }) => `${quoteIdent(column)} ${type}`),
+    ...target.counts.map(({ column }) => `${quoteIdent(column)} bigint not null`),
   ].join(', ')})`,
   `create unique index ${indexName(target, 'bucket_key')} on ${target.table} (${groupColumns(target).join(', ')})`,
   ...target.by.map(({ column }) => `create index ${indexName(target, `${column}_bucket`)} on ${target.table} (${quoteIdent(column)}, ${quoteIdent('bucket')})`),
@@ -82,16 +85,17 @@ const startSql = ({ every, time }: BucketsTarget) => `date_trunc('${every}', $1)
 const aggregateSql = ({ fn, from }: BucketsTarget['measures'][number]) => `${fn}(c.${quoteIdent(from)})`
 
 /**
- * The body of a time rollup's refresh function: in one statement, it counts and aggregates the source's records from
+ * The body of a time rollup's refresh function: in one statement, it counts and aggregates the source's records and values from
  * the bucket `$1` falls in, upserts those buckets and deletes the later ones that no longer have records.
  */
 export const bucketsBody = (target: BucketsTarget) => {
-  const columns = [...groupColumns(target), quoteIdent('events'), ...target.measures.map(({ column }) => quoteIdent(column))]
+  const columns = [...groupColumns(target), quoteIdent('events'), ...[...target.measures, ...target.counts].map(({ column }) => quoteIdent(column))]
   const select = [
     `date_trunc('${target.every}', c.${quoteIdent(target.time.column)}::timestamptz) as ${quoteIdent('bucket')}`,
     ...target.by.map(({ column, from }) => `c.${quoteIdent(from)} as ${quoteIdent(column)}`),
     `count(*) as ${quoteIdent('events')}`,
     ...target.measures.map((measure) => `${aggregateSql(measure)} as ${quoteIdent(measure.column)}`),
+    ...target.counts.map(({ column, from }) => `count(c.${quoteIdent(from)}) as ${quoteIdent(column)}`),
   ]
   const live = target.softDelete ? ` and c.${quoteIdent(target.softDelete)} is null` : ''
   const groupBy = [1, ...target.by.map((_, index) => index + 2)].join(', ')

@@ -14,10 +14,8 @@ export type BucketsModel = {
   every: BucketEvery
   /** The fields of `from` it groups by, which the rollup has under the same names. */
   by: string[]
-  /** The number fields of `from` it keeps, with what it keeps of each, as the fields `<name>_sum` and `<name>_max`. */
+  /** The number fields of `from` it keeps, with what it keeps of each, as the fields `<name>_sum` and `<name>_max`, and the count of records with a value as `<name>_count`. */
   measures: Record<string, BucketMeasure[]>
-  /** The measured fields of `from` that are optional: `events` counts their records without a value too, so a bucket cannot give their average. */
-  optional: string[]
   /** How late a record may arrive and still be counted by a refresh, such as `2 hours`. */
   late: string
 }

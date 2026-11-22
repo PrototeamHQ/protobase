@@ -40,6 +40,8 @@ beforeAll(async () => {
       select 1 + i % 2, case when i % 3 = 0 then 'heat' else 'power' end, timestamptz '2026-07-01 00:00:00+00' + i * interval '263 seconds',
         i % 500, (i % 1000) / 100.0, case when i % 7 > 0 then i % 90 end
       from generate_series(1, 3000) as i;
+    -- An Amsterdam day without any peak
+    update readings set peak = null where taken_at >= '2026-07-04 22:00:00+00' and taken_at < '2026-07-05 22:00:00+00';
   `)
   db = new Kysely({ dialect: pg.dialect })
   await pg.exec((await computedMigration(db, [readings.toModel(), hourly.toModel(), daily.toModel()]))!)
@@ -77,6 +79,14 @@ describe('a time rollup read by :aggregate and :series', () => {
     expect(body.groups.some((group: { average: number }) => !Number.isInteger(group.average))).toBe(true)
   })
 
+  it('gives the average of an optional field over the records with a value, and none for a day without', async () => {
+    const expected = await get(`readings:aggregate?group_by=taken_at&average=peak&granularity=day&${range}`)
+    const actual = await get(`readings_hourly:aggregate?group_by=bucket&average=peak_sum&granularity=day&${range}`)
+    expect(expected.status).toBe(200)
+    expect(actual.body.groups).toEqual(expected.body.groups)
+    expect(actual.body.groups.filter((group: { average: number | null }) => group.average === null)).toHaveLength(1)
+  })
+
   it('gives the totals per value of a field the records give', async () => {
     const expected = await get('readings:aggregate?group_by=kind&average=watts')
     const actual = await get('readings_hourly:aggregate?group_by=kind&average=watts_sum')
@@ -89,7 +99,7 @@ describe('a time rollup read by :aggregate and :series', () => {
       'readings_hourly:series?field=bucket&granularity=day&from=2026-07-02T00:00:00Z&to=2026-07-04T00:00:00Z&time_zone=Asia/Kolkata',
       'readings_daily:series?field=bucket&granularity=day&from=2026-07-02T00:00:00Z&to=2026-07-04T00:00:00Z&time_zone=Europe/Amsterdam',
       `readings_hourly:aggregate?group_by=bucket&average=watts_max&granularity=day&${range}`,
-      `readings_hourly:aggregate?group_by=bucket&average=peak_sum&granularity=day&${range}`,
+      `readings_hourly:aggregate?group_by=bucket&average=peak_count&granularity=day&${range}`,
     ]
     for (const path of refusals) expect(await get(path)).toMatchObject({ status: 400, body: { type: expect.stringContaining('invalid-option') } })
     expect((await get('readings_daily:series?field=bucket&granularity=week&from=2026-06-29T00:00:00Z&to=2026-07-13T00:00:00Z')).status).toBe(200)

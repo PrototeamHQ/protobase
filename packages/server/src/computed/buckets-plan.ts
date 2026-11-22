@@ -1,4 +1,5 @@
 import type { ResourceModel } from '@protobase/schema'
+import { measureFieldName } from '@protobase/schema/internal'
 import { quoteIdent } from '../changes/capture-sql'
 import { bucketsComment, bucketsCommentPrefix, bucketsBody, bucketsFunctionSql, bucketsFillSql, createBucketsSql, dropBucketsTableSql, sumType, type BucketsTarget } from './buckets-sql'
 import { rollupsSchema } from './rollup-sql'
@@ -46,9 +47,10 @@ export const bucketsTarget = (model: ResourceModel, from: ResourceModel, found: 
     measures: Object.entries(measures).flatMap(([field, fns]) =>
       fns.map((fn) => {
         const column = sourceColumn(field)
-        return { fn, column: model.fields[`${field}_${fn}`]!.column, from: column, type: fn === 'sum' ? sumType(types[column]!) : types[column]! }
+        return { fn, column: model.fields[measureFieldName(field, fn)]!.column, from: column, type: fn === 'sum' ? sumType(types[column]!) : types[column]! }
       }),
     ),
+    counts: Object.keys(measures).map((field) => ({ column: model.fields[measureFieldName(field, 'count')]!.column, from: sourceColumn(field) })),
     ...(from.softDelete && { softDelete: sourceColumn(from.softDelete) }),
   }
 }
