@@ -121,6 +121,7 @@ describe("an earlier version's mail feedback table", () => {
     await recordFeedback(earlier, report)
     await recordFeedback(earlier, report)
     expect(await earlier.selectFrom('mail.feedback').select(['recipient', 'message_id']).execute()).toEqual([{ recipient: null, message_id: '<1@shop.example.com>' }])
+    // @ts-expect-error A bounce without its recipient, which the endpoints never write, to show the table refuses it too.
     await expect(recordFeedback(earlier, { provider: 'protobase', eventId: 'report-2', records: [{ type: 'bounce', message_id: '<1@shop.example.com>' }] })).rejects.toThrow('feedback_names_recipient')
     await earlier.destroy()
   })

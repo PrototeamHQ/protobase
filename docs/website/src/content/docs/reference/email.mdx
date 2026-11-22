@@ -241,7 +241,7 @@ await mail.send({ to: member.email, subject: 'News', text: '...', bulk: true, to
 Amazon SES (through SNS) and Resend report to their own endpoints so far, beside the `protobase` one a platform reports to.
 :::
 
-A mail provider tells the app when a message bounced or its recipient marked it as spam. With `mailFeedback` on, each report becomes a `mail_feedback` record, one per recipient, with the events `mail_feedback.bounced` and `mail_feedback.complained`, which [workflows](/reference/workflows/), [subscriptions](/reference/webhooks/) and your own code act on, such as marking a contact's address undeliverable. Protobase records and notifies only: it keeps sending to the address, and the app decides what a bounce means.
+A mail provider tells the app when a message bounced or its recipient marked it as spam. With `mailFeedback` on, each report becomes a `mail_feedback` record, one per recipient, or one for a complaint that hides who complained, with the events `mail_feedback.bounced` and `mail_feedback.complained`, which [workflows](/reference/workflows/), [subscriptions](/reference/webhooks/) and your own code act on, such as marking a contact's address undeliverable. Protobase records and notifies only: it keeps sending to the address, and the app decides what a bounce means.
 
 Turn it on in the config, then run `protobase migration`, which writes its table, `mail.feedback`, and the capture of its events as migrations of the project's own; apply them with the project's migrations, as `protobase serve` refuses to start while the table is missing:
 
