@@ -18,7 +18,7 @@ export const registerAuth = (program: Command) => {
         out("sign-in is off in the project's config; nothing to write\n")
         return
       }
-      const file = await writeAuthMigration({ auth, dir: path.resolve(opts.dir), name: opts.name })
+      const file = await writeAuthMigration({ auth, projectDir: process.cwd(), dir: path.resolve(opts.dir), name: opts.name })
       out(file ? `wrote ${path.relative(process.cwd(), file)}; apply it with the project's migrations\n` : 'the auth schema is up to date; nothing to write\n')
       // The auth store keeps a connection pool open.
       process.exit(0)

@@ -1,18 +1,20 @@
-import { authSchemaMigration, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, capturedBy, derivedMigration, hasBuckets, jobsSchemaMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, relayMigration, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
-import { authMigrationTitle } from '../auth/migration-file'
+import { callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, capturedBy, derivedMigration, hasBuckets, jobsSchemaMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, relayMigration, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
 import type { MigrationProject } from './load-project'
 
-/** What one feature still needs of the database, written as a migration file of its own. */
+/** What one feature still needs of the database, compared with it, written as a part of the next migration. */
 export type MigrationPart = {
-  /** The file name after its number. */
+  /** Its part of the file name after its number. */
   name: string
-  /** What the statements are, the file's first line. */
+  /** What the statements are, the comment above them. */
   title: string
   /** The statements, compared with the database; `undefined` when it is current. */
   sql: () => Promise<string | undefined>
 }
 
-/** Every feature the project's config enables, in the order their files are written. */
+/**
+ * Every feature the project's config enables but the auth store, which the snapshot holds, in the order their
+ * statements are written.
+ */
 export const migrationParts = (project: MigrationProject): MigrationPart[] => {
   const comments = project.models.some((model) => model.comments)
   const aiFields = project.models.some((model) => Object.values(model.fields).some((field) => field.ai))
@@ -20,7 +22,6 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
   const feedback = project.mailFeedback ? [mailFeedbackResource.toModel()] : []
   const captured = [...project.models, ...feedback]
   return [
-    ...(project.auth ? [{ name: 'auth', title: authMigrationTitle, sql: () => authSchemaMigration(project.auth!) }] : []),
     // Events and history are captured with a dispatch job, events delivered, mentions mailed, AI fields filled and
     // notifications sent by jobs, whose waiting and failed ones webhooks lists, workflows run by them, and time rollups
     // refreshed by one.

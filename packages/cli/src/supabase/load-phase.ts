@@ -4,6 +4,9 @@ import path from 'node:path'
 import { writeAuthMigration } from '../auth/write-migration'
 import { connect } from '../db/connect'
 import { runDoctor } from '../doctor/run'
+import { refuseInconsistent } from '../migration/snapshot/consistency'
+import { readMigrationFiles } from '../migration/snapshot/migration-files'
+import { readSnapshot } from '../migration/snapshot/snapshot-file'
 import { runScaffold } from '../scaffold/run'
 import { loadProjectAuth } from '../users/load-auth'
 import { cronJobFilesInTheWay, writeCronJobs } from './cron-jobs-write'
@@ -62,6 +65,8 @@ export const runLoadPhase = async (options: LoadOptions, out: (text: string) => 
   const state = importState(options.projectDir)
   const manifest = await state.readManifest()
   if (!existsSync(path.join(options.migrationsDir, manifest.migration))) throw new Error(`The import's migration ${manifest.migration} is not in ${options.migrationsDir}; remove supabase-import/ and import again`)
+  // Before the data too, so a snapshot the auth migration would refuse stops the import while it can still run again.
+  refuseInconsistent(await readSnapshot(options.projectDir), await readMigrationFiles(options.migrationsDir))
   await checkReady(options.targetUrl, options.projectDir, manifest)
   // Loaded before the data, so a project whose auth does not load fails while the import can still run again.
   const auth = await loadProjectAuth(options.projectDir)
@@ -87,7 +92,7 @@ export const runLoadPhase = async (options: LoadOptions, out: (text: string) => 
   const jobsWired = await writeCronJobs(options.projectDir, cron)
   if (cron.length > 0) out(`wrote ${cron.length} of pg_cron's jobs as recurring jobs in jobs/\n`)
 
-  const authFile = await writeAuthMigration({ auth, dir: options.migrationsDir, name: 'auth' })
+  const authFile = await writeAuthMigration({ auth, projectDir: options.projectDir, dir: options.migrationsDir, name: 'auth' })
   if (authFile) out(`wrote ${path.relative(options.projectDir, authFile)}, Better Auth's tables next to auth.users\n`)
   const accountsFile = await writeMigration(options.migrationsDir, 'supabase_accounts', accountsMigration())
   out(`wrote ${path.relative(options.projectDir, path.join(options.migrationsDir, accountsFile))}, the users' accounts with their Supabase passwords and social providers\n`)

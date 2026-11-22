@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { migrationSummary } from './summary'
+import { migrationSummary, signInGuide } from './summary'
 
 describe('migrationSummary', () => {
-  it('lists the files written, relative to the project', () => {
-    expect(migrationSummary(['/app/db/migrations/001_auth.sql'], '/app', true)).toBe("wrote db/migrations/001_auth.sql\napply them with the project's migrations\n")
+  it('names the file written and the snapshot, relative to the current directory', () => {
+    expect(migrationSummary('/app/db/migrations/001_auth.sql', '/app', { hasAuth: true, compared: true })).toBe("wrote db/migrations/001_auth.sql and protobase.snapshot.json\napply it with the project's migrations\n")
   })
 
-  it('says the database is current', () => {
-    expect(migrationSummary([], '/app', true)).toBe('the database is up to date; nothing to write\n')
+  it('says nothing was written when nothing differs', () => {
+    expect(migrationSummary(undefined, '/app', { hasAuth: true, compared: true })).toBe('the migrations make what the config needs; nothing to write\n')
   })
 
-  it('says a config without auth has no sign-in, whose tables it never writes', () => {
-    expect(migrationSummary([], '/app', false)).toBe(
-      'the database is up to date; nothing to write\nsign-in is off, so nothing was written for it: see https://docs.protobase.net/guides/existing-database/\n',
-    )
+  it('says the features besides the auth store were not compared without a database', () => {
+    expect(migrationSummary(undefined, '/app', { hasAuth: true, compared: false })).toContain('DATABASE_URL is not set, so only the auth store was compared')
+  })
+
+  it('says sign-in is off rather than leave it to "nothing to write"', () => {
+    expect(migrationSummary(undefined, '/app', { hasAuth: false, compared: true })).toBe(`the migrations make what the config needs; nothing to write\nsign-in is off, so nothing was written for it: see ${signInGuide}\n`)
   })
 })

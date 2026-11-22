@@ -1,0 +1,19 @@
+import type { AuthSettings } from '../../auth-settings'
+import { resolveNames } from '../../names/resolve-names'
+import { userTable } from '../../user-table'
+import type { StoreNames } from '../store-names'
+
+/**
+ * The store's names from the app's `auth` settings alone, as the app's Better Auth resolves them, without building it:
+ * no database, URL or secret. `ownUserIds`: the app's hooks give new users their ids (`generateUserId` in
+ * auth/hooks.ts), which the hooks then decide over `generateUserId: 'uuid'`.
+ */
+export const settingsStoreNames = (settings: Pick<AuthSettings, 'schema' | 'tables' | 'users' | 'generateUserId'>, ownUserIds = false): StoreNames => {
+  const schema = settings.schema ?? 'auth'
+  return {
+    schema,
+    names: resolveNames({ schema, tables: settings.tables }),
+    users: userTable(settings.users),
+    uuidIds: !ownUserIds && settings.generateUserId === 'uuid',
+  }
+}

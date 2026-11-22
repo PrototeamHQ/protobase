@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import postgres from 'postgres'
@@ -8,7 +8,8 @@ import { servedConfig } from '../support/served-config'
 import { migrationProject } from '../../src/migration/load-project'
 import { migrationParts } from '../../src/migration/parts'
 import { signInGuide } from '../../src/migration/summary'
-import { writeMigrations } from '../../src/migration/write-migrations'
+import { runMigration } from '../../src/migration/snapshot/run-migration'
+import { protobaseVersion } from '../../src/version/version'
 import { bin, root, run } from '../support/auth-project'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
 import { withDatabase } from '../support/serve-process'
@@ -28,12 +29,14 @@ const migration = () => run([bin, 'migration'], projectDir, { DATABASE_URL: data
 
 const notes = () => resource('notes').table('notes').fields({ id: f.integer().readOnly(), body: f.text() }).primaryKey((r) => r.id)
 
-// The rest run what the command runs, in process: the files it writes for a config into the project's migrations, by
+// The rest run what the command runs, in process: the file it writes for a config into the project's migrations, by
 // name, none when the database is current.
 const migrationFor = async (config: Parameters<typeof servedConfig>[0]) => {
   const project = await migrationProject(servedConfig(config), databaseUrl)
   try {
-    return (await writeMigrations(migrationParts(project), path.join(projectDir, 'db/migrations'))).map((file) => path.basename(file))
+    const database = { url: databaseUrl, parts: migrationParts(project) }
+    const file = await runMigration({ projectDir, dir: path.join(projectDir, 'db/migrations'), auth: undefined, database, protobaseVersion, newId: randomUUID })
+    return file ? [path.basename(file)] : []
   } finally {
     await project.close()
   }
@@ -87,10 +90,12 @@ export const notes = resource('notes').table('notes').fields({ id: f.integer().r
     const first = await migration()
     // With sign-in off, the command says so rather than leave it to "up to date".
     const noSignIn = `sign-in is off, so nothing was written for it: see ${signInGuide}\n`
-    expect([first.status, first.stdout, first.stderr]).toEqual([0, `wrote db/migrations/001_jobs.sql\napply them with the project's migrations\n${noSignIn}`, ''])
-    expect(await readFile(path.join(projectDir, 'db/migrations/001_jobs.sql'), 'utf8')).toMatch(/^-- The jobs schema this version of Protobase needs, written by `protobase migration`\./)
+    expect([first.status, first.stdout, first.stderr]).toEqual([0, `wrote db/migrations/001_jobs.sql and protobase.snapshot.json\napply it with the project's migrations\n${noSignIn}`, ''])
+    const written = await readFile(path.join(projectDir, 'db/migrations/001_jobs.sql'), 'utf8')
+    expect(written).toMatch(/^-- protobase:id [0-9a-f-]{36}\n/)
+    expect(written).toContain('\n-- The jobs schema this version of Protobase needs.\n')
     await applyAll()
-    expect((await migration()).stdout).toBe(`the database is up to date; nothing to write\n${noSignIn}`)
+    expect((await migration()).stdout).toBe(`the migrations make what the config needs; nothing to write\n${noSignIn}`)
   }, 60_000)
 
   it('writes the change capture of resources with events as the next migration, then nothing once applied', async () => {
@@ -110,16 +115,16 @@ export const notes = resource('notes').table('notes').fields({ id: f.integer().r
     await applyAll()
   })
 
-  it('writes the webhooks schema for a config with webhooks, after the change capture', async () => {
+  it('writes the webhooks schema for a config with webhooks, after the change capture, in one file', async () => {
     const config = { webhooks: {}, config: { notes: notes().events((e) => e.crud()) } }
-    expect(await migrationFor(config)).toEqual(['004_changes.sql', '005_webhooks.sql'])
+    expect(await migrationFor(config)).toEqual(['004_changes_webhooks.sql'])
     await applyAll()
     expect(await migrationFor(config)).toEqual([])
   })
 
   it("writes the role of the built-in assistant's read-only queries, then nothing once applied", async () => {
     const config = { webhooks: {}, config: { notes: notes().events((e) => e.crud()) }, assistant: { apiKey: 'test-key' } }
-    expect(await migrationFor(config)).toEqual(['006_query.sql'])
+    expect(await migrationFor(config)).toEqual(['005_query.sql'])
     await applyAll()
     expect(await migrationFor(config)).toEqual([])
   })

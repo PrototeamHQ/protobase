@@ -31,11 +31,9 @@ export type LintedStep = { label: string; sql: string; made: string[]; checked: 
 
 export type StepFinding = { step: string; rule: string; message: string }
 
-const squawk = createRequire(import.meta.url).resolve('squawk-cli/js/bin/squawk')
-
 type SquawkFinding = { file: string; rule_name: string; message: string }
 
-const squawkFindings = (steps: LintedStep[]): StepFinding[] => {
+const squawkFindings = (steps: LintedStep[], squawk: string): StepFinding[] => {
   const dir = mkdtempSync(path.join(tmpdir(), 'protobase-step-lint-'))
   const files = steps.map((step, i) => {
     const file = path.join(dir, `${i}.sql`)
@@ -64,5 +62,8 @@ const uncheckedUniqueIndexes = (steps: LintedStep[]): StepFinding[] =>
         .map((match) => ({ step: step.label, rule: 'unique-index-without-check', message: `a unique index on ${match[1]}, which has rows already, without a check that they are unique` })),
     )
 
-/** What makes each step unsafe to apply unattended; none when every one is safe. */
-export const lintSteps = (steps: LintedStep[]) => [...squawkFindings(steps), ...uncheckedUniqueIndexes(steps)]
+/**
+ * What makes each step unsafe to apply unattended; none when every one is safe. `squawk`: the path of squawk-cli's
+ * `js/bin/squawk`, as the package that runs the lint resolves it.
+ */
+export const lintSteps = (steps: LintedStep[], squawk = createRequire(import.meta.url).resolve('squawk-cli/js/bin/squawk')) => [...squawkFindings(steps, squawk), ...uncheckedUniqueIndexes(steps)]

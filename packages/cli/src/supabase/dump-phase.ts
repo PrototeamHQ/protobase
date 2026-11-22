@@ -18,7 +18,7 @@ import { replayScript } from './replay'
 import { schemaMigration } from './schema-migration'
 import { countSsoUsers, refuseSsoUsers } from './sso-users'
 import { appSchemas, cronJobs, cronTimezone, dumpedTables, extensions, httpTriggers, hypertables, pgmqQueues, pgsodiumColumns, platformMigrationTables, realtimeTables, routinesIn, tablesSize, vaultSecretValues, vaultSecrets } from './source-facts'
-import { authStoreMigrations } from './store-migrations'
+import { authStoreMigrations, refuseStoreRemoval, removeStoreMigrations } from './store-migrations'
 import { ensureApiRoles, existingSchemas, existingTables } from './target-checks'
 import { creatableExtensions } from './target-extensions'
 import { usersColumnsMigration } from './users-migrations'
@@ -114,6 +114,7 @@ const pattern = (name: string) => `"${name.replaceAll('"', '""')}"`
 export const runDumpPhase = async (options: DumpOptions, out: (text: string) => void) => {
   const authConfig = await planAuthConfig(options.projectDir, importedUsersConfig)
   const storeMigrations = await authStoreMigrations(options.migrationsDir)
+  await refuseStoreRemoval(options.migrationsDir, storeMigrations)
   const checkout = checkoutMarkers(options.projectDir)
   if (checkout.length > 0) out(`found the Supabase project's ${checkout.join(', ')}\n`)
   // Before the dump, so a function in the way stops the import before it starts.
@@ -147,7 +148,7 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     const usersFile = await writeMigration(options.migrationsDir, 'supabase_users', usersColumnsMigration())
     const realtimeFile = await writeMigration(options.migrationsDir, 'supabase_realtime', realtimeMigration(policies))
     await authConfig.write()
-    for (const store of storeMigrations) await rm(path.join(options.migrationsDir, store))
+    await removeStoreMigrations(options.projectDir, options.migrationsDir, storeMigrations)
     const packages = await writeFunctions(options.projectDir, functions)
     await state.writeManifest({ migration: file, leftOut: migration.leftOut, checkout, functions: { converted: functions.functions, packages, left: functions.left }, ...source })
     const relative = (to: string) => path.relative(options.projectDir, to)

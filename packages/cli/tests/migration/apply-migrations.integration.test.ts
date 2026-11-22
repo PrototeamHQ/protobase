@@ -5,6 +5,7 @@ import path from 'node:path'
 import postgres from 'postgres'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { applyMigrations } from '../../src/migration/apply-migrations'
+import { planMigrations } from '../../src/migration/plan-migrations'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
 import { withDatabase } from '../support/serve-process'
 
@@ -198,5 +199,27 @@ insert into q (v) values ('$migration$; commit; ''x''');
     for (const example of ['erp', 'property-portal', 'real-estate', 'scratch']) {
       expect(await readFile(path.join(root, 'tests/apps', example, 'db/migrate.ts'), 'utf8')).toContain('const lockKey = 7_311_946_202\n')
     }
+  })
+})
+
+describe.skipIf(!reachable)('planMigrations', () => {
+  it('prints each pending file with its SQL, applying and recording nothing', async () => {
+    const sql = connect(await createDatabase())
+    const dir = await migrationsDir({ '001_one.sql': 'create table one (id integer primary key);\n', '002_two.sql': 'create table two ();\n' })
+    await applyMigrations(sql, await migrationsDir({ '001_one.sql': 'create table one (id integer primary key);\n' }), quiet)
+    const printed: string[] = []
+
+    expect(await planMigrations(sql, dir, (text) => printed.push(text))).toEqual(['002_two.sql'])
+    expect(printed).toEqual(['-- 002_two.sql\ncreate table two ();\n\n', '1 migrations to apply; nothing was applied\n'])
+    expect(await tables(sql)).toEqual(['one'])
+    expect((await sql`select name from migrations.applied`).map((row) => row.name)).toEqual(['001_one.sql'])
+  })
+
+  it('prints every file of a database that never ran migrate, without making its record', async () => {
+    const sql = connect(await createDatabase())
+    const dir = await migrationsDir({ '001_one.sql': 'create table one ();\n' })
+
+    expect(await planMigrations(sql, dir, quiet)).toEqual(['001_one.sql'])
+    expect((await sql`select to_regclass('migrations.applied') is null as fresh`)[0]!.fresh).toBe(true)
   })
 })
