@@ -154,7 +154,7 @@ view<typeof conversations>('conversations')
   .record({ conversation: { resource: 'messages', field: 'conversation_id', sender: 'author_id', time: 'sent_at', text: 'body', readPosition: { resource: 'read_positions', field: 'conversation_id', message: 'last_read_id' }, typing: true } })
 ```
 
-- `typing` says "typing…" after a record's title while someone else types in it, wherever the reader is in the app, for six seconds after the last they heard, and not while the relay is down. The open conversation's row leaves it out: the line above its box says who types.
+- `typing` says "typing…" after a record's title while someone else types in it, wherever the reader is in the app, for six seconds after the last they heard, and not while the relay is down. The open conversation's row leaves it out: the line above its box says who types. <gap>A sidebar group's `typing` cannot say "typing…" in an app without the realtime relay because following every listed record's own channel is not implemented.</gap>
 - `unread` draws a record bold, with the count of the messages others wrote after the reader's read position. It is counted as the group shows, in two requests, the reader's read positions and one aggregate of the messages grouped by conversation in the database, and again after the relay reconnects. In between, each new message the relay notices on a conversation adds one without reading anything; the open conversation counts none, and opening one clears its count.
 
 Both mark the group's own records over a `marks` hook's, so a direct message's row can still name its person.

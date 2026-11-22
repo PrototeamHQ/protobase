@@ -1,5 +1,6 @@
 import type { RelayHandlers, RelayNotice } from '@protobase/client'
-import { heardTyping, nextExpiry, withoutExpired, type Typers } from './typing'
+import { typingEvent } from '../typing/typing'
+import { createTypersStore } from '../typing/typers-store'
 
 /** How many of the page's own sent messages the store remembers, so the unread count leaves them out. */
 const ownKept = 50
@@ -9,9 +10,7 @@ const ownKept = 50
  * runs out, and the notices and reconnects, handed to whoever listens. `handlers` follows the relay; `stop` ends it.
  */
 export const createRelayStore = () => {
-  let typers: Typers = new Map()
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const listeners = new Set<() => void>()
+  const typers = createTypersStore()
   const noticeListeners = new Set<(notice: RelayNotice) => void>()
   const resyncListeners = new Set<() => void>()
   const own: string[] = []
@@ -23,34 +22,27 @@ export const createRelayStore = () => {
     return () => void set.delete(listener)
   }
 
-  // Draws the typers again when the first of them runs out.
-  const set = (next: Typers) => {
-    if (next === typers) return
-    typers = next
-    for (const listener of [...listeners]) listener()
-    clearTimeout(timer)
-    const at = nextExpiry(typers)
-    if (at !== undefined) timer = setTimeout(() => set(withoutExpired(typers, Date.now())), Math.max(0, at - Date.now()))
-  }
-
   const handlers: RelayHandlers = {
-    onEvent: (event) => set(heardTyping(typers, event, Date.now())),
+    // A direct event, or another event, is no typing on a channel.
+    onEvent: (event) => {
+      if (event.event === typingEvent && event.channel !== undefined) typers.heard(event.channel, event.from.user, event.payload)
+    },
     onNotice: (notice) => {
       for (const listener of [...noticeListeners]) listener(notice)
     },
     // Typing cannot be known while the relay is down: nobody shows as typing then.
     onStatus: (status) => {
-      if (status !== 'open') set(new Map())
+      if (status !== 'open') typers.clear()
     },
     onResync: () => {
-      set(new Map())
+      typers.clear()
       for (const listener of [...resyncListeners]) listener()
     },
   }
 
   return {
-    typers: () => typers,
-    subscribe: (listener: () => void) => listen(listeners, listener),
+    typers: typers.typers,
+    subscribe: typers.subscribe,
     onNotice: (listener: (notice: RelayNotice) => void) => listen(noticeListeners, listener),
     onResync: (listener: () => void) => listen(resyncListeners, listener),
     /** Remembers a message the page itself sent, by key, which no unread count takes; only the latest few. */
@@ -79,7 +71,7 @@ export const createRelayStore = () => {
      */
     shows: (notice: RelayNotice) => viewed.size === 0 || viewed.has(notice.channel) || notice.channel === `${notice.resource}/${notice.key}`,
     handlers,
-    stop: () => clearTimeout(timer),
+    stop: typers.stop,
   }
 }
 

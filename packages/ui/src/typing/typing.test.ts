@@ -1,27 +1,33 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { RelayEvent } from '@protobase/client'
-import { heardTyping, nextExpiry, typersOn, typingSendGapMs, typingSender, typingShownMs, withoutExpired, type Typers } from './typing'
+import { heardTyping, nextExpiry, typersOn, typingSendGapMs, typingSender, typingShownMs, typingSpot, withoutExpired, type Typers } from './typing'
 
-const typing = (user: string, channel: string, on: boolean, event = 'typing'): RelayEvent => ({ event, payload: { typing: on }, from: { user, connection: 'c' }, at: 0, channel })
 const none: Typers = new Map()
 
 describe('heardTyping', () => {
-  it('shows a typer on their channel until typingShownMs after the last, and no longer once they stop', () => {
-    const one = heardTyping(none, typing('u2', 'conversations/7', true), 1000)
+  it('shows a typer in their spot until typingShownMs after the last, and no longer once they stop', () => {
+    const one = heardTyping(none, 'conversations/7', 'u2', { typing: true, thread: null }, 1000)
     expect(one.get('conversations/7')).toEqual(new Map([['u2', 1000 + typingShownMs]]))
-    expect(heardTyping(one, typing('u2', 'conversations/7', false), 2000).size).toBe(0)
+    expect(heardTyping(one, 'conversations/7', 'u2', { typing: false, thread: null }, 2000).size).toBe(0)
   })
 
-  it('passes over another event, a direct event and a payload that is no typing', () => {
-    expect(heardTyping(none, typing('u2', 'conversations/7', true, 'ring'), 0)).toBe(none)
-    expect(heardTyping(none, { ...typing('u2', 'conversations/7', true), channel: undefined, to: 'u1' }, 0)).toBe(none)
-    expect(heardTyping(none, { ...typing('u2', 'conversations/7', true), payload: { typing: 'yes' } }, 0)).toBe(none)
+  it('keeps typing in a thread apart from typing outside threads, and takes a payload without a thread as outside', () => {
+    const typers = heardTyping(heardTyping(none, 'c/7', 'u2', { typing: true, thread: 42 }, 0), 'c/7', 'u3', { typing: true }, 0)
+    expect(typersOn(typers, typingSpot('c/7', '42'), undefined)).toEqual(['u2'])
+    expect(typersOn(typers, typingSpot('c/7', null), undefined)).toEqual(['u3'])
+    expect(typersOn(typers, typingSpot('c/7', 'other'), undefined)).toEqual([])
+  })
+
+  it('passes over a payload that is no typing', () => {
+    expect(heardTyping(none, 'c/7', 'u2', { typing: 'yes' }, 0)).toBe(none)
+    expect(heardTyping(none, 'c/7', 'u2', { typing: true, thread: { key: 1 } }, 0)).toBe(none)
+    expect(heardTyping(none, 'c/7', 'u2', 'typing', 0)).toBe(none)
+    expect(heardTyping(none, 'c/7', 'u2', null, 0)).toBe(none)
   })
 })
 
 describe('the typers in time', () => {
   it('drops those who ran out, keeps the same object when none did, and names the next expiry', () => {
-    const typers = heardTyping(heardTyping(none, typing('u2', 'a/1', true), 0), typing('u3', 'b/1', true), 2000)
+    const typers = heardTyping(heardTyping(none, 'a/1', 'u2', { typing: true }, 0), 'b/1', 'u3', { typing: true }, 2000)
     expect(nextExpiry(typers)).toBe(typingShownMs)
     expect(withoutExpired(typers, 1)).toBe(typers)
     const later = withoutExpired(typers, typingShownMs)
@@ -30,7 +36,7 @@ describe('the typers in time', () => {
   })
 
   it("leaves out the reader's own typing on their other devices", () => {
-    const typers = heardTyping(heardTyping(none, typing('me', 'a/1', true), 0), typing('u2', 'a/1', true), 0)
+    const typers = heardTyping(heardTyping(none, 'a/1', 'me', { typing: true }, 0), 'a/1', 'u2', { typing: true }, 0)
     expect(typersOn(typers, 'a/1', 'me')).toEqual(['u2'])
   })
 })

@@ -459,7 +459,7 @@ In an app with the [realtime relay](/reference/realtime-relay/#pages), a chat of
 | | |
 | --- | --- |
 | `TypingLine` | The line above the box saying who else types on `channel`, by the names `useMembers()` gives; it keeps its height while nobody does, so the box does not move. |
-| `useTypers(channel)` | The user ids of the others who type on the channel now, each until six seconds after the last they sent; empty without the relay or while it is down. |
+| `useTypers(channel)` | The user ids of the others who type on the channel now, outside threads, each until six seconds after the last they sent; empty without the relay or while it is down. |
 | `useTypingSender(channel)` | `onText`, to call with the box's text as it changes, and `onSent`, once a message went: it sends `typing` events at most every three seconds, and that the reader stopped when they empty the box, send or leave. Nothing goes before the channel is joined. |
 | `useViewChannel(channel)` | Says the page shows the channel while it is drawn, so only its notices read the page again, and joins it when the connect ticket did not list it, such as a conversation the reader joined since. |
 

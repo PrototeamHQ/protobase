@@ -16,9 +16,10 @@ import { useReadPosition } from './use-read-position'
 import { useThreadAddress } from './use-thread-address'
 import { text } from './messages'
 import { useRelay } from '../../relay/relay-context'
-import { TypingLine } from '../../relay/typing-line'
-import { useTypingSender } from '../../relay/use-typing-sender'
 import { useViewChannel } from '../../relay/use-view-channel'
+import { TypingNames } from '../../typing/typing-names'
+import { useTypingBox } from '../../typing/use-typing-box'
+import { useConversationTyping } from './use-conversation-typing'
 
 type Props = { page: ConversationPageModel; scope: LayoutRecord }
 
@@ -26,10 +27,11 @@ type Props = { page: ConversationPageModel; scope: LayoutRecord }
  * A record page that is the record's conversation (`.record({ conversation })`), filling the content area: its header,
  * its messages and the box that sends one, where `@` lists the organization's members. The page does not scroll; the
  * messages scroll in a box of their own, so the box stays in view. With `typing`, a line above the box says who else
- * types, over the app's realtime relay. With threads, the thread its address names (`?thread=`) opens in a panel beside
- * it. With `call`, the record's call shows while the page joins it (`?call=join`), between the header and the messages:
- * beside them, or above them at mobile width, with a thread's panel after both, covering the screen at mobile width. Key
- * it by the record, so another one starts afresh.
+ * types, and a thread's panel who types in it, over the app's realtime relay or else the record's own channel. With
+ * threads, the thread its address names (`?thread=`) opens in a panel beside it. With `call`, the record's call shows
+ * while the page joins it (`?call=join`), between the header and the messages: beside them, or above them at mobile
+ * width, with a thread's panel after both, covering the screen at mobile width. Key it by the record, so another one
+ * starts afresh.
  */
 export const ConversationPage = ({ page, scope }: Props) => {
   const { resources, views } = useAdminMeta()
@@ -45,8 +47,8 @@ export const ConversationPage = ({ page, scope }: Props) => {
   const channel = `${scope.model.name}/${scope.key}`
   const relay = useRelay()
   useViewChannel(channel)
-  const typing = useTypingSender(channel)
-  const typed = page.typing && relay ? typing : undefined
+  const typing = useConversationTyping(page.typing, scope.model.name, scope.key, me)
+  const typed = useTypingBox(typing, null)
   return (
     <FullArea>
       <div className="flex min-h-0 min-w-0">
@@ -57,7 +59,7 @@ export const ConversationPage = ({ page, scope }: Props) => {
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <ConversationMessages page={page} model={model} recordKey={scope.key} me={me} position={position} threadTo={threaded && thread.to} searchPeople={searchPeople} />
               {position.error !== undefined && <p className="shrink-0 px-4 text-sm text-danger-text">{text('positionNotSaved')}</p>}
-              {typed && <TypingLine channel={channel} />}
+              {typing && <TypingNames users={typing.typers(null)} />}
               <div className="shrink-0 px-3 pb-3">
                 <MessageComposer
                   resource={page.resource}
@@ -67,9 +69,9 @@ export const ConversationPage = ({ page, scope }: Props) => {
                   searchPeople={searchPeople}
                   mentions={page.mentions}
                   attachments={page.attachments}
-                  onDraft={typed?.onText}
+                  onDraft={typed.onText}
                   onSent={(key) => {
-                    typed?.onSent()
+                    typed.onSent()
                     relay?.store.sent(key)
                   }}
                 />
@@ -77,7 +79,7 @@ export const ConversationPage = ({ page, scope }: Props) => {
             </div>
           </div>
         </div>
-        {threaded && thread.open !== undefined && <ThreadPanel key={thread.open} page={threaded} owner={scope.model} recordKey={scope.key} first={thread.open} me={me} searchPeople={searchPeople} onClose={thread.close} />}
+        {threaded && thread.open !== undefined && <ThreadPanel key={thread.open} page={threaded} owner={scope.model} recordKey={scope.key} first={thread.open} me={me} searchPeople={searchPeople} typing={typing} onClose={thread.close} />}
       </div>
     </FullArea>
   )

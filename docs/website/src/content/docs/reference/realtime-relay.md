@@ -117,25 +117,25 @@ A person who shares no channel is published to no one. <gap>A page cannot show w
 With `realtime.relay`, the admin app follows the relay for someone signed in, on one socket per page, and `/meta` names the resources whose changes the relay notices:
 
 - **Live updates:** the lists, records and counts of those resources are read again as the relay notices their changes, new, edited and deleted records alike, instead of through [`/api/live`](/reference/live/), which stays for the other `.live()` resources. While a [conversation page](/reference/ui-config/#conversation-pages) is open, only its own channel's notices read it again; the notices of other channels only move the [unread marks](/reference/sidebar/#typing-and-unread-from-the-relay). After the socket was down, everything shown is read again once.
-- **Typing:** a conversation page with `typing` says who else types, above its box, and tells the others while the reader types, as `typing` events on the record's channel. A sidebar group with [`typing`](/reference/sidebar/#typing-and-unread-from-the-relay) says "typing…" beside a record someone types in, wherever the reader is.
+- **Typing:** a conversation page with `typing` says who else types, above its box and in a thread's box, and tells the others while the reader types, as `typing` events on the record's relay channel. Without the relay, it goes over the record's own [channel](/reference/channels/) instead. A sidebar group with [`typing`](/reference/sidebar/#typing-and-unread-from-the-relay) says "typing…" beside a record someone types in, wherever the reader is.
 - **Unread:** a sidebar group with [`unread`](/reference/sidebar/#typing-and-unread-from-the-relay) counts each conversation's unread messages once, then adds the relay's notices without reading.
 - **Presence:** the page tells the relay the person is away while it is hidden and online once it shows; a page that shows again, or a device back online, connects again at once.
 
-The relay refuses events the app did not declare, so declare typing in the relay's apps file, on each channel resource with typing:
+The relay refuses events the app did not declare, so declare typing in the relay's apps file, on each channel resource with typing. A page sends `{ typing, thread }`, `thread` the key of the thread's first message or null, so the size leaves room for a key:
 
 ```json
 "client_events": {
   "channels": {
     "conversations": {
       "events": {
-        "typing": { "schema": { "type": "object", "properties": { "typing": { "type": "boolean" } }, "required": ["typing"] }, "max_bytes": 64, "per_second": 2, "burst": 4 }
+        "typing": { "schema": { "type": "object", "properties": { "typing": { "type": "boolean" } }, "required": ["typing"] }, "max_bytes": 128, "per_second": 2, "burst": 4 }
       }
     }
   }
 }
 ```
 
-A conversation page's `typing` needs its resource among `channels`: the server refuses to start otherwise.
+With the relay, a conversation page's `typing` needs its resource among `channels`: the server refuses to start otherwise.
 
 <gap>A page does not hear of a channel the person joined after it connected, such as a new direct message, until it opens that conversation or connects again, because telling a person's sockets of a new channel is not implemented.</gap> <gap>An unread count also counts the reader's own messages sent from another device or tab, until they open the conversation, because notices do not name who made the change.</gap>
 

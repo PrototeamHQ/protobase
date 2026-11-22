@@ -1,7 +1,7 @@
 import { createContext, useContext, useSyncExternalStore } from 'react'
 import type { RelayClient } from '@protobase/client'
 import type { RelayStore } from './relay-store'
-import { typersOn } from './typing'
+import { typersOn } from '../typing/typing'
 
 /** The app's relay as the page follows it, for someone signed in to an app with `realtime.relay` (see `RelayProvider`). */
 export type RelayContextValue = { relay: RelayClient; store: RelayStore; me: string }
