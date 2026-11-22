@@ -102,7 +102,7 @@ export const CheckedFromAddress: StoryObj<MailSendersSectionProps> = {
 
     await userEvent.click(dialog.getByRole('button', { name: 'Check again' }))
     expect(await dialog.findByText('The test message arrived from sales@shop.example. Your mailbox can send from this address.', {}, answered)).toBeVisible()
-    expect(dialog.getByRole('switch', { name: "Let the app's other senders send from this address through your mailbox" })).toBeVisible()
+    expect(await dialog.findByRole('switch', { name: "Let the app's other senders send from this address through your mailbox" })).toBeVisible()
   },
 }
 
