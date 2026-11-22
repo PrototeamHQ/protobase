@@ -16,6 +16,9 @@ const digest = (text: string) => createHash('sha256').update(text).digest()
 // Compared as digests, so neither the time taken nor a length difference tells anything about the key.
 const sameKey = (given: string | undefined, key: string) => given !== undefined && timingSafeEqual(digest(given), digest(key))
 
+// The token of an `Authorization: Bearer <token>` header; any other header carries none.
+const bearerToken = (header: string | undefined) => header?.match(/^Bearer (.+)$/i)?.[1]
+
 /**
  * `POST /` with a presence report of the relay, `{ started, changes: [{ user, status, at }] }`, carrying the presence
  * key as its bearer token, never a person's sign-in: writes it and answers `204`, which tells the relay it was taken.
@@ -24,7 +27,7 @@ export const presenceRoutes = ({ key, record }: { key: string; record: (report: 
   new Hono().post(
     '/',
     async (c, next) => {
-      if (!sameKey(c.req.header('authorization')?.replace(/^Bearer /, ''), key)) throw unauthorized('Send the presence key as a bearer token')
+      if (!sameKey(bearerToken(c.req.header('authorization')), key)) throw unauthorized('Send the presence key as a bearer token')
       await next()
     },
     jsonOnly,
