@@ -105,7 +105,7 @@ export default defineConfig(({ command }) => ({
 - **Type:** `string[]`
 - **Default:** none
 
-The write hooks by name, run in this order inside each create's, update's and delete's transaction, with that transaction. Each is the default export of `hooks/<name>.ts`, loaded on the first write; a name without its file stops the app at start with an error that names the file. A hook does database work only: while it waits on anything else, such as an HTTP call, the row stays locked, so it enqueues a job for such work. [Enqueueing](/reference/jobs/#enqueueing) shows a hook that does.
+The write hooks by name, run in this order inside each create's, update's and delete's transaction, with that transaction. Each is the default export of `hooks/<name>.ts`, loaded on the first write; a name without its file stops the app at start with an error that names the file. A hook does database work only: while it waits on anything else, such as an HTTP call, the row stays locked, so it enqueues a job for such work. [Enqueueing](/reference/jobs/#enqueueing) shows a hook that does. A hook sees the row as written; values the server makes before the write, such as a generated key, come from a resource's [`.prepare()`](/reference/data-config/#preparing-a-record).
 
 ```ts
 export default defineConfig({ writeHooks: ['queue-sent-invoice'] })

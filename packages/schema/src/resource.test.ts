@@ -223,6 +223,14 @@ describe('resource builder', () => {
     expect(article.accessRules).toEqual({})
   })
 
+  it('keeps its prepare hooks, in order, through the methods after them', () => {
+    const first = (values: object) => values
+    const second = (values: object) => values
+    const prepared = article.prepare(first).validate(() => undefined).prepare(second).access({}).reveals({}).softDelete((r) => r.deletedAt)
+    expect(prepared.preparers).toEqual([first, second])
+    expect(article.preparers).toEqual([])
+  })
+
   it('access functions may return a verdict or a filter', () => {
     const scoped = article.access({
       read: () => 'status = "live"',

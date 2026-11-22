@@ -24,6 +24,7 @@ import { withAuthor } from './author'
 import type { Entry } from './registry'
 import { lockOrders, writeOrderLocks } from './batch/order-lock'
 import { withDeclaredChecks } from './declared-checks'
+import { prepareValues } from './prepare-values'
 
 export type { WriteResult }
 
@@ -62,7 +63,7 @@ const create = async (trx: Db, deps: Deps, access: RequestAccess, body: unknown,
     : body
   // The rules see the mail senders as they are stored.
   const checked = checkRules(access, 'create', await checkMailSenders(access, validateFields(access, 'create', preset)), tenantValues)
-  const values = await attachFiles(access, withAuthor(access, withOwner(access, checked)))
+  const values = await prepareValues(trx, access, 'create', await attachFiles(access, withAuthor(access, withOwner(access, checked))))
   const row = { ...values, ...tenantValues }
   const filter = await decide(access, 'create', undefined, row)
   // Before the insert, so a missing parent answers as an invisible one does rather than as a foreign key conflict; after

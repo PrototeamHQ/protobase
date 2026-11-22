@@ -13,6 +13,7 @@ import { assertWritten, checkParents, checkPrecondition, decide, denied, firstKe
 import { tenantScope } from './tenant'
 import type { Row } from './types'
 import { checkRules, validateFields } from './validate-body'
+import { prepareValues } from './prepare-values'
 
 /** An update that was loaded, locked and checked but not yet written; `parents` checks the record as written. */
 export type UpdatePlan = { current: StoredRecord; values: Row; filter?: CheckedFilter; parents: (record: Row) => Promise<void> }
@@ -31,7 +32,7 @@ export const planUpdate = async (trx: Db, access: RequestAccess, key: (string | 
   checkPrecondition(current, ifMatch, required)
   // The rules see the mail senders as they are stored.
   const checked = checkRules(access, 'update', await checkMailSenders(access, validateFields(access, 'update', body), current.record), current.record)
-  const values = await attachFiles(access, checked, current.record)
+  const values = await prepareValues(trx, access, 'update', await attachFiles(access, checked, current.record), current.record)
   const filter = Object.keys(values).length === 0 ? undefined : await decide(access, 'update', current.record, values)
   if (filter && !(await fetchRecord(trx, entry, key, tenant, { filter, fields: [firstKeyField(access)] }))) throw denied(entry, 'update')
   const parents = checkParents(trx, access, 'update')

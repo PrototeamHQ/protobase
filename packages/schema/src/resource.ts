@@ -10,6 +10,7 @@ import type { CheckModel, ParentAccess, PositionAfterModel, ResourceModel, Searc
 import type { DerivedModel, DerivedTarget } from './derived/derived-model'
 import { buildResourceModel, ignoredColumns, type ResourceState } from './resource-model'
 import type { Access, Issue, KeyRefs, RecordOf } from './resource-types'
+import type { Preparer } from './prepare'
 import { createRefs, type FieldRefs, type FieldsInput, type Ref } from './refs'
 
 /** A field picked for search, with how it matches. */
@@ -72,6 +73,8 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never, N extends st
     readonly accessRules: Access<F> = {},
     /** @internal */
     readonly computedReveals: Readonly<Record<string, ComputedReveal<RecordOf<F>>>> = {},
+    /** @internal */
+    readonly preparers: readonly Preparer<RecordOf<F>>[] = [],
   ) {}
 
   /** The table, with or without its schema: `'shop.repairs'` or `'repairs'`. Required. */
@@ -127,6 +130,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never, N extends st
       this.validators,
       this.accessRules,
       this.computedReveals,
+      this.preparers,
     )
   }
 
@@ -370,7 +374,24 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never, N extends st
    * ```
    */
   validate(validator: Validator<F>) {
-    return new ResourceBuilder<F, K, N>(this.state, [...this.validators, validator], this.accessRules, this.computedReveals)
+    return new ResourceBuilder<F, K, N>(this.state, [...this.validators, validator], this.accessRules, this.computedReveals, this.preparers)
+  }
+
+  /**
+   * Fills in or rewrites the values of every create and update on the server before they are written, inside the
+   * write's transaction, after the field checks and `.validate()` rules: it returns the values to write, and may set
+   * read-only fields, such as a generated key, which no request can. It throws a `FieldIssue` to refuse the write with
+   * `422` and the field named. It does database and CPU work only; work that waits on the network goes in a job a write
+   * hook enqueues. Each call adds one, run in order. See
+   * [Preparing a record](docs/website/src/content/docs/reference/data-config.mdx#preparing-a-record).
+   *
+   * @example
+   * ```ts
+   * .prepare((values, { operation }) => (operation === 'create' ? { ...values, token: crypto.randomUUID() } : values))
+   * ```
+   */
+  prepare(preparer: Preparer<RecordOf<F>>) {
+    return new ResourceBuilder<F, K, N>(this.state, this.validators, this.accessRules, this.computedReveals, [...this.preparers, preparer])
   }
 
   /**
@@ -388,7 +409,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never, N extends st
    * ```
    */
   access(rules: Access<F>) {
-    return new ResourceBuilder<F, K, N>(this.state, this.validators, { ...this.accessRules, ...rules }, this.computedReveals)
+    return new ResourceBuilder<F, K, N>(this.state, this.validators, { ...this.accessRules, ...rules }, this.computedReveals, this.preparers)
   }
 
   /**
@@ -409,7 +430,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never, N extends st
       const minutes = reveal.strongSignIn?.minutes
       if (minutes !== undefined && (!Number.isInteger(minutes) || minutes < 1)) throw new Error(`Resource "${this.state.name}": the reveal "${name}" needs minutes of at least 1`)
     }
-    return new ResourceBuilder<F, K, N>(this.state, this.validators, this.accessRules, { ...this.computedReveals, ...reveals })
+    return new ResourceBuilder<F, K, N>(this.state, this.validators, this.accessRules, { ...this.computedReveals, ...reveals }, this.preparers)
   }
 
   /** Role-based rules per field, for fields that declared `.access(...)`. */
@@ -451,7 +472,7 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never, N extends st
   }
 
   private next(patch: Partial<ResourceState>) {
-    return new ResourceBuilder<F, K, N>({ ...this.state, ...patch }, this.validators, this.accessRules, this.computedReveals)
+    return new ResourceBuilder<F, K, N>({ ...this.state, ...patch }, this.validators, this.accessRules, this.computedReveals, this.preparers)
   }
 }
 

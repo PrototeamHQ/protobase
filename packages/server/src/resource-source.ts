@@ -1,7 +1,7 @@
 import { isMailTemplate } from './mail/template/define-template'
 import type { z } from 'zod'
 import { isPageDefinition, isTranslations, type PageDefinition } from '@protobase/layout'
-import type { AccessSource, BottomBarSource, ComputedReveal, EventMatch, FileProcessor, UserMenuSource, ViewModel } from '@protobase/schema'
+import type { AccessSource, BottomBarSource, ComputedReveal, EventMatch, FileProcessor, Preparer, UserMenuSource, ViewModel } from '@protobase/schema'
 import { isSubscription } from './webhooks/subscription'
 
 type FieldSource = { schema: z.ZodType; meta: { readOnly: boolean; nullable: boolean; file?: { derive?: Record<string, FileProcessor> } } }
@@ -10,6 +10,8 @@ type FieldSource = { schema: z.ZodType; meta: { readOnly: boolean; nullable: boo
 export type ResourceSource = AccessSource & {
   readonly state: { fields?: Record<string, FieldSource | null> }
   readonly validators: readonly ((record: any) => Array<{ field: string; message: string }> | undefined)[]
+  /** What rewrites a create's or update's values before they are written (`.prepare()`), in order. */
+  readonly preparers?: readonly Preparer<any>[]
   recordSchema(): z.ZodType
   /** Its values revealed like sensitive fields but computed when asked (`.reveals()`), by name. */
   readonly computedReveals?: Readonly<Record<string, ComputedReveal<any>>>
