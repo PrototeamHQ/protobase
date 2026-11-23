@@ -44,7 +44,7 @@ const serve = (functions: Record<string, ApiFunction>, personalMailer?: Function
 
 const unused = () => Promise.reject(new Error('Not read in this test'))
 // A personal mailer that sends with `send`.
-const mailbox = (send: PersonalMail['send']): PersonalMail => ({ send, sender: unused, senders: unused })
+const mailbox = (send: PersonalMail['send']): PersonalMail => ({ send, sender: unused, senders: unused, refresh: unused })
 
 const invoice: MailMessage = { to: 'client@example.com', subject: 'Invoice 7', text: 'Attached.', attachments: [{ filename: 'invoice-7.pdf', content: new Uint8Array([37, 80, 68, 70]) }] }
 const sendInvoice = defineFunction(async (_request, context) => {

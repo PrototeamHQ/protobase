@@ -59,7 +59,7 @@ export const relativeRequest = (request: Request, prefix: string) => {
 
 const personalMailOff = () => Promise.reject(new Error('Personal mail is off: name the mail providers people may link in auth.personalMail, such as ["gmail"]'))
 
-const noPersonalMail = (): PersonalMail => ({ send: personalMailOff, sender: personalMailOff, senders: personalMailOff })
+const noPersonalMail = (): PersonalMail => ({ send: personalMailOff, sender: personalMailOff, senders: personalMailOff, refresh: personalMailOff })
 
 const isUpgrade = (request: Request) => request.headers.get('upgrade')?.toLowerCase() === 'websocket'
 

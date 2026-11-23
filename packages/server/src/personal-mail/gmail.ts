@@ -1,6 +1,10 @@
 import type { PersonalMailProvider } from './personal-mail-provider'
 import { PersonalMailError } from './personal-mail-error'
 import { rfc822Message } from './rfc822-message'
+import { gmailCause, gmailError, gmailReason } from './gmail-errors'
+import { gmailSettingsScope, listGmailSenderAddresses } from './gmail-sender-addresses'
+
+export { gmailSettingsScope }
 
 /** The Gmail API's scope that sends mail and nothing else: no reading of the mailbox. */
 export const gmailSendScope = 'https://www.googleapis.com/auth/gmail.send'
@@ -12,7 +16,8 @@ export const gmailSendUrl = 'https://gmail.googleapis.com/upload/gmail/v1/users/
  * Gmail, linked through Google sign-in: offline access, so Google gives a refresh token, asked with `prompt=consent`
  * so it gives one again on a second link. Without `from`, Gmail sets the From header to the linked address; with it,
  * Gmail keeps it when it is one of the account's verified send-as addresses, and puts the account's own address in its
- * place when it is not, still sending the message.
+ * place when it is not, still sending the message: so a link with `gmailSettingsScope` lists the send-as addresses,
+ * which tells the ones Gmail sends as from the others.
  *
  * A send resolves to no `messageId`: Gmail puts its own `Message-ID` on the mail it sends, and its answer, the sent
  * message's Gmail id, does not name it; reading it back takes a scope that reads the mailbox, which the link does not ask for.
@@ -22,6 +27,8 @@ export const gmail = (fetcher: typeof fetch = (...args) => fetch(...args)): Pers
   name: 'Gmail',
   signInProvider: 'google',
   scopes: [gmailSendScope],
+  optionalScopes: [gmailSettingsScope],
+  addedScopes: [],
   linkParams: { access_type: 'offline', prompt: 'consent' },
   send: async (message, accessToken, from) => {
     const body = await rfc822Message(message, from)
@@ -33,32 +40,5 @@ export const gmail = (fetcher: typeof fetch = (...args) => fetch(...args)): Pers
     if (response.status === 403 && gmailReason(error) === 'insufficientPermissions') throw new PersonalMailError('link_expired', 'gmail')
     throw new Error(`Gmail refused the message: ${response.status} ${response.statusText}${gmailCause(error)}`)
   },
+  list_sender_addresses: (connection) => listGmailSenderAddresses(fetcher, connection),
 })
-
-type GmailError = { status?: string; message?: string; errors?: { reason?: string }[]; details?: { reason?: string }[] }
-
-// Google's standard error body, read once; a body that is not JSON names nothing.
-const gmailError = async (response: Response): Promise<GmailError | undefined> => {
-  if (!response.headers.get('content-type')?.includes('json')) return
-  const text = await response.text()
-  try {
-    return (JSON.parse(text) as { error?: GmailError }).error
-  } catch (error) {
-    if (error instanceof SyntaxError) return
-    throw error
-  }
-}
-
-// Google's error body names the reason in `errors[].reason`, or in `details[].reason` (`ACCESS_TOKEN_SCOPE_INSUFFICIENT`).
-const gmailReason = (error: GmailError | undefined) => {
-  const reasons = [...(error?.errors ?? []), ...(error?.details ?? [])].map((entry) => entry.reason)
-  return reasons.includes('insufficientPermissions') || reasons.includes('ACCESS_TOKEN_SCOPE_INSUFFICIENT') ? 'insufficientPermissions' : reasons[0]
-}
-
-// Only what Google says about the refusal, such as ` FAILED_PRECONDITION (failedPrecondition: Precondition check failed.)`.
-const gmailCause = (error: GmailError | undefined) => {
-  if (!error) return ''
-  const reason = error.errors?.[0]?.reason
-  const detail = [reason, error.message].filter(Boolean).join(': ')
-  return `${error.status ? ` ${error.status}` : ''}${detail ? ` (${detail})` : ''}`
-}

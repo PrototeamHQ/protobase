@@ -6,15 +6,16 @@ import { appNameOver, defaultAppName } from '../app-name'
 import { goTrueIssuer, goTrueKeyPair } from '../gotrue/keys'
 import { goTrueSessionsPlugin } from '../gotrue/sessions-plugin'
 import { betterAuthLinkedAccounts, type TokenAuth } from '../personal-mail/linked-accounts'
-import { resolvePersonalMail, type PersonalMailProviderId } from '../personal-mail/personal-mail-providers'
-import { personalMailer } from '../personal-mail/personal-mailer'
+import { resolvePersonalMail, type PersonalMailEntry } from '../personal-mail/personal-mail-providers'
+import { personalMailer, type PersonalMail } from '../personal-mail/personal-mailer'
 import { mailLinkHooks } from '../personal-mail/mail-link-hooks'
 import { mailSendersPlugin } from '../personal-mail/mail-senders-plugin'
 import { aliasChecks, type AliasChecks } from '../personal-mail/alias-checks'
 import { mailCheckService } from '../personal-mail/mail-check-service'
 import { readMailCheckSettings } from '../personal-mail/mail-check-settings'
 import { mailSenderUseCheck, type MailSenderUseCheck } from '../personal-mail/mail-sender-use-check'
-import { adapterSenderStore } from '../personal-mail/sender-store'
+import { sqlSenderStore } from '../personal-mail/sender-store'
+import { storeSqlOf } from './store/store-sql'
 import { bothAccountHooks, connectionAccountHooks } from './connections/connection-account-hooks'
 import { connectionEvents, type ConnectionEvents } from './connections/connection-events'
 import { listConnections } from './connections/list-connections'
@@ -193,9 +194,11 @@ export type CreateAuthOptions = {
   /**
    * The mail providers people may link their own mailbox with, from the account page, for the app's functions to send
    * mail from it (`context.personalMail`), such as `['gmail']`. Each links through its sign-in provider, which
-   * `socialProviders` must have: Gmail through `google`. Needs `encryptOAuthTokens`. Default none.
+   * `socialProviders` must have: Gmail through `google`. An entry may add optional scopes the provider offers for more
+   * abilities, such as `{ provider: 'gmail', scopes: [gmailSettingsScope] }`, with which the link reads the mailbox's
+   * send-as addresses and whether Gmail sends as each. Needs `encryptOAuthTokens`. Default none.
    */
-  personalMail?: PersonalMailProviderId[]
+  personalMail?: PersonalMailEntry[]
   /** Encrypt the OAuth access and refresh tokens Better Auth stores for social sign-ins, with `secret`; `personalMail` and workflow connections need it. Default off. */
   encryptOAuthTokens?: boolean
   /**
@@ -405,6 +408,8 @@ type Resolved = {
   mailSenderUse?: MailSenderUseCheck
   /** The checks that mail from a From address goes out from it, when the platform names a mail check service (see `aliasChecks`). */
   aliasChecks?: AliasChecks
+  /** Mail from a person's own mailbox, which the account page's refresh of their send-as addresses goes through (see `personalMailer`). */
+  personalMailer?: (userId: string) => PersonalMail
   /** The addresses of the accounts no one changes or deletes, from `PROTOBASE_LOCKED_ACCOUNTS` (see `lockAccounts`). */
   lockedAccounts?: string[]
   /** The workflow connections, from `resolveConnections`, and the listener of their links and disconnects. */
@@ -432,6 +437,9 @@ const loaded = <T>(plugin: T | undefined, option: string): T => {
 const newUserId = (generate: NonNullable<CreateAuthOptions['generateUserId']>) => (generate === 'uuid' ? crypto.randomUUID() : generate())
 
 const noContext = () => Promise.reject(new Error('The auth context is read only once createAuth has made the instance'))
+// Only createAuth wires a person's mailbox to the account page's refresh: options made alone, as in a test, have none.
+const mailboxOff = () => Promise.reject(new Error('Not implemented: refreshing send-as addresses needs the mailer createAuth wires'))
+const noMailer = (): PersonalMail => ({ send: mailboxOff, sender: mailboxOff, senders: mailboxOff, refresh: mailboxOff })
 
 // With organizations, the active organization starts as the last one and a member's token carries it; the
 // organization plugin's own active-organization and accept endpoints are replaced by Protobase's.
@@ -444,7 +452,7 @@ const pageLoadReads = ['/get-session', '/role/current', '/token']
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn = [], saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, mailSenderUse, aliasChecks, lockedAccounts = [], connections, names = resolveNames({ schema: storeSchema({ options }), tables: options.tables }), ...plugins }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn = [], saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, mailSenderUse, aliasChecks, personalMailer: mailOf = noMailer, lockedAccounts = [], connections, names = resolveNames({ schema: storeSchema({ options }), tables: options.tables }), ...plugins }: Resolved) => {
   const named = betterAuthNames(names)
   const mailProviders = resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true)
   const connectionHooks = connections && connections.resolved.length > 0 ? connectionAccountHooks(connections.resolved, connections.events) : undefined
@@ -591,7 +599,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       }),
       ...(passwordHashes.length > 0 ? [rehashPasswordsPlugin(passwordHashes)] : []),
       ...(personalAccessTokens ? [personalAccessTokensPlugin({ options: personalAccessTokens, definitions, names: named })] : []),
-      ...(mailProviders.length > 0 ? [mailSendersPlugin(mailProviders, named, mailSenderUse, aliasChecks)] : []),
+      ...(mailProviders.length > 0 ? [mailSendersPlugin(mailProviders, named, mailOf, mailSenderUse, aliasChecks)] : []),
       // Last, so the staff plugin refuses staff sessions on the provider's paths before its own hooks run.
       ...(mcp ? loaded(plugins.mcpAuthPlugins, 'mcp')({ mcp, ...(api && { api }), organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context, names: named }) : []),
       ...(openId ? loaded(plugins.openIdProviderPlugins, 'openIdProvider')({ openId, mail: Boolean(mailer), defaultPolicy: signInPolicy, names: named }) : []),
@@ -729,12 +737,12 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   if (resolvedConnections.length > 0) deletion.set('connections', releaseUserConnections({ connections: resolvedConnections, events, allowPrivateAddresses, context }))
   const lockedAccounts = platformLockedAccounts()
   const names = resolveNames({ schema: storeSchema({ options }), tables: options.tables })
-  const authOptions = betterAuthOptions(options, { ...plugins, names, mobile, deletion, mailSenderUse: senderUse, ...(checks && { aliasChecks: checks }), lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
+  const authOptions = betterAuthOptions(options, { ...plugins, names, mobile, deletion, mailSenderUse: senderUse, ...(checks && { aliasChecks: checks }), personalMailer: mailboxOf, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
   instance = auth as unknown as { $context: Promise<AuthContext> }
-  const senderStore = adapterSenderStore(async () => (await context()).adapter)
+  const senderStore = sqlSenderStore(async () => storeSqlOf(await context()))
   return Object.assign(auth, {
     /**
      * Answers a request from the app's iOS or Android build: Better Auth also trusts the Capacitor origin the request

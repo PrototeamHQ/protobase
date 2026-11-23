@@ -52,3 +52,14 @@ export const accessNotConfigured = {
 }
 
 export const json = (body: unknown, status = 200, statusText = '') => new Response(JSON.stringify(body), { status, statusText, headers: { 'content-type': 'application/json; charset=UTF-8' } })
+
+// A `users.settings.sendAs.list` answer: the primary address, which carries no `verificationStatus`, an alias Gmail
+// sends as, one awaiting its owner's confirmation, and one whose status is unspecified.
+export const sendAsList = {
+  sendAs: [
+    { sendAsEmail: 'Ana@Acme.example', displayName: 'Ana', replyToAddress: '', signature: '', isPrimary: true, isDefault: true },
+    { sendAsEmail: 'billing@acme.example', displayName: 'Acme billing', replyToAddress: '', signature: '', isDefault: false, treatAsAlias: true, verificationStatus: 'accepted' },
+    { sendAsEmail: 'sales@acme.example', displayName: '', replyToAddress: '', signature: '', isDefault: false, treatAsAlias: false, verificationStatus: 'pending' },
+    { sendAsEmail: 'old@acme.example', displayName: '', replyToAddress: '', signature: '', isDefault: false, treatAsAlias: true, verificationStatus: 'verificationStatusUnspecified' },
+  ],
+}
