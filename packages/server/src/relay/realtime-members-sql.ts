@@ -31,7 +31,8 @@ const literal = (text: string) => `'${text.replaceAll("'", "''")}'`
 /**
  * The members table, keyed by channel so a notice's audience is read by its key, with an index by person for their
  * tickets and co-members; `listed_members`, the user ids one state of a record lists, none once soft-deleted; and the
- * trigger function, which empties a truncated table's. After each write that changes a record's key, members or soft
+ * trigger function, which empties a truncated table's, all of its resource as channel tables are plain tables
+ * (`refusePartitioned`). After each write that changes a record's key, members or soft
  * delete, as it stands after every trigger before it, it writes the members of the record's old and new keys again
  * from the table: row triggers that run after the write fire once the statement wrote every row, so a statement that
  * swaps two records' keys leaves each key with the members its record lists.

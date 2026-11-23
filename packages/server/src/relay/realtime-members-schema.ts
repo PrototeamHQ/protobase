@@ -11,8 +11,10 @@ const storedArgs = (args: readonly string[]) => Buffer.from(args.map((arg) => `$
  * them. A partitioned table is refused (`refusePartitioned`), so no trigger is a partition's clone.
  */
 /**
- * Refuses channel tables that are partitioned, or partitions or children of another: truncating one partition, or a
- * partition attached later, would not keep `realtime.members`.
+ * Refuses channel tables that are partitioned, or partitions or children of another, at migration and at startup alike.
+ * Their upkeep would need a truncate trigger on every partition, ones attached later included, and checks of each
+ * partition's clone of the row trigger; refusing them keeps every `members_kept` trigger a root one on a plain table,
+ * so the checks below need not look at clones, and a truncate always empties the whole resource.
  */
 export const refusePartitioned = (tables: readonly string[]) => {
   if (tables.length === 0) return
