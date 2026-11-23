@@ -29,8 +29,10 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
   if (!url) throw new Error('No database: set DATABASE_URL')
   const database = openAppDatabase(pg, url)
   const [resources, jobs, webhooks, notifications, auth] = await Promise.all([projectResources(config), projectJobs(config), projectWebhooks(config), projectNotifications(config), projectAuth(config, database)])
+  const exported = configExports(resources)
   return {
-    models: configExports(resources).resources.map((source) => source.toModel()),
+    models: exported.resources.map((source) => source.toModel()),
+    views: exported.views.map((source) => source.toModel()),
     db: database.db,
     ...(auth && { auth }),
     ...(config.events && { events: config.events }),

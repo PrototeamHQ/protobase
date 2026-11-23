@@ -5,7 +5,7 @@ import { migrationParts, type MigrationPart } from './parts'
 import type { MigrationProject } from './load-project'
 
 const tickets = resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
-const project = (models: MigrationProject['models'], readOnlyQueries = false) => ({ models, db: {} as MigrationProject['db'], jobs: [], userTables: false, unsubscribe: false, mailFeedback: false, readOnlyQueries, authTables: { tables: [], schemas: [] }, close: async () => {} }) satisfies MigrationProject
+const project = (models: MigrationProject['models'], readOnlyQueries = false) => ({ models, views: [], db: {} as MigrationProject['db'], jobs: [], userTables: false, unsubscribe: false, mailFeedback: false, readOnlyQueries, authTables: { tables: [], schemas: [] }, close: async () => {} }) satisfies MigrationProject
 const names = (parts: MigrationPart[]) => parts.map((part) => part.name)
 
 describe('the migration parts', () => {
@@ -34,6 +34,14 @@ describe('the migration parts', () => {
     expect(names(migrationParts({ ...project([]), notifications: { store: {} as DeviceStore } }))).toEqual(['jobs', 'changes', 'computed', 'derived', 'notifications'])
     expect(names(migrationParts({ ...project([]), notifications: { historyStore: {} as HistoryStore } }))).toEqual(['jobs', 'changes', 'computed', 'derived', 'notifications'])
     expect(names(migrationParts({ ...project([]), notifications: { store: {} as DeviceStore, historyStore: {} as HistoryStore } }))).toEqual(['jobs', 'changes', 'computed', 'derived'])
+  })
+  it("add the relay's part for an app the platform's switch can move, with sign-in and a live conversation resource whose page has members, as for realtime.relay", () => {
+    const view = { resource: 'tickets', record: { conversation: { resource: 'messages', field: 'ticket_id', sender: 'author_id', time: 'created_at', text: 'body', members: 'members' } } } as unknown as MigrationProject['views'][number]
+    const auth = {} as NonNullable<MigrationProject['auth']>
+    const live = tickets.fields({ id: f.integer(), title: f.text(), members: f.json() }).live().toModel()
+    expect(names(migrationParts({ ...project([live]), views: [view], auth }))).toEqual(['jobs', 'changes', 'computed', 'derived', 'relay'])
+    expect(names(migrationParts({ ...project([live]), views: [view] }))).toEqual(['jobs', 'changes', 'computed', 'derived'])
+    expect(names(migrationParts({ ...project([tickets.fields({ id: f.integer(), members: f.json() }).toModel()]), views: [view], auth }))).toEqual(['changes', 'computed', 'derived'])
   })
   it('add the relay with several processes, and the sends of SQL to the channels once turned on', () => {
     expect(names(migrationParts({ ...project([]), realtime: { processes: 'many', sqlSends: true } }))).toEqual(['changes', 'computed', 'derived', 'realtime_relay', 'channel_sends'])

@@ -10,7 +10,7 @@ import type { AdminEnv, Session } from '../types'
 import { memberships } from './members-sql'
 import { peopleChannel } from './presence-commands'
 import type { RelayJobs } from './relay-jobs'
-import type { RelayModels } from './relay-models'
+import { hasMembers, type RelayModels } from './relay-models'
 import type { RealtimeRelaySettings } from './relay-options'
 import { signTicket, type TicketSubject } from './ticket'
 
@@ -59,7 +59,7 @@ export const ticketRoutes = ({ deps, options, models, jobs, sessionEnd }: Ticket
     const resource = slash < 0 ? '' : name.slice(0, slash)
     const refuse = () => notFound(`There is no channel ${name}`)
     const channel = models.channels.get(resource)
-    if (!channel || channel.members) throw refuse()
+    if (!channel || hasMembers(channel)) throw refuse()
     const record = channelRecord(deps.registry, resource, name.slice(slash + 1))
     if (record === undefined || record === 'too-long' || record.name !== name) throw refuse()
     if (!(await recordReadable(deps, anonymousSession(), record))) throw refuse()

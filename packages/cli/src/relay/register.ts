@@ -4,9 +4,9 @@ export const registerRelay = (program: Command) => {
   const relay = program.command('relay').description('The realtime relay the app hands its connections to (realtime.relay)')
   relay
     .command('app')
-    .description("Print the app's entry for the relay's apps file, from realtime.relay or PROTOBASE_REALTIME_*, url and the views")
+    .description("Print the app's entry for the relay's apps file, from realtime.relay or the conversation pages' members, PROTOBASE_REALTIME_*, url and the views")
     .action(async () => {
-      const [{ configExports, relaySettings }, { loadSourceConfig }, { projectResources }, { loadNearestEnvFile }, { relayAppEntry }] = await Promise.all([
+      const [{ appRelayChannels, configExports, relaySettings }, { loadSourceConfig }, { projectResources }, { loadNearestEnvFile }, { relayAppEntry }] = await Promise.all([
         import('@protobase/server'),
         import('../config/source-config'),
         import('../config/project-parts'),
@@ -15,9 +15,11 @@ export const registerRelay = (program: Command) => {
       ])
       loadNearestEnvFile(process.cwd())
       const config = await loadSourceConfig(process.cwd(), { command: 'tool' })
-      if (!config.realtime?.relay) throw new Error('The config has no realtime.relay')
       const url = config.url ?? process.env.PROTOBASE_URL
-      const views = configExports(await projectResources(config)).views.map((view) => view.toModel())
-      process.stdout.write(`${JSON.stringify(relayAppEntry(relaySettings(config.realtime.relay, process.env), { url, apiPath: config.apiPath, views }), null, 2)}\n`)
+      const exported = configExports(await projectResources(config))
+      const views = exported.views.map((view) => view.toModel())
+      const channels = appRelayChannels(config.realtime?.relay, { views, models: exported.resources.map((resource) => resource.toModel()), signIn: Boolean(config.auth) })
+      if (!channels) throw new Error('The app cannot use the relay: its config has no realtime.relay, and no live conversation resource whose page has members, with sign-in, to derive its channels from')
+      process.stdout.write(`${JSON.stringify(relayAppEntry(relaySettings({ ...config.realtime?.relay, channels }, process.env), { url, apiPath: config.apiPath, views }), null, 2)}\n`)
     })
 }

@@ -16,7 +16,7 @@ export type RelayAppBuild = { apiPath?: string; views: readonly ViewModel[] }
  * presence, the path of the app's endpoint its reports go to and their grace. `protobase build` writes it into the
  * bundle's manifest, and `relayAppEntry` builds on it.
  */
-export const relayAppPart = (relay: Pick<RealtimeRelayOptions, 'channels' | 'presence'>, { apiPath, views }: RelayAppBuild) => {
+export const relayAppPart = (relay: Pick<RealtimeRelaySettings, 'channels'> & Pick<RealtimeRelayOptions, 'presence'>, { apiPath, views }: RelayAppBuild) => {
   const clientEvents = relayClientEvents(relay.channels, typingResources(views))
   return {
     ...(clientEvents && { client_events: clientEvents }),

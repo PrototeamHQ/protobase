@@ -1,7 +1,7 @@
 import type { ResourceChange } from '../changes/resource-change'
 import type { Row } from '../types'
 import type { MembersCommand, PublishCommand, RelayCommand } from './relay-commands'
-import type { MembersModel, RelayModels } from './relay-models'
+import { hasMembers, type ListedModel, type MembersModel, type RelayModels } from './relay-models'
 import { peopleChannel } from './presence-commands'
 
 /** The event every notice of a change is published as. */
@@ -27,11 +27,11 @@ export const noticedChannels = (models: RelayModels, change: ResourceChange) => 
 
 /** The channels with members whose people a batch's notices go to, which `channelMembers` reads. */
 export const audienceChannels = (models: RelayModels, changes: readonly ResourceChange[]) =>
-  [...new Set(changes.flatMap((change) => noticedChannels(models, change)))].filter((channel) => models.channels.get(channel.slice(0, channel.indexOf('/')))?.members)
+  [...new Set(changes.flatMap((change) => noticedChannels(models, change)))].filter((channel) => hasMembers(models.channels.get(channel.slice(0, channel.indexOf('/')))))
 
 /** The open channels, without members, that a batch's notices go to everyone joined to, whose records `publicChannels` reads. */
 export const openChannels = (models: RelayModels, changes: readonly ResourceChange[]) =>
-  [...new Set(changes.flatMap((change) => noticedChannels(models, change)))].filter((channel) => !models.channels.get(channel.slice(0, channel.indexOf('/')))?.members)
+  [...new Set(changes.flatMap((change) => noticedChannels(models, change)))].filter((channel) => !hasMembers(models.channels.get(channel.slice(0, channel.indexOf('/')))))
 
 type Membership = { channel: string; user: string }
 type Members = { channel: string } & MembersModel
@@ -57,6 +57,32 @@ const membersCommands = (models: RelayModels, change: ResourceChange) =>
     ]
   })
 
+// Who a channel record lists in one state of it, and on which channel; a soft-deleted record lists nobody.
+const listedIn = (listed: ListedModel, record: Row | undefined) => {
+  if (!record) return
+  const value = record[listed.field]
+  const deleted = listed.model.softDelete !== undefined && present(record[listed.model.softDelete])
+  const users = Array.isArray(value) && !deleted ? value.filter(present).map(String) : []
+  return { channel: channelName(listed.model.name, record[listed.model.primaryKey[0]!]), users: new Set(users) }
+}
+
+const missing = (from: Set<string> | undefined, other: Set<string> | undefined) => [...(from ?? [])].filter((user) => !other?.has(user))
+
+// For a channel record that lists its members: the people its change adds and removes, by diffing who it lists before and after.
+const listedCommands = (models: RelayModels, change: ResourceChange): MembersCommand[] => {
+  const listed = models.channels.get(change.resource)?.listed
+  if (!listed) return []
+  const before = change.operation === 'create' || change.operation === 'undelete' ? undefined : listedIn(listed, change.before)
+  const after = change.operation === 'delete' ? undefined : listedIn(listed, change.after)
+  const moved = before && after && before.channel !== after.channel
+  const added = after ? missing(after.users, moved ? undefined : before?.users) : []
+  const removed = before ? missing(before.users, moved ? undefined : after?.users) : []
+  return [
+    ...(added.length > 0 ? [{ kind: 'add', channel: after!.channel, users: added } satisfies MembersCommand] : []),
+    ...(removed.length > 0 ? [{ kind: 'remove', channel: before!.channel, users: removed } satisfies MembersCommand] : []),
+  ]
+}
+
 const mentionsOf = (record: Row | undefined, field: string | undefined) => {
   if (field === undefined || !record) return
   const value = record[field]
@@ -69,7 +95,7 @@ const notice = (models: RelayModels, change: ResourceChange, channel: string, me
   const options = models.channels.get(channel.slice(0, channel.indexOf('/')))!
   const mentions = mentionsOf(change.after ?? change.before, options.mentions)
   const extra = moved.filter((command) => command.channel === channel).flatMap((command) => command.users)
-  const users = options.members ? [...new Set([...(members.get(channel) ?? []), ...extra])] : undefined
+  const users = hasMembers(options) ? [...new Set([...(members.get(channel) ?? []), ...extra])] : undefined
   return {
     kind: 'publish',
     id: `${change.sequence}:${channel}`,
@@ -102,7 +128,7 @@ const reaches = (command: PublishCommand, open: ReadonlySet<string>) => (command
  */
 export const changeCommands = (models: RelayModels, changes: readonly ResourceChange[], members: ChannelMembers, open: ReadonlySet<string>): RelayCommand[] =>
   changes.flatMap((change) => {
-    const moved = membersCommands(models, change)
+    const moved = [...membersCommands(models, change), ...listedCommands(models, change)]
     const notices = noticedChannels(models, change)
       .map((channel) => notice(models, change, channel, members, moved))
       .filter((command) => reaches(command, open))

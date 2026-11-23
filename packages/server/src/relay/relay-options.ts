@@ -8,13 +8,23 @@ export type RelayMembers = {
   user: string
 }
 
+/**
+ * Where a channel resource's membership comes from: a JSON field of user ids on the channel record itself, as a
+ * conversation page's `members`. Who is in each channel is kept in `realtime.members`, which `protobase migration`
+ * writes with the triggers that keep it, so tickets and notices read it by index.
+ */
+export type RelayListedMembers = {
+  /** The channel resource's JSON field listing its members' user ids, such as `members`. */
+  field: string
+}
+
 /** A resource whose records are channels on the relay, `<resource>/<key>`. */
 export type RelayChannelOptions = {
   /**
    * Who is in each channel. Without it the channel is open: whoever may read the record gets it in a ticket when they
    * ask for it, a visitor of the anonymous role too.
    */
-  members?: RelayMembers
+  members?: RelayMembers | RelayListedMembers
   /** A field of the records noticed on the channel that lists the user ids a record mentions, such as a message's `mentions`. */
   mentions?: string
   /**
@@ -66,15 +76,18 @@ export type RealtimeRelayOptions = {
   apiKey?: string
   /** One of the app's ticket keys on the relay, which signs the connect tickets. */
   ticketKey?: string
-  /** The channel resources by name. */
-  channels: Record<string, RelayChannelOptions>
+  /**
+   * The channel resources by name. Defaults to one for each resource whose conversation page has `members`, with that
+   * field as its members (`defaultRelayChannels`).
+   */
+  channels?: Record<string, RelayChannelOptions>
   /** Turns on presence: the relay reports who is online, away or offline, and the app keeps it in this resource. */
   presence?: RelayPresence
 }
 
 /** `realtime.relay` with its address, id and keys, the presence key included, from the config or the environment. */
 export type RealtimeRelaySettings = Omit<RealtimeRelayOptions, 'presence'> &
-  Required<Pick<RealtimeRelayOptions, 'url' | 'app' | 'apiKey' | 'ticketKey'>> & { presence?: RelayPresence & { key: string } }
+  Required<Pick<RealtimeRelayOptions, 'url' | 'app' | 'apiKey' | 'ticketKey' | 'channels'>> & { presence?: RelayPresence & { key: string } }
 
 /** The variables a platform that runs the relay sets, which `realtime.relay`'s address, id and keys default to. */
 export const realtimeVariables = {
@@ -113,6 +126,14 @@ const checkEvents = (where: string, events: unknown) => {
   }
 }
 
+// No members, members records of a resource, or a field of the channel record.
+const membersShape = (members: RelayChannelOptions['members']) => {
+  if (members === undefined) return true
+  if (typeof members !== 'object' || members === null) return false
+  if ('field' in members) return nonEmpty(members.field) && Object.keys(members).length === 1
+  return nonEmpty(members.resource) && nonEmpty(members.channel) && nonEmpty(members.user)
+}
+
 /** The options, or an error naming what is wrong with their shape; `relayModels` checks them against the resources. */
 export const checkRelayOptions = (options: RealtimeRelayOptions): RealtimeRelaySettings => {
   if (!nonEmpty(options?.url) || !/^https?:\/\//.test(options.url)) throw new Error(`realtime.relay.url or ${realtimeVariables.url} must start with https:// or http://, not ${JSON.stringify(options?.url)}`)
@@ -123,8 +144,7 @@ export const checkRelayOptions = (options: RealtimeRelayOptions): RealtimeRelayS
   }
   if (typeof options.channels !== 'object' || options.channels === null || Object.keys(options.channels).length === 0) throw new Error('realtime.relay.channels must name at least one channel resource')
   for (const [name, channel] of Object.entries(options.channels)) {
-    const members = channel?.members
-    if (members !== undefined && !(nonEmpty(members.resource) && nonEmpty(members.channel) && nonEmpty(members.user))) throw new Error(`realtime.relay.channels.${name}.members must be { resource, channel, user }`)
+    if (!membersShape(channel?.members)) throw new Error(`realtime.relay.channels.${name}.members must be { resource, channel, user } or { field }`)
     if (channel?.mentions !== undefined && !nonEmpty(channel.mentions)) throw new Error(`realtime.relay.channels.${name}.mentions must name a field`)
     if (channel?.events !== undefined) checkEvents(`realtime.relay.channels.${name}.events`, channel.events)
   }

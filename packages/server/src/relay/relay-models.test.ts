@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { relayModels } from './relay-models'
-import { chatModels, chatRelay } from './testing/chat-models'
+import { chatModels, chatRelay, directsModel } from './testing/chat-models'
 
 describe('relayModels', () => {
   it("places captured records on their channel resource's channels, by its own key and by relations to it", () => {
@@ -44,5 +44,19 @@ describe('relayModels', () => {
   it('refuses a mentions field no noticed resource has', () => {
     const channels = { conversations: { ...chatRelay.channels.conversations!, mentions: 'tagged' } }
     expect(() => relayModels({ ...chatRelay, channels }, chatModels())).toThrow('no captured resource noticed on the channel has a field "tagged"')
+  })
+})
+
+describe('relayModels of a channel whose records list their members', () => {
+  it('takes a JSON field of a captured channel resource', () => {
+    const models = relayModels({ channels: { directs: { members: { field: 'members' } } } }, [directsModel()])
+    expect(models.channels.get('directs')?.listed).toMatchObject({ field: 'members' })
+    expect(models.members.size).toBe(0)
+  })
+
+  it('refuses a field that is no JSON field, and a channel resource whose changes are not captured', () => {
+    expect(() => relayModels({ channels: { directs: { members: { field: 'id' } } } }, [directsModel()])).toThrow('realtime.relay.channels.directs.members.field: "id" of "directs" is no JSON field of user ids')
+    const quiet = resource('directs').table('directs').fields({ id: f.integer(), members: f.json() }).primaryKey((r) => r.id).toModel()
+    expect(() => relayModels({ channels: { directs: { members: { field: 'members' } } } }, [quiet])).toThrow('the relay would not hear who joins or leaves: declare .live() on it')
   })
 })

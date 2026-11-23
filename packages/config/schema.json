@@ -6614,7 +6614,7 @@
           ]
         },
         "channels": {
-          "description": "The channel resources by name.",
+          "description": "The channel resources by name. Defaults to one for each resource whose conversation page has `members`, with that\nfield as its members (`defaultRelayChannels`).",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/RelayChannelOptions"
@@ -6625,9 +6625,6 @@
           "$ref": "#/definitions/RelayPresence"
         }
       },
-      "required": [
-        "channels"
-      ],
       "additionalProperties": false
     },
     "RelayChannelOptions": {
@@ -6635,7 +6632,14 @@
       "properties": {
         "members": {
           "description": "Who is in each channel. Without it the channel is open: whoever may read the record gets it in a ticket when they\nask for it, a visitor of the anonymous role too.",
-          "$ref": "#/definitions/RelayMembers"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RelayMembers"
+            },
+            {
+              "$ref": "#/definitions/RelayListedMembers"
+            }
+          ]
         },
         "mentions": {
           "description": "A field of the records noticed on the channel that lists the user ids a record mentions, such as a message's `mentions`.",
@@ -6699,6 +6703,26 @@
         "resource",
         "channel",
         "user"
+      ],
+      "additionalProperties": false
+    },
+    "RelayListedMembers": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "description": "The channel resource's JSON field listing its members' user ids, such as `members`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/definitions/EnvValue"
+            }
+          ]
+        }
+      },
+      "required": [
+        "field"
       ],
       "additionalProperties": false
     },

@@ -96,6 +96,8 @@ import { onDoNotDisturb } from './status/do-not-disturb'
 import { checkStatusAuth, statusNames, type StatusOptions } from './status/options'
 import { statusRoutes } from './status/routes'
 import { appRelaySettings } from './relay/relay-switch'
+import { appRelayChannels } from './relay/realtime-channels'
+import { idleRelayJobs } from './relay/relay-jobs'
 import { relayRuntime } from './relay/relay-runtime'
 import { relayPresencePath } from './relay/presence-route'
 import { relayTicketPath } from './relay/ticket-route'
@@ -414,8 +416,11 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     }),
   }
 
-  const relaySettings = appRelaySettings(realtime?.relay, globalThis.process?.env ?? {})
+  const relayApp = { views: viewModels, models: appModels, signIn: Boolean(auth) }
+  const relaySettings = appRelaySettings(realtime?.relay, globalThis.process?.env ?? {}, relayApp)
   const relay = relaySettings && relayRuntime(relaySettings, auth, deps)
+  // Sign-outs queue the close of their sockets once the app's database has the relay's trigger, the relay on or not.
+  const relayJobList = relay ? relay.jobs : appRelayChannels(realtime?.relay, relayApp) ? idleRelayJobs() : []
   const typingErrors = typingViewErrors(viewModels, relaySettings && new Set(Object.keys(relaySettings.channels)))
   if (typingErrors.length > 0) throw new Error(typingErrors.join('\n'))
 
@@ -591,5 +596,5 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), sqlSends: sqlSends(realtime), report })
   // The requests held open waiting, as runners' claims are, answered at once as the process closes.
   const stopHolding = async () => void (await engine?.stop())
-  return Object.assign(app, { startRealtimePrune: prune, stopHolding, decryptField, metaPath: `${deps.systemPath}/meta`, ...(links && { unsubscribe: links }), jobs: [...webhooks.jobs, ...(auth ? auth.senderVerificationJobs : []), ...(relay ? relay.jobs : []), ...(engine ? engine.jobs : []), ...(derived ? derived.jobs : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(appModels.some(hasBuckets) ? [bucketsRefreshJob(appModels)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
+  return Object.assign(app, { startRealtimePrune: prune, stopHolding, decryptField, metaPath: `${deps.systemPath}/meta`, ...(links && { unsubscribe: links }), jobs: [...webhooks.jobs, ...(auth ? auth.senderVerificationJobs : []), ...relayJobList, ...(engine ? engine.jobs : []), ...(derived ? derived.jobs : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(appModels.some(hasBuckets) ? [bucketsRefreshJob(appModels)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
 }

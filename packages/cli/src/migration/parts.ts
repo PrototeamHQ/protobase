@@ -1,4 +1,4 @@
-import { callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, capturedBy, derivedMigration, hasBuckets, jobsSchemaMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, relayMigration, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
+import { appRelayChannels, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, capturedBy, derivedMigration, hasBuckets, jobsSchemaMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, relayMigration, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
 import type { MigrationProject } from './load-project'
 
 /** What one feature still needs of the database, compared with it, written as a part of the next migration. */
@@ -27,11 +27,13 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
   // Mail feedback's events are captured from its table, which its own file, before the changes one, creates.
   const feedback = project.mailFeedback ? [mailFeedbackResource.toModel()] : []
   const captured = [...project.models, ...feedback]
+  // The relay's channels the app uses or can be moved to by the platform's switch, which the developer's environment lacks.
+  const relayChannels = appRelayChannels(project.realtime?.relay, { views: project.views, models: project.models, signIn: Boolean(project.auth) })
   return [
     // Events and history are captured with a dispatch job, events delivered, mentions mailed, AI fields filled and
     // notifications sent by jobs, whose waiting and failed ones webhooks lists, workflows run by them, and time rollups
     // refreshed by one.
-    ...(project.jobs.length > 0 || captured.some(capturedBy(captured)) || comments || aiFields || project.models.some(hasBuckets) || project.webhooks || project.workflows || project.notifications || project.realtime?.relay ? [{ name: 'jobs', title: 'The jobs schema this version of Protobase needs', sql: () => jobsSchemaMigration(project.db) }] : []),
+    ...(project.jobs.length > 0 || captured.some(capturedBy(captured)) || comments || aiFields || project.models.some(hasBuckets) || project.webhooks || project.workflows || project.notifications || relayChannels ? [{ name: 'jobs', title: 'The jobs schema this version of Protobase needs', sql: () => jobsSchemaMigration(project.db) }] : []),
     ...(project.mailFeedback ? [{ name: 'mail_feedback', title: 'The table of the bounces and complaints of the mail the app sends', sql: () => mailFeedbackMigration(project.db) }] : []),
     { name: 'changes', title: "The change capture the resources' events and history need", sql: () => changesMigration(project.db, captured, project.events, feedback.map((model) => model.name)) },
     // Always compared, so that the function and trigger of a rollup the config no longer has are dropped.
@@ -57,7 +59,9 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
     // Run after the deploy that brought the code of an ejected table, so its definition goes in a later deploy.
     ...(project.userTables ? [{ name: 'owned_definitions', title: 'The delete of the definitions of user tables that resources in code own now', sql: () => ownedDefinitionsMigration(project.db, project.models) }] : []),
     // After the jobs schema, whose enqueue the trigger calls, and the auth store's steps, which create the sessions table.
-    ...(project.realtime?.relay ? [{ name: 'relay', title: "The trigger that closes a deleted sign-in session's sockets on the realtime relay", sql: ({ authWritten }: PartsRun) => relayMigration(project.db, project.auth, authWritten) }] : []),
+    ...(relayChannels
+      ? [{ name: 'relay', title: "The trigger that closes a deleted sign-in session's sockets on the realtime relay, and realtime.members with the triggers that keep it from the channel records that list their members", sql: ({ authWritten }: PartsRun) => relayMigration(project.db, project.auth, authWritten, relayChannels, project.models) }]
+      : []),
     ...(sqlSends(project.realtime) ? [{ name: 'channel_sends', title: "SQL's broadcasts to the record channels, channels.send()", sql: () => channelSendsMigration(project.db) }] : []),
   ]
 }
