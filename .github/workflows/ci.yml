@@ -170,12 +170,6 @@ jobs:
       # In the image, Chromium is already installed when its Playwright version matches the lockfile's.
       - run: bun x --bun playwright install chromium
       - *check-base
-      # The Protobase Realtime release the tests against a real relay download on first use, as protobase dev does
-      # (packages/cli/src/dev/realtime-binary.ts), kept per pinned release. Nothing is saved when no test needed it.
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/protobase/realtime
-          key: realtime-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('packages/cli/src/dev/realtime-release.json') }}
       # `bun run check:integration`, each command on this leg's shard.
       - run: bun scripts/affected-tests.mjs --project 'integration*' --shard ${{ matrix.shard }}/2
       - run: bun scripts/affected-tests.mjs --project e2e --shard ${{ matrix.shard }}/2
