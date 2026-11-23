@@ -12,7 +12,9 @@ const texts = [
   'Works for me.',
   'One line\nand the next',
   'A paragraph.\n\n\nAnother, after blank lines.\n',
-  '**Heads up @Ann de Vries:** the reset is _done_, see `deploy.log` at https://status.example.com',
+  // Short enough not to wrap in any font, since bold text and visible marks change where a line wraps
+  '**Done**, _see_ `ok`',
+  'Thanks @Ann de Vries, see https://status.example.com',
   'A longer message that wraps over several lines in a narrow column, with an address https://example.com in it and @Ann de Vries named.',
 ]
 
