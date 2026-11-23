@@ -6,6 +6,8 @@ import { mcpAuthPlugins } from './mcp/mcp-auth-plugins'
 import { resolveMcp } from './mcp/mcp-plugins'
 import { mobileRequests } from './mobile-requests'
 import { roleDefinitions } from './organizations/role-definitions'
+import { senderVerifications as senderVerificationsOf } from '../personal-mail/verifiers/sender-verifications'
+import type { VerificationStore } from '../personal-mail/verifiers/verification-store'
 
 const base: CreateAuthOptions = {
   database: undefined,
@@ -113,10 +115,12 @@ describe('the From address calls, with personal mail on', () => {
   it('are refused from another origin or a null one', async () => {
     const refresh = vi.fn(async () => [])
     const personalMailer = () => ({ send: vi.fn(), sender: vi.fn(), senders: vi.fn(), refresh })
-    const authOptions = betterAuthOptions(withMail, { ...resolved, personalMailer })
+    const verify = vi.fn()
+    const senderVerifications = senderVerificationsOf([{ id: 'test-mail', verify }], {} as VerificationStore, personalMailer as never)
+    const authOptions = betterAuthOptions(withMail, { ...resolved, personalMailer, senderVerifications })
     const database = memoryAdapter({ verification: [], sign_in_policy: [], session: [], user: [], account: [], mail_sender: [] })
     const auth = betterAuth({ ...authOptions, database, advanced: { ...authOptions.advanced, disableOriginCheck: false } })
-    for (const path of ['refresh', 'add', 'update', 'remove', 'check']) {
+    for (const path of ['refresh', 'add', 'update', 'remove', 'verify']) {
       // From the app itself the session is what fails: the origin is not what refuses it.
       for (const origin of ['https://admin.example.com', 'https://other.example.com', 'null']) {
         const response = await auth.handler(
@@ -130,5 +134,6 @@ describe('the From address calls, with personal mail on', () => {
       }
     }
     expect(refresh).not.toHaveBeenCalled()
+    expect(verify).not.toHaveBeenCalled()
   })
 })

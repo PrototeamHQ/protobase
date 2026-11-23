@@ -7,6 +7,7 @@ import { userNameSearch } from './auth/005-user-name-search'
 import { mailSenders } from './mail-senders/001-mail-senders'
 import { mailSenderNames } from './mail-senders/002-mail-sender-names'
 import { senderAddressEvidence } from './mail-senders/003-sender-address-evidence'
+import { senderVerifications } from './mail-senders/004-sender-verifications'
 import { mcp } from './mcp/001-mcp'
 import { organizations } from './organizations/001-organizations'
 import { organizationIndex } from './organizations/002-organization-index'
@@ -30,6 +31,6 @@ export const moduleSteps: Record<ModuleId, Step[]> = {
   organizations: [organizations, organizationIndex],
   mcp: [mcp],
   personal_access_tokens: [personalAccessTokens],
-  mail_senders: [mailSenders, mailSenderNames, senderAddressEvidence],
+  mail_senders: [mailSenders, mailSenderNames, senderAddressEvidence, senderVerifications],
   platform_devices: [platformDevices],
 }

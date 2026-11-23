@@ -39,4 +39,17 @@ describe('senderRowState', () => {
   it('is detached on no usable connection, whatever the provider said', () => {
     expect(senderRowState({ ...none, listedAt: at(1), providerStateReadAt: at(1), providerState: 'verified' }, false)).toBe('detached')
   })
+
+  it('is verified by a proof where the provider makes no claim, never against what the provider says', () => {
+    expect(senderRowState({ ...none, typedAt: at(1) }, true, at(2))).toBe('verified')
+    expect(senderRowState({ ...none, listedAt: at(2), providerStateReadAt: at(2) }, true, at(3))).toBe('verified')
+    expect(senderRowState({ ...none, typedAt: at(1), providerStateReadAt: at(2) }, true, at(3))).toBe('failed')
+    expect(senderRowState({ ...none, listedAt: at(2), providerStateReadAt: at(2), providerState: 'pending' }, true, at(3))).toBe('pending')
+    expect(senderRowState({ ...none, typedAt: at(1) }, false, at(2))).toBe('detached')
+  })
+
+  it('counts no proof from before the address was removed and typed again', () => {
+    expect(senderRowState({ ...none, typedAt: at(3), removedAt: at(2) }, true, at(1))).toBe('unverified')
+    expect(senderRowState({ ...none, typedAt: at(3), removedAt: at(2) }, true, at(4))).toBe('verified')
+  })
 })

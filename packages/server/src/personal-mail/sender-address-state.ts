@@ -21,15 +21,18 @@ export const hasListing = ({ providerStateReadAt, removedAt }: Pick<Evidence, 'p
   providerStateReadAt !== null && (removedAt === null || providerStateReadAt > removedAt)
 
 /**
- * The state of `row`, with `connected` whether its connection is still one of its owner's that can send. Only a
- * provider state of `verified` or `pending` makes a claim: any other value, as an unknown one, makes none.
+ * The state of `row`, with `connected` whether its connection is still one of its owner's that can send, and `provedAt`
+ * when a verifier last proved it, by a verification that still counts. Only a provider state of `verified` or
+ * `pending` makes a claim: any other value, as an unknown one, makes none. Where the provider makes none, a proof since
+ * the address was last removed makes it `verified`; it never outweighs what the provider says.
  */
-export const senderRowState = (row: Evidence, connected: boolean): SenderRowState => {
+export const senderRowState = (row: Evidence, connected: boolean, provedAt?: Date): SenderRowState => {
   if (isRemoved(row)) return 'removed'
   if (!connected) return 'detached'
-  if (!hasListing(row)) return 'unverified'
+  const proved = provedAt !== undefined && (row.removedAt === null || provedAt > row.removedAt)
+  if (!hasListing(row)) return proved ? 'verified' : 'unverified'
   if (row.listedAt === null) return 'failed'
   if (row.providerState === 'verified') return 'verified'
   if (row.providerState === 'pending') return 'pending'
-  return 'unverified'
+  return proved ? 'verified' : 'unverified'
 }

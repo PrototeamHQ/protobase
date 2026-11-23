@@ -8,12 +8,14 @@ import type { AuthContext } from '../better-auth/organizations/store'
 import type { PersonalMailProvider } from './personal-mail-provider'
 import { linkedMailbox, type PersonalMail } from './personal-mailer'
 import type { MailSenderUseCheck } from './mail-sender-use-check'
-import type { AliasChecks } from './alias-checks'
 import { senderBook, linkedAccountsOf } from './mail-sender-book'
-import { listedMailSenders, listedSender } from './listed-mail-senders'
+import { listedMailSenders, listedSender, listedVerification } from './listed-mail-senders'
+import { stateIn } from './mail-sender'
 import { isRemoved } from './sender-address-state'
 import { senderAddressInput } from './sender-address-input'
 import { mailSenderModel, sqlSenderStore } from './sender-store'
+import { reportEndpoint } from './verifiers/report-endpoint'
+import type { SenderVerifications } from './verifiers/sender-verifications'
 
 /** The paths of the person's From addresses, as Better Auth names them under the auth base path. */
 export const mailSenderPaths = {
@@ -22,8 +24,7 @@ export const mailSenderPaths = {
   update: '/account/mail-senders/update',
   remove: '/account/mail-senders/remove',
   refresh: '/account/mail-senders/refresh',
-  check: '/account/mail-senders/check',
-  checkResult: '/account/mail-senders/check-result',
+  verify: '/account/mail-senders/verify',
 }
 
 /** The most addresses one person may have, well above the send-as addresses a mailbox has. */
@@ -57,12 +58,12 @@ const idField = z.string().min(1).max(200)
 
 type Ctx = { context: AuthContext & { session: { user: { id: string } } } }
 
-// The session's own rows and accounts, read together: every endpoint below acts on these alone.
-const bookOf = async (ctx: Ctx, providers: PersonalMailProvider[]) => {
+// The session's own rows, accounts and proofs, read together: every endpoint below acts on these alone.
+const bookOf = async (ctx: Ctx, providers: PersonalMailProvider[], verifications?: SenderVerifications) => {
   const userId = ctx.context.session.user.id
   const store = sqlSenderStore(async () => storeSqlOf(ctx.context))
-  const [rows, accounts] = await Promise.all([store.ofUser(userId), ctx.context.internalAdapter.findAccounts(userId)])
-  return { userId, store, accounts, book: senderBook(userId, rows, accounts, providers) }
+  const [rows, accounts, proofs] = await Promise.all([store.ofUser(userId), ctx.context.internalAdapter.findAccounts(userId), verifications ? verifications.proofsOf(userId) : []])
+  return { userId, store, accounts, book: { ...senderBook(userId, rows, accounts, providers), proofs } }
 }
 
 // The person's own address `id`, not removed: anyone else's, an unknown one and a removed one alike are not found.
@@ -85,12 +86,12 @@ const ownRow = <Row extends { id: string; typedAt: Date | null; removedAt: Date 
  * the app hold an address (`inUse`), removing it, or disconnecting the mailbox whose own address it is
  * (`/unlink-account`), is refused with a 409, and changes nothing.
  *
- * With `checks`, the list says `checks: true`, and `POST /account/mail-senders/check { id }` sends a test message from
- * one of the person's addresses through their mailbox and answers `{ status: 'waiting', check }`; `POST
- * /account/mail-senders/check-result { id, check }` answers where it stands (`AliasCheckResult`). Without, the check
- * answers `{ status: 'unchecked' }` and sends nothing.
+ * With the app's `verifications` (`add_verifier`), the list says `verifiers: true` and gives each address its latest
+ * verification by each verifier; `POST /account/mail-senders/verify { id }` starts every verifier on one of the
+ * person's addresses on a connection they can send through, and answers that address's `verifications`; and
+ * `POST /mail-sender-verifications/report` settles one from outside (`reportEndpoint`). Without, neither path exists.
  */
-export const mailSendersPlugin = (providers: PersonalMailProvider[], names: BetterAuthNames, mailOf: (userId: string) => PersonalMail, inUse?: MailSenderUseCheck, checks?: AliasChecks) =>
+export const mailSendersPlugin = (providers: PersonalMailProvider[], names: BetterAuthNames, mailOf: (userId: string) => PersonalMail, inUse?: MailSenderUseCheck, verifications?: SenderVerifications) =>
   ({
     id: 'protobase-mail-senders',
     schema: names.tables(mailSenderModel),
@@ -110,15 +111,16 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[], names: Bett
     },
     endpoints: {
       listMailSenders: createAuthEndpoint(mailSenderPaths.list, { method: 'GET', use: [sessionMiddleware] }, async (ctx) => {
-        const { book } = await bookOf(ctx, providers)
-        return ctx.json({ ...listedMailSenders(book), checks: Boolean(checks) })
+        const { userId, book } = await bookOf(ctx, providers, verifications)
+        const latest = verifications ? await verifications.latestOf(userId) : undefined
+        return ctx.json({ ...listedMailSenders(book, latest), verifiers: Boolean(verifications) })
       }),
 
       addMailSender: createAuthEndpoint(
         mailSenderPaths.add,
         { method: 'POST', use: [sessionMiddleware], body: z.object({ address: senderAddressInput, name: nameField.optional(), signature: signatureField.optional(), connection: idField.optional() }) },
         async (ctx) => {
-          const { userId, store, book } = await bookOf(ctx, providers)
+          const { userId, store, book } = await bookOf(ctx, providers, verifications)
           const { address, name = null, signature = null, connection } = ctx.body
           // Only a connection of the person's own: another's, or one that cannot send, is not found.
           const chosen = connection === undefined ? linkedMailbox(book.connections.map(({ account }) => account), providers) : book.connections.find(({ account }) => account.id === connection)
@@ -136,7 +138,7 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[], names: Bett
         mailSenderPaths.update,
         { method: 'POST', use: [sessionMiddleware], body: z.object({ id: idField, name: nameField.nullable().optional(), signature: signatureField.nullable().optional(), isDefault: z.boolean().optional() }) },
         async (ctx) => {
-          const { userId, store, book } = await bookOf(ctx, providers)
+          const { userId, store, book } = await bookOf(ctx, providers, verifications)
           const { id, isDefault, ...update } = ctx.body
           ownRow(book.rows, id)
           // One default at most: the old one gives way first, as the store's unique index on it requires.
@@ -160,23 +162,17 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[], names: Bett
         return ctx.json({ connections })
       }),
 
-      checkMailSender: createAuthEndpoint(mailSenderPaths.check, { method: 'POST', use: [sessionMiddleware], body: z.object({ id: idField }) }, async (ctx) => {
-        const { userId, book } = await bookOf(ctx, providers)
-        const row = ownRow(book.rows, ctx.body.id)
-        if (!checks) return ctx.json({ status: 'unchecked' as const })
-        const check = await checks.start(userId, { id: row.id, address: row.address }, headersLocale(ctx.headers))
-        return ctx.json({ status: 'waiting' as const, check })
-      }),
-
-      checkMailSenderResult: createAuthEndpoint(
-        mailSenderPaths.checkResult,
-        { method: 'POST', use: [sessionMiddleware], body: z.object({ id: idField, check: z.string().min(1).max(200) }) },
-        async (ctx) => {
-          const { book } = await bookOf(ctx, providers)
+      ...(verifications && {
+        verifyMailSender: createAuthEndpoint(mailSenderPaths.verify, { method: 'POST', use: [sessionMiddleware], body: z.object({ id: idField }) }, async (ctx) => {
+          const { userId, book } = await bookOf(ctx, providers, verifications)
           const row = ownRow(book.rows, ctx.body.id)
-          if (!checks) return ctx.json({ status: 'unchecked' as const })
-          return ctx.json(await checks.result(ctx.body.check, row.address))
-        },
-      ),
+          // Its test message goes through the connection it is on: one the person cannot send through has none.
+          if (stateIn(book, row) === 'detached') throw new APIError('NOT_FOUND', notFound)
+          await verifications.start(userId, { id: row.id, address: row.address, name: row.name }, headersLocale(ctx.headers))
+          const latest = await verifications.latestOf(userId)
+          return ctx.json({ verifications: latest.filter(({ senderId }) => senderId === row.id).map(listedVerification) })
+        }),
+        reportMailSenderVerification: reportEndpoint(verifications),
+      }),
     },
   }) satisfies BetterAuthPlugin

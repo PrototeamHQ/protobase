@@ -19,6 +19,7 @@ export const legacyVersions = [
   { version: 13, name: 'lookup_indexes' },
   { version: 14, name: 'user_name_search' },
   { version: 15, name: 'sender_address_evidence' },
+  { version: 16, name: 'sender_verifications' },
 ]
 
 export type LegacyVersion = (typeof legacyVersions)[number]

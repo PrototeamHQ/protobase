@@ -68,8 +68,6 @@
     "done": "{recipient} gets no more {topic} mail."
   },
   "personal-mail": {
-    "MAIL_SENDER_IN_USE": "{address} is still the From address of records in this app. Give them another From address first.",
-    "ALIAS_CHECK_SUBJECT": "Test message for the From address {address}",
-    "ALIAS_CHECK_TEXT": "This is a test message to check that your mailbox can send as {address}. The app you connected your mailbox to sent it when you added or checked that address. It went to an address used only for this check. You do not need to do anything with it, and you can delete it."
+    "MAIL_SENDER_IN_USE": "{address} is still the From address of records in this app. Give them another From address first."
   }
 }

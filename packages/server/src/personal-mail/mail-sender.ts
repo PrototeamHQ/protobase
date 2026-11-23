@@ -3,6 +3,7 @@ import type { MailboxConnection } from './mailbox-connections'
 import { SenderAddressError } from './sender-address-error'
 import { senderRowState, type SenderAddressState } from './sender-address-state'
 import type { MailSenderRow } from './sender-store'
+import type { SenderProof } from './verifiers/verification-store'
 
 /**
  * A From address someone may send mail from: `id`, the record a send names (`sender_address_id`), null for the
@@ -13,13 +14,13 @@ import type { MailSenderRow } from './sender-store'
  */
 export type MailSender = { id: string | null; address?: string; name?: string; ownerId: string; signature?: string; state: SenderAddressState }
 
-/** The person's rows and connections, as resolving a From address reads them. */
-export type SenderBook = { userId: string; rows: MailSenderRow[]; connections: MailboxConnection[]; ownAddress?: string }
+/** The person's rows and connections, and what the app's verifiers proved of the rows, as resolving a From address reads them. */
+export type SenderBook = { userId: string; rows: MailSenderRow[]; connections: MailboxConnection[]; ownAddress?: string; proofs?: SenderProof[] }
 
 const connected = (book: SenderBook, row: MailSenderRow) => book.connections.some(({ account }) => account.id === row.connectionId)
 
 /** The state of a row of `book`'s (`senderRowState`). */
-export const stateIn = (book: SenderBook, row: MailSenderRow) => senderRowState(row, connected(book, row))
+export const stateIn = (book: SenderBook, row: MailSenderRow) => senderRowState(row, connected(book, row), book.proofs?.find(({ senderId }) => senderId === row.id)?.settledAt)
 
 /** The rows a person may choose: neither removed nor detached, oldest first. */
 export const usableRows = (book: SenderBook) =>
