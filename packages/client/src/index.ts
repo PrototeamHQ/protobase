@@ -76,7 +76,7 @@ export type { CurrentOrganization, InvitationPreview, InvitationSent, Organizati
 export type { ActiveRole, RoleOption, RolesClient } from './roles'
 export type { DeviceLink, DeviceSession } from './account-profile'
 export type { NewPersonalAccessToken, PersonalAccessToken } from './account-tokens'
-export type { MailConnection, MailConnectionListing, MailSender, MailSenderChange, MailSenderCheck, MailSenderState, MailSenders } from './account-mail-senders'
+export type { MailConnection, MailConnectionListing, MailSender, MailSenderChange, MailSenderState, MailSenders, MailSenderVerification } from './account-mail-senders'
 export type { AccountSecurity, AccountSignIn, AuthenticatorSetup, ConnectedApp, ConnectionRevocation, Passkey, RequiredSetup, WorkflowConnection } from './account-security'
 export type { ConnectClient, ConnectingClient } from './connect'
 export type { SignInPolicy, SignInPolicyClient, SignInPolicyState, SignInRule, StaffAccessRule } from './sign-in-policy'
