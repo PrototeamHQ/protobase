@@ -49,8 +49,8 @@ export type RelayPresence = {
   status: string
   /** Its timestamp field holding when the status began, such as `since`. */
   at: string
-  /** The bearer token the relay's presence reports carry, at least 32 characters. */
-  key: string
+  /** The bearer token the relay's presence reports carry, at least 32 characters; defaults to `relayVariables.presenceKey`. */
+  key?: string
 }
 
 /**
@@ -72,11 +72,18 @@ export type RealtimeRelayOptions = {
   presence?: RelayPresence
 }
 
-/** `realtime.relay` with its address, id and keys, from the config or the environment. */
-export type RealtimeRelaySettings = RealtimeRelayOptions & Required<Pick<RealtimeRelayOptions, 'url' | 'app' | 'apiKey' | 'ticketKey'>>
+/** `realtime.relay` with its address, id and keys, the presence key included, from the config or the environment. */
+export type RealtimeRelaySettings = Omit<RealtimeRelayOptions, 'presence'> &
+  Required<Pick<RealtimeRelayOptions, 'url' | 'app' | 'apiKey' | 'ticketKey'>> & { presence?: RelayPresence & { key: string } }
 
 /** The variables a platform that runs the relay sets, which `realtime.relay`'s address, id and keys default to. */
-export const relayVariables = { url: 'PROTOBASE_RELAY_URL', app: 'PROTOBASE_RELAY_APP', apiKey: 'PROTOBASE_RELAY_API_KEY', ticketKey: 'PROTOBASE_RELAY_TICKET_KEY' } as const
+export const relayVariables = {
+  url: 'PROTOBASE_RELAY_URL',
+  app: 'PROTOBASE_RELAY_APP',
+  apiKey: 'PROTOBASE_RELAY_API_KEY',
+  ticketKey: 'PROTOBASE_RELAY_TICKET_KEY',
+  presenceKey: 'PROTOBASE_RELAY_PRESENCE_KEY',
+} as const
 
 const appPattern = /^[a-z0-9_-]{1,64}$/
 const minKeyLength = 32
@@ -124,14 +131,15 @@ export const checkRelayOptions = (options: RealtimeRelayOptions): RealtimeRelayS
   const presence = options.presence
   if (presence !== undefined) {
     if (!(nonEmpty(presence?.resource) && nonEmpty(presence.user) && nonEmpty(presence.status) && nonEmpty(presence.at))) throw new Error('realtime.relay.presence must be { resource, user, status, at, key }')
-    if (typeof presence.key !== 'string' || presence.key.length < minKeyLength) throw new Error(`realtime.relay.presence.key must be a string of at least ${minKeyLength} characters, such as from an environment variable`)
+    if (typeof presence.key !== 'string' || presence.key.length < minKeyLength) throw new Error(`realtime.relay.presence.key or ${relayVariables.presenceKey} must be a string of at least ${minKeyLength} characters`)
   }
   return options as RealtimeRelaySettings
 }
 
 /**
- * `realtime.relay` with each of its address, id and keys the config leaves out taken from its variable in `env`, then
- * checked: a value in the config wins, and one missing from both fails the check, naming the key and its variable.
+ * `realtime.relay` with each of its address, id and keys, the presence key included, the config leaves out taken from
+ * its variable in `env`, then checked: a value in the config wins, and one missing from both fails the check, naming
+ * the key and its variable.
  */
 export const relaySettings = (options: RealtimeRelayOptions, env: Record<string, string | undefined>) =>
   checkRelayOptions({
@@ -140,4 +148,5 @@ export const relaySettings = (options: RealtimeRelayOptions, env: Record<string,
     app: options.app || env[relayVariables.app],
     apiKey: options.apiKey || env[relayVariables.apiKey],
     ticketKey: options.ticketKey || env[relayVariables.ticketKey],
+    ...(options.presence && { presence: { ...options.presence, key: options.presence.key || env[relayVariables.presenceKey] } }),
   })

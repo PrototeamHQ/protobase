@@ -45,6 +45,15 @@ describe('withDevRelay', () => {
     expect(served.realtime!.relay).toMatchObject({ apiKey: 'a'.repeat(32), ticketKey: 't'.repeat(32) })
   })
 
+  it('makes a presence key when the config sets none, and keeps one it sets', async () => {
+    const presence = { resource: 'presences', user: 'user_id', status: 'status', at: 'since' }
+    const made = (await withDevRelay(config({ presence }), '/app', devUrl, [])).realtime!.relay!.presence!
+    expect(made.key!.length).toBeGreaterThanOrEqual(32)
+    expect(started.mock.calls[0]![2]).toMatchObject({ presence: { url: `${devUrl}/api/relay/presence`, key: made.key } })
+    const own = await withDevRelay(config({ presence: { ...presence, key: 'p'.repeat(32) } }), '/app', devUrl, [])
+    expect(own.realtime!.relay!.presence!.key).toBe('p'.repeat(32))
+  })
+
   it('keeps the relay across reloads of the same app, and starts it again when its entry changes', async () => {
     const first = await withDevRelay(config(), '/app', devUrl, [])
     const again = await withDevRelay(config({ channels: { rooms: {} } }), '/app', devUrl, [])
