@@ -420,7 +420,7 @@ const testMailVerifier: SenderAddressVerifier = {
 - **`check(input)`:** optional. The app's sweep calls it each minute a pending verification is due, until it settles or expires.
 - **Outcomes:** `verify` and `check` answer one of these.
   - `{ state: 'pending', expires_at, check_after? }`: `verify` must name `expires_at`, which the app caps at 24 hours after the verification started. `check` cannot move it. The next check comes at `check_after`, else a minute on.
-  - `{ state: 'verified', valid_until }`: `valid_until` is required, lies ahead, and is capped at 90 days.
+  - `{ state: 'verified', valid_until }`: `valid_until` is required, lies ahead, and is capped at 28 days.
   - `{ state: 'failed', error_code, error? }`: `error_code` is a lowercase name, such as `from_rewritten`. `error` is plain text of at most 500 characters, with no control characters but line breaks and tabs, shown as text and never as markup.
 
   An outcome that breaks these rules, or a `verify` that throws, fails the verification as `verifier_error`. The address's state does not change.

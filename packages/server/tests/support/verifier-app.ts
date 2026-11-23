@@ -54,7 +54,8 @@ export const servedWith = async (stores: McpStores, verifiers: SenderAddressVeri
   // How long each stays pending and counts as verified, worked out by Postgres: the times it makes come back as stand-ins in a recording.
   const rows = async (id: string) =>
     (await app.store.query<{ state: string; secret_hash: string; error_code: string | null; error: string | null; pending_hours: number; valid_days: number | null }>(
-      `select state, secret_hash, error_code, error, extract(epoch from expires_at - created_at)::float8 / 3600 as pending_hours,
+      `select state, secret_hash, error_code, error,
+  case when state = 'pending' then extract(epoch from expires_at - created_at)::float8 / 3600 end as pending_hours,
   extract(epoch from valid_until - settled_at)::float8 / 86400 as valid_days
 from mail_sender_verification where sender_id = $1 order by created_at, id`,
       [id],

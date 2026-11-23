@@ -43,24 +43,25 @@ describe('a report that settles a verification', () => {
     expect(await stateOf(billing)).toBe('verified')
     await expectRefused(await report({ verifier: 'test-mail', secret: billingInput.secret, ...verified }))
     await expectRefused(await report({ verifier: 'test-mail', secret: billingInput.secret, state: 'failed', error_code: 'from_rewritten' }))
-    // Verified for at most 90 days from when it settled.
-    expect((await rows(billing)).filter(({ state }) => state === 'verified')).toMatchObject([{ valid_days: 90 }])
+    // Verified for at most 28 days from when it settled.
+    expect((await rows(billing)).filter(({ state }) => state === 'verified')).toMatchObject([{ valid_days: 28 }])
   })
 
   it("is refused alike, changing nothing, without its own secret: none, a wrong one, another verification's, its id, its stored hash, or from another verifier", async () => {
     const { app, cookie, report, billing, sales, billingInput, salesInput, rows, stateOf } = await pending()
     const [stored] = await rows(billing)
+    // One after another, so the recording keeps their order.
     const attempts = [
-      report({ verifier: 'test-mail', ...verified }),
-      report({ verifier: 'test-mail', secret: 'A'.repeat(43), ...verified }),
-      report({ verifier: 'test-mail', secret: billingInput.verification_id, ...verified }),
-      report({ verifier: 'test-mail', secret: stored!.secret_hash, ...verified }),
-      report({ verifier: 'other-mail', secret: billingInput.secret, ...verified }),
-      report({ verifier: 'unknown', secret: billingInput.secret, ...verified }),
-      report({ verifier: 'test-mail', ...verified }, `/api/auth/mail-sender-verifications/report?secret=${encodeURIComponent(billingInput.secret)}`),
-      app.request('/api/auth/mail-sender-verifications/report', { cookie, body: { verifier: 'test-mail', ...verified } }),
+      () => report({ verifier: 'test-mail', ...verified }),
+      () => report({ verifier: 'test-mail', secret: 'A'.repeat(43), ...verified }),
+      () => report({ verifier: 'test-mail', secret: billingInput.verification_id, ...verified }),
+      () => report({ verifier: 'test-mail', secret: stored!.secret_hash, ...verified }),
+      () => report({ verifier: 'other-mail', secret: billingInput.secret, ...verified }),
+      () => report({ verifier: 'unknown', secret: billingInput.secret, ...verified }),
+      () => report({ verifier: 'test-mail', ...verified }, `/api/auth/mail-sender-verifications/report?secret=${encodeURIComponent(billingInput.secret)}`),
+      () => app.request('/api/auth/mail-sender-verifications/report', { cookie, body: { verifier: 'test-mail', ...verified } }),
     ]
-    for (const attempt of attempts) await expectRefused(await attempt)
+    for (const attempt of attempts) await expectRefused(await attempt())
     // Sales' secret settles sales, never billing.
     expect((await report({ verifier: 'test-mail', secret: salesInput.secret, state: 'failed', error_code: 'from_rewritten' })).status).toBe(200)
     expect(await stateOf(billing)).toBe('unverified')

@@ -76,7 +76,7 @@ returning id`.execute(s.db)
   /**
    * Records `outcome` of the verification `key` names, if `verifier` started it and it is still pending in time:
    * whether it did. The first pending outcome (`first`) sets when it expires, at most 24 hours after it started; a
-   * later one only when it is checked next, never after it expires. `valid_until` counts at most 90 days.
+   * later one only when it is checked next, never after it expires. `valid_until` counts at most 28 days.
    */
   settle: async (key: SettleKey, verifier: string, outcome: VerificationOutcome, first = false) => {
     const s = await store()
@@ -111,7 +111,9 @@ where ${v.state} = 'pending' and ${v.expires_at} <= now()`.execute(s.db)
   claimDue: async (verifiers: readonly string[], limit: number) => {
     const s = await store()
     const { table, v, sender, s: c } = parts(s)
-    const { rows } = await sql<ClaimedVerification>`update ${table} set ${v.next_check_at} = now() + ${interval(checkIntervalMs)}
+    // Returned in a fixed order, so the checks run in the same order each time.
+    const { rows } = await sql<ClaimedVerification>`with claimed as (
+update ${table} set ${v.next_check_at} = now() + ${interval(checkIntervalMs)}
 from ${sender}
 where ${table}.id in (
   select id from ${table}
@@ -119,7 +121,9 @@ where ${table}.id in (
   order by ${v.next_check_at} limit ${limit}
   for update skip locked
 ) and ${sender}.id = ${table}.${v.sender_id}
-returning ${table}.id, ${table}.${v.verifier} as verifier, ${sender}.${c.address} as address, ${sender}.${c.name} as name`.execute(s.db)
+returning ${table}.id, ${table}.${v.verifier} as verifier, ${sender}.${c.address} as address, ${sender}.${c.name} as name
+)
+select * from claimed order by address, verifier`.execute(s.db)
     return rows
   },
 
@@ -128,10 +132,13 @@ returning ${table}.id, ${table}.${v.verifier} as verifier, ${sender}.${c.address
     if (verifiers.length === 0) return []
     const s = await store()
     const { table, v, sender, s: c, selected } = parts(s)
-    const { rows } = await sql<VerificationRow>`select distinct on (${table}.${v.sender_id}, ${table}.${v.verifier}) ${selected} from ${table}
-join ${sender} on ${sender}.id = ${table}.${v.sender_id}
-where ${sender}.${c.user_id} = ${userId} and ${table}.${v.verifier} = any(${[...verifiers]}::text[])
-order by ${table}.${v.sender_id}, ${table}.${v.verifier}, ${table}.${v.created_at} desc`.execute(s.db)
+    // Oldest first, as the addresses list: the ids are random, so an order by them would change from read to read of the same rows.
+    const { rows } = await sql<VerificationRow>`select * from (
+  select distinct on (${table}.${v.sender_id}, ${table}.${v.verifier}) ${selected} from ${table}
+  join ${sender} on ${sender}.id = ${table}.${v.sender_id}
+  where ${sender}.${c.user_id} = ${userId} and ${table}.${v.verifier} = any(${[...verifiers]}::text[])
+  order by ${table}.${v.sender_id}, ${table}.${v.verifier}, ${table}.${v.created_at} desc
+) as latest order by "createdAt", verifier`.execute(s.db)
     return rows
   },
 
@@ -143,7 +150,8 @@ order by ${table}.${v.sender_id}, ${table}.${v.verifier}, ${table}.${v.created_a
     const { rows } = await sql<SenderProof>`select ${table}.${v.sender_id} as "senderId", max(${table}.${v.settled_at}) as "settledAt" from ${table}
 join ${sender} on ${sender}.id = ${table}.${v.sender_id}
 where ${sender}.${c.user_id} = ${userId} and ${table}.${v.verifier} = any(${[...verifiers]}::text[]) and ${table}.${v.state} = 'verified' and ${table}.${v.valid_until} > now()
-group by ${table}.${v.sender_id}`.execute(s.db)
+group by ${table}.${v.sender_id}
+order by "settledAt"`.execute(s.db)
     return rows
   },
 })

@@ -26,7 +26,7 @@ export type VerifyTools = {
 /**
  * Where a verification stands after `verify` or `check`: `pending` until `expires_at` (required from `verify`, which the
  * app caps at 24 hours after the verification started; `check` cannot move it), checked again at `check_after`
- * (default a minute on); `verified` until `valid_until` (required, capped at 90 days); `failed` with an `error_code`
+ * (default a minute on); `verified` until `valid_until` (required, capped at 28 days); `failed` with an `error_code`
  * such as `from_rewritten`, and an optional `error` text of at most 500 characters, shown as plain text.
  */
 export type VerificationOutcome =

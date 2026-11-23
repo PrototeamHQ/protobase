@@ -7,8 +7,8 @@ export const maxErrorLength = 500
 /** How long a verification may stay pending, from when it started. */
 export const maxPendingMs = 24 * 60 * 60 * 1000
 
-/** How long a verified outcome may count, from when it settled. */
-export const maxValidMs = 90 * 24 * 60 * 60 * 1000
+/** How long a verified outcome may count, from when it settled: four weeks, so an address is proved again each month. */
+export const maxValidMs = 28 * 24 * 60 * 60 * 1000
 
 /** How long a started verification waits for `verify`'s first outcome before the next verify supersedes it. */
 export const verifyLeaseMs = 5 * 60 * 1000
