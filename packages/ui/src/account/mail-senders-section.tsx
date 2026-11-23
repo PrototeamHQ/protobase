@@ -99,7 +99,9 @@ export const MailSendersSection = ({ senders: { address, senders, verifiers = fa
       const signature = input.signature.trim() ? input.signature : null
       if (editing?.kind === 'change') {
         await onUpdate(editing.sender.id, { name, signature, isDefault: input.isDefault })
-        if (input.shared !== Boolean(editing.sender.sharedAt)) await onShare(editing.sender.id, input.shared)
+        // The switch's state is sent on every save, never diffed against what the dialog opened with: after a save that
+        // got no answer, that may no longer be what the server holds. Sharing and unsharing are idempotent.
+        await onShare(editing.sender.id, input.shared)
         return
       }
       const added = await onAdd({ address: input.address, ...(name && { name }), ...(signature && { signature }) })

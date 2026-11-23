@@ -23,7 +23,7 @@ const mailbox = { onRefresh: fn(async () => []), onConnect: fn(), providerName: 
 /** The mailbox's own address as the default, the entered ones with their name and their own signature or the generic one, adding one with a name as the default, and removing one after asking. */
 export const FromAddresses: StoryObj<MailSendersSectionProps> = {
   tags: ['play'],
-  args: { senders, onAdd: fn(async () => added), onUpdate: fn(async () => undefined), onRemove: fn(async () => undefined), onVerify: fn(), onVerifications: fn(), ...mailbox },
+  args: { senders, onAdd: fn(async () => added), onUpdate: fn(async () => undefined), onRemove: fn(async () => undefined), onShare: fn(async () => undefined), onVerify: fn(), onVerifications: fn(), ...mailbox },
   render: (args) => <MailSendersSection {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
@@ -50,6 +50,7 @@ export const FromAddresses: StoryObj<MailSendersSectionProps> = {
     await userEvent.clear(page.getByLabelText('Signature'))
     await userEvent.click(page.getByRole('button', { name: 'Save' }))
     expect(args.onUpdate).toHaveBeenCalledWith('s1', { name: null, signature: null, isDefault: false })
+    expect(args.onShare).toHaveBeenCalledWith('s1', false)
 
     await userEvent.click(canvas.getAllByRole('button', { name: 'Remove' })[1]!)
     await userEvent.click(within(page.getByRole('dialog', { name: 'Remove ana@studio.example?' })).getByRole('button', { name: 'Remove' }))
@@ -60,7 +61,7 @@ export const FromAddresses: StoryObj<MailSendersSectionProps> = {
 /** An entered address as the default: the mailbox's own address offers to be the default again. */
 export const EnteredDefault: StoryObj<MailSendersSectionProps> = {
   tags: ['play'],
-  args: { senders: { ...senders, senders: [{ ...senders.senders[0]!, isDefault: true }] }, onAdd: fn(), onUpdate: fn(async () => undefined), onRemove: fn(), onVerify: fn(), onVerifications: fn(), ...mailbox },
+  args: { senders: { ...senders, senders: [{ ...senders.senders[0]!, isDefault: true }] }, onAdd: fn(), onUpdate: fn(async () => undefined), onRemove: fn(), onShare: fn(async () => undefined), onVerify: fn(), onVerifications: fn(), ...mailbox },
   render: (args) => <MailSendersSection {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
@@ -89,6 +90,7 @@ export const VerifiedFromAddress: StoryObj<MailSendersSectionProps> = {
     onAdd: fn(async () => added),
     onUpdate: fn(async () => undefined),
     onRemove: fn(),
+    onShare: fn(async () => undefined),
     onVerify: fn(async () => [pending]),
     onVerifications: verifications,
     ...mailbox,
@@ -114,7 +116,7 @@ export const VerifiedFromAddress: StoryObj<MailSendersSectionProps> = {
 /** Where the app has no verifier, the dialog says so, and how to check by hand. */
 export const UnverifiableFromAddress: StoryObj<MailSendersSectionProps> = {
   tags: ['play'],
-  args: { senders, onAdd: fn(), onUpdate: fn(), onRemove: fn(), onVerify: fn(), onVerifications: fn(), ...mailbox },
+  args: { senders, onAdd: fn(), onUpdate: fn(), onRemove: fn(), onShare: fn(async () => undefined), onVerify: fn(), onVerifications: fn(), ...mailbox },
   render: (args) => <MailSendersSection {...args} />,
   play: async ({ canvasElement, args }) => {
     const page = within(document.body)
@@ -170,6 +172,7 @@ export const ListedStates: StoryObj<MailSendersSectionProps> = {
     onAdd: fn(),
     onUpdate: fn(),
     onRemove: fn(),
+    onShare: fn(async () => undefined),
     onVerify: fn(),
     onVerifications: fn(),
     ...mailbox,
@@ -197,6 +200,7 @@ export const ListingNotPermitted: StoryObj<MailSendersSectionProps> = {
     onAdd: fn(),
     onUpdate: fn(),
     onRemove: fn(),
+    onShare: fn(async () => undefined),
     onVerify: fn(),
     onVerifications: fn(),
     ...mailbox,
@@ -220,6 +224,7 @@ export const ListingExpired: StoryObj<MailSendersSectionProps> = {
     onAdd: fn(),
     onUpdate: fn(),
     onRemove: fn(),
+    onShare: fn(async () => undefined),
     onVerify: fn(),
     onVerifications: fn(),
     ...mailbox,
