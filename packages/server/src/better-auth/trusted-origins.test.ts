@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth'
 import { memoryAdapter } from 'better-auth/adapters/memory'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { betterAuthOptions, type CreateAuthOptions } from './create-auth'
 import { mcpAuthPlugins } from './mcp/mcp-auth-plugins'
 import { resolveMcp } from './mcp/mcp-plugins'
@@ -102,5 +102,33 @@ describe('the trusted origins of a mobile app', () => {
   it('add the Capacitor origin of a granted request', () => {
     const mobile = mobileRequests()
     expect(trustedOrigins(mobile)(mobile.grant(request()))).toEqual([...fixed, 'capacitor://localhost'])
+  })
+})
+
+// The From address calls carry the person's session cookie, and a refresh spends their mailbox's token: another site
+// must not make them, so Better Auth's origin check answers 403 before the mailbox is read or anything is written.
+describe('the From address calls, with personal mail on', () => {
+  const withMail: CreateAuthOptions = { ...base, socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } }, personalMail: ['gmail'], encryptOAuthTokens: true }
+
+  it('are refused from another origin or a null one', async () => {
+    const refresh = vi.fn(async () => [])
+    const personalMailer = () => ({ send: vi.fn(), sender: vi.fn(), senders: vi.fn(), refresh })
+    const authOptions = betterAuthOptions(withMail, { ...resolved, personalMailer })
+    const database = memoryAdapter({ verification: [], sign_in_policy: [], session: [], user: [], account: [], mail_sender: [] })
+    const auth = betterAuth({ ...authOptions, database, advanced: { ...authOptions.advanced, disableOriginCheck: false } })
+    for (const path of ['refresh', 'add', 'update', 'remove', 'check']) {
+      // From the app itself the session is what fails: the origin is not what refuses it.
+      for (const origin of ['https://admin.example.com', 'https://other.example.com', 'null']) {
+        const response = await auth.handler(
+          new Request(`https://admin.example.com/api/auth/account/mail-senders/${path}`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin, cookie: '__Host-better-auth.session_token=stolen.signature' },
+            body: JSON.stringify({ id: 's1', address: 'billing@acme.example' }),
+          }),
+        )
+        expect(response.status, `${path} from ${origin}`).toBe(origin === 'https://admin.example.com' ? 401 : 403)
+      }
+    }
+    expect(refresh).not.toHaveBeenCalled()
   })
 })

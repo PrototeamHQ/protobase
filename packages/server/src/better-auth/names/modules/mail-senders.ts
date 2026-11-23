@@ -1,6 +1,6 @@
 import { own, type ModuleDeclaration } from '../declaration'
 
-/** The From addresses people enter for the mailbox they linked: one row per person and address. */
+/** The From addresses people send as through a mailbox connection: one row per connection and address, with what vouches for it. */
 export const mailSenders = {
   id: 'mail_senders',
   requires: ['auth'],
@@ -16,8 +16,15 @@ export const mailSenders = {
         signature: own('signature', { type: 'string', required: false }),
         is_default: own('isDefault', { type: 'boolean', required: true }),
         created_at: own('createdAt', { type: 'date', required: true }),
+        connection_id: own('connectionId', { type: 'string', required: false }),
+        address_key: own('addressKey', { type: 'string', required: false, input: false }),
+        typed_at: own('typedAt', { type: 'date', required: false }),
+        listed_at: own('listedAt', { type: 'date', required: false }),
+        provider_state: own('providerState', { type: 'string', required: false }),
+        provider_state_read_at: own('providerStateReadAt', { type: 'date', required: false }),
+        removed_at: own('removedAt', { type: 'date', required: false }),
       },
-      indexes: ['mail_sender_default_idx', 'mail_sender_shared_idx'],
+      indexes: ['mail_sender_default_idx', 'mail_sender_shared_idx', 'mail_sender_connection_address_uidx', 'mail_sender_user_address_idx'],
     },
   },
 } as const satisfies ModuleDeclaration

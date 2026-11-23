@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gmailSendScope } from './gmail'
+import { gmailSendScope, gmailSettingsScope } from './gmail'
 import { resolvePersonalMail } from './personal-mail-providers'
 
 describe('resolvePersonalMail', () => {
@@ -19,5 +19,21 @@ describe('resolvePersonalMail', () => {
   it('stops at startup when the linked accounts\' tokens would be stored in plain text, naming the setting', () => {
     expect(() => resolvePersonalMail(['gmail'], ['google'], false)).toThrow("auth.personalMail: the linked mailboxes' tokens would be stored in plain text; turn on auth.encryptOAuthTokens")
     expect(resolvePersonalMail([], ['google'], false)).toEqual([])
+  })
+})
+
+describe('resolvePersonalMail with added scopes', () => {
+  it('adds an optional scope the provider offers and keeps its listing ability', () => {
+    const [gmail] = resolvePersonalMail([{ provider: 'gmail', scopes: [gmailSettingsScope] }], ['google'], true)
+    expect(gmail).toMatchObject({ scopes: [gmailSendScope], addedScopes: [gmailSettingsScope] })
+    expect(gmail!.list_sender_addresses).toBeTypeOf('function')
+  })
+
+  it('adds none without them', () => {
+    expect(resolvePersonalMail(['gmail'], ['google'], true)[0]!.addedScopes).toEqual([])
+  })
+
+  it('stops at startup on a scope the provider does not offer, naming it', () => {
+    expect(() => resolvePersonalMail([{ provider: 'gmail', scopes: ['https://mail.google.com/'] }], ['google'], true)).toThrow('auth.personalMail: Gmail does not take the scope "https://mail.google.com/"; use one of https://www.googleapis.com/auth/gmail.settings.basic')
   })
 })

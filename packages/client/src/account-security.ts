@@ -130,12 +130,12 @@ export const accountSecurity = (client: BetterAuthClient) => ({
   },
 
   /**
-   * Starts linking a mailbox, such as Gmail through Google sign-in with leave to send mail: resolves with the provider's
-   * authorization URL, for the page to go to. The provider sends the browser back to `callbackURL`, with
-   * `?error=<code>` when the link did not go through.
+   * Starts linking a mailbox, such as Gmail through Google sign-in with leave to send mail and the optional scopes the
+   * app adds: resolves with the provider's authorization URL, for the page to go to. The provider sends the browser
+   * back to `callbackURL`, with `?error=<code>` when the link did not go through.
    */
   linkPersonalMail: async (link: PersonalMailLink, callbackURL: string) => {
-    const { data, error } = await client.linkSocial({ provider: link.provider, scopes: link.scopes, additionalParams: link.params, callbackURL, errorCallbackURL: callbackURL, disableRedirect: true })
+    const { data, error } = await client.linkSocial({ provider: link.provider, scopes: [...link.scopes, ...(link.optionalScopes ?? [])], additionalParams: link.params, callbackURL, errorCallbackURL: callbackURL, disableRedirect: true })
     if (error || !data?.url) throw authError(error, 'Could not start linking the mailbox')
     return data.url
   },

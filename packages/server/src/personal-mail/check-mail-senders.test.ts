@@ -4,7 +4,7 @@ import type { Session } from '../types'
 import { checkMailSenders } from './check-mail-senders'
 import type { MailSender } from './mail-sender'
 
-const anaSenders: MailSender[] = [{ address: 'Ana@Gmail.example', ownerId: 'ana' }, { address: 'billing@acme.example', name: 'Acme billing', ownerId: 'ana' }]
+const anaSenders: MailSender[] = [{ id: null, address: 'Ana@Gmail.example', ownerId: 'ana', state: 'verified' }, { id: 's1', address: 'billing@acme.example', name: 'Acme billing', ownerId: 'ana', state: 'unverified' }]
 
 const accessFor = (session: Partial<Session>, mailSenders?: (userId: string) => Promise<MailSender[]>) =>
   ({

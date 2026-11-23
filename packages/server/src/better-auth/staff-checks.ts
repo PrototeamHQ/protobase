@@ -102,8 +102,9 @@ const accountChanges = [
   '/account/mail-senders/add',
   '/account/mail-senders/update',
   '/account/mail-senders/remove',
-  // A check sends a test message through the person's mailbox.
+  // A check sends a test message through the person's mailbox, and a refresh reads its send-as addresses.
   '/account/mail-senders/check',
+  '/account/mail-senders/refresh',
 ]
 
 export const staffCannotChange: StaffRefusal = { code: 'STAFF_CANNOT_CHANGE_SIGN_IN', message: "Staff cannot change a person's sign-in or the sign-in policy." }

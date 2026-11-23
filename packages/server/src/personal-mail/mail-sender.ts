@@ -1,44 +1,68 @@
 import { MailSenderRefusedError } from './mail-sender-refused'
-import type { MailSenderRow, MailSenderStore } from './sender-store'
+import type { MailboxConnection } from './mailbox-connections'
+import { SenderAddressError } from './sender-address-error'
+import { senderRowState, type SenderAddressState } from './sender-address-state'
+import type { MailSenderRow } from './sender-store'
 
 /**
- * A From address someone may send mail from: `address`, unknown when it is the mailbox's own and the link does not name
- * it; the display `name` its owner entered, if any; `ownerId`, whose mailbox it goes out through; and its own
- * `signature`, if it has one.
+ * A From address someone may send mail from: `id`, the record a send names (`sender_address_id`), null for the
+ * mailbox's own address, which goes out with no From header, so the provider fills in its own; `address`, unknown
+ * when it is the mailbox's own and the link does not name it; the display `name` its owner entered, if any; `ownerId`,
+ * whose mailbox it goes out through; its own `signature`, if it has one; and its `state` (`SenderAddressState`). The
+ * mailbox's own address is `verified`: the provider's sign-in vouches for it.
  */
-export type MailSender = { address?: string; name?: string; ownerId: string; signature?: string }
+export type MailSender = { id: string | null; address?: string; name?: string; ownerId: string; signature?: string; state: SenderAddressState }
 
-const senderOf = (row: MailSenderRow): MailSender => ({
+/** The person's rows and connections, as resolving a From address reads them. */
+export type SenderBook = { userId: string; rows: MailSenderRow[]; connections: MailboxConnection[]; ownAddress?: string }
+
+const connected = (book: SenderBook, row: MailSenderRow) => book.connections.some(({ account }) => account.id === row.connectionId)
+
+/** The state of a row of `book`'s (`senderRowState`). */
+export const stateIn = (book: SenderBook, row: MailSenderRow) => senderRowState(row, connected(book, row))
+
+/** The rows a person may choose: neither removed nor detached, oldest first. */
+export const usableRows = (book: SenderBook) =>
+  book.rows.flatMap((row) => {
+    const state = stateIn(book, row)
+    return state === 'removed' || state === 'detached' ? [] : [{ row, state }]
+  })
+
+export const senderOf = (row: MailSenderRow, state: SenderAddressState): MailSender => ({
+  id: row.id,
   address: row.address,
   ...(row.name && { name: row.name }),
   ownerId: row.userId,
   ...(row.signature && { signature: row.signature }),
+  state,
 })
 
+const mailboxSender = (book: SenderBook): MailSender => ({ id: null, ...(book.ownAddress && { address: book.ownAddress }), ownerId: book.userId, state: 'verified' })
+
+const sameAddress = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
+
 /**
- * The sender `userId` sends as with `from`, matched without regard to case: an address they entered; else their
- * mailbox's own address (`ownAddress`). Without `from`, their default address, else their mailbox's own. Refuses with
- * `MailSenderRefusedError` any other address, one someone else entered included.
+ * The sender `book`'s person sends as for `address`, matched without regard to case: one of their usable records;
+ * else their mailbox's own address. Without `address`, their default record, else their mailbox's own. Refuses with
+ * `MailSenderRefusedError` any other address, one someone else entered included, and with `sender_address_ambiguous`
+ * one that is a record on more than one of their connections.
  */
-export const chooseSender = async (senders: MailSenderStore, userId: string, ownAddress: () => Promise<string | undefined>, from?: string): Promise<MailSender> => {
-  const own = await senders.ofUser(userId)
-  if (from === undefined) {
-    const chosen = own.find((row) => row.isDefault)
-    if (chosen) return senderOf(chosen)
-    const address = await ownAddress()
-    return { ...(address && { address }), ownerId: userId }
+export const chooseSender = (book: SenderBook, address?: string): MailSender => {
+  const usable = usableRows(book)
+  if (address === undefined) {
+    const chosen = usable.find(({ row }) => row.isDefault)
+    return chosen ? senderOf(chosen.row, chosen.state) : mailboxSender(book)
   }
-  const address = from.trim().toLowerCase()
-  const entered = own.find((row) => row.address === address)
-  if (entered) return senderOf(entered)
-  const mailbox = await ownAddress()
-  if (mailbox && mailbox.toLowerCase() === address) return { address: mailbox, ownerId: userId }
-  throw new MailSenderRefusedError(from)
+  const matching = usable.filter(({ row }) => sameAddress(row.address, address))
+  if (matching.length > 1) throw new SenderAddressError('sender_address_ambiguous')
+  if (matching[0]) return senderOf(matching[0].row, matching[0].state)
+  if (book.ownAddress && sameAddress(book.ownAddress, address)) return mailboxSender(book)
+  throw new MailSenderRefusedError(address)
 }
 
-/** Every sender `userId` may choose: their mailbox's own address, when the link names it, then those they entered. */
-export const usableSenders = async (senders: MailSenderStore, userId: string, ownAddress: () => Promise<string | undefined>): Promise<MailSender[]> => {
-  const [own, mailbox] = await Promise.all([senders.ofUser(userId), ownAddress()])
-  const mailboxSender = mailbox && !own.some((row) => row.address === mailbox.toLowerCase()) ? [{ address: mailbox, ownerId: userId }] : []
-  return [...mailboxSender, ...own.map(senderOf)]
+/** Every sender the person may choose: their mailbox's own address, when the link names it and no record holds it, then their records. */
+export const usableSenders = (book: SenderBook): MailSender[] => {
+  const usable = usableRows(book)
+  const own = book.ownAddress && !usable.some(({ row }) => sameAddress(row.address, book.ownAddress!)) ? [mailboxSender(book)] : []
+  return [...own, ...usable.map(({ row, state }) => senderOf(row, state))]
 }

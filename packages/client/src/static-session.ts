@@ -58,6 +58,7 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
     addMailSender: unsupported('add a From address'),
     updateMailSender: unsupported('change a From address'),
     removeMailSender: unsupported('remove a From address'),
+    refreshMailSenders: async () => [],
     checkMailSender: unsupported('check a From address'),
     mailSenderCheckResult: unsupported('check a From address'),
     workflowConnections: async () => [],

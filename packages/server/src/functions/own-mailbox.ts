@@ -12,4 +12,5 @@ export const ownMailbox = (session: Session, personalMailer: (userId: string) =>
   send: async (message) => personalMailer(ownSignInUser(session, purpose)).send(message),
   sender: async (from) => personalMailer(ownSignInUser(session, purpose)).sender(from),
   senders: async () => personalMailer(ownSignInUser(session, purpose)).senders(),
+  refresh: async () => personalMailer(ownSignInUser(session, purpose)).refresh(),
 })
