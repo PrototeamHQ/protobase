@@ -656,10 +656,10 @@ The standard record page, with the layout's sections, the related records, Edit 
 ### Conversation pages
 
 :::caution[Beta]
-A conversation page shows each message's text with its mentions and keeps line breaks, without markdown, and a deleted message leaves no trace in its place.
+A conversation page shows each message's text with its mentions and markdown, and a deleted message leaves no trace in its place.
 :::
 
-`.record({ conversation })` makes the record page the record's conversation, for a record that holds one, such as a chat channel, a direct message or a support case, with no component of the app's own. It fills the content area as a [full-area record page](#full-area-record-pages) does, on the web and at mobile width: a header row, the messages that point at the record, and a box that sends one, which stays in view while the messages scroll above it.
+`.record({ conversation })` makes the record page the record's conversation, for a record that holds one, such as a chat channel, a direct message or a support case, with no component of the app's own. It fills the content area as a [full-area record page](#full-area-record-pages) does, on the web and at mobile width: a header row, the messages that point at the record, and a box that sends one, which stays in view while the messages scroll above it. The messages it opens on, and a thread's, show once their reactions, files and formatted text are ready, and an image whose `width` and `height` are stored keeps its room while it loads, so nothing moves under the reader while the page loads. <gap>An image without a stored `width` and `height` cannot keep its room while it loads because reading an image's size before it loads is not implemented.</gap>
 
 ```ts
 view<typeof channels>('channels').record({
@@ -768,7 +768,7 @@ The header shows *Start call* while no call goes on, and "Call in progress · 3 
 
 <gap>A conversation page cannot offer *Edit* when its `sender` is a relation because matching a related record to the reader is not implemented; a `sender` of user ids, such as the resource's `.author()`, gets it.</gap>
 
-<gap>A conversation page cannot open at a given message, such as a search result, because opening a conversation at a message is not implemented.</gap> <gap>A conversation page cannot show a message's markdown because rendering markdown together with mentions is not implemented.</gap>
+<gap>A conversation page cannot open at a given message, such as a search result, because opening a conversation at a message is not implemented.</gap>
 
 ### Focus pages
 

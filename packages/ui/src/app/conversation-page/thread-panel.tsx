@@ -3,7 +3,7 @@ import { ChatDivider, ChatThread } from '../../chat'
 import { useList } from '../../data/use-list'
 import { recordKey as keyOf } from '../../live/model-helpers'
 import { listLabels, withLabels } from '../../live/relation-labels'
-import type { PeopleSearch } from '../../mentions'
+import { MentionedText, type PeopleSearch } from '../../mentions'
 import { SidePanel } from '../../side-panel'
 import { authorOf } from '../conversation/thread-items'
 import { MessageComposer } from '../conversation/message-composer'
@@ -18,6 +18,7 @@ import { ConversationMessage } from './conversation-message'
 import { repliesRequest } from './conversation-reads'
 import { conversationRows } from './conversation-rows'
 import { useMessageSetup } from './use-message-setup'
+import { useOnceReady } from './use-once-ready'
 import { useThreadHead } from './use-thread-head'
 import { text } from './messages'
 
@@ -51,8 +52,11 @@ export const ThreadPanel = ({ page, owner, recordKey, first, me, searchPeople, t
   const list = useList(page.resource, { ...repliesRequest(page, page.thread, first), labels: listLabels(resources, views, model, senders) })
   const oldestFirst = withLabels(resources, model, senders, list.items, list.labels).reverse()
   const key = (row: Record<string, unknown>) => String(keyOf(model, row))
-  const { setup, reactionsError, attachmentsError } = useMessageSetup({ page, me, pages: [[first], ...(list.data?.pages ?? []).map((read) => read.items.map(key))], searchPeople })
+  const { setup, reading, reactionsError, attachmentsError } = useMessageSetup({ page, me, pages: [[first], ...(list.data?.pages ?? []).map((read) => read.items.map(key))], searchPeople })
   const headRow = head.row
+  // The thread shows once its messages' reactions and files are read and the text's renderer has loaded, so nothing in it moves down as they arrive
+  const textLoaded = MentionedText.useLoaded()
+  const loaded = useOnceReady(!!headRow && !list.isLoading && !reading && textLoaded)
   const error = head.error ?? list.error ?? reactionsError ?? attachmentsError
   const rows = conversationRows(oldestFirst, { key, sender: page.sender, time: page.time })
   const own = rows.findLast((line) => line.kind === 'message' && me !== undefined && line.author.id === me)
@@ -83,7 +87,7 @@ export const ThreadPanel = ({ page, owner, recordKey, first, me, searchPeople, t
       {error && <div className="shrink-0 p-2"><ErrorBanner title={text('couldNotLoadThread')} error={error} /></div>}
       {head.elsewhere ? (
         <div className="flex-1 p-4"><Quiet>{text('threadElsewhere')}</Quiet></div>
-      ) : !headRow || list.isLoading ? (
+      ) : !headRow || !loaded ? (
         <div className="flex-1 p-4"><Quiet>{text('loadingMessages')}</Quiet></div>
       ) : (
         <ChatThread length={oldestFirst.length + 1} followKey={own?.key} onLoadEarlier={list.hasNextPage ? () => void list.fetchNextPage() : undefined} loadingEarlier={list.isFetchingNextPage}>

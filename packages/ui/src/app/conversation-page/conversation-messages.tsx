@@ -3,7 +3,7 @@ import { ChatDivider, ChatThread } from '../../chat'
 import { useList } from '../../data/use-list'
 import { recordKey as keyOf } from '../../live/model-helpers'
 import { listLabels, withLabels } from '../../live/relation-labels'
-import type { PeopleSearch } from '../../mentions'
+import { MentionedText, type PeopleSearch } from '../../mentions'
 import { ErrorBanner } from '../error-banner'
 import { useAdminMeta } from '../meta-gate'
 import { Quiet } from '../pages/blocks/card-frame'
@@ -13,6 +13,7 @@ import { messagesRequest } from './conversation-reads'
 import { conversationRows, firstUnreadKey, highestKey } from './conversation-rows'
 import { useMessageSetup } from './use-message-setup'
 import { useNewLine } from './use-new-line'
+import { useOnceReady } from './use-once-ready'
 import { text } from './messages'
 
 type Props = {
@@ -33,7 +34,8 @@ type Props = {
  * senders' names in the same read, kept current as the live updates tell of new, changed and deleted ones. They show
  * once the read position is there too, so they open on the "New messages" line, and reading to the end moves it. They
  * scroll in a box of their own, so the box that sends one stays in view. Their reactions and files are read a page at a
- * time.
+ * time; the first messages show only once theirs are read and the text's renderer has loaded, so nothing they open on
+ * moves down as those arrive.
  */
 export const ConversationMessages = ({ page, model, recordKey, me, position, threadTo, searchPeople }: Props) => {
   const { resources, views } = useAdminMeta()
@@ -41,9 +43,10 @@ export const ConversationMessages = ({ page, model, recordKey, me, position, thr
   const list = useList(model.name, { ...messagesRequest(page, recordKey), labels: listLabels(resources, views, model, senders) })
   const oldestFirst = withLabels(resources, model, senders, list.items, list.labels).reverse()
   const key = (row: Record<string, unknown>) => String(keyOf(model, row))
-  const { setup, reactionsError, attachmentsError } = useMessageSetup({ page, me, pages: (list.data?.pages ?? []).map((read) => read.items.map(key)), threadTo, searchPeople })
+  const { setup, reading, reactionsError, attachmentsError } = useMessageSetup({ page, me, pages: (list.data?.pages ?? []).map((read) => read.items.map(key)), threadTo, searchPeople })
+  const textLoaded = MentionedText.useLoaded()
   const state = threadState(list)
-  const loaded = state === 'messages' && !list.isLoading && position.ready
+  const loaded = useOnceReady(state === 'messages' && !list.isLoading && position.ready && !reading && textLoaded)
   const newLineAbove = useNewLine(loaded && oldestFirst.length > 0 && position.openedAt !== undefined && me !== undefined, () =>
     firstUnreadKey(oldestFirst, { key, sender: page.sender }, position.openedAt!, me!, list.hasNextPage),
   )
