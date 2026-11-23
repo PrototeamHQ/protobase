@@ -42,7 +42,7 @@ export default defineConfig(({ env }) => ({
 | `channels.<resource>.members` | Where the channel's members come from: a resource whose records each put one person in one channel, with its relation field to the channel resource (`channel`) and its field of the person's user id (`user`). Index both columns: tickets read by the user, notices by the channel. Without `members`, the channel is open: a channel of a public record, which tickets list when asked (see [Tickets](#tickets)). |
 | `channels.<resource>.mentions` | A field of the records noticed on the channel that lists the user ids they mention, an array or one id, which [notices](#notices) carry. |
 | `channels.<resource>.events` | The [events](#client-events) the channel's members may send each other, by name, each with its payload's `schema`, its `maxBytes` and the rate one person may send it at, `perSecond` in bursts of `burst`. |
-| `presence` | Turns on [presence](#presence): the app's own resource it is kept in, its fields of the person's user id (`user`), the status (`status`) and when it began (`at`), and the bearer token of the relay's reports (`key`), at least 32 characters, which defaults to [`PROTOBASE_RELAY_PRESENCE_KEY`](#from-the-platform). |
+| `presence` | Turns on [presence](#presence): the app's own resource it is kept in, its fields of the person's user id (`user`), the status (`status`) and when it began (`at`), and the bearer token of the relay's reports (`key`), at least 32 characters, which defaults to [`PROTOBASE_REALTIME_PRESENCE_KEY`](#from-the-platform). |
 
 The relay needs the app's own [sign-in](/reference/auth/), whose sessions its tickets name, with its store in the app's own database, as the `auth` config puts it: an auth store in another database is refused. A members resource's changes must be captured, so declare [`.live()`](/reference/live/) on it; the relay hears of the changes of every resource whose changes are captured, such as a live one, that is a channel resource or has a relation field to one. [`protobase migration`](/reference/cli/#migration) writes the trigger that ends a deleted session's sockets, in the `relay` schema, after the auth store's steps when the same file writes them, so a new app's first migration sets up both; the server checks it at start.
 
@@ -50,21 +50,21 @@ The relay needs the app's own [sign-in](/reference/auth/), whose sessions its ti
 
 ### From the platform
 
-An app on a platform that runs the relay picks up its address and keys from the environment, so its config names only its channels:
+An app on a platform that runs the relay, Protobase Realtime, picks up its address and keys from the environment, so its config names only its channels:
 
 | Variable | Default of |
 | --- | --- |
-| `PROTOBASE_RELAY_URL` | `url` |
-| `PROTOBASE_RELAY_APP` | `app` |
-| `PROTOBASE_RELAY_API_KEY` | `apiKey` |
-| `PROTOBASE_RELAY_TICKET_KEY` | `ticketKey` |
-| `PROTOBASE_RELAY_PRESENCE_KEY` | `presence.key` |
+| `PROTOBASE_REALTIME_URL` | `url` |
+| `PROTOBASE_REALTIME_APP` | `app` |
+| `PROTOBASE_REALTIME_API_KEY` | `apiKey` |
+| `PROTOBASE_REALTIME_TICKET_KEY` | `ticketKey` |
+| `PROTOBASE_REALTIME_PRESENCE_KEY` | `presence.key` |
 
 Each is a default on its own: a value in the config wins, and a key that neither sets stops the server at start, naming the key and its variable. The relay stays off without `realtime.relay` in the config, however many of these are set: the app turns it on by declaring its channels.
 
-`PROTOBASE_RELAY_ENABLED` is the platform's switch: `true` when its apps file carries the app's entry, `false`, or unset or empty, otherwise; any other value stops the server at start, naming it. A config with `realtime.relay` uses the relay whatever it says. `true` without `realtime.relay` stops the server at start, as the channels and their members come only from the config. <gap>An app without `realtime.relay` cannot move to the relay with `PROTOBASE_RELAY_ENABLED` because deriving its channels and their members from its conversation pages is not implemented.</gap>
+`PROTOBASE_REALTIME_ENABLED` is the platform's switch: `true` when its apps file carries the app's entry, `false`, or unset or empty, otherwise; any other value stops the server at start, naming it. A config with `realtime.relay` uses the relay whatever it says. `true` without `realtime.relay` stops the server at start, as the channels and their members come only from the config. <gap>An app without `realtime.relay` cannot move to the relay with `PROTOBASE_REALTIME_ENABLED` because deriving its channels and their members from its conversation pages is not implemented.</gap>
 
-[`protobase build`](/reference/cli/#the-manifest) writes the app's part of its apps file entry into the bundle's manifest, as `relay`: its `client_events` and, with presence, the presence endpoint's path and `grace_seconds`, without the address, id or any key. A platform reads it from each build and completes the entry with the app's id, keys, origin and presence key, and the endpoint at the app's address.
+[`protobase build`](/reference/cli/#the-manifest) writes the app's part of its apps file entry into the bundle's manifest, as `realtime`: its `client_events` and, with presence, the presence endpoint's path and `grace_seconds`, without the address, id or any key. A platform reads it from each build and completes the entry with the app's id, keys, origin and presence key, and the endpoint at the app's address.
 
 ```ts
 export default defineConfig({
@@ -126,7 +126,7 @@ The resource is keyed by its user field, its status field is text or an enum of 
 
 Only the relay writes the records, so give no role `presences.create`, `presences.update` or `presences.delete`: whoever may write one can set anyone's presence and raise its events. A role that reads the resource reads the presence of everyone its rows allow, which can reach further than `people` does, so grant `presences.read` no wider than that.
 
-The relay posts its reports to `POST /api/relay/presence` with the presence key as its bearer token, never a sign-in; the [apps file entry](/reference/cli/#relay-app) names the address. A report holds at most 500 changes, each a person's status and when it began. The app writes them in one statement, which replaces a record's status only with one that began later, and answers `204`: a report the relay sends again, or one that arrives late, changes nothing. A report with a missing or wrong key is refused with `401` before its body is read. To change the key, change it in the config, or `PROTOBASE_RELAY_PRESENCE_KEY`, and in the apps file; the relay sends a refused report again, waiting up to a minute between tries, until the app takes it, so no change is lost. When the relay restarted, which a report says with its start time, everyone it has not reported since and who is not offline yet is set offline as of that start, once in each server process for each start; the relay sends no report until someone's status changes, so this waits for the first one.
+The relay posts its reports to `POST /api/relay/presence` with the presence key as its bearer token, never a sign-in; the [apps file entry](/reference/cli/#relay-app) names the address. A report holds at most 500 changes, each a person's status and when it began. The app writes them in one statement, which replaces a record's status only with one that began later, and answers `204`: a report the relay sends again, or one that arrives late, changes nothing. A report with a missing or wrong key is refused with `401` before its body is read. To change the key, change it in the config, or `PROTOBASE_REALTIME_PRESENCE_KEY`, and in the apps file; the relay sends a refused report again, waiting up to a minute between tries, until the app takes it, so no change is lost. When the relay restarted, which a report says with its start time, everyone it has not reported since and who is not offline yet is set offline as of that start, once in each server process for each start; the relay sends no report until someone's status changes, so this waits for the first one.
 
 Each write goes through the resource's table, so its changes raise the resource's [events](/reference/events/), [webhooks](/reference/webhooks/) and [workflows](/reference/workflows/) as any other record's do, such as a workflow on `presences.wentOffline`. An offline report raises its event once.
 

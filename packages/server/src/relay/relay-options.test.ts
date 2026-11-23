@@ -8,15 +8,15 @@ describe('checkRelayOptions', () => {
   })
 
   it('refuses an address that is no http(s) URL', () => {
-    expect(() => checkRelayOptions({ ...chatRelay, url: 'relay.example.com' })).toThrow('realtime.relay.url or PROTOBASE_RELAY_URL must start with https:// or http://')
+    expect(() => checkRelayOptions({ ...chatRelay, url: 'relay.example.com' })).toThrow('realtime.relay.url or PROTOBASE_REALTIME_URL must start with https:// or http://')
   })
 
   it('refuses an app id the relay would not take', () => {
-    expect(() => checkRelayOptions({ ...chatRelay, app: 'Chat App' })).toThrow('realtime.relay.app or PROTOBASE_RELAY_APP must be 1 to 64 of a-z')
+    expect(() => checkRelayOptions({ ...chatRelay, app: 'Chat App' })).toThrow('realtime.relay.app or PROTOBASE_REALTIME_APP must be 1 to 64 of a-z')
   })
 
   it('refuses a key shorter than the relay takes', () => {
-    expect(() => checkRelayOptions({ ...chatRelay, ticketKey: 'short' })).toThrow('realtime.relay.ticketKey or PROTOBASE_RELAY_TICKET_KEY must be a string of at least 32 characters')
+    expect(() => checkRelayOptions({ ...chatRelay, ticketKey: 'short' })).toThrow('realtime.relay.ticketKey or PROTOBASE_REALTIME_TICKET_KEY must be a string of at least 32 characters')
   })
 
   it('refuses options without channel resources', () => {
@@ -33,7 +33,7 @@ describe('checkRelayOptions', () => {
     const presence = { resource: 'presences', user: 'user_id', status: 'status', at: 'since', key: 'p'.repeat(32) }
     expect(checkRelayOptions({ ...chatRelay, presence }).presence).toBe(presence)
     expect(() => checkRelayOptions({ ...chatRelay, presence: { ...presence, at: '' } })).toThrow('realtime.relay.presence must be { resource, user, status, at, key }')
-    expect(() => checkRelayOptions({ ...chatRelay, presence: { ...presence, key: 'short' } })).toThrow('realtime.relay.presence.key or PROTOBASE_RELAY_PRESENCE_KEY must be a string of at least 32 characters')
+    expect(() => checkRelayOptions({ ...chatRelay, presence: { ...presence, key: 'short' } })).toThrow('realtime.relay.presence.key or PROTOBASE_REALTIME_PRESENCE_KEY must be a string of at least 32 characters')
   })
 })
 
@@ -73,10 +73,10 @@ describe('checkRelayOptions of client events', () => {
 
 describe('relaySettings', () => {
   const { url, app, apiKey, ticketKey, ...ownOptions } = chatRelay
-  const env = { PROTOBASE_RELAY_URL: 'https://relay.platform.example', PROTOBASE_RELAY_APP: 'platform-chat', PROTOBASE_RELAY_API_KEY: 'a'.repeat(32), PROTOBASE_RELAY_TICKET_KEY: 'b'.repeat(32) }
+  const env = { PROTOBASE_REALTIME_URL: 'https://relay.platform.example', PROTOBASE_REALTIME_APP: 'platform-chat', PROTOBASE_REALTIME_API_KEY: 'a'.repeat(32), PROTOBASE_REALTIME_TICKET_KEY: 'b'.repeat(32) }
 
   it("takes the address, id and keys the config leaves out from the platform's variables", () => {
-    expect(relaySettings(ownOptions, env)).toEqual({ ...ownOptions, url: env.PROTOBASE_RELAY_URL, app: 'platform-chat', apiKey: 'a'.repeat(32), ticketKey: 'b'.repeat(32) })
+    expect(relaySettings(ownOptions, env)).toEqual({ ...ownOptions, url: env.PROTOBASE_REALTIME_URL, app: 'platform-chat', apiKey: 'a'.repeat(32), ticketKey: 'b'.repeat(32) })
   })
 
   it('takes each one on its own, a value in the config winning', () => {
@@ -85,13 +85,13 @@ describe('relaySettings', () => {
   })
 
   it('names the key and its variable when neither sets it', () => {
-    expect(() => relaySettings({ ...ownOptions, url, app, apiKey }, {})).toThrow('realtime.relay.ticketKey or PROTOBASE_RELAY_TICKET_KEY must be a string of at least 32 characters')
-    expect(() => relaySettings({ ...ownOptions, app, apiKey, ticketKey }, {})).toThrow('realtime.relay.url or PROTOBASE_RELAY_URL must start with https:// or http://')
+    expect(() => relaySettings({ ...ownOptions, url, app, apiKey }, {})).toThrow('realtime.relay.ticketKey or PROTOBASE_REALTIME_TICKET_KEY must be a string of at least 32 characters')
+    expect(() => relaySettings({ ...ownOptions, app, apiKey, ticketKey }, {})).toThrow('realtime.relay.url or PROTOBASE_REALTIME_URL must start with https:// or http://')
   })
 
   describe('of the presence key', () => {
     const presence = { resource: 'presences', user: 'user_id', status: 'status', at: 'since' }
-    const withKey = { ...env, PROTOBASE_RELAY_PRESENCE_KEY: 'p'.repeat(32) }
+    const withKey = { ...env, PROTOBASE_REALTIME_PRESENCE_KEY: 'p'.repeat(32) }
 
     it("takes the presence key from the platform's variable when the config leaves it out", () => {
       expect(relaySettings({ ...ownOptions, presence }, withKey).presence).toEqual({ ...presence, key: 'p'.repeat(32) })
@@ -102,7 +102,7 @@ describe('relaySettings', () => {
     })
 
     it('names the key and its variable when neither sets it', () => {
-      expect(() => relaySettings({ ...ownOptions, presence }, env)).toThrow('realtime.relay.presence.key or PROTOBASE_RELAY_PRESENCE_KEY must be a string of at least 32 characters')
+      expect(() => relaySettings({ ...ownOptions, presence }, env)).toThrow('realtime.relay.presence.key or PROTOBASE_REALTIME_PRESENCE_KEY must be a string of at least 32 characters')
     })
   })
 })

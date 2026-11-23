@@ -39,13 +39,13 @@ describe('parseManifest', () => {
     expect(parseManifest({ ...manifest, mobile: { plugins: {} } }, 'm.json')).toEqual({ ...manifest, mobile: { plugins: {} } })
   })
 
-  it("keeps the app's part of its relay entry", () => {
+  it("keeps the app's part of its Realtime entry", () => {
     const typing = { schema: { type: 'object' }, max_bytes: 256, per_second: 2, burst: 4 }
-    const relay = { client_events: { channels: { conversations: { events: { typing } } } }, presence: { path: '/api/relay/presence', grace_seconds: 30 } }
-    expect(parseManifest({ ...manifest, relay }, 'm.json')).toEqual({ ...manifest, relay })
-    expect(parseManifest({ ...manifest, relay: {} }, 'm.json')).toEqual({ ...manifest, relay: {} })
-    expect(() => parseManifest({ ...manifest, relay: { presence: { path: '/api/relay/presence' } } }, 'm.json')).toThrow('m.json has a relay that is not { client_events, presence }')
-    expect(() => parseManifest({ ...manifest, relay: { client_events: [] } }, 'm.json')).toThrow('m.json has a relay that is not { client_events, presence }')
+    const realtime = { client_events: { channels: { conversations: { events: { typing } } } }, presence: { path: '/api/relay/presence', grace_seconds: 30 } }
+    expect(parseManifest({ ...manifest, realtime }, 'm.json')).toEqual({ ...manifest, realtime })
+    expect(parseManifest({ ...manifest, realtime: {} }, 'm.json')).toEqual({ ...manifest, realtime: {} })
+    expect(() => parseManifest({ ...manifest, realtime: { presence: { path: '/api/relay/presence' } } }, 'm.json')).toThrow('m.json has a realtime that is not { client_events, presence }')
+    expect(() => parseManifest({ ...manifest, realtime: { client_events: [] } }, 'm.json')).toThrow('m.json has a realtime that is not { client_events, presence }')
   })
 
   it('keeps when the bundle and its shell were built', () => {
