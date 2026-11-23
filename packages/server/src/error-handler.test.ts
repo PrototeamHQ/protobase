@@ -46,6 +46,8 @@ describe('the error handler while the database or its pooler restarts', () => {
     ['08P01', 'server shutting down'],
     ['08P01', 'server login has been failing, cached error: the database system is in recovery mode (server_login_retry)'],
     ['08P01', 'server login has been failing, cached error: the database system is starting up'],
+    ['08P01', 'server login has been failing, cached error: the database system is not yet accepting connections (server_login_retry)'],
+    ['08P01', 'server login has been failing, cached error: the database system is not yet accepting connections'],
   ])('answers SQLSTATE %s with 503 and Retry-After, and reports nothing', async (code, message) => {
     const { response, body, reported } = await answer(databaseError(message, code))
     expect(response.status).toBe(503)
