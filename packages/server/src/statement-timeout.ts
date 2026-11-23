@@ -24,14 +24,17 @@ export type QueryLimit = { kind: 'request'; ms: number } | { kind: 'database' } 
 
 const seconds = (ms: number) => `${ms / 1000} s`
 
+/** Postgres counts a lock wait toward the timeout, so a fast query stuck behind another transaction is stopped too. */
+const lockWait = 'It may also have waited on a lock another transaction held, such as a migration while a deploy runs.'
+
 /** What ran too long (`subject`, such as `GET /api/v1/tasks`), the limit, and the ways out. */
 export const statementTimeoutDetail = (subject: string, limit: QueryLimit) => {
   if (limit.kind === 'long') {
-    return `${subject} ran a query longer than ${seconds(longQueryTimeoutMs)}, the most a query may run, so the database stopped it. Make the query faster, or split the work into smaller steps, such as a job per batch.`
+    return `${subject} ran a query longer than ${seconds(longQueryTimeoutMs)}, the most a query may run, so the database stopped it. ${lockWait} Make the query faster, or split the work into smaller steps, such as a job per batch.`
   }
   const over = limit.kind === 'request' ? seconds(limit.ms) : "the database's statement timeout"
   const longer = limit.kind === 'request' ? 'move the work into a function or job with longQueries: true' : 'give it longQueries: true'
-  return `${subject} ran a query longer than ${over}, so the database stopped it. Make the query faster, such as with an index or a narrower filter, or ${longer}, whose queries may run up to ${seconds(longQueryTimeoutMs)}.`
+  return `${subject} ran a query longer than ${over}, so the database stopped it. ${lockWait} Make the query faster, such as with an index or a narrower filter, or ${longer}, whose queries may run up to ${seconds(longQueryTimeoutMs)}.`
 }
 
 /** The 504 of a query Postgres stopped, whose detail already names what ran too long. */

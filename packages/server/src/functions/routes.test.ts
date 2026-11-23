@@ -76,7 +76,7 @@ describe('functionRoutes', () => {
     const response = await app.request('/api/functions/import/rows', as('ann', { method: 'POST' }))
     expect(response.status).toBe(504)
     const { detail } = await response.json()
-    expect(detail).toBe("POST /api/functions/import/rows ran a query longer than the database's statement timeout, so the database stopped it. Make the query faster, such as with an index or a narrower filter, or give it longQueries: true, whose queries may run up to 30 s.")
+    expect(detail).toBe("POST /api/functions/import/rows ran a query longer than the database's statement timeout, so the database stopped it. It may also have waited on a lock another transaction held, such as a migration while a deploy runs. Make the query faster, such as with an index or a narrower filter, or give it longQueries: true, whose queries may run up to 30 s.")
     expect(onUnhandledError).toHaveBeenCalledWith(expect.objectContaining({ message: detail }), expect.any(Request))
     expect(wake).toHaveBeenCalledOnce()
   })

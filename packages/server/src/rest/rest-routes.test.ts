@@ -39,7 +39,7 @@ describe('restRoutes on a query stopped at its statement timeout', () => {
       code: '57014',
       details: null,
       message: 'canceling statement due to statement timeout',
-      hint: 'GET /rpc/monthly_totals ran a query longer than 1 s, so the database stopped it. Make the query faster, such as with an index or a narrower filter, or move the work into a function or job with longQueries: true, whose queries may run up to 30 s.',
+      hint: 'GET /rpc/monthly_totals ran a query longer than 1 s, so the database stopped it. It may also have waited on a lock another transaction held, such as a migration while a deploy runs. Make the query faster, such as with an index or a narrower filter, or move the work into a function or job with longQueries: true, whose queries may run up to 30 s.',
     })
     expect(report).toHaveBeenCalledWith(expect.objectContaining({ status: 504, message: body.hint }), expect.any(Request))
   })
