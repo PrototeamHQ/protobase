@@ -65,7 +65,9 @@ describe('followRecordTyping', () => {
     fake.send.mockRejectedValueOnce(new ChannelRefusal('rate-limited', 'Too many'))
     expect(typing.send({ typing: true, thread: null })).toBe(true)
     expect(fake.send).toHaveBeenCalledWith('typing', { typing: true, thread: null })
-    await vi.runAllTimersAsync()
+    // The refused send is dropped in a microtask: running every timer instead would also run any timer another file of
+    // this worker left, which unit tests share.
+    await Promise.resolve()
     fake.hear({ event: 'typing', payload: { typing: true }, user: 'u2' })
     fake.setStatus({ state: 'joining' })
     expect(store.typers().size).toBe(0)
