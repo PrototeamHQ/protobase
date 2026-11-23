@@ -11,13 +11,15 @@ import { useSenderOptions, type SenderOptionsState } from './use-sender-options'
 type MailSenderSelectProps = { field: FieldModel; value: unknown; invalid?: boolean; onChange: (value: string) => void }
 
 // An address with its state beside it where the state changes the choice: a verified address, the usual case, and the
-// mailbox's own show none.
-const optionLabel = (option: SenderOption) =>
-  option.state && option.state !== 'verified' ? text('senderWithState', { label: senderLabel(option), state: senderState(option.state).label }) : senderLabel(option)
+// mailbox's own show none. One someone else shared says so.
+const optionLabel = (option: SenderOption) => {
+  if (option.shared) return text('senderWithState', { label: senderLabel(option), state: text('senderShared') })
+  return option.state && option.state !== 'verified' ? text('senderWithState', { label: senderLabel(option), state: senderState(option.state).label }) : senderLabel(option)
+}
 
 /**
- * A mail sender field's dropdown: the signed-in person's addresses, as `Name <address>` with their state, after the
- * empty choice, which sends from the sender's default. An address mail cannot go out from, as one its mailbox does not
+ * A mail sender field's dropdown: the signed-in person's addresses, as `Name <address>` with their state, then those
+ * others shared with them, after the empty choice, which sends from the sender's default. An address mail cannot go out from, as one its mailbox does not
  * list, shows but cannot be chosen, unless the record holds it already. A stored address they cannot send from still shows, marked not available with a
  * hint to their account page, and stays as it is until they choose another: saving other fields keeps it. While their
  * addresses are read it shows alone, so nothing moves when they come in.

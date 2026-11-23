@@ -12,7 +12,8 @@ export const mailSenderModel = 'mailSender'
  * display name, own signature and whether it is the owner's default are the owner's. What vouches for it has one
  * writer each: `typedAt` when its owner typed it; `listedAt`, `providerState` and `providerStateReadAt` from the
  * provider's last complete listing of the connection, `listedAt` empty when that listing did not hold it; `removedAt`
- * when its owner removed it. `shared` stays false: sharing waits until the owner can prove the address is theirs.
+ * when its owner removed it; `sharedAt` when its owner shared it with the app's other senders, none while it is theirs
+ * alone.
  */
 export type MailSenderRow = {
   id: string
@@ -20,7 +21,7 @@ export type MailSenderRow = {
   connectionId: string | null
   address: string
   name: string | null
-  shared: boolean
+  sharedAt: Date | null
   signature: string | null
   isDefault: boolean
   createdAt: Date
@@ -30,6 +31,18 @@ export type MailSenderRow = {
   providerStateReadAt: Date | null
   removedAt: Date | null
 }
+
+/**
+ * An address someone else shared, with what its state is derived from: the owner's account it goes out through, none
+ * when that is gone, and when the app's verifiers last proved it, by a verification that still counts.
+ */
+export type SharedSenderRow = MailSenderRow & {
+  account: { id: string; providerId: string; scope: string | null; createdAt: Date } | null
+  provedAt: Date | null
+}
+
+/** The addresses others shared with `userId`, oldest first, or the one of them `id` names (see `sharedSenderReader`). */
+export type SharedSenderReader = (userId: string, id?: string) => Promise<SharedSenderRow[]>
 
 /** An address as its owner types it, on the connection it goes out through. */
 export type TypedSender = { userId: string; connectionId: string; address: string; name: string | null; signature: string | null }
@@ -60,10 +73,14 @@ export type MailSenderStore = {
   change: (userId: string, id: string, change: SenderChange) => Promise<MailSenderRow | undefined>
   /** Makes none of the person's addresses their default. */
   clearDefault: (userId: string) => Promise<void>
-  /** Records that the person removed the address `id` at `at`; it is their default no longer. */
+  /** Records that the person removed the address `id` at `at`; it is their default no longer, and shared no longer. */
   remove: (userId: string, id: string, at: Date) => Promise<void>
+  /** Shares the person's address `id` with the app's other senders, as of `at` unless it is shared already; `null` unshares it. */
+  share: (userId: string, id: string, at: Date | null) => Promise<MailSenderRow | undefined>
   /** What the app's verifiers proved of the person's addresses, when it has any (see `verificationStore`). */
   proofsOf?: (userId: string) => Promise<SenderProof[]>
+  /** The addresses others shared with the person, or the one of them `id` names (see `sharedSenderReader`). */
+  sharedWith?: SharedSenderReader
 }
 
 const columns = (store: StoreSql) => {
@@ -75,7 +92,7 @@ const columns = (store: StoreSql) => {
     sql`${c.connection_id} as "connectionId"`,
     sql`${c.address} as address`,
     sql`${c.name} as name`,
-    sql`${c.shared} as shared`,
+    sql`${c.shared_at} as "sharedAt"`,
     sql`${c.signature} as signature`,
     sql`${c.is_default} as "isDefault"`,
     sql`${c.created_at} as "createdAt"`,
@@ -104,8 +121,8 @@ export const sqlSenderStore = (store: () => Promise<StoreSql>): MailSenderStore 
   type: async (sender, at) => {
     const s = await store()
     const { table, c, selected } = columns(s)
-    const { rows } = await sql<MailSenderRow>`insert into ${table} (id, ${c.user_id}, ${c.connection_id}, ${c.address}, ${c.name}, ${c.shared}, ${c.signature}, ${c.is_default}, ${c.created_at}, ${c.typed_at})
-values (${s.newId}, ${sender.userId}, ${sender.connectionId}, ${sender.address}, ${sender.name}, false, ${sender.signature}, false, ${at}, ${at})
+    const { rows } = await sql<MailSenderRow>`insert into ${table} (id, ${c.user_id}, ${c.connection_id}, ${c.address}, ${c.name}, ${c.signature}, ${c.is_default}, ${c.created_at}, ${c.typed_at})
+values (${s.newId}, ${sender.userId}, ${sender.connectionId}, ${sender.address}, ${sender.name}, ${sender.signature}, false, ${at}, ${at})
 on conflict (${c.connection_id}, ${c.address_key}) do update set ${c.typed_at} = greatest(excluded.${c.typed_at}, ${table}.${c.removed_at} + interval '1 millisecond'), ${c.name} = excluded.${c.name}, ${c.signature} = excluded.${c.signature}
 returning ${selected}`.execute(s.db)
     return rows[0]!
@@ -118,8 +135,8 @@ returning ${selected}`.execute(s.db)
     const states = listed.map(({ provider_state }) => provider_state ?? null)
     await sql`with listed (address, state) as (select * from unnest(${addresses}::text[], ${states}::text[])),
 upserted as (
-  insert into ${table} (id, ${c.user_id}, ${c.connection_id}, ${c.address}, ${c.shared}, ${c.is_default}, ${c.created_at}, ${c.listed_at}, ${c.provider_state}, ${c.provider_state_read_at})
-  select ${s.newId}, ${userId}, ${connectionId}, listed.address, false, false, ${readAt}, ${readAt}, listed.state, ${readAt} from listed
+  insert into ${table} (id, ${c.user_id}, ${c.connection_id}, ${c.address}, ${c.is_default}, ${c.created_at}, ${c.listed_at}, ${c.provider_state}, ${c.provider_state_read_at})
+  select ${s.newId}, ${userId}, ${connectionId}, listed.address, false, ${readAt}, ${readAt}, listed.state, ${readAt} from listed
   on conflict (${c.connection_id}, ${c.address_key}) do update set ${c.listed_at} = excluded.${c.listed_at}, ${c.provider_state} = excluded.${c.provider_state}, ${c.provider_state_read_at} = excluded.${c.provider_state_read_at}
   where ${table}.${c.provider_state_read_at} is null or ${table}.${c.provider_state_read_at} <= excluded.${c.provider_state_read_at}
   returning id
@@ -151,6 +168,13 @@ where ${c.connection_id} = ${connectionId} and ${c.user_id} = ${userId} and ${c.
   remove: async (userId, id, at) => {
     const s = await store()
     const { table, c } = columns(s)
-    await sql`update ${table} set ${c.removed_at} = ${at}, ${c.is_default} = false where id = ${id} and ${c.user_id} = ${userId}`.execute(s.db)
+    await sql`update ${table} set ${c.removed_at} = ${at}, ${c.is_default} = false, ${c.shared_at} = null where id = ${id} and ${c.user_id} = ${userId}`.execute(s.db)
+  },
+  share: async (userId, id, at) => {
+    const s = await store()
+    const { table, c, selected } = columns(s)
+    const sharedAt = at === null ? sql`null` : sql`coalesce(${c.shared_at}, ${at})`
+    const { rows } = await sql<MailSenderRow>`update ${table} set ${c.shared_at} = ${sharedAt} where id = ${id} and ${c.user_id} = ${userId} returning ${selected}`.execute(s.db)
+    return rows[0]
   },
 })

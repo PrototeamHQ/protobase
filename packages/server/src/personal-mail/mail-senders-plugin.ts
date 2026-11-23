@@ -14,6 +14,8 @@ import { stateIn } from './mail-sender'
 import { isRemoved } from './sender-address-state'
 import { senderAddressInput } from './sender-address-input'
 import { mailSenderModel, sqlSenderStore } from './sender-store'
+import type { SharedSenderReader } from './shared-sender-store'
+import { listedShared, usableShared } from './shared-senders'
 import { reportEndpoint } from './verifiers/report-endpoint'
 import type { SenderVerifications } from './verifiers/sender-verifications'
 
@@ -25,6 +27,8 @@ export const mailSenderPaths = {
   remove: '/account/mail-senders/remove',
   refresh: '/account/mail-senders/refresh',
   verify: '/account/mail-senders/verify',
+  share: '/account/mail-senders/share',
+  unshare: '/account/mail-senders/unshare',
 }
 
 /** The most addresses one person may have, well above the send-as addresses a mailbox has. */
@@ -40,6 +44,7 @@ const tooMany = { code: 'TOO_MANY_MAIL_SENDERS', message: `You can have at most 
 const taken = { code: 'MAIL_SENDER_EXISTS', message: 'You entered this address already.' }
 const notFound = { code: 'MAIL_SENDER_NOT_FOUND', message: 'This address is not one of yours.' }
 const noMailbox = { code: 'MAILBOX_NOT_FOUND', message: 'Connect a mailbox first.' }
+const notVerified = { code: 'MAIL_SENDER_NOT_VERIFIED', message: 'Only a verified address can be shared: prove it is yours first.' }
 
 // Better Auth's own path that disconnects one of the person's accounts, their mailbox's included.
 const unlinkPath = '/unlink-account'
@@ -90,8 +95,13 @@ const ownRow = <Row extends { id: string; typedAt: Date | null; removedAt: Date 
  * verification by each verifier; `POST /account/mail-senders/verify { id }` starts every verifier on one of the
  * person's addresses on a connection they can send through, and answers that address's `verifications`; and
  * `POST /mail-sender-verifications/report` settles one from outside (`reportEndpoint`). Without, neither path exists.
+ *
+ * `POST /account/mail-senders/share { id }` shares one of the person's addresses with the app's other senders, refused
+ * with a 409 `MAIL_SENDER_NOT_VERIFIED` unless it is `verified`; `POST /account/mail-senders/unshare { id }` makes it
+ * theirs alone again. The list answers, as `shared`, the verified addresses others shared with the person that are in
+ * reach (`sharedWith`), each by id, address and display name alone.
  */
-export const mailSendersPlugin = (providers: PersonalMailProvider[], names: BetterAuthNames, mailOf: (userId: string) => PersonalMail, inUse?: MailSenderUseCheck, verifications?: SenderVerifications) =>
+export const mailSendersPlugin = (providers: PersonalMailProvider[], names: BetterAuthNames, mailOf: (userId: string) => PersonalMail, inUse?: MailSenderUseCheck, verifications?: SenderVerifications, sharedWith?: SharedSenderReader) =>
   ({
     id: 'protobase-mail-senders',
     schema: names.tables(mailSenderModel),
@@ -112,8 +122,8 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[], names: Bett
     endpoints: {
       listMailSenders: createAuthEndpoint(mailSenderPaths.list, { method: 'GET', use: [sessionMiddleware] }, async (ctx) => {
         const { userId, book } = await bookOf(ctx, providers, verifications)
-        const latest = verifications ? await verifications.latestOf(userId) : undefined
-        return ctx.json({ ...listedMailSenders(book, latest), verifiers: Boolean(verifications) })
+        const [latest, shared] = await Promise.all([verifications ? verifications.latestOf(userId) : undefined, sharedWith ? sharedWith(userId) : []])
+        return ctx.json({ ...listedMailSenders(book, latest), shared: usableShared(shared, providers).map(listedShared), verifiers: Boolean(verifications) })
       }),
 
       addMailSender: createAuthEndpoint(
@@ -160,6 +170,24 @@ export const mailSendersPlugin = (providers: PersonalMailProvider[], names: Bett
       refreshMailSenders: createAuthEndpoint(mailSenderPaths.refresh, { method: 'POST', use: [sessionMiddleware] }, async (ctx) => {
         const connections = await mailOf(ctx.context.session.user.id).refresh()
         return ctx.json({ connections })
+      }),
+
+      shareMailSender: createAuthEndpoint(mailSenderPaths.share, { method: 'POST', use: [sessionMiddleware], body: z.object({ id: idField }) }, async (ctx) => {
+        const { userId, store, book } = await bookOf(ctx, providers, verifications)
+        const row = ownRow(book.rows, ctx.body.id)
+        // The same state the list shows, read now: a share records no proof of its own.
+        if (stateIn(book, row) !== 'verified') throw new APIError('CONFLICT', notVerified)
+        const shared = await store.share(userId, row.id, new Date())
+        if (!shared) throw new APIError('NOT_FOUND', notFound)
+        return ctx.json({ sender: listedSender(book, shared)! })
+      }),
+
+      unshareMailSender: createAuthEndpoint(mailSenderPaths.unshare, { method: 'POST', use: [sessionMiddleware], body: z.object({ id: idField }) }, async (ctx) => {
+        const { userId, store, book } = await bookOf(ctx, providers, verifications)
+        ownRow(book.rows, ctx.body.id)
+        const row = await store.share(userId, ctx.body.id, null)
+        if (!row) throw new APIError('NOT_FOUND', notFound)
+        return ctx.json({ sender: listedSender(book, row)! })
       }),
 
       ...(verifications && {

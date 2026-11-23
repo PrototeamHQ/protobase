@@ -23,6 +23,18 @@ describe('senderOptions', () => {
   })
 })
 
+describe('senderOptions with shared addresses', () => {
+  it('lists those others shared after the person’s own, marked shared, leaving out one the person holds too', () => {
+    const senders = [{ id: '1', address: 'billing@acme.example', isDefault: false, state: 'unverified' as const }]
+    const shared = [{ id: '9', address: 'team@acme.example', name: 'Acme team' }, { id: '8', address: 'Billing@acme.example' }]
+    expect(senderOptions({ address: 'ana@gmail.example', senders, shared })).toEqual([
+      { address: 'ana@gmail.example' },
+      { address: 'billing@acme.example', state: 'unverified' },
+      { address: 'team@acme.example', name: 'Acme team', shared: true },
+    ])
+  })
+})
+
 describe('senderLabel', () => {
   it('shows the display name before the address, as a From header does', () => {
     expect(senderLabel({ address: 'billing@acme.example', name: 'Acme billing' })).toBe('Acme billing <billing@acme.example>')

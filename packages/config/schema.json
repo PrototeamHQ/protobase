@@ -4716,6 +4716,16 @@
                     }
                   ]
                 },
+                "shared_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
                 "signature": {
                   "anyOf": [
                     {

@@ -92,6 +92,10 @@
     "fromName": "Name",
     "fromNamePlaceholder": "Shown beside the address, such as Acme Billing",
     "defaultFromAddress": "Send from this address unless another is chosen",
+    "shareFromAddress": "Share with the app's other senders",
+    "shareFromAddressHint": "They can then choose this address and send from it through your mailbox. Your own address and mailbox stay hidden from them.",
+    "shareNeedsVerified": "Only a verified address can be shared. Prove this one is yours first: check it with your mailbox, or verify it.",
+    "shared": "Shared",
     "signature": "Signature",
     "signaturePlaceholder": "Leave empty to use the generic signature",
     "removeFromAddress": "Remove {address}?",
@@ -2196,7 +2200,8 @@
     "stateUnverified": "Not checked",
     "stateFailed": "Can't send",
     "stateDetached": "No mailbox",
-    "senderWithState": "{label} · {state}"
+    "senderWithState": "{label} · {state}",
+    "senderShared": "shared"
   },
   "markdown": {
     "write": "Write",

@@ -13,9 +13,16 @@ export type MailSenderState = 'unverified' | 'pending' | 'verified' | 'failed' |
  * A From address of the person's, theirs alone, on one of their mailbox connections (`connection`, none when
  * detached): typed by them or listed by the mailbox's provider, such as a send-as address of their Gmail. The display
  * name the From header shows beside it, if any; its own signature, else the generic one applies; whether mail goes out
- * from it when the app names no address; its `state`; and when the provider's last listing held it (`listedAt`).
+ * from it when the app names no address; its `state`; when the provider's last listing held it (`listedAt`); and when
+ * they shared it with the app's other senders (`sharedAt`).
  */
-export type MailSender = { id: string; address: string; name?: string; signature?: string; isDefault: boolean; state: MailSenderState; connection?: string; listedAt?: string; verifications?: MailSenderVerification[] }
+export type MailSender = { id: string; address: string; name?: string; signature?: string; isDefault: boolean; state: MailSenderState; connection?: string; listedAt?: string; sharedAt?: string; verifications?: MailSenderVerification[] }
+
+/**
+ * A verified From address someone else shared with the person: they may send from it, through its owner's mailbox.
+ * It names nothing of its owner.
+ */
+export type SharedMailSender = { id: string; address: string; name?: string }
 
 /**
  * The latest verification of an address by one of the app's verifiers: `pending` until `expiresAt`; `verified` until
@@ -32,10 +39,11 @@ export type MailSenderVerification = { verifier: string; state: 'pending' | 'ver
 export type MailConnection = { id: string; provider: string; address?: string; canList: boolean; missingScopes: string[] }
 
 /**
- * The person's From addresses, their mailbox's own address when its link names it, their mailbox connections, and
- * whether the app has verifiers that prove mail from an address really goes out from it (`verifyMailSender`).
+ * The person's From addresses, their mailbox's own address when its link names it, their mailbox connections, whether
+ * the app has verifiers that prove mail from an address really goes out from it (`verifyMailSender`), and the
+ * addresses others shared with them (`shared`).
  */
-export type MailSenders = { address?: string; senders: MailSender[]; connections?: MailConnection[]; verifiers?: boolean }
+export type MailSenders = { address?: string; senders: MailSender[]; connections?: MailConnection[]; verifiers?: boolean; shared?: SharedMailSender[] }
 
 /**
  * How a refresh of one connection went: `listed`, its send-as addresses are read; `not_permitted`, its link lacks
@@ -84,6 +92,20 @@ export const accountMailSenders = (client: BetterAuthClient) => ({
     const { data, error } = await client.$fetch<{ connections: MailConnectionListing[] }>('/account/mail-senders/refresh', { method: 'POST', body: {} })
     if (error || !data) throw authError(error, 'Could not read your send-as addresses')
     return data.connections
+  },
+
+  /** Shares a verified address with the app's other senders, who may then send from it through the person's mailbox. */
+  shareMailSender: async (id: string): Promise<MailSender> => {
+    const { data, error } = await client.$fetch<{ sender: MailSender }>('/account/mail-senders/share', { method: 'POST', body: { id } })
+    if (error || !data) throw authError(error, 'Could not share the From address')
+    return data.sender
+  },
+
+  /** Makes a shared address the person's alone again. */
+  unshareMailSender: async (id: string): Promise<MailSender> => {
+    const { data, error } = await client.$fetch<{ sender: MailSender }>('/account/mail-senders/unshare', { method: 'POST', body: { id } })
+    if (error || !data) throw authError(error, 'Could not stop sharing the From address')
+    return data.sender
   },
 
   /** Starts each of the app's verifiers on an address, unless one is pending already, and answers its latest verifications. */

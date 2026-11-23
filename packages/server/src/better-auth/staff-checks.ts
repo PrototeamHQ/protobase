@@ -102,6 +102,8 @@ const accountChanges = [
   '/account/mail-senders/add',
   '/account/mail-senders/update',
   '/account/mail-senders/remove',
+  '/account/mail-senders/share',
+  '/account/mail-senders/unshare',
   // A verification sends a test message through the person's mailbox, and a refresh reads its send-as addresses.
   '/account/mail-senders/verify',
   '/account/mail-senders/refresh',

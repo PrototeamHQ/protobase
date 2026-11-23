@@ -367,12 +367,12 @@ export default defineFunction(async (request, { personalMail }) => {
 
 - **`send({ sender_address_id, ... })`:** sends from that record's address, with its display name, through that record's own mailbox connection, so From and mailbox cannot disagree. `null` sends from the mailbox's own address with no From header, and leaving it out sends from the default address, else the mailbox's own. A message that names its own `from` or `sender`, or a `From` or `Sender` header, is a mistake that rejects. An address no listing has read yet is listed first, when its provider can list.
 - **Refusals,** each sending nothing:
-  - An id that is not one of the caller's, unknown or removed alike, answers `404` (`sender-address-not-found`).
+  - An id that is not one of the caller's, unknown or removed alike, answers `404` (`sender-address-not-found`), as does one someone else did not [share](#sharing-a-from-address) with them.
   - A `failed` address answers `409` with `code: "sender_address_failed"`, and a `pending` one `sender_address_pending`.
   - An address on no connection the person can send through answers `sender_address_detached`.
   - An `unverified` one is sent.
-- **`sender(address?)`:** the record an address stands for, matched without regard to case: `id` (null for the mailbox's own address), `address`, `name` when it has one, `signature` when it has its own, `state`, and `ownerId`, whose mailbox it goes through. Without an address, the default. An address that is not the caller's is refused with a `MailSenderRefusedError` (`403`); one on two of their connections with `sender_address_ambiguous`.
-- **`senders()`:** every address the caller may choose, such as for a send dialog: their mailbox's own, then their records, each with its id and state.
+- **`sender(address?)`:** the record an address stands for, matched without regard to case: `id` (null for the mailbox's own address), `address`, `name` when it has one, `signature` when it has its own, `state`, and `ownerId`, whose mailbox it goes through. One someone else shared with the caller comes after their own, with `shared: true` and no `ownerId`. Without an address, the default. An address that is neither the caller's nor shared with them is refused with a `MailSenderRefusedError` (`403`); one on two of their connections, or shared by two people, with `sender_address_ambiguous`.
+- **`senders()`:** every address the caller may choose, such as for a send dialog: their mailbox's own, then their records, each with its id and state, then those shared with them.
 - **`refresh()`:** reads the send-as addresses of each of the caller's mailboxes whose provider can list them, and answers how each went: `listed`, `not_permitted` with `missing_scopes`, or `error` with `link_expired` or `listing_failed`. A connection that fails changes nothing and stops none of the others.
 - **The mailbox's own address** is the one its provider's ID token names; Google gives it with the `email` scope sign-in asks for.
 - **The account page's calls:**
@@ -385,7 +385,6 @@ export default defineFunction(async (request, { personalMail }) => {
   Each acts on the signed-in person's own addresses and connections only: any other id answers `404` before anything is done.
 - **Upgrading:** an address entered before From addresses were records goes on its owner's Gmail connection when they had exactly one. With none or several it shows **No mailbox**, and the person removes it and adds it again.
 - <gap>An address on a mailbox linked without `gmail.settings.basic` cannot be checked before each send because only a [verification](#verifying-a-from-address) started from the account page is implemented for it.</gap>
-- <gap>An address cannot be shared with others who send mail because proving that the person owns the address is not implemented.</gap>
 
 ### Verifying a From address
 
@@ -438,10 +437,27 @@ const testMailVerifier: SenderAddressVerifier = {
   - `POST .../mail-senders/verify { id }` starts each verifier on one of the person's addresses on a connection they can send through, and answers its `verifications`.
   - Staff signed in as the person cannot start one.
 
+### Sharing a From address
+
+:::caution[Beta]
+<gap>The owner cannot be told when someone sends from an address they shared because notifying the owner is not implemented.</gap>
+:::
+
+An address can be shared with the app's other senders, such as a team's billing address: they pick it like one of their own and send from it, through its owner's mailbox. Only the owner shares or unshares it, on the account page, under **Edit**, with **Share with the app's other senders**.
+
+- **Only a verified address:** sharing one that is not `verified`, by its provider's listing or a [verifier](#verifying-a-from-address)'s proof, is refused with a `409` (`MAIL_SENDER_NOT_VERIFIED`), and the dialog says to prove it first. Sharing records when it was shared and no proof of its own: every read works the state out again, as for the owner.
+- **Who sees it:** with [organizations](/reference/auth/#organizations), the people who share an organization with the owner; without them, everyone who sends mail in the app. They see its id, address and display name only, never the owner's address, id or mailbox.
+- **Sending:** `send({ sender_address_id })` with a shared address's id goes out through the owner's mailbox, From that address, with its display name, while it is shared, still `verified` and its owner still in reach. Otherwise it answers `404` (`sender-address-not-found`), as for an address that is not theirs. When the owner's mailbox is gone or its link expired, it answers `409` with `code: "sender_address_owner_unlinked"`: the owner must connect their mailbox again, so no connect offer is made to the sender.
+- **Adding never shares,** and removing an address unshares it: added again, it is the owner's alone until they share it again. Unsharing always works.
+- **The account page's calls:**
+  - `GET /api/auth/account/mail-senders` gives each shared address of the person's a `sharedAt`, and lists those others shared with them as `shared`, each `{ id, address, name? }`.
+  - `POST .../mail-senders/share { id }` shares one of the person's addresses, and `POST .../mail-senders/unshare { id }` makes it theirs alone again; each answers the address. Any other id answers `404`.
+  - Staff signed in as the person can do neither.
+
 ### A From address on a record
 
 :::caution[Beta]
-A removal refused over records does not say which records hold the address; and since addresses cannot be shared yet, everyone else sees an address on a shared record as not available.
+A removal refused over records does not say which records hold the address, and everyone an address is not [shared](#sharing-a-from-address) with sees it on a shared record as not available.
 :::
 
 A record can hold the address its mail goes out from, such as a client's or the seller's "Send from": declare the field with `f.mailSender()`, on a `text` column, and send from it with `send({ sender_address_id: (await personalMail.sender(value)).id })`.
@@ -450,7 +466,7 @@ A record can hold the address its mail goes out from, such as a client's or the 
 send_from: f.mailSender().optional(),
 ```
 
-- **The form:** a dropdown of the signed-in person's addresses, their mailbox's own first, then their records, each as `Name <address>` when it has a name, followed by its state unless it is verified. An address mail cannot go out from, one `failed` or `pending`, shows but cannot be chosen, unless the record holds it already. The empty choice, **Sender's default address**, stores `null`: mail goes out from the default address of whoever sends it.
+- **The form:** a dropdown of the signed-in person's addresses, their mailbox's own first, then their records, then the addresses others [shared](#sharing-a-from-address) with them, marked **shared**, each as `Name <address>` when it has a name, followed by its state unless it is verified. An address mail cannot go out from, one `failed` or `pending`, shows but cannot be chosen, unless the record holds it already. The empty choice, **Sender's default address**, stores `null`: mail goes out from the default address of whoever sends it.
 - **Saving:** a create or update may only set an address the saving person may send from, by the rule `send` uses; the address is stored as their sender spells it. Any other is refused with a `400` naming the field and the address. A visitor, and anyone on an app without personal mail, can set none.
 - **An address no longer offered,** such as one another person entered, still shows, marked **not available**, with a link to the account page. Saving other fields, or giving the same address again, leaves it as it is.
 - **Read views** show the address, with its name when it is one of the reader's.
@@ -462,7 +478,7 @@ send_from: f.mailSender().optional(),
 
   The refusal names no records, since they may be records the person cannot read, such as another organization's. It is in the language the request's `Accept-Language` asks for. The address is matched without regard to case, as sending matches it, so an index on the column's `lower()` serves it.
 - <gap>A refused removal cannot name the records that hold the address because checking which of them the person may read is not implemented.</gap>
-- <gap>A mail sender field cannot offer addresses shared with the person, nor refuse unsharing one a record holds, because sharing an address is not implemented.</gap>
+- **Unsharing an address in use** always works: a record that holds it keeps it, shows it as not available to everyone else, and a send from it is refused.
 
 ## In a bundle
 
