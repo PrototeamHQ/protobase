@@ -70,6 +70,7 @@
     "connectedAccounts": "Connected accounts",
     "connectedAccountsDescription": "Sign in with these instead of your password. Connecting one asks you to sign in there; its address may differ from yours here.",
     "connected": "Connected",
+    "notConnected": "Not connected",
     "connect": "Connect {name}",
     "connectAgain": "Connect {name} again",
     "mailbox": "Mailbox",

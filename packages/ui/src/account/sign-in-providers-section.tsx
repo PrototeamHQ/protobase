@@ -19,6 +19,10 @@ export type SignInProvidersSectionProps = {
   error?: string
   /** Whether a linked provider also offers to connect it again, as a mailbox whose link stopped working needs. */
   reconnect?: boolean
+  /** Linked providers whose link no longer works, as a mailbox's provider may answer: their row reads Not connected. */
+  notConnected?: string[]
+  /** Providers a card in `children` connects, so their row offers no button of its own. */
+  connectElsewhere?: string[]
   /** A line under a provider's name, by id, such as why a sign-in through it does not count as a mailbox. */
   notes?: Record<string, string>
   /** The section's title and description; default those of connected sign-in accounts. */
@@ -29,7 +33,7 @@ export type SignInProvidersSectionProps = {
 }
 
 /** The providers someone can sign in with besides a password, and a way to connect one whatever address it has. */
-export const SignInProvidersSection = ({ providers, linked, onConnect, error: returned, reconnect = false, notes = {}, title = text('connectedAccounts'), description = text('connectedAccountsDescription'), children }: SignInProvidersSectionProps) => {
+export const SignInProvidersSection = ({ providers, linked, onConnect, error: returned, reconnect = false, notConnected = [], connectElsewhere = [], notes = {}, title = text('connectedAccounts'), description = text('connectedAccountsDescription'), children }: SignInProvidersSectionProps) => {
   const [busy, setBusy] = useState<string>()
   const [error, setError] = useState(returned)
 
@@ -49,21 +53,25 @@ export const SignInProvidersSection = ({ providers, linked, onConnect, error: re
     <AccountSection title={title} description={description}>
       <SectionError message={error} />
       <ul className="divide-y rounded-md border">
-        {providers.map((provider) => (
+        {providers.map((provider) => {
+          const connected = linked.includes(provider.id) && !notConnected.includes(provider.id)
+          return (
           <li key={provider.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
             <Link2 className="size-4 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1">
               <span className="block truncate font-medium">{provider.name}</span>
               {notes[provider.id] && <span className="block text-muted-foreground">{notes[provider.id]}</span>}
             </span>
-            {linked.includes(provider.id) && <Badge tone="green">{text('connected')}</Badge>}
-            {(!linked.includes(provider.id) || reconnect) && (
+            {connected && <Badge tone="green">{text('connected')}</Badge>}
+            {notConnected.includes(provider.id) && <Badge tone="amber">{text('notConnected')}</Badge>}
+            {(!connected || reconnect) && !connectElsewhere.includes(provider.id) && (
               <Button size="sm" loading={busy === provider.id} disabled={busy !== undefined} onClick={() => void connect(provider.id)}>
-                {text(linked.includes(provider.id) ? 'connectAgain' : 'connect', { name: provider.name })}
+                {text(connected ? 'connectAgain' : 'connect', { name: provider.name })}
               </Button>
             )}
           </li>
-        ))}
+          )
+        })}
       </ul>
       {children}
     </AccountSection>

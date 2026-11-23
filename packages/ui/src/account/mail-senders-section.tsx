@@ -1,6 +1,6 @@
 import { AtSign, Plus, RefreshCw } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
-import { AuthError, type MailConnectionListing, type MailSender, type MailSenderChange, type MailSenders, type MailSenderVerification } from '@protobase/client'
+import { useEffect, useRef, useState } from 'react'
+import { AuthError, type MailSender, type MailSenderChange, type MailSenders, type MailSenderVerification } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
 import { senderState } from '../mailbox/sender-state'
 import { Badge } from '../primitives/badge'
@@ -10,7 +10,8 @@ import { SectionError } from './account-section'
 import { MailSenderDialog, type MailSenderInput } from './mail-sender-dialog'
 import { ListingNotices } from './listing-notices'
 import { text } from './messages'
-import { useSenderRefresh } from './use-sender-refresh'
+import type { MailboxListing } from './use-mailbox-listing'
+import type { ListingProblem } from './use-sender-refresh'
 
 export type MailSendersSectionProps = {
   senders: MailSenders
@@ -23,13 +24,18 @@ export type MailSendersSectionProps = {
   /** Starts the app's verifiers on an address (`senders.verifiers`), and reads its latest verifications again. */
   onVerify: (id: string) => Promise<MailSenderVerification[]>
   onVerifications: (id: string) => Promise<MailSenderVerification[]>
-  /** Reads the send-as addresses of each mailbox that can list them, and the addresses again; rejects with `AuthError`. */
-  onRefresh: () => Promise<MailConnectionListing[]>
+  /** The send-as address checks of the person's mailboxes (`useMailboxListing`). */
+  listing: Omit<MailboxListing, 'notices'>
+  /** Why a mailbox's addresses could not be read, for this section to show. */
+  notices: ListingProblem[]
   /** Connects the mailbox of a mail provider again, asking for every scope the app adds. */
   onConnect: (provider: string) => void
   /** A mail provider's name, such as Gmail. */
   providerName: (provider: string) => string
 }
+
+/** The anchor of the section's heading, which a mailbox connected from the account page comes back to. */
+export const fromAddressesAnchor = 'from-addresses'
 
 // Changing an address just added verifies it at once (`autoVerify`).
 type Editing = { kind: 'add' } | { kind: 'change'; sender: MailSender; autoVerify?: boolean } | { kind: 'remove'; sender: MailSender }
@@ -49,24 +55,22 @@ const hintOf = (sender: MailSender, canCheck: boolean, name: string, own: string
 /**
  * The From addresses the person's mail goes out from, under their mailbox: its own and those its provider lists or
  * they typed, such as its send-as addresses, each with its state, and its own signature or the generic one; one is the
- * default, and a verified one can be shared with the app's other senders. Opening it reads the send-as addresses again from each mailbox that can list them, as **Check with Gmail**
- * does; a mailbox whose link lacks the scope to list them offers to connect it again. Where the app has verifiers,
+ * default, and a verified one can be shared with the app's other senders. `listing` reads the send-as
+ * addresses again from each mailbox that can list them, as **Check with Gmail** does; `notices` say why one could not
+ * be read. Coming back to the page at its anchor (`fromAddressesAnchor`) puts focus on its heading. Where the app has verifiers,
  * adding an address verifies it at once, and its dialog verifies it again; elsewhere the dialog says it cannot.
  */
-export const MailSendersSection = ({ senders: { address, senders, verifiers = false, connections = [] }, onAdd, onUpdate, onRemove, onShare, onVerify, onVerifications, onRefresh, onConnect, providerName }: MailSendersSectionProps) => {
+export const MailSendersSection = ({ senders: { address, senders, verifiers = false, connections = [] }, onAdd, onUpdate, onRemove, onShare, onVerify, onVerifications, listing: { providers, refreshing, checked, refresh }, notices, onConnect, providerName }: MailSendersSectionProps) => {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [editing, setEditing] = useState<Editing>()
   // Set at once, unlike `busy`, so a second click before the next render changes nothing twice.
   const inFlight = useRef(false)
   const chosen = senders.find((sender) => sender.isDefault)
-  const listing = connections.filter((connection) => connection.canList)
-  const ready = listing.filter((connection) => connection.missingScopes.length === 0)
-  const providers = useMemo(() => [...new Set(ready.map((connection) => connection.provider))], [ready.map((connection) => connection.provider).join()])
-  const { refreshing, problems, checked, refresh } = useSenderRefresh(onRefresh, ready.length > 0, providers)
-  // A link that lacks the scope says so before any refresh, from the list itself.
-  const missing = [...new Set(listing.filter((connection) => connection.missingScopes.length > 0).map((connection) => connection.provider))]
-  const notices = [...missing.map((provider) => ({ provider, kind: 'not_permitted' as const })), ...problems.filter((problem) => !missing.includes(problem.provider))]
+  const heading = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (window.location.hash === `#${fromAddressesAnchor}`) heading.current?.focus()
+  }, [])
 
   const close = () => {
     setEditing(undefined)
@@ -107,7 +111,7 @@ export const MailSendersSection = ({ senders: { address, senders, verifiers = fa
       const added = await onAdd({ address: input.address, ...(name && { name }), ...(signature && { signature }) })
       if (input.isDefault) await onUpdate(added.id, { isDefault: true })
       // Checked at once where the mailbox can say, so a typo shows Can't send while the person still remembers typing it.
-      if (ready.length > 0) void refresh()
+      if (providers.length > 0) void refresh()
       if (verifiers) return { kind: 'change', sender: { ...added, isDefault: input.isDefault }, autoVerify: true }
     })
 
@@ -119,7 +123,9 @@ export const MailSendersSection = ({ senders: { address, senders, verifiers = fa
 
   return (
     <div className="mt-5 border-t pt-4">
-      <h3 className="font-semibold">{text('fromAddresses')}</h3>
+      <h3 ref={heading} id={fromAddressesAnchor} tabIndex={-1} className="font-semibold focus:outline-none">
+        {text('fromAddresses')}
+      </h3>
       <p className="mt-1 mb-3 text-muted-foreground">{text('fromAddressesDescription')}</p>
       <SectionError message={editing ? undefined : error} />
       <ListingNotices notices={notices} providerName={providerName} onConnect={onConnect} />
