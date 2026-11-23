@@ -33,7 +33,7 @@ describe('checkRelayOptions', () => {
     const presence = { resource: 'presences', user: 'user_id', status: 'status', at: 'since', key: 'p'.repeat(32) }
     expect(checkRelayOptions({ ...chatRelay, presence }).presence).toBe(presence)
     expect(() => checkRelayOptions({ ...chatRelay, presence: { ...presence, at: '' } })).toThrow('realtime.relay.presence must be { resource, user, status, at, key }')
-    expect(() => checkRelayOptions({ ...chatRelay, presence: { ...presence, key: 'short' } })).toThrow('realtime.relay.presence.key must be a string of at least 32 characters')
+    expect(() => checkRelayOptions({ ...chatRelay, presence: { ...presence, key: 'short' } })).toThrow('realtime.relay.presence.key or PROTOBASE_RELAY_PRESENCE_KEY must be a string of at least 32 characters')
   })
 })
 
@@ -87,5 +87,22 @@ describe('relaySettings', () => {
   it('names the key and its variable when neither sets it', () => {
     expect(() => relaySettings({ ...ownOptions, url, app, apiKey }, {})).toThrow('realtime.relay.ticketKey or PROTOBASE_RELAY_TICKET_KEY must be a string of at least 32 characters')
     expect(() => relaySettings({ ...ownOptions, app, apiKey, ticketKey }, {})).toThrow('realtime.relay.url or PROTOBASE_RELAY_URL must start with https:// or http://')
+  })
+
+  describe('of the presence key', () => {
+    const presence = { resource: 'presences', user: 'user_id', status: 'status', at: 'since' }
+    const withKey = { ...env, PROTOBASE_RELAY_PRESENCE_KEY: 'p'.repeat(32) }
+
+    it("takes the presence key from the platform's variable when the config leaves it out", () => {
+      expect(relaySettings({ ...ownOptions, presence }, withKey).presence).toEqual({ ...presence, key: 'p'.repeat(32) })
+    })
+
+    it('keeps a key the config sets', () => {
+      expect(relaySettings({ ...ownOptions, presence: { ...presence, key: 'c'.repeat(32) } }, withKey).presence?.key).toBe('c'.repeat(32))
+    })
+
+    it('names the key and its variable when neither sets it', () => {
+      expect(() => relaySettings({ ...ownOptions, presence }, env)).toThrow('realtime.relay.presence.key or PROTOBASE_RELAY_PRESENCE_KEY must be a string of at least 32 characters')
+    })
   })
 })

@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { oauthWellKnownPaths, pngIcons, type AppIcons } from '@protobase/server'
+import type { relayAppPart } from '../relay/app-entry'
 
 // The deploy bundle's table of contents, read by `protobase serve <dir>` and by any host that serves a bundle.
 export const manifestFile = 'protobase.bundle.json'
@@ -24,6 +25,10 @@ export type BundleShell = { protobase: string; pluginApi: number; paths: string[
 // `notifications()`, with which its binaries compile native push in; a bundle built before it names none, as no binary
 // had push then.
 export type BundleMobile = { appId?: string; plugins: Record<string, string>; push?: boolean }
+
+// The app's part of its entry in the realtime relay's apps file, as `relayAppPart` makes it: its client events by channel
+// resource and, with presence, the path of its presence endpoint and the reports' grace, without any address or key.
+export type BundleRelay = ReturnType<typeof relayAppPart>
 
 export type BundleManifest = {
   // The format of this file.
@@ -63,6 +68,9 @@ export type BundleManifest = {
   // The project's db/migrations/*.sql, which the serve runtime's `migrate` applies, relative to the bundle. Only in a
   // bundle that has some.
   migrations?: string
+  // With `realtime.relay`, and only then, the app's part of its entry in the relay's apps file, which a host that runs
+  // the relay completes with the app's address, id and keys.
+  relay?: BundleRelay
 }
 
 export const isApiPath = (api: readonly string[], pathname: string) =>
@@ -103,6 +111,11 @@ const isTime = (value: unknown): value is number => Number.isSafeInteger(value) 
 
 const isVersions = (value: unknown): value is Record<string, string> => isObject(value) && Object.values(value).every((item) => typeof item === 'string')
 
+const isRelay = (value: unknown): value is BundleRelay =>
+  isObject(value) &&
+  (value.client_events === undefined || (isObject(value.client_events) && isObject(value.client_events.channels))) &&
+  (value.presence === undefined || (isObject(value.presence) && typeof value.presence.path === 'string' && Number.isInteger(value.presence.grace_seconds)))
+
 const isIcons = (value: unknown): value is AppIcons =>
   isObject(value) && typeof value.favicon === 'boolean' && isStringList(value.png) && value.png.every((icon) => icon in pngIcons)
 
@@ -112,7 +125,7 @@ export type BundleLayout = Omit<BundleManifest, 'protobase'>
 export const parseManifest = (value: unknown, file: string): BundleLayout => {
   const manifest = value as Partial<BundleManifest> | null
   if (manifest?.version !== 3) throw new Error(`${file} is not a version 3 bundle manifest; rebuild it with \`protobase build\``)
-  const { builtAt, server, public: publicDir, api, spa, plugins, theme, shell, icons, native, mobile, nodeModules, migrations } = manifest
+  const { builtAt, server, public: publicDir, api, spa, plugins, theme, shell, icons, native, mobile, nodeModules, migrations, relay } = manifest
   if (typeof server !== 'string' || typeof publicDir !== 'string' || typeof spa !== 'string' || typeof theme !== 'string' || !isStringList(api)) {
     throw new Error(`${file} needs server, public, spa and theme paths and an api list`)
   }
@@ -126,6 +139,7 @@ export const parseManifest = (value: unknown, file: string): BundleLayout => {
   }
   if (nodeModules !== undefined && typeof nodeModules !== 'string') throw new Error(`${file} has a nodeModules that is no path`)
   if (migrations !== undefined && typeof migrations !== 'string') throw new Error(`${file} has a migrations that is no path`)
+  if (relay !== undefined && !isRelay(relay)) throw new Error(`${file} has a relay that is not { client_events, presence } with its channels and a presence path and grace`)
   return {
     version: 3,
     ...(builtAt !== undefined && { builtAt }),
@@ -141,6 +155,7 @@ export const parseManifest = (value: unknown, file: string): BundleLayout => {
     ...(mobile && { mobile }),
     ...(nodeModules === undefined ? {} : { nodeModules }),
     ...(migrations === undefined ? {} : { migrations }),
+    ...(relay && { relay }),
   }
 }
 

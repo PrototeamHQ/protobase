@@ -6800,7 +6800,7 @@
           ]
         },
         "key": {
-          "description": "The bearer token the relay's presence reports carry, at least 32 characters.",
+          "description": "The bearer token the relay's presence reports carry, at least 32 characters; defaults to `relayVariables.presenceKey`.",
           "anyOf": [
             {
               "type": "string"
@@ -6815,8 +6815,7 @@
         "resource",
         "user",
         "status",
-        "at",
-        "key"
+        "at"
       ],
       "additionalProperties": false
     },

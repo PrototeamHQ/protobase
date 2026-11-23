@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import type { ViewModel } from '@protobase/schema'
-import { relayAppEntry } from './app-entry'
+import { relayAppEntry, relayAppPart } from './app-entry'
 
 const relay = { url: 'https://relay.example.com', app: 'chat', apiKey: 'a'.repeat(32), ticketKey: 't'.repeat(32), channels: { conversations: {} } }
 const typingPage = { resource: 'conversations', record: { conversation: { resource: 'messages', field: 'conversation_id', sender: 'author_id', time: 'created_at', text: 'body', typing: true } } } as unknown as ViewModel
@@ -31,4 +31,23 @@ test("a typing conversation page declares typing on its resource's channels, and
   expect(typing).toMatchObject({ max_bytes: 256, per_second: 2, burst: 4, schema: { required: ['typing'] } })
   const own = { schema: { type: 'object' }, maxBytes: 64, perSecond: 1, burst: 1 }
   expect(relayAppEntry({ ...relay, channels: { conversations: { events: { typing: own } } } }, { url: undefined, views: [typingPage] }).client_events?.channels.conversations?.events.typing?.max_bytes).toBe(64)
+})
+
+test("the build's part holds the client events and presence's path and grace, never an address or key", () => {
+  const presence = { resource: 'presences', user: 'user_id', status: 'status', at: 'since' }
+  const ring = { schema: { type: 'object' }, maxBytes: 512, perSecond: 0.5, burst: 1 }
+  const part = relayAppPart({ channels: { conversations: { events: { ring } }, rooms: {} }, presence }, { views: [typingPage] })
+  expect(part).toEqual({
+    client_events: { channels: { conversations: { events: { typing: expect.objectContaining({ max_bytes: 256 }), ring: { schema: { type: 'object' }, max_bytes: 512, per_second: 0.5, burst: 1 } } } } },
+    presence: { path: '/api/relay/presence', grace_seconds: 30 },
+  })
+  expect(relayAppPart({ channels: { rooms: {} } }, { apiPath: '/v2/rest', views: [] })).toEqual({})
+})
+
+test("the entry's events and presence are the build's part", () => {
+  const presence = { resource: 'presences', user: 'user_id', status: 'status', at: 'since', key: 'p'.repeat(32) }
+  const entry = relayAppEntry({ ...relay, presence }, { url: 'https://chat.example.com', views: [typingPage] })
+  const part = relayAppPart({ ...relay, presence }, { views: [typingPage] })
+  expect(entry.client_events).toEqual(part.client_events)
+  expect(entry.presence).toEqual({ url: `https://chat.example.com${part.presence?.path}`, key: 'p'.repeat(32), grace_seconds: part.presence?.grace_seconds })
 })
