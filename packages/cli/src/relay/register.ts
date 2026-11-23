@@ -4,7 +4,7 @@ export const registerRelay = (program: Command) => {
   const relay = program.command('relay').description('The realtime relay the app hands its connections to (realtime.relay)')
   relay
     .command('app')
-    .description("Print the app's entry for the relay's apps file, from realtime.relay or PROTOBASE_RELAY_*, url and the views")
+    .description("Print the app's entry for the relay's apps file, from realtime.relay or PROTOBASE_REALTIME_*, url and the views")
     .action(async () => {
       const [{ configExports, relaySettings }, { loadSourceConfig }, { projectResources }, { loadNearestEnvFile }, { relayAppEntry }] = await Promise.all([
         import('@protobase/server'),

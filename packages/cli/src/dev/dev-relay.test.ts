@@ -71,7 +71,7 @@ describe('withDevRelay', () => {
   })
 
   it('refuses an app id the relay would not take, before starting it', async () => {
-    await expect(withDevRelay(config({ app: 'Chat App' }), '/app', devUrl, [])).rejects.toThrow(/realtime.relay.app or PROTOBASE_RELAY_APP must be/)
+    await expect(withDevRelay(config({ app: 'Chat App' }), '/app', devUrl, [])).rejects.toThrow(/realtime.relay.app or PROTOBASE_REALTIME_APP must be/)
     expect(started).not.toHaveBeenCalled()
   })
 })

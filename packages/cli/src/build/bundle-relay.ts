@@ -8,7 +8,7 @@ import { relayAppPart } from '../relay/app-entry'
  * the config and its views, as `protobase relay app` prints it, without the address, id or keys a build does not hold.
  * `undefined` without `realtime.relay`, so its presence means the app hands its connections to the relay.
  */
-export const bundleRelay = async (config: MergedConfig) => {
+export const bundleRealtime = async (config: MergedConfig) => {
   const relay = config.realtime?.relay
   if (!relay) return
   const views = configExports(await projectResources(config)).views.map((view) => view.toModel())
