@@ -35,7 +35,9 @@ const withTemplateNames = (types: TypeEntry[], names: readonly string[]) =>
 /**
  * The trigger and step types of an app: the default plugins, then the app's own, all through the same loader and
  * interface. `types` is the list the MCP tools and the editor read; `check` is what a save checks a definition against,
- * the available types only, and `checkWith` the same check against other resources, such as those a caller may read.
+ * the available types only, and `checkWith` the same check against other resources, such as those a caller may read;
+ * `checkFor` is `check` for a workflow of this tenant, which a ready trigger on a resource without a tenant field never
+ * reaches.
  * A type that signs in is available once the app can make its connection, as `support` says. `app:mail.template`
  * takes one of `templates`, the app's email templates, by name, its data as that template's schema says;
  * `templates` lists them as the type list's readers see them.
@@ -58,14 +60,15 @@ export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Mode
   const steps = types.filter((type) => type.kind === 'step' && type.available)
   const reasons = Object.fromEntries(types.flatMap((type) => (type.reason === undefined ? [] : [[type.id, type.reason]])))
   const own = triggerChecks(plugins)
-  // A ready trigger is checked against the resources of `against` too, once its input fits its schema.
-  const checkWith = (against: Models): CheckOptions => {
+  // A ready trigger is checked against the resources of `against` too, once its input fits its schema, and against
+  // being a tenant's workflow (`tenanted`).
+  const checkWith = (against: Models, tenanted = false): CheckOptions => {
     const checks = Object.entries(own).map(([id, check]): [string, TriggerCheck] => {
       const declared = ready.get(id)
       if (!declared) return [id, check]
       return [id, (input) => {
         const problems = check(input)
-        return problems.length > 0 ? problems : readyProblems(against, declared.ready(input))
+        return problems.length > 0 ? problems : readyProblems(against, declared.ready(input), tenanted)
       }]
     })
     return {
@@ -87,10 +90,12 @@ export const workflowTypes = (loaded: readonly LoadedPlugin[] = [], models: Mode
     }
   }
   const check = checkWith(models)
+  const tenantCheck = checkWith(models, true)
+  const checkFor = (tenant: unknown) => (tenant === null || tenant === undefined ? check : tenantCheck)
   /** The step types of one segment, which sends mail with the mailer of the job that runs it, signs in through `connection`, and sends from the enabler's `mailbox`. */
   const tasks = (input: ServicesInput, mail: Mailer | undefined, connection: StepWiring['connection'], mailbox?: StepWiring['mailbox']): TaskHandlers =>
     stepHandlers(plugins, { services: pluginServices(input, mail), connection, ...(mailbox && { mailbox }) })
-  return { plugins, types, templates, check, checkWith, tasks, ready, polling, webhooks, connections, available: (id: string) => available.has(id) }
+  return { plugins, types, templates, check, checkWith, checkFor, tasks, ready, polling, webhooks, connections, available: (id: string) => available.has(id) }
 }
 
 export type WorkflowTypes = ReturnType<typeof workflowTypes>

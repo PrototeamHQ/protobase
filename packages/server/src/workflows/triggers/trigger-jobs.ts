@@ -7,6 +7,7 @@ import { defineJob } from '../../jobs/define-job'
 import type { EnqueuedJob } from '../../jobs/job-types'
 import type { Row } from '../../types'
 import { readyAt, readyWhen, resolveTimeTerms } from '../ready/ready-when'
+import { tenantlessMessage } from '../ready/ready-check'
 import { orRefusal, readyContext, startIfReady, type ReadyInput } from '../ready/ready-start'
 import { activeTriggers, currentTrigger, triggerFailed } from './trigger-row'
 import { printFilter } from '@protobase/schema'
@@ -76,6 +77,7 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
       const found = await orRefusal(readyContext(input, trigger))
       if ('refused' in found) return triggerFailed(db, schema, trigger, 'refused', found.refused)
       if (!found.value) return
+      if (found.value.tenantless !== undefined) return triggerFailed(db, schema, trigger, 'no_tenant', found.value.tenantless)
       const { spec, model, records } = found.value
       const split = readyWhen(spec.when)
       if (!split.ok) return
@@ -125,7 +127,8 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
   /**
    * Routes each dispatched change to the ready triggers on its resource and tenant: it queues the check of the record at
    * the time it becomes ready, in the dispatch's transaction. No sweep runs: a record becomes ready by a write, or at a
-   * time a write set.
+   * time a write set. No change reaches a tenant's trigger on a resource without a tenant field, so a change on that
+   * resource marks such a trigger failing instead of leaving it active.
    */
   const onChanges = async (db: Db, changes: readonly ResourceChange[]) => {
     const types = [...input.readyTypes]
@@ -137,6 +140,10 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
       const model = spec && input.deps().registry.find(spec.resource)?.model
       const split = spec && readyWhen(spec.when)
       if (!spec || !model || !split?.ok) continue
+      if (trigger.tenant_id !== null && !model.tenant) {
+        if (trigger.status !== 'failing' && changes.some((change) => change.resource === spec.resource)) await triggerFailed(db, schema, trigger, 'no_tenant', tenantlessMessage(spec.resource))
+        continue
+      }
       const timeTerms = resolveTimeTerms(model, split.when.timeTerms)
       for (const change of changes) {
         if (change.resource !== spec.resource || !change.after) continue
