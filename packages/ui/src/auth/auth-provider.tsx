@@ -65,8 +65,8 @@ export type AuthApi = {
   linkProvider: (provider: string) => Promise<void>
   /** The mail providers people may link their own mailbox with, for the app to send mail from it. */
   personalMail: PersonalMailLink[]
-  /** Leaves for the mail provider to link the signed-in person's mailbox, which comes back to this page; rejects with `AuthError`. */
-  linkPersonalMail: (link: PersonalMailLink) => Promise<void>
+  /** Leaves for the mail provider to link the signed-in person's mailbox, which comes back to `returnTo`, default this page; rejects with `AuthError`. */
+  linkPersonalMail: (link: PersonalMailLink, returnTo?: string) => Promise<void>
   /** Leaves for the provider to connect an account for a workflow connection, which comes back to this page; rejects with `AuthError`. */
   connectAccount: (connection: WorkflowConnection) => Promise<void>
   /** The operator provider's name when its staff can sign in as people here. */
@@ -323,8 +323,8 @@ export const AuthProvider = ({ session: given, origin, nativeBridge, afterSignIn
         window.location.assign(await session.account.linkProvider(provider, new URL(withoutSignInLink(window.location.href), window.location.href).href))
       },
       personalMail,
-      linkPersonalMail: async (link) => {
-        window.location.assign(await session.account.linkPersonalMail(link, new URL(withoutSignInLink(window.location.href), window.location.href).href))
+      linkPersonalMail: async (link, returnTo = window.location.href) => {
+        window.location.assign(await session.account.linkPersonalMail(link, new URL(withoutSignInLink(returnTo), window.location.href).href))
       },
       connectAccount: async (connection) => {
         window.location.assign(await session.account.connectAccount(connection, new URL(withoutSignInLink(window.location.href), window.location.href).href))

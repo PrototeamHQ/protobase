@@ -70,6 +70,7 @@
     "connectedAccounts": "Gekoppelde accounts",
     "connectedAccountsDescription": "Log hiermee in in plaats van met je wachtwoord. Koppelen vraagt je daar in te loggen; het adres daar kan anders zijn dan hier.",
     "connected": "Gekoppeld",
+    "notConnected": "Niet gekoppeld",
     "connect": "{name} koppelen",
     "connectAgain": "{name} opnieuw koppelen",
     "mailbox": "Mailbox",

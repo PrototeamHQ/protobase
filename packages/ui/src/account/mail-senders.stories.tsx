@@ -1,10 +1,20 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import type { MailSenderVerification } from '@protobase/client'
+import type { MailConnectionListing, MailSenderVerification } from '@protobase/client'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
+import { placeNotices } from './place-notices'
 import { MailSendersSection, type MailSendersSectionProps } from './mail-senders-section'
+import { useMailboxListing } from './use-mailbox-listing'
 
 const meta = { title: 'Account/From addresses', decorators: [(Story) => <div className="max-w-3xl bg-surface p-6"><Story /></div>] } satisfies Meta
 export default meta
+
+type ListedProps = Omit<MailSendersSectionProps, 'listing' | 'notices'> & { onRefresh: () => Promise<MailConnectionListing[]> }
+
+/** The section as the Mailbox block draws it: checking the addresses, and showing the notices the block leaves it. */
+const Listed = ({ onRefresh, ...props }: ListedProps) => {
+  const { notices, ...listing } = useMailboxListing(props.senders.connections ?? [], onRefresh)
+  return <MailSendersSection {...props} listing={listing} notices={placeNotices(notices).fromAddresses} />
+}
 
 const senders: MailSendersSectionProps['senders'] = {
   address: 'ana@gmail.example',
@@ -21,10 +31,10 @@ const added = { id: 's3', address: 'sales@shop.example', name: 'Shop sales', sig
 const mailbox = { onRefresh: fn(async () => []), onConnect: fn(), providerName: () => 'Gmail' }
 
 /** The mailbox's own address as the default, the entered ones with their name and their own signature or the generic one, adding one with a name as the default, and removing one after asking. */
-export const FromAddresses: StoryObj<MailSendersSectionProps> = {
+export const FromAddresses: StoryObj<ListedProps> = {
   tags: ['play'],
   args: { senders, onAdd: fn(async () => added), onUpdate: fn(async () => undefined), onRemove: fn(async () => undefined), onShare: fn(async () => undefined), onVerify: fn(), onVerifications: fn(), ...mailbox },
-  render: (args) => <MailSendersSection {...args} />,
+  render: (args) => <Listed {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
     const page = within(document.body)
@@ -59,10 +69,10 @@ export const FromAddresses: StoryObj<MailSendersSectionProps> = {
 }
 
 /** An entered address as the default: the mailbox's own address offers to be the default again. */
-export const EnteredDefault: StoryObj<MailSendersSectionProps> = {
+export const EnteredDefault: StoryObj<ListedProps> = {
   tags: ['play'],
   args: { senders: { ...senders, senders: [{ ...senders.senders[0]!, isDefault: true }] }, onAdd: fn(), onUpdate: fn(async () => undefined), onRemove: fn(), onShare: fn(async () => undefined), onVerify: fn(), onVerifications: fn(), ...mailbox },
-  render: (args) => <MailSendersSection {...args} />,
+  render: (args) => <Listed {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole('button', { name: 'Make default' }))
@@ -83,7 +93,7 @@ const verifications = fn(async (): Promise<MailSenderVerification[]> =>
 )
 
 /** Where the app has a verifier: adding an address verifies it at once, it fails with the verifier's words, and once set up a second verification proves it. */
-export const VerifiedFromAddress: StoryObj<MailSendersSectionProps> = {
+export const VerifiedFromAddress: StoryObj<ListedProps> = {
   tags: ['play'],
   args: {
     senders: { ...senders, verifiers: true },
@@ -95,7 +105,7 @@ export const VerifiedFromAddress: StoryObj<MailSendersSectionProps> = {
     onVerifications: verifications,
     ...mailbox,
   },
-  render: (args) => <MailSendersSection {...args} />,
+  render: (args) => <Listed {...args} />,
   play: async ({ canvasElement, args }) => {
     const page = within(document.body)
     await userEvent.click(within(canvasElement).getByRole('button', { name: 'Add a From address' }))
@@ -114,10 +124,10 @@ export const VerifiedFromAddress: StoryObj<MailSendersSectionProps> = {
 }
 
 /** Where the app has no verifier, the dialog says so, and how to check by hand. */
-export const UnverifiableFromAddress: StoryObj<MailSendersSectionProps> = {
+export const UnverifiableFromAddress: StoryObj<ListedProps> = {
   tags: ['play'],
   args: { senders, onAdd: fn(), onUpdate: fn(), onRemove: fn(), onShare: fn(async () => undefined), onVerify: fn(), onVerifications: fn(), ...mailbox },
-  render: (args) => <MailSendersSection {...args} />,
+  render: (args) => <Listed {...args} />,
   play: async ({ canvasElement, args }) => {
     const page = within(document.body)
     await userEvent.click(within(canvasElement).getAllByRole('button', { name: 'Edit' })[0]!)
@@ -128,10 +138,10 @@ export const UnverifiableFromAddress: StoryObj<MailSendersSectionProps> = {
 }
 
 /** A verified address is shared with the app's other senders from its dialog; an unverified one says to prove it first. */
-export const SharedFromAddress: StoryObj<MailSendersSectionProps> = {
+export const SharedFromAddress: StoryObj<ListedProps> = {
   tags: ['play'],
   args: { senders, onAdd: fn(), onUpdate: fn(async () => undefined), onRemove: fn(), onShare: fn(async () => undefined), onVerify: fn(), onVerifications: fn(), ...mailbox },
-  render: (args) => <MailSendersSection {...args} />,
+  render: (args) => <Listed {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
     const page = within(document.body)
@@ -148,15 +158,15 @@ export const SharedFromAddress: StoryObj<MailSendersSectionProps> = {
 }
 
 /** A shared address says so in the list. */
-export const SharedBadge: StoryObj<MailSendersSectionProps> = {
+export const SharedBadge: StoryObj<ListedProps> = {
   args: { senders: { ...senders, senders: [{ ...senders.senders[0]!, sharedAt: '2026-08-01T00:00:00.000Z' }] }, onAdd: fn(), onUpdate: fn(), onRemove: fn(), onShare: fn(), onVerify: fn(), onVerifications: fn(), ...mailbox },
-  render: (args) => <MailSendersSection {...args} />,
+  render: (args) => <Listed {...args} />,
 }
 
 const listingMailbox = { ...senders.connections![0]!, canList: true }
 
 /** A mailbox that lists its send-as addresses: opening the section checks them with Gmail, and each shows what Gmail says of it. */
-export const ListedStates: StoryObj<MailSendersSectionProps> = {
+export const ListedStates: StoryObj<ListedProps> = {
   tags: ['play'],
   args: {
     senders: {
@@ -178,7 +188,7 @@ export const ListedStates: StoryObj<MailSendersSectionProps> = {
     ...mailbox,
     onRefresh: fn(async () => [{ connection: 'c1', provider: 'gmail', status: 'listed' as const }]),
   },
-  render: (args) => <MailSendersSection {...args} />,
+  render: (args) => <Listed {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
     // The section checks with Gmail once it has drawn.
@@ -193,7 +203,7 @@ export const ListedStates: StoryObj<MailSendersSectionProps> = {
 }
 
 /** A Gmail linked without the scope that reads its send-as addresses: the section offers to connect it again, and checks nothing. */
-export const ListingNotPermitted: StoryObj<MailSendersSectionProps> = {
+export const ListingNotPermitted: StoryObj<ListedProps> = {
   tags: ['play'],
   args: {
     senders: { ...senders, connections: [{ ...listingMailbox, missingScopes: ['https://www.googleapis.com/auth/gmail.settings.basic'] }] },
@@ -205,7 +215,7 @@ export const ListingNotPermitted: StoryObj<MailSendersSectionProps> = {
     onVerifications: fn(),
     ...mailbox,
   },
-  render: (args) => <MailSendersSection {...args} />,
+  render: (args) => <Listed {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
     expect(canvas.getByRole('heading', { name: 'Check your addresses with Gmail' })).toBeVisible()
@@ -216,8 +226,8 @@ export const ListingNotPermitted: StoryObj<MailSendersSectionProps> = {
   },
 }
 
-/** A refresh that finds the link no longer works: the section says so and offers to connect again. */
-export const ListingExpired: StoryObj<MailSendersSectionProps> = {
+/** A refresh that finds the link no longer works: the Mailbox row says so (personal-mail.stories.tsx), so the section adds nothing. */
+export const ListingExpired: StoryObj<ListedProps> = {
   tags: ['play'],
   args: {
     senders: { ...senders, connections: [listingMailbox] },
@@ -230,10 +240,12 @@ export const ListingExpired: StoryObj<MailSendersSectionProps> = {
     ...mailbox,
     onRefresh: fn(async () => [{ connection: 'c1', provider: 'gmail', status: 'error' as const, code: 'link_expired' as const }]),
   },
-  render: (args) => <MailSendersSection {...args} />,
-  play: async ({ canvasElement }) => {
+  render: (args) => <Listed {...args} />,
+  play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
-    expect(await canvas.findByRole('heading', { name: 'Connect Gmail again' })).toBeVisible()
-    expect(canvas.getByText(/^Gmail no longer accepts this app's link/)).toBeVisible()
+    await waitFor(() => expect(args.onRefresh).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(canvas.getByRole('button', { name: 'Check with Gmail' })).toBeEnabled())
+    expect(canvas.queryByRole('heading', { name: 'Connect Gmail again' })).toBeNull()
+    expect(canvas.queryByRole('button', { name: /^Connect Gmail/ })).toBeNull()
   },
 }
