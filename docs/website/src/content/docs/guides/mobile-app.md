@@ -123,7 +123,7 @@ protobase dev
 protobase mobile run android --live
 ```
 
-With `--live` the app opens the running `protobase dev` instead of its own files, so it reloads as you save. `--port` names the dev server's port, 5173 by default.
+With `--live` the app opens the running `protobase dev` instead of its own files, so it reloads as you save. `--port` names the dev server's port, by default the one `protobase dev` keeps for the project.
 
 ## 5. Open the native project
 

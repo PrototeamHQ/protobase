@@ -2,10 +2,10 @@
 
 Every resource of the portal is also a REST API at `/api/v1/<resource>`, described by an OpenAPI 3.1 document the server generates for the caller: `/api/openapi.json`, with an interactive reference at `/api/docs`. Both list only what the caller's role may see and do, so they need a token ([REST API](https://docs.protobase.net/reference/api/)).
 
-Start the example as in the [README](README.md#start); the commands below use `curl` and `jq` against `http://localhost:5173`.
+Start the example as in the [README](README.md#start); the commands below use `curl` and `jq` against the address `dev` prints, such as `http://localhost:23456`.
 
 ```sh
-BASE=http://localhost:5173
+BASE=http://localhost:23456   # the address dev prints
 ```
 
 ## Sign in and get a token

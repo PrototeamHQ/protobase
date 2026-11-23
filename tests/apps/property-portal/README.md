@@ -13,7 +13,7 @@ bun run db:up                                                # repository root: 
 bun run --cwd tests/apps/property-portal db:migrate
 bun run --cwd tests/apps/property-portal db:seed --scale small  # small | medium | large
 bun run --cwd tests/apps/property-portal map:tiles              # the listing map's tiles, in a terminal of its own
-bun run --cwd tests/apps/property-portal dev                    # http://localhost:5173
+bun run --cwd tests/apps/property-portal dev                    # prints its address, http://localhost:<port>
 bun run --cwd tests/apps/property-portal test                   # the unit tests next to the config, the jobs and the seed
 ```
 

@@ -4,7 +4,7 @@ description: Develop, build and run an app, on servers, in containers and on pho
 ---
 
 - [Node and Bun](/reference/cli/#how-it-runs): The `protobase` command runs on Node 22.12 or later or on Bun, and a bundle runs on both unless it is built for Bun only.
-- [Dev server](/reference/cli/#dev): The admin app and the API on one port, with changes shown without a restart.
+- [Dev server](/reference/cli/#dev): The admin app and the API on one port, with changes shown without a restart; each project keeps its own port, so its address and bookmarks stay the same.
 - [Dev server without jobs](/reference/cli/#dev): `protobase dev --no-jobs` runs no jobs and delivers no events, webhooks or pushes, to develop against a hosted app's database without doing its work twice.
 - [UI-only dev server](/reference/cli/#ui-only) (beta): `protobase dev --api <url>` serves the app's UI from the project with the API of an app already running, such as its staging deploy, with no database.
 - [Editor types](/reference/cli/#types): `protobase types` gives the editor and `tsc` the types of the CLI that builds the app, with nothing installed.

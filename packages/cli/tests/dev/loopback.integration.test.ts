@@ -1,7 +1,7 @@
 import { createServer as createHttpServer } from 'node:http'
 import { createServer, type Server } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
-import { alsoOnIpv6, checkPortFree } from '../../src/dev/loopback'
+import { alsoOnIpv6, checkPortFree, heldOn } from '../../src/dev/loopback'
 import { freePort } from '../support/database'
 
 const servers: Server[] = []
@@ -26,7 +26,19 @@ describe('checkPortFree', () => {
   it.each(['127.0.0.1', '::1'])('refuses a port another server holds on %s', async (host) => {
     const port = await freePort()
     await holdPort(port, host)
-    await expect(checkPortFree(port)).rejects.toThrow(`Port ${port} is in use by another server on ${host}, which would answer http://localhost:${port} instead. Stop it, or run on a free port with --port`)
+    await expect(checkPortFree(port)).rejects.toThrow(`Port ${port} is in use by another server on ${host}, which would answer http://localhost:${port} instead. Stop it, or run on another port with --port <port>, which the project then keeps`)
+  })
+})
+
+describe('heldOn', () => {
+  it('names no address for a free port', async () => {
+    expect(await heldOn(await freePort())).toBeUndefined()
+  })
+
+  it.each(['127.0.0.1', '::1'])('names %s when another server holds the port there', async (host) => {
+    const port = await freePort()
+    await holdPort(port, host)
+    expect(await heldOn(port)).toBe(host)
   })
 })
 

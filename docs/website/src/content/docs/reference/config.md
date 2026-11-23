@@ -97,7 +97,7 @@ The app's database is `DATABASE_URL`'s, with the pool size of `PROTOBASE_DB_CONN
 ```json
 {
   "$schema": "./node_modules/@protobase/config/schema.json",
-  "url": { "$env": "PROTOBASE_URL", "default": "http://localhost:5173" },
+  "url": { "$env": "PROTOBASE_URL" },
   "timezone": "Europe/Amsterdam",
   "auth": { "roles": ["admin", "sales"], "trustedOrigins": { "$env": "TUNNEL_URLS", "split": "," } },
   "jobs": { "send-invoice": { "arguments": { "invoiceId": "bigint" }, "maxAttempts": 5 } },

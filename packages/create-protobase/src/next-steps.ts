@@ -25,7 +25,7 @@ export const nextSteps = (dir: string, scripts: Record<string, string>, port: nu
     ...('db:seed:base' in scripts ? ['bun run db:seed:base'] : []),
     ...('db:seed' in scripts ? ['bun run db:seed --scale small   # optional: sample data, replacing the app tables'] : []),
     'bun run protobase users create you@example.com --generate-password',
-    'bun run dev            # http://localhost:5173',
+    "bun run dev            # prints the app's address, on a port the project keeps",
   ]
   return withBun(steps, tools)
 }
@@ -43,7 +43,7 @@ export const databaseNextSteps = (dir: string, tools: Tools, supabase = false) =
         ? "bun run db:migrate     # the first write to the database: app_auth, a view over auth.users and Better Auth's tables, and migrations.applied"
         : 'bun run db:migrate     # the first write to the database: the auth schema, and migrations.applied',
       'bun run protobase users create you@example.com --generate-password',
-      'bun run dev            # http://localhost:5173',
+      "bun run dev            # prints the app's address, on a port the project keeps",
     ],
     tools,
   )

@@ -12,7 +12,7 @@ describe('nextSteps', () => {
         '  bun run db:up          # Postgres 18 in Docker on port 55432',
         '  bun run db:migrate',
         '  bun run protobase users create you@example.com --generate-password',
-        '  bun run dev            # http://localhost:5173',
+        "  bun run dev            # prints the app's address, on a port the project keeps",
         '',
       ].join('\n'),
     )
@@ -43,7 +43,7 @@ describe('databaseNextSteps', () => {
         '  cd shop',
         '  bun run db:migrate     # the first write to the database: the auth schema, and migrations.applied',
         '  bun run protobase users create you@example.com --generate-password',
-        '  bun run dev            # http://localhost:5173',
+        "  bun run dev            # prints the app's address, on a port the project keeps",
         '',
       ].join('\n'),
     )
