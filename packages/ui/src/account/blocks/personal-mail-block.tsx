@@ -77,6 +77,10 @@ const Mailboxes = ({ links }: { links: PersonalMailLink[] }) => {
           forgetSenderOptions()
           await reload()
         }}
+        onShare={async (id, shared) => {
+          await (shared ? account.shareMailSender(id) : account.unshareMailSender(id))
+          await reload()
+        }}
         onVerify={async (id) => settledAgain(await account.verifyMailSender(id))}
         onVerifications={async (id) => settledAgain((await account.mailSenders()).senders.find((sender) => sender.id === id)?.verifications ?? [])}
         onRefresh={refresh}

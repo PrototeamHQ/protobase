@@ -125,6 +125,32 @@ export const UnverifiableFromAddress: StoryObj<MailSendersSectionProps> = {
   },
 }
 
+/** A verified address is shared with the app's other senders from its dialog; an unverified one says to prove it first. */
+export const SharedFromAddress: StoryObj<MailSendersSectionProps> = {
+  tags: ['play'],
+  args: { senders, onAdd: fn(), onUpdate: fn(async () => undefined), onRemove: fn(), onShare: fn(async () => undefined), onVerify: fn(), onVerifications: fn(), ...mailbox },
+  render: (args) => <MailSendersSection {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    const page = within(document.body)
+    await userEvent.click(canvas.getAllByRole('button', { name: 'Edit' })[1]!)
+    expect(page.getByRole('switch', { name: "Share with the app's other senders" })).toBeDisabled()
+    expect(page.getByText(/^Only a verified address can be shared\./)).toBeVisible()
+    await userEvent.click(page.getByRole('button', { name: 'Cancel' }))
+
+    await userEvent.click(canvas.getAllByRole('button', { name: 'Edit' })[0]!)
+    await userEvent.click(page.getByRole('switch', { name: "Share with the app's other senders" }))
+    await userEvent.click(page.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(args.onShare).toHaveBeenCalledWith('s1', true))
+  },
+}
+
+/** A shared address says so in the list. */
+export const SharedBadge: StoryObj<MailSendersSectionProps> = {
+  args: { senders: { ...senders, senders: [{ ...senders.senders[0]!, sharedAt: '2026-08-01T00:00:00.000Z' }] }, onAdd: fn(), onUpdate: fn(), onRemove: fn(), onShare: fn(), onVerify: fn(), onVerifications: fn(), ...mailbox },
+  render: (args) => <MailSendersSection {...args} />,
+}
+
 const listingMailbox = { ...senders.connections![0]!, canList: true }
 
 /** A mailbox that lists its send-as addresses: opening the section checks them with Gmail, and each shows what Gmail says of it. */

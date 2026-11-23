@@ -92,6 +92,10 @@
     "fromName": "Naam",
     "fromNamePlaceholder": "Getoond naast het adres, zoals Acme Facturen",
     "defaultFromAddress": "Verstuur vanaf dit adres tenzij een ander is gekozen",
+    "shareFromAddress": "Delen met de andere verzenders van de app",
+    "shareFromAddressHint": "Zij kunnen dit adres dan kiezen en ermee versturen via jouw mailbox. Je eigen adres en mailbox blijven voor hen verborgen.",
+    "shareNeedsVerified": "Alleen een geverifieerd adres kan worden gedeeld. Bewijs eerst dat dit adres van jou is: controleer het met je mailbox, of verifieer het.",
+    "shared": "Gedeeld",
     "signature": "Handtekening",
     "signaturePlaceholder": "Laat leeg om de algemene handtekening te gebruiken",
     "removeFromAddress": "{address} verwijderen?",
@@ -2196,7 +2200,8 @@
     "stateUnverified": "Niet gecontroleerd",
     "stateFailed": "Kan niet versturen",
     "stateDetached": "Geen mailbox",
-    "senderWithState": "{label} · {state}"
+    "senderWithState": "{label} · {state}",
+    "senderShared": "gedeeld"
   },
   "markdown": {
     "write": "Schrijven",

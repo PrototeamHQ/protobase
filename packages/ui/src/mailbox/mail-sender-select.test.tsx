@@ -34,6 +34,12 @@ describe('a mail sender dropdown', () => {
     expect(choices('sales@acme.example', { options: states })).toContain('<option value="sales@acme.example" selected="">')
   })
 
+  it('offers an address someone else shared after the person’s own, marked shared and free to choose', () => {
+    const html = choices('', { options: [...options, { address: 'team@acme.example', name: 'Acme team', shared: true }] })
+    expect(optionTexts(html).at(-1)).toBe('Acme team &lt;team@acme.example&gt; · shared')
+    expect(html).toContain('<option value="team@acme.example">')
+  })
+
   it('selects a stored address spelled in another case as the one offered', () => {
     expect(choices('Billing@Acme.example')).toContain('<option value="billing@acme.example" selected="">')
   })

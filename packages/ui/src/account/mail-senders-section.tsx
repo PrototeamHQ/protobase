@@ -18,6 +18,8 @@ export type MailSendersSectionProps = {
   onAdd: (input: { address: string; name?: string; signature?: string }) => Promise<MailSender>
   onUpdate: (id: string, change: MailSenderChange) => Promise<unknown>
   onRemove: (id: string) => Promise<void>
+  /** Shares an address with the app's other senders, or makes it the person's alone again. */
+  onShare: (id: string, shared: boolean) => Promise<unknown>
   /** Starts the app's verifiers on an address (`senders.verifiers`), and reads its latest verifications again. */
   onVerify: (id: string) => Promise<MailSenderVerification[]>
   onVerifications: (id: string) => Promise<MailSenderVerification[]>
@@ -47,11 +49,11 @@ const hintOf = (sender: MailSender, canCheck: boolean, name: string, own: string
 /**
  * The From addresses the person's mail goes out from, under their mailbox: its own and those its provider lists or
  * they typed, such as its send-as addresses, each with its state, and its own signature or the generic one; one is the
- * default. Opening it reads the send-as addresses again from each mailbox that can list them, as **Check with Gmail**
+ * default, and a verified one can be shared with the app's other senders. Opening it reads the send-as addresses again from each mailbox that can list them, as **Check with Gmail**
  * does; a mailbox whose link lacks the scope to list them offers to connect it again. Where the app has verifiers,
  * adding an address verifies it at once, and its dialog verifies it again; elsewhere the dialog says it cannot.
  */
-export const MailSendersSection = ({ senders: { address, senders, verifiers = false, connections = [] }, onAdd, onUpdate, onRemove, onVerify, onVerifications, onRefresh, onConnect, providerName }: MailSendersSectionProps) => {
+export const MailSendersSection = ({ senders: { address, senders, verifiers = false, connections = [] }, onAdd, onUpdate, onRemove, onShare, onVerify, onVerifications, onRefresh, onConnect, providerName }: MailSendersSectionProps) => {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [editing, setEditing] = useState<Editing>()
@@ -95,7 +97,11 @@ export const MailSendersSection = ({ senders: { address, senders, verifiers = fa
     attempt(async () => {
       const name = input.name || null
       const signature = input.signature.trim() ? input.signature : null
-      if (editing?.kind === 'change') return void (await onUpdate(editing.sender.id, { name, signature, isDefault: input.isDefault }))
+      if (editing?.kind === 'change') {
+        await onUpdate(editing.sender.id, { name, signature, isDefault: input.isDefault })
+        if (input.shared !== Boolean(editing.sender.sharedAt)) await onShare(editing.sender.id, input.shared)
+        return
+      }
       const added = await onAdd({ address: input.address, ...(name && { name }), ...(signature && { signature }) })
       if (input.isDefault) await onUpdate(added.id, { isDefault: true })
       // Checked at once where the mailbox can say, so a typo shows Can't send while the person still remembers typing it.
@@ -149,6 +155,7 @@ export const MailSendersSection = ({ senders: { address, senders, verifiers = fa
               </span>
               <Badge tone={state.tone}>{state.label}</Badge>
               {sender.isDefault && <Badge tone="blue">{text('default')}</Badge>}
+              {sender.sharedAt && <Badge tone="neutral">{text('shared')}</Badge>}
               <Button size="sm" variant="ghost" onClick={() => setEditing({ kind: 'change', sender })}>
                 {text('edit')}
               </Button>

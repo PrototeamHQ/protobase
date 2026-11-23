@@ -10,8 +10,11 @@ import { SenderVerification, type SenderVerificationProps } from './sender-verif
 import { VerificationUnavailable } from './verification-panel'
 import { text } from './messages'
 
-/** What the dialog asks: the address, when it is a new one, its display name, its own signature, and if it is the default. */
-export type MailSenderInput = { address: string; name: string; signature: string; isDefault: boolean }
+/**
+ * What the dialog asks: the address, when it is a new one, its display name, its own signature, if it is the default,
+ * and, for one already entered, if it is shared with the app's other senders.
+ */
+export type MailSenderInput = { address: string; name: string; signature: string; isDefault: boolean; shared: boolean }
 
 type MailSenderDialogProps = {
   /** The address to change; without it, the dialog enters a new one. */
@@ -24,13 +27,19 @@ type MailSenderDialogProps = {
   onClose: () => void
 }
 
-/** Enters a From address, or changes one: its display name, whether it is the default, and its own signature. */
+/**
+ * Enters a From address, or changes one: its display name, whether it is the default, its own signature, and whether
+ * the app's other senders may send from it, which only a verified one can be; a new one is never shared.
+ */
 export const MailSenderDialog = ({ sender, verification, busy, error, onSave, onClose }: MailSenderDialogProps) => {
   const [address, setAddress] = useState(sender?.address ?? '')
   const [name, setName] = useState(sender?.name ?? '')
   const [signature, setSignature] = useState(sender?.signature ?? '')
   const [isDefault, setDefault] = useState(sender?.isDefault ?? false)
-  const save = () => onSave({ address: address.trim(), name: name.trim(), signature, isDefault })
+  const [shared, setShared] = useState(Boolean(sender?.sharedAt))
+  // A shared address that is no longer verified can still be unshared.
+  const canShare = sender?.state === 'verified' || Boolean(sender?.sharedAt)
+  const save = () => onSave({ address: address.trim(), name: name.trim(), signature, isDefault, shared })
   return (
     <Dialog
       title={sender ? sender.address : text('addFromAddress')}
@@ -59,6 +68,15 @@ export const MailSenderDialog = ({ sender, verification, busy, error, onSave, on
         <span>{text('defaultFromAddress')}</span>
         <Switch checked={isDefault} onChange={setDefault} label={text('defaultFromAddress')} />
       </label>
+      {sender && (
+        <>
+          <label className="mt-3 flex cursor-pointer items-center justify-between gap-3">
+            <span>{text('shareFromAddress')}</span>
+            <Switch checked={shared} disabled={!canShare} onChange={setShared} label={text('shareFromAddress')} />
+          </label>
+          <p className="mt-1 text-xs text-muted-foreground">{text(canShare ? 'shareFromAddressHint' : 'shareNeedsVerified')}</p>
+        </>
+      )}
       <label className="mt-3 flex flex-col gap-1.5 font-medium">
         {text('signature')}
         <Textarea value={signature} maxLength={2000} placeholder={text('signaturePlaceholder')} onChange={(event) => setSignature(event.target.value)} />
