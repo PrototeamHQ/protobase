@@ -64,3 +64,44 @@ export const DoesNotLoad: StoryObj<Args> = {
     expect(args.report).toHaveBeenCalledTimes(1)
   },
 }
+
+type WaitArgs = { fails: boolean }
+
+// The renderer's chunk arriving a moment after the page, or not at all
+const slowly = (fails: boolean) => () =>
+  new Promise<void>((resolve) => setTimeout(resolve, 300)).then(() => (fails ? offline() : loadMessageContent()))
+
+/** A page that shows its messages only once the renderer has loaded or failed to: they show formatted from the first frame, or as typed. */
+export const PageWaitsForTheRenderer: StoryObj<WaitArgs> = {
+  tags: ['play'],
+  args: { fails: false },
+  render: function Render({ fails }) {
+    const [Text] = useState(() => lazyPart(slowly(fails), AsWritten, () => {}))
+    const loaded = Text.useLoaded()
+    if (!loaded) return <p>Loading messages</p>
+    return (
+      <div data-testid="message">
+        <Text text={body} mentions={[ann]} />
+      </div>
+    )
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByText('Loading messages')).toBeVisible()
+    const message = await canvas.findByTestId('message')
+    // Drawn in the same frame the page shows it, never as typed first
+    expect(message.querySelector('strong')).not.toBeNull()
+  },
+}
+
+/** When the renderer does not load, the page that waits on it still shows its messages, as typed. */
+export const PageWaitsForARendererThatFails: StoryObj<WaitArgs> = {
+  tags: ['play'],
+  args: { fails: true },
+  render: PageWaitsForTheRenderer.render,
+  play: async ({ canvasElement }) => {
+    const message = await within(canvasElement).findByTestId('message')
+    expect(message.textContent).toBe(body)
+    expect(message.querySelector('strong')).toBeNull()
+  },
+}
