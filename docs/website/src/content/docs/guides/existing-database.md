@@ -23,7 +23,6 @@ Then a `.env` beside it, which every `protobase` command reads:
 DATABASE_URL=postgres://user:password@localhost:5432/shop
 # The app's secret, which signs session cookies: generate your own with openssl rand -base64 32
 PROTOBASE_SECRET=
-PROTOBASE_URL=http://localhost:5173
 ```
 
 Keep `.env` out of version control.
@@ -81,7 +80,7 @@ npx protobase users create you@example.com --generate-password
 npx protobase dev
 ```
 
-The first user is always an admin. The password is printed once. `protobase dev` serves the admin and its API at `http://localhost:5173` (`--port` picks another port); sign in there with that email and password.
+The first user is always an admin. The password is printed once. `protobase dev` serves the admin and its API at the address it prints, `http://localhost:<port>` on a port the project keeps (`--port` changes it); sign in there with that email and password.
 
 ## Running scaffold again
 

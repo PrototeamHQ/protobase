@@ -21,12 +21,12 @@ export const registerMobile = (program: Command) => {
     .option('--target <id>', 'the device or simulator to run on (default: Capacitor asks)')
     .option('--team <id>', 'iOS: your Apple Developer team id, which signs the app to run on your iPhone', parseTeamId)
     .option('--live', 'open the running protobase dev instead of the app\'s own files, reloading as you save', false)
-    .option('--port <port>', 'the port of protobase dev, for --live', parsePort, 5173)
+    .option('--port <port>', "the port of protobase dev, for --live (default: the project's kept dev port)", parsePort)
     .option('--extend <dir>', extend, collect, [])
     .action(async (chosen: Platform, opts) => {
-      const [{ mobileRun }, { resolveExtensions }] = await Promise.all([import('./run'), import('../project/extensions')])
+      const [{ mobileRun }, { resolveExtensions }, { livePort }] = await Promise.all([import('./run'), import('../project/extensions'), import('./live-port')])
       const input = { projectDir: process.cwd(), platform: chosen, extensions: resolveExtensions(opts.extend), ...(opts.api !== undefined && { api: opts.api }), ...(opts.target && { target: opts.target }), ...(opts.team && { team: opts.team }) }
-      await mobileRun({ ...input, ...(opts.live && { live: opts.port }) }, out)
+      await mobileRun({ ...input, ...(opts.live && { live: await livePort(process.cwd(), opts.port) }) }, out)
     })
 
   mobile

@@ -34,7 +34,7 @@ bun install
 bun run db:up
 bun run db:migrate
 bun run protobase users create you@example.com --generate-password
-bun run dev                         # http://localhost:5173
+bun run dev                         # prints its address, http://localhost:<port>
 ```
 
 ### The first table
@@ -74,7 +74,7 @@ It never writes to the database. The first of the next steps does: `bun run db:m
 cd shop
 bun run db:migrate                  # the first write to the database
 bun run protobase users create you@example.com --generate-password
-bun run dev                         # http://localhost:5173
+bun run dev                         # prints its address, http://localhost:<port>
 ```
 
 #### On a Supabase database
@@ -112,10 +112,10 @@ bun install
 ```sh
 bun run db:up && bun run --cwd tests/apps/erp db:migrate && bun run --cwd tests/apps/erp db:seed --scale small   # the ERP's tables and Better Auth's
 bun run --cwd tests/apps/erp protobase users create you@example.com --generate-password
-bun run --cwd tests/apps/erp dev                          # http://localhost:5173
+bun run --cwd tests/apps/erp dev                          # prints its address, http://localhost:<port>
 ```
 
-`PROTOBASE_SECRET` in `tests/apps/erp/.env` signs the session cookies; see [Login with Better Auth](/reference/auth/). `protobase dev` serves the admin app and the API on one port and reloads both on every change ([CLI](/reference/cli/#dev)). Its startup message says how to sign in: while the database has no users, it prints the exact `users create` command for the first admin. It stops with a clear message when another server holds its port; pass `--port 5174` to run a second app beside it.
+`PROTOBASE_SECRET` in `tests/apps/erp/.env` signs the session cookies; see [Login with Better Auth](/reference/auth/). `protobase dev` serves the admin app and the API on one port and reloads both on every change ([CLI](/reference/cli/#dev)). Its startup message says how to sign in: while the database has no users, it prints the exact `users create` command for the first admin. Each example keeps a port of its own, picked on its first run, so they run side by side at addresses that stay the same; it stops with a clear message when another server holds that port, and `--port <port>` changes it.
 
 ## Run the real estate example
 
@@ -124,7 +124,7 @@ bun run --cwd tests/apps/erp dev                          # http://localhost:517
 ```sh
 bun run db:up && bun run --cwd tests/apps/real-estate db:migrate && bun run --cwd tests/apps/real-estate db:seed --scale small
 bun run --cwd tests/apps/real-estate protobase users create you@example.com --role admin --generate-password
-bun run --cwd tests/apps/real-estate dev                  # http://localhost:5173
+bun run --cwd tests/apps/real-estate dev                  # prints its address, http://localhost:<port>
 ```
 
 ## Run the property portal example
@@ -133,7 +133,7 @@ bun run --cwd tests/apps/real-estate dev                  # http://localhost:517
 
 ```sh
 bun run db:up && bun run --cwd tests/apps/property-portal db:migrate && bun run --cwd tests/apps/property-portal db:seed --scale small
-bun run --cwd tests/apps/property-portal dev              # http://localhost:5173
+bun run --cwd tests/apps/property-portal dev              # prints its address, http://localhost:<port>
 ```
 
 ## Commands

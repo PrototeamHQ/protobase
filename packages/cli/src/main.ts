@@ -6,6 +6,7 @@ import { registerBuckets } from './buckets/register'
 import { defaultConnectionEnv, isConnectionString, resolveConnectionUrl } from './db/connection-url'
 import { parseHosts } from './dev/hosts'
 import { loadNearestEnvFile } from './dev/env'
+import { parsePort } from './mobile/arguments'
 import { placeholderSecretWarning } from './project/placeholder-secret'
 import { registerOrganizations } from './organizations/register'
 import { registerFiles } from './files/register'
@@ -116,16 +117,17 @@ const runUiDevAgainst = async (api: string, options: SharedDevOptions) => {
 }
 
 const runFullDev = async (envVar: string, jobs: boolean, options: SharedDevOptions) => {
-  const { runDev } = await import('./dev/run')
+  const [{ runDev }, { urlPortWarning }] = await Promise.all([import('./dev/run'), import('./dev/url-port')])
   const server = await runDev({ ...options, envVar, jobs }, out)
   warn(placeholderSecretWarning(process.env))
+  warn(urlPortWarning(process.env, options.port))
   return server
 }
 
 program
   .command('dev')
   .description('Serve the admin app and API for the project in the current directory')
-  .option('--port <port>', 'port for the app and API', '5173')
+  .option('--port <port>', "port for the app and API, kept as the project's port (default: the kept one, else a free random one)", parsePort)
   .option('--env <variable>', 'environment variable holding the database URL', 'DATABASE_URL')
   .option('--allowed-hosts <hosts>', 'extra Host headers to accept, comma separated; a leading dot matches subdomains (.trycloudflare.com)')
   .option('--cache-dir <dir>', "Vite's dependency cache, so parallel dev servers do not share one")
@@ -133,11 +135,11 @@ program
   .option('--no-jobs', "run none of the app's jobs and deliver none of its events, such as against its hosted database")
   .option('--api <url>', 'serve the admin app alone, with the API of the running Protobase instance at this URL; no database or API process')
   .action(async (opts) => {
-    const [{ resolveExtensions }, { writeProjectTypes }] = await Promise.all([import('./project/extensions'), import('./project/project-types')])
+    const [{ resolveExtensions }, { writeProjectTypes }, { devPort }] = await Promise.all([import('./project/extensions'), import('./project/project-types'), import('./dev/dev-port')])
     await writeProjectTypes(process.cwd())
     const shared = {
       extensions: resolveExtensions(opts.extend),
-      port: Number(opts.port),
+      port: await devPort(process.cwd(), opts.port),
       projectDir: process.cwd(),
       cacheDir: opts.cacheDir && path.resolve(opts.cacheDir),
       allowedHosts: parseHosts(opts.allowedHosts),

@@ -25,12 +25,12 @@ The examples below come from Pip's bike shop (see [From a table to an admin](/gu
 
 <Code code={hello} lang="ts" title="functions/hello.ts" />
 
-`protobase dev` serves it at `http://localhost:5173/api/functions/hello`. A change reloads it on the next request, and a new file appears after the next change inside the project. `protobase build` bundles the functions into the deploy bundle, and `protobase serve` serves them the same way. Call it with a token:
+`protobase dev` serves it at `/api/functions/hello` of the address it prints, such as `http://localhost:23456/api/functions/hello`. A change reloads it on the next request, and a new file appears after the next change inside the project. `protobase build` bundles the functions into the deploy bundle, and `protobase serve` serves them the same way. Call it with a token:
 
 ```sh
-curl -H "Authorization: Bearer $(protobase token pip@example.com)" http://localhost:5173/api/functions/hello
+curl -H "Authorization: Bearer $(protobase token pip@example.com)" http://localhost:23456/api/functions/hello
 # {"message":"Hello, 9f3c…","roles":["admin"]}
-curl -i http://localhost:5173/api/functions/hello
+curl -i http://localhost:23456/api/functions/hello
 # HTTP/1.1 401 Unauthorized, an application/problem+json body like every other refusal
 ```
 

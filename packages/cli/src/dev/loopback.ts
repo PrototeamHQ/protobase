@@ -18,19 +18,40 @@ const listen = (server: Server, port: number, host: string) =>
     })
   })
 
-// Listens on `host`, refusing a port another process holds there; false when the machine has no such address.
-const hold = async (server: Server, port: number, host: string) => {
+// Listens on `host`; false when the machine has no such address.
+const listenOn = async (server: Server, port: number, host: string) => {
   try {
     await listen(server, port, host)
     return true
   } catch (error) {
     const { code } = error as NodeJS.ErrnoException
-    if (code === 'EADDRINUSE') {
-      throw new Error(`Port ${port} is in use by another server on ${host}, which would answer http://localhost:${port} instead. Stop it, or run on a free port with --port`)
-    }
     if (code && missingFamily.includes(code)) return false
     throw error
   }
+}
+
+// Listens on `host`, refusing a port another process holds there; false when the machine has no such address.
+const hold = async (server: Server, port: number, host: string) => {
+  try {
+    return await listenOn(server, port, host)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EADDRINUSE') throw error
+    throw new Error(`Port ${port} is in use by another server on ${host}, which would answer http://localhost:${port} instead. Stop it, or run on another port with --port <port>, which the project then keeps`)
+  }
+}
+
+/** The loopback address where another process holds `port`, undefined when neither does. */
+export const heldOn = async (port: number) => {
+  for (const host of loopbacks) {
+    const probe = createServer()
+    try {
+      if (await listenOn(probe, port, host)) await new Promise((resolve) => probe.close(resolve))
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE') return host
+      throw error
+    }
+  }
+  return
 }
 
 /** Fails when another process holds `port` on either loopback address, before the dev server starts. */
