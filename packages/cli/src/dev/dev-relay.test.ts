@@ -1,12 +1,14 @@
 import type { ProtobaseConfig } from '@protobase/config'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { stopDevRelay, withDevRelay } from './dev-relay'
+import { realtimeBinary } from './realtime-binary'
 import { startRelay } from './relay-process'
 
-vi.mock('./relay-binary', () => ({ relayBinary: async () => '/bin/relay' }))
+vi.mock('./realtime-binary', () => ({ realtimeBinary: vi.fn(async () => '/bin/relay') }))
 vi.mock('./relay-process', async (actual) => ({ ...(await actual<typeof import('./relay-process')>()), freePort: async () => 4100, startRelay: vi.fn() }))
 
 const started = vi.mocked(startRelay)
+const resolved = vi.mocked(realtimeBinary)
 const stop = vi.fn(async () => undefined)
 const devUrl = 'http://localhost:5173'
 // The app's views and resources, none: the config declares its channels.
@@ -26,15 +28,16 @@ describe('withDevRelay', () => {
     vi.clearAllMocks()
   })
 
-  it('starts no relay for an app without realtime.relay, or one whose relay has a url', async () => {
-    expect(await withDevRelay({}, '/app', devUrl, none)).toEqual({})
+  it('starts no relay and resolves no binary for an app without realtime.relay, or one whose relay has a url', async () => {
+    expect(await withDevRelay({}, devUrl, none)).toEqual({})
     const own = config({ url: 'https://relay.example.com', apiKey: 'a'.repeat(32), ticketKey: 't'.repeat(32) })
-    expect(await withDevRelay(own, '/app', devUrl, none)).toBe(own)
+    expect(await withDevRelay(own, devUrl, none)).toBe(own)
     expect(started).not.toHaveBeenCalled()
+    expect(resolved).not.toHaveBeenCalled()
   })
 
   it("starts the relay for the app at the dev server's origin and gives the app its address and keys", async () => {
-    const served = await withDevRelay(config(), '/app', devUrl, none)
+    const served = await withDevRelay(config(), devUrl, none)
     const options = served.realtime!.relay!
     expect(options).toMatchObject({ ...relay, url: 'http://127.0.0.1:4100' })
     expect(options.apiKey!.length).toBeGreaterThanOrEqual(32)
@@ -43,37 +46,37 @@ describe('withDevRelay', () => {
   })
 
   it('takes the keys the config sets', async () => {
-    const served = await withDevRelay(config({ apiKey: 'a'.repeat(32), ticketKey: 't'.repeat(32) }), '/app', devUrl, none)
+    const served = await withDevRelay(config({ apiKey: 'a'.repeat(32), ticketKey: 't'.repeat(32) }), devUrl, none)
     expect(served.realtime!.relay).toMatchObject({ apiKey: 'a'.repeat(32), ticketKey: 't'.repeat(32) })
   })
 
   it('makes a presence key when the config sets none, and keeps one it sets', async () => {
     const presence = { resource: 'presences', user: 'user_id', status: 'status', at: 'since' }
-    const made = (await withDevRelay(config({ presence }), '/app', devUrl, none)).realtime!.relay!.presence!
+    const made = (await withDevRelay(config({ presence }), devUrl, none)).realtime!.relay!.presence!
     expect(made.key!.length).toBeGreaterThanOrEqual(32)
     expect(started.mock.calls[0]![2]).toMatchObject({ presence: { url: `${devUrl}/api/relay/presence`, key: made.key } })
-    const own = await withDevRelay(config({ presence: { ...presence, key: 'p'.repeat(32) } }), '/app', devUrl, none)
+    const own = await withDevRelay(config({ presence: { ...presence, key: 'p'.repeat(32) } }), devUrl, none)
     expect(own.realtime!.relay!.presence!.key).toBe('p'.repeat(32))
   })
 
   it('keeps the relay across reloads of the same app, and starts it again when its entry changes', async () => {
-    const first = await withDevRelay(config(), '/app', devUrl, none)
-    const again = await withDevRelay(config({ channels: { rooms: {} } }), '/app', devUrl, none)
+    const first = await withDevRelay(config(), devUrl, none)
+    const again = await withDevRelay(config({ channels: { rooms: {} } }), devUrl, none)
     expect(again.realtime!.relay).toMatchObject({ apiKey: first.realtime!.relay!.apiKey, url: 'http://127.0.0.1:4100' })
     expect(started).toHaveBeenCalledTimes(1)
-    await withDevRelay(config({ app: 'chat2' }), '/app', devUrl, none)
+    await withDevRelay(config({ app: 'chat2' }), devUrl, none)
     expect(stop).toHaveBeenCalledTimes(1)
     expect(started).toHaveBeenCalledTimes(2)
   })
 
   it('stops the relay once the config drops realtime.relay', async () => {
-    await withDevRelay(config(), '/app', devUrl, none)
-    await withDevRelay({}, '/app', devUrl, none)
+    await withDevRelay(config(), devUrl, none)
+    await withDevRelay({}, devUrl, none)
     expect(stop).toHaveBeenCalledTimes(1)
   })
 
   it('refuses an app id the relay would not take, before starting it', async () => {
-    await expect(withDevRelay(config({ app: 'Chat App' }), '/app', devUrl, none)).rejects.toThrow(/realtime.relay.app or PROTOBASE_REALTIME_APP must be/)
+    await expect(withDevRelay(config({ app: 'Chat App' }), devUrl, none)).rejects.toThrow(/realtime.relay.app or PROTOBASE_REALTIME_APP must be/)
     expect(started).not.toHaveBeenCalled()
   })
 })

@@ -1,0 +1,10 @@
+{
+  "version": "0.1.0",
+  "sha256": {
+    "protobase-realtime-linux-amd64": "9222d79cf9b1ad222a7580b4cb40fcd9b47ba8bdd4c6dc6b301eee5c57c73a1f",
+    "protobase-realtime-linux-arm64": "417801feaffd70849122fa2de59726f02afb78ce75af71bb21856b8dedca9c83",
+    "protobase-realtime-darwin-amd64": "811aed0f1f17623a4b900c5cdc2948e4f23343161f770e13836a2800f48ee793",
+    "protobase-realtime-darwin-arm64": "70bacaef85cd6b554556a29e7ca0710ced96036083c7b00da9b064ae94198ae0",
+    "protobase-realtime-windows-amd64.exe": "93ecd3fc44ca00b19cd5abf86a0d48da2f76436acf844e86c82f76f05b112cfc"
+  }
+}
