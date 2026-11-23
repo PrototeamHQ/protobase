@@ -289,7 +289,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
   "mobile": { "appId": "com.example.shop", "plugins": { "@capacitor/camera": "^8.0.1" }, "push": true },
   "nodeModules": "node_modules",
   "migrations": "migrations",
-  "relay": {
+  "realtime": {
     "client_events": { "channels": { "conversations": { "events": { "typing": { "schema": { "type": "object" }, "max_bytes": 256, "per_second": 2, "burst": 4 } } } } },
     "presence": { "path": "/api/relay/presence", "grace_seconds": 30 }
   }

@@ -6,14 +6,15 @@ import { argsOf, membersComment, membersSql, realtimeMembersTable, realtimeSchem
 const storedArgs = (args: readonly string[]) => Buffer.from(args.map((arg) => `${arg}\0`).join(''), 'utf8').toString('hex')
 
 /**
- * Whether the triggers of this version stand on exactly the listed tables with their args, and the members table
- * exists; and the tables, as SQL names them, that have any of them.
+ * Whether the triggers of this version stand on exactly the listed tables with their args, each firing on every write
+ * (enabled, not only for replicas), and the members table exists; and the tables, as SQL names them, that have any of
+ * them. A partition's clones of a trigger are its parent's, so only triggers of no parent count.
  */
 const standingTriggers = async (db: Db, listed: readonly ListedTable[]) => {
-  const { rows } = await sql<{ rel: string; name: string; args: string; current: boolean; table: string }>`select t.tgrelid::text as rel, t.tgname as name, encode(t.tgargs, 'hex') as args,
-      coalesce(obj_description(p.oid, 'pg_proc') = ${membersComment}, false) as current, t.tgrelid::regclass::text as "table"
+  const { rows } = await sql<{ rel: string; name: string; args: string; current: boolean; enabled: boolean; table: string }>`select t.tgrelid::text as rel, t.tgname as name, encode(t.tgargs, 'hex') as args,
+      coalesce(obj_description(p.oid, 'pg_proc') = ${membersComment}, false) as current, t.tgenabled in ('O', 'A') as enabled, t.tgrelid::regclass::text as "table"
     from pg_trigger t join pg_proc p on p.oid = t.tgfoid join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = ${realtimeSchema} and p.proname = 'members_kept'`.execute(db)
+    where n.nspname = ${realtimeSchema} and p.proname = 'members_kept' and t.tgparentid = 0`.execute(db)
   const tables = await sql<{ rel: string | null; members: boolean }>`select to_regclass(name)::oid::text as rel, to_regclass(${realtimeMembersTable}) is not null as members
     from unnest(${listed.map(({ table }) => table)}::text[]) with ordinality as listed(name, place) order by place`.execute(db)
   const expected = listed.flatMap((table, i) => {
@@ -21,7 +22,7 @@ const standingTriggers = async (db: Db, listed: readonly ListedTable[]) => {
     return [`${rel}|${rowTrigger}|${storedArgs(argsOf(table))}`, `${rel}|${truncateTrigger}|${storedArgs([table.resource])}`]
   })
   const found = rows.map((row) => `${row.rel}|${row.name}|${row.args}`)
-  const exact = expected.length === found.length && expected.every((entry) => found.includes(entry)) && rows.every((row) => row.current)
+  const exact = expected.length === found.length && expected.every((entry) => found.includes(entry)) && rows.every((row) => row.current && row.enabled)
   const membersTable = listed.length === 0 || tables.rows.every((row) => row.members && row.rel !== null)
   return { current: exact && membersTable, standing: [...new Set(rows.map((row) => row.table))] }
 }

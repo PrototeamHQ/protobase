@@ -18,7 +18,8 @@ let db: Kysely<any>
 beforeAll(async () => {
   const pg = await openSnapshotDb('empty')
   db = pg.db
-  await pg.exec(`create table directs (id integer primary key, members jsonb not null, deleted_at timestamptz);
+  // Its key is checked at the end of each statement, so one statement can swap two records' keys.
+  await pg.exec(`create table directs (id integer primary key deferrable initially deferred, members jsonb not null, deleted_at timestamptz, status text);
 insert into directs values (1, '["ann", "bob"]', null), (2, '["ann"]', '2026-07-01');`)
   await pg.exec((await realtimeMembersMigration(db, listed))!)
 })
@@ -63,9 +64,24 @@ describe('realtime.members', () => {
     expect(await plan(`select user_id from realtime.members where resource = 'directs' and channel_key = '1'`)).toContain('members_pkey')
   })
 
-  it('empties a truncated table and refuses to start once a trigger is gone', async () => {
+  it('keeps each key its members when one statement swaps two records that list the same person', async () => {
+    await sql`insert into directs values (5, '["fay", "gus"]', null), (6, '["fay"]', null)`.execute(db)
+    await sql`update directs set id = case id when 5 then 6 else 5 end where id in (5, 6)`.execute(db)
+    expect((await rows()).filter((row) => /^[56]:/.test(row))).toEqual(['5:fay', '6:fay', '6:gus'])
+  })
+
+  it('follows members a trigger before the write changes, whatever column the update names', async () => {
+    await sql.raw(`create function close_direct() returns trigger language plpgsql as $$ begin if new.status = 'closed' then new.members := '[]'; end if; return new; end $$;
+create trigger close_direct before update on directs for each row execute function close_direct()`).execute(db)
+    await sql`update directs set status = 'closed' where id = 6`.execute(db)
+    expect((await rows()).filter((row) => /^[56]:/.test(row))).toEqual(['5:fay'])
+  })
+
+  it('empties a truncated table and refuses to start once a trigger is off or gone', async () => {
     await sql`truncate directs`.execute(db)
     expect(await rows()).toEqual([])
+    await sql`alter table directs disable trigger realtime_members`.execute(db)
+    await expect(checkRealtimeMembers(db, listed, 'protobase migration')).rejects.toThrow('the triggers that keep it on "directs"')
     await sql`drop trigger realtime_members on directs`.execute(db)
     await expect(checkRealtimeMembers(db, listed, 'protobase migration')).rejects.toThrow('the triggers that keep it on "directs"')
   })

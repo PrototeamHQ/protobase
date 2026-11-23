@@ -1,4 +1,4 @@
-import { quoteIdent, tableSql } from '../changes/capture-sql'
+import { tableSql } from '../changes/capture-sql'
 import type { ListedModel } from './relay-models'
 
 /** The schema of the framework's realtime tables. */
@@ -8,7 +8,7 @@ export const realtimeSchema = 'realtime'
 export const realtimeMembersTable = `${realtimeSchema}.members`
 
 /** Bumped whenever the objects below change, so the next migration writes them again. */
-const membersVersion = 1
+const membersVersion = 2
 export const membersComment = `Protobase realtime members ${membersVersion}`
 
 export const rowTrigger = 'realtime_members'
@@ -31,7 +31,10 @@ const literal = (text: string) => `'${text.replaceAll("'", "''")}'`
 /**
  * The members table, keyed by channel so a notice's audience is read by its key, with an index by person for their
  * tickets and co-members; `listed_members`, the user ids one state of a record lists, none once soft-deleted; and the
- * trigger function, which diffs a record's members before and after each write and empties a truncated table's.
+ * trigger function, which empties a truncated table's. After each write that changes a record's key, members or soft
+ * delete, as it stands after every trigger before it, it writes the members of the record's old and new keys again
+ * from the table: row triggers that run after the write fire once the statement wrote every row, so a statement that
+ * swaps two records' keys leaves each key with the members its record lists.
  */
 const baseSql = [
   `create schema if not exists ${realtimeSchema}`,
@@ -57,6 +60,10 @@ declare
   deleted_column text := tg_argv[3];
   old_entry jsonb;
   new_entry jsonb;
+  keys text[];
+  key_type text;
+  -- The table the trigger stands on, the partitioned one for a partition's clone of it.
+  source regclass := coalesce(pg_partition_root(tg_relid), tg_relid);
 begin
   if tg_op = 'TRUNCATE' then
     delete from ${realtimeMembersTable} m where m.resource = channel_resource;
@@ -64,14 +71,18 @@ begin
   end if;
   if tg_op <> 'INSERT' then old_entry := to_jsonb(old); end if;
   if tg_op <> 'DELETE' then new_entry := to_jsonb(new); end if;
-  delete from ${realtimeMembersTable} m where m.resource = channel_resource and m.channel_key = old_entry ->> key_column
-    and (new_entry is null or m.channel_key is distinct from new_entry ->> key_column
-      or m.user_id not in (select ${realtimeSchema}.listed_members(new_entry, members_column, deleted_column)));
-  if new_entry is not null then
-    insert into ${realtimeMembersTable} (resource, channel_key, user_id)
-      select channel_resource, new_entry ->> key_column, member from ${realtimeSchema}.listed_members(new_entry, members_column, deleted_column) as member
-      on conflict do nothing;
+  if tg_op = 'UPDATE' and old_entry -> key_column is not distinct from new_entry -> key_column
+    and old_entry -> members_column is not distinct from new_entry -> members_column
+    and (deleted_column = '' or old_entry -> deleted_column is not distinct from new_entry -> deleted_column) then
+    return null;
   end if;
+  keys := array(select distinct k from unnest(array[old_entry ->> key_column, new_entry ->> key_column]) as k where k is not null);
+  delete from ${realtimeMembersTable} m where m.resource = channel_resource and m.channel_key = any(keys);
+  select format_type(a.atttypid, a.atttypmod) into key_type from pg_attribute a where a.attrelid = source and a.attname = key_column;
+  execute format('insert into ${realtimeMembersTable} (resource, channel_key, user_id)
+    select $1, to_jsonb(t) ->> $2, member from %s t cross join lateral ${realtimeSchema}.listed_members(to_jsonb(t), $3, $4) as member
+    where t.%I = any($5::%s[]) on conflict do nothing', source, key_column, key_type)
+    using channel_resource, key_column, members_column, deleted_column, keys;
   return null;
 end
 $$`,
@@ -84,9 +95,8 @@ export const argsOf = ({ resource, key, members, deleted }: ListedTable) => [res
 // The triggers on one channel table, then its rows written again from the table as it stands.
 const listedTableSql = (listed: ListedTable) => {
   const { resource, table, key, members, deleted } = listed
-  const columns = [key, members, ...(deleted ? [deleted] : [])].map(quoteIdent).join(', ')
   return [
-    `create trigger ${rowTrigger} after insert or delete or update of ${columns} on ${table} for each row execute function ${realtimeSchema}.members_kept(${argsOf(listed).map(literal).join(', ')})`,
+    `create trigger ${rowTrigger} after insert or delete or update on ${table} for each row execute function ${realtimeSchema}.members_kept(${argsOf(listed).map(literal).join(', ')})`,
     `create trigger ${truncateTrigger} after truncate on ${table} for each statement execute function ${realtimeSchema}.members_kept(${literal(resource)})`,
     `delete from ${realtimeMembersTable} where resource = ${literal(resource)}`,
     `insert into ${realtimeMembersTable} (resource, channel_key, user_id)

@@ -17,6 +17,14 @@ describe('defaultRelayChannels', () => {
     expect(defaultRelayChannels({ views, models: [quiet] })).toEqual({})
     const paired = resource('directs').table('directs').fields({ a: f.integer(), b: f.integer(), members: f.json() }).primaryKey((r) => [r.a, r.b]).live().toModel()
     expect(defaultRelayChannels({ views, models: [paired] })).toEqual({})
+    const sensitive = resource('directs').table('directs').fields({ id: f.integer(), members: f.json().sensitive() }).primaryKey((r) => r.id).live().toModel()
+    expect(defaultRelayChannels({ views, models: [sensitive] })).toEqual({})
+  })
+
+  it('takes one members field of views of one resource, and stops on two', () => {
+    expect(defaultRelayChannels({ views: [...views, conversationView('directs', { members: 'members' })], models })).toEqual({ directs: { members: { field: 'members' } } })
+    const both = resource('directs').table('directs').fields({ id: f.integer(), members: f.json(), people: f.json() }).primaryKey((r) => r.id).live().toModel()
+    expect(() => defaultRelayChannels({ views: [...views, conversationView('directs', { members: 'people' })], models: [both] })).toThrow('Views of "directs": their conversation pages list members in "members" and "people"')
   })
 })
 

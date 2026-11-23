@@ -76,8 +76,21 @@ export const relayModels = (options: Pick<RealtimeRelaySettings, 'channels' | 'p
   return { channels, placements, members, ...(options.presence && { presence: presenceModel(options.presence, byName, captured) }) }
 }
 
+/**
+ * Why a field cannot list a channel record's members, or undefined when it can: it is a JSON field of user ids whose
+ * every change reaches the relay, so neither sensitive, which capture leaves out of the change, nor ignored by history.
+ */
+export const listedFieldProblem = (model: ResourceModel, field: string) => {
+  const definition = model.fields[field]
+  if (definition?.type !== 'json') return `"${field}" of "${model.name}" is no JSON field of user ids`
+  if (definition.sensitive) return `"${field}" of "${model.name}" is sensitive, so its changes never reach the relay`
+  if (model.historyIgnore?.includes(field)) return `"${field}" of "${model.name}" is ignored by its history, so its changes never reach the relay`
+  return
+}
+
 const listedModel = (field: string, model: ResourceModel, at: string): ListedModel => {
-  if (model.fields[field]?.type !== 'json') throw new Error(`${at}.field: "${field}" of "${model.name}" is no JSON field of user ids`)
+  const problem = listedFieldProblem(model, field)
+  if (problem) throw new Error(`${at}.field: ${problem}`)
   return { model, field }
 }
 

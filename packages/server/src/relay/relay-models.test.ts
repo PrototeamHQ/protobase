@@ -59,4 +59,12 @@ describe('relayModels of a channel whose records list their members', () => {
     const quiet = resource('directs').table('directs').fields({ id: f.integer(), members: f.json() }).primaryKey((r) => r.id).toModel()
     expect(() => relayModels({ channels: { directs: { members: { field: 'members' } } } }, [quiet])).toThrow('the relay would not hear who joins or leaves: declare .live() on it')
   })
+
+  it('refuses a members field whose changes capture leaves out: sensitive, or ignored by history', () => {
+    const channels = { directs: { members: { field: 'members' } } }
+    const sensitive = resource('directs').table('directs').fields({ id: f.integer(), members: f.json().sensitive() }).primaryKey((r) => r.id).live().toModel()
+    expect(() => relayModels({ channels }, [sensitive])).toThrow('realtime.relay.channels.directs.members.field: "members" of "directs" is sensitive')
+    const ignored = resource('directs').table('directs').fields({ id: f.integer(), members: f.json(), title: f.text() }).primaryKey((r) => r.id).live().history({ ignore: ['members'] }).toModel()
+    expect(() => relayModels({ channels }, [ignored])).toThrow('"members" of "directs" is ignored by its history')
+  })
 })
