@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { bin, createAuthProject, run, typescriptArgs } from '../support/auth-project'
@@ -40,5 +40,24 @@ describe.skipIf(!reachable)('@protobase/cli/auth in a script of the project', ()
     expect(token).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/)
     const listed = await run([bin, 'users', 'list'], projectDir, env)
     expect(listed.stdout).toMatch(/seed@example\.com\s+admin/)
+  }, 60_000)
+})
+
+describe.skipIf(!reachable)('protobase users create in a project without a url', () => {
+  let project: Awaited<ReturnType<typeof createAuthProject>>
+
+  beforeAll(async () => {
+    project = await createAuthProject(url, { url: false })
+  }, 90_000)
+
+  afterAll(() => project?.dispose(), 60_000)
+
+  it("creates the first user before protobase dev has run, and keeps the port dev then serves on", async () => {
+    const { projectDir, env } = project
+    const created = await run([bin, 'users', 'create', 'first@example.com', '--password-stdin'], projectDir, { ...env, PROTOBASE_URL: '' }, 'a-long-first-password\n')
+    expect(created.stderr).toBe('')
+    expect(created.status).toBe(0)
+    expect(created.stdout).toContain('first@example.com')
+    expect(await readFile(path.join(projectDir, '.protobase/dev-port'), 'utf8')).toMatch(/^\d+\n$/)
   }, 60_000)
 })

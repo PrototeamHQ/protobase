@@ -3,19 +3,21 @@ import { releaseConnectionsWithUsers, removeDevicesWithUsers, removeHistoryWithU
 import { projectAuth } from '../config/build-project'
 import { projectNotifications, projectWorkflows } from '../config/project-parts'
 import { loadSourceConfig } from '../config/source-config'
+import { withDevUrl } from '../config/tool-url'
 import { loadNearestEnvFile } from '../dev/env'
 import { openAppDatabase } from '../project/pg-db'
 
 /**
  * The sign-in of the project in `projectDir`, built from its config's `auth` over DATABASE_URL, with only the plugins
- * it turns on; `undefined` when sign-in is off. With a device or history store of the app's own (notifications/store.ts,
- * notifications/history-store.ts), deleting a user removes their devices or history from it too; the built-in tables go
- * with the user by their foreign keys. With workflows, deleting a user revokes their connected accounts and parks the
- * triggers on them, as the app does, reporting a token it left valid on stderr.
+ * it turns on, at the project's dev address when it sets no `url` (`withDevUrl`); `undefined` when sign-in is off.
+ * With a device or history store of the app's own (notifications/store.ts, notifications/history-store.ts), deleting a
+ * user removes their devices or history from it too; the built-in tables go with the user by their foreign keys. With
+ * workflows, deleting a user revokes their connected accounts and parks the triggers on them, as the app does,
+ * reporting a token it left valid on stderr.
  */
 export const loadSignIn = async (projectDir: string): Promise<AdminAuth | undefined> => {
   loadNearestEnvFile(projectDir)
-  const config = await loadSourceConfig(projectDir, { command: 'tool' })
+  const config = await withDevUrl(await loadSourceConfig(projectDir, { command: 'tool' }), projectDir)
   if (!config.auth) return
   if (!process.env.DATABASE_URL) throw new Error('No database: set DATABASE_URL')
   const database = openAppDatabase(pg, process.env.DATABASE_URL)

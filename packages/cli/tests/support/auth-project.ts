@@ -30,8 +30,8 @@ export const generateUserId: AuthHooks['generateUserId'] = async ({ db }) =>
   (await sql<{ id: string }>\`select nextval(\${\`\${process.env.TEST_AUTH_SCHEMA}.user_ids\`}::regclass)::text as id\`.execute(db)).rows[0]!.id
 `
 
-const configFile = `export default ({ env }: { env: Record<string, string | undefined> }) => ({
-  url: 'http://localhost:1',
+const configFile = (url: boolean) => `export default ({ env }: { env: Record<string, string | undefined> }) => ({
+  ${url ? "url: 'http://localhost:1'," : ''}
   secret: '${secret}',
   auth: { schema: env.TEST_AUTH_SCHEMA },
   authenticate: { tenant: 1 },
@@ -60,9 +60,10 @@ process.exit(0)
 /**
  * A throwaway project inside tests/apps/erp (so it resolves the same packages) with its own Better Auth store, in a
  * schema of the database at `databaseUrl` that `dispose` drops. Its config/ re-exports the ERP's resources and roles,
- * which its bottom bar names, and auth/hooks.ts takes user ids from a sequence of its own.
+ * which its bottom bar names, and auth/hooks.ts takes user ids from a sequence of its own. With `url: false` its config
+ * sets no `url`, as a project whose `.env` leaves PROTOBASE_URL unset.
  */
-export const createAuthProject = async (databaseUrl: string) => {
+export const createAuthProject = async (databaseUrl: string, { url = true } = {}) => {
   const suffix = randomBytes(4).toString('hex')
   const schema = `protobase_cli_test_${suffix}`
   const projectDir = path.join(root, 'tests/apps/erp', `.cli-test-${suffix}`)
@@ -74,7 +75,7 @@ export const createAuthProject = async (databaseUrl: string) => {
   await writeFile(path.join(projectDir, 'auth/hooks.ts'), hooksFile)
   await writeFile(path.join(projectDir, 'config/index.ts'), resourcesFile)
   await writeFile(path.join(projectDir, 'config/roles.ts'), rolesFile)
-  await writeFile(path.join(projectDir, 'protobase.config.ts'), configFile)
+  await writeFile(path.join(projectDir, 'protobase.config.ts'), configFile(url))
   await writeFile(path.join(projectDir, 'migrate.ts'), migrateFile)
   const migrated = await run(typescriptArgs(path.join(projectDir, 'migrate.ts')), projectDir, env)
   if (migrated.status !== 0) throw new Error(`auth migration failed:\n${migrated.stderr}`)

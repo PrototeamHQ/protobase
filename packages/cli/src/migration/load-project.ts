@@ -5,6 +5,7 @@ import { projectAuth } from '../config/build-project'
 import type { MergedConfig } from '../config/merge-config'
 import { projectJobs, projectNotifications, projectResources, projectWebhooks } from '../config/project-parts'
 import { loadSourceConfig } from '../config/source-config'
+import { withDevUrl } from '../config/tool-url'
 import { mailFeedbackOn } from '../config/mail-feedback-config'
 import { unsubscribeOn } from '../config/unsubscribe-config'
 import { userTablesOn } from '../config/user-tables-config'
@@ -14,11 +15,12 @@ import { openAppDatabase } from '../project/pg-db'
 
 /**
  * The config of the project in `dir` as `protobase dev` merges it: protobase.config.ts, with the convention's resources
- * when it names none, after the configs of `extensions` and the configs it extends, with the `.env` nearest it read.
+ * when it names none, after the configs of `extensions` and the configs it extends, with the `.env` nearest it read,
+ * and the project's dev address when it sets no `url` (`withDevUrl`).
  */
 export const loadMigrationConfig = async (dir: string, extensions: Extension[] = []) => {
   loadNearestEnvFile(dir)
-  return loadSourceConfig(dir, { command: 'tool', extensions })
+  return withDevUrl(await loadSourceConfig(dir, { command: 'tool', extensions }), dir)
 }
 
 /**

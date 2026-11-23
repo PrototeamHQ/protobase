@@ -115,7 +115,7 @@ The store's migrations then make nothing of the user table, which a migration of
 | --- | --- |
 | `PROTOBASE_SECRET` | the app's secret, the default of `secret`: signs cookies and encrypts the token keys; `openssl rand -base64 32`; never committed (`.env.example` has a placeholder) |
 | `PROTOBASE_PREVIOUS_SECRETS` | the app's secrets before `PROTOBASE_SECRET`, newest first, comma separated, the default of `previousSecrets`; see [Changing the secret](#changing-the-secret) |
-| `PROTOBASE_URL` | the app's public URL, the default of `url` (in `protobase dev`, the dev server's own); issuer and audience of the tokens; when tunnelling, the https tunnel URL |
+| `PROTOBASE_URL` | the app's public URL, the default of `url` (in `protobase dev` and the local commands that build sign-in, such as `users create`, the dev server's own); issuer and audience of the tokens; when tunnelling, the https tunnel URL |
 | `PROTOBASE_TRUSTED_ORIGINS` | extra comma separated origins, the default of `auth.trustedOrigins`; a dev tunnel needs its exact host here, such as `https://my-tunnel.trycloudflare.com`, since none is trusted by default; an entry with `*` trusts every host it matches |
 | `PROTOBASE_ORIGINS` | the other origins the app is served on, comma separated, passed by the platform; see [Several origins](#several-origins) |
 | `PROTOBASE_PASSKEY_DOMAIN` | the host new [passkeys](#passkeys) are made for, passed by the platform; default the host of the app's `url` |
