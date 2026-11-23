@@ -288,7 +288,11 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
   "native": { "@capacitor/core": "8.5.3", "@capacitor/ios": "8.5.3" },
   "mobile": { "appId": "com.example.shop", "plugins": { "@capacitor/camera": "^8.0.1" }, "push": true },
   "nodeModules": "node_modules",
-  "migrations": "migrations"
+  "migrations": "migrations",
+  "relay": {
+    "client_events": { "channels": { "conversations": { "events": { "typing": { "schema": { "type": "object" }, "max_bytes": 256, "per_second": 2, "burst": 4 } } } } },
+    "presence": { "path": "/api/relay/presence", "grace_seconds": 30 }
+  }
 }
 ```
 
@@ -301,6 +305,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
 - `theme` is the project's [theme](/reference/theme/), which the app links at `/protobase.theme.css`. It is always there, empty when the project has none.
 - `nodeModules` is present only when the config module imports [native packages](#native-packages). It is always the `node_modules` folder beside `server`, where Bun and Node resolve the module's imports from, and holds plain packages: JavaScript, `package.json` files and native binaries for linux x64 and arm64 (glibc), which the runtime loads with `dlopen`. A host keeps it next to the server module and must not mount it `noexec` (an add-on there then fails with `failed to map segment from shared object`). Its binaries link nothing but glibc, `libstdc++.so.6`, `libgcc_s.so.1` and libraries in the bundle itself, so the run image must have those three. Without `nodeModules`, the server module is the only file the runtime reads.
 - `migrations` is present only when the project has a `db/migrations` folder: its `.sql` files, which the runtime's `migrate` applies (see [Deploy](/guides/deploy/)). A host never serves it.
+- `relay` is present only when the config has [`realtime.relay`](/reference/realtime-relay/): the app's part of its entry in the relay's apps file, as [`relay app`](#relay-app) prints it, without the address, id or any key: `client_events`, when a channel resource has events, and with presence `presence`, the path of the app's presence endpoint and the reports' `grace_seconds`. A host that runs the relay completes it with the app's id, keys, origin and presence key, and the presence endpoint at the app's address.
 - `api` lists the path prefixes the server answers. A path is under a prefix when it equals it or continues it with `/` (`/api` covers `/api/meta` and `/api/v1:batchWrite`, not `/apiary`). It is always `/api` and the two OAuth discovery documents [MCP clients](/reference/auth/#oauth-for-mcp-clients) read, which answer 404 without MCP: a bundle assumes the API lives under `/api`, with the resources at the default `apiPath` `/api/v1`, `/api/meta`, the docs, the API functions and the built-in assistant beside them and Better Auth at `/api/auth`. A bundle built before them sends them to the UI: rebuild it. The serve runtime refuses a config that sets another `apiPath`.
 - Every other path is the UI's. A `GET` or `HEAD` for a file in `public` gets that file; a folder gets its `index.html`. Otherwise a request whose `Accept` header contains `text/html` (a navigation) gets `spa` with status 200, so deep links such as `/orders/42` load the app; anything else gets 404. Other methods get 405.
 - Files under an `assets/` folder, `public/assets/` and each plugin's, are named by their content hash and never change: serve them with `Cache-Control: public, max-age=31536000, immutable`, and everything else, `index.html`, each `plugin.json` and the theme, with `no-cache`.
@@ -481,7 +486,8 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | `PROTOBASE_RUNS_ON_NOTE` | `true` ends the sign-in page on the [Runs on Protobase note](/reference/app-identity/#runs-on-protobase-note), for a hosting platform; default `false`, and any value but `true` or `false` stops startup |
 | `PROTOBASE_RUNTIME_URL` | the endpoint behind the top bar's [runtime update button](/reference/versioning/#runtime-updates), such as a hosting platform's; without it there is no button |
 | `PROTOBASE_SENTRY_DSN` | the DSN of a Sentry-compatible error tracker the app's server and admin app send their errors to, after the config's `errorReporting` ([Error reporting](/reference/api/#error-reporting)); without it nothing is sent |
-| `PROTOBASE_RELAY_URL`, `PROTOBASE_RELAY_APP`, `PROTOBASE_RELAY_API_KEY`, `PROTOBASE_RELAY_TICKET_KEY` | the address, the app's id and its API and ticket keys of the [realtime relay](/reference/realtime-relay/#from-the-platform), each where the config's `realtime.relay` leaves it out; without `realtime.relay` the relay stays off |
+| `PROTOBASE_RELAY_URL`, `PROTOBASE_RELAY_APP`, `PROTOBASE_RELAY_API_KEY`, `PROTOBASE_RELAY_TICKET_KEY`, `PROTOBASE_RELAY_PRESENCE_KEY` | the address, the app's id, its API and ticket keys and its presence key of the [realtime relay](/reference/realtime-relay/#from-the-platform), each where the config's `realtime.relay` leaves it out; without `realtime.relay` the relay stays off |
+| `PROTOBASE_RELAY_ENABLED` | `true` when the platform moves the app to the [realtime relay](/reference/realtime-relay/#from-the-platform); `true` without `realtime.relay` in the config stops the server. Unset or empty is `false`; any other value stops the server |
 | `PROTOBASE_MAP_STYLE_URL` | the URL of the MapLibre style the record page's [maps](/reference/ui-config/#maps) are drawn with, after the config's `maps`; without it there are no maps |
 | `PROTOBASE_SOURCES` | other Protobase APIs whose resources the app draws as its own, a JSON list of `{ "url", "label", "resources", "roles"? }` after the config's `remoteResources` ([Remote resources](/reference/remote-resources/#declaring-a-source)) |
 | `PROTOBASE_FILES_<NAME>`, `PROTOBASE_FILES_RETENTION`, `PROTOBASE_FILES_SECRET` | [file providers](/reference/files/#providers) and their settings, over `files` in the config; a bucket's credentials in `PROTOBASE_FILES_<NAME>_ACCESS_KEY_ID` and `_SECRET_ACCESS_KEY` |
@@ -677,7 +683,7 @@ Recounts a [time rollup](/reference/data-config/#keeping-it-up-to-date)'s bucket
 protobase relay app
 ```
 
-Prints the app's entry for the apps file of the [realtime relay](/reference/realtime-relay/), as JSON: its `id`, `api_keys` and `ticket_keys` from `realtime.relay`, or else `PROTOBASE_RELAY_APP`, `PROTOBASE_RELAY_API_KEY` and `PROTOBASE_RELAY_TICKET_KEY`, and in `origins` the origin of the app's `url` (or `PROTOBASE_URL`); in `client_events` each channel resource's [client events](/reference/realtime-relay/#client-events), with `typing` on those whose conversation page types; with [presence](/reference/realtime-relay/#presence), `presence` with the app's presence endpoint at that `url`, the presence key and a `grace_seconds` of 30. Add the relay's limits and options to it there. It reads `protobase.config.ts` with `command: 'tool'` and the `.env` nearest the current directory.
+Prints the app's entry for the apps file of the [realtime relay](/reference/realtime-relay/), as JSON: its `id`, `api_keys` and `ticket_keys` from `realtime.relay`, or else `PROTOBASE_RELAY_APP`, `PROTOBASE_RELAY_API_KEY` and `PROTOBASE_RELAY_TICKET_KEY`, and in `origins` the origin of the app's `url` (or `PROTOBASE_URL`); in `client_events` each channel resource's [client events](/reference/realtime-relay/#client-events), with `typing` on those whose conversation page types; with [presence](/reference/realtime-relay/#presence), `presence` with the app's presence endpoint at that `url`, the presence key (or `PROTOBASE_RELAY_PRESENCE_KEY`) and a `grace_seconds` of 30. Its `client_events` and presence path and grace are the bundle manifest's [`relay`](#the-manifest). Add the relay's limits and options to it there. It reads `protobase.config.ts` with `command: 'tool'` and the `.env` nearest the current directory.
 
 ## `auth migration`
 
