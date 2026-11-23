@@ -42,8 +42,11 @@ export type MetaData = {
   status?: boolean
   /** Whether the app has calls, which ring people on any page they have open (see `CallRings`). */
   calls?: boolean
-  /** With the app's realtime relay: the resources whose changes it notices, which pages hear of from it (see `RelayProvider`). */
-  relay?: { resources: string[] }
+  /**
+   * With the app's realtime relay: the resources whose changes it notices, which pages hear of from it (see
+   * `RelayProvider`), and, with its presence, the resource and fields who is online, away or offline is read from.
+   */
+  relay?: { resources: string[]; presence?: { resource: string; user: string; status: string; at: string } }
   /** The language the app's screens are in for everyone, when it sets one (see `AppLocale`). */
   locale?: Locale
   /** The app's own texts in the user's language, the messages their pages' `<Trans>` elements name (see `AppTexts`). */

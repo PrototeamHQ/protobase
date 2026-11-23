@@ -1,4 +1,7 @@
 import type { RelayHandlers, RelayNotice } from '@protobase/client'
+
+/** An event the app published on a channel, as `onPublished` hears it. */
+type Published = Parameters<NonNullable<RelayHandlers['onPublished']>>[0]
 import { typingEvent } from '../typing/typing'
 import { createTypersStore } from '../typing/typers-store'
 
@@ -14,6 +17,7 @@ export const createRelayStore = () => {
   const noticeListeners = new Set<(notice: RelayNotice) => void>()
   const resyncListeners = new Set<() => void>()
   const joinedListeners = new Set<(channel: string) => void>()
+  const publishedListeners = new Set<(published: Published) => void>()
   const own: string[] = []
   const viewed = new Map<string, number>()
   const viewListeners = new Set<(channel: string) => void>()
@@ -42,6 +46,9 @@ export const createRelayStore = () => {
     onJoined: (channel) => {
       for (const listener of [...joinedListeners]) listener(channel)
     },
+    onPublished: (published) => {
+      for (const listener of [...publishedListeners]) listener(published)
+    },
   }
 
   return {
@@ -51,6 +58,8 @@ export const createRelayStore = () => {
     onResync: (listener: () => void) => listen(resyncListeners, listener),
     /** Hears of each channel the person was added to after the page connected, such as a new direct message, once joined. */
     onJoined: (listener: (channel: string) => void) => listen(joinedListeners, listener),
+    /** Hears each other event the app publishes on a channel, such as a person's new presence on `people`. */
+    onPublished: (listener: (published: Published) => void) => listen(publishedListeners, listener),
     /** Remembers a message the page itself sent, by key, which no unread count takes; only the latest few. */
     sent: (key: string) => {
       own.push(key)

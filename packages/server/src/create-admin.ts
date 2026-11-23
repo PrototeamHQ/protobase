@@ -423,7 +423,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   // The tabs end in the name the app signs in and mails as, which the installed app is called too.
   const appName = shownAppName(auth, globalThis.process?.env ?? {})
   const appIcon = icons?.favicon ? faviconPath : undefined
-  const meta = createMeta(deps, appName, appIcon, relay ? { resources: relay.noticed } : undefined)
+  const meta = createMeta(deps, appName, appIcon, relay?.meta)
   const onError = createErrorHandler(options.onUnhandledError, deps.statementTimeoutMs)
   // Every response of the resources API and of the system endpoints names the models version; every request needs a
   // token, but one to the resources API or `/meta` when the project has an anonymous role.

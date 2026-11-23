@@ -1,6 +1,6 @@
 import { useOptionalAuth } from '../../auth/auth-provider'
 import { useMembers } from '../../people/use-members'
-import { presenceOf, usePresence } from '../../presence/presence'
+import { presenceOf, usePresence, useShownPeople } from '../../presence/presence'
 import { StatusMark } from '../../status/status-mark'
 import { otherMembers } from '../titles/member-names'
 
@@ -15,6 +15,7 @@ export const MembersTitle = ({ value, fallback }: { value: unknown; fallback: st
   const { member } = useMembers()
   const presence = usePresence()
   const others = otherMembers(value, me)
+  useShownPeople(others)
   if (others.length === 0 || !others.every((id) => member(id))) return fallback
   return others.map((id, index) => (
     <span key={id} className="inline-flex min-w-0 items-center gap-1.5">

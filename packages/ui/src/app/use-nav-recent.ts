@@ -7,7 +7,7 @@ import { mergeMarks, relayMarks } from '../relay/use-relay-marks'
 import { useClient } from '../data/api-provider'
 import type { MetaData } from '../data/meta-data'
 import { keys } from '../data/query-keys'
-import { usePresence } from '../presence/presence'
+import { usePresence, useShownPeople } from '../presence/presence'
 import { useStatuses } from '../status/use-statuses'
 import { markPeople } from './marks/mark-people'
 import { recentMarks, recentRecords, recentRequest, recentRowDiffers } from './nav-recent'
@@ -20,7 +20,13 @@ type Group = { model: ResourceModel; request: ReturnType<typeof recentRequest> }
 type MarksOf = (records: readonly NavRecord[]) => Record<string, RecordMark> | undefined
 
 // The group's marks hook, with each person a mark names given their presence and status.
-const withPeople = (useMarks: MarksOf | undefined) => useMarks && ((records: readonly NavRecord[]) => markPeople(useMarks(records), usePresence(), useStatuses().data))
+const withPeople = (useMarks: MarksOf | undefined) =>
+  useMarks &&
+  ((records: readonly NavRecord[]) => {
+    const marks = useMarks(records)
+    useShownPeople(Object.values(marks ?? {}).flatMap((mark) => mark.person ?? []))
+    return markPeople(marks, usePresence(), useStatuses().data)
+  })
 
 const groupKey = ({ model, request }: Group) => keys.navRecent(model.name, request.filter, request.orderBy, request.pageSize)
 
