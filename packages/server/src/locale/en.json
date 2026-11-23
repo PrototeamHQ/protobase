@@ -57,6 +57,9 @@
     "disconnected": "The connected account was disconnected: its owner connects it again",
     "subscriptionNotEnded": "The subscription could not be ended at the provider: {reason}"
   },
+  "workflows/ready": {
+    "tenantless": "{resource} has no tenant field, so its changes never reach a workflow of a tenant: give it .tenant(...)"
+  },
   "mail/unsubscribe": {
     "title": "Unsubscribe",
     "question": "Stop sending {topic} mail to {recipient}?",

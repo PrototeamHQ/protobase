@@ -57,6 +57,9 @@
     "disconnected": "Het gekoppelde account is ontkoppeld: de eigenaar koppelt het opnieuw",
     "subscriptionNotEnded": "Het abonnement kon niet worden beëindigd bij de provider: {reason}"
   },
+  "workflows/ready": {
+    "tenantless": "{resource} heeft geen tenantveld, dus zijn wijzigingen bereiken nooit een workflow van een tenant: geef het .tenant(...)"
+  },
   "mail/unsubscribe": {
     "title": "Afmelden",
     "question": "Geen {topic}-mail meer sturen naar {recipient}?",

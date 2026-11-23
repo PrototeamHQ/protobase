@@ -18,13 +18,13 @@ const listed = ['id', 'name', 'description', 'version', 'updated_at']
 
 /**
  * The app's types, which the tools list and check definitions against: `checkWith` checks against the resources it is
- * given, so a check names only what its caller may read.
+ * given, so a check names only what its caller may read, and as for a workflow of a tenant when `tenanted`.
  */
 export type WorkflowCatalog = {
   types: readonly TypeEntry[]
   /** The app's email templates, whose data `app:mail.template` takes; none without it. */
   templates?: readonly CatalogTemplate[]
-  checkWith: (models: (name: string) => ResourceModel | undefined) => CheckOptions
+  checkWith: (models: (name: string) => ResourceModel | undefined, tenanted?: boolean) => CheckOptions
   /** The custom step types of a tenant, which follow the app's types in the list and the check; none without it. */
   customTypes?: (tenant: unknown) => Promise<TypeEntry[]>
   /** Issues a workflow's webhook URL as the caller, for `new_webhook_url` and `create_workflow` with `publish`. */
@@ -101,7 +101,7 @@ const checked = async (given: Record<string, unknown>, args: Record<string, unkn
   const definition = definitionFromParts(fields as DefinitionParts)
   // As a save checks it: a definition with no steps yet is checked but for that
   const custom = await customOf(catalog, context)
-  const problems = checkDefinition(withStepsToCheck(definition), custom.check(catalog.checkWith((name) => models.find((model) => model.name === name))))
+  const problems = checkDefinition(withStepsToCheck(definition), custom.check(catalog.checkWith((name) => models.find((model) => model.name === name), context.session.tenant != null)))
   if (problems.length > 0) return JSON.stringify({ valid: false, problems })
   const warnings = definitionWarnings(definition)
   return JSON.stringify({ valid: true, ...(warnings.length > 0 && { warnings }) })

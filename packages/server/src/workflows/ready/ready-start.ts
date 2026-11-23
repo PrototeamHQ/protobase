@@ -5,18 +5,20 @@ import { encodeKey } from '@protobase/schema/internal'
 import type { Db } from '@protobase/query'
 import { StepError } from '@protobase/workflows'
 import type { ReadyTrigger } from '@protobase/workflows/plugin'
+import type { Locale } from '@protobase/schema/internal'
 import { assistantRecords } from '../../assistant/records'
 import type { Deps } from '../../deps'
 import { HttpProblem } from '../../problem'
 import type { Row } from '../../types'
 import { saverSession, type SaverRoles } from '../plugin-records'
 import { startWorkflow } from '../start-workflow'
+import { tenantlessMessage } from './ready-check'
 import { triggerFailed, triggerRecovered, type TriggerRow } from '../triggers/trigger-row'
 
 /** The most characters of a run's key; a longer ready key is kept as its SHA-256. */
 const keyLength = 200
 
-export type ReadyInput = { deps: () => Deps; schema: string; roles: SaverRoles; declared: (type: string) => ReadyTrigger | undefined; readyTypes: Iterable<string> }
+export type ReadyInput = { deps: () => Deps; schema: string; roles: SaverRoles; locale?: Locale; declared: (type: string) => ReadyTrigger | undefined; readyTypes: Iterable<string> }
 
 /**
  * The resource, the record key and the values of the `key` fields: the key a record starts one run under, so a trigger
@@ -59,12 +61,16 @@ export const orRefusal = <T>(work: Promise<T>): Promise<{ value: T } | { refused
     },
   )
 
-/** What a ready trigger works on: its declaration, resource, and the records API as the user who saved its version. */
-export const readyContext = async ({ deps, roles, declared }: ReadyInput, trigger: Omit<TriggerRow, 'generation'>) => {
+/**
+ * What a ready trigger works on: its declaration, resource, and the records API as the user who saved its version; or,
+ * for a tenant's trigger on a resource without a tenant field, why it never fires.
+ */
+export const readyContext = async ({ deps, roles, declared, locale }: ReadyInput, trigger: Omit<TriggerRow, 'generation'>) => {
   const ready = declared(trigger.type)
   const spec = ready?.ready(trigger.input)
   const model = spec && deps().registry.find(spec.resource)?.model
   if (!spec || !model) return
+  if (trigger.tenant_id !== null && !model.tenant) return { tenantless: tenantlessMessage(spec.resource, locale) }
   const session = await saverSession(roles, trigger.saved_by, trigger.tenant_id ?? undefined)
   return { spec, model, records: assistantRecords(deps(), session) }
 }
@@ -73,7 +79,7 @@ export const readyContext = async ({ deps, roles, declared }: ReadyInput, trigge
  * Starts a run of the record if it is ready now: one read of it through the API as the user who saved the enabled
  * version, so their access rules, tenant scope and field access decide what the run sees, `when` evaluated on what they
  * read, then one keyed insert, so a record starts once per ready key. A record that is gone, or that they may not read,
- * starts nothing; a refused saver, or a key field they cannot read, marks the trigger failing, and a failing trigger
+ * starts nothing; a refused saver, a resource without a tenant field for a tenant's trigger, or a key field they cannot read, marks the trigger failing, and a failing trigger
  * that reads a record is active again. Answers whether this check brought the trigger back, so its records are passed
  * over again for what it missed.
  */
@@ -83,6 +89,7 @@ export const startIfReady = async (input: ReadyInput, db: Db, trigger: TriggerRo
   if ('refused' in found) return failed(found.refused)
   const context = found.value
   if (!context) return false
+  if (context.tenantless !== undefined) return triggerFailed(db, input.schema, trigger, 'no_tenant', context.tenantless).then(() => false)
   const { spec, model, records } = context
   const keyValues = model.primaryKey.map((name) => key[name] as KeyValue)
   const got = await orRefusal(records.get(spec.resource, keyValues.length === 1 ? keyValues[0]! : keyValues).catch((error: unknown) => {

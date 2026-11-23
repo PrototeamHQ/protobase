@@ -27,8 +27,15 @@ const invoices = resource('invoices')
   .tenant((r) => r.organization_id)
   .events((e) => e.crud())
 
-const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_triggers' | 'invoices'>({
-  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_triggers.read', 'invoices.*'],
+// Shared by every tenant: no tenant field, so its changes carry no tenant.
+const rates = resource('rates')
+  .table('rates')
+  .fields({ id: f.integer().readOnly(), percent: f.integer() })
+  .primaryKey((r) => r.id)
+  .events((e) => e.crud())
+
+const roles = defineRoles<'workflows' | 'workflow_versions' | 'workflow_runs' | 'workflow_triggers' | 'invoices' | 'rates'>({
+  builder: ['workflows.*', 'workflow_versions.read', 'workflow_runs.*', 'workflow_triggers.read', 'invoices.*', 'rates.*'],
 })
 const people: Record<string, number> = { ada: 1, bob: 2 }
 // Users whose roles a test takes away for a while.
@@ -60,10 +67,11 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
     db = pg.db
     await pg.exec('create table invoices (id integer generated always as identity primary key, organization_id integer not null, status text not null, due_at timestamptz not null, note text)')
     await pg.exec('create index on invoices (organization_id, status); create index on invoices (due_at)')
-    await pg.exec((await changesMigration(db, [invoices.toModel()]))!)
+    await pg.exec('create table rates (id integer generated always as identity primary key, percent integer not null)')
+    await pg.exec((await changesMigration(db, [invoices.toModel(), rates.toModel()]))!)
     await pg.exec((await workflowsMigration(db, workflows))!)
     vi.spyOn(console, 'log').mockImplementation(() => {})
-    const { resources, views } = configExports({ invoices, ...workflowsModule(workflows) })
+    const { resources, views } = configExports({ invoices, rates, ...workflowsModule(workflows) })
     admin = createAdmin({
       resources,
       views,
@@ -174,6 +182,36 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
     // A version saved before the latest publishes as any other, as going back to it does
     expect((await enable('ada', workflow.id, 1)).status).toBe(200)
     expect((await triggersOf(workflow.id)).map((row) => row.version)).toEqual([1])
+    await enable('ada', workflow.id, null)
+  })
+
+  it('refuses a trigger on a resource without a tenant field, and marks one saved before failing as a write reaches it', async () => {
+    const refused = await as('ada', '/workflows', 'POST', { name: 'Rates', ...definitionFields({ trigger: { 'app:record': { resource: 'rates' } }, stateMachine: machine }) })
+    expect(refused.status).toBe(400)
+    const message = 'rates has no tenant field, so its changes never reach a workflow of a tenant: give it .tenant(...)'
+    expect(JSON.stringify(refused.body.problems)).toContain(message)
+    // A trigger saved while its resource had a tenant field, as before an update removed it
+    const workflow = await save('ada', { 'app:record': { resource: 'invoices', when: "status = 'paid'" } })
+    await enable('ada', workflow.id, 1)
+    // Its first pass over the records ends first, so the write below is what finds it
+    expect((await runtime.drain(15)).drained).toBe(true)
+    await sql`update workflows.triggers set input = ${JSON.stringify({ resource: 'rates' })}::jsonb where workflow_id = ${workflow.id}`.execute(db)
+    expect((await as('ada', '/rates', 'POST', { percent: 21 })).status).toBe(201)
+    const read = () => sql<{ status: string; last_error: { code: string; message: string } }>`select status, last_error from workflows.triggers where workflow_id = ${workflow.id}`.execute(db).then((result) => result.rows)
+    expect(await until(read, (rows) => rows[0]?.status === 'failing')).toMatchObject([{ status: 'failing', last_error: { code: 'no_tenant', message } }])
+    await enable('ada', workflow.id, null)
+  })
+
+  it('marks a trigger whose resource lost its tenant field failing with no write, on its check each minute', async () => {
+    const workflow = await save('ada', { 'app:record': { resource: 'invoices', when: "status = 'paid'" } })
+    await enable('ada', workflow.id, 1)
+    // Its first pass over the records ends first, so the check below is what finds it
+    expect((await runtime.drain(15)).drained).toBe(true)
+    await sql`update workflows.triggers set input = ${JSON.stringify({ resource: 'rates' })}::jsonb where workflow_id = ${workflow.id}`.execute(db)
+    const check = admin.jobs.find((job) => job.name === 'workflows.trigger-tenant-check')!
+    await check.options.run(undefined, { db, job: { id: 'job', name: check.name, attempt: 1, maxAttempts: 1, startedOn: new Date() }, signal: new AbortController().signal, decryptField: async () => null })
+    const rows = (await sql<{ status: string; last_error: { code: string; message: string } }>`select status, last_error from workflows.triggers where workflow_id = ${workflow.id}`.execute(db)).rows
+    expect(rows).toMatchObject([{ status: 'failing', last_error: { code: 'no_tenant', message: 'rates has no tenant field, so its changes never reach a workflow of a tenant: give it .tenant(...)' } }])
     await enable('ada', workflow.id, null)
   })
 

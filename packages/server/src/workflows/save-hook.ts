@@ -39,7 +39,7 @@ const refuseProblems = (definition: unknown, types: CheckOptions) => {
 
 /**
  * Checks a workflow's definition on every save that changes it against the language's schema and the named-reads
- * profile, with the trigger and step types the app has, and keeps a changed definition as the version the table's
+ * profile, with the trigger and step types the app has for the workflow's tenant (`checkFor`), and keeps a changed definition as the version the table's
  * trigger numbered, saved by the caller, with the layout it has then. A save that moves only nodes checks and keeps nothing. A save leaves what is published alone: a write that sets `enabled_version`
  * publishes that saved version, checked again, and puts the workflow's trigger on it, and clearing it turns the
  * workflow off, which never depends on a definition still checking, as after an app update removed a plugin. A refusal is a 400
@@ -48,7 +48,7 @@ const refuseProblems = (definition: unknown, types: CheckOptions) => {
  * workflow's tenant's custom steps are step types too, read in the write's transaction, and the custom step versions
  * a published version uses are kept as wanted, for runners to prepare, until another is published or it is turned off.
  */
-export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick<TriggerJobs, 'start' | 'stop'>, consent: ConnectionConsent, custom?: CustomStepTypes): PipelineHook => async (event, trx) => {
+export const workflowSaveHook = (schema: string, checkFor: (tenant: unknown) => CheckOptions, jobs: Pick<TriggerJobs, 'start' | 'stop'>, consent: ConnectionConsent, custom?: CustomStepTypes): PipelineHook => async (event, trx) => {
   if (event.resource.name !== 'workflows' || !event.after) return
   if (event.operation !== 'create' && event.operation !== 'update') return
   // The trigger numbers a new version only when the definition changed.
@@ -57,6 +57,7 @@ export const workflowSaveHook = (schema: string, types: CheckOptions, jobs: Pick
   const publishing = enabled !== (event.before?.enabled_version ?? null)
   if (!changed && !publishing) return
   const id = String(event.after.id)
+  const types = checkFor(event.after.tenant_id)
   // Turning a workflow off checks nothing
   const check = custom && (changed || enabled !== null) ? withCustomSteps(await custom(trx, event.after.tenant_id)).check(types) : types
   if (changed) {
