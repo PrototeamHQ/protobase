@@ -1,6 +1,6 @@
 import { AtSign, Plus, RefreshCw } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
-import { AuthError, type MailConnectionListing, type MailSender, type MailSenderChange, type MailSenderCheck, type MailSenders } from '@protobase/client'
+import { AuthError, type MailConnectionListing, type MailSender, type MailSenderChange, type MailSenders, type MailSenderVerification } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
 import { senderState } from '../mailbox/sender-state'
 import { Badge } from '../primitives/badge'
@@ -18,9 +18,9 @@ export type MailSendersSectionProps = {
   onAdd: (input: { address: string; name?: string; signature?: string }) => Promise<MailSender>
   onUpdate: (id: string, change: MailSenderChange) => Promise<unknown>
   onRemove: (id: string) => Promise<void>
-  /** Sends a test message from an address, and asks where that check stands (`senders.checks`). */
-  onCheck: (id: string) => Promise<MailSenderCheck>
-  onCheckResult: (id: string, check: string) => Promise<MailSenderCheck>
+  /** Starts the app's verifiers on an address (`senders.verifiers`), and reads its latest verifications again. */
+  onVerify: (id: string) => Promise<MailSenderVerification[]>
+  onVerifications: (id: string) => Promise<MailSenderVerification[]>
   /** Reads the send-as addresses of each mailbox that can list them, and the addresses again; rejects with `AuthError`. */
   onRefresh: () => Promise<MailConnectionListing[]>
   /** Connects the mailbox of a mail provider again, asking for every scope the app adds. */
@@ -29,8 +29,8 @@ export type MailSendersSectionProps = {
   providerName: (provider: string) => string
 }
 
-// Changing an address just added checks it at once (`autoCheck`).
-type Editing = { kind: 'add' } | { kind: 'change'; sender: MailSender; autoCheck?: boolean } | { kind: 'remove'; sender: MailSender }
+// Changing an address just added verifies it at once (`autoVerify`).
+type Editing = { kind: 'add' } | { kind: 'change'; sender: MailSender; autoVerify?: boolean } | { kind: 'remove'; sender: MailSender }
 
 const detailsOf = (sender: MailSender) => (sender.signature ? text('ownSignature') : text('genericSignature'))
 
@@ -48,11 +48,10 @@ const hintOf = (sender: MailSender, canCheck: boolean, name: string, own: string
  * The From addresses the person's mail goes out from, under their mailbox: its own and those its provider lists or
  * they typed, such as its send-as addresses, each with its state, and its own signature or the generic one; one is the
  * default. Opening it reads the send-as addresses again from each mailbox that can list them, as **Check with Gmail**
- * does; a mailbox whose link lacks the scope to list them offers to connect it again. Where the app can check
- * addresses, adding one sends a test message from it at once to see the From it arrives with, and its dialog checks it
- * again; elsewhere the dialog says it cannot.
+ * does; a mailbox whose link lacks the scope to list them offers to connect it again. Where the app has verifiers,
+ * adding an address verifies it at once, and its dialog verifies it again; elsewhere the dialog says it cannot.
  */
-export const MailSendersSection = ({ senders: { address, senders, checks = false, connections = [] }, onAdd, onUpdate, onRemove, onCheck, onCheckResult, onRefresh, onConnect, providerName }: MailSendersSectionProps) => {
+export const MailSendersSection = ({ senders: { address, senders, verifiers = false, connections = [] }, onAdd, onUpdate, onRemove, onVerify, onVerifications, onRefresh, onConnect, providerName }: MailSendersSectionProps) => {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [editing, setEditing] = useState<Editing>()
@@ -101,12 +100,12 @@ export const MailSendersSection = ({ senders: { address, senders, checks = false
       if (input.isDefault) await onUpdate(added.id, { isDefault: true })
       // Checked at once where the mailbox can say, so a typo shows Can't send while the person still remembers typing it.
       if (ready.length > 0) void refresh()
-      if (checks) return { kind: 'change', sender: { ...added, isDefault: input.isDefault }, autoCheck: true }
+      if (verifiers) return { kind: 'change', sender: { ...added, isDefault: input.isDefault }, autoVerify: true }
     })
 
-  const checkOf = (sender: MailSender, auto = false) => ({
-    available: checks,
-    calls: { start: () => onCheck(sender.id), result: (check: string) => onCheckResult(sender.id, check) },
+  const verificationOf = (sender: MailSender, auto = false) => ({
+    available: verifiers,
+    calls: { start: () => onVerify(sender.id), read: () => onVerifications(sender.id) },
     ...(auto && { auto }),
   })
 
@@ -179,9 +178,9 @@ export const MailSendersSection = ({ senders: { address, senders, checks = false
           </p>
         )}
       </div>
-      {editing?.kind === 'add' && <MailSenderDialog check={{ available: checks }} busy={busy} error={error} onSave={(input) => void save(input)} onClose={close} />}
+      {editing?.kind === 'add' && <MailSenderDialog verification={{ available: verifiers }} busy={busy} error={error} onSave={(input) => void save(input)} onClose={close} />}
       {editing?.kind === 'change' && (
-        <MailSenderDialog key={editing.sender.id} sender={editing.sender} check={checkOf(editing.sender, editing.autoCheck)} busy={busy} error={error} onSave={(input) => void save(input)} onClose={close} />
+        <MailSenderDialog key={editing.sender.id} sender={editing.sender} verification={verificationOf(editing.sender, editing.autoVerify)} busy={busy} error={error} onSave={(input) => void save(input)} onClose={close} />
       )}
       {editing?.kind === 'remove' && (
         <Dialog

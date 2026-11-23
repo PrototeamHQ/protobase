@@ -66,9 +66,9 @@ const refuseOwnFrom = (message: MailMessage) => {
 export const personalMailer = (accounts: LinkedAccounts, providers: PersonalMailProvider[], senders: MailSenderStore, userId: string, now = () => new Date()): PersonalMail => {
   const lister = { accounts, senders, userId, now }
   const bookOf = async (): Promise<SenderBook> => {
-    const [rows, linked] = await Promise.all([senders.ofUser(userId), accounts.accounts(userId)])
+    const [rows, linked, proofs] = await Promise.all([senders.ofUser(userId), accounts.accounts(userId), senders.proofsOf ? senders.proofsOf(userId) : []])
     const ownAddress = linkedMailbox(linked, providers)?.account.address
-    return { userId, rows, connections: mailboxConnections(linked, providers), ...(ownAddress && { ownAddress }) }
+    return { userId, rows, connections: mailboxConnections(linked, providers), ...(ownAddress && { ownAddress }), proofs }
   }
 
   const sendThrough = async ({ account, provider }: MailboxConnection, message: MailMessage, row?: MailSenderRow) => {

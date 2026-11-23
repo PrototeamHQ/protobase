@@ -1,29 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AuthError } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
-import { runAliasCheck, type AliasCheckCalls, type AliasCheckState } from './alias-check-run'
+import { runVerification, type VerificationCalls, type VerificationState } from './verification-run'
 import { text } from './messages'
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
 /**
- * A From address check for a dialog: `check` runs it (`runAliasCheck`), once at a time, and `state` and `error` say
- * where it stands. Unmounting stops it. With `auto`, it runs as soon as it mounts, as after adding an address.
+ * A From address verification for a dialog: `verify` runs it (`runVerification`), once at a time, and `state` and
+ * `error` say where it stands. Unmounting stops it. With `auto`, it runs as soon as it mounts, as after adding an address.
  */
-export const useAliasCheck = (calls: AliasCheckCalls, auto = false) => {
-  const [state, setState] = useState<AliasCheckState>({ status: 'idle' })
+export const useSenderVerification = (calls: VerificationCalls, auto = false) => {
+  const [state, setState] = useState<VerificationState>({ status: 'idle' })
   const [error, setError] = useState<string>()
   const running = useRef(false)
   const left = useRef(false)
   const latest = useRef(calls)
   latest.current = calls
 
-  const check = useCallback(async () => {
+  const verify = useCallback(async () => {
     if (running.current) return
     running.current = true
     setError(undefined)
     try {
-      await runAliasCheck({ ...latest.current, wait, stopped: () => left.current, onState: setState })
+      await runVerification({ ...latest.current, wait, stopped: () => left.current, onState: setState })
     } catch (failure) {
       if (left.current) return
       setState({ status: 'idle' })
@@ -38,11 +38,11 @@ export const useAliasCheck = (calls: AliasCheckCalls, auto = false) => {
 
   useEffect(() => {
     left.current = false
-    if (auto) void check()
+    if (auto) void verify()
     return () => {
       left.current = true
     }
-  }, [auto, check])
+  }, [auto, verify])
 
-  return { state, error, check }
+  return { state, error, verify }
 }

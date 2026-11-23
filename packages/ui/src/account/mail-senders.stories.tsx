@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import type { MailSenderCheck } from '@protobase/client'
+import type { MailSenderVerification } from '@protobase/client'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 import { MailSendersSection, type MailSendersSectionProps } from './mail-senders-section'
 
@@ -23,7 +23,7 @@ const mailbox = { onRefresh: fn(async () => []), onConnect: fn(), providerName: 
 /** The mailbox's own address as the default, the entered ones with their name and their own signature or the generic one, adding one with a name as the default, and removing one after asking. */
 export const FromAddresses: StoryObj<MailSendersSectionProps> = {
   tags: ['play'],
-  args: { senders, onAdd: fn(async () => added), onUpdate: fn(async () => undefined), onRemove: fn(async () => undefined), onCheck: fn(), onCheckResult: fn(), ...mailbox },
+  args: { senders, onAdd: fn(async () => added), onUpdate: fn(async () => undefined), onRemove: fn(async () => undefined), onVerify: fn(), onVerifications: fn(), ...mailbox },
   render: (args) => <MailSendersSection {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
@@ -60,7 +60,7 @@ export const FromAddresses: StoryObj<MailSendersSectionProps> = {
 /** An entered address as the default: the mailbox's own address offers to be the default again. */
 export const EnteredDefault: StoryObj<MailSendersSectionProps> = {
   tags: ['play'],
-  args: { senders: { ...senders, senders: [{ ...senders.senders[0]!, isDefault: true }] }, onAdd: fn(), onUpdate: fn(async () => undefined), onRemove: fn(), onCheck: fn(), onCheckResult: fn(), ...mailbox },
+  args: { senders: { ...senders, senders: [{ ...senders.senders[0]!, isDefault: true }] }, onAdd: fn(), onUpdate: fn(async () => undefined), onRemove: fn(), onVerify: fn(), onVerifications: fn(), ...mailbox },
   render: (args) => <MailSendersSection {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
@@ -69,24 +69,28 @@ export const EnteredDefault: StoryObj<MailSendersSectionProps> = {
   },
 }
 
-// A check's answer comes after its first wait of 3 seconds.
+// A verification's answer comes after its first wait of 3 seconds.
 const answered = { timeout: 5000 }
 
-// The first check finds the mailbox's own address, the second the address itself, as once it is set up.
-const checkResult = fn(async (): Promise<MailSenderCheck> =>
-  checkResult.mock.calls.length === 1 ? { status: 'mismatch', from: 'ana@gmail.example' } : { status: 'confirmed', from: 'sales@shop.example' },
+const pending: MailSenderVerification = { verifier: 'test-mail', state: 'pending', expiresAt: '2026-08-02T00:00:00.000Z' }
+
+// The first verification fails with the verifier's own words, the second proves the address, as once it is set up.
+const verifications = fn(async (): Promise<MailSenderVerification[]> =>
+  verifications.mock.calls.length === 1
+    ? [{ verifier: 'test-mail', state: 'failed', errorCode: 'from_rewritten', error: 'The test message arrived from ana@gmail.example.' }]
+    : [{ verifier: 'test-mail', state: 'verified', settledAt: '2026-08-01T00:01:00.000Z', validUntil: '2026-10-30T00:00:00.000Z' }],
 )
 
-/** Where the app can check: adding an address checks it at once, the mailbox sends from its own address instead, and once set up a second check confirms it. */
-export const CheckedFromAddress: StoryObj<MailSendersSectionProps> = {
+/** Where the app has a verifier: adding an address verifies it at once, it fails with the verifier's words, and once set up a second verification proves it. */
+export const VerifiedFromAddress: StoryObj<MailSendersSectionProps> = {
   tags: ['play'],
   args: {
-    senders: { ...senders, checks: true },
+    senders: { ...senders, verifiers: true },
     onAdd: fn(async () => added),
     onUpdate: fn(async () => undefined),
     onRemove: fn(),
-    onCheck: fn(async () => ({ status: 'waiting' as const, check: 'token-1' })),
-    onCheckResult: checkResult,
+    onVerify: fn(async () => [pending]),
+    onVerifications: verifications,
     ...mailbox,
   },
   render: (args) => <MailSendersSection {...args} />,
@@ -96,27 +100,28 @@ export const CheckedFromAddress: StoryObj<MailSendersSectionProps> = {
     await userEvent.type(page.getByLabelText('Address'), 'sales@shop.example')
     await userEvent.click(page.getByRole('button', { name: 'Add address' }))
     const dialog = within(await page.findByRole('dialog', { name: 'sales@shop.example' }))
-    expect(dialog.getByText(/^Sending a test message from sales@shop\.example/)).toBeVisible()
-    expect(args.onCheck).toHaveBeenCalledWith('s3')
-    expect(await dialog.findByText(/^The test message arrived from ana@gmail\.example instead of sales@shop\.example/, {}, answered)).toBeVisible()
-    expect(args.onCheckResult).toHaveBeenCalledWith('s3', 'token-1')
+    expect(dialog.getByText(/^Verifying sales@shop\.example/)).toBeVisible()
+    expect(args.onVerify).toHaveBeenCalledWith('s3')
+    expect(await dialog.findByText('sales@shop.example could not be verified.', {}, answered)).toBeVisible()
+    expect(dialog.getByText('The test message arrived from ana@gmail.example.')).toBeVisible()
+    expect(args.onVerifications).toHaveBeenCalledWith('s3')
 
-    await userEvent.click(dialog.getByRole('button', { name: 'Check again' }))
-    expect(await dialog.findByText('The test message arrived from sales@shop.example. Your mailbox can send from this address.', {}, answered)).toBeVisible()
+    await userEvent.click(dialog.getByRole('button', { name: 'Verify again' }))
+    expect(await dialog.findByText('sales@shop.example is verified: mail from it goes out from this address.', {}, answered)).toBeVisible()
   },
 }
 
-/** Where the app cannot check, the dialog says so, and how to check by hand. */
-export const UncheckedFromAddress: StoryObj<MailSendersSectionProps> = {
+/** Where the app has no verifier, the dialog says so, and how to check by hand. */
+export const UnverifiableFromAddress: StoryObj<MailSendersSectionProps> = {
   tags: ['play'],
-  args: { senders, onAdd: fn(), onUpdate: fn(), onRemove: fn(), onCheck: fn(), onCheckResult: fn(), ...mailbox },
+  args: { senders, onAdd: fn(), onUpdate: fn(), onRemove: fn(), onVerify: fn(), onVerifications: fn(), ...mailbox },
   render: (args) => <MailSendersSection {...args} />,
   play: async ({ canvasElement, args }) => {
     const page = within(document.body)
     await userEvent.click(within(canvasElement).getAllByRole('button', { name: 'Edit' })[0]!)
-    expect(page.getByText(/^This app cannot check From addresses for you\./)).toBeVisible()
-    expect(page.queryByRole('button', { name: 'Check address' })).toBeNull()
-    expect(args.onCheck).not.toHaveBeenCalled()
+    expect(page.getByText(/^This app cannot verify From addresses for you\./)).toBeVisible()
+    expect(page.queryByRole('button', { name: 'Verify address' })).toBeNull()
+    expect(args.onVerify).not.toHaveBeenCalled()
   },
 }
 
@@ -139,8 +144,8 @@ export const ListedStates: StoryObj<MailSendersSectionProps> = {
     onAdd: fn(),
     onUpdate: fn(),
     onRemove: fn(),
-    onCheck: fn(),
-    onCheckResult: fn(),
+    onVerify: fn(),
+    onVerifications: fn(),
     ...mailbox,
     onRefresh: fn(async () => [{ connection: 'c1', provider: 'gmail', status: 'listed' as const }]),
   },
@@ -166,8 +171,8 @@ export const ListingNotPermitted: StoryObj<MailSendersSectionProps> = {
     onAdd: fn(),
     onUpdate: fn(),
     onRemove: fn(),
-    onCheck: fn(),
-    onCheckResult: fn(),
+    onVerify: fn(),
+    onVerifications: fn(),
     ...mailbox,
   },
   render: (args) => <MailSendersSection {...args} />,
@@ -189,8 +194,8 @@ export const ListingExpired: StoryObj<MailSendersSectionProps> = {
     onAdd: fn(),
     onUpdate: fn(),
     onRemove: fn(),
-    onCheck: fn(),
-    onCheckResult: fn(),
+    onVerify: fn(),
+    onVerifications: fn(),
     ...mailbox,
     onRefresh: fn(async () => [{ connection: 'c1', provider: 'gmail', status: 'error' as const, code: 'link_expired' as const }]),
   },

@@ -68,8 +68,6 @@
     "done": "{recipient} krijgt geen {topic}-mail meer."
   },
   "personal-mail": {
-    "MAIL_SENDER_IN_USE": "{address} is nog het afzenderadres van records in deze app. Geef ze eerst een ander afzenderadres.",
-    "ALIAS_CHECK_SUBJECT": "Testbericht voor het afzenderadres {address}",
-    "ALIAS_CHECK_TEXT": "Dit is een testbericht om te controleren dat je mailbox kan verzenden als {address}. De app waaraan je je mailbox hebt gekoppeld, stuurde het toen je dat adres toevoegde of controleerde. Het ging naar een adres dat alleen voor deze controle dient. Je hoeft er niets mee te doen en je kunt het verwijderen."
+    "MAIL_SENDER_IN_USE": "{address} is nog het afzenderadres van records in deze app. Geef ze eerst een ander afzenderadres."
   }
 }

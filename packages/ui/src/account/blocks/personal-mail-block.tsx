@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import type { PersonalMailLink } from '@protobase/client'
+import type { MailSenderVerification, PersonalMailLink } from '@protobase/client'
 import { providerMessage } from '../../auth/auth-messages'
 import { useAuth } from '../../auth/auth-provider'
 import { providerName } from '../../auth/provider-link'
@@ -37,6 +37,13 @@ const Mailboxes = ({ links }: { links: PersonalMailLink[] }) => {
     await reload()
     return listed
   }, [account, reload])
+  // A verification that settled may change the address's state, so the list and the fields' options are read again.
+  const settledAgain = async (verifications: MailSenderVerification[]) => {
+    if (verifications.some(({ state }) => state === 'pending')) return verifications
+    forgetSenderOptions()
+    await reload()
+    return verifications
+  }
   if (!data) return <AccountLoading error={error} />
   const providerNames = (id: string) => signInProviders.find((provider) => provider.id === id)?.name ?? providerName(id)
   const connect = (id: string) => linkPersonalMail(links.find((link) => link.id === id)!)
@@ -70,8 +77,8 @@ const Mailboxes = ({ links }: { links: PersonalMailLink[] }) => {
           forgetSenderOptions()
           await reload()
         }}
-        onCheck={(id) => account.checkMailSender(id)}
-        onCheckResult={(id, check) => account.mailSenderCheckResult(id, check)}
+        onVerify={async (id) => settledAgain(await account.verifyMailSender(id))}
+        onVerifications={async (id) => settledAgain((await account.mailSenders()).senders.find((sender) => sender.id === id)?.verifications ?? [])}
         onRefresh={refresh}
         onConnect={connect}
         providerName={(id) => links.find((link) => link.id === id)?.name ?? id}

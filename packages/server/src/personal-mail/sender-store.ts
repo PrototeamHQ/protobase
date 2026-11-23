@@ -1,6 +1,7 @@
 import { sql } from 'kysely'
 import type { StoreSql } from '../better-auth/store/store-sql'
 import type { ProviderAddressState } from './personal-mail-provider'
+import type { SenderProof } from './verifiers/verification-store'
 
 /** Better Auth's model for the From addresses people send as: one row per mailbox connection and address. */
 export const mailSenderModel = 'mailSender'
@@ -61,6 +62,8 @@ export type MailSenderStore = {
   clearDefault: (userId: string) => Promise<void>
   /** Records that the person removed the address `id` at `at`; it is their default no longer. */
   remove: (userId: string, id: string, at: Date) => Promise<void>
+  /** What the app's verifiers proved of the person's addresses, when it has any (see `verificationStore`). */
+  proofsOf?: (userId: string) => Promise<SenderProof[]>
 }
 
 const columns = (store: StoreSql) => {

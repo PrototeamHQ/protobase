@@ -338,6 +338,8 @@ A mailbox may send as more than its own address, such as Gmail's send-as address
   - `failed`: a complete listing since the address was added did not hold it, so Gmail would send from the account's own address instead.
   - `unverified`: nothing says either way.
 
+  Where the provider says nothing, a [verifier](#verifying-a-from-address) of the app may prove the address `verified`.
+
   The state is worked out each time it is read, from what typed the address and what the provider last listed. An address the listing leaves out keeps its record and its id: only its listed state goes.
 - **Without the scope:** a Gmail link without `gmail.settings.basic` is told which scope it lacks. The account page then offers **Allow address checks**, which connects Gmail again asking for it, and sends the person back to the account page.
 - **Name:** an address may carry a display name, which the From header shows beside it, such as `From: Shop billing <billing@shop.example>`, as mail sent by hand from a send-as address shows the name set up for it; a name that is not ASCII is encoded. Left empty, the header holds the bare address.
@@ -382,24 +384,59 @@ export default defineFunction(async (request, { personalMail }) => {
 
   Each acts on the signed-in person's own addresses and connections only: any other id answers `404` before anything is done.
 - **Upgrading:** an address entered before From addresses were records goes on its owner's Gmail connection when they had exactly one. With none or several it shows **No mailbox**, and the person removes it and adds it again.
-- <gap>An address on a mailbox linked without `gmail.settings.basic` cannot be checked before each send because only the account page's one-off test message is implemented for it.</gap>
+- <gap>An address on a mailbox linked without `gmail.settings.basic` cannot be checked before each send because only a [verification](#verifying-a-from-address) started from the account page is implemented for it.</gap>
 - <gap>An address cannot be shared with others who send mail because proving that the person owns the address is not implemented.</gap>
 
-### Checking a From address
+### Verifying a From address
 
-:::note[Coming soon]
-The app's side is built; the hosting platform's service that receives the test messages is not live yet.
+:::caution[Beta]
+Protobase ships no verifier: an app, or the platform it runs on, plugs in its own.
 :::
 
-Gmail sends from the account's own address, without an error, when a From address is not one of its verified send-as addresses. So the account page checks an address by sending one test message from it through the person's mailbox, to a one-time address of a mail check service, and showing the From it arrived with:
+Gmail sends from the account's own address, without an error, when a From address is not one of its verified send-as addresses, and a mailbox that cannot list its send-as addresses leaves an address `unverified`. A verifier proves such an address another way, such as by sending one test message from it and reading how it arrives. The app's trusted code adds verifiers with `add_verifier`, from the project's `auth/hooks.ts`:
 
-- **When:** adding an address checks it at once; its dialog, under **Edit**, checks it again with **Check address**, and after a result with **Check again**.
-- **Waiting:** the dialog asks every 3 seconds whether the message arrived, for up to 2 minutes, then says it did not arrive in time. Closing the dialog stops asking.
-- **The result:** a From equal to the address, without regard to case, confirms it; any other shows the address the mailbox used instead, with how to set the address up in Gmail. The message also shows in the person's Sent folder.
-- **The service:** the hosting platform names it in `PROTOBASE_MAIL_CHECK_URL`, a URL the app treats as opaque. The app makes two signed JSON `POST`s under it: `/alias-checks` answers `{ token, address }`, a one-time address and its token, and `/alias-checks/result { token }` answers `{ received: false }`, or `{ received: true, from }` with the address in the message's From header. Each carries [Standard Webhooks](https://www.standardwebhooks.com) headers under a key derived from `PROTOBASE_SECRET` by HKDF (`mailCheckSecret` and `mailCheckHeaders` of `@protobase/server`), which the service checks with `verifyStandardWebhook`. `PROTOBASE_MAIL_CHECK_URL` without `PROTOBASE_SECRET` stops startup.
-- **Unchecked:** without the service, the dialog says the app cannot check From addresses, and how to check one by hand.
-- **The account page's calls:** `GET /api/auth/account/mail-senders` says `checks: true` where the app can check; `POST .../mail-senders/check { id }` sends the test message and answers `{ status: 'waiting', check }`, or `{ status: 'unchecked' }`; `POST .../mail-senders/check-result { id, check }` answers `waiting`, `confirmed` or `mismatch` with `from`. Each acts on the signed-in person's own addresses only, and staff signed in as them cannot send a check.
-- <gap>Self-hosted apps cannot check a From address because no mail check service that receives the test messages is implemented outside Protobase Cloud.</gap>
+```ts
+import type { AuthHooks } from '@protobase/server'
+
+export const senderVerifiers: AuthHooks['senderVerifiers'] = (add_verifier) => add_verifier(testMailVerifier)
+```
+
+A host's runtime can pass its own in `createAuth`'s `senderVerifiers`. A verifier is a `SenderAddressVerifier`:
+
+```ts
+const testMailVerifier: SenderAddressVerifier = {
+  id: 'test-mail',
+  verify: async ({ verification_id, address, secret, locale }, { send }) => {
+    const to = await checkService.issue({ verification_id, secret })
+    await send({ to, subject: `Test message for ${address}`, text: 'This message checks that your mailbox sends from this address.' })
+    return { state: 'pending', expires_at: new Date(Date.now() + 10 * 60_000) }
+  },
+  check: async ({ verification_id }) => checkService.result(verification_id),
+}
+```
+
+- **`id`:** stored on each verification, so it stays the same across releases: lowercase letters, digits, `_`, `.` and `-`, starting with a letter, at most 64 characters. Two verifiers with one id, or a verifier without `auth.personalMail`, stop startup.
+- **`verify(input, tools)`:** starts a verification of `address`. `tools.send({ to, subject, text, html? })` sends one test message through the address's own mailbox, From that address, to one recipient: a From, copies, headers or attachments it is given are left out, and a second send is refused.
+- **`check(input)`:** optional. The app's sweep calls it each minute a pending verification is due, until it settles or expires.
+- **Outcomes:** `verify` and `check` answer one of these.
+  - `{ state: 'pending', expires_at, check_after? }`: `verify` must name `expires_at`, which the app caps at 24 hours after the verification started. `check` cannot move it. The next check comes at `check_after`, else a minute on, and never sooner than a minute on.
+  - `{ state: 'verified', valid_until }`: `valid_until` is required, lies ahead, and is capped at 28 days.
+  - `{ state: 'failed', error_code, error? }`: `error_code` is a lowercase name, such as `from_rewritten`. `error` is plain text of at most 500 characters, with no control characters but line breaks and tabs, shown as text and never as markup.
+
+  An outcome that breaks these rules, or a `verify` that throws, fails the verification as `verifier_error`. The address's state does not change.
+- **One at a time:** an address has at most one pending verification per verifier. It is stored before `verify` runs, so starting it again sends nothing while it is pending. A verification whose `verify` never returned expires after 5 minutes, and the next start takes its place.
+- **Expiry:** a verification still pending at `expires_at` fails as `verification_expired`, from the sweep, `auth.mail-sender-verifications`, which runs each minute on the app's jobs.
+- **Reports:** an outside service settles a verification with `POST /api/auth/mail-sender-verifications/report`, with this JSON body: `{ verifier, secret, state: 'verified', valid_until }` or `{ verifier, secret, state: 'failed', error_code, error? }`.
+  - `secret` is the one `verify` was given: 256 random bits, made for that verification alone. The app keeps only its SHA-256, so it is never handed out again. The verification's id is not a secret.
+  - The secret is read from the body only. Keep it out of URLs and logs.
+  - A report settles the verification only for the verifier that started it, while it is pending and before it expires, and once only. Whichever comes first wins: the report, the sweep or `verify`'s own outcome.
+  - Any report that settles nothing answers the same `403` with `code: "VERIFICATION_REFUSED"`, whatever the reason. A malformed outcome answers `400` before anything is looked up.
+- **The address's state:** a verified verification makes an address the provider says nothing of `verified`, until its `valid_until`. It never outweighs what the provider says, such as a `failed` listing. It counts only while its verifier is registered, and only if it settled after the address was last removed. A failed verification shows on the account page and leaves the state as it was.
+- **The account page:** adding an address verifies it at once. Its dialog, under **Edit**, verifies it again with **Verify address**, and after a result with **Verify again**. While a verification is pending, the dialog reads it again every 3 seconds for up to 2 minutes. Without a verifier, the dialog says the app cannot verify From addresses, and how to check one by hand.
+- **The account page's calls:**
+  - `GET /api/auth/account/mail-senders` says `verifiers: true` when the app has any, and gives each address its latest `verifications`, one per verifier: `verifier`, `state`, `expiresAt` while pending, `settledAt`, `validUntil`, `errorCode` and `error`.
+  - `POST .../mail-senders/verify { id }` starts each verifier on one of the person's addresses on a connection they can send through, and answers its `verifications`.
+  - Staff signed in as the person cannot start one.
 
 ### A From address on a record
 

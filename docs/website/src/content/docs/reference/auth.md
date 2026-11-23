@@ -156,6 +156,7 @@ export const generateUserId: AuthHooks['generateUserId'] = async ({ db }) => {
 | `onOrganizationCreated` | `({ organization, member }, { db })`, after an organization is created, with its owner's membership |
 | `beforeOrganizationDeleted` | `(organization, { db })`, before an organization is deleted; throwing refuses it |
 | `organizationHooks` | Better Auth's organization hooks by name, each with `{ db }` last, run after Protobase's own |
+| `senderVerifiers` | `(add_verifier)`, once as the app starts: adds the app's ways to prove a From address; see [Verifying a From address](/reference/email/#verifying-a-from-address) |
 
 A mailer of the project's own, for sign-in's mail, is the default export of `auth/mailer.ts` (see [Password reset](#password-reset)). An authenticator of its own, in place of the one `authenticate` describes, is the default export of `auth/authenticate.ts` (see [Tokens and roles](#tokens-and-roles)).
 

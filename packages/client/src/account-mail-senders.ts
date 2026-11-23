@@ -15,7 +15,14 @@ export type MailSenderState = 'unverified' | 'pending' | 'verified' | 'failed' |
  * name the From header shows beside it, if any; its own signature, else the generic one applies; whether mail goes out
  * from it when the app names no address; its `state`; and when the provider's last listing held it (`listedAt`).
  */
-export type MailSender = { id: string; address: string; name?: string; signature?: string; isDefault: boolean; state: MailSenderState; connection?: string; listedAt?: string }
+export type MailSender = { id: string; address: string; name?: string; signature?: string; isDefault: boolean; state: MailSenderState; connection?: string; listedAt?: string; verifications?: MailSenderVerification[] }
+
+/**
+ * The latest verification of an address by one of the app's verifiers: `pending` until `expiresAt`; `verified` until
+ * `validUntil`, which makes an address its provider says nothing of `verified`; `failed` with an `errorCode`, such as
+ * `verification_expired`, and the verifier's `error` text, which is plain text to show as such.
+ */
+export type MailSenderVerification = { verifier: string; state: 'pending' | 'verified' | 'failed'; expiresAt?: string; settledAt?: string; validUntil?: string; errorCode?: string; error?: string }
 
 /**
  * A mailbox connection of the person's: its provider, such as `gmail`, its own address when its link names it,
@@ -26,9 +33,9 @@ export type MailConnection = { id: string; provider: string; address?: string; c
 
 /**
  * The person's From addresses, their mailbox's own address when its link names it, their mailbox connections, and
- * whether the app can check that mail from an address really goes out from it (`checkMailSender`).
+ * whether the app has verifiers that prove mail from an address really goes out from it (`verifyMailSender`).
  */
-export type MailSenders = { address?: string; senders: MailSender[]; connections?: MailConnection[]; checks?: boolean }
+export type MailSenders = { address?: string; senders: MailSender[]; connections?: MailConnection[]; verifiers?: boolean }
 
 /**
  * How a refresh of one connection went: `listed`, its send-as addresses are read; `not_permitted`, its link lacks
@@ -39,12 +46,6 @@ export type MailConnectionListing = { connection: string; provider: string } & (
   | { status: 'not_permitted'; missing_scopes: string[] }
   | { status: 'error'; code: 'link_expired' | 'listing_failed' }
 )
-
-/**
- * Where a check of a From address stands: its test message is on its way (`check` names it), arrived from that
- * address, arrived from another address (`from`), as when the mailbox does not have it set up, or the app cannot check.
- */
-export type MailSenderCheck = { status: 'waiting'; check: string } | { status: 'confirmed'; from: string } | { status: 'mismatch'; from: string } | { status: 'unchecked' }
 
 /** What changes of an address: `name: null` drops its name; `signature: null` drops its own, so the generic one applies. */
 export type MailSenderChange = { name?: string | null; signature?: string | null; isDefault?: boolean }
@@ -85,17 +86,10 @@ export const accountMailSenders = (client: BetterAuthClient) => ({
     return data.connections
   },
 
-  /** Sends a test message from an address through the person's mailbox, to see the From it arrives with. */
-  checkMailSender: async (id: string): Promise<MailSenderCheck> => {
-    const { data, error } = await client.$fetch<MailSenderCheck>('/account/mail-senders/check', { method: 'POST', body: { id } })
-    if (error || !data) throw authError(error, 'Could not check the From address')
-    return data
-  },
-
-  /** Where the check `check` of an address stands: `waiting` until its test message arrived. */
-  mailSenderCheckResult: async (id: string, check: string): Promise<MailSenderCheck> => {
-    const { data, error } = await client.$fetch<{ status: 'waiting' } | MailSenderCheck>('/account/mail-senders/check-result', { method: 'POST', body: { id, check } })
-    if (error || !data) throw authError(error, 'Could not check the From address')
-    return data.status === 'waiting' ? { status: 'waiting', check } : data
+  /** Starts each of the app's verifiers on an address, unless one is pending already, and answers its latest verifications. */
+  verifyMailSender: async (id: string): Promise<MailSenderVerification[]> => {
+    const { data, error } = await client.$fetch<{ verifications: MailSenderVerification[] }>('/account/mail-senders/verify', { method: 'POST', body: { id } })
+    if (error || !data) throw authError(error, 'Could not verify the From address')
+    return data.verifications
   },
 })

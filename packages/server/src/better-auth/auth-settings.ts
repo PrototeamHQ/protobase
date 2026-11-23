@@ -5,6 +5,8 @@ import { buildAuth, type CreateAuthOptions, type UserCreatedHook } from './creat
 import type { McpAuthOptions } from './mcp/mcp-plugins'
 import type { OrganizationsOptions } from './organizations/options'
 import type { StoredMember, StoredOrganization } from './organizations/store'
+import type { AddVerifier } from '../personal-mail/verifiers/sender-address-verifier'
+import { senderVerifierList } from '../personal-mail/verifiers/verifier-list'
 
 /** What every hook of the project's own gets as its last argument: the app's database, the one jobs get. */
 export type HookContext = { db: Db }
@@ -28,13 +30,18 @@ export type AuthHooks = {
   beforeOrganizationDeleted?: (organization: StoredOrganization, app: HookContext) => Promise<void>
   /** Better Auth's organization hooks, run after Protobase's own. */
   organizationHooks?: { [K in keyof OrganizationHooks]?: (input: Parameters<NonNullable<OrganizationHooks[K]>>[0], app: HookContext) => ReturnType<NonNullable<OrganizationHooks[K]>> }
+  /**
+   * Adds the app's ways to prove a From address with `add_verifier`, such as a hosting platform's test-mail check
+   * (`SenderAddressVerifier`); runs once as the app starts. Needs `personalMail`.
+   */
+  senderVerifiers?: (add_verifier: AddVerifier) => void
 }
 
 /**
  * `auth` in `protobase.config.ts`: the sign-in settings as data. The store is the app's own database, in `schema`;
  * the hooks and a mailer of the project's own are found in auth/hooks.ts and auth/mailer.ts.
  */
-export type AuthSettings = Omit<CreateAuthOptions, 'database' | 'secret' | 'generateUserId' | 'onUserCreated' | 'mailer' | 'organizations' | 'mcp' | 'workflowConnections'> & {
+export type AuthSettings = Omit<CreateAuthOptions, 'database' | 'secret' | 'generateUserId' | 'onUserCreated' | 'mailer' | 'organizations' | 'mcp' | 'workflowConnections' | 'senderVerifiers'> & {
   /** Signs cookies and encrypts the JWT private keys, such as `PROTOBASE_SECRET`. Generate with `openssl rand -base64 32`. */
   secret?: string
   /** The schema of the auth store in the app's database; default `auth`. */
@@ -80,6 +87,9 @@ export const appAuthOptions = (settings: AuthSettings, { db, hooks = {}, mailer,
   const organizationsOptions = organizationOptions(organizations, hooks, app)
   const userId = hooks.generateUserId ? () => hooks.generateUserId!(app) : generateUserId
   const onUserCreated: UserCreatedHook | undefined = hooks.onUserCreated && ((user, context) => hooks.onUserCreated!(user, context, app))
+  const verifiers = senderVerifierList()
+  hooks.senderVerifiers?.(verifiers.add_verifier)
+  const senderVerifiers = verifiers.freeze()
   return {
     ...rest,
     database: { db, type: 'postgres', schemaName: schema, transaction: true },
@@ -90,6 +100,7 @@ export const appAuthOptions = (settings: AuthSettings, { db, hooks = {}, mailer,
     ...(organizationsOptions && { organizations: organizationsOptions }),
     ...(mcp && { mcp }),
     ...(workflowConnections && { workflowConnections }),
+    ...(senderVerifiers.length > 0 && { senderVerifiers }),
   }
 }
 
