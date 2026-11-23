@@ -21,12 +21,14 @@ export const senderRows = (rows: MailSenderRow[] = []): MailSenderStore & { rows
       for (const { address, provider_state } of listed) {
         const evidence = { listedAt: readAt, providerState: provider_state ?? null, providerStateReadAt: readAt }
         const found = rows.find((row) => row.connectionId === connectionId && key(row.address) === key(address))
+        if (found && found.providerStateReadAt && found.providerStateReadAt > readAt) continue
         if (found) Object.assign(found, evidence)
         else rows.push({ id: `listed-${++made}`, userId, connectionId, address, name: null, shared: false, signature: null, isDefault: false, createdAt: readAt, typedAt: null, removedAt: null, ...evidence })
       }
       const keys = listed.map(({ address }) => key(address))
       for (const row of rows) {
         if (row.connectionId !== connectionId || row.userId !== userId || keys.includes(key(row.address)) || (row.typedAt ?? row.createdAt) > readAt) continue
+        if (row.providerStateReadAt && row.providerStateReadAt > readAt) continue
         Object.assign(row, { listedAt: null, providerState: null, providerStateReadAt: readAt })
       }
     },

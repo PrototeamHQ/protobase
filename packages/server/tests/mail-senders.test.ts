@@ -240,6 +240,10 @@ describe('the send-as addresses a mailbox lists', () => {
       ]),
     )
 
+    // A listing asked for earlier that records later leaves what the later one said.
+    await senders.recordListing(userId, gmail.id, [{ address: 'billing@acme.example', provider_state: 'pending' }], new Date(readAt.getTime() - 1000))
+    expect(await senders.ofUser(userId)).toEqual(rows)
+
     // Typed over an address the listing vouches for: only what typing writes changes.
     const sales = await add(app, ana, { address: 'SALES@acme.example', name: 'Acme sales' })
     expect(sales).toMatchObject({ name: 'Acme sales', state: 'verified' })

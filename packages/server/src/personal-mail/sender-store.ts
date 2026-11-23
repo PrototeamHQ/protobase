@@ -52,7 +52,8 @@ export type MailSenderStore = {
   /**
    * Records the provider's complete listing of `connectionId`, asked for at `readAt`: each listed address with what
    * the provider says of it, a new row for one not there yet; each other row of the connection known by then as not
-   * listed. It never deletes a row, changes an id, or touches what the person typed or removed.
+   * listed. A row a later listing already read keeps what that one said, so two listings that finish out of order
+   * leave the later one's word. It never deletes a row, changes an id, or touches what the person typed or removed.
    */
   recordListing: (userId: string, connectionId: string, listed: ListedSender[], readAt: Date) => Promise<void>
   change: (userId: string, id: string, change: SenderChange) => Promise<MailSenderRow | undefined>
@@ -117,10 +118,12 @@ upserted as (
   insert into ${table} (id, ${c.user_id}, ${c.connection_id}, ${c.address}, ${c.shared}, ${c.is_default}, ${c.created_at}, ${c.listed_at}, ${c.provider_state}, ${c.provider_state_read_at})
   select ${s.newId}, ${userId}, ${connectionId}, listed.address, false, false, ${readAt}, ${readAt}, listed.state, ${readAt} from listed
   on conflict (${c.connection_id}, ${c.address_key}) do update set ${c.listed_at} = excluded.${c.listed_at}, ${c.provider_state} = excluded.${c.provider_state}, ${c.provider_state_read_at} = excluded.${c.provider_state_read_at}
+  where ${table}.${c.provider_state_read_at} is null or ${table}.${c.provider_state_read_at} <= excluded.${c.provider_state_read_at}
   returning id
 )
 update ${table} set ${c.listed_at} = null, ${c.provider_state} = null, ${c.provider_state_read_at} = ${readAt}
-where ${c.connection_id} = ${connectionId} and ${c.user_id} = ${userId} and ${c.address_key} <> all(${addresses}::text[]) and coalesce(${c.typed_at}, ${c.created_at}) <= ${readAt}`.execute(s.db)
+where ${c.connection_id} = ${connectionId} and ${c.user_id} = ${userId} and ${c.address_key} <> all(${addresses}::text[]) and coalesce(${c.typed_at}, ${c.created_at}) <= ${readAt}
+  and (${c.provider_state_read_at} is null or ${c.provider_state_read_at} <= ${readAt})`.execute(s.db)
   },
 
   change: async (userId, id, change) => {

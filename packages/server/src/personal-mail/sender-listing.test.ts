@@ -85,4 +85,15 @@ describe('listConnections', () => {
     expect(fine.list_sender_addresses).toHaveBeenCalled()
     expect(senders.rows).toMatchObject([{ address: 'x@acme.example', connectionId: 'f' }])
   })
+  it('leaves what a later listing said when an earlier one records after it', async () => {
+    const later = new Date('2026-11-21T09:00:00Z')
+    const senders = senderRows([
+      typedRow({ id: 'a1', userId: 'u1', connectionId: 'c', address: 'a@acme.example', listedAt: later, providerStateReadAt: later, providerState: 'verified' }),
+      typedRow({ id: 'a2', userId: 'u1', connectionId: 'c', address: 'b@acme.example', listedAt: later, providerStateReadAt: later, providerState: 'verified' }),
+    ])
+    const before = structuredClone(senders.rows)
+    // Asked for at `now`, before the listing at `later`, and recorded after it: it neither downgrades a1 nor clears a2.
+    await senders.recordListing('u1', 'c', [{ address: 'a@acme.example', provider_state: 'pending' }], now)
+    expect(senders.rows).toEqual(before)
+  })
 })
