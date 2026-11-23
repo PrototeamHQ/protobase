@@ -1,4 +1,6 @@
 import { checkFilter, parseFilter, type ResourceModel } from '@protobase/schema'
+import type { Locale } from '@protobase/schema/internal'
+import { messages } from '../../locale/messages'
 import { isCaptured } from '../../changes/capture-sql'
 import { readyWhen, timeField } from './ready-when'
 
@@ -17,11 +19,13 @@ const usesSearch = (node: unknown): boolean => {
   return Object.values(node).some(usesSearch)
 }
 
+const catalogue = messages('workflows/ready')
+
 /**
- * Why a ready trigger of a tenant's workflow never fires on a resource without a tenant field: its changes carry no
- * tenant, so none matches the trigger's.
+ * Why a ready trigger of a tenant's workflow never fires on a resource without a tenant field, in the app's language,
+ * else English: its changes carry no tenant, so none matches the trigger's.
  */
-export const tenantlessMessage = (resource: string) => `${resource} has no tenant field, so its changes never reach a workflow of a tenant: give it .tenant(...)`
+export const tenantlessMessage = (resource: string, locale: Locale = 'en') => catalogue(locale)('tenantless', { resource })
 
 /**
  * Why a ready trigger cannot run on the app's resources, checked as a workflow is saved: a resource that records no
@@ -29,12 +33,12 @@ export const tenantlessMessage = (resource: string) => `${resource} has no tenan
  * that does not check against it (a field that is not indexed for filtering among them, as for list filters), `now()`
  * outside a time term, and key fields it does not have.
  */
-export const readyProblems = (models: (name: string) => ResourceModel | undefined, spec: ReadySpec, tenanted = false): Problem[] => {
+export const readyProblems = (models: (name: string) => ResourceModel | undefined, spec: ReadySpec, tenanted = false, locale?: Locale): Problem[] => {
   const model = models(spec.resource)
   if (!model) return [{ field: 'resource', message: `"${spec.resource}" is not a resource of this app` }]
   const problems: Problem[] = []
   if (!isCaptured(model)) problems.push({ field: 'resource', message: `${spec.resource} records no changes, so no write reaches a trigger: declare events on it` })
-  if (tenanted && !model.tenant) problems.push({ field: 'resource', message: tenantlessMessage(spec.resource) })
+  if (tenanted && !model.tenant) problems.push({ field: 'resource', message: tenantlessMessage(spec.resource, locale) })
   for (const name of spec.key ?? []) {
     const field = model.fields[name]
     if (!field) problems.push({ field: 'key', message: `${spec.resource} has no field "${name}"` })

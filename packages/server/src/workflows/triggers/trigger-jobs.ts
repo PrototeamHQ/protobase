@@ -130,7 +130,7 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
     const spec = input.declared(trigger.type)?.ready(trigger.input)
     const model = spec && input.deps().registry.find(spec.resource)?.model
     if (!spec || !model || model.tenant) return
-    return tenantlessMessage(spec.resource)
+    return tenantlessMessage(spec.resource, input.locale)
   }
 
   /**

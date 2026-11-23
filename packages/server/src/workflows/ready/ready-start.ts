@@ -5,6 +5,7 @@ import { encodeKey } from '@protobase/schema/internal'
 import type { Db } from '@protobase/query'
 import { StepError } from '@protobase/workflows'
 import type { ReadyTrigger } from '@protobase/workflows/plugin'
+import type { Locale } from '@protobase/schema/internal'
 import { assistantRecords } from '../../assistant/records'
 import type { Deps } from '../../deps'
 import { HttpProblem } from '../../problem'
@@ -17,7 +18,7 @@ import { triggerFailed, triggerRecovered, type TriggerRow } from '../triggers/tr
 /** The most characters of a run's key; a longer ready key is kept as its SHA-256. */
 const keyLength = 200
 
-export type ReadyInput = { deps: () => Deps; schema: string; roles: SaverRoles; declared: (type: string) => ReadyTrigger | undefined; readyTypes: Iterable<string> }
+export type ReadyInput = { deps: () => Deps; schema: string; roles: SaverRoles; locale?: Locale; declared: (type: string) => ReadyTrigger | undefined; readyTypes: Iterable<string> }
 
 /**
  * The resource, the record key and the values of the `key` fields: the key a record starts one run under, so a trigger
@@ -64,12 +65,12 @@ export const orRefusal = <T>(work: Promise<T>): Promise<{ value: T } | { refused
  * What a ready trigger works on: its declaration, resource, and the records API as the user who saved its version; or,
  * for a tenant's trigger on a resource without a tenant field, why it never fires.
  */
-export const readyContext = async ({ deps, roles, declared }: ReadyInput, trigger: Omit<TriggerRow, 'generation'>) => {
+export const readyContext = async ({ deps, roles, declared, locale }: ReadyInput, trigger: Omit<TriggerRow, 'generation'>) => {
   const ready = declared(trigger.type)
   const spec = ready?.ready(trigger.input)
   const model = spec && deps().registry.find(spec.resource)?.model
   if (!spec || !model) return
-  if (trigger.tenant_id !== null && !model.tenant) return { tenantless: tenantlessMessage(spec.resource) }
+  if (trigger.tenant_id !== null && !model.tenant) return { tenantless: tenantlessMessage(spec.resource, locale) }
   const session = await saverSession(roles, trigger.saved_by, trigger.tenant_id ?? undefined)
   return { spec, model, records: assistantRecords(deps(), session) }
 }

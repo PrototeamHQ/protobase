@@ -194,7 +194,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
     const workflow = await save('ada', { 'app:record': { resource: 'invoices', when: "status = 'paid'" } })
     await enable('ada', workflow.id, 1)
     // Its first pass over the records ends first, so the write below is what finds it
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    expect((await runtime.drain(15)).drained).toBe(true)
     await sql`update workflows.triggers set input = ${JSON.stringify({ resource: 'rates' })}::jsonb where workflow_id = ${workflow.id}`.execute(db)
     expect((await as('ada', '/rates', 'POST', { percent: 21 })).status).toBe(201)
     const read = () => sql<{ status: string; last_error: { code: string; message: string } }>`select status, last_error from workflows.triggers where workflow_id = ${workflow.id}`.execute(db).then((result) => result.rows)
@@ -205,7 +205,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
   it('marks a trigger whose resource lost its tenant field failing with no write, on its check each minute', async () => {
     const workflow = await save('ada', { 'app:record': { resource: 'invoices', when: "status = 'paid'" } })
     await enable('ada', workflow.id, 1)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    // Its first pass over the records ends first, so the check below is what finds it
+    expect((await runtime.drain(15)).drained).toBe(true)
     await sql`update workflows.triggers set input = ${JSON.stringify({ resource: 'rates' })}::jsonb where workflow_id = ${workflow.id}`.execute(db)
     const check = admin.jobs.find((job) => job.name === 'workflows.trigger-tenant-check')!
     await check.options.run(undefined, { db, job: { id: 'job', name: check.name, attempt: 1, maxAttempts: 1, startedOn: new Date() }, signal: new AbortController().signal, decryptField: async () => null })

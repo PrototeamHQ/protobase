@@ -56,7 +56,7 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   if (!roles) throw new Error("workflows act on records as each workflow's last editor, with their current roles: give the config `auth` (Better Auth), or `workflows.savedByRoles`")
   const env = globalThis.process?.env ?? {}
   const secrets = workflowSecrets(options, env)
-  const types = workflowTypes(options.plugins, (name) => deps().registry.find(name)?.model, auth?.connectionSupport, templates)
+  const types = workflowTypes(options.plugins, (name) => deps().registry.find(name)?.model, auth?.connectionSupport, templates, locale)
   const appName = shownAppName(auth, env)
   const mailTemplates = { list: templates, app: auth?.origins[0] ? mailingApp({ appName, baseURL: auth.origins[0] }) : { name: appName, url: '' } }
   const accounts = auth && betterAuthConnectionAccounts(auth as unknown as TokenAuth)
@@ -70,7 +70,7 @@ export const workflowEngine = (options: WorkflowsOptions, deps: () => Deps, auth
   if (custom && !sealKey) throw new Error("workflows.customSteps seals the arguments of custom steps' jobs with the app's secret: give the config `auth`, or set PROTOBASE_SECRET")
   // A runner's completion answers its job's Task by its token's hash, as an outside executor's answer by its token.
   const allowPrivateAddresses = Boolean(options.allowPrivateAddresses)
-  const input = { deps, schema, roles, allowPrivateAddresses, storage, templates: mailTemplates, connect: connections.trigger }
+  const input = { deps, schema, roles, locale, allowPrivateAddresses, storage, templates: mailTemplates, connect: connections.trigger }
   // Its files are read and stored as the run's storage steps do, as the run's last editor.
   const runners = custom && customStepRunners({ deps, schema, settings: runnerSettings, secrets: Object.values(secrets), key: sealKey!, answer: (hash, answer) => answerTaskByHash(hash, answer), storage: input, origin: () => auth?.origins[0] })
   const cache = postgresStepCache(() => deps().db, schema, secretFingerprints(secrets, env.PROTOBASE_SECRET), roles)

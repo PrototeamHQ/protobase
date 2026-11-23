@@ -30,6 +30,7 @@ describe('readyProblems', () => {
   it("refuses a resource without a tenant field for a tenant's workflow, naming it, and takes it for a workflow of no tenant", () => {
     expect(readyProblems(models, { resource: 'invoices' }, true)).toEqual([{ field: 'resource', message: 'invoices has no tenant field, so its changes never reach a workflow of a tenant: give it .tenant(...)' }])
     expect(readyProblems(models, { resource: 'invoices' })).toEqual([])
+    expect(readyProblems(models, { resource: 'invoices' }, true, 'nl')).toEqual([{ field: 'resource', message: 'invoices heeft geen tenantveld, dus zijn wijzigingen bereiken nooit een workflow van een tenant: geef het .tenant(...)' }])
   })
 
   it('refuses a sensitive key field, which a record read never carries', () => {
