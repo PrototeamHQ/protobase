@@ -1,6 +1,6 @@
 import type { FieldAccess } from './access/types'
 import { Field, type FieldMeta } from './field'
-import { capturedAccept, checkedAccept, checkedCaptureAccept, checkedProvider, checkedVariant, checkedVariants, parseSize, type FileCamera, type FileOptions, type FileProcessor, type ImageVariant, type ImageVariantOptions } from './files/file-options'
+import { capturedAccept, checkedAccept, checkedCaptureAccept, checkedProvider, checkedVariant, checkedVariants, parseSize, type FileOptions, type FileProcessor, type ImageVariant, type ImageVariantOptions } from './files/file-options'
 
 /** `f.file()`: a text column holding a file's URI, uploaded through `:upload`. See [Files](docs/website/src/content/docs/reference/files.mdx). */
 export class FileField<V> extends Field<V> {
@@ -14,7 +14,7 @@ export class FileField<V> extends Field<V> {
    * Opens the camera on phones and tablets instead of the file picker, the rear one unless `'user'` asks for the front,
    * and takes only images: the image types of `.accept()`, or any image. Desktop browsers pick an image file.
    */
-  capture(camera: FileCamera = 'environment') {
+  capture(camera: 'environment' | 'user' = 'environment') {
     return this.withFile({ capture: camera, accept: capturedAccept(this.meta.file!.accept) })
   }
 

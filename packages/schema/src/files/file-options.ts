@@ -75,12 +75,9 @@ export type FileOptions = {
   original?: ImageVariant
   /** Whether a value may also be an https URL of a file elsewhere (`.externalUrls()`). */
   external?: true
-  /** The camera a phone or tablet opens instead of its file picker (`.capture()`). */
-  capture?: FileCamera
+  /** The camera a phone or tablet opens instead of its file picker, rear or front, as HTML's `capture` names them (`.capture()`). */
+  capture?: 'environment' | 'user'
 }
-
-/** The rear (`environment`) or the front (`user`) camera, as the HTML `capture` attribute names them. */
-export type FileCamera = 'environment' | 'user'
 
 export const defaultMaxSize = 50_000_000
 
