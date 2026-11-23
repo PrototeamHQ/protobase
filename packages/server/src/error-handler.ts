@@ -40,8 +40,14 @@ const POOLER_SHUTDOWN_MESSAGE = 'server shutting down'
 // PgBouncer's refusal while it waits `server_login_retry` after a failed server login, with that login's error after the prefix.
 const POOLER_CACHED_LOGIN_ERROR = 'server login has been failing, cached error: '
 const POOLER_LOGIN_RETRY_SUFFIX = ' (server_login_retry)'
-// Postgres's 57P03 and 57P01 login refusals while it recovers from a crash, starts up or shuts down.
-const RESTARTING_LOGIN_MESSAGES = new Set(['the database system is in recovery mode', 'the database system is starting up', 'the database system is shutting down'])
+// Postgres's 57P03 and 57P01 login refusals while it recovers from a crash, starts up, has not yet reached a consistent
+// recovery state, or shuts down.
+const RESTARTING_LOGIN_MESSAGES = new Set([
+  'the database system is in recovery mode',
+  'the database system is starting up',
+  'the database system is not yet accepting connections',
+  'the database system is shutting down',
+])
 
 // The pooler's cached login error, when the login it cached was refused by a restarting Postgres.
 const isPoolerCachedRestart = (message: string) => {
