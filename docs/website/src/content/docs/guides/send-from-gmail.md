@@ -88,4 +88,14 @@ A Gmail account may send as other addresses of yours, such as a company address 
    await personalMail.send({ sender_address_id: sender.id, to, subject, text })
    ```
 
-The app sends only from the caller's own From addresses: any other is refused before anything is sent. [From addresses](/reference/email/#from-addresses) has the details.
+The app sends only from the caller's own From addresses and those shared with them: any other is refused before anything is sent. [From addresses](/reference/email/#from-addresses) has the details.
+
+## 6. Sharing a From address
+
+A team's address, such as `billing@shop.example`, can go out through one person's Gmail for the whole team.
+
+1. **Prove it first:** only a **Verified** address can be shared, as Gmail's list or one of the app's [verifiers](/reference/email/#verifying-a-from-address) says.
+2. **Share it:** on the account page, under **From addresses**, choose **Edit** on the address, turn on **Share with the app's other senders**, and save. It shows **Shared**.
+3. **Your colleagues pick it:** it shows in their From dropdowns after their own addresses, marked **shared**, and `personalMail.sender('billing@shop.example')` finds it for them. With organizations on, only people in an organization with you see it. They never see your own address or mailbox.
+
+Mail they send from it goes out through your Gmail, so it lands in your **Sent** folder. It stops going out the moment you unshare or remove it, it is no longer verified, or your Gmail link expires: then they are told you must connect Gmail again. [Sharing a From address](/reference/email/#sharing-a-from-address) has the details.
