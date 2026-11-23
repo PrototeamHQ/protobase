@@ -25,7 +25,9 @@ export const readSavedPort = async (projectDir: string) => {
   return port >= 1 && port <= 65535 ? port : undefined
 }
 
+// A running dev server rebuilds its API on any write inside the project, so an unchanged port is left alone.
 export const savePort = async (projectDir: string, port: number) => {
+  if ((await readSavedPort(projectDir)) === port) return
   await mkdir(path.join(projectDir, protobaseFolder), { recursive: true })
   await writeFile(path.join(projectDir, devPortFile), `${port}\n`)
 }

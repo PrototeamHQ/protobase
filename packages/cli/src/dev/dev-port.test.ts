@@ -1,8 +1,8 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { devPort, devPortFile, pickFreePort, randomPorts, readSavedPort } from './dev-port'
+import { devPort, devPortFile, pickFreePort, randomPorts, readSavedPort, savePort } from './dev-port'
 
 let projectDir: string
 beforeEach(async () => {
@@ -42,6 +42,20 @@ describe('devPort', () => {
     await writeSaved(text)
     expect(await devPort(projectDir, undefined, picks(23456))).toBe(23456)
     expect(await saved()).toBe('23456\n')
+  })
+})
+
+describe('savePort', () => {
+  // A running dev server rebuilds its API on any write inside the project, as when a second dev is refused its port.
+  it('leaves the file alone when it already holds the port', async () => {
+    await writeSaved('23456\n')
+    const file = path.join(projectDir, devPortFile)
+    const past = new Date('2020-01-01T00:00:00Z')
+    await utimes(file, past, past)
+    await savePort(projectDir, 23456)
+    expect((await stat(file)).mtime).toEqual(past)
+    await savePort(projectDir, 6123)
+    expect(await saved()).toBe('6123\n')
   })
 })
 
