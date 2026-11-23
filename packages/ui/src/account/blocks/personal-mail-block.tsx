@@ -30,6 +30,13 @@ const Mailboxes = ({ links }: { links: PersonalMailLink[] }) => {
     return { mail, providers, senders }
   }, [account, links])
   const { data, error, reload } = useAccountData(load, text('couldNotReadMethods'))
+  // The listing changes the addresses the fields offer and their states, so both are read again after it.
+  const refresh = useCallback(async () => {
+    const listed = await account.refreshMailSenders()
+    forgetSenderOptions()
+    await reload()
+    return listed
+  }, [account, reload])
   if (!data) return <AccountLoading error={error} />
   const providerNames = (id: string) => signInProviders.find((provider) => provider.id === id)?.name ?? providerName(id)
   const connect = (id: string) => linkPersonalMail(links.find((link) => link.id === id)!)
@@ -65,6 +72,9 @@ const Mailboxes = ({ links }: { links: PersonalMailLink[] }) => {
         }}
         onCheck={(id) => account.checkMailSender(id)}
         onCheckResult={(id, check) => account.mailSenderCheckResult(id, check)}
+        onRefresh={refresh}
+        onConnect={connect}
+        providerName={(id) => links.find((link) => link.id === id)?.name ?? id}
       />
     </SignInProvidersSection>
   )

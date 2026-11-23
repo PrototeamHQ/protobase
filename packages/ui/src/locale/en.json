@@ -75,7 +75,7 @@
     "mailbox": "Mailbox",
     "mailboxDescription": "Mail this app sends for you goes out from your own mailbox. Connecting one asks you to sign in there and allow sending mail; it cannot read your mail.",
     "fromAddresses": "From addresses",
-    "fromAddressesDescription": "Add each address your mailbox may send as, such as another address set up under Send mail as in Gmail's settings, so the app can send from it. Your mailbox sends from its own address instead when an address is not set up there.",
+    "fromAddressesDescription": "The addresses the app may send your mail from: your mailbox's own, and any other address set up under Send mail as in Gmail's settings. Add one here to choose it on records.",
     "couldNotReadFromAddresses": "Could not read your From addresses",
     "mailboxOwnAddress": "Your mailbox's own address",
     "makeDefault": "Make default",
@@ -239,7 +239,23 @@
     "deleteAccountPassword": "Enter your password to confirm.",
     "deleteAccountConfirm": "Delete my account",
     "deleteAccountLastAdmin": "You are the last admin of this app. Make someone else an admin first.",
-    "deleteAccountLocked": "This account is locked, so it cannot be deleted."
+    "deleteAccountLocked": "This account is locked, so it cannot be deleted.",
+    "stateFailedHint": "{name} does not list this address, so it would send from {own} instead, and the app does not send from it. Check the spelling with Edit, or set it up under Send mail as in {name}'s settings, then choose Check with {name}.",
+    "statePendingHint": "{name} sent a confirmation link to {address}. Open it, then choose Check with {name}. Until then the app does not send from it.",
+    "stateUnverifiedHint": "Not checked with {name}. If {name} does not list it under Send mail as, your mail goes out from {own} instead.",
+    "stateDetachedHint": "This address is on no mailbox you have connected, so the app does not send from it. Remove it and add it again to use it with your mailbox.",
+    "checkWithMailbox": "Check with {name}",
+    "checkingWithMailbox": "Checking with {name}…",
+    "listingNotPermitted": "Besides your mailbox's own address, {name} sends only from addresses set up under Send mail as in its settings; for any other, it sends from your own address without telling you. Allow the app to read that list, and it shows which addresses {name} really sends from. {name} asks you to sign in and allow it.",
+    "listingExpired": "{name} no longer accepts this app's link, so your addresses could not be checked. Connect it again.",
+    "listingFailed": "Could not reach {name} just now. Choose Check with {name} to try again.",
+    "listingNotPermittedTitle": "Check your addresses with {name}",
+    "listingExpiredTitle": "Connect {name} again",
+    "listingFailedTitle": "Could not check with {name}",
+    "stateUnverifiedCheckHint": "Not checked yet. Choose Check with {name} to find out.",
+    "allowAddressChecks": "Allow address checks",
+    "checkedWithMailbox": "Checked with {name} just now.",
+    "yourMailboxAddress": "your mailbox's own address"
   },
   "action-card": {
     "cancel": "Cancel"
@@ -2165,7 +2181,13 @@
     "senderNotYours": "You can't send from this address. Choose one of yours, or add it on your {account}.",
     "accountPage": "Account page",
     "sendersNotRead": "Your addresses could not be read. Check your connection.",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "stateVerified": "Verified",
+    "statePending": "Awaiting confirmation",
+    "stateUnverified": "Not checked",
+    "stateFailed": "Can't send",
+    "stateDetached": "No mailbox",
+    "senderWithState": "{label} · {state}"
   },
   "markdown": {
     "write": "Write",

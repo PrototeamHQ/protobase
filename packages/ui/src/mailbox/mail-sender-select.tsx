@@ -4,14 +4,21 @@ import { Select } from '../primitives/select'
 import { accountPath } from '../account/account-pages'
 import { Link } from '../app/router'
 import { text } from './messages'
-import { sameAddress, senderLabel } from './sender-options'
+import { canSendFrom, senderState } from './sender-state'
+import { sameAddress, senderLabel, type SenderOption } from './sender-options'
 import { useSenderOptions, type SenderOptionsState } from './use-sender-options'
 
 type MailSenderSelectProps = { field: FieldModel; value: unknown; invalid?: boolean; onChange: (value: string) => void }
 
+// An address with its state beside it where the state changes the choice: a verified address, the usual case, and the
+// mailbox's own show none.
+const optionLabel = (option: SenderOption) =>
+  option.state && option.state !== 'verified' ? text('senderWithState', { label: senderLabel(option), state: senderState(option.state).label }) : senderLabel(option)
+
 /**
- * A mail sender field's dropdown: the signed-in person's addresses, as `Name <address>`, after the empty choice, which
- * sends from the sender's default. A stored address they cannot send from still shows, marked not available with a
+ * A mail sender field's dropdown: the signed-in person's addresses, as `Name <address>` with their state, after the
+ * empty choice, which sends from the sender's default. An address mail cannot go out from, as one its mailbox does not
+ * list, shows but cannot be chosen, unless the record holds it already. A stored address they cannot send from still shows, marked not available with a
  * hint to their account page, and stays as it is until they choose another: saving other fields keeps it. While their
  * addresses are read it shows alone, so nothing moves when they come in.
  */
@@ -28,8 +35,8 @@ export const MailSenderChoices = ({ field, value, invalid, onChange, options, er
         {(field.nullable || stored === '') && <option value="">{text(field.nullable ? 'defaultSender' : 'chooseSender')}</option>}
         {stored !== '' && !offered && <option value={stored}>{unavailable ? text('senderNotAvailable', { address: stored }) : stored}</option>}
         {(options ?? []).map((option) => (
-          <option key={option.address} value={option.address}>
-            {senderLabel(option)}
+          <option key={option.address} value={option.address} disabled={option.state !== undefined && !canSendFrom(option.state) && option !== offered}>
+            {optionLabel(option)}
           </option>
         ))}
       </Select>

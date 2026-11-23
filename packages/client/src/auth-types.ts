@@ -21,10 +21,11 @@ export type PlatformSignIn = { provider: string; name: string; hidden?: boolean;
 
 /**
  * A mail provider people may link their own mailbox with, for the app to send mail from it: its id and name, such as
- * `gmail` and `Gmail`, the sign-in provider it links through, such as `google`, the scopes the link asks for and more
- * authorization parameters of the link.
+ * `gmail` and `Gmail`, the sign-in provider it links through, such as `google`, the scopes a link needs to send, the
+ * optional scopes the app adds to the link for more abilities, such as reading the mailbox's send-as addresses, and
+ * more authorization parameters of the link.
  */
-export type PersonalMailLink = { id: string; name: string; provider: string; scopes: string[]; params: Record<string, string> }
+export type PersonalMailLink = { id: string; name: string; provider: string; scopes: string[]; optionalScopes?: string[]; params: Record<string, string> }
 
 /** What open sign-up asks for: the address always, and the person's name unless the app asks for the address only. */
 export type SignUpField = 'email' | 'name'

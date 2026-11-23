@@ -75,7 +75,7 @@
     "mailbox": "Mailbox",
     "mailboxDescription": "Mail die deze app voor je verstuurt, gaat uit vanuit je eigen mailbox. Koppelen vraagt je daar in te loggen en het versturen van mail toe te staan; je mail lezen kan de app niet.",
     "fromAddresses": "Afzenderadressen",
-    "fromAddressesDescription": "Voeg elk adres toe waarvandaan je mailbox mag versturen, zoals een ander adres onder Mail verzenden als in de instellingen van Gmail, zodat de app ervandaan kan versturen. Je mailbox verstuurt vanaf zijn eigen adres als een adres daar niet is ingesteld.",
+    "fromAddressesDescription": "De adressen waarvandaan de app je mail mag versturen: het eigen adres van je mailbox, en elk ander adres onder Mail verzenden als in de instellingen van Gmail. Voeg er hier een toe om het bij records te kiezen.",
     "couldNotReadFromAddresses": "Je afzenderadressen konden niet worden gelezen",
     "mailboxOwnAddress": "Het eigen adres van je mailbox",
     "makeDefault": "Maak standaard",
@@ -239,7 +239,23 @@
     "deleteAccountPassword": "Vul je wachtwoord in om te bevestigen.",
     "deleteAccountConfirm": "Mijn account verwijderen",
     "deleteAccountLastAdmin": "Je bent de laatste beheerder van deze app. Maak eerst iemand anders beheerder.",
-    "deleteAccountLocked": "Dit account is vergrendeld en kan dus niet worden verwijderd."
+    "deleteAccountLocked": "Dit account is vergrendeld en kan dus niet worden verwijderd.",
+    "stateFailedHint": "{name} noemt dit adres niet, dus het zou vanaf {own} versturen, en de app verstuurt er niet vandaan. Controleer de spelling met Bewerken, of stel het in onder Mail verzenden als in de instellingen van {name}, en kies dan Controleren bij {name}.",
+    "statePendingHint": "{name} stuurde een bevestigingslink naar {address}. Open die en kies dan Controleren bij {name}. Tot dan verstuurt de app er niet vandaan.",
+    "stateUnverifiedHint": "Niet gecontroleerd bij {name}. Als {name} het niet noemt onder Mail verzenden als, gaat je mail vanaf {own} uit.",
+    "stateDetachedHint": "Dit adres hoort bij geen mailbox die je hebt gekoppeld, dus de app verstuurt er niet vandaan. Verwijder het en voeg het opnieuw toe om het met je mailbox te gebruiken.",
+    "checkWithMailbox": "Controleren bij {name}",
+    "checkingWithMailbox": "Controleren bij {name}…",
+    "listingNotPermitted": "Naast het eigen adres van je mailbox verstuurt {name} alleen vanaf adressen onder Mail verzenden als in de instellingen; vanaf elk ander adres verstuurt het zonder melding vanaf je eigen adres. Sta de app toe die lijst te lezen, dan toont hij vanaf welke adressen {name} echt verstuurt. {name} vraagt je daar in te loggen en het toe te staan.",
+    "listingExpired": "{name} accepteert de koppeling met deze app niet meer, dus je adressen konden niet worden gecontroleerd. Koppel hem opnieuw.",
+    "listingFailed": "{name} was nu niet bereikbaar. Kies Controleren bij {name} om het opnieuw te proberen.",
+    "listingNotPermittedTitle": "Controleer je adressen bij {name}",
+    "listingExpiredTitle": "Koppel {name} opnieuw",
+    "listingFailedTitle": "Controleren bij {name} lukte niet",
+    "stateUnverifiedCheckHint": "Nog niet gecontroleerd. Kies Controleren bij {name} om het na te gaan.",
+    "allowAddressChecks": "Adrescontrole toestaan",
+    "checkedWithMailbox": "Zojuist gecontroleerd bij {name}.",
+    "yourMailboxAddress": "het eigen adres van je mailbox"
   },
   "action-card": {
     "cancel": "Annuleren"
@@ -2165,7 +2181,13 @@
     "senderNotYours": "Vanaf dit adres kun je niet versturen. Kies een van jouw adressen, of voeg het toe op je {account}.",
     "accountPage": "accountpagina",
     "sendersNotRead": "Je adressen konden niet worden gelezen. Controleer je verbinding.",
-    "tryAgain": "Opnieuw proberen"
+    "tryAgain": "Opnieuw proberen",
+    "stateVerified": "Geverifieerd",
+    "statePending": "Wacht op bevestiging",
+    "stateUnverified": "Niet gecontroleerd",
+    "stateFailed": "Kan niet versturen",
+    "stateDetached": "Geen mailbox",
+    "senderWithState": "{label} · {state}"
   },
   "markdown": {
     "write": "Schrijven",

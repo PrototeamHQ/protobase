@@ -6,7 +6,7 @@ import { MailSenderChoices } from './mail-sender-select'
 import type { SenderOption } from './sender-options'
 
 const sendFrom: FieldModel = { name: 'send_from', column: 'send_from', type: 'mail_sender', nullable: true, readOnly: false, filterable: false, sortable: false, aliases: [] }
-const options: SenderOption[] = [{ address: 'ana@gmail.example' }, { address: 'billing@acme.example', name: 'Acme billing' }]
+const options: SenderOption[] = [{ address: 'ana@gmail.example' }, { address: 'billing@acme.example', name: 'Acme billing', state: 'verified' }]
 
 const choices = (value: string, given: { options?: SenderOption[]; error?: string; retry?: () => void } = { options }, field = sendFrom) =>
   renderToStaticMarkup(
@@ -22,6 +22,16 @@ describe('a mail sender dropdown', () => {
     const html = choices('billing@acme.example')
     expect(optionTexts(html)).toEqual(["Sender&#x27;s default address", 'ana@gmail.example', 'Acme billing &lt;billing@acme.example&gt;'])
     expect(html).toContain('<option value="billing@acme.example" selected="">')
+  })
+
+  it('shows the state of each address but a verified one, and one mail cannot go out from as not to be chosen, unless the record holds it', () => {
+    const states: SenderOption[] = [{ address: 'sales@acme.example', state: 'failed' }, { address: 'ops@acme.example', state: 'pending' }, { address: 'new@acme.example', state: 'unverified' }]
+    const html = choices('', { options: states })
+    expect(optionTexts(html)).toEqual(["Sender&#x27;s default address", "sales@acme.example · Can&#x27;t send", 'ops@acme.example · Awaiting confirmation', 'new@acme.example · Not checked'])
+    expect(html).toContain('<option value="sales@acme.example" disabled="">')
+    expect(html).toContain('<option value="ops@acme.example" disabled="">')
+    expect(html).toContain('<option value="new@acme.example">')
+    expect(choices('sales@acme.example', { options: states })).toContain('<option value="sales@acme.example" selected="">')
   })
 
   it('selects a stored address spelled in another case as the one offered', () => {
