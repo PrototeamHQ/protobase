@@ -22,7 +22,7 @@ const projectDir = process.env.PROTOBASE_PROJECT!
 const loaded = await loadDevConfig(projectDir, JSON.parse(process.env.PROTOBASE_EXTENSIONS ?? '[]'))
 const relayExports = loaded.realtime?.relay ? configExports(await projectResources(loaded)) : undefined
 const relayApp = { views: relayExports?.views.map((view) => view.toModel()) ?? [], models: relayExports?.resources.map((resource) => resource.toModel()) ?? [] }
-const config = await withDevRelay(loaded, projectDir, process.env.PROTOBASE_DEV_URL!, relayApp)
+const config = await withDevRelay(loaded, process.env.PROTOBASE_DEV_URL!, relayApp)
 const database = devDatabase(projectDir)
 const { db } = database
 // The app as it serves, built from the config: its references loaded, auth and the authenticator made.

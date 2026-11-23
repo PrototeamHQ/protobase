@@ -113,7 +113,8 @@ module.exports = {
       name: 'examples-use-entry-points',
       comment: 'Examples, the ERP and the documentation\'s, their tests and the shared test support import @protobase packages by name, never by path.',
       severity: 'error',
-      from: { path: '^(tests/apps|docs-examples|tests/examples|test-support)/' },
+      // The tests against Protobase Realtime take its binary from the CLI's resolver, which the CLI does not export.
+      from: { path: '^(tests/apps|docs-examples|tests/examples|test-support)/', pathNot: '^test-support/realtime-binary\\.ts$' },
       to: { path: '^packages/', dependencyTypes: ['local'], dependencyTypesNot: ['aliased-workspace'] },
     },
     {

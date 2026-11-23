@@ -50,6 +50,8 @@ export const edges = [
   // of its own, from a Supabase project it makes from its SQL and the import's fixtures.
   { from: ['tests/supabase-move/client/moved-app.ts'], starts: ['packages/cli/bin/protobase-source.mjs'], loads: cliModuleFiles, reads: ['tests/apps/scratch/**', 'tests/supabase-move/client/project/**', 'tests/supabase-move/client/pg-tools/**'] },
   { from: ['tests/supabase-move/client/source-database.ts'], reads: ['tests/supabase-move/client/source.sql', 'packages/cli/tests/supabase/fixtures/supabase-schema.sql', 'packages/cli/tests/supabase/fixtures/gotrue-users.sql'] },
+  // The test of protobase dev's own relay serves a copy of its chat app with `protobase dev`.
+  { from: ['tests/realtime/dev-relay.postgres.test.ts'], starts: ['packages/cli/bin/protobase-source.mjs'], loads: cliModuleFiles, reads: ['tests/realtime/app/**'] },
   // The test that each command exits once done starts the CLI's sources through its own runner, in the ERP.
   { from: ['packages/cli/tests/project/command-exit.integration.test.ts'], starts: ['packages/cli/tests/support/exit-check.mjs', 'tests/apps/erp/protobase.config.ts'], reads: ['tests/apps/erp/**'] },
   // The tests of `protobase run` and of the hand-over start the CLI from source in a project of their own.
