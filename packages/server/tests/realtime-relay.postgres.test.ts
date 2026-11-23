@@ -175,7 +175,7 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     // No grace, so a closed socket is reported offline once that held for the relay's two seconds.
     const presence = { url: `${appUrl}/api/relay/presence`, key: presenceKey, grace_seconds: 0 }
     await writeFile(path.join(dir, 'apps.json'), JSON.stringify({ apps: [{ id: 'chat', api_keys: [keys.apiKey], ticket_keys: [keys.ticketKey], origins: [origin], client_events: relayClientEvents(channels, new Set(['conversations'])), presence, limits: { connections: 100, channels_per_ticket: 200, request_bytes: 65536 } }] }))
-    relay = spawn(relayBinary!, [], { env: { RELAY_APPS_FILE: path.join(dir, 'apps.json'), RELAY_ADDR: `127.0.0.1:${port}` }, stdio: 'ignore' })
+    relay = spawn(relayBinary!, [], { env: { PROTOBASE_REALTIME_APPS_FILE: path.join(dir, 'apps.json'), PROTOBASE_REALTIME_ADDR: `127.0.0.1:${port}` }, stdio: 'ignore' })
     await vi.waitFor(async () => expect((await fetch(`${relayUrl}/apps/chat/sessions/close`, { method: 'POST' }).catch(() => undefined))?.status).toBe(401), { timeout: 10_000, interval: 100 })
 
     app = createAdmin({

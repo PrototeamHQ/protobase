@@ -36,7 +36,7 @@ export const startRelay = async (binary: string, port: number, entry: object, on
   await writeFile(appsFile, JSON.stringify({ apps: [entry] }), { mode: 0o600 })
   // A process group of its own, as the API process is left out of Ctrl-C: the terminal's SIGINT reaches the dev server,
   // which stops the relay itself, so a relay ending on its own is always news.
-  const child = spawn(binary, [], { env: { RELAY_APPS_FILE: appsFile, RELAY_ADDR: `${devHost}:${port}` }, stdio: ['ignore', 'inherit', 'inherit'], detached: true, windowsHide: true })
+  const child = spawn(binary, [], { env: { PROTOBASE_REALTIME_APPS_FILE: appsFile, PROTOBASE_REALTIME_ADDR: `${devHost}:${port}` }, stdio: ['ignore', 'inherit', 'inherit'], detached: true, windowsHide: true })
   const kill = () => child.kill()
   process.once('exit', kill)
   const removeDir = () => rm(dir, { recursive: true, force: true })

@@ -3,7 +3,7 @@ import type { ProtobaseConfig } from '@protobase/config'
 import type { ResourceModel, ViewModel } from '@protobase/schema'
 import { checkRelayOptions, defaultRelayChannels } from '@protobase/server'
 import { relayAppEntry } from '../relay/app-entry'
-import { relayBinary } from './relay-binary'
+import { realtimeBinary } from './realtime-binary'
 import { freePort, relayUrl, startRelay, type RelayProcess } from './relay-process'
 
 type RunningRelay = { entry: string; url: string; relay: RelayProcess }
@@ -26,11 +26,11 @@ const relayEnded = (code: number | null) => {
 
 /**
  * The config with a relay of its own when `realtime.relay` names none: without a `url`, protobase dev runs the relay
- * from its npm package for the app at `devUrl`, with keys it makes unless the config sets them, the presence key too, and gives the app its
+ * from the pinned Protobase Realtime release (`realtimeBinary`) for the app at `devUrl`, with keys it makes unless the config sets them, the presence key too, and gives the app its
  * address and keys; its apps file declares the events of `views`' typing conversation pages too, and its channels default to those of the conversation pages with members (`defaultRelayChannels`). It starts on the first load whose config has `realtime.relay`, and again when an edit changes the
  * app's entry in its apps file; a config without `realtime.relay`, or one with a `url`, stops it.
  */
-export const withDevRelay = async <Config extends Pick<ProtobaseConfig, 'realtime'>>(config: Config, projectDir: string, devUrl: string, { views, models }: { views: readonly ViewModel[]; models: readonly ResourceModel[] }): Promise<Config> => {
+export const withDevRelay = async <Config extends Pick<ProtobaseConfig, 'realtime'>>(config: Config, devUrl: string, { views, models }: { views: readonly ViewModel[]; models: readonly ResourceModel[] }): Promise<Config> => {
   const relay = config.realtime?.relay
   if (!relay || relay.url) {
     await stopDevRelay()
@@ -51,7 +51,7 @@ export const withDevRelay = async <Config extends Pick<ProtobaseConfig, 'realtim
   if (store.__protobaseDevRelay?.entry !== entry) {
     await stopDevRelay()
     const port = await freePort()
-    store.__protobaseDevRelay = { entry, url: relayUrl(port), relay: await startRelay(await relayBinary(projectDir), port, JSON.parse(entry), relayEnded) }
+    store.__protobaseDevRelay = { entry, url: relayUrl(port), relay: await startRelay(await realtimeBinary(), port, JSON.parse(entry), relayEnded) }
   }
   return { ...config, realtime: { ...config.realtime, relay: { ...options, url: store.__protobaseDevRelay.url } } }
 }

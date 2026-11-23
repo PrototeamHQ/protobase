@@ -80,7 +80,7 @@ describe.skipIf(!relayBinary)('the client relay with a real relay', () => {
     dir = await mkdtemp(path.join(tmpdir(), 'relay-client-test-'))
     const app = { id: 'chat', api_keys: [keys.api], ticket_keys: [keys.ticket], origins: [], client_events: { channels: { conversations: { events: { typing } } } }, limits: { connections: 100, channels_per_ticket: 200, request_bytes: 65536 } }
     await writeFile(path.join(dir, 'apps.json'), JSON.stringify({ apps: [app] }))
-    relay = spawn(relayBinary!, [], { env: { RELAY_APPS_FILE: path.join(dir, 'apps.json'), RELAY_ADDR: `127.0.0.1:${port}` }, stdio: 'ignore' })
+    relay = spawn(relayBinary!, [], { env: { PROTOBASE_REALTIME_APPS_FILE: path.join(dir, 'apps.json'), PROTOBASE_REALTIME_ADDR: `127.0.0.1:${port}` }, stdio: 'ignore' })
     await vi.waitFor(async () => expect((await publish({}).catch(() => undefined))?.status).toBe(400), { timeout: 10_000, interval: 100 })
   })
 
