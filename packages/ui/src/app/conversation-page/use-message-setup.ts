@@ -17,7 +17,10 @@ type Input = {
   searchPeople?: PeopleSearch
 }
 
-/** The `MessageSetup` of the messages shown, with their reactions and files read, and the errors of those reads, if any. */
+/**
+ * The `MessageSetup` of the messages shown, with their reactions and files read, the errors of those reads, if any, and
+ * `reading`, true while a page's reactions or files are first read.
+ */
 export const useMessageSetup = ({ page, me, pages, threadTo, searchPeople }: Input) => {
   const { resources } = useAdminMeta()
   const { member } = useMembers()
@@ -40,5 +43,5 @@ export const useMessageSetup = ({ page, me, pages, threadTo, searchPeople }: Inp
     threadTo,
     searchPeople,
   }
-  return { setup, reactionsError: reactions.error, attachmentsError: files.error }
+  return { setup, reading: reactions.reading || files.reading, reactionsError: reactions.error, attachmentsError: files.error }
 }

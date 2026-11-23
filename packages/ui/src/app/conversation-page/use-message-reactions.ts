@@ -7,7 +7,8 @@ import { reactionsByMessage } from './reactions'
 
 /**
  * The reactions to the messages shown, read in one batch per page of messages, never one read per message, and read
- * again as they change: `byMessage` holds each message's reaction rows by its key. Without reactions, nothing is read.
+ * again as they change: `byMessage` holds each message's reaction rows by its key, and `reading` is true while a page's
+ * first read is under way. Without reactions, nothing is read.
  */
 export const useMessageReactions = (reactions: ReactionsModel | undefined, pages: readonly (readonly string[])[]) => {
   const client = useClient()
@@ -18,5 +19,5 @@ export const useMessageReactions = (reactions: ReactionsModel | undefined, pages
     })),
   })
   const rows = results.flatMap((result) => result.data ?? [])
-  return { byMessage: reactionsByMessage(rows, reactions?.field ?? ''), error: results.find((result) => result.error)?.error ?? undefined }
+  return { byMessage: reactionsByMessage(rows, reactions?.field ?? ''), reading: results.some((result) => result.isPending), error: results.find((result) => result.error)?.error ?? undefined }
 }
