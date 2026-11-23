@@ -8,5 +8,5 @@ export const typingViewErrors = (views: readonly ViewModel[], channels: Readonly
   views.flatMap((view) => {
     const page = view.record
     if (!channels || !page || !('conversation' in page) || !page.conversation.typing) return []
-    return channels.has(view.resource) ? [] : [`View "${view.resource}": record.conversation.typing goes through the record's relay channel, so "${view.resource}" needs to be in realtime.relay.channels`]
+    return channels.has(view.resource) ? [] : [`View "${view.resource}": record.conversation.typing goes through the record's relay channel, so "${view.resource}" needs to be in realtime.relay.channels, or its conversation page needs members`]
   })

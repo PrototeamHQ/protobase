@@ -1,5 +1,5 @@
 import type { ViewModel } from '@protobase/schema'
-import { eventLimit, type RealtimeRelayOptions, type RelayClientEvent } from './relay-options'
+import { eventLimit, type RelayChannelOptions, type RelayClientEvent } from './relay-options'
 
 /**
  * The framework's typing event, as a conversation page with `typing` sends it on its record's channel:
@@ -28,7 +28,7 @@ const relayEvent = (event: RelayClientEvent) => ({ schema: event.schema, max_byt
  * conversation page types unless the resource declares a `typing` of its own, in the relay's field names. Undefined
  * when no channel has an event, so clients send nothing.
  */
-export const relayClientEvents = (channels: RealtimeRelayOptions['channels'], typing: ReadonlySet<string>) => {
+export const relayClientEvents = (channels: Record<string, RelayChannelOptions>, typing: ReadonlySet<string>) => {
   const declared = Object.entries(channels).flatMap(([resource, channel]) => {
     const events = { ...(typing.has(resource) && { typing: typingClientEvent }), ...channel.events }
     if (Object.keys(events).length === 0) return []

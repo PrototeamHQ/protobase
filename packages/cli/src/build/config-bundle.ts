@@ -6,7 +6,7 @@ import { cliProtobaseIds, provideCliModules } from '../project/cli-modules'
 import { importProjectFiles } from '../project/import-project-file'
 import { hostModuleIds } from '../serve/host-module-ids'
 import { extensionImports, type Extension } from '../project/extensions'
-import { bundleRealtime } from './bundle-relay'
+import { bundleRealtime, type ConfigFolder } from './bundle-relay'
 import { collectComponents } from './component-names'
 import { bundleEntryCode } from './entry-code'
 import { layoutCheck } from './layout-check'
@@ -86,7 +86,7 @@ export type ConfigBundleInput = {
 // second copy: under Bun as Bun's virtual modules, under Node through Vite's module runner, which resolves them from the
 // CLI with the other packages the runtime supplies. Returns the packages with native add-ons it imports, which the bundle has to carry (see
 // copyPackages), the merged config's mobile section, unchecked, whether it has `notifications()`, and with `realtime.relay`
-// the app's part of its Realtime entry (see `bundleRealtime`).
+// the app's part of its Realtime entry from the config folder the view check loads (see `bundleRealtime`).
 export const buildConfigBundle = async ({ projectDir, outFile, bun, extensions = [], components = new Set() }: ConfigBundleInput) => {
   if (process.versions.bun !== undefined) provideCliModules()
   const cli = cliPackages()
@@ -96,5 +96,5 @@ export const buildConfigBundle = async ({ projectDir, outFile, bun, extensions =
   const native = new Map<string, NativeImport>()
   const plugins = [layoutCheck(), collectComponents(components), extensionImports(projectDir, extensions), servedImports(native), entry(file, bundleEntryCode(projectDir, extensions, [...(config.files?.images ? [config.files.images] : []), ...(config.workflows?.plugins ?? [])]))]
   await viteBundle({ root: projectDir, entry: file, outFile, bun, plugins })
-  return { native: [...native.values()], mobile: config.mobile as unknown, notifications: Boolean(config.notifications), realtime: await bundleRealtime(config) }
+  return { native: [...native.values()], mobile: config.mobile as unknown, notifications: Boolean(config.notifications), realtime: (folder: ConfigFolder) => bundleRealtime(config, folder) }
 }

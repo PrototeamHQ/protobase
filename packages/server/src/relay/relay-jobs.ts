@@ -74,3 +74,9 @@ export const relayJobs = ({ client, sessionEnd, report }: RelayJobsInput) => {
 }
 
 export type RelayJobs = ReturnType<typeof relayJobs>
+
+/**
+ * The relay's jobs while the app can use the relay but does not: `relay.close-sessions`, which the delete of sign-in
+ * sessions queues all the same, completes at once, as no socket is open on the relay.
+ */
+export const idleRelayJobs = () => [defineJob<{ sessions: string[] }>({ name: closeSessionsJob, run: async () => {} })]

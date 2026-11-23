@@ -1,4 +1,4 @@
-import { f, resource } from '@protobase/schema'
+import { f, resource, type ViewModel } from '@protobase/schema'
 import type { ResourceChange } from '../../changes/resource-change'
 import type { RealtimeRelaySettings } from '../relay-options'
 
@@ -31,6 +31,14 @@ export const chatRelay: RealtimeRelaySettings = {
 
 /** The chat's presence, in its own `presences` resource. */
 export const chatPresence = { resource: 'presences', user: 'user_id', status: 'status', at: 'since', key: 'p'.repeat(32) }
+
+/** A conversation page on `resource`, its messages in `messages`, with members listed in `members` and typing when asked. */
+export const conversationView = (resource: string, { members, typing }: { members?: string; typing?: true } = {}) =>
+  ({ resource, record: { conversation: { resource: 'messages', field: 'conversation_id', sender: 'author_id', time: 'created_at', text: 'body', ...(members && { members }), ...(typing && { typing }) } } }) as unknown as ViewModel
+
+/** A direct-message resource whose records list their members, as a conversation page's `members`. */
+export const directsModel = () =>
+  resource('directs').table('directs').fields({ id: f.integer(), members: f.json(), deleted_at: f.timestamp().optional() }).primaryKey((r) => r.id).softDelete((r) => r.deleted_at).live().toModel()
 
 let sequence = 0
 

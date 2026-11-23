@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import type { ProtobaseConfig } from '@protobase/config'
-import type { ViewModel } from '@protobase/schema'
-import { checkRelayOptions } from '@protobase/server'
+import type { ResourceModel, ViewModel } from '@protobase/schema'
+import { checkRelayOptions, defaultRelayChannels } from '@protobase/server'
 import { relayAppEntry } from '../relay/app-entry'
 import { relayBinary } from './relay-binary'
 import { freePort, relayUrl, startRelay, type RelayProcess } from './relay-process'
@@ -27,10 +27,10 @@ const relayEnded = (code: number | null) => {
 /**
  * The config with a relay of its own when `realtime.relay` names none: without a `url`, protobase dev runs the relay
  * from its npm package for the app at `devUrl`, with keys it makes unless the config sets them, the presence key too, and gives the app its
- * address and keys; its apps file declares the events of `views`' typing conversation pages too. It starts on the first load whose config has `realtime.relay`, and again when an edit changes the
+ * address and keys; its apps file declares the events of `views`' typing conversation pages too, and its channels default to those of the conversation pages with members (`defaultRelayChannels`). It starts on the first load whose config has `realtime.relay`, and again when an edit changes the
  * app's entry in its apps file; a config without `realtime.relay`, or one with a `url`, stops it.
  */
-export const withDevRelay = async <Config extends Pick<ProtobaseConfig, 'realtime'>>(config: Config, projectDir: string, devUrl: string, views: readonly ViewModel[]): Promise<Config> => {
+export const withDevRelay = async <Config extends Pick<ProtobaseConfig, 'realtime'>>(config: Config, projectDir: string, devUrl: string, { views, models }: { views: readonly ViewModel[]; models: readonly ResourceModel[] }): Promise<Config> => {
   const relay = config.realtime?.relay
   if (!relay || relay.url) {
     await stopDevRelay()
@@ -41,6 +41,7 @@ export const withDevRelay = async <Config extends Pick<ProtobaseConfig, 'realtim
   // checked is the dev server's, which the relay's own replaces once it runs.
   const options = checkRelayOptions({
     ...relay,
+    channels: relay.channels ?? defaultRelayChannels({ views, models }),
     url: devUrl,
     apiKey: relay.apiKey || keys.apiKey,
     ticketKey: relay.ticketKey || keys.ticketKey,

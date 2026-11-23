@@ -1,6 +1,7 @@
 import type { Db } from '@protobase/query'
-import { assistantSettings, authStoreTables, checkAuthSchema, checkCalls, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkMailFeedbackSchema, mailFeedbackResource, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkRelaySchema, checkResourcesOutsideAuthStore, checkStatusSchema, checkUnsubscribesSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, configExports, relayed, sqlSends } from '@protobase/server'
+import { assistantSettings, authStoreTables, checkAuthSchema, checkCalls, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkMailFeedbackSchema, mailFeedbackResource, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUnsubscribesSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, configExports, relayed, sqlSends } from '@protobase/server'
 import type { BuiltProject } from '../config/build-project'
+import { checkProjectRelay } from './relay-check'
 
 /**
  * The server's startup checks of the database: each throws, with what to write as a migration, while a schema the
@@ -8,7 +9,8 @@ import type { BuiltProject } from '../config/build-project'
  * `protobase doctor` runs them too, so a change that would not start fails wherever doctor runs.
  */
 export const checkStartup = async (project: BuiltProject, db: Db) => {
-  const models = configExports(project.config).resources.map((resource) => resource.toModel())
+  const exported = configExports(project.config)
+  const models = exported.resources.map((resource) => resource.toModel())
   // Mail feedback's events are captured from its table like the app's own resources' events.
   const captured = project.mailFeedback ? [...models, mailFeedbackResource.toModel()] : models
   if (project.auth) await checkAuthSchema(project.auth)
@@ -24,7 +26,7 @@ export const checkStartup = async (project: BuiltProject, db: Db) => {
   if (project.workflows) await checkWorkflowsSchema(db, project.workflows)
   if (relayed(project.realtime)) await checkRealtimeRelay(db)
   if (sqlSends(project.realtime)) await checkChannelSends(db)
-  if (project.realtime?.relay) await checkRelaySchema(db, project.auth)
+  await checkProjectRelay(db, { ...project, models, views: exported.views.map((view) => view.toModel()) }, process.env)
   if (project.notifications) await checkNotificationsSchema(db, project.notifications, project.auth)
   if (project.status) await checkStatusSchema(db, project.status, project.auth)
   if (project.unsubscribe) await checkUnsubscribesSchema(db)
