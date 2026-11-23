@@ -87,8 +87,11 @@ export const Formatted: StoryObj = {
     // The thread's own entries, not the list items a formatted comment holds
     const [entries] = await thread.findAllByRole('list')
     const [formatted, unsafe, typed] = [...entries!.children] as HTMLElement[]
-    // Once the renderer has loaded, a mention inside bold text is still picked out
+    // Each comment formats in a commit of its own once the renderer has loaded, so the story waits on each
     await within(formatted!).findByText('done', { selector: 'em' })
+    await within(unsafe!).findByRole('link')
+    await waitFor(() => expect(typed!.querySelector('blockquote')).not.toBeNull())
+    // A mention inside bold text is still picked out
     const mention = within(formatted!).getByText('@Ann de Vries')
     expect(mention.className).toContain('text-primary')
     expect(mention.closest('strong')).not.toBeNull()

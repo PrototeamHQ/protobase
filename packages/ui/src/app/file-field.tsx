@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { FileText, Paperclip, Upload } from 'lucide-react'
+import { Camera, FileText } from 'lucide-react'
 import { useContext, useRef, useState, type DragEvent } from 'react'
 import type { FieldModel, FieldViewModel } from '@protobase/schema'
 import { useClient } from '../data/api-provider'
@@ -11,6 +11,7 @@ import { Button } from '../primitives/button'
 import { ErrorBanner } from './error-banner'
 import { text as appText } from './messages'
 import { FileLink } from './file-viewers/file-link'
+import { useFileFieldTexts } from './file-field-texts'
 import { MetaContext } from '../data/meta-context'
 
 export type FileFieldProps = {
@@ -76,6 +77,8 @@ export const FileField = ({ field, hints, resource, record, value, locked, inval
   const [progress, setProgress] = useState<number | undefined>()
   const [dragging, setDragging] = useState(false)
   const label = hints?.label ?? humanize(field.name)
+  const texts = useFileFieldTexts(field, label)
+  const camera = useRef<HTMLInputElement>(null)
   const upload = useMutation({
     mutationFn: async (file: File) => {
       setProgress(0)
@@ -97,7 +100,13 @@ export const FileField = ({ field, hints, resource, record, value, locked, inval
     setDragging(false)
     choose(event.dataTransfer.files)
   }
-  const picker = <input ref={input} type="file" hidden accept={acceptOf(field)} aria-label={appText('chooseFileFor', { label })} onChange={(event) => choose(event.target.files)} />
+  // A capture field's camera input opens the camera on phones; its picker then offers the photos taken before
+  const picker = (
+    <>
+      <input ref={input} type="file" hidden accept={acceptOf(field)} capture={texts.camera ? undefined : field.file?.capture} aria-label={texts.chooseFor} onChange={(event) => choose(event.target.files)} />
+      {texts.camera && <input ref={camera} type="file" hidden accept={acceptOf(field)} capture={field.file?.capture} aria-label={texts.camera.takeFor} onChange={(event) => choose(event.target.files)} />}
+    </>
+  )
   const error = upload.error && <div className="mt-2"><ErrorBanner title={appText('notUploaded')} error={upload.error} /></div>
 
   if (upload.isPending) {
@@ -116,7 +125,8 @@ export const FileField = ({ field, hints, resource, record, value, locked, inval
       <div>
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1"><FileSummary value={value} field={field.name} resource={resource} record={record} /></div>
-          <Button size="sm" onClick={() => input.current?.click()}>{appText('replace')}</Button>
+          {texts.camera && <Button size="sm" onClick={() => camera.current?.click()}>{texts.camera.retake}</Button>}
+          <Button size="sm" variant={texts.camera ? 'ghost' : undefined} onClick={() => input.current?.click()}>{texts.replace}</Button>
           {field.nullable && <Button size="sm" variant="ghost" onClick={() => onChange(null)}>{appText('remove')}</Button>}
         </div>
         {picker}
@@ -139,11 +149,17 @@ export const FileField = ({ field, hints, resource, record, value, locked, inval
           dragging ? 'border-primary bg-primary/5' : invalid ? 'border-danger' : 'border-border-strong',
         )}
       >
-        <Upload className="size-4 shrink-0" />
-        <span className="flex-1">{appText('dropFile')}</span>
-        <Button size="sm" onClick={() => input.current?.click()}>
-          <Paperclip className="size-3.5" />
-          {appText('chooseFile')}
+        {texts.dropIcon && <texts.dropIcon className="size-4 shrink-0" />}
+        <span className="flex-1">{texts.drop}</span>
+        {texts.camera && (
+          <Button size="sm" onClick={() => camera.current?.click()}>
+            <Camera className="size-3.5" />
+            {texts.camera.take}
+          </Button>
+        )}
+        <Button size="sm" variant={texts.camera ? 'ghost' : undefined} onClick={() => input.current?.click()}>
+          {!texts.camera && <texts.icon className="size-3.5" />}
+          {texts.choose}
         </Button>
       </div>
       {picker}

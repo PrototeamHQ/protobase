@@ -89,6 +89,7 @@ const fieldModel = (name: string, field: AnyField): FieldModel => {
         ...(meta.file.variants && Object.keys(meta.file.variants).length > 0 && { variants: structuredClone(meta.file.variants) }),
         ...(meta.file.original && { original: { ...meta.file.original } }),
         ...(meta.file.external && { external: true as const }),
+        ...(meta.file.capture && { capture: meta.file.capture }),
       },
     }),
     ...(meta.ai && { ai: { prompt: meta.ai.prompt } }),
