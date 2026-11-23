@@ -77,6 +77,12 @@ create trigger close_direct before update on directs for each row execute functi
     expect((await rows()).filter((row) => /^[56]:/.test(row))).toEqual(['5:fay'])
   })
 
+  it('refuses a partitioned channel table, whose partitions it could not keep', async () => {
+    await sql`create table rooms (id integer, members jsonb) partition by range (id)`.execute(db)
+    const rooms = { resource: 'rooms', table: '"rooms"', key: 'id', members: 'members', deleted: '' }
+    await expect(realtimeMembersMigration(db, [...listed, rooms])).rejects.toThrow('realtime.members cannot keep the members of "rooms": a partitioned table')
+  })
+
   it('empties a truncated table and refuses to start once a trigger is off or gone', async () => {
     await sql`truncate directs`.execute(db)
     expect(await rows()).toEqual([])

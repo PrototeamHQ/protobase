@@ -62,8 +62,7 @@ declare
   new_entry jsonb;
   keys text[];
   key_type text;
-  -- The table the trigger stands on, the partitioned one for a partition's clone of it.
-  source regclass := coalesce(pg_partition_root(tg_relid), tg_relid);
+  source regclass := tg_relid;
 begin
   if tg_op = 'TRUNCATE' then
     delete from ${realtimeMembersTable} m where m.resource = channel_resource;
