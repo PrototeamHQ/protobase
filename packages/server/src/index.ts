@@ -136,7 +136,7 @@ export { mailCheckHeaders, mailCheckSecret } from './personal-mail/mail-check-si
 export type { MailFeedback } from './mail/feedback/feedback-record'
 export { onDoNotDisturb } from './status/do-not-disturb'
 export { statusNames, type StatusOptions } from './status/options'
-export { checkRelayOptions, type RealtimeRelayOptions, type RelayChannelOptions, type RelayClientEvent, type RelayMembers, type RelayPresence } from './relay/relay-options'
+export { checkRelayOptions, relaySettings, relayVariables, type RealtimeRelayOptions, type RealtimeRelaySettings, type RelayChannelOptions, type RelayClientEvent, type RelayMembers, type RelayPresence } from './relay/relay-options'
 export { relayPresencePath } from './relay/presence-route'
 export { relayClientEvents, typingResources } from './relay/client-events'
 export { relayMigration, checkRelaySchema } from './relay/relay-schema'

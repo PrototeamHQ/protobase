@@ -1,4 +1,4 @@
-import { relayClientEvents, relayPresencePath, typingResources, type RealtimeRelayOptions } from '@protobase/server'
+import { relayClientEvents, relayPresencePath, typingResources, type RealtimeRelaySettings } from '@protobase/server'
 import type { ViewModel } from '@protobase/schema'
 
 /** How long a person who closed their last socket still counts as present, so a phone that reconnects never goes offline. */
@@ -7,7 +7,7 @@ const presenceGraceSeconds = 30
 // The API's system path, `/api` for the default `/api/v1`.
 const systemPath = (apiPath = '/api/v1') => apiPath.slice(0, apiPath.lastIndexOf('/'))
 
-const presenceEntry = (presence: NonNullable<RealtimeRelayOptions['presence']>, appUrl: string | undefined, apiPath: string | undefined) => {
+const presenceEntry = (presence: NonNullable<RealtimeRelaySettings['presence']>, appUrl: string | undefined, apiPath: string | undefined) => {
   if (!appUrl) throw new Error("realtime.relay.presence needs the app's url (url or PROTOBASE_URL), where the relay posts its presence reports")
   return { url: new URL(relayPresencePath(systemPath(apiPath)), appUrl).href, key: presence.key, grace_seconds: presenceGraceSeconds }
 }
@@ -20,7 +20,7 @@ export type RelayAppSource = { url: string | undefined; apiPath?: string; views:
  * may send on each channel resource, typing included where a conversation page types, and, with presence, where its
  * reports go.
  */
-export const relayAppEntry = (relay: RealtimeRelayOptions, { url, apiPath, views }: RelayAppSource) => {
+export const relayAppEntry = (relay: RealtimeRelaySettings, { url, apiPath, views }: RelayAppSource) => {
   const clientEvents = relayClientEvents(relay.channels, typingResources(views))
   return {
     id: relay.app,

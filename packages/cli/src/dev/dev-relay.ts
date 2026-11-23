@@ -36,13 +36,13 @@ export const withDevRelay = async <Config extends Pick<ProtobaseConfig, 'realtim
     return config
   }
   const keys = devKeys()
-  const options = { ...relay, apiKey: relay.apiKey || keys.apiKey, ticketKey: relay.ticketKey || keys.ticketKey }
+  // Checked before the relay reads them, so a wrong app id stops here rather than in the relay's apps file; the url
+  // checked is the dev server's, which the relay's own replaces once it runs.
+  const options = checkRelayOptions({ ...relay, url: devUrl, apiKey: relay.apiKey || keys.apiKey, ticketKey: relay.ticketKey || keys.ticketKey })
   const entry = JSON.stringify({ ...relayAppEntry(options, { url: devUrl, views }), limits: devLimits })
   if (store.__protobaseDevRelay?.entry !== entry) {
     await stopDevRelay()
     const port = await freePort()
-    // Checked before the relay reads them, so a wrong app id stops here rather than in the relay's apps file.
-    checkRelayOptions({ ...options, url: relayUrl(port) })
     store.__protobaseDevRelay = { entry, url: relayUrl(port), relay: await startRelay(await relayBinary(projectDir), port, JSON.parse(entry), relayEnded) }
   }
   return { ...config, realtime: { ...config.realtime, relay: { ...options, url: store.__protobaseDevRelay.url } } }

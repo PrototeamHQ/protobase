@@ -95,6 +95,7 @@ import { pushJob } from './notifications/push-job'
 import { onDoNotDisturb } from './status/do-not-disturb'
 import { checkStatusAuth, statusNames, type StatusOptions } from './status/options'
 import { statusRoutes } from './status/routes'
+import { relaySettings } from './relay/relay-options'
 import { relayRuntime } from './relay/relay-runtime'
 import { relayPresencePath } from './relay/presence-route'
 import { relayTicketPath } from './relay/ticket-route'
@@ -413,7 +414,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     }),
   }
 
-  const relay = realtime?.relay && relayRuntime(realtime.relay, auth, deps)
+  const relay = realtime?.relay && relayRuntime(relaySettings(realtime.relay, globalThis.process?.env ?? {}), auth, deps)
   const typingErrors = typingViewErrors(viewModels, realtime?.relay && new Set(Object.keys(realtime.relay.channels)))
   if (typingErrors.length > 0) throw new Error(typingErrors.join('\n'))
 

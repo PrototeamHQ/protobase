@@ -1,6 +1,6 @@
 import { f, resource } from '@protobase/schema'
 import type { ResourceChange } from '../../changes/resource-change'
-import type { RealtimeRelayOptions } from '../relay-options'
+import type { RealtimeRelaySettings } from '../relay-options'
 
 /** A chat's resources: conversations with members and messages, and open rooms with posts. */
 export const chatModels = () => [
@@ -18,7 +18,7 @@ export const chatModels = () => [
   resource('notes').table('notes').fields({ id: f.integer(), conversation_id: f.relation('conversations').filterable() }).primaryKey((r) => r.id).toModel(),
 ]
 
-export const chatRelay: RealtimeRelayOptions = {
+export const chatRelay: RealtimeRelaySettings = {
   url: 'https://relay.example.com',
   app: 'chat',
   apiKey: 'k'.repeat(32),
