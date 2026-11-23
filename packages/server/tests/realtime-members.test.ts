@@ -77,12 +77,6 @@ create trigger close_direct before update on directs for each row execute functi
     expect((await rows()).filter((row) => /^[56]:/.test(row))).toEqual(['5:fay'])
   })
 
-  it('refuses a partitioned channel table, whose partitions it could not keep', async () => {
-    await sql`create table rooms (id integer, members jsonb) partition by range (id)`.execute(db)
-    const rooms = { resource: 'rooms', table: '"rooms"', key: 'id', members: 'members', deleted: '' }
-    await expect(realtimeMembersMigration(db, [...listed, rooms])).rejects.toThrow('realtime.members cannot keep the members of "rooms": a partitioned table')
-  })
-
   it('empties a truncated table and refuses to start once a trigger is off or gone', async () => {
     await sql`truncate directs`.execute(db)
     expect(await rows()).toEqual([])
@@ -90,5 +84,29 @@ create trigger close_direct before update on directs for each row execute functi
     await expect(checkRealtimeMembers(db, listed, 'protobase migration')).rejects.toThrow('the triggers that keep it on "directs"')
     await sql`drop trigger realtime_members on directs`.execute(db)
     await expect(checkRealtimeMembers(db, listed, 'protobase migration')).rejects.toThrow('the triggers that keep it on "directs"')
+  })
+
+  it("keeps a partitioned table: a truncated partition's siblings keep their members, and each partition's triggers are checked", async () => {
+    await sql.raw(`create table rooms (id integer, members jsonb) partition by range (id);
+create table rooms_a partition of rooms for values from (0) to (100);
+create table rooms_b partition of rooms for values from (100) to (200)`).execute(db)
+    const rooms = [{ resource: 'rooms', table: '"rooms"', key: 'id', members: 'members', deleted: '' }]
+    const roomRows = async () => (await sql<{ channel_key: string; user_id: string }>`select channel_key, user_id from realtime.members where resource = 'rooms' order by channel_key, user_id`.execute(db)).rows.map((row) => `${row.channel_key}:${row.user_id}`)
+    await sql.raw((await realtimeMembersMigration(db, rooms))!).execute(db)
+    await sql`insert into rooms values (1, '["ann"]'), (150, '["bob"]')`.execute(db)
+    await sql`update rooms set members = '["bob", "cy"]' where id = 150`.execute(db)
+    expect(await roomRows()).toEqual(['1:ann', '150:bob', '150:cy'])
+    await sql`truncate rooms_a`.execute(db)
+    expect(await roomRows()).toEqual(['150:bob', '150:cy'])
+    await expect(checkRealtimeMembers(db, rooms, 'protobase migration')).resolves.toBeUndefined()
+
+    await sql`alter table rooms_b disable trigger realtime_members`.execute(db)
+    await expect(checkRealtimeMembers(db, rooms, 'protobase migration')).rejects.toThrow('and their partitions, is missing or out of date')
+    await sql`alter table rooms_b enable trigger realtime_members`.execute(db)
+    await sql`create table rooms_c partition of rooms for values from (200) to (300)`.execute(db)
+    await expect(checkRealtimeMembers(db, rooms, 'protobase migration')).rejects.toThrow('and their partitions, is missing or out of date')
+    await sql.raw((await realtimeMembersMigration(db, rooms))!).execute(db)
+    await expect(checkRealtimeMembers(db, rooms, 'protobase migration')).resolves.toBeUndefined()
+    await expect(realtimeMembersMigration(db, [{ ...rooms[0]!, table: '"rooms_a"' }])).rejects.toThrow('a partition or a table in an inheritance tree')
   })
 })

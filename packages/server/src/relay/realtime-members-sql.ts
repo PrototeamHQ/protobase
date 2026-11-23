@@ -8,7 +8,7 @@ export const realtimeSchema = 'realtime'
 export const realtimeMembersTable = `${realtimeSchema}.members`
 
 /** Bumped whenever the objects below change, so the next migration writes them again. */
-const membersVersion = 2
+const membersVersion = 3
 export const membersComment = `Protobase realtime members ${membersVersion}`
 
 export const rowTrigger = 'realtime_members'
@@ -31,8 +31,8 @@ const literal = (text: string) => `'${text.replaceAll("'", "''")}'`
 /**
  * The members table, keyed by channel so a notice's audience is read by its key, with an index by person for their
  * tickets and co-members; `listed_members`, the user ids one state of a record lists, none once soft-deleted; and the
- * trigger function, which empties a truncated table's, all of its resource as channel tables are plain tables
- * (`refusePartitioned`). After each write that changes a record's key, members or soft
+ * trigger function. A truncate, of the table or of one of its partitions, writes the resource's members again from the
+ * table as it stands, so a truncated partition's siblings keep theirs. After each write that changes a record's key, members or soft
  * delete, as it stands after every trigger before it, it writes the members of the record's old and new keys again
  * from the table: row triggers that run after the write fire once the statement wrote every row, so a statement that
  * swaps two records' keys leaves each key with the members its record lists.
@@ -63,10 +63,15 @@ declare
   new_entry jsonb;
   keys text[];
   key_type text;
-  source regclass := tg_relid;
+  -- The table the trigger stands on: the partitioned one for a partition's clone or truncate trigger.
+  source regclass := coalesce(pg_partition_root(tg_relid), tg_relid);
 begin
   if tg_op = 'TRUNCATE' then
     delete from ${realtimeMembersTable} m where m.resource = channel_resource;
+    execute format('insert into ${realtimeMembersTable} (resource, channel_key, user_id)
+      select $1, to_jsonb(t) ->> $2, member from %s t cross join lateral ${realtimeSchema}.listed_members(to_jsonb(t), $3, $4) as member
+      on conflict do nothing', source)
+      using channel_resource, key_column, members_column, deleted_column;
     return null;
   end if;
   if tg_op <> 'INSERT' then old_entry := to_jsonb(old); end if;
@@ -92,12 +97,18 @@ $$`,
 /** The args of a listed table's row trigger, as `members_kept` reads them. */
 export const argsOf = ({ resource, key, members, deleted }: ListedTable) => [resource, key, members, deleted]
 
-// The triggers on one channel table, then its rows written again from the table as it stands.
-const listedTableSql = (listed: ListedTable) => {
+/** A truncate trigger's SQL on a channel table or one of its partitions, as SQL names it. */
+const truncateSql = (listed: ListedTable, on: string) =>
+  `create trigger ${truncateTrigger} after truncate on ${on} for each statement execute function ${realtimeSchema}.members_kept(${argsOf(listed).map(literal).join(', ')})`
+
+// The triggers on one channel table, its row trigger cloned onto its partitions by Postgres and its truncate trigger
+// written on each of `partitions`, then its rows written again from the table as it stands.
+const listedTableSql = (listed: ListedTable, partitions: readonly string[]) => {
   const { resource, table, key, members, deleted } = listed
   return [
     `create trigger ${rowTrigger} after insert or delete or update on ${table} for each row execute function ${realtimeSchema}.members_kept(${argsOf(listed).map(literal).join(', ')})`,
-    `create trigger ${truncateTrigger} after truncate on ${table} for each statement execute function ${realtimeSchema}.members_kept(${literal(resource)})`,
+    truncateSql(listed, table),
+    ...partitions.map((partition) => truncateSql(listed, partition)),
     `delete from ${realtimeMembersTable} where resource = ${literal(resource)}`,
     `insert into ${realtimeMembersTable} (resource, channel_key, user_id)
   select ${literal(resource)}, to_jsonb(t) ->> ${literal(key)}, member from ${table} t
@@ -108,13 +119,14 @@ const listedTableSql = (listed: ListedTable) => {
 
 /**
  * The SQL that keeps `realtime.members` for the listed tables: the table and its functions, the triggers of every
- * table that has them dropped (`standing`, as SQL names each), each listed table's written, its rows written again
+ * table that has them dropped (`standing`, as SQL names each), each listed table's written, a truncate trigger on each
+ * of its partitions (`partitions`, by listed table, as SQL names each) included, its rows written again
  * from the table, and the rows of resources no longer listed deleted. Writes made while the triggers are off, such as
  * with `session_replication_role = replica`, are not kept until the next migration that writes it.
  */
-export const membersSql = (listed: readonly ListedTable[], standing: readonly string[]) => [
+export const membersSql = (listed: readonly ListedTable[], standing: readonly string[], partitions: ReadonlyArray<readonly string[]>) => [
   ...baseSql,
   ...standing.flatMap((table) => [`drop trigger if exists ${rowTrigger} on ${table}`, `drop trigger if exists ${truncateTrigger} on ${table}`]),
-  ...listed.flatMap(listedTableSql),
+  ...listed.flatMap((table, i) => listedTableSql(table, partitions[i] ?? [])),
   `delete from ${realtimeMembersTable} where resource <> all(array[${listed.map(({ resource }) => literal(resource)).join(', ')}]::text[])`,
 ]
