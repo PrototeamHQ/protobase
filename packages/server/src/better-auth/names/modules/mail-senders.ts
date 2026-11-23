@@ -15,7 +15,8 @@ export const mailSenders = {
         user_id: own('userId', { type: 'string', required: true }),
         address: own('address', { type: 'string', required: true }),
         name: own('name', { type: 'string', required: false }),
-        shared: own('shared', { type: 'boolean', required: true }),
+        shared: own('shared', { type: 'boolean', required: false }),
+        shared_at: own('sharedAt', { type: 'date', required: false }),
         signature: own('signature', { type: 'string', required: false }),
         is_default: own('isDefault', { type: 'boolean', required: true }),
         created_at: own('createdAt', { type: 'date', required: true }),
@@ -27,7 +28,7 @@ export const mailSenders = {
         provider_state_read_at: own('providerStateReadAt', { type: 'date', required: false }),
         removed_at: own('removedAt', { type: 'date', required: false }),
       },
-      indexes: ['mail_sender_default_idx', 'mail_sender_shared_idx', 'mail_sender_connection_address_uidx', 'mail_sender_user_address_idx'],
+      indexes: ['mail_sender_default_idx', 'mail_sender_shared_idx', 'mail_sender_connection_address_uidx', 'mail_sender_user_address_idx', 'mail_sender_shared_at_idx'],
     },
     mail_sender_verification: {
       scope: 'global',

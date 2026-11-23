@@ -161,7 +161,8 @@ describe('the From addresses on the account page', () => {
     expect(await listed(app, bo)).toEqual([])
     expect(await listed(app, ana)).toEqual([billing])
 
-    expect(await add(app, ana, { address: 'sales@acme.example', shared: true })).not.toHaveProperty('shared')
+    // Adding never shares, whatever the request says.
+    expect(await add(app, ana, { address: 'sales@acme.example', shared: true, sharedAt: '2026-01-01T00:00:00Z' })).not.toHaveProperty('sharedAt')
     const boMail = app.auth.personalMailer(await app.userId('bo@example.com'))
     for (const address of ['sales@acme.example', 'billing@acme.example']) await expect(boMail.sender(address)).rejects.toEqual(new MailSenderRefusedError(address))
     await expect(boMail.send({ to: 'x@example.com', subject: 'Hi', text: 'Hi', sender_address_id: billing.id })).rejects.toMatchObject({ status: 404 })

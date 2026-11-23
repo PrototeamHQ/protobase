@@ -5,7 +5,8 @@ import type { VerificationRow } from './verifiers/verification-store'
 
 /**
  * An address as the account page lists it: its `state`, `detached` for one on no connection they can send through,
- * and its `connection`, none when detached; `listedAt` when the provider's last listing held it.
+ * and its `connection`, none when detached; `listedAt` when the provider's last listing held it; `sharedAt` when they
+ * shared it with the app's other senders.
  */
 export type ListedMailSender = {
   id: string
@@ -16,6 +17,7 @@ export type ListedMailSender = {
   state: Exclude<SenderRowState, 'removed'>
   connection?: string
   listedAt?: string
+  sharedAt?: string
   /** The latest verification by each of the app's verifiers, when it has any. */
   verifications?: ListedVerification[]
 }
@@ -66,6 +68,7 @@ export const listedSender = (book: SenderBook, row: MailSenderRow, verifications
     state,
     ...(state !== 'detached' && row.connectionId && { connection: row.connectionId }),
     ...(row.listedAt && { listedAt: new Date(row.listedAt).toISOString() }),
+    ...(row.sharedAt && { sharedAt: new Date(row.sharedAt).toISOString() }),
     ...(verifications && { verifications: verifications.filter(({ senderId }) => senderId === row.id).map(listedVerification) }),
   }
 }

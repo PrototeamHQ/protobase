@@ -111,7 +111,7 @@ describe('personalMailer', () => {
     const rows = () =>
       senderRows([
         typedRow({ id: 's1', userId: 'u1', connectionId: 'acc-u1', address: 'billing@acme.example' }),
-        typedRow({ id: 's2', userId: 'u2', connectionId: 'acc-u2', address: 'sales@acme.example', shared: true }),
+        typedRow({ id: 's2', userId: 'u2', connectionId: 'acc-u2', address: 'sales@acme.example', sharedAt: later }),
         typedRow({ id: 's4', userId: 'u1', connectionId: 'acc-u1', address: 'ann@acme.example', name: 'Ann of Acme' }),
         typedRow({ id: 's5', userId: 'u1', connectionId: 'acc-u1', address: 'gone@acme.example', removedAt: later }),
         typedRow({ id: 's6', userId: 'u1', connectionId: null, address: 'old@acme.example' }),
