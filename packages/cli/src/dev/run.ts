@@ -5,6 +5,7 @@ import { adminAppDir } from '../project/admin-app'
 import { requireAppFiles } from './app-files'
 import type { Extension } from '../project/extensions'
 import { checkDatabase } from './check-database'
+import { devAddress } from './dev-port'
 import { alsoOnIpv6, checkPortFree } from './loopback'
 import { authDriftLines } from './auth-drift-lines'
 import { loginLine } from './login-line'
@@ -70,7 +71,7 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
   const port = typeof address === 'object' && address ? address.port : options.port
   if (server.httpServer) await alsoOnIpv6(server.httpServer as HttpServer, port).catch(closeAndThrow)
   // It loads the API once at its start, so a missing authenticator or a broken config stops startup instead of failing requests.
-  const started = await apiChild.start(`http://localhost:${port}`).catch(closeAndThrow)
+  const started = await apiChild.start(devAddress(port)).catch(closeAndThrow)
   apiReady(started)
   const { anyUsers, authDrift } = started
   out(

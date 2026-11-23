@@ -41,6 +41,9 @@ export const pickFreePort = async (held = heldOn, random = Math.random) => {
   throw new Error(`Found no free port among ${tries} random ones from ${randomPorts.min} to ${randomPorts.max}; pass one with --port <port>`)
 }
 
+/** The address `protobase dev` serves on `port`, the app's `url` when it sets none. */
+export const devAddress = (port: number) => `http://localhost:${port}`
+
 /**
  * The port `protobase dev` serves the project on: `chosen`, saved as the project's port for later runs, else the saved
  * one, else a free random one, saved.
