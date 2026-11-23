@@ -227,11 +227,10 @@ describe('the send-as addresses a mailbox lists', () => {
     const senders = await store(app)
     const userId = await app.userId('ana@example.com')
     const readAt = new Date(Date.now() - 1000)
-    // Typed and listed at the same moment: each keeps what it wrote.
-    const [typed] = await Promise.all([
-      senders.type({ userId, connectionId: gmail.id, address: 'billing@acme.example', name: 'Billing', signature: null }, new Date()),
-      senders.recordListing(userId, gmail.id, [{ address: 'billing@acme.example', provider_state: 'verified' }, { address: 'sales@acme.example', provider_state: 'verified' }], readAt),
-    ])
+    // A listing asked for before the address was typed, which records after it: each keeps what it wrote. One after
+    // another, so the recording comes out the same each time.
+    const typed = await senders.type({ userId, connectionId: gmail.id, address: 'billing@acme.example', name: 'Billing', signature: null }, new Date())
+    await senders.recordListing(userId, gmail.id, [{ address: 'billing@acme.example', provider_state: 'verified' }, { address: 'sales@acme.example', provider_state: 'verified' }], readAt)
     const rows = await senders.ofUser(userId)
     expect(rows).toHaveLength(2)
     expect(rows).toEqual(

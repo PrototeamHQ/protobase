@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import type { MailSenderCheck } from '@protobase/client'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 import { MailSendersSection, type MailSendersSectionProps } from './mail-senders-section'
 
 const meta = { title: 'Account/From addresses', decorators: [(Story) => <div className="max-w-3xl bg-surface p-6"><Story /></div>] } satisfies Meta
@@ -147,13 +147,14 @@ export const ListedStates: StoryObj<MailSendersSectionProps> = {
   render: (args) => <MailSendersSection {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
-    expect(args.onRefresh).toHaveBeenCalledTimes(1)
+    // The section checks with Gmail once it has drawn.
+    await waitFor(() => expect(args.onRefresh).toHaveBeenCalledTimes(1))
     for (const label of ['Verified', 'Awaiting confirmation', "Can't send", 'No mailbox']) expect(canvas.getByText(label)).toBeVisible()
     expect(canvas.getByText(/^Gmail does not list this address, so it would send from ana@gmail\.example instead/)).toBeVisible()
     expect(canvas.getByText(/^This address is on no mailbox you have connected/)).toBeVisible()
     expect(await canvas.findByText('Checked with Gmail just now.')).toBeVisible()
     await userEvent.click(await canvas.findByRole('button', { name: 'Check with Gmail' }))
-    expect(args.onRefresh).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(args.onRefresh).toHaveBeenCalledTimes(2))
   },
 }
 

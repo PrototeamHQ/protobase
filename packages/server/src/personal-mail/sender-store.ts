@@ -41,7 +41,7 @@ export type SenderChange = Partial<Pick<MailSenderRow, 'name' | 'signature' | 'i
 
 /** Where the From addresses live: each call acts on `userId`'s own rows alone. */
 export type MailSenderStore = {
-  /** Every row of the person's, removed ones included, oldest first. */
+  /** Every row of the person's, removed ones included, oldest first, and those made at once by address. */
   ofUser: (userId: string) => Promise<MailSenderRow[]>
   /**
    * Records that the person typed `sender` at `at`: a new row, or on the row of its connection and address, its
@@ -93,7 +93,7 @@ export const sqlSenderStore = (store: () => Promise<StoreSql>): MailSenderStore 
   ofUser: async (userId) => {
     const s = await store()
     const { table, c, selected } = columns(s)
-    const { rows } = await sql<MailSenderRow>`select ${selected} from ${table} where ${c.user_id} = ${userId} order by ${c.created_at}, id`.execute(s.db)
+    const { rows } = await sql<MailSenderRow>`select ${selected} from ${table} where ${c.user_id} = ${userId} order by ${c.created_at}, ${c.address_key}, id`.execute(s.db)
     return rows
   },
 
