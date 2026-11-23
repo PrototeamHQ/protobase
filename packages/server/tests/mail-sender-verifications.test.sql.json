@@ -471,7 +471,7 @@
         ["{{uuid:17:4}}","test-mail","sales@shop.example",null]
       ]}},
       {"sql":"update \"mail_sender_verification\" set \"state\" = 'verified', \"settled_at\" = now(), \"valid_until\" = least($1::timestamptz, now() + interval '2419200 seconds')\nwhere id = $2 and \"verifier\" = $3 and \"state\" = 'pending' and \"expires_at\" > now()\nreturning id","params":["2099-01-01T00:00:00.000+00:00","{{uuid:15:4}}","test-mail"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",25]],"rows":[["{{uuid:15:4}}"]]}},
-      {"sql":"update \"mail_sender_verification\" set \"next_check_at\" = least(now() + interval '60 seconds', \"expires_at\")\nwhere id = $1 and \"verifier\" = $2 and \"state\" = 'pending' and \"expires_at\" > now()\nreturning id","params":["{{uuid:17:4}}","test-mail"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",25]],"rows":[["{{uuid:17:4}}"]]}},
+      {"sql":"update \"mail_sender_verification\" set \"next_check_at\" = least(greatest($1::timestamptz, now() + interval '60 seconds'), \"expires_at\")\nwhere id = $2 and \"verifier\" = $3 and \"state\" = 'pending' and \"expires_at\" > now()\nreturning id","params":["1970-01-01T00:00:00.000+00:00","{{uuid:17:4}}","test-mail"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",25]],"rows":[["{{uuid:17:4}}"]]}},
       {"sql":"select verifier, state, error_code from mail_sender_verification where sender_id = $1 order by verifier","params":["{{uuid:13:4}}"],"result":{"command":"SELECT","rowCount":2,"columns":[["verifier",25],["state",25],["error_code",25]],"rows":[
         ["push-only","pending",null],
         ["test-mail","verified",null]
@@ -491,7 +491,8 @@
       {"repeated":14},
       {"sql":"select \"mail_sender_verification\".\"sender_id\" as \"senderId\", max(\"mail_sender_verification\".\"settled_at\") as \"settledAt\" from \"mail_sender_verification\"\njoin \"mail_sender\" on \"mail_sender\".id = \"mail_sender_verification\".\"sender_id\"\nwhere \"mail_sender\".\"user_id\" = $1 and \"mail_sender_verification\".\"verifier\" = any($2::text[]) and \"mail_sender_verification\".\"state\" = 'verified' and \"mail_sender_verification\".\"valid_until\" > now()\ngroup by \"mail_sender_verification\".\"sender_id\"\norder by \"settledAt\"","params":["ccaGqs7g9r9yR6LQ2QXA0nhmzI0Sj9q5","{\"test-mail\",\"push-only\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["senderId",25],["settledAt",1184]],"rows":[["{{uuid:13:4}}","{{now:23: :-:+00}}"]]}},
       {"repeated":13},
-      {"repeated":15}
+      {"repeated":15},
+      {"sql":"select next_check_at > now() as later from mail_sender_verification where verifier = 'test-mail' and sender_id = $1","params":["{{uuid:14:4}}"],"result":{"command":"SELECT","rowCount":1,"columns":[["later",16]],"rows":[["t"]]}}
     ]
   }
 }

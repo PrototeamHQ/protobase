@@ -99,7 +99,7 @@ describe('verifying a From address', () => {
 
 describe('the sweep', () => {
   it("records each due verification's check, and expires one whose verifier has no check", async () => {
-    const checked = testVerifier(undefined, async ({ address }) => (address === 'billing@shop.example' ? { state: 'verified', valid_until: farAhead } : { state: 'pending' }))
+    const checked = testVerifier(undefined, async ({ address }) => (address === 'billing@shop.example' ? { state: 'verified', valid_until: farAhead } : { state: 'pending', check_after: new Date(0) }))
     const pushOnly = { ...testVerifier().verifier, id: 'push-only' }
     const { app, add, verify, stateOf } = await servedWith(stores, [checked.verifier, pushOnly])
     const billing = await add('billing@shop.example')
@@ -122,5 +122,8 @@ describe('the sweep', () => {
       { verifier: 'test-mail', state: 'pending', error_code: null },
     ])
     expect(await stateOf(sales)).toBe('unverified')
+    // A check_after in the past waits the fixed interval all the same, so the row is not due again at once.
+    const due = await app.store.query<{ later: boolean }>(`select next_check_at > now() as later from mail_sender_verification where verifier = 'test-mail' and sender_id = $1`, [sales])
+    expect(due.rows).toEqual([{ later: true }])
   })
 })

@@ -76,7 +76,7 @@ returning id`.execute(s.db)
   /**
    * Records `outcome` of the verification `key` names, if `verifier` started it and it is still pending in time:
    * whether it did. The first pending outcome (`first`) sets when it expires, at most 24 hours after it started; a
-   * later one only when it is checked next, never after it expires. `valid_until` counts at most 28 days.
+   * later one only when it is checked next, a minute on at the soonest and never after it expires. `valid_until` counts at most 28 days.
    */
   settle: async (key: SettleKey, verifier: string, outcome: VerificationOutcome, first = false) => {
     const s = await store()
@@ -84,7 +84,9 @@ returning id`.execute(s.db)
     const set = (() => {
       if (outcome.state === 'verified') return sql`${v.state} = 'verified', ${v.settled_at} = now(), ${v.valid_until} = least(${outcome.valid_until}::timestamptz, now() + ${interval(maxValidMs)})`
       if (outcome.state === 'failed') return sql`${v.state} = 'failed', ${v.settled_at} = now(), ${v.error_code} = ${outcome.error_code}, ${v.error} = ${outcome.error ?? null}`
-      const nextCheck = outcome.check_after ? sql`${outcome.check_after}::timestamptz` : sql`now() + ${interval(checkIntervalMs)}`
+      // Never sooner than the fixed interval: a check_after in the past would make the row due again at once, and keep a sweep reclaiming it.
+      const interval_ = sql`now() + ${interval(checkIntervalMs)}`
+      const nextCheck = outcome.check_after ? sql`greatest(${outcome.check_after}::timestamptz, ${interval_})` : interval_
       if (!first) return sql`${v.next_check_at} = least(${nextCheck}, ${v.expires_at})`
       const expires = sql`least(${outcome.expires_at!}::timestamptz, ${v.created_at} + ${interval(maxPendingMs)})`
       return sql`${v.expires_at} = ${expires}, ${v.next_check_at} = least(${nextCheck}, ${expires})`
