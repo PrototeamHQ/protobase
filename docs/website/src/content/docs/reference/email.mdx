@@ -316,7 +316,7 @@ export default defineFunction(async (request, { personalMail }) => {
   { "type": "urn:protobase:problem:personal-mail-link-expired", "status": 409, "code": "link_expired", "provider": "gmail" }
   ```
 
-- **Sender:** without a [From address](#from-addresses), the provider sends as the linked address; Gmail sets the From header to it.
+- **Sender:** without a [From address](#from-addresses), the provider sends as the linked address; Gmail sets the From header to it. A From address goes out through the connection its record is on, never through another.
 - **Which account:** mail goes out through the account the person connected for mail last. Connecting Gmail with another Google account takes the mail scopes off the earlier one in the app's store, and signing in with the earlier one does not take the mail back; connecting it again does. When the chosen account's link fails, sending fails: it never falls back to another account. Of two accounts that both still hold the mail scopes, as when both connected before this rule came in, mail goes through the one linked to the person last, until they connect one again.
 - **Only the person:** mail goes out from a mailbox only for someone signed in as themselves, or from a [workflow step's `mailbox`](/reference/workflow-plugins/#step-types) in a version that person turned on while signed in as themselves, and only while they may still change the workflow. Staff [signed in as them](/reference/auth/#staff-sign-in), an outside app acting for them, and a job's own code cannot send from it; a request is refused with a `403` problem (`own-sign-in-only`), a step fails with `not_linked`, and nothing is sent. Turning the workflow off, or someone else turning a new version on, ends the first person's consent.
 - **Providers:** Gmail, through Google sign-in. A provider is added to Protobase behind the same `PersonalMailProvider` shape: its sign-in provider, the scopes linking asks for, and how it sends.
@@ -328,35 +328,61 @@ export default defineFunction(async (request, { personalMail }) => {
 
 ### From addresses
 
-A mailbox may send as more than its own address, such as Gmail's send-as addresses (Gmail's settings → Accounts → **Send mail as**). The person enters each such address once on the account page, under **Mailbox** → **From addresses**; only they can send from it. For each they choose:
+A mailbox may send as more than its own address, such as Gmail's send-as addresses (Gmail's settings → Accounts → **Send mail as**). Each From address is a record on one of the person's mailbox connections, theirs alone, with a state that says whether the mailbox really sends as it. The account page lists them under **Mailbox** → **From addresses**.
 
-- **Name:** an address may carry a display name, which the From header shows beside it, such as `From: Shop billing <billing@shop.example>`, as mail sent by hand from a send-as address shows the name set up for it; a name that is not ASCII is encoded. Left empty, the header holds the bare address. To give the mailbox's own address a name, enter it as well.
+- **Typed:** the person adds an address with **Add a From address**, on the mailbox mail goes through. Until the provider lists it, it is **Not checked** (`unverified`).
+- **Listed:** a provider that can list the mailbox's send-as addresses fills them in, with its own word on each. Gmail does this when the app adds the optional `gmail.settings.basic` scope to the link: it reads the list and nothing else of the mailbox. The account page reads the list again each time it opens, and with **Check with Gmail**.
+- **States:**
+  - `verified`: the provider sends as it; for Gmail, an accepted send-as address, or the account's own.
+  - `pending`: the owner still has to confirm it with the provider.
+  - `failed`: a complete listing since the address was added did not hold it, so Gmail would send from the account's own address instead.
+  - `unverified`: nothing says either way.
+
+  The state is worked out each time it is read, from what typed the address and what the provider last listed. An address the listing leaves out keeps its record and its id: only its listed state goes.
+- **Without the scope:** a Gmail link without `gmail.settings.basic` is told which scope it lacks. The account page then offers **Allow address checks**, which connects Gmail again asking for it, and sends the person back to the account page.
+- **Name:** an address may carry a display name, which the From header shows beside it, such as `From: Shop billing <billing@shop.example>`, as mail sent by hand from a send-as address shows the name set up for it; a name that is not ASCII is encoded. Left empty, the header holds the bare address.
 - **Signature:** an address may carry its own signature, which takes the place of the app's generic one; left empty, the generic one applies.
 - **Default:** one address, theirs or their mailbox's own, is the one mail goes out from when the app names none.
+- **Removing:** removing an address hides it and keeps its record. Adding it again brings back the same record, and only a new listing counts for it after that.
 
-A function then names the From address with `from`, matched without regard to case. To send a template from it, render it and send the result:
+To let Gmail list the send-as addresses, add the scope in the config, and add it to the Google client's consent screen (Data Access) as well:
+
+```ts
+personalMail: [{ provider: 'gmail', scopes: [gmailSettingsScope] }], // import { gmailSettingsScope } from '@protobase/server'
+```
+
+A function sends from a From address by naming its record. To send a template from it, render it and send the result:
 
 ```ts
 export default defineFunction(async (request, { personalMail }) => {
   const { to, number, pdf } = await readInvoice(request)
   const sender = await personalMail.sender('billing@shop.example')
   const email = await invoiceEmail.render({ number, signature: sender.signature ?? defaultSignature })
-  await personalMail.send({ from: sender.address, to, ...email, attachments: [{ filename: `invoice-${number}.pdf`, content: pdf, contentType: 'application/pdf' }] })
+  await personalMail.send({ sender_address_id: sender.id, to, ...email, attachments: [{ filename: `invoice-${number}.pdf`, content: pdf, contentType: 'application/pdf' }] })
   return new Response(null, { status: 204 })
 })
 ```
 
-- **`send({ from, ... })`:** sends from `from`, else the person's default address, else their mailbox's own. Gmail keeps the From header when the address is one of the account's verified send-as addresses; when it is not, Gmail sends from the account's own address instead, without an error.
-- **`sender(from?)`:** the address a send with `from` goes out as: `address`, `name` when it has one, `signature` when it has its own, and `ownerId`, whose mailbox it goes through. It refuses as `send` does.
-- **`senders()`:** every address the caller may choose, such as for a send dialog: their mailbox's own, then those they entered.
-- **Refused addresses:** a From address that is not the mailbox's own and not one the caller entered is refused before anything is sent, with a `MailSenderRefusedError` that answers as a `403` problem naming it; so is an address someone else entered, in the same words:
-
-  ```json
-  { "type": "urn:protobase:problem:mail-sender-refused", "status": 403, "address": "ceo@shop.example", "detail": "You may not send mail from ceo@shop.example: add it to the Mailbox section of your account page first" }
-  ```
-
+- **`send({ sender_address_id, ... })`:** sends from that record's address, with its display name, through that record's own mailbox connection, so From and mailbox cannot disagree. `null` sends from the mailbox's own address with no From header, and leaving it out sends from the default address, else the mailbox's own. A message that names its own `from` or `sender`, or a `From` or `Sender` header, is a mistake that rejects. An address no listing has read yet is listed first, when its provider can list.
+- **Refusals,** each sending nothing:
+  - An id that is not one of the caller's, unknown or removed alike, answers `404` (`sender-address-not-found`).
+  - A `failed` address answers `409` with `code: "sender_address_failed"`, and a `pending` one `sender_address_pending`.
+  - An address on no connection the person can send through answers `sender_address_detached`.
+  - An `unverified` one is sent.
+- **`sender(address?)`:** the record an address stands for, matched without regard to case: `id` (null for the mailbox's own address), `address`, `name` when it has one, `signature` when it has its own, `state`, and `ownerId`, whose mailbox it goes through. Without an address, the default. An address that is not the caller's is refused with a `MailSenderRefusedError` (`403`); one on two of their connections with `sender_address_ambiguous`.
+- **`senders()`:** every address the caller may choose, such as for a send dialog: their mailbox's own, then their records, each with its id and state.
+- **`refresh()`:** reads the send-as addresses of each of the caller's mailboxes whose provider can list them, and answers how each went: `listed`, `not_permitted` with `missing_scopes`, or `error` with `link_expired` or `listing_failed`. A connection that fails changes nothing and stops none of the others.
 - **The mailbox's own address** is the one its provider's ID token names; Google gives it with the `email` scope sign-in asks for.
-- **The account page's calls:** `GET /api/auth/account/mail-senders` lists the person's addresses with their mailbox's own `address`; `POST .../mail-senders/add { address, name?, signature? }`, `POST .../mail-senders/update { id, name?, signature?, isDefault? }` (`name: null` drops the name, `signature: null` drops its own) and `POST .../mail-senders/remove { id }` change them. Each acts on the signed-in person's own addresses only.
+- **The account page's calls:**
+  - `GET /api/auth/account/mail-senders` lists the person's addresses with their `state` and `connection`, their mailbox's own `address`, and their `connections`, each with `canList` and the `missingScopes` the app adds that its link lacks.
+  - `POST .../mail-senders/add { address, name?, signature?, connection? }` types an address, on `connection` or else the mailbox mail goes through.
+  - `POST .../mail-senders/update { id, name?, signature?, isDefault? }` changes one: `name: null` drops the name and `signature: null` its own signature.
+  - `POST .../mail-senders/remove { id }` removes one.
+  - `POST .../mail-senders/refresh` reads the send-as addresses, as `refresh()` does.
+
+  Each acts on the signed-in person's own addresses and connections only: any other id answers `404` before anything is done.
+- **Upgrading:** an address entered before From addresses were records goes on its owner's Gmail connection when they had exactly one. With none or several it shows **No mailbox**, and the person removes it and adds it again.
+- <gap>An address on a mailbox linked without `gmail.settings.basic` cannot be checked before each send because only the account page's one-off test message is implemented for it.</gap>
 - <gap>An address cannot be shared with others who send mail because proving that the person owns the address is not implemented.</gap>
 
 ### Checking a From address
@@ -381,13 +407,13 @@ Gmail sends from the account's own address, without an error, when a From addres
 A removal refused over records does not say which records hold the address; and since addresses cannot be shared yet, everyone else sees an address on a shared record as not available.
 :::
 
-A record can hold the address its mail goes out from, such as a client's or the seller's "Send from": declare the field with `f.mailSender()`, on a `text` column, and pass its value to `send({ from })`.
+A record can hold the address its mail goes out from, such as a client's or the seller's "Send from": declare the field with `f.mailSender()`, on a `text` column, and send from it with `send({ sender_address_id: (await personalMail.sender(value)).id })`.
 
 ```ts
 send_from: f.mailSender().optional(),
 ```
 
-- **The form:** a dropdown of the signed-in person's addresses, their mailbox's own first, then those they entered, each as `Name <address>` when it has a name. The empty choice, **Sender's default address**, stores `null`: mail goes out from the default address of whoever sends it.
+- **The form:** a dropdown of the signed-in person's addresses, their mailbox's own first, then their records, each as `Name <address>` when it has a name, followed by its state unless it is verified. An address mail cannot go out from, one `failed` or `pending`, shows but cannot be chosen, unless the record holds it already. The empty choice, **Sender's default address**, stores `null`: mail goes out from the default address of whoever sends it.
 - **Saving:** a create or update may only set an address the saving person may send from, by the rule `send` uses; the address is stored as their sender spells it. Any other is refused with a `400` naming the field and the address. A visitor, and anyone on an app without personal mail, can set none.
 - **An address no longer offered,** such as one another person entered, still shows, marked **not available**, with a link to the account page. Saving other fields, or giving the same address again, leaves it as it is.
 - **Read views** show the address, with its name when it is one of the reader's.

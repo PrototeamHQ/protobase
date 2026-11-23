@@ -11,7 +11,7 @@ In the Google Cloud console, in a project of your own:
 
 1. **Turn on the Gmail API:** APIs & Services → Library → Gmail API → Enable.
 2. **Set up the consent screen** (Google Auth Platform → Branding and Audience): the app's name, support address and home page, and the user type **External**, so any Google account can link, not only those of your Workspace.
-3. **Add the scope** (Data Access): `https://www.googleapis.com/auth/gmail.send`, beside `openid`, `email` and `profile`. It lets the app send mail as the person and nothing else: it cannot read their mailbox.
+3. **Add the scope** (Data Access): `https://www.googleapis.com/auth/gmail.send`, beside `openid`, `email` and `profile`. It lets the app send mail as the person and nothing else: it cannot read their mailbox. Optionally add `https://www.googleapis.com/auth/gmail.settings.basic` too, so the app can read which addresses Gmail sends as ([step 5](#5-send-from-another-address)): it reads the mailbox's settings, not its mail.
 4. **Publish the app** (Audience → Publish app), so its publishing status is **In production**. Do not leave it in **Testing**: Google then gives refresh tokens that expire after 7 days, so every link stops working a week after it was made, and sending fails with `link_expired`.
 5. **Make the client** (Clients → Create client): type **Web application**, with the authorized redirect URI `<url>/api/auth/callback/google`, such as `https://invoices.example.com/api/auth/callback/google`, and the same path on each of the app's [other origins](/reference/auth/#several-origins) people link from. For local development add `http://localhost:<port>/api/auth/callback/google` too.
 
@@ -68,10 +68,24 @@ The message goes out from the linked Gmail, and shows in its Sent folder. When t
 
 ## 5. Send from another address
 
-A Gmail account may send as other addresses of yours, such as a company address beside your own. To have the app send from one:
+A Gmail account may send as other addresses of yours, such as a company address beside your own. Gmail sends from your primary address instead, without an error, when an address is not set up under **Send mail as**, so the app keeps each From address with what Gmail says of it.
 
 1. **Set it up in Gmail first:** Gmail's settings → Accounts → **Send mail as** → Add another email address, and confirm it as Gmail asks. An alias of a Google Workspace domain is there already.
-2. **Enter it once in the app:** on the account page, under **Mailbox** → **From addresses**, choose **Add a From address** and type it. Give it the name Gmail shows for it, so mail from the app carries the same name, and a signature of its own if you like, and make it the default to send from it whenever the app names no address.
-3. **Name it when sending:** `personalMail.send({ from: 'billing@shop.example', to, subject, text })`.
+2. **Let the app read the list (optional):** add the `gmail.settings.basic` scope to the link, in the config and on the consent screen ([step 1](#1-make-the-google-oauth-client)):
 
-Gmail sends from your primary address instead, without an error, when the address is not verified under **Send mail as**, so check the first message's From in the Sent folder. The app sends only from addresses entered this way: any other `from` is refused with a `403` before anything is sent. [From addresses](/reference/email/#from-addresses) has the details.
+   ```ts
+   import { gmailSettingsScope } from '@protobase/server'
+
+   personalMail: [{ provider: 'gmail', scopes: [gmailSettingsScope] }],
+   ```
+
+   People who linked Gmail before see **Allow address checks** under **From addresses**, which connects Gmail again with the scope. From then on the account page lists Gmail's send-as addresses as **Verified**, **Awaiting confirmation** or **Can't send**. The app refuses to send from an address Gmail would replace. Without the scope, the app cannot tell, and an address stays **Not checked**.
+3. **Add it in the app, if Gmail does not list it:** on the account page, under **Mailbox** → **From addresses**, choose **Add a From address** and type it. Give it the name Gmail shows for it, so mail from the app carries the same name, and a signature of its own if you like, and make it the default to send from it whenever the app names no address.
+4. **Name it when sending:** look the address up, then send with its record's id:
+
+   ```ts
+   const sender = await personalMail.sender('billing@shop.example')
+   await personalMail.send({ sender_address_id: sender.id, to, subject, text })
+   ```
+
+The app sends only from the caller's own From addresses: any other is refused before anything is sent. [From addresses](/reference/email/#from-addresses) has the details.
