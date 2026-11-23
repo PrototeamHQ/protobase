@@ -1,18 +1,8 @@
 import { sql } from 'kysely'
 import type { StoreSql } from '../better-auth/store/store-sql'
-import type { MailSenderRow } from './sender-store'
+import type { SharedSenderReader, SharedSenderRow } from './sender-store'
 
-/**
- * An address someone else shared, with what its state is derived from: the owner's account it goes out through, none
- * when that is gone, and when the app's verifiers last proved it, by a verification that still counts.
- */
-export type SharedSenderRow = MailSenderRow & {
-  account: { id: string; providerId: string; scope: string | null; createdAt: Date } | null
-  provedAt: Date | null
-}
-
-/** The addresses others shared with `userId`, oldest first, or the one of them `id` names. */
-export type SharedSenderReader = (userId: string, id?: string) => Promise<SharedSenderRow[]>
+export type { SharedSenderReader, SharedSenderRow }
 
 type Reach = {
   /** Whether the app has organizations: then only addresses of owners who share one with the person are in reach. */

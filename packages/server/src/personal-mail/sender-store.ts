@@ -1,7 +1,6 @@
 import { sql } from 'kysely'
 import type { StoreSql } from '../better-auth/store/store-sql'
 import type { ProviderAddressState } from './personal-mail-provider'
-import type { SharedSenderReader } from './shared-sender-store'
 import type { SenderProof } from './verifiers/verification-store'
 
 /** Better Auth's model for the From addresses people send as: one row per mailbox connection and address. */
@@ -32,6 +31,18 @@ export type MailSenderRow = {
   providerStateReadAt: Date | null
   removedAt: Date | null
 }
+
+/**
+ * An address someone else shared, with what its state is derived from: the owner's account it goes out through, none
+ * when that is gone, and when the app's verifiers last proved it, by a verification that still counts.
+ */
+export type SharedSenderRow = MailSenderRow & {
+  account: { id: string; providerId: string; scope: string | null; createdAt: Date } | null
+  provedAt: Date | null
+}
+
+/** The addresses others shared with `userId`, oldest first, or the one of them `id` names (see `sharedSenderReader`). */
+export type SharedSenderReader = (userId: string, id?: string) => Promise<SharedSenderRow[]>
 
 /** An address as its owner types it, on the connection it goes out through. */
 export type TypedSender = { userId: string; connectionId: string; address: string; name: string | null; signature: string | null }
