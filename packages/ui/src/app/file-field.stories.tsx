@@ -18,6 +18,7 @@ const products = resource('products')
     name: f.text(),
     image: f.file().accept(['image/*']).maxSize('10 MB').optional(),
     datasheet: f.file().accept(['application/pdf']).optional(),
+    frame_photo: f.file().capture().optional(),
   })
   .primaryKey((r) => r.id)
 
@@ -65,6 +66,50 @@ export const ReplaceAnImage: StoryObj = {
     expect(await canvas.findByText(`image/jpeg · ${pngBytes.length} bytes · sent as image/png`)).toBeTruthy()
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(stored.products![0]!.image).toMatchObject({ name: 'photo.png', type: 'image/jpeg' }))
+  },
+}
+
+export const TakeAPhoto: StoryObj = {
+  tags: ['play'],
+  render: () => <Products path="/products/2" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    // A desktop browser picks an image file; a phone opens its rear camera
+    const camera = await canvas.findByLabelText<HTMLInputElement>('Choose a photo for Frame photo')
+    expect(camera.getAttribute('capture')).toBe('environment')
+    expect(camera.accept).toBe('image/*')
+    await userEvent.upload(camera, png())
+    expect(await canvas.findByText(`image/png · ${pngBytes.length} bytes`)).toBeTruthy()
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(stored.products![1]!.frame_photo).toMatchObject({ name: 'photo.png', type: 'image/png' }))
+  },
+}
+
+// A phone: a coarse pointer, and an input that opens the camera for `capture`, which desktop browsers lack
+const asPhone = () => {
+  const matchMedia = window.matchMedia
+  const hadCapture = 'capture' in HTMLInputElement.prototype
+  window.matchMedia = (query) => matchMedia.call(window, query === '(pointer: coarse)' ? 'all' : query)
+  if (!hadCapture) Object.defineProperty(HTMLInputElement.prototype, 'capture', { configurable: true, get: () => '' })
+  return () => {
+    window.matchMedia = matchMedia
+    if (!hadCapture) delete (HTMLInputElement.prototype as { capture?: unknown }).capture
+  }
+}
+
+export const TakeAPhotoOnAPhone: StoryObj = {
+  tags: ['play'],
+  beforeEach: asPhone,
+  render: () => <Products path="/products/2" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    // The camera opens at once, and the phone's own chooser offers a photo taken before
+    expect(await canvas.findByText('No photo yet')).toBeTruthy()
+    expect(canvas.getByLabelText('Take a photo for Frame photo').getAttribute('capture')).toBe('environment')
+    expect(canvas.getByLabelText('Choose a photo for Frame photo').hasAttribute('capture')).toBe(false)
+    await userEvent.upload(canvas.getByLabelText('Take a photo for Frame photo'), png())
+    expect(await canvas.findByRole('button', { name: 'Retake' })).toBeTruthy()
+    expect(canvas.getAllByRole('button', { name: 'Replace' })).toHaveLength(2)
   },
 }
 

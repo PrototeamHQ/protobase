@@ -75,7 +75,12 @@ export type FileOptions = {
   original?: ImageVariant
   /** Whether a value may also be an https URL of a file elsewhere (`.externalUrls()`). */
   external?: true
+  /** The camera a phone or tablet opens instead of its file picker (`.capture()`). */
+  capture?: FileCamera
 }
+
+/** The rear (`environment`) or the front (`user`) camera, as the HTML `capture` attribute names them. */
+export type FileCamera = 'environment' | 'user'
 
 export const defaultMaxSize = 50_000_000
 
@@ -102,6 +107,19 @@ export const checkedAccept = (types: readonly string[]) =>
     if (!typePattern.test(lower)) throw new Error(`"${type}" is not a media type or a type/* wildcard`)
     return lower
   })
+
+/** The types a field opening the camera keeps: the image types of `accept`, or every image when it names none. */
+export const capturedAccept = (accept: readonly string[]) => {
+  const images = accept.filter((type) => type.startsWith('image/'))
+  return images.length > 0 ? images : ['image/*']
+}
+
+/** The types of `.accept()` on a field that opens the camera, which takes only images. */
+export const checkedCaptureAccept = (types: readonly string[]) => {
+  const other = types.find((type) => !type.startsWith('image/'))
+  if (other) throw new Error(`"${other}" is not an image type, and a field with .capture() takes only images`)
+  return [...types]
+}
 
 const providerPattern = /^[a-z][a-z0-9-]{0,31}$/
 // A stored value starting with one of these would read as a link or another standard URI.

@@ -108,6 +108,8 @@ export type FileFieldModel = {
   original?: ImageVariant
   /** Whether a value may also be an https URL of a file elsewhere, drawn and linked as it is (`.externalUrls()`). */
   external?: true
+  /** The camera a phone or tablet opens instead of its file picker: `environment` (rear) or `user` (front) (`.capture()`). */
+  capture?: 'environment' | 'user'
 }
 
 /** `digitsEnd`: only the end of the value's digits, spaces, `+` and dashes ignored (phone numbers). */

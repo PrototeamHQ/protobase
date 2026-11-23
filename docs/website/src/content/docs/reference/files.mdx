@@ -24,6 +24,7 @@ A file field is a `text` column that holds the file's URI. The bytes live with a
 | `.placeholder('photo_placeholder')` | Each image's ThumbHash in that text field, drawn while the image loads, see [Image variants and placeholders](#image-variants-and-placeholders). |
 | `.variants({ card: { … } }, { original? })` | Resized copies of each image stored beside it, see [Image variants and placeholders](#image-variants-and-placeholders). |
 | `.externalUrls()` | Also takes an https URL of a file elsewhere instead of an upload, see [External URLs](#external-urls). |
+| `.capture()`, `.capture('user')` | Opens the rear camera, or the front one with `'user'`, on phones and tablets, and takes only images, see [Camera capture](#camera-capture). |
 
 A file field cannot be filterable, sortable, aliased, searched, sensitive, or the key, tenant, owner or soft delete field. [`protobase doctor`](/reference/cli/#doctor) checks that its column is a text type.
 
@@ -120,6 +121,17 @@ A write takes only a ticket, `null` to clear the field, or the stored `uri` unch
 ### In forms
 
 In the admin app's create and edit forms, a file field takes a dropped or chosen file, limited to the field's `.accept()` types, and uploads it at once with a progress bar; Save then stores it with the record. A stored file shows its thumbnail or an icon, its name linking to the file, its type and size, and the type it was sent as when the server corrected it. Replace picks another file, and Remove, for an optional field, clears it. Tables show the file's name, beside a small thumbnail for an image.
+
+### Camera capture
+
+A field with `.capture()` opens the camera directly on phones and tablets, so a photo is taken and attached in one step, such as a mechanic photographing a meter. The rear camera opens by default, and `.capture('user')` opens the front one.
+
+```ts
+meter_photo: f.file().capture(),
+selfie: f.file().capture('user').optional(),
+```
+
+The field takes only images: the image types of its `.accept()`, or any image when it names none, and an `.accept()` after it that names another type is an error. On a phone or tablet the form offers Take a photo, which opens the camera, and Choose a photo, which opens the phone's own chooser for a photo taken before; a stored photo offers Retake beside Replace. A desktop browser has no camera to open, so the field picks or takes a dropped image file.
 
 ### How the type is decided
 

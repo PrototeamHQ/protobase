@@ -41,6 +41,15 @@ describe('f.file()', () => {
     expect(model.fields.datasheet!.file!.external).toBeUndefined()
   })
 
+  it('open the rear camera with capture(), the front one when asked, and take only images', () => {
+    const model = products({ meter: f.file().capture(), selfie: f.file().accept(['image/jpeg', 'application/pdf']).capture('user'), datasheet: f.file() }).toModel()
+    expect(model.fields.meter!.file).toEqual({ accept: ['image/*'], maxSize: 50_000_000, provider: 'private', capture: 'environment' })
+    expect(model.fields.selfie!.file).toMatchObject({ accept: ['image/jpeg'], capture: 'user' })
+    expect(model.fields.datasheet!.file!.capture).toBeUndefined()
+    expect(f.file().capture().accept(['image/png']).meta.file!.accept).toEqual(['image/png'])
+    expect(() => f.file().capture().accept(['application/pdf'])).toThrow('"application/pdf" is not an image type')
+  })
+
   it('refuse a placeholder field that is missing, writable, not text, or derived as well', () => {
     const photo = f.file().placeholder('photo_placeholder')
     expect(() => products({ photo }).toModel()).toThrow('derives "photo_placeholder", which is not a field')
