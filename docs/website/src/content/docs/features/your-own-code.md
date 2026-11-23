@@ -12,7 +12,7 @@ description: React components, field types, pages and handlers of your own, load
 - [Custom create pages](/reference/custom-components/#create-pages): Replace a resource's create form with your own page, such as a booking flow.
 - [Form parts](/reference/custom-components/#form-parts): Build your own forms from the app's fields, pickers, switches, buttons and dialogs.
 - [Menus and toasts](/reference/custom-components/#form-parts): Build your own menus that open beside their button on a desktop and as a sheet on a phone, with rows like the app's menus, and confirm an action with a toast.
-- [Markdown](/reference/custom-components/#components): Show markdown in your own components, such as a chat message, as the app's markdown fields draw it.
+- [Markdown](/reference/custom-components/#components): Show markdown in your own components, such as a chat message, as the app's markdown fields draw it, and wait for its renderer so a message does not change size as it formats.
 - [Polling lists](/reference/custom-components/#record-sections): A list your own component reads can refetch on an interval you set, to stay current.
 - [Image carousel](/reference/custom-components/#image-carousel): Step through screenshots or a record's files in your own components by swiping or with arrows, as cards step through photos.
 - [Assistant parts](/reference/assistant/#in-the-ui): The assistant's panel, chat messages, composer and action cards for your own components, with a frameless action card for a page that is already framed.
