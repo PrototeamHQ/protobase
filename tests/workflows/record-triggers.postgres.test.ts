@@ -202,6 +202,18 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
     await enable('ada', workflow.id, null)
   })
 
+  it('marks a trigger whose resource lost its tenant field failing with no write, on its check each minute', async () => {
+    const workflow = await save('ada', { 'app:record': { resource: 'invoices', when: "status = 'paid'" } })
+    await enable('ada', workflow.id, 1)
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    await sql`update workflows.triggers set input = ${JSON.stringify({ resource: 'rates' })}::jsonb where workflow_id = ${workflow.id}`.execute(db)
+    const check = admin.jobs.find((job) => job.name === 'workflows.trigger-tenant-check')!
+    await check.options.run(undefined, { db, job: { id: 'job', name: check.name, attempt: 1, maxAttempts: 1, startedOn: new Date() }, signal: new AbortController().signal, decryptField: async () => null })
+    const rows = (await sql<{ status: string; last_error: { code: string; message: string } }>`select status, last_error from workflows.triggers where workflow_id = ${workflow.id}`.execute(db)).rows
+    expect(rows).toMatchObject([{ status: 'failing', last_error: { code: 'no_tenant', message: 'rates has no tenant field, so its changes never reach a workflow of a tenant: give it .tenant(...)' } }])
+    await enable('ada', workflow.id, null)
+  })
+
   it("runs a plugin's own trigger and step from a package of its own, as it runs the built-in ones", async () => {
     const shout = { QueryLanguage: 'JSONata', StartAt: 'Shout', States: { Shout: { Type: 'Task', Resource: 'example:shout', Arguments: { text: '{% $states.context.Execution.Input.record.note %}' }, Output: '{% $states.result.text %}', End: true } } }
     const workflow = (await as('ada', '/workflows', 'POST', { name: 'Shout', ...definitionFields({ trigger: { 'example:new_note': { resource: 'invoices' } }, stateMachine: shout }) })).body

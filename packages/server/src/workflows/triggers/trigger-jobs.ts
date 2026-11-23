@@ -124,6 +124,33 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
     },
   })
 
+  // Why a tenant's trigger never fires, when its resource has no tenant field, as after an update removed it.
+  const tenantless = (trigger: { type: string; input: Record<string, unknown>; tenant_id: string | null }) => {
+    if (trigger.tenant_id === null) return
+    const spec = input.declared(trigger.type)?.ready(trigger.input)
+    const model = spec && input.deps().registry.find(spec.resource)?.model
+    if (!spec || !model || model.tenant) return
+    return tenantlessMessage(spec.resource)
+  }
+
+  /**
+   * Marks each active ready trigger that never fires for want of a tenant field failing, once a minute, so it shows
+   * failing soon after the update that removed the field, before any write.
+   */
+  const tenantCheck = defineJob({
+    name: 'workflows.trigger-tenant-check',
+    schedule: '* * * * *',
+    timeout: '1 minute',
+    run: async (_, { db }) => {
+      const types = [...input.readyTypes]
+      if (types.length === 0) return
+      for (const trigger of await activeTriggers(db, schema, types)) {
+        const message = trigger.status === 'active' ? tenantless(trigger) : undefined
+        if (message) await triggerFailed(db, schema, trigger, 'no_tenant', message)
+      }
+    },
+  })
+
   /**
    * Routes each dispatched change to the ready triggers on its resource and tenant: it queues the check of the record at
    * the time it becomes ready, in the dispatch's transaction. No sweep runs: a record becomes ready by a write, or at a
@@ -140,8 +167,9 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
       const model = spec && input.deps().registry.find(spec.resource)?.model
       const split = spec && readyWhen(spec.when)
       if (!spec || !model || !split?.ok) continue
-      if (trigger.tenant_id !== null && !model.tenant) {
-        if (trigger.status !== 'failing' && changes.some((change) => change.resource === spec.resource)) await triggerFailed(db, schema, trigger, 'no_tenant', tenantlessMessage(spec.resource))
+      const message = tenantless(trigger)
+      if (message) {
+        if (trigger.status !== 'failing' && changes.some((change) => change.resource === spec.resource)) await triggerFailed(db, schema, trigger, 'no_tenant', message)
         continue
       }
       const timeTerms = resolveTimeTerms(model, split.when.timeTerms)
@@ -154,7 +182,7 @@ export const triggerJobs = (input: ReadyInput & TriggerStartInput, text: Connect
     await readyCheck.enqueueMany(db, checks)
   }
 
-  return { jobs: [start, stopJob, readyCheck, ...polls.jobs], start, stop: stopJob, onChanges }
+  return { jobs: [start, stopJob, readyCheck, tenantCheck, ...polls.jobs], start, stop: stopJob, onChanges }
 }
 
 export type TriggerJobs = ReturnType<typeof triggerJobs>
