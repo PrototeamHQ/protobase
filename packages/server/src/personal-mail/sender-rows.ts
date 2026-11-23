@@ -11,7 +11,8 @@ export const senderRows = (rows: MailSenderRow[] = []): MailSenderStore & { rows
     ofUser: async (userId) => rows.filter((row) => row.userId === userId).map((row) => ({ ...row })),
     type: async (sender, at) => {
       const found = rows.find((row) => row.connectionId === sender.connectionId && key(row.address) === key(sender.address))
-      if (found) return { ...Object.assign(found, { typedAt: at, name: sender.name, signature: sender.signature }) }
+      const typedAt = found?.removedAt && found.removedAt >= at ? new Date(found.removedAt.getTime() + 1) : at
+      if (found) return { ...Object.assign(found, { typedAt, name: sender.name, signature: sender.signature }) }
       const row: MailSenderRow = { id: `typed-${++made}`, ...sender, shared: false, isDefault: false, createdAt: at, typedAt: at, listedAt: null, providerState: null, providerStateReadAt: null, removedAt: null }
       rows.push(row)
       return { ...row }

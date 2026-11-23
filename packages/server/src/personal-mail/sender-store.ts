@@ -45,7 +45,8 @@ export type MailSenderStore = {
   ofUser: (userId: string) => Promise<MailSenderRow[]>
   /**
    * Records that the person typed `sender` at `at`: a new row, or on the row of its connection and address, its
-   * `typedAt`, name and signature, leaving what the provider listed and the row's id as they were.
+   * `typedAt`, name and signature, leaving what the provider listed and the row's id as they were. Typed again after
+   * its owner removed it, it is typed after the removal, even within the same millisecond.
    */
   type: (sender: TypedSender, at: Date) => Promise<MailSenderRow>
   /**
@@ -101,7 +102,7 @@ export const sqlSenderStore = (store: () => Promise<StoreSql>): MailSenderStore 
     const { table, c, selected } = columns(s)
     const { rows } = await sql<MailSenderRow>`insert into ${table} (id, ${c.user_id}, ${c.connection_id}, ${c.address}, ${c.name}, ${c.shared}, ${c.signature}, ${c.is_default}, ${c.created_at}, ${c.typed_at})
 values (${s.newId}, ${sender.userId}, ${sender.connectionId}, ${sender.address}, ${sender.name}, false, ${sender.signature}, false, ${at}, ${at})
-on conflict (${c.connection_id}, ${c.address_key}) do update set ${c.typed_at} = excluded.${c.typed_at}, ${c.name} = excluded.${c.name}, ${c.signature} = excluded.${c.signature}
+on conflict (${c.connection_id}, ${c.address_key}) do update set ${c.typed_at} = greatest(excluded.${c.typed_at}, ${table}.${c.removed_at} + interval '1 millisecond'), ${c.name} = excluded.${c.name}, ${c.signature} = excluded.${c.signature}
 returning ${selected}`.execute(s.db)
     return rows[0]!
   },

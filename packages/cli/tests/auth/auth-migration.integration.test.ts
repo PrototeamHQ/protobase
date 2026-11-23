@@ -92,7 +92,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     return [...rows]
   }
   const versions = async (databaseUrl: string, table = 'auth_migrations') => (await query<{ version: number }>(databaseUrl, `select version from ${table} order by version`)).map((row) => row.version)
-  const every = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+  const every = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
   // Every feature that keeps something in the store: organizations, the OAuth provider for MCP, personal access tokens
   // and the From addresses of personal mail.
   const personalMail = { personalMail: ['gmail' as const], encryptOAuthTokens: true, socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } } }
@@ -260,6 +260,63 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     expect(await versions(databaseUrl)).toEqual(every.filter((version) => version !== 11))
   })
 
+  it("puts each From address entered before on its owner's one Gmail connection, and on none when they have none or several", async () => {
+    const databaseUrl = await createDatabase()
+    const auth = authOn(databaseUrl)
+    const folder = await migrationsDir()
+    await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })
+    await applyAll(databaseUrl, folder)
+    // The store before the step that puts each From address on a connection, with the one key per person and address.
+    await query(
+      databaseUrl,
+      `drop index mail_sender_connection_address_uidx, mail_sender_user_address_idx;
+alter table mail_sender drop column connection_id, drop column address_key, drop column typed_at, drop column listed_at, drop column provider_state, drop column provider_state_read_at, drop column removed_at;
+alter table mail_sender add unique (user_id, address);
+delete from auth_migrations where version = 15`,
+    )
+    const send = 'https://www.googleapis.com/auth/gmail.send'
+    await query(databaseUrl, `insert into "user" (id, name, email, email_verified) values ('one', 'One', 'one@example.com', true), ('none', 'None', 'none@example.com', true), ('two', 'Two', 'two@example.com', true), ('signin', 'Sign-in', 'signin@example.com', true)`)
+    await query(
+      databaseUrl,
+      `insert into account (id, account_id, provider_id, user_id, scope, updated_at) values
+  ('one-gmail', 's1', 'google', 'one', 'openid,email,${send}', now()),
+  ('two-a', 's2', 'google', 'two', '${send}', now()),
+  ('two-b', 's3', 'google', 'two', 'openid ${send}', now()),
+  ('signin-google', 's4', 'google', 'signin', 'openid,email,profile', now())`,
+    )
+    await query(
+      databaseUrl,
+      `insert into mail_sender (id, user_id, address, name, shared, signature, is_default, created_at) values
+  ('m1', 'one', 'billing@acme.example', 'Acme billing', false, null, true, '2026-10-01'),
+  ('m2', 'one', 'sales@acme.example', null, false, 'Bye', false, '2026-10-02'),
+  ('m3', 'none', 'none@acme.example', null, false, null, false, '2026-10-03'),
+  ('m4', 'two', 'two@acme.example', null, false, null, false, '2026-10-04'),
+  ('m5', 'signin', 'signin@acme.example', null, false, null, false, '2026-10-05')`,
+    )
+
+    const text = await readFile((await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' }))!, 'utf8')
+    expect(text).toContain('-- mail_senders 3 sender_address_evidence: ')
+    const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
+    await sql.begin((tx) => tx.unsafe(text))
+    await sql.end()
+    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+
+    const rows = await query<{ id: string; connection_id: string | null; address_key: string; name: string | null; signature: string | null; is_default: boolean; typed_at: Date; listed_at: Date | null; provider_state: string | null }>(
+      databaseUrl,
+      `select id, connection_id, address_key, name, signature, is_default, typed_at, listed_at, provider_state from mail_sender order by id`,
+    )
+    expect(rows).toEqual([
+      { id: 'm1', connection_id: 'one-gmail', address_key: 'billing@acme.example', name: 'Acme billing', signature: null, is_default: true, typed_at: new Date('2026-10-01'), listed_at: null, provider_state: null },
+      { id: 'm2', connection_id: 'one-gmail', address_key: 'sales@acme.example', name: null, signature: 'Bye', is_default: false, typed_at: new Date('2026-10-02'), listed_at: null, provider_state: null },
+      { id: 'm3', connection_id: null, address_key: 'none@acme.example', name: null, signature: null, is_default: false, typed_at: new Date('2026-10-03'), listed_at: null, provider_state: null },
+      { id: 'm4', connection_id: null, address_key: 'two@acme.example', name: null, signature: null, is_default: false, typed_at: new Date('2026-10-04'), listed_at: null, provider_state: null },
+      { id: 'm5', connection_id: null, address_key: 'signin@acme.example', name: null, signature: null, is_default: false, typed_at: new Date('2026-10-05'), listed_at: null, provider_state: null },
+    ])
+    // One address per connection now, not per person: the old key is gone, so one person may have it on two connections.
+    await query(databaseUrl, `insert into mail_sender (id, user_id, connection_id, address, shared, is_default, created_at) values ('m6', 'two', 'two-a', 'two@acme.example', false, false, now()), ('m7', 'two', 'two-b', 'two@acme.example', false, false, now())`)
+    await expect(query(databaseUrl, `insert into mail_sender (id, user_id, connection_id, address, shared, is_default, created_at) values ('m8', 'two', 'two-a', ' TWO@acme.example', false, false, now())`)).rejects.toThrow(/mail_sender_connection_address_uidx/)
+  })
+
   // A store an earlier Protobase made by comparing its tables with Better Auth's: organizations on, MCP off, a user in it.
   const earlierStore = async () => {
     const databaseUrl = await createDatabase()
@@ -310,9 +367,9 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const folder = await migrationsDir()
     await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })
     await applyAll(databaseUrl, folder)
-    await query(databaseUrl, "insert into auth_migrations (version, name) values (15, 'later')")
-    await expect(checkAuthSchema(auth)).rejects.toThrow('The auth store is at migration 15, newer than the 14 this version of Protobase knows; upgrade Protobase')
-    await expect(writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })).rejects.toThrow(/newer than the 14/)
+    await query(databaseUrl, "insert into auth_migrations (version, name) values (16, 'later')")
+    await expect(checkAuthSchema(auth)).rejects.toThrow('The auth store is at migration 16, newer than the 15 this version of Protobase knows; upgrade Protobase')
+    await expect(writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })).rejects.toThrow(/newer than the 15/)
   })
 
   it('compares the tables only in the development check, which names what drifted', async () => {
