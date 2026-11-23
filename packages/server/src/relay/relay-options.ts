@@ -53,21 +53,30 @@ export type RelayPresence = {
   key: string
 }
 
-/** The realtime relay the app hands its connections to (`realtime.relay` in `protobase.config.ts`). */
+/**
+ * The realtime relay the app hands its connections to (`realtime.relay` in `protobase.config.ts`). Its address, id
+ * and keys default to the variables of `relayVariables`, which a platform that runs the relay sets.
+ */
 export type RealtimeRelayOptions = {
   /** The relay's address, such as `https://relay.example.com`: its app commands, and its socket at `/socket`. */
-  url: string
+  url?: string
   /** The app's id on the relay. */
-  app: string
+  app?: string
   /** One of the app's API keys on the relay, which its commands carry. */
-  apiKey: string
+  apiKey?: string
   /** One of the app's ticket keys on the relay, which signs the connect tickets. */
-  ticketKey: string
+  ticketKey?: string
   /** The channel resources by name. */
   channels: Record<string, RelayChannelOptions>
   /** Turns on presence: the relay reports who is online, away or offline, and the app keeps it in this resource. */
   presence?: RelayPresence
 }
+
+/** `realtime.relay` with its address, id and keys, from the config or the environment. */
+export type RealtimeRelaySettings = RealtimeRelayOptions & Required<Pick<RealtimeRelayOptions, 'url' | 'app' | 'apiKey' | 'ticketKey'>>
+
+/** The variables a platform that runs the relay sets, which `realtime.relay`'s address, id and keys default to. */
+export const relayVariables = { url: 'PROTOBASE_RELAY_URL', app: 'PROTOBASE_RELAY_APP', apiKey: 'PROTOBASE_RELAY_API_KEY', ticketKey: 'PROTOBASE_RELAY_TICKET_KEY' } as const
 
 const appPattern = /^[a-z0-9_-]{1,64}$/
 const minKeyLength = 32
@@ -98,11 +107,12 @@ const checkEvents = (where: string, events: unknown) => {
 }
 
 /** The options, or an error naming what is wrong with their shape; `relayModels` checks them against the resources. */
-export const checkRelayOptions = (options: RealtimeRelayOptions) => {
-  if (!nonEmpty(options?.url) || !/^https?:\/\//.test(options.url)) throw new Error(`realtime.relay.url must start with https:// or http://, not ${JSON.stringify(options?.url)}`)
-  if (typeof options.app !== 'string' || !appPattern.test(options.app)) throw new Error(`realtime.relay.app must be 1 to 64 of a-z, 0-9, _ and -, as the relay names the app, not ${JSON.stringify(options.app)}`)
+export const checkRelayOptions = (options: RealtimeRelayOptions): RealtimeRelaySettings => {
+  if (!nonEmpty(options?.url) || !/^https?:\/\//.test(options.url)) throw new Error(`realtime.relay.url or ${relayVariables.url} must start with https:// or http://, not ${JSON.stringify(options?.url)}`)
+  if (typeof options.app !== 'string' || !appPattern.test(options.app)) throw new Error(`realtime.relay.app or ${relayVariables.app} must be 1 to 64 of a-z, 0-9, _ and -, as the relay names the app, not ${JSON.stringify(options.app)}`)
   for (const key of ['apiKey', 'ticketKey'] as const) {
-    if (typeof options[key] !== 'string' || options[key].length < minKeyLength) throw new Error(`realtime.relay.${key} must be a string of at least ${minKeyLength} characters, such as from an environment variable`)
+    const value = options[key]
+    if (typeof value !== 'string' || value.length < minKeyLength) throw new Error(`realtime.relay.${key} or ${relayVariables[key]} must be a string of at least ${minKeyLength} characters`)
   }
   if (typeof options.channels !== 'object' || options.channels === null || Object.keys(options.channels).length === 0) throw new Error('realtime.relay.channels must name at least one channel resource')
   for (const [name, channel] of Object.entries(options.channels)) {
@@ -116,5 +126,18 @@ export const checkRelayOptions = (options: RealtimeRelayOptions) => {
     if (!(nonEmpty(presence?.resource) && nonEmpty(presence.user) && nonEmpty(presence.status) && nonEmpty(presence.at))) throw new Error('realtime.relay.presence must be { resource, user, status, at, key }')
     if (typeof presence.key !== 'string' || presence.key.length < minKeyLength) throw new Error(`realtime.relay.presence.key must be a string of at least ${minKeyLength} characters, such as from an environment variable`)
   }
-  return options
+  return options as RealtimeRelaySettings
 }
+
+/**
+ * `realtime.relay` with each of its address, id and keys the config leaves out taken from its variable in `env`, then
+ * checked: a value in the config wins, and one missing from both fails the check, naming the key and its variable.
+ */
+export const relaySettings = (options: RealtimeRelayOptions, env: Record<string, string | undefined>) =>
+  checkRelayOptions({
+    ...options,
+    url: options.url || env[relayVariables.url],
+    app: options.app || env[relayVariables.app],
+    apiKey: options.apiKey || env[relayVariables.apiKey],
+    ticketKey: options.ticketKey || env[relayVariables.ticketKey],
+  })

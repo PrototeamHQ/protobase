@@ -6494,10 +6494,6 @@
         }
       },
       "required": [
-        "url",
-        "app",
-        "apiKey",
-        "ticketKey",
         "channels"
       ],
       "additionalProperties": false

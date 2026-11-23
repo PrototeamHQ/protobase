@@ -11,7 +11,7 @@ import { memberships } from './members-sql'
 import { peopleChannel } from './presence-commands'
 import type { RelayJobs } from './relay-jobs'
 import type { RelayModels } from './relay-models'
-import type { RealtimeRelayOptions } from './relay-options'
+import type { RealtimeRelaySettings } from './relay-options'
 import { signTicket, type TicketSubject } from './ticket'
 
 /** Where the ticket endpoint is mounted under the system path. */
@@ -37,7 +37,7 @@ const requestedChannels = (body: unknown) => {
   return [...new Set(channels as string[])]
 }
 
-type TicketRouteInput = { deps: Deps; options: RealtimeRelayOptions; models: RelayModels; jobs: RelayJobs; sessionEnd: (session: string) => Promise<Date | undefined> }
+type TicketRouteInput = { deps: Deps; options: RealtimeRelaySettings; models: RelayModels; jobs: RelayJobs; sessionEnd: (session: string) => Promise<Date | undefined> }
 
 /**
  * `POST /` with `{ channels?: [...] }`: a connect ticket for the relay, `{ ticket, url, channels, expiresAt }`, with the

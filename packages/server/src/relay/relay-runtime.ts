@@ -16,7 +16,7 @@ import { relayClient } from './relay-commands'
 import { relayJobs } from './relay-jobs'
 import { relayModels } from './relay-models'
 import { publicChannels } from './public-channels'
-import { checkRelayOptions, type RealtimeRelayOptions } from './relay-options'
+import type { RealtimeRelaySettings } from './relay-options'
 import { sessionEnd } from './session-end'
 import { ticketRoutes } from './ticket-route'
 
@@ -25,8 +25,7 @@ import { ticketRoutes } from './ticket-route'
  * endpoint and, with presence, the endpoint of the relay's presence reports. Needs the app's
  * own sign-in, whose sessions the tickets name.
  */
-export const relayRuntime = (options: RealtimeRelayOptions, auth: AdminAuth | undefined, deps: Deps) => {
-  checkRelayOptions(options)
+export const relayRuntime = (options: RealtimeRelaySettings, auth: AdminAuth | undefined, deps: Deps) => {
   if (!auth) throw new Error("relay needs the app's own sign-in (auth), whose sessions its tickets name and end")
   const models = relayModels(options, deps.registry.entries.map((entry) => entry.model))
   const ends = sessionEnd(auth)

@@ -35,8 +35,8 @@ describe('withDevRelay', () => {
     const served = await withDevRelay(config(), '/app', devUrl, [])
     const options = served.realtime!.relay!
     expect(options).toMatchObject({ ...relay, url: 'http://127.0.0.1:4100' })
-    expect(options.apiKey.length).toBeGreaterThanOrEqual(32)
-    expect(options.ticketKey.length).toBeGreaterThanOrEqual(32)
+    expect(options.apiKey!.length).toBeGreaterThanOrEqual(32)
+    expect(options.ticketKey!.length).toBeGreaterThanOrEqual(32)
     expect(started).toHaveBeenCalledWith('/bin/relay', 4100, { id: 'chat', api_keys: [options.apiKey], ticket_keys: [options.ticketKey], origins: [devUrl], limits: { connections: 1000, channels_per_ticket: 200, request_bytes: 1048576 } }, expect.any(Function))
   })
 
@@ -62,7 +62,7 @@ describe('withDevRelay', () => {
   })
 
   it('refuses an app id the relay would not take, before starting it', async () => {
-    await expect(withDevRelay(config({ app: 'Chat App' }), '/app', devUrl, [])).rejects.toThrow(/realtime.relay.app must be/)
+    await expect(withDevRelay(config({ app: 'Chat App' }), '/app', devUrl, [])).rejects.toThrow(/realtime.relay.app or PROTOBASE_RELAY_APP must be/)
     expect(started).not.toHaveBeenCalled()
   })
 })

@@ -46,7 +46,26 @@ export default defineConfig(({ env }) => ({
 
 The relay needs the app's own [sign-in](/reference/auth/), whose sessions its tickets name, with its store in the app's own database, as the `auth` config puts it: an auth store in another database is refused. A members resource's changes must be captured, so declare [`.live()`](/reference/live/) on it; the relay hears of the changes of every resource whose changes are captured, such as a live one, that is a channel resource or has a relation field to one. [`protobase migration`](/reference/cli/#migration) writes the trigger that ends a deleted session's sockets, in the `relay` schema, after the auth store's steps when the same file writes them, so a new app's first migration sets up both; the server checks it at start.
 
-[`protobase relay app`](/reference/cli/#relay-app) prints the app's entry for the relay's apps file, from this config and the app's `url`.
+[`protobase relay app`](/reference/cli/#relay-app) prints the app's entry for the relay's apps file, from this config, these variables and the app's `url`.
+
+### From the platform
+
+An app on a platform that runs the relay picks up its address and keys from the environment, so its config names only its channels:
+
+| Variable | Default of |
+| --- | --- |
+| `PROTOBASE_RELAY_URL` | `url` |
+| `PROTOBASE_RELAY_APP` | `app` |
+| `PROTOBASE_RELAY_API_KEY` | `apiKey` |
+| `PROTOBASE_RELAY_TICKET_KEY` | `ticketKey` |
+
+Each is a default on its own: a value in the config wins, and a key that neither sets stops the server at start, naming the key and its variable. The relay stays off without `realtime.relay` in the config, however many of these are set: the app turns it on by declaring its channels.
+
+```ts
+export default defineConfig({
+  realtime: { relay: { channels: { conversations: { members: { resource: 'conversation_members', channel: 'conversation_id', user: 'user_id' } } } } },
+})
+```
 
 ## Local development
 
@@ -58,7 +77,7 @@ npm install --save-dev @protobase/realtime
 
 <gap>`protobase dev` cannot run the relay without the project installing `@protobase/realtime` because the CLI does not depend on it until the package is published.</gap>
 
-It starts the relay on the first load of a config with `realtime.relay`, an edit that adds it included, on a free port of `127.0.0.1`, serving this one app with the dev server's origin, and gives the app its address. The keys are the config's when it sets them, and otherwise made anew for each `protobase dev`. An edit that changes the app's id or keys starts it again, one that removes `realtime.relay` or sets a `url` stops it, and it stops with `dev`. Its own messages, such as an apps file it refuses, show in the terminal. With a `url`, the app uses that relay and `dev` starts none.
+It starts the relay on the first load of a config with `realtime.relay`, an edit that adds it included, on a free port of `127.0.0.1`, serving this one app with the dev server's origin, and gives the app its address. The keys are the config's when it sets them, and otherwise made anew for each `protobase dev`. An edit that changes the app's id or keys starts it again, one that removes `realtime.relay` or sets a `url` stops it, and it stops with `dev`. Its own messages, such as an apps file it refuses, show in the terminal. With a `url`, the app uses that relay and `dev` starts none. `dev` reads [the platform's variables](#from-the-platform) for neither: the app's id comes from the config.
 
 ## Tickets
 
