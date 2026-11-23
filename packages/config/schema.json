@@ -1886,7 +1886,7 @@
           "type": "object"
         },
         "personalMail": {
-          "description": "The mail providers people may link their own mailbox with, from the account page, for the app's functions to send\nmail from it (`context.personalMail`), such as `['gmail']`. Each links through its sign-in provider, which\n`socialProviders` must have: Gmail through `google`. Needs `encryptOAuthTokens`. Default none.",
+          "description": "The mail providers people may link their own mailbox with, from the account page, for the app's functions to send\nmail from it (`context.personalMail`), such as `['gmail']`. Each links through its sign-in provider, which\n`socialProviders` must have: Gmail through `google`. An entry may add optional scopes the provider offers for more\nabilities, such as `{ provider: 'gmail', scopes: [gmailSettingsScope] }`, with which the link reads the mailbox's\nsend-as addresses and whether Gmail sends as each. Needs `encryptOAuthTokens`. Default none.",
           "anyOf": [
             {
               "type": "array",
@@ -1894,6 +1894,45 @@
                 "anyOf": [
                   {
                     "const": "gmail"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "provider": {
+                        "anyOf": [
+                          {
+                            "const": "gmail"
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      },
+                      "scopes": {
+                        "anyOf": [
+                          {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "$ref": "#/definitions/EnvValue"
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "$ref": "#/definitions/EnvValue"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "provider"
+                    ],
+                    "additionalProperties": false
                   },
                   {
                     "$ref": "#/definitions/EnvValue"
@@ -4688,6 +4727,76 @@
                   ]
                 },
                 "is_default": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "connection_id": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "address_key": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "typed_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "listed_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "provider_state": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "provider_state_read_at": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "removed_at": {
                   "anyOf": [
                     {
                       "type": "string"
