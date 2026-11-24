@@ -48,7 +48,10 @@ describe('protobase migration check', () => {
     const snapshot = (await readSnapshot(dir))!
     await custom(dir, 'orders')
     await writeSnapshot(dir, snapshot)
-    expect(await check(dir)).toContain('protobase.snapshot.json ends at 001_auth.sql, not at the newest migration Protobase wrote, 002_orders.sql')
+    expect(await check(dir)).toEqual([
+      'protobase.snapshot.json ends at 001_auth.sql, not at the newest migration Protobase wrote, 002_orders.sql',
+      '002_orders.sql is written by hand and says neither `-- protobase:additive` nor `-- protobase:breaks-older-code`: put the one that holds among its `-- protobase:` lines',
+    ])
   })
 
   it('reports a model edited by hand', async () => {

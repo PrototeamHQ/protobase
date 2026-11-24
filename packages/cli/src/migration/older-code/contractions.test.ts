@@ -14,7 +14,7 @@ const before: Catalog = {
   constraints: [{ relation: '1', name: 'orders_pkey', definition: 'PRIMARY KEY (id)' }],
   uniqueIndexes: [{ relation: '1', name: 'orders_pkey', definition: 'CREATE UNIQUE INDEX orders_pkey ON sales.orders USING btree (id)' }],
   functions: [{ key: 'sales.total(integer)', result: 'integer' }, { key: 'changes.capture()', result: 'trigger' }],
-  triggers: [{ relation: '1', function: 'changes.capture()' }],
+  triggers: [{ relation: '1', function: 'changes.capture()', enabled: 'O', type: 1 | 4 | 8 }, { relation: '1', function: 'changes.capture()', enabled: 'O', type: 1 | 16 }],
   enums: [{ name: 'sales.state', labels: ['open', 'closed'] }],
 }
 
@@ -43,7 +43,7 @@ describe('what a migration takes from older code', () => {
     const found = edit((after) => {
       after.relations[1]!.oid = '9'
       after.columns[2]!.relation = '9'
-      after.triggers = [{ relation: '1', function: 'changes.capture()' }]
+      after.triggers = [{ relation: '1', function: 'changes.capture()', enabled: 'O', type: 1 | 4 | 8 | 16 }]
     })
     expect(found).toEqual([])
   })
@@ -60,13 +60,22 @@ describe('what a migration takes from older code', () => {
     expect(contractions(formula, regenerated)).toEqual([])
     expect(edit((after) => (after.columns[2]!.name = 'ref'))).toEqual(['drops or renames column sales.open_orders.code'])
     expect(edit((after) => (after.functions = after.functions.slice(1)))).toEqual(['drops, renames or moves function sales.total(integer), or changes its arguments'])
-    expect(edit((after) => (after.triggers = []))).toEqual(['drops the trigger calling changes.capture() on sales.orders'])
+    expect(edit((after) => (after.triggers = []))).toEqual(['drops or disables the trigger calling changes.capture() on sales.orders for insert, delete, update'])
+    expect(edit((after) => (after.triggers[1]!.enabled = 'D'))).toEqual(['drops or disables the trigger calling changes.capture() on sales.orders for update'])
+    expect(edit((after) => (after.triggers[0]!.type = 1 | 4))).toEqual(['drops or disables the trigger calling changes.capture() on sales.orders for delete'])
     expect(edit((after) => (after.enums[0]!.labels = ['open']))).toEqual(['removes the value closed of type sales.state'])
   })
 
   it('names a changed type or result, a column made required, and a new limit on a table there already', () => {
     expect(edit((after) => (after.columns[1]!.type = 'integer'))).toEqual(['changes the type of column sales.orders.code from text to integer'])
     expect(edit((after) => (after.columns[1]!.notNull = true))).toEqual(['makes column sales.orders.code not null'])
+    const defaulted = structuredClone(before)
+    Object.assign(defaulted.columns[1]!, { notNull: true, hasDefault: true })
+    const undefaulted = structuredClone(defaulted)
+    undefaulted.columns[1]!.hasDefault = false
+    expect(contractions(defaulted, undefaulted)).toEqual(['removes the default of the required column sales.orders.code'])
+    undefaulted.columns[1]!.notNull = false
+    expect(contractions(defaulted, undefaulted)).toEqual([])
     expect(edit((after) => after.columns.push(column('state', 3, { notNull: true })))).toEqual(['adds the required column sales.orders.state without a default'])
     expect(edit((after) => (after.functions[0]!.result = 'bigint'))).toEqual(['changes what function sales.total(integer) returns from integer to bigint'])
     expect(edit((after) => after.constraints.push({ relation: '1', name: 'orders_code_check', definition: "CHECK (code <> '')" }))).toEqual([

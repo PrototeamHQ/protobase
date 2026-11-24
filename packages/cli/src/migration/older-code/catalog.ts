@@ -9,7 +9,8 @@ export type CatalogColumn = { relation: string; name: string; number: number; ty
 /** A check, unique, foreign key, primary key or exclusion constraint, or a unique index, by its relation's oid. */
 export type CatalogLimit = { relation: string; name: string; definition: string }
 export type CatalogFunction = { key: string; result: string }
-export type CatalogTrigger = { relation: string; function: string }
+/** A trigger: the function it calls, whether it is disabled (`D`), and `pg_trigger.tgtype`, whose bits name its events. */
+export type CatalogTrigger = { relation: string; function: string; enabled: string; type: number }
 export type CatalogEnum = { name: string; labels: string[] }
 
 export type Catalog = {
@@ -42,7 +43,7 @@ select json_build_object(
   'uniqueIndexes', (select coalesce(json_agg(json_build_object('relation', i.indrelid::text, 'name', ic.relname, 'definition', pg_get_indexdef(i.indexrelid))), '[]')
     from pg_index i join rel on rel.oid = i.indrelid join pg_class ic on ic.oid = i.indexrelid where i.indisunique),
   'functions', (select coalesce(json_agg(json_build_object('key', key, 'result', result)), '[]') from fn),
-  'triggers', (select coalesce(json_agg(json_build_object('relation', t.tgrelid::text, 'function', fn.key)), '[]')
+  'triggers', (select coalesce(json_agg(json_build_object('relation', t.tgrelid::text, 'function', fn.key, 'enabled', t.tgenabled::text, 'type', t.tgtype::int)), '[]')
     from pg_trigger t join rel on rel.oid = t.tgrelid join fn on fn.oid = t.tgfoid where not t.tgisinternal),
   'enums', (select coalesce(json_agg(json_build_object('name', format('%I.%I', ns.nspname, t.typname),
       'labels', (select json_agg(e.enumlabel order by e.enumsortorder) from pg_enum e where e.enumtypid = t.oid))), '[]')

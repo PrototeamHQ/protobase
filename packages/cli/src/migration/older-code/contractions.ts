@@ -1,4 +1,4 @@
-import type { Catalog, CatalogColumn, CatalogLimit, CatalogRelation } from './catalog'
+import type { Catalog, CatalogColumn, CatalogLimit, CatalogRelation, CatalogTrigger } from './catalog'
 
 // What a migration takes from the code still running while it deploys, and from the version before once rolled back:
 // what that code reads, writes or relies on that is gone or changed after it, or a new limit the rows it writes may
@@ -12,6 +12,29 @@ const kindNames: Record<string, string> = { r: 'table', p: 'table', f: 'foreign 
 const holdsRows = new Set(['r', 'p', 'S'])
 const tables = new Set(['r', 'p'])
 
+// The insert, delete, update and truncate bits of `pg_trigger.tgtype`.
+const eventBits = [
+  [4, 'insert'],
+  [8, 'delete'],
+  [16, 'update'],
+  [32, 'truncate'],
+] as const
+
+// The events the enabled triggers calling each function fire on, by function.
+const firedEvents = (triggers: readonly CatalogTrigger[]) => {
+  const events = new Map<string, number>()
+  for (const trigger of triggers.filter(({ enabled }) => enabled !== 'D')) events.set(trigger.function, (events.get(trigger.function) ?? 0) | (trigger.type & 60))
+  return events
+}
+
+const lostTriggers = (relation: CatalogRelation, before: readonly CatalogTrigger[], after: readonly CatalogTrigger[]) => {
+  const now = firedEvents(after)
+  return [...firedEvents(before)].flatMap(([fn, had]) => {
+    const lost = eventBits.filter(([bit]) => had & bit && !((now.get(fn) ?? 0) & bit)).map(([, event]) => event)
+    return lost.length > 0 ? [`drops or disables the trigger calling ${fn} on ${relation.name} for ${lost.join(', ')}`] : []
+  })
+}
+
 const byRelation = <T extends { relation: string }>(items: T[], oid: string) => items.filter((item) => item.relation === oid)
 
 const columnChanges = (relation: CatalogRelation, before: CatalogColumn[], after: CatalogColumn[]) =>
@@ -22,6 +45,7 @@ const columnChanges = (relation: CatalogRelation, before: CatalogColumn[], after
     if (tables.has(relation.kind) && !had.generated && now.number !== had.number) return [`drops column ${name} and adds it again, losing its values`]
     if (now.type !== had.type) return [`changes the type of column ${name} from ${had.type} to ${now.type}`]
     if (now.notNull && !had.notNull) return [`makes column ${name} not null`]
+    if (now.notNull && had.hasDefault && !now.hasDefault && !now.generated) return [`removes the default of the required column ${name}`]
     return []
   })
 
@@ -46,14 +70,12 @@ const relationChanges = (before: Catalog, after: Catalog, relation: CatalogRelat
   // A constraint's own unique index is named after it, so it is named once.
   const constraints = [byRelation(before.constraints, relation.oid), byRelation(after.constraints, now.oid)] as const
   const indexes = [byRelation(before.uniqueIndexes, relation.oid), byRelation(after.uniqueIndexes, now.oid)].map((found) => found.filter((index) => !constraints[1].some((constraint) => constraint.name === index.name))) as [CatalogLimit[], CatalogLimit[]]
-  const triggers = byRelation(after.triggers, now.oid)
-  const lostTriggers = [...new Set(byRelation(before.triggers, relation.oid).map((trigger) => trigger.function))].filter((fn) => !triggers.some((trigger) => trigger.function === fn))
   return [
     ...columnChanges(relation, ...columns),
     ...requiredColumns(relation, ...columns),
     ...newLimits(relation, 'constraint', ...constraints),
     ...newLimits(relation, 'unique index', ...indexes),
-    ...lostTriggers.map((fn) => `drops the trigger calling ${fn} on ${relation.name}`),
+    ...lostTriggers(relation, byRelation(before.triggers, relation.oid), byRelation(after.triggers, now.oid)),
   ]
 }
 

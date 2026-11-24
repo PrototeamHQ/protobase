@@ -43,7 +43,21 @@ alter table sales.orders add column total integer generated always as (id * 3) s
     ])
     expect(found).toEqual([
       { name: 'computed', found: ['drops or renames column sales.orders.code'] },
-      { name: 'changes', found: ['adds the constraint code_set to sales.orders, which rows written by older code may break', 'drops the trigger calling sales.capture() on sales.orders'] },
+      { name: 'changes', found: ['adds the constraint code_set to sales.orders, which rows written by older code may break', 'drops or disables the trigger calling sales.capture() on sales.orders for insert'] },
+    ])
+  })
+
+  it('names a later section that changes what an earlier one took, under that section too', async () => {
+    const database = await openPostgresDatabase('empty')
+    await database.exec(ordersSql)
+    const found = await trialContractions(database.url, [
+      section('auth', 'alter table sales.orders add constraint code_set check (code is not null) not valid'),
+      section('computed', "alter table sales.orders drop constraint code_set;\nalter table sales.orders add constraint code_set check (code <> '') not valid"),
+    ])
+    const line = 'adds the constraint code_set to sales.orders, which rows written by older code may break'
+    expect(found).toEqual([
+      { name: 'auth', found: [line] },
+      { name: 'computed', found: [line] },
     ])
   })
 

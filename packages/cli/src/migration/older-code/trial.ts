@@ -17,8 +17,8 @@ const lockNotAvailable = '55P03'
 
 /**
  * Applies `sections` to the database at `url` in one transaction it rolls back, reading its schema before them and
- * after each, so nothing changes: what the whole file takes from older code, each line under the first section that
- * takes it. Sections that take nothing are
+ * after each, so nothing changes: what the whole file takes from older code, each line under the sections that take
+ * it. Sections that take nothing are
  * left out.
  */
 export const trialContractions = async (url: string, sections: readonly { name: string; text: string }[]): Promise<SectionContractions[]> => {
@@ -30,18 +30,26 @@ export const trialContractions = async (url: string, sections: readonly { name: 
       // The check of a kept module on again was asked already, and is not what the trial reads.
       await tx.unsafe(`select set_config('${forceSetting}', 'true', true)`)
       const before = await readCatalog(tx)
-      // Each line by the first section that takes it; a later section may give it back.
-      const firstBy = new Map<string, string>()
-      let last: string[] = []
+      // What each section takes from the schema the one before it left, and from the schema before the file. A line
+      // of the whole file goes under every section that took it itself, so a later section that changes what an
+      // earlier one made is named too; one no section took alone, such as a column dropped by one and added again
+      // by another, goes under the first section after which the file had it.
+      const own: string[][] = []
+      const sinceStart: string[][] = []
+      let previous = before
       for (const section of sections) {
         await tx.unsafe(section.text)
-        last = contractions(before, await readCatalog(tx))
-        for (const line of last) if (!firstBy.has(line)) firstBy.set(line, section.name)
+        const now = await readCatalog(tx)
+        own.push(contractions(previous, now))
+        sinceStart.push(contractions(before, now))
+        previous = now
       }
-      for (const { name } of sections) {
-        const lines = last.filter((line) => firstBy.get(line) === name)
+      const whole = sinceStart.at(-1) ?? []
+      const firstAt = (line: string) => sinceStart.findIndex((lines) => lines.includes(line))
+      sections.forEach(({ name }, index) => {
+        const lines = whole.filter((line) => own[index]!.includes(line) || (!own.some((lines) => lines.includes(line)) && firstAt(line) === index))
         if (lines.length > 0) found.push({ name, found: lines })
-      }
+      })
       throw rolledBack
     })
   } catch (error) {
