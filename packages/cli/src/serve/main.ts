@@ -16,6 +16,9 @@ const fail = (message: string) => {
 
 const out = (text: string) => process.stdout.write(text)
 
+// Ends the process once stdout has written everything before it: a write to a pipe completes later.
+const exitWhenWritten = () => process.stdout.write('', () => process.exit(0))
+
 provideHostModules()
 await runtimeProgram({
   // The server runs until SIGTERM or SIGINT.
@@ -26,12 +29,12 @@ await runtimeProgram({
   // The auth store keeps a connection pool open, so the command ends the process itself.
   migrateRelease: async (bundle, { plan }) => {
     await migrateRelease(bundle, process.env, out, plan)
-    process.exit(0)
+    exitWhenWritten()
   },
   // The auth store keeps a connection pool open, so the command ends the process itself.
   createAdmin: async (bundle, email, options) => {
     await createAdminInBundle(bundle, email, options, out)
-    process.exit(0)
+    exitWhenWritten()
   },
 })
   .parseAsync(process.argv)

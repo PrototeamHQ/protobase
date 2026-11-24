@@ -13,12 +13,15 @@ const appliedNames = async (tx: TransactionSql) => {
   return []
 }
 
-/** The `*.sql` files of `dir` the database has not recorded as applied, in their order, read from a read-only transaction. */
-export const pendingMigrations = async (sql: Sql, dir: string) => {
+/** The `*.sql` files of `dir` the database has not recorded as applied, in their order, read in the transaction `tx`. */
+export const pendingIn = async (tx: TransactionSql, dir: string) => {
   const files = (await readdir(dir)).filter((file) => file.endsWith('.sql')).sort()
-  const done = new Set(await sql.begin('read only', (tx) => appliedNames(tx)))
+  const done = new Set(await appliedNames(tx))
   return files.filter((file) => !done.has(file))
 }
+
+/** `pendingIn`, from a read-only transaction of its own. */
+export const pendingMigrations = (sql: Sql, dir: string) => sql.begin('read only', (tx) => pendingIn(tx, dir))
 
 /**
  * `protobase migrate --plan`: prints each `*.sql` file of `dir` that `migrate` would apply, in its order, under its

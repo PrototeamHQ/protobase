@@ -2,8 +2,8 @@ import path from 'node:path'
 import postgres from 'postgres'
 import { readManifest } from '../bundle/manifest'
 import { migrationProject } from '../migration/migration-project'
-import { pendingMigrations } from '../migration/plan-migrations'
-import { applyReleaseSteps, releaseStepsPlan } from '../migration/release/apply-release-steps'
+import { pendingIn } from '../migration/plan-migrations'
+import { applyReleaseSteps, planReleaseSteps, type FindSteps } from '../migration/release/apply-release-steps'
 import { releaseSteps } from '../migration/release/release-steps'
 import { bundleConfigFile } from '../worker/start-worker'
 import { checkBundleManifest } from './bundle-manifest'
@@ -23,12 +23,14 @@ export const migrateRelease = async (bundle: string, env: Record<string, string 
   // Its own connection: the pool of db/connect.ts opens read-only sessions.
   const sql = postgres(env.DATABASE_URL, { max: 1, onnotice: () => {} })
   const { migrations } = await readManifest(dir)
-  const pending = migrations ? await pendingMigrations(sql, path.join(dir, migrations)) : []
-  if (pending.length > 0) throw new Error(`The database lacks the bundle's migrations ${pending.join(', ')}: apply them first with \`protobase-serve migrate\``)
   const project = await migrationProject(await loadBundle(file), env.DATABASE_URL)
-  const steps = await releaseSteps(project)
+  // Under the lock when applying: the bundle's migrations checked, then the steps compared, with what is committed then.
+  const find: FindSteps = async (tx) => {
+    const pending = migrations ? await pendingIn(tx, path.join(dir, migrations)) : []
+    if (pending.length > 0) throw new Error(`The database lacks the bundle's migrations ${pending.join(', ')}: apply them first with \`protobase-serve migrate\``)
+    return releaseSteps(project)
+  }
+  await (plan ? planReleaseSteps(sql, find, out) : applyReleaseSteps(sql, find, out))
   await project.close()
-  if (plan) out(releaseStepsPlan(steps))
-  else await applyReleaseSteps(sql, steps, out)
   await sql.end()
 }

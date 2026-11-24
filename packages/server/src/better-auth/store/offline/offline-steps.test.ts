@@ -24,6 +24,7 @@ describe('offlineStepsMigration', () => {
 
   it("writes only the steps after the snapshot's, with the checks over rows the store has", () => {
     const migration = offlineStepsMigration(names, { ...latest, auth: 1 })!
+    expect(migration.sql).not.toContain('create table "auth"."auth_migrations"')
     expect(migration.sql).not.toContain('create table if not exists "auth"."auth_migrations"')
     expect(migration.sql).not.toContain('-- auth 1 core')
     expect(migration.sql).toMatch(/^-- auth 2 account_keys:/)
