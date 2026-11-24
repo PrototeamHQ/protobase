@@ -1,6 +1,7 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
 import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, checkMigrationRecord, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
+import { modelHash } from '@protobase/server/internal'
 import { projectIcons } from '../build/app-icons'
 import { projectResources } from '../config/project-parts'
 import { projectErrorReporter } from '../project/error-reporter'
@@ -31,11 +32,13 @@ const { db } = database
 const project = await buildProject(config, database)
 const { resources, views } = configExports(project.config)
 
-// Once per server start, so a database behind the code stops startup with the ways out, read from its record of migrations.
-const store = globalThis as { __protobaseRecordChecked?: boolean }
-if (!store.__protobaseRecordChecked) {
-  await checkMigrationRecord(db, builtRuntimeModel(project), protobaseVersion)
-  store.__protobaseRecordChecked = true
+// Once per runtime model, so a database behind the code stops startup with the ways out, read from its record of
+// migrations, and a reload whose config needs another part of it, such as the jobs schema, reads the record again.
+const store = globalThis as { __protobaseRecordChecked?: string }
+const model = builtRuntimeModel(project)
+if (store.__protobaseRecordChecked !== modelHash(model)) {
+  await checkMigrationRecord(db, model, protobaseVersion)
+  store.__protobaseRecordChecked = modelHash(model)
 }
 
 // On every load, since editing the config can add a resource over a table of the auth store, give a resource events or
