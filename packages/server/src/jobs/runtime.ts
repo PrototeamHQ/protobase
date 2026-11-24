@@ -95,8 +95,8 @@ const createBoss = (db: BossDb, work: boolean) =>
 
 /**
  * Starts the app's jobs in this process: their queues, a worker per job unless `work` is false, and the maintenance
- * that retries jobs whose worker died. It reads the jobs schema, never changes it: check it first with
- * `checkJobsSchema`. Enqueueing through `defineJob(...).enqueue` reaches the runtime started here.
+ * that retries jobs whose worker died. It reads the jobs schema, never changes it: the startup checks the
+ * record of migrations for it first (`checkMigrationRecord`). Enqueueing through `defineJob(...).enqueue` reaches the runtime started here.
  */
 export const startJobs = async ({ db, scope = noOrganizationTables, jobs, work = true, pollSeconds = 2, shutdownSeconds = 30, onError, now = () => new Date(), mailer, unsubscribe, decryptField }: StartJobsOptions): Promise<JobsRuntime> => {
   const base = mailer === undefined ? platformMailer() : mailer || undefined

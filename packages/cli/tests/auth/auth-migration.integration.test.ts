@@ -9,7 +9,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { Kysely, PostgresDialect } from 'kysely'
 import { f, resource } from '@protobase/schema'
 import { authSchemaDrift, authSchemaMigration, checkMigrationRecord, checkResourcesOutsideAuthStore, createOrganization, createUser, unauthorized, type AdminAuth } from '@protobase/server'
-import { buildAuth, createAuth, legacyVersions, organizationsInput, stepsOfVersions, storeNames } from '@protobase/server/internal'
+import { buildAuth, createAuth, legacyVersions, organizationsInput, plainStoreDb, runtimeModel, stepsOfVersions, storeNames } from '@protobase/server/internal'
 import { checkMigrations } from '../../src/migration/snapshot/check'
 import { readSnapshot } from '../../src/migration/snapshot/snapshot-file'
 import { migrationText } from '../../src/auth/migration-file'
@@ -88,7 +88,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
   // The file without its header and its record block, whose id is its own.
   const withoutHeader = (text: string) => textBeforeRecord(text).replace(/^(-- protobase:.*\n)+/, '')
   // The server's startup check of the record of migrations.
-  const checkRecord = (auth: AdminAuth) => checkMigrationRecord(auth, protobaseVersion)
+  const checkRecord = (auth: AdminAuth) => checkMigrationRecord(plainStoreDb(auth), runtimeModel(auth, []), protobaseVersion)
   const query = async <Row extends object>(databaseUrl: string, text: string) => {
     const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
     const rows = await sql.unsafe<Row[]>(text)
@@ -139,7 +139,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     expect(await readdir(folder)).toEqual(['001_auth.sql'])
     // The file starts the project's snapshot, at every step, so `protobase migration` goes on from it.
     expect(await readSnapshot(projectOf(folder))).toMatchObject({ endsAt: { file: '001_auth.sql' } })
-    expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: true, organizations: organizationsInput(auth.organizations?.options) })).toEqual([])
+    expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: true, organizations: organizationsInput(auth.organizations?.options) }, [])).toEqual([])
   })
 
   it('starts the snapshot of a project whose auth migrations came before it with a file without statements', async () => {
@@ -149,7 +149,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     // The project's auth migration as an earlier Protobase wrote it, without Protobase's lines or a snapshot.
     await writeFile(path.join(folder, '001_auth.sql'), migrationText((await authSchemaMigration(auth))!))
     await applyAll(databaseUrl, folder)
-    expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: false, organizations: undefined })).toEqual([
+    expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: false, organizations: undefined }, [])).toEqual([
       "the project has auth migrations from before protobase.snapshot.json: start it with `protobase migration baseline`, against the database with the project's migrations applied",
     ])
 
@@ -160,7 +160,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     await query(databaseUrl, text)
     expect(await versions(databaseUrl)).toEqual(everyOf(auth))
     expect(await readSnapshot(projectOf(folder))).toMatchObject({ endsAt: { file: '002_auth.sql' } })
-    expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: false, organizations: undefined })).toEqual([])
+    expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: false, organizations: undefined }, [])).toEqual([])
     expect(await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })).toBeUndefined()
   })
 

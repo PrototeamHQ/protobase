@@ -4,6 +4,7 @@ import { f, resource } from '@protobase/schema'
 import { changesMigration } from '@protobase/server'
 import { startServe } from '../../src/serve/lifecycle'
 import { servedConfig } from '../support/served-config'
+import { recordModules } from '../support/recorded-modules'
 import { openSnapshotDb, type SnapshotDb } from '../../../../test-support/sql-snapshot'
 
 const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id).events((e) => e.crud())
@@ -14,6 +15,7 @@ describe('startServe with resource events', () => {
   it('does not start while a resource with events has no triggers, and drains its pool', async () => {
     const pg = await openSnapshotDb('jobs')
     await pg.exec('create table notes (id integer primary key, body text not null)')
+    await recordModules(pg.db)
     const db = Object.assign(new Kysely<any>({ dialect: pg.dialect }), { destroy: vi.fn(async () => {}) })
     await expect(startServe({ config, env, openDb: () => ({ db }) })).rejects.toThrow('The changes of notes are not captured as their events, history or live updates need')
     expect(db.destroy).toHaveBeenCalledTimes(1)

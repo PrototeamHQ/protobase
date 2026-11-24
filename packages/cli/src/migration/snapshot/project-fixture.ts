@@ -40,7 +40,7 @@ export const migrationsOf = (projectDir: string) => path.join(projectDir, 'db/mi
 
 /** `protobase migration` without a database, in `projectDir`. */
 export const migrate = (projectDir: string, auth: AuthTarget | undefined, newId = counterIds(), protobaseVersion = '1.0.0') =>
-  runMigration({ projectDir, dir: migrationsOf(projectDir), auth, database: undefined, protobaseVersion, newId })
+  runMigration({ projectDir, dir: migrationsOf(projectDir), auth, modules: [], database: undefined, protobaseVersion, newId })
 
 /** Every file of the project's migrations and its snapshot, by path, with its text. */
 export const projectFiles = async (projectDir: string) => {

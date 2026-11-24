@@ -6,7 +6,8 @@ import path from 'node:path'
 import pg from 'pg'
 import postgres from 'postgres'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { jobsSchemaMigration } from '@protobase/server'
+import { jobsSchemaSql } from '@protobase/server'
+import { recordModules } from '../support/recorded-modules'
 import { manifestFile } from '../../src/bundle/manifest'
 import { protobaseVersion } from '../../src/version/version'
 import { openAppDatabase } from '../../src/project/pg-db'
@@ -80,7 +81,8 @@ const createDatabase = async () => {
   const databaseUrl = withDatabase(url, name)
   const { db } = openAppDatabase(pg, databaseUrl, 1)
   const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
-  await sql.unsafe((await jobsSchemaMigration(db))!)
+  await sql.unsafe(jobsSchemaSql())
+  await recordModules(db)
   await db.destroy()
   return { databaseUrl, sql }
 }

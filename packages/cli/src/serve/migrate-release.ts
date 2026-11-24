@@ -34,7 +34,7 @@ export const migrateRelease = async (bundle: string, env: Record<string, string 
     const pending = migrations ? await pendingIn(tx, await readMigrationDir(path.join(dir, migrations))) : []
     if (pending.length > 0) throw new Error(`The database lacks the bundle's migrations ${pending.map(({ file }) => file).join(', ')}: apply them first with \`protobase-serve migrate\``)
     const steps = await releaseSteps(project)
-    const record = project.auth && (await releaseRecord(project.auth, steps, protobaseVersion, randomUUID()))
+    const record = await releaseRecord(project, steps, protobaseVersion, randomUUID())
     return record ? [...steps, record] : steps
   }
   await (plan ? planReleaseSteps(sql, find, out) : applyReleaseSteps(sql, find, out))

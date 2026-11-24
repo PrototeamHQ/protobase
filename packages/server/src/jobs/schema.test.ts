@@ -1,15 +1,9 @@
-import { createRequire } from 'node:module'
 import { getConstructionPlans, getMigrationPlans } from 'pg-boss'
 import { describe, expect, it } from 'vitest'
-import { migrationStatements, pgBossSchemaVersion } from './schema'
+import { pgBossSteps } from './jobs-module'
+import { migrationStatements } from './schema'
 
-describe('pgBossSchemaVersion', () => {
-  it('is the schema version of the pg-boss installed, which a pg-boss bump must update', () => {
-    const require = createRequire(import.meta.url)
-    const { pgboss } = require('pg-boss/package.json') as { pgboss: { schema: number } }
-    expect(pgBossSchemaVersion).toBe(pgboss.schema)
-  })
-})
+const pgBossSchemaVersion = Object.values(pgBossSteps).at(-1)!
 
 describe('migrationStatements', () => {
   it("takes pg-boss's construction plan out of its own transaction", () => {

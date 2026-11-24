@@ -57,8 +57,10 @@ export const registerMigration = (program: Command) => {
       out(`wrote ${path.relative(process.cwd(), file)}${opts.after ? ', its .after.sql' : ''} and protobase.snapshot.json: write its statements\n`)
       return
     }
-    const [{ migrationProject }, { migrationParts }, { runMigration }, { migrationSummary }, { offChoice }, { trialContractions }, prompts] = await Promise.all([
+    const [{ migrationProject }, { configModules }, { schemaModules }, { migrationParts }, { runMigration }, { migrationSummary }, { offChoice }, { trialContractions }, prompts] = await Promise.all([
       import('./migration-project'),
+      import('../config/project-modules'),
+      import('@protobase/server/internal'),
       import('./parts'),
       import('./snapshot/run-migration'),
       import('./summary'),
@@ -71,7 +73,9 @@ export const registerMigration = (program: Command) => {
     const project = url ? await migrationProject(config, url) : undefined
     try {
       const asks = process.stdin.isTTY ? prompts.terminalPrompts() : undefined
-      const file = await runMigration({ projectDir: process.cwd(), dir, auth, database: project && url ? { url, parts: migrationParts(project), contractions: (sections) => trialContractions(url, sections) } : undefined, protobaseVersion, newId: randomUUID, ...(off && { off }), force: Boolean(opts.force), ...asks?.prompts }).finally(() => asks?.close())
+      const database = project && url ? { url, parts: migrationParts(project), contractions: (sections: Parameters<typeof trialContractions>[1]) => trialContractions(url, sections), readModule: (id: keyof typeof schemaModules) => schemaModules[id].read(project.db) } : undefined
+      const modules = project ? project.modules : await configModules(config)
+      const file = await runMigration({ projectDir: process.cwd(), dir, auth, modules, database, protobaseVersion, newId: randomUUID, ...(off && { off }), force: Boolean(opts.force), ...asks?.prompts }).finally(() => asks?.close())
       out(migrationSummary(file, process.cwd(), { hasAuth: Boolean(auth), compared: Boolean(project) }))
     } finally {
       await project?.close()
@@ -81,10 +85,10 @@ export const registerMigration = (program: Command) => {
   })
 
   folderOptions(migration.command('check').description('Report, writing nothing, what keeps the migrations and protobase.snapshot.json from matching the config, and warn of statements that lock reads or take from older code unmarked; exit code 1 when anything but a warning is found, for CI')).action(async (opts: FolderOptions) => {
-    const { auth } = await loadAuthTarget(opts)
-    const [{ checkMigrations }, { fileWarnings }, { readMigrationFiles }] = await Promise.all([import('./snapshot/check'), import('./older-code/lint-files'), import('./snapshot/migration-files')])
+    const { config, auth } = await loadAuthTarget(opts)
+    const [{ checkMigrations }, { fileWarnings }, { readMigrationFiles }, { configModules }] = await Promise.all([import('./snapshot/check'), import('./older-code/lint-files'), import('./snapshot/migration-files'), import('../config/project-modules')])
     const dir = path.resolve(opts.dir)
-    const found = await checkMigrations(process.cwd(), dir, auth)
+    const found = await checkMigrations(process.cwd(), dir, auth, await configModules(config))
     out(fileWarnings(await readMigrationFiles(dir)).map((line) => `warning: ${line}\n`).join(''))
     if (found.length === 0) {
       out('the migrations and protobase.snapshot.json match the config\n')
@@ -97,14 +101,13 @@ export const registerMigration = (program: Command) => {
   folderOptions(
     migration
       .command('baseline')
-      .description("Start protobase.snapshot.json of a project whose auth migrations came before it from DATABASE_URL, read once, with a numbered migration that changes nothing"),
+      .description("Describe in protobase.snapshot.json, from DATABASE_URL read once, the auth store of a project whose auth migrations came before it, and the schema modules it does not record yet, with a numbered migration that changes nothing"),
   ).action(async (opts: FolderOptions) => {
-    const { auth } = await loadAuthTarget(opts)
-    if (!auth) throw new Error("sign-in is off in the project's config, so there is no auth store to describe")
+    const { config, auth } = await loadAuthTarget(opts)
     const url = process.env.DATABASE_URL
     if (!url) throw new Error("No database: set DATABASE_URL to the project's database with its migrations applied")
-    const { writeBaseline } = await import('./baseline/write-baseline')
-    const file = await writeBaseline({ projectDir: process.cwd(), dir: path.resolve(opts.dir), auth, url, protobaseVersion, newId: randomUUID })
+    const [{ writeBaseline }, { configModules }] = await Promise.all([import('./baseline/write-baseline'), import('../config/project-modules')])
+    const file = await writeBaseline({ projectDir: process.cwd(), dir: path.resolve(opts.dir), auth, modules: await configModules(config), url, protobaseVersion, newId: randomUUID })
     out(`wrote ${path.relative(process.cwd(), file)} and protobase.snapshot.json: apply it with the project's migrations, then run \`protobase migration\`\n`)
   })
 

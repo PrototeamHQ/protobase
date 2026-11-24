@@ -129,13 +129,13 @@ A host that stops an idle app needs to know when a job is due, and to have it ru
 
 ## The `jobs` schema
 
-The schema is pg-boss's tables at its pinned schema version, plus Protobase's `jobs.enqueue`, `jobs.next_due` and `jobs.failed`. It is created and upgraded like the [auth schema](/reference/auth/#migrations), by the project's migrations:
+The schema is pg-boss's tables at its pinned schema version, plus Protobase's `jobs.enqueue`, `jobs.next_due` and `jobs.failed`. It is a module with numbered steps, like the [auth schema](/reference/auth/#migrations), created and upgraded by the project's migrations:
 
 ```sh
-bun run protobase migration   # writes db/migrations/NNN_jobs.sql when the jobs schema is missing or behind
+bun run protobase migration   # writes db/migrations/NNN_jobs.sql when the snapshot lacks the jobs schema's steps
 bun run db:migrate
 ```
 
-[`protobase migration`](/reference/cli/#migration) writes what the database lacks, taken from pg-boss's own construction and migration plans for the pinned version, without their `BEGIN` and `COMMIT` and with any `CONCURRENTLY` index build made a plain one, so the file runs in the project's migration transaction. The server never creates or migrates it: `protobase dev` and `protobase serve` read its version at startup and refuse to start while it is missing or behind, naming the command. A database whose jobs schema is newer than the running Protobase is refused too.
+Step 1 is pg-boss's own construction plan for schema version 45, copied into Protobase without its `BEGIN` and `COMMIT` and with any `CONCURRENTLY` index build made a plain one, so the file runs in the project's migration transaction; pg-boss stays pinned to an exact version, and a newer pg-boss comes with a step of its own holding its migration plan. Protobase's functions are written whole at their version after the steps, and again when a newer Protobase changes them. [`protobase migration`](/reference/cli/#migration) writes both from `protobase.snapshot.json` alone, which records the step and the functions' version. The server never creates or migrates it: `protobase dev`, `protobase serve` and `protobase worker` read the [record of migrations](/guides/deploy/#the-record-of-migrations) at startup and refuse to start while it lacks the jobs schema or has it at an older step or functions version, naming what is missing. A jobs schema an earlier version's `protobase migration` wrote, before the snapshot recorded it, is described once with [`protobase migration baseline`](/reference/cli/#migration).
 
 pg-boss runs here without what needs a session of its own: no `LISTEN`/`NOTIFY` (a job enqueued in the same process wakes its worker directly, the rest is polled), only transaction-scoped advisory locks, unnamed prepared statements, no index rebuilds and no instance registry. It works through PgBouncer in transaction mode, over the app's own connection pool.

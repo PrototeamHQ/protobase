@@ -1,5 +1,5 @@
 import pg from 'pg'
-import { assistantSettings, authStoreTables, configExports } from '@protobase/server'
+import { assistantSettings, authStoreTables, configExports, neededModules } from '@protobase/server'
 import { checkStatusOptions } from '@protobase/server/internal'
 import { projectAuth } from '../config/build-project'
 import type { MergedConfig } from '../config/merge-config'
@@ -10,17 +10,22 @@ import { userTablesOn } from '../config/user-tables-config'
 import { openAppDatabase } from '../project/pg-db'
 
 /**
- * A merged project config, for what its database needs: its resources' models, a pool on `url`, its auth, and the
- * features that write migrations. `close` ends the pool.
+ * A merged project config, for what its database needs: its resources' models, a pool on `url`, its auth, the schema
+ * modules it needs, and the features that write migrations. `close` ends the pool.
  */
 export const migrationProject = async (config: MergedConfig, url: string | undefined) => {
   if (!url) throw new Error('No database: set DATABASE_URL')
   const database = openAppDatabase(pg, url)
   const [resources, jobs, webhooks, notifications, auth] = await Promise.all([projectResources(config), projectJobs(config), projectWebhooks(config), projectNotifications(config), projectAuth(config, database)])
   const exported = configExports(resources)
+  const models = exported.resources.map((source) => source.toModel())
+  const views = exported.views.map((source) => source.toModel())
+  const app = { models, views, jobs, signIn: Boolean(auth), mailFeedback: mailFeedbackOn(config), webhooks, workflows: config.workflows, notifications, realtime: config.realtime }
   return {
-    models: exported.resources.map((source) => source.toModel()),
-    views: exported.views.map((source) => source.toModel()),
+    models,
+    views,
+    /** The schema modules the config needs (`neededModules`). */
+    modules: neededModules(app),
     db: database.db,
     ...(auth && { auth }),
     ...(config.events && { events: config.events }),

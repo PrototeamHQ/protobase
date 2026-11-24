@@ -1,13 +1,16 @@
-import type { LastSteps } from '@protobase/server/internal'
+import type { LastSteps, ModulesModel } from '@protobase/server/internal'
 
 // The lines a migration Protobase wrote starts with, `-- protobase:<key> <value>`: its own id, the version that wrote
-// it, each module's last step, the hash of the model, and whether organizations were ever on, as the snapshot is once
-// it is applied; for a hand-written one, that it is, and whether it is marked additive.
+// it, each sign-in module's last step, the schema modules' model as JSON, the hash of the model, and whether
+// organizations were ever on, as the snapshot is once it is applied; for a hand-written one, that it is, and whether it
+// is marked additive.
 
 export type Header = {
   id: string
   version: string
   steps: LastSteps
+  /** The schema modules' part of the model, which `protobase migration drop` takes the snapshot back to. */
+  modules?: ModulesModel
   model: string
   organizationsEverOn: boolean
   custom: boolean
@@ -21,11 +24,12 @@ export const breaksOlderCodeLine = 'protobase:breaks-older-code'
 
 const line = /^-- protobase:([a-z-]+)(?: (.*))?$/
 
-export const headerText = ({ id, version, steps, model, organizationsEverOn, custom, additive, breaksOlderCode }: Header) =>
+export const headerText = ({ id, version, steps, modules, model, organizationsEverOn, custom, additive, breaksOlderCode }: Header) =>
   [
     `-- protobase:id ${id}`,
     `-- protobase:version ${version}`,
     `-- protobase:steps ${Object.entries(steps).map(([module, step]) => `${module}=${step}`).join(' ')}`.trimEnd(),
+    ...(modules ? [`-- protobase:modules ${JSON.stringify(modules)}`] : []),
     `-- protobase:model ${model}`,
     ...(organizationsEverOn ? ['-- protobase:organizations ever-on'] : []),
     ...(custom ? ['-- protobase:custom'] : []),
@@ -44,10 +48,12 @@ export const parseHeader = (text: string): Header | undefined => {
   const id = values.get('id')
   if (!id) return
   const steps = (values.get('steps') ?? '').split(' ').filter(Boolean).map((pair) => pair.split('='))
+  const modules = values.get('modules')
   return {
     id,
     version: values.get('version') ?? '',
     steps: Object.fromEntries(steps.map(([module, step]) => [module, Number(step)])),
+    ...(modules && { modules: JSON.parse(modules) as ModulesModel }),
     model: values.get('model') ?? '',
     organizationsEverOn: values.get('organizations') === 'ever-on',
     custom: values.has('custom'),

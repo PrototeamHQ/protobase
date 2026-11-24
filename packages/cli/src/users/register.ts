@@ -89,7 +89,8 @@ export const registerUsers = (program: Command) => {
       .argument('<email>')
       .action(async (email: string) => {
         const { setDisabledInProject } = await import('./set-disabled')
-        await setDisabledInProject(await loadAuth(), { email, disabled }, out)
+        const { loadProjectModules } = await import('./load-auth')
+        await setDisabledInProject(await loadAuth(), await loadProjectModules(process.cwd()), { email, disabled }, out)
         finish(0)
       })
   }

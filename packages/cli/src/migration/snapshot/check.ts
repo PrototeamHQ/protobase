@@ -1,10 +1,11 @@
-import { storeModel } from '@protobase/server/internal'
+import { schemaModules, storeModel, type SchemaModuleId } from '@protobase/server/internal'
 import { authMigrationTitle } from '../../auth/migration-file'
 import { authRefusals, organizationRefusals, redescribed, snapshotStore, stepsAfter } from './auth-difference'
 import type { AuthTarget } from './auth-target'
 import { inconsistencies } from './consistency'
 import { lintFiles } from '../older-code/lint-files'
 import { moduleChanges } from './module-changes'
+import { moduleSections } from './module-sections'
 import { readMigrationFiles } from './migration-files'
 import { readSnapshot, snapshotFile } from './snapshot-file'
 
@@ -17,10 +18,10 @@ const unswitched = (snapshot: Parameters<typeof moduleChanges>[0], auth: AuthTar
 /**
  * `protobase migration check`, for CI: what keeps the migrations from matching the config, one line each, from the
  * files and the snapshot alone, writing nothing. The snapshot disagreeing with the files, a config change the
- * migrations lack, and a file that does not say, or says wrongly, how it treats older code (`lintFiles`). None when
- * they match.
+ * migrations lack, a schema module of `modules` they lack or have older, and a file that does not say, or says wrongly,
+ * how it treats older code (`lintFiles`). None when they match.
  */
-export const checkMigrations = async (projectDir: string, dir: string, auth: AuthTarget | undefined) => {
+export const checkMigrations = async (projectDir: string, dir: string, auth: AuthTarget | undefined, modules: readonly SchemaModuleId[]) => {
   const snapshot = await readSnapshot(projectDir)
   const files = await readMigrationFiles(dir)
   const found = inconsistencies(snapshot, files)
@@ -39,5 +40,11 @@ export const checkMigrations = async (projectDir: string, dir: string, auth: Aut
   const changes = moduleChanges(snapshot, auth)
   const switched = [...changes.off.map(({ module }) => `${module} off`), ...changes.revived.map(({ module }) => `${module} on again`)]
   if (refusals.length === 0 && switched.length > 0) found.push(`the config turns ${switched.join(', ')}, which the migrations lack: run \`protobase migration\``)
+  const sections = moduleSections(snapshot, modules).sections
+  const label = ({ name }: (typeof sections)[number]) => schemaModules[name].label
+  const unrecorded = sections.filter(({ name }) => !snapshot?.model.modules?.[name]).map(label)
+  const behind = sections.filter(({ name }) => snapshot?.model.modules?.[name]).map(label)
+  if (unrecorded.length > 0) found.push(`the migrations do not record ${unrecorded.join(' and ')}: run \`protobase migration\`, or \`protobase migration baseline\` against the database where a migration of an earlier version made it`)
+  if (behind.length > 0) found.push(`the migrations lack what this version of Protobase writes of ${behind.join(' and ')}: run \`protobase migration\``)
   return [...found, ...(await lintFiles(files))]
 }

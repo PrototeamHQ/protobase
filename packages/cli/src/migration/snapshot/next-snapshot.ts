@@ -1,5 +1,5 @@
 import type { DefaultOrganization } from '@protobase/server'
-import { storeNamesList, type StoreModel } from '@protobase/server/internal'
+import { storeNamesList, type ModulesModel, type StoreModel } from '@protobase/server/internal'
 import { lastStepsOf } from './auth-difference'
 import type { Header } from './header'
 import { modelHash, snapshotFormat, type Snapshot } from './snapshot-file'
@@ -15,12 +15,12 @@ const externalUser = (auth: StoreModel | undefined) => {
 export type OrganizationsNow = { on: boolean; default?: DefaultOrganization }
 
 /**
- * The snapshot once the migration `endsAt` is applied: `auth`, the store's model then, and what the config says of
- * organizations now. It goes on from `before`, the decisions of the snapshot before it, which a baseline reads from
+ * The snapshot once the migration `endsAt` is applied: `auth`, the store's model then, `modules`, the schema modules'
+ * then, and what the config says of organizations now. It goes on from `before`, the decisions of the snapshot before it, which a baseline reads from
  * the database.
  */
-export const nextSnapshot = (before: Snapshot['decisions'] | undefined, auth: StoreModel | undefined, organizations: OrganizationsNow, endsAt: Snapshot['endsAt'], protobaseVersion: string): Snapshot => {
-  const model = auth ? { auth } : {}
+export const nextSnapshot = (before: Snapshot['decisions'] | undefined, auth: StoreModel | undefined, modules: ModulesModel | undefined, organizations: OrganizationsNow, endsAt: Snapshot['endsAt'], protobaseVersion: string): Snapshot => {
+  const model = { ...(auth && { auth }), ...(modules && { modules }) }
   const external = [...new Set([...(before?.external ?? []), ...externalUser(auth)])].sort()
   return {
     format: snapshotFormat,
@@ -45,6 +45,7 @@ export const snapshotHeader = (snapshot: Snapshot, kind: Pick<Header, 'custom' |
   id: snapshot.endsAt.id,
   version: snapshot.protobaseVersion,
   steps: snapshot.model.auth ? lastStepsOf(snapshot.model.auth) : {},
+  ...(snapshot.model.modules && { modules: snapshot.model.modules }),
   model: snapshot.modelHash,
   organizationsEverOn: snapshot.decisions.organizations.everOn,
   ...kind,

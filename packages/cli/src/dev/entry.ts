@@ -6,6 +6,7 @@ import { projectResources } from '../config/project-parts'
 import { projectErrorReporter } from '../project/error-reporter'
 import { servedAdmin } from '../project/served-admin'
 import { buildProject } from '../config/build-project'
+import { builtRuntimeModel } from '../config/project-modules'
 import { devJobs } from './dev-jobs'
 import { checkProjectRelay } from '../serve/relay-check'
 import { protobaseVersion } from '../version/version'
@@ -33,7 +34,7 @@ const { resources, views } = configExports(project.config)
 // Once per server start, so a database behind the code stops startup with the ways out, read from its record of migrations.
 const store = globalThis as { __protobaseRecordChecked?: boolean }
 if (!store.__protobaseRecordChecked) {
-  await checkMigrationRecord(project.auth, protobaseVersion)
+  await checkMigrationRecord(db, builtRuntimeModel(project), protobaseVersion)
   store.__protobaseRecordChecked = true
 }
 
@@ -73,8 +74,8 @@ const reporter = await projectErrorReporter(config, process.env)
 const ui = { plugins: [], fieldTypes: {}, icons: projectIcons(projectDir) }
 const { admin, jobs } = await servedAdmin(project, db, ui, reporter, upgradeWebSocket)
 
-// The project's jobs and the delivery of its events, run in this server unless `--no-jobs` turned them off; a behind jobs
-// schema stops startup with the command that writes its migration.
+// The project's jobs and the delivery of its events, run in this server unless `--no-jobs` turned them off, on the jobs
+// schema the record of migrations checked.
 if (process.env.PROTOBASE_DEV_JOBS !== 'false') await devJobs(db, admin.organizationScope, jobs, admin.decryptField, project.mailer, admin.unsubscribe)
 // The old rows of the realtime tables, pruned while the dev server runs, whether or not a socket is open.
 devRealtimePrune(admin)

@@ -137,7 +137,7 @@ describe.skipIf(!reachable || !hasApp)('a database migrated by the previous rele
     await migrate()
     const shaped = postgres(ownerUrl, { max: 1, onnotice: () => {} })
     await shaped.unsafe(previousShape)
-    await shaped.unsafe(readerSql(['public', 'jobs', 'changes', 'comments', 'webhooks']))
+    await shaped.unsafe(readerSql(['public', 'migrations', 'jobs', 'changes', 'comments', 'webhooks']))
     await shaped.end()
     const built = await run([bin, 'build', '--out', 'dist'], projectDir, {})
     if (built.status !== 0) throw new Error(`protobase build failed:\n${built.stderr}`)

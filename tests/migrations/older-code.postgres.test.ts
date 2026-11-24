@@ -67,7 +67,7 @@ alter table sales.orders add column total integer generated always as (id * 3) s
     const projectDir = await mkdtemp(path.join(tmpdir(), 'protobase-older-code-'))
     const dir = path.join(projectDir, 'db/migrations')
     const rename = { name: 'computed', title: 'A rename', sql: async () => 'alter table sales.orders rename to purchases;' }
-    const run = runMigration({ projectDir, dir, auth: undefined, database: { url: database.url, parts: [rename], contractions: (sections) => trialContractions(database.url, sections) }, protobaseVersion: '1.0.0', newId: () => 'id' })
+    const run = runMigration({ projectDir, dir, auth: undefined, modules: [], database: { url: database.url, parts: [rename], contractions: (sections) => trialContractions(database.url, sections), readModule: async () => undefined }, protobaseVersion: '1.0.0', newId: () => 'id' })
     await expect(run).rejects.toThrow(
       'The migration would break the code still running while it deploys, and the version before it once rolled back: computed drops, renames or moves table sales.orders. To make it anyway, write it by hand with `protobase migration --custom <name>` and put `-- protobase:breaks-older-code` among its `-- protobase:` lines',
     )

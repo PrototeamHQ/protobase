@@ -1,11 +1,20 @@
 import pg from 'pg'
 import { releaseConnectionsWithUsers, removeDevicesWithUsers, removeHistoryWithUsers, type AdminAuth } from '@protobase/server'
 import { projectAuth } from '../config/build-project'
+import { configModules } from '../config/project-modules'
 import { projectNotifications, projectWorkflows } from '../config/project-parts'
 import { loadSourceConfig } from '../config/source-config'
 import { withDevUrl } from '../config/tool-url'
 import { loadNearestEnvFile } from '../dev/env'
 import { openAppDatabase } from '../project/pg-db'
+
+const loadToolConfig = async (projectDir: string) => {
+  loadNearestEnvFile(projectDir)
+  return withDevUrl(await loadSourceConfig(projectDir, { command: 'tool' }), projectDir)
+}
+
+/** The schema modules the config of the project in `projectDir` needs (`configModules`). */
+export const loadProjectModules = async (projectDir: string) => configModules(await loadToolConfig(projectDir))
 
 /**
  * The sign-in of the project in `projectDir`, built from its config's `auth` over DATABASE_URL, with only the plugins
@@ -16,8 +25,7 @@ import { openAppDatabase } from '../project/pg-db'
  * reporting a token it left valid on stderr.
  */
 export const loadSignIn = async (projectDir: string): Promise<AdminAuth | undefined> => {
-  loadNearestEnvFile(projectDir)
-  const config = await withDevUrl(await loadSourceConfig(projectDir, { command: 'tool' }), projectDir)
+  const config = await loadToolConfig(projectDir)
   if (!config.auth) return
   if (!process.env.DATABASE_URL) throw new Error('No database: set DATABASE_URL')
   const database = openAppDatabase(pg, process.env.DATABASE_URL)

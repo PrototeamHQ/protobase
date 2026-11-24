@@ -18,7 +18,7 @@ export type FileContent = { name: string; body: string; kind?: Pick<Header, 'cus
  * The next snapshot, but for the migration it ends at, which `writeMigrationFile` names. `decisions`: those it goes on
  * from in place of the previous snapshot's, as a baseline reads them from the database.
  */
-export type SnapshotDraft = { previous: Snapshot | undefined; auth: Snapshot['model']['auth']; organizations: OrganizationsNow; protobaseVersion: string; decisions?: Snapshot['decisions'] }
+export type SnapshotDraft = { previous: Snapshot | undefined; auth: Snapshot['model']['auth']; modules: Snapshot['model']['modules']; organizations: OrganizationsNow; protobaseVersion: string; decisions?: Snapshot['decisions'] }
 
 /**
  * Writes `content` as the next numbered migration of `dir`, starting with its header and `id` and ending with the row
@@ -27,7 +27,7 @@ export type SnapshotDraft = { previous: Snapshot | undefined; auth: Snapshot['mo
 export const writeMigrationFile = async (projectDir: string, dir: string, content: FileContent, draft: SnapshotDraft, id: string) => {
   await mkdir(dir, { recursive: true })
   const file = nextMigrationName(await readdir(dir), content.name)
-  const snapshot = nextSnapshot(draft.decisions ?? draft.previous?.decisions, draft.auth, draft.organizations, { file, id }, draft.protobaseVersion)
+  const snapshot = nextSnapshot(draft.decisions ?? draft.previous?.decisions, draft.auth, draft.modules, draft.organizations, { file, id }, draft.protobaseVersion)
   const text = `${headerText(snapshotHeader(snapshot, content.kind))}\n${content.body}\n`
   const custom = content.kind?.custom ?? false
   const row = {

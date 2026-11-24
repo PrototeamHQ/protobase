@@ -5,7 +5,10 @@ import { describe, expect, it } from 'vitest'
 import { writeAuthMigration } from '../../packages/cli/src/auth/write-migration'
 import { recordBlock, type RecordRow } from '../../packages/cli/src/migration/record/record-block'
 import { checkMigrationRecord } from '../../packages/server/src/migration-record/check-record'
-import { createAuth, modelHash, runtimeModel, storeNamesList, type RecordModel } from '../../packages/server/src/internal'
+import { writeBaseline } from '../../packages/cli/src/migration/baseline/write-baseline'
+import { runMigration } from '../../packages/cli/src/migration/snapshot/run-migration'
+import { jobsSchemaSql, type AdminAuth } from '../../packages/server/src/index'
+import { createAuth, modelHash, plainStoreDb, runtimeModel, schemaModules, storeNames, storeNamesList, type RecordModel } from '../../packages/server/src/internal'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 
 // The server's startup read of the record of migrations, on real Postgres: this version over a database a release after
@@ -13,6 +16,9 @@ import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } fr
 
 const secret = 'migration-record-test-secret-migration-record'
 const authOn = (database: PostgresDatabase) => createAuth({ database: database.pool({ max: 2 }), baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProviders: [] })
+
+// The startup read as an app with `auth` and the schema modules `modules` makes it.
+const check = (auth: AdminAuth, modules: 'jobs'[] = []) => checkMigrationRecord(plainStoreDb(auth), runtimeModel(auth, modules), '1.0.0')
 
 // This version's model with some modules at other steps, as another release's files record it.
 const withSteps = (model: RecordModel, steps: Record<string, number>): RecordModel => {
@@ -34,28 +40,41 @@ const row = (name: string, model: RecordModel, rest: Partial<RecordRow> = {}): R
   ...rest,
 })
 
-// The store as this version's `protobase auth migration` writes it, applied.
-const migratedByThisVersion = async (database: PostgresDatabase) => {
+// The store as this version's `protobase auth migration` writes it, applied, in a project of its own, which the test
+// removes unless it goes on writing migrations there.
+const migratedByThisVersion = async (database: PostgresDatabase, keep = false) => {
   const auth = authOn(database)
   const project = await mkdtemp(path.join(tmpdir(), 'protobase-migration-record-'))
   const file = await writeAuthMigration({ auth, projectDir: project, dir: path.join(project, 'db/migrations'), name: 'auth' })
   await database.exec(await readFile(file!, 'utf8'))
-  await rm(project, { recursive: true, force: true })
-  return auth
+  if (!keep) await rm(project, { recursive: true, force: true })
+  return { auth, project }
 }
+
+// `protobase migration` of the project with the jobs schema on, from its snapshot, compared with `database` when given.
+const migrateWithJobs = (project: string, auth: AdminAuth, database?: PostgresDatabase) =>
+  runMigration({
+    projectDir: project,
+    dir: path.join(project, 'db/migrations'),
+    auth: { names: storeNames(auth), organizationsOn: false, organizations: undefined },
+    modules: ['jobs'],
+    database: database && { url: database.url, parts: [], contractions: async () => [], readModule: (id) => schemaModules[id].read(database.db) },
+    protobaseVersion: '1.0.0',
+    newId: () => 'jobs-id',
+  })
 
 describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of the record of migrations', () => {
   it('starts on a database the next release migrated by additive files only, and refuses once one is not additive', async () => {
     const database = await openPostgresDatabase('empty')
-    const auth = await migratedByThisVersion(database)
-    await expect(checkMigrationRecord(auth, '1.0.0')).resolves.toBeUndefined()
+    const { auth } = await migratedByThisVersion(database)
+    await expect(check(auth)).resolves.toBeUndefined()
 
-    const next = withSteps(runtimeModel(auth), { passkeys: 3 })
+    const next = withSteps(runtimeModel(auth, []), { passkeys: 3 })
     await database.exec(recordBlock(row('002_auth', next), null))
-    await expect(checkMigrationRecord(auth, '1.0.0')).resolves.toBeUndefined()
+    await expect(check(auth)).resolves.toBeUndefined()
 
     await database.exec(recordBlock(row('003_rename', next, { additive: false, protobaseVersion: '1.2.0' }), null))
-    await expect(checkMigrationRecord(auth, '1.0.0')).rejects.toThrow(
+    await expect(check(auth)).rejects.toThrow(
       'The database is ahead of Protobase 1.0.0, so the server will not start: it has migrations that break older code since the one this version reads: 003_rename. Rolling back to this version is blocked once they are applied: run Protobase 1.2.0, the version the database matches, or a later one.',
     )
   })
@@ -63,20 +82,49 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
   it('refuses a database the release before left, naming what it lacks, the versions and the two ways out', async () => {
     const database = await openPostgresDatabase('empty')
     const auth = authOn(database)
-    await database.exec(recordBlock(row('001_auth', withSteps(runtimeModel(auth), { passkeys: 1 }), { protobaseVersion: '0.9.0' }), null))
-    await expect(checkMigrationRecord(auth, '1.0.0')).rejects.toThrow(
+    await database.exec(recordBlock(row('001_auth', withSteps(runtimeModel(auth, []), { passkeys: 1 }), { protobaseVersion: '0.9.0' }), null))
+    await expect(check(auth)).rejects.toThrow(
       "The database is behind Protobase 1.0.0, so the server will not start: the auth store's passkeys module is at step 1 (passkeys), and this version needs step 2 (rp_id_index). To bring the database up to 1.0.0, run `protobase migrate --plan` to see the migrations it will apply, then `protobase migrate`. Or run Protobase 0.9.0, the version the database matches.",
     )
   })
 
   it('starts while a plain index is still building, and refuses while a unique one is', async () => {
     const database = await openPostgresDatabase('empty')
-    const auth = await migratedByThisVersion(database)
-    const model = runtimeModel(auth)
+    const { auth } = await migratedByThisVersion(database)
+    const model = runtimeModel(auth, [])
     await database.exec(recordBlock(row('002_indexes', model, { completed: false, physical: { after: [{ index: 'user_email_idx', unique: false }] } }), null))
-    await expect(checkMigrationRecord(auth, '1.0.0')).resolves.toBeUndefined()
+    await expect(check(auth)).resolves.toBeUndefined()
 
     await database.exec(recordBlock(row('003_unique', model, { completed: false, physical: { after: [{ index: 'user_email_key', unique: true }] } }), null))
-    await expect(checkMigrationRecord(auth, '1.0.0')).rejects.toThrow("The database's migrations have not finished, so the server will not start: 003_unique has not finished building the unique index user_email_key.")
+    await expect(check(auth)).rejects.toThrow("The database's migrations have not finished, so the server will not start: 003_unique has not finished building the unique index user_email_key.")
+  })
+
+  it('refuses an app with jobs on a database whose record lacks the jobs schema, and starts once the migration that writes it is applied', async () => {
+    const database = await openPostgresDatabase('empty')
+    const { auth, project } = await migratedByThisVersion(database, true)
+    await expect(check(auth, ['jobs'])).rejects.toThrow('the database lacks the jobs schema, which this version needs at step 1 (pg_boss_45)')
+
+    const file = (await migrateWithJobs(project, auth))!
+    expect(path.basename(file)).toBe('002_jobs.sql')
+    await database.exec(await readFile(file, 'utf8'))
+    await expect(check(auth, ['jobs'])).resolves.toBeUndefined()
+    // The version before, which reads no jobs schema, starts on it too.
+    await expect(check(auth)).resolves.toBeUndefined()
+    await rm(project, { recursive: true, force: true })
+  })
+
+  it('describes with a baseline a jobs schema an earlier migration made, after which the next migration writes nothing', async () => {
+    const database = await openPostgresDatabase('empty')
+    const { auth, project } = await migratedByThisVersion(database, true)
+    await database.exec(jobsSchemaSql())
+    await expect(migrateWithJobs(project, auth, database)).rejects.toThrow('The database has the jobs schema, which protobase.snapshot.json does not record: describe it with `protobase migration baseline`')
+
+    const file = await writeBaseline({ projectDir: project, dir: path.join(project, 'db/migrations'), auth: { names: storeNames(auth), organizationsOn: false, organizations: undefined }, modules: ['jobs'], url: database.url, protobaseVersion: '1.0.0', newId: () => 'baseline-id' })
+    const text = await readFile(file, 'utf8')
+    expect(text).toContain('-- The jobs schema this version of Protobase needs: at step 1 (pg_boss_45), its functions at version 3.')
+    await database.exec(text)
+    expect(await migrateWithJobs(project, auth, database)).toBeUndefined()
+    await expect(check(auth, ['jobs'])).resolves.toBeUndefined()
+    await rm(project, { recursive: true, force: true })
   })
 })
