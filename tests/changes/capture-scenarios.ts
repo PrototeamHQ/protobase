@@ -7,7 +7,7 @@ import {
   coalesce,
   createAdmin,
   eventMatcher,
-  jobsSchemaSql,
+  jobsSchemaMigration,
   readOutbox,
   resourceChange,
 } from '@protobase/server'
@@ -71,7 +71,8 @@ export const captureScenarios = (connect: () => Promise<TestDatabase>) => {
   beforeAll(async () => {
     database = await connect()
     db = database.db
-    await database.exec(jobsSchemaSql())
+    const jobs = await jobsSchemaMigration(db)
+    if (jobs) await database.exec(jobs)
     await database.exec(ddl)
   })
 

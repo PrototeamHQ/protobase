@@ -1,7 +1,7 @@
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 import { f, resource, type AccessContext } from '@protobase/schema'
-import { changesMigration, checkChanges, createAdmin, jobsSchemaSql, startJobs, type JobsRuntime } from '@protobase/server'
+import { changesMigration, checkChanges, createAdmin, jobsSchemaMigration, startJobs, type JobsRuntime } from '@protobase/server'
 import type { TestDatabase } from './capture-scenarios'
 
 const ddl = `
@@ -42,7 +42,8 @@ export const historyScenarios = (connect: () => Promise<TestDatabase>, { roles =
   beforeAll(async () => {
     database = await connect()
     db = database.db
-    await database.exec(jobsSchemaSql())
+    const jobs = await jobsSchemaMigration(db)
+    if (jobs) await database.exec(jobs)
     await database.exec(ddl)
     await expect(checkChanges(db, [orders.toModel()])).rejects.toThrow('The changes of orders are not captured as their events, history or live updates need')
     await database.exec((await changesMigration(db, [orders.toModel()]))!)

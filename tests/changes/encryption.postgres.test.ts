@@ -3,7 +3,7 @@ import { Kysely, PostgresDialect, sql } from 'kysely'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { changesMigration, createAdmin, createEncryptionTools, jobsSchemaSql, startJobs } from '@protobase/server'
+import { changesMigration, createAdmin, createEncryptionTools, jobsSchemaMigration, startJobs } from '@protobase/server'
 import { connectServer, databaseUrl, serverReachable } from '../../scripts/test-db/templates'
 import { statementTimeoutMs } from '../../test-support/postgres-database'
 
@@ -52,7 +52,7 @@ describe.skipIf(!reachable)('encrypting a column that history and the outbox cap
     await server.end()
     pool = new pg.Pool({ connectionString: databaseUrl(name), max: 3 })
     db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
-    await pool.query(jobsSchemaSql())
+    await pool.query((await jobsSchemaMigration(db))!)
     await pool.query(ddl)
     await pool.query((await changesMigration(db, [notesWith(false).toModel(), drafts.toModel()]))!)
   })

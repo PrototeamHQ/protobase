@@ -5,7 +5,7 @@ import {
   changesMigration,
   createAdmin,
   defineFunction,
-  jobsSchemaSql,
+  jobsSchemaMigration,
   newWebhookSecret,
   startJobs,
   subscription,
@@ -58,7 +58,8 @@ export const deliveryScenarios = (connect: () => Promise<TestDatabase>) => {
   beforeAll(async () => {
     database = await connect()
     db = database.db
-    await database.exec(jobsSchemaSql())
+    const jobs = await jobsSchemaMigration(db)
+    if (jobs) await database.exec(jobs)
     await database.exec(ddl)
     await database.exec((await changesMigration(db, [orders.toModel()]))!)
     receiver = await startReceiver()

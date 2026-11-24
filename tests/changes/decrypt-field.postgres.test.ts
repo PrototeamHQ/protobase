@@ -3,7 +3,7 @@ import { Kysely, PostgresDialect } from 'kysely'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { createAdmin, defineFunction, defineJob, jobsSchemaSql, startJobs, type AuditEvent, type AuditQueue, type JobsRuntime } from '@protobase/server'
+import { createAdmin, defineFunction, defineJob, jobsSchemaMigration, startJobs, type AuditEvent, type AuditQueue, type JobsRuntime } from '@protobase/server'
 import { connectServer, databaseUrl, serverReachable } from '../../scripts/test-db/templates'
 import { statementTimeoutMs } from '../../test-support/postgres-database'
 
@@ -71,7 +71,7 @@ describe.skipIf(!reachable)('decryptField in jobs and API functions', () => {
     await server.end()
     pool = new pg.Pool({ connectionString: databaseUrl(name), max: 4 })
     db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
-    await pool.query(jobsSchemaSql())
+    await pool.query((await jobsSchemaMigration(db))!)
     await pool.query(`create table targets (id integer generated always as identity primary key, org_id integer not null default 1, host text not null, password text not null, note text)`)
     admin = adminWith(key, audit)
     expect((await call('/api/v1/targets', { method: 'POST', body: JSON.stringify({ host: 'nas.local', password: canary }) })).status).toBe(201)

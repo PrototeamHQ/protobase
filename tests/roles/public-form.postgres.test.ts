@@ -3,7 +3,7 @@ import { solveChallenge, type Challenge } from 'altcha-lib'
 import { deriveKey } from 'altcha-lib/algorithms/web/sha'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles, f, resource, view } from '@protobase/schema'
-import { changesMigration, createAdmin, startJobs, type JobsRuntime } from '@protobase/server'
+import { changesMigration, createAdmin, jobsSchemaMigration, startJobs, type JobsRuntime } from '@protobase/server'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { as, testAuthenticator } from '../../test-support/server'
 
@@ -46,6 +46,8 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('a public form through t
     vi.stubEnv('PROTOBASE_FORMS_SECRET', 'forms secret')
     pg = await openPostgresDatabase('jobs')
     db = pg.db
+    const jobs = await jobsSchemaMigration(db)
+    if (jobs) await pg.exec(jobs)
     await pg.exec(`
       create table contact_requests (id integer generated always as identity primary key, name text not null, email text not null, message text, handled boolean not null default false);
       create table products (id integer generated always as identity primary key, name text not null);

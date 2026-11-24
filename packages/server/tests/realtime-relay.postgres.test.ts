@@ -14,7 +14,7 @@ import { createUser } from '../src/better-auth/users'
 import { changesMigration } from '../src/changes/capture-schema'
 import { withAnonymous } from '../src/anonymous'
 import { createAdmin } from '../src/create-admin'
-import { jobsSchemaSql } from '../src/jobs/jobs-module'
+import { jobsSchemaMigration } from '../src/jobs/schema'
 import { startJobs, type JobsRuntime } from '../src/jobs/runtime'
 import { relayClientEvents } from '../src/relay/client-events'
 import { relayMigration } from '../src/relay/relay-schema'
@@ -161,7 +161,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('the realtime relay with
     const auth = createAuth({ database: { dialect: pg.dialect, type: 'postgres' }, baseURL: origin, secret, mailer: false, signInPerMinute: 100 })
     await auth.$context
     for (const name of ['alice', 'bob', 'carol', 'dave'] as const) people[name] = String((await createUser(auth, { email: `${name}@example.com`, name, password })).id)
-    await pg.exec(jobsSchemaSql())
+    await pg.exec((await jobsSchemaMigration(pg.db))!)
     await pg.exec(tables)
     await pg.exec((await changesMigration(pg.db, resources.map((entry) => entry.toModel())))!)
     await pg.exec((await relayMigration(pg.db, auth, false, channels, resources.map((entry) => entry.toModel())))!)
