@@ -52,7 +52,7 @@ export const registerMigration = (program: Command) => {
       out(`wrote ${path.relative(process.cwd(), file)} and protobase.snapshot.json: write its statements\n`)
       return
     }
-    const [{ migrationProject }, { migrationParts }, { runMigration }, { migrationSummary }] = await Promise.all([import('./load-project'), import('./parts'), import('./snapshot/run-migration'), import('./summary')])
+    const [{ migrationProject }, { migrationParts }, { runMigration }, { migrationSummary }] = await Promise.all([import('./migration-project'), import('./parts'), import('./snapshot/run-migration'), import('./summary')])
     const url = process.env.DATABASE_URL
     const project = url ? await migrationProject(config, url) : undefined
     try {

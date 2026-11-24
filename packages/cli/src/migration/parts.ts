@@ -1,5 +1,5 @@
 import { appRelayChannels, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, capturedBy, derivedMigration, hasBuckets, jobsSchemaMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, relayMigration, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
-import type { MigrationProject } from './load-project'
+import type { MigrationProject } from './migration-project'
 
 /** What one feature still needs of the database, compared with it, written as a part of the next migration. */
 export type MigrationPart = {
