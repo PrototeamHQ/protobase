@@ -21,6 +21,9 @@ export type BaselineStore = { lastSteps: LastSteps; kept: ModuleId[]; organizati
 // An ordinary or partitioned table: anything else, such as a view, is a relation another system or the app made.
 const tableKinds = ['r', 'p']
 
+// A relation of the schema by name, never one of an object's inherited keys, such as a table named `constructor`.
+const relationOf = (live: LiveStore, name: string) => (Object.hasOwn(live.relations, name) ? live.relations[name] : undefined)
+
 /** Each module's last step whose version, and every one before it in its chain, the store records. */
 export const recordedSteps = (versions: readonly number[]): LastSteps => {
   const shipped = legacyVersions.at(-1)!.version
@@ -39,16 +42,21 @@ export const recordedSteps = (versions: readonly number[]): LastSteps => {
  * The store at `live` under the config's `names`: each module that is on at the step the record holds, every module
  * that is off but has a table as kept, organizations as ever on when a table whose rows belong to an organization has
  * the column that names it, and the user table as external when the config reads it through a view over another
- * system's (`users.keyTable`) or the database has it as anything but a table. Refuses a table a recorded step made
- * that the schema lacks under the config's name, such as one renamed since, naming each.
+ * system's (`users.keyTable`). Refuses a user table the database has as anything but a table without `users.keyTable`,
+ * since the steps' foreign keys would point at it, and a table a recorded step made that the schema lacks under the
+ * config's name, such as one renamed since, naming each.
  */
 export const baselineStore = (names: StoreNames, live: LiveStore): BaselineStore => {
   const recorded = recordedSteps(live.versions)
   const on = names.names.modules
   const every = resolveNames({ ...names.names.input, modules: allModules })
-  const has = (internal: string) => live.relations[every.tables[internal]!.name] !== undefined
+  const has = (internal: string) => relationOf(live, every.tables[internal]!.name) !== undefined
   const user = names.names.table('user')
-  const externalUser = names.users.keyTable !== undefined || (has('user') && !tableKinds.includes(live.relations[user.name]!.kind))
+  const externalUser = names.users.keyTable !== undefined
+  const userRelation = relationOf(live, user.name)
+  if (!externalUser && userRelation && !tableKinds.includes(userRelation.kind)) {
+    throw new Error(`The auth store's ${user.name} is a view or another relation that is not a table: name the table that holds the user ids in users.keyTable, which the steps' foreign keys point at, and run the baseline again`)
+  }
 
   const lastSteps = Object.fromEntries(on.filter((module) => recorded[module] !== undefined).map((module) => [module, recorded[module]!])) as LastSteps
   const made = (Object.entries(lastSteps) as [ModuleId, number][]).flatMap(([module, last]) => moduleSteps[module].filter((step) => step.step <= last).flatMap((step) => step.tables))
@@ -61,7 +69,7 @@ export const baselineStore = (names: StoreNames, live: LiveStore): BaselineStore
   const kept = allModules.filter((module) => !on.includes(module) && Object.values(every.tables).some((table) => table.module === module && has(table.internal)))
   const organizationsEverOn = Object.values(every.tables).some((table) => {
     const column = (table.columns as Record<string, { name: string } | undefined>).organization_id
-    return table.scope === 'organization' && column !== undefined && (live.relations[table.name]?.columns.includes(column.name) ?? false)
+    return table.scope === 'organization' && column !== undefined && (relationOf(live, table.name)?.columns.includes(column.name) ?? false)
   })
   const prefix = names.schema === undefined ? '' : `${names.schema}.`
   return { lastSteps, kept, organizationsEverOn, external: externalUser ? [`${prefix}${user.name}`] : [] }

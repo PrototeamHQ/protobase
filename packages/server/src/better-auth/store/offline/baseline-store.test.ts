@@ -54,8 +54,15 @@ describe('baselineStore', () => {
     expect(baselineStore(names, live).organizationsEverOn).toBe(false)
   })
 
-  it('records a user table the database has as a view as external', () => {
-    expect(baselineStore(names, liveStore(17, 'v')).external).toEqual(['auth.user'])
+  it('refuses a user table the database has as a view without users.keyTable', () => {
+    expect(() => baselineStore(names, liveStore(17, 'v'))).toThrow("The auth store's user is a view or another relation that is not a table: name the table that holds the user ids in users.keyTable")
+  })
+
+  it('reads no inherited key as a relation, so a user table named constructor that is missing is refused', () => {
+    const named = settingsStoreNames({ tables: { user: { name: 'constructor' } } })
+    const live = liveStore(17)
+    delete live.relations.user
+    expect(() => baselineStore(named, live)).toThrow("The auth store's schema lacks constructor")
   })
 
   it('records the user view of users.keyTable as external', () => {
