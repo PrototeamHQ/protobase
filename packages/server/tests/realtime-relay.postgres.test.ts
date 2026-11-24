@@ -21,17 +21,16 @@ import { relayMigration } from '../src/relay/relay-schema'
 import { subscription, type SubscriptionEvent } from '../src/webhooks/subscription'
 import { npmWs } from './support/npm-ws'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
+import { realtimeBinary } from '../../../test-support/realtime-binary'
 
 // The app's side of the realtime relay against a real relay process and real Postgres: tickets, change notices to a
 // conversation's members, membership that follows the members table, open channels of public records only, and a
 // sign-out closing that session's sockets, and presence the relay reports, kept in the app's own resource, raising its
 // events and published to those who share a conversation, client events the config declares on a channel resource, and
 // a person added to a conversation told alone which one, so their socket joins it.
-// `TEST_RELAY_BINARY` names the relay's binary (`go build ./cmd/relay` of protobase-realtime); without it the test
-// is skipped.
+// The relay is the Protobase Realtime release protobase dev runs (test-support/realtime-binary.ts).
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 60_000 })
 
-const relayBinary = process.env.TEST_RELAY_BINARY
 const origin = 'http://localhost:5173'
 const secret = 'relay-test-secret-relay-test-secret-1234'
 const password = 'correct horse battery'
@@ -115,7 +114,7 @@ const relaySocket = async (url: string, ticket: string) => {
   return { socket, frames, join, send, events, notices, presences, closed: () => closed }
 }
 
-describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the realtime relay with a real relay', () => {
+describe.skipIf(!(await postgresTemplateReady('auth')))('the realtime relay with a real relay', () => {
   let pg: PostgresDatabase
   let relay: ChildProcess
   let dir: string
@@ -175,7 +174,7 @@ describe.skipIf(!relayBinary || !(await postgresTemplateReady('auth')))('the rea
     // No grace, so a closed socket is reported offline once that held for the relay's two seconds.
     const presence = { url: `${appUrl}/api/relay/presence`, key: presenceKey, grace_seconds: 0 }
     await writeFile(path.join(dir, 'apps.json'), JSON.stringify({ apps: [{ id: 'chat', api_keys: [keys.apiKey], ticket_keys: [keys.ticketKey], origins: [origin], client_events: relayClientEvents(channels, new Set(['conversations'])), presence, limits: { connections: 100, channels_per_ticket: 200, request_bytes: 65536 } }] }))
-    relay = spawn(relayBinary!, [], { env: { PROTOBASE_REALTIME_APPS_FILE: path.join(dir, 'apps.json'), PROTOBASE_REALTIME_ADDR: `127.0.0.1:${port}` }, stdio: 'ignore' })
+    relay = spawn(await realtimeBinary(), [], { env: { PROTOBASE_REALTIME_APPS_FILE: path.join(dir, 'apps.json'), PROTOBASE_REALTIME_ADDR: `127.0.0.1:${port}` }, stdio: 'ignore' })
     await vi.waitFor(async () => expect((await fetch(`${relayUrl}/apps/chat/sessions/close`, { method: 'POST' }).catch(() => undefined))?.status).toBe(401), { timeout: 10_000, interval: 100 })
 
     app = createAdmin({

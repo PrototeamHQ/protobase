@@ -8,15 +8,15 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { relayClient } from '../src/relay/relay-client'
 import type { RelaySocketLike } from '../src/relay/relay-socket'
 import type { RelayEvent, RelayNotice } from '../src/relay/relay-types'
+import { realtimeBinary } from '../../../test-support/realtime-binary'
 
 // The client's relay against a real relay process: one socket per client joining the channels its ticket lists, a
 // declared typing event from one person to another, the app's notices, a new ticket and one resync after a drop, and a
 // channel the person was added to, joined as the app tells them on `people`.
-// `TEST_RELAY_BINARY` names the relay's binary (`go build ./cmd/relay` of protobase-realtime); without it the test is
-// skipped. The tickets are signed here, as the app's ticket endpoint signs them.
+// The relay is the Protobase Realtime release protobase dev runs (test-support/realtime-binary.ts). The tickets are
+// signed here, as the app's ticket endpoint signs them.
 vi.setConfig({ testTimeout: 20_000, hookTimeout: 30_000 })
 
-const relayBinary = process.env.TEST_RELAY_BINARY
 const keys = { api: 'client-test-api-key-0123456789abcdef', ticket: 'client-test-ticket-key-0123456789abc' }
 const typing = { schema: { type: 'object', properties: { typing: { type: 'boolean' } }, required: ['typing'] }, max_bytes: 64, per_second: 5, burst: 10 }
 
@@ -38,7 +38,7 @@ const signTicket = (user: string, channels: string[]) => {
   return `${head}.${body}.${base64url(createHmac('sha256', keys.ticket).update(`${head}.${body}`).digest())}`
 }
 
-describe.skipIf(!relayBinary)('the client relay with a real relay', () => {
+describe('the client relay with a real relay', () => {
   let relay: ChildProcess
   let dir: string
   let url: string
@@ -80,7 +80,7 @@ describe.skipIf(!relayBinary)('the client relay with a real relay', () => {
     dir = await mkdtemp(path.join(tmpdir(), 'relay-client-test-'))
     const app = { id: 'chat', api_keys: [keys.api], ticket_keys: [keys.ticket], origins: [], client_events: { channels: { conversations: { events: { typing } } } }, limits: { connections: 100, channels_per_ticket: 200, request_bytes: 65536 } }
     await writeFile(path.join(dir, 'apps.json'), JSON.stringify({ apps: [app] }))
-    relay = spawn(relayBinary!, [], { env: { PROTOBASE_REALTIME_APPS_FILE: path.join(dir, 'apps.json'), PROTOBASE_REALTIME_ADDR: `127.0.0.1:${port}` }, stdio: 'ignore' })
+    relay = spawn(await realtimeBinary(), [], { env: { PROTOBASE_REALTIME_APPS_FILE: path.join(dir, 'apps.json'), PROTOBASE_REALTIME_ADDR: `127.0.0.1:${port}` }, stdio: 'ignore' })
     await vi.waitFor(async () => expect((await publish({}).catch(() => undefined))?.status).toBe(400), { timeout: 10_000, interval: 100 })
   })
 
