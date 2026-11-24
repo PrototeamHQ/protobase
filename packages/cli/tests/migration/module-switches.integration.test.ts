@@ -6,7 +6,8 @@ import pg from 'pg'
 import postgres from 'postgres'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { checkMigrationRecord, createUser, setUserBanned, setUserRole, type AdminAuth } from '@protobase/server'
-import { betterAuthAuthenticator, createAuth, storeNames } from '@protobase/server/internal'
+import { betterAuthAuthenticator, createAuth, organizationsInput, storeNames } from '@protobase/server/internal'
+import { writeAuthMigration } from '../../src/auth/write-migration'
 import { applyMigrations } from '../../src/migration/apply-migrations'
 import { runMigration, type MigrationRun } from '../../src/migration/snapshot/run-migration'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
@@ -160,5 +161,23 @@ describe.skipIf(!reachable)('a sign-in module turned off and on again', () => {
     expect(confirmRevival).not.toHaveBeenCalled()
     expect(await migrate(databaseUrl, where.dir)).toHaveLength(1)
     await expect(checkMigrationRecord(again, '1.0.0')).resolves.toBeUndefined()
+  })
+
+  it('writes no auth migration for organizations kept off, from the default organization the config keeps', async () => {
+    const databaseUrl = await createDatabase()
+    const where = await project()
+    const organizations = organizationsInput({ default: { id: 'main', name: 'Main', slug: 'main' } })!
+    const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
+    pools.push(pool)
+    const on = createAuth({ database: pool, baseURL: origin, secret, mailer: false, operator: false, signInProviders: [], organizations })
+    await runMigration({ ...where, auth: { names: storeNames(on), organizationsOn: true, organizations }, database: undefined, protobaseVersion: '1.0.0', newId: randomUUID })
+    await migrate(databaseUrl, where.dir)
+    const off = authOf(databaseUrl, false)
+    await runMigration({ ...where, auth: { names: storeNames(off), organizationsOn: false, organizations }, database: undefined, protobaseVersion: '1.0.0', newId: randomUUID, off: 'keep' })
+    await migrate(databaseUrl, where.dir)
+
+    // The sign-in has no organizations while they are off; the config still gives their default.
+    await expect(writeAuthMigration({ ...where, name: 'auth', auth: off })).rejects.toThrow('organizations.default is not set, and organizations were on')
+    expect(await writeAuthMigration({ ...where, name: 'auth', auth: off, organizations })).toBeUndefined()
   })
 })

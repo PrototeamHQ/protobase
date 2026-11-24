@@ -12,13 +12,14 @@ export const registerAuth = (program: Command) => {
     .option('--dir <dir>', 'migrations folder', 'db/migrations')
     .option('--name <name>', 'file name after the number', 'auth')
     .action(async (opts) => {
-      const [{ loadSignIn }, { writeAuthMigration }] = await Promise.all([import('../users/load-auth'), import('./write-migration')])
+      const [{ loadSignIn }, { writeAuthMigration }, { loadConfigOrganizations }] = await Promise.all([import('../users/load-auth'), import('./write-migration'), import('./config-organizations')])
       const auth = await loadSignIn(process.cwd())
       if (!auth) {
         out("sign-in is off in the project's config; nothing to write\n")
         return
       }
-      const file = await writeAuthMigration({ auth, projectDir: process.cwd(), dir: path.resolve(opts.dir), name: opts.name })
+      const organizations = await loadConfigOrganizations(process.cwd())
+      const file = await writeAuthMigration({ auth, projectDir: process.cwd(), dir: path.resolve(opts.dir), name: opts.name, organizations })
       out(file ? `wrote ${path.relative(process.cwd(), file)}; apply it with the project's migrations\n` : 'the auth schema is up to date; nothing to write\n')
       // The auth store keeps a connection pool open.
       process.exit(0)

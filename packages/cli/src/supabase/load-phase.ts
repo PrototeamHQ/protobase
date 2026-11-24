@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { loadConfigOrganizations } from '../auth/config-organizations'
 import { writeAuthMigration } from '../auth/write-migration'
 import { connect } from '../db/connect'
 import { runDoctor } from '../doctor/run'
@@ -92,7 +93,7 @@ export const runLoadPhase = async (options: LoadOptions, out: (text: string) => 
   const jobsWired = await writeCronJobs(options.projectDir, cron)
   if (cron.length > 0) out(`wrote ${cron.length} of pg_cron's jobs as recurring jobs in jobs/\n`)
 
-  const authFile = await writeAuthMigration({ auth, projectDir: options.projectDir, dir: options.migrationsDir, name: 'auth' })
+  const authFile = await writeAuthMigration({ auth, projectDir: options.projectDir, dir: options.migrationsDir, name: 'auth', organizations: await loadConfigOrganizations(options.projectDir) })
   if (authFile) out(`wrote ${path.relative(options.projectDir, authFile)}, Better Auth's tables next to auth.users\n`)
   const accountsFile = await writeMigration(options.migrationsDir, 'supabase_accounts', accountsMigration())
   out(`wrote ${path.relative(options.projectDir, path.join(options.migrationsDir, accountsFile))}, the users' accounts with their Supabase passwords and social providers\n`)

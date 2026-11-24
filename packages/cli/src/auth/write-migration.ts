@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { authSchemaMigration, type AdminAuth } from '@protobase/server'
-import { keptStoreModules, latestSteps, organizationsInput, recordsRuntimeModel, storeModel, storeNames } from '@protobase/server/internal'
+import { keptStoreModules, latestSteps, organizationsInput, recordsRuntimeModel, storeModel, storeNames, type OrganizationsInput } from '@protobase/server/internal'
 import { authRefusals, customHint, organizationRefusals } from '../migration/snapshot/auth-difference'
 import { organizationsNow } from '../migration/snapshot/auth-target'
 import { moduleChanges } from '../migration/snapshot/module-changes'
@@ -19,6 +19,11 @@ export type WriteAuthMigrationOptions = {
   name: string
   /** The command the file names as its writer, `protobase auth migration` by default. */
   writer?: string
+  /**
+   * The config's default organization and the role of the users there already (`loadConfigOrganizations`), which the
+   * config keeps while organizations are off and `auth` then lacks; `auth`'s own by default.
+   */
+  organizations?: OrganizationsInput
 }
 
 /**
@@ -30,11 +35,11 @@ export type WriteAuthMigrationOptions = {
  * migrations came before the snapshot, gets a file without statements that starts it; one whose store is current but
  * not in the database's record of migrations, as before the record, a file that only records it.
  */
-export const writeAuthMigration = async ({ auth, projectDir, dir, name, writer }: WriteAuthMigrationOptions) => {
+export const writeAuthMigration = async ({ auth, projectDir, dir, name, writer, organizations }: WriteAuthMigrationOptions) => {
   const snapshot = await readSnapshot(projectDir)
   refuseInconsistent(snapshot, await readMigrationFiles(dir))
   const names = storeNames(auth)
-  const target = { names, organizationsOn: Boolean(auth.organizations), organizations: organizationsInput(auth.organizations?.options) }
+  const target = { names, organizationsOn: Boolean(auth.organizations), organizations: organizations ?? organizationsInput(auth.organizations?.options) }
   // Turning a module off asks what becomes of its tables, and on again checks the rows they kept: `protobase migration`
   // does both, even where the database records the config's model already, as after `protobase-serve migrate-release`.
   const changes = moduleChanges(snapshot, target)

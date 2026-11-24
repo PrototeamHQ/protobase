@@ -1,5 +1,6 @@
 import { mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
+import { loadConfigOrganizations } from '../auth/config-organizations'
 import { writeAuthMigration } from '../auth/write-migration'
 import { loadProjectAuth } from '../users/load-auth'
 import { planAuthConfig, sharedUsersConfig, sharedUsersSchema } from './auth-config'
@@ -26,7 +27,8 @@ export const useSupabaseUsers = async (projectDir: string, out: (text: string) =
   if (storeMigrations.length > 0) out(`removed ${storeMigrations.length} migrations of Protobase's own user table: Supabase's users replace it\n`)
   out(`pointed ${relative(authConfig.file)} at ${sharedUsersSchema}.users, a view over auth.users\n`)
 
-  const authFile = await writeAuthMigration({ auth: await loadProjectAuth(projectDir), projectDir, dir: migrationsDir, name: 'auth', writer: 'create protobase' })
+  const organizations = await loadConfigOrganizations(projectDir)
+  const authFile = await writeAuthMigration({ auth: await loadProjectAuth(projectDir), projectDir, dir: migrationsDir, name: 'auth', writer: 'create protobase', organizations })
   if (authFile) out(`wrote ${relative(authFile)}, Better Auth's tables in ${sharedUsersSchema}, pointing at auth.users\n`)
   const usersFile = await writeMigration(migrationsDir, 'supabase_users', sharedUsersMigration())
   out(`wrote ${relative(path.join(migrationsDir, usersFile))}, the view over auth.users and the users' accounts with their Supabase passwords and social providers\n`)
