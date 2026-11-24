@@ -57,12 +57,13 @@ export const registerMigration = (program: Command) => {
       out(`wrote ${path.relative(process.cwd(), file)}${opts.after ? ', its .after.sql' : ''} and protobase.snapshot.json: write its statements\n`)
       return
     }
-    const [{ migrationProject }, { migrationParts }, { runMigration }, { migrationSummary }, { offChoice }, prompts] = await Promise.all([
+    const [{ migrationProject }, { migrationParts }, { runMigration }, { migrationSummary }, { offChoice }, { trialContractions }, prompts] = await Promise.all([
       import('./migration-project'),
       import('./parts'),
       import('./snapshot/run-migration'),
       import('./summary'),
       import('./snapshot/off-choice'),
+      import('./older-code/trial'),
       import('./snapshot/terminal-prompts'),
     ])
     const off = offChoice(opts.off)
@@ -70,7 +71,7 @@ export const registerMigration = (program: Command) => {
     const project = url ? await migrationProject(config, url) : undefined
     try {
       const asks = process.stdin.isTTY ? prompts.terminalPrompts() : undefined
-      const file = await runMigration({ projectDir: process.cwd(), dir, auth, database: project && url ? { url, parts: migrationParts(project) } : undefined, protobaseVersion, newId: randomUUID, ...(off && { off }), force: Boolean(opts.force), ...asks?.prompts }).finally(() => asks?.close())
+      const file = await runMigration({ projectDir: process.cwd(), dir, auth, database: project && url ? { url, parts: migrationParts(project), contractions: (sections) => trialContractions(url, sections) } : undefined, protobaseVersion, newId: randomUUID, ...(off && { off }), force: Boolean(opts.force), ...asks?.prompts }).finally(() => asks?.close())
       out(migrationSummary(file, process.cwd(), { hasAuth: Boolean(auth), compared: Boolean(project) }))
     } finally {
       await project?.close()
@@ -79,10 +80,12 @@ export const registerMigration = (program: Command) => {
     process.exit(0)
   })
 
-  folderOptions(migration.command('check').description('Report, writing nothing, what keeps the migrations and protobase.snapshot.json from matching the config; exit code 1 when anything does, for CI')).action(async (opts: FolderOptions) => {
+  folderOptions(migration.command('check').description('Report, writing nothing, what keeps the migrations and protobase.snapshot.json from matching the config, and warn of statements that lock reads or take from older code unmarked; exit code 1 when anything but a warning is found, for CI')).action(async (opts: FolderOptions) => {
     const { auth } = await loadAuthTarget(opts)
-    const { checkMigrations } = await import('./snapshot/check')
-    const found = await checkMigrations(process.cwd(), path.resolve(opts.dir), auth)
+    const [{ checkMigrations }, { fileWarnings }, { readMigrationFiles }] = await Promise.all([import('./snapshot/check'), import('./older-code/lint-files'), import('./snapshot/migration-files')])
+    const dir = path.resolve(opts.dir)
+    const found = await checkMigrations(process.cwd(), dir, auth)
+    out(fileWarnings(await readMigrationFiles(dir)).map((line) => `warning: ${line}\n`).join(''))
     if (found.length === 0) {
       out('the migrations and protobase.snapshot.json match the config\n')
       return

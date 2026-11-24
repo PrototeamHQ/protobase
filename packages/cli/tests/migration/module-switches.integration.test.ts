@@ -9,6 +9,7 @@ import { checkMigrationRecord, createUser, setUserBanned, setUserRole, type Admi
 import { betterAuthAuthenticator, createAuth, organizationsInput, storeNames } from '@protobase/server/internal'
 import { writeAuthMigration } from '../../src/auth/write-migration'
 import { applyMigrations } from '../../src/migration/apply-migrations'
+import { trialContractions } from '../../src/migration/older-code/trial'
 import { runMigration, type MigrationRun } from '../../src/migration/snapshot/run-migration'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
 import { withDatabase } from '../support/serve-process'
@@ -126,10 +127,10 @@ describe.skipIf(!reachable)('a sign-in module turned off and on again', () => {
 
     // On again: refused while the kept table holds a row, in the CLI and in the file, and let through with --force.
     const again = authOf(databaseUrl, true)
-    await expect(migration(where, again, { database: { url: databaseUrl, parts: [] } })).rejects.toThrow(
+    await expect(migration(where, again, { database: { url: databaseUrl, parts: [], contractions: (sections) => trialContractions(databaseUrl, sections) } })).rejects.toThrow(
       'personal_access_tokens is on again while its kept tables hold rows: personal_access_token 1. Delete them in a migration of the project\'s own first, or bring them back: pass --force to write the migration, and apply it with `protobase migrate --force`',
     )
-    const file = await migration(where, again, { database: { url: databaseUrl, parts: [] }, force: true })
+    const file = await migration(where, again, { database: { url: databaseUrl, parts: [], contractions: (sections) => trialContractions(databaseUrl, sections) }, force: true })
     expect(await readFile(file!, 'utf8')).toContain('-- personal_access_tokens on again:')
     await expect(migrate(databaseUrl, where.dir)).rejects.toThrow('The personal_access_tokens module was kept while off, and its tables still hold rows: personal_access_token 1.')
     expect(await migrate(databaseUrl, where.dir, true)).toEqual([path.basename(file!)])
@@ -157,7 +158,7 @@ describe.skipIf(!reachable)('a sign-in module turned off and on again', () => {
     await migrate(databaseUrl, where.dir)
     const again = authOf(databaseUrl, true)
     const confirmRevival = vi.fn(async () => false)
-    expect(await migration(where, again, { database: { url: databaseUrl, parts: [] }, confirmRevival })).toBeDefined()
+    expect(await migration(where, again, { database: { url: databaseUrl, parts: [], contractions: (sections) => trialContractions(databaseUrl, sections) }, confirmRevival })).toBeDefined()
     expect(confirmRevival).not.toHaveBeenCalled()
     expect(await migrate(databaseUrl, where.dir)).toHaveLength(1)
     await expect(checkMigrationRecord(again, '1.0.0')).resolves.toBeUndefined()
