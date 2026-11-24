@@ -8,12 +8,8 @@ import path from 'node:path'
 // default. Squawk reads each step as a file of its own, so a table an earlier step made counts as one with rows; the
 // tests run this over every step Protobase ships.
 
-/**
- * The Squawk rules a step must not break, a step it cannot parse included. Its others are about locks and online
- * changes, which do not apply as the migrations run while nothing else writes, or about style.
- */
-const refusedRules = [
-  'syntax-error',
+/** The Squawk rules a statement that takes from older code what it reads, writes or relies on breaks. */
+export const contractingRules = [
   'ban-drop-column',
   'ban-drop-table',
   'ban-drop-database',
@@ -26,14 +22,32 @@ const refusedRules = [
   'renaming-table',
 ]
 
+/**
+ * The Squawk rules of a statement that holds a lock blocking reads for as long as it scans or rewrites a table. Its
+ * rules about locks that only block writes, such as an index built without `concurrently`, do not apply: the
+ * migrations run in one transaction while nothing else writes.
+ */
+export const lockingRules = ['adding-not-nullable-field', 'changing-column-type', 'adding-field-with-default', 'constraint-missing-not-valid', 'adding-serial-primary-key-field']
+
+/**
+ * The Squawk rules a step must not break, a step it cannot parse included. Its others are about locks and online
+ * changes, which do not apply as the migrations run while nothing else writes, or about style.
+ */
+const refusedRules = ['syntax-error', ...contractingRules]
+
 /** A rendered step: `made`, the tables it makes as its SQL names them; `checked`, whether it starts with a check. */
 export type LintedStep = { label: string; sql: string; made: string[]; checked: boolean }
 
 export type StepFinding = { step: string; rule: string; message: string }
 
-type SquawkFinding = { file: string; rule_name: string; message: string }
+/** What Squawk finds in a step, its line counted from 0. */
+export type SquawkFinding = StepFinding & { line: number }
 
-const squawkFindings = (steps: LintedStep[], squawk: string): StepFinding[] => {
+type SquawkOutput = { file: string; rule_name: string; message: string; line: number }
+
+/** Every finding of Squawk's in `steps`, each read as a file of its own, in one run. */
+export const squawkReport = (steps: readonly Pick<LintedStep, 'label' | 'sql'>[], squawk = createRequire(import.meta.url).resolve('squawk-cli/js/bin/squawk')): SquawkFinding[] => {
+  if (steps.length === 0) return []
   const dir = mkdtempSync(path.join(tmpdir(), 'protobase-step-lint-'))
   const files = steps.map((step, i) => {
     const file = path.join(dir, `${i}.sql`)
@@ -44,10 +58,13 @@ const squawkFindings = (steps: LintedStep[], squawk: string): StepFinding[] => {
   rmSync(dir, { recursive: true })
   if (run.error) throw run.error
   if (run.stdout.trim() === '') throw new Error(`squawk exited with ${run.status}: ${run.stderr}`)
-  return (JSON.parse(run.stdout) as SquawkFinding[])
-    .filter((finding) => refusedRules.includes(finding.rule_name))
-    .map((finding) => ({ step: steps[files.indexOf(finding.file)]!.label, rule: finding.rule_name, message: finding.message }))
+  return (JSON.parse(run.stdout) as SquawkOutput[]).map((finding) => ({ step: steps[files.indexOf(finding.file)]!.label, rule: finding.rule_name, message: finding.message, line: finding.line }))
 }
+
+const squawkFindings = (steps: LintedStep[], squawk: string): StepFinding[] =>
+  squawkReport(steps, squawk)
+    .filter((finding) => refusedRules.includes(finding.rule))
+    .map(({ step, rule, message }) => ({ step, rule, message }))
 
 // Keywords in any case and after any indentation; the table as the SQL writes it.
 const uniqueIndexOn = /^\s*create\s+unique\s+index\s+(?:if\s+not\s+exists\s+)?(?:"[^"]+"|\w+)\s+on\s+((?:(?:"[^"]+"|\w+)\.)?(?:"[^"]+"|\w+))/gim

@@ -3,7 +3,7 @@ import { authMigrationTitle } from '../../auth/migration-file'
 import { authRefusals, organizationRefusals, redescribed, snapshotStore, stepsAfter } from './auth-difference'
 import type { AuthTarget } from './auth-target'
 import { inconsistencies } from './consistency'
-import { lintCustomFiles } from './lint-custom'
+import { lintFiles } from '../older-code/lint-files'
 import { moduleChanges } from './module-changes'
 import { readMigrationFiles } from './migration-files'
 import { readSnapshot, snapshotFile } from './snapshot-file'
@@ -17,7 +17,8 @@ const unswitched = (snapshot: Parameters<typeof moduleChanges>[0], auth: AuthTar
 /**
  * `protobase migration check`, for CI: what keeps the migrations from matching the config, one line each, from the
  * files and the snapshot alone, writing nothing. The snapshot disagreeing with the files, a config change the
- * migrations lack, and a hand-written migration marked additive that is not. None when they match.
+ * migrations lack, and a file that does not say, or says wrongly, how it treats older code (`lintFiles`). None when
+ * they match.
  */
 export const checkMigrations = async (projectDir: string, dir: string, auth: AuthTarget | undefined) => {
   const snapshot = await readSnapshot(projectDir)
@@ -38,5 +39,5 @@ export const checkMigrations = async (projectDir: string, dir: string, auth: Aut
   const changes = moduleChanges(snapshot, auth)
   const switched = [...changes.off.map(({ module }) => `${module} off`), ...changes.revived.map(({ module }) => `${module} on again`)]
   if (refusals.length === 0 && switched.length > 0) found.push(`the config turns ${switched.join(', ')}, which the migrations lack: run \`protobase migration\``)
-  return [...found, ...lintCustomFiles(files)]
+  return [...found, ...(await lintFiles(files))]
 }

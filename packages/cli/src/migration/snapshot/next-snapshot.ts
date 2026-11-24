@@ -41,7 +41,7 @@ export const nextSnapshot = (before: Snapshot['decisions'] | undefined, auth: St
 }
 
 /** The header of the migration a snapshot ends at. */
-export const snapshotHeader = (snapshot: Snapshot, kind: Pick<Header, 'custom' | 'additive'> = { custom: false, additive: false }): Header => ({
+export const snapshotHeader = (snapshot: Snapshot, kind: Pick<Header, 'custom' | 'additive' | 'breaksOlderCode'> = { custom: false, additive: false, breaksOlderCode: false }): Header => ({
   id: snapshot.endsAt.id,
   version: snapshot.protobaseVersion,
   steps: snapshot.model.auth ? lastStepsOf(snapshot.model.auth) : {},
