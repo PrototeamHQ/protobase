@@ -1,4 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { namesOf } from '../src/better-auth/names/names-plugin'
+import { resolveNames } from '../src/better-auth/names/resolve-names'
 import { storeSqlOf } from '../src/better-auth/store/store-sql'
 import { sharedSenderReader } from '../src/personal-mail/shared-sender-store'
 import { mcpStores, type McpStores } from './support/mcp-app'
@@ -107,7 +109,10 @@ describe('sharing a From address', () => {
     await app.store.query(`insert into organization (id, name, slug, created_at) values ('o1', 'Shop', 'shop', '2026-08-01'), ('o2', 'Other', 'other', '2026-08-01')`)
     await app.store.query(`insert into member (id, organization_id, user_id, role, created_at) values ('m1', 'o1', $1, 'member', '2026-08-01'), ('m2', 'o1', $2, 'member', '2026-08-01'), ('m3', 'o2', $3, 'member', '2026-08-01')`, [anaId, boId, rootId])
     const context = await app.auth.$context
-    const read = sharedSenderReader(async () => storeSqlOf(context), { organizations: true, verifiers: ['test-mail'] })
+    // The app has organizations off; the reader over the same store with their tables named, as an app with them on reads it.
+    const store = storeSqlOf(context)
+    const members = resolveNames({ ...namesOf(context).input, modules: [...namesOf(context).modules, 'organizations'] })
+    const read = sharedSenderReader(async () => ({ ...store, table: members.table }), { organizations: true, verifiers: ['test-mail'] })
     expect((await read(boId)).map(({ id, provedAt }) => ({ id, proved: provedAt !== null }))).toEqual([{ id: billing, proved: true }])
     expect(await read(rootId)).toEqual([])
     expect(await read(rootId, billing)).toEqual([])

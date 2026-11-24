@@ -1,7 +1,7 @@
 import { Kysely, PostgresDialect, sql } from 'kysely'
 import pg from 'pg'
 import { authSchemaMigration, jobsSchemaMigration } from '@protobase/server'
-import { createAuth } from '@protobase/server/internal'
+import { buildAuth } from '@protobase/server/internal'
 import { queryDdl } from '../../test-support/fixtures/query-ddl'
 import { restDdl } from '../../test-support/fixtures/rest-ddl'
 import { serverDdl } from '../../test-support/fixtures/server-ddl'
@@ -46,10 +46,24 @@ export const snapshotTemplates = {
     await exec(db, restDdl)
     await exec(db, 'vacuum analyze')
   }),
-  /** A migrated Better Auth store with nothing in it, as `protobase auth migration` writes it: no users, no signing keys. */
-  auth: snapshot('snapshot_auth_test_template', ['packages/server/src/better-auth/store', 'bun.lock'], async (db, url) => {
+  /**
+   * A migrated Better Auth store with nothing in it, as `protobase auth migration` writes it: no users, no signing keys.
+   * Every feature with tables of its own is on, so a test turns on any of them over it.
+   */
+  auth: snapshot('snapshot_auth_test_template', ['packages/server/src/better-auth/store', 'packages/server/src/better-auth/names', 'bun.lock'], async (db, url) => {
     const pool = new pg.Pool({ connectionString: url, max: 1 })
-    const auth = createAuth({ database: { dialect: new PostgresDialect({ pool }), type: 'postgres' }, baseURL: 'http://localhost', secret: 'auth-store-snapshot-secret-0123456789', mailer: false })
+    const auth = await buildAuth({
+      database: { dialect: new PostgresDialect({ pool }), type: 'postgres' },
+      baseURL: 'http://localhost',
+      secret: 'auth-store-snapshot-secret-0123456789',
+      mailer: false,
+      organizations: {},
+      mcp: true,
+      personalAccessTokens: { prefix: 'snapshot_' },
+      personalMail: ['gmail'],
+      encryptOAuthTokens: true,
+      socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } },
+    })
     await exec(db, (await authSchemaMigration(auth))!)
     await pool.end()
   }),
