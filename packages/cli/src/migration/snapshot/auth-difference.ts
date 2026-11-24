@@ -16,6 +16,14 @@ export const authRefusals = (snapshot: Snapshot | undefined, target: AuthTarget 
   return nameChanges(before, storeModel(target.names, lastStepsOf(before))).map((change) => `the auth store's ${change}`)
 }
 
+/** The steps the store lacks after the snapshot's, which leave alone a user table the snapshot records as external. */
+export const stepsAfter = (snapshot: Snapshot | undefined, target: AuthTarget) => {
+  const before = snapshot?.model.auth
+  const user = target.names.names.table('user')
+  const userName = target.names.schema === undefined ? user.name : `${target.names.schema}.${user.name}`
+  return offlineStepsMigration(target.names, before && lastStepsOf(before), snapshot?.decisions.external?.includes(userName) ?? false)
+}
+
 /** How to write what the steps cannot, once refused. */
 export const customHint = 'Write the change by hand with `protobase migration --custom <name> --record-config`.'
 
@@ -28,6 +36,6 @@ export const authDifference = (snapshot: Snapshot | undefined, target: AuthTarge
   if (refusals.length > 0) throw new Error(`${refusals.join('; ')}. ${customHint}`)
   if (!target) return { model: undefined, migration: undefined }
   const before = snapshot?.model.auth
-  const migration = offlineStepsMigration(target.names, before && lastStepsOf(before))
+  const migration = stepsAfter(snapshot, target)
   return { migration, model: storeModel(target.names, migration || !before ? latestSteps(target.names.names.modules) : lastStepsOf(before)) }
 }

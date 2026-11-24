@@ -79,6 +79,20 @@ export const registerMigration = (program: Command) => {
     process.exitCode = 1
   })
 
+  folderOptions(
+    migration
+      .command('baseline')
+      .description("Start protobase.snapshot.json of a project whose auth migrations came before it from DATABASE_URL, read once, with a numbered migration that changes nothing"),
+  ).action(async (opts: FolderOptions) => {
+    const { auth } = await loadAuthTarget(opts)
+    if (!auth) throw new Error("sign-in is off in the project's config, so there is no auth store to describe")
+    const url = process.env.DATABASE_URL
+    if (!url) throw new Error("No database: set DATABASE_URL to the project's database with its migrations applied")
+    const { writeBaseline } = await import('./baseline/write-baseline')
+    const file = await writeBaseline({ projectDir: process.cwd(), dir: path.resolve(opts.dir), auth, url, protobaseVersion, newId: randomUUID })
+    out(`wrote ${path.relative(process.cwd(), file)} and protobase.snapshot.json: apply it with the project's migrations, then run \`protobase migration\`\n`)
+  })
+
   migration
     .command('drop')
     .description('Delete the newest migration `protobase migration` wrote and take protobase.snapshot.json back to the one before it')

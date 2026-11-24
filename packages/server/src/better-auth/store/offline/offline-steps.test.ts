@@ -52,4 +52,10 @@ end $version$;`)
     const off = settingsStoreNames({})
     expect(() => offlineStepsMigration({ ...off, names: { ...off.names, modules: ['auth'] } }, undefined)).toThrow('is off')
   })
+
+  it('leaves the user table alone when the snapshot records it as a relation Protobase did not make', () => {
+    const migration = offlineStepsMigration(names, { ...latest, auth: 2 }, true)!
+    expect(migration.sql).toContain('-- auth 3 user_indexes:')
+    expect(migration.sql).not.toContain('on "auth"."user"')
+  })
 })

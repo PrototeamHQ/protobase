@@ -55,11 +55,14 @@ export type Step = {
   adds?: Partial<Record<ModuleId, Statements>>
 }
 
-/** The `ddl` parts of the store's names. */
-export const migrationNames = ({ names, users, uuidIds }: StoreNames): MigrationNames => ({
+/**
+ * The `ddl` parts of the store's names. `externalUser`: the user table is a relation Protobase did not make, which its
+ * statements leave alone, as under `users.keyTable` or as a project's snapshot records it.
+ */
+export const migrationNames = ({ names, users, uuidIds }: StoreNames, externalUser = users.keyTable !== undefined): MigrationNames => ({
   table: names.table,
   user: users.keyTable ? tableId(users.keyTable.schema, users.keyTable.table) : names.table('user'),
-  userDdl: (statements) => (users.keyTable ? [] : statements),
+  userDdl: (statements) => (externalUser ? [] : statements),
   metadata: users.metadata,
   id: sql.raw(uuidIds ? 'uuid default pg_catalog.gen_random_uuid()' : 'text'),
   idRef: sql.raw(uuidIds ? 'uuid' : 'text'),

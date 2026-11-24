@@ -1,6 +1,5 @@
-import { offlineStepsMigration } from '@protobase/server/internal'
 import { authMigrationTitle } from '../../auth/migration-file'
-import { authRefusals, lastStepsOf } from './auth-difference'
+import { authRefusals, stepsAfter } from './auth-difference'
 import type { AuthTarget } from './auth-target'
 import { inconsistencies } from './consistency'
 import { lintCustomFiles } from './lint-custom'
@@ -16,13 +15,12 @@ export const checkMigrations = async (projectDir: string, dir: string, auth: Aut
   const snapshot = await readSnapshot(projectDir)
   const files = await readMigrationFiles(dir)
   const found = inconsistencies(snapshot, files)
-  const before = snapshot?.model.auth
   const refusals = authRefusals(snapshot, auth)
   if (!snapshot && auth && files.some(({ text }) => text.includes(authMigrationTitle))) {
-    found.push(`the project has auth migrations from before ${snapshotFile}: start it with \`protobase auth migration\`, against the database with the project's migrations applied`)
+    found.push(`the project has auth migrations from before ${snapshotFile}: start it with \`protobase migration baseline\`, against the database with the project's migrations applied`)
   } else if (refusals.length > 0) {
     found.push(...refusals)
-  } else if (auth && offlineStepsMigration(auth.names, before && lastStepsOf(before))) {
+  } else if (auth && stepsAfter(snapshot, auth)) {
     found.push('the config and this version of Protobase need auth store steps the migrations lack: run `protobase migration`')
   }
   return [...found, ...lintCustomFiles(files)]
