@@ -80,7 +80,7 @@ describe('protobase migration', () => {
     const dir = await newProject()
     await mkdir(migrationsOf(dir), { recursive: true })
     await writeFile(path.join(migrationsOf(dir), '001_auth.sql'), '-- The auth schema changes this version of Protobase needs, written by `protobase auth migration`.\n')
-    await expect(migrate(dir, authOf())).rejects.toThrow('start it with `protobase auth migration`, run against the database')
+    await expect(migrate(dir, authOf())).rejects.toThrow('start it with `protobase migration baseline`, run against the database')
   })
 
   it("numbers after the project's own migrations", async () => {
@@ -116,4 +116,19 @@ describe('protobase migration', () => {
       await expect(withRelay(dir)).rejects.toThrow('no sessions table')
     })
   })
+
+  it("records the user view of users.keyTable as external, and a snapshot's external user table stays untouched", async () => {
+    const dir = await newProject()
+    await migrate(dir, authOf({ users: { keyTable: { schema: 'public', table: 'people' } } }))
+    expect((await readSnapshot(dir))!.decisions.external).toEqual(['auth.user'])
+    expect((await readSnapshot(await olderProject(5)))!.decisions.external).toBeUndefined()
+
+    const older = await olderProject(2)
+    const snapshot = (await readSnapshot(older))!
+    await writeFile(path.join(older, 'protobase.snapshot.json'), JSON.stringify({ ...snapshot, decisions: { ...snapshot.decisions, external: ['auth.user'] } }))
+    const text = await readFile((await migrate(older, authOf()))!, 'utf8')
+    expect(text).toContain('-- auth 3 user_indexes:')
+    expect(text).not.toContain('on "auth"."user"')
+  })
 })
+

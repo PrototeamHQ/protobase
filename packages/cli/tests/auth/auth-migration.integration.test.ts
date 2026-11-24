@@ -134,7 +134,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     await writeFile(path.join(folder, '001_auth.sql'), migrationText((await authSchemaMigration(auth))!))
     await applyAll(databaseUrl, folder)
     expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: false })).toEqual([
-      "the project has auth migrations from before protobase.snapshot.json: start it with `protobase auth migration`, against the database with the project's migrations applied",
+      "the project has auth migrations from before protobase.snapshot.json: start it with `protobase migration baseline`, against the database with the project's migrations applied",
     ])
 
     const file = await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })

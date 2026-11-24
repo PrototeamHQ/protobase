@@ -23,13 +23,14 @@ const refuseNewer = (lastSteps: LastSteps) => {
  * followed by its row in `auth_migrations`, which the server's check reads, each run only while that table lacks its
  * version, so a database that has it already skips it; for a store the snapshot has none of
  * (`lastSteps` undefined), that table first. `checks`: the checks of the steps on tables the store has already, which
- * refuse when its rows break what a step assumes. `undefined` when the snapshot has every step.
+ * refuse when its rows break what a step assumes. `undefined` when the snapshot has every step. `externalUser`: the
+ * snapshot records the user table as a relation Protobase did not make, whose statements are left out.
  */
-export const offlineStepsMigration = (names: StoreNames, lastSteps: LastSteps | undefined) => {
+export const offlineStepsMigration = (names: StoreNames, lastSteps: LastSteps | undefined, externalUser = false) => {
   refuseModulesOff(names)
   if (lastSteps) refuseNewer(lastSteps)
   const had: Had = (module, step) => step.step <= (lastSteps?.[module] ?? 0)
-  const migration = migrationNames(names)
+  const migration = migrationNames(names, externalUser || names.users.keyTable !== undefined)
   const rendered = renderSteps(migration, names.names.modules, had)
   if (rendered.length === 0) return undefined
   const recorded = (version: number) => (Object.entries(moduleSteps) as [ModuleId, (typeof moduleSteps)[ModuleId]][]).every(([module, steps]) => steps.filter((step) => step.version === version).every((step) => had(module, step)))

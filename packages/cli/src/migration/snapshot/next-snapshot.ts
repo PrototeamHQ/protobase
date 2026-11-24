@@ -3,9 +3,20 @@ import { lastStepsOf } from './auth-difference'
 import type { Header } from './header'
 import { modelHash, snapshotFormat, type Snapshot } from './snapshot-file'
 
-/** The snapshot once the migration `endsAt` is applied: `auth`, the store's model then, and whether organizations are on now. */
-export const nextSnapshot = (previous: Snapshot | undefined, auth: StoreModel | undefined, organizationsOn: boolean, endsAt: Snapshot['endsAt'], protobaseVersion: string): Snapshot => {
+// The user table, by its name in the store's schema, when the store reads it through a view over another system's.
+const externalUser = (auth: StoreModel | undefined) => {
+  const user = auth?.modules.auth?.tables.user
+  if (!auth?.userKeyTable || !user) return []
+  return [auth.schema === null ? user.name : `${auth.schema}.${user.name}`]
+}
+
+/**
+ * The snapshot once the migration `endsAt` is applied: `auth`, the store's model then, and whether organizations are
+ * on now. It goes on from `before`, the decisions of the snapshot before it, which a baseline reads from the database.
+ */
+export const nextSnapshot = (before: Snapshot['decisions'] | undefined, auth: StoreModel | undefined, organizationsOn: boolean, endsAt: Snapshot['endsAt'], protobaseVersion: string): Snapshot => {
   const model = auth ? { auth } : {}
+  const external = [...new Set([...(before?.external ?? []), ...externalUser(auth)])].sort()
   return {
     format: snapshotFormat,
     protobaseVersion,
@@ -13,8 +24,9 @@ export const nextSnapshot = (previous: Snapshot | undefined, auth: StoreModel | 
     modelHash: modelHash(model),
     model,
     decisions: {
-      modules: previous?.decisions.modules ?? { kept: [], archived: [] },
-      organizations: { everOn: (previous?.decisions.organizations.everOn ?? false) || organizationsOn, defaultOrganization: previous?.decisions.organizations.defaultOrganization ?? null },
+      modules: before?.modules ?? { kept: [], archived: [] },
+      organizations: { everOn: (before?.organizations.everOn ?? false) || organizationsOn, defaultOrganization: before?.organizations.defaultOrganization ?? null },
+      ...(external.length > 0 && { external }),
     },
     physical: auth ? { auth: storeNamesList(auth) } : {},
   }

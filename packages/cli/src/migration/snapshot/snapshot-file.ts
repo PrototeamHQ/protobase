@@ -27,6 +27,8 @@ export type Snapshot = {
     modules: { kept: string[]; archived: string[] }
     /** Whether organizations were ever on, and the organization the users of an app without them belong to. */
     organizations: { everOn: boolean; defaultOrganization: string | null }
+    /** The relations of the store Protobase did not make, such as a user view over another system's users, which no step alters; none when absent. */
+    external?: string[]
   }
   /** Every name the migrations make, by part. */
   physical: { auth?: string[] }
