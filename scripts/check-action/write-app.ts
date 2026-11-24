@@ -6,7 +6,6 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { presets } from '../../packages/presets/src/presets'
 import { writePresetFiles } from '../../packages/presets/src/write-preset'
-import { lockedVersions } from './locked-versions'
 
 type Packed = { name: string; version: string; tarball: string }
 
@@ -19,10 +18,9 @@ const preset = presets.find(({ name }) => name === 'property-portal')!
 writePresetFiles(preset, packed[0]!.version, outDir)
 
 // The app lists its @protobase packages at the packed version, as the CLI requires, and each of them resolves to its
-// tarball, as do the ones they depend on. Their own dependencies resolve at the versions this checkout's bun.lock
-// records, so a release published upstream since cannot break the check before this checkout's code runs.
-const locked = lockedVersions(Bun.JSONC.parse(readFileSync(path.join(import.meta.dirname, '..', '..', 'bun.lock'), 'utf8')))
+// tarball, as do the ones they depend on. @react-pdf/textkit stays at 7.0.1, since 7.0.2 depends on a
+// @react-pdf/hyphenate@^0.1.1 the registry does not have.
+const overrides = { ...tarballs, '@react-pdf/textkit': '7.0.1' }
 const file = path.join(outDir, 'package.json')
-const overrides = { ...locked, ...tarballs }
 writeFileSync(file, `${JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), overrides }, null, 2)}\n`)
 execFileSync('bun', ['install', '--lockfile-only'], { cwd: outDir, stdio: 'inherit' })
