@@ -2,10 +2,10 @@
   "format": 1,
   "protobaseVersion": "0.14.2",
   "endsAt": {
-    "file": "027_auth.sql",
-    "id": "8bfc9cf6-e5e7-4ad3-bc2c-9efae0e41849"
+    "file": "028_baseline.sql",
+    "id": "2101fe5d-5121-4532-a046-d37964a349e9"
   },
-  "modelHash": "7cb3dbee1b3124049cf072754e0107cc726d7326ea08c5539b0f7f79c2468faa",
+  "modelHash": "906df706fd17e6ae0fc4c804c64206f3de90b9b16f022b2139f6ad2377b9b1a0",
   "model": {
     "auth": {
       "schema": "auth",
@@ -258,6 +258,14 @@
               }
             }
           }
+        }
+      }
+    },
+    "modules": {
+      "jobs": {
+        "lastStep": 1,
+        "replaceables": {
+          "functions": 3
         }
       }
     }
