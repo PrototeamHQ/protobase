@@ -8,7 +8,7 @@ export type ReleaseStep = { name: string; title: string; sql: string }
 
 /**
  * What this release of Protobase still needs of the project's database for every feature its config turns on, compared
- * with the database itself: the auth store by its `auth_migrations` record, the other parts by their schemas, as
+ * with the database itself: the auth store by the steps its `auth_steps` table records, the other parts by their schemas, as
  * `protobase migration` compares them. In the order they apply; none when the database is current.
  */
 export const releaseSteps = async (project: MigrationProject) => {
