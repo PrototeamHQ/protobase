@@ -182,13 +182,13 @@ export const captureScenarios = (connect: () => Promise<TestDatabase>) => {
       await migrate()
     })
 
-    it('keeps the triggers of a resource without events, so older code still captures it', async () => {
+    it('drops the triggers once no resource is captured, and then captures nothing', async () => {
       await clear()
       const withoutEvents = resource('orders').table('sales.orders').fields(fields).primaryKey((r) => r.id).toModel()
-      expect(await migrate([withoutEvents])).toBeUndefined()
+      expect(await migrate([withoutEvents])).toContain('drop trigger if exists "orders_changes"')
       await checkChanges(db, [withoutEvents])
       await sql`insert into sales.orders (total) values (9)`.execute(db)
-      expect(await outbox(db)).toHaveLength(1)
+      expect(await outbox(db)).toEqual([])
       await migrate()
     })
   })

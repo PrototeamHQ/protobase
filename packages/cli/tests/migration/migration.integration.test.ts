@@ -110,8 +110,8 @@ export const notes = resource('notes').table('notes').fields({ id: f.integer().r
     await sql.end()
   })
 
-  it('keeps the triggers once the resource has no events, so older code still captures it', async () => {
-    expect(await migrationFor({ config: { notes: notes() } })).toEqual([])
+  it('refuses to drop the triggers once no resource has events, as older code still captures with them', async () => {
+    await expect(migrationFor({ config: { notes: notes() } })).rejects.toThrow('changes drops or disables the trigger calling changes.capture() on public.notes for insert, delete, update')
   })
 
   it('refuses a part that would take from older code what it reads, writing nothing', async () => {

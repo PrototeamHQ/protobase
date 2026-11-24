@@ -122,11 +122,32 @@ describe('capturePlan', () => {
     expect(uncaptured(changed, [withEvents])).toEqual(['orders'])
   })
 
-  it('keeps the triggers of a resource without events, so older code still captures it, and never refuses for them', () => {
-    const plan = capturePlan('changes', [plain], installed())
-    expect(plan).toEqual({ setup: false, history: false, historyMissing: false, notices: false, create: [], drop: [] })
-    expect(planSql('changes', plan)).toBeUndefined()
-    expect(uncaptured(plan, [plain])).toEqual([])
+  describe('a resource without events', () => {
+    const invoices = resource('invoices').table('sales.invoices').fields({ id: f.integer() }).primaryKey((r) => r.id).events((e) => e.crud()).toModel()
+    const invoiceTriggers = resourceTriggers(invoices).map((trigger) => ({ ...trigger, table: '501', tableSql: '"sales"."invoices"', function: '900' }))
+    const withInvoices = (extra: Partial<CaptureState> = {}) => installed({ triggers: [...installed().triggers, ...invoiceTriggers], tables: { orders: '500', invoices: '501' }, ...extra })
+
+    it('keeps its triggers while another resource is captured, so older code still captures it, and never refuses for them', () => {
+      const plan = capturePlan('changes', [plain, invoices], withInvoices())
+      expect([plan.create, plan.refresh, plan.drop]).toEqual([[], [], []])
+      expect(planSql('changes', plan)).toBeUndefined()
+      expect(uncaptured(plan, [plain, invoices])).toEqual([])
+    })
+
+    it('writes them again when its fields change, so a field made sensitive is no longer copied', () => {
+      const allSensitive = resource('orders').table('sales.orders').fields({ id: f.integer(), status: f.text().sensitive(), iban: f.text().optional().sensitive() }).primaryKey((r) => r.id).toModel()
+      const plan = capturePlan('changes', [allSensitive, invoices], withInvoices())
+      expect(plan.refresh.map(({ trigger }) => trigger.args)).toEqual([
+        ['orders', '{"id"}', '{"status","iban"}'],
+        ['orders', '{"id"}', '{"status","iban"}'],
+      ])
+      expect(uncaptured(plan, [allSensitive, invoices])).toEqual([])
+    })
+
+    it('drops them once no resource is captured, as no dispatch drains what they capture', () => {
+      const plan = capturePlan('changes', [plain], installed())
+      expect(plan.drop).toEqual([{ name: 'orders_changes', tableSql: '"sales"."orders"' }, { name: 'orders_changes_update', tableSql: '"sales"."orders"' }])
+    })
   })
 
   it('drops a trigger of a captured table that the triggers it needs now replace', () => {

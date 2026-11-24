@@ -38,6 +38,8 @@ export type CapturePlan = {
   historyMissing: boolean
   notices: boolean
   create: Array<{ model: ResourceModel; trigger: TriggerSpec }>
+  /** The kept triggers of a table no resource captures any more, written again to follow its resource's fields. */
+  refresh: Array<{ model: ResourceModel; trigger: TriggerSpec }>
   drop: Array<{ name: string; tableSql: string }>
 }
 
@@ -77,10 +79,27 @@ export const capturePlan = (schema: string, models: readonly ResourceModel[], st
     if (found && found.function !== capture?.oid) throw new Error(`Table ${tableSql(model)} has a trigger "${trigger.name}" of its own; rename it, since events and history need that name`)
     return !found || !sameTrigger(found, trigger)
   })
-  // A table no resource captures any more keeps its triggers, so the code still running while the migration deploys,
-  // or the version before once rolled back, still captures it; only a trigger another one replaces goes.
+  // While a resource is still captured, and so the dispatch job still drains the outbox, a table no resource captures
+  // any more keeps its triggers, so the code still running while the migration deploys, or the version before once
+  // rolled back, still captures it. One of a resource still in the config follows its fields, so a field made
+  // sensitive is no longer copied. Once nothing is captured, they go.
+  const keeping = captured.length > 0
+  const ownTrigger = (table: string) => state.triggers.some((found) => found.table === table && found.function === capture?.oid)
+  const kept = keeping
+    ? models
+        .filter((model) => !captured.includes(model))
+        .flatMap((model) => {
+          const table = state.tables[model.name]
+          if (!table || tables.has(table) || !ownTrigger(table)) return []
+          return resourceTriggers(model).map((trigger) => ({ model, trigger, table }))
+        })
+    : []
+  const refresh = kept.filter(({ trigger, table }) => {
+    const found = state.triggers.find((candidate) => candidate.table === table && candidate.name === trigger.name)
+    return !found || found.function !== capture?.oid || !sameTrigger(found, trigger)
+  })
   const drop = state.triggers
-    .filter((found) => found.function === capture?.oid && tables.has(found.table))
+    .filter((found) => found.function === capture?.oid && (!keeping || tables.has(found.table)))
     .filter((found) => !wanted.some(({ trigger, table }) => table === found.table && trigger.name === found.name))
   return {
     setup: captured.length > 0 && (!state.outbox || !current),
@@ -88,6 +107,7 @@ export const capturePlan = (schema: string, models: readonly ResourceModel[], st
     historyMissing: models.some((model) => model.history) && !state.history,
     notices: models.some((model) => model.live) && !state.notices,
     create: create.map(({ model, trigger }) => ({ model, trigger })),
+    refresh: refresh.map(({ model, trigger }) => ({ model, trigger })),
     drop: drop.map(({ name, tableSql }) => ({ name, tableSql })),
   }
 }
@@ -99,7 +119,7 @@ export const planSql = (schema: string, plan: CapturePlan) => {
     ...(plan.history ? [`create schema if not exists ${quoteIdent(schema)}`, historyTableSql(schema)] : []),
     ...(plan.notices ? [`create schema if not exists ${quoteIdent(schema)}`, noticesTableSql(schema)] : []),
     ...plan.drop.map(({ name, tableSql }) => dropTriggerSql(name, tableSql)),
-    ...plan.create.flatMap(({ model, trigger }) => [dropTriggerSql(trigger.name, tableSql(model)), createTriggerSql(schema, trigger, tableSql(model))]),
+    ...[...plan.create, ...plan.refresh].flatMap(({ model, trigger }) => [dropTriggerSql(trigger.name, tableSql(model)), createTriggerSql(schema, trigger, tableSql(model))]),
   ]
   return statements.length === 0 ? undefined : `${statements.join(';\n\n')};`
 }
