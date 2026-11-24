@@ -2,7 +2,7 @@ import { sql, type Kysely, type RawBuilder } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { scoped } from '../src/table-scope/raw-tables'
 import { ScopeRefused, type Organization } from '../src/table-scope/scope-condition'
-import { scopedDb } from '../src/table-scope/scoped-db'
+import { scopedDb, type ScopedDb } from '../src/table-scope/scoped-db'
 import type { ScopedTables } from '../src/table-scope/scoped-tables'
 import { createTestDb } from '../../../test-support/query'
 
@@ -64,7 +64,7 @@ const underPolicies = <T>(organization: Organization, query: (db: Kysely<any>, t
     await sql`select set_config('app.organization', ${organization ?? ''}, true)`.execute(trx)
     return query(trx, sql.table)
   })
-const throughScope = <T>(organization: Organization, query: (db: Kysely<any>, table: TableOf) => Promise<T>) => rolledBack(ctx.db, (trx) => query(scopedDb(trx, scope, organization), scoped))
+const throughScope = <T>(organization: Organization, query: (db: ScopedDb, table: TableOf) => Promise<T>) => rolledBack(ctx.db, (trx) => query(scopedDb(trx, scope, organization), scoped))
 
 const rows = (query: { execute: () => Promise<unknown[]> }) => query.execute()
 
