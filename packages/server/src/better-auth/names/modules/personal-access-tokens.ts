@@ -1,13 +1,16 @@
 import { own, type ModuleDeclaration } from '../declaration'
 
-/** The personal access tokens people make for their scripts: one row per token, holding its hash and never the token. */
+/**
+ * The personal access tokens people make for their scripts: one row per token, holding its hash and never the token.
+ * Each belongs to the organization it works in, whose column organizations add; the hash stays unique app-wide.
+ */
 export const personalAccessTokens = {
   id: 'personal_access_tokens',
   requires: ['auth'],
   tables: {
     personal_access_token: {
       model: 'personalAccessToken',
-      scope: 'global',
+      scope: 'organization',
       columns: {
         user_id: own('userId', { type: 'string', required: true }),
         name: own('name', { type: 'string', required: true }),
@@ -17,7 +20,7 @@ export const personalAccessTokens = {
         expires_at: own('expiresAt', { type: 'date', required: false }),
         last_used_at: own('lastUsedAt', { type: 'date', required: false }),
       },
-      indexes: ['personal_access_token_user_id_idx'],
+      indexes: { personal_access_token_user_id_idx: 'global' },
     },
   },
 } as const satisfies ModuleDeclaration

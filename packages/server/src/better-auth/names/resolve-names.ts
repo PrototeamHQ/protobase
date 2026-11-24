@@ -1,5 +1,5 @@
 import type { DBFieldAttribute } from '@better-auth/core/db'
-import type { ColumnDeclaration, ModuleDeclaration, TableDeclaration } from './declaration'
+import { indexScopes, type ColumnDeclaration, type IndexScope, type ModuleDeclaration, type TableDeclaration } from './declaration'
 import { checkConfiguredName, generatedName } from './identifier-length'
 import { columnId, indexId, tableId, type ColumnId, type IndexId, type TableId } from './identifiers'
 import { builtInModules, type BuiltInTables, type ModuleId } from './modules'
@@ -17,6 +17,8 @@ export type ResolvedTable<Column extends string = string> = TableId & {
   columns: Record<Column, ResolvedColumn>
   /** The columns by the Better Auth field each holds. */
   fields: Record<string, ResolvedColumn>
+  /** Its declared indexes, by internal name, with what each serves (`IndexScope`), those of the modules that are on included. */
+  indexes: Record<string, IndexScope>
   /** A declared index of the table, by internal name. */
   index: (internal: string) => IndexId
 }
@@ -54,9 +56,9 @@ export type ResolvedNames = {
   input: NamesInput
 }
 
-type Declared = { module: ModuleDeclaration; internal: string; table: TableDeclaration; columns: Record<string, ColumnDeclaration> }
+type Declared = { module: ModuleDeclaration; internal: string; table: TableDeclaration; columns: Record<string, ColumnDeclaration>; indexes: Record<string, IndexScope> }
 
-// Each table of the modules that are on, with the columns its own module declares and those the others that are on add.
+// Each table of the modules that are on, with the columns and indexes its own module declares and those the others that are on add.
 const declaredTables = (on: readonly ModuleId[]): Declared[] => {
   const modules: readonly ModuleDeclaration[] = builtInModules.filter(({ id }) => on.includes(id))
   return modules.flatMap((module) =>
@@ -65,6 +67,7 @@ const declaredTables = (on: readonly ModuleId[]): Declared[] => {
       internal,
       table,
       columns: Object.assign({}, table.columns, ...modules.map((other) => other.columns?.[internal] ?? {})) as Record<string, ColumnDeclaration>,
+      indexes: Object.assign({}, indexScopes(table), ...modules.map((other) => other.indexes?.[internal] ?? {})) as Record<string, IndexScope>,
     })),
   )
 }
@@ -94,13 +97,12 @@ const refuseTwice = (names: string[], what: string) => {
 /** The name `tables` gives a table, by internal name: its own `name`, or its built-in one after the prefix. */
 export const tableNameOf = (tables: TableNames, internal: string) => (tables as Record<string, TableConfig | undefined>)[internal]?.name ?? generatedName(`${tables.prefix ?? ''}${internal}`)
 
-const resolveTable = (schema: string | undefined, { module, internal, table, columns }: Declared, prefix: string, config: TableConfig = {}): ResolvedTable => {
+const resolveTable = (schema: string | undefined, { module, internal, table, columns, indexes }: Declared, prefix: string, config: TableConfig = {}): ResolvedTable => {
   const id = tableId(schema, config.name ?? generatedName(`${prefix}${internal}`))
   const resolved = Object.fromEntries(
     Object.entries(columns).map(([column, { field, attribute }]) => [column, { ...columnId(id, config.columns?.[column] ?? column), internal: column, field, ...(attribute && { attribute }) }]),
   )
   refuseTwice(['id', ...Object.values(resolved).map(({ name }) => name)], `two columns of ${internal}`)
-  const indexes = table.indexes ?? []
   return {
     ...id,
     internal,
@@ -109,8 +111,9 @@ const resolveTable = (schema: string | undefined, { module, internal, table, col
     scope: table.scope,
     columns: resolved,
     fields: Object.fromEntries(Object.values(resolved).map((column) => [column.field, column])),
+    indexes,
     index: (index) => {
-      if (!indexes.includes(index) || !index.startsWith(`${internal}_`)) throw new Error(`${index} is not an index ${internal} declares`)
+      if (!(index in indexes) || !index.startsWith(`${internal}_`)) throw new Error(`${index} is not an index ${internal} declares`)
       return indexId(id, generatedName(`${id.name}${index.slice(internal.length)}`))
     },
   }
@@ -128,7 +131,7 @@ export const resolveNames = (input: NamesInput): ResolvedNames => {
   // A table of a module that is off may be named, as for its tables the store keeps.
   checkConfig(tables, declaredTables(allModules))
   const configs = tables as Record<string, TableConfig | undefined>
-  const each = declared.map((table) => ({ indexes: table.table.indexes ?? [], resolved: resolveTable(schema, table, tables.prefix ?? '', configs[table.internal]) }))
+  const each = declared.map((table) => ({ indexes: Object.keys(table.indexes), resolved: resolveTable(schema, table, tables.prefix ?? '', configs[table.internal]) }))
   const resolved = Object.fromEntries(each.map((table) => [table.resolved.internal, table.resolved]))
   // Postgres keeps a schema's tables and indexes under one set of names.
   const relations = each.flatMap(({ indexes, resolved: table }) => [table.name, ...indexes.map((index) => table.index(index).name)])

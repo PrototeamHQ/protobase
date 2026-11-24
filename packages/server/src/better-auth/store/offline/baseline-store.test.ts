@@ -54,7 +54,7 @@ describe('baselineStore', () => {
 
   it('reads organizations as never on when no table whose rows belong to one has the column that names it', () => {
     const live = liveStore(17)
-    for (const table of ['member', 'invitation']) live.relations[table] = { kind: 'r', columns: [] }
+    for (const table of ['member', 'invitation', 'personal_access_token']) live.relations[table] = { kind: 'r', columns: [] }
     expect(baselineStore(names, live).organizationsEverOn).toBe(false)
   })
 

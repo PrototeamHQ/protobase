@@ -1,7 +1,6 @@
-import { builtInModules, type ModuleId } from '../../names/modules'
+import type { ModuleId } from '../../names/modules'
 import { allModules } from '../../names/modules-on'
 import { resolveNames } from '../../names/resolve-names'
-import type { ModuleDeclaration } from '../../names/declaration'
 import { moduleSteps } from '../steps'
 import type { StoreNames } from '../store-names'
 
@@ -32,8 +31,6 @@ export type LastSteps = Partial<Record<ModuleId, number>>
 /** The last step of each module of `modules`, as this version of Protobase ships them. */
 export const latestSteps = (modules: readonly ModuleId[]): LastSteps => Object.fromEntries(modules.map((module) => [module, moduleSteps[module].at(-1)!.step]))
 
-const declaredIndexes = (internal: string) => (builtInModules as readonly ModuleDeclaration[]).flatMap((module) => module.tables[internal]?.indexes ?? [])
-
 /** The model of a store with `names` at `lastSteps`: a module `lastSteps` leaves out is not in it. */
 export const storeModel = ({ schema, names, users, uuidIds }: StoreNames, lastSteps: LastSteps): StoreModel => {
   const tables = Object.values(names.tables)
@@ -58,7 +55,7 @@ export const storeModel = ({ schema, names, users, uuidIds }: StoreNames, lastSt
                   name: table.name,
                   scope: table.scope,
                   columns: Object.fromEntries(Object.values(table.columns).map((column) => [column.internal, column.name])),
-                  indexes: Object.fromEntries(declaredIndexes(table.internal).map((index) => [index, table.index(index).name])),
+                  indexes: Object.fromEntries(Object.keys(table.indexes).map((index) => [index, table.index(index).name])),
                 },
               ]),
           ),

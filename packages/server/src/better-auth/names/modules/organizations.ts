@@ -21,7 +21,7 @@ export const organizations = {
         created_at: field('createdAt'),
         app_roles: own('appRoles', { type: 'string[]', required: false, defaultValue: [], input: false }),
       },
-      indexes: ['member_organization_id_idx', 'member_user_id_idx'],
+      indexes: { member_organization_id_idx: 'organization', member_user_id_idx: 'global' },
     },
     invitation: {
       model: 'invitation',
@@ -36,7 +36,7 @@ export const organizations = {
         inviter_id: field('inviterId'),
         app_roles: own('appRoles', { type: 'string[]', required: false, defaultValue: [], input: true }),
       },
-      indexes: ['invitation_organization_id_idx', 'invitation_email_idx'],
+      indexes: { invitation_organization_id_idx: 'organization', invitation_email_idx: 'global' },
     },
   },
   columns: {
@@ -44,5 +44,9 @@ export const organizations = {
     session: { active_organization_id: field('activeOrganizationId') },
     // A token keeps the organization of the session that made it.
     personal_access_token: { organization_id: own('organizationId', { type: 'string', required: false }) },
+  },
+  indexes: {
+    // An organization's tokens, by person.
+    personal_access_token: { personal_access_token_organization_id_user_id_idx: 'organization' },
   },
 } as const satisfies ModuleDeclaration

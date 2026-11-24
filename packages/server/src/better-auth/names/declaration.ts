@@ -15,16 +15,29 @@ export const field = <Field extends string>(name: Field) => ({ field: name })
 /** A column of a field Protobase defines, with its attribute, whose type Better Auth infers the field's from. */
 export const own = <Field extends string, const Attribute extends Omit<DBFieldAttribute, 'fieldName'>>(name: Field, attribute: Attribute) => ({ field: name, attribute })
 
-export type TableDeclaration = {
+/**
+ * What an index of a table whose rows belong to an organization serves: lookups within one organization, which lead
+ * with its `organization_id`, or across them, such as a lookup key or a secret, which stays unique app-wide.
+ */
+export type IndexScope = 'organization' | 'global'
+
+type TableBase = {
   /** Better Auth's model the table holds; none for a table only Protobase reads, such as the record of migrations. */
   model?: string
-  /** Whether a row belongs to one organization or to the whole app. */
-  scope: 'global' | 'organization'
   /** Each column but `id`, which keeps its name, by internal name. */
   columns: Record<string, ColumnDeclaration>
-  /** The indexes Protobase makes, by internal name, each starting with the table's internal name and `_`. */
-  indexes?: string[]
 }
+
+/**
+ * A table: whether a row belongs to the whole app or to one organization, and the indexes Protobase makes, by
+ * internal name, each starting with the table's internal name and `_`; each index of a table of an organization's
+ * rows says what it serves.
+ */
+export type TableDeclaration = TableBase & ({ scope: 'global'; indexes?: string[] } | { scope: 'organization'; indexes?: Record<string, IndexScope> })
+
+/** The indexes a table declares with what each serves: every index of a table of the whole app's rows serves it whole. */
+export const indexScopes = (table: TableDeclaration): Record<string, IndexScope> =>
+  table.scope === 'organization' ? (table.indexes ?? {}) : Object.fromEntries((table.indexes ?? []).map((index) => [index, 'global' as const]))
 
 export type ModuleDeclaration = {
   id: string
@@ -33,4 +46,6 @@ export type ModuleDeclaration = {
   tables: Record<string, TableDeclaration>
   /** The columns it adds to other modules' tables, by table and internal column name; a table of a module that is off gets none. */
   columns?: Record<string, Record<string, ColumnDeclaration>>
+  /** The indexes it adds to other modules' tables, by table and internal index name, as `columns`. */
+  indexes?: Record<string, Record<string, IndexScope>>
 }
