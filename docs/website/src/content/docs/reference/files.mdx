@@ -131,7 +131,7 @@ meter_photo: f.file().capture(),
 selfie: f.file().capture('user').optional(),
 ```
 
-The field takes only images: the image types of its `.accept()`, or any image when it names none, and an `.accept()` after it that names another type is an error. On a phone or tablet the form offers Take a photo, which opens the camera, and Choose a photo, which opens the phone's own chooser for a photo taken before; a stored photo offers Retake beside Replace. A desktop browser has no camera to open, so the field picks or takes a dropped image file.
+The field takes only images: the image types of its `.accept()`, or any image when it names none, and an `.accept()` after it that names another type, or none, is an error. On a phone or tablet the form offers Take a photo, which opens the camera, and Choose a photo, which opens the phone's own chooser for a photo taken before; a stored photo offers Retake beside Replace. A desktop browser has no camera to open, so the field picks or takes a dropped image file.
 
 ### How the type is decided
 
