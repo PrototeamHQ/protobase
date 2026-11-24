@@ -3,7 +3,8 @@ import { authMigrationTitle } from '../../auth/migration-file'
 import type { MigrationPart } from '../parts'
 import { authDifference } from './auth-difference'
 import { moduleChanges } from './module-changes'
-import { revivalRefused } from './module-prompts'
+import { defaultChosen, revivalRefused } from './module-prompts'
+import { organizationsOffFacts, type OrganizationsOffFacts } from './organizations-off-facts'
 import { revivedRows, type RevivedRows } from './revival-rows'
 import { organizationsNow, type AuthTarget } from './auth-target'
 import { refuseInconsistent } from './consistency'
@@ -34,7 +35,9 @@ export type MigrationRun = {
   /** What becomes of the tables of a module the config turns off (`--off`); asked with `chooseOff` when undefined. */
   off?: OffChoice
   /** Asks what becomes of them, on a terminal; without it and without `off`, turning a module off is refused. */
-  chooseOff?: (modules: readonly KeptModule[]) => Promise<OffChoice>
+  chooseOff?: (modules: readonly KeptModule[], facts?: OrganizationsOffFacts) => Promise<OffChoice>
+  /** Asks whether the store's only organization, not the default one, becomes the default, as organizations turn off. */
+  offerDefault?: (organization: NonNullable<OrganizationsOffFacts['only']>) => Promise<boolean>
   /** Brings back the rows a module turned on again kept (`--force`). */
   force?: boolean
   /** Asks whether to bring them back, on a terminal; without it and without `force`, they are refused. */
@@ -56,6 +59,16 @@ const refuseUnrecorded = async (read: (id: SchemaModuleId) => Promise<ModuleMode
     if (snapshot?.model.modules?.[name] || !(await read(name))) continue
     throw new Error(`The database has ${schemaModules[name].label}, which ${snapshotFile} does not record: describe it with \`protobase migration baseline\`, run against the database with the project's migrations applied, then run \`protobase migration\` again`)
   }
+}
+
+// What goes dark as organizations turn off, read from the database, once the store's only organization is offered as the
+// default: choosing it stops the run, for the config to name it first.
+const offFacts = async (run: MigrationRun, turnedOff: readonly KeptModule[]) => {
+  const defaultId = run.auth?.organizations?.default.id
+  if (!run.database || defaultId === undefined || !turnedOff.some(({ module }) => module === 'organizations')) return
+  const facts = await organizationsOffFacts(run.database.url, run.auth!.names, defaultId)
+  if (facts.only && run.offerDefault && (await run.offerDefault(facts.only))) throw new Error(defaultChosen(facts.only))
+  return facts
 }
 
 /** A section of the file: its part's name, and its text under the comment of its title. */
@@ -81,7 +94,7 @@ export const runMigration = async (run: MigrationRun) => {
     throw new Error(`The project has auth migrations from before ${snapshotFile}: start it with \`protobase migration baseline\`, run against the database with the project's migrations applied, then run \`protobase migration\` again`)
   }
   const { off: turnedOff } = moduleChanges(snapshot, auth)
-  const off = run.off ?? (turnedOff.length > 0 && run.chooseOff ? await run.chooseOff(turnedOff) : undefined)
+  const off = run.off ?? (turnedOff.length > 0 && run.chooseOff ? await run.chooseOff(turnedOff, await offFacts(run, turnedOff)) : undefined)
   const difference = authDifference(snapshot, auth, off)
   if (database) await checkRevivals(database.url, run, difference.changes.revived)
   if (database && difference.migration && difference.migration.checks.length > 0) await runPreconditions(database.url, difference.migration.checks)
