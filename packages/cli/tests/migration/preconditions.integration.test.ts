@@ -32,7 +32,7 @@ afterAll(async () => {
 
 // The checks of the steps after a snapshot whose auth module is at its first step: the account keys' among them.
 const names = settingsStoreNames({})
-const checks = offlineStepsMigration(names, { ...latestSteps(names.names.modules), auth: 1 })!.checks
+const checks = offlineStepsMigration(names, { lastSteps: { ...latestSteps(names.names.modules), auth: 1 }, on: names.names.modules, stepRecord: true })!.checks
 
 describe.skipIf(!reachable)('the preconditions of the steps a migration writes', () => {
   it("refuse when the database's rows break what a step assumes, and pass when they do not", async () => {

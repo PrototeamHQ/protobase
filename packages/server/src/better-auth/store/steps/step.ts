@@ -39,8 +39,9 @@ export type Step = {
   /** What it makes, the comment above its statements. */
   title: string
   /**
-   * The version of the store's former single chain this step came from, which `auth_migrations` records: a new step
-   * takes the next version after the latest (`legacy-versions.ts`).
+   * The version of the store's former single chain this step came from, as `auth_migrations` recorded it, which fills
+   * `auth_steps` for a store that recorded versions: a new step takes the next version after the latest
+   * (`legacy-versions.ts`), which no store recorded.
    */
   version: number
   /** The tables it makes, besides the user table, by internal name. */

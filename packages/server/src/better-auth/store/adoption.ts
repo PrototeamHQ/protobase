@@ -1,10 +1,12 @@
 import { sql, type Kysely } from 'kysely'
+import { allModules } from '../names/modules-on'
 import { resolveNames } from '../names/resolve-names'
 import { ddl } from './ddl'
-import { recordMigrations } from './migrations-table'
+import { stepsOfVersions } from './legacy-record'
 import { statementsSql } from './migration-sql'
 import { moduleSteps } from './steps'
 import { legacyVersions, type LegacyVersion } from './steps/legacy-versions'
+import { recordSteps } from './step-record'
 import { renderSteps } from './steps/render'
 import { migrationNames } from './steps/step'
 import type { StoreNames } from './store-names'
@@ -27,14 +29,14 @@ const columnsIn = async (db: Kysely<any>, schema: string | undefined) =>
 const scratchSchema = 'protobase_auth_adoption'
 
 /**
- * For each version, the columns its steps make: every step of every module runs in a scratch schema, in a transaction
- * that is rolled back.
+ * For each version, the columns its steps make: every step of every module, as the former chain made them with every
+ * module on, runs in a scratch schema, in a transaction that is rolled back.
  */
 const madeColumns = async (db: Kysely<any>, names: StoreNames) => {
   const tx = await db.startTransaction().execute()
   const run = async () => {
     await sql`create schema ${sql.id(scratchSchema)}`.execute(tx)
-    const scratch = resolveNames({ ...names.names.input, schema: scratchSchema })
+    const scratch = resolveNames({ ...names.names.input, schema: scratchSchema, modules: allModules })
     const made = new Map<number, Column[]>(legacyVersions.map(({ version }) => [version, []]))
     let before: Column[] = []
     for (const part of renderSteps(migrationNames({ ...names, schema: scratchSchema, names: scratch }), scratch.modules, () => false)) {
@@ -51,7 +53,8 @@ const madeColumns = async (db: Kysely<any>, names: StoreNames) => {
 /** Whether the store has any table of the steps besides the user table, which may be another system's. */
 export const storeHasTables = async (db: Kysely<any>, names: StoreNames) => {
   const tables = new Set((await columnsIn(db, names.schema)).map((column) => column.table))
-  return Object.values(moduleSteps).some((steps) => steps.some((step) => step.tables.some((table) => tables.has(names.names.tables[table]!.name))))
+  const every = resolveNames({ ...names.names.input, modules: allModules })
+  return Object.values(moduleSteps).some((steps) => steps.some((step) => step.tables.some((table) => tables.has(every.tables[table]!.name))))
 }
 
 type Adoption = { adopted: Array<{ migration: LegacyVersion; columns: Column[] }>; pending: LegacyVersion[] }
@@ -80,7 +83,7 @@ export const planAdoption = async (db: Kysely<any>, names: StoreNames): Promise<
 }
 
 /**
- * The SQL that records the adopted migrations as applied, once it finds every column they make with its type; it
+ * The SQL that records the steps of the adopted versions as applied, once it finds every column they make with its type; it
  * stops the migration, naming what it lacks, on a database that differs from the one it was written from.
  */
 export const adoptionSql = (names: StoreNames, adopted: Adoption['adopted']) => {
@@ -102,5 +105,5 @@ begin
 end
 $adopt$`
   const versions = adopted.map(({ migration }) => `${migration.version} ${migration.name}`).join(', ')
-  return `-- The auth store an earlier Protobase made, without a record of its migrations, adopted: ${versions}\n-- recorded as applied, once every table and column they make is there.\n${statementsSql([check, recordMigrations(names, adopted.map(({ migration }) => migration))])}`
+  return `-- The auth store an earlier Protobase made, without a record of its migrations, adopted: ${versions}\n-- recorded as applied, once every table and column they make is there.\n${statementsSql([check, recordSteps(names, stepsOfVersions(adopted.map(({ migration }) => migration.version)))])}`
 }

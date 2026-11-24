@@ -1,4 +1,4 @@
-import { latestSteps, nameChanges, offlineStepsMigration, storeModel, type LastSteps, type StoreModel } from '@protobase/server/internal'
+import { latestSteps, nameChanges, offlineStepsMigration, storeModel, type LastSteps, type ModuleId, type SnapshotStore, type StoreModel } from '@protobase/server/internal'
 import type { AuthTarget } from './auth-target'
 import { snapshotFile, type Snapshot } from './snapshot-file'
 
@@ -16,12 +16,18 @@ export const authRefusals = (snapshot: Snapshot | undefined, target: AuthTarget 
   return nameChanges(before, storeModel(target.names, lastStepsOf(before))).map((change) => `the auth store's ${change}`)
 }
 
+/** The store as the snapshot has it, for the steps after its own; `undefined` when it has none. */
+export const snapshotStore = (snapshot: Snapshot | undefined): SnapshotStore | undefined => {
+  const before = snapshot?.model.auth
+  if (!before) return
+  return { lastSteps: lastStepsOf(before), on: Object.keys(before.modules) as ModuleId[], stepRecord: before.modules.auth?.tables.auth_steps !== undefined }
+}
+
 /** The steps the store lacks after the snapshot's, which leave alone a user table the snapshot records as external. */
 export const stepsAfter = (snapshot: Snapshot | undefined, target: AuthTarget) => {
-  const before = snapshot?.model.auth
   const user = target.names.names.table('user')
   const userName = target.names.schema === undefined ? user.name : `${target.names.schema}.${user.name}`
-  return offlineStepsMigration(target.names, before && lastStepsOf(before), snapshot?.decisions.external?.includes(userName) ?? false)
+  return offlineStepsMigration(target.names, snapshotStore(snapshot), snapshot?.decisions.external?.includes(userName) ?? false)
 }
 
 /** How to write what the steps cannot, once refused. */

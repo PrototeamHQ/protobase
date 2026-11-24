@@ -1,6 +1,6 @@
-// The versions of the store's former single chain, as `auth_migrations` records them, one row each: every step names
-// the one it came from, and the record moves to the steps themselves in a later version. Until then a new step takes
-// the next version and goes last here.
+// The versions of the store's former single chain, as `auth_migrations` recorded them, one row each: every step names
+// the one it came from, which maps a store's versions onto its steps (`legacy-record.ts`). A new step takes the next
+// version and goes last here.
 
 /** Each version with the name its row in `auth_migrations` holds. */
 export const legacyVersions = [

@@ -1,15 +1,21 @@
 import type { ModuleId } from '../../names/modules'
-import { guardedStepsSql, migrationsTableSql, statementsSql } from '../migration-sql'
-import { refuseModulesOff } from '../modules-off'
+import { stepRecordMigration } from '../legacy-record'
+import { guardedStepsSql, stepRecordSql, statementsSql } from '../migration-sql'
+import type { Had } from '../step-record'
 import { moduleSteps } from '../steps'
-import { legacyVersions } from '../steps/legacy-versions'
-import { renderSteps, type Had } from '../steps/render'
+import { renderSteps } from '../steps/render'
 import { migrationNames } from '../steps/step'
 import type { StoreNames } from '../store-names'
 import type { LastSteps } from './store-model'
 
 // The store's steps written from a project's snapshot, without a database: the snapshot says which step of each module
 // the project's migrations end at, and every step after it is written.
+
+/**
+ * The store as a project's snapshot has it: each module's last step, those kept while off included; the modules that
+ * are on; and whether it has `auth_steps`, which a store a version before it made lacks.
+ */
+export type SnapshotStore = { lastSteps: LastSteps; on: readonly ModuleId[]; stepRecord: boolean }
 
 const refuseNewer = (lastSteps: LastSteps) => {
   for (const [module, last] of Object.entries(lastSteps) as [ModuleId, number][]) {
@@ -19,22 +25,31 @@ const refuseNewer = (lastSteps: LastSteps) => {
 }
 
 /**
- * The steps of the modules that are on after `lastSteps`, the snapshot's, each version of the store's former chain
- * followed by its row in `auth_migrations`, which the server's check reads, each run only while that table lacks its
- * version, so a database that has it already skips it; for a store the snapshot has none of
- * (`lastSteps` undefined), that table first. `checks`: the checks of the steps on tables the store has already, which
- * refuse when its rows break what a step assumes. `undefined` when the snapshot has every step. `externalUser`: the
- * snapshot records the user table as a relation Protobase did not make, whose statements are left out.
+ * The parts the store has: those of each module's steps up to its last, and those a step adds to another module's
+ * tables while both are on. Those it added to a module that was off since, or before, are written again, and their
+ * guard skips them where the database has them.
  */
-export const offlineStepsMigration = (names: StoreNames, lastSteps: LastSteps | undefined, externalUser = false) => {
-  refuseModulesOff(names)
-  if (lastSteps) refuseNewer(lastSteps)
-  const had: Had = (module, step) => step.step <= (lastSteps?.[module] ?? 0)
+const snapshotHad =
+  ({ lastSteps, on }: SnapshotStore): Had =>
+  (module, step, target) =>
+    step <= (lastSteps[module] ?? 0) && (target === module || (on.includes(module) && on.includes(target)))
+
+/**
+ * The parts of the modules that are on that the snapshot's store lacks, each followed by its row in `auth_steps`, each
+ * run only while that table lacks it, so a database that has it already skips it; for a store the snapshot has none of
+ * (`store` undefined), that table first, and for one without it, that table, filled from `auth_migrations`. `checks`:
+ * the checks of the steps on tables the store has already, which refuse when its rows break what a step assumes.
+ * `undefined` when the snapshot's store has every part. `externalUser`: the snapshot records the user table as a
+ * relation Protobase did not make, whose statements are left out.
+ */
+export const offlineStepsMigration = (names: StoreNames, store: SnapshotStore | undefined, externalUser = false) => {
+  if (store) refuseNewer(store.lastSteps)
+  const had = store ? snapshotHad(store) : () => false
   const migration = migrationNames(names, externalUser || names.users.keyTable !== undefined)
   const rendered = renderSteps(migration, names.names.modules, had)
-  if (rendered.length === 0) return undefined
-  const recorded = (version: number) => (Object.entries(moduleSteps) as [ModuleId, (typeof moduleSteps)[ModuleId]][]).every(([module, steps]) => steps.filter((step) => step.version === version).every((step) => had(module, step)))
-  const steps = guardedStepsSql(names, rendered, legacyVersions.map(({ version }) => version).filter((version) => !recorded(version)))
-  const checks = rendered.filter(({ module, step, on }) => on === undefined && step.check && had(module, moduleSteps[module][0]!)).map(({ step }) => statementsSql([step.check!(migration)]))
-  return { sql: lastSteps ? steps : [migrationsTableSql(names, true), steps].join('\n\n'), checks }
+  const record = !store ? [stepRecordSql(names)] : store.stepRecord ? [] : [stepRecordMigration(names)]
+  if (rendered.length === 0 && record.length === 0) return
+  const steps = rendered.length === 0 ? [] : [guardedStepsSql(names, rendered)]
+  const checks = rendered.filter(({ module, step, on }) => on === undefined && step.check && had(module, moduleSteps[module][0]!.step, module)).map(({ step }) => statementsSql([step.check!(migration)]))
+  return { sql: [...record, ...steps].join('\n\n'), checks }
 }

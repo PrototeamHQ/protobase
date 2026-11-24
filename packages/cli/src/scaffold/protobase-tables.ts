@@ -1,4 +1,4 @@
-import { migrationsTableName, storeTableNames } from '@protobase/server/auth-store'
+import { storeRecordNames, storeTableNames } from '@protobase/server/auth-store'
 import { definitionsSchema, userTablesSchema } from '@protobase/server/config-exports'
 import { tableKey } from '../db/model'
 import type { DbTable } from '../db/model'
@@ -21,14 +21,14 @@ const bySchema = (tables: DbTable[]) => {
 const userTableOf = (schema: string, tables: DbTable[]) =>
   tables.find((table) => table.name === 'session')?.foreignKeys.find((key) => key.columns.length === 1 && key.columns[0] === 'user_id' && key.refSchema === schema)?.refTable
 
-// The admin store lives in `auth` in the presets and docs, otherwise in a schema with its record of migrations or
+// The admin store lives in `auth` in the presets and docs, otherwise in a schema with a record of its steps or
 // Better Auth's core tables. In `public`, which the app's own tables can share, its tables are those its migrations
 // make (`storeTableNames`) and its user table.
 const authStore = (schema: string, tables: DbTable[]) => {
   if (schema === 'auth') return tables
   const has = (name: string) => tables.some((table) => table.name === name)
   const user = userTableOf(schema, tables)
-  if (!has(migrationsTableName) && !(storeCore.every(has) && user !== undefined)) return []
+  if (!storeRecordNames.some(has) && !(storeCore.every(has) && user !== undefined)) return []
   if (schema !== 'public') return tables
   return tables.filter((table) => storeTableNames.includes(table.name) || table.name === user)
 }

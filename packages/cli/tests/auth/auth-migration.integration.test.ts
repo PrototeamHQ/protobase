@@ -9,7 +9,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { Kysely, PostgresDialect } from 'kysely'
 import { f, resource } from '@protobase/schema'
 import { authSchemaDrift, authSchemaMigration, checkMigrationRecord, checkResourcesOutsideAuthStore, createOrganization, createUser, unauthorized, type AdminAuth } from '@protobase/server'
-import { buildAuth, createAuth, storeNames } from '@protobase/server/internal'
+import { buildAuth, createAuth, stepsOfVersions, storeNames } from '@protobase/server/internal'
 import { checkMigrations } from '../../src/migration/snapshot/check'
 import { readSnapshot } from '../../src/migration/snapshot/snapshot-file'
 import { migrationText } from '../../src/auth/migration-file'
@@ -95,8 +95,11 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     await sql.end()
     return [...rows]
   }
-  const versions = async (databaseUrl: string, table = 'auth_migrations') => (await query<{ version: number }>(databaseUrl, `select version from ${table} order by version`)).map((row) => row.version)
-  const every = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+  // Each part of a step the store recorded, as `module step` or `module step on target`, sorted.
+  const label = ({ module, step, target }: { module: string; step: number; target: string }) => `${module} ${step}${target === module ? '' : ` on ${target}`}`
+  const versions = async (databaseUrl: string, table = 'auth_steps') => (await query<{ module: string; step: number; target: string }>(databaseUrl, `select module, step, target from ${table}`)).map(label).sort()
+  // Every part of every step, as the former chain's versions 1 to 17 made them.
+  const every = stepsOfVersions([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]).map(label).sort()
   // Every feature that keeps something in the store: organizations, the OAuth provider for MCP, personal access tokens
   // and the From addresses of personal mail.
   const personalMail = { personalMail: ['gmail' as const], encryptOAuthTokens: true, socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } } }
@@ -111,7 +114,8 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const file = await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })
     expect(path.basename(file!)).toBe('001_auth.sql')
     const text = await readFile(file!, 'utf8')
-    expect(text).toContain('create table "auth_migrations"')
+    expect(text).toContain('create table if not exists "auth_steps"')
+    expect(textBeforeRecord(text)).not.toContain('auth_migrations')
     expect(text).toContain('create table if not exists "user"')
     expect(text).toContain('"platform_sign_in" text not null')
     expect(text).toContain('-- mcp 1 mcp: ')
@@ -188,7 +192,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     await applyAll(databaseUrl, folder)
 
     await expect(checkRecord(auth)).resolves.toBeUndefined()
-    expect(await versions(databaseUrl, 'auth.auth_migrations')).toEqual(every)
+    expect(await versions(databaseUrl, 'auth.auth_steps')).toEqual(every)
     expect(await authSchemaDrift(await buildAuth({ ...options, ...allOn }))).toEqual([])
     const columns = await query<{ name: string }>(
       databaseUrl,
@@ -226,13 +230,13 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })
     await applyAll(databaseUrl, folder)
     // The store as a version of Protobase before the last migration left it.
-    await query(databaseUrl, `drop table oauth_client, oauth_resource, oauth_client_resource, oauth_refresh_token, oauth_access_token, oauth_consent, oauth_client_assertion; delete from auth_migrations where version = 7`)
+    await query(databaseUrl, `drop table oauth_client, oauth_resource, oauth_client_resource, oauth_refresh_token, oauth_access_token, oauth_consent, oauth_client_assertion; delete from auth_steps where module = 'mcp'`)
 
     const file = await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })
     expect(path.basename(file!)).toBe('002_auth.sql')
     const text = await readFile(file!, 'utf8')
     expect(text).not.toContain('create table if not exists "user"')
-    expect(text).not.toContain('create table "auth_migrations"')
+    expect(text).not.toContain('create table if not exists "auth_steps"')
     expect(text).toContain('-- mcp 1 mcp: ')
     const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
     await sql.begin((tx) => tx.unsafe(text))
@@ -250,7 +254,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     // The store before the step that makes one account per provider and account id, with one such account twice.
     await query(
       databaseUrl,
-      `drop table refused_account, device_session; drop index account_provider_id_account_id_uidx, account_provider_id_single_subject_user_id_uidx; alter table account drop column single_subject_user_id; delete from auth_migrations where version = 11`,
+      `drop table refused_account, device_session; drop index account_provider_id_account_id_uidx, account_provider_id_single_subject_user_id_uidx; alter table account drop column single_subject_user_id; delete from auth_steps where module = 'auth' and step = 2 or module = 'platform_devices'`,
     )
     await query(databaseUrl, `insert into "user" (id, name, email, email_verified) values ('u1', 'Root', 'root@example.com', true)`)
     await query(databaseUrl, `insert into account (id, account_id, provider_id, user_id, updated_at) values ('a1', 's1', 'idp', 'u1', now()), ('a2', 's1', 'idp', 'u1', now())`)
@@ -260,7 +264,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
     await expect(sql.begin((tx) => tx.unsafe(text))).rejects.toThrow(/more than one account for a provider and account id: idp s1 \(accounts a1, a2\)\. Keep one of each in a migration of the project's own written before this one/)
     await sql.end()
-    expect(await versions(databaseUrl)).toEqual(every.filter((version) => version !== 11))
+    expect(await versions(databaseUrl)).toEqual(every.filter((part) => part !== 'auth 2' && !part.startsWith('platform_devices')))
   })
 
   it("puts each From address entered before on its owner's one Gmail connection, and on none when they have none or several", async () => {
@@ -275,7 +279,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
       `drop index mail_sender_connection_address_uidx, mail_sender_user_address_idx;
 alter table mail_sender drop column connection_id, drop column address_key, drop column typed_at, drop column listed_at, drop column provider_state, drop column provider_state_read_at, drop column removed_at;
 alter table mail_sender add unique (user_id, address);
-delete from auth_migrations where version = 15`,
+delete from auth_steps where module = 'mail_senders' and step = 3`,
     )
     const send = 'https://www.googleapis.com/auth/gmail.send'
     await query(databaseUrl, `insert into "user" (id, name, email, email_verified) values ('one', 'One', 'one@example.com', true), ('none', 'None', 'none@example.com', true), ('two', 'Two', 'two@example.com', true), ('signin', 'Sign-in', 'signin@example.com', true)`)
@@ -350,7 +354,7 @@ delete from auth_migrations where version = 15`,
     const other = await earlierStore()
     await query(other.databaseUrl, 'drop table passkey')
     await expect(applyAll(other.databaseUrl, folder)).rejects.toThrow(/does not match the migrations this file adopts: it lacks passkey\.aaguid, passkey\.backed_up, /)
-    expect(await query(other.databaseUrl, "select to_regclass('auth_migrations') as found")).toEqual([{ found: null }])
+    expect(await query(other.databaseUrl, "select to_regclass('auth_steps') as found")).toEqual([{ found: null }])
   })
 
   it('refuses to adopt a store that matches no version, naming what differs', async () => {
@@ -370,8 +374,8 @@ delete from auth_migrations where version = 15`,
     const folder = await migrationsDir()
     await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })
     await applyAll(databaseUrl, folder)
-    await query(databaseUrl, "insert into auth_migrations (version, name) values (18, 'later')")
-    await expect(writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })).rejects.toThrow(/newer than the 17/)
+    await query(databaseUrl, "insert into auth_steps (module, step, target) values ('auth', 99, 'auth')")
+    await expect(writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })).rejects.toThrow("The auth store records step 99 of auth, which this version of Protobase does not ship; upgrade Protobase")
   })
 
   it('compares the tables only in the development check, which names what drifted', async () => {
@@ -426,7 +430,7 @@ describe.skipIf(!reachable)('the auth store and the app\'s resources', () => {
   it('refuses a resource over any table of a store in the search path, and takes the app\'s own', async () => {
     const { auth, db } = await migrated({ userTable: 'people' })
     await expect(checkResourcesOutsideAuthStore(db, [over('orders')], auth)).resolves.toBeUndefined()
-    for (const table of ['people', 'session', 'oauth_consent', 'member', 'auth_migrations', 'public.jwks']) {
+    for (const table of ['people', 'session', 'oauth_consent', 'member', 'auth_steps', 'public.jwks']) {
       await expect(checkResourcesOutsideAuthStore(db, [over('orders'), over(table)], auth)).rejects.toThrow(/Resources over the auth store's tables, which hold password hashes, sessions and tokens: \w+ \(public\.\w+\)/)
     }
   })
