@@ -1,11 +1,12 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import { cp, mkdtemp, rm } from 'node:fs/promises'
+import { cp, mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { changesMigration, createUser, jobsSchemaMigration, relayMigration } from '@protobase/server'
 import { createAuth } from '@protobase/server/internal'
+import { run } from '../../packages/cli/tests/support/auth-project'
 import { npmWs } from '../../packages/server/tests/support/npm-ws'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 import * as resources from './app/config'
@@ -58,11 +59,17 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('protobase dev with a re
     // A copy of the app, since protobase dev writes its snapshot and state into the project.
     projectDir = await mkdtemp(path.join(tmpdir(), 'protobase-dev-relay-'))
     await cp(path.join(__dirname, 'app'), projectDir, { recursive: true })
+    // The app's own `protobase auth migration` records the template's store in the record of migrations, which dev reads.
+    const env = { DATABASE_URL: database.url, PROTOBASE_SECRET: secret }
+    const recorded = await run([bin, 'auth', 'migration'], projectDir, env)
+    if (recorded.status !== 0) throw new Error(`protobase auth migration failed:\n${recorded.stderr}`)
+    const migrations = path.join(projectDir, 'db/migrations')
+    for (const file of await readdir(migrations)) await database.exec(await readFile(path.join(migrations, file), 'utf8'))
     const port = await freePort()
     base = `http://localhost:${port}`
     dev = spawn(process.execPath, [bin, 'dev', '--port', String(port), '--cache-dir', path.join(projectDir, '.vite-cache')], {
       cwd: projectDir,
-      env: { ...process.env, DATABASE_URL: database.url, PROTOBASE_SECRET: secret },
+      env: { ...process.env, ...env },
     })
     await new Promise<void>((resolve, reject) => {
       let output = ''
