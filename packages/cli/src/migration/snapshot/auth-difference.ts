@@ -12,24 +12,30 @@ const stillOn = (model: StoreModel, target: AuthTarget): StoreModel => ({
   modules: Object.fromEntries(Object.entries(model.modules).filter(([module]) => target.names.names.modules.includes(module as ModuleId))),
 })
 
+// The snapshot's model with the modules it kept that the config turns on again, under the names they were kept with.
+const withRevived = (snapshot: Snapshot, before: StoreModel, target: AuthTarget): StoreModel => {
+  const revived = snapshot.decisions.modules.kept.filter(({ module }) => target.names.names.modules.includes(module))
+  return { ...before, modules: { ...before.modules, ...Object.fromEntries(revived.map(({ module, step, tables }) => [module, { lastStep: step, tables }])) } }
+}
+
 // The config's model with the snapshot's modules still on too, so the columns a module turned off added to the tables
-// of those still on keep their names to compare.
-const widerModel = (before: StoreModel, target: AuthTarget) => {
+// of those still on keep their names to compare, and a kept module turned on again at the step it was kept at.
+const widerModel = (snapshot: Snapshot, before: StoreModel, target: AuthTarget) => {
   const modules = [...new Set([...(Object.keys(before.modules) as ModuleId[]), ...target.names.names.modules])]
   const names = resolveNames({ ...target.names.names.input, modules })
-  return stillOn(storeModel({ ...target.names, names }, lastStepsOf(before)), target)
+  return stillOn(storeModel({ ...target.names, names }, snapshotStore(snapshot)!.lastSteps), target)
 }
 
 /**
  * What the config asks of the auth store that Protobase's steps cannot write, one line each: sign-in turned off while
- * the snapshot has the store, or a name or type the store has changed of a module that stays on. None when the steps
- * can bring it there.
+ * the snapshot has the store, or a name or type the store has changed of a module that stays on or of a kept one
+ * turned on again. None when the steps can bring it there.
  */
 export const authRefusals = (snapshot: Snapshot | undefined, target: AuthTarget | undefined) => {
   const before = snapshot?.model.auth
   if (!before) return []
   if (!target) return [`sign-in is off while ${snapshotFile} has the auth store, and turning it off is not supported yet`]
-  return nameChanges(stillOn(before, target), widerModel(before, target)).map((change) => `the auth store's ${change}`)
+  return nameChanges(stillOn(withRevived(snapshot, before, target), target), widerModel(snapshot, before, target)).map((change) => `the auth store's ${change}`)
 }
 
 /**
@@ -76,7 +82,7 @@ export const authDifference = (snapshot: Snapshot | undefined, target: AuthTarge
   const before = snapshot?.model.auth
   const steps = stepsAfter(snapshot, target)
   const parts = [
-    ...changes.off.map(({ module }) => keepSql(target.names, module, externalUser(snapshot, target) || target.names.users.keyTable !== undefined)),
+    ...changes.off.map(({ module }) => keepSql(target.names, module, Object.keys(before?.modules ?? {}) as ModuleId[], externalUser(snapshot, target) || target.names.users.keyTable !== undefined)),
     ...changes.revived.map(({ module, step }) => revivalCheckSql(target.names, module, step)),
     ...(steps ? [steps.sql] : []),
   ]

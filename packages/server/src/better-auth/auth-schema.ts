@@ -1,6 +1,7 @@
 import type { AdminAuth } from './create-auth'
 import { allModules } from './names/modules-on'
 import { recordedSteps } from './store/offline/baseline-store'
+import { keptModule } from './store/offline/store-model'
 import { planAdoption, storeHasTables, adoptionSql } from './store/adoption'
 import { appliedVersions, stepRecordMigration, stepsOfVersions } from './store/legacy-record'
 import { stepRecordSql, stepsSql } from './store/migration-sql'
@@ -42,16 +43,21 @@ export const authSchemaMigration = async (auth: AdminAuth) => {
   return [record, adoptionSql(names, adopted), ...rest].join('\n\n')
 }
 
+// The versions a store without any record has the tables of, as its adoption records them; none for a new store.
+const adoptedVersions = async (db: ReturnType<typeof plainStoreDb>, names: StoreNames) =>
+  (await storeHasTables(db, names)) ? (await planAdoption(db, names)).adopted.map(({ migration }) => migration.version) : []
+
 /**
- * The modules the config turns off whose steps the store recorded, each at its last step, which a project's first
- * snapshot keeps: the store has their tables. None for a store without a record of its steps or versions.
+ * The modules the config turns off whose steps the store has, each at its last step, which a project's first snapshot
+ * keeps: the store has their tables. Read from `auth_steps`, or from `auth_migrations`, or for a store with neither,
+ * from the versions its adoption finds it has.
  */
 export const keptStoreModules = async (auth: AdminAuth) => {
   const names = storeNames(auth)
   const db = plainStoreDb(auth)
   const steps = await appliedSteps(db, names)
-  const versions = steps === undefined ? await appliedVersions(db, names) : undefined
-  const applied = steps ?? (versions === undefined ? [] : stepsOfVersions(versions))
+  const versions = steps === undefined ? ((await appliedVersions(db, names)) ?? (await adoptedVersions(db, names))) : undefined
+  const applied = steps ?? stepsOfVersions(versions ?? [])
   const recorded = recordedSteps(applied)
-  return allModules.filter((module) => !names.names.modules.includes(module) && recorded[module] !== undefined).map((module) => ({ module, step: recorded[module]! }))
+  return allModules.filter((module) => !names.names.modules.includes(module) && recorded[module] !== undefined).map((module) => keptModule(names, module, recorded[module]!))
 }

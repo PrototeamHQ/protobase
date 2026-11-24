@@ -1,15 +1,15 @@
 import { existsSync } from 'node:fs'
 import { readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { modelHash as recordModelHash, type ModuleId, type StoreModel } from '@protobase/server/internal'
+import { modelHash as recordModelHash, type KeptModule, type StoreModel } from '@protobase/server/internal'
 
 // `protobase.snapshot.json`: the schema the project's migrations make, which `protobase migration` compares with what
 // the config and this version of Protobase would make. Each migration it writes rewrites it, so the change shows in review.
 
 export const snapshotFile = 'protobase.snapshot.json'
 
-/** A module turned off whose tables and rows the database keeps, at the last step it had. */
-export type KeptModule = { module: ModuleId; step: number }
+/** A module turned off whose tables and rows the database keeps: the last step it had, and its tables' names then. */
+export type { KeptModule }
 
 /** The format this version of Protobase reads and writes; `protobase migration up` upgrades an older one. */
 export const snapshotFormat = 1
@@ -60,11 +60,19 @@ export const checkFormat = (format: number) => {
   if (format < snapshotFormat) throw new Error(`${snapshotFile} is format ${format}; this Protobase reads format ${snapshotFormat}: run \`protobase migration up\``)
 }
 
+/** Refuses kept modules recorded without their step and tables, which `protobase migration baseline` writes again. */
+const checkKept = (snapshot: Snapshot) => {
+  const named = snapshot.decisions.modules.kept.filter((kept) => typeof kept !== 'object' || kept === null || typeof kept.step !== 'number' || typeof kept.tables !== 'object')
+  if (named.length === 0) return
+  throw new Error(`${snapshotFile} keeps ${named.map(String).join(', ')} without the step and tables it had: start the snapshot again with \`protobase migration baseline\``)
+}
+
 /** The project's snapshot; `undefined` when it has none. */
 export const readSnapshot = async (projectDir: string): Promise<Snapshot | undefined> => {
   const json = await readSnapshotJson(projectDir)
   if (!json) return
   checkFormat(json.format)
+  checkKept(json as Snapshot)
   return json as Snapshot
 }
 

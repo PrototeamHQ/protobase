@@ -30,7 +30,7 @@ describe('turning a module off', () => {
     expect(text).toContain('-- personal_access_tokens off: its tables and rows are kept as they are.')
     expect(text).not.toMatch(/\bdrop (table|column)/)
     const snapshot = (await readSnapshot(dir))!
-    expect(snapshot.decisions.modules.kept).toEqual([{ module: 'personal_access_tokens', step: 1 }])
+    expect(snapshot.decisions.modules.kept).toMatchObject([{ module: 'personal_access_tokens', step: 1, tables: { personal_access_token: { name: 'personal_access_token' } } }])
     expect(snapshot.model.auth!.modules.personal_access_tokens).toBeUndefined()
     expect(await migrate(dir, {})).toBeUndefined()
     expect(await checkMigrations(dir, migrationsOf(dir), tokensOff)).toEqual([])
@@ -44,6 +44,15 @@ describe('turning a module off', () => {
     expect(text).toContain('alter table "auth"."user" alter column "last_organization_id" drop not null;')
     expect(text).toContain('alter table "auth"."session" alter column "active_organization_id" drop not null;')
     expect(text).toContain('alter table "auth"."personal_access_token" alter column "organization_id" drop not null;')
+  })
+
+  it('relaxes only the tables there before the migration, not one of a module turned on with it', async () => {
+    const dir = await newProject()
+    await migrate(dir, { auth: authOf({ organizations: true }, true) })
+    const text = await readFile((await migrate(dir, { auth: tokensOn, off: 'keep' }))!, 'utf8')
+    expect(text).toContain('alter table "auth"."session" alter column "active_organization_id" drop not null;')
+    expect(text).not.toContain('alter table "auth"."personal_access_token" alter column')
+    expect(text).toContain('-- personal_access_tokens 1 ')
   })
 
   it('asks on a terminal, keep the default', async () => {
@@ -76,6 +85,15 @@ describe('turning a kept module on again', () => {
     expect(snapshot.decisions.modules.kept).toEqual([])
     expect(snapshot.model.auth!.modules.personal_access_tokens!.lastStep).toBe(1)
     expect(await checkMigrations(dir, migrationsOf(dir), tokensOn)).toEqual([])
+  })
+
+  it('refuses a name the config changed while it was kept, as its tables keep theirs', async () => {
+    const dir = await newProject()
+    await migrate(dir, { auth: tokensOn })
+    await migrate(dir, { off: 'keep' })
+    expect((await readSnapshot(dir))!.decisions.modules.kept[0]!.tables.personal_access_token!.columns.token_hash).toBe('token_hash')
+    const renamed = authOf({ personalAccessTokens: { prefix: 'app_' }, tables: { personal_access_token: { columns: { token_hash: 'digest' } } } })
+    await expect(migrate(dir, { auth: renamed })).rejects.toThrow('the auth store\'s modules.personal_access_tokens.personal_access_token.columns.token_hash is "token_hash" in the snapshot and "digest" now')
   })
 
   it('writes again what the modules on add to its tables, which their guard skips where the database has it', async () => {

@@ -13,13 +13,13 @@ const rowsNote = (module: KeptModule['module']) =>
     : ''
 
 /** The question that chooses what becomes of the tables of the modules turned off. */
-export const offQuestion = (modules: readonly KeptModule[]) =>
+export const offQuestion = (modules: readonly Pick<KeptModule, 'module'>[]) =>
   `${modules.map(({ module }) => module).join(', ')} is off in the config. What becomes of its tables and rows?\n  keep: they stay as they are, and turning it on again goes on from them. Archive and delete are coming soon.${modules.map(({ module }) => rowsNote(module)).join('')}\n  [k]eep (k): `
 
 /** Asks what becomes of the tables of the modules turned off: keep, the default and for now the only choice. */
 export const chooseOff =
   (ask: Ask) =>
-  async (modules: readonly KeptModule[]): Promise<OffChoice> => {
+  async (modules: readonly Pick<KeptModule, 'module'>[]): Promise<OffChoice> => {
     const answer = (await ask(offQuestion(modules))).trim().toLowerCase()
     if (answer === '' || answer === 'k' || answer === 'keep') return 'keep'
     throw new Error(`"${answer}" is not a choice: keep is the only one for now`)

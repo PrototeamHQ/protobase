@@ -32,18 +32,19 @@ export type WriteAuthMigrationOptions = {
 export const writeAuthMigration = async ({ auth, projectDir, dir, name, writer }: WriteAuthMigrationOptions) => {
   const snapshot = await readSnapshot(projectDir)
   refuseInconsistent(snapshot, await readMigrationFiles(dir))
-  const sql = await authSchemaMigration(auth)
-  const unrecorded = sql === undefined && !(await recordsRuntimeModel(auth))
-  if (sql === undefined && snapshot && !unrecorded) return
   const names = storeNames(auth)
-  // The record takes the config's names: a name or type the snapshot has otherwise is a migration of the project's own.
   const target = { names, organizationsOn: Boolean(auth.organizations) }
-  const refusals = authRefusals(snapshot, target)
-  if (refusals.length > 0) throw new Error(`${refusals.join('; ')}. ${customHint}`)
-  // Turning a module off asks what becomes of its tables, and on again checks the rows they kept: `protobase migration` does both.
+  // Turning a module off asks what becomes of its tables, and on again checks the rows they kept: `protobase migration`
+  // does both, even where the database records the config's model already, as after `protobase-serve migrate-release`.
   const changes = moduleChanges(snapshot, target)
   const switched = [...changes.off.map(({ module }) => `${module} off`), ...changes.revived.map(({ module }) => `${module} on again`)]
   if (switched.length > 0) throw new Error(`The config turns ${switched.join(', ')} since ${snapshotFile}: write that migration with \`protobase migration\``)
+  const sql = await authSchemaMigration(auth)
+  const unrecorded = sql === undefined && !(await recordsRuntimeModel(auth))
+  if (sql === undefined && snapshot && !unrecorded) return
+  // The record takes the config's names: a name or type the snapshot has otherwise is a migration of the project's own.
+  const refusals = authRefusals(snapshot, target)
+  if (refusals.length > 0) throw new Error(`${refusals.join('; ')}. ${customHint}`)
   // A first snapshot keeps the modules that are off but whose tables the store has.
   const kept = snapshot ? [] : await keptStoreModules(auth)
   const decisions = snapshot ? undefined : { modules: { kept, archived: [] }, organizations: { everOn: kept.some(({ module }) => module === 'organizations'), defaultOrganization: null } }

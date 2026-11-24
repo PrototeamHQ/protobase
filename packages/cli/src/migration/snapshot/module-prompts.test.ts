@@ -5,11 +5,11 @@ const answering = (answer: string) => async () => answer
 
 describe('the questions about modules turned off and on again', () => {
   it('chooses keep by default, and says personal access tokens stay valid unless deleted', async () => {
-    expect(await chooseOff(answering(''))([{ module: 'personal_access_tokens', step: 1 }])).toBe('keep')
-    expect(await chooseOff(answering('k'))([{ module: 'mcp', step: 1 }])).toBe('keep')
-    expect(offQuestion([{ module: 'personal_access_tokens', step: 1 }])).toContain('Its tokens stay valid unless deleted')
-    expect(offQuestion([{ module: 'mcp', step: 1 }])).not.toContain('tokens stay valid')
-    await expect(chooseOff(answering('delete'))([{ module: 'mcp', step: 1 }])).rejects.toThrow('"delete" is not a choice: keep is the only one for now')
+    expect(await chooseOff(answering(''))([{ module: 'personal_access_tokens' }])).toBe('keep')
+    expect(await chooseOff(answering('k'))([{ module: 'mcp' }])).toBe('keep')
+    expect(offQuestion([{ module: 'personal_access_tokens' }])).toContain('Its tokens stay valid unless deleted')
+    expect(offQuestion([{ module: 'mcp' }])).not.toContain('tokens stay valid')
+    await expect(chooseOff(answering('delete'))([{ module: 'mcp' }])).rejects.toThrow('"delete" is not a choice: keep is the only one for now')
   })
 
   it('brings back kept rows only when told yes, and names the count and the way through when refused', async () => {
