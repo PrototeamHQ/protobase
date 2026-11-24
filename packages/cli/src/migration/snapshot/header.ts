@@ -12,11 +12,16 @@ export type Header = {
   organizationsEverOn: boolean
   custom: boolean
   additive: boolean
+  /** A hand-written file that takes from older code what it reads, such as a rename: the version before refuses to start once it is applied. */
+  breaksOlderCode: boolean
 }
+
+/** The line that marks a hand-written file as breaking older code, after `-- `. */
+export const breaksOlderCodeLine = 'protobase:breaks-older-code'
 
 const line = /^-- protobase:([a-z-]+)(?: (.*))?$/
 
-export const headerText = ({ id, version, steps, model, organizationsEverOn, custom, additive }: Header) =>
+export const headerText = ({ id, version, steps, model, organizationsEverOn, custom, additive, breaksOlderCode }: Header) =>
   [
     `-- protobase:id ${id}`,
     `-- protobase:version ${version}`,
@@ -25,6 +30,7 @@ export const headerText = ({ id, version, steps, model, organizationsEverOn, cus
     ...(organizationsEverOn ? ['-- protobase:organizations ever-on'] : []),
     ...(custom ? ['-- protobase:custom'] : []),
     ...(additive ? ['-- protobase:additive'] : []),
+    ...(breaksOlderCode ? [`-- ${breaksOlderCodeLine}`] : []),
   ].join('\n')
 
 /** The header of a migration's text; `undefined` when it does not start with Protobase's id. */
@@ -46,5 +52,6 @@ export const parseHeader = (text: string): Header | undefined => {
     organizationsEverOn: values.get('organizations') === 'ever-on',
     custom: values.has('custom'),
     additive: values.has('additive'),
+    breaksOlderCode: values.has('breaks-older-code'),
   }
 }

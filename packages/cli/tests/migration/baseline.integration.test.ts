@@ -11,7 +11,8 @@ import { afterFileOf, afterStatements } from '../../src/migration/record/after-f
 import { writeBaseline } from '../../src/migration/baseline/write-baseline'
 import { textBeforeRecord } from '../../src/migration/record/record-block'
 import { checkMigrations } from '../../src/migration/snapshot/check'
-import { runMigration } from '../../src/migration/snapshot/run-migration'
+import { runMigration, type Section } from '../../src/migration/snapshot/run-migration'
+import { trialContractions } from '../../src/migration/older-code/trial'
 import { readSnapshot } from '../../src/migration/snapshot/snapshot-file'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
 import { withDatabase } from '../support/serve-process'
@@ -132,14 +133,18 @@ describe.skipIf(!reachable)('protobase migration baseline', () => {
       insert into auth.personal_access_token (id, user_id, name, token_hash, role, created_at, organization_id) values
         ('kept', 'u1', 'Invoices', 'hash-kept', 'sales', now(), 'acme'), ('orphan', 'u1', 'Reports', 'hash-orphan', 'sales', now(), null)`,
     )
-    const database = { url: databaseUrl, parts: [] }
+    const database = { url: databaseUrl, parts: [], contractions: (sections: readonly Section[]) => trialContractions(databaseUrl, sections) }
     await expect(runMigration({ projectDir, dir, auth, database, protobaseVersion: '1.0.0', newId: randomUUID })).rejects.toThrow(
       'The auth store has 1 personal access tokens without an organization, which organizations were on for: orphan.',
     )
 
     await query(databaseUrl, "delete from auth.personal_access_token where id = 'orphan'")
     const next = (await runMigration({ projectDir, dir, auth, database, protobaseVersion: '1.0.0', newId: randomUUID }))!
+    // Older code writes tokens without an organization, which the step then refuses: the file breaks it.
+    expect(await readFile(next, 'utf8')).toContain('\n-- protobase:breaks-older-code\n')
+    expect(await readFile(next, 'utf8')).toContain("-- The sign-in modules' steps: adds the constraint personal_access_token_organization_id_set to auth.personal_access_token, which rows written by older code may break.\n")
     await query(databaseUrl, await readFile(next, 'utf8'))
+    expect(await query(databaseUrl, `select additive from migrations.history where name = '${path.basename(next, '.sql')}'`)).toEqual([{ additive: false }])
     await applyAfter(databaseUrl, next)
     expect(await query(databaseUrl, 'select id, organization_id from auth.personal_access_token')).toEqual([{ id: 'kept', organization_id: 'acme' }])
     const [column] = await query<{ is_nullable: string }>(databaseUrl, "select is_nullable from information_schema.columns where table_schema = 'auth' and table_name = 'personal_access_token' and column_name = 'organization_id'")

@@ -48,7 +48,10 @@ describe('protobase migration check', () => {
     const snapshot = (await readSnapshot(dir))!
     await custom(dir, 'orders')
     await writeSnapshot(dir, snapshot)
-    expect(await check(dir)).toEqual(['protobase.snapshot.json ends at 001_auth.sql, not at the newest migration Protobase wrote, 002_orders.sql'])
+    expect(await check(dir)).toEqual([
+      'protobase.snapshot.json ends at 001_auth.sql, not at the newest migration Protobase wrote, 002_orders.sql',
+      '002_orders.sql is written by hand and says neither `-- protobase:additive` nor `-- protobase:breaks-older-code`: put the one that holds among its `-- protobase:` lines',
+    ])
   })
 
   it('reports a model edited by hand', async () => {
@@ -59,17 +62,24 @@ describe('protobase migration check', () => {
     expect(await check(dir)).toContain("protobase.snapshot.json's model does not match its modelHash: it was edited or merged by hand")
   })
 
-  it('lints a hand-written migration marked additive, and only that one', { timeout: 30_000 }, async () => {
+  it('needs a hand-written migration to say whether it breaks older code, and lints one marked additive', { timeout: 30_000 }, async () => {
     const dir = await newProject()
     await migrate(dir, authOf())
     const file = await custom(dir, 'orders')
     const text = await readFile(file, 'utf8')
+    const marked = (mark: string, statements: string) => writeFile(file, `${text.replace('-- protobase:custom\n', `-- protobase:custom\n${mark}`)}${statements}`)
     await writeFile(file, `${text}drop table orders;\n`)
+    expect(await check(dir)).toEqual(['002_orders.sql is written by hand and says neither `-- protobase:additive` nor `-- protobase:breaks-older-code`: put the one that holds among its `-- protobase:` lines'])
+    await marked('-- protobase:breaks-older-code\n', 'drop table orders;\n')
     expect(await check(dir)).toEqual([])
-    await writeFile(file, `${text.replace('-- protobase:custom\n', '-- protobase:custom\n-- protobase:additive\n')}drop table orders;\n`)
-    expect(await check(dir)).toEqual([expect.stringMatching(/^002_orders\.sql is marked additive and breaks ban-drop-table: /)])
-    await writeFile(file, `${text.replace('-- protobase:custom\n', '-- protobase:custom\n-- protobase:additive\n')}create table orders (id int, code text);\ncreate unique index orders_code_uidx on orders (code);\n`)
+    await marked('-- protobase:additive\n', 'drop table orders;\n')
+    expect(await check(dir)).toEqual(['002_orders.sql is marked additive and drops table orders'])
+    await marked('-- protobase:additive\n', 'create table orders (id int, code text);\ncreate unique index orders_code_uidx on orders (code);\n')
     expect(await check(dir)).toEqual([])
+    await marked('-- protobase:additive\n-- protobase:breaks-older-code\n', 'create table orders (id int);\n')
+    expect(await check(dir)).toEqual(['002_orders.sql is marked both additive and as breaking older code: keep the one that holds'])
+    await marked('-- protobase:breaks-older-code\n', '-- protobase:contract id-orders\ndrop table orders;\n')
+    expect(await check(dir)).toEqual(["002_orders.sql is written by hand and has `-- protobase:contract`, which only Protobase's own paths write: mark the file `-- protobase:breaks-older-code` instead"])
   })
 
   it('reports a file Protobase wrote in a project without a snapshot', async () => {

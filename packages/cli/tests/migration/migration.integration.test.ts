@@ -8,7 +8,8 @@ import { servedConfig } from '../support/served-config'
 import { migrationProject } from '../../src/migration/migration-project'
 import { migrationParts } from '../../src/migration/parts'
 import { signInGuide } from '../../src/migration/summary'
-import { runMigration } from '../../src/migration/snapshot/run-migration'
+import { runMigration, type Section } from '../../src/migration/snapshot/run-migration'
+import { trialContractions } from '../../src/migration/older-code/trial'
 import { protobaseVersion } from '../../src/version/version'
 import { bin, root, run } from '../support/auth-project'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
@@ -34,7 +35,7 @@ const notes = () => resource('notes').table('notes').fields({ id: f.integer().re
 const migrationFor = async (config: Parameters<typeof servedConfig>[0]) => {
   const project = await migrationProject(servedConfig(config), databaseUrl)
   try {
-    const database = { url: databaseUrl, parts: migrationParts(project) }
+    const database = { url: databaseUrl, parts: migrationParts(project), contractions: (sections: readonly Section[]) => trialContractions(databaseUrl, sections) }
     const file = await runMigration({ projectDir, dir: path.join(projectDir, 'db/migrations'), auth: undefined, database, protobaseVersion, newId: randomUUID })
     return file ? [path.basename(file)] : []
   } finally {
@@ -109,22 +110,28 @@ export const notes = resource('notes').table('notes').fields({ id: f.integer().r
     await sql.end()
   })
 
-  it('drops the triggers once the resource has no events', async () => {
-    expect(await migrationFor({ config: { notes: notes() } })).toEqual(['003_changes.sql'])
-    expect(await readFile(path.join(projectDir, 'db/migrations/003_changes.sql'), 'utf8')).toContain('drop trigger if exists "notes_changes" on public.notes')
-    await applyAll()
+  it('refuses to drop the triggers once no resource has events, as older code still captures with them', async () => {
+    await expect(migrationFor({ config: { notes: notes() } })).rejects.toThrow('changes drops or disables the trigger calling changes.capture() on public.notes for insert, delete, update')
   })
 
-  it('writes the webhooks schema for a config with webhooks, after the change capture, in one file', async () => {
+  it('refuses a part that would take from older code what it reads, writing nothing', async () => {
+    const rename = { name: 'computed', title: 'A rename', sql: async () => 'alter table notes rename column body to text;' }
+    const database = { url: databaseUrl, parts: [rename], contractions: (sections: readonly Section[]) => trialContractions(databaseUrl, sections) }
+    await expect(runMigration({ projectDir, dir: path.join(projectDir, 'db/migrations'), auth: undefined, database, protobaseVersion, newId: randomUUID })).rejects.toThrow(
+      'computed drops or renames column public.notes.body, adds the required column public.notes.text without a default. To make it anyway, write it by hand with `protobase migration --custom <name>`',
+    )
+  })
+
+  it('writes the webhooks schema for a config with webhooks in a file of its own', async () => {
     const config = { webhooks: {}, config: { notes: notes().events((e) => e.crud()) } }
-    expect(await migrationFor(config)).toEqual(['004_changes_webhooks.sql'])
+    expect(await migrationFor(config)).toEqual(['003_webhooks.sql'])
     await applyAll()
     expect(await migrationFor(config)).toEqual([])
   })
 
   it("writes the role of the built-in assistant's read-only queries, then nothing once applied", async () => {
     const config = { webhooks: {}, config: { notes: notes().events((e) => e.crud()) }, assistant: { apiKey: 'test-key' } }
-    expect(await migrationFor(config)).toEqual(['005_query.sql'])
+    expect(await migrationFor(config)).toEqual(['004_query.sql'])
     await applyAll()
     expect(await migrationFor(config)).toEqual([])
   })

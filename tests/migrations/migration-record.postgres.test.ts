@@ -56,7 +56,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
 
     await database.exec(recordBlock(row('003_rename', next, { additive: false, protobaseVersion: '1.2.0' }), null))
     await expect(checkMigrationRecord(auth, '1.0.0')).rejects.toThrow(
-      'The database is ahead of Protobase 1.0.0, so the server will not start: it has migrations that are not additive since the one this version reads: 003_rename. To bring the database up to 1.0.0, run `protobase migrate --plan` to see the migrations it will apply, then `protobase migrate`. Or run Protobase 1.2.0, the version the database matches.',
+      'The database is ahead of Protobase 1.0.0, so the server will not start: it has migrations that break older code since the one this version reads: 003_rename. Rolling back to this version is blocked once they are applied: run Protobase 1.2.0, the version the database matches, or a later one.',
     )
   })
 

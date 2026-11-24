@@ -82,7 +82,6 @@ export const rollupTriggerSql = (target: RollupTarget) =>
 
 export const dropRollupTriggerSql = (name: string, table: string) => `drop trigger if exists ${quoteIdent(name)} on ${table}`
 
-export const dropRollupFunctionSql = (name: string) => `drop function if exists ${quoteIdent(rollupsSchema)}.${quoteIdent(name)}() cascade`
 
 /** Sets every record's rollup from what `from` has now. */
 export const backfillSql = (target: RollupTarget) => refreshSql(target, 'true')

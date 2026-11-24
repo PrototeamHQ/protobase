@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { readdir, rm } from 'node:fs/promises'
+import { readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { checkMigrations } from './check'
@@ -23,7 +23,8 @@ describe('two branches that each write a migration', () => {
 
     // One branch adds a migration of its own; the other upgrades Protobase, whose newer auth steps it writes.
     git(dir, 'checkout', '-q', '-b', 'orders')
-    await writeCustomMigration({ projectDir: dir, dir: migrationsOf(dir), name: 'orders', recordConfig: false, auth: authOf(), protobaseVersion: '1.0.0', newId: () => 'orders-id' })
+    const orders = await writeCustomMigration({ projectDir: dir, dir: migrationsOf(dir), name: 'orders', recordConfig: false, auth: authOf(), protobaseVersion: '1.0.0', newId: () => 'orders-id' })
+    await writeFile(orders, (await readFile(orders, 'utf8')).replace('-- protobase:custom\n', '-- protobase:custom\n-- protobase:breaks-older-code\n'))
     commit(dir, 'orders')
     git(dir, 'checkout', '-q', 'main')
     git(dir, 'checkout', '-q', '-b', 'upgrade')

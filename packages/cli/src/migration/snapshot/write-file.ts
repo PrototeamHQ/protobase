@@ -12,7 +12,7 @@ import { writeSnapshot, type Snapshot } from './snapshot-file'
  * once it is applied; a hand-written one leaves it, and its hash, to `migrate`, which reads them from the finished text.
  * `after`: the text of an `.after.sql` written beside it, which the file then waits on to be complete.
  */
-export type FileContent = { name: string; body: string; kind?: Pick<Header, 'custom' | 'additive'>; additive: boolean; after?: string }
+export type FileContent = { name: string; body: string; kind?: Pick<Header, 'custom' | 'additive' | 'breaksOlderCode'>; additive: boolean; after?: string }
 
 /**
  * The next snapshot, but for the migration it ends at, which `writeMigrationFile` names. `decisions`: those it goes on

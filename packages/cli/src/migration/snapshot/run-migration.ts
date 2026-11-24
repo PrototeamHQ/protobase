@@ -7,6 +7,8 @@ import { revivalRefused } from './module-prompts'
 import { revivedRows, type RevivedRows } from './revival-rows'
 import { organizationsNow, type AuthTarget } from './auth-target'
 import { refuseInconsistent } from './consistency'
+import { breaksOlderCodeNote, olderCodeRefusal } from '../older-code/refusal'
+import type { SectionContractions } from '../older-code/trial'
 import { readMigrationFiles } from './migration-files'
 import { runPreconditions } from './preconditions'
 import { readSnapshot, snapshotFile, type KeptModule } from './snapshot-file'
@@ -17,8 +19,11 @@ export type MigrationRun = {
   dir: string
   /** The config's auth store; `undefined` with sign-in off. */
   auth: AuthTarget | undefined
-  /** The parts compared with the database, and its URL; `undefined` without `DATABASE_URL`. */
-  database: { url: string; parts: MigrationPart[] } | undefined
+  /**
+   * The parts compared with the database, its URL, and what the file would take from older code there
+   * (`trialContractions`); `undefined` without `DATABASE_URL`.
+   */
+  database: { url: string; parts: MigrationPart[]; contractions: (sections: readonly Section[]) => Promise<SectionContractions[]> } | undefined
   protobaseVersion: string
   newId: () => string
   /** What becomes of the tables of a module the config turns off (`--off`); asked with `chooseOff` when undefined. */
@@ -38,6 +43,9 @@ const checkRevivals = async (url: string, run: MigrationRun, revived: readonly K
     if (!(run.confirmRevival && (await run.confirmRevival(rows)))) throw new Error(revivalRefused(rows))
   }
 }
+
+/** A section of the file: its part's name, and its text under the comment of its title. */
+export type Section = { name: string; text: string }
 
 const section = (title: string, sql: string) => `-- ${title}.\n${sql}\n`
 
@@ -63,16 +71,27 @@ export const runMigration = async (run: MigrationRun) => {
   const difference = authDifference(snapshot, auth, off)
   if (database) await checkRevivals(database.url, run, difference.changes.revived)
   if (database && difference.migration && difference.migration.checks.length > 0) await runPreconditions(database.url, difference.migration.checks)
-  const compared: Array<{ name: string; text: string }> = []
+  const compared: Section[] = []
   for (const part of database?.parts ?? []) {
     const sql = await part.sql({ authWritten: Boolean(difference.migration) })
     if (sql !== undefined) compared.push({ name: part.name, text: section(part.title, sql) })
   }
   const sections = [...(difference.migration ? [{ name: 'auth', text: section(authMigrationTitle, difference.migration.sql) }] : []), ...compared]
   if (sections.length === 0) return
-  // The auth store's steps only add (`step-lint.ts`); the other parts may drop what the config no longer has.
+  // The sign-in modules' steps are Protobase's own path: what they take from older code makes the file break it. What
+  // another part takes is refused. Without a database the file holds only the steps, read as they lint (`step-lint.ts`).
+  const found = database ? await database.contractions(sections) : []
+  const refused = found.filter(({ name }) => name !== 'auth')
+  if (refused.length > 0) throw new Error(olderCodeRefusal(refused))
+  const breaking = found.find(({ name }) => name === 'auth')
   const after = difference.migration?.after
-  const content = { name: sections.map(({ name }) => name).join('_'), body: [intro, ...sections.map(({ text }) => text)].join('\n'), additive: sections.every(({ name }) => name === 'auth'), ...(after && { after }) }
+  const content = {
+    name: sections.map(({ name }) => name).join('_'),
+    body: [intro, ...(breaking ? [breaksOlderCodeNote(breaking.found)] : []), ...sections.map(({ text }) => text)].join('\n'),
+    additive: !breaking,
+    ...(breaking && { kind: { custom: false, additive: false, breaksOlderCode: true } }),
+    ...(after && { after }),
+  }
   const decisions = snapshot && { ...snapshot.decisions, modules: { ...snapshot.decisions.modules, kept: difference.kept } }
   return writeMigrationFile(projectDir, dir, content, { previous: snapshot, auth: difference.model, organizations: organizationsNow(auth), protobaseVersion, ...(decisions && { decisions }) }, newId())
 }

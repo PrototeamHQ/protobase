@@ -22,7 +22,9 @@ export type CustomMigration = {
 const body = (recordConfig: boolean) =>
   [
     `-- Written by hand; \`protobase migration --custom\` numbered it and made ${snapshotFile} end at it.`,
-    '-- It counts as not additive. Once it only adds, put a line `-- protobase:additive` among the lines above, and `protobase migration check` lints it.',
+    ...(recordConfig
+      ? ['-- It breaks older code, as a rename does: once it is applied, the version before refuses to start on the database, and rolling back to it is blocked.']
+      : ['-- Say what it is among the lines above: `-- protobase:additive` once it only adds, which `protobase migration check` lints, or `-- protobase:breaks-older-code` when it takes from older code what it reads, such as a rename or a dropped column; the version before then refuses to start on the database, and rolling back to it is blocked.']),
     '-- Write its statements here, above the row that records it, which stays the last statement.',
     ...(recordConfig ? [`-- ${snapshotFile} records the auth store as the config names it now: make the store match it here, such as renaming what the config renamed.`] : []),
     '',
@@ -46,6 +48,6 @@ export const writeCustomMigration = async ({ projectDir, dir, name, recordConfig
   const before = snapshot?.model.auth
   const model = recordConfig ? before && auth && storeModel(auth.names, lastStepsOf(before)) : before
   const draft = { previous: snapshot, auth: model, organizations: organizationsNow(auth), protobaseVersion }
-  const content = { name, body: body(recordConfig), kind: { custom: true, additive: false }, additive: false, ...(after && { after: afterBody }) }
+  const content = { name, body: body(recordConfig), kind: { custom: true, additive: false, breaksOlderCode: recordConfig }, additive: false, ...(after && { after: afterBody }) }
   return writeMigrationFile(projectDir, dir, content, draft, newId())
 }

@@ -49,6 +49,8 @@ export const startupRefusal = (runtime: RecordModel, state: RecordState, running
   if (state.matched && state.notAdditiveSince.length === 0) return
   const needs = authNeeds(newest.model.auth, runtime.auth)
   if (needs.length > 0) return `The database is behind Protobase ${running}, so the server will not start: ${needs.join('; ')}. ${waysOut(newest.version, running)}`
-  const ahead = state.matched ? `it has migrations that are not additive since the one this version reads: ${state.notAdditiveSince.join(', ')}` : `its newest migration, ${newest.name}, records a model no migration of this version's records`
-  return `The database is ahead of Protobase ${running}, so the server will not start: ${ahead}. ${waysOut(newest.version, running)}`
+  if (state.matched) {
+    return `The database is ahead of Protobase ${running}, so the server will not start: it has migrations that break older code since the one this version reads: ${state.notAdditiveSince.join(', ')}. Rolling back to this version is blocked once they are applied: run Protobase ${newest.version}, the version the database matches, or a later one.`
+  }
+  return `The database is ahead of Protobase ${running}, so the server will not start: its newest migration, ${newest.name}, records a model no migration of this version's records. ${waysOut(newest.version, running)}`
 }
