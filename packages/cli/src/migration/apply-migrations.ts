@@ -26,9 +26,9 @@ const batches = (pending: DirMigration[]) => {
   return all.filter((batch) => batch.length > 0)
 }
 
-// The codes of a connection Postgres or the client closed, whose transaction Postgres rolled back and whose session
-// locks it released: nothing more can be sent on it.
-const connectionLostCodes = ['57P01', '57P02', '57P03', 'CONNECTION_CLOSED', 'CONNECTION_DESTROYED', 'CONNECTION_ENDED']
+// The codes of a connection that is lost, closed by Postgres, the client or the network: nothing more can be sent on
+// it, so no rollback or unlock is tried. Postgres ends the session's transaction and locks once it sees it gone.
+const connectionLostCodes = ['57P01', '57P02', '57P03', 'CONNECTION_CLOSED', 'CONNECTION_DESTROYED', 'CONNECTION_ENDED', 'ECONNRESET', 'EPIPE']
 const connectionLost = (error: unknown) => connectionLostCodes.includes((error as { code?: string }).code ?? '')
 
 // A transaction on the reserved connection, which holds the session's lock: rolled back when `run` fails.

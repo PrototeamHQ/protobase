@@ -44,6 +44,14 @@ describe('protobase migration drop', () => {
     await expect(dropMigration(dir, migrationsOf(dir))).rejects.toThrow('002_rename_sessions.sql changed more than the steps, so the snapshot before it cannot be rebuilt')
   })
 
+  it('deletes the .after.sql of the file it drops too', async () => {
+    const dir = await newProject()
+    await migrate(dir, authOf())
+    await writeCustomMigration({ projectDir: dir, dir: migrationsOf(dir), name: 'indexes', recordConfig: false, after: true, auth: authOf(), protobaseVersion: '1.0.0', newId: () => 'id-indexes' })
+    expect(await dropMigration(dir, migrationsOf(dir))).toBe('002_indexes.sql')
+    expect(await readdir(migrationsOf(dir))).toEqual(['001_auth.sql'])
+  })
+
   it('refuses without a snapshot', async () => {
     await expect(dropMigration(await newProject(), 'db/migrations')).rejects.toThrow("The project has no protobase.snapshot.json: no migration of Protobase's to drop")
   })

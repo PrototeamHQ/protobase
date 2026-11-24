@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { afterFileOf, afterStatements, builtIndex } from './after-file'
+import { afterFileOf, afterStatements, builtIndex, indexedTable } from './after-file'
 
 describe('afterStatements', () => {
   it('splits at a semicolon that ends a line, dropping comment lines', () => {
@@ -13,6 +13,14 @@ describe('builtIndex', () => {
     expect(builtIndex('create index concurrently if not exists A_idx on a (x)')).toEqual({ index: 'a_idx', unique: false })
     expect(builtIndex('CREATE UNIQUE INDEX CONCURRENTLY "B Key" ON b (y)')).toEqual({ index: 'B Key', unique: true })
     expect(builtIndex('analyze a')).toBeUndefined()
+  })
+})
+
+describe('indexedTable', () => {
+  it('names the table as the statement does, with its schema', () => {
+    expect(indexedTable('create index concurrently if not exists a_idx on only app."Orders" (x)')).toBe('app."Orders"')
+    expect(indexedTable('create unique index concurrently b_key on b (y)')).toBe('b')
+    expect(indexedTable('analyze a')).toBeUndefined()
   })
 })
 

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { authSchemaMigration, type AdminAuth } from '@protobase/server'
 import { latestSteps, recordsRuntimeModel, storeModel, storeNames } from '@protobase/server/internal'
+import { authRefusals, customHint } from '../migration/snapshot/auth-difference'
 import { refuseInconsistent } from '../migration/snapshot/consistency'
 import { readMigrationFiles } from '../migration/snapshot/migration-files'
 import { readSnapshot } from '../migration/snapshot/snapshot-file'
@@ -34,6 +35,9 @@ export const writeAuthMigration = async ({ auth, projectDir, dir, name, writer }
   const unrecorded = sql === undefined && !(await recordsRuntimeModel(auth))
   if (sql === undefined && snapshot && !unrecorded) return
   const names = storeNames(auth)
+  // The record takes the config's names: a name or type the snapshot has otherwise is a migration of the project's own.
+  const refusals = authRefusals(snapshot, { names, organizationsOn: Boolean(auth.organizations) })
+  if (refusals.length > 0) throw new Error(`${refusals.join('; ')}. ${customHint}`)
   const draft = { previous: snapshot, auth: storeModel(names, latestSteps(names.names.modules)), organizationsOn: Boolean(auth.organizations), protobaseVersion }
   const body = sql !== undefined ? migrationText(sql, writer) : snapshot ? recordOnlyText(writer) : currentStoreText(writer)
   return writeMigrationFile(projectDir, dir, { name, body, additive: true }, draft, randomUUID())

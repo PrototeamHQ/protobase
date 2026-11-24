@@ -16,7 +16,8 @@ export const afterStatements = (text: string) =>
     .map((statement) => statement.split('\n').filter((line) => !/^\s*--/.test(line)).join('\n').trim())
     .filter((statement) => statement !== '')
 
-const createIndex = /^create\s+(unique\s+)?index\s+concurrently\s+(?:if\s+not\s+exists\s+)?("(?:[^"]|"")+"|[A-Za-z_][\w$]*)/i
+const identifier = '(?:"(?:[^"]|"")+"|[A-Za-z_][\\w$]*)'
+const createIndex = new RegExp(`^create\\s+(unique\\s+)?index\\s+concurrently\\s+(?:if\\s+not\\s+exists\\s+)?(${identifier})\\s+on\\s+(?:only\\s+)?(${identifier}(?:\\.${identifier})?)`, 'i')
 
 /** The index a statement builds concurrently, as Postgres names it; `undefined` for any other statement. */
 export const builtIndex = (statement: string): AfterIndex | undefined => {
@@ -25,3 +26,6 @@ export const builtIndex = (statement: string): AfterIndex | undefined => {
   const name = found[2]!
   return { index: name.startsWith('"') ? name.slice(1, -1).replaceAll('""', '"') : name.toLowerCase(), unique: Boolean(found[1]) }
 }
+
+/** The table a statement builds an index on concurrently, as the statement names it; `undefined` for any other statement. */
+export const indexedTable = (statement: string) => createIndex.exec(statement)?.[3]
