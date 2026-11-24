@@ -17,13 +17,10 @@ const plainKinds = new Set([
   'CreateExtensionStmt',
   'CreateSeqStmt',
   'CreateEnumStmt',
-  'AlterEnumStmt',
   'CreateFunctionStmt',
   'CreateTrigStmt',
   'ViewStmt',
   'CommentStmt',
-  'InsertStmt',
-  'UpdateStmt',
   'VariableSetStmt',
   // Access narrowed or widened: narrowing is always allowed.
   'GrantStmt',
@@ -40,13 +37,15 @@ const kindLabels: Record<string, string> = { RenameStmt: 'renames a table, colum
 const alterFinding = (cmd: Node, made: boolean): string | undefined => {
   switch (cmd.subtype) {
     case 'AT_DropNotNull':
-    case 'AT_ColumnDefault':
       return
+    case 'AT_ColumnDefault':
+      return cmd.def ? undefined : "drops a column's default"
     case 'AT_AddConstraint':
       return made ? undefined : `adds a constraint to a table there already, which rows written by older code may break`
     case 'AT_AddColumn': {
       if (made) return
-      const constraints = (cmd.def.ColumnDef.constraints ?? []).map((item: Node) => item.Constraint.contype as string)
+      // A default of null is none.
+      const constraints = (cmd.def.ColumnDef.constraints ?? []).filter((item: Node) => !(item.Constraint.contype === 'CONSTR_DEFAULT' && item.Constraint.raw_expr?.A_Const?.isnull)).map((item: Node) => item.Constraint.contype as string)
       const required = constraints.includes('CONSTR_NOTNULL') && !constraints.includes('CONSTR_DEFAULT')
       if (required) return `adds the required column ${cmd.def.ColumnDef.colname} without a default`
       const limiting = constraints.filter((contype: string) => !looseConstraints.has(contype) && contype !== 'CONSTR_NOTNULL')
@@ -57,39 +56,35 @@ const alterFinding = (cmd: Node, made: boolean): string | undefined => {
   }
 }
 
-// What is dropped: the key a later create of the same object goes by.
-const droppedKey = (statement: Node) => {
-  const object = statement.objects?.[0]
-  if (statement.removeType === 'OBJECT_FUNCTION') return names(object?.ObjectWithArgs?.objname)
-  return names(object?.List?.items)
-}
+// A trigger by its table and name, as a drop and a create name it.
+const droppedTriggers = (statement: Node) => (statement.objects ?? []).map((object: Node) => names(object?.List?.items))
+const createdTrigger = (node: Node) => `${node.relation.schemaname ? `${node.relation.schemaname}.` : ''}${node.relation.relname}.${node.trigname}`
 
-const createdKey = (kind: string, node: Node) => {
-  if (kind === 'CreateFunctionStmt') return { type: 'OBJECT_FUNCTION', key: names(node.funcname) }
-  if (kind === 'CreateTrigStmt') return { type: 'OBJECT_TRIGGER', key: `${node.relation.schemaname ? `${node.relation.schemaname}.` : ''}${node.relation.relname}.${node.trigname}` }
-  if (kind === 'ViewStmt') return { type: 'OBJECT_VIEW', key: `${node.view.schemaname ? `${node.view.schemaname}.` : ''}${node.view.relname}` }
-  return
-}
+// A data-modifying statement of a `with` clause, such as a `delete ... returning` feeding an insert.
+const modifyingCtes = (node: Node) =>
+  [...(node.withClause?.ctes ?? []), ...(node.selectStmt?.SelectStmt?.withClause?.ctes ?? [])]
+    .flatMap((cte: Node) => Object.keys(cte.CommonTableExpr?.ctequery ?? {}))
+    .filter((kind: string) => kind !== 'SelectStmt')
 
-// What holds no rows, so a drop is no loss when the same file makes it again.
-const replaceable = new Set(['OBJECT_FUNCTION', 'OBJECT_TRIGGER', 'OBJECT_VIEW'])
+// What a drop names, each object by its qualified name.
+const droppedNames = (statement: Node) => (statement.objects ?? []).map((object: Node) => names(object?.List?.items ?? object?.ObjectWithArgs?.objname ?? (object?.String ? [object] : []))).join(', ')
 
 /** One statement of the SQL: its kind and parse node. */
 export type ParsedStatement = { kind: string; node: Node }
 
 /**
  * What in `statements`, as Postgres's parser reads them in order, takes something from older code, one line each:
- * none when every statement only adds. A table the same statements make takes any change; a function, trigger or view
- * dropped without `cascade` and made again by a later statement is replaced.
+ * none when every statement only adds. A table the same statements make, without `if not exists`, takes any change;
+ * a trigger dropped without `cascade` and made again on its table by a later statement is replaced.
  */
 export const contractingStatements = (statements: readonly ParsedStatement[]) => {
-  const made = new Set(statements.filter(({ kind }) => kind === 'CreateStmt').map(({ node }) => relationKey(node.relation)))
-  const created = statements.flatMap(({ kind, node }, index) => {
-    const found = createdKey(kind, node)
-    return found ? [{ ...found, index }] : []
-  })
+  // `if not exists` may find the table there already, with rows.
+  const made = new Set(statements.filter(({ kind, node }) => kind === 'CreateStmt' && !node.if_not_exists).map(({ node }) => relationKey(node.relation)))
+  const triggersMade = statements.flatMap(({ kind, node }, index) => (kind === 'CreateTrigStmt' ? [{ key: createdTrigger(node), index }] : []))
   return statements.flatMap(({ kind, node }, index): string[] => {
     if (plainKinds.has(kind)) return []
+    if (kind === 'InsertStmt' || kind === 'UpdateStmt') return modifyingCtes(node).map((cte: string) => kindLabels[cte] ?? `${cte.replace(/Stmt$/, '')} in a with clause, which the lint cannot tell only adds`)
+    if (kind === 'AlterEnumStmt') return node.oldVal ? ['renames a value of an enum type'] : []
     if (kind === 'IndexStmt') return node.unique && !made.has(relationKey(node.relation)) ? ['adds a unique index to a table there already, which rows written by older code may break'] : []
     if (kind === 'AlterTableStmt' && node.objtype === 'OBJECT_TABLE') {
       return node.cmds.flatMap(({ AlterTableCmd: cmd }: Node) => {
@@ -98,12 +93,18 @@ export const contractingStatements = (statements: readonly ParsedStatement[]) =>
       })
     }
     if (kind === 'DropStmt' && (node.removeType === 'OBJECT_INDEX' || node.removeType === 'OBJECT_POLICY')) return []
+    if (kind === 'DropStmt' && node.behavior === 'DROP_CASCADE') return ['drops with cascade']
+    // A trigger made again on its table is replaced; a view or function keeps what older code reads only through
+    // `create or replace`, which Postgres refuses when its columns, arguments or result would change.
+    if (kind === 'DropStmt' && node.removeType === 'OBJECT_TRIGGER') {
+      return droppedTriggers(node)
+        .filter((key: string) => !triggersMade.some((made) => made.key === key && made.index > index))
+        .map((key: string) => `drops trigger ${key} without making it again`)
+    }
     if (kind === 'DropStmt') {
-      const key = droppedKey(node)
       const what = node.removeType.replace(/^OBJECT_/, '').toLowerCase().replaceAll('_', ' ')
-      if (node.behavior === 'DROP_CASCADE') return [`drops ${what} ${key} with cascade`]
-      const remade = replaceable.has(node.removeType) && created.some((create) => create.type === node.removeType && create.key === key && create.index > index)
-      return remade ? [] : [`drops ${what} ${key}${replaceable.has(node.removeType) ? ' without making it again' : ''}`]
+      const replace = node.removeType === 'OBJECT_VIEW' || node.removeType === 'OBJECT_FUNCTION' ? `, which \`create or replace\` keeps for older code` : ''
+      return [`drops ${what} ${droppedNames(node)}${replace}`]
     }
     return [kindLabels[kind] ?? `${kind.replace(/Stmt$/, '')}, which the lint cannot tell only adds`]
   })
