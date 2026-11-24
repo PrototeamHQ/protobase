@@ -65,6 +65,8 @@ export const snapshotTemplates = {
       socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } },
     })
     await exec(db, (await authSchemaMigration(auth))!)
+    // A template holds no clock values: the steps' record keeps when each was applied.
+    await exec(db, 'update auth_steps set applied_at = null')
     await pool.end()
   }),
   /** A restored Supabase `storage` schema with buckets and policies, for `/api/sb/storage/v1`. */
