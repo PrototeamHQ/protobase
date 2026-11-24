@@ -26,11 +26,16 @@ const batches = (pending: DirMigration[]) => {
   return all.filter((batch) => batch.length > 0)
 }
 
+// The codes of a connection Postgres or the client closed, whose transaction Postgres rolled back and whose session
+// locks it released: nothing more can be sent on it.
+const connectionLostCodes = ['57P01', '57P02', '57P03', 'CONNECTION_CLOSED', 'CONNECTION_DESTROYED', 'CONNECTION_ENDED']
+const connectionLost = (error: unknown) => connectionLostCodes.includes((error as { code?: string }).code ?? '')
+
 // A transaction on the reserved connection, which holds the session's lock: rolled back when `run` fails.
 const transaction = async <T>(sql: ReservedSql, run: () => Promise<T>) => {
   await sql`begin`
   const result = await run().catch(async (error: unknown) => {
-    await sql`rollback`
+    if (!connectionLost(error)) await sql`rollback`
     throw error
   })
   await sql`commit`
@@ -58,13 +63,34 @@ const finishUnfinished = async (sql: ReservedSql, ids: string[], migrations: Dir
   }
 }
 
+// Under the lock: the record made and read in a transaction, the unfinished migrations finished, then each batch.
+const apply = async (session: ReservedSql, migrations: DirMigration[], out: (text: string) => void) => {
+  const { pending, unfinished } = await transaction(session, async () => {
+    const [record] = await session<{ fresh: boolean }[]>`select to_regclass('migrations.applied') is null as fresh`
+    await session`create schema if not exists migrations`
+    await session`create table if not exists migrations.applied (name text primary key, applied_at timestamptz not null default now())`
+    if (record!.fresh) await adoptPublicRecord(session)
+    return { pending: await pendingIn(session, migrations), unfinished: await unfinishedIds(session) }
+  })
+  await finishUnfinished(session, unfinished, migrations, out)
+  for (const batch of batches(pending)) {
+    await applyBatch(session, batch, out)
+    const last = batch.at(-1)!
+    if (!last.after) continue
+    out(`running ${last.after.file}\n`)
+    await runAfter(session, last.id!, last.after.text)
+  }
+  out(pending.length > 0 ? `applied ${pending.length} migrations\n` : 'the database is up to date\n')
+  return pending.map(({ file }) => file)
+}
+
 /**
  * Applies the `*.sql` files of `dir` the database has not applied (`pendingIn`), in file name order, behind an
  * advisory lock it only tries, refusing while another run holds it. They apply in batches, one transaction each, so
  * when a file fails none of its batch is applied: a batch ends at a file with an `.after.sql`, whose statements then
  * run outside a transaction before the next batch, and set its row's `completed_at`. A migration a stopped run left
- * unfinished is finished first. Run it before a new version serves, while nothing else writes. Returns the names it
- * applied.
+ * unfinished is finished first. The lock is released at the end, or with the connection when that is lost. Run it
+ * before a new version serves, while nothing else writes. Returns the names it applied.
  */
 export const applyMigrations = async (sql: Sql, dir: string, out: (text: string) => void) => {
   const migrations = await readMigrationDir(dir)
@@ -72,27 +98,13 @@ export const applyMigrations = async (sql: Sql, dir: string, out: (text: string)
   try {
     const [lock] = await session<{ locked: boolean }[]>`select pg_try_advisory_lock(${lockKey}) as locked`
     if (!lock!.locked) throw new Error(lockTaken)
-    try {
-      const { pending, unfinished } = await transaction(session, async () => {
-        const [record] = await session<{ fresh: boolean }[]>`select to_regclass('migrations.applied') is null as fresh`
-        await session`create schema if not exists migrations`
-        await session`create table if not exists migrations.applied (name text primary key, applied_at timestamptz not null default now())`
-        if (record!.fresh) await adoptPublicRecord(session)
-        return { pending: await pendingIn(session, migrations), unfinished: await unfinishedIds(session) }
-      })
-      await finishUnfinished(session, unfinished, migrations, out)
-      for (const batch of batches(pending)) {
-        await applyBatch(session, batch, out)
-        const last = batch.at(-1)!
-        if (!last.after) continue
-        out(`running ${last.after.file}\n`)
-        await runAfter(session, last.id!, last.after.text)
-      }
-      out(pending.length > 0 ? `applied ${pending.length} migrations\n` : 'the database is up to date\n')
-      return pending.map(({ file }) => file)
-    } finally {
-      await session`select pg_advisory_unlock(${lockKey})`
-    }
+    const unlock = () => session`select pg_advisory_unlock(${lockKey})`
+    const applied = await apply(session, migrations, out).catch(async (error: unknown) => {
+      if (!connectionLost(error)) await unlock()
+      throw error
+    })
+    await unlock()
+    return applied
   } finally {
     session.release()
   }
