@@ -36,12 +36,19 @@ describe('the jobs schema', () => {
     expect(await jobsModule.read(db)).toEqual(latestModel(jobsModule))
   })
 
-  it('reads functions that are missing as absent, and refuses a pg-boss schema of a version no step records', async () => {
+  it('reads functions that are missing as absent unless one is older, and refuses a pg-boss schema newer than or of a version no step records', async () => {
     const db = await jobsDb()
     await sql`comment on function jobs.next_due() is 'Protobase jobs 2'`.execute(db)
     expect(await jobsModule.read(db)).toEqual({ lastStep: 1, replaceables: { functions: 2 } })
     await sql`drop function jobs.enqueue`.execute(db)
+    expect(await jobsModule.read(db)).toEqual({ lastStep: 1, replaceables: { functions: 2 } })
+    await sql`comment on function jobs.next_due() is 'Protobase jobs 3'`.execute(db)
     expect(await jobsModule.read(db)).toEqual({ lastStep: 1, replaceables: {} })
+    // An overload by the same name is not the function the functions' SQL makes.
+    await sql.raw(`create function jobs.enqueue(job_name text) returns uuid language sql as 'select null::uuid'; comment on function jobs.enqueue(text) is 'Protobase jobs 3'`).execute(db)
+    expect(await jobsModule.read(db)).toEqual({ lastStep: 1, replaceables: {} })
+    await sql`update jobs.version set version = 46`.execute(db)
+    await expect(jobsModule.read(db)).rejects.toThrow('The jobs schema is at pg-boss schema version 46, newer than the 45 this version of Protobase records: upgrade Protobase')
     await sql`update jobs.version set version = 44`.execute(db)
     await expect(jobsModule.read(db)).rejects.toThrow('The jobs schema is at pg-boss schema version 44, which no step of this version of Protobase records')
   })

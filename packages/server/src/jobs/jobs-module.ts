@@ -2,7 +2,7 @@ import { CompiledQuery } from 'kysely'
 import type { Db } from '@protobase/query'
 import { moduleDifference } from '../schema-modules/module-difference'
 import type { ModuleModel, SchemaModule } from '../schema-modules/schema-module'
-import { functionNames, functionsSql, functionsVersion } from './functions-sql'
+import { functionsSql, functionsVersion } from './functions-sql'
 import { jobsSchema } from './schema'
 import { pgBoss45 } from './steps/001-pg-boss-45'
 
@@ -16,10 +16,30 @@ const commentVersion = (comment: string | null) => {
   return found ? Number(found[1]) : undefined
 }
 
+/** Protobase's functions in the jobs schema by the signature `functionsSql` makes them with, so an overload of one is not it. */
+const functionSignatures = ['enqueue(text, jsonb, timestamptz, text, text, integer)', 'next_due()', 'failed_retry()', 'failed_delete()']
+
 /**
- * The jobs schema as the database has it: pg-boss's version as the step that installs it, and Protobase's functions at
- * the oldest version their comments name, or absent when one is missing or carries no version. Refuses a pg-boss
- * version no step records.
+ * The functions' part of the jobs schema's model from the version each function's comment names, `undefined` for one
+ * missing or without a version: the oldest known version, so replacing it from there says what it breaks, or absent
+ * when one is missing and none known is older, so the functions are written again as new. Refuses a version newer than
+ * this version of Protobase writes.
+ */
+export const functionsModel = (versions: readonly (number | undefined)[]): Record<string, number> => {
+  const known = versions.filter((version) => version !== undefined)
+  const newest = Math.max(...known)
+  if (newest > functionsVersion) {
+    throw new Error(`Protobase's functions of the jobs schema are at version ${newest}, newer than the ${functionsVersion} this version of Protobase writes: upgrade Protobase`)
+  }
+  if (known.length === 0) return {}
+  const oldest = Math.min(...known)
+  if (known.length < versions.length && oldest === functionsVersion) return {}
+  return { functions: oldest }
+}
+
+/**
+ * The jobs schema as the database has it: pg-boss's version as the step that installs it, and Protobase's functions as
+ * `functionsModel` reads them. Refuses a pg-boss version no step records.
  */
 const readJobs = async (db: Db): Promise<ModuleModel | undefined> => {
   const [{ installed }] = (await rows<{ installed: boolean }>(db, `select to_regclass('${jobsSchema}.version') is not null as installed`)) as [{ installed: boolean }]
@@ -27,20 +47,21 @@ const readJobs = async (db: Db): Promise<ModuleModel | undefined> => {
   const [found] = await rows<{ version: number }>(db, `select version from ${jobsSchema}.version`)
   const pgBoss = Number(found?.version)
   const step = Object.entries(pgBossSteps).find(([, version]) => version === pgBoss)?.[0]
+  const pinned = Object.values(pgBossSteps).at(-1)!
+  if (pgBoss > pinned) {
+    throw new Error(`The jobs schema is at pg-boss schema version ${pgBoss}, newer than the ${pinned} this version of Protobase records: upgrade Protobase`)
+  }
   if (step === undefined) {
     throw new Error(
       `The jobs schema is at pg-boss schema version ${pgBoss}, which no step of this version of Protobase records: bring it to version ${pgBossSteps[1]} with \`protobase migration\` and \`protobase migrate\` of Protobase 0.14.2 first, then run this command again`,
     )
   }
-  const functions = await rows<{ name: string; comment: string | null }>(
+  const functions = await rows<{ comment: string | null }>(
     db,
-    `select p.proname as name, obj_description(p.oid, 'pg_proc') as comment from pg_proc p
-     join pg_namespace n on n.oid = p.pronamespace where n.nspname = $1 and p.proname = any($2) order by p.proname`,
-    [jobsSchema, functionNames],
+    `select obj_description(to_regprocedure(signature), 'pg_proc') as comment from unnest($1::text[]) with ordinality as s(signature, n) order by n`,
+    [functionSignatures.map((signature) => `${jobsSchema}.${signature}`)],
   )
-  const versions = functionNames.map((name) => commentVersion(functions.find((one) => one.name === name)?.comment ?? null))
-  const all = versions.every((version) => version !== undefined)
-  return { lastStep: Number(step), replaceables: all ? { functions: Math.min(...(versions as number[])) } : {} }
+  return { lastStep: Number(step), replaceables: functionsModel(functions.map((one) => commentVersion(one.comment))) }
 }
 
 /**

@@ -7,33 +7,55 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select to_regclass('jobs.version') is not null as installed","result":{"command":"SELECT","rowCount":1,"columns":[["installed",16]],"rows":[["t"]]}},
       {"sql":"select version from jobs.version","result":{"command":"SELECT","rowCount":1,"columns":[["version",23]],"rows":[["45"]]}},
-      {"sql":"select p.proname as name, obj_description(p.oid, 'pg_proc') as comment from pg_proc p\n     join pg_namespace n on n.oid = p.pronamespace where n.nspname = $1 and p.proname = any($2) order by p.proname","params":["jobs","{\"enqueue\",\"next_due\",\"failed_retry\",\"failed_delete\"}"],"result":{"command":"SELECT","rowCount":4,"columns":[["name",19],["comment",25]],"rows":[
-        ["enqueue","Protobase jobs 3"],
-        ["failed_delete","Protobase jobs 3"],
-        ["failed_retry","Protobase jobs 3"],
-        ["next_due","Protobase jobs 3"]
+      {"sql":"select obj_description(to_regprocedure(signature), 'pg_proc') as comment from unnest($1::text[]) with ordinality as s(signature, n) order by n","params":["{\"jobs.enqueue(text, jsonb, timestamptz, text, text, integer)\",\"jobs.next_due()\",\"jobs.failed_retry()\",\"jobs.failed_delete()\"}"],"result":{"command":"SELECT","rowCount":4,"columns":[["comment",25]],"rows":[
+        ["Protobase jobs 3"],
+        ["Protobase jobs 3"],
+        ["Protobase jobs 3"],
+        ["Protobase jobs 3"]
       ]}}
     ]
   },
-  "the jobs schema > reads functions that are missing as absent, and refuses a pg-boss schema of a version no step records": {
-    "the jobs schema > reads functions that are missing as absent, and refuses a pg-boss schema of a version no step records#0": [
+  "the jobs schema > reads functions that are missing as absent unless one is older, and refuses a pg-boss schema newer than or of a version no step records": {
+    "the jobs schema > reads functions that are missing as absent unless one is older, and refuses a pg-boss schema newer than or of a version no step records#0": [
       {"sql":"comment on function jobs.next_due() is 'Protobase jobs 2'","result":{"command":"COMMENT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select to_regclass('jobs.version') is not null as installed","result":{"command":"SELECT","rowCount":1,"columns":[["installed",16]],"rows":[["t"]]}},
       {"sql":"select version from jobs.version","result":{"command":"SELECT","rowCount":1,"columns":[["version",23]],"rows":[["45"]]}},
-      {"sql":"select p.proname as name, obj_description(p.oid, 'pg_proc') as comment from pg_proc p\n     join pg_namespace n on n.oid = p.pronamespace where n.nspname = $1 and p.proname = any($2) order by p.proname","params":["jobs","{\"enqueue\",\"next_due\",\"failed_retry\",\"failed_delete\"}"],"result":{"command":"SELECT","rowCount":4,"columns":[["name",19],["comment",25]],"rows":[
-        ["enqueue","Protobase jobs 3"],
-        ["failed_delete","Protobase jobs 3"],
-        ["failed_retry","Protobase jobs 3"],
-        ["next_due","Protobase jobs 2"]
+      {"sql":"select obj_description(to_regprocedure(signature), 'pg_proc') as comment from unnest($1::text[]) with ordinality as s(signature, n) order by n","params":["{\"jobs.enqueue(text, jsonb, timestamptz, text, text, integer)\",\"jobs.next_due()\",\"jobs.failed_retry()\",\"jobs.failed_delete()\"}"],"result":{"command":"SELECT","rowCount":4,"columns":[["comment",25]],"rows":[
+        ["Protobase jobs 3"],
+        ["Protobase jobs 2"],
+        ["Protobase jobs 3"],
+        ["Protobase jobs 3"]
       ]}},
       {"sql":"drop function jobs.enqueue","result":{"command":"DROP","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select to_regclass('jobs.version') is not null as installed","result":{"command":"SELECT","rowCount":1,"columns":[["installed",16]],"rows":[["t"]]}},
       {"sql":"select version from jobs.version","result":{"command":"SELECT","rowCount":1,"columns":[["version",23]],"rows":[["45"]]}},
-      {"sql":"select p.proname as name, obj_description(p.oid, 'pg_proc') as comment from pg_proc p\n     join pg_namespace n on n.oid = p.pronamespace where n.nspname = $1 and p.proname = any($2) order by p.proname","params":["jobs","{\"enqueue\",\"next_due\",\"failed_retry\",\"failed_delete\"}"],"result":{"command":"SELECT","rowCount":3,"columns":[["name",19],["comment",25]],"rows":[
-        ["failed_delete","Protobase jobs 3"],
-        ["failed_retry","Protobase jobs 3"],
-        ["next_due","Protobase jobs 2"]
+      {"sql":"select obj_description(to_regprocedure(signature), 'pg_proc') as comment from unnest($1::text[]) with ordinality as s(signature, n) order by n","params":["{\"jobs.enqueue(text, jsonb, timestamptz, text, text, integer)\",\"jobs.next_due()\",\"jobs.failed_retry()\",\"jobs.failed_delete()\"}"],"result":{"command":"SELECT","rowCount":4,"columns":[["comment",25]],"rows":[
+        [null],
+        ["Protobase jobs 2"],
+        ["Protobase jobs 3"],
+        ["Protobase jobs 3"]
       ]}},
+      {"sql":"comment on function jobs.next_due() is 'Protobase jobs 3'","result":{"command":"COMMENT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select to_regclass('jobs.version') is not null as installed","result":{"command":"SELECT","rowCount":1,"columns":[["installed",16]],"rows":[["t"]]}},
+      {"sql":"select version from jobs.version","result":{"command":"SELECT","rowCount":1,"columns":[["version",23]],"rows":[["45"]]}},
+      {"sql":"select obj_description(to_regprocedure(signature), 'pg_proc') as comment from unnest($1::text[]) with ordinality as s(signature, n) order by n","params":["{\"jobs.enqueue(text, jsonb, timestamptz, text, text, integer)\",\"jobs.next_due()\",\"jobs.failed_retry()\",\"jobs.failed_delete()\"}"],"result":{"command":"SELECT","rowCount":4,"columns":[["comment",25]],"rows":[
+        [null],
+        ["Protobase jobs 3"],
+        ["Protobase jobs 3"],
+        ["Protobase jobs 3"]
+      ]}},
+      {"sql":"create function jobs.enqueue(job_name text) returns uuid language sql as 'select null::uuid'; comment on function jobs.enqueue(text) is 'Protobase jobs 3'","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"COMMENT","rowCount":null,"columns":[],"rows":[]}]},
+      {"sql":"select to_regclass('jobs.version') is not null as installed","result":{"command":"SELECT","rowCount":1,"columns":[["installed",16]],"rows":[["t"]]}},
+      {"sql":"select version from jobs.version","result":{"command":"SELECT","rowCount":1,"columns":[["version",23]],"rows":[["45"]]}},
+      {"sql":"select obj_description(to_regprocedure(signature), 'pg_proc') as comment from unnest($1::text[]) with ordinality as s(signature, n) order by n","params":["{\"jobs.enqueue(text, jsonb, timestamptz, text, text, integer)\",\"jobs.next_due()\",\"jobs.failed_retry()\",\"jobs.failed_delete()\"}"],"result":{"command":"SELECT","rowCount":4,"columns":[["comment",25]],"rows":[
+        [null],
+        ["Protobase jobs 3"],
+        ["Protobase jobs 3"],
+        ["Protobase jobs 3"]
+      ]}},
+      {"sql":"update jobs.version set version = 46","result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"select to_regclass('jobs.version') is not null as installed","result":{"command":"SELECT","rowCount":1,"columns":[["installed",16]],"rows":[["t"]]}},
+      {"sql":"select version from jobs.version","result":{"command":"SELECT","rowCount":1,"columns":[["version",23]],"rows":[["46"]]}},
       {"sql":"update jobs.version set version = 44","result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
       {"sql":"select to_regclass('jobs.version') is not null as installed","result":{"command":"SELECT","rowCount":1,"columns":[["installed",16]],"rows":[["t"]]}},
       {"sql":"select version from jobs.version","result":{"command":"SELECT","rowCount":1,"columns":[["version",23]],"rows":[["44"]]}}
