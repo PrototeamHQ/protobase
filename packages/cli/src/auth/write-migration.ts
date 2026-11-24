@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { authSchemaMigration, type AdminAuth } from '@protobase/server'
-import { latestSteps, recordsRuntimeModel, storeModel, storeNames } from '@protobase/server/internal'
+import { keptStoreModules, latestSteps, recordsRuntimeModel, storeModel, storeNames } from '@protobase/server/internal'
 import { authRefusals, customHint } from '../migration/snapshot/auth-difference'
+import { moduleChanges } from '../migration/snapshot/module-changes'
 import { refuseInconsistent } from '../migration/snapshot/consistency'
 import { readMigrationFiles } from '../migration/snapshot/migration-files'
-import { readSnapshot } from '../migration/snapshot/snapshot-file'
+import { readSnapshot, snapshotFile } from '../migration/snapshot/snapshot-file'
 import { writeMigrationFile } from '../migration/snapshot/write-file'
 import { protobaseVersion } from '../version/version'
 import { currentStoreText, migrationText, recordOnlyText } from './migration-file'
@@ -36,9 +37,17 @@ export const writeAuthMigration = async ({ auth, projectDir, dir, name, writer }
   if (sql === undefined && snapshot && !unrecorded) return
   const names = storeNames(auth)
   // The record takes the config's names: a name or type the snapshot has otherwise is a migration of the project's own.
-  const refusals = authRefusals(snapshot, { names, organizationsOn: Boolean(auth.organizations) })
+  const target = { names, organizationsOn: Boolean(auth.organizations) }
+  const refusals = authRefusals(snapshot, target)
   if (refusals.length > 0) throw new Error(`${refusals.join('; ')}. ${customHint}`)
-  const draft = { previous: snapshot, auth: storeModel(names, latestSteps(names.names.modules)), organizationsOn: Boolean(auth.organizations), protobaseVersion }
+  // Turning a module off asks what becomes of its tables, and on again checks the rows they kept: `protobase migration` does both.
+  const changes = moduleChanges(snapshot, target)
+  const switched = [...changes.off.map(({ module }) => `${module} off`), ...changes.revived.map(({ module }) => `${module} on again`)]
+  if (switched.length > 0) throw new Error(`The config turns ${switched.join(', ')} since ${snapshotFile}: write that migration with \`protobase migration\``)
+  // A first snapshot keeps the modules that are off but whose tables the store has.
+  const kept = snapshot ? [] : await keptStoreModules(auth)
+  const decisions = snapshot ? undefined : { modules: { kept, archived: [] }, organizations: { everOn: kept.some(({ module }) => module === 'organizations'), defaultOrganization: null } }
+  const draft = { previous: snapshot, auth: storeModel(names, latestSteps(names.names.modules)), organizationsOn: Boolean(auth.organizations), protobaseVersion, ...(decisions && { decisions }) }
   const body = sql !== undefined ? migrationText(sql, writer) : snapshot ? recordOnlyText(writer) : currentStoreText(writer)
   return writeMigrationFile(projectDir, dir, { name, body, additive: true }, draft, randomUUID())
 }

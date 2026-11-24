@@ -8,7 +8,7 @@ import { settingsStoreNames } from './settings-names'
 import { latestSteps } from './store-model'
 
 // Every feature with tables of its own on, so every module is.
-const names = settingsStoreNames({ organizations: true, mcp: true, personalAccessTokens: {}, personalMail: ['gmail'] })
+const names = settingsStoreNames({ organizations: true, mcp: true, personalAccessTokens: { prefix: 'app_' }, personalMail: ['gmail'] })
 const versionsTo = (last: number) => legacyVersions.filter(({ version }) => version <= last).map(({ version }) => version)
 const stepsTo = (last: number) => stepsOfVersions(versionsTo(last))
 
@@ -44,7 +44,7 @@ describe('baselineStore', () => {
     const off = settingsStoreNames({})
     const without = { ...off, names: resolveNames({ schema: 'auth', modules: allModules.filter((module) => module !== 'personal_access_tokens') }) }
     const store = baselineStore(without, liveStore(17))
-    expect(store.kept).toEqual(['personal_access_tokens'])
+    expect(store.kept).toEqual([{ module: 'personal_access_tokens', step: 1 }])
     expect(store.lastSteps.personal_access_tokens).toBeUndefined()
   })
 

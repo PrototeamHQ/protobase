@@ -19,7 +19,7 @@ export type LiveStore = { applied: AppliedStep[]; relations: Record<string, Live
  * What the store is: each module's last step, the modules off that have tables, whether organizations were ever on,
  * the relations Protobase did not make, and whether it has `auth_steps`.
  */
-export type BaselineStore = { lastSteps: LastSteps; kept: ModuleId[]; organizationsEverOn: boolean; external: string[]; stepRecord: boolean }
+export type BaselineStore = { lastSteps: LastSteps; kept: Array<{ module: ModuleId; step: number }>; organizationsEverOn: boolean; external: string[]; stepRecord: boolean }
 
 // An ordinary or partitioned table: anything else, such as a view, is a relation another system or the app made.
 const tableKinds = ['r', 'p']
@@ -40,7 +40,7 @@ export const recordedSteps = (applied: readonly AppliedStep[]): LastSteps => {
 
 /**
  * The store at `live` under the config's `names`: each module that is on at the step the record holds, every module
- * that is off but has a table as kept, organizations as ever on when a table whose rows belong to an organization has
+ * that is off but has a table as kept at the step the record holds, organizations as ever on when a table whose rows belong to an organization has
  * the column that names it, and the user table as external when the config reads it through a view over another
  * system's (`users.keyTable`). Refuses a user table the database has as anything but a table without `users.keyTable`,
  * since the steps' foreign keys would point at it, and a table a recorded step made that the schema lacks under the
@@ -66,7 +66,9 @@ export const baselineStore = (names: StoreNames, live: LiveStore): BaselineStore
     throw new Error(`The auth store's schema lacks ${listed}, which the steps the store recorded made: name each as the store has it in auth.tables, or apply the project's migrations first`)
   }
 
-  const kept = allModules.filter((module) => !on.includes(module) && Object.values(every.tables).some((table) => table.module === module && has(table.internal)))
+  const kept = allModules
+    .filter((module) => !on.includes(module) && Object.values(every.tables).some((table) => table.module === module && has(table.internal)))
+    .map((module) => ({ module, step: recorded[module] ?? 0 }))
   const organizationsEverOn = Object.values(every.tables).some((table) => {
     const column = (table.columns as Record<string, { name: string } | undefined>).organization_id
     return table.scope === 'organization' && column !== undefined && (relationOf(live, table.name)?.columns.includes(column.name) ?? false)

@@ -6,7 +6,7 @@ import { settingsStoreNames } from './settings-names'
 import { latestSteps, type LastSteps } from './store-model'
 
 // Every feature with tables of its own on, so every module is.
-const names = settingsStoreNames({ organizations: true, mcp: true, personalAccessTokens: {}, personalMail: ['gmail'] })
+const names = settingsStoreNames({ organizations: true, mcp: true, personalAccessTokens: { prefix: 'app_' }, personalMail: ['gmail'] })
 const latest = latestSteps(names.names.modules)
 const store = (lastSteps: LastSteps, stepRecord = true): SnapshotStore => ({ lastSteps, on: names.names.modules, stepRecord })
 

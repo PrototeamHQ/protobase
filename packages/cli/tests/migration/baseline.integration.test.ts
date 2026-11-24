@@ -20,7 +20,7 @@ const url = testDatabaseUrl()
 const reachable = await databaseReachable(url)
 const maintenance = () => postgres(withDatabase(url, 'postgres'), { max: 1, onnotice: () => {} })
 // Every feature with tables of its own on, so every module is.
-const auth = { names: settingsStoreNames({ organizations: true, mcp: true, personalAccessTokens: {}, personalMail: ['gmail'] }), organizationsOn: true }
+const auth = { names: settingsStoreNames({ organizations: true, mcp: true, personalAccessTokens: { prefix: 'app_' }, personalMail: ['gmail'] }), organizationsOn: true }
 const every = Array.from({ length: 17 }, (_, at) => at + 1)
 
 const databases: string[] = []

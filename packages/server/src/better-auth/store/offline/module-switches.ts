@@ -1,0 +1,75 @@
+import { sql } from 'kysely'
+import type { ModuleDeclaration } from '../../names/declaration'
+import { builtInModules, type ModuleId } from '../../names/modules'
+import { allModules } from '../../names/modules-on'
+import { resolveNames } from '../../names/resolve-names'
+import { ddl } from '../ddl'
+import { statementsSql } from '../migration-sql'
+import { moduleSteps } from '../steps'
+import type { StoreNames } from '../store-names'
+
+// What a migration writes for a module the config turns off, and for one it turns on again after keeping its tables.
+
+/** What becomes of a module's tables once it is off. */
+export const offChoices = ['keep', 'archive', 'delete'] as const
+
+export type OffChoice = (typeof offChoices)[number]
+
+/** The setting `protobase migrate --force` sets in its transactions, which lets a module whose kept tables hold rows on again. */
+export const forceSetting = 'protobase.force'
+
+// Every table of every module, under the store's names.
+const everyTable = (names: StoreNames) => resolveNames({ ...names.names.input, modules: allModules }).tables
+
+/**
+ * The statements that keep `module`'s tables and rows while it is off: each column it adds to a table of a module that
+ * is on loses `not null`, so the code that no longer writes it still inserts rows. The user table is left alone when
+ * it is a relation Protobase did not make.
+ */
+export const keepStatements = (names: StoreNames, module: ModuleId, externalUser = names.users.keyTable !== undefined) => {
+  const every = everyTable(names)
+  const declaration = builtInModules.find(({ id }) => id === module) as ModuleDeclaration
+  return Object.entries(declaration.columns ?? {})
+    .filter(([table]) => names.names.tables[table] !== undefined && !(table === 'user' && externalUser))
+    .flatMap(([table, columns]) => Object.keys(columns).map((column) => ddl`alter table ${every[table]!} alter column ${every[table]!.columns[column]!} drop not null`))
+}
+
+/** The tables of `module` its steps up to `step` made, under the store's names. */
+export const keptTables = (names: StoreNames, module: ModuleId, step: number) => {
+  const every = everyTable(names)
+  return moduleSteps[module].filter((made) => made.step <= step).flatMap((made) => made.tables.map((table) => every[table]!))
+}
+
+/** The message that refuses turning `module` on again while its kept tables hold rows: `found` lists each table with its count. */
+export const revivalRefusal = (module: ModuleId, found: string) =>
+  `The ${module} module was kept while off, and its tables still hold rows: ${found}. Turning it on again brings them back into use, such as personal access tokens, which act again for their users: delete them in a migration of the project's own written before this one, or apply with \`protobase migrate --force\` to bring them back`
+
+/**
+ * The block that refuses, before the steps, to turn `module` on again while the tables it kept at `step` hold rows,
+ * naming each table with its count; `protobase migrate --force` lets it through. Empty tables pass.
+ */
+export const revivalCheckSql = (names: StoreNames, module: ModuleId, step: number) => {
+  const counts = keptTables(names, module, step).map((table) => ddl`select ${sql.lit(table.name)} as name, (select count(*) from ${table}) as rows`)
+  const check = ddl`do $revive$
+declare
+  found text;
+begin
+  if coalesce(current_setting(${sql.lit(forceSetting)}, true), '') <> 'true' then
+    select string_agg(counted.name || ' ' || counted.rows, ', ' order by counted.name) into found
+    from (${sql.join(counts, sql` union all `)}) as counted
+    where counted.rows > 0;
+    if found is not null then
+      raise exception '%', format(${sql.lit(revivalRefusal(module, '%s'))}, found);
+    end if;
+  end if;
+end
+$revive$`
+  return `-- ${module} on again: its kept tables must be empty, or the migration applied with \`protobase migrate --force\`.\n${statementsSql([check])}`
+}
+
+/** The statements that keep `module` while off, as SQL text under a comment naming it; none when there are none. */
+export const keepSql = (names: StoreNames, module: ModuleId, externalUser?: boolean) => {
+  const statements = keepStatements(names, module, externalUser)
+  if (statements.length === 0) return `-- ${module} off: its tables and rows are kept as they are.`
+  return `-- ${module} off: its tables and rows are kept, and the columns it adds to the tables of the modules that are on may stay empty.\n${statementsSql(statements)}`
+}

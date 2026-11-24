@@ -18,7 +18,7 @@ export default defineConfig({
 
 The prefix is lowercase letters, digits and underscores, ending in `_`, and has no default: name it after the app, so a token found in a log or a commit says where it works. With the setting and no prefix, or a prefix of other characters, the server refuses to start and names the problem.
 
-The tokens live in the auth store's `personal_access_token` table, which every store has from [migration](/reference/auth/#migrations) 8 on, whether the app turns the tokens on or not: `protobase auth migration` writes it for an app upgrading from an earlier Protobase.
+The tokens live in the auth store's `personal_access_token` table, the `personal_access_tokens` module's, which the next [migration](/reference/auth/#migrations) makes once the setting is there. Taking the setting out again keeps the table and its tokens (see [turning a module off](/reference/auth/#turning-a-module-off)): they stay valid unless deleted, and once the setting is back, each acts again for its user as the table below says, refused while the user is banned, the token has expired or the user no longer holds its role.
 
 ## Making one
 

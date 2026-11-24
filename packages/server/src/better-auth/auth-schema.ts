@@ -1,4 +1,6 @@
 import type { AdminAuth } from './create-auth'
+import { allModules } from './names/modules-on'
+import { recordedSteps } from './store/offline/baseline-store'
 import { planAdoption, storeHasTables, adoptionSql } from './store/adoption'
 import { appliedVersions, stepRecordMigration, stepsOfVersions } from './store/legacy-record'
 import { stepRecordSql, stepsSql } from './store/migration-sql'
@@ -38,4 +40,18 @@ export const authSchemaMigration = async (auth: AdminAuth) => {
   const { adopted, pending } = await planAdoption(db, names)
   const rest = pending.length === 0 ? [] : pendingSql(names, hadOf(stepsOfVersions(adopted.map(({ migration }) => migration.version))))
   return [record, adoptionSql(names, adopted), ...rest].join('\n\n')
+}
+
+/**
+ * The modules the config turns off whose steps the store recorded, each at its last step, which a project's first
+ * snapshot keeps: the store has their tables. None for a store without a record of its steps or versions.
+ */
+export const keptStoreModules = async (auth: AdminAuth) => {
+  const names = storeNames(auth)
+  const db = plainStoreDb(auth)
+  const steps = await appliedSteps(db, names)
+  const versions = steps === undefined ? await appliedVersions(db, names) : undefined
+  const applied = steps ?? (versions === undefined ? [] : stepsOfVersions(versions))
+  const recorded = recordedSteps(applied)
+  return allModules.filter((module) => !names.names.modules.includes(module) && recorded[module] !== undefined).map((module) => ({ module, step: recorded[module]! }))
 }

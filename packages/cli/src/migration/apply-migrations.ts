@@ -1,4 +1,5 @@
 import type { ReservedSql, Sql } from 'postgres'
+import { forceSetting } from '@protobase/server/internal'
 import { adoptPublicRecord } from './adopt-public-record'
 import { fillRow } from './record/fill-row'
 import { readMigrationDir, type DirMigration } from './record/migration-dir'
@@ -42,8 +43,9 @@ const transaction = async <T>(sql: ReservedSql, run: () => Promise<T>) => {
   return result
 }
 
-const applyBatch = (tx: ReservedSql, batch: DirMigration[], out: (text: string) => void) =>
+const applyBatch = (tx: ReservedSql, batch: DirMigration[], out: (text: string) => void, force: boolean) =>
   transaction(tx, async () => {
+    if (force) await tx`select set_config(${forceSetting}, 'true', true)`
     for (const migration of batch) {
       out(`applying ${migration.file}\n`)
       await tx`select set_config('migrations.file', ${migration.text}, true)`
@@ -64,7 +66,7 @@ const finishUnfinished = async (sql: ReservedSql, ids: string[], migrations: Dir
 }
 
 // Under the lock: the record made and read in a transaction, the unfinished migrations finished, then each batch.
-const apply = async (session: ReservedSql, migrations: DirMigration[], out: (text: string) => void) => {
+const apply = async (session: ReservedSql, migrations: DirMigration[], out: (text: string) => void, force: boolean) => {
   const { pending, unfinished } = await transaction(session, async () => {
     const [record] = await session<{ fresh: boolean }[]>`select to_regclass('migrations.applied') is null as fresh`
     await session`create schema if not exists migrations`
@@ -74,7 +76,7 @@ const apply = async (session: ReservedSql, migrations: DirMigration[], out: (tex
   })
   await finishUnfinished(session, unfinished, migrations, out)
   for (const batch of batches(pending)) {
-    await applyBatch(session, batch, out)
+    await applyBatch(session, batch, out, force)
     const last = batch.at(-1)!
     if (!last.after) continue
     out(`running ${last.after.file}\n`)
@@ -90,16 +92,17 @@ const apply = async (session: ReservedSql, migrations: DirMigration[], out: (tex
  * when a file fails none of its batch is applied: a batch ends at a file with an `.after.sql`, whose statements then
  * run outside a transaction before the next batch, and set its row's `completed_at`. A migration a stopped run left
  * unfinished is finished first. The lock is released at the end, or with the connection when that is lost. Run it
- * before a new version serves, while nothing else writes. Returns the names it applied.
+ * before a new version serves, while nothing else writes. With `force`, each transaction sets `protobase.force`, which
+ * lets a sign-in module turned on again bring back the rows its kept tables hold. Returns the names it applied.
  */
-export const applyMigrations = async (sql: Sql, dir: string, out: (text: string) => void) => {
+export const applyMigrations = async (sql: Sql, dir: string, out: (text: string) => void, { force = false } = {}) => {
   const migrations = await readMigrationDir(dir)
   const session = await sql.reserve()
   try {
     const [lock] = await session<{ locked: boolean }[]>`select pg_try_advisory_lock(${lockKey}) as locked`
     if (!lock!.locked) throw new Error(lockTaken)
     const unlock = () => session`select pg_advisory_unlock(${lockKey})`
-    const applied = await apply(session, migrations, out).catch(async (error: unknown) => {
+    const applied = await apply(session, migrations, out, force).catch(async (error: unknown) => {
       if (!connectionLost(error)) await unlock()
       throw error
     })
