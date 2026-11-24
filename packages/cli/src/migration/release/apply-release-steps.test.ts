@@ -2,10 +2,11 @@ import type { Sql } from 'postgres'
 import { describe, expect, it } from 'vitest'
 import { applyReleaseSteps, releaseStepsPlan } from './apply-release-steps'
 
-// A connection that records each statement of its one transaction, and the order `find` ran in among them.
-const recording = () => {
+// A connection that records each statement of its one transaction, and the order `find` ran in among them; the lock
+// is free unless `locked`.
+const recording = (locked = false) => {
   const calls: string[] = []
-  const tx = Object.assign(async (strings: TemplateStringsArray) => calls.push(strings.join('?')), { unsafe: async (text: string) => calls.push(text) })
+  const tx = Object.assign(async (strings: TemplateStringsArray) => (calls.push(strings.join('?')), [{ locked: !locked }]), { unsafe: async (text: string) => calls.push(text) })
   const sql = { begin: (run: (t: typeof tx) => Promise<unknown>) => run(tx) } as unknown as Sql
   return { calls, sql }
 }
@@ -15,10 +16,16 @@ describe('applyReleaseSteps', () => {
     const { calls, sql } = recording()
     const output: string[] = []
     await applyReleaseSteps(sql, async () => (calls.push('find'), [{ name: 'auth', title: 'Auth', sql: 'select 1;' }]), (text) => output.push(text))
-    expect(calls[0]).toContain('pg_advisory_xact_lock')
+    expect(calls[0]).toContain('pg_try_advisory_xact_lock')
     expect(calls[1]).toBe('find')
     expect(calls.slice(2)).toEqual(["select set_config('migrations.file', ?, true)", expect.stringContaining("execute current_setting('migrations.file')")])
     expect(output).toEqual(['applying auth\n', 'applied 1 steps\n'])
+  })
+
+  it('refuses at once while another run holds the lock, applying nothing', async () => {
+    const { calls, sql } = recording(true)
+    await expect(applyReleaseSteps(sql, async () => (calls.push('find'), []), () => {})).rejects.toThrow(/^Another run of `migrate` is applying migrations/)
+    expect(calls).toHaveLength(1)
   })
 
   it('says the database is up to date when there is nothing to apply', async () => {

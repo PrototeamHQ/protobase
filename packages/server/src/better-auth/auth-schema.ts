@@ -1,7 +1,7 @@
 import type { AdminAuth } from './create-auth'
 import { planAdoption, storeHasTables, adoptionSql } from './store/adoption'
 import { migrationsTableSql, stepsSql } from './store/migration-sql'
-import { appliedVersions, migrationsTable } from './store/migrations-table'
+import { appliedVersions } from './store/migrations-table'
 import { latestStoreVersion, legacyVersions } from './store/steps/legacy-versions'
 import { renderSteps } from './store/steps/render'
 import { migrationNames } from './store/steps/step'
@@ -10,11 +10,9 @@ import { storeNames, type StoreNames } from './store/store-names'
 import { hadByVersion, refuseModulesOff } from './store/modules-off'
 
 // The admin store is versioned: each module's steps ship with Protobase (`store/steps`), and `auth_migrations` records
-// the versions of its former single chain applied, which each step names. Writing the next migration reads that record, and so does the check before serving: neither
-// compares the store's tables with what Better Auth needs (only a store without the record is compared, once, to adopt it).
-
-/** The command that writes the pending changes as a migration file of the project. */
-export const authMigrationCommand = 'protobase auth migration'
+// the versions of its former single chain applied, which each step names. Writing the next migration reads that record,
+// and does not compare the store's tables with what Better Auth needs (only a store without the record is compared,
+// once, to adopt it). The server reads the record of migrations instead (`checkMigrationRecord`).
 
 const refuseNewer = (applied: number[]) => {
   const newest = applied.at(-1)
@@ -52,20 +50,4 @@ export const authSchemaMigration = async (auth: AdminAuth) => {
   const { adopted, pending } = await planAdoption(db, names)
   const rest = pending.length === 0 ? [] : [pendingSql(names, adopted.map(({ migration }) => migration.version))]
   return [migrationsTableSql(names), adoptionSql(names, adopted), ...rest].join('\n\n')
-}
-
-/**
- * Refuses to go on while the admin store has not applied every migration of this version of Protobase, from its
- * `auth_migrations` alone, since every sign-in would fail. The server never changes the schema itself: the project's
- * migrations do, before the new version serves.
- */
-export const checkAuthSchema = async (auth: AdminAuth) => {
-  const names = storeNames(auth)
-  const applied = await appliedVersions(plainStoreDb(auth), names)
-  const write = `Write it as a migration with \`${authMigrationCommand}\`, apply it with the project's migrations, then start again.`
-  if (applied === undefined) throw new Error(`The auth store has no ${migrationsTable(names).name} table: it is new, or an earlier Protobase made it. ${write}`)
-  refuseNewer(applied)
-  const missing = legacyVersions.filter((migration) => !applied.includes(migration.version))
-  if (missing.length === 0) return
-  throw new Error(`The auth schema is behind this version of Protobase (missing migrations ${missing.map(({ version, name }) => `${version} ${name}`).join(', ')}). ${write}`)
 }

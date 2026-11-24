@@ -77,12 +77,12 @@ describe.skipIf(!(await postgresTemplateReady('empty')))("protobase-serve migrat
     await refused?.close()
   }, 30_000)
 
-  it('plans the new auth and workflows steps as SQL, applying nothing', async () => {
+  it('plans the new auth and workflows steps as SQL, then the row that records the release, applying nothing', async () => {
     const result = await migrateRelease(database.url, '--plan')
     expect(result.status).toBe(0)
-    expect(result.stdout.match(/^-- \w+: /gm)).toEqual(['-- auth: ', '-- workflows: '])
+    expect(result.stdout.match(/^-- \w+: /gm)).toEqual(['-- auth: ', '-- workflows: ', '-- record: '])
     for (const step of newSteps) expect(result.stdout).toContain(` ${step}: `)
-    expect(result.stdout).toMatch(/-- 2 steps to apply; nothing was applied\n$/)
+    expect(result.stdout).toMatch(/-- 3 steps to apply; nothing was applied\n$/)
     expect(await versions(database.url)).not.toContain(17)
   })
 
@@ -96,8 +96,10 @@ describe.skipIf(!(await postgresTemplateReady('empty')))("protobase-serve migrat
   })
 
   it('applies them in one transaction, recorded so a second run applies nothing', async () => {
-    expect(await migrateRelease(database.url)).toMatchObject({ status: 0, stdout: 'applying auth\napplying workflows\napplied 2 steps\n' })
+    expect(await migrateRelease(database.url)).toMatchObject({ status: 0, stdout: 'applying auth\napplying workflows\napplying record\napplied 3 steps\n' })
     expect(await versions(database.url)).toEqual(expect.arrayContaining([15, 16, 17]))
+    // Not additive: the workflows step is one of the parts, which may drop what the config no longer has.
+    expect(await rows(database.url, "select number, additive, completed_at is not null as completed from migrations.history where name like 'release %'")).toEqual([{ number: null, additive: false, completed: true }])
     expect(await sharedAt(database.url)).toBe(1)
     expect(await migrateRelease(database.url)).toMatchObject({ status: 0, stdout: 'the database is up to date\n' })
   })

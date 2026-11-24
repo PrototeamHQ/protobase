@@ -23,3 +23,7 @@ export const migrationText = (sql: string, writer = 'protobase auth migration') 
 /** The text of the file that starts the snapshot of a project whose store is current already: no statements. */
 export const currentStoreText = (writer = 'protobase auth migration') =>
   `-- ${authMigrationTitle}, written by \`${writer}\`: none, the store has every step of this version already.\n-- It starts protobase.snapshot.json from the project's earlier migrations.\n`
+
+/** The text of the file that only records a store that is current already in the database's record of migrations. */
+export const recordOnlyText = (writer = 'protobase auth migration') =>
+  `-- ${authMigrationTitle}, written by \`${writer}\`: none, the store has every step of this version already.\n-- It records the store in the database's record of migrations, which the server reads at startup.\n`

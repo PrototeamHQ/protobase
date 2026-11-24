@@ -43,16 +43,23 @@ const resourcesFile = "export * from '../../config'\n"
 const rolesFile = "export { roles } from '../../config/roles'\n"
 
 // The auth store's tables in the project's own schema, as `protobase auth migration` would write them.
-const migrateFile = `import { Kysely, PostgresDialect } from 'kysely'
+// The store as `protobase auth migration` writes it, in a folder of its own, so the record of migrations has it too.
+const migrateFile = `import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { Kysely, PostgresDialect } from 'kysely'
 import pg from 'pg'
-import { authSchemaMigration } from '@protobase/server'
 import { appAuthOptions, createAuth } from '@protobase/server/internal'
+import { writeAuthMigration } from '../../../../packages/cli/src/auth/write-migration'
 const schema = process.env.TEST_AUTH_SCHEMA!
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1 })
 await pool.query(\`create schema \${schema}\`)
 await pool.query(\`create sequence \${schema}.user_ids\`)
 const auth = createAuth(appAuthOptions({ baseURL: 'http://localhost:1', secret: '${secret}', schema }, { db: new Kysely<any>({ dialect: new PostgresDialect({ pool }) }) }))
-await pool.query((await authSchemaMigration(auth))!)
+const folder = await mkdtemp(path.join(tmpdir(), 'protobase-cli-test-auth-'))
+const file = await writeAuthMigration({ auth, projectDir: folder, dir: path.join(folder, 'db/migrations'), name: 'auth' })
+await pool.query(await readFile(file!, 'utf8'))
+await rm(folder, { recursive: true, force: true })
 await pool.end()
 process.exit(0)
 `

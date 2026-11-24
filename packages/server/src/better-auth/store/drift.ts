@@ -23,7 +23,7 @@ const userViewDrift = async (auth: AdminAuth) => {
 /**
  * What Better Auth, with the features the app turns on, finds the store lacks or has otherwise: tables, `table.column`s,
  * indexes and its other findings; none when the store matches. It compares the database's tables, so only
- * `protobase dev` runs it, on the developer's machine: a deploy reads the record of migrations instead (`checkAuthSchema`).
+ * `protobase dev` runs it, on the developer's machine: a deploy reads the record of migrations instead (`checkMigrationRecord`).
  * Better Auth compares through the store's plain connections, without the app's query plugins.
  */
 export const authSchemaDrift = async (auth: AdminAuth) => {

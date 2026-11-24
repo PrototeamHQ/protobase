@@ -1,6 +1,7 @@
 import { rm } from 'node:fs/promises'
 import path from 'node:path'
 import { storeNamesList, type LastSteps, type StoreModel } from '@protobase/server/internal'
+import { afterFileOf } from '../record/after-file'
 import { refuseInconsistent } from './consistency'
 import { protobaseFiles, readMigrationFiles } from './migration-files'
 import { modelHash, readSnapshot, removeSnapshot, snapshotFile, writeSnapshot, type Snapshot } from './snapshot-file'
@@ -27,8 +28,13 @@ export const dropMigration = async (projectDir: string, dir: string) => {
   const written = protobaseFiles(files)
   const newest = written.at(-1)!
   const previous = written.at(-2)
-  if (!previous) {
+  // The migration with its `.after.sql`, when it has one.
+  const remove = async () => {
     await rm(path.join(dir, newest.file))
+    await rm(path.join(dir, afterFileOf(newest.file)), { force: true })
+  }
+  if (!previous) {
+    await remove()
     await removeSnapshot(projectDir)
     return newest.file
   }
@@ -46,7 +52,7 @@ export const dropMigration = async (projectDir: string, dir: string) => {
     decisions: { ...snapshot.decisions, organizations: { ...snapshot.decisions.organizations, everOn: previous.header.organizationsEverOn } },
     physical: auth ? { auth: storeNamesList(auth) } : {},
   }
-  await rm(path.join(dir, newest.file))
+  await remove()
   await writeSnapshot(projectDir, rebuilt)
   return newest.file
 }

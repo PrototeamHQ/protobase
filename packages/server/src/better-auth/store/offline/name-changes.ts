@@ -5,16 +5,16 @@ import type { StoreModel } from './store-model'
 
 type Value = string | number | boolean | null | { [key: string]: Value }
 
-const changes = (before: Value, after: Value | undefined, at: string): string[] => {
+const changes = (before: Value, after: Value | undefined, at: string, source: string): string[] => {
   if (after === undefined) return [`${at} is gone`]
   if (typeof before !== 'object' || before === null || typeof after !== 'object' || after === null) {
-    return before === after ? [] : [`${at} is ${JSON.stringify(before)} in the snapshot and ${JSON.stringify(after)} now`]
+    return before === after ? [] : [`${at} is ${JSON.stringify(before)} in ${source} and ${JSON.stringify(after)} now`]
   }
-  return Object.entries(before).flatMap(([key, value]) => changes(value, after[key], at === '' ? key : `${at}.${key}`))
+  return Object.entries(before).flatMap(([key, value]) => changes(value, after[key], at === '' ? key : `${at}.${key}`, source))
 }
 
-/** How `after` changes what `before` has, one line each, the last steps aside; none when it only adds. */
-export const nameChanges = (before: StoreModel, after: StoreModel) => {
+/** How `after` changes what `before`, from `source`, has, one line each, the last steps aside; none when it only adds. */
+export const nameChanges = (before: StoreModel, after: StoreModel, source = 'the snapshot') => {
   const withoutSteps = (model: StoreModel) => ({ ...model, modules: Object.fromEntries(Object.entries(model.modules).map(([module, entry]) => [module, entry!.tables])) })
-  return changes(withoutSteps(before) as Value, withoutSteps(after) as Value, '')
+  return changes(withoutSteps(before) as Value, withoutSteps(after) as Value, '', source)
 }

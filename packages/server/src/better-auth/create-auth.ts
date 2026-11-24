@@ -670,8 +670,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       // Better Auth logs a failed send.
       backgroundTasks: { handler: () => {} },
       database: {
-        // Better Auth would compare the store's tables with its own at every start; the store's record of migrations
-        // says where it is instead (`checkAuthSchema`), and `protobase dev` compares them on the developer's machine.
+        // Better Auth would compare the store's tables with its own at every start; the database's record of migrations
+        // says where it is instead (`checkMigrationRecord`), and `protobase dev` compares them on the developer's machine.
         validateSchema: false,
         // Every id column is a uuid then, also each that points at a user; the other tables' ids come from their default,
         // a user's from `newUserId`, as a table another system made may have no default.

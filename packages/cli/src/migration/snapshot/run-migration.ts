@@ -46,6 +46,7 @@ export const runMigration = async ({ projectDir, dir, auth, database, protobaseV
   }
   const sections = [...(difference.migration ? [{ name: 'auth', text: section(authMigrationTitle, difference.migration.sql) }] : []), ...compared]
   if (sections.length === 0) return
-  const content = { name: sections.map(({ name }) => name).join('_'), body: [intro, ...sections.map(({ text }) => text)].join('\n') }
+  // The auth store's steps only add (`step-lint.ts`); the other parts may drop what the config no longer has.
+  const content = { name: sections.map(({ name }) => name).join('_'), body: [intro, ...sections.map(({ text }) => text)].join('\n'), additive: sections.every(({ name }) => name === 'auth') }
   return writeMigrationFile(projectDir, dir, content, { previous: snapshot, auth: difference.model, organizationsOn: auth?.organizationsOn ?? false, protobaseVersion }, newId())
 }

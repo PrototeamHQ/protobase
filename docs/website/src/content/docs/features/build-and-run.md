@@ -9,7 +9,7 @@ description: Develop, build and run an app, on servers, in containers and on pho
 - [UI-only dev server](/reference/cli/#ui-only) (beta): `protobase dev --api <url>` serves the app's UI from the project with the API of an app already running, such as its staging deploy, with no database.
 - [Editor types](/reference/cli/#types): `protobase types` gives the editor and `tsc` the types of the CLI that builds the app, with nothing installed.
 - [Project scripts](/reference/cli/#run): `protobase run` runs a seed or a migration script on the CLI's packages.
-- [Migrate command](/reference/cli/#migrate): `protobase migrate` applies the project's SQL migrations in one transaction, with nothing installed, and `--plan` prints the SQL it would apply.
+- [Migrate command](/reference/cli/#migrate): `protobase migrate` applies the project's SQL migrations, with nothing installed, and `--plan` prints the SQL it would apply.
 - [Migrations from config](/reference/cli/#migration): Writes the SQL migrations for what the config turns on, as files of the project.
 - [Schema snapshot](/reference/cli/#migration) (beta): `protobase.snapshot.json` in the project describes the schema its migrations make, so each new migration is the next numbered file and the change shows in review. The sign-in tables are worked out from it without a database, `protobase migration check` fails CI when the config has a change the migrations lack, and `drop` takes the newest file back.
 - [User and organization commands](/reference/cli/#users): Create users, set roles and manage organizations from the terminal.
@@ -20,7 +20,8 @@ description: Develop, build and run an app, on servers, in containers and on pho
 - [Native packages](/reference/cli/#native-packages): npm packages with native add-ons are bundled for Linux.
 - [Serve runtime](/reference/cli/#serve): Runs a bundle, set by environment variables, with a health check, startup checks, jobs and a clean shutdown. `PROTOBASE_HOST=127.0.0.1` keeps it to this computer.
 - [Host module list](/reference/cli/#the-config-module): Each release of `@protobase/cli` carries the modules its runtime supplies to a bundle as `@protobase/cli/host-modules.json`, for a host to check a bundle's imports against the version that serves it.
-- [Migrations at update time](/guides/deploy/#migrations): The bundle carries the project's migrations, and the runtime applies them in one transaction before the new version serves.
+- [Migrations at update time](/guides/deploy/#migrations): The bundle carries the project's migrations, and the runtime applies them before the new version serves, in batches of one transaction each, refusing a second run while one runs, with an `.after.sql` beside a file for statements such as `create index concurrently`, which a stopped run's next run finishes.
+- [Migration record](/guides/deploy/#the-record-of-migrations): Every migration file Protobase writes ends by adding its own row to `migrations.history`, so any tool that applies the file also records it. At startup the server reads the record: it starts when the database matches its version or is ahead only by additive migrations, and when the database is behind, it refuses and says what is missing and how to fix it.
 - [Release steps](/reference/cli/#release-steps): `protobase-serve migrate-release` brings a database up to a release's own built-in schema steps straight from a built bundle, with a dry-run plan, without writing files into the project.
 - [Single-file runtime](/reference/cli/#build-serve): The runtime as one file, so a host needs only Bun and that file.
 - [Separate worker](/reference/cli/#worker): Jobs and event delivery in their own process.

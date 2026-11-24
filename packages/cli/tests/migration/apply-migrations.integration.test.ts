@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import postgres from 'postgres'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { applyMigrations } from '../../src/migration/apply-migrations'
+import { applyMigrations, lockTaken } from '../../src/migration/apply-migrations'
+import { recordBlock, sqlHash } from '../../src/migration/record/record-block'
 import { planMigrations } from '../../src/migration/plan-migrations'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
 import { withDatabase } from '../support/serve-process'
@@ -171,34 +172,114 @@ insert into q (v) values ('$migration$; commit; ''x''');
     expect((await sql`select v from q order by v`).map((row) => row.v)).toEqual(['$migration$; commit; \'x\'', 'from do'])
   })
 
-  it('takes turns with another run on the same database', async () => {
+  it('refuses at once while another run holds the lock, which applies its files', async () => {
     const databaseUrl = await createDatabase()
     const dir = await migrationsDir({ '001_slow.sql': 'create table one ();\nselect pg_sleep(1);\n' })
 
-    const runs = await Promise.all([applyMigrations(connect(databaseUrl), dir, quiet), applyMigrations(connect(databaseUrl), dir, quiet)])
-    expect(runs.map((applied) => applied.length).sort()).toEqual([0, 1])
+    const first = applyMigrations(connect(databaseUrl), dir, quiet)
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    await expect(applyMigrations(connect(databaseUrl), dir, quiet)).rejects.toThrow(lockTaken)
+    expect(await first).toEqual(['001_slow.sql'])
   })
 
   // The presets' db/migrate.ts scripts take the same lock, written out here rather than imported from the runner.
-  it("waits for the presets' lock, which every example's migrate script takes", async () => {
+  it("refuses at once while a preset's migrate script holds the lock, which every example's takes", async () => {
     const databaseUrl = await createDatabase()
     const dir = await migrationsDir({ '001_one.sql': 'create table one ();\n' })
     const holder = await connect(databaseUrl).reserve()
     await holder`begin`
-    await holder`select pg_advisory_xact_lock(7311946202)`
+    await holder`select pg_try_advisory_xact_lock(7311946202)`
 
-    const printed: string[] = []
-    const run = applyMigrations(connect(databaseUrl), dir, (text) => printed.push(text))
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    expect(printed).toEqual([])
-
+    await expect(applyMigrations(connect(databaseUrl), dir, quiet)).rejects.toThrow(lockTaken)
     await holder`commit`
     holder.release()
-    expect(await run).toEqual(['001_one.sql'])
+    expect(await applyMigrations(connect(databaseUrl), dir, quiet)).toEqual(['001_one.sql'])
 
-    for (const example of ['erp', 'property-portal', 'real-estate', 'scratch']) {
-      expect(await readFile(path.join(root, 'tests/apps', example, 'db/migrate.ts'), 'utf8')).toContain('const lockKey = 7_311_946_202\n')
+    for (const example of ['automations', 'erp', 'property-portal', 'real-estate', 'scratch']) {
+      const script = await readFile(path.join(root, 'tests/apps', example, 'db/migrate.ts'), 'utf8')
+      expect(script).toContain('const lockKey = 7_311_946_202\n')
+      expect(script).toContain('pg_try_advisory_xact_lock(${lockKey})')
     }
+  })
+})
+
+// A migration as Protobase writes it: its statements, then the block that records it under `id`.
+const recorded = (id: string, statements: string, row: { additive?: boolean | null; completed?: boolean; hashed?: boolean } = {}) => {
+  const { additive = true, completed = true, hashed = true } = row
+  const block = recordBlock({ id, number: 1, name: id, protobaseVersion: '1.0.0', model: {}, modelHash: 'hash', physical: {}, additive, completed }, hashed ? sqlHash(statements) : null)
+  return `${statements}${block}`
+}
+
+const history = (sql: postgres.Sql) => sql`select id, sql_hash, additive, physical, completed_at is not null as completed from migrations.history order by applied_at`
+
+const indexes = (sql: postgres.Sql) =>
+  sql`select c.relname as index, i.indisvalid as valid from pg_index i join pg_class c on c.oid = i.indexrelid join pg_class t on t.oid = i.indrelid where t.relname = 'a' order by 1`
+
+describe.skipIf(!reachable)('applyMigrations with the record of migrations', () => {
+  it('applies a batch up to a file with an .after.sql, runs that outside the transaction, then the next batch', async () => {
+    const sql = connect(await createDatabase())
+    const dir = await migrationsDir({
+      '001_a.sql': recorded('a', 'create table a (x integer);\n', { completed: false }),
+      '001_a.after.sql': '-- Built without locking writes.\ncreate index concurrently if not exists a_x on a (x);\n',
+      '002_b.sql': recorded('b', 'create table b ();\n'),
+    })
+    const printed: string[] = []
+
+    expect(await applyMigrations(sql, dir, (text) => printed.push(text))).toEqual(['001_a.sql', '002_b.sql'])
+    expect(printed).toEqual(['applying 001_a.sql\n', 'running 001_a.after.sql\n', 'applying 002_b.sql\n', 'applied 2 migrations\n'])
+    expect(await indexes(sql)).toEqual([{ index: 'a_x', valid: true }])
+    expect(await history(sql)).toEqual([
+      { id: 'a', sql_hash: sqlHash('create table a (x integer);\n'), additive: true, physical: { after: [{ index: 'a_x', unique: false }] }, completed: true },
+      { id: 'b', sql_hash: sqlHash('create table b ();\n'), additive: true, physical: {}, completed: true },
+    ])
+  })
+
+  it('leaves a migration unfinished when its .after.sql stops, then drops the invalid index and builds it again', async () => {
+    const sql = connect(await createDatabase())
+    const files = {
+      '001_a.sql': recorded('a', "create table a (x integer);\ninsert into a values (1), (1);\n", { completed: false }),
+      '001_a.after.sql': 'create unique index concurrently if not exists a_x_key on a (x);\n',
+      '002_b.sql': recorded('b', 'create table b ();\n'),
+    }
+    const dir = await migrationsDir(files)
+
+    await expect(applyMigrations(sql, dir, quiet)).rejects.toThrow(/could not create unique index "a_x_key"/)
+    expect(await indexes(sql)).toEqual([{ index: 'a_x_key', valid: false }])
+    expect((await history(sql)).map(({ id, completed, physical }) => ({ id, completed, physical }))).toEqual([{ id: 'a', completed: false, physical: { after: [{ index: 'a_x_key', unique: true }] } }])
+
+    await sql`delete from a where ctid in (select ctid from a limit 1)`
+    const printed: string[] = []
+    expect(await applyMigrations(sql, dir, (text) => printed.push(text))).toEqual(['002_b.sql'])
+    expect(printed).toEqual(['finishing 001_a.after.sql\n', 'applying 002_b.sql\n', 'applied 1 migrations\n'])
+    expect(await indexes(sql)).toEqual([{ index: 'a_x_key', valid: true }])
+    expect((await history(sql)).map(({ id, completed }) => ({ id, completed }))).toEqual([
+      { id: 'a', completed: true },
+      { id: 'b', completed: true },
+    ])
+  })
+
+  it("fills a hand-written file's hash and additive mark from the text it applies", async () => {
+    const sql = connect(await createDatabase())
+    const statements = '-- protobase:id c\n-- protobase:custom\n-- protobase:additive\ncreate table c ();\n'
+    const dir = await migrationsDir({ '001_c.sql': recorded('c', statements, { additive: null, hashed: false }) })
+
+    await applyMigrations(sql, dir, quiet)
+    expect((await history(sql)).map(({ sql_hash, additive }) => ({ sql_hash, additive }))).toEqual([{ sql_hash: sqlHash(statements), additive: true }])
+  })
+
+  it('applies nothing twice when a recorded file is renamed, finding it by its id', async () => {
+    const sql = connect(await createDatabase())
+    const text = recorded('a', 'create table a ();\n')
+    await applyMigrations(sql, await migrationsDir({ '001_a.sql': text }), quiet)
+
+    expect(await applyMigrations(sql, await migrationsDir({ '003_a.sql': text }), quiet)).toEqual([])
+  })
+
+  it('refuses an .after.sql beside a migration without a record block', async () => {
+    const sql = connect(await createDatabase())
+    const dir = await migrationsDir({ '001_a.sql': 'create table a (x integer);\n', '001_a.after.sql': 'create index concurrently a_x on a (x);\n' })
+
+    await expect(applyMigrations(sql, dir, quiet)).rejects.toThrow('001_a.after.sql is beside 001_a.sql, which has no record block to mark complete')
   })
 })
 

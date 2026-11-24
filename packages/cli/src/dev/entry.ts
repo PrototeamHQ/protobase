@@ -1,6 +1,6 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
-import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkAuthSchema, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
+import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, checkMigrationRecord, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
 import { projectIcons } from '../build/app-icons'
 import { projectResources } from '../config/project-parts'
 import { projectErrorReporter } from '../project/error-reporter'
@@ -8,6 +8,7 @@ import { servedAdmin } from '../project/served-admin'
 import { buildProject } from '../config/build-project'
 import { devJobs } from './dev-jobs'
 import { checkProjectRelay } from '../serve/relay-check'
+import { protobaseVersion } from '../version/version'
 import { withDevRelay } from './dev-relay'
 import { devRealtimePrune } from './dev-prune'
 import { devDatabase, loadDevConfig } from './project'
@@ -29,11 +30,11 @@ const { db } = database
 const project = await buildProject(config, database)
 const { resources, views } = configExports(project.config)
 
-// Once per server start, so a behind auth schema stops startup with the command that writes its migration.
-const store = globalThis as { __protobaseAuthSchemaChecked?: boolean }
-if (project.auth && !store.__protobaseAuthSchemaChecked) {
-  await checkAuthSchema(project.auth)
-  store.__protobaseAuthSchemaChecked = true
+// Once per server start, so a database behind the code stops startup with the ways out, read from its record of migrations.
+const store = globalThis as { __protobaseRecordChecked?: boolean }
+if (!store.__protobaseRecordChecked) {
+  await checkMigrationRecord(project.auth, protobaseVersion)
+  store.__protobaseRecordChecked = true
 }
 
 // On every load, since editing the config can add a resource over a table of the auth store, give a resource events or

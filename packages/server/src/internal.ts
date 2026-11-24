@@ -30,3 +30,6 @@ export { latestSteps, storeModel, storeNamesList, type LastSteps, type StoreMode
 export { nameChanges } from './better-auth/store/offline/name-changes'
 export { offlineStepsMigration } from './better-auth/store/offline/offline-steps'
 export { lintSteps, type LintedStep } from './better-auth/store/steps/step-lint'
+export { modelHash, runtimeModel, type RecordModel } from './migration-record/record-model'
+export { recordTable, recordTableSql, type AfterIndex } from './migration-record/record-table'
+export { recordsRuntimeModel } from './migration-record/check-record'

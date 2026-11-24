@@ -1,6 +1,6 @@
 import { base64url, calculateJwkThumbprint, decodeJwt, decodeProtectedHeader, importJWK, SignJWT } from 'jose'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { authSchemaMigration, checkAuthSchema } from '../src/better-auth/auth-schema'
+import { authSchemaMigration } from '../src/better-auth/auth-schema'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import type { CreateAuthOptions } from '../src/better-auth/create-auth'
 import { deleteUser, setUserBanned, setUserRole } from '../src/better-auth/users'
@@ -62,7 +62,7 @@ const dpopProof = async (htu: string, accessToken?: string) => {
 describe('the auth schema with MCP', () => {
   it('has the OAuth tables in snake_case from the first migration on, and the server starts', async () => {
     const auth = await authOn(await migrated.clone())
-    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+    expect(await authSchemaMigration(auth)).toBeUndefined()
     const { rows } = await migrated.query<{ table_name: string }>("select table_name from information_schema.tables where table_name like 'oauth\\_%' order by 1")
     expect(rows.map((row) => row.table_name)).toEqual(['oauth_access_token', 'oauth_client', 'oauth_client_assertion', 'oauth_client_resource', 'oauth_consent', 'oauth_refresh_token', 'oauth_resource'])
   })
@@ -696,7 +696,6 @@ describe('turning MCP off', () => {
 
     const before = await rows()
     const off = await authOn(store, { mcp: undefined })
-    await expect(checkAuthSchema(off)).resolves.toBeUndefined()
     expect(await authSchemaMigration(off)).toBeUndefined()
     // Banning with MCP off writes none of the OAuth tables, whose models the auth has not.
     await setUserBanned(off, { email: 'bo@example.com', banned: true })
@@ -704,7 +703,6 @@ describe('turning MCP off', () => {
     expect(await rows()).toEqual(before)
 
     const on = await authOn(store)
-    await expect(checkAuthSchema(on)).resolves.toBeUndefined()
     expect(await authSchemaMigration(on)).toBeUndefined()
     expect(await rows()).toEqual(before)
     // On again, the client's grant works as before.

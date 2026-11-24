@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import { authSchemaMigration, type AdminAuth } from '@protobase/server'
-import { latestSteps, storeModel, storeNames } from '@protobase/server/internal'
+import { latestSteps, recordsRuntimeModel, storeModel, storeNames } from '@protobase/server/internal'
+import { authRefusals, customHint } from '../migration/snapshot/auth-difference'
 import { refuseInconsistent } from '../migration/snapshot/consistency'
 import { readMigrationFiles } from '../migration/snapshot/migration-files'
 import { readSnapshot } from '../migration/snapshot/snapshot-file'
 import { writeMigrationFile } from '../migration/snapshot/write-file'
 import { protobaseVersion } from '../version/version'
-import { currentStoreText, migrationText } from './migration-file'
+import { currentStoreText, migrationText, recordOnlyText } from './migration-file'
 
 export type WriteAuthMigrationOptions = {
   auth: AdminAuth
@@ -24,14 +25,20 @@ export type WriteAuthMigrationOptions = {
  * needs, so the project's earlier migrations must be applied to it first. The file brings the store to every step of
  * this version, so the project's snapshot, started here when it has none, ends at it with the store there, and
  * `protobase migration` goes on from it. A project without a snapshot whose store is current, such as one whose auth
- * migrations came before the snapshot, gets a file without statements that starts it.
+ * migrations came before the snapshot, gets a file without statements that starts it; one whose store is current but
+ * not in the database's record of migrations, as before the record, a file that only records it.
  */
 export const writeAuthMigration = async ({ auth, projectDir, dir, name, writer }: WriteAuthMigrationOptions) => {
   const snapshot = await readSnapshot(projectDir)
   refuseInconsistent(snapshot, await readMigrationFiles(dir))
   const sql = await authSchemaMigration(auth)
-  if (sql === undefined && snapshot) return
+  const unrecorded = sql === undefined && !(await recordsRuntimeModel(auth))
+  if (sql === undefined && snapshot && !unrecorded) return
   const names = storeNames(auth)
+  // The record takes the config's names: a name or type the snapshot has otherwise is a migration of the project's own.
+  const refusals = authRefusals(snapshot, { names, organizationsOn: Boolean(auth.organizations) })
+  if (refusals.length > 0) throw new Error(`${refusals.join('; ')}. ${customHint}`)
   const draft = { previous: snapshot, auth: storeModel(names, latestSteps(names.names.modules)), organizationsOn: Boolean(auth.organizations), protobaseVersion }
-  return writeMigrationFile(projectDir, dir, { name, body: sql === undefined ? currentStoreText(writer) : migrationText(sql, writer) }, draft, randomUUID())
+  const body = sql !== undefined ? migrationText(sql, writer) : snapshot ? recordOnlyText(writer) : currentStoreText(writer)
+  return writeMigrationFile(projectDir, dir, { name, body, additive: true }, draft, randomUUID())
 }

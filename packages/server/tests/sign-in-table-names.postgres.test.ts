@@ -1,6 +1,6 @@
 import { Kysely } from 'kysely'
 import { describe, expect, it, vi } from 'vitest'
-import { authSchemaMigration, checkAuthSchema } from '../src/better-auth/auth-schema'
+import { authSchemaMigration } from '../src/better-auth/auth-schema'
 import { appAuthOptions } from '../src/better-auth/auth-settings'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { buildAuth } from '../src/better-auth/create-auth'
@@ -49,7 +49,6 @@ const serve = async () => {
 describe.skipIf(!ready)('the auth store with every table and column renamed', () => {
   it('is made under those names, and matches what Better Auth reads', async () => {
     const { store, auth } = await serve()
-    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
     expect(await authSchemaDrift(auth)).toEqual([])
     const { rows } = await store.pool().query<{ name: string }>(
       "select table_name || '.' || column_name as name from information_schema.columns where table_schema = 'login' and (column_name !~ '^c_' and column_name <> 'id' or table_name !~ '^t_')",
