@@ -10,15 +10,12 @@ describe('a module kept while off', () => {
     expect(keepStatements(names, 'organizations', names.names.modules).map(ddlText)).toEqual([
       'alter table "auth"."user" alter column "last_organization_id" drop not null',
       'alter table "auth"."session" alter column "active_organization_id" drop not null',
-      'alter table "auth"."personal_access_token" alter column "organization_id" drop not null',
     ])
-    expect(keepStatements(names, 'organizations', names.names.modules, true).map(ddlText)).not.toContain('alter table "auth"."user" alter column "last_organization_id" drop not null')
-    expect(keepStatements(settingsStoreNames({}), 'organizations', names.names.modules).map(ddlText)).not.toContain('alter table "auth"."personal_access_token" alter column "organization_id" drop not null')
+    expect(keepStatements(names, 'organizations', names.names.modules, true).map(ddlText)).toEqual(['alter table "auth"."session" alter column "active_organization_id" drop not null'])
   })
 
-  it('leaves alone the tables of a module turned on in the same migration, which are made without the column', () => {
-    const before = names.names.modules.filter((module) => module !== 'personal_access_tokens')
-    expect(keepStatements(names, 'organizations', before).map(ddlText)).not.toContain('alter table "auth"."personal_access_token" alter column "organization_id" drop not null')
+  it("keeps a personal access token's organization required, as tokens made while organizations are off are made in the default one", () => {
+    expect(keepStatements(names, 'organizations', names.names.modules).map(ddlText).join('\n')).not.toContain('personal_access_token')
   })
 
   it('counts the rows of the tables its steps up to the kept one made, once on again, unless forced', () => {

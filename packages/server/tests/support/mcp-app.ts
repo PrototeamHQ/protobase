@@ -97,9 +97,12 @@ export const serveMcp = async <Store extends McpStore = SnapshotDb>(stores: McpS
   if (!db || !(existing ?? stores)) throw new Error('serveMcp serves on the stores, or on a store and a database of its own')
   const store: Store | SnapshotDb = existing ?? (await stores!.migrated.clone())
   const auth = await authOn(store, options)
-  // The migrated store has every module; with organizations off, a token keeps no organization, as the migration that
-  // keeps their tables while off lets it.
-  if (!existing && !options.organizations && options.personalAccessTokens) await store.query(keepSql(storeNames(auth), 'organizations', allModules))
+  // The migrated store has every module; with organizations off and none pinned, as in a store they were never on in, a
+  // token has no organization.
+  if (!existing && !options.organizations && !(await auth.pinnedOrganization()) && options.personalAccessTokens) {
+    await store.query(keepSql(storeNames(auth), 'organizations', allModules))
+    await store.query(`alter table ${String(storeNames(auth).names.table('personal_access_token'))} alter column organization_id drop not null`)
+  }
   if (!existing) {
     await createUser(auth, { email: 'root@example.com', password })
     await createUser(auth, { email: 'ana@example.com', password, role: 'sales' })

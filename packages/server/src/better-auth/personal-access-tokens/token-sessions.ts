@@ -1,6 +1,7 @@
 import { unauthorized } from '../../problem'
 import type { Session, TenantValue } from '../../types'
 import type { AuthContext } from '../organizations/store'
+import type { PinRead } from '../organizations/kept-organizations'
 import { noGlobalRole } from '../organizations/role-definitions'
 import { checkUserStanding } from '../token-standing'
 import { isWellFormed, tokenHash } from './token-format'
@@ -11,6 +12,11 @@ export type PersonalAccessTokenSessionsInput = {
   /** The auth store, read on every request. */
   context: () => Promise<AuthContext>
   organizations: boolean
+  /**
+   * While organizations are off: `pin` reads the organization pinned once they were on, in which only a token made
+   * there works, as `organizationOf` reads the token's (`tokenOrganization`).
+   */
+  pinned?: { pin: PinRead; organizationOf: (store: AuthContext, id: string) => Promise<string | null> }
   /** The one tenant everyone works in, for an app without organizations. */
   tenant?: TenantValue | (() => Promise<TenantValue | undefined>)
 }
@@ -33,15 +39,18 @@ const refused = () => unauthorized('The personal access token is invalid, expire
  * as a token's does (`checkUserStanding`): exist, not be banned, and still hold the token's role where it works, in its
  * organization with organizations on. The session has that one role and organization, as a token of the session that
  * made it would, and no `signIn`, so what only the person's own sign-in may do is refused. Use is noted at most once a
- * minute (`noteUse`).
+ * minute (`noteUse`). While organizations are off after being on, a token works only when made in the pinned
+ * organization, and its user is still a member there; any other is refused as an unknown one is.
  */
-export const personalAccessTokenSessions = ({ prefix, context, organizations, tenant }: PersonalAccessTokenSessionsInput) => async (token: string, now = new Date()): Promise<PersonalAccessTokenSession> => {
+export const personalAccessTokenSessions = ({ prefix, context, organizations, pinned, tenant }: PersonalAccessTokenSessionsInput) => async (token: string, now = new Date()): Promise<PersonalAccessTokenSession> => {
   if (!isWellFormed(token, prefix)) throw refused()
   const store = await context()
   const row = await findTokenByHash(store.adapter, await tokenHash(token))
   if (!row || (row.expiresAt && new Date(row.expiresAt) <= now)) throw refused()
+  const pin = organizations ? undefined : (await pinned?.pin())?.id
+  if (pin !== undefined && (await pinned!.organizationOf(store, row.id)) !== pin) throw refused()
   const organizationId = organizations ? (row.organizationId ?? undefined) : undefined
-  const organizationRole = await checkUserStanding(store, { userId: row.userId, roles: [row.role], ...(organizationId && { organizationId }) }, organizations, now)
+  const organizationRole = await checkUserStanding(store, { userId: row.userId, roles: [row.role], ...(organizationId && { organizationId }) }, organizations, now, pin)
   await noteUse(store.adapter, row, now)
   const roles = [row.role].filter((role) => role !== noGlobalRole)
   const tenantValue = tenant === undefined ? organizationId : typeof tenant === 'function' ? await tenant() : tenant

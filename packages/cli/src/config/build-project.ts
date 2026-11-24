@@ -28,7 +28,7 @@ export const projectAuth = async (config: MergedConfig, { db }: AppDatabase, wor
   const [hooks, mailer] = await Promise.all([config.authFiles?.module('auth/hooks.ts')?.(), projectMailer(config)])
   return buildAppAuth(
     { ...(config.auth || {}), baseURL: url, secret, ...(previousSecrets && { previousSecrets }), ...(signingKeyDays !== undefined && { signingKeyDays }), ...(signingKeyGraceDays !== undefined && { signingKeyGraceDays }), ...(name && { appName: name }) },
-    { db, ...(hooks && { hooks: hooks as AuthHooks }), ...(mailer && { mailer }), ...(workflows && { workflowConnections: workflowConnectionsOf(workflows) }) },
+    { db, ...(config.authenticate?.tenant !== undefined && { tenant: config.authenticate.tenant }), ...(hooks && { hooks: hooks as AuthHooks }), ...(mailer && { mailer }), ...(workflows && { workflowConnections: workflowConnectionsOf(workflows) }) },
   )
 }
 

@@ -7,6 +7,10 @@ import { sessionRoles, type RoleSession, type RoleUser } from '../roles/session-
 import type { PersonalAccessTokensOptions } from './options'
 import { newToken, tokenHash } from './token-format'
 import type { BetterAuthNames } from '../names/better-auth-names'
+import type { PinRead } from '../organizations/kept-organizations'
+import type { ResolvedNames } from '../names/resolve-names'
+import { storeSqlOf } from '../store/store-sql'
+import { storePinnedToken } from './pinned-tokens'
 import { deleteToken, listedToken, personalAccessTokenModel, storeToken, tokensOf, type PersonalAccessTokenRow } from './token-store'
 
 /** The paths of the account's tokens, as Better Auth names them under the auth base path. */
@@ -40,17 +44,20 @@ const labelsFor = async (adapter: AuthContext['adapter'], definitions: RoleDefin
  * `GET /account/personal-access-tokens` lists them, newest first, without the tokens themselves;
  * `POST /account/personal-access-tokens/create { name, expiresInDays? }` makes one with the role and organization the
  * session works with, and answers the token, once, beside the listed entry; with `organizations`, a session without an
- * active organization makes none, as every token works in one;
+ * active organization makes none, as every token works in one; with `pinned`, while organizations are off after being
+ * on, every token is made in the organization `pin` reads, in its column as `kept` names it, which the account page
+ * does not name;
  * `POST /account/personal-access-tokens/revoke { id }` deletes one, so it stops at its next request; one that is gone
  * already is no error. Each acts on the session's own person only. The store keeps each token's SHA-256 hash alone.
  */
-export const personalAccessTokensPlugin = ({ options, definitions, names, organizations }: { options: PersonalAccessTokensOptions; definitions: RoleDefinitions; names: BetterAuthNames; organizations: boolean }) =>
-  ({
+export const personalAccessTokensPlugin = ({ options, definitions, names, organizations, pinned }: { options: PersonalAccessTokensOptions; definitions: RoleDefinitions; names: BetterAuthNames; organizations: boolean; pinned?: { pin: PinRead; kept: ResolvedNames } }) => {
+  const shown = (row: PersonalAccessTokenRow): PersonalAccessTokenRow => (organizations ? row : { ...row, organizationId: null })
+  return {
     id: 'protobase-personal-access-tokens',
     schema: names.tables(personalAccessTokenModel),
     endpoints: {
       listPersonalAccessTokens: createAuthEndpoint(personalAccessTokenPaths.list, { method: 'GET', use: [sessionMiddleware] }, async (ctx) => {
-        const rows = await tokensOf(ctx.context.adapter, ctx.context.session.user.id)
+        const rows = (await tokensOf(ctx.context.adapter, ctx.context.session.user.id)).map(shown)
         const labels = await labelsFor(ctx.context.adapter, definitions, rows)
         return ctx.json({ tokens: rows.map((row) => listedToken(row, labels)) })
       }),
@@ -66,7 +73,7 @@ export const personalAccessTokensPlugin = ({ options, definitions, names, organi
           if (!active) throw new APIError('FORBIDDEN', noRole)
           const token = newToken(options.prefix)
           const now = new Date()
-          const row = await storeToken(ctx.context.adapter, {
+          const data = {
             userId: user.id,
             name: ctx.body.name,
             tokenHash: await tokenHash(token),
@@ -74,9 +81,11 @@ export const personalAccessTokensPlugin = ({ options, definitions, names, organi
             organizationId: session.activeOrganizationId ?? null,
             createdAt: now,
             expiresAt: ctx.body.expiresInDays === undefined ? null : new Date(now.getTime() + ctx.body.expiresInDays * dayMs),
-          })
-          const labels = await labelsFor(ctx.context.adapter, definitions, [row])
-          return ctx.json({ token, personalAccessToken: listedToken(row, labels) })
+          }
+          const pin = await pinned?.pin()
+          const row = pin ? await storePinnedToken(storeSqlOf(ctx.context), pinned!.kept, { ...data, organizationId: pin.id }) : await storeToken(ctx.context.adapter, data)
+          const labels = await labelsFor(ctx.context.adapter, definitions, [shown(row)])
+          return ctx.json({ token, personalAccessToken: listedToken(shown(row), labels) })
         },
       ),
 
@@ -89,4 +98,5 @@ export const personalAccessTokensPlugin = ({ options, definitions, names, organi
         },
       ),
     },
-  }) satisfies BetterAuthPlugin
+  } satisfies BetterAuthPlugin
+}

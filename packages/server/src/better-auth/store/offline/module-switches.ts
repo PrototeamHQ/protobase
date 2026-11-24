@@ -21,11 +21,16 @@ export const forceSetting = 'protobase.force'
 // Every table of every module, under the store's names.
 const everyTable = (names: StoreNames) => resolveNames({ ...names.names.input, modules: allModules }).tables
 
+// The columns a module adds that the server still writes while it is off, which stay required: a personal access
+// token made while organizations are off after being on is made in the default organization.
+const writtenWhileOff: Partial<Record<ModuleId, Record<string, readonly string[]>>> = { organizations: { personal_access_token: ['organization_id'] } }
+
 /**
  * The statements that keep `module`'s tables and rows while it is off: each column it adds to a table of a module that
  * stays on, one of `existing`, whose tables the store has before the migration, loses `not null`, so the code that no
- * longer writes it still inserts rows. A table of a module turned on in the same migration is made without the
- * column. The user table is left alone when it is a relation Protobase did not make.
+ * longer writes it still inserts rows; one the server still writes stays required (`writtenWhileOff`). A table of a
+ * module turned on in the same migration is made without the column. The user table is left alone when it is a
+ * relation Protobase did not make.
  */
 export const keepStatements = (names: StoreNames, module: ModuleId, existing: readonly ModuleId[], externalUser = names.users.keyTable !== undefined) => {
   const every = everyTable(names)
@@ -35,7 +40,11 @@ export const keepStatements = (names: StoreNames, module: ModuleId, existing: re
       const kept = names.names.tables[table]
       return kept !== undefined && existing.includes(kept.module) && !(table === 'user' && externalUser)
     })
-    .flatMap(([table, columns]) => Object.keys(columns).map((column) => ddl`alter table ${every[table]!} alter column ${every[table]!.columns[column]!} drop not null`))
+    .flatMap(([table, columns]) =>
+      Object.keys(columns)
+        .filter((column) => !writtenWhileOff[module]?.[table]?.includes(column))
+        .map((column) => ddl`alter table ${every[table]!} alter column ${every[table]!.columns[column]!} drop not null`),
+    )
 }
 
 /** The tables of `module` its steps up to `step` made, under the store's names. */
