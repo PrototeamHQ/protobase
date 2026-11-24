@@ -1,5 +1,5 @@
 import type { ChannelSender } from '../channels/channel-sender'
-import type { Db } from '@protobase/query'
+import type { ScopedDb } from '@protobase/query'
 import { invokeFunction, type ApiFunction, type FunctionCaller, type PublicFunctionContext } from '../functions/define-function'
 import type { FunctionRecords } from '../functions/records'
 import type { Session } from '../types'
@@ -15,7 +15,8 @@ export type AttemptResult = { ok: true; status?: number } | { ok: false; error: 
 
 /** What a try needs of the app. */
 export type AttemptContext = {
-  db: Db
+  /** The delivering job's database, which works in no organization, as does a function it calls. */
+  db: ScopedDb
   functions: Record<string, ApiFunction>
   records: (session: Session) => FunctionRecords
   channels: ChannelSender

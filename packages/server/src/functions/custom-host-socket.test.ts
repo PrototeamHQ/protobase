@@ -24,6 +24,7 @@ const serveOwn = async (maxMessageBytes?: number) => {
       return { user: { id: 1, roles: ['admin'] } }
     },
     access: {},
+    scope: { tables: [] },
     db: {} as Db,
     records: () => ({}) as FunctionRecords,
     channels: { broadcast: async () => {} },

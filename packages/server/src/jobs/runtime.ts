@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { sql } from 'kysely'
 import { PgBoss, type Db as BossDb } from 'pg-boss'
-import type { Db } from '@protobase/query'
+import { scopedDb, type Db, type ScopedTables } from '@protobase/query'
 import { runInBackground } from '../background-work'
 import { afterCommit } from '../commit-hooks'
 import type { FieldDecrypter } from '../encryption/decrypt-field-types'
@@ -11,6 +11,7 @@ import { appBulkMailer } from '../mail/unsubscribe/bulk-mailer'
 import type { UnsubscribeLinks } from '../mail/unsubscribe/unsubscribe-links'
 import { pushJobName } from '../notifications/push-job-name'
 import { sendNotification } from '../notifications/send-notification'
+import { noOrganizationTables } from '../organization-scope/organization-tables'
 import { busyDatabase } from './busy-database'
 import { clearCurrentJobs, setCurrentJobs, type JobsEnqueuer } from './current'
 import { jobsDatabase } from './database'
@@ -23,6 +24,11 @@ import { jobsSchema } from './schema'
 
 export type StartJobsOptions = {
   db: Db
+  /**
+   * The tables whose rows belong to one organization, `createAdmin(...).organizationScope`: a job's `db` sees none of
+   * their rows. Default none, for an app without organizations.
+   */
+  scope?: ScopedTables
   jobs: JobDefinition[]
   /** Runs the jobs in this process; `false` only enqueues them, for a process whose jobs another one runs. Default true. */
   work?: boolean
@@ -92,7 +98,7 @@ const createBoss = (db: BossDb, work: boolean) =>
  * that retries jobs whose worker died. It reads the jobs schema, never changes it: check it first with
  * `checkJobsSchema`. Enqueueing through `defineJob(...).enqueue` reaches the runtime started here.
  */
-export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdownSeconds = 30, onError, now = () => new Date(), mailer, unsubscribe, decryptField }: StartJobsOptions): Promise<JobsRuntime> => {
+export const startJobs = async ({ db, scope = noOrganizationTables, jobs, work = true, pollSeconds = 2, shutdownSeconds = 30, onError, now = () => new Date(), mailer, unsubscribe, decryptField }: StartJobsOptions): Promise<JobsRuntime> => {
   const base = mailer === undefined ? platformMailer() : mailer || undefined
   const mail = base && appBulkMailer(base, db, unsubscribe)
   let decrypter = decryptField
@@ -101,6 +107,8 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
   boss.on('error', onError)
   await boss.start()
   const schedules = createSchedules(boss, db, now)
+  // A job works in no organization.
+  const jobDb = scopedDb(db, scope, undefined)
 
   const definitions = new Map<string, JobDefinition>()
   const workers = new Map<string, { id: string; concurrency: number }>()
@@ -136,7 +144,7 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
         return runInBackground(async () => {
           if (current.options.schedule !== undefined && job!.singletonKey === scheduleKey) await schedules.following(current, job!.startAfter)
           // A job may send notifications when the app's jobs deliver them.
-          return [await runJob(current, job!, db, { mail, ...(decrypter && { decryptField: decrypter }), ...(definitions.has(pushJobName) && { sendNotification }) })]
+          return [await runJob(current, job!, jobDb, { mail, ...(decrypter && { decryptField: decrypter }), ...(definitions.has(pushJobName) && { sendNotification }) })]
         }, { longQueries: current.options.longQueries })
       },
     )

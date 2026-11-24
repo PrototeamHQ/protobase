@@ -1,0 +1,548 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"\n    create schema auth;\n    create table auth.\"user\" (id text primary key, email text not null);\n    create table auth.member (id text primary key, organization_id text not null, user_id text not null references auth.\"user\", role text not null);\n    create table auth.invitation (id text primary key, organization_id text not null, email text not null);\n    create table public.member (id text primary key, organization_id text not null);\n    insert into auth.\"user\" values ('ann', 'ann@a.test'), ('bob', 'bob@b.test'), ('cy', 'cy@ab.test'), ('dee', 'dee@none.test');\n    insert into auth.member values ('m1', 'org-a', 'ann', 'owner'), ('m2', 'org-b', 'bob', 'owner'), ('m3', 'org-a', 'cy', 'member'), ('m4', 'org-b', 'cy', 'admin');\n    insert into auth.invitation values ('i1', 'org-a', 'bob@b.test'), ('i2', 'org-b', 'ann@a.test'), ('i3', 'org-b', 'dee@none.test');\n    insert into public.member values ('p1', 'org-a'), ('p2', 'org-b');\n    do $$ begin if not exists (select from pg_roles where rolname = 'scope_rls_reader') then create role scope_rls_reader nologin; end if; end $$;\n    grant usage on schema auth to scope_rls_reader;\n    grant select, insert, update, delete on all tables in schema auth to scope_rls_reader;\n    grant select on public.member to scope_rls_reader;\n    alter table auth.member enable row level security;\n    alter table auth.invitation enable row level security;\n    create policy one_organization on auth.member using (organization_id = current_setting('app.organization', true));\n    create policy one_organization on auth.invitation using (organization_id = current_setting('app.organization', true));\n  ","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":4,"columns":[],"rows":[]},{"command":"INSERT","rowCount":4,"columns":[],"rows":[]},{"command":"INSERT","rowCount":3,"columns":[],"rows":[]},{"command":"INSERT","rowCount":2,"columns":[],"rows":[]},{"command":"DO","rowCount":null,"columns":[],"rows":[]},{"command":"GRANT","rowCount":null,"columns":[],"rows":[]},{"command":"GRANT","rowCount":null,"columns":[],"rows":[]},{"command":"GRANT","rowCount":null,"columns":[],"rows":[]},{"command":"ALTER","rowCount":null,"columns":[],"rows":[]},{"command":"ALTER","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]}
+    ]
+  },
+  "the organization scope on real Postgres > returns the rows row-level security returns: a plain read": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\", \"role\" from \"auth\".\"member\" where \"auth\".\"member\".\"organization_id\" = $1 order by \"id\"","params":["org-a"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",25],["role",25]],"rows":[
+        ["m1","owner"],
+        ["m3","member"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-a"]]}},
+      {"sql":"select \"id\", \"role\" from \"auth\".\"member\" order by \"id\"","result":{"command":"SELECT","rowCount":2,"columns":[["id",25],["role",25]],"rows":[
+        ["m1","owner"],
+        ["m3","member"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\", \"role\" from \"auth\".\"member\" where \"auth\".\"member\".\"organization_id\" = $1 order by \"id\"","params":["org-b"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",25],["role",25]],"rows":[
+        ["m2","owner"],
+        ["m4","admin"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-b"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-b"]]}},
+      {"sql":"select \"id\", \"role\" from \"auth\".\"member\" order by \"id\"","result":{"command":"SELECT","rowCount":2,"columns":[["id",25],["role",25]],"rows":[
+        ["m2","owner"],
+        ["m4","admin"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\", \"role\" from \"auth\".\"member\" where false order by \"id\"","result":{"command":"SELECT","rowCount":0,"columns":[["id",25],["role",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":[""],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[[""]]}},
+      {"sql":"select \"id\", \"role\" from \"auth\".\"member\" order by \"id\"","result":{"command":"SELECT","rowCount":0,"columns":[["id",25],["role",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > returns the rows row-level security returns: an alias and an or": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"m\".\"id\" from \"auth\".\"member\" as \"m\" where ((\"m\".\"role\" = $1 or \"m\".\"role\" = $2)) and \"m\".\"organization_id\" = $3 order by \"m\".\"id\"","params":["owner","admin","org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",25]],"rows":[["m1"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-a"]]}},
+      {"sql":"select \"m\".\"id\" from \"auth\".\"member\" as \"m\" where (\"m\".\"role\" = $1 or \"m\".\"role\" = $2) order by \"m\".\"id\"","params":["owner","admin"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",25]],"rows":[["m1"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"m\".\"id\" from \"auth\".\"member\" as \"m\" where ((\"m\".\"role\" = $1 or \"m\".\"role\" = $2)) and \"m\".\"organization_id\" = $3 order by \"m\".\"id\"","params":["owner","admin","org-b"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["m2"],
+        ["m4"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-b"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-b"]]}},
+      {"sql":"select \"m\".\"id\" from \"auth\".\"member\" as \"m\" where (\"m\".\"role\" = $1 or \"m\".\"role\" = $2) order by \"m\".\"id\"","params":["owner","admin"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["m2"],
+        ["m4"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"m\".\"id\" from \"auth\".\"member\" as \"m\" where ((\"m\".\"role\" = $1 or \"m\".\"role\" = $2)) and false order by \"m\".\"id\"","params":["owner","admin"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":[""],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[[""]]}},
+      {"sql":"select \"m\".\"id\" from \"auth\".\"member\" as \"m\" where (\"m\".\"role\" = $1 or \"m\".\"role\" = $2) order by \"m\".\"id\"","params":["owner","admin"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > returns the rows row-level security returns: a left join": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"u\".\"id\", \"m\".\"role\" from \"auth\".\"user\" as \"u\" left join \"auth\".\"member\" as \"m\" on (\"m\".\"user_id\" = \"u\".\"id\") and \"m\".\"organization_id\" = $1 order by \"u\".\"id\", \"m\".\"role\"","params":["org-a"],"result":{"command":"SELECT","rowCount":4,"columns":[["id",25],["role",25]],"rows":[
+        ["ann","owner"],
+        ["bob",null],
+        ["cy","member"],
+        ["dee",null]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-a"]]}},
+      {"sql":"select \"u\".\"id\", \"m\".\"role\" from \"auth\".\"user\" as \"u\" left join \"auth\".\"member\" as \"m\" on \"m\".\"user_id\" = \"u\".\"id\" order by \"u\".\"id\", \"m\".\"role\"","result":{"command":"SELECT","rowCount":4,"columns":[["id",25],["role",25]],"rows":[
+        ["ann","owner"],
+        ["bob",null],
+        ["cy","member"],
+        ["dee",null]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"u\".\"id\", \"m\".\"role\" from \"auth\".\"user\" as \"u\" left join \"auth\".\"member\" as \"m\" on (\"m\".\"user_id\" = \"u\".\"id\") and \"m\".\"organization_id\" = $1 order by \"u\".\"id\", \"m\".\"role\"","params":["org-b"],"result":{"command":"SELECT","rowCount":4,"columns":[["id",25],["role",25]],"rows":[
+        ["ann",null],
+        ["bob","owner"],
+        ["cy","admin"],
+        ["dee",null]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-b"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-b"]]}},
+      {"sql":"select \"u\".\"id\", \"m\".\"role\" from \"auth\".\"user\" as \"u\" left join \"auth\".\"member\" as \"m\" on \"m\".\"user_id\" = \"u\".\"id\" order by \"u\".\"id\", \"m\".\"role\"","result":{"command":"SELECT","rowCount":4,"columns":[["id",25],["role",25]],"rows":[
+        ["ann",null],
+        ["bob","owner"],
+        ["cy","admin"],
+        ["dee",null]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"u\".\"id\", \"m\".\"role\" from \"auth\".\"user\" as \"u\" left join \"auth\".\"member\" as \"m\" on (\"m\".\"user_id\" = \"u\".\"id\") and false order by \"u\".\"id\", \"m\".\"role\"","result":{"command":"SELECT","rowCount":4,"columns":[["id",25],["role",25]],"rows":[
+        ["ann",null],
+        ["bob",null],
+        ["cy",null],
+        ["dee",null]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":[""],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[[""]]}},
+      {"sql":"select \"u\".\"id\", \"m\".\"role\" from \"auth\".\"user\" as \"u\" left join \"auth\".\"member\" as \"m\" on \"m\".\"user_id\" = \"u\".\"id\" order by \"u\".\"id\", \"m\".\"role\"","result":{"command":"SELECT","rowCount":4,"columns":[["id",25],["role",25]],"rows":[
+        ["ann",null],
+        ["bob",null],
+        ["cy",null],
+        ["dee",null]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > returns the rows row-level security returns: an inner join of two scoped tables": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"m\".\"id\", \"i\".\"id\" as \"invitation\" from \"auth\".\"member\" as \"m\" inner join \"auth\".\"user\" as \"u\" on \"u\".\"id\" = \"m\".\"user_id\" inner join \"auth\".\"invitation\" as \"i\" on (\"i\".\"email\" = \"u\".\"email\") and \"i\".\"organization_id\" = $1 where \"m\".\"organization_id\" = $2 order by \"m\".\"id\"","params":["org-a","org-a"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",25],["invitation",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-a"]]}},
+      {"sql":"select \"m\".\"id\", \"i\".\"id\" as \"invitation\" from \"auth\".\"member\" as \"m\" inner join \"auth\".\"user\" as \"u\" on \"u\".\"id\" = \"m\".\"user_id\" inner join \"auth\".\"invitation\" as \"i\" on \"i\".\"email\" = \"u\".\"email\" order by \"m\".\"id\"","result":{"command":"SELECT","rowCount":0,"columns":[["id",25],["invitation",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"m\".\"id\", \"i\".\"id\" as \"invitation\" from \"auth\".\"member\" as \"m\" inner join \"auth\".\"user\" as \"u\" on \"u\".\"id\" = \"m\".\"user_id\" inner join \"auth\".\"invitation\" as \"i\" on (\"i\".\"email\" = \"u\".\"email\") and \"i\".\"organization_id\" = $1 where \"m\".\"organization_id\" = $2 order by \"m\".\"id\"","params":["org-b","org-b"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",25],["invitation",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-b"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-b"]]}},
+      {"sql":"select \"m\".\"id\", \"i\".\"id\" as \"invitation\" from \"auth\".\"member\" as \"m\" inner join \"auth\".\"user\" as \"u\" on \"u\".\"id\" = \"m\".\"user_id\" inner join \"auth\".\"invitation\" as \"i\" on \"i\".\"email\" = \"u\".\"email\" order by \"m\".\"id\"","result":{"command":"SELECT","rowCount":0,"columns":[["id",25],["invitation",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"m\".\"id\", \"i\".\"id\" as \"invitation\" from \"auth\".\"member\" as \"m\" inner join \"auth\".\"user\" as \"u\" on \"u\".\"id\" = \"m\".\"user_id\" inner join \"auth\".\"invitation\" as \"i\" on (\"i\".\"email\" = \"u\".\"email\") and false where false order by \"m\".\"id\"","result":{"command":"SELECT","rowCount":0,"columns":[["id",25],["invitation",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":[""],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[[""]]}},
+      {"sql":"select \"m\".\"id\", \"i\".\"id\" as \"invitation\" from \"auth\".\"member\" as \"m\" inner join \"auth\".\"user\" as \"u\" on \"u\".\"id\" = \"m\".\"user_id\" inner join \"auth\".\"invitation\" as \"i\" on \"i\".\"email\" = \"u\".\"email\" order by \"m\".\"id\"","result":{"command":"SELECT","rowCount":0,"columns":[["id",25],["invitation",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > returns the rows row-level security returns: a subquery": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" from \"auth\".\"user\" where \"id\" in (select \"user_id\" from \"auth\".\"member\" where \"auth\".\"member\".\"organization_id\" = $1) order by \"id\"","params":["org-a"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["ann"],
+        ["cy"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-a"]]}},
+      {"sql":"select \"id\" from \"auth\".\"user\" where \"id\" in (select \"user_id\" from \"auth\".\"member\") order by \"id\"","result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["ann"],
+        ["cy"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" from \"auth\".\"user\" where \"id\" in (select \"user_id\" from \"auth\".\"member\" where \"auth\".\"member\".\"organization_id\" = $1) order by \"id\"","params":["org-b"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["bob"],
+        ["cy"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-b"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-b"]]}},
+      {"sql":"select \"id\" from \"auth\".\"user\" where \"id\" in (select \"user_id\" from \"auth\".\"member\") order by \"id\"","result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["bob"],
+        ["cy"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" from \"auth\".\"user\" where \"id\" in (select \"user_id\" from \"auth\".\"member\" where false) order by \"id\"","result":{"command":"SELECT","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":[""],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[[""]]}},
+      {"sql":"select \"id\" from \"auth\".\"user\" where \"id\" in (select \"user_id\" from \"auth\".\"member\") order by \"id\"","result":{"command":"SELECT","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > returns the rows row-level security returns: exists": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"u\".\"id\" from \"auth\".\"user\" as \"u\" where exists (select \"i\".\"id\" from \"auth\".\"invitation\" as \"i\" where (\"i\".\"email\" = \"u\".\"email\") and \"i\".\"organization_id\" = $1) order by \"u\".\"id\"","params":["org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",25]],"rows":[["bob"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-a"]]}},
+      {"sql":"select \"u\".\"id\" from \"auth\".\"user\" as \"u\" where exists (select \"i\".\"id\" from \"auth\".\"invitation\" as \"i\" where \"i\".\"email\" = \"u\".\"email\") order by \"u\".\"id\"","result":{"command":"SELECT","rowCount":1,"columns":[["id",25]],"rows":[["bob"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"u\".\"id\" from \"auth\".\"user\" as \"u\" where exists (select \"i\".\"id\" from \"auth\".\"invitation\" as \"i\" where (\"i\".\"email\" = \"u\".\"email\") and \"i\".\"organization_id\" = $1) order by \"u\".\"id\"","params":["org-b"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["ann"],
+        ["dee"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-b"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-b"]]}},
+      {"sql":"select \"u\".\"id\" from \"auth\".\"user\" as \"u\" where exists (select \"i\".\"id\" from \"auth\".\"invitation\" as \"i\" where \"i\".\"email\" = \"u\".\"email\") order by \"u\".\"id\"","result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["ann"],
+        ["dee"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"u\".\"id\" from \"auth\".\"user\" as \"u\" where exists (select \"i\".\"id\" from \"auth\".\"invitation\" as \"i\" where (\"i\".\"email\" = \"u\".\"email\") and false) order by \"u\".\"id\"","result":{"command":"SELECT","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":[""],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[[""]]}},
+      {"sql":"select \"u\".\"id\" from \"auth\".\"user\" as \"u\" where exists (select \"i\".\"id\" from \"auth\".\"invitation\" as \"i\" where \"i\".\"email\" = \"u\".\"email\") order by \"u\".\"id\"","result":{"command":"SELECT","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > returns the rows row-level security returns: a common table expression": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"with \"owners\" as (select \"user_id\" from \"auth\".\"member\" where (\"role\" = $1) and \"auth\".\"member\".\"organization_id\" = $2) select \"user_id\" from \"owners\" order by \"user_id\"","params":["owner","org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["user_id",25]],"rows":[["ann"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-a"]]}},
+      {"sql":"with \"owners\" as (select \"user_id\" from \"auth\".\"member\" where \"role\" = $1) select \"user_id\" from \"owners\" order by \"user_id\"","params":["owner"],"result":{"command":"SELECT","rowCount":1,"columns":[["user_id",25]],"rows":[["ann"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"with \"owners\" as (select \"user_id\" from \"auth\".\"member\" where (\"role\" = $1) and \"auth\".\"member\".\"organization_id\" = $2) select \"user_id\" from \"owners\" order by \"user_id\"","params":["owner","org-b"],"result":{"command":"SELECT","rowCount":1,"columns":[["user_id",25]],"rows":[["bob"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-b"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-b"]]}},
+      {"sql":"with \"owners\" as (select \"user_id\" from \"auth\".\"member\" where \"role\" = $1) select \"user_id\" from \"owners\" order by \"user_id\"","params":["owner"],"result":{"command":"SELECT","rowCount":1,"columns":[["user_id",25]],"rows":[["bob"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"with \"owners\" as (select \"user_id\" from \"auth\".\"member\" where (\"role\" = $1) and false) select \"user_id\" from \"owners\" order by \"user_id\"","params":["owner"],"result":{"command":"SELECT","rowCount":0,"columns":[["user_id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":[""],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[[""]]}},
+      {"sql":"with \"owners\" as (select \"user_id\" from \"auth\".\"member\" where \"role\" = $1) select \"user_id\" from \"owners\" order by \"user_id\"","params":["owner"],"result":{"command":"SELECT","rowCount":0,"columns":[["user_id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > returns the rows row-level security returns: a union": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" from \"auth\".\"member\" where \"auth\".\"member\".\"organization_id\" = $1 union select \"id\" from \"auth\".\"invitation\" where \"auth\".\"invitation\".\"organization_id\" = $2 order by \"id\"","params":["org-a","org-a"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",25]],"rows":[
+        ["i1"],
+        ["m1"],
+        ["m3"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-a"]]}},
+      {"sql":"select \"id\" from \"auth\".\"member\" union select \"id\" from \"auth\".\"invitation\" order by \"id\"","result":{"command":"SELECT","rowCount":3,"columns":[["id",25]],"rows":[
+        ["i1"],
+        ["m1"],
+        ["m3"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" from \"auth\".\"member\" where \"auth\".\"member\".\"organization_id\" = $1 union select \"id\" from \"auth\".\"invitation\" where \"auth\".\"invitation\".\"organization_id\" = $2 order by \"id\"","params":["org-b","org-b"],"result":{"command":"SELECT","rowCount":4,"columns":[["id",25]],"rows":[
+        ["i2"],
+        ["i3"],
+        ["m2"],
+        ["m4"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-b"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-b"]]}},
+      {"sql":"select \"id\" from \"auth\".\"member\" union select \"id\" from \"auth\".\"invitation\" order by \"id\"","result":{"command":"SELECT","rowCount":4,"columns":[["id",25]],"rows":[
+        ["i2"],
+        ["i3"],
+        ["m2"],
+        ["m4"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" from \"auth\".\"member\" where false union select \"id\" from \"auth\".\"invitation\" where false order by \"id\"","result":{"command":"SELECT","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":[""],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[[""]]}},
+      {"sql":"select \"id\" from \"auth\".\"member\" union select \"id\" from \"auth\".\"invitation\" order by \"id\"","result":{"command":"SELECT","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > returns the rows row-level security returns: a count in the select": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"u\".\"id\", (select count(*) as \"n\" from \"auth\".\"member\" as \"m\" where (\"m\".\"user_id\" = \"u\".\"id\") and \"m\".\"organization_id\" = $1) as \"memberships\" from \"auth\".\"user\" as \"u\" order by \"u\".\"id\"","params":["org-a"],"result":{"command":"SELECT","rowCount":4,"columns":[["id",25],["memberships",20]],"rows":[
+        ["ann","1"],
+        ["bob","0"],
+        ["cy","1"],
+        ["dee","0"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-a"]]}},
+      {"sql":"select \"u\".\"id\", (select count(*) as \"n\" from \"auth\".\"member\" as \"m\" where \"m\".\"user_id\" = \"u\".\"id\") as \"memberships\" from \"auth\".\"user\" as \"u\" order by \"u\".\"id\"","result":{"command":"SELECT","rowCount":4,"columns":[["id",25],["memberships",20]],"rows":[
+        ["ann","1"],
+        ["bob","0"],
+        ["cy","1"],
+        ["dee","0"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"u\".\"id\", (select count(*) as \"n\" from \"auth\".\"member\" as \"m\" where (\"m\".\"user_id\" = \"u\".\"id\") and \"m\".\"organization_id\" = $1) as \"memberships\" from \"auth\".\"user\" as \"u\" order by \"u\".\"id\"","params":["org-b"],"result":{"command":"SELECT","rowCount":4,"columns":[["id",25],["memberships",20]],"rows":[
+        ["ann","0"],
+        ["bob","1"],
+        ["cy","1"],
+        ["dee","0"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-b"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-b"]]}},
+      {"sql":"select \"u\".\"id\", (select count(*) as \"n\" from \"auth\".\"member\" as \"m\" where \"m\".\"user_id\" = \"u\".\"id\") as \"memberships\" from \"auth\".\"user\" as \"u\" order by \"u\".\"id\"","result":{"command":"SELECT","rowCount":4,"columns":[["id",25],["memberships",20]],"rows":[
+        ["ann","0"],
+        ["bob","1"],
+        ["cy","1"],
+        ["dee","0"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"u\".\"id\", (select count(*) as \"n\" from \"auth\".\"member\" as \"m\" where (\"m\".\"user_id\" = \"u\".\"id\") and false) as \"memberships\" from \"auth\".\"user\" as \"u\" order by \"u\".\"id\"","result":{"command":"SELECT","rowCount":4,"columns":[["id",25],["memberships",20]],"rows":[
+        ["ann","0"],
+        ["bob","0"],
+        ["cy","0"],
+        ["dee","0"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":[""],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[[""]]}},
+      {"sql":"select \"u\".\"id\", (select count(*) as \"n\" from \"auth\".\"member\" as \"m\" where \"m\".\"user_id\" = \"u\".\"id\") as \"memberships\" from \"auth\".\"user\" as \"u\" order by \"u\".\"id\"","result":{"command":"SELECT","rowCount":4,"columns":[["id",25],["memberships",20]],"rows":[
+        ["ann","0"],
+        ["bob","0"],
+        ["cy","0"],
+        ["dee","0"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > returns the rows row-level security returns: the project's own table of the same name": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" from \"member\" order by \"id\"","result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["p1"],
+        ["p2"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-a"]]}},
+      {"sql":"select \"id\" from \"member\" order by \"id\"","result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["p1"],
+        ["p2"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" from \"member\" order by \"id\"","result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["p1"],
+        ["p2"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-b"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-b"]]}},
+      {"sql":"select \"id\" from \"member\" order by \"id\"","result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["p1"],
+        ["p2"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" from \"member\" order by \"id\"","result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["p1"],
+        ["p2"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":[""],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[[""]]}},
+      {"sql":"select \"id\" from \"member\" order by \"id\"","result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["p1"],
+        ["p2"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > returns the rows row-level security returns: raw SQL through scoped()": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select id from (select * from \"auth\".\"member\" where \"auth\".\"member\".\"organization_id\" = $1) as m order by id","params":["org-a"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["m1"],
+        ["m3"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-a"]]}},
+      {"sql":"select id from \"auth\".\"member\" as m order by id","result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["m1"],
+        ["m3"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select id from (select * from \"auth\".\"member\" where \"auth\".\"member\".\"organization_id\" = $1) as m order by id","params":["org-b"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["m2"],
+        ["m4"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-b"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-b"]]}},
+      {"sql":"select id from \"auth\".\"member\" as m order by id","result":{"command":"SELECT","rowCount":2,"columns":[["id",25]],"rows":[
+        ["m2"],
+        ["m4"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select id from (select * from \"auth\".\"member\" where false) as m order by id","result":{"command":"SELECT","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":[""],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[[""]]}},
+      {"sql":"select id from \"auth\".\"member\" as m order by id","result":{"command":"SELECT","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > returns the rows row-level security returns: update … from": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"update \"auth\".\"member\" as \"m\" set \"role\" = $1 from \"auth\".\"invitation\" as \"i\", \"auth\".\"user\" as \"u\" where ((\"u\".\"id\" = \"m\".\"user_id\" and \"i\".\"email\" = \"u\".\"email\") and \"m\".\"organization_id\" = $2) and \"i\".\"organization_id\" = $3 returning \"m\".\"id\"","params":["invited","org-a","org-a"],"result":{"command":"UPDATE","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-a"]]}},
+      {"sql":"update \"auth\".\"member\" as \"m\" set \"role\" = $1 from \"auth\".\"invitation\" as \"i\", \"auth\".\"user\" as \"u\" where \"u\".\"id\" = \"m\".\"user_id\" and \"i\".\"email\" = \"u\".\"email\" returning \"m\".\"id\"","params":["invited"],"result":{"command":"UPDATE","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"update \"auth\".\"member\" as \"m\" set \"role\" = $1 from \"auth\".\"invitation\" as \"i\", \"auth\".\"user\" as \"u\" where ((\"u\".\"id\" = \"m\".\"user_id\" and \"i\".\"email\" = \"u\".\"email\") and \"m\".\"organization_id\" = $2) and \"i\".\"organization_id\" = $3 returning \"m\".\"id\"","params":["invited","org-b","org-b"],"result":{"command":"UPDATE","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-b"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-b"]]}},
+      {"sql":"update \"auth\".\"member\" as \"m\" set \"role\" = $1 from \"auth\".\"invitation\" as \"i\", \"auth\".\"user\" as \"u\" where \"u\".\"id\" = \"m\".\"user_id\" and \"i\".\"email\" = \"u\".\"email\" returning \"m\".\"id\"","params":["invited"],"result":{"command":"UPDATE","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"update \"auth\".\"member\" as \"m\" set \"role\" = $1 from \"auth\".\"invitation\" as \"i\", \"auth\".\"user\" as \"u\" where (\"u\".\"id\" = \"m\".\"user_id\" and \"i\".\"email\" = \"u\".\"email\") and false returning \"m\".\"id\"","params":["invited"],"result":{"command":"UPDATE","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":[""],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[[""]]}},
+      {"sql":"update \"auth\".\"member\" as \"m\" set \"role\" = $1 from \"auth\".\"invitation\" as \"i\", \"auth\".\"user\" as \"u\" where \"u\".\"id\" = \"m\".\"user_id\" and \"i\".\"email\" = \"u\".\"email\" returning \"m\".\"id\"","params":["invited"],"result":{"command":"UPDATE","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > returns the rows row-level security returns: delete … using": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"delete from \"auth\".\"invitation\" using \"auth\".\"user\" where (\"auth\".\"user\".\"email\" = \"auth\".\"invitation\".\"email\") and \"auth\".\"invitation\".\"organization_id\" = $1 returning \"auth\".\"invitation\".\"id\"","params":["org-a"],"result":{"command":"DELETE","rowCount":1,"columns":[["id",25]],"rows":[["i1"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-a"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-a"]]}},
+      {"sql":"delete from \"auth\".\"invitation\" using \"auth\".\"user\" where \"auth\".\"user\".\"email\" = \"auth\".\"invitation\".\"email\" returning \"auth\".\"invitation\".\"id\"","result":{"command":"DELETE","rowCount":1,"columns":[["id",25]],"rows":[["i1"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"delete from \"auth\".\"invitation\" using \"auth\".\"user\" where (\"auth\".\"user\".\"email\" = \"auth\".\"invitation\".\"email\") and \"auth\".\"invitation\".\"organization_id\" = $1 returning \"auth\".\"invitation\".\"id\"","params":["org-b"],"result":{"command":"DELETE","rowCount":2,"columns":[["id",25]],"rows":[
+        ["i2"],
+        ["i3"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":["org-b"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["org-b"]]}},
+      {"sql":"delete from \"auth\".\"invitation\" using \"auth\".\"user\" where \"auth\".\"user\".\"email\" = \"auth\".\"invitation\".\"email\" returning \"auth\".\"invitation\".\"id\"","result":{"command":"DELETE","rowCount":2,"columns":[["id",25]],"rows":[
+        ["i2"],
+        ["i3"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"delete from \"auth\".\"invitation\" using \"auth\".\"user\" where (\"auth\".\"user\".\"email\" = \"auth\".\"invitation\".\"email\") and false returning \"auth\".\"invitation\".\"id\"","result":{"command":"DELETE","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"set local role scope_rls_reader","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('app.organization', $1, true)","params":[""],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[[""]]}},
+      {"sql":"delete from \"auth\".\"invitation\" using \"auth\".\"user\" where \"auth\".\"user\".\"email\" = \"auth\".\"invitation\".\"email\" returning \"auth\".\"invitation\".\"id\"","result":{"command":"DELETE","rowCount":0,"columns":[["id",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > copies no row of another organization with insert … select, and writes its own": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into \"auth\".\"invitation\" (\"id\", \"email\", \"organization_id\") select 'copy-' || id as \"id\", \"user_id\", $1 as \"organization_id\" from \"auth\".\"member\" where \"auth\".\"member\".\"organization_id\" = $2","params":["org-a","org-a"],"result":{"command":"INSERT","rowCount":2,"columns":[],"rows":[]}},
+      {"sql":"select \"id\", \"organization_id\" from \"auth\".\"invitation\" where \"id\" like $1 order by \"id\"","params":["copy-%"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",25],["organization_id",25]],"rows":[
+        ["copy-m1","org-a"],
+        ["copy-m3","org-a"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > refuses an insert naming another organization, and one without an organization": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the organization scope on real Postgres > leaves another organization's row as it is on an upsert's conflict": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into \"auth\".\"member\" (\"id\", \"user_id\", \"role\", \"organization_id\") values ($1, $2, $3, $4) on conflict (\"id\") do update set \"role\" = $5 where \"member\".\"organization_id\" = $6","params":["m2","bob","member","org-a","taken","org-a"],"result":{"command":"INSERT","rowCount":0,"columns":[],"rows":[]}},
+      {"sql":"select \"organization_id\", \"role\" from \"auth\".\"member\" where \"id\" = $1","params":["m2"],"result":{"command":"SELECT","rowCount":1,"columns":[["organization_id",25],["role",25]],"rows":[["org-b","owner"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

@@ -64,6 +64,7 @@ export const startCallServer = async ({ calls, db, page }: CallServerInput) => {
       return { user: { id: member, roles: ['*'] } }
     },
     access: {},
+    scope: { tables: [] },
     db,
     records: (session) => meetings(String(session.user.id)),
     onError: createErrorHandler((error) => void errors.push(error)),

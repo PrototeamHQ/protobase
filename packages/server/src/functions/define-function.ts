@@ -1,4 +1,4 @@
-import type { Db } from '@protobase/query'
+import type { ScopedDb } from '@protobase/query'
 import type { Capability } from '@protobase/schema'
 import type { Caller } from '../api-keys/resolve-caller'
 import type { CallsAccess } from '../calls/calls-access'
@@ -13,8 +13,13 @@ import type { FunctionRecords } from './records'
 export type PublicFunctionContext = {
   /** The function's name, as in `/api/functions/<name>`. */
   name: string
-  /** The database itself, with no access rules, row filters or tenant scope: privileged work only. */
-  db: Db
+  /**
+   * The database, with no access rules or row filters, and the tenant scope of `.tenant()` resources neither: privileged
+   * work only. The tables whose rows belong to one organization, `member`, `invitation` and `personal_access_token`, it
+   * keeps to the caller's (`ScopedDb`); a public function's to none, so it reads none of their rows and writes none.
+   * `db.unscoped('<reason>')` reads them all.
+   */
+  db: ScopedDb
   /** Broadcasts to the channel of a record, as the server, to whoever is on it (see `/api/channels`). */
   channels: ChannelSender
   /** The caller, through the app's own `authenticate`: rejects with a 401 problem when the request carries no valid token. */
@@ -66,7 +71,8 @@ export type FunctionContext = PublicFunctionContext & FunctionCaller & {
 /** What a function gets at `/api/sb/functions/v1/<name>`, where supabase-js calls it: the caller its keys and token make. */
 export type KeyFunctionContext = {
   name: string
-  db: Db
+  /** The database as a public function's: no organization's rows of the tables that hold them. */
+  db: ScopedDb
   /** The caller of the `apikey` header and bearer token: rejects with a 401 problem when they admit nobody. */
   caller: () => Promise<Caller>
 }

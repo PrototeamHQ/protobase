@@ -141,7 +141,7 @@ The store's migrations then make nothing of the user table, which a migration of
 
 ### Hooks
 
-Sign-in runs the project's own code from `auth/hooks.ts`, which Protobase finds by that path and loads when it builds sign-in. Each hook is a named export, typed with `AuthHooks` from `@protobase/server`, and gets the app's database, `{ db }` (Kysely), as its last argument:
+Sign-in runs the project's own code from `auth/hooks.ts`, which Protobase finds by that path and loads when it builds sign-in. Each hook is a named export, typed with `AuthHooks` from `@protobase/server`, and gets the app's database, `{ db }` (Kysely), as its last argument, which keeps the [organization's tables](/guides/api-functions/#the-organizations-tables) to the organization the hook is about, and to none for a hook about none, such as `onUserCreated`:
 
 ```ts
 // auth/hooks.ts
@@ -159,9 +159,9 @@ export const generateUserId: AuthHooks['generateUserId'] = async ({ db }) => {
 | `generateUserId` | the id of a new user, by any route; see [User ids](#roles-and-access-in-the-api) |
 | `onUserCreated` | `(user, context, { db })`, after a user is created by any route: `protobase users create`, an admin, [open sign-up](#open-sign-up) or a [sign-in provider](#sign-in-with-github) |
 | `generateOrganizationId` | the id of a new [organization](#organizations); default a random UUID |
-| `onOrganizationCreated` | `({ organization, member }, { db })`, after an organization is created, with its owner's membership |
-| `beforeOrganizationDeleted` | `(organization, { db })`, before an organization is deleted; throwing refuses it |
-| `organizationHooks` | Better Auth's organization hooks by name, each with `{ db }` last, run after Protobase's own |
+| `onOrganizationCreated` | `({ organization, member }, { db })`, after an organization is created, with its owner's membership; `db` works in the new organization |
+| `beforeOrganizationDeleted` | `(organization, { db })`, before an organization is deleted; throwing refuses it; `db` works in that organization |
+| `organizationHooks` | Better Auth's organization hooks by name, each with `{ db }` last, run after Protobase's own; `db` works in the organization the hook's input names |
 | `senderVerifiers` | `(add_verifier)`, once as the app starts: adds the app's ways to prove a From address; see [Verifying a From address](/reference/email/#verifying-a-from-address) |
 
 A mailer of the project's own, for sign-in's mail, is the default export of `auth/mailer.ts` (see [Password reset](#password-reset)). An authenticator of its own, in place of the one `authenticate` describes, is the default export of `auth/authenticate.ts` (see [Tokens and roles](#tokens-and-roles)).
@@ -793,7 +793,7 @@ The app's own pages are under the profile menu: the switcher, "Manage organizati
 
 ### The default organization
 
-Every table of the store is either the whole app's or an organization's. `member`, `invitation` and `personal_access_token` hold an organization's rows, each with its `organization_id`; the others, users, sessions, accounts, verifications, two-factor secrets, passkeys, the sign-in policy and the signing keys among them, are the app's. Each index of an organization's table serves one organization, leading with `organization_id`, or the whole app, such as a lookup by a person or an address; a key looked up from outside, such as a token's hash, stays unique across the app.
+Every table of the store is either the whole app's or an organization's. `member`, `invitation` and `personal_access_token` hold an organization's rows, each with its `organization_id`; the others, users, sessions, accounts, verifications, two-factor secrets, passkeys, the sign-in policy and the signing keys among them, are the app's. Each index of an organization's table serves one organization, leading with `organization_id`, or the whole app, such as a lookup by a person or an address; a key looked up from outside, such as a token's hash, stays unique across the app. The `db` the app's functions, jobs and hooks get shows them one organization's rows only, unless `db.unscoped('<reason>')` (see [The organization's tables](/guides/api-functions/#the-organizations-tables)). <gap>Sign-in's own queries cannot be kept to one organization because giving Better Auth the database that keeps the organization's tables is not implemented.</gap> <gap>While organizations are off after being on, the `db` of the app's code cannot keep the tables they leave to the default organization because giving sign-in the default organization while they are off is not implemented.</gap>
 
 The default organization, `organizations.default`, is the one that stands in for every organization while they are off. [`protobase migration`](/reference/cli/#migration) refuses without it once organizations are on or were ever on, and records it in `protobase.snapshot.json`. Turning organizations off sets `enabled: false` and keeps `default`; the store keeps their tables and columns, as [for any module](#turning-a-module-off).
 

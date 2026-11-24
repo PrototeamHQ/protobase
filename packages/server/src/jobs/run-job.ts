@@ -1,5 +1,5 @@
 import type { JobResult, JobWithMetadata } from 'pg-boss'
-import type { Db } from '@protobase/query'
+import type { ScopedDb } from '@protobase/query'
 import type { FieldDecrypter } from '../encryption/decrypt-field-types'
 import type { Mailer } from '../mail/smtp-mailer'
 import type { SendNotification } from '../notifications/send-input'
@@ -78,7 +78,7 @@ const noDecrypter = (name: string) => async (): Promise<never> => {
  * One try of one job: completed when `run` returns, failed (to be retried while attempts are left) when it throws, and
  * failed for good on a `FatalJobError` or an invalid payload.
  */
-export const runJob = async (definition: JobDefinition, job: JobWithMetadata<unknown>, db: Db, { mail, sendNotification, decryptField }: JobServices = {}): Promise<JobResult> => {
+export const runJob = async (definition: JobDefinition, job: JobWithMetadata<unknown>, db: ScopedDb, { mail, sendNotification, decryptField }: JobServices = {}): Promise<JobResult> => {
   try {
     const payload = await checkPayload(definition, job.data ?? undefined)
     const context = {

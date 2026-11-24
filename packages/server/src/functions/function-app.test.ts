@@ -12,6 +12,7 @@ const serveApp = (app: ReturnType<typeof functionApp<PublicFunctionEnv>>, onUnha
     functions: { shop: defineFunction({ public: true }, app) },
     authenticate: () => ({ user: { id: 1, roles: [] } }),
     access: {},
+    scope: { tables: [] },
     db: {} as Db,
     records: () => ({}) as never,
     channels: { broadcast: async () => {} },

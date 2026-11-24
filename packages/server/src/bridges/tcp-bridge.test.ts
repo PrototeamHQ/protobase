@@ -61,6 +61,7 @@ const serveBridge = async (allowed: Map<string, BridgeTarget>, now?: () => numbe
     functions: { console: defineFunction(bridge) },
     authenticate: (request) => ({ user: { id: request.headers.get('authorization')!.slice('Bearer '.length), roles: ['*'] } }),
     access: {},
+    scope: { tables: [] },
     db: {} as Db,
     records: () => ({}) as FunctionRecords,
     channels: { broadcast: async () => {} },

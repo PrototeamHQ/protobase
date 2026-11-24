@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto'
 import { DummyDriver, Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler } from 'kysely'
+import { scopedDb } from '@protobase/query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HttpProblem, notFound, type ApiFunction, type FunctionContext, type FunctionRecords, type FunctionSocket, type SocketEvents } from '@protobase/server'
 import display from './functions/display'
@@ -40,7 +41,7 @@ const fakeRecords = (rows: Record<string, Record<string, unknown>>) => ({
 
 const contextWith = (records: FunctionRecords): FunctionContext => {
   const caller = { session: { user: { id: 'mo', roles: ['mechanic'] } }, records }
-  return { name: 'test', db, channels: { broadcast: async () => {} }, ...caller, caller: async () => caller, decryptField: vi.fn(), personalMail: { send: vi.fn(), sender: vi.fn(), senders: vi.fn(), refresh: vi.fn() }, acceptWebSocket: () => new Response(), calls: { join: vi.fn(), remove: vi.fn(), of: vi.fn() } }
+  return { name: 'test', db: scopedDb(db, { tables: [] }, undefined), channels: { broadcast: async () => {} }, ...caller, caller: async () => caller, decryptField: vi.fn(), personalMail: { send: vi.fn(), sender: vi.fn(), senders: vi.fn(), refresh: vi.fn() }, acceptWebSocket: () => new Response(), calls: { join: vi.fn(), remove: vi.fn(), of: vi.fn() } }
 }
 
 const call = async (fn: ApiFunction, path: string, init: RequestInit, context: FunctionContext) => {

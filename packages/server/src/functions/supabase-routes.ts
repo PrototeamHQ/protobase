@@ -1,6 +1,6 @@
 import { Hono, type ErrorHandler } from 'hono'
 import { cors } from 'hono/cors'
-import type { Db } from '@protobase/query'
+import { scopedDb, type Db, type ScopedTables } from '@protobase/query'
 import type { ApiKeys } from '../api-keys/api-key-settings'
 import type { Caller } from '../api-keys/resolve-caller'
 import { runInBackground } from '../background-work'
@@ -13,6 +13,8 @@ import { relativeRequest } from './routes'
 export type SupabaseFunctionRoutesInput = {
   functions: Record<string, ApiFunction>
   db: Db
+  /** The tables whose rows belong to one organization, which these functions' `db` sees none of: their caller is no session. */
+  scope: ScopedTables
   keys: ApiKeys
   /** The caller of a request's `apikey` header and bearer token (`apiKeyCaller`). */
   caller: (request: Request) => Promise<Caller>
@@ -27,7 +29,7 @@ export type SupabaseFunctionRoutesInput = {
  * `/<name>/more/parts`, and a CORS preflight, which carries no key, reaches it unchecked. Every other function is a 404
  * here, and none of its code runs.
  */
-export const supabaseFunctionRoutes = ({ functions, db, keys, caller, onError }: SupabaseFunctionRoutesInput) => {
+export const supabaseFunctionRoutes = ({ functions, db, scope, keys, caller, onError }: SupabaseFunctionRoutesInput) => {
   const app = new Hono().basePath(supabaseFunctionsPath)
   app.onError(onError)
   const hasKeys = keys.publishable !== undefined || keys.secret !== undefined
@@ -51,12 +53,12 @@ export const supabaseFunctionRoutes = ({ functions, db, keys, caller, onError }:
       const request = relativeRequest(c.req.raw, supabaseFunctionsPath)
       if (options.public || c.req.method === 'OPTIONS') {
         let resolved: Promise<Caller> | undefined
-        const context: KeyFunctionContext = { name, db, caller: () => (resolved ??= caller(c.req.raw)) }
+        const context: KeyFunctionContext = { name, db: scopedDb(db, scope, undefined), caller: () => (resolved ??= caller(c.req.raw)) }
         return invokeFunction(name, fn, request, context)
       }
       if (!hasKeys) throw unauthorized('This app has no keys, so only its public functions answer here')
       const resolved = await caller(c.req.raw)
-      return invokeFunction(name, fn, request, { name, db, caller: async () => resolved })
+      return invokeFunction(name, fn, request, { name, db: scopedDb(db, scope, undefined), caller: async () => resolved })
     }), { longQueries: options.longQueries }))
   }
   app.all('/*', (c) => {
