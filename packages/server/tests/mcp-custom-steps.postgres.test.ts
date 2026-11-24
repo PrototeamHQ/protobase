@@ -5,7 +5,7 @@ import { defineRoles } from '@protobase/schema'
 import { configExports } from '../src/config-exports'
 import { createUser } from '../src/better-auth/users'
 import { startJobs, type JobsRuntime } from '../src/jobs/runtime'
-import { jobsSchemaMigration } from '../src/jobs/schema'
+import { jobsSchemaSql } from '../src/jobs/jobs-module'
 import { workflowsMigration } from '../src/workflows/schema'
 import { workflowsModule } from '../src/workflows/workflows-module'
 import { localFiles } from '../src/files/local-files'
@@ -53,7 +53,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('custom steps over MCP',
 
   beforeAll(async () => {
     database = await openPostgresDatabase('auth')
-    await database.exec((await jobsSchemaMigration(database.db))!)
+    await database.exec(jobsSchemaSql())
     await database.exec((await workflowsMigration(database.db, workflows))!)
     pool = database.pool({ max: 4 })
     const store = { dialect: database.dialect, query: async (text: string, params?: readonly unknown[]) => ({ rows: (await pool.query(text, params as unknown[])).rows }) }

@@ -5,7 +5,7 @@ import { createAuth } from '../src/better-auth/create-auth'
 import { addMember, createOrganization } from '../src/better-auth/organizations/host'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
-import { jobsSchemaMigration } from '../src/jobs/schema'
+import { jobsSchemaSql } from '../src/jobs/jobs-module'
 import { startJobs, type JobsRuntime } from '../src/jobs/runtime'
 import { notificationsMigration } from '../src/notifications/schema'
 import { sendNotification } from '../src/notifications/send-notification'
@@ -61,7 +61,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('status on real Postgres
     await createOrganization(auth, { name: 'Acme', slug: 'acme', owner: 'alice@example.com' })
     await addMember(auth, { organization: 'acme', email: 'bob@example.com' })
     await createOrganization(auth, { name: 'Globex', slug: 'globex', owner: 'carol@example.com' })
-    await pg.exec((await jobsSchemaMigration(pg.db))!)
+    await pg.exec(jobsSchemaSql())
     await pg.exec((await notificationsMigration(pg.db, {}, auth))!)
     await pg.exec((await statusMigration(pg.db, {}, auth))!)
     app = createAdmin({ resources: [], db: pg.db, authenticate: betterAuthAuthenticator({ auth }), auth, notifications: { senders: [recordingSender] }, status: {} })
