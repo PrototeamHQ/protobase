@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import postgres from 'postgres'
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import { offlineStepsMigration, recordTable, settingsStoreNames } from '@protobase/server/internal'
+import { offlineStepsMigration, recordTable, settingsStoreNames, stepsOfVersions } from '@protobase/server/internal'
 import { migrationText } from '../../src/auth/migration-file'
 import { writeBaseline } from '../../src/migration/baseline/write-baseline'
 import { textBeforeRecord } from '../../src/migration/record/record-block'
@@ -19,7 +19,8 @@ vi.setConfig({ hookTimeout: 30_000 })
 const url = testDatabaseUrl()
 const reachable = await databaseReachable(url)
 const maintenance = () => postgres(withDatabase(url, 'postgres'), { max: 1, onnotice: () => {} })
-const auth = { names: settingsStoreNames({}), organizationsOn: false }
+// Every feature with tables of its own on, so every module is.
+const auth = { names: settingsStoreNames({ organizations: true, mcp: true, personalAccessTokens: { prefix: 'app_' }, personalMail: ['gmail'] }), organizationsOn: true }
 const every = Array.from({ length: 17 }, (_, at) => at + 1)
 
 const databases: string[] = []
@@ -50,11 +51,14 @@ const query = async <Row extends object>(databaseUrl: string, text: string) => {
   }
 }
 
-const versions = async (databaseUrl: string) => (await query<{ version: number }>(databaseUrl, 'select version from auth.auth_migrations order by version')).map((row) => row.version)
+const label = ({ module, step, target }: { module: string; step: number; target: string }) => `${module} ${step}${target === module ? '' : ` on ${target}`}`
+// Each part of a step the store recorded in auth_steps, sorted.
+const steps = async (databaseUrl: string) => (await query<{ module: string; step: number; target: string }>(databaseUrl, 'select module, step, target from auth.auth_steps')).map(label).sort()
+const everyStep = stepsOfVersions(every).map(label).sort()
 
-// A project whose one auth migration came before the snapshot, as `protobase auth migration` wrote it, applied to a
-// database at the former chain's version `last`: the later versions are recorded while the file runs, so it skips
-// them, and taken out of the record again.
+// A project whose one auth migration came before the snapshot, applied to a database at the former chain's version
+// `last`, as a Protobase before auth_steps left it: the later parts are recorded while the file runs, so it skips them,
+// and the store then records the versions up to `last` in auth_migrations alone.
 const olderStore = async (last: number) => {
   const databaseUrl = await createDatabase()
   const projectDir = await mkdtemp(path.join(tmpdir(), 'protobase-baseline-'))
@@ -63,11 +67,15 @@ const olderStore = async (last: number) => {
   await mkdir(dir, { recursive: true })
   const file = migrationText(offlineStepsMigration(auth.names, undefined)!.sql)
   await writeFile(path.join(dir, '001_auth.sql'), file)
-  const later = every.filter((version) => version > last)
-  const skip = later.length === 0 ? '' : `insert into auth.auth_migrations (version, name) select version, 'later' from unnest(array[${later.join(', ')}]) as version;`
-  await query(databaseUrl, `create schema auth; create table auth.auth_migrations (version integer primary key, name text not null, applied_at timestamptz default current_timestamp not null); ${skip}`)
+  const later = stepsOfVersions(every.filter((version) => version > last))
+  const skip = later.length === 0 ? '' : `insert into auth.auth_steps (module, step, target) values ${later.map(({ module, step, target }) => `('${module}', ${step}, '${target}')`).join(', ')};`
+  await query(databaseUrl, `create schema auth; create table auth.auth_steps (module text, step integer, target text, applied_at timestamptz, primary key (module, step, target)); ${skip}`)
   await query(databaseUrl, file)
-  if (later.length > 0) await query(databaseUrl, `delete from auth.auth_migrations where version > ${last}`)
+  await query(
+    databaseUrl,
+    `drop table auth.auth_steps; create table auth.auth_migrations (version integer primary key, name text not null, applied_at timestamptz default current_timestamp not null);
+    insert into auth.auth_migrations (version, name) select version, 'earlier' from unnest(array[${every.filter((version) => version <= last).join(', ')}]) as version`,
+  )
   return { databaseUrl, projectDir, dir }
 }
 
@@ -81,11 +89,14 @@ describe.skipIf(!reachable)('protobase migration baseline', () => {
     const file = await writeBaseline({ projectDir, dir, auth, url: databaseUrl, protobaseVersion: '1.0.0', newId: randomUUID })
     expect(path.basename(file)).toBe('002_baseline.sql')
     const text = await readFile(file, 'utf8')
-    expect(textBeforeRecord(text)).not.toMatch(/^[^-\n]/m)
+    // Its only statements make the record of the store's steps from the versions the store recorded.
+    expect(textBeforeRecord(text)).toContain('create table if not exists "auth"."auth_steps"')
+    expect(textBeforeRecord(text)).toContain('-- The steps the store recorded by version in auth_migrations, recorded by step.')
     await query(databaseUrl, text)
     expect(await query(databaseUrl, `select name from ${recordTable}`)).toEqual([{ name: '002_baseline' }])
+    expect(await steps(databaseUrl)).toEqual(everyStep)
     // The former chain's record stays until a later release.
-    expect(await versions(databaseUrl)).toEqual(every)
+    expect(await query(databaseUrl, 'select count(*)::int as count from auth.auth_migrations')).toEqual([{ count: 17 }])
     expect(await readSnapshot(projectDir)).toMatchObject({
       endsAt: { file: '002_baseline.sql' },
       decisions: { modules: { kept: [], archived: [] }, organizations: { everOn: true, defaultOrganization: null } },
@@ -104,7 +115,7 @@ describe.skipIf(!reachable)('protobase migration baseline', () => {
     expect(next).not.toContain('-- auth 1 core')
     expect(next).toContain('-- auth 2 account_keys')
     await query(databaseUrl, next)
-    expect(await versions(databaseUrl)).toEqual(every)
+    expect(await steps(databaseUrl)).toEqual(everyStep)
     expect(await migrate(projectDir, dir)).toBeUndefined()
   })
 

@@ -91,6 +91,9 @@ const refuseTwice = (names: string[], what: string) => {
   if (twice !== undefined) throw new Error(`auth.tables gives ${what} the name "${twice}" twice: give each its own`)
 }
 
+/** The name `tables` gives a table, by internal name: its own `name`, or its built-in one after the prefix. */
+export const tableNameOf = (tables: TableNames, internal: string) => (tables as Record<string, TableConfig | undefined>)[internal]?.name ?? generatedName(`${tables.prefix ?? ''}${internal}`)
+
 const resolveTable = (schema: string | undefined, { module, internal, table, columns }: Declared, prefix: string, config: TableConfig = {}): ResolvedTable => {
   const id = tableId(schema, config.name ?? generatedName(`${prefix}${internal}`))
   const resolved = Object.fromEntries(
@@ -122,7 +125,8 @@ export const resolveNames = (input: NamesInput): ResolvedNames => {
   const { schema, tables = {}, modules = allModules } = input
   checkRequiredModules(modules)
   const declared = declaredTables(modules)
-  checkConfig(tables, declared)
+  // A table of a module that is off may be named, as for its tables the store keeps.
+  checkConfig(tables, declaredTables(allModules))
   const configs = tables as Record<string, TableConfig | undefined>
   const each = declared.map((table) => ({ indexes: table.table.indexes ?? [], resolved: resolveTable(schema, table, tables.prefix ?? '', configs[table.internal]) }))
   const resolved = Object.fromEntries(each.map((table) => [table.resolved.internal, table.resolved]))

@@ -1,11 +1,15 @@
+import type { OffChoice } from '@protobase/server/internal'
 import { authMigrationTitle } from '../../auth/migration-file'
 import type { MigrationPart } from '../parts'
 import { authDifference } from './auth-difference'
+import { moduleChanges } from './module-changes'
+import { revivalRefused } from './module-prompts'
+import { revivedRows, type RevivedRows } from './revival-rows'
 import type { AuthTarget } from './auth-target'
 import { refuseInconsistent } from './consistency'
 import { readMigrationFiles } from './migration-files'
 import { runPreconditions } from './preconditions'
-import { readSnapshot, snapshotFile } from './snapshot-file'
+import { readSnapshot, snapshotFile, type KeptModule } from './snapshot-file'
 import { writeMigrationFile } from './write-file'
 
 export type MigrationRun = {
@@ -17,6 +21,22 @@ export type MigrationRun = {
   database: { url: string; parts: MigrationPart[] } | undefined
   protobaseVersion: string
   newId: () => string
+  /** What becomes of the tables of a module the config turns off (`--off`); asked with `chooseOff` when undefined. */
+  off?: OffChoice
+  /** Asks what becomes of them, on a terminal; without it and without `off`, turning a module off is refused. */
+  chooseOff?: (modules: readonly KeptModule[]) => Promise<OffChoice>
+  /** Brings back the rows a module turned on again kept (`--force`). */
+  force?: boolean
+  /** Asks whether to bring them back, on a terminal; without it and without `force`, they are refused. */
+  confirmRevival?: (rows: RevivedRows) => Promise<boolean>
+}
+
+// Refuses a module turned on again while its kept tables hold rows, unless they are brought back.
+const checkRevivals = async (url: string, run: MigrationRun, revived: readonly KeptModule[]) => {
+  if (revived.length === 0 || run.force) return
+  for (const rows of await revivedRows(url, run.auth!.names, revived)) {
+    if (!(run.confirmRevival && (await run.confirmRevival(rows)))) throw new Error(revivalRefused(rows))
+  }
 }
 
 const section = (title: string, sql: string) => `-- ${title}.\n${sql}\n`
@@ -30,14 +50,18 @@ export const intro = `-- Written by \`protobase migration\` from the config and 
  * its rows, and the other parts are compared with it. Every part is compared before anything is written. Returns the
  * file's path, `undefined` when nothing differs.
  */
-export const runMigration = async ({ projectDir, dir, auth, database, protobaseVersion, newId }: MigrationRun) => {
+export const runMigration = async (run: MigrationRun) => {
+  const { projectDir, dir, auth, database, protobaseVersion, newId } = run
   const snapshot = await readSnapshot(projectDir)
   const files = await readMigrationFiles(dir)
   refuseInconsistent(snapshot, files)
   if (!snapshot && auth && files.some(({ text }) => text.includes(authMigrationTitle))) {
     throw new Error(`The project has auth migrations from before ${snapshotFile}: start it with \`protobase migration baseline\`, run against the database with the project's migrations applied, then run \`protobase migration\` again`)
   }
-  const difference = authDifference(snapshot, auth)
+  const { off: turnedOff } = moduleChanges(snapshot, auth)
+  const off = run.off ?? (turnedOff.length > 0 && run.chooseOff ? await run.chooseOff(turnedOff) : undefined)
+  const difference = authDifference(snapshot, auth, off)
+  if (database) await checkRevivals(database.url, run, difference.changes.revived)
   if (database && difference.migration && difference.migration.checks.length > 0) await runPreconditions(database.url, difference.migration.checks)
   const compared: Array<{ name: string; text: string }> = []
   for (const part of database?.parts ?? []) {
@@ -48,5 +72,6 @@ export const runMigration = async ({ projectDir, dir, auth, database, protobaseV
   if (sections.length === 0) return
   // The auth store's steps only add (`step-lint.ts`); the other parts may drop what the config no longer has.
   const content = { name: sections.map(({ name }) => name).join('_'), body: [intro, ...sections.map(({ text }) => text)].join('\n'), additive: sections.every(({ name }) => name === 'auth') }
-  return writeMigrationFile(projectDir, dir, content, { previous: snapshot, auth: difference.model, organizationsOn: auth?.organizationsOn ?? false, protobaseVersion }, newId())
+  const decisions = snapshot && { ...snapshot.decisions, modules: { ...snapshot.decisions.modules, kept: difference.kept } }
+  return writeMigrationFile(projectDir, dir, content, { previous: snapshot, auth: difference.model, organizationsOn: auth?.organizationsOn ?? false, protobaseVersion, ...(decisions && { decisions }) }, newId())
 }

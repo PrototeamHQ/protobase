@@ -30,10 +30,11 @@ export const registerMigration = (program: Command) => {
     .argument('[connection]', 'connection string (default: DATABASE_URL from the environment or .env)')
     .option('--env <variable>', 'read the connection string from this environment variable')
     .option('--plan', "print each migration not applied yet with its SQL, and apply nothing")
+    .option('--force', 'turn a sign-in module on again even while the tables it kept off hold rows, which come back into use')
     .action(async (connection: string | undefined, opts) => {
       loadNearestEnvFile(process.cwd())
       const { migrateProject } = await import('./migrate-project')
-      await migrateProject(process.cwd(), () => resolveConnectionUrl(connection, opts.env), out, Boolean(opts.plan))
+      await migrateProject(process.cwd(), () => resolveConnectionUrl(connection, opts.env), out, { plan: Boolean(opts.plan), force: Boolean(opts.force) })
     })
 
   const migration = folderOptions(
@@ -42,8 +43,10 @@ export const registerMigration = (program: Command) => {
       .description("Write what the config and this version of Protobase need beyond protobase.snapshot.json as the project's next numbered SQL migration, and rewrite the snapshot")
       .option('--custom <name>', 'write an empty numbered migration to fill by hand, and make the snapshot end at it')
       .option('--record-config', "with --custom: record the config's auth store names in the snapshot, which the file makes the store match")
-      .option('--after', 'with --custom: write an empty .after.sql beside it too, for statements that cannot run in a transaction, such as create index concurrently'),
-  ).action(async (opts: FolderOptions & { custom?: string; recordConfig?: boolean; after?: boolean }) => {
+      .option('--after', 'with --custom: write an empty .after.sql beside it too, for statements that cannot run in a transaction, such as create index concurrently')
+      .option('--off <choice>', 'what becomes of the tables of a sign-in module the config turns off, without asking: keep')
+      .option('--force', 'write the migration that turns a kept sign-in module on again even while its tables hold rows'),
+  ).action(async (opts: FolderOptions & { custom?: string; recordConfig?: boolean; after?: boolean; off?: string; force?: boolean }) => {
     if (opts.recordConfig && !opts.custom) throw new Error('--record-config goes with --custom <name>')
     if (opts.after && !opts.custom) throw new Error('--after goes with --custom <name>')
     const { config, auth } = await loadAuthTarget(opts)
@@ -54,11 +57,20 @@ export const registerMigration = (program: Command) => {
       out(`wrote ${path.relative(process.cwd(), file)}${opts.after ? ', its .after.sql' : ''} and protobase.snapshot.json: write its statements\n`)
       return
     }
-    const [{ migrationProject }, { migrationParts }, { runMigration }, { migrationSummary }] = await Promise.all([import('./migration-project'), import('./parts'), import('./snapshot/run-migration'), import('./summary')])
+    const [{ migrationProject }, { migrationParts }, { runMigration }, { migrationSummary }, { offChoice }, prompts] = await Promise.all([
+      import('./migration-project'),
+      import('./parts'),
+      import('./snapshot/run-migration'),
+      import('./summary'),
+      import('./snapshot/off-choice'),
+      import('./snapshot/terminal-prompts'),
+    ])
+    const off = offChoice(opts.off)
     const url = process.env.DATABASE_URL
     const project = url ? await migrationProject(config, url) : undefined
     try {
-      const file = await runMigration({ projectDir: process.cwd(), dir, auth, database: project && url ? { url, parts: migrationParts(project) } : undefined, protobaseVersion, newId: randomUUID })
+      const asks = process.stdin.isTTY ? prompts.terminalPrompts() : undefined
+      const file = await runMigration({ projectDir: process.cwd(), dir, auth, database: project && url ? { url, parts: migrationParts(project) } : undefined, protobaseVersion, newId: randomUUID, ...(off && { off }), force: Boolean(opts.force), ...asks?.prompts }).finally(() => asks?.close())
       out(migrationSummary(file, process.cwd(), { hasAuth: Boolean(auth), compared: Boolean(project) }))
     } finally {
       await project?.close()

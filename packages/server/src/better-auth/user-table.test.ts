@@ -10,7 +10,7 @@ const base: CreateAuthOptions = { database: undefined, baseURL: 'https://admin.e
 const schemaWith = (tables?: CreateAuthOptions['tables'], users?: CreateAuthOptions['users']) =>
   getSchema(
     betterAuthOptions(
-      { ...base, ...(tables && { tables }), ...(users && { users }) },
+      { ...base, organizations: {}, ...(tables && { tables }), ...(users && { users }) },
       {
         roles: ['admin', 'user'],
         definitions: roleDefinitions(),

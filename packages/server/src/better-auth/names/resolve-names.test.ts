@@ -62,7 +62,7 @@ describe('resolveNames', () => {
 
   it('resolves only the modules that are on, refusing one on without one it requires', () => {
     const names = resolveNames({ schema: undefined, modules: ['auth', 'passkeys'] })
-    expect(Object.keys(names.tables)).toEqual(['user', 'session', 'account', 'verification', 'jwks', 'auth_migrations', 'passkey'])
+    expect(Object.keys(names.tables)).toEqual(['user', 'session', 'account', 'verification', 'jwks', 'auth_migrations', 'auth_steps', 'passkey'])
     expect(Object.keys(names.table('user').columns)).not.toContain('two_factor_enabled')
     expect(() => names.table('member')).toThrow('The auth store has no member table: its module is off')
     expect(() => resolveNames({ schema: undefined, modules: ['passkeys'] })).toThrow('The passkeys module is on while auth, which it requires, is off')

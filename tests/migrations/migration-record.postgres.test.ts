@@ -50,7 +50,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
     const auth = await migratedByThisVersion(database)
     await expect(checkMigrationRecord(auth, '1.0.0')).resolves.toBeUndefined()
 
-    const next = withSteps(runtimeModel(auth), { mcp: 2 })
+    const next = withSteps(runtimeModel(auth), { passkeys: 3 })
     await database.exec(recordBlock(row('002_auth', next), null))
     await expect(checkMigrationRecord(auth, '1.0.0')).resolves.toBeUndefined()
 

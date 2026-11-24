@@ -1,4 +1,6 @@
 import { builtInModules, type ModuleId } from '../../names/modules'
+import { allModules } from '../../names/modules-on'
+import { resolveNames } from '../../names/resolve-names'
 import type { ModuleDeclaration } from '../../names/declaration'
 import { moduleSteps } from '../steps'
 import type { StoreNames } from '../store-names'
@@ -74,4 +76,13 @@ export const storeNamesList = (model: StoreModel) => {
     ...(model.schema === null ? [] : [model.schema]),
     ...tables.flatMap((table) => [`${prefix}${table.name}`, `${prefix}${table.name}.id`, ...Object.values(table.columns).map((column) => `${prefix}${table.name}.${column}`), ...Object.values(table.indexes).map((index) => `${prefix}${index}`)]),
   ].sort()
+}
+
+/** A module turned off whose tables and rows the store keeps: the last step it had, and its tables' names then. */
+export type KeptModule = { module: ModuleId; step: number; tables: Record<string, ModelTable> }
+
+/** `module` kept at `step`, its tables named as `names` would name them with it on. */
+export const keptModule = ({ schema, names, users, uuidIds }: StoreNames, module: ModuleId, step: number): KeptModule => {
+  const withIt = resolveNames({ ...names.input, modules: allModules.filter((other) => other === module || names.modules.includes(other)) })
+  return { module, step, tables: storeModel({ schema, names: withIt, users, uuidIds }, { [module]: step }).modules[module]!.tables }
 }

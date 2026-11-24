@@ -29,8 +29,8 @@ describe('the steps Protobase ships', () => {
   it('are the only source of each module’s tables: every one is made by one step of its own module', () => {
     for (const module of builtInModules) {
       const made = moduleSteps[module.id].flatMap(({ tables }) => tables)
-      // The user table is made by the first step itself, as it may be another system's; the record of migrations goes first.
-      const declared = Object.keys(module.tables).filter((table) => table !== 'user' && table !== 'auth_migrations')
+      // The user table is made by the first step itself, as it may be another system's; the records of steps go first.
+      const declared = Object.keys(module.tables).filter((table) => table !== 'user' && table !== 'auth_migrations' && table !== 'auth_steps')
       expect(made.toSorted(), module.id).toEqual(declared.toSorted())
     }
   })

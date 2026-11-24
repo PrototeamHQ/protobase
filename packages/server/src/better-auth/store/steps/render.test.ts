@@ -11,11 +11,11 @@ const render = (modules: ModuleId[], had: Had = () => false) => {
   return renderSteps(migrationNames({ schema: undefined, names, users: userTable(), uuidIds: false }), modules, had).map(({ module, step, on }) => `${module} ${step.step}${on ? ` on ${on}` : ''}`)
 }
 
-// The store has every step of these modules up to the number given.
+// The store has every step of these modules up to the number given, and what they add to one another's tables.
 const upTo =
   (reached: Partial<Record<ModuleId, number>>): Had =>
-  (module, step) =>
-    step.step <= (reached[module] ?? 0)
+  (module, step, target) =>
+    step <= (reached[module] ?? 0) && (target === module || reached[target] !== undefined)
 
 describe('rendering the steps', () => {
   it('renders every step of each module that is on, a module’s after those of the modules it requires', () => {
@@ -52,6 +52,11 @@ describe('rendering the steps', () => {
       'organizations 1 on personal_access_tokens',
       'organizations 2',
     ])
+  })
+
+  it('renders what a step added to a module that was off while it ran, once that module is on again', () => {
+    const had: Had = (module, step, target) => upTo({ auth: 5, organizations: 2, personal_access_tokens: 1 })(module, step, target) && !(module === 'organizations' && target === 'personal_access_tokens')
+    expect(render(['auth', 'organizations', 'personal_access_tokens'], had)).toEqual(['organizations 1 on personal_access_tokens'])
   })
 
   it('starts a step with its check', () => {

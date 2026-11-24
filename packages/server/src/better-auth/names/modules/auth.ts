@@ -75,5 +75,9 @@ export const auth = {
       scope: 'global',
       columns: { version: field('version'), name: field('name'), applied_at: field('appliedAt') },
     },
+    auth_steps: {
+      scope: 'global',
+      columns: { module: field('module'), step: field('step'), target: field('target'), applied_at: field('appliedAt') },
+    },
   },
 } as const satisfies ModuleDeclaration

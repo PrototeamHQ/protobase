@@ -98,6 +98,7 @@ import { twoFactorAfterFirstFactor } from './two-factor-challenge'
 import { metadataField, userTable, type UserTableOptions } from './user-table'
 import { betterAuthNames } from './names/better-auth-names'
 import { storeNamesPlugin } from './names/names-plugin'
+import { modulesOf } from './names/modules-on'
 import { resolveNames, type ResolvedNames, type TableNames } from './names/resolve-names'
 import { storeSchema } from './store/store-names'
 import { usersPlugin } from './users/users-plugin'
@@ -458,7 +459,7 @@ const pageLoadReads = ['/get-session', '/role/current', '/token']
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn = [], saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, mailSenderUse, senderVerifications: verifications, personalMailer: mailOf = noMailer, sharedSenders, lockedAccounts = [], connections, names = resolveNames({ schema: storeSchema({ options }), tables: options.tables }), ...plugins }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn = [], saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, mailSenderUse, senderVerifications: verifications, personalMailer: mailOf = noMailer, sharedSenders, lockedAccounts = [], connections, names = resolveNames({ schema: storeSchema({ options }), tables: options.tables, modules: modulesOf(options) }), ...plugins }: Resolved) => {
   const named = betterAuthNames(names)
   const mailProviders = resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true)
   const connectionHooks = connections && connections.resolved.length > 0 ? connectionAccountHooks(connections.resolved, connections.events) : undefined
@@ -744,7 +745,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   // Deleting a user revokes their connected accounts and parks the triggers on them, as disconnecting each would.
   if (resolvedConnections.length > 0) deletion.set('connections', releaseUserConnections({ connections: resolvedConnections, events, allowPrivateAddresses, context }))
   const lockedAccounts = platformLockedAccounts()
-  const names = resolveNames({ schema: storeSchema({ options }), tables: options.tables })
+  const names = resolveNames({ schema: storeSchema({ options }), tables: options.tables, modules: modulesOf(options) })
   const authOptions = betterAuthOptions(options, { ...plugins, names, mobile, deletion, mailSenderUse: senderUse, ...(verifications && { senderVerifications: verifications }), personalMailer: mailboxOf, sharedSenders, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)

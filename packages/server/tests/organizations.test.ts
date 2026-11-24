@@ -112,7 +112,7 @@ describe('the auth schema with organizations', () => {
     expect(await authSchemaMigration(auth)).toBeUndefined()
   })
 
-  it('needs no migration to turn organizations off', async () => {
+  it('writes no step once organizations are off, the store keeping their tables', async () => {
     const auth = createAuth({ database: { dialect: (await migrated.clone()).dialect, type: 'postgres' }, baseURL: origin, secret, mailer: false })
     expect(await authSchemaMigration(auth)).toBeUndefined()
     expect(auth.organizations).toBeUndefined()

@@ -3,6 +3,7 @@ import { authRefusals, stepsAfter } from './auth-difference'
 import type { AuthTarget } from './auth-target'
 import { inconsistencies } from './consistency'
 import { lintCustomFiles } from './lint-custom'
+import { moduleChanges } from './module-changes'
 import { readMigrationFiles } from './migration-files'
 import { readSnapshot, snapshotFile } from './snapshot-file'
 
@@ -23,5 +24,8 @@ export const checkMigrations = async (projectDir: string, dir: string, auth: Aut
   } else if (auth && stepsAfter(snapshot, auth)) {
     found.push('the config and this version of Protobase need auth store steps the migrations lack: run `protobase migration`')
   }
+  const changes = moduleChanges(snapshot, auth)
+  const switched = [...changes.off.map(({ module }) => `${module} off`), ...changes.revived.map(({ module }) => `${module} on again`)]
+  if (refusals.length === 0 && switched.length > 0) found.push(`the config turns ${switched.join(', ')}, which the migrations lack: run \`protobase migration\``)
   return [...found, ...lintCustomFiles(files)]
 }
