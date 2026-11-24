@@ -122,11 +122,17 @@ describe('capturePlan', () => {
     expect(uncaptured(changed, [withEvents])).toEqual(['orders'])
   })
 
-  it('drops the triggers of a resource without events, and never refuses for them', () => {
+  it('keeps the triggers of a resource without events, so older code still captures it, and never refuses for them', () => {
     const plan = capturePlan('changes', [plain], installed())
-    expect(plan).toEqual({ setup: false, history: false, historyMissing: false, notices: false, create: [], drop: [{ name: 'orders_changes', tableSql: '"sales"."orders"' }, { name: 'orders_changes_update', tableSql: '"sales"."orders"' }] })
-    expect(planSql('changes', plan)).toBe('drop trigger if exists "orders_changes" on "sales"."orders";\n\ndrop trigger if exists "orders_changes_update" on "sales"."orders";')
+    expect(plan).toEqual({ setup: false, history: false, historyMissing: false, notices: false, create: [], drop: [] })
+    expect(planSql('changes', plan)).toBeUndefined()
     expect(uncaptured(plan, [plain])).toEqual([])
+  })
+
+  it('drops a trigger of a captured table that the triggers it needs now replace', () => {
+    const renamed = installed().triggers.map((trigger) => ({ ...trigger, name: `${trigger.name}_old` }))
+    const plan = capturePlan('changes', [withEvents], installed({ triggers: [...installed().triggers, ...renamed] }))
+    expect(plan.drop).toEqual([{ name: 'orders_changes_old', tableSql: '"sales"."orders"' }, { name: 'orders_changes_update_old', tableSql: '"sales"."orders"' }])
   })
 
   it('refuses a missing table, a trigger name of the table own, and two resources with events on one table', () => {

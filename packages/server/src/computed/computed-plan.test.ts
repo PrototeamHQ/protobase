@@ -62,10 +62,10 @@ describe('computedPlan', () => {
     ])
   })
 
-  it('has nothing to do once applied, and drops the function of a rollup that is gone', () => {
+  it('has nothing to do once applied, and keeps the function and trigger of a rollup that is gone, for older code', () => {
     expect(computedPlan([orders, lines], applied([orders, lines]))).toEqual({ statements: [], behind: [] })
     const plain = { ...orders, fields: { id: orders.fields.id! } }
-    expect(computedPlan([plain, lines], applied([orders, lines])).statements).toEqual(['drop function if exists "rollups"."orders_total"() cascade'])
+    expect(computedPlan([plain, lines], applied([orders, lines])).statements).toEqual([])
   })
 
   it('writes a changed rollup again, values included', () => {

@@ -28,7 +28,7 @@ export type CaptureState = {
 
 /**
  * What brings the database to what the config needs: the schema's setup, the history and notices tables, triggers to
- * (re)create, and triggers to drop.
+ * (re)create, and the triggers they replace to drop.
  */
 export type CapturePlan = {
   setup: boolean
@@ -77,8 +77,10 @@ export const capturePlan = (schema: string, models: readonly ResourceModel[], st
     if (found && found.function !== capture?.oid) throw new Error(`Table ${tableSql(model)} has a trigger "${trigger.name}" of its own; rename it, since events and history need that name`)
     return !found || !sameTrigger(found, trigger)
   })
+  // A table no resource captures any more keeps its triggers, so the code still running while the migration deploys,
+  // or the version before once rolled back, still captures it; only a trigger another one replaces goes.
   const drop = state.triggers
-    .filter((found) => found.function === capture?.oid)
+    .filter((found) => found.function === capture?.oid && tables.has(found.table))
     .filter((found) => !wanted.some(({ trigger, table }) => table === found.table && trigger.name === found.name))
   return {
     setup: captured.length > 0 && (!state.outbox || !current),

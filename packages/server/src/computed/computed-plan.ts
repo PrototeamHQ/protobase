@@ -2,7 +2,7 @@ import type { FieldModel, ResourceModel } from '@protobase/schema'
 import { quoteIdent } from '../changes/capture-sql'
 import { columnType } from './column-sql'
 import { addFormulaSql, formulaComment, isFormulaComment } from './formula-sql'
-import { addRollupColumnSql, backfillSql, dropRollupFunctionSql, dropRollupTriggerSql, rollupBody, rollupFunctionName, rollupFunctionSql, rollupsSchema, rollupTriggerName, rollupTriggerSql, type RollupTarget } from './rollup-sql'
+import { addRollupColumnSql, backfillSql, dropRollupTriggerSql, rollupBody, rollupFunctionName, rollupFunctionSql, rollupsSchema, rollupTriggerName, rollupTriggerSql, type RollupTarget } from './rollup-sql'
 import { rollupTargets } from './rollup-targets'
 
 /** A column of a resource's table: its table's oid, its type as `format_type` names it, and its comment. */
@@ -56,7 +56,9 @@ const rollupColumnStatements = (target: RollupTarget, found: FoundColumn | undef
  * Compares the database with the resources' rollup and formula fields. Fails on what it cannot change safely: a
  * missing table, a column of the project's own where one is declared, or a trigger of the same name that calls another
  * function. A changed formula's column is dropped and added again; a rollup's function, trigger and values are written
- * again when its column is new or its definition changed. Columns are never dropped otherwise.
+ * again when its column is new or its definition changed. Columns are never dropped otherwise, and the function and
+ * trigger of a rollup the config no longer has stay, so the code still running while the migration deploys, or the
+ * version before once rolled back, still reads it up to date.
  */
 export const computedPlan = (models: readonly ResourceModel[], state: ComputedState): ComputedPlan => {
   const table = (model: ResourceModel) => {
@@ -98,12 +100,9 @@ export const computedPlan = (models: readonly ResourceModel[], state: ComputedSt
     droppedTriggers.push(...stale.map((found) => dropRollupTriggerSql(found.name, found.tableSql)), dropRollupTriggerSql(rollupTriggerName(target), target.fromTable))
     rollups.push(rollupFunctionSql(target), rollupTriggerSql(target), backfillSql(target))
   }
-  const wanted = targets.map(rollupFunctionName)
-  const dropped = state.functions.filter((found) => !wanted.includes(found.name)).map((found) => dropRollupFunctionSql(found.name))
   // Rollup columns come before formulas, so a formula may read a rollup, and rollups after them, so a rollup may read a formula.
   const statements = [
     ...(rollups.length > 0 ? [`create schema if not exists ${quoteIdent(rollupsSchema)}`] : []),
-    ...dropped,
     ...droppedTriggers,
     ...rollupColumns,
     ...formulas,

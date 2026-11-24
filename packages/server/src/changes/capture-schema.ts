@@ -65,7 +65,7 @@ const plan = async (db: Db, models: readonly ResourceModel[], options?: EventsOp
 /**
  * The SQL that brings the database to the capture the resources' events, history and live updates need: the schema
  * with the outbox and `capture()`, the history and notices tables, and a trigger pair per resource with any of them, recreated when its fields changed;
- * triggers of resources without any of them any more are dropped. `undefined` when the database is current. Tables are
+ * triggers of resources without any of them any more are kept, for older code. `undefined` when the database is current. Tables are
  * never dropped. The tables of the `pending` resources are created by a migration written before this one.
  */
 export const changesMigration = async (db: Db, models: readonly ResourceModel[], options?: EventsOptions, pending: readonly string[] = []) => {
