@@ -9,11 +9,11 @@ import type { StoreNames } from './store-names'
 /** The table, in the store's schema, as the store's names resolve `auth_migrations`. */
 export const migrationsTable = ({ names }: Pick<StoreNames, 'names'>) => names.table('auth_migrations')
 
-/** The statement that makes the table. */
-export const createMigrationsTable = (names: StoreNames) => {
+/** The statement that makes the table; with `ifMissing`, only when it is not there yet. */
+export const createMigrationsTable = (names: StoreNames, ifMissing = false) => {
   const table = migrationsTable(names)
   const { version, name, applied_at } = table.columns
-  return ddl`create table ${table} (
+  return ddl`create table ${sql.raw(ifMissing ? 'if not exists ' : '')}${table} (
   ${version} integer primary key,
   ${name} text not null,
   ${applied_at} timestamptz default current_timestamp not null

@@ -13,14 +13,22 @@ const appliedNames = async (tx: TransactionSql) => {
   return []
 }
 
+/** The `*.sql` files of `dir` the database has not recorded as applied, in their order, read in the transaction `tx`. */
+export const pendingIn = async (tx: TransactionSql, dir: string) => {
+  const files = (await readdir(dir)).filter((file) => file.endsWith('.sql')).sort()
+  const done = new Set(await appliedNames(tx))
+  return files.filter((file) => !done.has(file))
+}
+
+/** `pendingIn`, from a read-only transaction of its own. */
+export const pendingMigrations = (sql: Sql, dir: string) => sql.begin('read only', (tx) => pendingIn(tx, dir))
+
 /**
  * `protobase migrate --plan`: prints each `*.sql` file of `dir` that `migrate` would apply, in its order, under its
- * name, with its SQL, from a read-only transaction: it applies and records nothing. Returns the names.
+ * name, with its SQL: it applies and records nothing. Returns the names.
  */
 export const planMigrations = async (sql: Sql, dir: string, out: (text: string) => void) => {
-  const files = (await readdir(dir)).filter((file) => file.endsWith('.sql')).sort()
-  const done = new Set(await sql.begin('read only', (tx) => appliedNames(tx)))
-  const pending = files.filter((file) => !done.has(file))
+  const pending = await pendingMigrations(sql, dir)
   for (const file of pending) out(`-- ${file}\n${(await readFile(path.join(dir, file), 'utf8')).trimEnd()}\n\n`)
   out(pending.length > 0 ? `${pending.length} migrations to apply; nothing was applied\n` : 'the database is up to date\n')
   return pending

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import type { DeviceStore, HistoryStore } from '@protobase/server'
 import { migrationParts, type MigrationPart } from './parts'
-import type { MigrationProject } from './load-project'
+import type { MigrationProject } from './migration-project'
 
 const tickets = resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
 const project = (models: MigrationProject['models'], readOnlyQueries = false) => ({ models, views: [], db: {} as MigrationProject['db'], jobs: [], userTables: false, unsubscribe: false, mailFeedback: false, readOnlyQueries, authTables: { tables: [], schemas: [] }, close: async () => {} }) satisfies MigrationProject

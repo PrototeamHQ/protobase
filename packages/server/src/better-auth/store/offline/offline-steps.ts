@@ -1,5 +1,5 @@
 import type { ModuleId } from '../../names/modules'
-import { migrationsTableSql, statementsSql, stepsSql } from '../migration-sql'
+import { guardedStepsSql, migrationsTableSql, statementsSql } from '../migration-sql'
 import { refuseModulesOff } from '../modules-off'
 import { moduleSteps } from '../steps'
 import { legacyVersions } from '../steps/legacy-versions'
@@ -20,7 +20,8 @@ const refuseNewer = (lastSteps: LastSteps) => {
 
 /**
  * The steps of the modules that are on after `lastSteps`, the snapshot's, each version of the store's former chain
- * followed by its row in `auth_migrations`, which the server's check reads; for a store the snapshot has none of
+ * followed by its row in `auth_migrations`, which the server's check reads, each run only while that table lacks its
+ * version, so a database that has it already skips it; for a store the snapshot has none of
  * (`lastSteps` undefined), that table first. `checks`: the checks of the steps on tables the store has already, which
  * refuse when its rows break what a step assumes. `undefined` when the snapshot has every step.
  */
@@ -32,7 +33,7 @@ export const offlineStepsMigration = (names: StoreNames, lastSteps: LastSteps | 
   const rendered = renderSteps(migration, names.names.modules, had)
   if (rendered.length === 0) return undefined
   const recorded = (version: number) => (Object.entries(moduleSteps) as [ModuleId, (typeof moduleSteps)[ModuleId]][]).every(([module, steps]) => steps.filter((step) => step.version === version).every((step) => had(module, step)))
-  const steps = stepsSql(names, rendered, legacyVersions.map(({ version }) => version).filter((version) => !recorded(version)))
+  const steps = guardedStepsSql(names, rendered, legacyVersions.map(({ version }) => version).filter((version) => !recorded(version)))
   const checks = rendered.filter(({ module, step, on }) => on === undefined && step.check && had(module, moduleSteps[module][0]!)).map(({ step }) => statementsSql([step.check!(migration)]))
-  return { sql: lastSteps ? steps : [migrationsTableSql(names), steps].join('\n\n'), checks }
+  return { sql: lastSteps ? steps : [migrationsTableSql(names, true), steps].join('\n\n'), checks }
 }

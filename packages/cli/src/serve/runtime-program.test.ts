@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { runtimeProgram } from './runtime-program'
 
 const parse = async (...args: string[]) => {
-  const actions = { serve: vi.fn(async () => {}), migrate: vi.fn(async () => {}), createAdmin: vi.fn(async () => {}) }
+  const actions = { serve: vi.fn(async () => {}), migrate: vi.fn(async () => {}), migrateRelease: vi.fn(async () => {}), createAdmin: vi.fn(async () => {}) }
   const program = runtimeProgram(actions)
     .exitOverride()
     .configureOutput({ writeErr: () => {}, writeOut: () => {} })
@@ -27,6 +27,14 @@ describe('runtimeProgram', () => {
     const { actions } = await parse('migrate', '/app')
     expect(actions.migrate).toHaveBeenCalledWith('/app')
     expect(actions.serve).not.toHaveBeenCalled()
+  })
+
+  it("applies the release's steps to a bundle's database, or plans them with --plan", async () => {
+    const applied = await parse('migrate-release', '/app')
+    expect(applied.actions.migrateRelease).toHaveBeenCalledWith('/app', { plan: false })
+    const planned = await parse('migrate-release', '/app', '--plan')
+    expect(planned.actions.migrateRelease).toHaveBeenCalledWith('/app', { plan: true })
+    expect(planned.actions.migrate).not.toHaveBeenCalled()
   })
 
   it('creates an admin from a bundle, an email and the password options', async () => {

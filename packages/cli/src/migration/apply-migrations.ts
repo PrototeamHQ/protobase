@@ -4,12 +4,12 @@ import type { Sql } from 'postgres'
 import { adoptPublicRecord } from './adopt-public-record'
 
 // The key of the presets' db/migrate.ts scripts too, so this runner and theirs take turns on one database.
-const lockKey = 7_311_946_202
+export const lockKey = 7_311_946_202
 
 // Each file runs as the text of a PL/pgSQL EXECUTE, passed as a setting so it needs no quoting: Postgres refuses
 // BEGIN, COMMIT, ROLLBACK, SAVEPOINT and a committing DO or procedure there, and statements that cannot run in a
 // transaction, so no file ends the transaction early.
-const executeFile = "do $migration$ begin execute current_setting('migrations.file'); end $migration$"
+export const executeFile = "do $migration$ begin execute current_setting('migrations.file'); end $migration$"
 
 /**
  * Applies the `*.sql` files of `dir` not yet recorded in `migrations.applied`, in file name order and in one
