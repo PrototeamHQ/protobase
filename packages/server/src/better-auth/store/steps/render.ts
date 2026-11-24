@@ -1,6 +1,5 @@
 import type { RawBuilder } from 'kysely'
 import { builtInModules, type ModuleId } from '../../names/modules'
-import type { Had } from '../step-record'
 import { moduleSteps } from '.'
 import type { MigrationNames, Step } from './step'
 
@@ -9,6 +8,9 @@ import type { MigrationNames, Step } from './step'
  * `version` is the version of the former single chain whose tables and columns they make (`legacy-versions.ts`).
  */
 export type RenderedStep = { module: ModuleId; step: Step; on?: ModuleId; version: number; statements: RawBuilder<unknown>[] }
+
+/** Whether the store applied the part of `step` of `module` that changes the tables of `target`. */
+export type Had = (module: ModuleId, step: number, target: ModuleId) => boolean
 
 /**
  * The version of the former single chain that made the part of `step` changing the tables of `target`: the step's

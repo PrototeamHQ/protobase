@@ -3,8 +3,7 @@ import type { ModuleId } from '../../names/modules'
 import { resolveNames } from '../../names/resolve-names'
 import { userTable } from '../../user-table'
 import { ddlText } from '../ddl'
-import type { Had } from '../step-record'
-import { renderSteps } from './render'
+import { renderSteps, type Had } from './render'
 import { migrationNames } from './step'
 
 const render = (modules: ModuleId[], had: Had = () => false) => {

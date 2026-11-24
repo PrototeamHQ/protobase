@@ -2,7 +2,7 @@ import { sql, type Kysely } from 'kysely'
 import { builtInModules, type ModuleId } from '../names/modules'
 import { ddl } from './ddl'
 import { moduleSteps } from './steps'
-import type { RenderedStep } from './steps/render'
+import type { Had, RenderedStep } from './steps/render'
 import type { StoreNames } from './store-names'
 
 // The record of the store's steps, `auth_steps`: one row per part of a step applied, its module, its number and the
@@ -12,9 +12,6 @@ import type { StoreNames } from './store-names'
 
 /** A part of a step the store applied. */
 export type AppliedStep = { module: ModuleId; step: number; target: ModuleId }
-
-/** Whether the store applied the part of `step` of `module` that changes the tables of `target`. */
-export type Had = (module: ModuleId, step: number, target: ModuleId) => boolean
 
 /** `Had` over a list of applied parts. */
 export const hadOf =
