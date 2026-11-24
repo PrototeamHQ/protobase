@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { Kysely, sql } from 'kysely'
 import pg from 'pg'
 import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest'
-import { checkJobsSchema, defineJob, startJobs, type JobDefinition, type JobsRuntime } from '@protobase/server'
+import { defineJob, startJobs, type JobDefinition, type JobsRuntime } from '@protobase/server'
 import { appDialect } from '@protobase/server/internal'
 
 /**
@@ -30,7 +30,6 @@ export const jobsScenarios = (url: () => string) => {
   })
 
   const start = async (jobs: JobDefinition[], pollSeconds = 0.5) => {
-    await checkJobsSchema(db)
     runtime = await startJobs({ db, jobs, pollSeconds, onError: (error) => errors.push(error) })
   }
   const until = (check: () => unknown, timeout = 10_000) => vi.waitFor(check, { timeout, interval: 10 })

@@ -1,6 +1,6 @@
 import { Kysely, PostgresDialect, sql } from 'kysely'
 import pg from 'pg'
-import { authSchemaMigration, jobsSchemaMigration } from '@protobase/server'
+import { authSchemaMigration, jobsSchemaSql } from '@protobase/server'
 import { buildAuth } from '@protobase/server/internal'
 import { queryDdl } from '../../test-support/fixtures/query-ddl'
 import { restDdl } from '../../test-support/fixtures/rest-ddl'
@@ -76,7 +76,7 @@ export const snapshotTemplates = {
   /** A restored Supabase `storage` schema with buckets and policies, for `/api/sb/storage/v1`. */
   storage: snapshot('snapshot_storage_test_template', ['test-support/fixtures/storage-ddl.ts'], (db) => exec(db, storageDdl)),
   /** The jobs schema, as `protobase migration` writes it. */
-  jobs: snapshot('snapshot_jobs_test_template', ['packages/server/src/jobs'], async (db) => exec(db, (await jobsSchemaMigration(db))!)),
+  jobs: snapshot('snapshot_jobs_test_template', ['packages/server/src/jobs'], (db) => exec(db, jobsSchemaSql())),
   /**
    * On Supabase's Postgres image, a database as a dedicated Protobase Cloud instance has it, with the schema
    * `extensions` the tenant `postgres`'s own. A clone belongs to whoever made it, so a test makes the tenant its owner

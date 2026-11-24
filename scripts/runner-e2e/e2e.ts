@@ -11,7 +11,7 @@ import { serve } from '@hono/node-server'
 import { Kysely, PostgresDialect, sql } from 'kysely'
 import pg from 'pg'
 import { defineRoles } from '@protobase/schema'
-import { configExports, createAdmin, jobsSchemaMigration, startJobs, workflowsMigration, type WorkflowsOptions } from '@protobase/server'
+import { configExports, createAdmin, jobsSchemaSql, startJobs, workflowsMigration, type WorkflowsOptions } from '@protobase/server'
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import { partsOfDefinition, type Definition } from '@protobase/workflows'
 import { appKey } from '../../packages/runner/src/engine'
@@ -130,7 +130,7 @@ let exitCode = 1
 try {
   // The custom steps' and runners' tables index names for search, as every app's database can.
   await pool.query('create extension if not exists pg_trgm')
-  await pool.query((await jobsSchemaMigration(db))!)
+  await pool.query(jobsSchemaSql())
   await pool.query((await workflowsMigration(db, workflows))!)
   const { resources, views } = configExports(workflowsModule(workflows))
   const admin = createAdmin({

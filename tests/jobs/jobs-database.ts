@@ -3,7 +3,7 @@ import { Kysely, PostgresDialect } from 'kysely'
 import pg from 'pg'
 import postgres from 'postgres'
 import { afterAll, beforeAll } from 'vitest'
-import { jobsSchemaMigration } from '@protobase/server'
+import { jobsSchemaSql } from '@protobase/server'
 import { connectServer, databaseUrl } from '../../scripts/test-db/templates'
 
 /**
@@ -19,7 +19,7 @@ export const useJobsDatabase = () => {
     await admin.end()
     // As a project's db:migrate applies the file `protobase migration` writes: one transaction, through postgres.js.
     const db = new Kysely<any>({ dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString: databaseUrl(database), max: 1 }) }) })
-    const migration = (await jobsSchemaMigration(db))!
+    const migration = jobsSchemaSql()
     await db.destroy()
     const migrate = postgres(databaseUrl(database), { max: 1, onnotice: () => {} })
     await migrate.begin((tx) => tx.unsafe(migration))

@@ -280,5 +280,5 @@ export {
 export { definePdf, type PdfComponent, type PdfOptions, type PdfTemplate } from './pdf/define-pdf'
 export { startJobs, type DrainResult, type JobsRuntime, type StartJobsOptions } from './jobs/runtime'
 export { jobsDrainApp } from './jobs/drain-route'
-export { checkJobsSchema, jobsSchemaMigration, jobsSchema } from './jobs/schema'
+export { jobsSchema } from './jobs/schema'
 export { jobsSchemaSql } from './jobs/jobs-module'
