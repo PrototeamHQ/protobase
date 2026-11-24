@@ -169,7 +169,7 @@ export const listOrganizations = async (auth: AdminAuth, { after, size = organiz
   const { rows: members } = await sql<{ organizationId: string; email: string; role: string; appRoles: unknown }>`select m.${m.organization_id} as "organizationId",
       coalesce(u.${user.columns.email}, m.${m.user_id}::text) as email, m.${m.role} as role, m.${m.app_roles} as "appRoles"
     from ${store.table('member')} m left join ${user} u on u.id = m.${m.user_id}
-    where m.${m.organization_id} = any(${ids}) order by m.${m.created_at}, m.id`.execute(store.db)
+    where m.${m.organization_id} = any(${ids}) order by m.${m.organization_id}, m.${m.created_at}, m.id`.execute(store.db)
   const membersOf = new Map<string, typeof members>()
   for (const member of members) {
     const held = membersOf.get(member.organizationId)
