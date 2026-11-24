@@ -14,8 +14,24 @@ const comment = ({ module, step, on }: RenderedStep) => `-- ${module} ${step.ste
 // The statements of a part, then the row that records it in `auth_steps`.
 const partStatements = (names: StoreNames, part: RenderedStep) => [...part.statements, recordSteps(names, [partOf(part)])]
 
-/** The rendered steps, each under a comment naming it, each followed by the row that records it in `auth_steps`. */
-export const stepsSql = (names: StoreNames, rendered: RenderedStep[]) => rendered.map((part) => `${comment(part)}\n${statementsSql(partStatements(names, part))}`).join('\n\n')
+/**
+ * The rendered steps, each under a comment naming it, each followed by the row that records it in `auth_steps`, as
+ * one transaction: what a part leaves for after it commits runs in it, before that row.
+ */
+export const stepsSql = (names: StoreNames, rendered: RenderedStep[]) =>
+  rendered.map((part) => `${comment(part)}\n${statementsSql([...part.statements, ...part.after(false), recordSteps(names, [partOf(part)])])}`).join('\n\n')
+
+/**
+ * What the rendered steps leave for once the migration's transaction commits, as a migration's `.after.sql` runs it:
+ * outside a transaction, each statement under a comment naming its part; `undefined` when they leave nothing.
+ */
+export const afterStepsSql = (rendered: RenderedStep[]) => {
+  const parts = rendered.flatMap((part) => {
+    const statements = part.after(true)
+    return statements.length === 0 ? [] : [`${comment(part)}\n${statementsSql(statements)}`]
+  })
+  return parts.length === 0 ? undefined : `${parts.join('\n\n')}\n`
+}
 
 // The dollar quotes of a guarded part: its block, and each statement it executes.
 const blockQuote = '$step$'

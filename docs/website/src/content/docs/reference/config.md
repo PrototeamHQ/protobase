@@ -11,7 +11,7 @@ import { defineConfig } from '@protobase/config'
 
 export default defineConfig({
   timezone: 'Europe/Amsterdam',
-  auth: { roles: ['admin', 'sales'], organizations: true },
+  auth: { roles: { sales: 'Sales' }, organizations: { enabled: true, default: { id: 'main', name: 'Main', slug: 'main' } } },
   jobs: {
     'send-invoice': { description: 'Mails an invoice to its customer.', arguments: { invoiceId: 'bigint' }, maxAttempts: 5 },
   },

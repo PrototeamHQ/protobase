@@ -12,6 +12,7 @@ import { senderSharing } from './mail-senders/005-sender-sharing'
 import { mcp } from './mcp/001-mcp'
 import { organizations } from './organizations/001-organizations'
 import { organizationIndex } from './organizations/002-organization-index'
+import { defaultOrganization } from './organizations/003-default-organization'
 import { passkeys } from './passkeys/001-passkeys'
 import { rpIdIndex } from './passkeys/002-rp-id-index'
 import { personalAccessTokens } from './personal-access-tokens/001-personal-access-tokens'
@@ -29,7 +30,7 @@ export const moduleSteps: Record<ModuleId, Step[]> = {
   passkeys: [passkeys, rpIdIndex],
   sign_in_policy: [signInPolicy],
   staff_sign_in: [staffSignIn, staffSignInIndexes],
-  organizations: [organizations, organizationIndex],
+  organizations: [organizations, organizationIndex, defaultOrganization],
   mcp: [mcp],
   personal_access_tokens: [personalAccessTokens],
   mail_senders: [mailSenders, mailSenderNames, senderAddressEvidence, senderVerifications, senderSharing],

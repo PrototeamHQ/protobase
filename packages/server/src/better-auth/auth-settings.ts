@@ -3,7 +3,7 @@ import type { Db } from '@protobase/query'
 import type { Mailer } from '../mail/smtp-mailer'
 import { buildAuth, type CreateAuthOptions, type UserCreatedHook } from './create-auth'
 import type { McpAuthOptions } from './mcp/mcp-plugins'
-import type { OrganizationsOptions } from './organizations/options'
+import { organizationsEnabled, type OrganizationsOptions } from './organizations/options'
 import type { StoredMember, StoredOrganization } from './organizations/store'
 import type { AddVerifier } from '../personal-mail/verifiers/sender-address-verifier'
 import { senderVerifierList } from '../personal-mail/verifiers/verifier-list'
@@ -50,8 +50,11 @@ export type AuthSettings = Omit<CreateAuthOptions, 'database' | 'secret' | 'gene
   generateUserId?: 'uuid'
   /** `false` turns mail off whatever the environment says; default SMTP from `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM`. */
   mailer?: false
-  /** Turns on organizations (see `OrganizationsOptions`); their hooks are in the hooks module. */
-  organizations?: true | Omit<OrganizationsOptions, 'generateId' | 'onCreated' | 'beforeDelete' | 'hooks'>
+  /**
+   * Organizations (see `OrganizationsOptions`): `enabled` turns them on; their hooks are in the hooks module. Turning them
+   * off sets `enabled: false` and keeps `default`, whose organization then stands in for every one.
+   */
+  organizations?: Omit<OrganizationsOptions, 'generateId' | 'onCreated' | 'beforeDelete' | 'hooks'> & { enabled: boolean }
   /** Turns on the OAuth provider for MCP clients: `true`, or the endpoint's `path` and the `connectPage`. */
   mcp?: true | Omit<McpAuthOptions, 'fetchClientMetadata'>
 }
@@ -67,11 +70,12 @@ export type AppAuthInput = {
 }
 
 const organizationOptions = (organizations: AuthSettings['organizations'], hooks: AuthHooks, app: HookContext): OrganizationsOptions | undefined => {
-  if (!organizations) return undefined
+  if (!organizationsEnabled(organizations)) return undefined
+  const { enabled: _, ...options } = organizations!
   const own = hooks.organizationHooks ?? {}
   const betterAuthHooks = Object.fromEntries(Object.entries(own).map(([name, hook]) => [name, (input: unknown) => (hook as (input: unknown, app: HookContext) => unknown)(input, app)]))
   return {
-    ...(organizations === true ? {} : organizations),
+    ...options,
     ...(hooks.generateOrganizationId && { generateId: () => hooks.generateOrganizationId!(app) }),
     ...(hooks.onOrganizationCreated && { onCreated: (input) => hooks.onOrganizationCreated!(input, app) }),
     ...(hooks.beforeOrganizationDeleted && { beforeDelete: (organization) => hooks.beforeOrganizationDeleted!(organization, app) }),

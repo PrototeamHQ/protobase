@@ -2,10 +2,10 @@
   "format": 1,
   "protobaseVersion": "0.14.2",
   "endsAt": {
-    "file": "034_auth.sql",
-    "id": "c066f2b9-fc90-4a75-8d9b-e84adb9d5e4a"
+    "file": "035_auth.sql",
+    "id": "786a5f99-69fb-432d-be0e-f1ad8f4b172f"
   },
-  "modelHash": "3aff4632fbf966562df362ad55480bca74de8d67e2e2c3df3db8d6e1d15a1d38",
+  "modelHash": "bc7f35b480c28037b67c93b2ad766273e25fb7daf58577909e4d2ab9a615508d",
   "model": {
     "auth": {
       "schema": "auth",
@@ -232,7 +232,7 @@
           }
         },
         "organizations": {
-          "lastStep": 2,
+          "lastStep": 3,
           "tables": {
             "organization": {
               "name": "organization",
@@ -573,7 +573,11 @@
     },
     "organizations": {
       "everOn": true,
-      "defaultOrganization": null
+      "defaultOrganization": {
+        "id": "1",
+        "name": "ERP",
+        "slug": "erp"
+      }
     }
   },
   "physical": {

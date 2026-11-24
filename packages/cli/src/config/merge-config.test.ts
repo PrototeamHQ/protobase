@@ -125,6 +125,6 @@ describe('mergeConfig', () => {
   it("finds sign-in's files in the folder of the last config that sets auth, else in the app's own", () => {
     const [cloudFiles, appFiles] = [folder({}), folder({})]
     expect(mergeConfig(source('cloud', {}, cloudFiles), source('app', {}, appFiles)).authFiles).toBe(appFiles)
-    expect(mergeConfig(source('cloud', { auth: { organizations: true } }, cloudFiles), source('app', {}, appFiles)).authFiles).toBe(cloudFiles)
+    expect(mergeConfig(source('cloud', { auth: { organizations: { enabled: true } } }, cloudFiles), source('app', {}, appFiles)).authFiles).toBe(cloudFiles)
   })
 })

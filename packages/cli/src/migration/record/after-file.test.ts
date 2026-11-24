@@ -6,6 +6,11 @@ describe('afterStatements', () => {
     const text = '-- Indexes.\r\ncreate index concurrently if not exists a_idx\n  on a (x);\n\n-- Then the unique one.\ncreate unique index concurrently b_key on b (y);'
     expect(afterStatements(text)).toEqual(['create index concurrently if not exists a_idx\n  on a (x)', 'create unique index concurrently b_key on b (y)'])
   })
+
+  it('keeps a dollar-quoted body whole, semicolons and comment lines included', () => {
+    const block = 'do $fill$\nbegin\n  -- One batch.\n  update a set x = 1;\n  commit;\nend\n$fill$'
+    expect(afterStatements(`${block};\n\ncreate index concurrently a_idx on a (x);\n`)).toEqual([block, 'create index concurrently a_idx on a (x)'])
+  })
 })
 
 describe('builtIndex', () => {

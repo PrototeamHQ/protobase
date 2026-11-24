@@ -11,7 +11,7 @@ export const userTablesOn = (config: Pick<MergedConfig, 'userTables'>) => config
 export const checkUserTables = (config: MergedConfig) => {
   const value: unknown = config.userTables
   if (value !== undefined && typeof value !== 'boolean') throw new Error(`userTables is ${JSON.stringify(value)}; it takes true or false`)
-  if (userTablesOn(config) && config.authenticate?.organizations && !(config.auth && config.auth.organizations)) {
+  if (userTablesOn(config) && config.authenticate?.organizations && !(config.auth && config.auth.organizations?.enabled)) {
     throw new Error("userTables and authenticate.organizations are both on without auth.organizations; tables users add need the app's own organizations, so turn one of them off")
   }
   return config

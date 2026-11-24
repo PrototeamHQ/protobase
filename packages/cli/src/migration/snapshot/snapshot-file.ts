@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import type { DefaultOrganization } from '@protobase/server'
 import { modelHash as recordModelHash, type KeptModule, type StoreModel } from '@protobase/server/internal'
 
 // `protobase.snapshot.json`: the schema the project's migrations make, which `protobase migration` compares with what
@@ -28,8 +29,11 @@ export type Snapshot = {
   decisions: {
     /** The modules kept once turned off, each at the last step it had then, and those archived. */
     modules: { kept: KeptModule[]; archived: string[] }
-    /** Whether organizations were ever on, and the organization the users of an app without them belong to. */
-    organizations: { everOn: boolean; defaultOrganization: string | null }
+    /**
+     * Whether organizations were ever on, and the organization that stands in while they are off, as the config's
+     * `organizations.default` gave it; `null` before it did.
+     */
+    organizations: { everOn: boolean; defaultOrganization: DefaultOrganization | null }
     /** The relations of the store Protobase did not make, such as a user view over another system's users, which no step alters; none when absent. */
     external?: string[]
   }

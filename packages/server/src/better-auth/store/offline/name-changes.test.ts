@@ -17,6 +17,13 @@ describe('nameChanges', () => {
     ])
   })
 
+  it('takes a scope an earlier Protobase declared otherwise as no change, as the tokens’ once all the app’s', () => {
+    const now = model({ personalAccessTokens: { prefix: 'app_' } }, { auth: 5, personal_access_tokens: 1 } as never)
+    const token = now.modules.personal_access_tokens!.tables.personal_access_token!
+    const earlier = { ...now, modules: { ...now.modules, personal_access_tokens: { lastStep: 1, tables: { personal_access_token: { ...token, scope: 'global' as const } } } } }
+    expect(nameChanges(earlier, now)).toEqual([])
+  })
+
   it('takes a module the snapshot lacks as new', () => {
     expect(nameChanges(model({}, { auth: 5 }), model({}, { auth: 5, passkeys: 2 } as never))).toEqual([])
   })

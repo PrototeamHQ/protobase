@@ -21,6 +21,7 @@ export const legacyVersions = [
   { version: 15, name: 'sender_address_evidence' },
   { version: 16, name: 'sender_verifications' },
   { version: 17, name: 'sender_sharing' },
+  { version: 18, name: 'default_organization' },
 ]
 
 export type LegacyVersion = (typeof legacyVersions)[number]

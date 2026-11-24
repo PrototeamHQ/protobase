@@ -24,12 +24,14 @@ const authOn = (store: PostgresDatabase, options: Partial<CreateAuthOptions> = {
     secret: 'test-secret-test-secret-test-secret-1234',
     mailer: false,
     roles: { sales: 'Sales', manager: 'Manager' },
-    organizations: { create: 'everyone' },
+    organizations: { default: { id: 'default', name: 'Default', slug: 'default' }, create: 'everyone' },
     ...options,
   })
 
-// Organizations made a microsecond apart, the last one newest.
-const organizations = (count: number) => `insert into organization (id, name, slug, created_at)
+// Organizations made a microsecond apart, the last one newest, in place of the store's default organization, so the
+// counts are theirs alone.
+const organizations = (count: number) => `delete from organization where id = 'default';
+  insert into organization (id, name, slug, created_at)
   select 'o' || i, 'Organization ' || i, 'organization-' || i, timestamptz '2026-07-01 00:00:00+00' + i * interval '1 microsecond' from generate_series(1, ${count}) i`
 
 const root = `insert into "user" (id, name, email, email_verified, role, banned, created_at, updated_at)
@@ -93,8 +95,10 @@ describe.skipIf(!ready)('the organization functions, past 100,000 rows', () => {
 
 const uuidStore = async () => {
   const store = await openPostgresDatabase('empty')
-  const auth = authOn(store, { generateUserId: 'uuid', organizations: { create: 'everyone', generateId: () => crypto.randomUUID() } })
+  const auth = authOn(store, { generateUserId: 'uuid', organizations: { default: { id: '00000000-0000-4000-8000-000000000000', name: 'Default', slug: 'default' }, create: 'everyone', generateId: () => crypto.randomUUID() } })
   await store.exec((await authSchemaMigration(auth))!)
+  // The pages hold only the organizations the test makes, without the store's default organization.
+  await store.exec(`delete from organization where slug = 'default'`)
   return { store, auth }
 }
 

@@ -361,7 +361,7 @@ export default defineConfig({ notifications: { history: { table: 'inbox_items' }
 People set their own status, busy, do not disturb or a text of their own, which the people they share an organization with see, and do not disturb holds their pushes. It needs `auth` with organizations, and its table is written by `protobase migration`. See [Status](/reference/status/).
 
 ```ts
-export default defineConfig({ auth: { organizations: true }, status: {} })
+export default defineConfig({ auth: { organizations: { enabled: true, default: { id: 'main', name: 'Main', slug: 'main' } } }, status: {} })
 ```
 
 ## status.schema

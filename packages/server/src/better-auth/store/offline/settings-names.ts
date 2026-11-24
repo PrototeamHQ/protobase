@@ -1,5 +1,6 @@
 import type { AuthSettings } from '../../auth-settings'
 import { modulesOf } from '../../names/modules-on'
+import { organizationsEnabled } from '../../organizations/options'
 import { resolveNames } from '../../names/resolve-names'
 import { userTable } from '../../user-table'
 import type { StoreNames } from '../store-names'
@@ -14,7 +15,7 @@ export const settingsStoreNames = (settings: Pick<AuthSettings, 'schema' | 'tabl
   const schema = settings.schema ?? 'auth'
   return {
     schema,
-    names: resolveNames({ schema, tables: settings.tables, modules: modulesOf(settings) }),
+    names: resolveNames({ schema, tables: settings.tables, modules: modulesOf({ ...settings, organizations: organizationsEnabled(settings.organizations) }) }),
     users: userTable(settings.users),
     uuidIds: !ownUserIds && settings.generateUserId === 'uuid',
   }

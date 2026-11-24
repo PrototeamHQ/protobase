@@ -7,7 +7,17 @@ type OrganizationHooks = NonNullable<OrganizationOptions['organizationHooks']>
 /** The app's word for an organization, as a view's `names` are written: capitalised, in the app's language. */
 export type OrganizationNames = { singular: string; plural: string }
 
+/** The organization a store's rows belong to while organizations are off, and the first one when they turn on. */
+export type DefaultOrganization = { id: string; name: string; slug: string }
+
 export type OrganizationsOptions = {
+  /**
+   * The organization that stands in for every organization while they are off, which `protobase migration` makes when
+   * they turn on and gives the rows of an organization that were there already. Required once they were ever on.
+   */
+  default?: DefaultOrganization
+  /** The app role each user there already holds in `default` when organizations turn on the first time. */
+  existingUsersRole?: string
   /** The app roles an organization's creator holds there: `'all'` (default), every role a member can hold, or a list. */
   creatorAppRoles?: 'all' | string[]
   /** Who may create organizations: `'admins'` (default), superusers only, or `'everyone'` signed in. */
@@ -52,6 +62,20 @@ export type ResolvedOrganizations = {
   options: OrganizationsOptions
 }
 
+/** Whether the config's `auth.organizations` turns organizations on; refuses another shape, such as `true`. */
+export const organizationsEnabled = (organizations: unknown) => {
+  if (organizations === undefined) return false
+  const enabled = typeof organizations === 'object' && organizations !== null ? (organizations as { enabled?: unknown }).enabled : undefined
+  if (typeof enabled !== 'boolean') throw new Error("auth.organizations takes { enabled: true, default: { id, name, slug }, existingUsersRole }; set enabled: false to turn them off")
+  return enabled
+}
+
+/** Refuses a default organization without its id, name or slug. */
+export const checkDefaultOrganization = (organization: DefaultOrganization) => {
+  const missing = (['id', 'name', 'slug'] as const).filter((key) => typeof organization[key] !== 'string' || organization[key].trim() === '')
+  if (missing.length > 0) throw new Error(`organizations.default needs ${missing.join(', ')}, such as { id: 'main', name: 'Main', slug: 'main' }`)
+}
+
 export const resolveOrganizations = (options: OrganizationsOptions, definitions: RoleDefinitions): ResolvedOrganizations => {
   const holdable = membershipRoles(definitions)
   const creatorAppRoles = options.creatorAppRoles === undefined || options.creatorAppRoles === 'all' ? holdable : options.creatorAppRoles
@@ -62,6 +86,10 @@ export const resolveOrganizations = (options: OrganizationsOptions, definitions:
     throw new Error('organizations.names needs a singular and a plural, such as { singular: "Workspace", plural: "Workspaces" }')
   }
   if (options.createDescription !== undefined && options.createDescription.trim() === '') throw new Error('organizations.createDescription cannot be empty')
+  if (options.default !== undefined) checkDefaultOrganization(options.default)
+  if (options.existingUsersRole !== undefined && !holdable.includes(options.existingUsersRole)) {
+    throw new Error(`organizations.existingUsersRole is "${options.existingUsersRole}", which a member cannot hold: ${holdable.join(', ')}`)
+  }
   const days = options.invitationDays ?? 7
   if (!(days > 0)) throw new Error('invitationDays must be more than 0')
   return {

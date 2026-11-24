@@ -10,6 +10,9 @@ import { lintSteps } from './step-lint'
 import { migrationNames } from './step'
 import { moduleSteps } from '.'
 
+// The default organization the organizations' steps write rows from.
+const organizations = { default: { id: 'main', name: 'Main', slug: 'main' }, existingUsersRole: 'sales' }
+
 // Every step Protobase ships, rendered with each kind of configured name that changes its SQL.
 const configs: Record<string, { input: NamesInput; users?: UserTableOptions; uuidIds?: boolean }> = {
   'the built-in names': { input: { schema: undefined } },
@@ -73,12 +76,12 @@ describe('the steps Protobase ships', () => {
   for (const [label, { input, users = {}, uuidIds = false }] of Object.entries(configs)) {
     it(`are each safe to apply unattended, with ${label}`, () => {
       const names = resolveNames(input)
-      const rendered = renderSteps(migrationNames({ schema: input.schema, names, users: userTable(users), uuidIds }), names.modules, () => false)
-      const steps = rendered.map(({ module, step, on, statements }) => ({
+      const rendered = renderSteps(migrationNames({ schema: input.schema, names, users: userTable(users), uuidIds }), names.modules, () => false, organizations)
+      const steps = rendered.map(({ module, step, on, check, statements, after }) => ({
         label: `${module} ${step.step} ${step.name}${on ? ` on ${on}` : ''}`,
-        sql: statementsSql(statements),
+        sql: statementsSql([...statements, ...after(true)]),
         made: on ? [] : step.tables.map((table) => ddlText(ddl`${names.tables[table]!}`)),
-        checked: !on && step.check !== undefined,
+        checked: check !== undefined,
       }))
       expect(lintSteps(steps)).toEqual([])
     })

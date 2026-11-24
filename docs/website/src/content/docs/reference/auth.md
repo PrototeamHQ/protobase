@@ -756,11 +756,11 @@ auth: {
     sales: 'Sales',
     accountant: 'Accountant',
   },
-  organizations: { create: 'everyone' },
+  organizations: { enabled: true, default: { id: 'main', name: 'Main', slug: 'main' }, existingUsersRole: 'sales', create: 'everyone' },
 }
 ```
 
-It is Better Auth's organization plugin, with its tables named in snake_case (`organization`, `member`, `invitation`, `session.active_organization_id`); every store has them, and `user.last_organization_id`, with organizations on or off (see [migrations](#migrations)).
+It is Better Auth's organization plugin, with its tables named in snake_case (`organization`, `member`, `invitation`, `session.active_organization_id`, `user.last_organization_id`), which the store has while organizations are on, and keeps once they are turned off (see [migrations](#migrations)).
 
 **Two kinds of role.** Every membership has an organization role, Better Auth's `owner`, `admin` or `member`, which decides who manages the organization: owners and admins invite, remove and change members and edit its details; only owners hand it over, delete it or make owners. App roles, the project's `roles`, decide what the app shows and allows. A user holds them **globally** (the admin plugin's `role` column, as without organizations), which applies in every organization, or **per membership** (`member.app_roles`), which applies there only. A request's role, `ctx.user.roles`, is the session's [active role](#active-role), of either kind; access rules see the organization role as `ctx.organization.role`, read from the membership on each request, absent for someone who is no member there, such as a superuser who entered it. `admin` is the superuser: global only, it holds every role. With organizations every role needs a label; `owner` and `member` cannot be app role names, and `user` stands for an account without a global role.
 
@@ -790,6 +790,16 @@ await addAppRoleToOwners(auth, appRole)                                         
 ```
 
 The app's own pages are under the profile menu: the switcher, "Manage organizations" (theirs, a new one, and for global roles any one), "Organization" (details, leaving, handing over, deleting), and for owners and admins "Members" and "Invitations". The client has them as `session.organizations` (`list`, `current`, `switchTo`, `members`, `invite`, ...). `session.organizations.create({ name })` makes one from its name alone: the server makes the slug from the name, and when another organization has that slug, adds a dash and six random letters and digits, such as `acme-k3x9q2`. The organization page changes the slug afterwards.
+
+### The default organization
+
+Every table of the store is either the whole app's or an organization's. `member`, `invitation` and `personal_access_token` hold an organization's rows, each with its `organization_id`; the others, users, sessions, accounts, verifications, two-factor secrets, passkeys, the sign-in policy and the signing keys among them, are the app's. Each index of an organization's table serves one organization, leading with `organization_id`, or the whole app, such as a lookup by a person or an address; a key looked up from outside, such as a token's hash, stays unique across the app.
+
+The default organization, `organizations.default`, is the one that stands in for every organization while they are off. [`protobase migration`](/reference/cli/#migration) refuses without it once organizations are on or were ever on, and records it in `protobase.snapshot.json`. Turning organizations off sets `enabled: false` and keeps `default`; the store keeps their tables and columns, as [for any module](#turning-a-module-off).
+
+Turning organizations on for the first time makes the default organization under its id, and each user there already becomes its member, with the organization role `member` and the app role `existingUsersRole`; `protobase migration` refuses without that role, unless the store is new and holds no users. Each personal access token made before then works in the default organization: the migration's `.after.sql` fills them in batches, then makes their `organization_id` required, checked first without a long lock, and builds their index per organization concurrently. Turning organizations on again later fills nothing: a token made while they were off has no organization, so the migration refuses, naming it, as below. <gap>Personal access tokens made while organizations are off cannot work once they are on again because giving them the default organization as they are made is not implemented.</gap> On a store whose organizations were on before, such as one [`migration baseline`](/reference/cli/#migration) started, the default organization is made when the store lacks it, no one becomes its member, and a token without an organization is not given the default one, which would guess where it works: the migration refuses, naming each such token, so you delete them, or set the organization each works in, in a migration of your own written before it. With organizations on, a personal access token is made in the session's active organization, and refused without one.
+
+<gap>Organizations turned off after being on cannot keep sign-in, sessions and tokens to the default organization because filtering the store's lookups on `authenticate.tenant` is not implemented.</gap>
 
 ### First organization and start address
 

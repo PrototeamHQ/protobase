@@ -1,6 +1,7 @@
 import { sql, type RawBuilder } from 'kysely'
 import { tableId, type TableId } from '../../names/identifiers'
 import type { ModuleId } from '../../names/modules'
+import type { DefaultOrganization } from '../../organizations/options'
 import type { ResolvedNames } from '../../names/resolve-names'
 import type { StoreNames } from '../store-names'
 
@@ -12,6 +13,8 @@ export type MigrationNames = {
   user: TableId
   /** The user table's own statements, which make it or add its columns: none when it is a view (`users.keyTable`). */
   userDdl: (statements: RawBuilder<unknown>[]) => RawBuilder<unknown>[]
+  /** Whether the user table is a relation Protobase did not make, whose users may be there before the store. */
+  externalUser: boolean
   /** The user table's JSON metadata column (`users.metadata`), when there is one. */
   metadata: string | undefined
   /** An id column's type and default, before `primary key`. */
@@ -20,7 +23,31 @@ export type MigrationNames = {
   idRef: RawBuilder<unknown>
 }
 
-type Statements = (names: MigrationNames) => RawBuilder<unknown>[]
+/** The organizations' settings a step writes rows from: the default organization, and the app role of the users there already. */
+export type OrganizationsInput = { default: DefaultOrganization; existingUsersRole: string | undefined }
+
+/** The organizations' input of the steps from their settings; `undefined` without a default organization. */
+export const organizationsInput = (settings: { default?: DefaultOrganization; existingUsersRole?: string } | undefined): OrganizationsInput | undefined =>
+  settings?.default ? { default: settings.default, existingUsersRole: settings.existingUsersRole } : undefined
+
+/**
+ * What a step writes that the config decides rather than the store's names, kept apart from them: `organizations`,
+ * undefined when the config has no default organization; `firstOn`, whether the migration makes the organizations'
+ * tables, as when they turn on for the first time, rather than finding them there; `usersThere`, whether the user
+ * table may hold users already: the store had it, or another system made it.
+ */
+export type StepInput = { organizations: OrganizationsInput | undefined; firstOn: boolean; usersThere: boolean }
+
+type Statements = (names: MigrationNames, input: StepInput) => RawBuilder<unknown>[]
+
+type Check = (names: MigrationNames, input: StepInput) => RawBuilder<unknown>
+
+/**
+ * Statements that run once the migration's transaction commits: with `concurrent`, outside any transaction, from the
+ * migration's `.after.sql`, so a fill may commit batch by batch and an index build concurrently; without it, as when the
+ * store is written as one transaction, inside it, as one update and a plain index.
+ */
+type After = (names: MigrationNames, input: StepInput, concurrent: boolean) => RawBuilder<unknown>[]
 
 /**
  * One step of a module's chain, numbered from 1 within its module. Once released its statements never change, only the
@@ -50,10 +77,14 @@ export type Step = {
    * A `do` block that refuses, before the statements, when the rows already there break what the step assumes: it names
    * the rows and says to fix them in a migration of the project's own written before this one.
    */
-  check?: (names: MigrationNames) => RawBuilder<unknown>
+  check?: Check
   statements: Statements
   /** Its statements on the tables of other modules, by module: they run only while that module is on, once its tables are there. */
   adds?: Partial<Record<ModuleId, Statements>>
+  /** The checks of those statements, by module, which refuse as `check` does before them; none where the input needs none. */
+  addsChecks?: Partial<Record<ModuleId, (names: MigrationNames, input: StepInput) => RawBuilder<unknown> | undefined>>
+  /** What those statements leave to run once the migration's transaction commits, by module (`After`). */
+  addsAfter?: Partial<Record<ModuleId, After>>
 }
 
 /**
@@ -64,6 +95,7 @@ export const migrationNames = ({ names, users, uuidIds }: StoreNames, externalUs
   table: names.table,
   user: users.keyTable ? tableId(users.keyTable.schema, users.keyTable.table) : names.table('user'),
   userDdl: (statements) => (externalUser ? [] : statements),
+  externalUser,
   metadata: users.metadata,
   id: sql.raw(uuidIds ? 'uuid default pg_catalog.gen_random_uuid()' : 'text'),
   idRef: sql.raw(uuidIds ? 'uuid' : 'text'),

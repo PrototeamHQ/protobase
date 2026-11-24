@@ -24,7 +24,7 @@ The tokens live in the auth store's `personal_access_token` table, the `personal
 
 The account page's Access tokens tab, at `/-/account/tokens`, lists the person's tokens with their name, when each was made, when it expires and when it was last used, and the role and organization it acts with, and revokes any of them after asking. New token asks for a name and an expiry: in 30 days, in 90 days, in a year, or never. The new token is shown once, to copy: the app keeps only its SHA-256 hash, so nobody can show it again. The tab is not offered in an app without the setting.
 
-A token acts with the role, and with [organizations](/reference/auth/#organizations) the organization, the session that made it works in, as its own tokens would. Someone with several roles who wants a token for another one [switches role](/reference/auth/#active-role) first. Someone with no role there cannot make one (`403 NO_ROLE`).
+A token acts with the role, and with [organizations](/reference/auth/#organizations) the organization, the session that made it works in, as its own tokens would. Someone with several roles who wants a token for another one [switches role](/reference/auth/#active-role) first. Someone with no role there cannot make one (`403 NO_ROLE`). With organizations on, every token belongs to one: a session that works in none cannot make one (`403 NO_ORGANIZATION`).
 
 - A session that signed in more than a day ago [confirms it's them](/reference/auth/#confirming-an-account-change) first, in place, since a token acts as them long after that session ends.
 - A [staff session](/reference/auth/#staff-sign-in) cannot make or revoke a token (`STAFF_CANNOT_CHANGE_SIGN_IN`); it may see the list.

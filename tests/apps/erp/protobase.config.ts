@@ -19,8 +19,9 @@ export default defineConfig({
       editor: 'Editor',
       integration: 'Integration',
     },
-    // New users and organizations take their ids from the ERP's own sequences (auth/hooks.ts).
-    organizations: true,
+    // New users and organizations take their ids from the ERP's own sequences (auth/hooks.ts); organization 1 is the
+    // one the base seed makes (seed/base-organization.ts).
+    organizations: { enabled: true, default: { id: '1', name: 'ERP', slug: 'erp' }, existingUsersRole: 'sales' },
   },
   jobs: {
     'mark-invoice-overdue': {

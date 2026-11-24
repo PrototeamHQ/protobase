@@ -8,13 +8,28 @@ export const afterFileOf = (file: string) => file.replace(/\.sql$/, '.after.sql'
 
 export const isAfterFile = (file: string) => file.endsWith('.after.sql')
 
-/** Its statements: each ends with a semicolon at the end of a line. Comment lines between them are dropped. */
-export const afterStatements = (text: string) =>
-  text
-    .replaceAll('\r\n', '\n')
-    .split(/;[ \t]*(?:\n|$)/)
-    .map((statement) => statement.split('\n').filter((line) => !/^\s*--/.test(line)).join('\n').trim())
-    .filter((statement) => statement !== '')
+// A dollar quote's tag, such as `$fill$` or `$$`, which opens a body until the same tag closes it.
+const dollarTag = /\$(?:[A-Za-z_][\w]*)?\$/g
+
+/**
+ * Its statements: each ends with a semicolon at the end of a line outside a dollar-quoted body, so a `do` block whose
+ * own statements end lines is one statement. Comment lines between them are dropped.
+ */
+export const afterStatements = (text: string) => {
+  const statements: string[] = []
+  let lines: string[] = []
+  let open: string | undefined
+  for (const line of text.replaceAll('\r\n', '\n').split('\n')) {
+    if (open === undefined && /^\s*--/.test(line)) continue
+    for (const [tag] of line.matchAll(dollarTag)) open = open === undefined ? tag : open === tag ? undefined : open
+    lines.push(line)
+    if (open !== undefined || !/;[ \t]*$/.test(line)) continue
+    statements.push(lines.join('\n').replace(/;[ \t]*$/, ''))
+    lines = []
+  }
+  statements.push(lines.join('\n'))
+  return statements.map((statement) => statement.trim()).filter((statement) => statement !== '')
+}
 
 const identifier = '(?:"(?:[^"]|"")+"|[A-Za-z_][\\w$]*)'
 const createIndex = new RegExp(`^create\\s+(unique\\s+)?index\\s+concurrently\\s+(?:if\\s+not\\s+exists\\s+)?(${identifier})\\s+on\\s+(?:only\\s+)?(${identifier}(?:\\.${identifier})?)`, 'i')

@@ -7,7 +7,7 @@ import { appliedVersions, stepRecordMigration, stepsOfVersions } from './store/l
 import { stepRecordSql, stepsSql } from './store/migration-sql'
 import { appliedSteps, hadOf } from './store/step-record'
 import { renderSteps, type Had } from './store/steps/render'
-import { migrationNames } from './store/steps/step'
+import { migrationNames, organizationsInput } from './store/steps/step'
 import { plainStoreDb } from './store/store-db'
 import { storeNames, type StoreNames } from './store/store-names'
 
@@ -17,8 +17,8 @@ import { storeNames, type StoreNames } from './store/store-names'
 // of migrations instead (`checkMigrationRecord`).
 
 // The parts of the modules that are on that the store lacks, each followed by its row in `auth_steps`.
-const pendingSql = (names: StoreNames, had: Had) => {
-  const rendered = renderSteps(migrationNames(names), names.names.modules, had)
+const pendingSql = (auth: AdminAuth, names: StoreNames, had: Had) => {
+  const rendered = renderSteps(migrationNames(names), names.names.modules, had, organizationsInput(auth.organizations?.options))
   return rendered.length === 0 ? [] : [stepsSql(names, rendered)]
 }
 
@@ -33,13 +33,13 @@ export const authSchemaMigration = async (auth: AdminAuth) => {
   const names = storeNames(auth)
   const db = plainStoreDb(auth)
   const applied = await appliedSteps(db, names)
-  if (applied !== undefined) return pendingSql(names, hadOf(applied))[0]
+  if (applied !== undefined) return pendingSql(auth, names, hadOf(applied))[0]
   const record = stepRecordSql(names)
   const versions = await appliedVersions(db, names)
-  if (versions !== undefined) return [stepRecordMigration(names), ...pendingSql(names, hadOf(stepsOfVersions(versions)))].join('\n\n')
-  if (!(await storeHasTables(db, names))) return [record, ...pendingSql(names, hadOf([]))].join('\n\n')
+  if (versions !== undefined) return [stepRecordMigration(names), ...pendingSql(auth, names, hadOf(stepsOfVersions(versions)))].join('\n\n')
+  if (!(await storeHasTables(db, names))) return [record, ...pendingSql(auth, names, hadOf([]))].join('\n\n')
   const { adopted, pending } = await planAdoption(db, names)
-  const rest = pending.length === 0 ? [] : pendingSql(names, hadOf(stepsOfVersions(adopted.map(({ migration }) => migration.version))))
+  const rest = pending.length === 0 ? [] : pendingSql(auth, names, hadOf(stepsOfVersions(adopted.map(({ migration }) => migration.version))))
   return [record, adoptionSql(names, adopted), ...rest].join('\n\n')
 }
 

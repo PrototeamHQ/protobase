@@ -1,11 +1,18 @@
+import { storeModel } from '@protobase/server/internal'
 import { authMigrationTitle } from '../../auth/migration-file'
-import { authRefusals, stepsAfter } from './auth-difference'
+import { authRefusals, organizationRefusals, redescribed, snapshotStore, stepsAfter } from './auth-difference'
 import type { AuthTarget } from './auth-target'
 import { inconsistencies } from './consistency'
 import { lintCustomFiles } from './lint-custom'
 import { moduleChanges } from './module-changes'
 import { readMigrationFiles } from './migration-files'
 import { readSnapshot, snapshotFile } from './snapshot-file'
+
+// Whether the config turns no module off or on again since the snapshot, which would change the store's model itself.
+const unswitched = (snapshot: Parameters<typeof moduleChanges>[0], auth: AuthTarget) => {
+  const { off, revived } = moduleChanges(snapshot, auth)
+  return off.length === 0 && revived.length === 0
+}
 
 /**
  * `protobase migration check`, for CI: what keeps the migrations from matching the config, one line each, from the
@@ -21,8 +28,12 @@ export const checkMigrations = async (projectDir: string, dir: string, auth: Aut
     found.push(`the project has auth migrations from before ${snapshotFile}: start it with \`protobase migration baseline\`, against the database with the project's migrations applied`)
   } else if (refusals.length > 0) {
     found.push(...refusals)
+  } else if (auth && organizationRefusals(snapshot, auth).length > 0) {
+    found.push(...organizationRefusals(snapshot, auth))
   } else if (auth && stepsAfter(snapshot, auth)) {
     found.push('the config and this version of Protobase need auth store steps the migrations lack: run `protobase migration`')
+  } else if (auth && snapshot?.model.auth && unswitched(snapshot, auth) && redescribed(snapshot.model.auth, storeModel(auth.names, snapshotStore(snapshot)!.lastSteps))) {
+    found.push('this version of Protobase describes the auth store otherwise than the migrations record it: run `protobase migration`')
   }
   const changes = moduleChanges(snapshot, auth)
   const switched = [...changes.off.map(({ module }) => `${module} off`), ...changes.revived.map(({ module }) => `${module} on again`)]

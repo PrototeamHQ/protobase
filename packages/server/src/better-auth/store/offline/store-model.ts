@@ -1,7 +1,6 @@
-import { builtInModules, type ModuleId } from '../../names/modules'
+import type { ModuleId } from '../../names/modules'
 import { allModules } from '../../names/modules-on'
 import { resolveNames } from '../../names/resolve-names'
-import type { ModuleDeclaration } from '../../names/declaration'
 import { moduleSteps } from '../steps'
 import type { StoreNames } from '../store-names'
 
@@ -20,7 +19,7 @@ export type StoreModel = {
   userKeyTable: string | null
   /** The user table's JSON metadata column (`users.metadata`). */
   userMetadata: string | null
-  /** Whether every table whose rows belong to an organization has the column that names it. */
+  /** Whether every table whose rows belong to an organization has the column that names it while organizations are on. */
   scopedTablesCarryOrganization: boolean
   /** Each module that is on: its last step applied and its tables by internal name. */
   modules: Partial<Record<ModuleId, { lastStep: number; tables: Record<string, ModelTable> }>>
@@ -32,8 +31,6 @@ export type LastSteps = Partial<Record<ModuleId, number>>
 /** The last step of each module of `modules`, as this version of Protobase ships them. */
 export const latestSteps = (modules: readonly ModuleId[]): LastSteps => Object.fromEntries(modules.map((module) => [module, moduleSteps[module].at(-1)!.step]))
 
-const declaredIndexes = (internal: string) => (builtInModules as readonly ModuleDeclaration[]).flatMap((module) => module.tables[internal]?.indexes ?? [])
-
 /** The model of a store with `names` at `lastSteps`: a module `lastSteps` leaves out is not in it. */
 export const storeModel = ({ schema, names, users, uuidIds }: StoreNames, lastSteps: LastSteps): StoreModel => {
   const tables = Object.values(names.tables)
@@ -43,7 +40,7 @@ export const storeModel = ({ schema, names, users, uuidIds }: StoreNames, lastSt
     ids: uuidIds ? 'uuid' : 'text',
     userKeyTable: users.keyTable ? `${users.keyTable.schema}.${users.keyTable.table}` : null,
     userMetadata: users.metadata ?? null,
-    scopedTablesCarryOrganization: tables.filter((table) => table.scope === 'organization').every((table) => 'organization_id' in table.columns),
+    scopedTablesCarryOrganization: !names.modules.includes('organizations') || tables.filter((table) => table.scope === 'organization').every((table) => 'organization_id' in table.columns),
     modules: Object.fromEntries(
       modules.map((module) => [
         module,
@@ -58,7 +55,7 @@ export const storeModel = ({ schema, names, users, uuidIds }: StoreNames, lastSt
                   name: table.name,
                   scope: table.scope,
                   columns: Object.fromEntries(Object.values(table.columns).map((column) => [column.internal, column.name])),
-                  indexes: Object.fromEntries(declaredIndexes(table.internal).map((index) => [index, table.index(index).name])),
+                  indexes: Object.fromEntries(Object.keys(table.indexes).map((index) => [index, table.index(index).name])),
                 },
               ]),
           ),

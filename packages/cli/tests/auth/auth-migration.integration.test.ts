@@ -9,7 +9,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { Kysely, PostgresDialect } from 'kysely'
 import { f, resource } from '@protobase/schema'
 import { authSchemaDrift, authSchemaMigration, checkMigrationRecord, checkResourcesOutsideAuthStore, createOrganization, createUser, unauthorized, type AdminAuth } from '@protobase/server'
-import { buildAuth, createAuth, stepsOfVersions, storeNames } from '@protobase/server/internal'
+import { buildAuth, createAuth, legacyVersions, organizationsInput, stepsOfVersions, storeNames } from '@protobase/server/internal'
 import { checkMigrations } from '../../src/migration/snapshot/check'
 import { readSnapshot } from '../../src/migration/snapshot/snapshot-file'
 import { migrationText } from '../../src/auth/migration-file'
@@ -98,10 +98,10 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
   // Each part of a step the store recorded, as `module step` or `module step on target`, sorted.
   const label = ({ module, step, target }: { module: string; step: number; target: string }) => `${module} ${step}${target === module ? '' : ` on ${target}`}`
   const versions = async (databaseUrl: string, table = 'auth_steps') => (await query<{ module: string; step: number; target: string }>(databaseUrl, `select module, step, target from ${table}`)).map(label).sort()
-  // Every part of every step of the modules `auth` has on, as the former chain's versions 1 to 17 made them.
+  // Every part of every step of the modules `auth` has on, by the versions of the steps this Protobase ships.
   const everyOf = (auth: AdminAuth) => {
     const on = storeNames(auth).names.modules
-    return stepsOfVersions([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17])
+    return stepsOfVersions(legacyVersions.map(({ version }) => version))
       .filter(({ module, target }) => on.includes(module) && on.includes(target))
       .map(label)
       .sort()
@@ -109,7 +109,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
   // Every feature that keeps something in the store: organizations, the OAuth provider for MCP, personal access tokens
   // and the From addresses of personal mail.
   const personalMail = { personalMail: ['gmail' as const], encryptOAuthTokens: true, socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } } }
-  const allOn = { organizations: { create: 'everyone' as const }, mcp: true as const, personalAccessTokens: { prefix: 'test_' }, ...personalMail }
+  const allOn = { organizations: { default: { id: 'default', name: 'Default', slug: 'default' }, create: 'everyone' as const }, mcp: true as const, personalAccessTokens: { prefix: 'test_' }, ...personalMail }
   // An auth with `features` on, over a database of its own.
   const authWith = async (databaseUrl: string, features: Partial<typeof allOn>) => {
     const auth = await buildAuth({ database: new pg.Pool({ connectionString: databaseUrl, max: 2 }), baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProviders: [], ...features })
@@ -139,7 +139,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     expect(await readdir(folder)).toEqual(['001_auth.sql'])
     // The file starts the project's snapshot, at every step, so `protobase migration` goes on from it.
     expect(await readSnapshot(projectOf(folder))).toMatchObject({ endsAt: { file: '001_auth.sql' } })
-    expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: true })).toEqual([])
+    expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: true, organizations: organizationsInput(auth.organizations?.options) })).toEqual([])
   })
 
   it('starts the snapshot of a project whose auth migrations came before it with a file without statements', async () => {
@@ -149,7 +149,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     // The project's auth migration as an earlier Protobase wrote it, without Protobase's lines or a snapshot.
     await writeFile(path.join(folder, '001_auth.sql'), migrationText((await authSchemaMigration(auth))!))
     await applyAll(databaseUrl, folder)
-    expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: false })).toEqual([
+    expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: false, organizations: undefined })).toEqual([
       "the project has auth migrations from before protobase.snapshot.json: start it with `protobase migration baseline`, against the database with the project's migrations applied",
     ])
 
@@ -160,7 +160,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     await query(databaseUrl, text)
     expect(await versions(databaseUrl)).toEqual(everyOf(auth))
     expect(await readSnapshot(projectOf(folder))).toMatchObject({ endsAt: { file: '002_auth.sql' } })
-    expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: false })).toEqual([])
+    expect(await checkMigrations(projectOf(folder), folder, { names: storeNames(auth), organizationsOn: false, organizations: undefined })).toEqual([])
     expect(await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })).toBeUndefined()
   })
 
@@ -204,7 +204,8 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
       tables: { user: { name: 'people', columns: { email: 'address', two_factor_enabled: 'mfa', last_organization_id: 'last_org' } } },
       users: { metadata: 'meta' },
       generateUserId: 'uuid' as const,
-      organizations: allOn.organizations,
+      // Its ids are uuids, the default organization's too.
+      organizations: { ...allOn.organizations, default: { id: '00000000-0000-4000-8000-000000000000', name: 'Default', slug: 'default' } },
     }
     const auth = createAuth(options)
     const folder = await migrationsDir()
@@ -236,7 +237,9 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
 
     const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
     pools.push(pool)
-    const on = await buildAuth({ database: pool, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProviders: [], ...allOn })
+    // Root, there already, becomes a member of the default organization with the role the config names.
+    const organizations = { ...allOn.organizations, existingUsersRole: 'sales' }
+    const on = await buildAuth({ database: pool, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProviders: [], roles: { sales: 'Sales' }, ...allOn, organizations })
     await expect(checkRecord(on)).rejects.toThrow(/so the server will not start/)
     const text = await readFile((await writeAuthMigration({ auth: on, projectDir: projectOf(folder), dir: folder, name: 'auth' }))!, 'utf8')
     expect(text).toContain('-- organizations 1 organizations: ')
@@ -247,7 +250,10 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     expect(await authSchemaDrift(on)).toEqual([])
     expect(await query(databaseUrl, 'select last_organization_id from "user"')).toEqual([{ last_organization_id: null }])
     await createOrganization(on, { name: 'Acme', slug: 'acme', owner: 'root@example.com' })
-    expect(await query(databaseUrl, 'select o.slug, m.role from member m join organization o on o.id = m.organization_id')).toEqual([{ slug: 'acme', role: 'owner' }])
+    expect(await query(databaseUrl, 'select o.slug, m.role, m.app_roles from member m join organization o on o.id = m.organization_id order by o.slug')).toEqual([
+      { slug: 'acme', role: 'owner', app_roles: ['sales'] },
+      { slug: 'default', role: 'member', app_roles: ['sales'] },
+    ])
   })
 
   it('writes only the migrations the store has not applied, as the next file', async () => {

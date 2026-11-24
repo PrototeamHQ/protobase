@@ -8,7 +8,7 @@ import { settingsStoreNames } from './settings-names'
 import { latestSteps } from './store-model'
 
 // Every feature with tables of its own on, so every module is.
-const names = settingsStoreNames({ organizations: true, mcp: true, personalAccessTokens: { prefix: 'app_' }, personalMail: ['gmail'] })
+const names = settingsStoreNames({ organizations: { enabled: true }, mcp: true, personalAccessTokens: { prefix: 'app_' }, personalMail: ['gmail'] })
 const versionsTo = (last: number) => legacyVersions.filter(({ version }) => version <= last).map(({ version }) => version)
 const stepsTo = (last: number) => stepsOfVersions(versionsTo(last))
 
@@ -54,7 +54,7 @@ describe('baselineStore', () => {
 
   it('reads organizations as never on when no table whose rows belong to one has the column that names it', () => {
     const live = liveStore(17)
-    for (const table of ['member', 'invitation']) live.relations[table] = { kind: 'r', columns: [] }
+    for (const table of ['member', 'invitation', 'personal_access_token']) live.relations[table] = { kind: 'r', columns: [] }
     expect(baselineStore(names, live).organizationsEverOn).toBe(false)
   })
 

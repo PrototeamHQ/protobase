@@ -21,7 +21,7 @@ describe('resolveNames', () => {
 
   it('says which tables hold rows of one organization', () => {
     const { tables } = resolveNames({ schema: undefined })
-    expect(Object.values(tables).filter(({ scope }) => scope === 'organization').map(({ internal }) => internal)).toEqual(['member', 'invitation'])
+    expect(Object.values(tables).filter(({ scope }) => scope === 'organization').map(({ internal }) => internal)).toEqual(['member', 'invitation', 'personal_access_token'])
   })
 
   it('takes a prefix, a table name and column names, keeping the rest', () => {

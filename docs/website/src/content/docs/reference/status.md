@@ -15,7 +15,7 @@ A status says whether someone wants to be reached: an availability, busy or do n
 import { defineConfig } from '@protobase/config'
 
 export default defineConfig({
-  auth: { organizations: true },
+  auth: { organizations: { enabled: true, default: { id: 'main', name: 'Main', slug: 'main' } } },
   status: {},
 })
 ```

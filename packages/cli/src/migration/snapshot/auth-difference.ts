@@ -1,7 +1,7 @@
 import { keepSql, latestSteps, nameChanges, resolveNames, offlineStepsMigration, revivalCheckSql, storeModel, type LastSteps, type ModuleId, type OffChoice, type SnapshotStore, type StoreModel } from '@protobase/server/internal'
 import type { AuthTarget } from './auth-target'
 import { keptAfter, moduleChanges } from './module-changes'
-import { snapshotFile, type Snapshot } from './snapshot-file'
+import { modelHash, snapshotFile, type Snapshot } from './snapshot-file'
 
 /** Each module's last step in a model. */
 export const lastStepsOf = (model: StoreModel): LastSteps => Object.fromEntries(Object.entries(model.modules).map(([module, entry]) => [module, entry!.lastStep]))
@@ -39,6 +39,23 @@ export const authRefusals = (snapshot: Snapshot | undefined, target: AuthTarget 
 }
 
 /**
+ * What the config lacks of organizations, one line each: the default organization, once they are on or were ever on,
+ * which stands in for every one while they are off; and the role of the users there already, as they turn on for the
+ * first time over a store that may hold users, which each becomes a member of the default organization with.
+ */
+export const organizationRefusals = (snapshot: Snapshot | undefined, target: AuthTarget) => {
+  const everOn = snapshot?.decisions.organizations.everOn ?? false
+  if (!target.organizationsOn && !everOn) return []
+  if (!target.organizations) return [`organizations.default is not set, and organizations ${target.organizationsOn ? 'are on' : 'were on'}: give the config the organization that stands in while they are off, such as default: { id: 'main', name: 'Main', slug: 'main' }`]
+  const store = snapshotStore(snapshot)
+  const firstOn = target.organizationsOn && store?.lastSteps.organizations === undefined
+  // A new store with its own user table holds no users yet.
+  const usersThere = store !== undefined || target.names.users.keyTable !== undefined || externalUser(snapshot, target)
+  if (firstOn && usersThere && target.organizations.existingUsersRole === undefined) return ['organizations.existingUsersRole is not set, and organizations turn on: name the app role every user there already holds in the default organization']
+  return []
+}
+
+/**
  * The store as the snapshot has it, for the steps after its own: each module's last step, a kept one's included, so a
  * module turned on again goes on from it; `undefined` when it has none.
  */
@@ -57,7 +74,7 @@ const externalUser = (snapshot: Snapshot | undefined, target: AuthTarget) => {
 }
 
 /** The steps the store lacks after the snapshot's, which leave alone a user table the snapshot records as external. */
-export const stepsAfter = (snapshot: Snapshot | undefined, target: AuthTarget) => offlineStepsMigration(target.names, snapshotStore(snapshot), externalUser(snapshot, target))
+export const stepsAfter = (snapshot: Snapshot | undefined, target: AuthTarget) => offlineStepsMigration(target.names, snapshotStore(snapshot), target.organizations, externalUser(snapshot, target))
 
 /** How to write what the steps cannot, once refused. */
 export const customHint = 'Write the change by hand with `protobase migration --custom <name> --record-config`.'
@@ -74,6 +91,8 @@ export const offHint = 'Run `protobase migration` in a terminal to choose what b
 export const authDifference = (snapshot: Snapshot | undefined, target: AuthTarget | undefined, off?: OffChoice) => {
   const refusals = authRefusals(snapshot, target)
   if (refusals.length > 0) throw new Error(`${refusals.join('; ')}. ${customHint}`)
+  const unset = target ? organizationRefusals(snapshot, target) : []
+  if (unset.length > 0) throw new Error(unset.join('; '))
   const changes = moduleChanges(snapshot, target)
   const kept = keptAfter(snapshot?.decisions.modules.kept ?? [], changes)
   if (!target) return { model: undefined, migration: undefined, changes, kept }
@@ -86,6 +105,15 @@ export const authDifference = (snapshot: Snapshot | undefined, target: AuthTarge
     ...changes.revived.map(({ module, step }) => revivalCheckSql(target.names, module, step)),
     ...(steps ? [steps.sql] : []),
   ]
-  const migration = parts.length === 0 ? undefined : { sql: parts.join('\n\n'), checks: steps?.checks ?? [] }
-  return { migration, model: storeModel(target.names, steps || !before ? latestSteps(target.names.names.modules) : snapshotStore(snapshot)!.lastSteps), changes, kept }
+  const model = storeModel(target.names, steps || !before ? latestSteps(target.names.names.modules) : snapshotStore(snapshot)!.lastSteps)
+  // A store this version describes otherwise, such as a table whose rows now belong to an organization, is recorded anew.
+  if (parts.length === 0 && redescribed(before, model)) parts.push(redescribedSql)
+  const migration = parts.length === 0 ? undefined : { sql: parts.join('\n\n'), checks: steps?.checks ?? [], ...(steps?.after && { after: steps.after }) }
+  return { migration, model, changes, kept }
 }
+
+/** Whether this version of Protobase describes the snapshot's store otherwise than the snapshot does, with no step to apply. */
+export const redescribed = (before: StoreModel | undefined, model: StoreModel) => before !== undefined && modelHash({ auth: before }) !== modelHash({ auth: model })
+
+/** The migration that records the store as this version describes it, changing nothing in the database. */
+export const redescribedSql = '-- The auth store as this version of Protobase describes it, such as which tables hold the rows of an organization; nothing in the database changes.'

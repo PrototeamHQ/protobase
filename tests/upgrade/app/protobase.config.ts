@@ -5,7 +5,7 @@ export default {
   url: 'http://localhost:5173',
   auth: {
     roles: { admin: 'Admin', editor: 'Editor' },
-    organizations: true,
+    organizations: { enabled: true, default: { id: 'main', name: 'Main', slug: 'main' }, existingUsersRole: 'editor' },
     personalAccessTokens: { prefix: 'upgrade_' },
     // Personal mail keeps the From addresses people enter; nothing signs in, so the client is a stand-in.
     socialProviders: { google: { clientId: 'upgrade.apps.googleusercontent.com', clientSecret: 'upgrade' } },

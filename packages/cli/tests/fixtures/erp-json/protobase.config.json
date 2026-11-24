@@ -13,7 +13,7 @@
       "editor": "Editor",
       "integration": "Integration"
     },
-    "organizations": true,
+    "organizations": { "enabled": true, "default": { "id": "1", "name": "ERP", "slug": "erp" }, "existingUsersRole": "sales" },
     "trustedOrigins": { "$env": "PROTOBASE_TRUSTED_ORIGINS", "split": "," }
   },
   "jobs": {

@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { authSchemaMigration, type AdminAuth } from '@protobase/server'
-import { keptStoreModules, latestSteps, recordsRuntimeModel, storeModel, storeNames } from '@protobase/server/internal'
-import { authRefusals, customHint } from '../migration/snapshot/auth-difference'
+import { keptStoreModules, latestSteps, organizationsInput, recordsRuntimeModel, storeModel, storeNames, type OrganizationsInput } from '@protobase/server/internal'
+import { authRefusals, customHint, organizationRefusals } from '../migration/snapshot/auth-difference'
+import { organizationsNow } from '../migration/snapshot/auth-target'
 import { moduleChanges } from '../migration/snapshot/module-changes'
 import { refuseInconsistent } from '../migration/snapshot/consistency'
 import { readMigrationFiles } from '../migration/snapshot/migration-files'
@@ -18,6 +19,11 @@ export type WriteAuthMigrationOptions = {
   name: string
   /** The command the file names as its writer, `protobase auth migration` by default. */
   writer?: string
+  /**
+   * The config's default organization and the role of the users there already (`loadConfigOrganizations`), which the
+   * config keeps while organizations are off and `auth` then lacks; `auth`'s own by default.
+   */
+  organizations?: OrganizationsInput
 }
 
 /**
@@ -29,16 +35,18 @@ export type WriteAuthMigrationOptions = {
  * migrations came before the snapshot, gets a file without statements that starts it; one whose store is current but
  * not in the database's record of migrations, as before the record, a file that only records it.
  */
-export const writeAuthMigration = async ({ auth, projectDir, dir, name, writer }: WriteAuthMigrationOptions) => {
+export const writeAuthMigration = async ({ auth, projectDir, dir, name, writer, organizations }: WriteAuthMigrationOptions) => {
   const snapshot = await readSnapshot(projectDir)
   refuseInconsistent(snapshot, await readMigrationFiles(dir))
   const names = storeNames(auth)
-  const target = { names, organizationsOn: Boolean(auth.organizations) }
+  const target = { names, organizationsOn: Boolean(auth.organizations), organizations: organizations ?? organizationsInput(auth.organizations?.options) }
   // Turning a module off asks what becomes of its tables, and on again checks the rows they kept: `protobase migration`
   // does both, even where the database records the config's model already, as after `protobase-serve migrate-release`.
   const changes = moduleChanges(snapshot, target)
   const switched = [...changes.off.map(({ module }) => `${module} off`), ...changes.revived.map(({ module }) => `${module} on again`)]
   if (switched.length > 0) throw new Error(`The config turns ${switched.join(', ')} since ${snapshotFile}: write that migration with \`protobase migration\``)
+  const unset = organizationRefusals(snapshot, target)
+  if (unset.length > 0) throw new Error(unset.join('; '))
   const sql = await authSchemaMigration(auth)
   const unrecorded = sql === undefined && !(await recordsRuntimeModel(auth))
   if (sql === undefined && snapshot && !unrecorded) return
@@ -47,8 +55,8 @@ export const writeAuthMigration = async ({ auth, projectDir, dir, name, writer }
   if (refusals.length > 0) throw new Error(`${refusals.join('; ')}. ${customHint}`)
   // A first snapshot keeps the modules that are off but whose tables the store has.
   const kept = snapshot ? [] : await keptStoreModules(auth)
-  const decisions = snapshot ? undefined : { modules: { kept, archived: [] }, organizations: { everOn: kept.some(({ module }) => module === 'organizations'), defaultOrganization: null } }
-  const draft = { previous: snapshot, auth: storeModel(names, latestSteps(names.names.modules)), organizationsOn: Boolean(auth.organizations), protobaseVersion, ...(decisions && { decisions }) }
+  const decisions = snapshot ? undefined : { modules: { kept, archived: [] }, organizations: { everOn: kept.some(({ module }) => module === 'organizations'), defaultOrganization: target.organizations?.default ?? null } }
+  const draft = { previous: snapshot, auth: storeModel(names, latestSteps(names.names.modules)), organizations: organizationsNow(target), protobaseVersion, ...(decisions && { decisions }) }
   const body = sql !== undefined ? migrationText(sql, writer) : snapshot ? recordOnlyText(writer) : currentStoreText(writer)
   return writeMigrationFile(projectDir, dir, { name, body, additive: true }, draft, randomUUID())
 }
