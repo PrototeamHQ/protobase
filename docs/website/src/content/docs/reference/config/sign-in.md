@@ -32,7 +32,7 @@ The roles users can hold. `admin` is always included. With [`organizations`](#au
 
 ```ts
 export default defineConfig({
-  auth: { roles: { manager: { label: 'Manager', grants: ['sales'] }, sales: 'Sales' }, organizations: true },
+  auth: { roles: { manager: { label: 'Manager', grants: ['sales'] }, sales: 'Sales' }, organizations: { enabled: true, default: { id: 'main', name: 'Main', slug: 'main' } } },
 })
 ```
 
@@ -49,13 +49,20 @@ export default defineConfig({ auth: { roles: ['admin', 'sales', 'warehouse'], de
 
 ## auth.organizations
 
-- **Type:** `true | { create?: 'admins' | 'everyone'; names?: { singular: string; plural: string }; createDescription?: string; creatorAppRoles?: 'all' | string[]; invitationDays?: number; membershipLimit?: number; deleteRecords?: 'refuse' | 'cascade'; invitationUrl?: string }`
+- **Type:** `{ enabled: boolean; default?: { id: string; name: string; slug: string }; existingUsersRole?: string; create?: 'admins' | 'everyone'; names?: { singular: string; plural: string }; createDescription?: string; creatorAppRoles?: 'all' | string[]; invitationDays?: number; membershipLimit?: number; deleteRecords?: 'refuse' | 'cascade'; invitationUrl?: string }`
 - **Default:** off: the app works as one organization
 
-Turns on organizations: people work in one at a time, records of `.tenant` resources are scoped to it, and roles are held globally or per membership. `create` is who may create one (default `admins`), `names` what the screens call an organization, as a view's names are written (default Organization), `createDescription` a line under the title of the screen where someone names their first, `creatorAppRoles` the roles its creator holds there (default `all`), `invitationDays` how long an invitation works (default 7), `membershipLimit` the most members (default 1000), `deleteRecords` whether deleting one is refused while it has records (`refuse`, the default) or left to the foreign keys (`cascade`), and `invitationUrl` the page an invitation opens (default `/-/invitation` on the origin the invitation was made on). Its hooks are in `auth/hooks.ts`. See [Organizations](/reference/auth/#organizations) and [First organization](/reference/auth/#first-organization-and-start-address).
+`enabled: true` turns on organizations: people work in one at a time, records of `.tenant` resources are scoped to it, and roles are held globally or per membership. `create` is who may create one (default `admins`), `names` what the screens call an organization, as a view's names are written (default Organization), `createDescription` a line under the title of the screen where someone names their first, `creatorAppRoles` the roles its creator holds there (default `all`), `invitationDays` how long an invitation works (default 7), `membershipLimit` the most members (default 1000), `deleteRecords` whether deleting one is refused while it has records (`refuse`, the default) or left to the foreign keys (`cascade`), and `invitationUrl` the page an invitation opens (default `/-/invitation` on the origin the invitation was made on). Its hooks are in `auth/hooks.ts`. See [Organizations](/reference/auth/#organizations) and [First organization](/reference/auth/#first-organization-and-start-address).
+
+`default` is the default organization: the one that stands in for every organization while they are off, which [`protobase migration`](/reference/cli/#migration) makes when they turn on and records in `protobase.snapshot.json`. It refuses without it once organizations are on or were ever on, so turning them off is `enabled: false` with `default` kept. `existingUsersRole` is the app role, one a member can hold, that each user there already gets in the default organization when organizations turn on for the first time; it is required then, unless the store is new and holds no users. See [The default organization](/reference/auth/#the-default-organization).
 
 ```ts
-export default defineConfig({ auth: { organizations: { create: 'everyone', invitationDays: 14, names: { singular: 'Workspace', plural: 'Workspaces' } } } })
+export default defineConfig({
+  auth: {
+    roles: { sales: 'Sales' },
+    organizations: { enabled: true, default: { id: 'main', name: 'Main', slug: 'main' }, existingUsersRole: 'sales', create: 'everyone', invitationDays: 14 },
+  },
+})
 ```
 
 ## auth.signUp
