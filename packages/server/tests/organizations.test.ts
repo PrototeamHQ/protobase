@@ -1,6 +1,6 @@
 import { decodeJwt } from 'jose'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { authSchemaMigration, checkAuthSchema } from '../src/better-auth/auth-schema'
+import { authSchemaMigration } from '../src/better-auth/auth-schema'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
 import { addMember, createOrganization, listOrganizations, setMemberRoles } from '../src/better-auth/organizations/host'
@@ -109,13 +109,11 @@ describe('the auth schema with organizations', () => {
       "select table_name || '.' || column_name as name from information_schema.columns where (table_name, column_name) in (('organization', 'slug'), ('member', 'app_roles'), ('session', 'active_organization_id'), ('user', 'last_organization_id')) order by 1",
     )
     expect(rows.map((row) => row.name)).toEqual(['member.app_roles', 'organization.slug', 'session.active_organization_id', 'user.last_organization_id'])
-    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
     expect(await authSchemaMigration(auth)).toBeUndefined()
   })
 
   it('needs no migration to turn organizations off', async () => {
     const auth = createAuth({ database: { dialect: (await migrated.clone()).dialect, type: 'postgres' }, baseURL: origin, secret, mailer: false })
-    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
     expect(await authSchemaMigration(auth)).toBeUndefined()
     expect(auth.organizations).toBeUndefined()
   })

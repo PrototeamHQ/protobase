@@ -1,6 +1,6 @@
 import { IdentifierNode, Kysely, OperationNodeTransformer, type KyselyPlugin, type TableNode } from 'kysely'
 import { describe, expect, it, vi } from 'vitest'
-import { checkAuthSchema } from '../src/better-auth/auth-schema'
+import { checkMigrationRecord } from '../src/migration-record/check-record'
 import { appAuthOptions } from '../src/better-auth/auth-settings'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { buildAuth } from '../src/better-auth/create-auth'
@@ -108,9 +108,9 @@ describe.skipIf(!ready)("sign-in on the app's own Kysely", () => {
     expect(await app.store.db.selectFrom('app_session').select('id').execute()).toEqual([])
   })
 
-  it("checks the auth schema on plain connections, past the app's plugins", async () => {
+  it("reads the record of migrations on plain connections, past the app's plugins", async () => {
     const app = await serve()
-    await checkAuthSchema(app.auth)
-    expect(app.seen.has('auth_migrations')).toBe(false)
+    await expect(checkMigrationRecord(app.auth, '0.0.0')).rejects.toThrow(/^The database has no migration recorded in migrations\.history/)
+    expect(app.seen.has('history')).toBe(false)
   })
 })

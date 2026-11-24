@@ -1,4 +1,4 @@
-import type { TransactionSql } from 'postgres'
+import type { ISql } from 'postgres'
 
 /**
  * Copies the record of applied migrations an earlier Protobase kept in `public.schema_migrations` into
@@ -6,7 +6,7 @@ import type { TransactionSql } from 'postgres'
  * Protobase's columns, `name` and `applied_at`: a version-keyed `schema_migrations` another migration tool owns is
  * never read or written. The old table stays, for a version still serving or rolled back to.
  */
-export const adoptPublicRecord = async (tx: TransactionSql) => {
+export const adoptPublicRecord = async (tx: ISql) => {
   const columns = await tx`
     select column_name from information_schema.columns
     where table_schema = 'public' and table_name = 'schema_migrations' and column_name in ('name', 'applied_at')`

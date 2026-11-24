@@ -1,6 +1,6 @@
 import { sql } from 'kysely'
 import { describe, expect, it } from 'vitest'
-import { authSchemaMigration, checkAuthSchema } from '../src/better-auth/auth-schema'
+import { authSchemaMigration } from '../src/better-auth/auth-schema'
 import { createAuth } from '../src/better-auth/create-auth'
 import { createUser } from '../src/better-auth/users'
 import { openSnapshotDb, settled, type SnapshotDb } from '../../../test-support/sql-snapshot'
@@ -75,7 +75,7 @@ describe('Better Auth on an existing users table', () => {
     expect(migration).toContain('create table if not exists "auth"."users"')
     expect(migration).toContain('add column if not exists "app_role" text')
     await pg.db.transaction().execute((tx) => sql.raw(migration!).execute(tx))
-    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+    expect(await authSchemaMigration(auth)).toBeUndefined()
     const columns = await pg.query(`select column_name, data_type from information_schema.columns where table_schema = 'auth' and table_name = 'users' and column_name in ('email', 'two_factor_enabled', 'last_role') order by 1`)
     expect(columns.rows).toEqual([
       { column_name: 'email', data_type: 'character varying' },

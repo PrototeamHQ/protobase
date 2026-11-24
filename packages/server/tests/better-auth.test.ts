@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { authSchemaMigration, checkAuthSchema } from '../src/better-auth/auth-schema'
+import { authSchemaMigration } from '../src/better-auth/auth-schema'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth } from '../src/better-auth/create-auth'
 import { issueToken } from '../src/better-auth/tokens'
@@ -359,7 +359,7 @@ describe('configurable roles', () => {
 
     const { rows } = await shared.query<{ table_schema: string }>(`select distinct table_schema from information_schema.tables where table_name in ('user', 'session', 'jwks')`)
     expect(rows.map((row) => row.table_schema)).toEqual(['auth'])
-    await expect(checkAuthSchema(scoped)).resolves.toBeUndefined()
+    expect(await authSchemaMigration(scoped)).toBeUndefined()
   })
 
   it('validates users and role changes against the project roles, and passes them to access rules', async () => {

@@ -1,7 +1,8 @@
 import { Readable } from 'node:stream'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { authSchemaMigration, issueToken, type AdminAuth } from '@protobase/server'
-import { buildAuth, createAuth } from '@protobase/server/internal'
+import { buildAuth, createAuth, modelHash, runtimeModel, storeNamesList } from '@protobase/server/internal'
+import { recordBlock } from '../../src/migration/record/record-block'
 import { createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } from '../../src/users/commands'
 import { deleteUserCommand, setDisabledCommand, setRoleCommand } from '../../src/users/manage'
 import { setDisabledInProject } from '../../src/users/set-disabled'
@@ -90,20 +91,20 @@ describe('protobase users create --github-id', () => {
 })
 
 describe('protobase users disable and enable', () => {
-  it('refuse on a store behind its migrations, changing nobody, and act once it is current', async () => {
+  it('refuse on a database whose record of migrations lacks the store, changing nobody, and act once it has it', async () => {
     const store = await openSnapshotDb('empty')
     const made = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: 'http://localhost:1', secret: 'users-test-secret-users-test-secret-1234' })
-    // Every migration but the last applied, as a deploy of an older version left it.
+    // The store's tables, without the file's row in the record of migrations.
     await store.exec((await authSchemaMigration(made))!)
-    await store.exec('drop index user_name_id_idx, user_name_trgm_idx; delete from auth_migrations where version = 14')
     const create = (email: string) => createUserCommand(usersApi(made), { email, passwordStdin: true, generatePassword: false }, { stdin: Readable.from(['a-long-test-password\n']), prompt: async () => '' }, () => {})
     await create('root@example.com')
     await create('ana@example.com')
 
-    await expect(setDisabledInProject(made, { email: 'ana@example.com', disabled: true }, () => {})).rejects.toThrow(/The auth schema is behind this version of Protobase \(missing migrations 14 user_name_search\)/)
+    await expect(setDisabledInProject(made, { email: 'ana@example.com', disabled: true }, () => {})).rejects.toThrow(/^The database has no migration recorded in migrations\.history/)
     expect((await issueToken(made, { email: 'ana@example.com' })).token).toBeTruthy()
 
-    await store.exec((await authSchemaMigration(made))!)
+    const model = runtimeModel(made)
+    await store.exec(recordBlock({ id: 'auth', number: 1, name: '001_auth', protobaseVersion: '1.0.0', model, modelHash: modelHash(model), physical: { auth: storeNamesList(model.auth!) }, additive: true, completed: true }, null))
     await setDisabledInProject(made, { email: 'ana@example.com', disabled: true }, () => {})
     await expect(issueToken(made, { email: 'ana@example.com' })).rejects.toThrow('ana@example.com is banned')
   })

@@ -8,11 +8,13 @@ import postgres from 'postgres'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Kysely, PostgresDialect } from 'kysely'
 import { f, resource } from '@protobase/schema'
-import { authSchemaDrift, authSchemaMigration, checkAuthSchema, checkResourcesOutsideAuthStore, createOrganization, createUser, unauthorized, type AdminAuth } from '@protobase/server'
+import { authSchemaDrift, authSchemaMigration, checkMigrationRecord, checkResourcesOutsideAuthStore, createOrganization, createUser, unauthorized, type AdminAuth } from '@protobase/server'
 import { buildAuth, createAuth, storeNames } from '@protobase/server/internal'
 import { checkMigrations } from '../../src/migration/snapshot/check'
 import { readSnapshot } from '../../src/migration/snapshot/snapshot-file'
 import { migrationText } from '../../src/auth/migration-file'
+import { textBeforeRecord } from '../../src/migration/record/record-block'
+import { protobaseVersion } from '../../src/version/version'
 import { writeAuthMigration } from '../../src/auth/write-migration'
 import { startServe } from '../../src/serve/lifecycle'
 import { servedConfig } from '../support/served-config'
@@ -83,8 +85,10 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     return folder
   }
   const projectOf = (folder: string) => path.dirname(path.dirname(folder))
-  // The file without its header, whose id is its own.
-  const withoutHeader = (text: string) => text.replace(/^(-- protobase:.*\n)+/, '')
+  // The file without its header and its record block, whose id is its own.
+  const withoutHeader = (text: string) => textBeforeRecord(text).replace(/^(-- protobase:.*\n)+/, '')
+  // The server's startup check of the record of migrations.
+  const checkRecord = (auth: AdminAuth) => checkMigrationRecord(auth, protobaseVersion)
   const query = async <Row extends object>(databaseUrl: string, text: string) => {
     const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
     const rows = await sql.unsafe<Row[]>(text)
@@ -102,7 +106,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const databaseUrl = await createDatabase()
     const auth = authOn(databaseUrl)
     const folder = await migrationsDir()
-    await expect(checkAuthSchema(auth)).rejects.toThrow(/The auth store has no auth_migrations table.*`protobase auth migration`/)
+    await expect(checkRecord(auth)).rejects.toThrow(/^The database has no migration recorded in migrations\.history.*`protobase migrate`/)
 
     const file = await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })
     expect(path.basename(file!)).toBe('001_auth.sql')
@@ -113,7 +117,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     expect(text).toContain('-- mcp 1 mcp: ')
 
     await applyAll(databaseUrl, folder)
-    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+    await expect(checkRecord(auth)).resolves.toBeUndefined()
     expect(await versions(databaseUrl)).toEqual(every)
     expect(await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })).toBeUndefined()
     expect(await readdir(folder)).toEqual(['001_auth.sql'])
@@ -154,7 +158,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
       const folder = await migrationsDir()
       written.add(withoutHeader(await readFile((await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' }))!, 'utf8')))
       await applyAll(databaseUrl, folder)
-      await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+      await expect(checkRecord(auth)).resolves.toBeUndefined()
       expect(await authSchemaDrift(auth)).toEqual([])
     }
     expect(written.size).toBe(1)
@@ -183,7 +187,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     expect(text).toContain('references "auth"."people" (id)')
     await applyAll(databaseUrl, folder)
 
-    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+    await expect(checkRecord(auth)).resolves.toBeUndefined()
     expect(await versions(databaseUrl, 'auth.auth_migrations')).toEqual(every)
     expect(await authSchemaDrift(await buildAuth({ ...options, ...allOn }))).toEqual([])
     const columns = await query<{ name: string }>(
@@ -208,7 +212,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
     pools.push(pool)
     const on = await buildAuth({ database: pool, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProviders: [], ...allOn })
-    await expect(checkAuthSchema(on)).resolves.toBeUndefined()
+    await expect(checkRecord(on)).resolves.toBeUndefined()
     expect(await writeAuthMigration({ auth: on, projectDir: projectOf(folder), dir: folder, name: 'auth' })).toBeUndefined()
     expect(await authSchemaDrift(on)).toEqual([])
     await createOrganization(on, { name: 'Acme', slug: 'acme', owner: 'root@example.com' })
@@ -223,7 +227,6 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     await applyAll(databaseUrl, folder)
     // The store as a version of Protobase before the last migration left it.
     await query(databaseUrl, `drop table oauth_client, oauth_resource, oauth_client_resource, oauth_refresh_token, oauth_access_token, oauth_consent, oauth_client_assertion; delete from auth_migrations where version = 7`)
-    await expect(checkAuthSchema(auth)).rejects.toThrow(/The auth schema is behind this version of Protobase \(missing migrations 7 mcp\).*`protobase auth migration`/)
 
     const file = await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })
     expect(path.basename(file!)).toBe('002_auth.sql')
@@ -234,7 +237,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
     await sql.begin((tx) => tx.unsafe(text))
     await sql.end()
-    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+    await expect(checkRecord(auth)).resolves.toBeUndefined()
     expect(await versions(databaseUrl)).toEqual(every)
   })
 
@@ -299,7 +302,7 @@ delete from auth_migrations where version = 15`,
     const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
     await sql.begin((tx) => tx.unsafe(text))
     await sql.end()
-    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+    await expect(checkRecord(auth)).resolves.toBeUndefined()
 
     const rows = await query<{ id: string; connection_id: string | null; address_key: string; name: string | null; signature: string | null; is_default: boolean; typed_at: Date; listed_at: Date | null; provider_state: string | null }>(
       databaseUrl,
@@ -330,7 +333,7 @@ delete from auth_migrations where version = 15`,
 
   it('adopts a store an earlier Protobase made, once: the migrations it matches are recorded, the others applied', async () => {
     const { databaseUrl, auth } = await earlierStore()
-    await expect(checkAuthSchema(auth)).rejects.toThrow(/no auth_migrations table/)
+    await expect(checkRecord(auth)).rejects.toThrow(/no migration recorded/)
     const folder = await migrationsDir()
     const text = await readFile((await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' }))!, 'utf8')
     expect(text).toContain('adopted: 1 core, 2 two_factor, 3 passkeys, 4 sign_in_policy, 5 staff_sign_in, 6 organizations')
@@ -338,7 +341,7 @@ delete from auth_migrations where version = 15`,
     expect(text).toContain('-- mcp 1 mcp: ')
 
     await applyAll(databaseUrl, folder)
-    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+    await expect(checkRecord(auth)).resolves.toBeUndefined()
     expect(await versions(databaseUrl)).toEqual(every)
     expect(await query(databaseUrl, 'select email from "user"')).toEqual([{ email: 'root@example.com' }])
     expect(await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })).toBeUndefined()
@@ -368,7 +371,6 @@ delete from auth_migrations where version = 15`,
     await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })
     await applyAll(databaseUrl, folder)
     await query(databaseUrl, "insert into auth_migrations (version, name) values (18, 'later')")
-    await expect(checkAuthSchema(auth)).rejects.toThrow('The auth store is at migration 18, newer than the 17 this version of Protobase knows; upgrade Protobase')
     await expect(writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })).rejects.toThrow(/newer than the 17/)
   })
 
@@ -379,7 +381,7 @@ delete from auth_migrations where version = 15`,
     await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })
     await applyAll(databaseUrl, folder)
     await query(databaseUrl, 'alter table passkey drop column rp_id')
-    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+    await expect(checkRecord(auth)).resolves.toBeUndefined()
     expect(await authSchemaDrift(auth)).toEqual(['lacks the column passkey.rp_id'])
   })
 
@@ -389,13 +391,13 @@ delete from auth_migrations where version = 15`,
     await writeAuthMigration({ auth: authOn(databaseUrl), projectDir: projectOf(folder), dir: folder, name: 'auth' })
     await applyAll(databaseUrl, folder)
     const readOnly = authOn(databaseUrl, { options: '-c default_transaction_read_only=on' })
-    await expect(checkAuthSchema(readOnly)).resolves.toBeUndefined()
+    await expect(checkRecord(readOnly)).resolves.toBeUndefined()
   })
 
   it('keeps protobase serve from starting while the store is behind', async () => {
     const databaseUrl = await createDatabase()
     const config = servedConfig({ url: 'http://localhost:1', secret, auth: storeAuth, authenticate: () => Promise.reject(unauthorized('no')) })
-    await expect(startServe({ config, env: { port: 0, databaseUrl, requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true, trustedProxies: [] } })).rejects.toThrow(/The auth store has no auth_migrations table.*`protobase auth migration`/)
+    await expect(startServe({ config, env: { port: 0, databaseUrl, requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true, trustedProxies: [] } })).rejects.toThrow(/^The database has no migration recorded in migrations\.history/)
   })
 })
 
@@ -408,10 +410,14 @@ describe.skipIf(!reachable)('the auth store and the app\'s resources', () => {
     const databaseUrl = await createDatabase()
     const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
     pools.push(pool)
-    if (schemaName) await pool.query(`create schema ${schemaName}`)
+    if (schemaName) await pool.query(`create schema if not exists ${schemaName}`)
     const database = schemaName ? { dialect: new PostgresDialect({ pool }), type: 'postgres' as const, schemaName } : pool
     const auth = createAuth({ database, baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProviders: [], ...(userTable && { tables: { user: { name: userTable } } }) })
-    await pool.query((await authSchemaMigration(auth))!)
+    // Written as `protobase auth migration` writes it, so the record of migrations has the store too.
+    const project = await mkdtemp(path.join(tmpdir(), 'protobase-auth-store-'))
+    const file = await writeAuthMigration({ auth, projectDir: project, dir: path.join(project, 'db/migrations'), name: 'auth' })
+    await pool.query(await readFile(file!, 'utf8'))
+    await rm(project, { recursive: true, force: true })
     await pool.query('create table orders (id text primary key)')
     const db = new Kysely<any>({ dialect: new PostgresDialect({ pool }) })
     return { databaseUrl, auth, db }
@@ -450,7 +456,8 @@ describe.skipIf(!reachable)('the auth store and the app\'s resources', () => {
   })
 
   it('keeps protobase serve from starting with a resource over the store', async () => {
-    const { databaseUrl } = await migrated()
+    // In the schema the served config names, so the record of migrations has the store the server reads.
+    const { databaseUrl } = await migrated({ schemaName: 'public' })
     const session = resource('session').table('session').fields({ id: f.text() }).primaryKey((r) => r.id)
     const config = servedConfig({ config: { session }, url: 'http://localhost:1', secret, auth: storeAuth, authenticate: () => Promise.reject(unauthorized('no')) })
     await expect(startServe({ config, env: { port: 0, databaseUrl, requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true, trustedProxies: [] } })).rejects.toThrow(/Resources over the auth store's tables.*session \(public\.session\)/)
@@ -502,12 +509,13 @@ describe.skipIf(!reachable)("a project's migrate step", () => {
     expect((await migrate(databaseUrl)).stdout).toBe('')
   }, 120_000)
 
-  it('lets two runs at once take turns, so each migration is applied once', async () => {
+  it('refuses a second run while one runs, so each migration is applied once', async () => {
     const databaseUrl = await createDatabase()
-    await migrations({ '001_shop.sql': 'create table shop_items (id int primary key); select pg_sleep(0.5);' })
+    await migrations({ '001_shop.sql': 'create table shop_items (id int primary key); select pg_sleep(3);' })
     const [first, second] = await Promise.all([migrate(databaseUrl), migrate(databaseUrl)])
-    expect([first.status, second.status]).toEqual([0, 0])
+    expect([first.status, second.status].sort()).toEqual([0, 1])
     expect(first.stdout + second.stdout).toBe('applied 001_shop.sql\n')
+    expect(first.stderr + second.stderr).toContain('Another run of the migrations is applying them to this database')
     expect(await state(databaseUrl)).toEqual({ applied: ['001_shop.sql'], tables: ['shop_items'] })
   }, 120_000)
 })

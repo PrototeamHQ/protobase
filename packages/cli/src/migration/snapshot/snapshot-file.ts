@@ -1,8 +1,7 @@
-import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import type { StoreModel } from '@protobase/server/internal'
+import { modelHash as recordModelHash, type StoreModel } from '@protobase/server/internal'
 
 // `protobase.snapshot.json`: the schema the project's migrations make, which `protobase migration` compares with what
 // the config and this version of Protobase would make. Each migration it writes rewrites it, so the change shows in review.
@@ -33,7 +32,8 @@ export type Snapshot = {
   physical: { auth?: string[] }
 }
 
-export const modelHash = (model: Snapshot['model']) => createHash('sha256').update(JSON.stringify(model)).digest('hex')
+/** The model's hash, as the record of migrations and the server's startup compare it. */
+export const modelHash = (model: Snapshot['model']) => recordModelHash(model)
 
 /** The file's text: two-space JSON and a final newline, so the same snapshot is the same bytes. */
 export const snapshotText = (snapshot: Snapshot) => `${JSON.stringify(snapshot, null, 2)}\n`

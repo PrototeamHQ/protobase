@@ -1,18 +1,19 @@
 import type { Sql, TransactionSql } from 'postgres'
-import { executeFile, lockKey } from '../apply-migrations'
+import { executeFile, lockKey, lockTaken } from '../apply-migrations'
 import type { ReleaseStep } from './release-steps'
 
 /** Finds the steps from the database as the transaction `tx` sees it. */
 export type FindSteps = (tx: TransactionSql) => Promise<ReleaseStep[]>
 
 /**
- * Applies the steps `find` gives in one transaction, behind the lock `migrate` takes, each as `migrate` runs a file, so
- * none commits early: when one fails, such as a check that refuses the rows already there, none is applied. `find` runs
- * once the lock is held, so a run that waited on another finds the steps from what that one committed.
+ * Applies the steps `find` gives in one transaction, behind the lock `migrate` takes, refusing while another run holds
+ * it, each as `migrate` runs a file, so none commits early: when one fails, such as a check that refuses the rows
+ * already there, none is applied. `find` runs once the lock is held, so it finds the steps from what is committed.
  */
 export const applyReleaseSteps = async (sql: Sql, find: FindSteps, out: (text: string) => void) => {
   const applied = await sql.begin(async (tx) => {
-    await tx`select pg_advisory_xact_lock(${lockKey})`
+    const [lock] = await tx<{ locked: boolean }[]>`select pg_try_advisory_xact_lock(${lockKey}) as locked`
+    if (!lock!.locked) throw new Error(lockTaken)
     const steps = await find(tx)
     for (const step of steps) {
       out(`applying ${step.name}\n`)

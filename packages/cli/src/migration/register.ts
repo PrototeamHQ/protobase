@@ -41,15 +41,17 @@ export const registerMigration = (program: Command) => {
       .command('migration')
       .description("Write what the config and this version of Protobase need beyond protobase.snapshot.json as the project's next numbered SQL migration, and rewrite the snapshot")
       .option('--custom <name>', 'write an empty numbered migration to fill by hand, and make the snapshot end at it')
-      .option('--record-config', "with --custom: record the config's auth store names in the snapshot, which the file makes the store match"),
-  ).action(async (opts: FolderOptions & { custom?: string; recordConfig?: boolean }) => {
+      .option('--record-config', "with --custom: record the config's auth store names in the snapshot, which the file makes the store match")
+      .option('--after', 'with --custom: write an empty .after.sql beside it too, for statements that cannot run in a transaction, such as create index concurrently'),
+  ).action(async (opts: FolderOptions & { custom?: string; recordConfig?: boolean; after?: boolean }) => {
     if (opts.recordConfig && !opts.custom) throw new Error('--record-config goes with --custom <name>')
+    if (opts.after && !opts.custom) throw new Error('--after goes with --custom <name>')
     const { config, auth } = await loadAuthTarget(opts)
     const dir = path.resolve(opts.dir)
     if (opts.custom) {
       const { writeCustomMigration } = await import('./snapshot/custom')
-      const file = await writeCustomMigration({ projectDir: process.cwd(), dir, name: opts.custom, recordConfig: Boolean(opts.recordConfig), auth, protobaseVersion, newId: randomUUID })
-      out(`wrote ${path.relative(process.cwd(), file)} and protobase.snapshot.json: write its statements\n`)
+      const file = await writeCustomMigration({ projectDir: process.cwd(), dir, name: opts.custom, recordConfig: Boolean(opts.recordConfig), after: Boolean(opts.after), auth, protobaseVersion, newId: randomUUID })
+      out(`wrote ${path.relative(process.cwd(), file)}${opts.after ? ', its .after.sql' : ''} and protobase.snapshot.json: write its statements\n`)
       return
     }
     const [{ migrationProject }, { migrationParts }, { runMigration }, { migrationSummary }] = await Promise.all([import('./migration-project'), import('./parts'), import('./snapshot/run-migration'), import('./summary')])
