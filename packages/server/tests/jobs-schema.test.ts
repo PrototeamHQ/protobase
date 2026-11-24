@@ -4,6 +4,7 @@ import { defineJob } from '../src/jobs/define-job'
 import type { JobDefinition } from '../src/jobs/job-types'
 import { startJobs, type JobsRuntime, type StartJobsOptions } from '../src/jobs/runtime'
 import { jobsModule, jobsSchemaSql } from '../src/jobs/jobs-module'
+import { checkJobsSchema, jobsSchemaMigration } from '../src/jobs/schema'
 import { latestModel } from '../src/schema-modules/module-difference'
 import { openSnapshotDb } from '../../../test-support/sql-snapshot'
 
@@ -51,6 +52,30 @@ describe('the jobs schema', () => {
     await expect(jobsModule.read(db)).rejects.toThrow('The jobs schema is at pg-boss schema version 46, newer than the 45 this version of Protobase records: upgrade Protobase')
     await sql`update jobs.version set version = 44`.execute(db)
     await expect(jobsModule.read(db)).rejects.toThrow('The jobs schema is at pg-boss schema version 44, which no step of this version of Protobase records')
+  })
+})
+
+describe('jobsSchemaMigration and checkJobsSchema, which tests and scripts still call', () => {
+  it('write the whole schema on a database without it, and nothing once it is there', async () => {
+    const pg = await openSnapshotDb('empty')
+    const db = pg.db
+    await expect(checkJobsSchema(db)).rejects.toThrow('The jobs schema is missing. Write it as a migration with `protobase migration`')
+    const migration = await jobsSchemaMigration(db)
+    expect(migration).toContain('CREATE SCHEMA IF NOT EXISTS jobs;')
+    await db.transaction().execute((trx) => sql.raw(migration!).execute(trx))
+    await checkJobsSchema(db)
+    expect(await jobsSchemaMigration(db)).toBeUndefined()
+  })
+
+  it("write Protobase's functions again when they are missing, and refuse a pg-boss schema of a newer version", async () => {
+    const db = await jobsDb()
+    await sql`drop function jobs.enqueue`.execute(db)
+    await expect(checkJobsSchema(db)).rejects.toThrow('The jobs schema is behind this version of Protobase')
+    const migration = await jobsSchemaMigration(db)
+    expect(migration).toMatch(/^create or replace function jobs\.enqueue/)
+    expect(migration).not.toContain('CREATE TABLE')
+    await sql`update jobs.version set version = 99`.execute(db)
+    await expect(checkJobsSchema(db)).rejects.toThrow('pg-boss schema version 99, newer than the 45 this version of Protobase runs')
   })
 })
 
