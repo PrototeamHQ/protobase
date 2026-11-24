@@ -93,5 +93,5 @@ export const reloadingAdmin = ({ first, version, readVersion, readTables, build,
   app.all('*', (c) => answer(c.req.raw, c.env))
   const reload = async () => void (await latest.get(true))
   const stopHolding = async () => void (await Promise.all([...built].map((ref) => ref.deref()?.stopHolding())))
-  return Object.assign(app, { jobs: first.jobs, startRealtimePrune: first.startRealtimePrune, stopHolding, decryptField: first.decryptField, metaPath: first.metaPath, ...(first.unsubscribe && { unsubscribe: first.unsubscribe }), reload })
+  return Object.assign(app, { jobs: first.jobs, startRealtimePrune: first.startRealtimePrune, stopHolding, decryptField: first.decryptField, metaPath: first.metaPath, organizationScope: first.organizationScope, ...(first.unsubscribe && { unsubscribe: first.unsubscribe }), reload })
 }

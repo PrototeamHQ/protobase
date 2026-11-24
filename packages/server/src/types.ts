@@ -3,7 +3,7 @@ import type { FieldDecrypter } from './encryption/decrypt-field-types'
 import type { JobDefinition } from './jobs/job-types'
 import type { Hono } from 'hono'
 import type { PageModel } from '@protobase/layout'
-import type { Db } from '@protobase/query'
+import type { Db, ScopedTables } from '@protobase/query'
 import type { KeyType, ResourceModel, ViewModel } from '@protobase/schema'
 import type { RealtimePrune } from './realtime/realtime-prune'
 
@@ -136,4 +136,13 @@ export type PageSource = { toModel(): PageModel }
  * waiting, such as runners' claims, which a closing process gives at once (`stopHolding`), and the read of encrypted
  * fields that `startJobs` gives the jobs' context, and the path it answers `/meta` at.
  */
-export type Admin = Hono<AdminEnv> & { jobs: JobDefinition[]; startRealtimePrune: () => RealtimePrune; stopHolding: () => Promise<void>; decryptField: FieldDecrypter; metaPath: string; unsubscribe?: UnsubscribeLinks }
+export type Admin = Hono<AdminEnv> & {
+  jobs: JobDefinition[]
+  startRealtimePrune: () => RealtimePrune
+  stopHolding: () => Promise<void>
+  decryptField: FieldDecrypter
+  metaPath: string
+  unsubscribe?: UnsubscribeLinks
+  /** The tables whose rows belong to one organization, which the app's functions, jobs and hooks see one organization of (`startJobs`' `scope`). */
+  organizationScope: ScopedTables
+}

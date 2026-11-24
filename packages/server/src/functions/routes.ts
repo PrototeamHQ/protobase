@@ -1,7 +1,7 @@
 import { Hono, type ErrorHandler } from 'hono'
 import { cors } from 'hono/cors'
 import type { UpgradeWebSocket } from 'hono/ws'
-import type { Db } from '@protobase/query'
+import { scopedDb, type Db, type ScopedTables } from '@protobase/query'
 import type { ResolveOptions } from '@protobase/schema'
 import { auditOrigin } from '../audit/origin'
 import { runInBackground } from '../background-work'
@@ -17,6 +17,7 @@ import { ownMailbox } from './own-mailbox'
 import type { ChannelSender } from '../channels/channel-sender'
 import { invokeFunction, type ApiFunction, type FunctionCaller, type FunctionContext, type PublicFunctionContext } from './define-function'
 import { functionGate, requireGate, type FunctionGate } from './function-gate'
+import { sessionOrganization } from '../organization-scope/organization-tables'
 import type { FunctionRecords } from './records'
 import { sameCaller } from './same-caller'
 
@@ -28,6 +29,8 @@ export type FunctionRoutesInput = {
   /** The app's roles and default access, which decide who may call a protected function (see `functionGate`). */
   access: ResolveOptions
   db: Db
+  /** The tables whose rows belong to one organization: a function's `db` keeps to its caller's (`scopedDb`). */
+  scope: ScopedTables
   records: (session: Session) => FunctionRecords
   /** The app's read of encrypted fields, which a protected function's context binds to the function and its caller. */
   decryptField: FieldDecrypter
@@ -71,7 +74,7 @@ const isUpgrade = (request: Request) => request.headers.get('upgrade')?.toLowerC
  * A function may answer an upgrade with a socket, only once it returned. While it is open, its caller is checked again
  * every minute: a protected function's always, a public one's once `caller()` resolved.
  */
-export const functionRoutes = ({ basePath, functions, authenticate, access, db, records, channels, decryptField, personalMailer = noPersonalMail, onError, wake, upgradeWebSocket, upgradeAuthenticate = authenticate, calls, report }: FunctionRoutesInput) => {
+export const functionRoutes = ({ basePath, functions, authenticate, access, db, records, channels, decryptField, personalMailer = noPersonalMail, onError, wake, upgradeWebSocket, upgradeAuthenticate = authenticate, calls, report, scope }: FunctionRoutesInput) => {
   const app = new Hono().basePath(basePath)
   app.onError(onError)
   const sessionOf = (request: Request) => (isUpgrade(request) ? upgradeAuthenticate(request) : authenticate(request))
@@ -107,7 +110,8 @@ export const functionRoutes = ({ basePath, functions, authenticate, access, db, 
           if (admitted) await recheckCaller(name, gate, c.req.raw, admitted)
         }
         const acceptor = socketAcceptor({ c, upgradeWebSocket, report, recheck })
-        const context: PublicFunctionContext = { name, db, channels, caller: resolveCaller, acceptWebSocket: acceptor.accept, calls: callsAccess(calls, resolveCaller) }
+        // A public function works in no organization, also once it asks for its caller.
+        const context: PublicFunctionContext = { name, db: scopedDb(db, scope, undefined), channels, caller: resolveCaller, acceptWebSocket: acceptor.accept, calls: callsAccess(calls, resolveCaller) }
         return acceptor.answer(name, await invokeFunction(name, fn, request, context))
       }
       const caller = await callerOf(c.req.raw)
@@ -116,7 +120,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, access, db, 
       const acceptor = socketAcceptor({ c, upgradeWebSocket, report, recheck })
       const { user } = caller.session
       const reader = { function: name, actor: { id: user.id, roles: [...user.roles] }, origin: auditOrigin(c.req.raw.headers) }
-      const context: FunctionContext = { name, db, channels, ...caller, caller: async () => caller, decryptField: decryptField(reader), personalMail: ownMailbox(caller.session, personalMailer), acceptWebSocket: acceptor.accept, calls: callsAccess(calls, async () => caller) }
+      const context: FunctionContext = { name, db: scopedDb(db, scope, sessionOrganization(caller.session)), channels, ...caller, caller: async () => caller, decryptField: decryptField(reader), personalMail: ownMailbox(caller.session, personalMailer), acceptWebSocket: acceptor.accept, calls: callsAccess(calls, async () => caller) }
       return acceptor.answer(name, await invokeFunction(name, fn, request, context))
     }))
   }

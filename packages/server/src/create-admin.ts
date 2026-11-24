@@ -85,6 +85,7 @@ import { guestRoutes } from './calls/guest-routes'
 import { getIP } from 'better-auth/api'
 import { organizationGuestsRoute } from './calls/organization-guests-route'
 import { organizationRole } from './better-auth/organizations/organization-role'
+import { noOrganizationTables, organizationTables } from './organization-scope/organization-tables'
 import { deviceStore, removeDevicesWithUsers } from './notifications/device-store-of'
 import { historyStore, removeHistoryWithUsers } from './notifications/history-store-of'
 import { historyRoutes } from './notifications/history-routes'
@@ -347,6 +348,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const senders = notifications ? notificationSenders(notifications, globalThis.process?.env ?? {}, mobile) : []
   // Who sees a status follows organizations, so an app without them stops here.
   if (status) checkStatusAuth(auth)
+  // The tables whose rows belong to one organization, which the app's functions and jobs see only one organization of.
+  const organizationScope = auth?.organizations ? organizationTables(auth.names) : noOrganizationTables
   const statusTables = status && auth && { statuses: statusNames(status), members: auth.names.table('member') }
   const pushKey = webPushKey(senders)
   const locale = localeSetting(options.locale)
@@ -512,7 +515,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   // The broadcasts and presences of both realtime APIs, apart, through one relay with several processes.
   const hubs = realtimeHubs(deps, realtime, report)
   const channels = channelSender(registry, hubs.records.broadcasts)
-  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, records: (session) => callerRecords(deps, session), channels, decryptField, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }), onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, ...(deps.calls && { calls: deps.calls }), report }))
+  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, scope: organizationScope, records: (session) => callerRecords(deps, session), channels, decryptField, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }), onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, ...(deps.calls && { calls: deps.calls }), report }))
   // Channels named by records, with presence and broadcasts, for whoever may read the record, a visitor too.
   if (upgradeWebSocket) {
     const visitors = (caller: Authenticator) => withAnonymous(caller, options.roles)
@@ -527,7 +530,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   }
   // supabase-js's `functions.invoke`, admitted by the app's keys and the tokens of `/api/sb/auth/v1`.
   const verifyGoTrue = auth ? jwtVerifier(goTrueTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens'))
-  app.route('/', supabaseFunctionRoutes({ functions: apiFunctions, db, keys: apiKeys, caller: apiKeyCaller({ keys: apiKeys, verify: verifyGoTrue }), onError }))
+  app.route('/', supabaseFunctionRoutes({ functions: apiFunctions, db, scope: organizationScope, keys: apiKeys, caller: apiKeyCaller({ keys: apiKeys, verify: verifyGoTrue }), onError }))
   app.route('/', batchRoute(deps, authenticate, meta))
   app.route('/', fileRoutes(deps, authenticate))
   // Before the system endpoints, which want a token for everything under them
@@ -596,5 +599,5 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   const prune = () => startRealtimePrune({ db, statementTimeoutMs: deps.statementTimeoutMs, relayed: relayed(realtime), sqlSends: sqlSends(realtime), report })
   // The requests held open waiting, as runners' claims are, answered at once as the process closes.
   const stopHolding = async () => void (await engine?.stop())
-  return Object.assign(app, { startRealtimePrune: prune, stopHolding, decryptField, metaPath: `${deps.systemPath}/meta`, ...(links && { unsubscribe: links }), jobs: [...webhooks.jobs, ...(auth ? auth.senderVerificationJobs : []), ...relayJobList, ...(engine ? engine.jobs : []), ...(derived ? derived.jobs : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(appModels.some(hasBuckets) ? [bucketsRefreshJob(appModels)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
+  return Object.assign(app, { startRealtimePrune: prune, stopHolding, decryptField, organizationScope, metaPath: `${deps.systemPath}/meta`, ...(links && { unsubscribe: links }), jobs: [...webhooks.jobs, ...(auth ? auth.senderVerificationJobs : []), ...relayJobList, ...(engine ? engine.jobs : []), ...(derived ? derived.jobs : []), ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(appModels.some(hasBuckets) ? [bucketsRefreshJob(appModels)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders, auth && liveSessions(auth), statusTables ? (jobDb, userIds) => onDoNotDisturb(jobDb, statusTables.statuses, userIds) : undefined)] : [])] })
 }

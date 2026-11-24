@@ -1,5 +1,5 @@
 import type { OrganizationOptions } from 'better-auth/plugins/organization'
-import type { Db } from '@protobase/query'
+import { scopedDb, type Db, type Organization, type ScopedDb } from '@protobase/query'
 import type { Mailer } from '../mail/smtp-mailer'
 import { buildAuth, type CreateAuthOptions, type UserCreatedHook } from './create-auth'
 import type { McpAuthOptions } from './mcp/mcp-plugins'
@@ -7,9 +7,25 @@ import { organizationsEnabled, type OrganizationsOptions } from './organizations
 import type { StoredMember, StoredOrganization } from './organizations/store'
 import type { AddVerifier } from '../personal-mail/verifiers/sender-address-verifier'
 import { senderVerifierList } from '../personal-mail/verifiers/verifier-list'
+import { noOrganizationTables, organizationTables } from '../organization-scope/organization-tables'
+import { modulesOf } from './names/modules-on'
+import { resolveNames } from './names/resolve-names'
 
-/** What every hook of the project's own gets as its last argument: the app's database, the one jobs get. */
-export type HookContext = { db: Db }
+/**
+ * What every hook of the project's own gets as its last argument: the app's database, kept to the organization the
+ * hook is about on the tables whose rows belong to one (`ScopedDb`), such as the new organization in
+ * `onOrganizationCreated`; a hook about no organization, such as `onUserCreated`, sees none of their rows.
+ */
+export type HookContext = { db: ScopedDb }
+
+/** The context of a hook about `organization`. */
+type HookContexts = (organization: Organization) => HookContext
+
+// The organization a Better Auth organization hook is about: each one's input names it, without an id before it is made.
+const organizationOfHook = (input: unknown): Organization => {
+  const organization = (input as { organization?: { id?: unknown } | null } | undefined)?.organization
+  return typeof organization?.id === 'string' ? organization.id : undefined
+}
 
 type OrganizationHooks = NonNullable<OrganizationOptions['organizationHooks']>
 
@@ -60,7 +76,7 @@ export type AuthSettings = Omit<CreateAuthOptions, 'database' | 'secret' | 'gene
 }
 
 export type AppAuthInput = {
-  /** The app's database: sign-in queries run through it, its plugins included, and the hooks get it. */
+  /** The app's database: sign-in queries run through it as it is, its plugins included; each hook gets it kept to the organization it is about. */
   db: Db
   hooks?: AuthHooks
   /** A mailer of the project's own, in place of the default. */
@@ -69,16 +85,16 @@ export type AppAuthInput = {
   workflowConnections?: CreateAuthOptions['workflowConnections']
 }
 
-const organizationOptions = (organizations: AuthSettings['organizations'], hooks: AuthHooks, app: HookContext): OrganizationsOptions | undefined => {
+const organizationOptions = (organizations: AuthSettings['organizations'], hooks: AuthHooks, app: HookContexts): OrganizationsOptions | undefined => {
   if (!organizationsEnabled(organizations)) return undefined
   const { enabled: _, ...options } = organizations!
   const own = hooks.organizationHooks ?? {}
-  const betterAuthHooks = Object.fromEntries(Object.entries(own).map(([name, hook]) => [name, (input: unknown) => (hook as (input: unknown, app: HookContext) => unknown)(input, app)]))
+  const betterAuthHooks = Object.fromEntries(Object.entries(own).map(([name, hook]) => [name, (input: unknown) => (hook as (input: unknown, app: HookContext) => unknown)(input, app(organizationOfHook(input)))]))
   return {
     ...options,
-    ...(hooks.generateOrganizationId && { generateId: () => hooks.generateOrganizationId!(app) }),
-    ...(hooks.onOrganizationCreated && { onCreated: (input) => hooks.onOrganizationCreated!(input, app) }),
-    ...(hooks.beforeOrganizationDeleted && { beforeDelete: (organization) => hooks.beforeOrganizationDeleted!(organization, app) }),
+    ...(hooks.generateOrganizationId && { generateId: () => hooks.generateOrganizationId!(app(undefined)) }),
+    ...(hooks.onOrganizationCreated && { onCreated: (input) => hooks.onOrganizationCreated!(input, app(input.organization.id)) }),
+    ...(hooks.beforeOrganizationDeleted && { beforeDelete: (organization) => hooks.beforeOrganizationDeleted!(organization, app(organization.id)) }),
     ...(Object.keys(betterAuthHooks).length > 0 && { hooks: betterAuthHooks as OrganizationHooks }),
   }
 }
@@ -87,10 +103,13 @@ const organizationOptions = (organizations: AuthSettings['organizations'], hooks
 export const appAuthOptions = (settings: AuthSettings, { db, hooks = {}, mailer, workflowConnections }: AppAuthInput): CreateAuthOptions => {
   const { schema = 'auth', secret, generateUserId, mailer: mail, organizations, mcp, ...rest } = settings
   if (!secret) throw new Error("the auth secret is not set: give it the app's secret, PROTOBASE_SECRET, made with `openssl rand -base64 32`")
-  const app = { db }
+  // The store's tables as the hooks see them; sign-in itself reads the store through `db` as it is.
+  const on = organizationsEnabled(organizations)
+  const scope = on ? organizationTables(resolveNames({ schema, tables: rest.tables, modules: modulesOf({ ...rest, mcp, organizations: on }) })) : noOrganizationTables
+  const app: HookContexts = (organization) => ({ db: scopedDb(db, scope, organization) })
   const organizationsOptions = organizationOptions(organizations, hooks, app)
-  const userId = hooks.generateUserId ? () => hooks.generateUserId!(app) : generateUserId
-  const onUserCreated: UserCreatedHook | undefined = hooks.onUserCreated && ((user, context) => hooks.onUserCreated!(user, context, app))
+  const userId = hooks.generateUserId ? () => hooks.generateUserId!(app(undefined)) : generateUserId
+  const onUserCreated: UserCreatedHook | undefined = hooks.onUserCreated && ((user, context) => hooks.onUserCreated!(user, context, app(undefined)))
   const verifiers = senderVerifierList()
   hooks.senderVerifiers?.(verifiers.add_verifier)
   const senderVerifiers = verifiers.freeze()

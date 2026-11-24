@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { Db } from '@protobase/query'
+import { db } from '../../../../test-support/compile-sql'
 import type { ApiKeys } from '../api-keys/api-key-settings'
 import { apiKeyCaller } from '../api-keys/resolve-caller'
 import { createErrorHandler } from '../error-handler'
@@ -7,7 +7,6 @@ import { unauthorized } from '../problem'
 import { defineFunction, type ApiFunction, type KeyFunctionContext } from './define-function'
 import { supabaseFunctionRoutes } from './supabase-routes'
 
-const db = { name: 'the database' } as unknown as Db
 const keys: ApiKeys = { publishable: 'sb_publishable_1', secret: 'sb_secret_1' }
 
 // A user token is `a.b.<user id>`; a JWT whose last part is `bad` does not verify.
@@ -18,7 +17,7 @@ const verify = async (token: string) => {
 }
 
 const serve = (functions: Record<string, ApiFunction>, appKeys = keys) =>
-  supabaseFunctionRoutes({ functions, db, keys: appKeys, caller: apiKeyCaller({ keys: appKeys, verify }), onError: createErrorHandler(vi.fn()) })
+  supabaseFunctionRoutes({ functions, db, scope: { tables: [] }, keys: appKeys, caller: apiKeyCaller({ keys: appKeys, verify }), onError: createErrorHandler(vi.fn()) })
 
 const invoke = (bearer?: string, init: RequestInit = {}) => ({ ...init, headers: { apikey: keys.publishable!, ...(bearer && { authorization: `Bearer ${bearer}` }), ...init.headers } })
 

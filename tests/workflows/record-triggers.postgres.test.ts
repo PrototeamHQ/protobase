@@ -1,4 +1,5 @@
 import { sql, type Kysely } from 'kysely'
+import { scopedDb } from '@protobase/query'
 // Where runs keep their traces.
 const trace = await traceFiles()
 
@@ -209,7 +210,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('record triggers, turned
     expect((await runtime.drain(15)).drained).toBe(true)
     await sql`update workflows.triggers set input = ${JSON.stringify({ resource: 'rates' })}::jsonb where workflow_id = ${workflow.id}`.execute(db)
     const check = admin.jobs.find((job) => job.name === 'workflows.trigger-tenant-check')!
-    await check.options.run(undefined, { db, job: { id: 'job', name: check.name, attempt: 1, maxAttempts: 1, startedOn: new Date() }, signal: new AbortController().signal, decryptField: async () => null })
+    await check.options.run(undefined, { db: scopedDb(db, { tables: [] }, undefined), job: { id: 'job', name: check.name, attempt: 1, maxAttempts: 1, startedOn: new Date() }, signal: new AbortController().signal, decryptField: async () => null })
     const rows = (await sql<{ status: string; last_error: { code: string; message: string } }>`select status, last_error from workflows.triggers where workflow_id = ${workflow.id}`.execute(db)).rows
     expect(rows).toMatchObject([{ status: 'failing', last_error: { code: 'no_tenant', message: 'rates has no tenant field, so its changes never reach a workflow of a tenant: give it .tenant(...)' } }])
     await enable('ada', workflow.id, null)

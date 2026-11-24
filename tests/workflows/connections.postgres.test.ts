@@ -1,4 +1,5 @@
 import { sql, type Kysely } from 'kysely'
+import { scopedDb } from '@protobase/query'
 // Where runs keep their traces.
 const trace = await traceFiles()
 
@@ -375,7 +376,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
     const revokeJob = () => app.jobs.find((job) => job.name === 'workflows.connection-revoke')!
     // One try of the job, as the worker runs it, the `attempt`-th of `maxAttempts`.
     const attempt = async (id: string, attempt: number, maxAttempts = 10) =>
-      await revokeJob().options.run({ revocation: id }, { db, job: { id: 'job', name: 'workflows.connection-revoke', attempt, maxAttempts, startedOn: new Date() }, signal: new AbortController().signal, decryptField: async () => null })
+      await revokeJob().options.run({ revocation: id }, { db: scopedDb(db, { tables: [] }, undefined), job: { id: 'job', name: 'workflows.connection-revoke', attempt, maxAttempts, startedOn: new Date() }, signal: new AbortController().signal, decryptField: async () => null })
     const queued = async (token: string) =>
       (await sql<{ id: string }>`insert into workflows.connection_revocations (provider, hint, token) values (${provider}, 'refresh_token', ${token}) returning id`.execute(db)).rows[0]!.id
     const jobRows = async () => JSON.stringify((await sql`select data, output from jobs.job where name = 'workflows.connection-revoke'`.execute(db)).rows)

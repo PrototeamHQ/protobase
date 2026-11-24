@@ -124,6 +124,7 @@ describe('a linked Gmail’s tokens stay on the server', () => {
       functions: { send: defineFunction(async (_request, context) => (await context.personalMail.send(invoice), new Response(null, { status: 204 }))) },
       authenticate: () => ({ user: { id: setup.ada.id, roles: ['user'] }, signIn: { staff: false } }),
       access: {},
+      scope: { tables: [] },
       db: {} as Db,
       records: () => ({}) as FunctionRecords,
       channels: { broadcast: async () => {} },

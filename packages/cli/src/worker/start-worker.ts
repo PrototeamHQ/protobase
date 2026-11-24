@@ -44,7 +44,7 @@ export const startWorker = async ({ config, databaseUrl, openDb = (url) => openA
     if (project.jobs.length === 0 && !builtIn) throw new Error('The bundle has no jobs: name their module in protobase.config.ts as `jobs`, or give a resource events, history, comments or an AI field, or declare a time rollup')
     const { admin, jobs: definitions } = projectAdmin(project, db)
     await checkJobsSchema(db)
-    return { definitions, runtime: await startJobs({ db, jobs: definitions, decryptField: admin.decryptField, ...(project.mailer && { mailer: project.mailer }), ...(admin.unsubscribe && { unsubscribe: admin.unsubscribe }), onError: (error) => console.error(error) }) }
+    return { definitions, runtime: await startJobs({ db, scope: admin.organizationScope, jobs: definitions, decryptField: admin.decryptField, ...(project.mailer && { mailer: project.mailer }), ...(admin.unsubscribe && { unsubscribe: admin.unsubscribe }), onError: (error) => console.error(error) }) }
   }
   const { definitions, runtime: jobs } = await start().catch(async (error: Error) => {
     await db.destroy()

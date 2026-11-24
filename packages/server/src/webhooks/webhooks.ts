@@ -1,4 +1,4 @@
-import type { Db } from '@protobase/query'
+import type { Db, ScopedDb } from '@protobase/query'
 import { capturedBy, dispatchJobName } from '../changes/capture-sql'
 import { coalesce } from '../changes/coalesce'
 import { EventCodeError } from '../changes/event-code-error'
@@ -112,7 +112,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, channels, schem
   const tableId = (subscription: SubscriptionDefinition) => (subscription.name.startsWith('ui:') ? subscription.name.slice('ui:'.length) : undefined)
 
   // A try, kept on its row for a table subscription, whose URL reaches a private address only when the options allow it.
-  const attempt = async (subscription: SubscriptionDefinition, event: SubscriptionEvent, db: Db, tried: number, signal: AbortSignal) => {
+  const attempt = async (subscription: SubscriptionDefinition, event: SubscriptionEvent, db: ScopedDb, tried: number, signal: AbortSignal) => {
     const id = tableId(subscription)
     const started = performance.now()
     const allowPrivateAddresses = id === undefined || Boolean(table?.allowPrivateAddresses)

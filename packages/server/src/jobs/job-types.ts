@@ -1,4 +1,4 @@
-import type { Db } from '@protobase/query'
+import type { Db, ScopedDb } from '@protobase/query'
 import type { DecryptField } from '../encryption/decrypt-field-types'
 import type { StandardSchema } from '../functions/read-json'
 import type { Mailer } from '../mail/smtp-mailer'
@@ -6,8 +6,11 @@ import type { SendNotification } from '../notifications/send-input'
 
 /** What `run` gets beside the payload. */
 export type JobContext = {
-  /** The database pool. The enqueuer's transaction has committed by the time a job runs. */
-  db: Db
+  /**
+   * The database pool. The enqueuer's transaction has committed by the time a job runs. A job works in no organization:
+   * `db` reads no row of the tables whose rows belong to one, and writes none (`ScopedDb`); `db.unscoped('<reason>')` reads them all.
+   */
+  db: ScopedDb
   /** The job, and when this try took it: each try takes it at a new time. */
   job: { id: string; name: string; attempt: number; maxAttempts: number; startedOn: Date }
   /** Aborted when the job's timeout passes, or when the worker shuts down and its grace period ends. */

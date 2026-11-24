@@ -1,4 +1,5 @@
 import { DummyDriver, Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler } from 'kysely'
+import { scopedDb } from '@protobase/query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FatalJobError, type FunctionContext, type JobContext, type MailMessage, type WriteEvent } from '@protobase/server'
 import emailReadyRepair from './email/hooks/email-ready-repair'
@@ -23,7 +24,7 @@ const answering = (rows: Record<string, unknown>[]) =>
   })
 
 const contextWith = (db: Kysely<any>, mail?: JobContext['mail']): JobContext => ({
-  db,
+  db: scopedDb(db, { tables: [] }, undefined),
   job: { id: '1', name: 'email-repair-ready', attempt: 1, maxAttempts: 10, startedOn: new Date() },
   signal: new AbortController().signal,
   decryptField: vi.fn(),

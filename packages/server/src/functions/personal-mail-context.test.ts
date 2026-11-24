@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { Db } from '@protobase/query'
+import { db } from '../../../../test-support/compile-sql'
 import { createErrorHandler } from '../error-handler'
 import type { MailMessage } from '../mail/smtp-mailer'
 import { MailSenderRefusedError } from '../personal-mail/mail-sender-refused'
@@ -32,7 +32,8 @@ const serve = (functions: Record<string, ApiFunction>, personalMailer?: Function
     functions,
     authenticate,
     access: {},
-    db: {} as Db,
+    db,
+    scope: { tables: [] },
     records: () => ({}) as FunctionRecords,
     channels: { broadcast: async () => {} },
     decryptField: () => async () => null,

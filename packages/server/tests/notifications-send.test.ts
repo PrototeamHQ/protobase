@@ -1,5 +1,6 @@
 import { createECDH } from 'node:crypto'
 import { Kysely, sql } from 'kysely'
+import { scopedDb } from '@protobase/query'
 import { describe, expect, it, vi } from 'vitest'
 import type { JobContext } from '../src/jobs/job-types'
 import { StaleJobError } from '../src/jobs/job-progress'
@@ -63,7 +64,7 @@ const take = async (db: Kysely<any>, id: string, attempt: number): Promise<{ pay
 const tryOnce = async (db: Kysely<any>, id: string, attempt: number, request: PushRequest) => {
   const { payload, job } = await take(db, id, attempt)
   const run = pushJob({}, [guardedSender(webPushSender(settings, { request }), 0)]).options.run
-  return run(payload, { db, job, signal: new AbortController().signal, decryptField: vi.fn() })
+  return run(payload, { db: scopedDb(db, { tables: [] }, undefined), job, signal: new AbortController().signal, decryptField: vi.fn() })
 }
 
 const dataOf = async (db: Kysely<any>, id: string) => (await sql<{ data: Record<string, unknown> }>`select data from jobs.job where id = ${id}::uuid`.execute(db)).rows[0]!.data
@@ -98,7 +99,7 @@ describe('the send job on Postgres', () => {
     // pg-boss took the job again, as after this try's time ran out.
     await take(db, id, 2)
     const run = pushJob({}, []).options.run
-    await expect(run(payload, { db, job, signal: new AbortController().signal, decryptField: vi.fn() })).rejects.toBeInstanceOf(StaleJobError)
+    await expect(run(payload, { db: scopedDb(db, { tables: [] }, undefined), job, signal: new AbortController().signal, decryptField: vi.fn() })).rejects.toBeInstanceOf(StaleJobError)
     expect(await history.list('a', { limit: 10 })).toEqual([])
   })
 })

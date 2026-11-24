@@ -71,7 +71,7 @@ export const startServe = async ({ config, env, openDb = (url) => openAppDatabas
     if (env.startupChecks) checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
     const { admin, jobs: definitions } = await servedAdmin(project, db, ui, reporter, upgradeWebSocket)
     if (env.startupChecks && definitions.length > 0) await checkJobsSchema(db)
-    const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, decryptField: admin.decryptField, ...(project.mailer && { mailer: project.mailer }), ...(admin.unsubscribe && { unsubscribe: admin.unsubscribe }), onError: (error) => console.error(error) }) : undefined
+    const jobs = definitions.length > 0 ? await startJobs({ db, scope: admin.organizationScope, jobs: definitions, work: env.runJobs, decryptField: admin.decryptField, ...(project.mailer && { mailer: project.mailer }), ...(admin.unsubscribe && { unsubscribe: admin.unsubscribe }), onError: (error) => console.error(error) }) : undefined
     const release = project.mobile ? await servedRelease({ site, mobile: project.mobile, issuer: project.auth?.issuer, signingKey: env.mobileSigningKey, serverVersion: protobaseVersion, push: Boolean(project.notifications) }) : undefined
     const mobile = project.mobile && { ...(release && { release }), serverVersion: protobaseVersion }
     const app = createServeApp({ admin, requestLog: env.requestLog, site, ...(jobs && { jobs }), ...(env.drainToken && { drainToken: env.drainToken }), ...(mobile && { mobile }) })

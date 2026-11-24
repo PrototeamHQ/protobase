@@ -52,7 +52,7 @@ The second argument of a handler (`c.env` in a [Hono app](#hono-apps)):
 | --- | --- |
 | `session` | The caller: `{ user: { id, roles }, tenant? }`, from the app's `authenticate`. |
 | `records` | The app's resources, acting as the caller: `list`, `get`, `create`, `update`, `delete`, `softDeleteField`. |
-| `db` | The Kysely instance itself. It skips every access rule, row filter and tenant scope. |
+| `db` | The Kysely instance itself. It skips every access rule, row filter and the tenant scope of `.tenant` resources, but keeps the [organization's tables](#the-organizations-tables) to the caller's organization. |
 | `caller()` | Resolves to `{ session, records }`. Public functions use it to ask for a caller when they need one. |
 | `decryptField(resource, key, field)` | An [encrypted field](/reference/data-config/#reading-in-jobs-and-functions)'s value, skipping access rules like `db`; each read is audited, naming the function and the caller. |
 | `acceptWebSocket(events)` | Answers a WebSocket upgrade with a socket; return its response. See [WebSockets](#websockets). |
@@ -61,6 +61,27 @@ The second argument of a handler (`c.env` in a [Hono app](#hono-apps)):
 | `name` | The function's name. |
 
 A [public function](#public-functions-and-webhooks) has only `db`, `caller()`, `acceptWebSocket`, `calls`, `channels` and `name`.
+
+### The organization's tables
+
+With [organizations](/reference/auth/#organizations) on, the tables of the auth store whose rows each belong to one organization, `member`, `invitation` and `personal_access_token` under the names the app gives them, show `db` only the caller's organization, the one their session works in. A read, update or delete of one gets `organization_id = <the organization>` in the select, update or delete that reads the table: in its `where`, or for a joined table in the join's `on`, so a `left join` keeps its other rows. Subqueries, common table expressions and `exists` filter their own tables, and a name a common table expression takes is not the table. An insert writes the organization, and one naming another organization, or an update moving a row to one, is refused with a `ScopeRefused` error before it reaches the database; so is an upsert's update of a row of another organization, which it leaves as it is. A table of the project's own with the same name in another schema is never taken for the store's. A right or full join, or a `merge`, of one of these tables throws, as the scope cannot keep it to the organization.
+
+A public function, a function called at `/api/sb/functions/v1`, a [job](/reference/jobs/) and a webhook's call of a function work in no organization: their `db` reads no row of these tables and writes none. Work that means every organization's rows says so, with a reason for whoever reviews it:
+
+```ts
+const everyone = await db.unscoped('the nightly report counts members of every organization').selectFrom('auth.member').select(({ fn }) => fn.countAll().as('members')).executeTakeFirstOrThrow()
+```
+
+Raw SQL names these tables through `scoped(table)` for the organization's rows, or `unscoped(reason, table)` for every organization's, both from `@protobase/query`. Naming one with `sql.table` or `sql.id` is refused, and `db.withoutPlugins()` too, as it would drop the scope without a reason:
+
+```ts
+import { scoped } from '@protobase/query'
+import { sql } from 'kysely'
+
+const { rows } = await sql`select count(*) as members from ${scoped('auth.member')} as m`.execute(db)
+```
+
+`scoped(table)` runs only on a database that keeps the scope: elsewhere Postgres refuses it as an unknown function. SQL written as plain text, `sql.raw`, a database view, or Kysely's `CompiledQuery.raw` is not seen, so name these tables through the helpers. The `.tenant` resources of the app's own tables are not kept to the organization in `db`: their API and `records` are.
 
 ## Reading and writing records as the caller
 
@@ -99,7 +120,7 @@ In an app with [roles](/reference/access/) (`config/roles.ts`), a function with 
 - `verifyStandardWebhook(request, { secret })` checks [Standard Webhooks](https://www.standardwebhooks.com) signatures, as Supabase Auth hooks, Svix and Resend send them, including the timestamp (5 minutes of tolerance by default).
 - Stripe ships its own check: `stripe.webhooks.constructEventAsync(await request.text(), request.headers.get('stripe-signature'), secret)`.
 
-A public function has no caller, so it has no `records`. Its `db` skips the tenant scope too, so filter by tenant yourself where it matters. When a function should serve anyone but treat a signed-in caller differently, `await context.caller()` resolves the caller from the request, or rejects with the `401` problem.
+A public function has no caller, so it has no `records`. Its `db` skips the tenant scope too, so filter by tenant yourself where it matters, and it sees no row of the [organization's tables](#the-organizations-tables). When a function should serve anyone but treat a signed-in caller differently, `await context.caller()` resolves the caller from the request, or rejects with the `401` problem.
 
 ## WebSockets
 
