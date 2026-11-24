@@ -113,6 +113,7 @@ export const capturedAccept = (accept: readonly string[]) => {
 
 /** The types of `.accept()` on a field that opens the camera, which takes only images. */
 export const checkedCaptureAccept = (types: readonly string[]) => {
+  if (types.length === 0) throw new Error('A field with .capture() takes only images, so .accept() needs at least one image type, such as image/*')
   const other = types.find((type) => !type.startsWith('image/'))
   if (other) throw new Error(`"${other}" is not an image type, and a field with .capture() takes only images`)
   return [...types]

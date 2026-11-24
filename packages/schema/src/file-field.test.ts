@@ -48,6 +48,9 @@ describe('f.file()', () => {
     expect(model.fields.datasheet!.file!.capture).toBeUndefined()
     expect(f.file().capture().accept(['image/png']).meta.file!.accept).toEqual(['image/png'])
     expect(() => f.file().capture().accept(['application/pdf'])).toThrow('"application/pdf" is not an image type')
+    expect(() => f.file().capture().accept([])).toThrow('needs at least one image type, such as image/*')
+    expect(f.file().accept([]).capture().meta.file!.accept).toEqual(['image/*'])
+    expect(f.file().accept([]).meta.file!.accept).toEqual([])
   })
 
   it('refuse a placeholder field that is missing, writable, not text, or derived as well', () => {
