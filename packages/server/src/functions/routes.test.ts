@@ -57,7 +57,7 @@ describe('functionRoutes', () => {
 
     expect(seen.map(({ method, path }) => [method, path])).toEqual([['GET', '/'], ['DELETE', '/orders/7']])
     expect(seen[0]!.context).toMatchObject({ name: 'hello', session: sessions.ann, records: { as: 'ann' } })
-    expect(seen[0]!.context.db.unscoped('the test compares it with the app database')).toBe(db)
+    expect(seen[0]!.context.db.unscoped('the test reads every organization').selectFrom('auth.member').select('id').compile().sql).toBe('select "id" from "auth"."member"')
     expect(await seen[0]!.context.caller()).toEqual({ session: sessions.ann, records: { as: 'ann' } })
   })
 

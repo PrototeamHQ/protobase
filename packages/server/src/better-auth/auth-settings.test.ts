@@ -15,16 +15,21 @@ describe('appAuthOptions', () => {
     const hooks: AuthHooks = {
       generateOrganizationId: ({ db: hookDb }) => (seen.push(hookDb), 'acme'),
       onOrganizationCreated: async (_input, { db: hookDb }) => void seen.push(hookDb),
-      organizationHooks: { afterAddMember: async (_input, { db: hookDb }) => void seen.push(hookDb) },
+      organizationHooks: {
+        afterAddMember: async (_input, { db: hookDb }) => void seen.push(hookDb),
+        beforeAddMember: async (_input, { db: hookDb }) => void seen.push(hookDb),
+      },
     }
     const options = appAuthOptions({ baseURL: 'http://localhost:1', secret: 'a-secret-of-thirty-two-characters!', organizations }, { db, hooks })
     await options.organizations!.generateId!()
     await options.organizations!.onCreated!({ organization: { id: 'acme' } as StoredOrganization, member: {} as StoredMember })
     await (options.organizations!.hooks!.afterAddMember as (input: unknown) => Promise<void>)({ organization: { id: 'globex' } })
+    await (options.organizations!.hooks!.beforeAddMember as (input: unknown) => Promise<void>)({ member: { organizationId: 'initech' } })
     expect(seen.map(membersRead)).toMatchObject([
       { sql: 'select "id" from "auth"."member" where false', parameters: [] },
       { sql: 'select "id" from "auth"."member" where "auth"."member"."organization_id" = $1', parameters: ['acme'] },
       { sql: 'select "id" from "auth"."member" where "auth"."member"."organization_id" = $1', parameters: ['globex'] },
+      { sql: 'select "id" from "auth"."member" where "auth"."member"."organization_id" = $1', parameters: ['initech'] },
     ])
   })
 

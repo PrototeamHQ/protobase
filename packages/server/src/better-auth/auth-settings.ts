@@ -21,10 +21,12 @@ export type HookContext = { db: ScopedDb }
 /** The context of a hook about `organization`. */
 type HookContexts = (organization: Organization) => HookContext
 
-// The organization a Better Auth organization hook is about: each one's input names it, without an id before it is made.
+// The organization a Better Auth organization hook is about: its input's organization, else the member's or the
+// invitation's, and none before an organization is made.
 const organizationOfHook = (input: unknown): Organization => {
-  const organization = (input as { organization?: { id?: unknown } | null } | undefined)?.organization
-  return typeof organization?.id === 'string' ? organization.id : undefined
+  const { organization, member, invitation } = (input ?? {}) as { organization?: { id?: unknown } | null; member?: { organizationId?: unknown }; invitation?: { organizationId?: unknown } }
+  const id = organization?.id ?? member?.organizationId ?? invitation?.organizationId
+  return typeof id === 'string' ? id : undefined
 }
 
 type OrganizationHooks = NonNullable<OrganizationOptions['organizationHooks']>
