@@ -18,7 +18,9 @@ const preset = presets.find(({ name }) => name === 'property-portal')!
 writePresetFiles(preset, packed[0]!.version, outDir)
 
 // The app lists its @protobase packages at the packed version, as the CLI requires, and each of them resolves to its
-// tarball, as do the ones they depend on.
+// tarball, as do the ones they depend on. @react-pdf/textkit stays at 7.0.1, since 7.0.2 depends on a
+// @react-pdf/hyphenate@^0.1.1 the registry does not have.
+const overrides = { ...tarballs, '@react-pdf/textkit': '7.0.1' }
 const file = path.join(outDir, 'package.json')
-writeFileSync(file, `${JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), overrides: tarballs }, null, 2)}\n`)
+writeFileSync(file, `${JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), overrides }, null, 2)}\n`)
 execFileSync('bun', ['install', '--lockfile-only'], { cwd: outDir, stdio: 'inherit' })
