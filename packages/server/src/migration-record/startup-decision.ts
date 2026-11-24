@@ -30,8 +30,8 @@ const unfinishedRefusals = (unfinished: RecordState['unfinished']) =>
     return after.filter(({ unique }) => unique).map(({ index }) => `${name} has not finished building the unique index ${index}`)
   })
 
-const waysOut = (matches: string | undefined, running: string) =>
-  `${matches ? `The database matches Protobase ${matches}; this is ${running}. ` : ''}Either bring the database to this version, \`protobase migrate --plan\` to see what applies and \`protobase migrate\` to apply it, or run ${matches ? `Protobase ${matches}` : 'the version the database was migrated with'}.`
+const waysOut = (matches: string, running: string) =>
+  `To bring the database up to ${running}, run \`protobase migrate --plan\` to see the migrations it will apply, then \`protobase migrate\`. Or run Protobase ${matches}, the version the database matches.`
 
 /**
  * Why the server must not start on the database `state` describes, running `running` with the model `runtime`;
@@ -40,15 +40,15 @@ const waysOut = (matches: string | undefined, running: string) =>
 export const startupRefusal = (runtime: RecordModel, state: RecordState, running: string): string | undefined => {
   if (!runtime.auth) return
   const unfinished = unfinishedRefusals(state.unfinished)
-  if (unfinished.length > 0) return `The database's migrations have not finished: ${unfinished.join('; ')}. Run \`protobase migrate\` to finish them, then start again.`
+  if (unfinished.length > 0) return `The database's migrations have not finished, so the server will not start: ${unfinished.join('; ')}. Run \`protobase migrate\` to finish them.`
   const { newest } = state
   if (!newest) {
-    return `The database has no migration recorded in ${recordTable}, and this version of Protobase needs the auth store. Write its migration with \`protobase migration\`, or \`protobase auth migration\` in a project without protobase.snapshot.json, see it with \`protobase migrate --plan\`, apply it with \`protobase migrate\`, then start again.`
+    return `The database has no migration recorded in ${recordTable}, so the server will not start: this version of Protobase needs the auth store. Write the migration that makes and records it with \`protobase migration\`, or with \`protobase auth migration\` for a store whose tables are there already, run \`protobase migrate --plan\` to see it, then \`protobase migrate\`.`
   }
   if (newest.hash === modelHash(runtime)) return
   if (state.matched && state.notAdditiveSince.length === 0) return
   const needs = authNeeds(newest.model.auth, runtime.auth)
-  if (needs.length > 0) return `The database is behind this version of Protobase: ${needs.join('; ')}. ${waysOut(newest.version, running)}`
-  const ahead = state.matched ? `by migrations that are not additive: ${state.notAdditiveSince.join(', ')}` : `at ${newest.name}, and no migration records the model this version reads`
-  return `The database is ahead of this version of Protobase ${ahead}. ${waysOut(newest.version, running)}`
+  if (needs.length > 0) return `The database is behind Protobase ${running}, so the server will not start: ${needs.join('; ')}. ${waysOut(newest.version, running)}`
+  const ahead = state.matched ? `it has migrations that are not additive since the one this version reads: ${state.notAdditiveSince.join(', ')}` : `its newest migration, ${newest.name}, records a model no migration of this version's records`
+  return `The database is ahead of Protobase ${running}, so the server will not start: ${ahead}. ${waysOut(newest.version, running)}`
 }

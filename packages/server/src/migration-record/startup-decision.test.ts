@@ -31,19 +31,19 @@ describe('startupRefusal', () => {
 
   it('refuses a database ahead by a migration that is not additive, naming it and the versions', () => {
     expect(startupRefusal(runtime, state(at({ auth: 6 } as never), { matched: true, notAdditiveSince: ['005_rename'] }), '0.14.2')).toBe(
-      'The database is ahead of this version of Protobase by migrations that are not additive: 005_rename. The database matches Protobase 0.14.1; this is 0.14.2. Either bring the database to this version, `protobase migrate --plan` to see what applies and `protobase migrate` to apply it, or run Protobase 0.14.1.',
+      'The database is ahead of Protobase 0.14.2, so the server will not start: it has migrations that are not additive since the one this version reads: 005_rename. To bring the database up to 0.14.2, run `protobase migrate --plan` to see the migrations it will apply, then `protobase migrate`. Or run Protobase 0.14.1, the version the database matches.',
     )
   })
 
   it('refuses a database behind, naming each module and step it lacks', () => {
     const refusal = startupRefusal(runtime, state(at({ passkeys: 1 })), '0.14.2')
     expect(refusal).toBe(
-      "The database is behind this version of Protobase: the auth store's passkeys module is at step 1 (passkeys), and this version needs step 2 (rp_id_index). The database matches Protobase 0.14.1; this is 0.14.2. Either bring the database to this version, `protobase migrate --plan` to see what applies and `protobase migrate` to apply it, or run Protobase 0.14.1.",
+      "The database is behind Protobase 0.14.2, so the server will not start: the auth store's passkeys module is at step 1 (passkeys), and this version needs step 2 (rp_id_index). To bring the database up to 0.14.2, run `protobase migrate --plan` to see the migrations it will apply, then `protobase migrate`. Or run Protobase 0.14.1, the version the database matches.",
     )
   })
 
   it('refuses a database that has no record', () => {
-    expect(startupRefusal(runtime, state(undefined), '0.14.2')).toMatch(/^The database has no migration recorded in migrations\.history, and this version of Protobase needs the auth store\. .*`protobase migrate`/)
+    expect(startupRefusal(runtime, state(undefined), '0.14.2')).toMatch(/^The database has no migration recorded in migrations\.history, so the server will not start: .*`protobase migrate`\.$/)
   })
 
   it('refuses a name the database has otherwise', () => {
@@ -57,7 +57,7 @@ describe('startupRefusal', () => {
     expect(startupRefusal(runtime, state(runtime, { unfinished: [plain] }), '0.14.2')).toBeUndefined()
     const unique = { name: '006_indexes', after: [{ index: 'user_email_key', unique: true }] }
     expect(startupRefusal(runtime, state(runtime, { unfinished: [unique] }), '0.14.2')).toBe(
-      "The database's migrations have not finished: 006_indexes has not finished building the unique index user_email_key. Run `protobase migrate` to finish them, then start again.",
+      "The database's migrations have not finished, so the server will not start: 006_indexes has not finished building the unique index user_email_key. Run `protobase migrate` to finish them.",
     )
     expect(startupRefusal(runtime, state(runtime, { unfinished: [{ name: '006_indexes', after: null }] }), '0.14.2')).toContain('006_indexes has not finished its .after.sql, whose indexes are not recorded')
   })

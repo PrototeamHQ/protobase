@@ -56,7 +56,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
 
     await database.exec(recordBlock(row('003_rename', next, { additive: false, protobaseVersion: '1.2.0' }), null))
     await expect(checkMigrationRecord(auth, '1.0.0')).rejects.toThrow(
-      'The database is ahead of this version of Protobase by migrations that are not additive: 003_rename. The database matches Protobase 1.2.0; this is 1.0.0. Either bring the database to this version, `protobase migrate --plan` to see what applies and `protobase migrate` to apply it, or run Protobase 1.2.0.',
+      'The database is ahead of Protobase 1.0.0, so the server will not start: it has migrations that are not additive since the one this version reads: 003_rename. To bring the database up to 1.0.0, run `protobase migrate --plan` to see the migrations it will apply, then `protobase migrate`. Or run Protobase 1.2.0, the version the database matches.',
     )
   })
 
@@ -65,7 +65,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
     const auth = authOn(database)
     await database.exec(recordBlock(row('001_auth', withSteps(runtimeModel(auth), { passkeys: 1 }), { protobaseVersion: '0.9.0' }), null))
     await expect(checkMigrationRecord(auth, '1.0.0')).rejects.toThrow(
-      "The database is behind this version of Protobase: the auth store's passkeys module is at step 1 (passkeys), and this version needs step 2 (rp_id_index). The database matches Protobase 0.9.0; this is 1.0.0. Either bring the database to this version, `protobase migrate --plan` to see what applies and `protobase migrate` to apply it, or run Protobase 0.9.0.",
+      "The database is behind Protobase 1.0.0, so the server will not start: the auth store's passkeys module is at step 1 (passkeys), and this version needs step 2 (rp_id_index). To bring the database up to 1.0.0, run `protobase migrate --plan` to see the migrations it will apply, then `protobase migrate`. Or run Protobase 0.9.0, the version the database matches.",
     )
   })
 
@@ -77,6 +77,6 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
     await expect(checkMigrationRecord(auth, '1.0.0')).resolves.toBeUndefined()
 
     await database.exec(recordBlock(row('003_unique', model, { completed: false, physical: { after: [{ index: 'user_email_key', unique: true }] } }), null))
-    await expect(checkMigrationRecord(auth, '1.0.0')).rejects.toThrow("The database's migrations have not finished: 003_unique has not finished building the unique index user_email_key.")
+    await expect(checkMigrationRecord(auth, '1.0.0')).rejects.toThrow("The database's migrations have not finished, so the server will not start: 003_unique has not finished building the unique index user_email_key.")
   })
 })
