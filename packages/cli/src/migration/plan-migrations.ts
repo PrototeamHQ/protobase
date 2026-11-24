@@ -13,14 +13,19 @@ const appliedNames = async (tx: TransactionSql) => {
   return []
 }
 
-/**
- * `protobase migrate --plan`: prints each `*.sql` file of `dir` that `migrate` would apply, in its order, under its
- * name, with its SQL, from a read-only transaction: it applies and records nothing. Returns the names.
- */
-export const planMigrations = async (sql: Sql, dir: string, out: (text: string) => void) => {
+/** The `*.sql` files of `dir` the database has not recorded as applied, in their order, read from a read-only transaction. */
+export const pendingMigrations = async (sql: Sql, dir: string) => {
   const files = (await readdir(dir)).filter((file) => file.endsWith('.sql')).sort()
   const done = new Set(await sql.begin('read only', (tx) => appliedNames(tx)))
-  const pending = files.filter((file) => !done.has(file))
+  return files.filter((file) => !done.has(file))
+}
+
+/**
+ * `protobase migrate --plan`: prints each `*.sql` file of `dir` that `migrate` would apply, in its order, under its
+ * name, with its SQL: it applies and records nothing. Returns the names.
+ */
+export const planMigrations = async (sql: Sql, dir: string, out: (text: string) => void) => {
+  const pending = await pendingMigrations(sql, dir)
   for (const file of pending) out(`-- ${file}\n${(await readFile(path.join(dir, file), 'utf8')).trimEnd()}\n\n`)
   out(pending.length > 0 ? `${pending.length} migrations to apply; nothing was applied\n` : 'the database is up to date\n')
   return pending

@@ -1,9 +1,11 @@
 // The serve runtime that `protobase build-serve` bundles into one file: `bun protobase-serve.js [serve] <bundle>`,
-// `migrate <bundle>` and `create-admin <bundle> <email>` (runtime-program.ts). It owns the process: environment,
-// database pool, HTTP server and shutdown; the bundle only carries the config, the app and its migrations.
+// `migrate <bundle>`, `migrate-release <bundle>` and `create-admin <bundle> <email>` (runtime-program.ts). It owns the
+// process: environment, database pool, HTTP server and shutdown; the bundle only carries the config, the app and its
+// migrations.
 import { createAdminInBundle } from './create-admin'
 import { provideHostModules } from './host-modules'
 import { migrateBundle } from './migrate-bundle'
+import { migrateRelease } from './migrate-release'
 import { runtimeProgram } from './runtime-program'
 import { serveBundlePath } from './serve-bundle-path'
 
@@ -21,6 +23,11 @@ await runtimeProgram({
     await serveBundlePath(bundle, process.env, out)
   },
   migrate: (bundle) => migrateBundle(bundle, process.env, out),
+  // The auth store keeps a connection pool open, so the command ends the process itself.
+  migrateRelease: async (bundle, { plan }) => {
+    await migrateRelease(bundle, process.env, out, plan)
+    process.exit(0)
+  },
   // The auth store keeps a connection pool open, so the command ends the process itself.
   createAdmin: async (bundle, email, options) => {
     await createAdminInBundle(bundle, email, options, out)

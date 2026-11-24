@@ -7,6 +7,7 @@ export type CreateAdminOptions = { name?: string; passwordStdin: boolean; genera
 export type RuntimeActions = {
   serve: (bundle: string) => Promise<void>
   migrate: (bundle: string) => Promise<void>
+  migrateRelease: (bundle: string, options: { plan: boolean }) => Promise<void>
   createAdmin: (bundle: string, email: string, options: CreateAdminOptions) => Promise<void>
 }
 
@@ -28,6 +29,13 @@ export const runtimeProgram = (actions: RuntimeActions) => {
     .description("Apply the bundle's pending migrations in one transaction, before a new version serves (DATABASE_URL)")
     .argument('<bundle>')
     .action((bundle: string) => actions.migrate(bundle))
+
+  program
+    .command('migrate-release')
+    .description("Apply this release's own schema steps for the features the bundle's config turns on, in one transaction, writing no file (DATABASE_URL)")
+    .argument('<bundle>')
+    .option('--plan', 'print the steps as SQL, and apply nothing', false)
+    .action((bundle: string, opts: { plan: boolean }) => actions.migrateRelease(bundle, { plan: opts.plan }))
 
   program
     .command('create-admin')
