@@ -91,6 +91,9 @@ const refuseTwice = (names: string[], what: string) => {
   if (twice !== undefined) throw new Error(`auth.tables gives ${what} the name "${twice}" twice: give each its own`)
 }
 
+/** The name `tables` gives a table, by internal name: its own `name`, or its built-in one after the prefix. */
+export const tableNameOf = (tables: TableNames, internal: string) => (tables as Record<string, TableConfig | undefined>)[internal]?.name ?? generatedName(`${tables.prefix ?? ''}${internal}`)
+
 const resolveTable = (schema: string | undefined, { module, internal, table, columns }: Declared, prefix: string, config: TableConfig = {}): ResolvedTable => {
   const id = tableId(schema, config.name ?? generatedName(`${prefix}${internal}`))
   const resolved = Object.fromEntries(

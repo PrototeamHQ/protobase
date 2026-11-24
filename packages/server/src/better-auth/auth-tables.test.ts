@@ -7,8 +7,8 @@ import type { UserTableOptions } from './user-table'
 const named = { user: { name: 'users' } }
 
 // The store never connects: the tables are read from the options alone.
-const authWith = (users: UserTableOptions) =>
-  createAuth({ database: { dialect: new PostgresDialect({ pool: () => Promise.reject(new Error('no database')) }), type: 'postgres', schemaName: 'app_auth' }, baseURL: 'http://localhost', secret: 'auth-tables-test-secret-0123456789', mailer: false, tables: named, users })
+const authWith = (users: UserTableOptions, tables: Record<string, { name: string }> = named) =>
+  createAuth({ database: { dialect: new PostgresDialect({ pool: () => Promise.reject(new Error('no database')) }), type: 'postgres', schemaName: 'app_auth' }, baseURL: 'http://localhost', secret: 'auth-tables-test-secret-0123456789', mailer: false, tables, users })
 
 describe('authStoreTables', () => {
   it('holds the user table and every table of the store, in its schema', () => {
@@ -18,6 +18,13 @@ describe('authStoreTables', () => {
     expect(tables).toContainEqual({ schema: 'app_auth', name: 'account' })
     expect(tables).toContainEqual({ schema: 'app_auth', name: 'auth_migrations' })
     expect(tables.every((table) => table.schema === 'app_auth')).toBe(true)
+  })
+
+  it('holds the tables of the modules that are off, which may keep their rows, without clashing with those on', () => {
+    expect(authStoreTables(authWith({})).tables).toContainEqual({ schema: 'app_auth', name: 'personal_access_token' })
+    // Organizations are off, so a user table may take the name their table would have.
+    const { tables } = authStoreTables(authWith({}, { user: { name: 'organization' } }))
+    expect(tables.filter(({ name }) => name === 'organization')).toHaveLength(1)
   })
 
   it('holds the key table under a user view too, with the password hashes the view leaves out', () => {
