@@ -813,6 +813,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
      * server's startup checks ask first.
      */
     pinnedOrganization: pin ?? (async () => undefined),
+    /** The tables of organizations that sign-in reads while they are off, when the store holds them only after they were on. */
+    keptTables: pin ? [keptNames(names).table('member').name] : [],
     defaultRole,
     /** New users get their ids from `generateUserId` instead of Better Auth's random text. */
     generatesUserIds: Boolean(options.generateUserId),
