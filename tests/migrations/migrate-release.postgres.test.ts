@@ -13,11 +13,18 @@ import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } fr
 // mail_senders module unshipped, and the workflows schema of the version before. CLI processes take seconds each.
 
 const runtime = path.join(root, 'packages/cli/src/serve/main.ts')
-const configFile = "export default { url: 'http://localhost:1', secret: 'release-steps-test-secret-release-steps', workflows: {} }\n"
+// Personal mail on, so the store has the mail_senders module.
+const configFile = `export default {
+  url: 'http://localhost:1',
+  secret: 'release-steps-test-secret-release-steps',
+  workflows: {},
+  auth: { personalMail: ['gmail'], encryptOAuthTokens: true, socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } } },
+}
+`
 const newSteps = ['sender_address_evidence', 'sender_verifications', 'sender_sharing']
 
 // The steps release N did not ship, each a part of the file from its comment to the end of its block.
-const withoutNewSteps = (text: string) => text.replace(new RegExp(`-- mail_senders [345] (${newSteps.join('|')}):[\\s\\S]*?end \\$version\\$;\\n\\n`, 'g'), '')
+const withoutNewSteps = (text: string) => text.replace(new RegExp(`-- mail_senders [345] (${newSteps.join('|')}):[\\s\\S]*?end \\$step\\$;\\n\\n`, 'g'), '')
 
 // The project's first migration and snapshot as release N would have written them.
 const asReleaseN = async (projectDir: string) => {
@@ -49,7 +56,8 @@ describe.skipIf(!(await postgresTemplateReady('empty')))("protobase-serve migrat
     await sql.end()
     return result
   }
-  const versions = async (url: string) => (await rows(url, 'select version from auth.auth_migrations order by version')).map((row) => row.version as number)
+  // The steps of mail_senders the store recorded.
+  const versions = async (url: string) => (await rows(url, "select step from auth.auth_steps where module = 'mail_senders' and target = module order by step")).map((row) => row.step as number)
   const sharedAt = async (url: string) => (await rows(url, "select count(*)::int as found from information_schema.columns where table_schema = 'auth' and table_name = 'mail_sender' and column_name = 'shared_at'"))[0]!.found
 
   // A project and its database on release N: its first migration written, taken back to N and applied, then built.
@@ -83,7 +91,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))("protobase-serve migrat
     expect(result.stdout.match(/^-- \w+: /gm)).toEqual(['-- auth: ', '-- workflows: ', '-- record: '])
     for (const step of newSteps) expect(result.stdout).toContain(` ${step}: `)
     expect(result.stdout).toMatch(/-- 3 steps to apply; nothing was applied\n$/)
-    expect(await versions(database.url)).not.toContain(17)
+    expect(await versions(database.url)).not.toContain(5)
   })
 
   it("refuses with the step's own message when the rows break what a step assumes, applying nothing", async () => {
@@ -92,12 +100,12 @@ describe.skipIf(!(await postgresTemplateReady('empty')))("protobase-serve migrat
     const result = await migrateRelease(refused.url)
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('error: The auth store has From addresses entered twice by one person, without regard to case: one, two.')
-    expect(await versions(refused.url)).not.toContain(15)
+    expect(await versions(refused.url)).not.toContain(3)
   })
 
   it('applies them in one transaction, recorded so a second run applies nothing', async () => {
     expect(await migrateRelease(database.url)).toMatchObject({ status: 0, stdout: 'applying auth\napplying workflows\napplying record\napplied 3 steps\n' })
-    expect(await versions(database.url)).toEqual(expect.arrayContaining([15, 16, 17]))
+    expect(await versions(database.url)).toEqual([1, 2, 3, 4, 5])
     // Not additive: the workflows step is one of the parts, which may drop what the config no longer has.
     expect(await rows(database.url, "select number, additive, completed_at is not null as completed from migrations.history where name like 'release %'")).toEqual([{ number: null, additive: false, completed: true }])
     expect(await sharedAt(database.url)).toBe(1)
@@ -108,13 +116,13 @@ describe.skipIf(!(await postgresTemplateReady('empty')))("protobase-serve migrat
     await cli(['migration'], database.url)
     expect((await readSnapshot(projectDir))!.model.auth!.modules.mail_senders!.lastStep).toBe(5)
     expect((await cli(['migrate'], database.url)).stdout).toMatch(/^applying 002_auth\.sql\napplied 1 migrations\n$/)
-    expect(await rows(database.url, 'select count(*)::int as rows from auth.auth_migrations where version = 17')).toEqual([{ rows: 1 }])
+    expect(await rows(database.url, "select count(*)::int as rows from auth.auth_steps where module = 'mail_senders' and step = 5")).toEqual([{ rows: 1 }])
   })
 
   it('applies the same files in full to a new database', async () => {
     const fresh = await openPostgresDatabase('empty')
     await cli(['migrate'], fresh.url)
-    expect(await versions(fresh.url)).toEqual(expect.arrayContaining([15, 16, 17]))
+    expect(await versions(fresh.url)).toEqual([1, 2, 3, 4, 5])
     expect(await sharedAt(fresh.url)).toBe(1)
     await fresh.close()
   })
