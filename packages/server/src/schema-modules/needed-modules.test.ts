@@ -30,4 +30,9 @@ describe('neededModules', () => {
     expect(neededModules(app([live], { views: [view] }))).toEqual(['jobs'])
     expect(neededModules(app([tickets.fields({ id: f.integer(), members: f.json() }).toModel()], { views: [view], signIn: true }))).toEqual([])
   })
+
+  it("needs the jobs schema for the relay's channels the config declares, with nothing else that needs jobs", () => {
+    expect(neededModules(app([tickets.toModel()]))).toEqual([])
+    expect(neededModules(app([tickets.toModel()], { realtime: { relay: { channels: { tickets: {} } } } }))).toEqual(['jobs'])
+  })
 })
