@@ -1,4 +1,4 @@
-import { AndNode, BinaryOperationNode, ColumnNode, OnNode, OperatorNode, ParensNode, RawNode, ReferenceNode, ValueNode, WhereNode, type OperationNode, type TableNode } from 'kysely'
+import { AndNode, BinaryOperationNode, ColumnNode, OnNode, OperatorNode, OrNode, ParensNode, RawNode, ReferenceNode, ValueNode, WhereNode, type OperationNode, type TableNode } from 'kysely'
 import type { ScopedTable } from './scoped-tables'
 
 /** The organization a query works in; undefined when it works in none, which sees no scoped row and writes none. */
@@ -17,9 +17,10 @@ export const scopeCondition = (scoped: ScopedTable, qualifier: TableNode, organi
 
 const sameTable = (a: TableNode, b: TableNode) => a.table.identifier.name === b.table.identifier.name && a.table.schema?.name === b.table.schema?.name
 
-// The terms a condition ands together.
+// The terms a condition ands together. Kysely prints an `and` without parentheses, so one with a bare `or` on either
+// side reads as `a or b and c` and constrains nothing as a whole: it counts as one opaque term.
 const conjuncts = (node: OperationNode): OperationNode[] => {
-  if (AndNode.is(node)) return [...conjuncts(node.left), ...conjuncts(node.right)]
+  if (AndNode.is(node)) return OrNode.is(node.left) || OrNode.is(node.right) ? [node] : [...conjuncts(node.left), ...conjuncts(node.right)]
   if (ParensNode.is(node)) return conjuncts(node.node)
   return [node]
 }

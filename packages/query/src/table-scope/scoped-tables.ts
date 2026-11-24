@@ -8,26 +8,25 @@ export type ScopedTable = { schema?: string; table: string; column: string }
 
 /**
  * The scoped tables, looked up by the name a query gives. `searchSchema` is the schema the search path finds an
- * unqualified name in, when it is known: a name qualified with it is the same table as the unqualified one.
+ * unqualified name in, `public` by default as Postgres's own search path has it: a name qualified with it is the same
+ * table as the unqualified one.
  */
 export type ScopedTables = { tables: readonly ScopedTable[]; searchSchema?: string }
 
-// A table's schema as Postgres finds it: its own, else the search path's, else unknown.
-const schemaOf = (schema: string | undefined, searchSchema: string | undefined) => schema ?? searchSchema
+// A table's schema as Postgres finds it: its own, else the search path's.
+const schemaOf = (schema: string | undefined, searchSchema: string) => schema ?? searchSchema
 
 /**
  * The scoped table a name stands for, or undefined. An unqualified name is the scoped table only when that table's
  * schema is the one the search path finds, so a project's own `public.member` is never taken for `auth.member`.
  */
-export const scopedTableNamed = ({ tables, searchSchema }: ScopedTables, schema: string | undefined, table: string) =>
-  tables.find((scoped) => {
-    if (scoped.table !== table) return false
-    if (scoped.schema === schema) return true
-    const theirs = schemaOf(scoped.schema, searchSchema)
-    return theirs !== undefined && theirs === schemaOf(schema, searchSchema)
-  })
+export const scopedTableNamed = ({ tables, searchSchema = 'public' }: ScopedTables, schema: string | undefined, table: string) =>
+  tables.find((scoped) => scoped.table === table && schemaOf(scoped.schema, searchSchema) === schemaOf(schema, searchSchema))
 
-/** The scoped table of a table node, unless an unqualified name is one of the common table expressions in `shadowing`. */
+/**
+ * The scoped table of a table node, unless an unqualified name is one of the common table expressions in `shadowing`.
+ * The target of an insert, update or delete is always a table, so it is looked up with no shadowing.
+ */
 export const scopedTableOf = (scope: ScopedTables, node: TableNode, shadowing: ReadonlySet<string>) => {
   const schema = node.table.schema?.name
   const table = node.table.identifier.name

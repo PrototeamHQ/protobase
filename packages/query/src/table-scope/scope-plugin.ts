@@ -8,14 +8,14 @@ import { ScopeTransformer } from './scope-transformer'
  * row and an insert into one is refused.
  */
 export class ScopePlugin implements KyselyPlugin {
-  readonly #transformer: ScopeTransformer
+  constructor(
+    readonly scope: ScopedTables,
+    readonly organization: Organization,
+  ) {}
 
-  constructor(scope: ScopedTables, organization: Organization) {
-    this.#transformer = new ScopeTransformer(scope, organization)
-  }
-
+  // A transformer per query: one that throws, such as on a refused insert, leaves its state behind with it.
   transformQuery({ node }: PluginTransformQueryArgs): RootOperationNode {
-    return this.#transformer.transformNode(node)
+    return new ScopeTransformer(this.scope, this.organization).transformNode(node)
   }
 
   async transformResult({ result }: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {

@@ -1,20 +1,30 @@
-import { AliasNode, ColumnNode, IdentifierNode, InsertQueryNode, PrimitiveValueListNode, SelectionNode, SelectQueryNode, ValueListNode, ValueNode, TableNode, ValuesNode, type ColumnUpdateNode, type OnConflictNode, type OperationNode } from 'kysely'
+import { AliasNode, ColumnNode, DefaultInsertValueNode, IdentifierNode, ReferenceNode, SelectAllNode, InsertQueryNode, PrimitiveValueListNode, SelectionNode, SelectQueryNode, ValueListNode, ValueNode, TableNode, ValuesNode, type ColumnUpdateNode, type OnConflictNode, type OperationNode } from 'kysely'
 import { andWhere, holdsScope, isOrganization, literalOf, ScopeRefused, scopeCondition, type Organization } from './scope-condition'
 import type { ScopedTable } from './scoped-tables'
 
 const tableName = (table: TableNode) => [table.table.schema?.name, table.table.identifier.name].filter(Boolean).join('.')
 
+// The column an update sets: `set({ col })` names a column, `set('col', value)` a reference to one.
+const updatedColumn = (column: OperationNode) => {
+  if (ColumnNode.is(column)) return column.column.name
+  if (ReferenceNode.is(column) && ColumnNode.is(column.column)) return column.column.column.name
+  return
+}
+
 /** Refuses a write of the organization column with anything but the organization itself, as a literal. */
 export const checkColumnUpdates = (updates: readonly ColumnUpdateNode[] | undefined, scoped: ScopedTable, organization: Organization, table: TableNode) => {
   for (const update of updates ?? []) {
-    if (!ColumnNode.is(update.column) || update.column.column.name !== scoped.column) continue
+    const column = updatedColumn(update.column)
+    if (column === undefined) throw new ScopeRefused(`An update of ${tableName(table)} sets a column it cannot name: set each column by its name`)
+    if (column !== scoped.column) continue
     const written = literalOf(update.value)
     if (written && isOrganization(written.value, organization)) continue
     throw new ScopeRefused(`An update sets ${tableName(table)}.${scoped.column} to another organization than the one it works in`)
   }
 }
 
-// Each row's values, with the organization added at the end, or checked where the row names it.
+// Each row's values, with the organization added at the end, or checked where the row names it. A row of a batch that
+// leaves the column out, where another names it, holds `DEFAULT` there: it gets the organization.
 const scopeValues = (values: ValuesNode, at: number, organization: Organization, refuse: () => never) =>
   ValuesNode.create(
     values.values.map((row) => {
@@ -25,15 +35,19 @@ const scopeValues = (values: ValuesNode, at: number, organization: Organization,
       }
       if (!ValueListNode.is(row)) throw new Error('Not implemented: an insert row that is no list of values')
       if (at < 0) return ValueListNode.create([...row.values, ValueNode.create(organization)])
+      if (DefaultInsertValueNode.is(row.values[at]!)) return ValueListNode.create(row.values.map((value, i) => (i === at ? ValueNode.create(organization) : value)))
       const written = literalOf(row.values[at]!)
       if (!written || !isOrganization(written.value, organization)) refuse()
       return row
     }),
   )
 
-// The select's column that the scope wrote, as a query it transformed already shows it.
-const writesOrganization = (selection: SelectionNode | undefined, scoped: ScopedTable, organization: Organization) => {
-  const written = selection?.selection
+// The select's column that the scope wrote, as a query it transformed already shows it: the last column, where the
+// select names each column on its own, so its place in the list is its place in the insert's columns.
+const writesOrganization = (select: SelectQueryNode, at: number, scoped: ScopedTable, organization: Organization) => {
+  const selections = select.selections ?? []
+  if (at !== selections.length - 1 || selections.some(({ selection }) => SelectAllNode.is(selection) || (ReferenceNode.is(selection) && SelectAllNode.is(selection.column)))) return false
+  const written = selections[at]?.selection
   if (!written || !AliasNode.is(written) || !IdentifierNode.is(written.alias) || written.alias.name !== scoped.column) return false
   const value = literalOf(written.node)
   return value !== undefined && isOrganization(value.value, organization)
@@ -41,9 +55,9 @@ const writesOrganization = (selection: SelectionNode | undefined, scoped: Scoped
 
 // `insert … select`: the organization as the select's last column, under the column's name.
 const scopeSelect = (select: SelectQueryNode, at: number, scoped: ScopedTable, organization: Organization, table: TableNode): SelectQueryNode => {
-  if (at >= 0 && writesOrganization(select.selections?.[at], scoped, organization)) return select
-  if (at >= 0) throw new ScopeRefused(`An insert into ${tableName(table)} selects its ${scoped.column}: leave the column out, the scope writes the organization`)
   if (select.setOperations?.length) throw new Error('Not implemented: insert … select of a union into a scoped table')
+  if (at >= 0 && writesOrganization(select, at, scoped, organization)) return select
+  if (at >= 0) throw new ScopeRefused(`An insert into ${tableName(table)} selects its ${scoped.column}: leave the column out, the scope writes the organization`)
   if (!select.selections?.length) throw new Error('Not implemented: insert … select without a column list into a scoped table')
   const column = SelectionNode.create(AliasNode.create(ValueNode.create(organization), IdentifierNode.create(scoped.column)))
   return { ...select, selections: [...select.selections, column] }

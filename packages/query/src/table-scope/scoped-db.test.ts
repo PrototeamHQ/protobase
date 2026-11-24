@@ -47,6 +47,12 @@ describe('scopedDb', () => {
     expect(compiled(cte).text).toBe('with "owners" as (select "user_id" from "auth"."member" where ("role" = $1) and "auth"."member"."organization_id" = $2) select "user_id" from "owners"')
   })
 
+  it('takes an unqualified name for a store in public, the default search path, as the store table', () => {
+    const publicStore = scopedDb(base, { tables: [{ schema: 'public', table: 'member', column: 'organization_id' }] }, 'org-a')
+    expect(compiledText(publicStore.selectFrom('member').select('id'))).toBe('select "id" from "member" where "member"."organization_id" = $1')
+    expect(compiledText(publicStore.selectFrom('auth.member').select('id'))).toBe('select "id" from "auth"."member"')
+  })
+
   it('takes an unqualified name for the scoped table only where the search path finds it', () => {
     expect(compiled(db.selectFrom('member').selectAll()).text).toBe('select * from "member"')
     const searched = scopedDb(base, { ...scope, searchSchema: 'auth' }, 'org-a')
@@ -71,6 +77,7 @@ describe('scopedDb', () => {
 
   it('refuses an update that moves a row to another organization', () => {
     expect(() => compiled(db.updateTable('auth.member').set({ organization_id: 'org-b' }))).toThrow(ScopeRefused)
+    expect(() => compiled(db.updateTable('auth.member').set('organization_id', 'org-b'))).toThrow(ScopeRefused)
     expect(compiled(db.updateTable('auth.member').set({ organization_id: 'org-a' })).text).toBe('update "auth"."member" set "organization_id" = $1 where "auth"."member"."organization_id" = $2')
   })
 
@@ -82,6 +89,33 @@ describe('scopedDb', () => {
     expect(compiled(db.insertInto('auth.member').values({ id: 'm1', organization_id: 'org-a' })).parameters).toEqual(['m1', 'org-a'])
     expect(() => compiled(db.insertInto('auth.member').values([{ id: 'm1', organization_id: 'org-a' }, { id: 'm2', organization_id: 'org-b' }]))).toThrow(ScopeRefused)
     expect(() => compiled(db.insertInto('auth.member').values({ id: 'm1', organization_id: sql`'org-b'` }))).toThrow(ScopeRefused)
+  })
+
+  it('writes the organization in a row of a batch that leaves it out where another names it', () => {
+    expect(compiled(db.insertInto('auth.member').values([{ id: 'm1', organization_id: 'org-a' }, { id: 'm2' }]))).toEqual({
+      text: 'insert into "auth"."member" ("id", "organization_id") values ($1, $2), ($3, $4)',
+      parameters: ['m1', 'org-a', 'm2', 'org-a'],
+    })
+  })
+
+  it('takes a write target for the table even where a common table expression has its name', () => {
+    const local = scopedDb(base, { tables: [{ table: 'member', column: 'organization_id' }] }, 'org-a')
+    const update = local.with('member', (q) => q.selectFrom('auth.user').select('id')).updateTable('member').set({ role: 'admin' })
+    expect(compiledText(update)).toBe('with "member" as (select "id" from "auth"."user") update "member" set "role" = $1 where "member"."organization_id" = $2')
+    const remove = local.with('member', (q) => q.selectFrom('auth.user').select('id')).deleteFrom('member')
+    expect(compiledText(remove)).toBe('with "member" as (select "id" from "auth"."user") delete from "member" where "member"."organization_id" = $1')
+  })
+
+  it('refuses a merge into a scoped table, and keeps a merge with common table expressions balanced', () => {
+    expect(() => compiled(db.mergeInto('auth.member').using('auth.user', 'auth.user.id', 'auth.member.user_id').whenMatched().thenDelete())).toThrow('Not implemented')
+    const merge = db.with('x', (q) => q.selectFrom('auth.user').select('id')).mergeInto('public.t').using('x', 'x.id', 'public.t.id').whenMatched().thenDelete()
+    expect(compiledText(merge)).toBe('with "x" as (select "id" from "auth"."user") merge into "public"."t" using "x" on "x"."id" = "public"."t"."id" when matched then delete')
+    expect(compiledText(db.selectFrom('auth.member').select('id'))).toBe('select "id" from "auth"."member" where "auth"."member"."organization_id" = $1')
+  })
+
+  it('refuses an insert … select whose organization column it cannot place', () => {
+    const union = db.insertInto('auth.invitation').columns(['id', 'email']).expression(db.selectFrom('auth.user').select(['id', 'email']).union(db.selectFrom('auth.user').select(['id', 'email'])))
+    expect(() => compiled(union)).toThrow('Not implemented')
   })
 
   it('scopes the select of an insert … select and writes the organization in it', () => {
@@ -110,8 +144,12 @@ describe('scopedDb', () => {
     expect(() => compiled(sql`select * from ${sql.table('auth.member')}`)).toThrow(ScopeRefused)
     expect(() => compiled(sql`select * from ${sql.id('auth', 'member')}`)).toThrow(ScopeRefused)
     expect(compiled(sql`select id from ${scoped('auth.member')} as m`)).toEqual({ text: 'select id from (select * from "auth"."member" where "auth"."member"."organization_id" = $1) as m', parameters: ['org-a'] })
-    expect(compiled(sql`select id from ${unscoped('counts members across organizations', 'auth.member')}`).text).toBe('select id from /* unscoped */ "auth"."member"')
+    expect(compiled(sql`select id from ${unscoped('counts members across organizations', 'auth.member')}`).text).toBe('select id from /* every organization: unscoped() */ "auth"."member"')
+    expect(() => compiled(sql`select id from /* unscoped */ ${sql.table('auth.member')}`)).toThrow(ScopeRefused)
     expect(() => unscoped(' ', 'auth.member')).toThrow('reason')
+    const local = scopedDb(base, { tables: [{ table: 'member', column: 'organization_id' }] }, 'org-a')
+    expect(compiledText(local.with('member', (q) => q.selectFrom('auth.user').select('id')).selectFrom(sql`${sql.id('member')}`.as('m')).selectAll())).toBe('with "member" as (select "id" from "auth"."user") select * from "member" as "m"')
+    expect(() => compiledText(local.selectFrom(sql`${sql.id('member')}`.as('m')).selectAll())).toThrow(ScopeRefused)
   })
 
   it('scopes queries a raw template embeds', () => {
@@ -123,6 +161,24 @@ describe('scopedDb', () => {
     expect(() => db.unscoped('')).toThrow('reason')
     expect(() => db.withoutPlugins()).toThrow("db.unscoped('<reason>')")
     expect(() => db.withSchema('auth').withoutPlugins()).toThrow("db.unscoped('<reason>')")
+    expect(db.withSchema('auth').organization).toBe('org-a')
+  })
+
+  it('keeps the schema and the other plugins when it opts out', () => {
+    expect(compiled(db.withSchema('auth').unscoped('lists every membership for the host').selectFrom('member').select('id')).text).toBe('select "id" from "auth"."member"')
+  })
+
+  it('keeps the scope and its refusal in transactions, connections and with()', async () => {
+    const seen: string[] = []
+    await db.transaction().execute(async (trx) => {
+      expect(() => trx.withoutPlugins()).toThrow("db.unscoped('<reason>')")
+      seen.push(trx.selectFrom('auth.member').select('id').compile().sql)
+    })
+    await db.connection().execute(async (connection) => {
+      expect(() => connection.withoutPlugins()).toThrow("db.unscoped('<reason>')")
+    })
+    expect(() => db.with('x', (q) => q.selectFrom('auth.user').select('id')).withoutPlugins()).toThrow("db.unscoped('<reason>')")
+    expect(seen).toEqual(['select "id" from "auth"."member" where "auth"."member"."organization_id" = $1'])
   })
 
   it('scopes names withSchema qualifies', () => {

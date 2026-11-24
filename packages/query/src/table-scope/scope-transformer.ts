@@ -57,6 +57,20 @@ export class ScopeTransformer extends OperationNodeTransformer {
     return scopedTableOf(this.scope, node, this.#shadowing())
   }
 
+  // The target of an insert, update or delete, which a common table expression of the same name never stands for.
+  #scopedTarget(node: TableNode) {
+    return scopedTableOf(this.scope, node, new Set())
+  }
+
+  // The `where` with the filter of a scoped write target.
+  #filterTarget(where: WhereNode | undefined, node: OperationNode | undefined) {
+    const item = node && tableItem(node)
+    if (node && !item) throw new Error('Not implemented: a write to anything but one table')
+    const scoped = item && this.#scopedTarget(item.table)
+    if (!scoped || holdsScope(where?.where, scoped, item.qualifier, this.organization)) return where
+    return andWhere(where, scopeCondition(scoped, item.qualifier, this.organization))
+  }
+
   // The `where` with the filter of each scoped table among `items`.
   #filterItems(where: WhereNode | undefined, items: readonly OperationNode[]) {
     let filtered = where
@@ -89,16 +103,18 @@ export class ScopeTransformer extends OperationNodeTransformer {
     return { where: filtered, joins: joins && scopedJoins }
   }
 
-  #ownsScoped(items: readonly OperationNode[], joins: readonly JoinNode[] | undefined) {
-    return [...items, ...(joins ?? []).map((join) => join.table)].some((node) => {
+  #ownsScoped(items: readonly OperationNode[], joins: readonly JoinNode[] | undefined, targets: readonly OperationNode[]) {
+    const read = [...items, ...(joins ?? []).map((join) => join.table)].some((node) => {
       const item = tableItem(node)
       return item !== undefined && this.#scoped(item.table) !== undefined
     })
+    return read || targets.some((node) => this.#scopedTarget(tableItem(node)!.table) !== undefined)
   }
 
-  // The `where` and joins of a query level whose own tables are `items` and `joins`.
-  #filterLevel(where: WhereNode | undefined, items: readonly OperationNode[], joins: readonly JoinNode[] | undefined) {
-    return this.#filterJoins(this.#filterItems(where, items), joins, this.#ownsScoped(items, joins))
+  // The `where` and joins of a query level whose targets are `targets` and whose other tables are `items` and `joins`.
+  #filterLevel(where: WhereNode | undefined, items: readonly OperationNode[], joins: readonly JoinNode[] | undefined, targets: readonly OperationNode[] = []) {
+    const targeted = targets.reduce((filtered, target) => this.#filterTarget(filtered, target), where)
+    return this.#filterJoins(this.#filterItems(targeted, items), joins, this.#ownsScoped(items, joins, targets))
   }
 
   protected override transformSelectQuery(node: SelectQueryNode, queryId?: QueryId): SelectQueryNode {
@@ -114,9 +130,9 @@ export class ScopeTransformer extends OperationNodeTransformer {
       const done = super.transformUpdateQuery(node, queryId)
       const target = done.table && tableItem(done.table)
       if (done.table && !target) throw new Error('Not implemented: an update of anything but one table')
-      const scoped = target && this.#scoped(target.table)
+      const scoped = target && this.#scopedTarget(target.table)
       if (scoped) checkColumnUpdates(done.updates, scoped, this.organization, target.table)
-      const { where, joins } = this.#filterLevel(done.where, [...(done.table ? [done.table] : []), ...(done.from?.froms ?? [])], done.joins)
+      const { where, joins } = this.#filterLevel(done.where, done.from?.froms ?? [], done.joins, done.table ? [done.table] : [])
       return { ...done, ...(where && { where }), ...(joins && { joins }) }
     })
   }
@@ -124,7 +140,7 @@ export class ScopeTransformer extends OperationNodeTransformer {
   protected override transformDeleteQuery(node: DeleteQueryNode, queryId?: QueryId): DeleteQueryNode {
     return this.#inLevel(node.with, () => {
       const done = super.transformDeleteQuery(node, queryId)
-      const { where, joins } = this.#filterLevel(done.where, [...done.from.froms, ...(done.using?.tables ?? [])], done.joins)
+      const { where, joins } = this.#filterLevel(done.where, done.using?.tables ?? [], done.joins, done.from.froms)
       return { ...done, ...(where && { where }), ...(joins && { joins }) }
     })
   }
@@ -132,15 +148,18 @@ export class ScopeTransformer extends OperationNodeTransformer {
   protected override transformInsertQuery(node: InsertQueryNode, queryId?: QueryId): InsertQueryNode {
     return this.#inLevel(node.with, () => {
       const done = super.transformInsertQuery(node, queryId)
-      const scoped = done.into && this.#scoped(done.into)
+      const scoped = done.into && this.#scopedTarget(done.into)
       return scoped ? scopeInsert(done, scoped, this.organization, done.into!) : done
     })
   }
 
   protected override transformMergeQuery(node: MergeQueryNode, queryId?: QueryId): MergeQueryNode {
-    const tables = [node.into, node.using?.table].flatMap((table) => (table ? [tableItem(table)] : []))
-    if (tables.some((item) => item && this.#scoped(item.table))) throw new Error('Not implemented: merge into or using a scoped table')
-    return super.transformMergeQuery(node, queryId)
+    return this.#inLevel(node.with, () => {
+      const into = node.into && tableItem(node.into)
+      const using = node.using && tableItem(node.using.table)
+      if ((into && this.#scopedTarget(into.table)) || (using && this.#scoped(using.table))) throw new Error('Not implemented: merge into or using a scoped table')
+      return super.transformMergeQuery(node, queryId)
+    })
   }
 
   // A non-recursive common table expression sees the ones before it; a recursive one sees them all.

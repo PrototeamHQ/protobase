@@ -4,9 +4,11 @@ import { scopedTableNamed, type ScopedTables } from './scoped-tables'
 
 // How raw SQL names a scoped table it means to: `scoped(t)` until the scope prints it as the organization's rows, which
 // a database without the scope refuses as an unknown function rather than reading every organization's; `unscoped`
-// as a comment before the table, which any database reads as the table itself.
+// as a comment before the table, which any database reads as the table itself. A plain `/* unscoped */` written by
+// hand is no mark: its tables are checked as any raw SQL's. The mark is fixed, not random, so the SQL a query sends,
+// and a snapshot of it, stays the same from run to run.
 const scopedFragments = ['scoped(', ')']
-const unscopedFragments = ['/* unscoped */ ', '']
+const unscopedFragments = ['/* every organization: unscoped() */ ', '']
 
 /**
  * A scoped table in raw `sql`, as the organization's rows: `sql\`select id from ${scoped('auth.member')} as m\``. The
@@ -21,7 +23,9 @@ export const scoped = (table: string) => sql`scoped(${sql.table(table)})`
  */
 export const unscoped = (reason: string, table: string) => {
   if (reason.trim() === '') throw new Error('unscoped needs a reason: say why this query reads every organization')
-  return sql`/* unscoped */ ${sql.table(table)}`
+  // A template of the mark's own fragments, as `sql` takes the parts of a tagged template.
+  const parts = Object.assign([...unscopedFragments], { raw: [...unscopedFragments] }) as unknown as TemplateStringsArray
+  return sql(parts, sql.table(table))
 }
 
 const fragmentsAre = (node: RawNode, fragments: readonly string[]) => node.sqlFragments.length === fragments.length && node.sqlFragments.every((part, i) => part === fragments[i])
@@ -53,16 +57,19 @@ const idsOf = (node: RawNode) => {
   return (node.parameters as IdentifierNode[]).map(({ name }) => name)
 }
 
-// The scoped table `sql.id(...)` names: `sql.id(schema, table)`, or `sql.id(table)` for a table the search path finds.
-const idNamesScoped = (scope: ScopedTables, ids: string[]) =>
-  scopedTableNamed(scope, ids.length >= 2 ? ids[0] : undefined, ids.length >= 2 ? ids[1]! : ids[0]!) !== undefined
+// The scoped table `sql.id(...)` names: `sql.id(schema, table)`, or `sql.id(table)` for a table the search path finds
+// and no common table expression in `shadowing` takes the name of.
+const idNamesScoped = (scope: ScopedTables, ids: string[], shadowing: ReadonlySet<string>) => {
+  if (ids.length === 1 && shadowing.has(ids[0]!)) return false
+  return scopedTableNamed(scope, ids.length >= 2 ? ids[0] : undefined, ids.length >= 2 ? ids[1]! : ids[0]!) !== undefined
+}
 
 const refusal = (name: string) => new ScopeRefused(`Raw SQL names the scoped table ${name}: write scoped('${name}') for the organization's rows, or unscoped('<reason>', '${name}') for every organization's`)
 
 /** Refuses raw SQL that names a scoped table through `sql.table` or `sql.id`, outside `scoped()` and `unscoped()`. */
 export const checkRawTables = (scope: ScopedTables, node: RawNode, shadowing: ReadonlySet<string>) => {
   const ids = idsOf(node)
-  if (ids && idNamesScoped(scope, ids)) throw refusal(ids.join('.'))
+  if (ids && idNamesScoped(scope, ids, shadowing)) throw refusal(ids.join('.'))
   for (const parameter of node.parameters) {
     if (!TableNode.is(parameter)) continue
     const { schema, identifier } = parameter.table
