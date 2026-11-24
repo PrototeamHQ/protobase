@@ -23,14 +23,18 @@ const everyTable = (names: StoreNames) => resolveNames({ ...names.names.input, m
 
 /**
  * The statements that keep `module`'s tables and rows while it is off: each column it adds to a table of a module that
- * is on loses `not null`, so the code that no longer writes it still inserts rows. The user table is left alone when
- * it is a relation Protobase did not make.
+ * stays on, one of `existing`, whose tables the store has before the migration, loses `not null`, so the code that no
+ * longer writes it still inserts rows. A table of a module turned on in the same migration is made without the
+ * column. The user table is left alone when it is a relation Protobase did not make.
  */
-export const keepStatements = (names: StoreNames, module: ModuleId, externalUser = names.users.keyTable !== undefined) => {
+export const keepStatements = (names: StoreNames, module: ModuleId, existing: readonly ModuleId[], externalUser = names.users.keyTable !== undefined) => {
   const every = everyTable(names)
   const declaration = builtInModules.find(({ id }) => id === module) as ModuleDeclaration
   return Object.entries(declaration.columns ?? {})
-    .filter(([table]) => names.names.tables[table] !== undefined && !(table === 'user' && externalUser))
+    .filter(([table]) => {
+      const kept = names.names.tables[table]
+      return kept !== undefined && existing.includes(kept.module) && !(table === 'user' && externalUser)
+    })
     .flatMap(([table, columns]) => Object.keys(columns).map((column) => ddl`alter table ${every[table]!} alter column ${every[table]!.columns[column]!} drop not null`))
 }
 
@@ -68,8 +72,8 @@ $revive$`
 }
 
 /** The statements that keep `module` while off, as SQL text under a comment naming it; none when there are none. */
-export const keepSql = (names: StoreNames, module: ModuleId, externalUser?: boolean) => {
-  const statements = keepStatements(names, module, externalUser)
+export const keepSql = (names: StoreNames, module: ModuleId, existing: readonly ModuleId[], externalUser?: boolean) => {
+  const statements = keepStatements(names, module, existing, externalUser)
   if (statements.length === 0) return `-- ${module} off: its tables and rows are kept as they are.`
   return `-- ${module} off: its tables and rows are kept, and the columns it adds to the tables of the modules that are on may stay empty.\n${statementsSql(statements)}`
 }
