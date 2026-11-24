@@ -53,7 +53,7 @@ const serve = async (renamed: Record<string, string> = {}) => {
   const store = await openPostgresDatabase('auth')
   const { seen, plugin } = spy(renamed)
   const db = new Kysely<any>({ dialect: store.dialect, plugins: [plugin] })
-  const auth = await buildAuth(appAuthOptions({ baseURL, secret: 'shared-kysely-test-secret-0123456789', schema: 'public', mailer: false, organizations: true, personalAccessTokens: { prefix } }, { db }))
+  const auth = await buildAuth(appAuthOptions({ baseURL, secret: 'shared-kysely-test-secret-0123456789', schema: 'public', mailer: false, organizations: { enabled: true }, personalAccessTokens: { prefix } }, { db }))
   const request = (path: string, init: { cookie?: string; body?: unknown } = {}) =>
     auth.handler(
       new Request(`${baseURL}${path}`, {
@@ -67,10 +67,11 @@ const serve = async (renamed: Record<string, string> = {}) => {
   return { store, auth, seen, request, bearer }
 }
 
-// Signs in a member of an organization, reads the session, and uses a JWT and a personal access token of it.
+// Signs in a member of an organization, reads the session, and uses a JWT and a personal access token of it. As the
+// first user, she owns the default organization too, which turning organizations on made, and starts in it.
 const signInFlow = async ({ auth, request, bearer }: Awaited<ReturnType<typeof serve>>) => {
   const user = await createUser(auth, { email: 'ana@example.com', password, name: 'Ana' })
-  const { organization } = await createOrganization(auth, { name: 'Acme', slug: 'acme', owner: 'ana@example.com' })
+  await createOrganization(auth, { name: 'Acme', slug: 'acme', owner: 'ana@example.com' })
   const signedIn = await request('/api/auth/sign-in/email', { body: { email: 'ana@example.com', password } })
   expect(signedIn.status, await signedIn.clone().text()).toBe(200)
   const cookie = signedIn.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
@@ -79,7 +80,7 @@ const signInFlow = async ({ auth, request, bearer }: Awaited<ReturnType<typeof s
   const created = await request('/api/auth/account/personal-access-tokens/create', { cookie, body: { name: 'Script' } })
   expect(created.status, await created.clone().text()).toBe(200)
   const { token: personal } = (await created.json()) as { token: string }
-  return { user, organization, session, jwt: await bearer(token), personal: await bearer(personal) }
+  return { user, organization: { id: 'default' }, session, jwt: await bearer(token), personal: await bearer(personal) }
 }
 
 describe.skipIf(!ready)("sign-in on the app's own Kysely", () => {
@@ -100,7 +101,8 @@ describe.skipIf(!ready)("sign-in on the app's own Kysely", () => {
     const counts = await app.store.db
       .selectNoFrom((eb) => Object.values(renamed).map((table) => eb.selectFrom(table).select(eb.fn.countAll<string>().as('n')).as(table)))
       .executeTakeFirstOrThrow()
-    expect(counts).toEqual({ app_session: '1', app_member: '1', app_personal_access_token: '1' })
+    // Ana's memberships: the organization she made and the default one.
+    expect(counts).toEqual({ app_session: '1', app_member: '2', app_personal_access_token: '1' })
     // The store's own SQL maps its tables too: ending a device's sessions deletes the row of the renamed table.
     const { id } = await app.store.db.selectFrom('app_session').select('id').executeTakeFirstOrThrow()
     await app.store.db.insertInto('device_session').values({ id: 'd1', session_id: id, account_id: 'device-account', created_at: new Date() }).execute()

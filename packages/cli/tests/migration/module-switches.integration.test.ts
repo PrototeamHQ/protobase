@@ -62,7 +62,7 @@ const project = async () => {
 
 // `protobase migration` for `auth`, with the database's rows counted when `database` is set.
 const migration = (where: { projectDir: string; dir: string }, auth: AdminAuth, run: Partial<MigrationRun> = {}) =>
-  runMigration({ ...where, auth: { names: storeNames(auth), organizationsOn: false }, database: undefined, protobaseVersion: '1.0.0', newId: randomUUID, ...run })
+  runMigration({ ...where, auth: { names: storeNames(auth), organizationsOn: false, organizations: undefined }, database: undefined, protobaseVersion: '1.0.0', newId: randomUUID, ...run })
 
 // `protobase migrate`, with `--force` or without.
 const migrate = async (databaseUrl: string, dir: string, force = false) => {

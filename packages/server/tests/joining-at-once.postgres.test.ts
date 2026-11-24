@@ -36,7 +36,7 @@ describe.skipIf(!ready)('accepting invitations at the same moment', () => {
     const accepts = await Promise.allSettled(people.map((person, i) => acceptInvitation(context, invitations[i]!, { ...person, emailVerified: true }, 2)))
     expect(accepts.filter(({ status }) => status === 'fulfilled')).toHaveLength(1)
     expect(accepts.filter(({ status }) => status === 'rejected').map((accept) => (accept as PromiseRejectedResult).reason.body.code)).toEqual(['MEMBERSHIP_LIMIT_REACHED', 'MEMBERSHIP_LIMIT_REACHED'])
-    expect((await store.db.selectFrom('member').selectAll().execute()).length).toBe(2)
+    expect((await store.db.selectFrom('member').selectAll().where('organization_id', '=', 'acme').execute()).length).toBe(2)
   })
 })
 
@@ -51,7 +51,7 @@ describe.skipIf(!ready)('bringing every user into an organization twice at the s
       select 'u' || lpad(i::text, 3, '0'), 'User ' || i, 'user' || i || '@example.com', true, 'user', false, now(), now() from generate_series(1, 150) i`)
     const runs = await Promise.all([addEveryUser(auth, 'acme'), addEveryUser(auth, 'acme')])
     expect(runs.map((joined) => joined.length).sort()).toEqual([0, 150])
-    const counted = await store.db.selectFrom('member').select(({ fn }) => [fn.countAll<string>().as('members'), fn.count<string>('user_id').distinct().as('people')]).execute()
+    const counted = await store.db.selectFrom('member').where('organization_id', '=', 'acme').select(({ fn }) => [fn.countAll<string>().as('members'), fn.count<string>('user_id').distinct().as('people')]).execute()
     expect(counted).toEqual([{ members: '151', people: '151' }])
   })
 })

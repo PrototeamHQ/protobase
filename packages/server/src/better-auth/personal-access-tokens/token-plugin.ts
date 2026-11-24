@@ -23,6 +23,8 @@ const dayMs = 24 * 60 * 60 * 1000
 
 const noRole = { code: 'NO_ROLE', message: 'You have no role in this app here, so a token could do nothing.' }
 
+const noOrganization = { code: 'NO_ORGANIZATION', message: 'Choose the organization the token works in first.' }
+
 const idsIn = (values: string[]) => [{ field: 'id', value: values, operator: 'in' as const }]
 
 // The role and organization labels of the rows: the role's label, and each organization by its name.
@@ -37,11 +39,12 @@ const labelsFor = async (adapter: AuthContext['adapter'], definitions: RoleDefin
  * The signed-in person's personal access tokens, which act as them from a script:
  * `GET /account/personal-access-tokens` lists them, newest first, without the tokens themselves;
  * `POST /account/personal-access-tokens/create { name, expiresInDays? }` makes one with the role and organization the
- * session works with, and answers the token, once, beside the listed entry;
+ * session works with, and answers the token, once, beside the listed entry; with `organizations`, a session without an
+ * active organization makes none, as every token works in one;
  * `POST /account/personal-access-tokens/revoke { id }` deletes one, so it stops at its next request; one that is gone
  * already is no error. Each acts on the session's own person only. The store keeps each token's SHA-256 hash alone.
  */
-export const personalAccessTokensPlugin = ({ options, definitions, names }: { options: PersonalAccessTokensOptions; definitions: RoleDefinitions; names: BetterAuthNames }) =>
+export const personalAccessTokensPlugin = ({ options, definitions, names, organizations }: { options: PersonalAccessTokensOptions; definitions: RoleDefinitions; names: BetterAuthNames; organizations: boolean }) =>
   ({
     id: 'protobase-personal-access-tokens',
     schema: names.tables(personalAccessTokenModel),
@@ -57,6 +60,7 @@ export const personalAccessTokensPlugin = ({ options, definitions, names }: { op
         { method: 'POST', use: [sessionMiddleware], body: z.object({ name: z.string().trim().min(1).max(100), expiresInDays: z.number().int().min(1).max(maxTokenDays).optional() }) },
         async (ctx) => {
           const { user, session } = ctx.context.session as { user: RoleUser; session: RoleSession & { id: string } }
+          if (organizations && !session.activeOrganizationId) throw new APIError('FORBIDDEN', noOrganization)
           const context = ctx.context as unknown as AuthContext
           const { active } = await sessionRoles(context, { user, session })
           if (!active) throw new APIError('FORBIDDEN', noRole)

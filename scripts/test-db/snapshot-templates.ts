@@ -57,7 +57,8 @@ export const snapshotTemplates = {
       baseURL: 'http://localhost',
       secret: 'auth-store-snapshot-secret-0123456789',
       mailer: false,
-      organizations: {},
+      // Turning organizations on makes their default organization; a new store has no users to make its members.
+      organizations: { default: { id: 'default', name: 'Default', slug: 'default' } },
       mcp: true,
       personalAccessTokens: { prefix: 'snapshot_' },
       personalMail: ['gmail'],

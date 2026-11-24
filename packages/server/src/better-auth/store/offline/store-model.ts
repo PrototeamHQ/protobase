@@ -19,7 +19,7 @@ export type StoreModel = {
   userKeyTable: string | null
   /** The user table's JSON metadata column (`users.metadata`). */
   userMetadata: string | null
-  /** Whether every table whose rows belong to an organization has the column that names it. */
+  /** Whether every table whose rows belong to an organization has the column that names it while organizations are on. */
   scopedTablesCarryOrganization: boolean
   /** Each module that is on: its last step applied and its tables by internal name. */
   modules: Partial<Record<ModuleId, { lastStep: number; tables: Record<string, ModelTable> }>>
@@ -40,7 +40,7 @@ export const storeModel = ({ schema, names, users, uuidIds }: StoreNames, lastSt
     ids: uuidIds ? 'uuid' : 'text',
     userKeyTable: users.keyTable ? `${users.keyTable.schema}.${users.keyTable.table}` : null,
     userMetadata: users.metadata ?? null,
-    scopedTablesCarryOrganization: tables.filter((table) => table.scope === 'organization').every((table) => 'organization_id' in table.columns),
+    scopedTablesCarryOrganization: !names.modules.includes('organizations') || tables.filter((table) => table.scope === 'organization').every((table) => 'organization_id' in table.columns),
     modules: Object.fromEntries(
       modules.map((module) => [
         module,

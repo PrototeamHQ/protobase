@@ -3,6 +3,9 @@ import { expect } from 'vitest'
 import type { AdminOptions } from '../../src/admin-options'
 import { betterAuthAuthenticator, type BetterAuthAuthenticator } from '../../src/better-auth/authenticator'
 import { buildAuth, type CreateAuthOptions } from '../../src/better-auth/create-auth'
+import { allModules } from '../../src/better-auth/names/modules-on'
+import { keepSql } from '../../src/better-auth/store/offline/module-switches'
+import { storeNames } from '../../src/better-auth/store/store-names'
 import { createUser, setUserRole } from '../../src/better-auth/users'
 import { createAdmin, type CreateAdminInput } from '../../src/create-admin'
 import type { Authenticator, TenantValue } from '../../src/types'
@@ -94,6 +97,9 @@ export const serveMcp = async <Store extends McpStore = SnapshotDb>(stores: McpS
   if (!db || !(existing ?? stores)) throw new Error('serveMcp serves on the stores, or on a store and a database of its own')
   const store: Store | SnapshotDb = existing ?? (await stores!.migrated.clone())
   const auth = await authOn(store, options)
+  // The migrated store has every module; with organizations off, a token keeps no organization, as the migration that
+  // keeps their tables while off lets it.
+  if (!existing && !options.organizations && options.personalAccessTokens) await store.query(keepSql(storeNames(auth), 'organizations', allModules))
   if (!existing) {
     await createUser(auth, { email: 'root@example.com', password })
     await createUser(auth, { email: 'ana@example.com', password, role: 'sales' })

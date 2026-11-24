@@ -39,7 +39,7 @@ const authOn = async (store: SnapshotDb, ids: string[], options: Partial<CreateA
     mailer: false,
     signInPerMinute: 100,
     roles,
-    organizations: { generateId: () => ids.shift()!, create: 'everyone' },
+    organizations: { default: { id: 'default', name: 'Default', slug: 'default' }, generateId: () => ids.shift()!, create: 'everyone' },
     ...options,
   })
   // The check starts once its context is made, which a busy machine can take longer for than settled() waits.
@@ -128,6 +128,8 @@ describe('organizations on the host', () => {
         { email: 'sanne@example.com', role: 'member', appRoles: ['sales'] },
       ]) },
       { id: '2', name: 'Globex', slug: 'globex', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] },
+      // The default organization, which turning organizations on made, is one the first user owns too.
+      { id: 'default', name: 'Default', slug: 'default', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] },
     ])
     await expect(addMember(auth, { organization: 'acme', email: 'ana@example.com', appRoles: ['admin'] })).rejects.toThrow('A member cannot hold "admin"')
     await expect(createOrganization(auth, { name: 'Acme again', slug: 'acme', owner: 'bo@example.com' })).rejects.toThrow('exists already')
@@ -140,7 +142,11 @@ describe('the first user', () => {
     await store.exec(`insert into organization (id, name, slug, created_at) values ('1', 'Seeded', 'seeded', now())`)
     await createUser(auth, { email: 'root@example.com', password })
     await createUser(auth, { email: 'bo@example.com', password })
-    expect((await listOrganizations(auth)).organizations).toEqual([{ id: '1', name: 'Seeded', slug: 'seeded', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] }])
+    // The default organization, which turning organizations on made, is one of them.
+    expect((await listOrganizations(auth)).organizations).toEqual([
+      { id: 'default', name: 'Default', slug: 'default', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] },
+      { id: '1', name: 'Seeded', slug: 'seeded', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] },
+    ])
   })
 })
 
@@ -158,7 +164,8 @@ describe('the token of a signed-in person', () => {
     const { auth, signIn, tokenOf } = await serve({}, { people: true })
     const authenticate = betterAuthAuthenticator({ auth })
     const session = await authenticate(new Request(origin, { headers: { authorization: `Bearer ${await tokenOf(await signIn('root@example.com'))}` } }))
-    expect(session).toEqual({ user: { id: expect.any(String), roles: ['admin'] }, tenant: '2', organization: { id: '2', role: 'owner' }, signIn: { session: expect.any(String), staff: false, strongAt: expect.any(Function) }, memberships: expect.any(Function) })
+    // Root starts in the default organization, the first they own.
+    expect(session).toEqual({ user: { id: expect.any(String), roles: ['admin'] }, tenant: 'default', organization: { id: 'default', role: 'owner' }, signIn: { session: expect.any(String), staff: false, strongAt: expect.any(Function) }, memberships: expect.any(Function) })
     const sanne = await authenticate(new Request(origin, { headers: { authorization: `Bearer ${await tokenOf(await signIn('sanne@example.com'))}` } }))
     expect(sanne.user.roles).toEqual(['sales'])
     expect(sanne.organization).toEqual({ id: '1', role: 'member' })
@@ -428,7 +435,7 @@ describe('deleting an organization', () => {
     expect(await refused.json()).toMatchObject({ code: 'ORGANIZATION_HAS_RECORDS', message: expect.stringContaining('companies') })
     await createOrganization(app.auth, { name: 'Empty', slug: 'empty', owner: 'bo@example.com' })
     expect((await app.request('/api/auth/organization/delete', { cookie: bo, body: { organizationId: '3' } })).status).toBe(200)
-    expect((await listOrganizations(app.auth)).organizations.map((organization) => organization.slug)).toEqual(['acme', 'globex'])
+    expect((await listOrganizations(app.auth)).organizations.map((organization) => organization.slug)).toEqual(['acme', 'globex', 'default'])
   })
 })
 
@@ -457,7 +464,7 @@ describe('creating an organization by its name', () => {
   it('derives the slug from the name, adds a suffix when another has it, and names the app\'s word in the status', async () => {
     const names = { singular: 'Workspace', plural: 'Workspaces' }
     const ids = ['3', '4']
-    const app = await serve({ organizations: { generateId: () => ids.shift()!, create: 'everyone', names, createDescription: 'Where your team talks.' } }, { people: true })
+    const app = await serve({ organizations: { default: { id: 'default', name: 'Default', slug: 'default' }, generateId: () => ids.shift()!, create: 'everyone', names, createDescription: 'Where your team talks.' } }, { people: true })
     const bo = await app.signIn('bo@example.com')
     const fresh = await app.request('/api/auth/organization/create', { cookie: bo, body: { name: ' Initech  ' } })
     expect(await fresh.json()).toMatchObject({ id: '3', name: 'Initech', slug: 'initech' })

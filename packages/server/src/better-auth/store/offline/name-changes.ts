@@ -13,8 +13,14 @@ const changes = (before: Value, after: Value | undefined, at: string, source: st
   return Object.entries(before).flatMap(([key, value]) => changes(value, after[key], at === '' ? key : `${at}.${key}`, source))
 }
 
-/** How `after` changes what `before`, from `source`, has, one line each, the last steps aside; none when it only adds. */
+/**
+ * How `after` changes what `before`, from `source`, has, one line each, the last steps and the tables' scopes aside:
+ * a scope is Protobase's to declare, not a name the store has; none when it only adds.
+ */
 export const nameChanges = (before: StoreModel, after: StoreModel, source = 'the snapshot') => {
-  const withoutSteps = (model: StoreModel) => ({ ...model, modules: Object.fromEntries(Object.entries(model.modules).map(([module, entry]) => [module, entry!.tables])) })
+  const withoutSteps = (model: StoreModel) => ({
+    ...model,
+    modules: Object.fromEntries(Object.entries(model.modules).map(([module, entry]) => [module, Object.fromEntries(Object.entries(entry!.tables).map(([internal, { scope: _, ...table }]) => [internal, table]))])),
+  })
   return changes(withoutSteps(before) as Value, withoutSteps(after) as Value, '', source)
 }

@@ -12,7 +12,7 @@ const users: UserTableOptions = { metadata: 'raw_user_meta_data' }
 const tables = { user: { name: 'users', columns: { role: 'app_role' } } }
 const statementsOf = (options: UserTableOptions) => {
   const names = resolveNames({ schema: 'app_auth', tables })
-  const rendered = renderSteps(migrationNames({ schema: 'app_auth', names, users: userTable(options), uuidIds: true }), names.modules, () => false)
+  const rendered = renderSteps(migrationNames({ schema: 'app_auth', names, users: userTable(options), uuidIds: true }), names.modules, () => false, { default: { id: 'main', name: 'Main', slug: 'main' }, existingUsersRole: 'sales' })
   return rendered.flatMap((part) => part.statements.map(ddlText))
 }
 const userDdl = (statement: string) => /^(create table if not exists|alter table|create index if not exists "\w+" on) "app_auth"\."users"/.test(statement) || statement === pgTrgm

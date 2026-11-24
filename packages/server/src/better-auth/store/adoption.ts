@@ -28,6 +28,9 @@ const columnsIn = async (db: Kysely<any>, schema: string | undefined) =>
 // Never a schema of the app's: it exists only inside the transaction that is rolled back.
 const scratchSchema = 'protobase_auth_adoption'
 
+// The rows the organizations' steps write into the scratch schema, rolled back with it: only the columns count here.
+const scratchOrganizations = { default: { id: '00000000-0000-0000-0000-000000000000', name: 'scratch', slug: 'scratch' }, existingUsersRole: 'scratch' }
+
 /**
  * For each version, the columns its steps make: every step of every module, as the former chain made them with every
  * module on, runs in a scratch schema, in a transaction that is rolled back.
@@ -39,7 +42,7 @@ const madeColumns = async (db: Kysely<any>, names: StoreNames) => {
     const scratch = resolveNames({ ...names.names.input, schema: scratchSchema, modules: allModules })
     const made = new Map<number, Column[]>(legacyVersions.map(({ version }) => [version, []]))
     let before: Column[] = []
-    for (const part of renderSteps(migrationNames({ ...names, schema: scratchSchema, names: scratch }), scratch.modules, () => false)) {
+    for (const part of renderSteps(migrationNames({ ...names, schema: scratchSchema, names: scratch }), scratch.modules, () => false, scratchOrganizations)) {
       for (const statement of part.statements) await statement.execute(tx)
       const after = await columnsIn(tx, scratchSchema)
       made.get(part.version)!.push(...after.filter((column) => !before.some((earlier) => key(earlier) === key(column))))

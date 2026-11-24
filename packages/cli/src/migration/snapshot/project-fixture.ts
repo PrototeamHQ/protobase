@@ -20,8 +20,15 @@ export const newProject = async () => {
 
 export const cleanProjects = () => Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
 
-/** The auth store a config with these `auth` settings asks for. */
-export const authOf = (settings: Parameters<typeof settingsStoreNames>[0] = {}, organizationsOn = false): AuthTarget => ({ names: settingsStoreNames(settings), organizationsOn })
+/** A default organization, and the role of the users there already, as a config with organizations gives them. */
+export const testOrganizations = { default: { id: 'main', name: 'Main', slug: 'main' }, existingUsersRole: 'sales' }
+
+/** The auth store a config with these `auth` settings asks for, with `testOrganizations` once organizations are on. */
+export const authOf = (settings: Parameters<typeof settingsStoreNames>[0] = {}, organizationsOn = false): AuthTarget => ({
+  names: settingsStoreNames(settings),
+  organizationsOn,
+  organizations: organizationsOn ? testOrganizations : undefined,
+})
 
 /** Ids in order, as the same run gives the same ones. */
 export const counterIds = () => {

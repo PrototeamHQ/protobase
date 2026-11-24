@@ -5,7 +5,7 @@ import { authDifference } from './auth-difference'
 import { moduleChanges } from './module-changes'
 import { revivalRefused } from './module-prompts'
 import { revivedRows, type RevivedRows } from './revival-rows'
-import type { AuthTarget } from './auth-target'
+import { organizationsNow, type AuthTarget } from './auth-target'
 import { refuseInconsistent } from './consistency'
 import { readMigrationFiles } from './migration-files'
 import { runPreconditions } from './preconditions'
@@ -71,7 +71,8 @@ export const runMigration = async (run: MigrationRun) => {
   const sections = [...(difference.migration ? [{ name: 'auth', text: section(authMigrationTitle, difference.migration.sql) }] : []), ...compared]
   if (sections.length === 0) return
   // The auth store's steps only add (`step-lint.ts`); the other parts may drop what the config no longer has.
-  const content = { name: sections.map(({ name }) => name).join('_'), body: [intro, ...sections.map(({ text }) => text)].join('\n'), additive: sections.every(({ name }) => name === 'auth') }
+  const after = difference.migration?.after
+  const content = { name: sections.map(({ name }) => name).join('_'), body: [intro, ...sections.map(({ text }) => text)].join('\n'), additive: sections.every(({ name }) => name === 'auth'), ...(after && { after }) }
   const decisions = snapshot && { ...snapshot.decisions, modules: { ...snapshot.decisions.modules, kept: difference.kept } }
-  return writeMigrationFile(projectDir, dir, content, { previous: snapshot, auth: difference.model, organizationsOn: auth?.organizationsOn ?? false, protobaseVersion, ...(decisions && { decisions }) }, newId())
+  return writeMigrationFile(projectDir, dir, content, { previous: snapshot, auth: difference.model, organizations: organizationsNow(auth), protobaseVersion, ...(decisions && { decisions }) }, newId())
 }

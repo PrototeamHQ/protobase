@@ -6,8 +6,8 @@ const config = (rest: Partial<MergedConfig>) => ({ sources: [], jobs: {}, writeH
 
 describe('checkUserTables', () => {
   it('takes user tables together with the app\'s own organizations', () => {
-    expect(checkUserTables(config({ userTables: true, auth: { organizations: true } })).userTables).toBe(true)
-    expect(checkUserTables(config({ userTables: true, auth: { organizations: { create: 'admins' } as never }, authenticate: { organizations: true } })).userTables).toBe(true)
+    expect(checkUserTables(config({ userTables: true, auth: { organizations: { enabled: true } } })).userTables).toBe(true)
+    expect(checkUserTables(config({ userTables: true, auth: { organizations: { enabled: true, create: 'admins' } }, authenticate: { organizations: true } })).userTables).toBe(true)
   })
   it('refuses user tables in an API that trusts the organization tokens of an auth server elsewhere, naming both', () => {
     expect(() => checkUserTables(config({ userTables: true, authenticate: { organizations: true } }))).toThrow(/userTables and authenticate\.organizations are both on/)
@@ -17,10 +17,10 @@ describe('checkUserTables', () => {
     expect(checkUserTables(config({ userTables: true, auth: {} })).userTables).toBe(true)
     expect(checkUserTables(config({ userTables: true })).userTables).toBe(true)
     expect(checkUserTables(config({ userTables: false, authenticate: { organizations: true } })).userTables).toBe(false)
-    expect(checkUserTables(config({ auth: { organizations: true } })).userTables).toBeUndefined()
+    expect(checkUserTables(config({ auth: { organizations: { enabled: true } } })).userTables).toBeUndefined()
   })
   it('refuses a userTables that is no boolean, so no value turns user tables on past the check', () => {
-    expect(() => checkUserTables(config({ userTables: 'true' as never, auth: { organizations: true } }))).toThrow('userTables is "true"; it takes true or false')
+    expect(() => checkUserTables(config({ userTables: 'true' as never, auth: { organizations: { enabled: true } } }))).toThrow('userTables is "true"; it takes true or false')
     expect(() => checkUserTables(config({ userTables: 1 as never }))).toThrow('it takes true or false')
   })
 })

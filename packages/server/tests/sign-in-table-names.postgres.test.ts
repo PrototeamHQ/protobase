@@ -31,7 +31,7 @@ const tables = Object.fromEntries(
 const serve = async () => {
   const store = await openPostgresDatabase('empty')
   const db = new Kysely<any>({ dialect: store.dialect })
-  const auth = await buildAuth(appAuthOptions({ baseURL, secret: 'table-names-test-secret-0123456789', schema: 'login', mailer: false, organizations: true, personalAccessTokens: { prefix: 'test_' }, tables }, { db }))
+  const auth = await buildAuth(appAuthOptions({ baseURL, secret: 'table-names-test-secret-0123456789', schema: 'login', mailer: false, organizations: { enabled: true, default: { id: 'default', name: 'Default', slug: 'default' } }, personalAccessTokens: { prefix: 'test_' }, tables }, { db }))
   await store.exec((await authSchemaMigration(auth))!)
   const request = (path: string, init: { cookie?: string; body?: unknown } = {}) =>
     auth.handler(
@@ -61,7 +61,9 @@ describe.skipIf(!ready)('the auth store with every table and column renamed', ()
   it('signs a member of an organization in, with a session, a token and a personal access token', async () => {
     const { store, auth, request, bearer } = await serve()
     const user = await createUser(auth, { email: 'ana@example.com', password, name: 'Ana' })
-    const { organization } = await createOrganization(auth, { name: 'Acme', slug: 'acme', owner: 'ana@example.com' })
+    await createOrganization(auth, { name: 'Acme', slug: 'acme', owner: 'ana@example.com' })
+    // As the first user, she owns the default organization too, which turning organizations on made, and starts in it.
+    const organization = { id: 'default' }
     const signedIn = await request('/api/auth/sign-in/email', { body: { email: 'ana@example.com', password } })
     expect(signedIn.status, await signedIn.clone().text()).toBe(200)
     const cookie = signedIn.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
@@ -77,7 +79,10 @@ describe.skipIf(!ready)('the auth store with every table and column renamed', ()
 
     // The store's own SQL: the users and organizations pages, and the sessions still live.
     expect((await listUsers(auth)).users.map(({ email }) => email)).toEqual(['ana@example.com'])
-    expect((await listOrganizations(auth)).organizations).toMatchObject([{ slug: 'acme', members: [{ email: 'ana@example.com', role: 'owner' }] }])
+    expect((await listOrganizations(auth)).organizations).toMatchObject([
+      { slug: 'default', members: [{ email: 'ana@example.com', role: 'owner' }] },
+      { slug: 'acme', members: [{ email: 'ana@example.com', role: 'owner' }] },
+    ])
     expect(await liveSessions(auth)([session.session.id])).toEqual(new Map([[session.session.id, user.id]]))
     const { rows } = await store.pool().query('select c_user_id, c_name from login.t_personal_access_token')
     expect(rows).toEqual([{ c_user_id: user.id, c_name: 'Script' }])

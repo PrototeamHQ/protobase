@@ -23,6 +23,8 @@ const password = 'correct-horse-battery-staple'
 
 const serve = async (more: Partial<CreateAuthOptions> = {}) => {
   const store = await openPostgresDatabase('auth')
+  // The reads are of the organizations the tests make: the store's default organization is set aside.
+  await store.exec(`delete from organization where slug = 'default'`)
   const watched = watchStatements(store)
   const options: CreateAuthOptions = {
     database: { dialect: watched.dialect, type: 'postgres' },

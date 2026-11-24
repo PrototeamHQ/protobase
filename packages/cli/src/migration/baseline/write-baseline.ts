@@ -1,5 +1,5 @@
 import { baselineStore, stepRecordMigration, storeModel } from '@protobase/server/internal'
-import type { AuthTarget } from '../snapshot/auth-target'
+import { organizationsNow, type AuthTarget } from '../snapshot/auth-target'
 import { refuseInconsistent } from '../snapshot/consistency'
 import { readMigrationFiles } from '../snapshot/migration-files'
 import { readSnapshot, snapshotFile } from '../snapshot/snapshot-file'
@@ -35,6 +35,6 @@ export const writeBaseline = async ({ projectDir, dir, auth, url, protobaseVersi
   const store = baselineStore(auth.names, await readLiveStore(url, auth.names))
   const body = store.stepRecord ? intro : `${intro}\n${stepRecordMigration(auth.names)}\n`
   const decisions = { modules: { kept: store.kept, archived: [] }, organizations: { everOn: store.organizationsEverOn, defaultOrganization: null }, external: store.external }
-  const draft = { previous: undefined, auth: storeModel(auth.names, store.lastSteps), organizationsOn: auth.organizationsOn, protobaseVersion, decisions }
+  const draft = { previous: undefined, auth: storeModel(auth.names, store.lastSteps), organizations: organizationsNow(auth), protobaseVersion, decisions }
   return writeMigrationFile(projectDir, dir, { name: 'baseline', body, additive: true }, draft, newId())
 }

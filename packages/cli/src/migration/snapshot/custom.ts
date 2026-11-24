@@ -1,6 +1,6 @@
 import { storeModel } from '@protobase/server/internal'
 import { lastStepsOf } from './auth-difference'
-import type { AuthTarget } from './auth-target'
+import { organizationsNow, type AuthTarget } from './auth-target'
 import { refuseInconsistent } from './consistency'
 import { readMigrationFiles } from './migration-files'
 import { readSnapshot, snapshotFile } from './snapshot-file'
@@ -45,7 +45,7 @@ export const writeCustomMigration = async ({ projectDir, dir, name, recordConfig
   refuseInconsistent(snapshot, await readMigrationFiles(dir))
   const before = snapshot?.model.auth
   const model = recordConfig ? before && auth && storeModel(auth.names, lastStepsOf(before)) : before
-  const draft = { previous: snapshot, auth: model, organizationsOn: auth?.organizationsOn ?? false, protobaseVersion }
+  const draft = { previous: snapshot, auth: model, organizations: organizationsNow(auth), protobaseVersion }
   const content = { name, body: body(recordConfig), kind: { custom: true, additive: false }, additive: false, ...(after && { after: afterBody }) }
   return writeMigrationFile(projectDir, dir, content, draft, newId())
 }

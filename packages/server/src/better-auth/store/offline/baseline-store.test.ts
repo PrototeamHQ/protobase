@@ -8,7 +8,7 @@ import { settingsStoreNames } from './settings-names'
 import { latestSteps } from './store-model'
 
 // Every feature with tables of its own on, so every module is.
-const names = settingsStoreNames({ organizations: true, mcp: true, personalAccessTokens: { prefix: 'app_' }, personalMail: ['gmail'] })
+const names = settingsStoreNames({ organizations: { enabled: true }, mcp: true, personalAccessTokens: { prefix: 'app_' }, personalMail: ['gmail'] })
 const versionsTo = (last: number) => legacyVersions.filter(({ version }) => version <= last).map(({ version }) => version)
 const stepsTo = (last: number) => stepsOfVersions(versionsTo(last))
 

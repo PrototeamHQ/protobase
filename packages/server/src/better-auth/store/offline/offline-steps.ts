@@ -1,9 +1,9 @@
 import type { ModuleId } from '../../names/modules'
 import { stepRecordMigration } from '../legacy-record'
-import { guardedStepsSql, stepRecordSql, statementsSql } from '../migration-sql'
+import { afterStepsSql, guardedStepsSql, stepRecordSql, statementsSql } from '../migration-sql'
 import { moduleSteps } from '../steps'
-import { renderSteps, type Had } from '../steps/render'
-import { migrationNames } from '../steps/step'
+import { renderSteps, type Had, type RenderedStep } from '../steps/render'
+import { migrationNames, type OrganizationsInput } from '../steps/step'
 import type { StoreNames } from '../store-names'
 import type { LastSteps } from './store-model'
 
@@ -37,18 +37,23 @@ const snapshotHad =
  * The parts of the modules that are on that the snapshot's store lacks, each followed by its row in `auth_steps`, each
  * run only while that table lacks it, so a database that has it already skips it; for a store the snapshot has none of
  * (`store` undefined), that table first, and for one without it, that table, filled from `auth_migrations`. `checks`:
- * the checks of the steps on tables the store has already, which refuse when its rows break what a step assumes.
- * `undefined` when the snapshot's store has every part. `externalUser`: the snapshot records the user table as a
- * relation Protobase did not make, whose statements are left out.
+ * the checks of the parts on tables the store has already, which refuse when its rows break what a step assumes;
+ * `after`, what the parts leave for the migration's `.after.sql`, when they leave anything. `undefined` when the
+ * snapshot's store has every part. `externalUser`: the snapshot records the user table as a relation Protobase did
+ * not make, whose statements are left out. `organizations`: the config's default organization and the role of the
+ * users there already (`renderSteps`).
  */
-export const offlineStepsMigration = (names: StoreNames, store: SnapshotStore | undefined, externalUser = false) => {
+export const offlineStepsMigration = (names: StoreNames, store: SnapshotStore | undefined, organizations: OrganizationsInput | undefined, externalUser = false) => {
   if (store) refuseNewer(store.lastSteps)
   const had = store ? snapshotHad(store) : () => false
   const migration = migrationNames(names, externalUser || names.users.keyTable !== undefined)
-  const rendered = renderSteps(migration, names.names.modules, had)
+  const rendered = renderSteps(migration, names.names.modules, had, organizations)
   const record = !store ? [stepRecordSql(names)] : store.stepRecord ? [] : [stepRecordMigration(names)]
   if (rendered.length === 0 && record.length === 0) return
   const steps = rendered.length === 0 ? [] : [guardedStepsSql(names, rendered)]
-  const checks = rendered.filter(({ module, step, on }) => on === undefined && step.check && had(module, moduleSteps[module][0]!.step, module)).map(({ step }) => statementsSql([step.check!(migration)]))
-  return { sql: [...record, ...steps].join('\n\n'), checks }
+  // A part's check reads the tables it changes: those of its own module, or of the module it adds to.
+  const onTablesThere = ({ module, on = module }: RenderedStep) => had(on, moduleSteps[on][0]!.step, on)
+  const checks = rendered.filter((part) => part.check && onTablesThere(part)).map((part) => statementsSql([part.check!]))
+  const after = afterStepsSql(rendered)
+  return { sql: [...record, ...steps].join('\n\n'), checks, ...(after && { after }) }
 }
