@@ -21,6 +21,10 @@ const liveStore = (last: number, userKind = 'r'): LiveStore => ({
 })
 
 describe('recordedSteps', () => {
+  it('refuses a step this Protobase does not ship, rather than stopping before it', () => {
+    expect(() => recordedSteps([...stepsTo(17), { module: 'auth', step: 6, target: 'auth' }])).toThrow('The auth store records step 6 of auth, which this version of Protobase does not ship; upgrade Protobase')
+  })
+
   it("maps the former chain's versions 1 to 8 onto each module's first steps", () => {
     expect(recordedSteps(stepsTo(8))).toEqual({ auth: 1, two_factor: 1, passkeys: 1, sign_in_policy: 1, staff_sign_in: 1, organizations: 1, mcp: 1, personal_access_tokens: 1 })
   })
@@ -44,7 +48,7 @@ describe('baselineStore', () => {
     const off = settingsStoreNames({})
     const without = { ...off, names: resolveNames({ schema: 'auth', modules: allModules.filter((module) => module !== 'personal_access_tokens') }) }
     const store = baselineStore(without, liveStore(17))
-    expect(store.kept).toEqual([{ module: 'personal_access_tokens', step: 1 }])
+    expect(store.kept).toMatchObject([{ module: 'personal_access_tokens', step: 1, tables: { personal_access_token: { name: 'personal_access_token', columns: { token_hash: 'token_hash' } } } }])
     expect(store.lastSteps.personal_access_tokens).toBeUndefined()
   })
 

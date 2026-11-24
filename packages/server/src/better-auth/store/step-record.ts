@@ -57,6 +57,14 @@ export const stepRecorded = (names: StoreNames, part: RenderedStep) => {
 const known = (part: { module: string; step: number; target: string }) =>
   builtInModules.some(({ id }) => id === part.module) && builtInModules.some(({ id }) => id === part.target) && moduleSteps[part.module as ModuleId].some(({ step }) => step === part.step)
 
+/** Refuses a recorded part of a step this version does not ship, such as one a newer Protobase applied. */
+export const refuseUnshipped = (rows: readonly { module: string; step: number; target: string }[]) => {
+  const unknown = rows.filter((row) => !known(row))
+  if (unknown.length > 0) {
+    throw new Error(`The auth store records ${unknown.map((row) => `step ${row.step} of ${row.module}`).join(', ')}, which this version of Protobase does not ship; upgrade Protobase`)
+  }
+}
+
 /** The parts the store recorded; `undefined` when it has no `auth_steps`. Refuses a step this version does not ship. */
 export const appliedSteps = async (db: Kysely<any>, names: StoreNames): Promise<AppliedStep[] | undefined> => {
   const table = stepRecordTable(names)
@@ -64,9 +72,6 @@ export const appliedSteps = async (db: Kysely<any>, names: StoreNames): Promise<
   if (!found?.found) return
   const { module, step, target } = table.columns
   const { rows } = await sql<{ module: string; step: number; target: string }>`select ${module} as module, ${step} as step, ${target} as target from ${table} order by 1, 2, 3`.execute(db)
-  const unknown = rows.filter((row) => !known(row))
-  if (unknown.length > 0) {
-    throw new Error(`The auth store records ${unknown.map((row) => `step ${row.step} of ${row.module}`).join(', ')}, which this version of Protobase does not ship; upgrade Protobase`)
-  }
+  refuseUnshipped(rows)
   return rows as AppliedStep[]
 }

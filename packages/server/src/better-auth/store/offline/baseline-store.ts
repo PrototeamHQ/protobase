@@ -2,9 +2,9 @@ import type { ModuleId } from '../../names/modules'
 import { allModules } from '../../names/modules-on'
 import { resolveNames } from '../../names/resolve-names'
 import { moduleSteps } from '../steps'
-import type { AppliedStep } from '../step-record'
+import { refuseUnshipped, type AppliedStep } from '../step-record'
 import type { StoreNames } from '../store-names'
-import type { LastSteps } from './store-model'
+import { keptModule, type KeptModule, type LastSteps } from './store-model'
 
 // What `protobase migration baseline` reads of a store, to start a project's snapshot from it as it is: the parts of
 // steps it recorded, in `auth_steps` or by version in `auth_migrations`, and its relations in the store's schema, read once.
@@ -19,7 +19,7 @@ export type LiveStore = { applied: AppliedStep[]; relations: Record<string, Live
  * What the store is: each module's last step, the modules off that have tables, whether organizations were ever on,
  * the relations Protobase did not make, and whether it has `auth_steps`.
  */
-export type BaselineStore = { lastSteps: LastSteps; kept: Array<{ module: ModuleId; step: number }>; organizationsEverOn: boolean; external: string[]; stepRecord: boolean }
+export type BaselineStore = { lastSteps: LastSteps; kept: KeptModule[]; organizationsEverOn: boolean; external: string[]; stepRecord: boolean }
 
 // An ordinary or partitioned table: anything else, such as a view, is a relation another system or the app made.
 const tableKinds = ['r', 'p']
@@ -27,8 +27,12 @@ const tableKinds = ['r', 'p']
 // A relation of the schema by name, never one of an object's inherited keys, such as a table named `constructor`.
 const relationOf = (live: LiveStore, name: string) => (Object.hasOwn(live.relations, name) ? live.relations[name] : undefined)
 
-/** Each module's last step whose own part, and that of every step before it in its chain, the store recorded. */
+/**
+ * Each module's last step whose own part, and that of every step before it in its chain, the store recorded. Refuses a
+ * recorded step this version does not ship, which the prefix would otherwise leave out unseen.
+ */
 export const recordedSteps = (applied: readonly AppliedStep[]): LastSteps => {
+  refuseUnshipped(applied)
   const steps: LastSteps = {}
   for (const module of allModules) {
     const had = moduleSteps[module].findIndex((step) => !applied.some((part) => part.module === module && part.step === step.step && part.target === module))
@@ -68,7 +72,7 @@ export const baselineStore = (names: StoreNames, live: LiveStore): BaselineStore
 
   const kept = allModules
     .filter((module) => !on.includes(module) && Object.values(every.tables).some((table) => table.module === module && has(table.internal)))
-    .map((module) => ({ module, step: recorded[module] ?? 0 }))
+    .map((module) => keptModule(names, module, recorded[module] ?? 0))
   const organizationsEverOn = Object.values(every.tables).some((table) => {
     const column = (table.columns as Record<string, { name: string } | undefined>).organization_id
     return table.scope === 'organization' && column !== undefined && (relationOf(live, table.name)?.columns.includes(column.name) ?? false)
