@@ -31,7 +31,7 @@ describe('startupRefusal', () => {
 
   it('refuses a database ahead by a migration that is not additive, naming it and the versions', () => {
     expect(startupRefusal(runtime, state(at({ auth: 6 } as never), { matched: true, notAdditiveSince: ['005_rename'] }), '0.14.2')).toBe(
-      'The database is ahead of Protobase 0.14.2, so the server will not start: it has migrations that are not additive since the one this version reads: 005_rename. To bring the database up to 0.14.2, run `protobase migrate --plan` to see the migrations it will apply, then `protobase migrate`. Or run Protobase 0.14.1, the version the database matches.',
+      'The database is ahead of Protobase 0.14.2, so the server will not start: it has migrations that break older code since the one this version reads: 005_rename. Rolling back to this version is blocked once they are applied: run Protobase 0.14.1, the version the database matches, or a later one.',
     )
   })
 
