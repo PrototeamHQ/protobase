@@ -10,7 +10,9 @@ import type { StoreNames } from './store-names'
 
 // The record a store kept before `auth_steps`, `auth_migrations`: one row per version of its former single chain
 // (`steps/legacy-versions.ts`), each written with every module on. It is read once, to fill `auth_steps`, and never
-// written again.
+// written again. The fill is part of the schema change that brings `auth_steps`, a data move inside the store, not a
+// path that keeps the old record working: nothing reads `auth_migrations` once `auth_steps` has it, and a later
+// release drops it, as removing a table takes two deploys.
 
 /** The table, in the store's schema, as the store's names resolve `auth_migrations`. */
 export const legacyRecordTable = ({ names }: Pick<StoreNames, 'names'>) => names.table('auth_migrations')
