@@ -122,7 +122,8 @@ export const resolveNames = (input: NamesInput): ResolvedNames => {
   const { schema, tables = {}, modules = allModules } = input
   checkRequiredModules(modules)
   const declared = declaredTables(modules)
-  checkConfig(tables, declared)
+  // A table of a module that is off may be named, as for its tables the store keeps.
+  checkConfig(tables, declaredTables(allModules))
   const configs = tables as Record<string, TableConfig | undefined>
   const each = declared.map((table) => ({ indexes: table.table.indexes ?? [], resolved: resolveTable(schema, table, tables.prefix ?? '', configs[table.internal]) }))
   const resolved = Object.fromEntries(each.map((table) => [table.resolved.internal, table.resolved]))

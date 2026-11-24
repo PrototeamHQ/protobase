@@ -5,7 +5,8 @@ import { offlineStepsMigration, type SnapshotStore } from './offline-steps'
 import { settingsStoreNames } from './settings-names'
 import { latestSteps, type LastSteps } from './store-model'
 
-const names = settingsStoreNames({})
+// Every feature with tables of its own on, so every module is.
+const names = settingsStoreNames({ organizations: true, mcp: true, personalAccessTokens: {}, personalMail: ['gmail'] })
 const latest = latestSteps(names.names.modules)
 const store = (lastSteps: LastSteps, stepRecord = true): SnapshotStore => ({ lastSteps, on: names.names.modules, stepRecord })
 
