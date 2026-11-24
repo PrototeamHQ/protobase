@@ -6,6 +6,7 @@ import { queryDdl } from '../../test-support/fixtures/query-ddl'
 import { restDdl } from '../../test-support/fixtures/rest-ddl'
 import { serverDdl } from '../../test-support/fixtures/server-ddl'
 import { storageDdl } from '../../test-support/fixtures/storage-ddl'
+import { testClock } from '../../test-support/sql-snapshot/clock'
 import type { Template } from './templates'
 
 // The databases `bun run test:record` records the snapshot tests on (test-support/sql-snapshot.ts): each recorded test
@@ -66,8 +67,10 @@ export const snapshotTemplates = {
       socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } },
     })
     await exec(db, (await authSchemaMigration(auth))!)
-    // A template holds no clock values: the steps' record keeps when each was applied.
+    // A template holds no clock values: the steps' record keeps no time it was applied, and the default organization
+    // takes the time the tests run at, so a recording does not depend on when the template was built.
     await exec(db, 'update auth_steps set applied_at = null')
+    await exec(db, `update organization set created_at = '${testClock.toISOString()}'`)
     await pool.end()
   }),
   /** A restored Supabase `storage` schema with buckets and policies, for `/api/sb/storage/v1`. */
