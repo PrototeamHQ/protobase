@@ -6,6 +6,7 @@ import { captureFileIssues } from '../../src/doctor/capture-files'
 import { normalisedSql } from '../../src/doctor/migration-sql'
 import { checkServerStartup } from '../../src/doctor/startup'
 import { servedConfig } from '../support/served-config'
+import { recordModules } from '../support/recorded-modules'
 import { openSnapshotDb } from '../../../../test-support/sql-snapshot'
 
 const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id).events((e) => e.crud())
@@ -17,6 +18,7 @@ describe("doctor's startup checks", () => {
     const db = new Kysely<any>({ dialect: pg.dialect })
     const table = 'create table notes (id integer primary key, body text not null)'
     await pg.exec(table)
+    await recordModules(pg.db)
     const message = 'The changes of notes are not captured as their events, history or live updates need'
     await expect(checkServerStartup(config, { db })).rejects.toThrow(message)
     const migration = (await changesMigration(db, [notes.toModel()]))!

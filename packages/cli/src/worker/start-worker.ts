@@ -1,14 +1,16 @@
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import pg from 'pg'
-import { checkJobsSchema, configExports, hasBuckets, isCaptured, startJobs } from '@protobase/server'
+import { checkMigrationRecord, configExports, hasBuckets, isCaptured, startJobs } from '@protobase/server'
 import { buildProject, type AppDatabase } from '../config/build-project'
+import { builtRuntimeModel } from '../config/project-modules'
 import type { MergedConfig } from '../config/merge-config'
 import { projectAdmin } from '../project/project-admin'
 import { readManifest } from '../bundle/manifest'
 import { openAppDatabase } from '../project/pg-db'
 import { checkBundleManifest } from '../serve/bundle-manifest'
 import { loadBundle } from '../serve/load-bundle'
+import { protobaseVersion } from '../version/version'
 
 // The config module of a bundle from `protobase build`, given its folder or the module itself.
 export const bundleConfigFile = async (bundle: string) => {
@@ -26,8 +28,8 @@ export type WorkerOptions = {
 
 /**
  * Runs the project's jobs, and nothing else, until `stop`: the same handlers `protobase serve` runs, in a process of
- * their own, built from the config the same way. It reads the jobs schema at start and refuses one that is missing or
- * behind, like `serve`.
+ * their own, built from the config the same way. It reads the record of migrations at start and refuses a database
+ * the app would not start on, like `serve`.
  */
 export const startWorker = async ({ config, databaseUrl, openDb = (url) => openAppDatabase(pg, url) }: WorkerOptions) => {
   if (!databaseUrl) throw new Error('No database: set DATABASE_URL')
@@ -43,7 +45,7 @@ export const startWorker = async ({ config, databaseUrl, openDb = (url) => openA
     })
     if (project.jobs.length === 0 && !builtIn) throw new Error('The bundle has no jobs: name their module in protobase.config.ts as `jobs`, or give a resource events, history, comments or an AI field, or declare a time rollup')
     const { admin, jobs: definitions } = projectAdmin(project, db)
-    await checkJobsSchema(db)
+    await checkMigrationRecord(db, builtRuntimeModel(project), protobaseVersion)
     return { definitions, runtime: await startJobs({ db, scope: admin.organizationScope, jobs: definitions, decryptField: admin.decryptField, ...(project.mailer && { mailer: project.mailer }), ...(admin.unsubscribe && { unsubscribe: admin.unsubscribe }), onError: (error) => console.error(error) }) }
   }
   const { definitions, runtime: jobs } = await start().catch(async (error: Error) => {

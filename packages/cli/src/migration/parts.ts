@@ -1,4 +1,4 @@
-import { appRelayChannels, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, capturedBy, derivedMigration, hasBuckets, jobsSchemaMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, relayMigration, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
+import { appRelayChannels, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, derivedMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, relayMigration, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
 import type { MigrationProject } from './migration-project'
 
 /** What one feature still needs of the database, compared with it, written as a part of the next migration. */
@@ -18,22 +18,17 @@ export type PartsRun = {
 }
 
 /**
- * Every feature the project's config enables but the auth store, which the snapshot holds, in the order their
- * statements are written.
+ * Every feature the project's config enables but the auth store and the schema modules, which the snapshot holds, in
+ * the order their statements are written, after theirs.
  */
 export const migrationParts = (project: MigrationProject): MigrationPart[] => {
   const comments = project.models.some((model) => model.comments)
-  const aiFields = project.models.some((model) => Object.values(model.fields).some((field) => field.ai))
   // Mail feedback's events are captured from its table, which its own file, before the changes one, creates.
   const feedback = project.mailFeedback ? [mailFeedbackResource.toModel()] : []
   const captured = [...project.models, ...feedback]
   // The relay's channels the app uses or can be moved to by the platform's switch, which the developer's environment lacks.
   const relayChannels = appRelayChannels(project.realtime?.relay, { views: project.views, models: project.models, signIn: Boolean(project.auth) })
   return [
-    // Events and history are captured with a dispatch job, events delivered, mentions mailed, AI fields filled and
-    // notifications sent by jobs, whose waiting and failed ones webhooks lists, workflows run by them, and time rollups
-    // refreshed by one.
-    ...(project.jobs.length > 0 || captured.some(capturedBy(captured)) || comments || aiFields || project.models.some(hasBuckets) || project.webhooks || project.workflows || project.notifications || relayChannels ? [{ name: 'jobs', title: 'The jobs schema this version of Protobase needs', sql: () => jobsSchemaMigration(project.db) }] : []),
     ...(project.mailFeedback ? [{ name: 'mail_feedback', title: 'The table of the bounces and complaints of the mail the app sends', sql: () => mailFeedbackMigration(project.db) }] : []),
     { name: 'changes', title: "The change capture the resources' events and history need", sql: () => changesMigration(project.db, captured, project.events, feedback.map((model) => model.name)) },
     // Always compared, so that the function and trigger of a rollup the config no longer has are dropped.

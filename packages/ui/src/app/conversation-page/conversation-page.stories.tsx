@@ -235,7 +235,8 @@ export const MentionChecks: StoryObj = {
     await userEvent.click(within(options).getByRole('option', { name: 'Lin Park' }))
     await userEvent.type(box, 'for the fix{Enter}')
     await waitFor(() => expect(stored.messages!.at(-1)).toMatchObject({ channel_id: 1, body: 'Thanks @Lin Park for the fix', mentions: ['u-lin'] }))
-    expect(await within(canvas.getByRole('log')).findByText('@Lin Park')).toHaveClass('text-primary')
+    // The thread may be drawn again after the send, so the log is waited for, not read at once
+    expect(await within(await canvas.findByRole('log')).findByText('@Lin Park')).toHaveClass('text-primary')
   },
 }
 

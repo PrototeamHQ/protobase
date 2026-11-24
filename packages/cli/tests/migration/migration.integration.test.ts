@@ -35,8 +35,8 @@ const notes = () => resource('notes').table('notes').fields({ id: f.integer().re
 const migrationFor = async (config: Parameters<typeof servedConfig>[0]) => {
   const project = await migrationProject(servedConfig(config), databaseUrl)
   try {
-    const database = { url: databaseUrl, parts: migrationParts(project), contractions: (sections: readonly Section[]) => trialContractions(databaseUrl, sections) }
-    const file = await runMigration({ projectDir, dir: path.join(projectDir, 'db/migrations'), auth: undefined, database, protobaseVersion, newId: randomUUID })
+    const database = { url: databaseUrl, parts: migrationParts(project), contractions: (sections: readonly Section[]) => trialContractions(databaseUrl, sections), readModule: async () => undefined }
+    const file = await runMigration({ projectDir, dir: path.join(projectDir, 'db/migrations'), auth: undefined, modules: [], database, protobaseVersion, newId: randomUUID })
     return file ? [path.basename(file)] : []
   } finally {
     await project.close()
@@ -116,8 +116,8 @@ export const notes = resource('notes').table('notes').fields({ id: f.integer().r
 
   it('refuses a part that would take from older code what it reads, writing nothing', async () => {
     const rename = { name: 'computed', title: 'A rename', sql: async () => 'alter table notes rename column body to text;' }
-    const database = { url: databaseUrl, parts: [rename], contractions: (sections: readonly Section[]) => trialContractions(databaseUrl, sections) }
-    await expect(runMigration({ projectDir, dir: path.join(projectDir, 'db/migrations'), auth: undefined, database, protobaseVersion, newId: randomUUID })).rejects.toThrow(
+    const database = { url: databaseUrl, parts: [rename], contractions: (sections: readonly Section[]) => trialContractions(databaseUrl, sections), readModule: async () => undefined }
+    await expect(runMigration({ projectDir, dir: path.join(projectDir, 'db/migrations'), auth: undefined, modules: [], database, protobaseVersion, newId: randomUUID })).rejects.toThrow(
       'computed drops or renames column public.notes.body, adds the required column public.notes.text without a default. To make it anyway, write it by hand with `protobase migration --custom <name>`',
     )
   })

@@ -8,6 +8,6 @@ export const breaksOlderCodeHint =
 export const olderCodeRefusal = (found: readonly SectionContractions[]) =>
   `The migration would break the code still running while it deploys, and the version before it once rolled back: ${found.map(({ name, found: lines }) => `${name} ${lines.join(', ')}`).join('; ')}. ${breaksOlderCodeHint}.`
 
-/** The lines under the intro of a file whose sign-in module steps take what `found` names from older code. */
+/** The lines under the intro of a file whose own paths' steps take what `found` names from older code, each by its section. */
 export const breaksOlderCodeNote = (found: readonly string[]) =>
-  `-- It breaks older code: once it is applied, the version before refuses to start on the database, and rolling back to it is blocked.\n${found.map((line) => `-- The sign-in modules' steps: ${line}.`).join('\n')}\n`
+  `-- It breaks older code: once it is applied, the version before refuses to start on the database, and rolling back to it is blocked.\n${found.map((line) => `-- ${line}.`).join('\n')}\n`

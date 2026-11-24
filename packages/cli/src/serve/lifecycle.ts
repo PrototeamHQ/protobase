@@ -2,7 +2,7 @@ import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import pg from 'pg'
-import { backgroundSettled, checkAi, checkJobsSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
+import { backgroundSettled, checkAi, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
 import { servedAdmin } from '../project/served-admin'
 import { openAppDatabase } from '../project/pg-db'
 import { buildProject, type AppDatabase } from '../config/build-project'
@@ -54,7 +54,7 @@ export const closeGraceMs = 30_000
 // such as runners' claims, closes open WebSockets with 1001 (dropping them after 5 seconds), lets open requests finish
 // on connections it closes after them (dropping them after `closeGraceMs`), then the work their functions left to
 // `waitUntil` and running jobs, and then drains the pool it created. It does not
-// start while the auth schema, the change capture of resources with events, the rollup and formula columns, the built-in assistant's query role or the jobs schema is behind, which it only
+// start while the record of migrations lacks the auth schema or the jobs schema this version reads, or the change capture of resources with events, the rollup and formula columns or the built-in assistant's query role is behind, which it only
 // reads: the project's migrations change them, before the new version serves. `startupChecks` false skips those reads,
 // for a restart of a bundle that already started on this database. With jobs it runs them too, unless
 // `runJobs` is off; with file fields it runs their scheduled deletes every `filesCleanupMinutes`, and it prunes the realtime tables (startRealtimePrune). With a mobile section
@@ -70,7 +70,6 @@ export const startServe = async ({ config, env, openDb = (url) => openAppDatabas
     const { resources, views } = configExports(project.config)
     if (env.startupChecks) checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
     const { admin, jobs: definitions } = await servedAdmin(project, db, ui, reporter, upgradeWebSocket)
-    if (env.startupChecks && definitions.length > 0) await checkJobsSchema(db)
     const jobs = definitions.length > 0 ? await startJobs({ db, scope: admin.organizationScope, jobs: definitions, work: env.runJobs, decryptField: admin.decryptField, ...(project.mailer && { mailer: project.mailer }), ...(admin.unsubscribe && { unsubscribe: admin.unsubscribe }), onError: (error) => console.error(error) }) : undefined
     const release = project.mobile ? await servedRelease({ site, mobile: project.mobile, issuer: project.auth?.issuer, signingKey: env.mobileSigningKey, serverVersion: protobaseVersion, push: Boolean(project.notifications) }) : undefined
     const mobile = project.mobile && { ...(release && { release }), serverVersion: protobaseVersion }

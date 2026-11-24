@@ -8,6 +8,7 @@ import type { Db } from '@protobase/query'
 import { startServe, type ServeOptions } from '../../src/serve/lifecycle'
 import { servedConfig } from '../support/served-config'
 import { openSnapshotDb } from '../../../../test-support/sql-snapshot'
+import { recordModules } from '../support/recorded-modules'
 
 // An empty snapshot database, with a destroy the tests can count.
 const emptyDb = async () => {
@@ -100,11 +101,11 @@ describe('startServe', () => {
     await first.close()
   })
 
-  it('refuses to start while the jobs schema is missing, and drains its pool', async () => {
+  it('refuses to start while the record of migrations lacks the jobs schema, and drains its pool', async () => {
     const db = new Kysely<any>({ dialect: (await openSnapshotDb('empty')).dialect })
     const destroy = vi.spyOn(db, 'destroy')
     const job = defineJob({ name: 'nightly', run: () => {} })
-    await expect(serve({ project: { ...project, jobs: { job } }, env, createDb: () => db })).rejects.toThrow('The jobs schema is missing')
+    await expect(serve({ project: { ...project, jobs: { job } }, env, createDb: () => db })).rejects.toThrow('so the server will not start: this version of Protobase needs the jobs schema')
     expect(destroy).toHaveBeenCalledTimes(1)
   }, 30_000)
 
@@ -121,6 +122,7 @@ describe('startServe', () => {
 
   it('enqueues but runs no job with PROTOBASE_JOBS=false', async () => {
     const db = new Kysely<any>({ dialect: (await openSnapshotDb('jobs')).dialect })
+    await recordModules(db)
     const run = vi.fn()
     const job = defineJob({ name: 'elsewhere', run })
     const server = await serve({ project: { ...project, jobs: { job } }, env: { ...env, runJobs: false }, createDb: () => db })
@@ -135,6 +137,7 @@ describe('startServe', () => {
 
   it('drains due jobs for the operator, with POST /api/jobs/drain and the drain token', async () => {
     const db = new Kysely<any>({ dialect: (await openSnapshotDb('jobs')).dialect })
+    await recordModules(db)
     const run = vi.fn()
     const job = defineJob({ name: 'drained', run })
     const server = await serve({ project: { ...project, jobs: { job } }, env: { ...env, drainToken: 'operator-token' }, createDb: () => db })
@@ -158,6 +161,7 @@ describe('startServe', () => {
     const snapshot = await openSnapshotDb('jobs')
     // Each server drains its pool when it stops, so each gets a Kysely of its own on the one snapshot.
     const db = () => new Kysely<any>({ dialect: snapshot.dialect })
+    await recordModules(snapshot.db)
     const job = defineJob({ name: 'elsewhere', run: () => {} })
     const without = await serve({ project: { ...project, jobs: { job } }, env, createDb: db })
     try {

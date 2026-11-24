@@ -39,7 +39,8 @@ export const dropMigration = async (projectDir: string, dir: string) => {
     return newest.file
   }
   const auth = atSteps(snapshot.model.auth, previous.header.steps)
-  const model = auth ? { auth } : {}
+  const modules = previous.header.modules
+  const model = { ...(auth && { auth }), ...(modules && { modules }) }
   if (modelHash(model) !== previous.header.model) {
     throw new Error(`${newest.file} changed more than the steps, so the snapshot before it cannot be rebuilt: delete it by hand and take ${snapshotFile} from before it from version control`)
   }

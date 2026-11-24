@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { defineJob } from '../src/jobs/define-job'
 import type { JobDefinition } from '../src/jobs/job-types'
 import { startJobs, type JobsRuntime, type StartJobsOptions } from '../src/jobs/runtime'
+import { jobsModule, jobsSchemaSql } from '../src/jobs/jobs-module'
 import { checkJobsSchema, jobsSchemaMigration } from '../src/jobs/schema'
+import { latestModel } from '../src/schema-modules/module-difference'
 import { openSnapshotDb } from '../../../test-support/sql-snapshot'
 
 // The jobs schema and enqueueing from SQL, with no worker running: what the runtime does with the jobs is in
@@ -26,20 +28,46 @@ type Row = { state: string; data: unknown; singleton_key: string | null }
 const row = async (db: Kysely<any>, id: string) => (await sql<Row>`select * from jobs.job where id = ${id}`.execute(db)).rows[0]
 
 describe('the jobs schema', () => {
-  it('is checked at startup, written by the migration and never changed by the server', async () => {
+  it('is read as the step and functions version the database has, once a migration made it', async () => {
+    const pg = await openSnapshotDb('empty')
+    const db = pg.db
+    expect(await jobsModule.read(db)).toBeUndefined()
+    // In one transaction, as a project's db:migrate applies its files.
+    await db.transaction().execute((trx) => sql.raw(jobsSchemaSql()).execute(trx))
+    expect(await jobsModule.read(db)).toEqual(latestModel(jobsModule))
+  })
+
+  it('reads functions that are missing as absent unless one is older, and refuses a pg-boss schema newer than or of a version no step records', async () => {
+    const db = await jobsDb()
+    await sql`comment on function jobs.next_due() is 'Protobase jobs 2'`.execute(db)
+    expect(await jobsModule.read(db)).toEqual({ lastStep: 1, replaceables: { functions: 2 } })
+    await sql`drop function jobs.enqueue`.execute(db)
+    expect(await jobsModule.read(db)).toEqual({ lastStep: 1, replaceables: { functions: 2 } })
+    await sql`comment on function jobs.next_due() is 'Protobase jobs 3'`.execute(db)
+    expect(await jobsModule.read(db)).toEqual({ lastStep: 1, replaceables: {} })
+    // An overload by the same name is not the function the functions' SQL makes.
+    await sql.raw(`create function jobs.enqueue(job_name text) returns uuid language sql as 'select null::uuid'; comment on function jobs.enqueue(text) is 'Protobase jobs 3'`).execute(db)
+    expect(await jobsModule.read(db)).toEqual({ lastStep: 1, replaceables: {} })
+    await sql`update jobs.version set version = 46`.execute(db)
+    await expect(jobsModule.read(db)).rejects.toThrow('The jobs schema is at pg-boss schema version 46, newer than the 45 this version of Protobase records: upgrade Protobase')
+    await sql`update jobs.version set version = 44`.execute(db)
+    await expect(jobsModule.read(db)).rejects.toThrow('The jobs schema is at pg-boss schema version 44, which no step of this version of Protobase records')
+  })
+})
+
+describe('jobsSchemaMigration and checkJobsSchema, which tests and scripts still call', () => {
+  it('write the whole schema on a database without it, and nothing once it is there', async () => {
     const pg = await openSnapshotDb('empty')
     const db = pg.db
     await expect(checkJobsSchema(db)).rejects.toThrow('The jobs schema is missing. Write it as a migration with `protobase migration`')
     const migration = await jobsSchemaMigration(db)
     expect(migration).toContain('CREATE SCHEMA IF NOT EXISTS jobs;')
-    await expect(checkJobsSchema(db)).rejects.toThrow('missing')
-    // In one transaction, as a project's db:migrate applies its files.
     await db.transaction().execute((trx) => sql.raw(migration!).execute(trx))
     await checkJobsSchema(db)
     expect(await jobsSchemaMigration(db)).toBeUndefined()
   })
 
-  it("writes Protobase's functions again when they are missing, and refuses a pg-boss schema of another version", async () => {
+  it("write Protobase's functions again when they are missing, and refuse a pg-boss schema of a newer version", async () => {
     const db = await jobsDb()
     await sql`drop function jobs.enqueue`.execute(db)
     await expect(checkJobsSchema(db)).rejects.toThrow('The jobs schema is behind this version of Protobase')

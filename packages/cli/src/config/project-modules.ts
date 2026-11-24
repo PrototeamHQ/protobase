@@ -1,0 +1,27 @@
+import { configExports, neededModules } from '@protobase/server'
+import { runtimeModel } from '@protobase/server/internal'
+import type { BuiltProject } from './build-project'
+import { mailFeedbackOn } from './mail-feedback-config'
+import type { MergedConfig } from './merge-config'
+import { projectJobs, projectNotifications, projectResources, projectWebhooks } from './project-parts'
+
+// The schema modules an app needs (`neededModules`), from the app as it serves or from its config alone, which
+// `protobase migration` reads without a database.
+
+const models = (config: BuiltProject['config']) => {
+  const { resources, views } = configExports(config)
+  return { models: resources.map((resource) => resource.toModel()), views: views.map((view) => view.toModel()) }
+}
+
+/** The schema modules of the app `project` serves. */
+export const builtModules = (project: BuiltProject) =>
+  neededModules({ ...models(project.config), jobs: project.jobs, signIn: Boolean(project.auth), mailFeedback: project.mailFeedback, webhooks: project.webhooks, workflows: project.workflows, notifications: project.notifications, realtime: project.realtime })
+
+/** The model the app `project` reads of its database's record of migrations (`runtimeModel`). */
+export const builtRuntimeModel = (project: BuiltProject) => runtimeModel(project.auth, builtModules(project))
+
+/** The schema modules of the app `config` makes, from the config alone. */
+export const configModules = async (config: MergedConfig) => {
+  const [resources, webhooks, notifications] = await Promise.all([projectResources(config), projectWebhooks(config), projectNotifications(config)])
+  return neededModules({ ...models(resources), jobs: projectJobs(config), signIn: Boolean(config.auth), mailFeedback: mailFeedbackOn(config), webhooks, workflows: config.workflows, notifications, realtime: config.realtime })
+}

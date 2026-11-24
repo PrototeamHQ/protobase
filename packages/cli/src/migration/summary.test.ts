@@ -10,8 +10,8 @@ describe('migrationSummary', () => {
     expect(migrationSummary(undefined, '/app', { hasAuth: true, compared: true })).toBe('the migrations make what the config needs; nothing to write\n')
   })
 
-  it('says the features besides the auth store were not compared without a database', () => {
-    expect(migrationSummary(undefined, '/app', { hasAuth: true, compared: false })).toContain('DATABASE_URL is not set, so only the auth store was compared')
+  it('says the features besides the auth store and the jobs schema were not compared without a database', () => {
+    expect(migrationSummary(undefined, '/app', { hasAuth: true, compared: false })).toContain('DATABASE_URL is not set, so only the auth store and the jobs schema were compared, with the snapshot')
   })
 
   it('says sign-in is off rather than leave it to "nothing to write"', () => {

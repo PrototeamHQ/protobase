@@ -100,12 +100,12 @@ describe('protobase users disable and enable', () => {
     await create('root@example.com')
     await create('ana@example.com')
 
-    await expect(setDisabledInProject(made, { email: 'ana@example.com', disabled: true }, () => {})).rejects.toThrow(/^The database has no migration recorded in migrations\.history/)
+    await expect(setDisabledInProject(made, [], { email: 'ana@example.com', disabled: true }, () => {})).rejects.toThrow(/^The database has no migration recorded in migrations\.history/)
     expect((await issueToken(made, { email: 'ana@example.com' })).token).toBeTruthy()
 
-    const model = runtimeModel(made)
+    const model = runtimeModel(made, [])
     await store.exec(recordBlock({ id: 'auth', number: 1, name: '001_auth', protobaseVersion: '1.0.0', model, modelHash: modelHash(model), physical: { auth: storeNamesList(model.auth!) }, additive: true, completed: true }, null))
-    await setDisabledInProject(made, { email: 'ana@example.com', disabled: true }, () => {})
+    await setDisabledInProject(made, [], { email: 'ana@example.com', disabled: true }, () => {})
     await expect(issueToken(made, { email: 'ana@example.com' })).rejects.toThrow('ana@example.com is banned')
   })
 })

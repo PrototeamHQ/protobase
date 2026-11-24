@@ -7,6 +7,7 @@ import path from 'node:path'
 import { sql } from 'kysely'
 import { describe, expect, it } from 'vitest'
 import { bin, createAuthProject, root } from '../support/auth-project'
+import { recordModules } from '../support/recorded-modules'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../../test-support/postgres-database'
 
 const hasApp = ['index.html', 'main.tsx'].every((file) => existsSync(path.join(root, 'packages/ui/src/app', file)))
@@ -35,6 +36,7 @@ const jobFile = 'export default async () => {}\n'
 const withDev = async (args: string[], test: (database: Awaited<ReturnType<typeof openPostgresDatabase>>, banner: string) => Promise<void>) => {
   const database = await openPostgresDatabase('jobs')
   const project = await createAuthProject(database.url)
+  await recordModules(database.db)
   const cacheDir = await mkdtemp(path.join(tmpdir(), 'protobase-dev-cache-'))
   let child: ChildProcess | undefined
   try {

@@ -1,12 +1,14 @@
 import type { Db } from '@protobase/query'
 import { assistantSettings, authStoreTables, checkCalls, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkMailFeedbackSchema, mailFeedbackResource, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUnsubscribesSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, checkMigrationRecord, configExports, relayed, sqlSends } from '@protobase/server'
 import type { BuiltProject } from '../config/build-project'
+import { builtRuntimeModel } from '../config/project-modules'
 import { protobaseVersion } from '../version/version'
 import { checkProjectRelay } from './relay-check'
 
 /**
- * The server's startup checks of the database: the record of its migrations (`checkMigrationRecord`), then each
- * feature whose schema the record's model does not hold yet; each throws, with what to write as a migration, while a
+ * The server's startup checks of the database: the record of its migrations (`checkMigrationRecord`), which holds the
+ * auth store and the schema modules, such as the jobs schema, then each feature whose schema the record's model does not
+ * hold yet; each throws, with what to write as a migration, while a
  * schema the project's features need is missing or behind. They only read. `serve` runs them before it builds the admin, and
  * `protobase doctor` runs them too, so a change that would not start fails wherever doctor runs.
  */
@@ -15,7 +17,7 @@ export const checkStartup = async (project: BuiltProject, db: Db) => {
   const models = exported.resources.map((resource) => resource.toModel())
   // Mail feedback's events are captured from its table like the app's own resources' events.
   const captured = project.mailFeedback ? [...models, mailFeedbackResource.toModel()] : models
-  await checkMigrationRecord(project.auth, protobaseVersion)
+  await checkMigrationRecord(db, builtRuntimeModel(project), protobaseVersion)
   if (project.auth) await checkResourcesOutsideAuthStore(db, models, project.auth)
   if (project.mailFeedback) await checkMailFeedbackSchema(db)
   await checkChanges(db, captured, project.events)

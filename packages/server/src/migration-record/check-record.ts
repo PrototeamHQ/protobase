@@ -1,20 +1,19 @@
-import { plainStoreDb } from '../better-auth/store/store-db'
-import type { AdminAuth } from '../better-auth/create-auth'
-import { modelHash, runtimeModel } from './record-model'
-import { recordHasModel, readRecordState } from './read-record'
+import type { Kysely } from 'kysely'
+import { readRecordState, recordHasModel } from './read-record'
+import { readsNothing, type RecordModel } from './record-model'
 import { startupRefusal } from './startup-decision'
 
 /**
- * Refuses to go on, before the server serves, while the database's record of migrations does not match what this
- * version reads (`startupRefusal`). It reads the record once and nothing else; the server never migrates itself.
- * Without sign-in it reads nothing, as the runtime reads nothing of the record then.
+ * Refuses to go on, before the server serves, while the database's record of migrations does not match `runtime`, the
+ * model this version reads (`runtimeModel`), as `startupRefusal` decides. It reads the record once and nothing else;
+ * the server never migrates itself, and reads it without the app's query plugins. A runtime that reads nothing of the
+ * record reads nothing.
  */
-export const checkMigrationRecord = async (auth: AdminAuth | undefined, running: string) => {
-  if (!auth) return
-  const runtime = runtimeModel(auth)
-  const refusal = startupRefusal(runtime, await readRecordState(plainStoreDb(auth), modelHash(runtime)), running)
+export const checkMigrationRecord = async (db: Kysely<any>, runtime: RecordModel, running: string) => {
+  if (readsNothing(runtime)) return
+  const refusal = startupRefusal(runtime, await readRecordState(db.withoutPlugins(), runtime), running)
   if (refusal) throw new Error(refusal)
 }
 
-/** Whether the database's record has a migration of the model this version reads with `auth`. */
-export const recordsRuntimeModel = (auth: AdminAuth) => recordHasModel(plainStoreDb(auth), modelHash(runtimeModel(auth)))
+/** Whether the database's record has a row that holds `runtime`. */
+export const recordsRuntimeModel = (db: Kysely<any>, runtime: RecordModel) => recordHasModel(db.withoutPlugins(), runtime)

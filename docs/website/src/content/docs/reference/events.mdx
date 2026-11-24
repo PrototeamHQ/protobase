@@ -73,7 +73,7 @@ export default defineConfig({ events: { schema: 'row_changes' } })
 
 [`protobase migration`](/reference/cli/#migration) compares the database with the resources' events and writes what it lacks as the project's next migrations: the jobs schema, then the `changes` schema, the function, and a trigger pair per resource with events. Apply it with the project's other migrations. A trigger changes when the resource's fields do, a field that became sensitive for instance, so run the command after changing the config. Once a resource has no events, the next migration drops its triggers; it never drops a table.
 
-`protobase dev` and `protobase serve` do not start while a resource with events lacks its triggers, or has out-of-date ones, or the jobs schema is missing, and name the command to run. `dev` checks again whenever it reloads the config. Neither changes the schema itself.
+`protobase dev` and `protobase serve` do not start while a resource with events lacks its triggers, or has out-of-date ones, or the record of migrations lacks the jobs schema, and name what to run. `dev` checks again whenever it reloads the config. Neither changes the schema itself.
 
 ## The outbox
 

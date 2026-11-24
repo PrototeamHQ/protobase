@@ -4,9 +4,10 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { changesMigration, createUser, jobsSchemaMigration, relayMigration } from '@protobase/server'
+import { changesMigration, createUser, jobsSchemaSql, relayMigration } from '@protobase/server'
 import { createAuth } from '@protobase/server/internal'
 import { run } from '../../packages/cli/tests/support/auth-project'
+import { recordModules } from '../../packages/cli/tests/support/recorded-modules'
 import { npmWs } from '../../packages/server/tests/support/npm-ws'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 import * as resources from './app/config'
@@ -50,7 +51,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('protobase dev with a re
     const auth = createAuth({ database: { dialect: database.dialect, type: 'postgres' }, baseURL: 'http://localhost', secret, mailer: false })
     user = String((await createUser(auth, { email: 'dev@example.com', name: 'dev', password, role: 'admin' })).id)
     const models = Object.values(resources).map((entry) => entry.toModel())
-    await database.exec((await jobsSchemaMigration(database.db))!)
+    await database.exec(jobsSchemaSql())
     await database.exec(tables)
     await database.exec((await changesMigration(database.db, models))!)
     await database.exec((await relayMigration(database.db, auth, false, channels, models))!)
@@ -65,6 +66,8 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('protobase dev with a re
     if (recorded.status !== 0) throw new Error(`protobase auth migration failed:\n${recorded.stderr}`)
     const migrations = path.join(projectDir, 'db/migrations')
     for (const file of await readdir(migrations)) await database.exec(await readFile(path.join(migrations, file), 'utf8'))
+    // The jobs schema made above, as a migration of the app would record it.
+    await recordModules(database.db)
     const port = await freePort()
     base = `http://localhost:${port}`
     dev = spawn(process.execPath, [bin, 'dev', '--port', String(port), '--cache-dir', path.join(projectDir, '.vite-cache')], {

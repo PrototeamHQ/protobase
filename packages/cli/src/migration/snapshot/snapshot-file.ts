@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { DefaultOrganization } from '@protobase/server'
-import { modelHash as recordModelHash, type KeptModule, type StoreModel } from '@protobase/server/internal'
+import { modelHash as recordModelHash, type KeptModule, type ModulesModel, type StoreModel } from '@protobase/server/internal'
 
 // `protobase.snapshot.json`: the schema the project's migrations make, which `protobase migration` compares with what
 // the config and this version of Protobase would make. Each migration it writes rewrites it, so the change shows in review.
@@ -23,8 +23,11 @@ export type Snapshot = {
   endsAt: { file: string; id: string }
   /** The SHA-256 of `model` as written, which a hand-merged snapshot no longer matches. */
   modelHash: string
-  /** What the runtime reads, by part: the auth store when sign-in is on. */
-  model: { auth?: StoreModel }
+  /**
+   * What the runtime reads, by part: the auth store when sign-in is on, and each schema module the migrations made, by
+   * module, which stays once the config no longer needs it.
+   */
+  model: { auth?: StoreModel; modules?: ModulesModel }
   /** What the migrations decided that the model does not show. */
   decisions: {
     /** The modules kept once turned off, each at the last step it had then, and those archived. */

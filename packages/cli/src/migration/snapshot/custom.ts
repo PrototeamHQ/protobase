@@ -47,7 +47,7 @@ export const writeCustomMigration = async ({ projectDir, dir, name, recordConfig
   refuseInconsistent(snapshot, await readMigrationFiles(dir))
   const before = snapshot?.model.auth
   const model = recordConfig ? before && auth && storeModel(auth.names, lastStepsOf(before)) : before
-  const draft = { previous: snapshot, auth: model, organizations: organizationsNow(auth), protobaseVersion }
+  const draft = { previous: snapshot, auth: model, modules: snapshot?.model.modules, organizations: organizationsNow(auth), protobaseVersion }
   const content = { name, body: body(recordConfig), kind: { custom: true, additive: false, breaksOlderCode: recordConfig }, additive: false, ...(after && { after: afterBody }) }
   return writeMigrationFile(projectDir, dir, content, draft, newId())
 }

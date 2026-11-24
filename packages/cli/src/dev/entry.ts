@@ -1,11 +1,13 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
 import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, checkMigrationRecord, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
+import { modelHash } from '@protobase/server/internal'
 import { projectIcons } from '../build/app-icons'
 import { projectResources } from '../config/project-parts'
 import { projectErrorReporter } from '../project/error-reporter'
 import { servedAdmin } from '../project/served-admin'
 import { buildProject } from '../config/build-project'
+import { builtRuntimeModel } from '../config/project-modules'
 import { devJobs } from './dev-jobs'
 import { checkProjectRelay } from '../serve/relay-check'
 import { protobaseVersion } from '../version/version'
@@ -30,11 +32,13 @@ const { db } = database
 const project = await buildProject(config, database)
 const { resources, views } = configExports(project.config)
 
-// Once per server start, so a database behind the code stops startup with the ways out, read from its record of migrations.
-const store = globalThis as { __protobaseRecordChecked?: boolean }
-if (!store.__protobaseRecordChecked) {
-  await checkMigrationRecord(project.auth, protobaseVersion)
-  store.__protobaseRecordChecked = true
+// Once per runtime model, so a database behind the code stops startup with the ways out, read from its record of
+// migrations, and a reload whose config needs another part of it, such as the jobs schema, reads the record again.
+const store = globalThis as { __protobaseRecordChecked?: string }
+const model = builtRuntimeModel(project)
+if (store.__protobaseRecordChecked !== modelHash(model)) {
+  await checkMigrationRecord(db, model, protobaseVersion)
+  store.__protobaseRecordChecked = modelHash(model)
 }
 
 // On every load, since editing the config can add a resource over a table of the auth store, give a resource events or
@@ -73,8 +77,8 @@ const reporter = await projectErrorReporter(config, process.env)
 const ui = { plugins: [], fieldTypes: {}, icons: projectIcons(projectDir) }
 const { admin, jobs } = await servedAdmin(project, db, ui, reporter, upgradeWebSocket)
 
-// The project's jobs and the delivery of its events, run in this server unless `--no-jobs` turned them off; a behind jobs
-// schema stops startup with the command that writes its migration.
+// The project's jobs and the delivery of its events, run in this server unless `--no-jobs` turned them off, on the jobs
+// schema the record of migrations checked.
 if (process.env.PROTOBASE_DEV_JOBS !== 'false') await devJobs(db, admin.organizationScope, jobs, admin.decryptField, project.mailer, admin.unsubscribe)
 // The old rows of the realtime tables, pruned while the dev server runs, whether or not a socket is open.
 devRealtimePrune(admin)
