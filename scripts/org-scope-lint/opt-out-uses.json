@@ -1,0 +1,14 @@
+{
+  "packages/server/src/better-auth/organizations/accept-invitation.ts": { "acrossOrganizations": 2 },
+  "packages/server/src/better-auth/organizations/add-every-user.ts": { "acrossOrganizations": 1 },
+  "packages/server/src/better-auth/organizations/host.ts": { "acrossOrganizations": 1 },
+  "packages/server/src/better-auth/organizations/people-endpoint.ts": { "acrossOrganizations": 1 },
+  "packages/server/src/better-auth/organizations/session-organization.ts": { "acrossOrganizations": 1 },
+  "packages/server/src/better-auth/organizations/store.ts": { "acrossOrganizations": 2 },
+  "packages/server/src/better-auth/personal-access-tokens/token-store.ts": { "acrossOrganizations": 3 },
+  "packages/server/src/better-auth/store/store-db.ts": { "unscoped": 1 },
+  "packages/server/src/organization-scope/auth-request-organization.ts": { "everyOrganization": 1 },
+  "packages/server/src/organization-scope/sign-in-organization.ts": { "everyOrganization": 1 },
+  "packages/server/src/personal-mail/shared-sender-store.ts": { "acrossOrganizations": 1 },
+  "packages/server/src/webhooks/table/owner-roles.ts": { "acrossOrganizations": 1 }
+}
