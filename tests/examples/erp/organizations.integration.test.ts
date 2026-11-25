@@ -1,4 +1,5 @@
 import { decodeJwt } from 'jose'
+import { everyOrganization } from '@protobase/query'
 import { afterAll, describe, expect, it } from 'vitest'
 import { addMember, configExports, createAdmin, createOrganization, createUser, listOrganizations } from '@protobase/server'
 import * as config from '../../apps/erp/config'
@@ -47,7 +48,7 @@ describe.skipIf(!reachable)('the ERP with two organizations', () => {
   it('shows each person only the rows of the organization they work in, and switching changes them', async () => {
     // The first user owns the seeded organizations
     await createUser(auth, { email: 'root@erp.example', password })
-    expect((await listOrganizations(auth)).organizations.map((organization) => [organization.slug, organization.members.map((member) => member.role)])).toEqual([['rijnland', ['owner']], ['nordlicht', ['owner']]])
+    expect((await listOrganizations(auth, everyOrganization('the test reads every organization'))).organizations.map((organization) => [organization.slug, organization.members.map((member) => member.role)])).toEqual([['rijnland', ['owner']], ['nordlicht', ['owner']]])
     await createUser(auth, { email: 'sanne@rijnland.example', password, role: 'user' })
     await createUser(auth, { email: 'katrin@nordlicht.example', password, role: 'user' })
     await createUser(auth, { email: 'eva@both.example', password, role: 'user' })
@@ -101,7 +102,7 @@ describe.skipIf(!reachable)('the ERP with two organizations', () => {
       expect(Number(organization.id)).toBeGreaterThan(2)
       const row = (await db.selectFrom('core.organizations').select(['name', 'slug', 'country_code']).where('id', '=', Number(organization.id)).executeTakeFirst())!
       expect(row).toEqual({ name: 'Zuidwind Trading', slug: 'zuidwind', country_code: 'NL' })
-      expect((await listOrganizations(auth)).organizations.map((entry) => entry.slug)).toEqual(['rijnland', 'nordlicht', 'zuidwind'])
+      expect((await listOrganizations(auth, everyOrganization('the test reads every organization'))).organizations.map((entry) => entry.slug)).toEqual(['rijnland', 'nordlicht', 'zuidwind'])
     } finally {
       // The run's database is shared with the other ERP tests.
       await db.deleteFrom('auth.organization').where('id', '=', organization.id).execute()

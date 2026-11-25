@@ -1,9 +1,10 @@
 import type { JobResult, JobWithMetadata } from 'pg-boss'
-import type { ScopedDb } from '@protobase/query'
+import type { Organization, ScopedDb } from '@protobase/query'
 import type { FieldDecrypter } from '../encryption/decrypt-field-types'
 import type { Mailer } from '../mail/smtp-mailer'
 import type { SendNotification } from '../notifications/send-input'
 import { isStatementTimeout, statementTimeoutDetail } from '../statement-timeout'
+import { readJobData } from './job-data'
 import type { JobDefinition } from './job-types'
 
 /** Thrown from a job's `run`, it fails the job now: the attempts it has left are not used. */
@@ -75,14 +76,15 @@ const noDecrypter = (name: string) => async (): Promise<never> => {
 }
 
 /**
- * One try of one job: completed when `run` returns, failed (to be retried while attempts are left) when it throws, and
- * failed for good on a `FatalJobError` or an invalid payload.
+ * One try of one job, its `db` from `dbFor` in the organization it was enqueued in: completed when `run` returns, failed
+ * (to be retried while attempts are left) when it throws, and failed for good on a `FatalJobError` or an invalid payload.
  */
-export const runJob = async (definition: JobDefinition, job: JobWithMetadata<unknown>, db: ScopedDb, { mail, sendNotification, decryptField }: JobServices = {}): Promise<JobResult> => {
+export const runJob = async (definition: JobDefinition, job: JobWithMetadata<unknown>, dbFor: (organization: Organization) => ScopedDb, { mail, sendNotification, decryptField }: JobServices = {}): Promise<JobResult> => {
   try {
-    const payload = await checkPayload(definition, job.data ?? undefined)
+    const stored = readJobData(job.data)
+    const payload = await checkPayload(definition, stored.payload ?? undefined)
     const context = {
-      db,
+      db: dbFor(stored.organization),
       job: { id: job.id, name: job.name, attempt: job.retryCount + 1, maxAttempts: job.retryLimit + 1, startedOn: job.startedOn },
       signal: job.signal,
       decryptField: decryptField ? decryptField({ job: definition.name }) : noDecrypter(definition.name),

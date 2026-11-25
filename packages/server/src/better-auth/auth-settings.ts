@@ -1,14 +1,15 @@
 import type { OrganizationOptions } from 'better-auth/plugins/organization'
 import { scopedDb, type Db, type Organization, type ScopedDb } from '@protobase/query'
 import type { Mailer } from '../mail/smtp-mailer'
-import { buildAuth, type CreateAuthOptions, type UserCreatedHook } from './create-auth'
+import { buildAuth, type AdminAuth, type CreateAuthOptions, type UserCreatedHook } from './create-auth'
 import type { McpAuthOptions } from './mcp/mcp-plugins'
 import { organizationsEnabled, type OrganizationsOptions } from './organizations/options'
 import type { StoredMember, StoredOrganization } from './organizations/store'
-import type { OrganizationsOff } from './organizations/kept-organizations'
+import type { OrganizationsOff, PinRead } from './organizations/kept-organizations'
 import type { TenantValue } from '../types'
 import type { AddVerifier } from '../personal-mail/verifiers/sender-address-verifier'
 import { senderVerifierList } from '../personal-mail/verifiers/verifier-list'
+import { appScope } from '../organization-scope/app-scope'
 import { noOrganizationTables, organizationTables } from '../organization-scope/organization-tables'
 import { signInOrganization } from '../organization-scope/sign-in-organization'
 import { modulesOf } from './names/modules-on'
@@ -17,7 +18,8 @@ import { resolveNames } from './names/resolve-names'
 /**
  * What every hook of the project's own gets as its last argument: the app's database, kept to the organization the
  * hook is about on the tables whose rows belong to one (`ScopedDb`), such as the new organization in
- * `onOrganizationCreated`; a hook about no organization, such as `onUserCreated`, sees none of their rows.
+ * `onOrganizationCreated`; a hook about no organization, such as `onUserCreated`, sees none of their rows, and while
+ * organizations are off after being on, the pinned organization's.
  */
 export type HookContext = { db: ScopedDb }
 
@@ -93,6 +95,8 @@ export type AppAuthInput = {
   workflowConnections?: CreateAuthOptions['workflowConnections']
   /** `authenticate.tenant`, which pins the default organization while organizations are off after being on. */
   tenant?: TenantValue
+  /** The organization pinned while organizations are off after being on (`pinnedOrganization`), which hooks about none work in. */
+  pinned?: PinRead
 }
 
 const organizationOptions = (organizations: AuthSettings['organizations'], hooks: AuthHooks, app: HookContexts): OrganizationsOptions | undefined => {
@@ -118,16 +122,23 @@ const organizationsOffOf = (organizations: AuthSettings['organizations'], tenant
 })
 
 /** createAuth's options for the `auth` settings, the store in the app's own database. */
-export const appAuthOptions = (settings: AuthSettings, { db, hooks = {}, mailer, workflowConnections, tenant }: AppAuthInput): CreateAuthOptions => {
+export const appAuthOptions = (settings: AuthSettings, { db, hooks = {}, mailer, workflowConnections, tenant, pinned }: AppAuthInput): CreateAuthOptions => {
   const { schema = 'auth', secret, generateUserId, mailer: mail, organizations, mcp, ...rest } = settings
   if (!secret) throw new Error("the auth secret is not set: give it the app's secret, PROTOBASE_SECRET, made with `openssl rand -base64 32`")
   // The store's tables as the hooks and sign-in see them.
   const on = organizationsEnabled(organizations)
-  const scope = on ? organizationTables(resolveNames({ schema, tables: rest.tables, modules: modulesOf({ ...rest, mcp, organizations: on }) })) : noOrganizationTables
+  const names = resolveNames({ schema, tables: rest.tables, modules: modulesOf({ ...rest, mcp, organizations: on }) })
+  const scope = on ? organizationTables(names) : noOrganizationTables
   const app: HookContexts = (organization) => ({ db: scopedDb(db, scope, organization) })
+  // A hook about no organization: in none with organizations on, in the pinned one while they are off after being on.
+  const hookScope = appScope({ organizations: on, names, pinned })
+  const outside = async (): Promise<HookContext> => {
+    const { tables, pinned: organization } = await hookScope()
+    return { db: scopedDb(db, tables, organization) }
+  }
   const organizationsOptions = organizationOptions(organizations, hooks, app)
-  const userId = hooks.generateUserId ? () => hooks.generateUserId!(app(undefined)) : generateUserId
-  const onUserCreated: UserCreatedHook | undefined = hooks.onUserCreated && ((user, context) => hooks.onUserCreated!(user, context, app(undefined)))
+  const userId = hooks.generateUserId ? async () => hooks.generateUserId!(await outside()) : generateUserId
+  const onUserCreated: UserCreatedHook | undefined = hooks.onUserCreated && (async (user, context) => hooks.onUserCreated!(user, context, await outside()))
   const verifiers = senderVerifierList()
   hooks.senderVerifiers?.(verifiers.add_verifier)
   const senderVerifiers = verifiers.freeze()
@@ -146,4 +157,8 @@ export const appAuthOptions = (settings: AuthSettings, { db, hooks = {}, mailer,
 }
 
 /** The app's Better Auth from its `auth` settings, built at serve time with only the plugins they turn on. */
-export const buildAppAuth = (settings: AuthSettings, input: AppAuthInput) => buildAuth(appAuthOptions(settings, input))
+export const buildAppAuth = (settings: AuthSettings, input: AppAuthInput) => {
+  // The hooks read the pinned organization from the instance they run in, once it is built.
+  const auth: Promise<AdminAuth> = buildAuth(appAuthOptions(settings, { ...input, pinned: async () => (await auth).pinnedOrganization() }))
+  return auth
+}

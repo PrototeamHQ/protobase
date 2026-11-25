@@ -2,10 +2,10 @@
   "format": 1,
   "protobaseVersion": "0.14.2",
   "endsAt": {
-    "file": "027_auth.sql",
-    "id": "d6ed2a4d-f867-4488-9da9-e0f079051ca5"
+    "file": "028_auth.sql",
+    "id": "0522f15b-6056-4516-ac07-e0e8d65e07c0"
   },
-  "modelHash": "7cb3dbee1b3124049cf072754e0107cc726d7326ea08c5539b0f7f79c2468faa",
+  "modelHash": "f110c94ed0e163e2103d7f9d790f698020c3149ce2731c2146792d96dabc1bc8",
   "model": {
     "auth": {
       "schema": "auth",
@@ -225,36 +225,6 @@
               "indexes": {
                 "staff_sign_in_session_id_idx": "staff_sign_in_session_id_idx",
                 "staff_sign_in_started_at_idx": "staff_sign_in_started_at_idx"
-              }
-            }
-          }
-        },
-        "platform_devices": {
-          "lastStep": 1,
-          "tables": {
-            "refused_account": {
-              "name": "refused_account",
-              "scope": "global",
-              "columns": {
-                "provider_id": "provider_id",
-                "account_id": "account_id",
-                "user_id": "user_id",
-                "created_at": "created_at"
-              },
-              "indexes": {
-                "refused_account_user_id_idx": "refused_account_user_id_idx"
-              }
-            },
-            "device_session": {
-              "name": "device_session",
-              "scope": "global",
-              "columns": {
-                "session_id": "session_id",
-                "account_id": "account_id",
-                "created_at": "created_at"
-              },
-              "indexes": {
-                "device_session_account_id_idx": "device_session_account_id_idx"
               }
             }
           }
@@ -566,6 +536,37 @@
               }
             }
           }
+        },
+        {
+          "module": "platform_devices",
+          "step": 1,
+          "tables": {
+            "refused_account": {
+              "name": "refused_account",
+              "scope": "global",
+              "columns": {
+                "provider_id": "provider_id",
+                "account_id": "account_id",
+                "user_id": "user_id",
+                "created_at": "created_at"
+              },
+              "indexes": {
+                "refused_account_user_id_idx": "refused_account_user_id_idx"
+              }
+            },
+            "device_session": {
+              "name": "device_session",
+              "scope": "global",
+              "columns": {
+                "session_id": "session_id",
+                "account_id": "account_id",
+                "created_at": "created_at"
+              },
+              "indexes": {
+                "device_session_account_id_idx": "device_session_account_id_idx"
+              }
+            }
+          }
         }
       ],
       "archived": []
@@ -607,12 +608,6 @@
       "auth.auth_steps.module",
       "auth.auth_steps.step",
       "auth.auth_steps.target",
-      "auth.device_session",
-      "auth.device_session.account_id",
-      "auth.device_session.created_at",
-      "auth.device_session.id",
-      "auth.device_session.session_id",
-      "auth.device_session_account_id_idx",
       "auth.jwks",
       "auth.jwks.alg",
       "auth.jwks.created_at",
@@ -637,13 +632,6 @@
       "auth.passkey_credential_id_idx",
       "auth.passkey_rp_id_idx",
       "auth.passkey_user_id_idx",
-      "auth.refused_account",
-      "auth.refused_account.account_id",
-      "auth.refused_account.created_at",
-      "auth.refused_account.id",
-      "auth.refused_account.provider_id",
-      "auth.refused_account.user_id",
-      "auth.refused_account_user_id_idx",
       "auth.session",
       "auth.session.active_role",
       "auth.session.created_at",

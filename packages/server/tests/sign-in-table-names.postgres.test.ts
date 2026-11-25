@@ -1,4 +1,5 @@
 import { Kysely } from 'kysely'
+import { everyOrganization } from '@protobase/query'
 import { describe, expect, it, vi } from 'vitest'
 import { authSchemaMigration } from '../src/better-auth/auth-schema'
 import { appAuthOptions } from '../src/better-auth/auth-settings'
@@ -6,7 +7,7 @@ import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { buildAuth } from '../src/better-auth/create-auth'
 import { liveSessions } from '../src/better-auth/live-sessions'
 import { resolveNames, type TableNames } from '../src/better-auth/names/resolve-names'
-import { createOrganization, listOrganizations } from '../src/better-auth/organizations/host'
+import { addAppRoleToOwners, addMember, createOrganization, isMemberByEmail, listOrganizations, removeMember } from '../src/better-auth/organizations/host'
 import { readSignInPolicy, saveSignInPolicy } from '../src/better-auth/policy-store'
 import { defaultSignInPolicy } from '../src/better-auth/sign-in-policy'
 import { endStaffSignIn, listStaffSignIns, logStaffSignIn } from '../src/better-auth/staff-log'
@@ -31,7 +32,7 @@ const tables = Object.fromEntries(
 const serve = async () => {
   const store = await openPostgresDatabase('empty')
   const db = new Kysely<any>({ dialect: store.dialect })
-  const auth = await buildAuth(appAuthOptions({ baseURL, secret: 'table-names-test-secret-0123456789', schema: 'login', mailer: false, organizations: { enabled: true, default: { id: 'default', name: 'Default', slug: 'default' } }, personalAccessTokens: { prefix: 'test_' }, tables }, { db }))
+  const auth = await buildAuth(appAuthOptions({ baseURL, secret: 'table-names-test-secret-0123456789', schema: 'login', mailer: false, roles: { manager: 'Manager' }, organizations: { enabled: true, default: { id: 'default', name: 'Default', slug: 'default' } }, personalAccessTokens: { prefix: 'test_' }, tables }, { db }))
   await store.exec((await authSchemaMigration(auth))!)
   const request = (path: string, init: { cookie?: string; body?: unknown } = {}) =>
     auth.handler(
@@ -79,10 +80,22 @@ describe.skipIf(!ready)('the auth store with every table and column renamed', ()
 
     // The store's own SQL: the users and organizations pages, and the sessions still live.
     expect((await listUsers(auth)).users.map(({ email }) => email)).toEqual(['ana@example.com'])
-    expect((await listOrganizations(auth)).organizations).toMatchObject([
+    expect((await listOrganizations(auth, everyOrganization('the test reads every organization'))).organizations).toMatchObject([
       { slug: 'default', members: [{ email: 'ana@example.com', role: 'owner' }] },
       { slug: 'acme', members: [{ email: 'ana@example.com', role: 'owner' }] },
     ])
+    // Kept to one organization, the store's own SQL reads and writes that organization's rows alone.
+    const bo = await createUser(auth, { email: 'bo@example.com', password, role: 'user' })
+    const acme = (await listOrganizations(auth, everyOrganization('the test reads every organization'))).organizations.find(({ slug }) => slug === 'acme')!
+    await addMember(auth, { organization: 'acme', email: 'bo@example.com', role: 'owner' })
+    expect((await listOrganizations(auth, acme.id)).organizations).toMatchObject([{ slug: 'acme', members: [{ email: 'ana@example.com' }, { email: 'bo@example.com' }] }])
+    expect((await listUsers(auth, { scope: 'default' })).users.map(({ email }) => email)).toEqual(['ana@example.com'])
+    expect((await listUsers(auth, { scope: acme.id })).users.map(({ id }) => id)).toEqual([user.id, bo.id])
+    expect(await isMemberByEmail(auth, 'default', 'bo@example.com')).toBe(false)
+    // Ana owns Acme with every app role already; Bo, its other owner, lacks the one added.
+    expect(await addAppRoleToOwners(auth, acme.id, 'manager')).toBe(1)
+    await removeMember(auth, { organization: 'acme', email: 'bo@example.com' })
+    await expect(removeMember(auth, { organization: 'acme', email: 'ana@example.com' })).rejects.toThrow('Cannot remove the last owner')
     expect(await liveSessions(auth)([session.session.id])).toEqual(new Map([[session.session.id, user.id]]))
     const { rows } = await store.pool().query('select c_user_id, c_name from login.t_personal_access_token')
     expect(rows).toEqual([{ c_user_id: user.id, c_name: 'Script' }])

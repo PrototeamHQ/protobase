@@ -23,4 +23,6 @@ writePresetFiles(preset, packed[0]!.version, outDir)
 const overrides = { ...tarballs, '@react-pdf/textkit': '7.0.1' }
 const file = path.join(outDir, 'package.json')
 writeFileSync(file, `${JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), overrides }, null, 2)}\n`)
-execFileSync('bun', ['install', '--lockfile-only'], { cwd: outDir, stdio: 'inherit' })
+// It locks only versions a day old, whose tarballs the registry serves: one published seconds before can be listed
+// while its tarball still answers 404.
+execFileSync('bun', ['install', '--lockfile-only', '--minimum-release-age=86400'], { cwd: outDir, stdio: 'inherit' })

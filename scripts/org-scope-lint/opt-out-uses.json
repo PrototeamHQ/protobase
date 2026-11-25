@@ -1,4 +1,7 @@
 {
+  "packages/cli/src/organizations/commands.ts": { "everyOrganization": 2 },
+  "packages/cli/src/users/commands.ts": { "everyOrganization": 1 },
+  "packages/cli/src/users/manage.ts": { "everyOrganization": 3 },
   "packages/server/src/better-auth/organizations/accept-invitation.ts": { "acrossOrganizations": 2 },
   "packages/server/src/better-auth/organizations/add-every-user.ts": { "acrossOrganizations": 1 },
   "packages/server/src/better-auth/organizations/host.ts": { "acrossOrganizations": 1 },

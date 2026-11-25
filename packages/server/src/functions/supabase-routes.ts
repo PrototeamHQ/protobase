@@ -1,6 +1,7 @@
 import { Hono, type ErrorHandler } from 'hono'
 import { cors } from 'hono/cors'
-import { scopedDb, type Db, type ScopedTables } from '@protobase/query'
+import { scopedDb, type Db } from '@protobase/query'
+import type { AppScope } from '../organization-scope/app-scope'
 import type { ApiKeys } from '../api-keys/api-key-settings'
 import type { Caller } from '../api-keys/resolve-caller'
 import { runInBackground } from '../background-work'
@@ -13,8 +14,8 @@ import { relativeRequest } from './routes'
 export type SupabaseFunctionRoutesInput = {
   functions: Record<string, ApiFunction>
   db: Db
-  /** The tables whose rows belong to one organization, which these functions' `db` sees none of: their caller is no session. */
-  scope: ScopedTables
+  /** The app's organization scope (`appScope`), whose tables these functions' `db` sees none of: their caller is no session. */
+  scope: () => Promise<AppScope>
   keys: ApiKeys
   /** The caller of a request's `apikey` header and bearer token (`apiKeyCaller`). */
   caller: (request: Request) => Promise<Caller>
@@ -53,12 +54,12 @@ export const supabaseFunctionRoutes = ({ functions, db, scope, keys, caller, onE
       const request = relativeRequest(c.req.raw, supabaseFunctionsPath)
       if (options.public || c.req.method === 'OPTIONS') {
         let resolved: Promise<Caller> | undefined
-        const context: KeyFunctionContext = { name, db: scopedDb(db, scope, undefined), caller: () => (resolved ??= caller(c.req.raw)) }
+        const context: KeyFunctionContext = { name, db: scopedDb(db, (await scope()).tables, undefined), caller: () => (resolved ??= caller(c.req.raw)) }
         return invokeFunction(name, fn, request, context)
       }
       if (!hasKeys) throw unauthorized('This app has no keys, so only its public functions answer here')
       const resolved = await caller(c.req.raw)
-      return invokeFunction(name, fn, request, { name, db: scopedDb(db, scope, undefined), caller: async () => resolved })
+      return invokeFunction(name, fn, request, { name, db: scopedDb(db, (await scope()).tables, undefined), caller: async () => resolved })
     }), { longQueries: options.longQueries }))
   }
   app.all('/*', (c) => {

@@ -2032,6 +2032,10 @@
             }
           ]
         },
+        "signInDevices": {
+          "description": "Lets the platform's sign-in providers from the environment sign in devices (`PROTOBASE_SIGN_IN_DEVICES=true`, or\n`..._DEVICES` of a provider named by its id), which keep their tables in the store: a migration makes them, as it is\nwritten from the config alone. A provider of `signInProviders` with `devices: true` needs no switch. Without it, an\nenvironment provider that signs in devices stops the server at startup. Default off.",
+          "type": "boolean"
+        },
         "sso": {
           "description": "Single sign-on with the app's SAML 2.0 identity providers, for example `{ saml: [{ id: 'okta', name: 'Okta',\ndomains: ['example.com'], idp: { metadata } }] }` (see `SamlProvider`). Like `socialProviders`, a provider signs up\npeople without an account, with the default role, but only at its `domains`, where it also links to the account\nwith the same address. Default none.",
           "$ref": "#/definitions/SsoOptions"

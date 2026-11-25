@@ -23,7 +23,7 @@ const url = testDatabaseUrl()
 const reachable = await databaseReachable(url)
 const maintenance = () => postgres(withDatabase(url, 'postgres'), { max: 1, onnotice: () => {} })
 // Every feature with tables of its own on, so every module is.
-const auth = { names: settingsStoreNames({ organizations: { enabled: true }, mcp: true, personalAccessTokens: { prefix: 'app_' }, personalMail: ['gmail'] }), organizationsOn: true, organizations: testOrganizations }
+const auth = { names: settingsStoreNames({ organizations: { enabled: true }, mcp: true, personalAccessTokens: { prefix: 'app_' }, personalMail: ['gmail'], signInDevices: true }), organizationsOn: true, organizations: testOrganizations }
 // The versions a store recorded in auth_migrations, the former chain's, and every version this Protobase ships, which
 // goes on past them.
 const former = Array.from({ length: 17 }, (_, at) => at + 1)

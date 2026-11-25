@@ -10,6 +10,7 @@ import type { Session } from '../types'
 import { defineFunction, type ApiFunction } from './define-function'
 import type { FunctionRecords } from './records'
 import { functionRoutes, type FunctionRoutesInput } from './routes'
+import { appScope } from '../organization-scope/app-scope'
 
 const own = { staff: false }
 const sessions: Record<string, Session> = {
@@ -33,7 +34,7 @@ const serve = (functions: Record<string, ApiFunction>, personalMailer?: Function
     authenticate,
     access: {},
     db,
-    scope: { tables: [] },
+    scope: appScope({ organizations: false, names: undefined }),
     records: () => ({}) as FunctionRecords,
     channels: { broadcast: async () => {} },
     decryptField: () => async () => null,

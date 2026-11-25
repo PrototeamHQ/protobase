@@ -72,7 +72,7 @@ const serve = async (renamed: Record<string, string> = {}, mailer?: Mailer) => {
   const sent: SentQuery[] = []
   const log = (event: { query: { sql: string; parameters: readonly unknown[] } }) => void sent.push({ sql: event.query.sql, parameters: event.query.parameters, organization: signInOrganization() })
   const db = new Kysely<any>({ dialect: store.dialect, plugins: [plugin], log })
-  const auth = await buildAuth(appAuthOptions({ baseURL, secret: 'shared-kysely-test-secret-0123456789', schema: 'public', ...(mailer ? {} : { mailer: false as const }), organizations: { enabled: true }, personalAccessTokens: { prefix } }, { db, ...(mailer && { mailer }) }))
+  const auth = await buildAuth(appAuthOptions({ baseURL, secret: 'shared-kysely-test-secret-0123456789', schema: 'public', ...(mailer ? {} : { mailer: false as const }), organizations: { enabled: true }, personalAccessTokens: { prefix }, signInDevices: true }, { db, ...(mailer && { mailer }) }))
   const answer = answerInOrganization(auth.handler, sessionActiveOrganization(auth))
   const request = (path: string, init: { cookie?: string; body?: unknown } = {}) =>
     answer(

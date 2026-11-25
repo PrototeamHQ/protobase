@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import type { UpgradeWebSocket, WSContext, WSEvents } from 'hono/ws'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { ScopedTables } from '@protobase/query'
 import { db } from '../../../../test-support/compile-sql'
 import { defineRoles } from '@protobase/schema'
 import { createErrorHandler } from '../error-handler'
@@ -10,9 +9,11 @@ import type { Session } from '../types'
 import { defineFunction, type ApiFunction, type FunctionContext, type PublicFunctionContext } from './define-function'
 import type { FieldReader } from '../encryption/decrypt-field-types'
 import type { FunctionRecords } from './records'
+import { appScope } from '../organization-scope/app-scope'
+import { resolveNames } from '../better-auth/names/resolve-names'
 import { functionRoutes } from './routes'
 
-const scope: ScopedTables = { tables: [{ schema: 'auth', table: 'member', column: 'organization_id' }] }
+const scope = appScope({ organizations: true, names: resolveNames({ schema: 'auth', modules: ['auth', 'organizations'] }) })
 const sessions: Record<string, Session> = {
   ann: { user: { id: 'ann', roles: ['sales'] }, tenant: 'acme', organization: { id: 'acme', role: 'member' } },
   bob: { user: { id: 'bob', roles: ['admin'] } },
@@ -34,8 +35,8 @@ const channels = { broadcast: async () => {} }
 // Each bound read says who it is for, so a test sees which reader the context was given.
 const decryptField = vi.fn((reader: FieldReader) => async () => JSON.stringify(reader))
 
-const serve = (functions: Record<string, ApiFunction>, onUnhandledError = vi.fn(), wake = vi.fn()) => ({
-  app: functionRoutes({ basePath: '/api/functions', functions, authenticate, access: {}, db, scope, records, channels, decryptField, onError: createErrorHandler(onUnhandledError), wake, report: onUnhandledError }),
+const serve = (functions: Record<string, ApiFunction>, onUnhandledError = vi.fn(), wake = vi.fn(), within = scope) => ({
+  app: functionRoutes({ basePath: '/api/functions', functions, authenticate, access: {}, db, scope: within, records, channels, decryptField, onError: createErrorHandler(onUnhandledError), wake, report: onUnhandledError }),
   onUnhandledError,
   wake,
 })
@@ -73,6 +74,33 @@ describe('functionRoutes', () => {
       { sql: 'select "id" from "auth"."member" where false', parameters: [] },
       { sql: 'select "id" from "auth"."member" where false', parameters: [] },
     ])
+  })
+
+  it("keeps a function's db to the pinned organization while organizations are off after being on, for a session of it", async () => {
+    const seen: PublicFunctionContext[] = []
+    const remember = (_request: Request, context: PublicFunctionContext) => (seen.push(context), new Response('ok'))
+    const off = appScope({ organizations: false, names: resolveNames({ schema: 'auth', modules: ['auth', 'personal_access_tokens'] }), pinned: async () => ({ id: 'acme' }) })
+    const { app } = serve({ own: defineFunction(remember), open: defineFunction({ public: true }, remember) }, vi.fn(), vi.fn(), off)
+    await app.request('/api/functions/own', as('ann'))
+    await app.request('/api/functions/own', as('bob'))
+    await app.request('/api/functions/open', as('ann'))
+    const reads = (context: PublicFunctionContext) => ['member', 'invitation', 'personal_access_token'].map((table) => context.db.selectFrom(`auth.${table}`).select('id').compile().sql)
+    expect(reads(seen[0]!)).toEqual([
+      'select "id" from "auth"."member" where "auth"."member"."organization_id" = $1',
+      'select "id" from "auth"."invitation" where "auth"."invitation"."organization_id" = $1',
+      'select "id" from "auth"."personal_access_token" where "auth"."personal_access_token"."organization_id" = $1',
+    ])
+    expect(membersRead(seen[0]!).parameters).toEqual(['acme'])
+    expect(membersRead(seen[1]!).sql).toBe('select "id" from "auth"."member" where false')
+    expect(membersRead(seen[2]!).sql).toBe('select "id" from "auth"."member" where false')
+  })
+
+  it("leaves a function's db unscoped in an app whose organizations were never on", async () => {
+    const seen: PublicFunctionContext[] = []
+    const never = appScope({ organizations: false, names: resolveNames({ schema: 'auth', modules: ['auth', 'personal_access_tokens'] }), pinned: async () => undefined })
+    const { app } = serve({ own: defineFunction((_request, context) => (seen.push(context), new Response('ok'))) }, vi.fn(), vi.fn(), never)
+    await app.request('/api/functions/own', as('ann'))
+    expect(seen[0]!.db.selectFrom('auth.personal_access_token').select('id').compile().sql).toBe('select "id" from "auth"."personal_access_token"')
   })
 
   it('gives a protected function a decryptField bound to the function, its caller and the request’s origin', async () => {

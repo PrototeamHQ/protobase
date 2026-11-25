@@ -77,6 +77,7 @@ import { readPlatformSignIns } from './platform-sign-in-env'
 import { hiddenAccountsPlugin, oneAccountPerProvider, singleSubjectField } from './platform-accounts'
 import { fixedAuthorizationParamsPlugin } from './platform-authorization-params'
 import { deviceLinksPlugin } from './platform-devices'
+import { checkDeviceSignIn } from './device-sign-in-check'
 import { appSignInPolicy } from './app-sign-in-policy'
 import { signInPolicyPlugin } from './policy-plugin'
 import { defaultSignInPolicy, type SignInPolicy } from './sign-in-policy'
@@ -271,6 +272,13 @@ export type CreateAuthOptions = {
    * alone, with tokens for the origin of `baseURL` unless `clientId` names another.
    */
   signInProviders?: readonly PlatformSignIn[]
+  /**
+   * Lets the platform's sign-in providers from the environment sign in devices (`PROTOBASE_SIGN_IN_DEVICES=true`, or
+   * `..._DEVICES` of a provider named by its id), which keep their tables in the store: a migration makes them, as it is
+   * written from the config alone. A provider of `signInProviders` with `devices: true` needs no switch. Without it, an
+   * environment provider that signs in devices stops the server at startup. Default off.
+   */
+  signInDevices?: boolean
   /**
    * Single sign-on with the app's SAML 2.0 identity providers, for example `{ saml: [{ id: 'okta', name: 'Okta',
    * domains: ['example.com'], idp: { metadata } }] }` (see `SamlProvider`). Like `socialProviders`, a provider signs up
@@ -753,6 +761,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   const signInSettings = options.signInProviders ?? platformSignInSettings()
   const socialProviders = Object.keys(options.socialProviders ?? {})
   const platformSignIn = platformSignInFor(resolvePlatformSignIns(signInSettings, options.baseURL), socialProviders)
+  checkDeviceSignIn(platformSignIn, modulesOf(options))
   const saml = resolveSamlProviders(options.sso?.saml ?? [], [...socialProviders, ...platformSignIn.map(({ provider }) => provider)])
   const personalMail = resolvePersonalMail(options.personalMail ?? [], socialProviders, options.encryptOAuthTokens === true)
   if (Object.keys(options.connections ?? {}).length > 0 && options.encryptOAuthTokens !== true) throw new Error("auth.connections: the connected accounts' tokens would be stored in plain text; turn on auth.encryptOAuthTokens")

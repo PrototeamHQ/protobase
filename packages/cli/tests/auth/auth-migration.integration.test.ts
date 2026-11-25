@@ -106,10 +106,10 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
       .map(label)
       .sort()
   }
-  // Every feature that keeps something in the store: organizations, the OAuth provider for MCP, personal access tokens
-  // and the From addresses of personal mail.
+  // Every feature that keeps something in the store: organizations, the OAuth provider for MCP, personal access tokens,
+  // the From addresses of personal mail and device sign-in.
   const personalMail = { personalMail: ['gmail' as const], encryptOAuthTokens: true, socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } } }
-  const allOn = { organizations: { default: { id: 'default', name: 'Default', slug: 'default' }, create: 'everyone' as const }, mcp: true as const, personalAccessTokens: { prefix: 'test_' }, ...personalMail }
+  const allOn = { organizations: { default: { id: 'default', name: 'Default', slug: 'default' }, create: 'everyone' as const }, mcp: true as const, personalAccessTokens: { prefix: 'test_' }, signInDevices: true as const, ...personalMail }
   // An auth with `features` on, over a database of its own.
   const authWith = async (databaseUrl: string, features: Partial<typeof allOn>) => {
     const auth = await buildAuth({ database: new pg.Pool({ connectionString: databaseUrl, max: 2 }), baseURL: 'http://localhost:1', secret, mailer: false, operator: false, signInProviders: [], ...features })
@@ -287,7 +287,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     // The store before the step that makes one account per provider and account id, with one such account twice.
     await query(
       databaseUrl,
-      `drop table refused_account, device_session; drop index account_provider_id_account_id_uidx, account_provider_id_single_subject_user_id_uidx; alter table account drop column single_subject_user_id; delete from auth_steps where module = 'auth' and step = 2 or module = 'platform_devices'`,
+      `drop index account_provider_id_account_id_uidx, account_provider_id_single_subject_user_id_uidx; alter table account drop column single_subject_user_id; delete from auth_steps where module = 'auth' and step = 2`,
     )
     await query(databaseUrl, `insert into "user" (id, name, email, email_verified) values ('u1', 'Root', 'root@example.com', true)`)
     await query(databaseUrl, `insert into account (id, account_id, provider_id, user_id, updated_at) values ('a1', 's1', 'idp', 'u1', now()), ('a2', 's1', 'idp', 'u1', now())`)
@@ -297,7 +297,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
     await expect(sql.begin((tx) => tx.unsafe(text))).rejects.toThrow(/more than one account for a provider and account id: idp s1 \(accounts a1, a2\)\. Keep one of each in a migration of the project's own written before this one/)
     await sql.end()
-    expect(await versions(databaseUrl)).toEqual(everyOf(auth).filter((part) => part !== 'auth 2' && !part.startsWith('platform_devices')))
+    expect(await versions(databaseUrl)).toEqual(everyOf(auth).filter((part) => part !== 'auth 2'))
   })
 
   it("puts each From address entered before on its owner's one Gmail connection, and on none when they have none or several", async () => {
@@ -375,9 +375,9 @@ delete from auth_steps where module = 'mail_senders' and step = 3`,
     const text = await readFile((await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' }))!, 'utf8')
     expect(text).toContain('adopted: 1 core, 2 two_factor, 3 passkeys, 4 sign_in_policy, 5 staff_sign_in, 6 organizations')
     expect(text).not.toContain('create table if not exists "user"')
-    // MCP is off, so its tables stay out.
+    // MCP and device sign-in are off, so their tables stay out.
     expect(text).not.toContain('-- mcp 1 mcp: ')
-    expect(text).toContain('-- platform_devices 1 platform_devices: ')
+    expect(text).not.toContain('-- platform_devices 1 platform_devices: ')
 
     await applyAll(databaseUrl, folder)
     await expect(checkRecord(auth)).resolves.toBeUndefined()

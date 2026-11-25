@@ -14,6 +14,7 @@ import { betterAuthLinkedAccounts, type TokenAuth } from './linked-accounts'
 import { resolvePersonalMail } from './personal-mail-providers'
 import { personalMailer } from './personal-mailer'
 import { senderRows } from './sender-rows'
+import { appScope } from '../organization-scope/app-scope'
 
 const noSenders = senderRows()
 
@@ -124,7 +125,7 @@ describe('a linked Gmail’s tokens stay on the server', () => {
       functions: { send: defineFunction(async (_request, context) => (await context.personalMail.send(invoice), new Response(null, { status: 204 }))) },
       authenticate: () => ({ user: { id: setup.ada.id, roles: ['user'] }, signIn: { staff: false } }),
       access: {},
-      scope: { tables: [] },
+      scope: appScope({ organizations: false, names: undefined }),
       db: {} as Db,
       records: () => ({}) as FunctionRecords,
       channels: { broadcast: async () => {} },

@@ -12,6 +12,7 @@ import { bridgeClosings } from './bridge-closings'
 import type { BridgeTarget } from './bridge-target'
 import { tcpBridge } from './tcp-bridge'
 import { connectTcp } from './tcp-connect'
+import { appScope } from '../organization-scope/app-scope'
 
 vi.mock('./tcp-connect', async (original) => {
   const actual = await original<typeof import('./tcp-connect')>()
@@ -61,7 +62,7 @@ const serveBridge = async (allowed: Map<string, BridgeTarget>, now?: () => numbe
     functions: { console: defineFunction(bridge) },
     authenticate: (request) => ({ user: { id: request.headers.get('authorization')!.slice('Bearer '.length), roles: ['*'] } }),
     access: {},
-    scope: { tables: [] },
+    scope: appScope({ organizations: false, names: undefined }),
     db: {} as Db,
     records: () => ({}) as FunctionRecords,
     channels: { broadcast: async () => {} },

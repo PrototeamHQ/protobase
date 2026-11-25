@@ -87,7 +87,7 @@ import { guestRoutes } from './calls/guest-routes'
 import { getIP } from 'better-auth/api'
 import { organizationGuestsRoute } from './calls/organization-guests-route'
 import { organizationRole } from './better-auth/organizations/organization-role'
-import { noOrganizationTables, organizationTables } from './organization-scope/organization-tables'
+import { appScope } from './organization-scope/app-scope'
 import { deviceStore, removeDevicesWithUsers } from './notifications/device-store-of'
 import { historyStore, removeHistoryWithUsers } from './notifications/history-store-of'
 import { historyRoutes } from './notifications/history-routes'
@@ -351,7 +351,10 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   // Who sees a status follows organizations, so an app without them stops here.
   if (status) checkStatusAuth(auth)
   // The tables whose rows belong to one organization, which the app's functions and jobs see only one organization of.
-  const organizationScope = auth?.organizations ? organizationTables(auth.names) : noOrganizationTables
+  // Jobs get the tables alone: a job works in the organization it was enqueued in, and one enqueued in none sees none
+  // of their rows, while organizations are off after being on too, as with them on.
+  const scope = appScope({ organizations: Boolean(auth?.organizations), names: auth?.names, ...(auth && { pinned: auth.pinnedOrganization }) })
+  const organizationScope = async () => (await scope()).tables
   const statusTables = status && auth && { statuses: statusNames(status), members: auth.names.table('member') }
   const pushKey = webPushKey(senders)
   const locale = localeSetting(options.locale)
@@ -519,7 +522,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   // The broadcasts and presences of both realtime APIs, apart, through one relay with several processes.
   const hubs = realtimeHubs(deps, realtime, report)
   const channels = channelSender(registry, hubs.records.broadcasts)
-  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, scope: organizationScope, records: (session) => callerRecords(deps, session), channels, decryptField, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }), onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, ...(deps.calls && { calls: deps.calls }), report }))
+  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, scope, records: (session) => callerRecords(deps, session), channels, decryptField, ...(auth && auth.personalMail.length > 0 && { personalMailer: auth.personalMailer }), onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, ...(deps.calls && { calls: deps.calls }), report }))
   // Channels named by records, with presence and broadcasts, for whoever may read the record, a visitor too.
   if (upgradeWebSocket) {
     const visitors = (caller: Authenticator) => withAnonymous(caller, options.roles)
@@ -534,7 +537,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   }
   // supabase-js's `functions.invoke`, admitted by the app's keys and the tokens of `/api/sb/auth/v1`.
   const verifyGoTrue = auth ? jwtVerifier(goTrueTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens'))
-  app.route('/', supabaseFunctionRoutes({ functions: apiFunctions, db, scope: organizationScope, keys: apiKeys, caller: apiKeyCaller({ keys: apiKeys, verify: verifyGoTrue }), onError }))
+  app.route('/', supabaseFunctionRoutes({ functions: apiFunctions, db, scope, keys: apiKeys, caller: apiKeyCaller({ keys: apiKeys, verify: verifyGoTrue }), onError }))
   app.route('/', batchRoute(deps, authenticate, meta))
   app.route('/', fileRoutes(deps, authenticate))
   // Before the system endpoints, which want a token for everything under them
