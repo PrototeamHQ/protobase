@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { sql } from 'kysely'
 import { PgBoss, type Db as BossDb } from 'pg-boss'
-import { scopedDb, type Db, type ScopedTables } from '@protobase/query'
+import { scopedDb, type Db, type Organization, type ScopedTables } from '@protobase/query'
 import { runInBackground } from '../background-work'
 import { afterCommit } from '../commit-hooks'
 import type { FieldDecrypter } from '../encryption/decrypt-field-types'
@@ -15,6 +15,7 @@ import { noOrganizationTables } from '../organization-scope/organization-tables'
 import { busyDatabase } from './busy-database'
 import { clearCurrentJobs, setCurrentJobs, type JobsEnqueuer } from './current'
 import { jobsDatabase } from './database'
+import { jobData, organizationOf } from './job-data'
 import type { EnqueuedJob, EnqueueOptions, JobDefinition } from './job-types'
 import { queueOptions, queueSettingsDiffer, sendOptions, workOptions } from './options'
 import { runJob, validatePayload } from './run-job'
@@ -25,8 +26,8 @@ import { jobsSchema } from './schema'
 export type StartJobsOptions = {
   db: Db
   /**
-   * The tables whose rows belong to one organization, `createAdmin(...).organizationScope`: a job's `db` sees none of
-   * their rows. Default none, for an app without organizations.
+   * The tables whose rows belong to one organization, `createAdmin(...).organizationScope`: a job's `db` sees the rows
+   * of the organization it was enqueued in, and none in a job enqueued in none. Default none, for an app without organizations.
    */
   scope?: ScopedTables
   jobs: JobDefinition[]
@@ -107,8 +108,8 @@ export const startJobs = async ({ db, scope = noOrganizationTables, jobs, work =
   boss.on('error', onError)
   await boss.start()
   const schedules = createSchedules(boss, db, now)
-  // A job works in no organization.
-  const jobDb = scopedDb(db, scope, undefined)
+  // A job works in the organization it was enqueued in, if any.
+  const jobDb = (organization: Organization) => scopedDb(db, scope, organization)
 
   const definitions = new Map<string, JobDefinition>()
   const workers = new Map<string, { id: string; concurrency: number }>()
@@ -170,7 +171,7 @@ export const startJobs = async ({ db, scope = noOrganizationTables, jobs, work =
     if (!definitions.has(name)) throw new Error(`Job "${name}" is not among the app's jobs; export it from the module protobase.config.ts passes as \`jobs\``)
     const checked = await validatePayload(definition, payload)
     if ('invalid' in checked) throw new Error(checked.invalid)
-    const data = checked.value ?? null
+    const data = jobData(checked.value, organizationOf(target))
     // pg-boss runs a group's jobs by their transaction's start, then by id: an ordered job takes its id from the
     // database's uuidv7(), which rises within a session, so the jobs one transaction enqueues run in that order, those
     // of jobs.enqueue() among them.
@@ -198,12 +199,13 @@ export const startJobs = async ({ db, scope = noOrganizationTables, jobs, work =
   const enqueueMany = async (definition: JobDefinition, target: Db, jobs: readonly EnqueuedJob[]) => {
     const { name } = definition
     if (!definitions.has(name)) throw new Error(`Job "${name}" is not among the app's jobs; export it from the module protobase.config.ts passes as \`jobs\``)
+    const organization = organizationOf(target)
     const sends = await Promise.all(
       jobs.map(async ({ payload, options = {} }) => {
         if (options.mode === 'replace') throw new Error(`Job "${name}": enqueueMany keeps a waiting job of a key; replace one with enqueue`)
         const checked = await validatePayload(definition, payload)
         if ('invalid' in checked) throw new Error(checked.invalid)
-        return { data: checked.value ?? null, send: sendOptions(definition.options, options), key: options.key }
+        return { data: jobData(checked.value, organization), send: sendOptions(definition.options, options), key: options.key }
       }),
     )
     const ids: string[] = []

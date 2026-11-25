@@ -1,4 +1,5 @@
 import { Kysely, sql } from 'kysely'
+import { scopedDb } from '@protobase/query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { defineJob } from '../src/jobs/define-job'
@@ -269,5 +270,47 @@ describe.skipIf(!ready)('the runtime', () => {
     await start(db, [defineJob({ name: 'tuned', maxAttempts: 3, timeout: '1 minute', run: () => {} })], { work: false })
     const { rows } = await sql<{ retry_limit: number; expire_seconds: number }>`select retry_limit, expire_seconds from jobs.queue where name = 'tuned'`.execute(db)
     expect(rows[0]).toEqual({ retry_limit: 2, expire_seconds: 60 })
+  })
+})
+
+describe.skipIf(!ready)('organizations', () => {
+  const scope = { tables: [{ table: 'member', column: 'organization_id' }] }
+
+  const withMembers = async () => {
+    const db = await jobsDb()
+    await sql`create table member (organization_id text not null, name text not null)`.execute(db)
+    await sql`insert into member values ('org_a', 'Anna'), ('org_b', 'Bram')`.execute(db)
+    return db
+  }
+
+  it("runs a job enqueued from a scoped db in that db's organization, whatever its payload says", async () => {
+    const db = await withMembers()
+    const seen: unknown[] = []
+    const job = defineJob<unknown>({ name: 'list-members', run: async (payload, context) => { seen.push({ payload, names: (await context.db.selectFrom('member').select('name').execute()).map((one) => one.name) }) } })
+    await start(db, [job], { scope })
+    const scoped = scopedDb(db, scope, 'org_a')
+    await job.enqueue(scoped, { organization: 'org_b', '~organization': 'org_b' })
+    await until(() => expect(seen).toEqual([{ payload: { organization: 'org_b', '~organization': 'org_b' }, names: ['Anna'] }]))
+    await job.enqueueMany(scoped, [{ payload: { n: 1 } }, { payload: { n: 2 }, options: { key: 'k' } }])
+    await until(() => expect(seen).toHaveLength(3))
+    expect(seen.slice(1)).toEqual(expect.arrayContaining([{ payload: { n: 1 }, names: ['Anna'] }, { payload: { n: 2 }, names: ['Anna'] }]))
+  })
+
+  it('runs a job enqueued from an unscoped or plain db in no organization', async () => {
+    const db = await withMembers()
+    const seen: string[][] = []
+    const job = defineJob({ name: 'list-members', run: async (_, context) => { seen.push((await context.db.selectFrom('member').select('name').execute()).map((one) => one.name)) } })
+    await start(db, [job], { scope })
+    await job.enqueue(scopedDb(db, scope, 'org_a').unscoped('test'))
+    await job.enqueue(db)
+    await until(() => expect(seen).toEqual([[], []]))
+  })
+
+  it('lists a failed job with its payload alone', async () => {
+    const db = await withMembers()
+    const job = defineJob<{ invoiceId: number }>({ name: 'deliver', run: () => { throw new FatalJobError('410 Gone') } })
+    await start(db, [job], { scope })
+    const id = await job.enqueue(scopedDb(db, scope, 'org_a'), { invoiceId: 1 })
+    await until(async () => expect((await sql<{ payload: unknown }>`select payload from jobs.failed where id = ${id}`.execute(db)).rows).toEqual([{ payload: { invoiceId: 1 } }]))
   })
 })

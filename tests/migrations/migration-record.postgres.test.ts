@@ -11,6 +11,7 @@ import { runMigration } from '../../packages/cli/src/migration/snapshot/run-migr
 import { f, resource, type ResourceModel } from '@protobase/schema'
 import { callsSchemaSql, captureSchemaSql, channelSendsSchemaSql, commentsSchemaSql, computedSchemaSql, derivedSchemaSql, userTablesSchemaSql, jobsSchemaSql, mailFeedbackResource, mailFeedbackSchemaSql, neededModules, notificationsSchemaSql, querySchemaSql, realtimeRelaySchemaSql, relaySchemaSql, statusSchemaSql, unsubscribesSchemaSql, webhooksSchemaSql, workflowsSchemaSql, type AdminAuth, type ModuleApp } from '../../packages/server/src/index'
 import { createAuth, modelHash, noInput, plainStoreDb, recordTable, runtimeModel, schemaModules, storeNames, storeNamesList, type ModuleTargets, type RecordModel } from '../../packages/server/src/internal'
+import { functionsVersion } from '../../packages/server/src/jobs/functions-sql'
 import { rollupFunctionSql } from '../../packages/server/src/computed/rollup-sql'
 import { rollupTargets } from '../../packages/server/src/computed/rollup-targets'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
@@ -161,7 +162,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
 
     const file = await writeBaseline({ projectDir: project, dir: path.join(project, 'db/migrations'), auth: { names: storeNames(auth), organizationsOn: false, organizations: undefined }, modules: { jobs: noInput }, url: database.url, protobaseVersion: '1.0.0', newId: () => 'baseline-id' })
     const text = await readFile(file, 'utf8')
-    expect(text).toContain('-- The jobs schema this version of Protobase needs: at step 1 (pg_boss_45), its functions at version 3.')
+    expect(text).toContain(`-- The jobs schema this version of Protobase needs: at step 1 (pg_boss_45), its functions at version ${functionsVersion}.`)
     await database.exec(text)
     expect(await migrateWithJobs(project, auth, database)).toBeUndefined()
     await expect(check(auth, { jobs: noInput })).resolves.toBeUndefined()
@@ -227,7 +228,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
     const modules = featureModules(auth, app)
     const file = await writeBaseline({ projectDir: project, dir: path.join(project, 'db/migrations'), auth: { names: storeNames(auth), organizationsOn: false, organizations: undefined }, modules, url: database.url, protobaseVersion: '1.0.0', newId: () => 'baseline-id' })
     const text = await readFile(file, 'utf8')
-    expect(text).toContain('-- The jobs schema this version of Protobase needs: at step 1 (pg_boss_45), its functions at version 3.')
+    expect(text).toContain(`-- The jobs schema this version of Protobase needs: at step 1 (pg_boss_45), its functions at version ${functionsVersion}.`)
     expect(text).toContain('-- The webhook subscriptions of webhooks: at step 1 (subscriptions), its functions at version 2.')
     expect(text).toContain("-- The log of every try of the webhook subscriptions' deliveries: at step 1 (delivery_log).")
     expect(text).toContain('-- The workflows, their versions, runs and steps: at step 1 (workflows), its functions at version 28.')
