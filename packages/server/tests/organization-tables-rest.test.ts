@@ -24,14 +24,20 @@ const scoped = [
 ] as const
 
 // Where the store is and what its tables are called: the default `auth` schema, and names the app configures, in the
-// `auth` schema and in the app's own.
+// `auth` schema and in the app's own; each with no resource over the store's tables, and with one over each, as an app
+// that skips the startup check refusing them would have.
 const layouts: { name: string; schemaName?: string; tables?: CreateAuthOptions['tables'] }[] = [
   { name: 'built-in names in auth', schemaName: 'auth' },
   { name: 'configured names in auth', schemaName: 'auth', tables: { prefix: 'app_', member: { name: 'memberships' } } },
   { name: 'configured names in public', tables: { prefix: 'app_', member: { name: 'memberships' } } },
 ]
+// Better Auth's rate limits are per client address and kept in memory, so each case signs in from an address of its own.
+const cases = layouts.flatMap((layout, n) => [
+  { ...layout, declared: false, address: `192.0.2.${2 * n + 1}`, name: `${layout.name}, no resource over them` },
+  { ...layout, declared: true, address: `192.0.2.${2 * n + 2}`, name: `${layout.name}, a resource over each` },
+])
 
-it.each(layouts)("refuses every read, filter, embed and write of the organization's tables on /api/sb/rest/v1, $name", async ({ schemaName, tables }) => {
+it.each(cases)("refuses every read, filter, embed and write of the organization's tables on /api/sb/rest/v1, $name", async ({ schemaName, tables, declared, address }) => {
   const pg = await openSnapshotDb('empty')
   const auth = createAuth({
     database: { dialect: pg.dialect, type: 'postgres', ...(schemaName && { schemaName }) },
@@ -52,7 +58,8 @@ it.each(layouts)("refuses every read, filter, embed and write of the organizatio
   const stored = scoped.map(([internal, column]) => {
     const table = auth.names.table(internal)
     const id = table.schema ? `"${table.schema}"."${table.name}"` : `"${table.name}"`
-    return { name: table.name, paths: table.schema ? [table.name, `${table.schema}.${table.name}`] : [table.name], id, column }
+    const qualified = table.schema ? `${table.schema}.${table.name}` : table.name
+    return { internal, name: table.name, qualified, paths: table.schema ? [table.name, qualified] : [table.name], id, column }
   })
   if (tables) expect(stored.map(({ name }) => name)).toEqual(['app_session', 'memberships', 'app_invitation', 'app_personal_access_token'])
 
@@ -61,8 +68,9 @@ it.each(layouts)("refuses every read, filter, embed and write of the organizatio
     insert into projects (id) values ('p1')`)
   await createUser(auth, { email: 'root@example.com', password: 'correct horse battery', role: 'admin' })
   const projects = resource('projects').table('projects').fields({ id: f.text() }).primaryKey((r) => r.id)
+  const overStore = stored.map(({ internal, qualified }) => resource(`store_${internal}`).table(qualified).fields({ id: f.text() }).primaryKey((r) => r.id))
   const app = createAdmin({
-    resources: [projects],
+    resources: declared ? [projects, ...overStore] : [projects],
     db: new Kysely<any>({ dialect: pg.dialect }),
     authenticate: betterAuthAuthenticator({ auth }),
     auth,
@@ -72,7 +80,7 @@ it.each(layouts)("refuses every read, filter, embed and write of the organizatio
   // A signed-in user's access token, as supabase-js gets it.
   const signIn = await app.request('/api/sb/auth/v1/token?grant_type=password', {
     method: 'POST',
-    headers: { apikey: publishable, 'content-type': 'application/json' },
+    headers: { apikey: publishable, 'content-type': 'application/json', 'x-forwarded-for': address },
     body: JSON.stringify({ email: 'root@example.com', password: 'correct horse battery' }),
   })
   expect(signIn.status).toBe(200)

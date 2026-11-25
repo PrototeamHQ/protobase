@@ -31,6 +31,7 @@ import { relayed, sqlSends, type RealtimeOptions } from './realtime/relay/realti
 import { restRoutes } from './rest/rest-routes'
 import { storageRoutes } from './storage/storage-routes'
 import { shownAppName } from './app-name'
+import { authStoreTables } from './better-auth/auth-tables'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { mcpDiscovery } from './better-auth/mcp/discovery-routes'
 import { mcpApprovals } from './mcp/mcp-approval-store'
@@ -566,7 +567,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     const verify = verifyToken ?? (auth ? jwtVerifier(goTrueTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens')))
     const caller = apiKeyCaller({ keys: apiKeys, verify })
     // `from()` and `rpc()` under the tables' RLS.
-    app.route(restPath, restRoutes({ deps, caller, report }))
+    app.route(restPath, restRoutes({ deps: { ...deps, ...(auth && { storeTables: authStoreTables(auth) }) }, caller, report }))
     // `postgres_changes` of the live resources under the tables' RLS, broadcasts and presence.
     if (upgradeWebSocket) app.route(realtimePath, realtimeApp({ deps, feed, upgradeWebSocket, caller, report, hubs }))
     // `storage` under the storage schema's RLS.

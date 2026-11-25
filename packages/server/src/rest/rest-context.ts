@@ -1,6 +1,7 @@
 import type { Context } from 'hono'
 import type { Db } from '@protobase/query'
 import type { Caller } from '../api-keys/resolve-caller'
+import type { AuthStoreTables } from '../better-auth/auth-tables'
 import { wakeDispatch } from '../changes/actor'
 import type { Deps } from '../deps'
 import { readTransaction, writeTransaction } from '../transactions'
@@ -9,7 +10,10 @@ import { restError } from './rest-error'
 
 export type RestEnv = { Variables: { caller: Caller } }
 
-export type RestDeps = Pick<Deps, 'db' | 'registry' | 'statementTimeoutMs' | 'guard' | 'actorSetting'>
+export type RestDeps = Pick<Deps, 'db' | 'registry' | 'statementTimeoutMs' | 'guard' | 'actorSetting'> & {
+  /** The auth store's tables under the names the app gives them, which no request reaches, whatever resource is over them. */
+  storeTables?: AuthStoreTables
+}
 
 /**
  * Runs `work` in one transaction as the request's caller (see `callerSettings`), under the statement timeout;
