@@ -72,7 +72,7 @@ const { admin, jobs } = await servedAdmin(project, db, ui, reporter, upgradeWebS
 
 // The project's jobs and the delivery of its events, run in this server unless `--no-jobs` turned them off, on the jobs
 // schema the record of migrations checked.
-if (process.env.PROTOBASE_DEV_JOBS !== 'false') await devJobs(db, admin.organizationScope, jobs, admin.decryptField, project.mailer, admin.unsubscribe)
+if (process.env.PROTOBASE_DEV_JOBS !== 'false') await devJobs(db, await admin.organizationScope(), jobs, admin.decryptField, project.mailer, admin.unsubscribe)
 // The old rows of the realtime tables, pruned while the dev server runs, whether or not a socket is open.
 devRealtimePrune(admin)
 

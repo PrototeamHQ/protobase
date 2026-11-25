@@ -143,6 +143,9 @@ export type Admin = Hono<AdminEnv> & {
   decryptField: FieldDecrypter
   metaPath: string
   unsubscribe?: UnsubscribeLinks
-  /** The tables whose rows belong to one organization, which the app's functions, jobs and hooks see one organization of (`startJobs`' `scope`). */
-  organizationScope: ScopedTables
+  /**
+   * The tables whose rows belong to one organization, which the app's functions, jobs and hooks see one organization
+   * of (`startJobs`' `scope`), read once the store says whether organizations were on.
+   */
+  organizationScope: () => Promise<ScopedTables>
 }
