@@ -157,6 +157,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       postgres: true
+      release: true
 
   commits:
     if: ${{ !inputs.tag }}
