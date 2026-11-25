@@ -115,8 +115,18 @@ type Field = ResourceModel['fields'][string]
 /** The columns that hold fields, each once: a relation's are the ones holding the other record's key. */
 const columnsOf = (fields: Field[]) => [...new Set(fields.flatMap((field) => field.relation?.columns ?? [field.column]))]
 
+// A name ending in `suffix` within Postgres's 63 bytes: a long table name is cut, never the suffix, so the two triggers
+// of one table keep names of their own.
+const suffixed = (name: string, suffix: string) => `${identifier(name, 63 - new TextEncoder().encode(suffix).length)}${suffix}`
+
 /** The names of the two triggers on `table`: inserts and deletes, and updates. */
-export const triggerNames = (table: { name: string }) => [identifier(`${table.name}_changes`), identifier(`${table.name}_changes_update`)]
+export const triggerNames = (table: { name: string }) => [suffixed(table.name, '_changes'), suffixed(table.name, '_changes_update')]
+
+/**
+ * The names an earlier version gave the triggers of a table whose name is too long for them, cut at 63 bytes so both
+ * were one name, that `triggerNames` no longer gives: dropped before the triggers are made.
+ */
+const cutNames = (table: { name: string }) => [...new Set([identifier(`${table.name}_changes`), identifier(`${table.name}_changes_update`)])].filter((name) => !triggerNames(table).includes(name))
 
 /**
  * The two triggers of a resource whose changes are captured: inserts and deletes, and updates that change the row. The
@@ -149,12 +159,18 @@ export const createTriggerSql = (schema: string, trigger: TriggerSpec, table: st
   return `create trigger ${quoteIdent(trigger.name)} ${timing} on ${table} for each row${when} execute function ${quoteIdent(schema)}."capture"(${args})`
 }
 
-/** What one resource's triggers are made from: its table as SQL, and the triggers it has. */
-export type ResourceCapture = { table: string; triggers: TriggerSpec[] }
+/** What one resource's triggers are made from: its table as SQL, the triggers it has, and the names it drops first (`cutNames`). */
+export type ResourceCapture = { table: string; triggers: TriggerSpec[]; replaces?: string[] }
 
 /** One resource's triggers, each dropped and made again, so a trigger of an earlier shape is replaced. */
-export const resourceCaptureSql = (schema: string, { table, triggers }: ResourceCapture) =>
-  triggers.flatMap((trigger) => [`${dropTriggerSql(trigger.name, table)};`, `${createTriggerSql(schema, trigger, table)};`]).join('\n')
+export const resourceCaptureSql = (schema: string, { table, triggers, replaces = [] }: ResourceCapture) =>
+  [...replaces.map((name) => `${dropTriggerSql(name, table)};`), ...triggers.flatMap((trigger) => [`${dropTriggerSql(trigger.name, table)};`, `${createTriggerSql(schema, trigger, table)};`])].join('\n')
+
+/** What the triggers of `model` are made from. */
+export const resourceCapture = (model: ResourceModel): ResourceCapture => {
+  const replaces = cutNames(model.table)
+  return { table: tableSql(model), triggers: resourceTriggers(model), ...(replaces.length > 0 && { replaces }) }
+}
 
 /** Drops the triggers a resource on `table` had. */
-export const dropCaptureSql = (table: { schema?: string; name: string }) => triggerNames(table).map((name) => `${dropTriggerSql(name, qualified(table))};`).join('\n')
+export const dropCaptureSql = (table: { schema?: string; name: string }) => [...cutNames(table), ...triggerNames(table)].map((name) => `${dropTriggerSql(name, qualified(table))};`).join('\n')

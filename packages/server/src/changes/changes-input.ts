@@ -1,11 +1,8 @@
 import type { ResourceModel } from '@protobase/schema'
 import { checkLiveReads } from '../check-live-reads'
 import type { ModuleInput } from '../schema-modules/schema-module'
-import { capturedBy, resourceTriggers, tableSql, type ResourceCapture } from './capture-sql'
+import { capturedBy, resourceCapture, tableSql } from './capture-sql'
 import { changesSchema, type EventsOptions } from './events-options'
-
-/** One resource's triggers as the change capture module takes them. */
-const captureInput = (model: ResourceModel): ResourceCapture => ({ table: tableSql(model), triggers: resourceTriggers(model) })
 
 const tableOf = ({ table }: ResourceModel) => ({ ...(table.schema !== undefined && { schema: table.schema }), name: table.name })
 
@@ -25,6 +22,6 @@ export const changesInput = (models: readonly ResourceModel[], events?: EventsOp
   }
   // A table a captured resource has takes that resource's triggers alone.
   const kept = models.filter((model) => !captured(model) && !tables.has(tableSql(model)))
-  const triggers = Object.fromEntries([...models.filter(captured), ...kept].map((model) => [model.name, { table: tableOf(model), input: captureInput(model), ...(!captured(model) && { kept: true }) }]))
+  const triggers = Object.fromEntries([...models.filter(captured), ...kept].map((model) => [model.name, { table: tableOf(model), input: resourceCapture(model), ...(!captured(model) && { kept: true }) }]))
   return { names: { schema: changesSchema(events) }, resources: { triggers } }
 }
