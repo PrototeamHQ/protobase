@@ -20,7 +20,7 @@ export const wantedResources = (given: Record<string, ResourceInput>) => Object.
 
 /**
  * What brings one resource replaceable from the entries the database has, `had`, to what `given` asks: each resource's
- * statements under the title naming it, drops first; the entries the database has once they are applied; and what of
+ * statements under the title naming it, drops first, those of a resource moved to another table included; the entries the database has once they are applied; and what of
  * them the code before does not run on. A resource no longer in `given`, or only kept, keeps its objects while another
  * still needs them (`keptWhileOthers`), following its input when it has one, and loses them once none does, which
  * takes them from older code still running.
@@ -36,8 +36,12 @@ export const resourceDifference = (replaceable: ResourceReplaceable, names: Modu
     entries[key] = entry
     const before = had[key]
     if (before && sameEntry(before, entry)) return
-    const moved = before && !sameTable(before.table, entry.table) ? [replaceable.drop(names, before.table)] : []
-    writes.push(`-- ${replaceable.title} of ${key}.\n${[...moved, replaceable.sql(names, input.input)].join('\n').trim()}`)
+    // Its objects on the table it had go with the other drops, before any write, which may make them on that table.
+    if (before && !sameTable(before.table, entry.table)) {
+      drops.push(`-- ${replaceable.title} of ${key} on the table it had.\n${replaceable.drop(names, before.table).trim()}`)
+      breaks.push(`it drops its ${replaceable.name} of ${key} on the table it had, which the code before still runs with`)
+    }
+    writes.push(`-- ${replaceable.title} of ${key}.\n${replaceable.sql(names, input.input).trim()}`)
     if (before && before.version < replaceable.compatibleFrom) {
       breaks.push(`it replaces its ${replaceable.name} of ${key} at version ${before.version} with version ${replaceable.version}, which the code before does not run on`)
     }

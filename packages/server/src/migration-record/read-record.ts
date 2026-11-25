@@ -10,17 +10,24 @@ type Row = {
   unfinished: RecordState['unfinished']
 }
 
+// A module of a row as the runtime reads it: the same but for its resources' objects, of which the row may have more,
+// those kept for older code, which only ever add to what it captures.
+const holdsModule = (id: string, module: object) => {
+  const { resources = {}, ...rest } = module as { resources?: object }
+  const found = sql`(model -> 'modules' -> ${id}::text)`
+  return sql`(${found} - 'resources' = ${JSON.stringify(rest)}::jsonb and coalesce(${found} -> 'resources', '{}'::jsonb) @> ${JSON.stringify(resources)}::jsonb)`
+}
+
 /**
- * Whether a row of the record holds every part of `runtime` as it is: the auth store and each schema module it reads.
- * A part the runtime does not read, such as a module another version needs or a resource's objects kept for older
- * code, does not count: a module's model contains the runtime's.
+ * Whether a row of the record holds every part of `runtime` as it is: the auth store and each schema module it reads
+ * (`holdsModule`). A part the runtime does not read, such as a module another version needs, does not count.
  */
 const holdsRuntime = (runtime: RecordModel) =>
   sql.join(
     [
       sql`true`,
       ...(runtime.auth ? [sql`model -> 'auth' = ${JSON.stringify(runtime.auth)}::jsonb`] : []),
-      ...Object.entries(runtime.modules ?? {}).map(([id, module]) => sql`model -> 'modules' -> ${id} @> ${JSON.stringify(module)}::jsonb`),
+      ...Object.entries(runtime.modules ?? {}).map(([id, module]) => holdsModule(id, module)),
     ],
     sql` and `,
   )

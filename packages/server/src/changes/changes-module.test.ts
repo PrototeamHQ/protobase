@@ -5,6 +5,7 @@ import { latestModel, moduleDifference, retiredDifference } from '../schema-modu
 import { neededModules } from '../schema-modules/needed-modules'
 import { schemaModules, targetIds } from '../schema-modules/modules'
 import type { ModuleModel } from '../schema-modules/schema-module'
+import { resourceTriggers } from './capture-sql'
 import { changesModule } from './changes-module'
 
 const orders = resource('orders').table('sales.orders').fields({ id: f.integer(), status: f.text(), iban: f.text().optional().sensitive() }).primaryKey((r) => r.id)
@@ -75,7 +76,25 @@ describe('the change capture module', () => {
   it('drops the triggers on the table a resource had before it moved to another', () => {
     const before: ModuleModel = moduleDifference(changesModule, input([orders.events((e) => e.crud()).toModel()]), undefined).model
     const moved = resource('orders').table('orders').fields({ id: f.integer(), status: f.text(), iban: f.text().optional().sensitive() }).primaryKey((r) => r.id).events((e) => e.crud())
-    expect(moduleDifference(changesModule, input([moved.toModel()]), before).sql).toMatch(/^-- The triggers that capture the changes of orders\.\ndrop trigger if exists "orders_changes" on "sales"\."orders";\ndrop trigger if exists "orders_changes_update" on "sales"\."orders";\ndrop trigger if exists "orders_changes" on "orders";/)
+    const difference = moduleDifference(changesModule, input([moved.toModel()]), before)
+    expect(difference.sql).toMatch(/^-- The triggers that capture the changes of orders on the table it had\.\ndrop trigger if exists "orders_changes" on "sales"\."orders";\ndrop trigger if exists "orders_changes_update" on "sales"\."orders";\n\n-- The triggers that capture the changes of orders\.\ndrop trigger if exists "orders_changes" on "orders";/)
+    expect(difference.breaks).toEqual(['it drops its triggers of orders on the table it had, which the code before still runs with'])
+  })
+
+  it('drops the triggers of a resource that moved off a table before another takes that table', () => {
+    const tickets = resource('tickets').table('tickets').fields({ id: f.integer() }).primaryKey((r) => r.id).events((e) => e.crud())
+    const before = moduleDifference(changesModule, input([tickets.toModel()]), undefined).model
+    const swapped = [resource('tickets').table('archived_tickets').fields({ id: f.integer() }).primaryKey((r) => r.id).events((e) => e.crud()), resource('fresh').table('tickets').fields({ id: f.integer() }).primaryKey((r) => r.id).events((e) => e.crud())]
+    const sql = moduleDifference(changesModule, input(swapped.map((model) => model.toModel())), before).sql!
+    expect(sql.indexOf('drop trigger if exists "tickets_changes" on "tickets";')).toBeLessThan(sql.indexOf('create trigger "tickets_changes"'))
+  })
+
+  it('gives the two triggers of a table with a long name names of their own within 63 bytes, and drops the cut name an earlier version gave them', () => {
+    const long = resource('long').table('a'.repeat(60)).fields({ id: f.integer() }).primaryKey((r) => r.id).events((e) => e.crud())
+    const [insertDelete, update] = resourceTriggers(long.toModel())
+    expect([insertDelete!.name, update!.name]).toEqual([`${'a'.repeat(55)}_changes`, `${'a'.repeat(48)}_changes_update`])
+    const sql = moduleDifference(changesModule, input([long.toModel()]), undefined).sql!
+    expect(sql).toContain(`drop trigger if exists "${'a'.repeat(60)}_ch" on "${'a'.repeat(60)}";`)
   })
 
   it('refuses a changes schema renamed since the snapshot', () => {

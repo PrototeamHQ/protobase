@@ -189,4 +189,28 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
     await expect(check(auth, modules)).resolves.toBeUndefined()
     await rm(project, { recursive: true, force: true })
   })
+
+  it('baselines a disabled trigger as one to write again, and a trigger of a resource gone from the config as one to keep, then drop once none is captured', async () => {
+    const database = await openPostgresDatabase('empty')
+    const { auth, project } = await migratedByThisVersion(database, true)
+    const gone = resource('gone').table('gone').fields({ id: f.integer() }).primaryKey((r) => r.id).events((e) => e.crud())
+    await database.exec(`${tables} create table gone (id integer primary key);\n${jobsSchemaSql()}\n${captureSchemaSql([notes.events((e) => e.crud()).toModel(), refunds.toModel(), gone.toModel()])}`)
+    await database.exec('alter table notes disable trigger notes_changes')
+    const captured = [notes.events((e) => e.crud()).toModel(), refunds.toModel()]
+    const modules = neededModules({ models: captured, views: [], jobs: [], signIn: true })
+    const baseline = await writeBaseline({ projectDir: project, dir: path.join(project, 'db/migrations'), auth: { names: storeNames(auth), organizationsOn: false, organizations: undefined }, modules, url: database.url, protobaseVersion: '1.0.0', newId: () => 'baseline-id' })
+    expect(await readFile(baseline, 'utf8')).toContain('its triggers of notes, gone.')
+    await database.exec(await readFile(baseline, 'utf8'))
+
+    const next = await readFile((await migrateModels(project, auth, captured, 'next-id', database))!, 'utf8')
+    expect(next).toContain('-- The triggers that capture the changes of notes.')
+    expect(next).not.toContain('"gone_changes"')
+    await database.exec(next)
+    const { rows } = await sql<{ enabled: string }>`select tgenabled as enabled from pg_trigger where tgname = 'notes_changes'`.execute(database.db)
+    expect(rows).toEqual([{ enabled: 'O' }])
+
+    const last = await readFile((await migrateModels(project, auth, [notes.toModel(), refunds.toModel()], 'last-id', database))!, 'utf8')
+    expect(last).toContain('drop trigger if exists "gone_changes" on "public"."gone";')
+    await rm(project, { recursive: true, force: true })
+  })
 })
