@@ -13,9 +13,9 @@ import type { HistoryStore } from '../../src/notifications/history-store'
 import { devicesPath } from '../../src/notifications/paths'
 import { postgresDeviceStore } from '../../src/notifications/postgres-store'
 import { noProgress } from '../../src/notifications/push-payload'
-import { checkNotificationsSchema, notificationsMigration } from '../../src/notifications/schema'
 import type { PushSender } from '../../src/notifications/sender'
 import { checkedSend } from '../../src/notifications/send-input'
+import { notificationsSchemaSql } from '../../src/schema-modules/feature-schemas-sql'
 import { openSnapshotDb, settled } from '../../../../test-support/sql-snapshot'
 
 export const origin = 'http://localhost:5173'
@@ -40,8 +40,7 @@ export const serve = async ({ notifications = true, store, historyStore, tables,
   await pg.exec((await authSchemaMigration(await authOn()))!)
   const auth = await authOn()
   const options = { ...(store && { store }), ...(historyStore && { historyStore }) }
-  if (notifications && !(store && historyStore)) await pg.exec((await notificationsMigration(pg.db, options, auth))!)
-  if (notifications) await checkNotificationsSchema(pg.db, options, auth)
+  if (notifications && !(store && historyStore)) await pg.exec(notificationsSchemaSql(options, auth))
   const app = createAdmin({ resources: [], db: pg.db, authenticate: betterAuthAuthenticator({ auth }), auth, ...(notifications && { notifications: options }) })
   await createUser(auth, { email: 'root@example.com', password, role: 'admin' })
   const alice = await createUser(auth, { email: 'alice@example.com', password, role: 'user' })

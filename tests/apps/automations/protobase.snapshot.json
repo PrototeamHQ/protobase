@@ -2,10 +2,10 @@
   "format": 1,
   "protobaseVersion": "0.14.2",
   "endsAt": {
-    "file": "023_baseline.sql",
-    "id": "a761de95-1e37-4ead-9a13-8d08e90cf8e9"
+    "file": "024_baseline.sql",
+    "id": "4bc2ee76-36c5-44fd-87d8-3bbb841b156a"
   },
-  "modelHash": "906df706fd17e6ae0fc4c804c64206f3de90b9b16f022b2139f6ad2377b9b1a0",
+  "modelHash": "68e04daa7b5d057fb8d12f95dc0f816bdf92efbc0d568a84a6d0676f3ccb1911",
   "model": {
     "auth": {
       "schema": "auth",
@@ -266,6 +266,15 @@
         "lastStep": 1,
         "replaceables": {
           "functions": 3
+        }
+      },
+      "workflows": {
+        "lastStep": 1,
+        "replaceables": {
+          "functions": 28
+        },
+        "names": {
+          "schema": "workflows"
         }
       }
     }

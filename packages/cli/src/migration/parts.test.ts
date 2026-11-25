@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import type { DeviceStore, HistoryStore } from '@protobase/server'
 import { migrationParts, type MigrationPart } from './parts'
 import type { MigrationProject } from './migration-project'
 
@@ -9,18 +8,15 @@ const project = (models: MigrationProject['models'], readOnlyQueries = false) =>
 const names = (parts: MigrationPart[]) => parts.map((part) => part.name)
 
 describe('the migration parts', () => {
+  it('leave webhooks, workflows and notifications to the schema modules', () => {
+    expect(names(migrationParts({ ...project([]), webhooks: {}, workflows: {}, notifications: {} }))).toEqual(['computed', 'derived'])
+  })
   it('add the comments table once a resource takes comments', () => {
     expect(names(migrationParts(project([tickets.toModel()])))).toEqual(['computed', 'derived'])
     expect(names(migrationParts(project([tickets.comments().toModel()])))).toEqual(['computed', 'derived', 'comments'])
   })
   it("add the query role only with the built-in assistant's read-only queries", () => {
     expect(names(migrationParts(project([tickets.toModel()], true)))).toEqual(['computed', 'query', 'derived'])
-  })
-  it("add the tables of notifications(), unless stores of the app's own keep both the devices and the history", () => {
-    expect(names(migrationParts({ ...project([]), notifications: {} }))).toEqual(['computed', 'derived', 'notifications'])
-    expect(names(migrationParts({ ...project([]), notifications: { store: {} as DeviceStore } }))).toEqual(['computed', 'derived', 'notifications'])
-    expect(names(migrationParts({ ...project([]), notifications: { historyStore: {} as HistoryStore } }))).toEqual(['computed', 'derived', 'notifications'])
-    expect(names(migrationParts({ ...project([]), notifications: { store: {} as DeviceStore, historyStore: {} as HistoryStore } }))).toEqual(['computed', 'derived'])
   })
   it("add the relay's part for an app the platform's switch can move, with sign-in and a live conversation resource whose page has members, as for realtime.relay", () => {
     const view = { resource: 'tickets', record: { conversation: { resource: 'messages', field: 'ticket_id', sender: 'author_id', time: 'created_at', text: 'body', members: 'members' } } } as unknown as MigrationProject['views'][number]

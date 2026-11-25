@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import { issueToken } from '../src/better-auth/tokens'
 import { deleteUser } from '../src/better-auth/users'
-import { checkNotificationsSchema, notificationsMigration } from '../src/notifications/schema'
+import { storeNames } from '../src/better-auth/store/store-names'
+import { notificationDevicesModule } from '../src/notifications/devices-module'
+import { notificationsTargets } from '../src/notifications/notifications-targets'
+import { notificationsSchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { fcm, serve } from './support/notifications-app'
 
 // Real scrypt hashing runs on this thread, CPU work a busy machine stretches past 5 s.
@@ -13,8 +16,8 @@ describe.each([
 ])('the devices table with $name', ({ tables, table }) => {
   it("points at the users table, so deleting a user deletes their devices and no one else's", async () => {
     const { pg, alice, bob, tokenOf, register, devicesOf, auth } = await serve({ ...(tables && { tables }) })
-    const migration = await notificationsMigration(pg.db, { schema: 'other' }, auth)
-    expect(migration).toContain(`references ${table} (id) on delete cascade`)
+    expect(notificationsSchemaSql({ schema: 'other' }, auth)).toContain(`"user_id" text not null references ${table} (id) on delete cascade`)
+    expect(await notificationDevicesModule.read(pg.db, notificationsTargets({}, storeNames(auth)).notification_devices!)).toMatchObject({ lastStep: 1 })
     const aliceToken = await tokenOf('alice@example.com')
     expect((await register(aliceToken, fcm('alice-1'))).status).toBe(200)
     expect((await register(aliceToken, fcm('alice-2'))).status).toBe(200)
@@ -30,10 +33,13 @@ describe.each([
 })
 
 describe('the devices endpoints with auth', () => {
-  it("stop startup while the devices table's user column does not go with the user", async () => {
+  it("are refused by the baseline while the devices table's user column does not go with the user's id", async () => {
     const { pg, auth } = await serve()
+    const read = () => notificationDevicesModule.read(pg.db, notificationsTargets({}, storeNames(auth)).notification_devices!)
     await pg.exec('alter table notifications.devices drop constraint devices_user_id_fkey')
-    await expect(checkNotificationsSchema(pg.db, {}, auth)).rejects.toThrow('needs a foreign key from "user_id" to "user" with on delete cascade')
+    await expect(read()).rejects.toThrow('needs a foreign key from "user_id" to "user" with on delete cascade')
+    await pg.exec('alter table notifications.devices add constraint devices_user_email_fkey foreign key (user_id) references "user" (email) on delete cascade')
+    await expect(read()).rejects.toThrow('needs a foreign key from "user_id" to "user" with on delete cascade')
   })
 
   it('are an unknown route without notifications()', async () => {

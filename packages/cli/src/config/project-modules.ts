@@ -1,5 +1,6 @@
 import { configExports, neededModules } from '@protobase/server'
-import { runtimeModel } from '@protobase/server/internal'
+import { runtimeModel, storeNames } from '@protobase/server/internal'
+import { authTarget } from '../migration/snapshot/auth-target'
 import type { BuiltProject } from './build-project'
 import { mailFeedbackOn } from './mail-feedback-config'
 import type { MergedConfig } from './merge-config'
@@ -15,13 +16,35 @@ const models = (config: BuiltProject['config']) => {
 
 /** The schema modules of the app `project` serves. */
 export const builtModules = (project: BuiltProject) =>
-  neededModules({ ...models(project.config), jobs: project.jobs, signIn: Boolean(project.auth), mailFeedback: project.mailFeedback, webhooks: project.webhooks, workflows: project.workflows, notifications: project.notifications, realtime: project.realtime, events: project.events })
+  neededModules({
+    ...models(project.config),
+    jobs: project.jobs,
+    signIn: Boolean(project.auth),
+    ...(project.auth && { authStore: storeNames(project.auth) }),
+    mailFeedback: project.mailFeedback,
+    webhooks: project.webhooks,
+    workflows: project.workflows,
+    notifications: project.notifications,
+    realtime: project.realtime,
+    events: project.events,
+  })
 
 /** The model the app `project` reads of its database's record of migrations (`runtimeModel`). */
 export const builtRuntimeModel = (project: BuiltProject) => runtimeModel(project.auth, builtModules(project))
 
 /** The schema modules of the app `config` makes, from the config alone. */
 export const configModules = async (config: MergedConfig) => {
-  const [resources, webhooks, notifications] = await Promise.all([projectResources(config), projectWebhooks(config), projectNotifications(config)])
-  return neededModules({ ...models(resources), jobs: projectJobs(config), signIn: Boolean(config.auth), mailFeedback: mailFeedbackOn(config), webhooks, workflows: config.workflows, notifications, realtime: config.realtime, events: config.events })
+  const [resources, webhooks, notifications, auth] = await Promise.all([projectResources(config), projectWebhooks(config), projectNotifications(config), authTarget(config)])
+  return neededModules({
+    ...models(resources),
+    jobs: projectJobs(config),
+    signIn: Boolean(config.auth),
+    ...(auth && { authStore: auth.names }),
+    mailFeedback: mailFeedbackOn(config),
+    webhooks,
+    workflows: config.workflows,
+    notifications,
+    realtime: config.realtime,
+    events: config.events,
+  })
 }

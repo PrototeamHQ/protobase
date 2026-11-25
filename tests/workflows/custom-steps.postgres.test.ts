@@ -2,8 +2,8 @@ import { join } from 'node:path'
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
-import { localFiles, workflowsModule } from '@protobase/server/internal'
+import { configExports, createAdmin, startJobs, workflowsSchemaSql, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
+import { localFiles, moduleDifference, schemaModules, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { definitionFields } from '../../test-support/workflow-fields'
@@ -48,7 +48,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('custom steps on the app
     db = pg.db
     folder = await tempDir()
     // A schema made with custom steps off, as an app had it before turning them on
-    await pg.exec((await workflowsMigration(db, { ...workflows, customSteps: false }))!)
+    await pg.exec(workflowsSchemaSql({ ...workflows, customSteps: false }))
     const { resources, views } = configExports(workflowsModule(workflows))
     const files = { providers: { private: localFiles({ dir: join(folder.dir, 'private') }) }, secret: 'files-secret-for-the-custom-step-tests' }
     admin = createAdmin({
@@ -81,15 +81,12 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('custom steps on the app
   it('adds its tables once custom steps are turned on, and not before', async () => {
     const { rows } = await sql<{ found: boolean }>`select to_regclass('workflows.custom_steps') is not null as found`.execute(db)
     expect(rows[0]!.found).toBe(false)
-    const upgrade = await workflowsMigration(db, workflows)
-    expect(upgrade).toContain('create table if not exists "workflows"."custom_steps"')
-    expect(upgrade).toContain('create table if not exists "workflows"."custom_step_versions"')
-    expect(upgrade).toContain('create table if not exists "workflows"."runners"')
-    expect(upgrade).toContain('create table if not exists "workflows"."custom_step_jobs"')
+    const input = { names: { schema: 'workflows' }, resources: {} }
+    expect(await schemaModules.workflow_custom_steps.read(db, input)).toBeUndefined()
+    const upgrade = moduleDifference(schemaModules.workflow_custom_steps, input, undefined).sql
+    for (const table of ['custom_steps', 'custom_step_versions', 'runners', 'custom_step_jobs']) expect(upgrade).toContain(`create table if not exists "workflows"."${table}"`)
     await pg.exec(upgrade!)
-    expect(await workflowsMigration(db, workflows)).toBeUndefined()
-    await pg.exec(upgrade!)
-    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+    expect(await schemaModules.workflow_custom_steps.read(db, input)).toEqual({ lastStep: 1, replaceables: { functions: 1 }, names: input.names })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
   })
 

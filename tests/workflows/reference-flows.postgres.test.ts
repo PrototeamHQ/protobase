@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net'
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
-import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type MailMessage, type WorkflowsOptions } from '@protobase/server'
+import { configExports, createAdmin, startJobs, workflowsSchemaSql, type JobsRuntime, type MailMessage, type WorkflowsOptions } from '@protobase/server'
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import a from '../../packages/workflows/src/reference/a.json'
 import c from '../../packages/workflows/src/reference/c.json'
@@ -46,7 +46,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("the report's reference 
     pg = await openPostgresDatabase('jobs')
     db = pg.db
     folder = await tempDir()
-    await pg.exec((await workflowsMigration(db, workflows))!)
+    await pg.exec(workflowsSchemaSql(workflows))
     await pg.exec(`create table leads (id integer generated always as identity primary key, name text not null, email text not null, company text not null, notes text, received_at timestamptz not null);
       create table products (id integer generated always as identity primary key, sku text not null, name text not null, price numeric(10,2) not null, currency text not null);
       create table orders (id integer generated always as identity primary key, customer_email text not null, total numeric(10,2) not null, status text);

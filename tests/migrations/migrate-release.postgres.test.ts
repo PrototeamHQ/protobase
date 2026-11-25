@@ -10,7 +10,7 @@ import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } fr
 // A host moves a bundle built on release N to the runtime of release N+1 and brings its database to N+1's own steps with
 // `protobase-serve migrate-release`, writing nothing into the project; the project's own `protobase migration` and
 // `migrate` later go on without applying a step twice. Release N is this release with the last three steps of the
-// mail_senders module unshipped, and the workflows schema of the version before. CLI processes take seconds each.
+// mail_senders module unshipped, and a trigger of the workflows schema gone. CLI processes take seconds each.
 
 const runtime = path.join(root, 'packages/cli/src/serve/main.ts')
 // Personal mail on, so the store has the mail_senders module.
@@ -63,8 +63,8 @@ describe.skipIf(!(await postgresTemplateReady('empty')))("protobase-serve migrat
   // A project and its database on release N: its first migration written, taken back to N and applied, then built.
   const releaseN = async (url: string) => {
     await cli(['migrate'], url)
-    // An older version of the workflows functions, which N+1 brings up to date.
-    await rows(url, "comment on function workflows.run_version() is 'Protobase workflows 27'")
+    // Workflows functions N+1 writes again: one of their triggers is gone.
+    await rows(url, 'drop trigger "run_version" on workflows.runs')
   }
 
   beforeAll(async () => {
@@ -106,8 +106,8 @@ describe.skipIf(!(await postgresTemplateReady('empty')))("protobase-serve migrat
   it('applies them in one transaction, recorded so a second run applies nothing', async () => {
     expect(await migrateRelease(database.url)).toMatchObject({ status: 0, stdout: 'applying auth\napplying workflows\napplying record\napplied 3 steps\n' })
     expect(await versions(database.url)).toEqual([1, 2, 3, 4, 5])
-    // Not additive: the workflows step is one of the parts, which may drop what the config no longer has.
-    expect(await rows(database.url, "select number, additive, completed_at is not null as completed from migrations.history where name like 'release %'")).toEqual([{ number: null, additive: false, completed: true }])
+    // Additive: the workflows functions are written again from no version, which takes nothing from older code.
+    expect(await rows(database.url, "select number, additive, completed_at is not null as completed from migrations.history where name like 'release %'")).toEqual([{ number: null, additive: true, completed: true }])
     expect(await sharedAt(database.url)).toBe(1)
     expect(await migrateRelease(database.url)).toMatchObject({ status: 0, stdout: 'the database is up to date\n' })
   })

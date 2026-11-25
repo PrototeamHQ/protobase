@@ -5,7 +5,11 @@ import { createAuth } from '../src/better-auth/create-auth'
 import { addMember, createOrganization } from '../src/better-auth/organizations/host'
 import { createUser, setUserBanned } from '../src/better-auth/users'
 import { betterAuthOwnerRoles } from '../src/webhooks/table/owner-roles'
-import { checkWebhooksSchema, webhooksMigration } from '../src/webhooks/table/schema'
+import { moduleDifference } from '../src/schema-modules/module-difference'
+import { webhooksSchemaSql } from '../src/schema-modules/feature-schemas-sql'
+import { webhookDeliveryLogModule } from '../src/webhooks/table/delivery-log-module'
+import { webhooksSchemaModule } from '../src/webhooks/table/webhooks-schema-module'
+import { webhooksTargets } from '../src/webhooks/table/webhooks-targets'
 import { tableSubscriptions } from '../src/webhooks/table/table-subscriptions'
 import { subscriptionUrlCheck, subscriptionWriteCheck } from '../src/webhooks/table/validate-hook'
 import { checkWebhookUrl } from '../src/webhooks/table/address-check'
@@ -27,19 +31,20 @@ const orders = resource('orders')
   .toModel()
 
 describe('the webhooks schema', () => {
-  it('is checked at startup, written by the migration with the delivery log when asked, then current', async () => {
+  const targets = webhooksTargets({ deliveryLog: true })
+
+  it('is read once by the baseline at its last step, its functions at their version, and the delivery log as a module of its own', async () => {
     const pg = await openSnapshotDb('jobs')
     const db = new Kysely<any>({ dialect: pg.dialect })
-    await expect(checkWebhooksSchema(db)).rejects.toThrow('The webhooks schema is missing or behind this version of Protobase. Write it as a migration with `protobase migration`')
-    await pg.exec((await webhooksMigration(db))!)
-    await checkWebhooksSchema(db)
-    expect(await webhooksMigration(db)).toBeUndefined()
-    await expect(checkWebhooksSchema(db, { deliveryLog: true })).rejects.toThrow('missing or behind')
-    const log = await webhooksMigration(db, { deliveryLog: true })
+    expect(await webhooksSchemaModule.read(db, targets.webhooks)).toBeUndefined()
+    await pg.exec(webhooksSchemaSql())
+    expect(await webhooksSchemaModule.read(db, targets.webhooks)).toEqual({ lastStep: 1, replaceables: { functions: 2 }, names: { schema: 'webhooks', changes: 'changes' } })
+    expect(await webhookDeliveryLogModule.read(db, targets.webhook_delivery_log!)).toBeUndefined()
+    const log = moduleDifference(webhookDeliveryLogModule, targets.webhook_delivery_log!, undefined).sql!
     expect(log).toContain('create table if not exists "webhooks"."delivery_log"')
     expect(log).not.toContain('create table if not exists "webhooks"."subscriptions"')
-    await pg.exec(log!)
-    await checkWebhooksSchema(db, { deliveryLog: true })
+    await pg.exec(log)
+    expect(await webhookDeliveryLogModule.read(db, targets.webhook_delivery_log!)).toEqual({ lastStep: 1, replaceables: {}, names: { schema: 'webhooks' } })
     await db.destroy()
   })
 
@@ -53,7 +58,7 @@ describe('the webhooks schema', () => {
   `
   const listReads = ['order_by=created_at desc', 'order_by=name asc', 'order_by=name desc', 'order_by=last_success_at asc', 'order_by=last_success_at desc', 'filter=enabled = true', 'filter=search("x")']
 
-  it("serves every read of the subscriptions list on a fresh schema, starts on an earlier one, and gives it the indexes of the subscriptions list's reads, once each, so none is refused", async () => {
+  it("serves every read of the subscriptions list on its step, and refuses to read a schema of version 1 without their indexes, which no step records", async () => {
     const pg = await openSnapshotDb('jobs')
     const db = new Kysely<any>({ dialect: pg.dialect })
     const { resources, views } = configExports(webhooksModule())
@@ -63,29 +68,32 @@ describe('the webhooks schema', () => {
       for (const read of listReads) answers.push((await admin.request(`/api/v1/webhook_subscriptions?${encodeURI(read)}`, { headers: as(1) })).status)
       return answers
     }
-    await pg.exec((await webhooksMigration(db))!)
+    await pg.exec(webhooksSchemaSql())
     expect(await statuses()).toEqual([200, 200, 200, 200, 200, 200, 200])
     await pg.exec(earlierSchema)
-    expect(await statuses()).toEqual([400, 200, 200, 400, 400, 400, 400])
-    // The server still starts on it: only the reads that need an index added since are refused until the next migration.
-    await checkWebhooksSchema(db)
-    const next = await webhooksMigration(db)
-    expect(next).not.toContain('create table if not exists "webhooks"."subscriptions"')
-    await pg.exec(next!)
-    await checkWebhooksSchema(db)
-    const indexes = await sql<{ name: string }>`select indexname as name from pg_indexes where schemaname = 'webhooks' and tablename = 'subscriptions' order by indexname`.execute(db)
-    expect(indexes.rows.map((row) => row.name)).toEqual([
-      'subscriptions_created_at', 'subscriptions_enabled', 'subscriptions_last_success_at', 'subscriptions_name', 'subscriptions_name_search',
-      'subscriptions_owner', 'subscriptions_pkey', 'subscriptions_tenant', 'subscriptions_url_search',
-    ])
-    expect(await statuses()).toEqual([200, 200, 200, 200, 200, 200, 200])
+    await expect(webhooksSchemaModule.read(db, targets.webhooks)).rejects.toThrow('The subscriptions table in schema "webhooks" lacks indexes no step of this version of Protobase records: add them with `protobase migration` and `protobase migrate` of Protobase 0.14.2 first')
+    await db.destroy()
+  })
+
+  it('writes the functions of a schema at version 1 with its indexes again, which the code before still runs on', async () => {
+    const pg = await openSnapshotDb('jobs')
+    const db = new Kysely<any>({ dialect: pg.dialect })
+    await pg.exec(webhooksSchemaSql())
+    await pg.exec(`comment on function webhooks.subscription_commands() is 'Protobase webhooks 1'`)
+    const found = await webhooksSchemaModule.read(db, targets.webhooks)
+    expect(found!.replaceables).toEqual({ functions: 1 })
+    const difference = moduleDifference(webhooksSchemaModule, targets.webhooks, found)
+    expect(difference.sql).toMatch(/^-- The subscriptions' commands and the deliveries view\.\ncreate or replace function "webhooks"\."subscription_commands"\(\)/)
+    expect(difference.breaks).toEqual([])
+    await pg.exec(difference.sql!)
+    expect((await webhooksSchemaModule.read(db, targets.webhooks))!.replaceables).toEqual({ functions: 2 })
     await db.destroy()
   })
 
   it('keeps the outcome of each try on the row, disables a subscription after three days of failures, and logs every try', async () => {
     const pg = await openSnapshotDb('jobs')
     const db = new Kysely<any>({ dialect: pg.dialect })
-    await pg.exec((await webhooksMigration(db, { deliveryLog: true }))!)
+    await pg.exec(webhooksSchemaSql({ deliveryLog: true }))
     // A secret of its own rather than the random default, so the recording stays the same.
     const { rows } = await sql<{ id: string }>`insert into webhooks.subscriptions (name, events, url, tenant_id, owner_id, secret) values ('a', 'orders.created', 'https://x.test', '1', 'u1', 'whsec_dGVzdA==') returning id::text`.execute(db)
     const id = rows[0]!.id

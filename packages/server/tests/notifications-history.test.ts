@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { HistoryStoreError, postgresHistoryStore } from '../src/notifications/postgres-history-store'
 import type { NotificationsOptions } from '../src/notifications/options'
-import { checkNotificationsSchema, notificationsMigration } from '../src/notifications/schema'
+import { notificationHistoryModule } from '../src/notifications/history-module'
+import { notificationsTargets } from '../src/notifications/notifications-targets'
+import { notificationsSchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { historyStoreContract, note } from '../src/notifications/testing/history-store-contract'
 import { memoryHistoryStore } from '../src/notifications/testing/memory-history-store'
 import { memoryDeviceStore } from '../src/notifications/testing/memory-store'
@@ -10,9 +12,12 @@ import { openSnapshotDb } from '../../../test-support/sql-snapshot'
 // A database with the history table `protobase migration` writes for the options, without auth or the devices table.
 const migrated = async (options: NotificationsOptions = {}) => {
   const pg = await openSnapshotDb('empty')
-  await pg.exec((await notificationsMigration(pg.db, { store: memoryDeviceStore(), ...options }))!)
+  await pg.exec(notificationsSchemaSql({ store: memoryDeviceStore(), ...options }))
   return pg
 }
+
+// What `protobase migration baseline` reads of the history table for the options, without auth.
+const read = (pg: Awaited<ReturnType<typeof migrated>>, options: NotificationsOptions = {}) => notificationHistoryModule.read(pg.db, notificationsTargets(options, undefined).notification_history!)
 
 historyStoreContract('in Postgres', async () => postgresHistoryStore((await migrated()).db))
 
@@ -23,35 +28,32 @@ const renamed: NotificationsOptions = {
 }
 
 describe('the history table', () => {
-  it('is written by the migration beside the devices table, then current, and none for a store of the app own', async () => {
+  it('is written by the migration beside the devices table, read by the baseline at its last step, and none for a store of the app own', async () => {
     const pg = await openSnapshotDb('empty')
-    await expect(checkNotificationsSchema(pg.db, { store: memoryDeviceStore() })).rejects.toThrow('The history table "notifications"."history" of notifications is missing. Write it as a migration with `protobase migration`')
-    const migration = await notificationsMigration(pg.db)
+    expect(await read(pg)).toBeUndefined()
+    const migration = notificationsSchemaSql()
     expect(migration).toContain('create table "notifications"."devices"')
     expect(migration).toContain('create table "notifications"."history"')
     expect(migration).not.toContain('default')
-    await pg.exec(migration!)
-    await checkNotificationsSchema(pg.db)
-    expect(await notificationsMigration(pg.db)).toBeUndefined()
-    const elsewhere = { schema: 'elsewhere', store: memoryDeviceStore(), historyStore: memoryHistoryStore() }
-    expect(await notificationsMigration(pg.db, elsewhere)).toBeUndefined()
-    await checkNotificationsSchema(pg.db, elsewhere)
+    await pg.exec(migration)
+    expect(await read(pg)).toEqual({ lastStep: 1, replaceables: {}, names: expect.objectContaining({ schema: 'notifications', table: 'history', users: '', user_id_type: 'text', 'column.read_at': 'read_at' }) })
+    expect(notificationsTargets({ schema: 'elsewhere', store: memoryDeviceStore(), historyStore: memoryHistoryStore() }, undefined)).toEqual({})
   })
 
   it('is written and used under renamed schema, table and columns', async () => {
     const pg = await migrated(renamed)
     const columns = await pg.query<{ name: string }>(`select column_name as name from information_schema.columns where table_schema = 'push' and table_name = 'inbox' order by 1`)
     expect(columns.rows.map(({ name }) => name)).toEqual(['body', 'data', 'entry_id', 'owner_id', 'seen_at', 'sent_at', 'title', 'url'])
-    await checkNotificationsSchema(pg.db, renamed)
+    expect(await read(pg, renamed)).toMatchObject({ lastStep: 1 })
     const store = postgresHistoryStore(pg.db, renamed)
     const stored = await store.record('a', note())
     expect(await store.markRead('a', stored.id)).toBe(true)
     expect(await store.list('a', { limit: 5 })).toEqual([{ ...stored, readAt: expect.any(Date) }])
   })
 
-  it('stops startup naming a missing column', async () => {
+  it('is refused by the baseline naming a missing column', async () => {
     const pg = await migrated()
-    await expect(checkNotificationsSchema(pg.db, { store: memoryDeviceStore(), history: { columns: { read_at: 'seen' } } })).rejects.toThrow('The history table "notifications"."history" has no column "seen"')
+    await expect(read(pg, { store: memoryDeviceStore(), history: { columns: { read_at: 'seen' } } })).rejects.toThrow('The history table "notifications"."history" has no column "seen"')
   })
 
   it('keeps read_at NULL while unread and refuses a row without a user, with no value in the error', async () => {

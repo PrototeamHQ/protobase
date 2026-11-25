@@ -7,7 +7,7 @@ import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import { jobsSchemaSql } from '../src/jobs/jobs-module'
 import { startJobs, type JobsRuntime } from '../src/jobs/runtime'
-import { notificationsMigration } from '../src/notifications/schema'
+import { notificationsSchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { sendNotification } from '../src/notifications/send-notification'
 import type { PushSender } from '../src/notifications/sender'
 import { onDoNotDisturb } from '../src/status/do-not-disturb'
@@ -62,7 +62,7 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('status on real Postgres
     await addMember(auth, { organization: 'acme', email: 'bob@example.com' })
     await createOrganization(auth, { name: 'Globex', slug: 'globex', owner: 'carol@example.com' })
     await pg.exec(jobsSchemaSql())
-    await pg.exec((await notificationsMigration(pg.db, {}, auth))!)
+    await pg.exec(notificationsSchemaSql({}, auth))
     await pg.exec((await statusMigration(pg.db, {}, auth))!)
     app = createAdmin({ resources: [], db: pg.db, authenticate: betterAuthAuthenticator({ auth }), auth, notifications: { senders: [recordingSender] }, status: {} })
     for (const name of ['alice', 'bob', 'carol'] as const) {

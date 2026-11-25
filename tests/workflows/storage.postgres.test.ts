@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { configExports, createAdmin, startJobs, workflowsMigration, type AuditEvent, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
+import { configExports, createAdmin, startJobs, workflowsSchemaSql, type AuditEvent, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
@@ -49,7 +49,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('storage configurations 
       savedByRoles: async ({ id }) => people[id]?.roles ?? [],
       storage: { root: join(folder.dir, 'storage'), endpoints: ['https://storage.example.com'] },
     }
-    await pg.exec((await workflowsMigration(db, workflows))!)
+    await pg.exec(workflowsSchemaSql(workflows))
     const { resources, views } = configExports(workflowsModule(workflows))
     const files = { providers: { private: localFiles({ dir: join(folder.dir, 'private') }) }, secret: 'files-secret-for-the-storage-tests' }
     vi.stubEnv('PROTOBASE_ENCRYPTION_KEY', Buffer.from(Array.from({ length: 32 }, (_, i) => i)).toString('base64'))

@@ -1,7 +1,7 @@
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type MailMessage, type WorkflowsOptions } from '@protobase/server'
+import { configExports, createAdmin, startJobs, workflowsSchemaSql, type JobsRuntime, type MailMessage, type WorkflowsOptions } from '@protobase/server'
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import welcomeSeries from '../../docs-examples/workflows/welcome-series.json'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
@@ -36,7 +36,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('an email series in a wo
     pg = await openPostgresDatabase('jobs')
     db = pg.db
     folder = await tempDir()
-    await pg.exec((await workflowsMigration(db, workflows))!)
+    await pg.exec(workflowsSchemaSql(workflows))
     await pg.exec((await unsubscribesMigration(db))!)
     const { resources, views } = configExports(workflowsModule(workflows))
     const files = { providers: { private: localFiles({ dir: folder.dir }) }, secret: 'files-secret-for-the-email-series' }

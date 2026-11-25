@@ -10,7 +10,7 @@ import { postgresDeviceStore } from '../src/notifications/postgres-store'
 import { pushJob } from '../src/notifications/push-job'
 import { pushJobName } from '../src/notifications/push-job-name'
 import { pushPayload, type PushPayload } from '../src/notifications/push-payload'
-import { notificationsMigration } from '../src/notifications/schema'
+import { notificationsSchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { checkedSend, type NotificationRecipients } from '../src/notifications/send-input'
 import { generateVapidKeys } from '../src/notifications/web-push/keys'
 import type { PushRequest } from '../src/notifications/web-push/post'
@@ -41,7 +41,7 @@ const pushService = (statuses: Record<string, number>) => {
 
 const open = async () => {
   const pg = await openSnapshotDb('jobs')
-  await pg.exec((await notificationsMigration(pg.db))!)
+  await pg.exec(notificationsSchemaSql())
   // The users the history points at, as auth's users table does: a deleted one takes their entries along.
   await pg.exec('create table people (id text primary key); insert into people values (\'a\'), (\'b\')')
   await pg.exec('alter table notifications.history add foreign key (user_id) references people (id) on delete cascade')

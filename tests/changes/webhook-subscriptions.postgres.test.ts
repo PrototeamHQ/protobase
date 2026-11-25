@@ -7,7 +7,7 @@ import {
   createAdmin,
   startJobs,
   verifyStandardWebhook,
-  webhooksMigration,
+  webhooksSchemaSql,
   type JobsRuntime,
   type ResourceChange,
   type SubscriptionEvent,
@@ -55,7 +55,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('webhook subscriptions m
     await pg.exec('create table orders (id integer generated always as identity primary key, organization_id integer not null, status text not null default \'open\', total numeric(12, 2) not null, cost numeric(12, 2) not null default 0, secret_note text)')
     await pg.exec('create index on orders (organization_id, status)')
     await pg.exec(captureSchemaSql([orders.toModel()]))
-    await pg.exec((await webhooksMigration(db, webhooks))!)
+    await pg.exec(webhooksSchemaSql(webhooks))
     receiver = await startReceiver()
     vi.spyOn(console, 'log').mockImplementation(() => {})
     const { resources, views } = configExports({ orders, ...webhooksModule(webhooks) })

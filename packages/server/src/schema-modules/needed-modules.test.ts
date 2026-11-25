@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource, type ViewModel } from '@protobase/schema'
+import { settingsStoreNames } from '../better-auth/store/offline/settings-names'
 import { neededModules, type ModuleApp } from './needed-modules'
 import { noInput } from './schema-module'
 
@@ -21,9 +22,29 @@ describe('neededModules', () => {
     expect(ids(app([readings.toModel(), hourly.toModel()]))).toEqual(['jobs'])
   })
 
-  it('needs the jobs schema for webhooks, workflows, notifications and mail feedback, whose events a job dispatches', () => {
-    for (const rest of [{ webhooks: {} }, { workflows: {} }, { notifications: {} }]) expect(ids(app([], rest))).toEqual(['jobs'])
+  it('needs the jobs schema for webhooks, workflows, notifications and mail feedback, whose events a job dispatches, and their own tables', () => {
+    expect(ids(app([], { webhooks: {} }))).toEqual(['jobs', 'webhooks'])
+    expect(ids(app([], { workflows: {} }))).toEqual(['jobs', 'workflows'])
+    expect(ids(app([], { notifications: {} }))).toEqual(['jobs', 'notification_devices', 'notification_history'])
     expect(ids(app([], { mailFeedback: true }))).toEqual(['jobs', 'changes'])
+  })
+
+  it("needs an option's own tables as a module of their own while the option is on, under the schema the config names", () => {
+    const webhooks = neededModules(app([], { webhooks: { schema: 'hooks', deliveryLog: true }, events: { schema: 'events' } }))
+    expect(webhooks.webhooks).toEqual({ names: { schema: 'hooks', changes: 'events' }, resources: {} })
+    expect(webhooks.webhook_delivery_log).toEqual({ names: { schema: 'hooks' }, resources: {} })
+    const workflows = neededModules(app([], { workflows: { schema: 'flows', storage: {}, customSteps: true } }))
+    expect(Object.keys(workflows)).toEqual(['jobs', 'workflows', 'workflow_storage', 'workflow_custom_steps'])
+    expect(workflows.workflow_custom_steps).toEqual({ names: { schema: 'flows' }, resources: {} })
+  })
+
+  it("names the notifications tables, their columns and the auth store's users they point at, and leaves out a table a store of the app's own replaces", () => {
+    const store = settingsStoreNames({ tables: { user: { name: 'people' } }, generateUserId: 'uuid' })
+    const targets = neededModules(app([], { notifications: { schema: 'push', devices: { columns: { token: 'address' } } }, signIn: true, authStore: store }))
+    expect(targets.notification_devices!.names).toMatchObject({ schema: 'push', table: 'devices', users: '"auth"."people"', user_id_type: 'uuid', 'column.token': 'address', 'column.kind': 'kind' })
+    expect(targets.notification_history!.names).toMatchObject({ schema: 'push', table: 'history', users: '"auth"."people"', user_id_type: 'uuid' })
+    expect(neededModules(app([], { notifications: {} })).notification_devices!.names).toMatchObject({ users: '', user_id_type: 'text' })
+    expect(ids(app([], { notifications: { store: {} as never } }))).toEqual(['jobs', 'notification_history'])
   })
 
   it("needs the jobs schema for the relay's channels, with sign-in and a live conversation resource whose page has members", () => {

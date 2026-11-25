@@ -1,4 +1,4 @@
-import { appRelayChannels, callsMigration, channelSendsMigration, commentsMigration, computedMigration, derivedMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, relayMigration, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
+import { appRelayChannels, callsMigration, channelSendsMigration, commentsMigration, computedMigration, derivedMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, relayMigration, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration } from '@protobase/server'
 import type { MigrationProject } from './migration-project'
 
 /** What one feature still needs of the database, compared with it, written as a part of the next migration. */
@@ -39,12 +39,6 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
     // compared, so that the state of a derived value the config no longer has is dropped.
     { name: 'derived', title: "The state of the resources' derived values and what they read", sql: () => derivedMigration(project.db, project.models) },
     ...(comments ? [{ name: 'comments', title: 'The comments table of the resources with comments', sql: () => commentsMigration(project.db) }] : []),
-    ...(project.webhooks ? [{ name: 'webhooks', title: 'The webhook subscriptions of webhooks', sql: () => webhooksMigration(project.db, project.webhooks, project.events) }] : []),
-    ...(project.workflows ? [{ name: 'workflows', title: 'The workflows, their versions, runs and steps', sql: () => workflowsMigration(project.db, project.workflows) }] : []),
-    // A store of the app's own keeps the devices elsewhere: nothing to write.
-    ...(project.notifications && !(project.notifications.store && project.notifications.historyStore)
-      ? [{ name: 'notifications', title: 'The tables of notifications', sql: () => notificationsMigration(project.db, project.notifications, project.auth) }]
-      : []),
     ...(project.status ? [{ name: 'status', title: "The statuses table of people's own status", sql: () => statusMigration(project.db, project.status!, project.auth) }] : []),
     ...(project.unsubscribe ? [{ name: 'unsubscribes', title: 'The table of who unsubscribed from which topic of the bulk mail', sql: () => unsubscribesMigration(project.db) }] : []),
     ...(project.calls ? [{ name: 'calls', title: 'The calls on records, who is in them, whom they ring, their guests, and the signals between the processes serving the app', sql: () => callsMigration(project.db, project.events) }] : []),

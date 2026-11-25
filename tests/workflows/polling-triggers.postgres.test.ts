@@ -4,7 +4,7 @@ const trace = await traceFiles()
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
+import { configExports, createAdmin, startJobs, workflowsSchemaSql, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { workflowsModule } from '@protobase/server/internal'
 import { ConnectionError, definePlugin } from '@protobase/workflows/plugin'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
@@ -76,7 +76,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('polling triggers, turne
   beforeAll(async () => {
     pg = await openPostgresDatabase('jobs')
     db = pg.db
-    await pg.exec((await workflowsMigration(db, workflows))!)
+    await pg.exec(workflowsSchemaSql(workflows))
     vi.spyOn(console, 'log').mockImplementation(() => {})
     const instance = () => {
       const { resources, views } = configExports({ ...workflowsModule(workflows) })

@@ -1,6 +1,6 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
-import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkChannelSends, checkComments, checkComputed, checkDerived, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, checkMigrationRecord, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
+import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkChannelSends, checkComments, checkComputed, checkDerived, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkMigrationRecord, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
 import { modelHash } from '@protobase/server/internal'
 import { projectIcons } from '../build/app-icons'
 import { projectResources } from '../config/project-parts'
@@ -55,12 +55,9 @@ await checkComputed(db, resources.map((resource) => resource.toModel()))
 if (assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in') await checkQueryRunner(db, project.auth ? authStoreTables(project.auth) : { tables: [], schemas: [] })
 // AI fields and actions call the model of PROTOBASE_ASSISTANT_API_KEY, which other commands need not have.
 checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
-if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
-if (project.workflows) await checkWorkflowsSchema(db, project.workflows)
 if (relayed(project.realtime)) await checkRealtimeRelay(db)
 if (sqlSends(project.realtime)) await checkChannelSends(db)
 await checkProjectRelay(db, { ...project, models: resources.map((resource) => resource.toModel()), views: views.map((view) => view.toModel()) }, process.env)
-if (project.notifications) await checkNotificationsSchema(db, project.notifications, project.auth)
 if (project.status) await checkStatusSchema(db, project.status, project.auth)
 if (project.userTables) await checkUserTablesSchema(db)
 

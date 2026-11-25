@@ -100,6 +100,8 @@ export const edges = [
   { from: ['packages/server/src/notifications/fcm/testing/recordings.ts'], reads: ['packages/server/src/notifications/fcm/testing/recordings/**'] },
   // The change capture's frozen steps are compared with what it wrote before it had them.
   { from: ['packages/server/src/changes/changes-module.test.ts'], reads: ['packages/server/src/changes/steps/written-before-steps.sql'] },
+  // The other schema modules' steps are compared with what their migrations wrote before they had them.
+  { from: ['packages/server/src/schema-modules/written-before-steps.test.ts'], reads: ['packages/server/src/**/written-before-steps.sql'] },
   // The check that @protobase/ui's stable entry exports its building blocks reads every module of its source.
   { from: ['scripts/ui-exports/building-blocks.test.ts'], reads: ['packages/ui/src/**'] },
   // The examples' tests run on a clone of a template database, migrated and seeded from the example.

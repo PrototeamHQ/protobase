@@ -8,7 +8,7 @@ import { postgresHistoryStore } from '../src/notifications/postgres-history-stor
 import { postgresDeviceStore } from '../src/notifications/postgres-store'
 import { pushJob } from '../src/notifications/push-job'
 import { pushJobName } from '../src/notifications/push-job-name'
-import { notificationsMigration } from '../src/notifications/schema'
+import { notificationsSchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { sendNotification } from '../src/notifications/send-notification'
 import { generateVapidKeys } from '../src/notifications/web-push/keys'
 import type { PushRequest } from '../src/notifications/web-push/post'
@@ -39,7 +39,7 @@ const pushJobs = async (db: Kysely<any>) => (await sql<{ id: string }>`select id
 
 const app = async () => {
   const pg = await openPostgresDatabase('jobs')
-  await pg.exec((await notificationsMigration(pg.db))!)
+  await pg.exec(notificationsSchemaSql())
   const sent: string[] = []
   const request: PushRequest = async (url) => {
     sent.push(url.href)

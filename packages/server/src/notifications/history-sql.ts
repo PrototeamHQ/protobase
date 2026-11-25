@@ -2,6 +2,7 @@ import { quoteIdent } from '../changes/capture-sql'
 import type { HistoryNames } from './options'
 import { qualified } from './schema-sql'
 
+// Step 1 of `notificationHistoryModule`: frozen once released, as every step is.
 /**
  * The history table: with auth, its user column points at auth's users table and goes with the user. `read_at` is NULL
  * while unread and nothing has a default. One index serves a user's newest-first pages, another their unread ones.

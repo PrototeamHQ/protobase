@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
+import { configExports, createAdmin, startJobs, workflowsSchemaSql, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
@@ -24,7 +24,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the http step of a work
   beforeAll(async () => {
     pg = await openPostgresDatabase('jobs')
     db = pg.db
-    await pg.exec((await workflowsMigration(db, workflows))!)
+    await pg.exec(workflowsSchemaSql(workflows))
     const { resources, views } = configExports(workflowsModule(workflows))
     folder = await tempDir()
     const files = { providers: { private: localFiles({ dir: folder.dir }) }, secret: 'files-secret-for-the-http-limit' }

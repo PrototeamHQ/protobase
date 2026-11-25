@@ -1,7 +1,10 @@
 import { quoteIdent } from '../../changes/capture-sql'
 import { jobsSchema } from '../../jobs/schema'
 
-/** Bumped whenever the functions, views or indexes below change, so the next migration writes them again. */
+/**
+ * The version of the functions and the view below (`webhooksSchemaModule`'s replaceable): bumped whenever they change,
+ * so the next migration writes them again. The tables and their indexes are its steps, frozen once released.
+ */
 export const webhooksVersion = 2
 
 /**
@@ -10,7 +13,7 @@ export const webhooksVersion = 2
  */
 export const webhooksServedVersion = 1
 
-/** The comment the schema's functions carry, which the startup check reads. */
+/** The comment the schema's functions carry, which `protobase migration baseline` reads. */
 export const webhooksComment = `Protobase webhooks ${webhooksVersion}`
 
 /** The version a function's comment names, `undefined` when it is not one Protobase wrote. */
@@ -28,6 +31,7 @@ export const sendTestJob = 'webhooks.send-test'
 // 32 random bytes as Standard Webhooks writes a secret, from what core Postgres has: two random UUIDs, 244 random bits.
 const randomSecret = `'whsec_' || encode(decode(replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), 'hex'), 'base64')`
 
+// Step 1 of `webhooksSchemaModule`, with the indexes below: frozen once released, as every step is.
 /**
  * The subscriptions table. The owner is the API's caller, from the change capture's `actor` setting; the tenant is set by
  * the API like any tenant column. `rotate_secret`, `send_test` and `resend_failed` are commands: an update that sets one
@@ -58,21 +62,24 @@ export const subscriptionsSql = (schema: string, changesSchema: string) => `crea
 )`
 
 /**
- * An index for each read of the subscriptions the API takes: the tenant and owner every caller's rows keep to, the
- * sorts and filter the list offers, and pg_trgm ones for its search over the name and URL.
+ * An index for each read of the subscriptions the API takes, by name: the tenant and owner every caller's rows keep to,
+ * the sorts and filter the list offers, and pg_trgm ones for its search over the name and URL.
  */
-export const subscriptionsIndexesSql = (schema: string) => {
-  const table = `${quoteIdent(schema)}."subscriptions"`
-  return `create extension if not exists pg_trgm;
-create index if not exists "subscriptions_tenant" on ${table} ("tenant_id");
-create index if not exists "subscriptions_owner" on ${table} ("owner_id");
-create index if not exists "subscriptions_created_at" on ${table} ("created_at");
-create index if not exists "subscriptions_name" on ${table} ("name");
-create index if not exists "subscriptions_enabled" on ${table} ("enabled");
-create index if not exists "subscriptions_last_success_at" on ${table} ("last_success_at");
-create index if not exists "subscriptions_name_search" on ${table} using gin ("name" gin_trgm_ops);
-create index if not exists "subscriptions_url_search" on ${table} using gin ("url" gin_trgm_ops)`
-}
+const subscriptionsIndexList = [
+  ['subscriptions_tenant', '("tenant_id")'],
+  ['subscriptions_owner', '("owner_id")'],
+  ['subscriptions_created_at', '("created_at")'],
+  ['subscriptions_name', '("name")'],
+  ['subscriptions_enabled', '("enabled")'],
+  ['subscriptions_last_success_at', '("last_success_at")'],
+  ['subscriptions_name_search', 'using gin ("name" gin_trgm_ops)'],
+  ['subscriptions_url_search', 'using gin ("url" gin_trgm_ops)'],
+] as const
+
+export const subscriptionsIndexes = subscriptionsIndexList.map(([name]) => name)
+
+export const subscriptionsIndexesSql = (schema: string) =>
+  `create extension if not exists pg_trgm;\n${subscriptionsIndexList.map(([name, columns]) => `create index if not exists "${name}" on ${quoteIdent(schema)}."subscriptions" ${columns}`).join(';\n')}`
 
 // A failed job runs once more, from now, as the failed jobs page retries it.
 const retryJobs = (where: string) => `update ${jobsSchema}.job
@@ -139,6 +146,7 @@ $$;
 comment on function ${quoteIdent(schema)}."deliveries_resend"() is '${webhooksComment}';
 create trigger "deliveries_resend" instead of update on ${quoteIdent(schema)}."deliveries" for each row execute function ${quoteIdent(schema)}."deliveries_resend"()`
 
+// Step 1 of `webhookDeliveryLogModule`, with the indexes below: frozen once released, as every step is.
 /** Every try of a table subscription's deliveries, kept 30 days, with `deliveryLog`. */
 export const deliveryLogSql = (schema: string) => `create table if not exists ${quoteIdent(schema)}."delivery_log" (
   "id" bigint generated always as identity primary key,
@@ -154,13 +162,16 @@ export const deliveryLogSql = (schema: string) => `create table if not exists ${
   "at" timestamptz not null default now()
 )`
 
-/** An index for each filter and sort of the delivery log the API takes. */
-export const deliveryLogIndexesSql = (schema: string) => {
-  const table = `${quoteIdent(schema)}."delivery_log"`
-  return `create index if not exists "delivery_log_subscription" on ${table} ("subscription_id", "at");
-create index if not exists "delivery_log_at" on ${table} ("at");
-create index if not exists "delivery_log_event_id" on ${table} ("event_id");
-create index if not exists "delivery_log_event_type" on ${table} ("event_type");
-create index if not exists "delivery_log_status" on ${table} ("status");
-create index if not exists "delivery_log_status_code" on ${table} ("status_code")`
-}
+/** An index for each filter and sort of the delivery log the API takes, by name. */
+const deliveryLogIndexList = [
+  ['delivery_log_subscription', '"subscription_id", "at"'],
+  ['delivery_log_at', '"at"'],
+  ['delivery_log_event_id', '"event_id"'],
+  ['delivery_log_event_type', '"event_type"'],
+  ['delivery_log_status', '"status"'],
+  ['delivery_log_status_code', '"status_code"'],
+] as const
+
+export const deliveryLogIndexes = deliveryLogIndexList.map(([name]) => name)
+
+export const deliveryLogIndexesSql = (schema: string) => deliveryLogIndexList.map(([name, columns]) => `create index if not exists "${name}" on ${quoteIdent(schema)}."delivery_log" (${columns})`).join(';\n')

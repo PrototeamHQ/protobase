@@ -1,12 +1,13 @@
 import { quoteIdent } from '../changes/capture-sql'
 
 /**
- * Bumped whenever the tables, functions or indexes below change, so the next migration writes them again; each example
- * app ships its migration with the bump (docs/example-apps.md).
+ * The version of the functions and triggers (`functionsSql`, `statusFunctionsSql`), `workflowsSchemaModule`'s
+ * replaceable: bumped whenever they change, so the next migration writes them again; each example app ships its
+ * migration with the bump (docs/example-apps.md). The tables and indexes are its steps, frozen once released.
  */
 export const workflowsVersion = 28
 
-/** The comment the schema's function carries, which the startup check reads. */
+/** The comment the schema's function carries, which `protobase migration baseline` reads. */
 export const workflowsComment = `Protobase workflows ${workflowsVersion}`
 
 export const commentVersion = (comment: string | null) => {
@@ -245,8 +246,17 @@ create index if not exists "runs_created_at" on ${s}."runs" ("created_at")`
 // The columns the status triggers write, which leave a workflow's updated_at as it is.
 const statusColumns = `array['run_status', 'status_run_id', 'status_run_at', 'unresolved_failures', 'resolved_at', 'resolved_by', 'updated_at']`
 
-/** The triggers `functionsSql` makes, which the startup check finds on their tables. */
+/** The triggers `functionsSql` makes, which `protobase migration baseline` finds on their tables. */
 export const workflowsTriggers = ['workflow_version', 'run_version']
+
+/** Columns and defaults added to the tables of `tablesSql` since. */
+export const functionsTablesSql = (schema: string) => {
+  const s = quoteIdent(schema)
+  return `alter table ${s}."runs" add column if not exists "rerun_from" text;
+
+alter table ${s}."workflows" alter column "state_machine" set default '{"QueryLanguage":"JSONata","StartAt":"","States":{}}'::jsonb;
+alter table ${s}."workflows" alter column "trigger" set default '{"manual":{}}'::jsonb`
+}
 
 /**
  * A workflow numbers its next version as a save changes its definition, in the row the write returns, so its ETag is
@@ -259,12 +269,7 @@ export const workflowsTriggers = ['workflow_version', 'run_version']
  */
 export const functionsSql = (schema: string) => {
   const s = quoteIdent(schema)
-  return `alter table ${s}."runs" add column if not exists "rerun_from" text;
-
-alter table ${s}."workflows" alter column "state_machine" set default '{"QueryLanguage":"JSONata","StartAt":"","States":{}}'::jsonb;
-alter table ${s}."workflows" alter column "trigger" set default '{"manual":{}}'::jsonb;
-
--- The layout a definition keeps: each view's own positions, Pins' and Simple's, of the views it knows alone. In each, a
+  return `-- The layout a definition keeps: each view's own positions, Pins' and Simple's, of the views it knows alone. In each, a
 -- position only under the trigger's key or a state's name as keys write it ('%', '.' and a leading '#' or '$' escaped),
 -- and in Pins also before a dot, as a Break or a Make of that state is kept, so a state removed takes its positions
 -- along; a layout or a view that is no object is none.

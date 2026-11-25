@@ -119,4 +119,27 @@ describe('startupRefusal', () => {
       expect(startupRefusal(app(), state(app(), { matched: true }), '0.15.0')).toBeUndefined()
     })
   })
+
+  describe('with webhooks, workflows and notifications', () => {
+    const app = (rest: Partial<Parameters<typeof neededModules>[0]>) => ({ modules: latestModules(neededModules({ models: [], views: [], jobs: [], signIn: false, ...rest })) })
+
+    it('refuses a database whose record lacks one, naming it and its step', () => {
+      const webhooks = app({ webhooks: { deliveryLog: true } })
+      expect(startupRefusal(webhooks, state(app({ webhooks: {} })), '0.15.0')).toContain('the database lacks the webhook delivery log, which this version needs at step 1 (delivery_log)')
+      expect(startupRefusal(app({ workflows: { customSteps: true } }), state(app({ webhooks: {} })), '0.15.0')).toContain("the database lacks the workflows' custom steps, which this version needs at step 1 (custom_steps)")
+      expect(startupRefusal(app({ notifications: {} }), state({ modules: { jobs: app({ webhooks: {} }).modules.jobs! } }), '0.15.0')).toContain('the database lacks the devices table of notifications, which this version needs at step 1 (devices)')
+    })
+
+    it('refuses a schema, table or column the config names otherwise than the record', () => {
+      expect(startupRefusal(app({ webhooks: { schema: 'hooks' } }), state(app({ webhooks: {} })), '0.15.0')).toContain(`the webhooks schema's schema is "webhooks" in the database and "hooks" now`)
+      expect(startupRefusal(app({ workflows: { schema: 'flows' } }), state(app({ workflows: {} })), '0.15.0')).toContain(`the workflows schema's schema is "workflows" in the database and "flows" now`)
+      const renamed = app({ notifications: { devices: { columns: { token: 'address' } } } })
+      expect(startupRefusal(renamed, state(app({ notifications: {} })), '0.15.0')).toContain(`the devices table of notifications's column.token is "token" in the database and "address" now`)
+    })
+
+    it('starts on a record that holds them', () => {
+      const all = app({ webhooks: { deliveryLog: true }, workflows: { storage: {}, customSteps: true }, notifications: {} })
+      expect(startupRefusal(all, state(all, { matched: true }), '0.15.0')).toBeUndefined()
+    })
+  })
 })

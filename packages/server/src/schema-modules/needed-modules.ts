@@ -1,11 +1,18 @@
 import type { ResourceModel } from '@protobase/schema'
+import type { StoreNames } from '../better-auth/store/store-names'
 import { capturedBy } from '../changes/capture-sql'
 import { changesInput } from '../changes/changes-input'
 import { changesSchema, type EventsOptions } from '../changes/events-options'
 import { hasBuckets } from '../computed/buckets-schema'
 import { mailFeedbackResource } from '../mail/feedback/mail-feedback-resource'
+import type { NotificationsOptions } from '../notifications/options'
+import { notificationsTargets } from '../notifications/notifications-targets'
 import type { RealtimeOptions } from '../realtime/relay/realtime-options'
 import { appRelayChannels, type RelayApp } from '../relay/realtime-channels'
+import type { WebhooksOptions } from '../webhooks/table/options'
+import { webhooksTargets } from '../webhooks/table/webhooks-targets'
+import type { WorkflowsOptions } from '../workflows/options'
+import { workflowsTargets } from '../workflows/workflows-targets'
 import type { ModuleTargets } from './modules'
 import { noInput } from './schema-module'
 
@@ -16,10 +23,12 @@ export type ModuleApp = {
   /** The app's own jobs. */
   jobs: readonly unknown[]
   signIn: boolean
+  /** The auth store's names with sign-in on, whose users the notifications tables point at. */
+  authStore?: StoreNames
   mailFeedback?: boolean
-  webhooks?: unknown
-  workflows?: unknown
-  notifications?: unknown
+  webhooks?: WebhooksOptions
+  workflows?: Pick<WorkflowsOptions, 'schema' | 'storage' | 'customSteps'>
+  notifications?: NotificationsOptions
   realtime?: RealtimeOptions
   /** Where captured changes live (`events` in `protobase.config.ts`). */
   events?: EventsOptions
@@ -48,5 +57,8 @@ export const neededModules = (app: ModuleApp): ModuleTargets => {
     ...(changes && { changes: changesInput(captured, app.events) }),
     ...(app.models.some((model) => model.history) && { history: events }),
     ...(app.models.some((model) => model.live) && { notices: events }),
+    ...(app.webhooks && webhooksTargets(app.webhooks, app.events)),
+    ...(app.workflows && workflowsTargets(app.workflows)),
+    ...(app.notifications && notificationsTargets(app.notifications, app.authStore)),
   }
 }
