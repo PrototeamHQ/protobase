@@ -45,14 +45,14 @@ export type PinRead = () => Promise<PinnedOrganization | undefined>
  * The organization pinned while organizations are off after being on, which the store says by still holding
  * organizations, its tables named as `kept` names them: `undefined` when it has no organization table, or no row in it, as a store from before organizations
  * were a module of their own has, which made their tables whether they were on or not. A store that holds one is
- * refused without `default`, or with `tenant` other than its id (`pinRefusal`).
+ * refused without `default`, or with `tenant` other than its id (`pinRefusal`). `db` is the store's database without the
+ * app's query plugins (`plainStoreDb`), as the tables are named in the database.
  */
 export const pinnedOrganization = async (db: Kysely<any>, kept: ResolvedNames, off: OrganizationsOff): Promise<PinnedOrganization | undefined> => {
-  const plain = db.withoutPlugins()
   const organization = kept.table('organization')
-  const [table] = (await sql<{ kept: boolean }>`select to_regclass(${String(organization)}) is not null as kept`.execute(plain)).rows
+  const [table] = (await sql<{ kept: boolean }>`select to_regclass(${String(organization)}) is not null as kept`.execute(db)).rows
   if (!table?.kept) return
-  const [rows] = (await sql<{ held: boolean }>`select exists (select from ${organization}) as held`.execute(plain)).rows
+  const [rows] = (await sql<{ held: boolean }>`select exists (select from ${organization}) as held`.execute(db)).rows
   if (!rows?.held) return
   const refusal = pinRefusal(off)
   if (refusal) throw new Error(refusal)
