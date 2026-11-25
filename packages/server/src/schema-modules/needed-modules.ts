@@ -1,4 +1,5 @@
 import type { ResourceModel } from '@protobase/schema'
+import { queryInput } from '../assistant/query-runner/query-input'
 import type { StoreNames } from '../better-auth/store/store-names'
 import { capturedBy } from '../changes/capture-sql'
 import { changesInput } from '../changes/changes-input'
@@ -43,6 +44,8 @@ export type ModuleApp = {
   events?: EventsOptions
   /** Whether the tables users add serve (`userTables`). */
   userTables?: boolean
+  /** Whether the built-in assistant's read-only queries run, as a role of their own that must not read the auth store. */
+  readOnlyQueries?: boolean
 }
 
 /**
@@ -82,5 +85,6 @@ export const neededModules = (app: ModuleApp): ModuleTargets => {
     ...(sqlSends(app.realtime) && { channel_sends: noInput }),
     ...(app.userTables && { user_tables: noInput }),
     ...(app.unsubscribe && { unsubscribes: noInput }),
+    ...(app.readOnlyQueries && { query: queryInput(app.models, app.authStore) }),
   }
 }

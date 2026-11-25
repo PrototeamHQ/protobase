@@ -1,7 +1,7 @@
 import type { AdminAuth } from './create-auth'
 import { builtInModules } from './names/modules'
 import { tableNameOf } from './names/resolve-names'
-import { storeNames } from './store/store-names'
+import { storeNames, type StoreNames } from './store/store-names'
 
 /** A table as config names it: the search path decides when it names no schema. */
 export type TableName = { schema?: string; name: string }
@@ -16,8 +16,10 @@ export type AuthStoreTables = { tables: TableName[]; schemas: string[] }
  * view too, such as Supabase's `auth.users`, whose password hashes the view leaves out but the table holds; and every
  * table of `users.guardedSchemas`.
  */
-export const authStoreTables = (auth: AdminAuth): AuthStoreTables => {
-  const { schema, names, users } = storeNames(auth)
+export const authStoreTables = (auth: AdminAuth): AuthStoreTables => storeAuthTables(storeNames(auth))
+
+/** The admin store's tables (`authStoreTables`), from the store's names alone, as `protobase migration` reads them from the config. */
+export const storeAuthTables = ({ schema, names, users }: StoreNames): AuthStoreTables => {
   const named = new Set(builtInModules.flatMap((module) => Object.keys(module.tables)).map((table) => tableNameOf(names.input.tables ?? {}, table)))
   const own = [...named].map((name) => ({ schema, name }))
   const tables = users.keyTable ? [...own, { schema: users.keyTable.schema, name: users.keyTable.table }] : own

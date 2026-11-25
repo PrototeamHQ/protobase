@@ -1,6 +1,6 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
-import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkQueryRunner, checkResourcesOutsideAuthStore, checkMigrationRecord, configExports, hasUsers } from '@protobase/server'
+import { apiKeySettings, authSchemaDrift, authStoreTables, checkAi, checkQueryRoleSafety, checkResourcesOutsideAuthStore, checkMigrationRecord, configExports, hasUsers } from '@protobase/server'
 import { modelHash } from '@protobase/server/internal'
 import { projectIcons } from '../build/app-icons'
 import { projectResources } from '../config/project-parts'
@@ -8,6 +8,7 @@ import { projectErrorReporter } from '../project/error-reporter'
 import { servedAdmin } from '../project/served-admin'
 import { buildProject } from '../config/build-project'
 import { builtRuntimeModel } from '../config/project-modules'
+import { readOnlyQueriesOn } from '../config/read-only-queries'
 import { devJobs } from './dev-jobs'
 import { checkProjectRelay } from '../serve/relay-check'
 import { protobaseVersion } from '../version/version'
@@ -47,8 +48,9 @@ await project.auth?.pinnedOrganization()
 // On every load, since editing the config can add a resource over a table of the auth store, give a resource events or
 // history, rollups, derived values or comments, whose objects the record of migrations holds.
 if (project.auth) await checkResourcesOutsideAuthStore(db, resources.map((resource) => resource.toModel()), project.auth)
-// The built-in assistant's read-only queries run as a role of their own, which must not read the auth store.
-if (assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in') await checkQueryRunner(db, project.auth ? authStoreTables(project.auth) : { tables: [], schemas: [] })
+// The built-in assistant's read-only queries run as a role of their own, which must not read the auth store: what the
+// live database gave it, such as a grant made by hand, which the record of migrations cannot say.
+if (readOnlyQueriesOn(project.options?.assistant, process.env)) await checkQueryRoleSafety(db, project.auth ? authStoreTables(project.auth) : { tables: [], schemas: [] })
 // AI fields and actions call the model of PROTOBASE_ASSISTANT_API_KEY, which other commands need not have.
 checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
 checkProjectRelay({ ...project, models: resources.map((resource) => resource.toModel()), views: views.map((view) => view.toModel()) }, process.env)

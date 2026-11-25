@@ -1,5 +1,3 @@
-import type { QueryGrants } from './runner-plan'
-
 /** The schema the read-only query runner lives in. */
 export const queryRunnerSchema = 'query'
 
@@ -36,41 +34,12 @@ begin
 end
 `
 
-const literal = (text: string) => `'${text.replaceAll("'", "''")}'`
-
-const grantSql = ({ grants, revokes }: QueryGrants) => [
-  ...grants.map((grant) =>
-    grant.on === 'schema'
-      ? `  execute format('grant usage on schema %I to %I', ${literal(grant.schema)}, query_role);`
-      : `  execute format('grant select on table %I.%I to %I', ${literal(grant.schema)}, ${literal(grant.name)}, query_role);`,
-  ),
-  ...revokes.map((revoke) =>
-    revoke.on === 'schema'
-      ? `  execute format('revoke usage on schema %I from %I', ${literal(revoke.schema)}, query_role);`
-      : `  execute format('revoke select on table %I.%I from %I', ${literal(revoke.schema)}, ${literal(revoke.name)}, query_role);`,
-  ),
-]
-
 /**
- * The SQL that makes the query role and the runner, and gives the role exactly `grants`, taking back `revokes`. It
- * applies again on a database that has them. The migrating role becomes a member of the role, which Postgres 16 needs
- * to hand it the function, and so may execute the runner; PUBLIC may not. The role bypasses row-level security only
- * when the migrating role may give it that: a superuser, or a role with BYPASSRLS on Postgres 16 or later.
+ * The runner, made again and handed to the query role, which it runs every statement as; the migrating role, a member
+ * of the role, may execute it, PUBLIC may not.
  */
-export const queryRunnerSql = (plan: QueryGrants) =>
+export const runnerSql = () =>
   [
-    `create schema if not exists ${queryRunnerSchema};`,
-    [
-      'do $$',
-      'declare',
-      `  query_role text := ${queryRoleSql};`,
-      'begin',
-      "  if not exists (select from pg_roles where rolname = query_role) then execute format('create role %I nologin', query_role); end if;",
-      "  execute format('grant %I to current_user', query_role);",
-      "  if (select rolsuper or (rolbypassrls and current_setting('server_version_num')::int >= 160000) from pg_roles where rolname = current_user) then execute format('alter role %I bypassrls', query_role); end if;",
-      ...grantSql(plan),
-      'end $$;',
-    ].join('\n'),
     `create or replace function ${queryRunnerFunction}(statement text, row_limit integer) returns setof json language plpgsql security definer as $f$${runnerBody}$f$;`,
     [
       'do $$',

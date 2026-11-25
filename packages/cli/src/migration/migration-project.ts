@@ -1,10 +1,11 @@
 import pg from 'pg'
-import { assistantSettings, authStoreTables, configExports, neededModules } from '@protobase/server'
+import { configExports, neededModules } from '@protobase/server'
 import { checkStatusOptions, storeNames } from '@protobase/server/internal'
 import { projectAuth } from '../config/build-project'
 import type { MergedConfig } from '../config/merge-config'
 import { projectJobs, projectNotifications, projectResources, projectWebhooks } from '../config/project-parts'
 import { mailFeedbackOn } from '../config/mail-feedback-config'
+import { readOnlyQueriesOn } from '../config/read-only-queries'
 import { unsubscribeOn } from '../config/unsubscribe-config'
 import { userTablesOn } from '../config/user-tables-config'
 import { openAppDatabase } from '../project/pg-db'
@@ -20,7 +21,7 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
   const exported = configExports(resources)
   const models = exported.resources.map((source) => source.toModel())
   const views = exported.views.map((source) => source.toModel())
-  const app = { models, views, jobs, signIn: Boolean(auth), ...(auth && { authStore: storeNames(auth) }), mailFeedback: mailFeedbackOn(config), unsubscribe: unsubscribeOn(config), webhooks, workflows: config.workflows, notifications, ...(config.status && { status: checkStatusOptions(config.status) }), calls: config.calls, realtime: config.realtime, events: config.events, userTables: userTablesOn(config) }
+  const app = { models, views, jobs, signIn: Boolean(auth), ...(auth && { authStore: storeNames(auth) }), mailFeedback: mailFeedbackOn(config), unsubscribe: unsubscribeOn(config), webhooks, workflows: config.workflows, notifications, ...(config.status && { status: checkStatusOptions(config.status) }), calls: config.calls, realtime: config.realtime, events: config.events, userTables: userTablesOn(config), readOnlyQueries: readOnlyQueriesOn(config.assistant, process.env) }
   return {
     models,
     views,
@@ -35,9 +36,6 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
     ...(notifications && { notifications }),
     jobs,
     userTables: userTablesOn(config),
-    // The built-in assistant's read-only queries run as a role of their own, which must not read the auth store.
-    readOnlyQueries: assistantSettings(config.assistant, process.env)?.kind === 'built-in',
-    authTables: auth ? authStoreTables(auth) : { tables: [], schemas: [] },
     close: async () => {
       await database.db.destroy()
     },

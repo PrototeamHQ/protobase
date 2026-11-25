@@ -9,7 +9,7 @@ import { checkMigrationRecord } from '../../packages/server/src/migration-record
 import { writeBaseline } from '../../packages/cli/src/migration/baseline/write-baseline'
 import { runMigration } from '../../packages/cli/src/migration/snapshot/run-migration'
 import { f, resource, type ResourceModel } from '@protobase/schema'
-import { callsSchemaSql, captureSchemaSql, channelSendsSchemaSql, commentsSchemaSql, computedSchemaSql, derivedSchemaSql, userTablesSchemaSql, jobsSchemaSql, mailFeedbackResource, mailFeedbackSchemaSql, neededModules, notificationsSchemaSql, realtimeRelaySchemaSql, relaySchemaSql, statusSchemaSql, unsubscribesSchemaSql, webhooksSchemaSql, workflowsSchemaSql, type AdminAuth, type ModuleApp } from '../../packages/server/src/index'
+import { callsSchemaSql, captureSchemaSql, channelSendsSchemaSql, commentsSchemaSql, computedSchemaSql, derivedSchemaSql, userTablesSchemaSql, jobsSchemaSql, mailFeedbackResource, mailFeedbackSchemaSql, neededModules, notificationsSchemaSql, querySchemaSql, realtimeRelaySchemaSql, relaySchemaSql, statusSchemaSql, unsubscribesSchemaSql, webhooksSchemaSql, workflowsSchemaSql, type AdminAuth, type ModuleApp } from '../../packages/server/src/index'
 import { createAuth, modelHash, noInput, plainStoreDb, recordTable, runtimeModel, schemaModules, storeNames, storeNamesList, type ModuleTargets, type RecordModel } from '../../packages/server/src/internal'
 import { rollupFunctionSql } from '../../packages/server/src/computed/rollup-sql'
 import { rollupTargets } from '../../packages/server/src/computed/rollup-targets'
@@ -390,5 +390,47 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
     expect(await migrate(second.project, second.auth, 'nothing', earlier)).toBeUndefined()
     await expect(check(second.auth, modules(true))).resolves.toBeUndefined()
     await rm(second.project, { recursive: true, force: true })
+  })
+
+  it("writes the query role on a fresh database after the auth store's steps, baselines one an earlier migration made, and writes only the grants of a resource added", async () => {
+    const queries = (models: ResourceModel[]): Partial<ModuleApp> => ({ models, readOnlyQueries: true })
+    const fresh = await openPostgresDatabase('empty')
+    const freshAuth = authOn(fresh)
+    const freshProject = await mkdtemp(path.join(tmpdir(), 'protobase-migration-record-'))
+    await fresh.exec(tables)
+    const written = await readFile((await migrateApp(freshProject, freshAuth, queries([notes.toModel()]), 'fresh-id'))!, 'utf8')
+    expect(written.indexOf('-- The auth schema changes this version of Protobase needs.')).toBeLessThan(written.indexOf("-- The role the assistant's read-only queries run as"))
+    await fresh.exec(written)
+    await expect(check(freshAuth, featureModules(freshAuth, queries([notes.toModel()])))).resolves.toBeUndefined()
+    await rm(freshProject, { recursive: true, force: true })
+
+    const database = await openPostgresDatabase('empty')
+    const { auth, project } = await migratedByThisVersion(database, true)
+    await expect(check(auth, featureModules(auth, queries([notes.toModel()])))).rejects.toThrow("the database lacks the query role of the assistant's read-only queries, which this version needs at step 1 (role)")
+    // What the migration of the version before wrote, which wrote the same statements (`written-before-steps.test.ts`).
+    await database.exec(`${tables}\n${querySchemaSql([notes.toModel()], auth)}`)
+    const modules = featureModules(auth, queries([notes.toModel()]))
+    const baseline = await writeBaseline({ projectDir: project, dir: path.join(project, 'db/migrations'), auth: { names: storeNames(auth), organizationsOn: false, organizations: undefined }, modules, url: database.url, protobaseVersion: '1.0.0', newId: () => 'baseline-id' })
+    const text = await readFile(baseline, 'utf8')
+    expect(text).toContain("-- The role the assistant's read-only queries run as, which reads only the resources' tables: at step 1 (role), its runner at version 1, its grants of notes.")
+    await database.exec(text)
+    expect(await migrateApp(project, auth, queries([notes.toModel()]), 'nothing', database)).toBeUndefined()
+    await expect(check(auth, modules)).resolves.toBeUndefined()
+
+    const both = queries([notes.toModel(), refunds.toModel()])
+    await expect(check(auth, featureModules(auth, both))).rejects.toThrow("the query role of the assistant's read-only queries lacks its grants of refunds")
+    const added = await readFile((await migrateApp(project, auth, both, 'added-id', database))!, 'utf8')
+    expect(added).toContain('-- The grants of the query role of refunds.')
+    expect(added).not.toContain('of notes.')
+    expect(added).not.toContain('create schema if not exists query')
+    expect(added).not.toContain('run_read_only')
+    await database.exec(added)
+    await expect(check(auth, featureModules(auth, both))).resolves.toBeUndefined()
+    const role = sql.raw("left(current_database(), 57) || '_query'")
+    const reads = await sql<{ refunds: boolean }>`select has_table_privilege(${role}, 'refunds', 'select') as refunds`.execute(database.db)
+    expect(reads.rows).toEqual([{ refunds: true }])
+    await rm(project, { recursive: true, force: true })
+    // Roles belong to the whole server, so each database's query role goes with it.
+    for (const one of [fresh, database]) await one.exec(`do $$ begin execute format('drop owned by %I', left(current_database(), 57) || '_query'); execute format('drop role %I', left(current_database(), 57) || '_query'); end $$`)
   })
 })

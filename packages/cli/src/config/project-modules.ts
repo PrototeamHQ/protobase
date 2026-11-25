@@ -3,6 +3,7 @@ import { runtimeModel, storeNames } from '@protobase/server/internal'
 import { authTarget } from '../migration/snapshot/auth-target'
 import type { BuiltProject } from './build-project'
 import { mailFeedbackOn } from './mail-feedback-config'
+import { readOnlyQueriesOn } from './read-only-queries'
 import type { MergedConfig } from './merge-config'
 import { unsubscribeOn } from './unsubscribe-config'
 import { userTablesOn } from './user-tables-config'
@@ -33,6 +34,7 @@ export const builtModules = (project: BuiltProject) =>
     realtime: project.realtime,
     events: project.events,
     userTables: project.userTables,
+    readOnlyQueries: readOnlyQueriesOn(project.options?.assistant, process.env),
   })
 
 /** The model the app `project` reads of its database's record of migrations (`runtimeModel`). */
@@ -56,5 +58,6 @@ export const configModules = async (config: MergedConfig) => {
     realtime: config.realtime,
     events: config.events,
     userTables: userTablesOn(config),
+    readOnlyQueries: readOnlyQueriesOn(config.assistant, process.env),
   })
 }

@@ -1,7 +1,11 @@
 import { Kysely, sql } from 'kysely'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { checkQueryRunner, queryRunnerMigration } from '../src/assistant/query-runner/query-runner'
+import { queryInput } from '../src/assistant/query-runner/query-input'
+import { queryModule } from '../src/assistant/query-runner/query-module'
+import { checkQueryRoleSafety } from '../src/assistant/query-runner/query-runner'
+import { latestModel, moduleDifference } from '../src/schema-modules/module-difference'
+import { modulesSql } from '../src/schema-modules/modules-sql'
 import { runReadOnlyQuery, runReadWriteQuery } from '../src/assistant/run-query'
 import { openSnapshotDb } from '../../../test-support/sql-snapshot'
 
@@ -29,9 +33,9 @@ beforeAll(async () => {
     insert into numbers values (9007199254740993, 12.50, 7);
   `)
   db = new Kysely({ dialect: pg.dialect })
-  checkedBefore = checkQueryRunner(db, authTables)
+  checkedBefore = checkQueryRoleSafety(db, authTables)
   await checkedBefore.catch(() => undefined)
-  await pg.exec((await queryRunnerMigration(db, models, authTables))!)
+  await pg.exec(modulesSql({ query: queryInput(models, undefined) }))
 })
 afterAll(async () => {
   await sql`do $$ begin execute format('drop owned by %I', left(current_database(), 57) || '_query'); execute format('drop role %I', left(current_database(), 57) || '_query'); end $$`.execute(db)
@@ -123,21 +127,41 @@ describe('runReadWriteQuery', () => {
 const rolledBack = new Error('rolled back')
 
 describe('the query runner', () => {
-  it('is current once its migration applied, until a resource is added', async () => {
-    expect(await queryRunnerMigration(db, models, authTables)).toBeUndefined()
+  it('reads as current once its module applied, and writes only the grants of a resource added', async () => {
+    const input = queryInput(models, undefined)
+    expect(await queryModule.read(db, input)).toEqual(latestModel(queryModule, input))
     await sql`create table later (id integer)`.execute(db)
-    expect(await queryRunnerMigration(db, [...models, model('later')], authTables)).toContain(`'grant select on table %I.%I to %I', 'public', 'later'`)
+    const added = queryInput([...models, model('later')], undefined)
+    const { sql: written } = moduleDifference(queryModule, added, await queryModule.read(db, added))
+    expect(written).toContain('-- The grants of the query role of later.\n')
+    expect(written).not.toContain('The query role.')
+    expect(written).not.toContain('run_read_only')
   })
 
-  it('refuses startup before its migration, and passes after it', async () => {
-    await expect(checkedBefore).rejects.toThrow("The query role of the assistant's read-only queries is missing. Write it as a migration with `protobase migration`")
-    await expect(checkQueryRunner(db, authTables)).resolves.toBeUndefined()
+  it('reads a table the role was given that no resource has, so a migration takes it back', async () => {
+    const attempt = db.transaction().execute(async (trx) => {
+      await sql`do $$ begin execute format('grant select on hidden to %I', left(current_database(), 57) || '_query'); end $$`.execute(trx)
+      const input = queryInput(models, undefined)
+      const found = await queryModule.read(trx, input)
+      expect(found?.resources?.grants?.['public.hidden']).toEqual({ version: 1, digest: '', table: { schema: 'public', name: 'hidden' } })
+      await sql.raw(moduleDifference(queryModule, input, found).sql!).execute(trx)
+      const reads = await sql<{ hidden: boolean; notes: boolean }>`select has_table_privilege(left(current_database(), 57) || '_query', 'hidden', 'select') as hidden,
+        has_table_privilege(left(current_database(), 57) || '_query', 'notes', 'select') as notes`.execute(trx)
+      expect(reads.rows).toEqual([{ hidden: false, notes: true }])
+      throw rolledBack
+    })
+    await expect(attempt).rejects.toBe(rolledBack)
+  })
+
+  it('leaves startup to the record of migrations before its module, and passes after it', async () => {
+    await expect(checkedBefore).resolves.toBeUndefined()
+    await expect(checkQueryRoleSafety(db, authTables)).resolves.toBeUndefined()
   })
 
   it('refuses startup while the role can read an auth table', async () => {
     const attempt = db.transaction().execute(async (trx) => {
       await sql`do $$ begin execute format('grant usage on schema secrets to %I', left(current_database(), 57) || '_query'); execute format('grant select on secrets.session to %I', left(current_database(), 57) || '_query'); end $$`.execute(trx)
-      await expect(checkQueryRunner(trx, authTables)).rejects.toThrow("The query role of the assistant's read-only queries can read the auth schema.")
+      await expect(checkQueryRoleSafety(trx, authTables)).rejects.toThrow("The query role of the assistant's read-only queries can read the auth schema.")
       throw rolledBack
     })
     await expect(attempt).rejects.toBe(rolledBack)
@@ -146,9 +170,9 @@ describe('the query runner', () => {
   it('refuses startup while the role may call a security-definer function that reads the auth store', async () => {
     const attempt = db.transaction().execute(async (trx) => {
       await sql`create function public.session_token() returns text language sql security definer as 'select token from secrets.session limit 1'`.execute(trx)
-      await expect(checkQueryRunner(trx, authTables)).rejects.toThrow('can read the auth schema through the security-definer functions public.session_token(). Revoke execute on them from PUBLIC')
+      await expect(checkQueryRoleSafety(trx, authTables)).rejects.toThrow('can read the auth schema through the security-definer functions public.session_token(). Revoke execute on them from PUBLIC')
       await sql`revoke execute on function public.session_token() from public`.execute(trx)
-      await expect(checkQueryRunner(trx, authTables)).resolves.toBeUndefined()
+      await expect(checkQueryRoleSafety(trx, authTables)).resolves.toBeUndefined()
       throw rolledBack
     })
     await expect(attempt).rejects.toBe(rolledBack)
