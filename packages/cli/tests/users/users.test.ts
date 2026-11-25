@@ -21,7 +21,7 @@ beforeAll(async () => {
   api = usersApi(auth)
 })
 
-const output = async (command: (out: (text: string) => void) => Promise<void>) => {
+const output = async (command: (out: (text: string) => void) => Promise<unknown>) => {
   const written: string[] = []
   await command((text) => written.push(text))
   return written.join('')
@@ -36,7 +36,7 @@ describe('protobase users against a Better Auth store', () => {
   })
 
   it('lists the user without credentials', async () => {
-    const listed = await output((out) => listUsersCommand(api, out))
+    const listed = await output((out) => listUsersCommand(api, {}, out))
     expect(listed).toMatch(/me@example\.com\s+admin\s+\d{4}-\d{2}-\d{2}T/)
     expect(listed).not.toContain('long-test-password')
   })
@@ -53,7 +53,7 @@ describe('protobase users against a Better Auth store', () => {
 
   it('disables a user, which stops tokens, and enables them again', async () => {
     await setDisabledCommand(api, { email: 'staff@example.com', disabled: true }, () => {})
-    expect(await output((out) => listUsersCommand(api, out))).toMatch(/staff@example\.com\s+user\s+\S+\s+disabled/)
+    expect(await output((out) => listUsersCommand(api, {}, out))).toMatch(/staff@example\.com\s+user\s+\S+\s+disabled/)
     await expect(issueToken(auth, { email: 'staff@example.com' })).rejects.toThrow('staff@example.com is banned')
     expect(await output((out) => setDisabledCommand(api, { email: 'staff@example.com', disabled: false }, out))).toBe('Enabled staff@example.com\n')
     expect((await issueToken(auth, { email: 'staff@example.com' })).token).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/)
@@ -63,7 +63,7 @@ describe('protobase users against a Better Auth store', () => {
     expect(await output((out) => setRoleCommand(api, { email: 'staff@example.com', role: 'admin' }, out))).toBe('staff@example.com is now admin\n')
     await setRoleCommand(api, { email: 'me@example.com', role: 'user' }, () => {})
     expect(await output((out) => deleteUserCommand(api, { email: 'me@example.com', yes: true }, async () => '', out))).toBe('Deleted me@example.com\n')
-    const listed = await output((out) => listUsersCommand(api, out))
+    const listed = await output((out) => listUsersCommand(api, {}, out))
     expect(listed).not.toContain('me@example.com')
     expect(listed).toContain('staff@example.com')
   })
@@ -86,7 +86,7 @@ describe('protobase users create --github-id', () => {
 
   it('refuses a GitHub user that signs in someone else already, and creates nobody', async () => {
     await expect(createLinked('other@example.com', '583231')).rejects.toThrow('The github account 583231 signs in another user already')
-    expect(await output((out) => listUsersCommand(api, out))).not.toContain('other@example.com')
+    expect(await output((out) => listUsersCommand(api, {}, out))).not.toContain('other@example.com')
   })
 })
 

@@ -616,12 +616,12 @@ Prints a fresh key pair for [Web Push](/reference/notifications/#web-push) as `P
 
 ```sh
 protobase users create <email> [--name <name>] [--role <role>] [--password-stdin | --generate-password | --no-password] [--github-id <id>]
-                       [--organization <organization> [--org-role <role>] [--app-roles <a,b>]]
-protobase users list
+                       [--organization <organization> | --all-organizations] [--org-role <role>] [--app-roles <a,b>]
+protobase users list [--organization <organization> | --all-organizations]
 protobase users roles
-protobase users set-role <email> <role>
-protobase users disable <email>   # and: enable <email>
-protobase users delete <email> [--yes]
+protobase users set-role <email> <role> [--organization <organization> | --all-organizations]
+protobase users disable <email> [--organization <organization> | --all-organizations]   # and: enable <email>
+protobase users delete <email> [--yes] [--organization <organization> | --all-organizations]
 ```
 
 Run inside a project with sign-in on (its config's `auth`, on unless `false`, or unless the config leaves `auth` out and sets `authenticate.jwksUrl`). Like `organizations`, `token` and `auth migration`, it reads the `.env` nearest the project and needs `DATABASE_URL`. There is no web setup page, and [open sign-up](/reference/auth/#open-sign-up), when a project turns it on, waits for the first admin: the first admin is created here. The first user is always an admin, whatever `--role` says; later users get `--role`, or the project's default role (`auth: { roles, defaultRole }` in its config). `protobase users roles` lists the roles of the project; anything else is refused with that list. `set-role` also takes comma separated roles (`sales,accountant`). `--github-id` links the new user to a GitHub user id (the number, not the login), so signing in with GitHub, the app's own provider or the [platform's](/reference/auth/#platform-sign-in-providers), finds them whatever address GitHub reports; an id that signs in another user already is refused. `createUser(auth, { ..., accounts: [{ providerId, accountId }] })` does the same from code.
@@ -630,20 +630,26 @@ The password is typed at a hidden prompt with confirmation, read from stdin with
 
 `delete` asks you to type the email back (or pass `--yes`), and needs a terminal otherwise. `delete`, `set-role` and `disable` refuse to touch the last admin, so the project cannot lock itself out. `disable` bans the user and revokes their sessions; tokens already issued stop working on their next request, and `protobase token` refuses disabled users. With [MCP](/reference/auth/#oauth-for-mcp-clients) on, it also disconnects their MCP clients. `enable` lifts the ban; the clients have to be allowed again. `protobase dev` prints the command that creates the first admin at startup while the user table is empty (see [`dev`](#dev)).
 
-With [organizations](/reference/auth/#organizations), `--role` is the user's global role (none by default) and `--organization` adds the new user to an organization, by its slug or id, with `--org-role` (`owner`, `admin`, or `member`, the default) and `--app-roles` there.
+With [organizations](/reference/auth/#organizations), `--role` is the user's global role (none by default), and each command acts on [the pinned organization](#the-pinned-organization): `create` adds the new user to it with `--org-role` (`owner`, `admin`, or `member`, the default) and `--app-roles` there, or to no organization with `--all-organizations`; the first user owns it already when it had no members. `list` lists its members, or every user with `--all-organizations`. `set-role`, `disable`, `enable` and `delete` reach only its members, or any user with `--all-organizations`; they change the whole account, in every organization the user belongs to.
 
 ## `organizations`
 
 ```sh
-protobase organizations list
+protobase organizations list [--organization <organization> | --all-organizations]
 protobase organizations create <name> --owner <email> [--slug <slug>] [--id <id>] [--members all]
-protobase organizations add-member <organization> <email> [--org-role <role>] [--app-roles <a,b>]
-protobase organizations set-roles <organization> <email> [--org-role <role>] [--app-roles <a,b>]
-protobase organizations remove-member <organization> <email>
-protobase organizations add-app-role <role> --to owners
+protobase organizations add-member <email> [--organization <organization>] [--org-role <role>] [--app-roles <a,b>]
+protobase organizations set-roles <email> [--organization <organization>] [--org-role <role>] [--app-roles <a,b>]
+protobase organizations remove-member <email> [--organization <organization>]
+protobase organizations add-app-role <role> --to owners [--organization <organization> | --all-organizations]
 ```
 
-For a project with [organizations](/reference/auth/#organizations); `<organization>` is a slug or an id. The host acts as a superuser, so it may give any role. `create` makes `--owner` the owner with every app role; `--id` keeps an existing tenant value, and `--members all` adds every other user, superusers as owners and everyone else as a member with their global roles moved onto the membership, for an app that ran as one organization. `remove-member` and `set-roles` refuse to leave an organization without an owner. `add-app-role` gives a role the project added later to every owner.
+For a project with [organizations](/reference/auth/#organizations). The host acts as a superuser, so it may give any role. Every command but `create` acts on [the pinned organization](#the-pinned-organization): `list` lists it with its members, or every organization with `--all-organizations`; `add-member`, `set-roles` and `remove-member` change a membership in it, and refuse `--all-organizations`; `add-app-role` gives a role the project added later to its owners, or to every organization's owners with `--all-organizations`. `create` makes `--owner` the owner with every app role; `--id` keeps an existing tenant value, and `--members all` adds every other user, superusers as owners and everyone else as a member with their global roles moved onto the membership, for an app that ran as one organization. `remove-member` and `set-roles` refuse to leave an organization without an owner.
+
+### The pinned organization
+
+The `users` and `organizations` commands act on one organization: the config's [`auth.organizations.default`](/reference/auth/#the-default-organization), or the one `--organization` names by its slug or id. They print it first, or `Every organization` with `--all-organizations`, which reaches every organization's people. An organization the database does not have is refused, naming it, and so is a project without `auth.organizations.default` unless the command gets `--organization` or `--all-organizations`.
+
+The pin is a filter, not a boundary: whoever runs a host command holds the database's credentials, so it keeps a command from reaching another organization's people by accident, not on purpose.
 
 ## `migrate`
 

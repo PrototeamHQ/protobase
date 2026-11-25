@@ -1,9 +1,13 @@
 import { Readable } from 'node:stream'
 import { describe, expect, it, vi } from 'vitest'
-import { createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } from './commands'
+import { createMemberCommand, createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } from './commands'
+import { pinSourceFixture } from '../organizations/pin-source-fixture'
 import { readPasswordFromStream, rejectPasswordArgument, resolvePassword } from './password'
 
-const api = (existing: boolean): UsersApi => ({
+// Without organizations unless `organizationsOn` says otherwise.
+const api = (existing: boolean, organizationsOn = false): UsersApi => ({
+  ...pinSourceFixture({ organizationsOn }),
+  addMember: vi.fn(async () => undefined),
   roles: async () => ({ roles: ['admin', 'auditor'], defaultRole: 'auditor', labels: { admin: 'Superuser', auditor: 'Auditor', user: 'User' } }),
   hasUsers: async () => existing,
   createUser: vi.fn(async (input) => ({ id: '1', email: input.email, role: input.role ?? 'auditor' })),
@@ -117,7 +121,7 @@ describe('listRolesCommand', () => {
 describe('listUsersCommand', () => {
   it('prints email, role and creation date only', async () => {
     const out: string[] = []
-    await listUsersCommand(api(true), (t) => out.push(t))
+    await listUsersCommand(api(true), {}, (t) => out.push(t))
     expect(out.join('')).toBe('EMAIL          ROLE      CREATED\na@example.com  admin     2026-10-07\n')
   })
 
@@ -126,10 +130,95 @@ describe('listUsersCommand', () => {
       first: { users: [{ id: '1', email: 'a@example.com', role: 'admin', createdAt: '2026-10-07' }], next: { createdAt: '2026-10-07 00:00:00+00', id: '1' } },
       '1': { users: [{ id: '2', email: 'b@example.com', role: 'user', createdAt: '2026-10-08', banned: true }] },
     }
-    const listUsers = vi.fn(async (after?: { id: string }) => pages[after?.id ?? 'first']!)
+    const listUsers = vi.fn(async (_scope: unknown, after?: { id: string }) => pages[after?.id ?? 'first']!)
     const out: string[] = []
-    await listUsersCommand({ ...api(true), listUsers }, (t) => out.push(t))
-    expect(listUsers).toHaveBeenLastCalledWith({ createdAt: '2026-10-07 00:00:00+00', id: '1' })
+    await listUsersCommand({ ...api(true), listUsers }, {}, (t) => out.push(t))
+    expect(listUsers).toHaveBeenLastCalledWith(undefined, { createdAt: '2026-10-07 00:00:00+00', id: '1' })
     expect(out.join('')).toBe('EMAIL          ROLE      CREATED\na@example.com  admin     2026-10-07\nb@example.com  user      2026-10-08  disabled\n')
+  })
+})
+
+describe('listUsersCommand with organizations', () => {
+  const listed = async (options: { organization?: string; allOrganizations?: boolean }) => {
+    const users = { ...api(true, true), listUsers: vi.fn(async (_scope: unknown) => ({ users: [{ id: '1', email: 'bo@example.com', role: 'user', createdAt: '2026-10-07' }] })) }
+    const out: string[] = []
+    await listUsersCommand(users, options, (t) => out.push(t))
+    return { scope: users.listUsers.mock.calls[0]![0], text: out.join('') }
+  }
+
+  it('lists the members of the pinned organization', async () => {
+    expect(await listed({})).toEqual({ scope: '1', text: 'Organization: acme (Acme)\nEMAIL           ROLE      CREATED\nbo@example.com  user      2026-10-07\n' })
+  })
+
+  it('lists the members of the organization --organization names', async () => {
+    const { scope, text } = await listed({ organization: 'globex' })
+    expect(scope).toBe('2')
+    expect(text).toMatch(/^Organization: globex \(Globex\)\n/)
+    await expect(listed({ organization: 'initech' })).rejects.toThrow('No organization "initech"')
+  })
+
+  it('lists every user with --all-organizations', async () => {
+    const { scope, text } = await listed({ allOrganizations: true })
+    expect(scope).toEqual({ unscoped: 'protobase users list: --all-organizations' })
+    expect(text).toMatch(/^Every organization\n/)
+  })
+})
+
+describe('createMemberCommand', () => {
+  const create = async (users: UsersApi, options: { organization?: string; allOrganizations?: boolean; orgRole?: string; appRoles?: string }) => {
+    const out: string[] = []
+    await createMemberCommand(users, { ...base, email: 'jan@example.com', noPassword: true, role: 'auditor', ...options }, deps(), (t) => out.push(t))
+    return out.join('')
+  }
+
+  it('adds the new user to the pinned organization', async () => {
+    const users = api(true, true)
+    expect(await create(users, { orgRole: 'admin', appRoles: 'sales' })).toBe('Created auditor jan@example.com\nAdded jan@example.com to acme as admin\n')
+    expect(users.addMember).toHaveBeenCalledWith({ organization: '1', email: 'jan@example.com', role: 'admin', appRoles: ['sales'] })
+  })
+
+  it('adds the new user to the organization --organization names', async () => {
+    const users = api(true, true)
+    expect(await create(users, { organization: 'globex' })).toBe('Created auditor jan@example.com\nAdded jan@example.com to globex\n')
+    expect(users.addMember).toHaveBeenCalledWith({ organization: '2', email: 'jan@example.com' })
+    await expect(create(api(true, true), { organization: 'initech' })).rejects.toThrow('No organization "initech"')
+  })
+
+  it('creates the account in no organization with --all-organizations', async () => {
+    const users = api(true, true)
+    expect(await create(users, { allOrganizations: true })).toBe('Created auditor jan@example.com\njan@example.com joins no organization\n')
+    expect(users.addMember).not.toHaveBeenCalled()
+  })
+
+  it('leaves the first user as the owner of the pinned organization it owns already', async () => {
+    const users = { ...api(false, true), isMember: async () => true }
+    expect(await create(users, {})).toBe('Created admin jan@example.com, shown in the app as Superuser\njan@example.com owns acme\n')
+    expect(users.addMember).not.toHaveBeenCalled()
+  })
+
+  it('skips the first-user ownership step with --all-organizations on an empty store', async () => {
+    // An isMember that answers yes would print the first user's ownership if it were reached.
+    const isMember = vi.fn(async () => true)
+    const users = { ...api(false, true), isMember }
+    expect(await create(users, { allOrganizations: true })).toBe('Created admin jan@example.com, shown in the app as Superuser\njan@example.com joins no organization\n')
+    expect(isMember).not.toHaveBeenCalled()
+    expect(users.addMember).not.toHaveBeenCalled()
+  })
+
+  it('refuses the pin flags while organizations are off, creating nobody', async () => {
+    const users = api(true)
+    await expect(create(users, { allOrganizations: true })).rejects.toThrow('needs organizations')
+    await expect(create(users, { organization: 'acme' })).rejects.toThrow('need organizations')
+    expect(users.createUser).not.toHaveBeenCalled()
+  })
+})
+
+describe('createUserCommand with organizations', () => {
+  it('makes the account alone, in no organization, as the serve runtime\'s create-admin does', async () => {
+    const users = api(true, true)
+    const out: string[] = []
+    await createUserCommand(users, { ...base, email: 'jan@example.com', noPassword: true, role: 'admin' }, deps(), (t) => out.push(t))
+    expect(out.join('')).toBe('Created admin jan@example.com, shown in the app as Superuser\n')
+    expect(users.addMember).not.toHaveBeenCalled()
   })
 })
