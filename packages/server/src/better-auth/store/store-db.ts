@@ -15,12 +15,15 @@ export const storeDb = ({ options: { database } }: StoreOptions): Kysely<any> =>
 }
 
 /**
- * The admin store's connections without the app's query plugins: what its migrations and schema checks read and
- * write, which name the store's tables as they are in the database. A store kept to an organization (`ScopedDb`)
- * leaves its scope by name first, as it refuses `withoutPlugins` alone.
+ * `db` without the app's query plugins, for reads and writes that name tables as they are in the database. A database
+ * kept to an organization (`ScopedDb`) leaves its scope by name first, saying why (`reason`), as it refuses
+ * `withoutPlugins` alone.
  */
-export const plainStoreDb = (auth: StoreOptions) => {
-  const db = storeDb(auth) as Kysely<any> & Partial<Pick<ScopedDb, 'unscoped'>>
-  const plain = typeof db.unscoped === 'function' ? db.unscoped("the store's migrations and schema checks name its tables as they are") : db
+export const withoutAppPlugins = (db: Kysely<any>, reason: string) => {
+  const scoped = db as Kysely<any> & Partial<Pick<ScopedDb, 'unscoped'>>
+  const plain = typeof scoped.unscoped === 'function' ? scoped.unscoped(reason) : db
   return plain.withoutPlugins()
 }
+
+/** The admin store's connections without the app's query plugins: what its migrations and schema checks read and write. */
+export const plainStoreDb = (auth: StoreOptions) => withoutAppPlugins(storeDb(auth), "the store's migrations and schema checks name its tables as they are")

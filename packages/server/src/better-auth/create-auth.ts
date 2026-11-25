@@ -53,7 +53,7 @@ import { personalAccessTokenPaths, personalAccessTokensPlugin } from './personal
 import { keptNamesOf, pinOnce, type OrganizationsOff, type PinRead } from './organizations/kept-organizations'
 import { pinnedMembershipPlugin } from './organizations/pinned-membership'
 import { pinnedSessionHooks } from './organizations/pinned-sessions'
-import { storeDb } from './store/store-db'
+import { plainStoreDb } from './store/store-db'
 import { organizationPlugin } from './organizations/organization-plugin'
 import { derivedSlugPlugin } from './organizations/derived-slug'
 import { protobaseOrganizationPlugin } from './organizations/protobase-plugin'
@@ -788,7 +788,7 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   // Every app the config serves passes `organizationsOff` (`appAuthOptions`); `createAuth` itself is internal, and its
   // callers without the option, such as tests over a store with every module's tables, keep organizations out of sign-in.
   const kept = options.organizationsOff && !options.organizations ? keptNamesOf(names) : undefined
-  const pin = kept && pinOnce(storeDb({ options }), kept, options.organizationsOff!)
+  const pin = kept && pinOnce(plainStoreDb({ options }), kept, options.organizationsOff!)
   const authOptions = betterAuthOptions(options, { ...plugins, names, ...(kept && pin && { pinned: { kept, pin } }), mobile, deletion, mailSenderUse: senderUse, ...(verifications && { senderVerifications: verifications }), personalMailer: mailboxOf, sharedSenders, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)
