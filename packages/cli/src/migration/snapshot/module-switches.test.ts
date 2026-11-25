@@ -38,14 +38,14 @@ describe('turning a module off', () => {
     expect(await checkMigrations(dir, migrationsOf(dir), tokensOff, [])).toEqual([])
   })
 
-  it('takes away not null from the columns it adds to the tables of the modules still on', async () => {
+  it("takes away not null from the columns it adds to the tables of the modules still on, but a token's organization", async () => {
     const dir = await newProject()
     const organizations = authOf({ organizations: { enabled: true }, personalAccessTokens: { prefix: 'app_' } }, true)
     await migrate(dir, { auth: organizations })
     const text = await readFile((await migrate(dir, { auth: tokensOnAfterOrganizations, off: 'keep' }))!, 'utf8')
     expect(text).toContain('alter table "auth"."user" alter column "last_organization_id" drop not null;')
     expect(text).toContain('alter table "auth"."session" alter column "active_organization_id" drop not null;')
-    expect(text).toContain('alter table "auth"."personal_access_token" alter column "organization_id" drop not null;')
+    expect(text).not.toContain('alter table "auth"."personal_access_token" alter column')
   })
 
   it('relaxes only the tables there before the migration, not one of a module turned on with it', async () => {

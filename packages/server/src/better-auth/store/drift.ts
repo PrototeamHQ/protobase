@@ -31,10 +31,12 @@ export const authSchemaDrift = async (auth: AdminAuth) => {
   const options = database && 'db' in database ? { ...auth.options, database: { ...database, db: plainStoreDb(auth) } } : auth.options
   const { toBeCreated, toBeAdded, toBeAddedIndexes, schemaProblems } = await getMigrations(options, { throwOnUnsafe: false })
   const view = auth.users.keyTable ? auth.names.table('user').name : undefined
+  // A table organizations keep while off is the store's only once they were on (`keptTables`).
+  const compared = ({ table }: { table: string }) => table !== view && !auth.keptTables.includes(table)
   const tables = [
-    ...toBeCreated.filter(({ table }) => table !== view).map(({ table }) => `lacks the table ${table}`),
-    ...toBeAdded.filter(({ table }) => table !== view).flatMap(({ table, fields }) => Object.keys(fields).map((field) => `lacks the column ${table}.${field}`)),
-    ...toBeAddedIndexes.filter(({ table }) => table !== view).map(({ name }) => `lacks the index ${name}`),
+    ...toBeCreated.filter(compared).map(({ table }) => `lacks the table ${table}`),
+    ...toBeAdded.filter(compared).flatMap(({ table, fields }) => Object.keys(fields).map((field) => `lacks the column ${table}.${field}`)),
+    ...toBeAddedIndexes.filter(compared).map(({ name }) => `lacks the index ${name}`),
     ...schemaProblems,
   ]
   return view ? [...tables, ...(await userViewDrift(auth))] : tables

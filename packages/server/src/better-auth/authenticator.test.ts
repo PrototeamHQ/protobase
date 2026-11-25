@@ -19,6 +19,7 @@ const authOver = (adapter: unknown) =>
   ({
     issuer,
     api: { getJwks: async () => ({ keys: [appJwk] }) },
+    pinnedOrganization: async () => undefined,
     $context: Promise.resolve({
       adapter,
       internalAdapter: {

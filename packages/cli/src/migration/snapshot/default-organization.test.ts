@@ -45,6 +45,17 @@ describe('the default organization', () => {
     expect(await readFile(file, 'utf8')).toContain('-- organizations off: its tables and rows are kept')
     expect(existsSync(file.replace(/\.sql$/, '.after.sql'))).toBe(false)
   })
+
+  it("turning organizations on again fills nothing, and keeps a token's organization required while they were off", async () => {
+    const dir = await newProject()
+    await migrate(dir, { auth: organizationsOn })
+    const off = (await migrate(dir, { auth: { ...tokensOn, organizations: testOrganizations } }))!
+    expect(await readFile(off, 'utf8')).not.toContain('"personal_access_token" alter column')
+    const on = (await migrate(dir, { auth: organizationsOn, force: true }))!
+    expect(await readFile(on, 'utf8')).not.toContain('update ')
+    expect(await readFile(on, 'utf8')).not.toContain('insert into "auth"."organization"')
+    expect(await readFile(on.replace(/\.sql$/, '.after.sql'), 'utf8')).not.toContain('update ')
+  })
 })
 
 describe('a store this version describes otherwise', () => {

@@ -49,7 +49,11 @@ import { resolveOAuthApi, type OAuthApiOptions, type OAuthApiResource } from './
 import { mcpScope, mcpUnusedPaths, resolveMcp, type McpAuthOptions, type ResolvedMcp } from './mcp/mcp-plugins'
 import { lastOrganizationField, sessionOrganizationHooks } from './organizations/session-organization'
 import { resolvePersonalAccessTokens, type PersonalAccessTokensOptions } from './personal-access-tokens/options'
-import { personalAccessTokensPlugin } from './personal-access-tokens/token-plugin'
+import { personalAccessTokenPaths, personalAccessTokensPlugin } from './personal-access-tokens/token-plugin'
+import { keptNamesOf, pinOnce, type OrganizationsOff, type PinRead } from './organizations/kept-organizations'
+import { pinnedMembershipPlugin } from './organizations/pinned-membership'
+import { pinnedSessionHooks } from './organizations/pinned-sessions'
+import { storeDb } from './store/store-db'
 import { organizationPlugin } from './organizations/organization-plugin'
 import { derivedSlugPlugin } from './organizations/derived-slug'
 import { protobaseOrganizationPlugin } from './organizations/protobase-plugin'
@@ -280,6 +284,13 @@ export type CreateAuthOptions = {
    */
   organizations?: OrganizationsOptions
   /**
+   * What the config says of organizations while they are off: their default organization and `authenticate.tenant`.
+   * The instance reads once whether the store still holds organizations, so they were on (`pinnedOrganization`), and
+   * then pins the default organization, refusing a tenant other than its id: only its members sign in and use their
+   * tokens, people who join become its members, and personal access tokens are made in it.
+   */
+  organizationsOff?: OrganizationsOff
+  /**
    * Turns on an OAuth provider for MCP clients: a client such as an AI assistant or code editor that speaks MCP registers
    * itself, the person signs in on the app's own pages and allows it on the connect page, and the client gets tokens
    * for the MCP endpoint only, with the role and organization the person worked in when they allowed it. `true` for the
@@ -317,7 +328,7 @@ const withEndedReplaced = <H extends { create?: object }>(hooks: H) => ({ ...hoo
 type SessionHooks = NonNullable<NonNullable<BetterAuthOptions['databaseHooks']>['session']>
 type SessionCreateBefore = NonNullable<NonNullable<SessionHooks['create']>['before']>
 
-// A session the connections refuse, as one a connection's own provider would start, is refused before any other hook.
+// A session `refuse` refuses, such as one a connection's own provider would start, is refused before the other hooks.
 const refusingConnectionSessions = (hooks: SessionHooks, refuse: SessionCreateBefore | undefined): SessionHooks => {
   if (!refuse) return hooks
   const before = hooks.create?.before
@@ -350,6 +361,9 @@ const platformLockedAccounts = () => readLockedAccounts(globalThis.process?.env 
 
 const tokenLifetime = '15m'
 
+// The store's names the options give.
+const optionsNames = (options: CreateAuthOptions) => resolveNames({ schema: storeSchema({ options }), tables: options.tables, modules: modulesOf(options) })
+
 export { authBasePath }
 
 /**
@@ -371,6 +385,11 @@ export const providerTokenPaths = ['/get-access-token', '/refresh-token']
 type Resolved = {
   /** The store's names, from `resolveNames`; default those of `tables`. */
   names?: ResolvedNames
+  /**
+   * While organizations are off, maybe after being on: the store's names with them on (`keptNamesOf`), and the
+   * organization pinned, read from the store (`pinOnce`).
+   */
+  pinned?: { kept: ResolvedNames; pin: PinRead }
   /** The origins besides `baseURL`, from `resolveOrigins`. */
   origins?: string[]
   /** The RP ID of new passkeys, from `resolvePasskeyDomain`; default the host of `baseURL`. */
@@ -452,6 +471,13 @@ const noMailer = (): PersonalMail => ({ send: mailboxOff, sender: mailboxOff, se
 // organization plugin's own active-organization and accept endpoints are replaced by Protobase's.
 const organizationPaths = ['/organization/set-active', '/organization/accept-invitation']
 
+/**
+ * What a session whose user is no member of the pinned organization, such as one from before organizations were turned
+ * off, may not do: get an API token or a personal access token, or use an admin's powers over people, the sign-in
+ * policy and the registered clients, as creating or inviting someone who would then work in the default organization.
+ */
+const pinnedGuards = (path: string) => path === '/token' || path === personalAccessTokenPaths.create || ['/admin/', '/users/', '/policy/', '/openid-provider/'].some((prefix) => path.startsWith(prefix))
+
 /** The reads every page load makes, which the rate limit leaves out: they check a session, never a credential. */
 const pageLoadReads = ['/get-session', '/role/current', '/token']
 
@@ -459,8 +485,12 @@ const pageLoadReads = ['/get-session', '/role/current', '/token']
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn = [], saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, mailSenderUse, senderVerifications: verifications, personalMailer: mailOf = noMailer, sharedSenders, lockedAccounts = [], connections, names = resolveNames({ schema: storeSchema({ options }), tables: options.tables, modules: modulesOf(options) }), ...plugins }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, signUpDomains, signUpFields = resolveSignUpFields(undefined), operator, platformSignIn = [], saml = [], organizations, mcp, api, openId, personalAccessTokens, context = noContext, signInPolicy = defaultSignInPolicy, mobile, deletion, mailSenderUse, senderVerifications: verifications, personalMailer: mailOf = noMailer, sharedSenders, lockedAccounts = [], connections, names = optionsNames(options), pinned: off, ...plugins }: Resolved) => {
   const named = betterAuthNames(names)
+  // Organizations off, maybe after being on: the tables they keep, under their kept names, read while the pin holds.
+  const kept = off?.kept
+  const pin = off?.pin
+  const pinned = pin && pinnedSessionHooks(pin, context)
   const mailProviders = resolvePersonalMail(options.personalMail ?? [], Object.keys(options.socialProviders ?? {}), options.encryptOAuthTokens === true)
   const connectionHooks = connections && connections.resolved.length > 0 ? connectionAccountHooks(connections.resolved, connections.events) : undefined
   const ownProviders = (connections?.resolved ?? []).filter(({ declaration }) => 'oauth' in declaration).map(({ providerId }) => providerId)
@@ -605,7 +635,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         ...(organizations && { organizations }),
       }),
       ...(passwordHashes.length > 0 ? [rehashPasswordsPlugin(passwordHashes)] : []),
-      ...(personalAccessTokens ? [personalAccessTokensPlugin({ options: personalAccessTokens, definitions, names: named, organizations: Boolean(organizations) })] : []),
+      ...(off ? [pinnedMembershipPlugin(off.kept, off.pin, pinnedGuards)] : []),
+      ...(personalAccessTokens ? [personalAccessTokensPlugin({ options: personalAccessTokens, definitions, names: named, organizations: Boolean(organizations), ...(off && { pinned: off }) })] : []),
       ...(mailProviders.length > 0 ? [mailSendersPlugin(mailProviders, named, mailOf, mailSenderUse, verifications, sharedSenders)] : []),
       // Last, so the staff plugin refuses staff sessions on the provider's paths before its own hooks run.
       ...(mcp ? loaded(plugins.mcpAuthPlugins, 'mcp')({ mcp, ...(api && { api }), organizations: Boolean(organizations), mail: Boolean(mailer), defaultPolicy: signInPolicy, definitions, context, names: named }) : []),
@@ -618,6 +649,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       user: {
         create: {
           before: async (user, context) => {
+            await pinned?.user.before(user, context)
             const given = String((user as { role?: unknown }).role ?? '').split(',').map((name) => name.trim()).filter(Boolean)
             const unknown = given.find((name) => !roles.includes(name))
             if (given.length === 0 || unknown !== undefined) {
@@ -632,11 +664,18 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
             // An admin, or the host, creates the account for an address they vouch for; so does a SAML provider, at its domains.
             return { data: confirmedOnCreate(context?.path === '/admin/create-user' || samlProvider ? { ...withId, emailVerified: true } : withId, new Date()) }
           },
-          ...(options.onUserCreated && { after: options.onUserCreated }),
+          ...(pinned
+            ? {
+                after: async (user, context) => {
+                  await pinned.user.after(user)
+                  await options.onUserCreated?.(user, context)
+                },
+              }
+            : options.onUserCreated && { after: options.onUserCreated }),
         },
         update: { before: async (user) => ({ data: confirmedOnUpdate(user, new Date()) }) },
       },
-      session: refusingConnectionSessions(withEndedReplaced(organizations ? sessionOrganizationHooks(context) : {}) as SessionHooks, connectionHooks?.session.create?.before),
+      session: refusingConnectionSessions(refusingConnectionSessions(withEndedReplaced(organizations ? sessionOrganizationHooks(context) : {}) as SessionHooks, connectionHooks?.session.create?.before), pinned?.session),
       // Linking a mailbox makes that account the one mail goes through; linking a connection's account resumes its
       // triggers; a person holds one account of each platform provider, but for one of devices.
       account: ((mail) => (connectionHooks ? bothAccountHooks(mail, connectionHooks.account) : mail))(bothAccountHooks(oneAccountPerProvider(singleSubject), mailLinkHooks(mailProviders))),
@@ -745,8 +784,12 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   // Deleting a user revokes their connected accounts and parks the triggers on them, as disconnecting each would.
   if (resolvedConnections.length > 0) deletion.set('connections', releaseUserConnections({ connections: resolvedConnections, events, allowPrivateAddresses, context }))
   const lockedAccounts = platformLockedAccounts()
-  const names = resolveNames({ schema: storeSchema({ options }), tables: options.tables, modules: modulesOf(options) })
-  const authOptions = betterAuthOptions(options, { ...plugins, names, mobile, deletion, mailSenderUse: senderUse, ...(verifications && { senderVerifications: verifications }), personalMailer: mailboxOf, sharedSenders, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
+  const names = optionsNames(options)
+  // Every app the config serves passes `organizationsOff` (`appAuthOptions`); `createAuth` itself is internal, and its
+  // callers without the option, such as tests over a store with every module's tables, keep organizations out of sign-in.
+  const kept = options.organizationsOff && !options.organizations ? keptNamesOf(names) : undefined
+  const pin = kept && pinOnce(storeDb({ options }), kept, options.organizationsOff!)
+  const authOptions = betterAuthOptions(options, { ...plugins, names, ...(kept && pin && { pinned: { kept, pin } }), mobile, deletion, mailSenderUse: senderUse, ...(verifications && { senderVerifications: verifications }), personalMailer: mailboxOf, sharedSenders, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
   // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
   assertNoEndpointKeyClashes(authOptions.plugins)
   const auth = betterAuth(authOptions)
@@ -778,6 +821,14 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
     roles,
     roleDefinitions: definitions,
     organizations,
+    /**
+     * The organization everyone works in while organizations are off after being on, `undefined` while they are on or
+     * were never on; read from the store once (`pinOnce`), and refused with a tenant other than its id, which the
+     * server's startup checks ask first.
+     */
+    pinnedOrganization: pin ?? (async () => undefined),
+    /** The tables of organizations that sign-in reads while they are off, when the store holds them only after they were on. */
+    keptTables: kept ? [kept.table('member').name] : [],
     defaultRole,
     /** New users get their ids from `generateUserId` instead of Better Auth's random text. */
     generatesUserIds: Boolean(options.generateUserId),

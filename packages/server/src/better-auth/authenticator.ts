@@ -13,6 +13,9 @@ import { sessionMemberships } from './organizations/session-memberships'
 import type { AuthContext, OrganizationRole } from './organizations/store'
 import { personalAccessTokenOf, personalAccessTokenSessions } from './personal-access-tokens/token-sessions'
 import { checkTokenStanding, checkUserStanding, tokenClaims } from './token-standing'
+import { keptNames } from './organizations/kept-organizations'
+import { tokenOrganization } from './personal-access-tokens/pinned-tokens'
+import { storeSqlOf } from './store/store-sql'
 
 /** The client id of a personal access token at the MCP endpoint, where every request comes from a client. */
 export const personalAccessTokenClient = (id: string) => `personal-access-token:${id}`
@@ -80,10 +83,12 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
   const { issuer } = tokens
   const organizations = options.organizations ?? Boolean(options.auth?.organizations)
   const { auth } = options
+  // While organizations are off after being on, only the pinned organization's members and tokens work.
+  const pinOf = async () => (auth && !organizations ? (await auth.pinnedOrganization())?.id : undefined)
   // With personal access tokens on, a bearer token with the app's prefix is one of them, looked up in the store.
   const personal = auth?.personalAccessTokens && {
     prefix: auth.personalAccessTokens.prefix,
-    sessionOf: personalAccessTokenSessions({ prefix: auth.personalAccessTokens.prefix, context: () => auth.$context as unknown as Promise<AuthContext>, organizations, ...(options.tenant !== undefined && { tenant: options.tenant }) }),
+    sessionOf: personalAccessTokenSessions({ prefix: auth.personalAccessTokens.prefix, context: () => auth.$context as unknown as Promise<AuthContext>, organizations, ...(auth && !organizations && { pinned: { pin: auth.pinnedOrganization, organizationOf: (store: AuthContext, id: string) => tokenOrganization(storeSqlOf(store), keptNames(auth.names), id) } }), ...(options.tenant !== undefined && { tenant: options.tenant }) }),
   }
 
   // The app's claims as a session, for its own tokens and those of another audience alike; with `auth`, also whether
@@ -128,15 +133,15 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
   const dpopReplayStore = () =>
     (replayStore ??= options.auth ? options.auth.$context.then(({ internalAdapter }) => createDpopReplayStore(internalAdapter)) : Promise.resolve(createInMemoryDpopReplayStore()))
 
-  const ownStanding: Standing = (context, payload, session) =>
-    checkTokenStanding(context, tokenClaims(payload, session.user.roles, organizations ? session.tenant : undefined), organizations)
+  const ownStanding: Standing = async (context, payload, session) =>
+    checkTokenStanding(context, tokenClaims(payload, session.user.roles, organizations ? session.tenant : undefined), organizations, undefined, await pinOf())
   // An access token's `sid` names the browser session that allowed the client, which may end long before the grant
   // does; revoking the grant ends its tokens instead (`revokeMcpGrants`), which the grant check sees. Its user and the
   // roles it carries are checked as the app's own tokens' are, so a ban, a lowered role or a deletion ends it at once.
   const grantStanding: Standing = async (context, payload, session) => {
     await checkMcpGrant(context.adapter, { userId: payload.sub!, clientId: session.client?.id, issuedAt: payload.iat })
     const { sessionId: _, ...claims } = tokenClaims(payload, session.user.roles, organizations ? session.tenant : undefined)
-    const organizationRole = await checkUserStanding(context, claims, organizations)
+    const organizationRole = await checkUserStanding(context, claims, organizations, undefined, await pinOf())
     return organizationRole ? { organizationRole } : {}
   }
   const own = sessionOf({ audience: options.audience ?? issuer }, ownStanding)

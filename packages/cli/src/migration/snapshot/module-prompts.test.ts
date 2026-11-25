@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chooseOff, confirmRevival, offQuestion, revivalRefused } from './module-prompts'
+import { chooseOff, confirmRevival, defaultChosen, offerDefault, offQuestion, revivalRefused } from './module-prompts'
 
 const answering = (answer: string) => async () => answer
 
@@ -21,3 +21,22 @@ describe('the questions about modules turned off and on again', () => {
     )
   })
 })
+
+describe('the questions about turning organizations off', () => {
+  it('says what goes dark when the database says, and nothing of it without', () => {
+    expect(offQuestion([{ module: 'organizations' }], { outside: 3, otherTokens: 1 })).toContain(
+      'While organizations are off, the default organization stands in for all of them, and only its members can sign in. That locks out 3 people and stops 1 personal access token created outside it from working.',
+    )
+    expect(offQuestion([{ module: 'organizations' }], { outside: 1, otherTokens: 2 })).toContain('locks out 1 person and stops 2 personal access tokens created outside it')
+    expect(offQuestion([{ module: 'organizations' }])).not.toContain('stands in')
+    expect(offQuestion([{ module: 'mcp' }], { outside: 3, otherTokens: 1 })).not.toContain('stands in')
+  })
+
+  it("offers the store's only organization as the default, taken only when told yes, and says what to put in the config", async () => {
+    const only = { id: 'acme', name: "Acme's", slug: 'acme' }
+    expect(await offerDefault(answering('y'))(only)).toBe(true)
+    expect(await offerDefault(answering(''))(only)).toBe(false)
+    expect(defaultChosen(only)).toBe('Nothing was written. Add `default: { id: "acme", name: "Acme\'s", slug: "acme" }` to `auth.organizations` in your config, and set `authenticate.tenant` to "acme". Then run `protobase migration` again.')
+  })
+})
+

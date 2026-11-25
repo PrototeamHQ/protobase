@@ -41,6 +41,9 @@ if (store.__protobaseRecordChecked !== modelHash(model)) {
   store.__protobaseRecordChecked = modelHash(model)
 }
 
+// The organization pinned while organizations are off after being on, read with this load's auth.
+await project.auth?.pinnedOrganization()
+
 // On every load, since editing the config can add a resource over a table of the auth store, give a resource events or
 // history whose triggers the database lacks, or comments whose table it lacks, or rollups and formulas whose columns it lacks.
 if (project.auth) await checkResourcesOutsideAuthStore(db, resources.map((resource) => resource.toModel()), project.auth)

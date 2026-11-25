@@ -5,6 +5,8 @@ import { buildAuth, type CreateAuthOptions, type UserCreatedHook } from './creat
 import type { McpAuthOptions } from './mcp/mcp-plugins'
 import { organizationsEnabled, type OrganizationsOptions } from './organizations/options'
 import type { StoredMember, StoredOrganization } from './organizations/store'
+import type { OrganizationsOff } from './organizations/kept-organizations'
+import type { TenantValue } from '../types'
 import type { AddVerifier } from '../personal-mail/verifiers/sender-address-verifier'
 import { senderVerifierList } from '../personal-mail/verifiers/verifier-list'
 import { noOrganizationTables, organizationTables } from '../organization-scope/organization-tables'
@@ -59,7 +61,7 @@ export type AuthHooks = {
  * `auth` in `protobase.config.ts`: the sign-in settings as data. The store is the app's own database, in `schema`;
  * the hooks and a mailer of the project's own are found in auth/hooks.ts and auth/mailer.ts.
  */
-export type AuthSettings = Omit<CreateAuthOptions, 'database' | 'secret' | 'generateUserId' | 'onUserCreated' | 'mailer' | 'organizations' | 'mcp' | 'workflowConnections' | 'senderVerifiers'> & {
+export type AuthSettings = Omit<CreateAuthOptions, 'database' | 'secret' | 'generateUserId' | 'onUserCreated' | 'mailer' | 'organizations' | 'organizationsOff' | 'mcp' | 'workflowConnections' | 'senderVerifiers'> & {
   /** Signs cookies and encrypts the JWT private keys, such as `PROTOBASE_SECRET`. Generate with `openssl rand -base64 32`. */
   secret?: string
   /** The schema of the auth store in the app's database; default `auth`. */
@@ -85,6 +87,8 @@ export type AppAuthInput = {
   mailer?: Mailer
   /** The connections the app's workflow plugins declare, which people connect accounts through. */
   workflowConnections?: CreateAuthOptions['workflowConnections']
+  /** `authenticate.tenant`, which pins the default organization while organizations are off after being on. */
+  tenant?: TenantValue
 }
 
 const organizationOptions = (organizations: AuthSettings['organizations'], hooks: AuthHooks, app: HookContexts): OrganizationsOptions | undefined => {
@@ -101,8 +105,16 @@ const organizationOptions = (organizations: AuthSettings['organizations'], hooks
   }
 }
 
+// What the settings say of organizations while they are off, which the auth instance pins the default organization
+// from while the store still holds organizations (`pinnedOrganization`).
+const organizationsOffOf = (organizations: AuthSettings['organizations'], tenant: TenantValue | undefined): OrganizationsOff => ({
+  ...(organizations?.default && { default: organizations.default }),
+  ...(organizations?.existingUsersRole !== undefined && { existingUsersRole: organizations.existingUsersRole }),
+  ...(tenant !== undefined && { tenant }),
+})
+
 /** createAuth's options for the `auth` settings, the store in the app's own database. */
-export const appAuthOptions = (settings: AuthSettings, { db, hooks = {}, mailer, workflowConnections }: AppAuthInput): CreateAuthOptions => {
+export const appAuthOptions = (settings: AuthSettings, { db, hooks = {}, mailer, workflowConnections, tenant }: AppAuthInput): CreateAuthOptions => {
   const { schema = 'auth', secret, generateUserId, mailer: mail, organizations, mcp, ...rest } = settings
   if (!secret) throw new Error("the auth secret is not set: give it the app's secret, PROTOBASE_SECRET, made with `openssl rand -base64 32`")
   // The store's tables as the hooks see them; sign-in itself reads the store through `db` as it is.
@@ -122,7 +134,7 @@ export const appAuthOptions = (settings: AuthSettings, { db, hooks = {}, mailer,
     ...(userId && { generateUserId: userId }),
     ...(onUserCreated && { onUserCreated }),
     ...(mail === false ? { mailer: false as const } : mailer && { mailer }),
-    ...(organizationsOptions && { organizations: organizationsOptions }),
+    ...(organizationsOptions ? { organizations: organizationsOptions } : { organizationsOff: organizationsOffOf(organizations, tenant) }),
     ...(mcp && { mcp }),
     ...(workflowConnections && { workflowConnections }),
     ...(senderVerifiers.length > 0 && { senderVerifiers }),

@@ -48,6 +48,9 @@ describe.skipIf(!(await postgresTemplateReady('auth')))('protobase dev with a re
 
   beforeAll(async () => {
     database = await openPostgresDatabase('auth')
+    // The app has organizations off, so its store holds none, as one where they were never on: the template's default
+    // organization would pin it to one (`pinnedOrganization`).
+    await database.exec('delete from organization')
     const auth = createAuth({ database: { dialect: database.dialect, type: 'postgres' }, baseURL: 'http://localhost', secret, mailer: false })
     user = String((await createUser(auth, { email: 'dev@example.com', name: 'dev', password, role: 'admin' })).id)
     const models = Object.values(resources).map((entry) => entry.toModel())

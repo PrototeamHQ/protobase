@@ -21,8 +21,8 @@ const setCheckName = ({ table }: MigrationNames) => generatedName(`${table('pers
  * made when the store lacks it, under its id. When organizations turn on for the first time, every user there already
  * becomes its member with `organizations.existingUsersRole`, which a new store with its own user table, holding none,
  * does without, and every personal access token works in it; when they
- * were on before, a token without an organization has none to copy, so the step refuses, naming it. That includes a
- * token made while organizations were off, which is not given the default organization as it is made. The tokens'
+ * were on before, a token without an organization has none to copy, so the step refuses, naming it, such as one made
+ * while they were off before tokens made then were given the default organization as they were made. The tokens'
  * organization is then required: filled in batches, checked without a scan, and indexed concurrently, once the
  * migration's transaction commits.
  */
@@ -72,8 +72,8 @@ where not exists (select from ${member} where ${m.organization_id} = ${id} and $
     },
   },
   addsChecks: {
-    // Only where organizations were on before: tokens made then name theirs, and the default is no source for one that does
-    // not, such as one made while they were off, which is refused until its creation writes the default organization.
+    // Only where organizations were on before: tokens made then name theirs, as do those made while they were off, in the
+    // default organization; the default is no source for one that names none.
     personal_access_tokens: ({ table }, input) => {
       const token = table('personal_access_token')
       const t = token.columns

@@ -106,3 +106,24 @@ describe('the sign-in a token stands for', () => {
     expect(await signIn({ ...session, impersonatedBy: null }, {})).toBeUndefined()
   })
 })
+
+describe('a token while organizations are off after being on', () => {
+  const pinned = (rows: Rows, claims: Partial<Parameters<typeof checkTokenStanding>[1]> = {}) =>
+    checkTokenStanding(contextWith(rows), { userId: 'alice', roles: ['admin'], ...claims }, false, now, 'main').then(
+      () => 'stands',
+      (problem: { status: number }) => problem.status,
+    )
+
+  it('stands for a member of the pinned organization, with the global roles', async () => {
+    expect(await pinned({ user: [alice], member: [{ organizationId: 'main', userId: 'alice', role: 'member' }] })).toBe('stands')
+  })
+
+  it('is refused to someone who is a member of another organization only, or of none', async () => {
+    expect(await pinned({ user: [alice], member: [{ organizationId: 'other', userId: 'alice', role: 'owner' }] })).toBe(401)
+    expect(await pinned({ user: [alice] })).toBe(401)
+  })
+
+  it('reads no membership without a pin', async () => {
+    expect(await standing({ user: [alice] }, {})).toBe('stands')
+  })
+})

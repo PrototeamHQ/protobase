@@ -34,8 +34,10 @@ const revoked = () => unauthorized('The bearer token was revoked: get a new one'
 export const bannedNow = (user: Pick<StandingUser, 'banned' | 'banExpires'>, now: Date) => Boolean(user.banned) && (!user.banExpires || user.banExpires > now)
 
 // The roles the user holds where the token works: globally, and in its organization as a member, with their
-// organization role there; `undefined` when they may no longer work in that organization at all.
-const heldWhere = async ({ adapter }: AuthContext, user: StandingUser, organizations: boolean, organizationId?: string): Promise<{ roles: string[]; organizationRole?: OrganizationRole } | undefined> => {
+// organization role there; `undefined` when they may no longer work in that organization at all. While organizations
+// are off after being on, that is the pinned one, `pin`, where they must still be a member.
+const heldWhere = async ({ adapter }: AuthContext, user: StandingUser, organizations: boolean, organizationId?: string, pin?: string): Promise<{ roles: string[]; organizationRole?: OrganizationRole } | undefined> => {
+  if (!organizations && pin !== undefined && !(await findMember(adapter, { organizationId: pin, userId: user.id }))) return
   if (!organizations) return { roles: parseRoles(user.role) }
   const global = globalRoles(user.role)
   if (!organizationId) return { roles: global }
@@ -48,12 +50,13 @@ const heldWhere = async ({ adapter }: AuthContext, user: StandingUser, organizat
  * Whether a token's user still stands, read from the store: they exist and are not banned, and each role the token
  * carries is one they still hold where it works. The part of `checkTokenStanding` an MCP access token gets, whose
  * grant outlives the browser session that made it. Answers their organization role where the token works, as the
- * store holds it now, `undefined` for someone who is no member there.
+ * store holds it now, `undefined` for someone who is no member there. With organizations off after being on, `pin` is
+ * the pinned organization, and someone who is no member of it no longer stands.
  */
-export const checkUserStanding = async (context: AuthContext, claims: Omit<TokenClaims, 'sessionId'>, organizations: boolean, now = new Date()) => {
+export const checkUserStanding = async (context: AuthContext, claims: Omit<TokenClaims, 'sessionId'>, organizations: boolean, now = new Date(), pin?: string) => {
   const user = await context.adapter.findOne<StandingUser>({ model: 'user', where: [{ field: 'id', value: claims.userId }] })
   if (!user || bannedNow(user, now)) throw revoked()
-  const held = await heldWhere(context, user, organizations, claims.organizationId)
+  const held = await heldWhere(context, user, organizations, claims.organizationId, pin)
   if (!held || claims.roles.some((role) => !held.roles.includes(role))) throw revoked()
   return held.organizationRole
 }
@@ -64,12 +67,12 @@ export const checkUserStanding = async (context: AuthContext, claims: Omit<Token
  * one, which carries the roles as they are now or is refused. Answers the sign-in the token's session stands for
  * (`signInOf`), `undefined` for a token without one; the user's own one also reads, when asked, when it last proved a
  * passkey or a second step (`strongSignInAt`). Answers it with the user's organization role where the token works
- * (`checkUserStanding`).
+ * (`checkUserStanding`), a member of `pin` while organizations are off after being on.
  */
-export const checkTokenStanding = async (context: AuthContext, claims: TokenClaims, organizations: boolean, now = new Date()): Promise<{ signIn: Session['signIn']; organizationRole?: OrganizationRole }> => {
+export const checkTokenStanding = async (context: AuthContext, claims: TokenClaims, organizations: boolean, now = new Date(), pin?: string): Promise<{ signIn: Session['signIn']; organizationRole?: OrganizationRole }> => {
   const session = claims.sessionId === undefined ? undefined : await context.adapter.findOne<StandingSession>({ model: 'session', where: [{ field: 'id', value: claims.sessionId }] })
   if (claims.sessionId !== undefined && (!session || session.userId !== claims.userId || session.expiresAt <= now)) throw revoked()
-  const organizationRole = await checkUserStanding(context, claims, organizations, now)
+  const organizationRole = await checkUserStanding(context, claims, organizations, now, pin)
   const signIn = session ? signInOf(session, claims.sessionId!) : undefined
   if (!signIn || signIn.staff) return { signIn, ...(organizationRole && { organizationRole }) }
   return { signIn: { ...signIn, strongAt: () => strongSignInAt(context.internalAdapter, claims.sessionId!) }, ...(organizationRole && { organizationRole }) }

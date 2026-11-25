@@ -92,3 +92,43 @@ describe("a request's personal access token", () => {
     expect(personalAccessTokenOf(request(), prefix)).toBeUndefined()
   })
 })
+
+describe('a personal access token while organizations are off after being on', () => {
+  // The store with the user a member of `main` alone.
+  const pinnedStore = (row: PersonalAccessTokenRow, member = { organizationId: 'main', userId: 'u1', role: 'member' }) => {
+    organizations.set(row.id, row.organizationId ?? null)
+    const findOne = vi.fn(async ({ model, where }: { model: string; where: { field: string; value: unknown }[] }) => {
+      if (model === 'personalAccessToken') return where[0]!.value === row.tokenHash ? row : null
+      if (model === 'user') return where[0]!.value === 'u1' ? { id: 'u1', role: 'sales' } : null
+      if (model === 'member') return where.every(({ field, value }) => member[field as keyof typeof member] === value) ? member : null
+      throw new Error(`unexpected lookup of ${model}`)
+    })
+    return { adapter: { findOne, update: vi.fn(async () => null) } } as unknown as AuthContext
+  }
+  // The organization each token was made in, as its kept column holds it.
+  const organizations = new Map<string, string | null>()
+  const pinned = { pin: async () => ({ id: 'main' }), organizationOf: async (_store: AuthContext, id: string) => organizations.get(id) ?? null }
+  const pinnedSessions = (context: AuthContext) => personalAccessTokenSessions({ prefix, context: async () => context, organizations: false, pinned, tenant: 'main' })
+
+  it('works when made in the pinned organization, in it, saying nothing of an organization', async () => {
+    const token = newToken(prefix)
+    const { session } = await pinnedSessions(pinnedStore(await rowFor(token, { organizationId: 'main' })))(token, now)
+    expect(session).toEqual({ user: { id: 'u1', roles: ['sales'] }, tenant: 'main' })
+  })
+
+  it('is refused as an unknown token is when made in another organization, or in none', async () => {
+    const token = newToken(prefix)
+    const unknown = await pinnedSessions(pinnedStore(await rowFor(newToken(prefix))))(token, now).catch((problem: unknown) => problem)
+    for (const organizationId of ['other', null, undefined]) {
+      const refused = await pinnedSessions(pinnedStore(await rowFor(token, { organizationId })))(token, now).catch((problem: unknown) => problem)
+      expect(refused).toMatchObject({ status: 401 })
+      expect(JSON.stringify(refused)).toBe(JSON.stringify(unknown))
+    }
+  })
+
+  it('is refused once its user is no member of the pinned organization', async () => {
+    const token = newToken(prefix)
+    const context = pinnedStore(await rowFor(token, { organizationId: 'main' }), { organizationId: 'other', userId: 'u1', role: 'member' })
+    await expect(pinnedSessions(context)(token, now)).rejects.toMatchObject({ status: 401 })
+  })
+})
