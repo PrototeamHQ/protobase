@@ -98,6 +98,8 @@ export const edges = [
   { from: ['packages/server/src/notifications/testing/apns-service.ts'], reads: ['packages/server/src/notifications/testing/self-signed.*'] },
   // The FCM sender's tests answer from the recorded token endpoint and FCM answers, read by path.
   { from: ['packages/server/src/notifications/fcm/testing/recordings.ts'], reads: ['packages/server/src/notifications/fcm/testing/recordings/**'] },
+  // The change capture's frozen steps are compared with what it wrote before it had them.
+  { from: ['packages/server/src/changes/changes-module.test.ts'], reads: ['packages/server/src/changes/steps/written-before-steps.sql'] },
   // The check that @protobase/ui's stable entry exports its building blocks reads every module of its source.
   { from: ['scripts/ui-exports/building-blocks.test.ts'], reads: ['packages/ui/src/**'] },
   // The examples' tests run on a clone of a template database, migrated and seeded from the example.
