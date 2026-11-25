@@ -4,7 +4,8 @@ import type { TransactionSql } from 'postgres'
 // indexes that limit what it may write, its functions, the triggers that keep tables up to date, and enum values.
 // Read in one query, outside Postgres's own schemas.
 
-export type CatalogRelation = { oid: string; name: string; kind: string }
+/** A relation, with its comment, which says when Protobase made it, such as a time rollup's table. */
+export type CatalogRelation = { oid: string; name: string; kind: string; comment: string | null }
 export type CatalogColumn = { relation: string; name: string; number: number; type: string; notNull: boolean; hasDefault: boolean; generated: boolean }
 /** A check, unique, foreign key, primary key or exclusion constraint, or a unique index, by its relation's oid. */
 export type CatalogLimit = { relation: string; name: string; definition: string }
@@ -27,14 +28,14 @@ const catalogSql = `with ns as (
   select oid, nspname from pg_namespace
   where nspname not in ('pg_catalog', 'information_schema', 'pg_toast') and nspname not like 'pg\\_temp\\_%' and nspname not like 'pg\\_toast\\_temp\\_%'
 ), rel as (
-  select c.oid, format('%I.%I', ns.nspname, c.relname) as name, c.relkind::text as kind from pg_class c join ns on ns.oid = c.relnamespace
+  select c.oid, format('%I.%I', ns.nspname, c.relname) as name, c.relkind::text as kind, obj_description(c.oid, 'pg_class') as comment from pg_class c join ns on ns.oid = c.relnamespace
   where c.relkind in ('r', 'p', 'v', 'm', 'f', 'S')
 ), fn as (
   select p.oid, format('%I.%I(%s)', ns.nspname, p.proname, pg_get_function_identity_arguments(p.oid)) as key, pg_get_function_result(p.oid) as result
   from pg_proc p join ns on ns.oid = p.pronamespace
 )
 select json_build_object(
-  'relations', (select coalesce(json_agg(json_build_object('oid', oid::text, 'name', name, 'kind', kind)), '[]') from rel),
+  'relations', (select coalesce(json_agg(json_build_object('oid', oid::text, 'name', name, 'kind', kind, 'comment', comment)), '[]') from rel),
   'columns', (select coalesce(json_agg(json_build_object('relation', a.attrelid::text, 'name', a.attname, 'number', a.attnum, 'type', format_type(a.atttypid, a.atttypmod),
       'notNull', a.attnotnull, 'hasDefault', a.atthasdef, 'generated', a.attgenerated <> '')), '[]')
     from pg_attribute a join rel on rel.oid = a.attrelid where a.attnum > 0 and not a.attisdropped and rel.kind <> 'S'),

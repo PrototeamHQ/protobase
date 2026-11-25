@@ -7,6 +7,7 @@ import { ddl } from '../ddl'
 import { statementsSql } from '../migration-sql'
 import { moduleSteps } from '../steps'
 import type { StoreNames } from '../store-names'
+import { unwatchStatements, watchStatements, type RetiredColumn } from './retired-watch'
 
 // What a migration writes for a module the config turns off, and for one it turns on again after keeping its tables.
 
@@ -26,13 +27,12 @@ const everyTable = (names: StoreNames) => resolveNames({ ...names.names.input, m
 const writtenWhileOff: Partial<Record<ModuleId, Record<string, readonly string[]>>> = { organizations: { personal_access_token: ['organization_id'] } }
 
 /**
- * The statements that keep `module`'s tables and rows while it is off: each column it adds to a table of a module that
- * stays on, one of `existing`, whose tables the store has before the migration, loses `not null`, so the code that no
- * longer writes it still inserts rows; one the server still writes stays required (`writtenWhileOff`). A table of a
- * module turned on in the same migration is made without the column. The user table is left alone when it is a
- * relation Protobase did not make.
+ * The columns `module` adds to the tables of the modules that stay on, which retire once it is off: each table one of
+ * `existing`, whose tables the store has before the migration; a column the server still writes while it is off stays
+ * in use (`writtenWhileOff`). A table of a module turned on in the same migration is made without the column. The user
+ * table is left alone when it is a relation Protobase did not make.
  */
-export const keepStatements = (names: StoreNames, module: ModuleId, existing: readonly ModuleId[], externalUser = names.users.keyTable !== undefined) => {
+export const retiredColumns = (names: StoreNames, module: ModuleId, existing: readonly ModuleId[], externalUser = names.users.keyTable !== undefined): RetiredColumn[] => {
   const every = everyTable(names)
   const declaration = builtInModules.find(({ id }) => id === module) as ModuleDeclaration
   return Object.entries(declaration.columns ?? {})
@@ -43,8 +43,18 @@ export const keepStatements = (names: StoreNames, module: ModuleId, existing: re
     .flatMap(([table, columns]) =>
       Object.keys(columns)
         .filter((column) => !writtenWhileOff[module]?.[table]?.includes(column))
-        .map((column) => ddl`alter table ${every[table]!} alter column ${every[table]!.columns[column]!} drop not null`),
+        .map((column) => ({ table: every[table]!, column: every[table]!.columns[column]! })),
     )
+}
+
+/**
+ * The statements that keep `module`'s tables and rows while it is off: each column it retires (`retiredColumns`) loses
+ * `not null`, so the code that no longer writes it still inserts rows, and is watched for the writes of the code that
+ * still does (`watchStatements`).
+ */
+export const keepStatements = (names: StoreNames, module: ModuleId, existing: readonly ModuleId[], externalUser?: boolean) => {
+  const columns = retiredColumns(names, module, existing, externalUser)
+  return [...columns.map(({ table, column }) => ddl`alter table ${table} alter column ${column} drop not null`), ...watchStatements(columns)]
 }
 
 /** The tables of `module` its steps up to `step` made, under the store's names. */
@@ -84,5 +94,15 @@ $revive$`
 export const keepSql = (names: StoreNames, module: ModuleId, existing: readonly ModuleId[], externalUser?: boolean) => {
   const statements = keepStatements(names, module, existing, externalUser)
   if (statements.length === 0) return `-- ${module} off: its tables and rows are kept as they are.`
-  return `-- ${module} off: its tables and rows are kept, and the columns it adds to the tables of the modules that are on may stay empty.\n${statementsSql(statements)}`
+  return `-- ${module} off: its tables and rows are kept, and the columns it adds to the tables of the modules that are on may stay empty, watched for writes in retired.writes.\n${statementsSql(statements)}`
+}
+
+/**
+ * The statements that stop the watch on the columns `module` retired, as it turns on again, whose values they kept;
+ * none when it retired none.
+ */
+export const unwatchSql = (names: StoreNames, module: ModuleId, existing: readonly ModuleId[], externalUser?: boolean) => {
+  const statements = unwatchStatements(retiredColumns(names, module, existing, externalUser))
+  if (statements.length === 0) return
+  return `-- ${module} on again: the columns it adds are in use again, with the values they kept, and no longer watched.\n${statementsSql(statements)}`
 }

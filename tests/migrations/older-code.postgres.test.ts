@@ -1,8 +1,9 @@
-import { mkdtemp, readdir, rm } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { sql } from 'kysely'
 import { describe, expect, it } from 'vitest'
+import { bucketsCommentPrefix } from '@protobase/server/internal'
 import { trialContractions } from '../../packages/cli/src/migration/older-code/trial'
 import { runMigration } from '../../packages/cli/src/migration/snapshot/run-migration'
 import { openPostgresDatabase, postgresTemplateReady } from '../../test-support/postgres-database'
@@ -72,6 +73,21 @@ alter table sales.orders add column total integer generated always as (id * 3) s
       'The migration would break the code still running while it deploys, and the version before it once rolled back: computed drops, renames or moves table sales.orders. To make it anyway, write it by hand with `protobase migration --custom <name>` and put `-- protobase:breaks-older-code` among its `-- protobase:` lines',
     )
     expect(await readdir(projectDir)).toEqual([])
+    await rm(projectDir, { recursive: true, force: true })
+  })
+
+  it("writes a changed time rollup, whose table of recomputed rows is made again, as taking nothing", async () => {
+    const database = await openPostgresDatabase('empty')
+    const rollup = (comment: string, measure: string) => `create table sales.daily (day date primary key, ${measure} bigint not null);
+comment on table sales.daily is '${bucketsCommentPrefix}${comment}';
+insert into sales.daily select current_date, 1;`
+    await database.exec(`${ordersSql}\n${rollup('v1', 'orders')}`)
+    const changed = { name: 'computed', title: 'A changed time rollup', sql: async () => `drop table sales.daily;\n${rollup('v2', 'orders')}\nalter table sales.daily add column total bigint` }
+    const projectDir = await mkdtemp(path.join(tmpdir(), 'protobase-older-code-'))
+    const dir = path.join(projectDir, 'db/migrations')
+    const file = await runMigration({ projectDir, dir, auth: undefined, modules: [], database: { url: database.url, parts: [changed], contractions: (sections) => trialContractions(database.url, sections), readModule: async () => undefined }, protobaseVersion: '1.0.0', newId: () => 'id' })
+    expect(await readFile(file!, 'utf8')).not.toContain('breaks-older-code')
+    expect(await trialContractions(database.url, [section('computed', `drop table sales.daily;\n${rollup('v2', 'count')}`)])).toEqual([{ name: 'computed', found: ['drops or renames column sales.daily.orders'] }])
     await rm(projectDir, { recursive: true, force: true })
   })
 })
