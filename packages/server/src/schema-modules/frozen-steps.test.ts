@@ -8,6 +8,7 @@ import type { ModuleNames } from './schema-module'
 const notifications = notificationsTargets({}, undefined)
 const names: Record<SchemaModuleId, ModuleNames> = {
   jobs: {},
+  computed: {},
   changes: { schema: 'changes' },
   history: { schema: 'changes' },
   notices: { schema: 'changes' },
@@ -29,6 +30,7 @@ const names: Record<SchemaModuleId, ModuleNames> = {
 // the workflows' tables, are pinned here so an edit to one of them fails this test.
 const pinned: Record<string, string> = {
   'jobs 1': '5b539ac15e3656f8',
+  'computed 1': '847f661dba56a7b8',
   'changes 1': '5889c9ed5e886936',
   'history 1': '43a670bbef1d4916',
   'notices 1': 'd2b58c96a65b1012',

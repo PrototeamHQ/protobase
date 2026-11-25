@@ -1,7 +1,7 @@
 import { Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { computedMigration, createAdmin } from '../src/index'
+import { computedSchemaSql, createAdmin } from '../src/index'
 import { as, testAuthenticator } from '../../../test-support/server'
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
@@ -44,7 +44,7 @@ beforeAll(async () => {
     update readings set peak = null where taken_at >= '2026-07-04 22:00:00+00' and taken_at < '2026-07-05 22:00:00+00';
   `)
   db = new Kysely({ dialect: pg.dialect })
-  await pg.exec((await computedMigration(db, [readings.toModel(), hourly.toModel(), daily.toModel()]))!)
+  await pg.exec(computedSchemaSql([readings.toModel(), hourly.toModel(), daily.toModel()]))
   app = createAdmin({ resources: [readings, hourly, daily], db, authenticate: testAuthenticator })
 })
 afterAll(async () => { await db.destroy() })

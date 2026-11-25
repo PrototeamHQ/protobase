@@ -7,12 +7,12 @@ import type { EventsOptions } from './events-options'
 /**
  * The change capture `models` need, as a migration writes it on a database without it: the change capture module, and
  * the history and notices tables when a resource has history or live updates. The jobs schema it enqueues into is not
- * part of it (`jobsSchemaSql`).
+ * part of it (`jobsSchemaSql`), nor are the rollups and formulas of `models` (`computedSchemaSql`).
  */
 export const captureSchemaSql = (models: readonly ResourceModel[], events?: EventsOptions) => {
   const targets = neededModules({ models, views: [], jobs: [], signIn: false, ...(events && { events }) })
   return targetIds(targets)
-    .filter((id) => id !== 'jobs')
+    .filter((id) => id !== 'jobs' && id !== 'computed')
     .map((id) => moduleDifference(schemaModules[id], targets[id]!, undefined).sql!)
     .join('\n\n')
 }

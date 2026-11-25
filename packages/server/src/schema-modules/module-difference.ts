@@ -37,11 +37,13 @@ const newerThanShipped = (module: SchemaModule, from: ModuleModel) => {
 
 /**
  * What brings `module` from `from`, `undefined` when the database has none of it, to its latest model for `input`: the
- * steps after its last, then each replaceable at another version, then each resource's objects that differ
- * (`resourceDifference`), each under its title; `sql` undefined when nothing differs. `breaks` says what of it the code
- * before does not run on, one line each: a step that does not only add, and a replaceable replaced from a version older
- * than its `compatibleFrom`; none when it is additive. `model` is the module once it is applied, which keeps the
- * objects of resources kept for older code. Refuses a name of `input` that differs from the one `from` has.
+ * steps after its last, then each replaceable at another version, then the removals of each resource's objects, the
+ * last resource replaceable's first, then each resource's objects that differ (`resourceDifference`), each under its
+ * title; `sql` undefined when nothing differs. `after`: what those objects rebuild once the transaction commits, the
+ * migration's `.after.sql`; undefined when they rebuild nothing. `breaks` says what of it the code before does not run
+ * on, one line each: a step that does not only add, and a replaceable replaced from a version older than its
+ * `compatibleFrom`; none when it is additive. `model` is the module once it is applied, which keeps the objects of
+ * resources kept for older code. Refuses a name of `input` that differs from the one `from` has.
  */
 export const moduleDifference = (module: SchemaModule, input: ModuleInput, from: ModuleModel | undefined) => {
   if (from && newerThanShipped(module, from)) throw new Error(`${module.label} is newer than this version of Protobase writes: upgrade Protobase`)
@@ -53,25 +55,30 @@ export const moduleDifference = (module: SchemaModule, input: ModuleInput, from:
     name: replaceable.name,
     ...resourceDifference(replaceable, input.names, input.resources[replaceable.name] ?? {}, from?.resources?.[replaceable.name] ?? {}),
   }))
-  const parts = [...[...steps, ...replaced].map(({ title, sql }) => `-- ${title}.\n${sql(input.names).trim()}`), ...perResource.flatMap(({ parts }) => parts)]
+  // Removals go in the reverse of the order objects are made in, so what reads another object goes before it.
+  const drops = perResource.toReversed().flatMap(({ drops }) => drops)
+  const parts = [...[...steps, ...replaced].map(({ title, sql }) => `-- ${title}.\n${sql(input.names).trim()}`), ...drops, ...perResource.flatMap(({ writes }) => writes)]
+  const after = perResource.flatMap(({ after }) => after)
   const breakingSteps = steps.filter(({ additive }) => !additive).map(({ step, name }) => `its step ${step} (${name}) does not only add`)
   const olderReplaced = replaced.flatMap(({ name, version, compatibleFrom }) => {
     const had = from?.replaceables[name]
     return had !== undefined && had < compatibleFrom ? [`it replaces its ${name} at version ${had} with version ${version}, which the code before does not run on`] : []
   })
   const model = withParts(latestModel(module), input.names, Object.fromEntries(perResource.map(({ name, entries }) => [name, entries])))
-  return { sql: parts.length > 0 ? parts.join('\n\n') : undefined, breaks: [...breakingSteps, ...olderReplaced, ...perResource.flatMap(({ breaks }) => breaks)], model }
+  return { sql: parts.length > 0 ? parts.join('\n\n') : undefined, after: after.length > 0 ? after.join('\n\n') : undefined, breaks: [...breakingSteps, ...olderReplaced, ...perResource.flatMap(({ breaks }) => breaks)], model }
 }
 
 /**
  * What becomes of `module` once the config no longer needs it: its tables and replaceables stay as the migrations
- * left them, and each resource's objects go, as no resource needs them, which breaks older code (`breaks`); `sql`
- * undefined when it has none.
+ * left them, and each resource's objects go, as no resource needs them, which breaks older code (`breaks`), but for
+ * those a replaceable without `drop` leaves; `sql` undefined when it has none. It leaves nothing for after the
+ * transaction.
  */
 export const retiredDifference = (module: SchemaModule, from: ModuleModel) => {
   const names = from.names ?? {}
   const dropped = module.resourceReplaceables.map((replaceable) => resourceDifference(replaceable, names, {}, from.resources?.[replaceable.name] ?? {}))
-  const parts = dropped.flatMap(({ parts }) => parts)
-  const { resources: _, ...model } = from
-  return { sql: parts.length > 0 ? parts.join('\n\n') : undefined, breaks: dropped.flatMap(({ breaks }) => breaks), model }
+  const parts = dropped.toReversed().flatMap(({ drops }) => drops)
+  const { resources: _, names: __, ...rest } = from
+  const model = withParts(rest, names, Object.fromEntries(module.resourceReplaceables.map(({ name }, index) => [name, dropped[index]!.entries])))
+  return { sql: parts.length > 0 ? parts.join('\n\n') : undefined, after: undefined, breaks: dropped.flatMap(({ breaks }) => breaks), model }
 }

@@ -126,7 +126,9 @@ export const runMigration = async (run: MigrationRun) => {
     ...found.flatMap(({ name, found: lines }) => lines.map((line) => `${label(name)}: ${line}`)),
     ...written.sections.flatMap(({ title, breaks }) => breaks.map((line) => `${title}: ${line}`)),
   ]
-  const after = difference.migration?.after
+  // What the auth store's steps and the schema modules leave for once the transaction commits, the file's `.after.sql`.
+  const afterParts = [...(difference.migration?.after ? [difference.migration.after.trimEnd()] : []), ...written.sections.flatMap(({ title, after }) => (after === undefined ? [] : [section(title, after).trimEnd()]))]
+  const after = afterParts.length > 0 ? `${afterParts.join('\n\n')}\n` : undefined
   const content = {
     name: sections.map(({ name }) => name).join('_'),
     body: [intro, ...(breaking.length > 0 ? [breaksOlderCodeNote(breaking)] : []), ...sections.map(({ text }) => text)].join('\n'),

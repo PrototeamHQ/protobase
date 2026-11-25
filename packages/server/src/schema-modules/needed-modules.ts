@@ -3,7 +3,8 @@ import type { StoreNames } from '../better-auth/store/store-names'
 import { capturedBy } from '../changes/capture-sql'
 import { changesInput } from '../changes/changes-input'
 import { changesSchema, type EventsOptions } from '../changes/events-options'
-import { hasBuckets } from '../computed/buckets-schema'
+import { hasBuckets } from '../computed/buckets-targets'
+import { computedInput, computedOn } from '../computed/computed-input'
 import { mailFeedbackResource } from '../mail/feedback/mail-feedback-resource'
 import type { NotificationsOptions } from '../notifications/options'
 import { notificationsTargets } from '../notifications/notifications-targets'
@@ -59,6 +60,7 @@ export const neededModules = (app: ModuleApp): ModuleTargets => {
   const events = { names: { schema: changesSchema(app.events) }, resources: {} }
   return {
     ...(jobs && { jobs: noInput }),
+    ...(app.models.some(computedOn) && { computed: computedInput(app.models) }),
     ...(changes && { changes: changesInput(captured, app.events) }),
     ...(app.models.some((model) => model.history) && { history: events }),
     ...((app.models.some((model) => model.live) || Boolean(app.calls)) && { notices: events }),

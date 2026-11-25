@@ -1,5 +1,6 @@
 import type { FieldModel, ResourceModel } from '@protobase/schema'
 import { identifier, quoteIdent } from '../changes/capture-sql'
+import type { TableName } from '../schema-modules/schema-module'
 import { columnType } from './column-sql'
 
 /** The schema of the functions that keep rollups. */
@@ -17,14 +18,18 @@ export type RollupTarget = {
   fromTable: string
 }
 
-/** The function that keeps one rollup, named for its resource's table and column. */
-export const rollupFunctionName = ({ model, field }: RollupTarget) =>
-  identifier([model.table.schema, model.table.name, field.column].filter(Boolean).join('_'))
+/** The function that keeps one rollup, named for its resource's table, as the resource names it, and column. */
+export const rollupFunctionName = (table: TableName, column: string) => identifier([table.schema, table.name, column].filter(Boolean).join('_'))
+
+const targetFunctionName = ({ model, field }: RollupTarget) => rollupFunctionName(model.table, field.column)
 
 /** The trigger on `from`'s table that calls it. */
-export const rollupTriggerName = (target: RollupTarget) => identifier(`${rollupFunctionName(target)}_rollup`)
+export const rollupTriggerName = (target: RollupTarget) => identifier(`${targetFunctionName(target)}_rollup`)
 
-const functionSql = (target: RollupTarget) => `${quoteIdent(rollupsSchema)}.${quoteIdent(rollupFunctionName(target))}`
+/** The function that keeps the rollup of `table`'s `column`, qualified. */
+export const rollupFunctionSqlName = (table: TableName, column: string) => `${quoteIdent(rollupsSchema)}.${quoteIdent(rollupFunctionName(table, column))}`
+
+const functionSql = (target: RollupTarget) => rollupFunctionSqlName(target.model.table, target.field.column)
 
 const viaColumn = ({ from, field }: RollupTarget) => quoteIdent(from.fields[field.rollup!.via]!.column)
 
@@ -80,8 +85,8 @@ const readColumns = ({ from, field }: RollupTarget) =>
 export const rollupTriggerSql = (target: RollupTarget) =>
   `create trigger ${quoteIdent(rollupTriggerName(target))} after insert or delete or update of ${readColumns(target).join(', ')} on ${target.fromTable} for each row execute function ${functionSql(target)}()`
 
-export const dropRollupTriggerSql = (name: string, table: string) => `drop trigger if exists ${quoteIdent(name)} on ${table}`
-
+/** Drops the function that keeps the rollup of `table`'s `column`, and with it the trigger that calls it. */
+export const dropRollupSql = (table: TableName, column: string) => `drop function if exists ${rollupFunctionSqlName(table, column)}() cascade`
 
 /** Sets every record's rollup from what `from` has now. */
 export const backfillSql = (target: RollupTarget) => refreshSql(target, 'true')

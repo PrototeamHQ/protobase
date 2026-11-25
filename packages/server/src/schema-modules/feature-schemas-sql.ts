@@ -1,6 +1,7 @@
 import type { ResourceModel } from '@protobase/schema'
 import { storeNames, type StoreNamesSource } from '../better-auth/store/store-names'
 import { changesSchema, type EventsOptions } from '../changes/events-options'
+import { computedInput } from '../computed/computed-input'
 import { notificationsTargets } from '../notifications/notifications-targets'
 import type { NotificationsOptions } from '../notifications/options'
 import type { RealtimeRelaySettings } from '../relay/relay-options'
@@ -40,3 +41,6 @@ export const realtimeRelaySchemaSql = () => modulesSql({ realtime_relay: noInput
 
 /** The `channels` schema of SQL's broadcasts to the record channels. */
 export const channelSendsSchemaSql = () => modulesSql({ channel_sends: noInput })
+
+/** The rollups and formulas of `models`, with their values set and their time rollups filled. */
+export const computedSchemaSql = (models: readonly ResourceModel[]) => modulesSql({ computed: computedInput(models) })

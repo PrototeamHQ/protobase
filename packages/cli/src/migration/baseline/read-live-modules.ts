@@ -23,5 +23,7 @@ export const describedModules = (modules: ModulesModel) =>
     const module = schemaModules[id]
     const versions = Object.entries(replaceables).map(([name, version]) => `, its ${name} at version ${version}`).join('')
     const perResource = Object.entries(resources ?? {}).map(([name, entries]) => `, its ${name} of ${Object.keys(entries).join(', ')}`).join('')
-    return `-- ${module.title}: at step ${lastStep} (${module.steps[lastStep - 1]!.name})${versions}${perResource}.`
+    // A module may have objects of its resources before its first step, such as formula columns without the rollups schema.
+    const step = lastStep === 0 ? 'before its first step' : `at step ${lastStep} (${module.steps[lastStep - 1]!.name})`
+    return `-- ${module.title}: ${step}${versions}${perResource}.`
   })

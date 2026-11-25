@@ -27,8 +27,9 @@ export const releaseSteps = async (project: MigrationProject) => {
   const modules: ReleaseStep[] = []
   for (const id of targetIds(project.modules)) {
     const input = project.modules[id]!
-    const { sql, breaks } = moduleDifference(schemaModules[id], input, await schemaModules[id].read(project.db, input))
-    if (sql !== undefined) modules.push({ name: id, title: schemaModules[id].title, sql, breaks })
+    // What a module leaves for after the transaction runs in it here, as a release applies its steps in one.
+    const { sql, after, breaks } = moduleDifference(schemaModules[id], input, await schemaModules[id].read(project.db, input))
+    if (sql !== undefined) modules.push({ name: id, title: schemaModules[id].title, sql: after === undefined ? sql : `${sql}\n\n${after}`, breaks })
   }
   // In the order `protobase migration` writes them: the parts that make tables the modules' triggers go on first.
   const step = ({ beforeModules: _, ...rest }: (typeof parts)[number]): ReleaseStep => rest

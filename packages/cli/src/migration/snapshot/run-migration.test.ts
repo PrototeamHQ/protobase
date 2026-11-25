@@ -1,6 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { f, resource } from '@protobase/schema'
+import { neededModules } from '@protobase/server'
 import { noInput, schemaModules } from '@protobase/server/internal'
 import { runMigration } from './run-migration'
 import { authOf, cleanProjects, counterIds, migrate, migrationsOf, newProject, olderProject, projectFiles } from './project-fixture'
@@ -98,6 +100,19 @@ describe('protobase migration', () => {
     const text = await readFile(file!, 'utf8')
     expect(text.indexOf('-- The auth schema changes this version of Protobase needs.')).toBeLessThan(text.indexOf(`-- ${schemaModules.relay.title}.`))
     expect(text.indexOf('create trigger relay_session_ended after delete on "session"')).toBeGreaterThan(text.indexOf('-- The auth schema changes this version of Protobase needs.'))
+  })
+
+  it("writes what the rollups set from the records in the file's .after.sql, which the file then waits on", async () => {
+    const dir = await newProject()
+    const lines = resource('lines').table('lines').fields({ id: f.integer(), order_id: f.relation('orders') }).primaryKey((r) => r.id)
+    const orders = resource('orders').table('orders').fields({ id: f.integer(), count: f.integer().rollup({ from: 'lines', via: 'order_id', fn: 'count' }) }).primaryKey((r) => r.id)
+    const modules = neededModules({ models: [orders.toModel(), lines.toModel()], views: [], jobs: [], signIn: false })
+    const file = await runMigration({ projectDir: dir, dir: migrationsOf(dir), auth: undefined, modules, database: undefined, protobaseVersion: '1.0.0', newId: counterIds() })
+    expect(path.basename(file!)).toBe('001_computed.sql')
+    expect(await readFile(file!, 'utf8')).toContain('create trigger "orders_count_rollup"')
+    expect(await readFile(file!.replace(/\.sql$/, '.after.sql'), 'utf8')).toBe(
+      `-- ${schemaModules.computed.title}.\n-- The function and trigger that keep a rollup of orders.count.\nupdate "public"."orders" as p set "count" = (select count(*) from "public"."lines" as c where c."order_id" = p."id") where true;\n`,
+    )
   })
 
   it("records the user view of users.keyTable as external, and a snapshot's external user table stays untouched", async () => {

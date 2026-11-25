@@ -2,7 +2,7 @@ import { sql } from 'kysely'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
-import { computedMigration, createAdmin, type PipelineHook } from '../src/index'
+import { computedSchemaSql, createAdmin, type PipelineHook } from '../src/index'
 import { signTestToken, testAuthenticator } from '../../../test-support/server'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
@@ -72,7 +72,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('writes under one paren
       create trigger pass_gate before insert on operations for each row execute function pass_gate();
       create trigger pass_gate before insert on vm_events for each row execute function pass_gate();
       create trigger pass_gate before insert on vm_notes for each row execute function pass_gate();`)
-    await database.exec((await computedMigration(database.db, [vms.toModel(), operations.toModel()]))!)
+    await database.exec(computedSchemaSql([vms.toModel(), operations.toModel()]))
     // The writes here wait on locks for as long as the test takes to see them waiting, which a busy machine stretches
     // past the API's default second.
     app = createAdmin({

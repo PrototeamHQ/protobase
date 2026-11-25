@@ -1,4 +1,4 @@
-import { commentsMigration, computedMigration, derivedMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, queryRunnerMigration, unsubscribesMigration, userTablesMigration } from '@protobase/server'
+import { commentsMigration, derivedMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, queryRunnerMigration, unsubscribesMigration, userTablesMigration } from '@protobase/server'
 import type { MigrationProject } from './migration-project'
 
 /** What one feature still needs of the database, compared with it, written as a part of the next migration. */
@@ -22,8 +22,6 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
   return [
     // Mail feedback's events are captured from its table, which goes before the change capture's triggers on it.
     ...(project.mailFeedback ? [{ name: 'mail_feedback', title: 'The table of the bounces and complaints of the mail the app sends', sql: () => mailFeedbackMigration(project.db), beforeModules: true }] : []),
-    // Always compared, so that the function and trigger of a rollup the config no longer has are dropped.
-    { name: 'computed', title: "The columns of the resources' rollup and formula fields, the triggers that keep the rollups, and the tables and refresh functions of their time rollups", sql: () => computedMigration(project.db, project.models) },
     ...(project.readOnlyQueries
       ? [{ name: 'query', title: "The role the assistant's read-only queries run as, which reads only the resources' tables", sql: () => queryRunnerMigration(project.db, project.models, project.authTables) }]
       : []),

@@ -1,7 +1,7 @@
 import { Kysely } from 'kysely'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { computedMigration } from '@protobase/server'
+import { computedSchemaSql } from '@protobase/server'
 import { bucketsRefreshes, refreshBuckets } from '@protobase/server/internal'
 import { openSnapshotDb, type SnapshotDb } from '../../../../test-support/sql-snapshot'
 import { parseFrom, rebuildBuckets } from '../../src/buckets/rebuild'
@@ -30,7 +30,7 @@ beforeAll(async () => {
     insert into readings (org_id, taken_at) values (1, '2026-06-30 23:10:00+00');
   `)
   db = new Kysely({ dialect: pg.dialect })
-  await pg.exec((await computedMigration(db, models))!)
+  await pg.exec(computedSchemaSql(models))
 })
 afterAll(async () => { await db.destroy() })
 
