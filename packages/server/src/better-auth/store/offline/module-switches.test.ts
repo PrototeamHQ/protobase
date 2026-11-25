@@ -18,6 +18,12 @@ describe('a module kept while off', () => {
     expect(keepStatements(names, 'organizations', names.names.modules).map(ddlText).join('\n')).not.toContain('personal_access_token')
   })
 
+  it('leaves alone the token table of a store without personal access tokens, or of a module turned on in the same migration', () => {
+    expect(keepStatements(settingsStoreNames({}), 'organizations', names.names.modules).map(ddlText).join('\n')).not.toContain('personal_access_token')
+    const before = names.names.modules.filter((module) => module !== 'personal_access_tokens')
+    expect(keepStatements(names, 'organizations', before).map(ddlText).join('\n')).not.toContain('personal_access_token')
+  })
+
   it('counts the rows of the tables its steps up to the kept one made, once on again, unless forced', () => {
     expect(keptTables(names, 'mail_senders', 1).map(({ name }) => name)).toEqual(['mail_sender'])
     expect(keptTables(names, 'mail_senders', 5).map(({ name }) => name)).toEqual(['mail_sender', 'mail_sender_verification'])
