@@ -21,7 +21,7 @@ beforeAll(async () => {
   api = usersApi(auth)
 })
 
-const output = async (command: (out: (text: string) => void) => Promise<void>) => {
+const output = async (command: (out: (text: string) => void) => Promise<unknown>) => {
   const written: string[] = []
   await command((text) => written.push(text))
   return written.join('')

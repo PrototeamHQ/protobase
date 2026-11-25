@@ -22,7 +22,7 @@ export type UsersApi = PinSource & {
   addMember: (input: { organization: string; email: string; role?: string; appRoles?: string[] }) => Promise<unknown>
 }
 
-export type CreateUserOptions = PinOptions & {
+export type CreateUserOptions = {
   email: string
   name?: string
   role?: string
@@ -32,6 +32,10 @@ export type CreateUserOptions = PinOptions & {
   noPassword?: boolean
   /** The user's GitHub user id, so GitHub sign-in finds them by it. */
   githubId?: string
+}
+
+/** `users create`: the account, and with organizations its membership of the pinned organization. */
+export type CreateMemberOptions = CreateUserOptions & PinOptions & {
   /** With organizations: the organization role in the pinned organization, `member` unless given. */
   orgRole?: string
   /** With organizations: the app roles in the pinned organization, comma separated. */
@@ -55,10 +59,6 @@ export const createUserCommand = async (
 ) => {
   if (!options.email.includes('@')) throw new Error(`"${options.email}" is not an email address`)
   if (options.githubId !== undefined && !githubId.test(options.githubId)) throw new Error(`"${options.githubId}" is not a GitHub user id, a number such as 583231`)
-  if (options.allOrganizations && !api.organizationsOn) throw new Error('--all-organizations needs organizations: turn on auth.organizations in the config')
-  if (options.allOrganizations && options.organization !== undefined) throw new Error('Pass --organization or --all-organizations, not both')
-  // With --all-organizations the account joins none, so no organization's rows are read.
-  const pin = options.allOrganizations ? undefined : await resolveOptionalPin(api, options, 'users create')
   const { password, generated } = await resolvePassword(options, deps)
   // The first user is always an admin, whatever --role says.
   const first = !(await api.hasUsers())
@@ -73,10 +73,23 @@ export const createUserCommand = async (
   const { labels } = await api.roles()
   out(`Created ${user.role} ${user.email}${shownAs(user.role, labels)}${options.githubId ? `, linked to GitHub user ${options.githubId}` : ''}\n`)
   if (generated) out(`Password (shown once): ${password}\n`)
+  return { email: user.email, first }
+}
+
+/**
+ * Creates the user (`createUserCommand`) and, with organizations, adds them to the pinned organization, or to none
+ * with `--all-organizations`. The pin is resolved first, so an unknown organization creates nobody.
+ */
+export const createMemberCommand = async (api: UsersApi, options: CreateMemberOptions, deps: PasswordDeps, out: (text: string) => void) => {
+  if (options.allOrganizations && !api.organizationsOn) throw new Error('--all-organizations needs organizations: turn on auth.organizations in the config')
+  if (options.allOrganizations && options.organization !== undefined) throw new Error('Pass --organization or --all-organizations, not both')
+  // With --all-organizations the account joins none, so no organization's rows are read.
+  const pin = options.allOrganizations ? undefined : await resolveOptionalPin(api, options, 'users create')
+  const user = await createUserCommand(api, options, deps, out)
   if (options.allOrganizations) out(`${user.email} joins no organization\n`)
   if (!pin || 'every' in pin) return
   // The first user owns every organization without members already, the pinned one among them.
-  if (first && (await api.isMember(pin.organization.id, user.email))) {
+  if (user.first && (await api.isMember(pin.organization.id, user.email))) {
     out(`${user.email} owns ${pin.organization.slug}\n`)
     return
   }

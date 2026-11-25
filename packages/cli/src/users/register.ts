@@ -41,8 +41,8 @@ export const registerUsers = (program: Command) => {
     .action(async (email: string, opts) => {
       const { readHidden, rejectPasswordArgument } = await import('./password')
       rejectPasswordArgument(opts.password)
-      const [{ createUserCommand }, api] = await Promise.all([import('./commands'), projectApi()])
-      await createUserCommand(
+      const [{ createMemberCommand }, api] = await Promise.all([import('./commands'), projectApi()])
+      await createMemberCommand(
         api,
         {
           email,

@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream'
 import { describe, expect, it, vi } from 'vitest'
-import { createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } from './commands'
+import { createMemberCommand, createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } from './commands'
 import { pinSourceFixture } from '../organizations/pin-source-fixture'
 import { readPasswordFromStream, rejectPasswordArgument, resolvePassword } from './password'
 
@@ -164,10 +164,10 @@ describe('listUsersCommand with organizations', () => {
   })
 })
 
-describe('createUserCommand with organizations', () => {
+describe('createMemberCommand', () => {
   const create = async (users: UsersApi, options: { organization?: string; allOrganizations?: boolean; orgRole?: string; appRoles?: string }) => {
     const out: string[] = []
-    await createUserCommand(users, { ...base, email: 'jan@example.com', noPassword: true, role: 'auditor', ...options }, deps(), (t) => out.push(t))
+    await createMemberCommand(users, { ...base, email: 'jan@example.com', noPassword: true, role: 'auditor', ...options }, deps(), (t) => out.push(t))
     return out.join('')
   }
 
@@ -201,5 +201,15 @@ describe('createUserCommand with organizations', () => {
     await expect(create(users, { allOrganizations: true })).rejects.toThrow('needs organizations')
     await expect(create(users, { organization: 'acme' })).rejects.toThrow('need organizations')
     expect(users.createUser).not.toHaveBeenCalled()
+  })
+})
+
+describe('createUserCommand with organizations', () => {
+  it('makes the account alone, in no organization, as the serve runtime\'s create-admin does', async () => {
+    const users = api(true, true)
+    const out: string[] = []
+    await createUserCommand(users, { ...base, email: 'jan@example.com', noPassword: true, role: 'admin' }, deps(), (t) => out.push(t))
+    expect(out.join('')).toBe('Created admin jan@example.com, shown in the app as Superuser\n')
+    expect(users.addMember).not.toHaveBeenCalled()
   })
 })
