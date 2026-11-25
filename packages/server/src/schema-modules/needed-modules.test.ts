@@ -12,7 +12,7 @@ describe('neededModules', () => {
   it('needs the jobs schema for jobs of the app, comments, AI fields, live reads and time rollups, which jobs serve', () => {
     expect(ids(app([tickets.toModel()]))).toEqual([])
     expect(ids(app([tickets.toModel()], { jobs: [{}] }))).toEqual(['jobs'])
-    expect(ids(app([tickets.comments().toModel()]))).toEqual(['jobs'])
+    expect(ids(app([tickets.comments().toModel()]))).toEqual(['jobs', 'comments'])
     const summarised = resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text(), summary: f.text().optional().ai({ prompt: 'Sum up {{title}}' }) }).primaryKey((r) => r.id)
     expect(ids(app([summarised.toModel()]))).toEqual(['jobs'])
     const thread = resource('thread').table('thread').fields({ id: f.text() }).primaryKey((r) => r.id).live({ reads: ['tickets'] })
@@ -49,7 +49,8 @@ describe('neededModules', () => {
     expect(ids(app([], { webhooks: {} }))).toEqual(['jobs', 'webhooks'])
     expect(ids(app([], { workflows: {} }))).toEqual(['jobs', 'workflows'])
     expect(ids(app([], { notifications: {} }))).toEqual(['jobs', 'notification_devices', 'notification_history'])
-    expect(ids(app([], { mailFeedback: true }))).toEqual(['jobs', 'changes'])
+    expect(ids(app([], { mailFeedback: true }))).toEqual(['jobs', 'mail_feedback', 'changes'])
+    expect(ids(app([], { unsubscribe: true }))).toEqual(['unsubscribes'])
   })
 
   it("needs an option's own tables as a module of their own while the option is on, under the schema the config names", () => {

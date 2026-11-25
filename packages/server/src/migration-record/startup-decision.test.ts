@@ -181,6 +181,22 @@ describe('startupRefusal', () => {
     })
   })
 
+  describe('with comments, mail feedback and unsubscribe', () => {
+    const notes = resource('notes').table('notes').fields({ id: f.integer() }).primaryKey((r) => r.id)
+    const app = (rest: Partial<Parameters<typeof neededModules>[0]>) => ({ modules: latestModules(neededModules({ models: [], views: [], jobs: [], signIn: false, ...rest })) })
+
+    it('refuses a database whose record lacks one, naming it and its step', () => {
+      expect(startupRefusal(app({ models: [notes.comments().toModel()] }), state(app({ jobs: [{}] })), '0.15.0')).toContain('the database lacks the comments table, which this version needs at step 1 (comments)')
+      expect(startupRefusal(app({ mailFeedback: true }), state(app({ jobs: [{}] })), '0.15.0')).toContain('the database lacks the mail feedback table, which this version needs at step 1 (feedback)')
+      expect(startupRefusal(app({ unsubscribe: true }), state(app({})), '0.15.0')).toContain('the database lacks the opt-outs table, which this version needs at step 1 (unsubscribes)')
+    })
+
+    it('starts on a record that holds them', () => {
+      const all = app({ models: [notes.comments().toModel()], mailFeedback: true, unsubscribe: true })
+      expect(startupRefusal(all, state(all, { matched: true }), '0.15.0')).toBeUndefined()
+    })
+  })
+
   describe('with status, calls, the relay, several processes and SQL sends', () => {
     const store = settingsStoreNames({})
     const app = (rest: Partial<Parameters<typeof neededModules>[0]>) => ({ modules: latestModules(neededModules({ models: [], views: [], jobs: [], signIn: true, authStore: store, ...rest })) })

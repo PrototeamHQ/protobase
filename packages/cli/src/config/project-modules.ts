@@ -4,6 +4,7 @@ import { authTarget } from '../migration/snapshot/auth-target'
 import type { BuiltProject } from './build-project'
 import { mailFeedbackOn } from './mail-feedback-config'
 import type { MergedConfig } from './merge-config'
+import { unsubscribeOn } from './unsubscribe-config'
 import { userTablesOn } from './user-tables-config'
 import { projectJobs, projectNotifications, projectResources, projectWebhooks } from './project-parts'
 
@@ -23,6 +24,7 @@ export const builtModules = (project: BuiltProject) =>
     signIn: Boolean(project.auth),
     ...(project.auth && { authStore: storeNames(project.auth) }),
     mailFeedback: project.mailFeedback,
+    unsubscribe: Boolean(project.unsubscribe),
     webhooks: project.webhooks,
     workflows: project.workflows,
     notifications: project.notifications,
@@ -45,6 +47,7 @@ export const configModules = async (config: MergedConfig) => {
     signIn: Boolean(config.auth),
     ...(auth && { authStore: auth.names }),
     mailFeedback: mailFeedbackOn(config),
+    unsubscribe: unsubscribeOn(config),
     webhooks,
     workflows: config.workflows,
     notifications,

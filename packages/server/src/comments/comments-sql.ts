@@ -1,14 +1,9 @@
-import { sql } from 'kysely'
-import type { Db } from '@protobase/query'
-import type { ResourceModel } from '@protobase/schema'
-import { migrationCommand } from '../changes/capture-schema'
-import { hasIndexes } from '../has-indexes'
 
 /** The table the comments of every resource with `.comments()` are kept in, in a schema of its own. */
 export const commentsTable = '"comments"."comments"'
 
 /** An index for each read of the comments: the record pages', the admin list's filters, by name. */
-const commentsIndexes = [
+export const commentsIndexes = [
   ['comments_record', '"resource", "record_key", "id"'],
   ['comments_tenant', '"tenant_id", "id"'],
   ['comments_author', '"author_id", "id"'],
@@ -16,6 +11,7 @@ const commentsIndexes = [
   ['comments_record_key', '"record_key"'],
 ] as const
 
+// Step 1 of `commentsModule`: frozen once released, as every step is.
 /**
  * A row per comment: the record it is on by resource and encoded key, its tenant, its author and the user ids it
  * mentions (`[]` for none). Every column the admin list filters on has an index.
@@ -31,25 +27,3 @@ export const commentsTableSql = () => `create table if not exists ${commentsTabl
   "created_at" timestamptz not null default now()
 );
 ${commentsIndexes.map(([name, columns]) => `create index if not exists "${name}" on ${commentsTable} (${columns})`).join(';\n')}`
-
-// Only reads the catalogue.
-const hasCommentsTable = async (db: Db) => (await sql<{ found: boolean }>`select to_regclass('comments.comments') is not null as found`.execute(db)).rows[0]!.found
-
-/**
- * The SQL that adds the `comments` schema and its table, or the indexes it lacks, `undefined` when it has them all. The
- * table is never dropped.
- */
-export const commentsMigration = async (db: Db) => {
-  if ((await hasCommentsTable(db)) && (await hasIndexes(db, 'comments', 'comments', commentsIndexes.map(([name]) => name)))) return undefined
-  return `create schema if not exists "comments";\n\n${commentsTableSql()};`
-}
-
-/**
- * Refuses to go on while a resource has `.comments()` and the database lacks their table; the project's migrations add
- * it. An index added since only speeds reads up, so a table without it still serves and `protobase migration` adds it.
- */
-export const checkComments = async (db: Db, models: readonly ResourceModel[]) => {
-  if (!models.some((model) => model.comments)) return
-  if (await hasCommentsTable(db)) return
-  throw new Error(`The comments schema is missing, and resources with .comments() keep their comments in comments.comments. Write it as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`)
-}

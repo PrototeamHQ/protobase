@@ -1,4 +1,4 @@
-import { commentsMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, queryRunnerMigration, unsubscribesMigration } from '@protobase/server'
+import { ownedDefinitionsMigration, queryRunnerMigration } from '@protobase/server'
 import type { MigrationProject } from './migration-project'
 
 /** What one feature still needs of the database, compared with it, written as a part of the next migration. */
@@ -9,8 +9,6 @@ export type MigrationPart = {
   title: string
   /** The statements, compared with the database; `undefined` when it is current. */
   sql: () => Promise<string | undefined>
-  /** Whether it goes before the schema modules' statements: it makes a table their triggers go on. */
-  beforeModules?: boolean
 }
 
 /**
@@ -18,15 +16,10 @@ export type MigrationPart = {
  * the order their statements are written, after theirs.
  */
 export const migrationParts = (project: MigrationProject): MigrationPart[] => {
-  const comments = project.models.some((model) => model.comments)
   return [
-    // Mail feedback's events are captured from its table, which goes before the change capture's triggers on it.
-    ...(project.mailFeedback ? [{ name: 'mail_feedback', title: 'The table of the bounces and complaints of the mail the app sends', sql: () => mailFeedbackMigration(project.db), beforeModules: true }] : []),
     ...(project.readOnlyQueries
       ? [{ name: 'query', title: "The role the assistant's read-only queries run as, which reads only the resources' tables", sql: () => queryRunnerMigration(project.db, project.models, project.authTables) }]
       : []),
-    ...(comments ? [{ name: 'comments', title: 'The comments table of the resources with comments', sql: () => commentsMigration(project.db) }] : []),
-    ...(project.unsubscribe ? [{ name: 'unsubscribes', title: 'The table of who unsubscribed from which topic of the bulk mail', sql: () => unsubscribesMigration(project.db) }] : []),
     // Run after the deploy that brought the code of an ejected table, so its definition goes in a later deploy.
     ...(project.userTables ? [{ name: 'owned_definitions', title: 'The delete of the definitions of user tables that resources in code own now', sql: () => ownedDefinitionsMigration(project.db, project.models) }] : []),
   ]

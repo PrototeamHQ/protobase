@@ -4,14 +4,14 @@ import { settingsStoreNames } from '../better-auth/store/offline/settings-names'
 import { relayInput } from '../relay/relay-targets'
 import { statusTargets } from '../status/status-targets'
 import { f, resource } from '@protobase/schema'
-import { callsSchemaSql, channelSendsSchemaSql, derivedSchemaSql, notificationsSchemaSql, realtimeRelaySchemaSql, userTablesSchemaSql, webhooksSchemaSql, workflowsSchemaSql } from './feature-schemas-sql'
+import { callsSchemaSql, channelSendsSchemaSql, commentsSchemaSql, derivedSchemaSql, mailFeedbackSchemaSql, notificationsSchemaSql, realtimeRelaySchemaSql, unsubscribesSchemaSql, userTablesSchemaSql, webhooksSchemaSql, workflowsSchemaSql } from './feature-schemas-sql'
 import { modulesSql } from './modules-sql'
 import { sqlStatements } from './testing/sql-statements'
 
 // Each `written-before-steps.sql` is what the feature's migration wrote on an empty database before it was a module:
 // webhooks with the delivery log, workflows with storage and custom steps, notifications without sign-in, status and the
 // relay with auth's default tables, the relay without listed channels, calls with the notices table, several processes
-// and SQL's sends, derived values with one value declared, and user tables. Its steps and
+// and SQL's sends, derived values with one value declared, user tables, comments, mail feedback and unsubscribe. Its steps and
 // replaceables write the same statements, in another order; the relay's no longer deletes the members of resources not
 // listed, which an empty database has none of.
 const before = (path: string) => readFileSync(new URL(`../${path}/written-before-steps.sql`, import.meta.url), 'utf8')
@@ -31,6 +31,9 @@ describe('the schema modules that had a migration of their own before', () => {
     ['channels', () => channelSendsSchemaSql()],
     ['derived', () => derivedSchemaSql([notes.toModel()])],
     ['user-tables', () => userTablesSchemaSql()],
+    ['comments', () => commentsSchemaSql()],
+    ['mail/feedback', () => mailFeedbackSchemaSql()],
+    ['mail/unsubscribe', () => unsubscribesSchemaSql()],
   ])('write on an empty database the statements %s wrote before it had steps', (path, now) => {
     expect(sqlStatements(now())).toEqual(sqlStatements(before(path)))
   })

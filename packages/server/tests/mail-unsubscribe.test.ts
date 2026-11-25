@@ -3,7 +3,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/mail-message'
 import { appBulkMailer } from '../src/mail/unsubscribe/bulk-mailer'
-import { checkUnsubscribesSchema, unsubscribesMigration } from '../src/mail/unsubscribe/unsubscribe-schema'
+import { unsubscribesModule } from '../src/mail/unsubscribe/unsubscribes-module'
+import { unsubscribesSchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { recordUnsubscribe } from '../src/mail/unsubscribe/unsubscribe-store'
 import { signTestToken, testAuthenticator } from '../../../test-support/server'
 import { openSnapshotDb } from '../../../test-support/sql-snapshot'
@@ -13,7 +14,7 @@ let app: ReturnType<typeof createAdmin>
 beforeAll(async () => {
   const pg = await openSnapshotDb('empty')
   db = new Kysely({ dialect: pg.dialect })
-  await pg.exec((await unsubscribesMigration(db))!)
+  await pg.exec(unsubscribesSchemaSql())
   app = createAdmin({ resources: [], db, authenticate: testAuthenticator, secret: 'test secret', unsubscribe: { appUrl: 'https://shop.example.com' } })
 })
 afterAll(async () => { await db.destroy() })
@@ -64,10 +65,10 @@ describe('one-click unsubscribe', () => {
     expect((await asAdmin('/mail_unsubscribes', { method: 'POST', body: JSON.stringify({ recipient: 'bo@example.com', topic: 'newsletter' }) })).status).toBe(403)
   })
 
-  it('refuses to start without the unique index an opt-out is recorded on', async () => {
-    await expect(checkUnsubscribesSchema(db)).resolves.toBeUndefined()
+  it('is read by the baseline at its last step, and refused without the unique index an opt-out is recorded on', async () => {
+    await expect(unsubscribesModule.read(db, { names: {}, resources: {} })).resolves.toEqual({ lastStep: 1, replaceables: {} })
     await sql`drop index mail.unsubscribes_recipient_topic`.execute(db)
-    await expect(checkUnsubscribesSchema(db)).rejects.toThrow(/unique index unsubscribes_recipient_topic, is missing/)
+    await expect(unsubscribesModule.read(db, { names: {}, resources: {} })).rejects.toThrow('The opt-outs table mail.unsubscribes lacks indexes no step of this version of Protobase records')
     await sql`create unique index unsubscribes_recipient_topic on mail.unsubscribes (recipient, topic)`.execute(db)
   })
 })

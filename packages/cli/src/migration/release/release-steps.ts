@@ -19,19 +19,16 @@ export type ReleaseStep = { name: string; title: string; sql: string; breaks?: s
 export const releaseSteps = async (project: MigrationProject) => {
   const auth = project.auth && (await authSchemaMigration(project.auth))
   const steps: ReleaseStep[] = auth ? [{ name: 'auth', title: authMigrationTitle, sql: auth }] : []
-  const parts: (ReleaseStep & { beforeModules?: boolean })[] = []
-  for (const part of migrationParts(project)) {
-    const sql = await part.sql()
-    if (sql !== undefined) parts.push({ name: part.name, title: part.title, sql, ...(part.beforeModules && { beforeModules: true }) })
-  }
-  const modules: ReleaseStep[] = []
   for (const id of targetIds(project.modules)) {
     const input = project.modules[id]!
     // What a module leaves for after the transaction runs in it here, as a release applies its steps in one.
     const { sql, after, breaks } = moduleDifference(schemaModules[id], input, await schemaModules[id].read(project.db, input))
-    if (sql !== undefined) modules.push({ name: id, title: schemaModules[id].title, sql: after === undefined ? sql : `${sql}\n\n${after}`, breaks })
+    if (sql !== undefined) steps.push({ name: id, title: schemaModules[id].title, sql: after === undefined ? sql : `${sql}\n\n${after}`, breaks })
   }
-  // In the order `protobase migration` writes them: the parts that make tables the modules' triggers go on first.
-  const step = ({ beforeModules: _, ...rest }: (typeof parts)[number]): ReleaseStep => rest
-  return [...steps, ...parts.filter(({ beforeModules }) => beforeModules).map(step), ...modules, ...parts.filter(({ beforeModules }) => !beforeModules).map(step)]
+  // In the order `protobase migration` writes them: the schema modules before the parts.
+  for (const part of migrationParts(project)) {
+    const sql = await part.sql()
+    if (sql !== undefined) steps.push({ name: part.name, title: part.title, sql })
+  }
+  return steps
 }

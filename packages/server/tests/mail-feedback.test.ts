@@ -5,7 +5,8 @@ import { captureSchemaSql } from '../src/changes/capture-schema-sql'
 import { createAdmin } from '../src/create-admin'
 import { createErrorHandler } from '../src/error-handler'
 import { mailFeedbackRoutes } from '../src/mail/feedback/feedback-routes'
-import { checkMailFeedbackSchema, mailFeedbackMigration } from '../src/mail/feedback/feedback-schema'
+import { mailFeedbackModule } from '../src/mail/feedback/mail-feedback-module'
+import { mailFeedbackSchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { mailFeedbackHeaders } from '../src/mail/feedback/feedback-signing'
 import { recordFeedback } from '../src/mail/feedback/feedback-store'
 import { mailFeedbackResource } from '../src/mail/feedback/mail-feedback-resource'
@@ -24,7 +25,7 @@ beforeAll(async () => {
   const pg = await openSnapshotDb('jobs')
   db = new Kysely({ dialect: pg.dialect })
   // As `protobase migration` writes them: the table, then the capture of its events.
-  await pg.exec((await mailFeedbackMigration(db))!)
+  await pg.exec(mailFeedbackSchemaSql())
   await pg.exec(captureSchemaSql([model]))
   feedback = new Hono()
   feedback.onError(createErrorHandler(() => {}))
@@ -38,9 +39,8 @@ const captured = async () => (await sql<{ resource: string; type: string }>`sele
 const asAdmin = (path: string, init: RequestInit = {}) => admin.request(`/api/v1${path}`, { ...init, headers: { authorization: `Bearer ${signTestToken({ sub: 'ann', roles: ['admin'] })}`, 'content-type': 'application/json' } })
 
 describe('mail feedback', () => {
-  it('has its table once the migrations ran', async () => {
-    await expect(checkMailFeedbackSchema(db)).resolves.toBeUndefined()
-    expect(await mailFeedbackMigration(db)).toBeUndefined()
+  it('has its table once the migrations ran, which the baseline reads at its last step', async () => {
+    expect(await mailFeedbackModule.read(db, { names: {}, resources: {} })).toEqual({ lastStep: 1, replaceables: {} })
   })
 
   it('writes nothing for a report whose signature does not check out', async () => {
@@ -106,34 +106,11 @@ create index if not exists "feedback_type" on mail.feedback ("type");
 create index if not exists "feedback_created_at" on mail.feedback ("created_at");`
 
 describe("an earlier version's mail feedback table", () => {
-  it('takes a complaint without a recipient once migrated, still once per report, and refuses a bounce without one', async () => {
+  it('is refused by the baseline, which no step records', async () => {
     const pg = await openSnapshotDb('jobs')
     const earlier = new Kysely<any>({ dialect: pg.dialect })
     await pg.exec(earlierTable)
-    await expect(checkMailFeedbackSchema(earlier)).rejects.toThrow('feedback_provider_event_recipient_once')
-    await pg.exec((await mailFeedbackMigration(earlier))!)
-    await expect(checkMailFeedbackSchema(earlier)).resolves.toBeUndefined()
-    expect(await mailFeedbackMigration(earlier)).toBeUndefined()
-    const report = { provider: 'protobase', eventId: 'report-1', records: [{ type: 'complaint', message_id: '<1@shop.example.com>' }] } as const
-    await recordFeedback(earlier, report)
-    await recordFeedback(earlier, report)
-    expect(await earlier.selectFrom('mail.feedback').select(['recipient', 'message_id']).execute()).toEqual([{ recipient: null, message_id: '<1@shop.example.com>' }])
-    // @ts-expect-error A bounce without its recipient, which the endpoints never write, to show the table refuses it too.
-    await expect(recordFeedback(earlier, { provider: 'protobase', eventId: 'report-2', records: [{ type: 'bounce', message_id: '<1@shop.example.com>' }] })).rejects.toThrow('feedback_names_recipient')
-    await earlier.destroy()
-  })
-
-  it('gets its unique index back once migrated again after losing it', async () => {
-    const pg = await openSnapshotDb('jobs')
-    const earlier = new Kysely<any>({ dialect: pg.dialect })
-    await pg.exec(earlierTable)
-    await pg.exec((await mailFeedbackMigration(earlier))!)
-    await pg.exec('drop index mail.feedback_provider_event_recipient_once')
-    await expect(checkMailFeedbackSchema(earlier)).rejects.toThrow('feedback_provider_event_recipient_once')
-    await pg.exec((await mailFeedbackMigration(earlier))!)
-    await expect(checkMailFeedbackSchema(earlier)).resolves.toBeUndefined()
-    // @ts-expect-error A complaint naming neither its recipient nor its message, to show the constraint is still there.
-    await expect(recordFeedback(earlier, { provider: 'protobase', eventId: 'report-1', records: [{ type: 'complaint' }] })).rejects.toThrow('feedback_names_recipient')
+    await expect(mailFeedbackModule.read(earlier, { names: {}, resources: {} })).rejects.toThrow('The table mail.feedback of mailFeedback lacks indexes no step of this version of Protobase records')
     await earlier.destroy()
   })
 })
