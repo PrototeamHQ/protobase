@@ -351,6 +351,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
   // Who sees a status follows organizations, so an app without them stops here.
   if (status) checkStatusAuth(auth)
   // The tables whose rows belong to one organization, which the app's functions and jobs see only one organization of.
+  // Jobs get the tables alone: a job works in the organization it was enqueued in, and one enqueued in none sees none
+  // of their rows, while organizations are off after being on too, as with them on.
   const scope = appScope({ organizations: Boolean(auth?.organizations), names: auth?.names, ...(auth && { pinned: auth.pinnedOrganization }) })
   const organizationScope = async () => (await scope()).tables
   const statusTables = status && auth && { statuses: statusNames(status), members: auth.names.table('member') }
