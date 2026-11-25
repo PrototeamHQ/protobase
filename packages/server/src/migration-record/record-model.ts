@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { latestSteps, storeModel, type StoreModel } from '../better-auth/store/offline/store-model'
 import { storeNames, type StoreNamesSource } from '../better-auth/store/store-names'
-import { latestModules, type ModulesModel, type SchemaModuleId } from '../schema-modules/modules'
+import { latestModules, targetIds, type ModuleTargets, type ModulesModel } from '../schema-modules/modules'
 
 // What the runtime reads of the database, by part: the auth store when sign-in is on, and each schema module the app
 // needs (`neededModules`). A project's snapshot holds the model its migrations make, and each applied migration records
@@ -13,13 +13,13 @@ export const modelHash = (model: RecordModel) => createHash('sha256').update(JSO
 
 /**
  * The model this version of Protobase reads with the app's auth and the schema modules it needs: the store and each
- * module at every step and replaceable this version ships.
+ * module at every step and replaceable this version ships, with the names and resources the app gives it.
  */
-export const runtimeModel = (auth: StoreNamesSource | undefined, modules: readonly SchemaModuleId[]): RecordModel => {
+export const runtimeModel = (auth: StoreNamesSource | undefined, modules: ModuleTargets): RecordModel => {
   const names = auth && storeNames(auth)
   return {
     ...(names && { auth: storeModel(names, latestSteps(names.names.modules)) }),
-    ...(modules.length > 0 && { modules: latestModules(modules) }),
+    ...(targetIds(modules).length > 0 && { modules: latestModules(modules) }),
   }
 }
 

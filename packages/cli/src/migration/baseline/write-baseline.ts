@@ -1,4 +1,4 @@
-import { baselineStore, stepRecordMigration, storeModel, type SchemaModuleId } from '@protobase/server/internal'
+import { baselineStore, stepRecordMigration, storeModel, targetIds, type ModuleTargets } from '@protobase/server/internal'
 import { organizationsNow, type AuthTarget } from '../snapshot/auth-target'
 import { refuseInconsistent } from '../snapshot/consistency'
 import { readMigrationFiles } from '../snapshot/migration-files'
@@ -13,7 +13,7 @@ export type Baseline = {
   /** The config's auth store; `undefined` with sign-in off. */
   auth: AuthTarget | undefined
   /** The schema modules the config needs (`neededModules`). */
-  modules: readonly SchemaModuleId[]
+  modules: ModuleTargets
   /** The database with the project's migrations applied. */
   url: string
   protobaseVersion: string
@@ -41,7 +41,7 @@ const modulesIntro = `-- Written by \`protobase migration baseline\` from the da
 export const writeBaseline = async ({ projectDir, dir, auth, modules, url, protobaseVersion, newId }: Baseline) => {
   const snapshot = await readSnapshot(projectDir)
   refuseInconsistent(snapshot, await readMigrationFiles(dir))
-  const live = await readLiveModules(url, modules.filter((id) => !snapshot?.model.modules?.[id]))
+  const live = await readLiveModules(url, Object.fromEntries(targetIds(modules).filter((id) => !snapshot?.model.modules?.[id]).map((id) => [id, modules[id]])))
   const found = Object.keys(live).length > 0
   const described = describedModules(live).join('\n')
   if (snapshot) {

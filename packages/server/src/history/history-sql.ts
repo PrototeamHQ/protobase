@@ -18,6 +18,7 @@ export const historyIndexes = [
   ['history_transaction', '"transaction"'],
 ] as const
 
+// Step 1 of the history module (`history-module.ts`): frozen once released, as every step is.
 export const historyTableSql = (schema: string) => {
   const table = `${quoteIdent(schema)}."history"`
   return `create table if not exists ${table} (

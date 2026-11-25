@@ -8,7 +8,7 @@ import { readSnapshot, writeSnapshot } from './snapshot-file'
 
 afterEach(cleanProjects)
 
-const check = (dir: string, auth = authOf()) => checkMigrations(dir, migrationsOf(dir), auth, [])
+const check = (dir: string, auth = authOf()) => checkMigrations(dir, migrationsOf(dir), auth, {})
 
 const custom = (dir: string, name: string) => writeCustomMigration({ projectDir: dir, dir: migrationsOf(dir), name, recordConfig: false, auth: authOf(), protobaseVersion: '1.0.0', newId: () => `id-${name}` })
 

@@ -1,4 +1,4 @@
-import { appRelayChannels, callsMigration, changesMigration, channelSendsMigration, commentsMigration, computedMigration, derivedMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, relayMigration, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
+import { appRelayChannels, callsMigration, channelSendsMigration, commentsMigration, computedMigration, derivedMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, notificationsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, relayMigration, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
 import type { MigrationProject } from './migration-project'
 
 /** What one feature still needs of the database, compared with it, written as a part of the next migration. */
@@ -9,6 +9,8 @@ export type MigrationPart = {
   title: string
   /** The statements, compared with the database; `undefined` when it is current. */
   sql: (run: PartsRun) => Promise<string | undefined>
+  /** Whether it goes before the schema modules' statements: it makes a table their triggers go on. */
+  beforeModules?: boolean
 }
 
 /** What the migration the parts go into writes besides them. */
@@ -23,14 +25,11 @@ export type PartsRun = {
  */
 export const migrationParts = (project: MigrationProject): MigrationPart[] => {
   const comments = project.models.some((model) => model.comments)
-  // Mail feedback's events are captured from its table, which its own file, before the changes one, creates.
-  const feedback = project.mailFeedback ? [mailFeedbackResource.toModel()] : []
-  const captured = [...project.models, ...feedback]
   // The relay's channels the app uses or can be moved to by the platform's switch, which the developer's environment lacks.
   const relayChannels = appRelayChannels(project.realtime?.relay, { views: project.views, models: project.models, signIn: Boolean(project.auth) })
   return [
-    ...(project.mailFeedback ? [{ name: 'mail_feedback', title: 'The table of the bounces and complaints of the mail the app sends', sql: () => mailFeedbackMigration(project.db) }] : []),
-    { name: 'changes', title: "The change capture the resources' events and history need", sql: () => changesMigration(project.db, captured, project.events, feedback.map((model) => model.name)) },
+    // Mail feedback's events are captured from its table, which goes before the change capture's triggers on it.
+    ...(project.mailFeedback ? [{ name: 'mail_feedback', title: 'The table of the bounces and complaints of the mail the app sends', sql: () => mailFeedbackMigration(project.db), beforeModules: true }] : []),
     // Always compared, so that the function and trigger of a rollup the config no longer has are dropped.
     { name: 'computed', title: "The columns of the resources' rollup and formula fields, the triggers that keep the rollups, and the tables and refresh functions of their time rollups", sql: () => computedMigration(project.db, project.models) },
     ...(project.readOnlyQueries

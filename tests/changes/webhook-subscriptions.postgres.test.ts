@@ -2,7 +2,7 @@ import { Kysely, sql } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import {
-  changesMigration,
+  captureSchemaSql,
   configExports,
   createAdmin,
   startJobs,
@@ -54,7 +54,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('webhook subscriptions m
     db = pg.db
     await pg.exec('create table orders (id integer generated always as identity primary key, organization_id integer not null, status text not null default \'open\', total numeric(12, 2) not null, cost numeric(12, 2) not null default 0, secret_note text)')
     await pg.exec('create index on orders (organization_id, status)')
-    await pg.exec((await changesMigration(db, [orders.toModel()]))!)
+    await pg.exec(captureSchemaSql([orders.toModel()]))
     await pg.exec((await webhooksMigration(db, webhooks))!)
     receiver = await startReceiver()
     vi.spyOn(console, 'log').mockImplementation(() => {})

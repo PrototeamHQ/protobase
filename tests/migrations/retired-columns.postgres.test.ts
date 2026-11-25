@@ -24,7 +24,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('a retired column, on r
     const migrate = async (force = false) => applyMigrations(sql, dir, () => {}, { force })
     const ids = counterIds()
     const migration = (run: Partial<MigrationRun>) =>
-      runMigration({ projectDir, dir, auth: organizationsOn, modules: [], protobaseVersion: '1.0.0', newId: ids, database: { url: database.url, parts: [], contractions: (sections) => trialContractions(database.url, sections), readModule: async () => undefined }, ...run })
+      runMigration({ projectDir, dir, auth: organizationsOn, modules: {}, protobaseVersion: '1.0.0', newId: ids, database: { url: database.url, parts: [], contractions: (sections) => trialContractions(database.url, sections), readModule: async () => undefined }, ...run })
     const attnum = async () => (await sql`select attnum from pg_attribute where attrelid = 'auth.session'::regclass and attname = 'active_organization_id'`)[0]!.attnum as number
     // Each bucket starts an hour of the test's, two when its writes cross an hour.
     const writes = async () =>

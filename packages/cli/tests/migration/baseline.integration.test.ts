@@ -91,14 +91,14 @@ const olderStore = async (last: number) => {
   return { databaseUrl, projectDir, dir }
 }
 
-const migrate = (projectDir: string, dir: string) => runMigration({ projectDir, dir, auth, modules: [], database: undefined, protobaseVersion: '1.0.0', newId: randomUUID })
+const migrate = (projectDir: string, dir: string) => runMigration({ projectDir, dir, auth, modules: {}, database: undefined, protobaseVersion: '1.0.0', newId: randomUUID })
 
 describe.skipIf(!reachable)('protobase migration baseline', () => {
   it('describes a store at the former chain’s last version in a file that changes nothing, after which the next migration writes only the later steps', async () => {
     const { databaseUrl, projectDir, dir } = await olderStore(17)
     await expect(migrate(projectDir, dir)).rejects.toThrow('start it with `protobase migration baseline`')
 
-    const file = await writeBaseline({ projectDir, dir, auth, modules: [], url: databaseUrl, protobaseVersion: '1.0.0', newId: randomUUID })
+    const file = await writeBaseline({ projectDir, dir, auth, modules: {}, url: databaseUrl, protobaseVersion: '1.0.0', newId: randomUUID })
     expect(path.basename(file)).toBe('002_baseline.sql')
     const text = await readFile(file, 'utf8')
     // Its only statements make the record of the store's steps from the versions the store recorded.
@@ -120,12 +120,12 @@ describe.skipIf(!reachable)('protobase migration baseline', () => {
     await applyAfter(databaseUrl, next)
     expect(await steps(databaseUrl)).toEqual(everyStep)
     expect(await migrate(projectDir, dir)).toBeUndefined()
-    expect(await checkMigrations(projectDir, dir, auth, [])).toEqual([])
+    expect(await checkMigrations(projectDir, dir, auth, {})).toEqual([])
   })
 
   it('keeps the organization of each token of a store whose organizations were on, and refuses one without, naming it', async () => {
     const { databaseUrl, projectDir, dir } = await olderStore(17)
-    await query(databaseUrl, await readFile(await writeBaseline({ projectDir, dir, auth, modules: [], url: databaseUrl, protobaseVersion: '1.0.0', newId: randomUUID }), 'utf8'))
+    await query(databaseUrl, await readFile(await writeBaseline({ projectDir, dir, auth, modules: {}, url: databaseUrl, protobaseVersion: '1.0.0', newId: randomUUID }), 'utf8'))
     await query(
       databaseUrl,
       `insert into auth."user" (id, name, email, email_verified, created_at, updated_at) values ('u1', 'Ana', 'ana@example.com', true, now(), now());
@@ -134,12 +134,12 @@ describe.skipIf(!reachable)('protobase migration baseline', () => {
         ('kept', 'u1', 'Invoices', 'hash-kept', 'sales', now(), 'acme'), ('orphan', 'u1', 'Reports', 'hash-orphan', 'sales', now(), null)`,
     )
     const database = { url: databaseUrl, parts: [], contractions: (sections: readonly Section[]) => trialContractions(databaseUrl, sections), readModule: async () => undefined }
-    await expect(runMigration({ projectDir, dir, auth, modules: [], database, protobaseVersion: '1.0.0', newId: randomUUID })).rejects.toThrow(
+    await expect(runMigration({ projectDir, dir, auth, modules: {}, database, protobaseVersion: '1.0.0', newId: randomUUID })).rejects.toThrow(
       'The auth store has 1 personal access tokens without an organization, which organizations were on for: orphan.',
     )
 
     await query(databaseUrl, "delete from auth.personal_access_token where id = 'orphan'")
-    const next = (await runMigration({ projectDir, dir, auth, modules: [], database, protobaseVersion: '1.0.0', newId: randomUUID }))!
+    const next = (await runMigration({ projectDir, dir, auth, modules: {}, database, protobaseVersion: '1.0.0', newId: randomUUID }))!
     // Older code writes tokens without an organization, which the step then refuses: the file breaks it.
     expect(await readFile(next, 'utf8')).toContain('\n-- protobase:breaks-older-code\n')
     expect(await readFile(next, 'utf8')).toContain("-- The sign-in modules' steps: adds the constraint personal_access_token_organization_id_set to auth.personal_access_token, which rows written by older code may break.\n")
@@ -156,7 +156,7 @@ describe.skipIf(!reachable)('protobase migration baseline', () => {
 
   it("puts each module of a store at version 8 at its step, so the next migration writes only the later ones", async () => {
     const { databaseUrl, projectDir, dir } = await olderStore(8)
-    await query(databaseUrl, await readFile(await writeBaseline({ projectDir, dir, auth, modules: [], url: databaseUrl, protobaseVersion: '1.0.0', newId: randomUUID }), 'utf8'))
+    await query(databaseUrl, await readFile(await writeBaseline({ projectDir, dir, auth, modules: {}, url: databaseUrl, protobaseVersion: '1.0.0', newId: randomUUID }), 'utf8'))
     expect((await readSnapshot(projectDir))!.model.auth!.modules.auth!.lastStep).toBe(1)
 
     const next = await readFile((await migrate(projectDir, dir))!, 'utf8')
@@ -169,7 +169,7 @@ describe.skipIf(!reachable)('protobase migration baseline', () => {
 
   it('refuses a second baseline once the project has the snapshot', async () => {
     const { databaseUrl, projectDir, dir } = await olderStore(17)
-    await writeBaseline({ projectDir, dir, auth, modules: [], url: databaseUrl, protobaseVersion: '1.0.0', newId: randomUUID })
-    await expect(writeBaseline({ projectDir, dir, auth, modules: [], url: databaseUrl, protobaseVersion: '1.0.0', newId: randomUUID })).rejects.toThrow('The project has protobase.snapshot.json already')
+    await writeBaseline({ projectDir, dir, auth, modules: {}, url: databaseUrl, protobaseVersion: '1.0.0', newId: randomUUID })
+    await expect(writeBaseline({ projectDir, dir, auth, modules: {}, url: databaseUrl, protobaseVersion: '1.0.0', newId: randomUUID })).rejects.toThrow('The project has protobase.snapshot.json already')
   })
 })

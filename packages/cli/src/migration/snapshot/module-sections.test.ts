@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { latestModules } from '@protobase/server/internal'
+import { latestModules, noInput } from '@protobase/server/internal'
 import { dropMigration } from './drop'
 import { checkMigrations } from './check'
 import { authOf, cleanProjects, counterIds, migrationsOf, newProject } from './project-fixture'
@@ -11,9 +11,9 @@ import { modelHash, readSnapshot, writeSnapshot } from './snapshot-file'
 afterEach(cleanProjects)
 
 const withJobs = (projectDir: string, newId = counterIds()) =>
-  runMigration({ projectDir, dir: migrationsOf(projectDir), auth: authOf(), modules: ['jobs'], database: undefined, protobaseVersion: '1.0.0', newId })
+  runMigration({ projectDir, dir: migrationsOf(projectDir), auth: authOf(), modules: { jobs: noInput }, database: undefined, protobaseVersion: '1.0.0', newId })
 
-const jobs = latestModules(['jobs']).jobs!
+const jobs = latestModules({ jobs: noInput }).jobs!
 const functionsVersion = jobs.replaceables.functions!
 
 describe('protobase migration with a schema module', () => {
@@ -28,7 +28,7 @@ describe('protobase migration with a schema module', () => {
     expect(text).not.toContain('protobase:breaks-older-code')
     expect((await readSnapshot(dir))!.model.modules).toEqual({ jobs })
     expect(await withJobs(dir)).toBeUndefined()
-    expect(await checkMigrations(dir, migrationsOf(dir), authOf(), ['jobs'])).toEqual([])
+    expect(await checkMigrations(dir, migrationsOf(dir), authOf(), { jobs: noInput })).toEqual([])
   })
 
   it('writes the functions again, as breaking older code, for a snapshot that has an older version of them', async () => {
@@ -46,10 +46,10 @@ describe('protobase migration with a schema module', () => {
 
   it('keeps a module the config no longer needs, and drop takes the snapshot back to before it', async () => {
     const dir = await newProject()
-    await runMigration({ projectDir: dir, dir: migrationsOf(dir), auth: authOf(), modules: [], database: undefined, protobaseVersion: '1.0.0', newId: () => 'first' })
+    await runMigration({ projectDir: dir, dir: migrationsOf(dir), auth: authOf(), modules: {}, database: undefined, protobaseVersion: '1.0.0', newId: () => 'first' })
     const before = await readSnapshot(dir)
     await withJobs(dir, () => 'second')
-    expect(await runMigration({ projectDir: dir, dir: migrationsOf(dir), auth: authOf(), modules: [], database: undefined, protobaseVersion: '1.0.0', newId: () => 'third' })).toBeUndefined()
+    expect(await runMigration({ projectDir: dir, dir: migrationsOf(dir), auth: authOf(), modules: {}, database: undefined, protobaseVersion: '1.0.0', newId: () => 'third' })).toBeUndefined()
     expect((await readSnapshot(dir))!.model.modules).toEqual({ jobs })
     await dropMigration(dir, migrationsOf(dir))
     expect(await readSnapshot(dir)).toEqual(before)
@@ -57,8 +57,8 @@ describe('protobase migration with a schema module', () => {
 
   it('reports in check a module the snapshot does not record, naming baseline', async () => {
     const dir = await newProject()
-    await runMigration({ projectDir: dir, dir: migrationsOf(dir), auth: authOf(), modules: [], database: undefined, protobaseVersion: '1.0.0', newId: () => 'first' })
-    expect(await checkMigrations(dir, migrationsOf(dir), authOf(), ['jobs'])).toEqual([
+    await runMigration({ projectDir: dir, dir: migrationsOf(dir), auth: authOf(), modules: {}, database: undefined, protobaseVersion: '1.0.0', newId: () => 'first' })
+    expect(await checkMigrations(dir, migrationsOf(dir), authOf(), { jobs: noInput })).toEqual([
       'the migrations do not record the jobs schema: run `protobase migration`, or `protobase migration baseline` against the database where a migration of an earlier version made it',
     ])
   })

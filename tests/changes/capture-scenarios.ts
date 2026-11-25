@@ -1,16 +1,17 @@
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
+import type { ResourceModel } from '@protobase/schema'
 import {
-  changesMigration,
-  checkChanges,
   coalesce,
   createAdmin,
   eventMatcher,
   jobsSchemaSql,
+  neededModules,
   readOutbox,
   resourceChange,
 } from '@protobase/server'
+import { moduleDifference, retiredDifference, schemaModules, type ModuleModel } from '@protobase/server/internal'
 
 /** A fresh database with the jobs schema: Kysely over it, a way to run several statements as a migration does, and its end. */
 export type TestDatabase = { db: Kysely<any>; exec: (text: string) => Promise<void>; close: () => Promise<void> }
@@ -75,9 +76,16 @@ export const captureScenarios = (connect: () => Promise<TestDatabase>) => {
     await database.exec(ddl)
   })
 
-  const migrate = async (models = [model]) => {
-    const text = await changesMigration(db, models)
+  // The change capture module as the snapshot holds it, migrated as `protobase migration` writes it for `models`.
+  let applied: ModuleModel | undefined
+  const written = (models: readonly ResourceModel[]) => {
+    const input = neededModules({ models, views: [], jobs: [], signIn: false }).changes
+    return input ? moduleDifference(schemaModules.changes, input, applied) : retiredDifference(schemaModules.changes, applied!)
+  }
+  const migrate = async (models: readonly ResourceModel[] = [model]) => {
+    const { sql: text, model: next } = written(models)
     if (text) await database.exec(text)
+    applied = next
     return text
   }
   afterAll(async () => {
@@ -90,11 +98,9 @@ export const captureScenarios = (connect: () => Promise<TestDatabase>) => {
   }
 
   describe('the migration', () => {
-    it('is refused at startup before it is applied, and has nothing more to do after', async () => {
-      await expect(checkChanges(db, [model])).rejects.toThrow('The changes of orders are not captured')
+    it('writes the outbox, capture() and the triggers, and has nothing more to do after', async () => {
       expect(await migrate()).toContain('create trigger "orders_changes_update"')
-      await checkChanges(db, [model])
-      expect(await changesMigration(db, [model])).toBeUndefined()
+      expect(written([model]).sql).toBeUndefined()
     })
   })
 
@@ -172,20 +178,29 @@ export const captureScenarios = (connect: () => Promise<TestDatabase>) => {
     })
   })
 
-  describe('the startup check', () => {
-    it('refuses a trigger that a field change made stale, until the next migration', async () => {
+  describe('the triggers of each resource', () => {
+    it('are written again once a field change makes them stale', async () => {
       const notSensitive = resource('orders').table('sales.orders').fields({ ...fields, iban: f.text().optional() }).primaryKey((r) => r.id).events((e) => e.crud()).toModel()
-      await expect(checkChanges(db, [notSensitive])).rejects.toThrow('The changes of orders are not captured')
-      await migrate([notSensitive])
-      await checkChanges(db, [notSensitive])
-      await migrate()
+      expect(await migrate([notSensitive])).toContain('create trigger "orders_changes"')
+      expect(await migrate()).toContain('create trigger "orders_changes"')
     })
 
-    it('drops the triggers once no resource is captured, and then captures nothing', async () => {
+    it('are written for a resource added, and kept, still capturing, on one dropped while another is captured', async () => {
+      await clear()
+      await database.exec('create table sales.refunds (id integer generated always as identity primary key, total numeric(12, 2) not null)')
+      const refunds = resource('refunds').table('sales.refunds').fields({ id: f.integer().readOnly(), total: f.decimal({ precision: 12, scale: 2 }) }).primaryKey((r) => r.id).events((e) => e.crud()).toModel()
+      expect(await migrate([model, refunds])).toContain('create trigger "refunds_changes"')
+      const withoutEvents = resource('orders').table('sales.orders').fields(fields).primaryKey((r) => r.id).toModel()
+      expect(await migrate([withoutEvents, refunds])).toBeUndefined()
+      await sql`insert into sales.orders (total) values (10)`.execute(db)
+      expect((await outbox(db)).map((row) => row.resource)).toEqual(['orders'])
+      expect(await migrate([model])).toBeUndefined()
+    })
+
+    it('are dropped once no resource is captured, which then captures nothing', async () => {
       await clear()
       const withoutEvents = resource('orders').table('sales.orders').fields(fields).primaryKey((r) => r.id).toModel()
       expect(await migrate([withoutEvents])).toContain('drop trigger if exists "orders_changes"')
-      await checkChanges(db, [withoutEvents])
       await sql`insert into sales.orders (total) values (9)`.execute(db)
       expect(await outbox(db)).toEqual([])
       await migrate()

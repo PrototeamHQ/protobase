@@ -1,4 +1,4 @@
-import { schemaModules, type ModuleModel, type OffChoice, type SchemaModuleId } from '@protobase/server/internal'
+import { schemaModules, type ModuleInput, type ModuleModel, type ModuleTargets, type OffChoice, type SchemaModuleId } from '@protobase/server/internal'
 import { authMigrationTitle } from '../../auth/migration-file'
 import type { MigrationPart } from '../parts'
 import { authDifference } from './auth-difference'
@@ -22,13 +22,13 @@ export type MigrationRun = {
   /** The config's auth store; `undefined` with sign-in off. */
   auth: AuthTarget | undefined
   /** The schema modules the config needs (`neededModules`), written from the snapshot like the auth store's steps. */
-  modules: readonly SchemaModuleId[]
+  modules: ModuleTargets
   /**
    * The parts compared with the database, its URL, what the file would take from older code there
    * (`trialContractions`), and what it has of a schema module (`SchemaModule.read`); `undefined` without `DATABASE_URL`.
    */
   database:
-    | { url: string; parts: MigrationPart[]; contractions: (sections: readonly Section[]) => Promise<SectionContractions[]>; readModule: (id: SchemaModuleId) => Promise<ModuleModel | undefined> }
+    | { url: string; parts: MigrationPart[]; contractions: (sections: readonly Section[]) => Promise<SectionContractions[]>; readModule: (id: SchemaModuleId, input: ModuleInput) => Promise<ModuleModel | undefined> }
     | undefined
   protobaseVersion: string
   newId: () => string
@@ -54,9 +54,9 @@ const checkRevivals = async (url: string, run: MigrationRun, revived: readonly K
 
 // Refuses to write a module from its first step onto a database that has it already, as made by an earlier version's
 // migration, which the snapshot does not record until a baseline reads it.
-const refuseUnrecorded = async (read: (id: SchemaModuleId) => Promise<ModuleModel | undefined>, snapshot: Snapshot | undefined, sections: readonly { name: SchemaModuleId }[]) => {
+const refuseUnrecorded = async (read: NonNullable<MigrationRun['database']>['readModule'], snapshot: Snapshot | undefined, sections: readonly { name: SchemaModuleId }[], targets: ModuleTargets) => {
   for (const { name } of sections) {
-    if (snapshot?.model.modules?.[name] || !(await read(name))) continue
+    if (snapshot?.model.modules?.[name] || !(await read(name, targets[name]!))) continue
     throw new Error(`The database has ${schemaModules[name].label}, which ${snapshotFile} does not record: describe it with \`protobase migration baseline\`, run against the database with the project's migrations applied, then run \`protobase migration\` again`)
   }
 }
@@ -99,23 +99,25 @@ export const runMigration = async (run: MigrationRun) => {
   if (database) await checkRevivals(database.url, run, difference.changes.revived)
   if (database && difference.migration && difference.migration.checks.length > 0) await runPreconditions(database.url, difference.migration.checks)
   const written = moduleSections(snapshot, modules)
-  if (database) await refuseUnrecorded(database.readModule, snapshot, written.sections)
-  const compared: Section[] = []
+  if (database) await refuseUnrecorded(database.readModule, snapshot, written.sections, modules)
+  const compared: (Section & { beforeModules?: boolean })[] = []
   for (const part of database?.parts ?? []) {
     const sql = await part.sql({ authWritten: Boolean(difference.migration) })
-    if (sql !== undefined) compared.push({ name: part.name, text: section(part.title, sql) })
+    if (sql !== undefined) compared.push({ name: part.name, text: section(part.title, sql), ...(part.beforeModules && { beforeModules: true }) })
   }
-  // The schema modules go before the compared parts, whose triggers call into them, such as jobs.enqueue().
+  // The schema modules go before the compared parts, whose triggers call into them, such as jobs.enqueue(), but for the
+  // parts that make tables the modules' triggers go on.
   const sections = [
     ...(difference.migration ? [{ name: 'auth', text: section(authMigrationTitle, difference.migration.sql) }] : []),
+    ...compared.filter(({ beforeModules }) => beforeModules).map(({ name, text }) => ({ name, text })),
     ...written.sections.map(({ name, title, sql }) => ({ name, text: section(title, sql) })),
-    ...compared,
+    ...compared.filter(({ beforeModules }) => !beforeModules).map(({ name, text }) => ({ name, text })),
   ]
   if (sections.length === 0) return
   // The sign-in modules' steps and the schema modules' are Protobase's own paths: what they take from older code makes
   // the file break it. What another part takes is refused. Without a database the file holds only the steps, read as
   // they lint (`step-lint.ts`).
-  const own = new Set<string>(['auth', ...modules])
+  const own = new Set<string>(['auth', ...written.sections.map(({ name }) => name)])
   const found = database ? await database.contractions(sections) : []
   const refused = found.filter(({ name }) => !own.has(name))
   if (refused.length > 0) throw new Error(olderCodeRefusal(refused))

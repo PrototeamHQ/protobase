@@ -1,10 +1,13 @@
 import type { ResourceModel } from '@protobase/schema'
 import { capturedBy } from '../changes/capture-sql'
+import { changesInput } from '../changes/changes-input'
+import { changesSchema, type EventsOptions } from '../changes/events-options'
 import { hasBuckets } from '../computed/buckets-schema'
 import { mailFeedbackResource } from '../mail/feedback/mail-feedback-resource'
 import type { RealtimeOptions } from '../realtime/relay/realtime-options'
 import { appRelayChannels, type RelayApp } from '../relay/realtime-channels'
-import type { SchemaModuleId } from './modules'
+import type { ModuleTargets } from './modules'
+import { noInput } from './schema-module'
 
 /** What of an app decides which schema modules it needs. */
 export type ModuleApp = {
@@ -18,13 +21,15 @@ export type ModuleApp = {
   workflows?: unknown
   notifications?: unknown
   realtime?: RealtimeOptions
+  /** Where captured changes live (`events` in `protobase.config.ts`). */
+  events?: EventsOptions
 }
 
 /**
- * The schema modules `app` needs, in their order: the same for `protobase migration`, which writes them, and the
- * server, which reads the record of migrations for them.
+ * The schema modules `app` needs, in their order, each with what it takes from the app: the same for `protobase
+ * migration`, which writes them, and the server, which reads the record of migrations for them.
  */
-export const neededModules = (app: ModuleApp): SchemaModuleId[] => {
+export const neededModules = (app: ModuleApp): ModuleTargets => {
   // Mail feedback's events are captured from its table like the app's own resources' events.
   const captured = app.mailFeedback ? [...app.models, mailFeedbackResource.toModel()] : app.models
   const comments = app.models.some((model) => model.comments)
@@ -34,6 +39,14 @@ export const neededModules = (app: ModuleApp): SchemaModuleId[] => {
   // Events and history are captured with a dispatch job, events delivered, mentions mailed, AI fields filled and
   // notifications sent by jobs, whose waiting and failed ones webhooks lists, workflows run by them, and time rollups
   // refreshed by one.
-  const jobs = app.jobs.length > 0 || captured.some(capturedBy(captured)) || comments || aiFields || app.models.some(hasBuckets) || Boolean(app.webhooks || app.workflows || app.notifications || relayChannels)
-  return jobs ? ['jobs'] : []
+  const changes = captured.some(capturedBy(captured))
+  const jobs = app.jobs.length > 0 || changes || comments || aiFields || app.models.some(hasBuckets) || Boolean(app.webhooks || app.workflows || app.notifications || relayChannels)
+  // The history and notices tables live in the changes schema too.
+  const events = { names: { schema: changesSchema(app.events) }, resources: {} }
+  return {
+    ...(jobs && { jobs: noInput }),
+    ...(changes && { changes: changesInput(captured, app.events) }),
+    ...(app.models.some((model) => model.history) && { history: events }),
+    ...(app.models.some((model) => model.live) && { notices: events }),
+  }
 }

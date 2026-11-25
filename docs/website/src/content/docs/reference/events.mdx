@@ -71,9 +71,9 @@ export default defineConfig({ events: { schema: 'row_changes' } })
 
 ## Migrations and startup
 
-[`protobase migration`](/reference/cli/#migration) compares the database with the resources' events and writes what it lacks as the project's next migrations: the jobs schema, then the `changes` schema, the function, and a trigger pair per resource with events. Apply it with the project's other migrations. A trigger changes when the resource's fields do, a field that became sensitive for instance, so run the command after changing the config. Once a resource has no events, the next migration drops its triggers; it never drops a table.
+[`protobase migration`](/reference/cli/#migration) writes what the project's `protobase.snapshot.json` lacks of the change capture as the project's next migration: the jobs schema, then the `changes` schema with the outbox, the function, and a trigger pair per resource with events, each a module with numbered steps that the snapshot and the record of migrations hold. Apply it with the project's other migrations. A trigger changes when the resource's fields do, a field that became sensitive for instance, so run the command after changing the config. Once a resource has no events, it keeps its triggers while another resource is still captured, so the code still running drains what they capture, and the migration once none is drops them, saying it breaks older code; it never drops a table. <gap>`protobase migration` cannot refuse a trigger of the app's own named like the capture's, `<table>_changes` or `<table>_changes_update`, which the file replaces, because reading the database's triggers before writing is not implemented.</gap>
 
-`protobase dev` and `protobase serve` do not start while a resource with events lacks its triggers, or has out-of-date ones, or the record of migrations lacks the jobs schema, and name what to run. `dev` checks again whenever it reloads the config. Neither changes the schema itself.
+`protobase dev` and `protobase serve` do not start while the record of migrations lacks the change capture, a resource's triggers as the config makes them, or the jobs schema, and name what to run. `dev` checks again whenever the config it reloads changes what it needs. Neither changes the schema itself.
 
 ## The outbox
 

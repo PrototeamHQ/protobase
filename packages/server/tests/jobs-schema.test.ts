@@ -5,6 +5,7 @@ import type { JobDefinition } from '../src/jobs/job-types'
 import { startJobs, type JobsRuntime, type StartJobsOptions } from '../src/jobs/runtime'
 import { jobsModule, jobsSchemaSql } from '../src/jobs/jobs-module'
 import { latestModel } from '../src/schema-modules/module-difference'
+import { noInput } from '../src/schema-modules/schema-module'
 import { openSnapshotDb } from '../../../test-support/sql-snapshot'
 
 // The jobs schema and enqueueing from SQL, with no worker running: what the runtime does with the jobs is in
@@ -30,27 +31,27 @@ describe('the jobs schema', () => {
   it('is read as the step and functions version the database has, once a migration made it', async () => {
     const pg = await openSnapshotDb('empty')
     const db = pg.db
-    expect(await jobsModule.read(db)).toBeUndefined()
+    expect(await jobsModule.read(db, noInput)).toBeUndefined()
     // In one transaction, as a project's db:migrate applies its files.
     await db.transaction().execute((trx) => sql.raw(jobsSchemaSql()).execute(trx))
-    expect(await jobsModule.read(db)).toEqual(latestModel(jobsModule))
+    expect(await jobsModule.read(db, noInput)).toEqual(latestModel(jobsModule))
   })
 
   it('reads functions that are missing as absent unless one is older, and refuses a pg-boss schema newer than or of a version no step records', async () => {
     const db = await jobsDb()
     await sql`comment on function jobs.next_due() is 'Protobase jobs 2'`.execute(db)
-    expect(await jobsModule.read(db)).toEqual({ lastStep: 1, replaceables: { functions: 2 } })
+    expect(await jobsModule.read(db, noInput)).toEqual({ lastStep: 1, replaceables: { functions: 2 } })
     await sql`drop function jobs.enqueue`.execute(db)
-    expect(await jobsModule.read(db)).toEqual({ lastStep: 1, replaceables: { functions: 2 } })
+    expect(await jobsModule.read(db, noInput)).toEqual({ lastStep: 1, replaceables: { functions: 2 } })
     await sql`comment on function jobs.next_due() is 'Protobase jobs 3'`.execute(db)
-    expect(await jobsModule.read(db)).toEqual({ lastStep: 1, replaceables: {} })
+    expect(await jobsModule.read(db, noInput)).toEqual({ lastStep: 1, replaceables: {} })
     // An overload by the same name is not the function the functions' SQL makes.
     await sql.raw(`create function jobs.enqueue(job_name text) returns uuid language sql as 'select null::uuid'; comment on function jobs.enqueue(text) is 'Protobase jobs 3'`).execute(db)
-    expect(await jobsModule.read(db)).toEqual({ lastStep: 1, replaceables: {} })
+    expect(await jobsModule.read(db, noInput)).toEqual({ lastStep: 1, replaceables: {} })
     await sql`update jobs.version set version = 46`.execute(db)
-    await expect(jobsModule.read(db)).rejects.toThrow('The jobs schema is at pg-boss schema version 46, newer than the 45 this version of Protobase records: upgrade Protobase')
+    await expect(jobsModule.read(db, noInput)).rejects.toThrow('The jobs schema is at pg-boss schema version 46, newer than the 45 this version of Protobase records: upgrade Protobase')
     await sql`update jobs.version set version = 44`.execute(db)
-    await expect(jobsModule.read(db)).rejects.toThrow('The jobs schema is at pg-boss schema version 44, which no step of this version of Protobase records')
+    await expect(jobsModule.read(db, noInput)).rejects.toThrow('The jobs schema is at pg-boss schema version 44, which no step of this version of Protobase records')
   })
 })
 

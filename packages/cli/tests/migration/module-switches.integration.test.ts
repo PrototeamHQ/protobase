@@ -64,7 +64,7 @@ const project = async () => {
 
 // `protobase migration` for `auth`, with the database's rows counted when `database` is set.
 const migration = (where: { projectDir: string; dir: string }, auth: AdminAuth, run: Partial<MigrationRun> = {}) =>
-  runMigration({ ...where, auth: { names: storeNames(auth), organizationsOn: false, organizations: undefined }, modules: [], database: undefined, protobaseVersion: '1.0.0', newId: randomUUID, ...run })
+  runMigration({ ...where, auth: { names: storeNames(auth), organizationsOn: false, organizations: undefined }, modules: {}, database: undefined, protobaseVersion: '1.0.0', newId: randomUUID, ...run })
 
 // `protobase migrate`, with `--force` or without.
 const migrate = async (databaseUrl: string, dir: string, force = false) => {
@@ -118,10 +118,10 @@ describe.skipIf(!reachable)('a sign-in module turned off and on again', () => {
 
     // Off, kept: the server starts without the module, and its rows stay.
     const off = authOf(databaseUrl, false)
-    await expect(checkMigrationRecord(plainStoreDb(off), runtimeModel(off, []), '1.0.0')).rejects.toThrow(/so the server will not start/)
+    await expect(checkMigrationRecord(plainStoreDb(off), runtimeModel(off, {}), '1.0.0')).rejects.toThrow(/so the server will not start/)
     await migration(where, off, { off: 'keep' })
     await migrate(databaseUrl, where.dir)
-    await expect(checkMigrationRecord(plainStoreDb(off), runtimeModel(off, []), '1.0.0')).resolves.toBeUndefined()
+    await expect(checkMigrationRecord(plainStoreDb(off), runtimeModel(off, {}), '1.0.0')).resolves.toBeUndefined()
     expect(await count(databaseUrl, 'personal_access_token')).toBe(1)
     await setUserRole(off, { email: 'ana@example.com', role: 'support' })
 
@@ -134,7 +134,7 @@ describe.skipIf(!reachable)('a sign-in module turned off and on again', () => {
     expect(await readFile(file!, 'utf8')).toContain('-- personal_access_tokens on again:')
     await expect(migrate(databaseUrl, where.dir)).rejects.toThrow('The personal_access_tokens module was kept while off, and its tables still hold rows: personal_access_token 1.')
     expect(await migrate(databaseUrl, where.dir, true)).toEqual([path.basename(file!)])
-    await expect(checkMigrationRecord(plainStoreDb(again), runtimeModel(again, []), '1.0.0')).resolves.toBeUndefined()
+    await expect(checkMigrationRecord(plainStoreDb(again), runtimeModel(again, {}), '1.0.0')).resolves.toBeUndefined()
 
     // The token carries `sales`, which Ana no longer holds; once she does again, it acts, until she is banned or it expires.
     expect(await sessionOf(again, token)).toBe(401)
@@ -161,7 +161,7 @@ describe.skipIf(!reachable)('a sign-in module turned off and on again', () => {
     expect(await migration(where, again, { database: { url: databaseUrl, parts: [], contractions: (sections) => trialContractions(databaseUrl, sections), readModule: async () => undefined }, confirmRevival })).toBeDefined()
     expect(confirmRevival).not.toHaveBeenCalled()
     expect(await migrate(databaseUrl, where.dir)).toHaveLength(1)
-    await expect(checkMigrationRecord(plainStoreDb(again), runtimeModel(again, []), '1.0.0')).resolves.toBeUndefined()
+    await expect(checkMigrationRecord(plainStoreDb(again), runtimeModel(again, {}), '1.0.0')).resolves.toBeUndefined()
   })
 
   it('writes no auth migration for organizations kept off, from the default organization the config keeps', async () => {
@@ -171,10 +171,10 @@ describe.skipIf(!reachable)('a sign-in module turned off and on again', () => {
     const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
     pools.push(pool)
     const on = createAuth({ database: pool, baseURL: origin, secret, mailer: false, operator: false, signInProviders: [], organizations })
-    await runMigration({ ...where, auth: { names: storeNames(on), organizationsOn: true, organizations }, modules: [], database: undefined, protobaseVersion: '1.0.0', newId: randomUUID })
+    await runMigration({ ...where, auth: { names: storeNames(on), organizationsOn: true, organizations }, modules: {}, database: undefined, protobaseVersion: '1.0.0', newId: randomUUID })
     await migrate(databaseUrl, where.dir)
     const off = authOf(databaseUrl, false)
-    await runMigration({ ...where, auth: { names: storeNames(off), organizationsOn: false, organizations }, modules: [], database: undefined, protobaseVersion: '1.0.0', newId: randomUUID, off: 'keep' })
+    await runMigration({ ...where, auth: { names: storeNames(off), organizationsOn: false, organizations }, modules: {}, database: undefined, protobaseVersion: '1.0.0', newId: randomUUID, off: 'keep' })
     await migrate(databaseUrl, where.dir)
 
     // The sign-in has no organizations while they are off; the config still gives their default.

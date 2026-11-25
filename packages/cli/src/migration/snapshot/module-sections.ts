@@ -1,17 +1,21 @@
-import { latestModules, moduleDifference, schemaModules, type SchemaModuleId } from '@protobase/server/internal'
+import { moduleDifference, retiredDifference, schemaModules, targetIds, type ModuleTargets, type SchemaModuleId } from '@protobase/server/internal'
 import type { Snapshot } from './snapshot-file'
 
 /**
- * What the schema modules `needed` lack of the snapshot's model, from the snapshot alone: each module's statements, by
- * module, with what of them the code before does not run on; and the modules' model once they are applied, which
- * keeps a module the config no longer needs as the migrations left it. `model` is undefined without any module.
+ * What the schema modules of `targets` lack of the snapshot's model, from the snapshot alone: each module's
+ * statements, by module, with what of them the code before does not run on; and the modules' model once they are
+ * applied. A module the config no longer needs stays as the migrations left it, but for each resource's objects, which
+ * go, breaking older code (`retiredDifference`). `model` is undefined without any module.
  */
-export const moduleSections = (snapshot: Snapshot | undefined, needed: readonly SchemaModuleId[]) => {
+export const moduleSections = (snapshot: Snapshot | undefined, targets: ModuleTargets) => {
   const before = snapshot?.model.modules
-  const sections = needed.flatMap((id) => {
-    const { sql, breaks } = moduleDifference(schemaModules[id], before?.[id])
-    return sql === undefined ? [] : [{ name: id, title: schemaModules[id].title, sql, breaks }]
+  const written = targetIds(targets).map((id) => ({ id, ...moduleDifference(schemaModules[id], targets[id]!, before?.[id]) }))
+  const retired = (Object.keys(schemaModules) as SchemaModuleId[]).flatMap((id) => {
+    const had = before?.[id]
+    return had && !targets[id] ? [{ id, ...retiredDifference(schemaModules[id], had) }] : []
   })
-  const model = needed.length > 0 ? { ...before, ...latestModules(needed) } : before
+  const changed = [...written, ...retired]
+  const sections = changed.flatMap(({ id, sql, breaks }) => (sql === undefined ? [] : [{ name: id, title: schemaModules[id].title, sql, breaks }]))
+  const model = changed.length > 0 ? { ...before, ...Object.fromEntries(changed.map(({ id, model }) => [id, model])) } : before
   return { sections, model }
 }

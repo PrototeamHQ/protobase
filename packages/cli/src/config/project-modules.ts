@@ -15,7 +15,7 @@ const models = (config: BuiltProject['config']) => {
 
 /** The schema modules of the app `project` serves. */
 export const builtModules = (project: BuiltProject) =>
-  neededModules({ ...models(project.config), jobs: project.jobs, signIn: Boolean(project.auth), mailFeedback: project.mailFeedback, webhooks: project.webhooks, workflows: project.workflows, notifications: project.notifications, realtime: project.realtime })
+  neededModules({ ...models(project.config), jobs: project.jobs, signIn: Boolean(project.auth), mailFeedback: project.mailFeedback, webhooks: project.webhooks, workflows: project.workflows, notifications: project.notifications, realtime: project.realtime, events: project.events })
 
 /** The model the app `project` reads of its database's record of migrations (`runtimeModel`). */
 export const builtRuntimeModel = (project: BuiltProject) => runtimeModel(project.auth, builtModules(project))
@@ -23,5 +23,5 @@ export const builtRuntimeModel = (project: BuiltProject) => runtimeModel(project
 /** The schema modules of the app `config` makes, from the config alone. */
 export const configModules = async (config: MergedConfig) => {
   const [resources, webhooks, notifications] = await Promise.all([projectResources(config), projectWebhooks(config), projectNotifications(config)])
-  return neededModules({ ...models(resources), jobs: projectJobs(config), signIn: Boolean(config.auth), mailFeedback: mailFeedbackOn(config), webhooks, workflows: config.workflows, notifications, realtime: config.realtime })
+  return neededModules({ ...models(resources), jobs: projectJobs(config), signIn: Boolean(config.auth), mailFeedback: mailFeedbackOn(config), webhooks, workflows: config.workflows, notifications, realtime: config.realtime, events: config.events })
 }

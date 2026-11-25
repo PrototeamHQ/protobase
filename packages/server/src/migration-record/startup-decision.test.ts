@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { settingsStoreNames } from '../better-auth/store/offline/settings-names'
 import { latestSteps, storeModel, type LastSteps } from '../better-auth/store/offline/store-model'
+import { f, resource } from '@protobase/schema'
 import { functionsVersion } from '../jobs/functions-sql'
+import { neededModules } from '../schema-modules/needed-modules'
+import { latestModules } from '../schema-modules/modules'
 import type { RecordModel } from './record-model'
 import type { RecordState } from './record-state'
 import { startupRefusal } from './startup-decision'
@@ -93,6 +96,27 @@ describe('startupRefusal', () => {
       const newer: RecordModel = { ...runtime, modules: { jobs: { lastStep: 1, replaceables: { functions: functionsVersion + 1 } } } }
       expect(startupRefusal(withJobs, state(newer, { matched: true }), '0.15.0')).toBeUndefined()
       expect(startupRefusal(withJobs, state(newer, { matched: true, notAdditiveSince: ['007_jobs'] }), '0.15.0')).toContain('it has migrations that break older code since the one this version reads: 007_jobs')
+    })
+  })
+
+  describe('with the change capture', () => {
+    const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id).events((e) => e.crud())
+    const app = (models = [notes.toModel()], events?: { schema: string }) => ({ modules: latestModules(neededModules({ models, views: [], jobs: [], signIn: false, ...(events && { events }) })) })
+
+    it('refuses a database whose record lacks the change capture, naming it', () => {
+      expect(startupRefusal(app(), state({ modules: { jobs: app().modules.jobs! } }), '0.15.0')).toContain('the database lacks the change capture, which this version needs at step 1 (outbox)')
+    })
+
+    it("refuses a resource's triggers the record lacks or has for other fields, and the changes schema named otherwise", () => {
+      const other = resource('other').table('other').fields({ id: f.integer() }).primaryKey((r) => r.id).events((e) => e.crud())
+      expect(startupRefusal(app([notes.toModel(), other.toModel()]), state(app()), '0.15.0')).toContain('the change capture lacks its triggers of other')
+      const sensitive = notes.fields({ id: f.integer(), body: f.text().sensitive() })
+      expect(startupRefusal(app([sensitive.toModel()]), state(app()), '0.15.0')).toContain('the change capture has its triggers of notes otherwise than this version writes them for the config')
+      expect(startupRefusal(app(undefined, { schema: 'events' }), state(app()), '0.15.0')).toContain(`the change capture's schema is "changes" in the database and "events" now`)
+    })
+
+    it('starts on a record that holds it, whatever it keeps for older code', () => {
+      expect(startupRefusal(app(), state(app(), { matched: true }), '0.15.0')).toBeUndefined()
     })
   })
 })

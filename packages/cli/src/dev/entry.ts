@@ -1,6 +1,6 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
-import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkChanges, checkChannelSends, checkComments, checkComputed, checkDerived, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, checkMigrationRecord, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
+import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkCalls, checkChannelSends, checkComments, checkComputed, checkDerived, checkNotificationsSchema, checkQueryRunner, checkRealtimeRelay, checkResourcesOutsideAuthStore, checkStatusSchema, checkUserTablesSchema, checkWebhooksSchema, checkWorkflowsSchema, checkMigrationRecord, configExports, hasUsers, relayed, sqlSends } from '@protobase/server'
 import { modelHash } from '@protobase/server/internal'
 import { projectIcons } from '../build/app-icons'
 import { projectResources } from '../config/project-parts'
@@ -45,9 +45,8 @@ if (store.__protobaseRecordChecked !== modelHash(model)) {
 await project.auth?.pinnedOrganization()
 
 // On every load, since editing the config can add a resource over a table of the auth store, give a resource events or
-// history whose triggers the database lacks, or comments whose table it lacks, or rollups and formulas whose columns it lacks.
+// history, whose triggers the record of migrations holds, or comments whose table it lacks, or rollups and formulas whose columns it lacks.
 if (project.auth) await checkResourcesOutsideAuthStore(db, resources.map((resource) => resource.toModel()), project.auth)
-await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
 await checkComments(db, resources.map((resource) => resource.toModel()))
 await checkDerived(db, resources.map((resource) => resource.toModel()))
 await checkCalls(db, project.calls, project.events)

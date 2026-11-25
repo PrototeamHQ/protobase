@@ -48,7 +48,7 @@ export const writeAuthMigration = async ({ auth, projectDir, dir, name, writer, 
   const unset = organizationRefusals(snapshot, target)
   if (unset.length > 0) throw new Error(unset.join('; '))
   const sql = await authSchemaMigration(auth)
-  const unrecorded = sql === undefined && !(await recordsRuntimeModel(plainStoreDb(auth), runtimeModel(auth, [])))
+  const unrecorded = sql === undefined && !(await recordsRuntimeModel(plainStoreDb(auth), runtimeModel(auth, {})))
   if (sql === undefined && snapshot && !unrecorded) return
   // The record takes the config's names: a name or type the snapshot has otherwise is a migration of the project's own.
   const refusals = authRefusals(snapshot, target)
