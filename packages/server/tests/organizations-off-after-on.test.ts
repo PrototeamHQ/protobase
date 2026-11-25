@@ -116,6 +116,15 @@ describe('sessions and tokens while organizations are off after being on', () =>
     expect((await app.request('/api/auth/account/personal-access-tokens/create', { cookie, body: { name: 'Script' } })).status).toBe(401)
   })
 
+  it("keep an admin who is no member of the default organization from creating someone who would be", async () => {
+    const app = await served()
+    const cookie = await app.signIn('root@example.com')
+    await toAcme(app, 'root@example.com')
+    const created = await app.request('/api/auth/admin/create-user', { cookie, body: { email: 'cy@example.com', password, name: 'Cy', role: 'sales' } })
+    expect(created.status).toBe(401)
+    expect((await app.store.query('select id from "user" where email = $1', ['cy@example.com'])).rows).toEqual([])
+  })
+
   it("make a personal access token in the default organization, which the account page does not name, and take only those", async () => {
     const app = await served()
     const cookie = await app.signIn('ana@example.com')

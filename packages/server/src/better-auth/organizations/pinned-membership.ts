@@ -17,9 +17,9 @@ export const notPinnedMember = () => APIError.from('UNAUTHORIZED', BASE_ERROR_CO
  * The member table organizations kept, as Better Auth's `member` model, so the pinned organization's members are read
  * and written through the adapter of the request, in its transaction; `kept` names it as organizations on would. While
  * `pin` reads an organization, a session whose user is no member of it, such as one from before organizations were
- * turned off, gets no new credential from `minting`, the paths of API tokens and personal access tokens.
+ * turned off, is refused on each path `guarded` takes, such as those that issue credentials.
  */
-export const pinnedMembershipPlugin = (kept: ResolvedNames, pin: PinRead, minting: readonly string[]) => {
+export const pinnedMembershipPlugin = (kept: ResolvedNames, pin: PinRead, guarded: (path: string) => boolean) => {
   const member = kept.table('member')
   const field = (name: string, attribute: Omit<DBFieldAttribute, 'fieldName'>) => ({ ...attribute, fieldName: member.fields[name]!.name }) as DBFieldAttribute
   return {
@@ -39,7 +39,7 @@ export const pinnedMembershipPlugin = (kept: ResolvedNames, pin: PinRead, mintin
     hooks: {
       before: [
         {
-          matcher: (context) => context.path !== undefined && minting.includes(context.path),
+          matcher: (context) => context.path !== undefined && guarded(context.path),
           handler: createAuthMiddleware(async (ctx) => {
             const pinned = await pin()
             if (!pinned) return
