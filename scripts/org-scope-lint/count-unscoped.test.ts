@@ -10,6 +10,10 @@ describe('the unscoped() count', () => {
     expect(found[file]).toBe(2)
   })
 
+  it("counts a call through a literal key, db['unscoped'](...)", () => {
+    expect(countUnscoped(path.join(import.meta.dirname, 'fixtures/element-unscoped.ts'))).toBe(1)
+  })
+
   it('fails on one use more than the reviewed list gives, and passes once the list names it', () => {
     expect(unlistedCounts(found, { [file]: 1 })).toEqual([`${file}: 2 unscoped() uses, the reviewed list gives 1: review them and set the list to 2`])
     expect(unlistedCounts(found, { [file]: 2 })).toEqual([])

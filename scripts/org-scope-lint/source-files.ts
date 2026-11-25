@@ -8,8 +8,8 @@ const isTestCode = (file: string) => /\.test\.[mc]?[jt]sx?$/.test(file) || /^pac
 
 const isSource = (file: string) => /\.([mc]?[jt]sx?)$/.test(file) && !file.endsWith('.d.ts')
 
-/** The source files the lint reads, by path from `root`: tracked or new, as git lists them, test code left out. */
+/** The source files the lint reads, by path from `root`: tracked or new, as git lists them, test code left out. Paths are NUL-separated, as git quotes none then. */
 export const sourceFiles = (root: string) =>
-  execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '--', ...scannedTrees], { cwd: root, encoding: 'utf8' })
-    .split('\n')
+  execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...scannedTrees], { cwd: root, encoding: 'utf8' })
+    .split('\0')
     .filter((file) => file !== '' && isSource(file) && !isTestCode(file))

@@ -84,6 +84,7 @@ export const edges = [
   // The UI's tests of its stylesheet and page.
   { from: ['packages/ui/src/tokens.test.ts'], reads: ['packages/ui/src/tokens.css'] },
   { from: ['scripts/plugin-network/find-network.test.ts'], reads: ['scripts/plugin-network/fixtures/**'] },
+  { from: ['scripts/org-scope-lint/find-raw-tables.test.ts', 'scripts/org-scope-lint/count-unscoped.test.ts'], reads: ['scripts/org-scope-lint/fixtures/**'] },
   { from: ['packages/ui/src/app/index-html.test.ts'], reads: ['packages/ui/src/app/index.html', 'packages/ui/src/tokens.css'] },
   { from: ['packages/ui/src/theme/theme-preference.test.ts'], reads: ['packages/ui/src/app/index.html'] },
   { from: ['packages/ui/src/app/start-screen-watch.test.ts'], reads: ['packages/ui/src/app/index.html'] },

@@ -4,9 +4,11 @@ import ts from 'typescript'
 /** The `unscoped(` uses of each file, by its path: the reviewed list's shape. */
 export type UnscopedCounts = Record<string, number>
 
-// `unscoped(...)` or `x.unscoped(...)`: a query, or a table in raw SQL, that reads every organization's rows.
+// `unscoped(...)`, `x.unscoped(...)` or `x['unscoped'](...)`: a query, or a table in raw SQL, that reads every organization's rows.
 const isUnscoped = ({ expression }: ts.CallExpression) =>
-  (ts.isIdentifier(expression) && expression.text === 'unscoped') || (ts.isPropertyAccessExpression(expression) && expression.name.text === 'unscoped')
+  (ts.isIdentifier(expression) && expression.text === 'unscoped') ||
+  (ts.isPropertyAccessExpression(expression) && expression.name.text === 'unscoped') ||
+  (ts.isElementAccessExpression(expression) && ts.isStringLiteralLike(expression.argumentExpression) && expression.argumentExpression.text === 'unscoped')
 
 /** The `unscoped(` calls in `file`; a mention in a comment or a string is none. */
 export const countUnscoped = (file: string) => {

@@ -16,8 +16,16 @@ describe('findRawTables', () => {
     expect(found('sql-raw.ts')).toEqual(['sql-raw.ts:3: auth.member', 'sql-raw.ts:4: auth.invitation', 'sql-raw.ts:5: auth.personal_access_token'])
   })
 
-  it('finds one in CompiledQuery.raw', () => {
+  it('finds one in CompiledQuery.raw, and none in its bound values', () => {
     expect(found('compiled-query.ts')).toEqual(['compiled-query.ts:3: auth.member'])
+  })
+
+  it('finds one through an aliased or namespaced kysely import', () => {
+    expect(found('aliased.ts')).toEqual(['aliased.ts:4: auth.member', 'aliased.ts:5: auth.invitation', 'aliased.ts:6: auth.personal_access_token'])
+  })
+
+  it('refuses raw SQL with more branches and joins than it checks, rather than checking a few', () => {
+    expect(found('many-branches.ts')).toEqual(['many-branches.ts:4: raw'])
   })
 
   it('finds withoutPlugins() on the transaction a callback gets, unless the file may drop plugins', () => {
