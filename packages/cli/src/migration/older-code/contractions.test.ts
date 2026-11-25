@@ -7,8 +7,8 @@ const column = (name: string, number: number, rest: Partial<CatalogColumn> = {})
 // A table `sales.orders` (oid 1) with two columns, a view over it, a function, a trigger and an enum.
 const before: Catalog = {
   relations: [
-    { oid: '1', name: 'sales.orders', kind: 'r' },
-    { oid: '2', name: 'sales.open_orders', kind: 'v' },
+    { oid: '1', name: 'sales.orders', kind: 'r', comment: null },
+    { oid: '2', name: 'sales.open_orders', kind: 'v', comment: null },
   ],
   columns: [column('id', 1, { type: 'integer', notNull: true }), column('code', 2), column('code', 1, { relation: '2' })],
   constraints: [{ relation: '1', name: 'orders_pkey', definition: 'PRIMARY KEY (id)' }],
@@ -28,7 +28,7 @@ describe('what a migration takes from older code', () => {
   it('finds nothing when it only adds: tables, nullable or defaulted columns, limits on new tables, functions and relaxed columns', () => {
     expect(contractions(before, before)).toEqual([])
     const found = edit((after) => {
-      after.relations.push({ oid: '3', name: 'sales.lines', kind: 'r' })
+      after.relations.push({ oid: '3', name: 'sales.lines', kind: 'r', comment: null })
       after.columns.push(column('qty', 1, { relation: '3', notNull: true }), column('note', 3), column('state', 4, { notNull: true, hasDefault: true }))
       after.constraints.push({ relation: '3', name: 'lines_qty_check', definition: 'CHECK (qty > 0)' })
       after.functions.push({ key: 'sales.lines_total()', result: 'integer' })
@@ -86,6 +86,24 @@ describe('what a migration takes from older code', () => {
       after.uniqueIndexes.push({ relation: '1', name: 'orders_code_key', definition: 'CREATE UNIQUE INDEX orders_code_key ON sales.orders USING btree (code)' }, { relation: '1', name: 'orders_code_lower', definition: 'CREATE UNIQUE INDEX orders_code_lower ON sales.orders USING btree (lower(code))' })
     })
     expect(unique).toEqual(['adds the constraint orders_code_key to sales.orders, which rows written by older code may break', 'adds the unique index orders_code_lower to sales.orders, which rows written by older code may break'])
+  })
+
+  it("takes a time rollup's table made again as replaced, naming only the columns older code reads that it loses", () => {
+    const comment = 'protobase time rollup: create table ...'
+    const rollup = structuredClone(before)
+    rollup.relations[0]!.comment = comment
+    const remade = (change: (after: Catalog) => void = () => {}) => {
+      const after = structuredClone(rollup)
+      after.relations[0]!.oid = '7'
+      for (const found of [...after.columns, ...after.constraints, ...after.uniqueIndexes]) if (found.relation === '1') found.relation = '7'
+      after.columns[1]!.number = 3
+      change(after)
+      return contractions(rollup, after)
+    }
+    expect(remade()).toEqual([])
+    expect(remade((after) => after.uniqueIndexes.push({ relation: '7', name: 'orders_code_idx', definition: 'CREATE UNIQUE INDEX orders_code_idx ON sales.orders USING btree (code)' }))).toEqual([])
+    expect(remade((after) => (after.columns = after.columns.filter(({ name, relation }) => !(relation === '7' && name === 'code'))))).toEqual(['drops or renames column sales.orders.code'])
+    expect(remade((after) => (after.relations[0]!.comment = null))).toEqual(['drops table sales.orders and makes it again, losing its rows'])
   })
 
   it('leaves out the triggers of the watch on retired columns, which no code reads', () => {

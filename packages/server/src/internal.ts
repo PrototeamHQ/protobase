@@ -33,6 +33,7 @@ export { keptModule, latestSteps, storeModel, storeNamesList, type KeptModule, t
 export { nameChanges } from './better-auth/store/offline/name-changes'
 export { offlineStepsMigration, type SnapshotStore } from './better-auth/store/offline/offline-steps'
 export { forceSetting, keepSql, keptTables, offChoices, revivalCheckSql, revivalRefusal, unwatchSql, type OffChoice } from './better-auth/store/offline/module-switches'
+export { bucketsCommentPrefix } from './computed/buckets-sql'
 export { retiredSchema } from './better-auth/store/offline/retired-watch'
 export { baselineStore, type LiveStore } from './better-auth/store/offline/baseline-store'
 export { stepRecordMigration, stepsOfVersions } from './better-auth/store/legacy-record'

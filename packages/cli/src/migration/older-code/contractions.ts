@@ -1,4 +1,4 @@
-import { retiredSchema } from '@protobase/server/internal'
+import { bucketsCommentPrefix, retiredSchema } from '@protobase/server/internal'
 import type { Catalog, CatalogColumn, CatalogLimit, CatalogRelation, CatalogTrigger } from './catalog'
 
 // What a migration takes from the code still running while it deploys, and from the version before once rolled back:
@@ -12,6 +12,10 @@ const kindNames: Record<string, string> = { r: 'table', p: 'table', f: 'foreign 
 // The relations whose rows are lost when they are made again.
 const holdsRows = new Set(['r', 'p', 'S'])
 const tables = new Set(['r', 'p'])
+
+// A time rollup's table, as its comment says Protobase made it: its rows are recomputed from its source, so one made
+// again loses none, and only its own function writes it.
+const recomputed = (relation: CatalogRelation) => relation.comment?.startsWith(bucketsCommentPrefix) ?? false
 
 // The insert, delete, update and truncate bits of `pg_trigger.tgtype`.
 const eventBits = [
@@ -41,12 +45,13 @@ const lostTriggers = (relation: CatalogRelation, before: readonly CatalogTrigger
 
 const byRelation = <T extends { relation: string }>(items: T[], oid: string) => items.filter((item) => item.relation === oid)
 
-const columnChanges = (relation: CatalogRelation, before: CatalogColumn[], after: CatalogColumn[]) =>
+// `keepsValues`: whether a column added again loses its values, as a table's does unless its rows are recomputed.
+const columnChanges = (relation: CatalogRelation, before: CatalogColumn[], after: CatalogColumn[], keepsValues = tables.has(relation.kind)) =>
   before.flatMap((had) => {
     const now = after.find((column) => column.name === had.name)
     const name = `${relation.name}.${had.name}`
     if (!now) return [`drops or renames column ${name}`]
-    if (tables.has(relation.kind) && !had.generated && now.number !== had.number) return [`drops column ${name} and adds it again, losing its values`]
+    if (keepsValues && !had.generated && now.number !== had.number) return [`drops column ${name} and adds it again, losing its values`]
     if (now.type !== had.type) return [`changes the type of column ${name} from ${had.type} to ${now.type}`]
     if (now.notNull && !had.notNull) return [`makes column ${name} not null`]
     if (now.notNull && had.hasDefault && !now.hasDefault && !now.generated) return [`removes the default of the required column ${name}`]
@@ -68,8 +73,10 @@ const relationChanges = (before: Catalog, after: Catalog, relation: CatalogRelat
   const kind = kindNames[relation.kind]!
   if (!now) return [`drops, renames or moves ${kind} ${relation.name}`]
   if (now.kind !== relation.kind) return [`makes ${kind} ${relation.name} a ${kindNames[now.kind]!}`]
-  if (holdsRows.has(relation.kind) && now.oid !== relation.oid) return [`drops ${kind} ${relation.name} and makes it again, losing its rows`]
   const columns = [byRelation(before.columns, relation.oid), byRelation(after.columns, now.oid)] as const
+  // A time rollup's table made again is replaced: older code loses only the columns it reads, and writes none of it.
+  if (now.oid !== relation.oid && recomputed(relation) && recomputed(now)) return columnChanges(relation, ...columns, false)
+  if (holdsRows.has(relation.kind) && now.oid !== relation.oid) return [`drops ${kind} ${relation.name} and makes it again, losing its rows`]
   if (!tables.has(relation.kind)) return columnChanges(relation, ...columns)
   // A constraint's own unique index is named after it, so it is named once.
   const constraints = [byRelation(before.constraints, relation.oid), byRelation(after.constraints, now.oid)] as const
