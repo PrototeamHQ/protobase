@@ -196,6 +196,15 @@ describe('createMemberCommand', () => {
     expect(users.addMember).not.toHaveBeenCalled()
   })
 
+  it('skips the first-user ownership step with --all-organizations on an empty store', async () => {
+    // An isMember that answers yes would print the first user's ownership if it were reached.
+    const isMember = vi.fn(async () => true)
+    const users = { ...api(false, true), isMember }
+    expect(await create(users, { allOrganizations: true })).toBe('Created admin jan@example.com, shown in the app as Superuser\njan@example.com joins no organization\n')
+    expect(isMember).not.toHaveBeenCalled()
+    expect(users.addMember).not.toHaveBeenCalled()
+  })
+
   it('refuses the pin flags while organizations are off, creating nobody', async () => {
     const users = api(true)
     await expect(create(users, { allOrganizations: true })).rejects.toThrow('needs organizations')
