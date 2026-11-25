@@ -37,7 +37,7 @@ Connecting again with `?after=<cursor>` catches up on what was missed while disc
 A view's change names no record, so the [Realtime socket](/reference/supabase-realtime/) does not send it.
 :::
 
-A resource backed by a database view, such as a chat thread that merges messages and replies, updates live when the tables it reads change. A view takes no trigger, so name the resources it reads with `.live({ reads })`: a change in any of them refreshes the view's open lists, record pages and related lists, and a change in another table does not.
+A resource backed by a database view, such as a chat thread that merges messages and replies, updates live when the tables it reads change. A view takes no trigger, so name the resources it reads with `.live({ reads })`: a change in any of them refreshes the view's open lists, record pages and related lists, and a change in another table does not. <gap>`protobase migration` cannot refuse a trigger on a resource backed by a view before Postgres refuses it as the file applies because reading which tables are views without a database is not implemented.</gap>
 
 <Code code={thread} lang="ts" title="config/thread.ts" />
 
