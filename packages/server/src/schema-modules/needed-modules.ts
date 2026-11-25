@@ -32,6 +32,7 @@ export type ModuleApp = {
   /** The auth store's names with sign-in on, whose users the notifications and statuses tables point at and whose sessions the relay's trigger is on. */
   authStore?: StoreNames
   mailFeedback?: boolean
+  unsubscribe?: boolean
   webhooks?: WebhooksOptions
   workflows?: Pick<WorkflowsOptions, 'schema' | 'storage' | 'customSteps'>
   notifications?: NotificationsOptions
@@ -64,11 +65,13 @@ export const neededModules = (app: ModuleApp): ModuleTargets => {
   const events = { names: { schema: changesSchema(app.events) }, resources: {} }
   return {
     ...(jobs && { jobs: noInput }),
+    ...(app.mailFeedback && { mail_feedback: noInput }),
     ...(app.models.some(computedOn) && { computed: computedInput(app.models) }),
     ...(changes && { changes: changesInput(captured, app.events) }),
     ...(app.models.some((model) => model.history) && { history: events }),
     ...(derivedNames(app.models).length > 0 && { derived: derivedInput(app.models) }),
     ...((app.models.some((model) => model.live) || Boolean(app.calls)) && { notices: events }),
+    ...(comments && { comments: noInput }),
     ...(app.webhooks && webhooksTargets(app.webhooks, app.events)),
     ...(app.workflows && workflowsTargets(app.workflows)),
     ...(app.notifications && notificationsTargets(app.notifications, app.authStore)),
@@ -78,5 +81,6 @@ export const neededModules = (app: ModuleApp): ModuleTargets => {
     ...(relayed(app.realtime) && { realtime_relay: noInput }),
     ...(sqlSends(app.realtime) && { channel_sends: noInput }),
     ...(app.userTables && { user_tables: noInput }),
+    ...(app.unsubscribe && { unsubscribes: noInput }),
   }
 }

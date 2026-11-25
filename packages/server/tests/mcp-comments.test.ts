@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource, type AccessContext } from '@protobase/schema'
 import type { AdminOptions } from '../src/admin-options'
-import { commentsMigration } from '../src/comments/comments-sql'
+import { commentsSchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { allResources } from '../../../test-support/server'
 import { mcpStores, serveMcp, type McpStores } from './support/mcp-app'
 
@@ -19,10 +19,10 @@ const tickets = resource('tickets')
 let stores: McpStores
 beforeAll(async () => {
   stores = await mcpStores()
-  const { pg, db } = stores.fixture
+  const { pg } = stores.fixture
   await pg.exec(`create table tickets (id integer generated always as identity primary key, title text not null, status text not null);
     insert into tickets (title, status) values ('Printer on fire', 'open'), ('Old laptop', 'closed');`)
-  await pg.exec((await commentsMigration(db))!)
+  await pg.exec(commentsSchemaSql())
 })
 afterAll(async () => { await stores.fixture.db.destroy() })
 

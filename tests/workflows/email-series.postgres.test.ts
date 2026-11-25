@@ -1,11 +1,10 @@
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { configExports, createAdmin, startJobs, workflowsSchemaSql, type JobsRuntime, type MailMessage, type WorkflowsOptions } from '@protobase/server'
+import { configExports, createAdmin, startJobs, unsubscribesSchemaSql, workflowsSchemaSql, type JobsRuntime, type MailMessage, type WorkflowsOptions } from '@protobase/server'
 import { localFiles, workflowsModule } from '@protobase/server/internal'
 import welcomeSeries from '../../docs-examples/workflows/welcome-series.json'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
-import { unsubscribesMigration } from '../../packages/server/src/mail/unsubscribe/unsubscribe-schema'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { definitionFields } from '../../test-support/workflow-fields'
 
@@ -37,7 +36,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('an email series in a wo
     db = pg.db
     folder = await tempDir()
     await pg.exec(workflowsSchemaSql(workflows))
-    await pg.exec((await unsubscribesMigration(db))!)
+    await pg.exec(unsubscribesSchemaSql())
     const { resources, views } = configExports(workflowsModule(workflows))
     const files = { providers: { private: localFiles({ dir: folder.dir }) }, secret: 'files-secret-for-the-email-series' }
     admin = createAdmin({ resources, views, db, files, secret: 'secret-for-the-email-series', unsubscribe: { appUrl: 'https://shop.example.com' }, authenticate: () => ({ user: { id: 'ada', roles: ['builder'] }, tenant: '1' }), workflows, options: { statementTimeoutMs, roles } })

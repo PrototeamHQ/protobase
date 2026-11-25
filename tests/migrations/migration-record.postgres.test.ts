@@ -9,7 +9,7 @@ import { checkMigrationRecord } from '../../packages/server/src/migration-record
 import { writeBaseline } from '../../packages/cli/src/migration/baseline/write-baseline'
 import { runMigration } from '../../packages/cli/src/migration/snapshot/run-migration'
 import { f, resource, type ResourceModel } from '@protobase/schema'
-import { callsSchemaSql, captureSchemaSql, channelSendsSchemaSql, computedSchemaSql, derivedSchemaSql, userTablesSchemaSql, jobsSchemaSql, neededModules, notificationsSchemaSql, realtimeRelaySchemaSql, relaySchemaSql, statusSchemaSql, webhooksSchemaSql, workflowsSchemaSql, type AdminAuth, type ModuleApp } from '../../packages/server/src/index'
+import { callsSchemaSql, captureSchemaSql, channelSendsSchemaSql, commentsSchemaSql, computedSchemaSql, derivedSchemaSql, userTablesSchemaSql, jobsSchemaSql, mailFeedbackResource, mailFeedbackSchemaSql, neededModules, notificationsSchemaSql, realtimeRelaySchemaSql, relaySchemaSql, statusSchemaSql, unsubscribesSchemaSql, webhooksSchemaSql, workflowsSchemaSql, type AdminAuth, type ModuleApp } from '../../packages/server/src/index'
 import { createAuth, modelHash, noInput, plainStoreDb, recordTable, runtimeModel, schemaModules, storeNames, storeNamesList, type ModuleTargets, type RecordModel } from '../../packages/server/src/internal'
 import { rollupFunctionSql } from '../../packages/server/src/computed/rollup-sql'
 import { rollupTargets } from '../../packages/server/src/computed/rollup-targets'
@@ -214,12 +214,14 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
     await rm(project, { recursive: true, force: true })
   })
 
-  it('describes with a baseline the jobs, webhooks, workflows and notifications schemas earlier migrations made, after which the next migration writes nothing', async () => {
+  it('describes with a baseline the jobs, webhooks, workflows, notifications, comments, mail feedback and opt-outs tables earlier migrations made, after which the next migration writes nothing', async () => {
     const database = await openPostgresDatabase('empty')
     const { auth, project } = await migratedByThisVersion(database, true)
-    const app: Partial<ModuleApp> = { webhooks: { deliveryLog: true }, workflows: { storage: {}, customSteps: true }, notifications: {} }
+    const commented = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id).comments()
+    const app: Partial<ModuleApp> = { models: [commented.toModel()], webhooks: { deliveryLog: true }, workflows: { storage: {}, customSteps: true }, notifications: {}, mailFeedback: true, unsubscribe: true }
     // What the migrations of the version before wrote, which wrote the same statements (`written-before-steps.test.ts`).
-    await database.exec(`${jobsSchemaSql()}\n${webhooksSchemaSql({ deliveryLog: true })}\n${workflowsSchemaSql({ storage: {}, customSteps: true })}\n${notificationsSchemaSql({}, auth)}`)
+    await database.exec(`${tables}\n${jobsSchemaSql()}\n${mailFeedbackSchemaSql()}\n${captureSchemaSql([mailFeedbackResource.toModel()])}\n${commentsSchemaSql()}\n${webhooksSchemaSql({ deliveryLog: true })}`)
+    await database.exec(`${workflowsSchemaSql({ storage: {}, customSteps: true })}\n${notificationsSchemaSql({}, auth)}\n${unsubscribesSchemaSql()}`)
     await expect(migrateApp(project, auth, app, 'refused', database)).rejects.toThrow('The database has the jobs schema, which protobase.snapshot.json does not record')
 
     const modules = featureModules(auth, app)
@@ -230,6 +232,9 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
     expect(text).toContain("-- The log of every try of the webhook subscriptions' deliveries: at step 1 (delivery_log).")
     expect(text).toContain('-- The workflows, their versions, runs and steps: at step 1 (workflows), its functions at version 28.')
     expect(text).toContain('-- The devices table of notifications: at step 1 (devices).')
+    expect(text).toContain('-- The comments table of the resources with comments: at step 1 (comments).')
+    expect(text).toContain('-- The table of the bounces and complaints of the mail the app sends: at step 1 (feedback).')
+    expect(text).toContain('-- The table of who unsubscribed from which topic of the bulk mail: at step 1 (unsubscribes).')
     await database.exec(text)
     expect(await migrateApp(project, auth, app, 'nothing', database)).toBeUndefined()
     await expect(check(auth, modules)).resolves.toBeUndefined()
@@ -243,7 +248,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
     const file = (await migrateApp(project, auth, webhooks, 'webhooks-id'))!
     const text = await readFile(file, 'utf8')
     expect(text).toContain('-- The webhook subscriptions of webhooks.')
-    for (const left of ['delivery_log', '"workflows"', '"notifications"']) expect(text).not.toContain(left)
+    for (const left of ['delivery_log', '"workflows"', '"notifications"', '"comments"', '"mail"']) expect(text).not.toContain(left)
     await database.exec(text)
     await expect(check(auth, featureModules(auth, webhooks))).resolves.toBeUndefined()
 

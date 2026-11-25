@@ -1,8 +1,7 @@
 {
   "(hooks)": {
     "(hooks)#0": [
-      {"sql":"select to_regclass($1) is not null as found","params":["mail.unsubscribes"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["f"]]}},
-      {"sql":"create schema if not exists \"mail\";\n\ncreate table if not exists mail.unsubscribes (\n  \"id\" bigint generated always as identity primary key,\n  \"recipient\" text not null check (\"recipient\" = lower(\"recipient\")),\n  \"topic\" text not null,\n  \"created_at\" timestamptz not null\n);\n\ncreate unique index if not exists \"unsubscribes_recipient_topic\" on mail.unsubscribes (\"recipient\", \"topic\");\ncreate index if not exists \"unsubscribes_topic\" on mail.unsubscribes (\"topic\");\ncreate index if not exists \"unsubscribes_created_at\" on mail.unsubscribes (\"created_at\");","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]}
+      {"sql":"-- The opt-outs table and its indexes.\ncreate schema if not exists \"mail\";\n\ncreate table if not exists mail.unsubscribes (\n  \"id\" bigint generated always as identity primary key,\n  \"recipient\" text not null check (\"recipient\" = lower(\"recipient\")),\n  \"topic\" text not null,\n  \"created_at\" timestamptz not null\n);\n\ncreate unique index if not exists \"unsubscribes_recipient_topic\" on mail.unsubscribes (\"recipient\", \"topic\");\ncreate index if not exists \"unsubscribes_topic\" on mail.unsubscribes (\"topic\");\ncreate index if not exists \"unsubscribes_created_at\" on mail.unsubscribes (\"created_at\");","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]}
     ]
   },
   "one-click unsubscribe > records the opt-out once, skips that topic to that recipient, and still sends another topic": {
@@ -40,7 +39,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "one-click unsubscribe > refuses to start without the unique index an opt-out is recorded on": {
+  "one-click unsubscribe > is read by the baseline at its last step, and refused without the unique index an opt-out is recorded on": {
     "(hooks)#0": [
       {"sql":"select to_regclass($1) is not null as found","params":["mail.unsubscribes"],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["t"]]}},
       {"sql":"select indexname as name from pg_indexes where schemaname = $1 and tablename = $2","params":["mail","unsubscribes"],"result":{"command":"SELECT","rowCount":4,"columns":[["name",19]],"rows":[

@@ -20,7 +20,7 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
   const exported = configExports(resources)
   const models = exported.resources.map((source) => source.toModel())
   const views = exported.views.map((source) => source.toModel())
-  const app = { models, views, jobs, signIn: Boolean(auth), ...(auth && { authStore: storeNames(auth) }), mailFeedback: mailFeedbackOn(config), webhooks, workflows: config.workflows, notifications, ...(config.status && { status: checkStatusOptions(config.status) }), calls: config.calls, realtime: config.realtime, events: config.events, userTables: userTablesOn(config) }
+  const app = { models, views, jobs, signIn: Boolean(auth), ...(auth && { authStore: storeNames(auth) }), mailFeedback: mailFeedbackOn(config), unsubscribe: unsubscribeOn(config), webhooks, workflows: config.workflows, notifications, ...(config.status && { status: checkStatusOptions(config.status) }), calls: config.calls, realtime: config.realtime, events: config.events, userTables: userTablesOn(config) }
   return {
     models,
     views,
@@ -35,8 +35,6 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
     ...(notifications && { notifications }),
     jobs,
     userTables: userTablesOn(config),
-    unsubscribe: unsubscribeOn(config),
-    mailFeedback: mailFeedbackOn(config),
     // The built-in assistant's read-only queries run as a role of their own, which must not read the auth store.
     readOnlyQueries: assistantSettings(config.assistant, process.env)?.kind === 'built-in',
     authTables: auth ? authStoreTables(auth) : { tables: [], schemas: [] },

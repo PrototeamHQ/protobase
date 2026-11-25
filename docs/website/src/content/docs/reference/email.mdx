@@ -207,7 +207,7 @@ Mail you mark as bulk carries a one-click unsubscribe, as large mailbox provider
 
 **Bulk** is mail the recipient did not ask for by an action of their own: newsletters, digests, announcements and marketing. **Transactional** mail answers something the recipient did or needs to act on, such as a password reset, a sign-in code, a receipt or an invoice: it is not marked bulk and carries no unsubscribe. Protobase's own mail is transactional.
 
-Turn it on in the config, then run `protobase migration`, which writes its table, `mail.unsubscribes`, as a migration of the project's own, and apply it with the project's migrations: `protobase serve` refuses to start while the table or its unique index is missing, and names the migration to write. Its links are on the app's [`url`](/reference/config/app/#url), which must be `https://` but on `localhost`, and signed with its [`secret`](/reference/config/app/#secret):
+Turn it on in the config, then run `protobase migration`, which writes its table, `mail.unsubscribes`, as a migration of the project's own, and apply it with the project's migrations: `protobase serve` refuses to start while the [record of migrations](/guides/deploy/#the-record-of-migrations) lacks the table, and names the migration to write. Its links are on the app's [`url`](/reference/config/app/#url), which must be `https://` but on `localhost`, and signed with its [`secret`](/reference/config/app/#secret):
 
 ```ts
 export default defineConfig({ unsubscribe: true })
@@ -243,7 +243,7 @@ Amazon SES (through SNS) and Resend report to their own endpoints so far, beside
 
 A mail provider tells the app when a message bounced or its recipient marked it as spam. With `mailFeedback` on, each report becomes a `mail_feedback` record, one per recipient, or one for a complaint that hides who complained, with the events `mail_feedback.bounced` and `mail_feedback.complained`, which [workflows](/reference/workflows/), [subscriptions](/reference/webhooks/) and your own code act on, such as marking a contact's address undeliverable. Protobase records and notifies only: it keeps sending to the address, and the app decides what a bounce means.
 
-Turn it on in the config, then run `protobase migration`, which writes its table, `mail.feedback`, and the capture of its events as migrations of the project's own; apply them with the project's migrations, as `protobase serve` refuses to start while the table is missing:
+Turn it on in the config, then run `protobase migration`, which writes its table, `mail.feedback`, and the capture of its events as migrations of the project's own; apply them with the project's migrations, as `protobase serve` refuses to start while the [record of migrations](/guides/deploy/#the-record-of-migrations) lacks the table:
 
 ```ts
 export default defineConfig({ mailFeedback: true })

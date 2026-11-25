@@ -51,3 +51,12 @@ export const derivedSchemaSql = (models: readonly ResourceModel[]) => modulesSql
 
 /** The schemas of user tables and of their definitions, and pg_trgm. */
 export const userTablesSchemaSql = () => modulesSql({ user_tables: noInput })
+
+/** The comments table of the resources with `.comments()`. */
+export const commentsSchemaSql = () => modulesSql({ comments: noInput })
+
+/** The table of the bounces and complaints of the mail the app sends. */
+export const mailFeedbackSchemaSql = () => modulesSql({ mail_feedback: noInput })
+
+/** The table of who unsubscribed from which topic of the bulk mail. */
+export const unsubscribesSchemaSql = () => modulesSql({ unsubscribes: noInput })

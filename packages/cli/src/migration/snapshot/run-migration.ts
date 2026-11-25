@@ -100,18 +100,16 @@ export const runMigration = async (run: MigrationRun) => {
   if (database && difference.migration && difference.migration.checks.length > 0) await runPreconditions(database.url, difference.migration.checks)
   const written = moduleSections(snapshot, modules)
   if (database) await refuseUnrecorded(database.readModule, snapshot, written.sections, modules)
-  const compared: (Section & { beforeModules?: boolean })[] = []
+  const compared: Section[] = []
   for (const part of database?.parts ?? []) {
     const sql = await part.sql()
-    if (sql !== undefined) compared.push({ name: part.name, text: section(part.title, sql), ...(part.beforeModules && { beforeModules: true }) })
+    if (sql !== undefined) compared.push({ name: part.name, text: section(part.title, sql) })
   }
-  // The schema modules go before the compared parts, whose triggers call into them, such as jobs.enqueue(), but for the
-  // parts that make tables the modules' triggers go on.
+  // The schema modules go before the compared parts, whose triggers call into them, such as jobs.enqueue().
   const sections = [
     ...(difference.migration ? [{ name: 'auth', text: section(authMigrationTitle, difference.migration.sql) }] : []),
-    ...compared.filter(({ beforeModules }) => beforeModules).map(({ name, text }) => ({ name, text })),
     ...written.sections.map(({ name, title, sql }) => ({ name, text: section(title, sql) })),
-    ...compared.filter(({ beforeModules }) => !beforeModules).map(({ name, text }) => ({ name, text })),
+    ...compared,
   ]
   if (sections.length === 0) return
   // The sign-in modules' steps and the schema modules' are Protobase's own paths: what they take from older code makes

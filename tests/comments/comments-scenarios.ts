@@ -1,7 +1,8 @@
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, l, resource, view, type AccessContext } from '@protobase/schema'
-import { checkComments, commentsMigration, createAdmin, startJobs, type CommentUsers, type JobsRuntime } from '@protobase/server'
+import { commentsSchemaSql, createAdmin, startJobs, type CommentUsers, type JobsRuntime } from '@protobase/server'
+import { noInput, schemaModules } from '@protobase/server/internal'
 import type { TestDatabase } from '../changes/capture-scenarios'
 
 const ddl = `
@@ -66,15 +67,13 @@ export const commentsScenarios = (connect: () => Promise<TestDatabase>) => {
     database = await connect()
     db = database.db
     await database.exec(ddl)
-    await expect(checkComments(db, [tickets.toModel()])).rejects.toThrow('The comments schema is missing')
-    await checkComments(db, [notes.toModel()])
-    await database.exec((await commentsMigration(db))!)
-    expect(await commentsMigration(db)).toBeUndefined()
-    await checkComments(db, [tickets.toModel()])
-    // The table as Protobase 0.66.6 wrote it, without the record key's index, still starts; the next migration adds it.
+    expect(await schemaModules.comments.read(db, noInput)).toBeUndefined()
+    await database.exec(commentsSchemaSql())
+    expect(await schemaModules.comments.read(db, noInput)).toEqual({ lastStep: 1, replaceables: {} })
+    // The table as Protobase 0.66.6 wrote it, without the record key's index, which no step records.
     await database.exec('drop index comments.comments_record_key')
-    await checkComments(db, [tickets.toModel()])
-    expect(await commentsMigration(db)).toContain('create index if not exists "comments_record_key"')
+    await expect(schemaModules.comments.read(db, noInput)).rejects.toThrow('lacks indexes no step of this version of Protobase records')
+    await database.exec(commentsSchemaSql())
     admin = createAdmin({
       resources: [tickets, notes],
       views: [ticketsView],
