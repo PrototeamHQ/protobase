@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { everyOrganization } from '@protobase/query'
 import { createAuth } from '../src/better-auth/create-auth'
 import { listOrganizations } from '../src/better-auth/organizations/host'
 import type { AuthContext } from '../src/better-auth/organizations/store'
@@ -56,8 +57,8 @@ describe.skipIf(!ready)('the auth store lookups', () => {
     const { auth, fill, plansOf } = await serve()
     await fill(`${largeTable('organization', ['created_at', 'id'])}; insert into organization (id, name, slug, created_at)
       select 'o' || i, 'Organization ' || i, 'organization-' || i, timestamptz '2026-07-01 00:00:00+00' + i * interval '1 second' from generate_series(1, 100000) i`)
-    const first = await listOrganizations(auth, { size: 100 })
-    const second = await listOrganizations(auth, { after: first.next!, size: 100 })
+    const first = await listOrganizations(auth, everyOrganization('the test reads every organization'), { size: 100 })
+    const second = await listOrganizations(auth, everyOrganization('the test reads every organization'), { after: first.next!, size: 100 })
     expect([first.organizations[0]!.slug, second.organizations[0]!.slug]).toEqual(['organization-1', 'organization-101'])
     const plans = await plansOf('organization')
     expect(plans).toHaveLength(2)

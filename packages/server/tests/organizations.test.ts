@@ -1,11 +1,12 @@
 import { decodeJwt } from 'jose'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { everyOrganization } from '@protobase/query'
 import { authSchemaMigration } from '../src/better-auth/auth-schema'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
-import { addMember, createOrganization, listOrganizations, setMemberRoles } from '../src/better-auth/organizations/host'
+import { addAppRoleToOwners, addMember, createOrganization, isMemberByEmail, listOrganizations, removeMember, setMemberRoles } from '../src/better-auth/organizations/host'
 import { issueToken } from '../src/better-auth/tokens'
-import { createUser } from '../src/better-auth/users'
+import { createUser, listUsers } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { AuditEvent } from '../src/types'
 import { allResources, createFixtureDb } from '../../../test-support/server'
@@ -122,7 +123,7 @@ describe('the auth schema with organizations', () => {
 describe('organizations on the host', () => {
   it('make the creator owner with every app role a member can hold, and keep members with the roles given', async () => {
     const { auth } = await serve({}, { people: true })
-    expect((await listOrganizations(auth)).organizations).toEqual([
+    expect((await listOrganizations(auth, everyOrganization('the test reads every organization'))).organizations).toEqual([
       { id: '1', name: 'Acme', slug: 'acme', members: expect.arrayContaining([
         { email: 'bo@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] },
         { email: 'sanne@example.com', role: 'member', appRoles: ['sales'] },
@@ -134,6 +135,27 @@ describe('organizations on the host', () => {
     await expect(addMember(auth, { organization: 'acme', email: 'ana@example.com', appRoles: ['admin'] })).rejects.toThrow('A member cannot hold "admin"')
     await expect(createOrganization(auth, { name: 'Acme again', slug: 'acme', owner: 'bo@example.com' })).rejects.toThrow('exists already')
   })
+
+  it("read and change one organization's people only, when kept to it", async () => {
+    const { auth } = await serve({}, { people: true })
+    expect((await listOrganizations(auth, '2')).organizations).toEqual([
+      { id: '2', name: 'Globex', slug: 'globex', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] },
+    ])
+    expect((await listUsers(auth, { scope: '1' })).users.map(({ email }) => email)).toEqual(['bo@example.com', 'sanne@example.com'])
+    expect((await listUsers(auth, { scope: everyOrganization('the test reads every organization') })).users).toHaveLength(4)
+    expect([await isMemberByEmail(auth, '1', 'sanne@example.com'), await isMemberByEmail(auth, '2', 'sanne@example.com'), await isMemberByEmail(auth, '1', 'nobody@example.com')]).toEqual([true, false, false])
+    await addMember(auth, { organization: 'globex', email: 'sanne@example.com', role: 'owner' })
+    await setMemberRoles(auth, { organization: 'globex', email: 'sanne@example.com', appRoles: ['sales'] })
+    // Only Globex's owners get the role: root, and Sanne, who lacked it.
+    expect(await addAppRoleToOwners(auth, '2', 'manager')).toBe(1)
+    await removeMember(auth, { organization: 'globex', email: 'sanne@example.com' })
+    await expect(setMemberRoles(auth, { organization: 'globex', email: 'root@example.com', role: 'member' })).rejects.toThrow('Cannot demote the last owner')
+    expect((await listOrganizations(auth, everyOrganization('the test reads every organization'))).organizations.map(({ slug, members }) => [slug, members.map(({ email, appRoles }) => `${email}:${appRoles.length}`)])).toEqual([
+      ['acme', ['bo@example.com:4', 'sanne@example.com:1']],
+      ['globex', ['root@example.com:4']],
+      ['default', ['root@example.com:4']],
+    ])
+  })
 })
 
 describe('the first user', () => {
@@ -143,7 +165,7 @@ describe('the first user', () => {
     await createUser(auth, { email: 'root@example.com', password })
     await createUser(auth, { email: 'bo@example.com', password })
     // The default organization, which turning organizations on made, is one of them.
-    expect((await listOrganizations(auth)).organizations).toEqual([
+    expect((await listOrganizations(auth, everyOrganization('the test reads every organization'))).organizations).toEqual([
       { id: 'default', name: 'Default', slug: 'default', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] },
       { id: '1', name: 'Seeded', slug: 'seeded', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] },
     ])
@@ -354,7 +376,7 @@ describe('managing members', () => {
     const sanneId = members.members.find((member: { user: { email: string } }) => member.user.email === 'sanne@example.com').id
     expect((await app.request('/api/auth/organization/transfer-ownership', { cookie: await app.signIn('sanne@example.com'), body: { memberId: sanneId } })).status).toBe(403)
     expect((await app.request('/api/auth/organization/transfer-ownership', { cookie: bo, body: { memberId: sanneId } })).status).toBe(200)
-    const acme = (await listOrganizations(app.auth)).organizations[0]!
+    const acme = (await listOrganizations(app.auth, everyOrganization('the test reads every organization'))).organizations[0]!
     expect(acme.members).toEqual(expect.arrayContaining([expect.objectContaining({ email: 'sanne@example.com', role: 'owner' }), expect.objectContaining({ email: 'bo@example.com', role: 'admin' })]))
   })
 
@@ -435,7 +457,7 @@ describe('deleting an organization', () => {
     expect(await refused.json()).toMatchObject({ code: 'ORGANIZATION_HAS_RECORDS', message: expect.stringContaining('companies') })
     await createOrganization(app.auth, { name: 'Empty', slug: 'empty', owner: 'bo@example.com' })
     expect((await app.request('/api/auth/organization/delete', { cookie: bo, body: { organizationId: '3' } })).status).toBe(200)
-    expect((await listOrganizations(app.auth)).organizations.map((organization) => organization.slug)).toEqual(['acme', 'globex', 'default'])
+    expect((await listOrganizations(app.auth, everyOrganization('the test reads every organization'))).organizations.map((organization) => organization.slug)).toEqual(['acme', 'globex', 'default'])
   })
 })
 

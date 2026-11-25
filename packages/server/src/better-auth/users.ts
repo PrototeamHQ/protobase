@@ -3,12 +3,15 @@ import type { AdminAuth } from './create-auth'
 import { isActiveAdmin } from './last-admin'
 import { revokeMcpGrants } from './mcp/revoke-grants'
 import { ownOrganizationsWithoutMembers } from './organizations/host'
+import { rowsIn, type HostScope } from './organizations/host-scope'
 import type { AuthContext } from './organizations/store'
 import { parseRoles } from './parse-roles'
 import { activeAdminExists } from './store/active-admin'
+import { isEveryOrganization } from '@protobase/query'
+import { inSignInScope } from '../organization-scope/sign-in-organization'
 import { pageOf } from './store/page-of'
 import { exists } from './store/store-reads'
-import { storeSqlOf } from './store/store-sql'
+import { storeSqlOf, type StoreSql } from './store/store-sql'
 
 export { parseRoles }
 
@@ -109,13 +112,28 @@ export type UsersPage = { users: StoredUser[]; next?: UsersCursor }
 /** The users a page of `listUsers` holds when it is not told. */
 export const usersPageSize = 500
 
-/** A page of the users, oldest first: `size` of them from `after`, the `next` of the page before, as Postgres pages them. */
-export const listUsers = async (auth: AdminAuth, { after, size = usersPageSize }: { after?: UsersCursor; size?: number } = {}): Promise<UsersPage> => {
+/**
+ * A page of the users, oldest first: `size` of them from `after`, the `next` of the page before, as Postgres pages them.
+ * With organizations, `scope` is the organization whose members it lists, or every organization; every user without.
+ */
+export const listUsers = async (auth: AdminAuth, { after, size = usersPageSize, scope }: { after?: UsersCursor; size?: number; scope?: HostScope } = {}): Promise<UsersPage> => {
+  if (scope === undefined || isEveryOrganization(scope)) return usersPage(auth, { after, size })
+  return inSignInScope(scope, () => usersPage(auth, { after, size, scope }))
+}
+
+// The users who are members of the organization `scope` keeps the store to, as a table the page reads.
+const membersOf = (store: StoreSql, scope: HostScope) => {
+  const member = store.table('member')
+  return sql`(select * from ${store.table('user')} u where exists (select from ${rowsIn(store, scope, member)} as m where m.${member.columns.user_id} = u.id)) as u`
+}
+
+const usersPage = async (auth: AdminAuth, { after, size, scope }: { after?: UsersCursor; size: number; scope?: HostScope }): Promise<UsersPage> => {
   const store = storeSqlOf(await contextOf(auth))
   const user = store.table('user')
   const u = user.columns
+  const from = scope === undefined ? user : membersOf(store, scope)
   const select = { id: sql`id`, email: u.email, role: u.role, banned: u.banned, createdAt: u.created_at }
-  const page = await pageOf<Row>(store, { from: user, select, key: [u.created_at, sql`id`], ...(after && { after: [after.createdAt, after.id] }), size })
+  const page = await pageOf<Row>(store, { from, select, key: [u.created_at, sql`id`], ...(after && { after: [after.createdAt, after.id] }), size })
   const users = page.rows.map((user) => ({ id: user.id, email: user.email, role: rolesOf(user).join(','), banned: Boolean(user.banned), createdAt: new Date(user.createdAt).toISOString() }))
   return { users, ...(page.next && { next: { createdAt: page.next[0]!, id: page.next[1]! } }) }
 }

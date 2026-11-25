@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { everyOrganization } from '@protobase/query'
 import { authSchemaMigration } from '../src/better-auth/auth-schema'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
 import { addAppRoleToOwners, addMember, createOrganization, listOrganizations, ownOrganizationsWithoutMembers, removeMember, setMemberRoles } from '../src/better-auth/organizations/host'
@@ -50,7 +51,7 @@ describe.skipIf(!ready)('the organization functions, past 100,000 rows', () => {
           case when i = 1 then '["sales"]'::jsonb when i = ${past + 2} then null else '[]'::jsonb end
         from generate_series(1, ${past + 2}) i`)
     // The first owner holds it already and the next to last is no owner; the last owner holds no roles at all.
-    expect(await addAppRoleToOwners(auth, 'sales')).toBe(past)
+    expect(await addAppRoleToOwners(auth, everyOrganization('the test reads every organization'), 'sales')).toBe(past)
     const rows = await store.db.selectFrom('member').select(['user_id', 'app_roles']).where('user_id', 'in', ['u1', 'u2', `u${past + 1}`, `u${past + 2}`]).orderBy('user_id').execute()
     expect(rows).toEqual([
       { user_id: 'u1', app_roles: ['sales'] },
@@ -58,7 +59,7 @@ describe.skipIf(!ready)('the organization functions, past 100,000 rows', () => {
       { user_id: `u${past + 2}`, app_roles: ['sales'] },
       { user_id: 'u2', app_roles: ['sales'] },
     ])
-    expect(await addAppRoleToOwners(auth, 'sales')).toBe(0)
+    expect(await addAppRoleToOwners(auth, everyOrganization('the test reads every organization'), 'sales')).toBe(0)
   })
 
   it('make the first user the owner of each of 100,010 organizations without members', async () => {
@@ -80,11 +81,11 @@ describe.skipIf(!ready)('the organization functions, past 100,000 rows', () => {
     await store.exec(`${organizations(past)}; ${root};
       insert into member (id, organization_id, user_id, role, created_at, app_roles) values ('newest', 'o${past}', 'root', 'owner', now(), '["manager"]')`)
     const slugs: string[] = []
-    let page = await listOrganizations(auth, { size: 25_000 })
+    let page = await listOrganizations(auth, everyOrganization('the test reads every organization'), { size: 25_000 })
     for (;;) {
       slugs.push(...page.organizations.map((organization) => organization.slug))
       if (!page.next) break
-      page = await listOrganizations(auth, { after: page.next, size: 25_000 })
+      page = await listOrganizations(auth, everyOrganization('the test reads every organization'), { after: page.next, size: 25_000 })
     }
     expect(slugs).toHaveLength(past)
     expect(new Set(slugs).size).toBe(past)
@@ -112,14 +113,14 @@ describe.skipIf(!ready)('on a store whose ids are uuids', () => {
     await addMember(auth, { organization: 'acme', email: 'bo@example.com' })
     await store.exec(`insert into organization (id, name, slug, created_at) values (gen_random_uuid(), 'Seeded', 'seeded', now())`)
     expect(await ownOrganizationsWithoutMembers(auth, root.id)).toBe(1)
-    expect(await addAppRoleToOwners(auth, 'manager')).toBe(0)
+    expect(await addAppRoleToOwners(auth, everyOrganization('the test reads every organization'), 'manager')).toBe(0)
     await expect(removeMember(auth, { organization: acme, email: 'root@example.com' })).rejects.toThrow('Cannot remove the last owner')
     // An id in any form Postgres reads as a uuid, here without its hyphens, is asked as an id.
     await setMemberRoles(auth, { organization: acme.replaceAll('-', '').toUpperCase(), email: 'bo@example.com', role: 'owner' })
     await removeMember(auth, { organization: acme, email: 'root@example.com' })
-    const first = await listOrganizations(auth, { size: 1 })
+    const first = await listOrganizations(auth, everyOrganization('the test reads every organization'), { size: 1 })
     expect(first.organizations.map(({ slug, members }) => ({ slug, members }))).toEqual([{ slug: 'acme', members: [{ email: 'bo@example.com', role: 'owner', appRoles: [] }] }])
-    expect((await listOrganizations(auth, { after: first.next! })).organizations.map(({ slug, members }) => ({ slug, members }))).toEqual([
+    expect((await listOrganizations(auth, everyOrganization('the test reads every organization'), { after: first.next! })).organizations.map(({ slug, members }) => ({ slug, members }))).toEqual([
       { slug: 'seeded', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['sales', 'manager'] }] },
     ])
   })

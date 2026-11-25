@@ -776,17 +776,20 @@ It is Better Auth's organization plugin, with its tables named in snake_case (`o
 
 **Ids.** The `generateOrganizationId` [hook](#hooks) makes a new organization's id, by default a UUID; `.tenant` columns hold it, so `text` or `uuid`. An app whose tenant columns are integers takes the next value of its own organizations sequence instead, and adds its own row in `onOrganizationCreated`, as the ERP example does (`tests/apps/erp/auth/hooks.ts`). An app that ran as one organization keeps its tenant value: `protobase organizations create "Acme" --owner you@example.com --id 1 --members all` makes that organization, with every user in it: superusers as owners, everyone else as a member, their global roles moved onto the membership. The first user `createUser` makes also becomes the owner of every organization without members, such as those a seed made before anyone could own them.
 
-**On the host.** The [`protobase organizations`](/reference/cli/#organizations) commands call these functions of `@protobase/server`, which a script of the project's own, such as a seed, calls with the sign-in of [`loadProjectAuth`](#first-run). The host acts as a superuser, so it may give any role; `organization` is a slug or an id:
+**On the host.** The [`protobase organizations`](/reference/cli/#organizations) commands call these functions of `@protobase/server`, which a script of the project's own, such as a seed, calls with the sign-in of [`loadProjectAuth`](#first-run). The host acts as a superuser, so it may give any role; `organization` is a slug or an id. `scope` is the organization a call works in, by its id, or every organization with `everyOrganization('<why>')` from `@protobase/query`, whose reason says why the call reads every organization's rows:
 
 ```ts
-import { addAppRoleToOwners, addMember, createOrganization, listOrganizations, removeMember, setMemberRoles } from '@protobase/server'
+import { addAppRoleToOwners, addMember, createOrganization, isMemberByEmail, listOrganizations, listUsers, organizationByKey, removeMember, setMemberRoles } from '@protobase/server'
 
 await createOrganization(auth, { name, slug, owner: email, id? })                     // the owner holds every app role
 await addMember(auth, { organization, email, role?, appRoles? })                      // role: owner, admin or member (default)
 await setMemberRoles(auth, { organization, email, role?, appRoles? })
 await removeMember(auth, { organization, email })                                     // refuses the last owner
-await listOrganizations(auth, { after?, size? })                                     // a page, oldest first: { organizations: [{ id, name, slug, members }], next? }
-await addAppRoleToOwners(auth, appRole)                                               // a role the project added later, to every owner
+await listOrganizations(auth, scope, { after?, size? })                              // a page, oldest first: { organizations: [{ id, name, slug, members }], next? }
+await addAppRoleToOwners(auth, scope, appRole)                                        // a role the project added later, to the owners in scope
+await listUsers(auth, { scope?, after?, size? })                                     // the members of scope; every user without it
+await organizationByKey(auth, organization)                                           // the organization, or null
+await isMemberByEmail(auth, organizationId, email)
 ```
 
 The app's own pages are under the profile menu: the switcher, "Manage organizations" (theirs, a new one, and for global roles any one), "Organization" (details, leaving, handing over, deleting), and for owners and admins "Members" and "Invitations". The client has them as `session.organizations` (`list`, `current`, `switchTo`, `members`, `invite`, ...). `session.organizations.create({ name })` makes one from its name alone: the server makes the slug from the name, and when another organization has that slug, adds a dash and six random letters and digits, such as `acme-k3x9q2`. The organization page changes the slug afterwards.

@@ -1,5 +1,6 @@
 import { Command, Option } from 'commander'
 import { createInterface } from 'node:readline/promises'
+import { pinOptions } from '../organizations/register'
 import { parseTtl } from './ttl'
 
 // The modules that load the project's auth, and @protobase/server with it, are imported when a command runs.
@@ -26,9 +27,7 @@ const finish = (code: number) => process.exit(code)
 export const registerUsers = (program: Command) => {
   const users = program.command('users').description('Manage the admin users of the project in the current directory')
 
-  users
-    .command('create')
-    .description('Create a user; the first user is always an admin')
+  pinOptions(users.command('create').description('Create a user; the first user is always an admin. With organizations, they join the organization; with --all-organizations, none'))
     .argument('<email>')
     .option('--name <name>', 'display name')
     .option('--role <role>', 'role for users after the first (default: the project\'s default role; see `users roles`)')
@@ -36,61 +35,59 @@ export const registerUsers = (program: Command) => {
     .option('--generate-password', 'generate a strong password and print it once', false)
     .option('--no-password', 'no password: the user signs in by emailed code, passkey or a sign-in provider')
     .option('--github-id <id>', 'link the user to this GitHub user id, so signing in with GitHub finds them whatever their address')
-    .option('--organization <organization>', 'with organizations: add the user to this one (its slug or id)')
-    .option('--org-role <role>', 'with --organization: owner, admin or member (default member)')
-    .option('--app-roles <roles>', 'with --organization: app roles there, comma separated')
+    .option('--org-role <role>', 'with organizations: owner, admin or member in the organization (default member)')
+    .option('--app-roles <roles>', 'with organizations: app roles in the organization, comma separated')
     .addOption(new Option('--password <value>').hideHelp())
     .action(async (email: string, opts) => {
       const { readHidden, rejectPasswordArgument } = await import('./password')
       rejectPasswordArgument(opts.password)
-      const [{ createUserCommand }, { usersApi }, { organizationsApi }, { addMemberCommand }, auth] = await Promise.all([
-        import('./commands'),
-        import('./users-api'),
-        import('../organizations/api'),
-        import('../organizations/commands'),
-        loadAuth(),
-      ])
+      const [{ createUserCommand }, api] = await Promise.all([import('./commands'), projectApi()])
       await createUserCommand(
-        usersApi(auth),
-        { email, name: opts.name, role: opts.role, passwordStdin: opts.passwordStdin, generatePassword: opts.generatePassword, noPassword: opts.password === false, githubId: opts.githubId },
+        api,
+        {
+          email,
+          name: opts.name,
+          role: opts.role,
+          passwordStdin: opts.passwordStdin,
+          generatePassword: opts.generatePassword,
+          noPassword: opts.password === false,
+          githubId: opts.githubId,
+          organization: opts.organization,
+          allOrganizations: opts.allOrganizations,
+          orgRole: opts.orgRole,
+          appRoles: opts.appRoles,
+        },
         { stdin: process.stdin, prompt: readHidden },
         out,
       )
-      if (opts.organization) await addMemberCommand(organizationsApi(auth), { organization: opts.organization, email, orgRole: opts.orgRole, appRoles: opts.appRoles }, out)
       finish(0)
     })
 
-  users
-    .command('delete')
-    .description('Delete a user (refuses the last admin)')
+  pinOptions(users.command('delete').description('Delete a user (refuses the last admin)'))
     .argument('<email>')
     .option('--yes', 'skip the confirmation', false)
     .action(async (email: string, opts) => {
       const { deleteUserCommand } = await import('./manage')
-      await deleteUserCommand(await projectApi(), { email, yes: opts.yes }, ask, out)
+      await deleteUserCommand(await projectApi(), { email, yes: opts.yes, organization: opts.organization, allOrganizations: opts.allOrganizations }, ask, out)
       finish(0)
     })
 
-  users
-    .command('set-role')
-    .description('Change a user\'s role, or several comma separated (refuses to demote the last admin)')
+  pinOptions(users.command('set-role').description('Change a user\'s role, or several comma separated (refuses to demote the last admin)'))
     .argument('<email>')
     .argument('<role>')
-    .action(async (email: string, role: string) => {
+    .action(async (email: string, role: string, opts) => {
       const { setRoleCommand } = await import('./manage')
-      await setRoleCommand(await projectApi(), { email, role }, out)
+      await setRoleCommand(await projectApi(), { email, role, organization: opts.organization, allOrganizations: opts.allOrganizations }, out)
       finish(0)
     })
 
   for (const disabled of [true, false]) {
-    users
-      .command(disabled ? 'disable' : 'enable')
-      .description(disabled ? 'Ban a user and revoke their sessions' : 'Lift a ban')
+    pinOptions(users.command(disabled ? 'disable' : 'enable').description(disabled ? 'Ban a user and revoke their sessions' : 'Lift a ban'))
       .argument('<email>')
-      .action(async (email: string) => {
+      .action(async (email: string, opts) => {
         const { setDisabledInProject } = await import('./set-disabled')
         const { loadProjectModules } = await import('./load-auth')
-        await setDisabledInProject(await loadAuth(), await loadProjectModules(process.cwd()), { email, disabled }, out)
+        await setDisabledInProject(await loadAuth(), await loadProjectModules(process.cwd()), { email, disabled, organization: opts.organization, allOrganizations: opts.allOrganizations }, out)
         finish(0)
       })
   }
@@ -104,12 +101,10 @@ export const registerUsers = (program: Command) => {
       finish(0)
     })
 
-  users
-    .command('list')
-    .description('List users: email, role, creation date')
-    .action(async () => {
+  pinOptions(users.command('list').description('List users: email, role, creation date; with organizations, the members of the organization'))
+    .action(async (opts) => {
       const { listUsersCommand } = await import('./commands')
-      await listUsersCommand(await projectApi(), out)
+      await listUsersCommand(await projectApi(), { organization: opts.organization, allOrganizations: opts.allOrganizations }, out)
       finish(0)
     })
 }
