@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { checkNotificationsSchema, notificationsMigration } from '../src/notifications/schema'
+import { notificationDevicesModule } from '../src/notifications/devices-module'
+import { notificationsTargets } from '../src/notifications/notifications-targets'
+import { notificationsSchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { DeviceStoreError, postgresDeviceStore } from '../src/notifications/postgres-store'
 import type { NotificationsOptions } from '../src/notifications/options'
 import { apnsDevice, deviceStoreContract, fcmDevice, relayDevice, webDevice } from '../src/notifications/testing/device-store-contract'
@@ -10,9 +12,12 @@ import { openSnapshotDb } from '../../../test-support/sql-snapshot'
 // A database with the devices table `protobase migration` writes for the options, without auth.
 const migrated = async (options: NotificationsOptions = {}) => {
   const pg = await openSnapshotDb('empty')
-  await pg.exec((await notificationsMigration(pg.db, options))!)
+  await pg.exec(notificationsSchemaSql(options))
   return pg
 }
+
+// What `protobase migration baseline` reads of the devices table for the options, without auth.
+const read = (pg: Awaited<ReturnType<typeof migrated>>, options: NotificationsOptions = {}) => notificationDevicesModule.read(pg.db, notificationsTargets(options, undefined).notification_devices!)
 
 deviceStoreContract('in Postgres', async () => postgresDeviceStore((await migrated()).db))
 
@@ -22,62 +27,44 @@ const renamed: NotificationsOptions = {
 }
 
 describe('the devices table', () => {
-  it('is written by the migration under the default names, then current, and none for a store of the app own', async () => {
+  it('is written by the migration under the default names, read by the baseline at its last step, and none for a store of the app own', async () => {
     const pg = await openSnapshotDb('empty')
-    await expect(checkNotificationsSchema(pg.db)).rejects.toThrow('The devices table "notifications"."devices" of notifications is missing. Write it as a migration with `protobase migration`')
-    const migration = await notificationsMigration(pg.db)
+    expect(await read(pg)).toBeUndefined()
+    const migration = notificationsSchemaSql()
     expect(migration).toContain('create table "notifications"."devices"')
     expect(migration).not.toContain('default')
-    await pg.exec(migration!)
-    await checkNotificationsSchema(pg.db)
-    expect(await notificationsMigration(pg.db)).toBeUndefined()
-    expect(await notificationsMigration(pg.db, { store: memoryDeviceStore() })).toBeUndefined()
-    await checkNotificationsSchema(pg.db, { schema: 'elsewhere', store: memoryDeviceStore(), historyStore: memoryHistoryStore() })
+    await pg.exec(migration)
+    expect(await read(pg)).toEqual({ lastStep: 1, replaceables: {}, names: expect.objectContaining({ schema: 'notifications', table: 'devices', users: '', user_id_type: 'text', 'column.token': 'token' }) })
+    expect(notificationsTargets({ store: memoryDeviceStore(), historyStore: memoryHistoryStore() }, undefined)).toEqual({})
   })
 
   it('is written and used under renamed schema, table and columns', async () => {
     const pg = await migrated(renamed)
     const columns = await pg.query<{ name: string }>(`select column_name as name from information_schema.columns where table_schema = 'push' and table_name = 'targets' order by 1`)
     expect(columns.rows.map(({ name }) => name)).toEqual(['app_id', 'address', 'auth', 'created_at', 'environment', 'kind', 'owner_id', 'p256dh', 'seen_at', 'session_id', 'target_id', 'user_agent'].sort())
-    await checkNotificationsSchema(pg.db, renamed)
+    expect(await read(pg, renamed)).toMatchObject({ lastStep: 1 })
     const store = postgresDeviceStore(pg.db, renamed)
     const stored = await store.register('a', webDevice())
     expect(await store.listForUser('a')).toEqual([stored])
   })
 
-  it('gets its session column from the migration when it was written without one', async () => {
+  it('is refused by the baseline when written before devices kept their session or could be relay devices, which no step records', async () => {
     const pg = await migrated(renamed)
     await pg.exec('alter table push.targets drop column session_id')
-    await expect(checkNotificationsSchema(pg.db, renamed)).rejects.toThrow('has no column "session_id"')
-    const migration = await notificationsMigration(pg.db, renamed)
-    expect(migration).toBe('alter table "push"."targets" add column "session_id" text;')
-    await pg.exec(migration!)
-    await checkNotificationsSchema(pg.db, renamed)
-    expect(await notificationsMigration(pg.db, renamed)).toBeUndefined()
-  })
-
-  it('gets checks that allow relay devices from the migration when it was written before them', async () => {
-    const pg = await migrated(renamed)
-    await pg.exec(`alter table push.targets drop constraint targets_kind_check, drop constraint targets_check,
+    await expect(read(pg, renamed)).rejects.toThrow('The devices table "push"."targets" was written before devices kept their session and could be relay devices')
+    await pg.exec(`alter table push.targets add column session_id text, drop constraint targets_kind_check, drop constraint targets_check,
       add constraint targets_kind_check check (kind in ('web', 'apns', 'fcm')),
       add constraint targets_check check ((kind = 'web' and p256dh is not null and auth is not null and environment is null and app_id is null)
         or (kind = 'apns' and p256dh is null and auth is null and environment is not null and app_id is not null)
         or (kind = 'fcm' and p256dh is null and auth is null and environment is null))`)
-    const store = postgresDeviceStore(pg.db, renamed)
-    await expect(store.register('a', relayDevice())).rejects.toMatchObject({ sqlState: '23514' })
-    const migration = await notificationsMigration(pg.db, renamed)
-    expect(migration).toMatch(/^alter table "push"\."targets" drop constraint "targets_check", drop constraint "targets_kind_check", add check \("kind" in \('web', 'apns', 'fcm', 'relay'\)\), add check/)
-    await pg.exec(migration!)
-    await store.register('a', relayDevice())
-    await expect(store.register('a', { ...relayDevice(2), appId: 'net.example.app' })).rejects.toMatchObject({ sqlState: '23514' })
-    expect(await notificationsMigration(pg.db, renamed)).toBeUndefined()
+    await expect(read(pg, renamed)).rejects.toThrow('was written before devices kept their session and could be relay devices')
   })
 
-  it('stops startup naming a missing column and a missing unique index on the token', async () => {
+  it('is refused by the baseline naming a missing column and a missing unique index on the token', async () => {
     const pg = await migrated()
-    await expect(checkNotificationsSchema(pg.db, { devices: { columns: { user_agent: 'agent' } } })).rejects.toThrow('has no column "agent"')
+    await expect(read(pg, { devices: { columns: { user_agent: 'agent' } } })).rejects.toThrow('has no column "agent"')
     await pg.exec('drop index notifications.devices_token_idx')
-    await expect(checkNotificationsSchema(pg.db)).rejects.toThrow('needs a unique index on its token column "token" alone')
+    await expect(read(pg)).rejects.toThrow('needs a unique index on its token column "token" alone')
   })
 
   it('keeps NULL in the fields that do not apply, and refuses a record that breaks its kind with no value in the error', async () => {

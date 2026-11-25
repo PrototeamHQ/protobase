@@ -1,8 +1,8 @@
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
-import { workflowsModule } from '@protobase/server/internal'
+import { configExports, createAdmin, startJobs, workflowsSchemaSql, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
+import { schemaModules, workflowsModule } from '@protobase/server/internal'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { definitionFields } from '../../test-support/workflow-fields'
 import { traceFiles } from './support/run-trace'
@@ -83,7 +83,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("custom steps' runners o
   beforeAll(async () => {
     pg = await openPostgresDatabase('jobs')
     db = pg.db
-    await pg.exec((await workflowsMigration(db, workflows))!)
+    await pg.exec(workflowsSchemaSql(workflows))
     admin = adminOf(workflows)
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
     expect((await as('ada', '/workflow_custom_steps', { method: 'POST', body: ocr })).status).toBe(201)
@@ -127,10 +127,10 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("custom steps' runners o
     return (await sql<{ id: string }>`select id from workflows.custom_step_jobs where run_id = ${runId}`.execute(db)).rows[0]!.id
   }
 
-  it('adds the runners and jobs tables with custom steps, and nothing more once they are there', async () => {
+  it('adds the runners and jobs tables with custom steps, which the custom steps module records at its last step', async () => {
     const { rows } = await sql<{ runners: boolean; jobs: boolean }>`select to_regclass('workflows.runners') is not null as runners, to_regclass('workflows.custom_step_jobs') is not null as jobs`.execute(db)
     expect(rows[0]).toEqual({ runners: true, jobs: true })
-    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+    expect(await schemaModules.workflow_custom_steps.read(db, { names: { schema: 'workflows' }, resources: {} })).toEqual({ lastStep: 1, replaceables: { functions: 1 }, names: { schema: 'workflows' } })
   })
 
   it('registers a runner once with its one-time token, refusing it used, expired or of no runner by name, and keeps only hashes', async () => {

@@ -5,7 +5,7 @@ const trace = await traceFiles()
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { authSchemaMigration, configExports, createAdmin, createUser, deleteUser, startJobs, workflowsMigration, type AdminAuth, type JobsRuntime, type Session, type WorkflowsOptions } from '@protobase/server'
+import { authSchemaMigration, configExports, createAdmin, createUser, deleteUser, startJobs, workflowsSchemaSql, type AdminAuth, type JobsRuntime, type Session, type WorkflowsOptions } from '@protobase/server'
 import { createAuth, workflowsModule } from '@protobase/server/internal'
 import { ConnectionError, definePlugin } from '@protobase/workflows/plugin'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
@@ -128,7 +128,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("workflows signing in th
       workflowConnections: { declared: [{ plugin: 'acme', name: 'account', declaration: plugin.connections.account }], allowPrivateAddresses: true },
     })
     await pg.exec((await authSchemaMigration(auth))!)
-    await pg.exec((await workflowsMigration(db, workflows))!)
+    await pg.exec(workflowsSchemaSql(workflows))
     ada = String((await createUser(auth, { email: 'ada@example.com', password, role: 'admin' })).id)
     grace = String((await createUser(auth, { email: 'grace@example.com', password, role: 'admin' })).id)
     held.set(ada, ['builder']).set(grace, ['builder'])

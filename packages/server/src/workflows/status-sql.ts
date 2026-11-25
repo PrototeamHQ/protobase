@@ -1,7 +1,7 @@
 import { statusRuns, workflowStatuses } from '@protobase/schema/internal'
 import { quoteIdent } from '../changes/capture-sql'
 
-/** The triggers `statusSql` makes, which the startup check finds on their tables. */
+/** The triggers `statusFunctionsSql` makes, which `protobase migration baseline` finds on their tables. */
 export const statusTriggers = ['workflow_version_status', 'run_status', 'resolution']
 
 const statusList = workflowStatuses.map((status) => `'${status}'`).join(', ')
@@ -12,7 +12,7 @@ const statusList = workflowStatuses.map((status) => `'${status}'`).join(', ')
  * resolved and ran on the workflow's current version. Marking resolved is a row of `resolutions`, kept with who did it,
  * which copies itself onto the workflow. Written whole each time: every statement is idempotent.
  */
-export const statusSql = (schema: string) => {
+export const statusTablesSql = (schema: string) => {
   const s = quoteIdent(schema)
   const tenantSchema = `'${schema.replaceAll("'", "''")}'`
   return `alter table ${s}."workflows" add column if not exists "run_status" text not null default 'no_runs';
@@ -38,9 +38,16 @@ create index if not exists "resolutions_tenant" on ${s}."resolutions" ("tenant_i
 create index if not exists "resolutions_resolved_at" on ${s}."resolutions" ("resolved_at");
 create index if not exists "runs_ended" on ${s}."runs" ("workflow_id", "finished_at" desc, "id" desc) where "status" in ('succeeded', 'failed');
 -- The runs a workflow's status counts, so its status skips no blocks' runs, of which a run starts many, to find them.
-create index if not exists "runs_ended_top" on ${s}."runs" ("workflow_id", "finished_at" desc, "id" desc) where "status" in ('succeeded', 'failed') and "block_of" is null;
+create index if not exists "runs_ended_top" on ${s}."runs" ("workflow_id", "finished_at" desc, "id" desc) where "status" in ('succeeded', 'failed') and "block_of" is null`
+}
 
--- The status of a workflow at its version and last mark as resolved, from its last ${statusRuns} ended runs, blocks' runs left out
+/**
+ * The functions and triggers that keep a workflow's status (`statusTablesSql`), and each workflow's status computed
+ * again from its runs.
+ */
+export const statusFunctionsSql = (schema: string) => {
+  const s = quoteIdent(schema)
+  return `-- The status of a workflow at its version and last mark as resolved, from its last ${statusRuns} ended runs, blocks' runs left out
 -- (a block's failure is its run's): the run its
 -- reason names is the latest for failing and healthy, the latest failure that counts for unresolved, none for the gray ones.
 create or replace function ${s}."workflow_status"(workflow uuid, current_version integer, resolved timestamptz)

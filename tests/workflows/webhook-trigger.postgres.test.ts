@@ -6,7 +6,7 @@ const trace = await traceFiles()
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
+import { configExports, createAdmin, startJobs, workflowsSchemaSql, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { workflowsModule } from '@protobase/server/internal'
 import { definePlugin, webhookInputProperties } from '@protobase/workflows/plugin'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
@@ -90,7 +90,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('the webhook trigger and
     pg = await openPostgresDatabase('jobs')
     db = pg.db
     folder = trace.folder
-    await pg.exec((await workflowsMigration(db, workflows))!)
+    await pg.exec(workflowsSchemaSql(workflows))
     vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => void logged.push(args.map(String).join(' ')))
     vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => void logged.push(args.map(String).join(' ')))
     const { resources, views } = configExports({ ...workflowsModule(workflows) })

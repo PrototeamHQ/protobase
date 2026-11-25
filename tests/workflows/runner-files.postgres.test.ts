@@ -3,8 +3,8 @@ import { join } from 'node:path'
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
-import { localFiles, workflowsModule } from '@protobase/server/internal'
+import { configExports, createAdmin, startJobs, workflowsSchemaSql, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
+import { localFiles, schemaModules, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { definitionFields } from '../../test-support/workflow-fields'
@@ -56,7 +56,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("runners' job files, bui
     db = pg.db
     folder = await tempDir()
     const options = workflows(join(folder.dir, 'storage'))
-    await pg.exec((await workflowsMigration(db, options))!)
+    await pg.exec(workflowsSchemaSql(options))
     const { resources, views } = configExports(workflowsModule(options))
     // Storage configurations' keys are encrypted fields, which need a key to start, though local ones have none.
     vi.stubEnv('PROTOBASE_ENCRYPTION_KEY', Buffer.from(Array.from({ length: 32 }, (_, i) => i)).toString('base64'))
@@ -111,10 +111,10 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("runners' job files, bui
   // Once the run's job is queued, which its segment does in the background, however long that takes
   const queued = (id: string) => vi.waitFor(async () => expect((await sql<{ status: string }>`select status from workflows.custom_step_jobs where run_id = ${id}`.execute(db)).rows).toEqual([{ status: 'queued' }]), { timeout: 20_000, interval: 50 })
 
-  it('adds the builds and wanted tables with custom steps, and nothing more once they are there', async () => {
+  it('adds the builds and wanted tables with custom steps, which the custom steps module records at its last step', async () => {
     const { rows } = await sql<{ builds: boolean; wanted: boolean }>`select to_regclass('workflows.custom_step_builds') is not null as builds, to_regclass('workflows.custom_step_wanted') is not null as wanted`.execute(db)
     expect(rows[0]).toEqual({ builds: true, wanted: true })
-    expect(await workflowsMigration(db, workflows(join(folder.dir, 'storage')))).toBeUndefined()
+    expect(await schemaModules.workflow_custom_steps.read(db, { names: { schema: 'workflows' }, resources: {} })).toEqual({ lastStep: 1, replaceables: { functions: 1 }, names: { schema: 'workflows' } })
   })
 
   it('gives the job its input files and build, streams them to the runner holding it, stores what it gives, and refuses both once it ended', async () => {

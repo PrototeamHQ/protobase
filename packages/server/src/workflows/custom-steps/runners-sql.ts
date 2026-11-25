@@ -1,6 +1,6 @@
 import { quoteIdent } from '../../changes/capture-sql'
 
-/** The tables `runnersSql` makes, which the startup check finds with custom steps on. */
+/** The tables `runnersSql` makes, which `protobase migration baseline` finds with custom steps on. */
 export const runnersTables = ['runners', 'custom_step_jobs', 'custom_step_builds', 'custom_step_wanted']
 
 /**
@@ -27,10 +27,8 @@ export const runnersTables = ['runners', 'custom_step_jobs', 'custom_step_builds
  *
  * Every statement is idempotent.
  */
-export const runnersSql = (schema: string) => {
+export const runnersTablesSql = (schema: string) => {
   const s = quoteIdent(schema)
-  // What a job keeps once it ends: no arguments or lease.
-  const ended = `"finished_at" = now(), "arguments" = null, "lease_until" = null`
   return `create table if not exists ${s}."runners" (
   "id" uuid primary key default gen_random_uuid(),
   "name" text not null,
@@ -119,9 +117,15 @@ create table if not exists ${s}."custom_step_wanted" (
   primary key ("workflow_id", "version_id")
 );
 create index if not exists "custom_step_wanted_version" on ${s}."custom_step_wanted" ("version_id");
-create index if not exists "custom_step_wanted_tenant" on ${s}."custom_step_wanted" ("tenant_id");
+create index if not exists "custom_step_wanted_tenant" on ${s}."custom_step_wanted" ("tenant_id")`
+}
 
-create or replace function ${s}."runner_written"() returns trigger
+/** The triggers of the runners' tables (`runnersTablesSql`). */
+export const runnersFunctionsSql = (schema: string) => {
+  const s = quoteIdent(schema)
+  // What a job keeps once it ends: no arguments or lease.
+  const ended = `"finished_at" = now(), "arguments" = null, "lease_until" = null`
+  return `create or replace function ${s}."runner_written"() returns trigger
 language plpgsql as $$
 begin
   if tg_op = 'DELETE' or (new.revoked and not old.revoked) then

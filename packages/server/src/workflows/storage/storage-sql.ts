@@ -4,7 +4,7 @@ import { quoteIdent } from '../../changes/capture-sql'
  * The storage configurations workflows store files in, by name, unique per tenant: a folder under the storage root
  * or a bucket, with the bucket's keys encrypted. Each write gives the row a new `updated_at`, its ETag.
  */
-export const storageSql = (schema: string) => {
+export const storageTablesSql = (schema: string) => {
   const s = quoteIdent(schema)
   return `create table if not exists ${s}."storage_configurations" (
   "id" uuid primary key default gen_random_uuid(),
@@ -24,9 +24,13 @@ create unique index if not exists "storage_configurations_name" on ${s}."storage
 create index if not exists "storage_configurations_tenant" on ${s}."storage_configurations" ("tenant_id");
 create index if not exists "storage_configurations_name_order" on ${s}."storage_configurations" ("name");
 create index if not exists "storage_configurations_name_search" on ${s}."storage_configurations" using gin ("name" gin_trgm_ops);
-create index if not exists "storage_configurations_updated_at" on ${s}."storage_configurations" ("updated_at");
+create index if not exists "storage_configurations_updated_at" on ${s}."storage_configurations" ("updated_at")`
+}
 
-create or replace function ${s}."storage_configuration_updated"() returns trigger
+/** The trigger that gives a written storage configuration its new `updated_at`. */
+export const storageFunctionsSql = (schema: string) => {
+  const s = quoteIdent(schema)
+  return `create or replace function ${s}."storage_configuration_updated"() returns trigger
 language plpgsql as $$
 begin
   new.updated_at := greatest(clock_timestamp(), old.updated_at + interval '1 microsecond');

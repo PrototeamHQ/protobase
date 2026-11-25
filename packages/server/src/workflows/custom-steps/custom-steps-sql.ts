@@ -12,7 +12,7 @@ const manifestColumns = `"label" text not null,
 
 const manifest = ['label', 'description', 'kind', 'container', 'input', 'output', 'error_prefix', 'errors']
 
-/** The tables `customStepsSql` makes, which the startup check finds with custom steps on. */
+/** The tables `customStepsSql` makes, which `protobase migration baseline` finds with custom steps on. */
 export const customStepsTables = ['custom_steps', 'custom_step_versions']
 
 /**
@@ -22,9 +22,8 @@ export const customStepsTables = ['custom_steps', 'custom_step_versions']
  * a step made again under a deleted one's name goes on from its last version. Each write gives the row a new
  * `updated_at`, its ETag. Every statement is idempotent.
  */
-export const customStepsSql = (schema: string) => {
+export const customStepsTablesSql = (schema: string) => {
   const s = quoteIdent(schema)
-  const changed = (row: string) => `(${manifest.map((column) => `${row}.${column}`).join(', ')})`
   return `create table if not exists ${s}."custom_steps" (
   "id" uuid primary key default gen_random_uuid(),
   "name" text not null,
@@ -53,9 +52,14 @@ create table if not exists ${s}."custom_step_versions" (
 );
 create unique index if not exists "custom_step_versions_name" on ${s}."custom_step_versions" (coalesce("tenant_id", ''), "name", "version");
 create index if not exists "custom_step_versions_step" on ${s}."custom_step_versions" ("custom_step_id", "version");
-create index if not exists "custom_step_versions_version" on ${s}."custom_step_versions" ("version");
+create index if not exists "custom_step_versions_version" on ${s}."custom_step_versions" ("version")`
+}
 
-create or replace function ${s}."custom_step_version"() returns trigger
+/** The trigger that numbers a custom step's next version as a write changes its manifest (`customStepsTablesSql`). */
+export const customStepsFunctionsSql = (schema: string) => {
+  const s = quoteIdent(schema)
+  const changed = (row: string) => `(${manifest.map((column) => `${row}.${column}`).join(', ')})`
+  return `create or replace function ${s}."custom_step_version"() returns trigger
 language plpgsql as $$
 begin
   if tg_op = 'INSERT' then

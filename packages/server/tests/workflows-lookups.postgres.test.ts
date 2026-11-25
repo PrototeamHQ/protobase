@@ -4,7 +4,7 @@ import type { Deps } from '../src/deps'
 import { connectionUses } from '../src/workflows/connections/connection-uses'
 import { runnersOnline } from '../src/workflows/custom-steps/custom-step-tests'
 import { wantCustomSteps } from '../src/workflows/custom-steps/wanted-steps'
-import { workflowsMigration } from '../src/workflows/schema'
+import { workflowsSchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
 import { largeTable, seqScansOf, watchStatements } from '../../../test-support/query-plans'
 
@@ -16,7 +16,7 @@ const ready = await postgresTemplateReady('jobs')
 
 const serve = async () => {
   const store = await openPostgresDatabase('jobs')
-  await store.exec((await workflowsMigration(store.db, { customSteps: true }))!)
+  await store.exec(workflowsSchemaSql({ customSteps: true }))
   const watched = watchStatements(store)
   const db = new Kysely<any>({ dialect: watched.dialect })
   // The rows, then the statistics the planner reads them by, as autovacuum would keep them.

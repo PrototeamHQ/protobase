@@ -1,7 +1,7 @@
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { configExports, createAdmin, startJobs, unauthorized, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
+import { configExports, createAdmin, startJobs, unauthorized, workflowsSchemaSql, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { workflowsModule } from '@protobase/server/internal'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
 import { traceFiles } from './support/run-trace'
@@ -52,7 +52,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("a workflow's status fro
   beforeAll(async () => {
     pg = await openPostgresDatabase('jobs')
     db = pg.db
-    await pg.exec((await workflowsMigration(db, workflows))!)
+    await pg.exec(workflowsSchemaSql(workflows))
     const { resources, views } = configExports(workflowsModule(workflows))
     const authenticate = (request: Request) => {
       const id = request.headers.get('x-user') ?? ''

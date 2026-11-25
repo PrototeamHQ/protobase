@@ -1,6 +1,6 @@
 import pg from 'pg'
 import { assistantSettings, authStoreTables, configExports, neededModules } from '@protobase/server'
-import { checkStatusOptions } from '@protobase/server/internal'
+import { checkStatusOptions, storeNames } from '@protobase/server/internal'
 import { projectAuth } from '../config/build-project'
 import type { MergedConfig } from '../config/merge-config'
 import { projectJobs, projectNotifications, projectResources, projectWebhooks } from '../config/project-parts'
@@ -20,7 +20,7 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
   const exported = configExports(resources)
   const models = exported.resources.map((source) => source.toModel())
   const views = exported.views.map((source) => source.toModel())
-  const app = { models, views, jobs, signIn: Boolean(auth), mailFeedback: mailFeedbackOn(config), webhooks, workflows: config.workflows, notifications, realtime: config.realtime, events: config.events }
+  const app = { models, views, jobs, signIn: Boolean(auth), ...(auth && { authStore: storeNames(auth) }), mailFeedback: mailFeedbackOn(config), webhooks, workflows: config.workflows, notifications, realtime: config.realtime, events: config.events }
   return {
     models,
     views,

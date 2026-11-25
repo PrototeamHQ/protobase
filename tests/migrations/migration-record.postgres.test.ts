@@ -9,7 +9,7 @@ import { checkMigrationRecord } from '../../packages/server/src/migration-record
 import { writeBaseline } from '../../packages/cli/src/migration/baseline/write-baseline'
 import { runMigration } from '../../packages/cli/src/migration/snapshot/run-migration'
 import { f, resource, type ResourceModel } from '@protobase/schema'
-import { captureSchemaSql, jobsSchemaSql, neededModules, type AdminAuth } from '../../packages/server/src/index'
+import { captureSchemaSql, jobsSchemaSql, neededModules, notificationsSchemaSql, webhooksSchemaSql, workflowsSchemaSql, type AdminAuth, type ModuleApp } from '../../packages/server/src/index'
 import { createAuth, modelHash, noInput, plainStoreDb, runtimeModel, schemaModules, storeNames, storeNamesList, type ModuleTargets, type RecordModel } from '../../packages/server/src/internal'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 
@@ -76,6 +76,20 @@ const migrateModels = (project: string, auth: AdminAuth, models: ResourceModel[]
     protobaseVersion: '1.0.0',
     newId: () => id,
   })
+
+// `protobase migration` of the project with the schema modules `app` needs, with sign-in, compared with `database` when given.
+const migrateApp = (project: string, auth: AdminAuth, app: Partial<ModuleApp>, id: string, database?: PostgresDatabase) =>
+  runMigration({
+    projectDir: project,
+    dir: path.join(project, 'db/migrations'),
+    auth: { names: storeNames(auth), organizationsOn: false, organizations: undefined },
+    modules: featureModules(auth, app),
+    database: database && { url: database.url, parts: [], contractions: async () => [], readModule: (module, input) => schemaModules[module].read(database.db, input) },
+    protobaseVersion: '1.0.0',
+    newId: () => id,
+  })
+
+const featureModules = (auth: AdminAuth, app: Partial<ModuleApp>) => neededModules({ models: [], views: [], jobs: [], signIn: true, authStore: storeNames(auth), ...app })
 
 const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id)
 const refunds = resource('refunds').table('refunds').fields({ id: f.integer(), total: f.integer() }).primaryKey((r) => r.id)
@@ -189,6 +203,51 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
     await database.exec(text)
     expect(await migrateModels(project, auth, captured, 'nothing', database)).toBeUndefined()
     await expect(check(auth, modules)).resolves.toBeUndefined()
+    await rm(project, { recursive: true, force: true })
+  })
+
+  it('describes with a baseline the jobs, webhooks, workflows and notifications schemas earlier migrations made, after which the next migration writes nothing', async () => {
+    const database = await openPostgresDatabase('empty')
+    const { auth, project } = await migratedByThisVersion(database, true)
+    const app: Partial<ModuleApp> = { webhooks: { deliveryLog: true }, workflows: { storage: {}, customSteps: true }, notifications: {} }
+    // What the migrations of the version before wrote, which wrote the same statements (`written-before-steps.test.ts`).
+    await database.exec(`${jobsSchemaSql()}\n${webhooksSchemaSql({ deliveryLog: true })}\n${workflowsSchemaSql({ storage: {}, customSteps: true })}\n${notificationsSchemaSql({}, auth)}`)
+    await expect(migrateApp(project, auth, app, 'refused', database)).rejects.toThrow('The database has the jobs schema, which protobase.snapshot.json does not record')
+
+    const modules = featureModules(auth, app)
+    const file = await writeBaseline({ projectDir: project, dir: path.join(project, 'db/migrations'), auth: { names: storeNames(auth), organizationsOn: false, organizations: undefined }, modules, url: database.url, protobaseVersion: '1.0.0', newId: () => 'baseline-id' })
+    const text = await readFile(file, 'utf8')
+    expect(text).toContain('-- The jobs schema this version of Protobase needs: at step 1 (pg_boss_45), its functions at version 3.')
+    expect(text).toContain('-- The webhook subscriptions of webhooks: at step 1 (subscriptions), its functions at version 2.')
+    expect(text).toContain("-- The log of every try of the webhook subscriptions' deliveries: at step 1 (delivery_log).")
+    expect(text).toContain('-- The workflows, their versions, runs and steps: at step 1 (workflows), its functions at version 28.')
+    expect(text).toContain('-- The devices table of notifications: at step 1 (devices).')
+    await database.exec(text)
+    expect(await migrateApp(project, auth, app, 'nothing', database)).toBeUndefined()
+    await expect(check(auth, modules)).resolves.toBeUndefined()
+    await rm(project, { recursive: true, force: true })
+  })
+
+  it('writes on a fresh database the modules the config turns on and none it leaves off, refuses startup while one is missing, and refuses a schema renamed', async () => {
+    const database = await openPostgresDatabase('empty')
+    const { auth, project } = await migratedByThisVersion(database, true)
+    const webhooks: Partial<ModuleApp> = { webhooks: {} }
+    const file = (await migrateApp(project, auth, webhooks, 'webhooks-id'))!
+    const text = await readFile(file, 'utf8')
+    expect(text).toContain('-- The webhook subscriptions of webhooks.')
+    for (const left of ['delivery_log', '"workflows"', '"notifications"']) expect(text).not.toContain(left)
+    await database.exec(text)
+    await expect(check(auth, featureModules(auth, webhooks))).resolves.toBeUndefined()
+
+    const more: Partial<ModuleApp> = { webhooks: { deliveryLog: true }, workflows: {} }
+    await expect(check(auth, featureModules(auth, more))).rejects.toThrow('the database lacks the webhook delivery log, which this version needs at step 1 (delivery_log)')
+    const next = await readFile((await migrateApp(project, auth, more, 'more-id'))!, 'utf8')
+    expect(next).not.toContain('create table if not exists "webhooks"."subscriptions"')
+    await database.exec(next)
+    await expect(check(auth, featureModules(auth, more))).resolves.toBeUndefined()
+
+    await expect(migrateApp(project, auth, { webhooks: { schema: 'hooks' } }, 'renamed')).rejects.toThrow(`Not implemented: renaming what a migration made: the webhooks schema's schema is "webhooks" in the snapshot and "hooks" now`)
+    await expect(check(auth, featureModules(auth, { webhooks: { schema: 'hooks' } }))).rejects.toThrow(`the webhooks schema's schema is "webhooks" in the database and "hooks" now`)
     await rm(project, { recursive: true, force: true })
   })
 

@@ -4,8 +4,8 @@ import type { AddressInfo } from 'node:net'
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { configExports, createAdmin, startJobs, startWorkflow, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
-import { localFiles, workflowsModule } from '@protobase/server/internal'
+import { configExports, createAdmin, startJobs, startWorkflow, workflowsSchemaSql, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
+import { localFiles, moduleDifference, schemaModules, workflowsModule } from '@protobase/server/internal'
 import { tempDir } from '../../packages/server/src/files/testing/temp-dir'
 import { postgresRunStore } from '../../packages/server/src/workflows/store'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
@@ -41,7 +41,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
   beforeAll(async () => {
     pg = await openPostgresDatabase('jobs')
     db = pg.db
-    await pg.exec((await workflowsMigration(db, workflows))!)
+    await pg.exec(workflowsSchemaSql(workflows))
     const { resources, views } = configExports(workflowsModule(workflows))
     folder = await tempDir()
     const files = { providers: { private: localFiles({ dir: folder.dir }) }, secret: 'files-secret-for-the-engine-tests' }
@@ -121,59 +121,32 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(items.map((item: { version: number; saved_by: string }) => [item.version, item.saved_by])).toEqual([[1, 'ada'], [2, 'ada']])
   })
 
-  it('writes the schema again when one of its triggers is gone, though its functions are current', async () => {
-    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+  it('writes the functions again when one of their triggers is gone, and refuses a version no step records', async () => {
+    const input = { names: { schema: 'workflows' }, resources: {} }
+    expect(await schemaModules.workflows.read(db, input)).toEqual({ lastStep: 1, replaceables: { functions: 28 }, names: input.names })
     await pg.exec('drop trigger "run_version" on workflows.runs')
-    const repair = await workflowsMigration(db, workflows)
+    const found = await schemaModules.workflows.read(db, input)
+    expect(found).toEqual({ lastStep: 1, replaceables: {}, names: input.names })
+    const repair = moduleDifference(schemaModules.workflows, input, found).sql
     expect(repair).toContain('create trigger "run_version"')
+    expect(repair).not.toContain('create table')
     await pg.exec(repair!)
-    expect(await workflowsMigration(db, workflows)).toBeUndefined()
+    expect(await schemaModules.workflows.read(db, input)).toEqual({ lastStep: 1, replaceables: { functions: 28 }, names: input.names })
+    await pg.exec(`comment on function workflows.run_version() is 'Protobase workflows 25'`)
+    await expect(schemaModules.workflows.read(db, input)).rejects.toThrow('The workflows schema is at version 25 no step of this version of Protobase records: bring it to version 28')
+    await pg.exec(`comment on function workflows.run_version() is 'Protobase workflows 28'`)
   })
 
-  it('adds the triggers table and enabled_version to a schema of the version before them', async () => {
-    await pg.exec(`drop table workflows.triggers; alter table workflows.workflows drop column enabled_version;
-      comment on function workflows.run_version() is 'Protobase workflows 4'`)
-    const upgrade = await workflowsMigration(db, workflows)
-    expect(upgrade).toContain('create table if not exists "workflows"."triggers"')
-    await pg.exec(upgrade!)
-    expect(await workflowsMigration(db, workflows)).toBeUndefined()
-  })
 
-  it('adds connection_revocations to a schema of the version before it', async () => {
-    await pg.exec(`drop table workflows.connection_revocations; comment on function workflows.run_version() is 'Protobase workflows 9'`)
-    const upgrade = await workflowsMigration(db, workflows)
-    expect(upgrade).toContain('create table if not exists "workflows"."connection_revocations"')
-    await pg.exec(upgrade!)
-    expect(await workflowsMigration(db, workflows)).toBeUndefined()
-  })
 
-  it('drops the steps table and its indexes from a schema of the version before, keeping its checkpoints', async () => {
-    await pg.exec(`create table workflows.steps ("run_id" uuid, "tenant_id" text, "status" text, "state" text);
-      create index "steps_tenant" on workflows.steps ("tenant_id");
-      create index "steps_status" on workflows.steps ("status");
-      create index "steps_state" on workflows.steps ("state");
-      insert into workflows.steps values (gen_random_uuid(), '1', 'succeeded', 'Echo');
-      comment on function workflows.run_version() is 'Protobase workflows 21'`)
-    const before = await sql<{ count: number }>`select count(*)::int as count from workflows.checkpoints`.execute(db)
-    const upgrade = await workflowsMigration(db, workflows)
-    expect(upgrade).toContain('drop table if exists "workflows"."steps"')
-    await pg.exec(upgrade!)
-    const { rows } = await sql<{ name: string }>`select relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace
-      where n.nspname = 'workflows' and relname in ('steps', 'steps_tenant', 'steps_status', 'steps_state')`.execute(db)
-    expect(rows).toEqual([])
-    expect((await sql<{ count: number }>`select count(*)::int as count from workflows.checkpoints`.execute(db)).rows).toEqual(before.rows)
-    expect(await workflowsMigration(db, workflows)).toBeUndefined()
-    await pg.exec(upgrade!)
-  })
 
   it('adds the storage configurations table once storage is turned on, and not before', async () => {
-    const { rows } = await sql<{ found: boolean }>`select to_regclass('workflows.storage_configurations') is not null as found`.execute(db)
-    expect(rows[0]!.found).toBe(false)
-    const withStorage = { ...workflows, storage: {} }
-    const upgrade = await workflowsMigration(db, withStorage)
+    const input = { names: { schema: 'workflows' }, resources: {} }
+    expect(await schemaModules.workflow_storage.read(db, input)).toBeUndefined()
+    const upgrade = moduleDifference(schemaModules.workflow_storage, input, undefined).sql
     expect(upgrade).toContain('create table if not exists "workflows"."storage_configurations"')
     await pg.exec(upgrade!)
-    expect(await workflowsMigration(db, withStorage)).toBeUndefined()
+    expect(await schemaModules.workflow_storage.read(db, input)).toEqual({ lastStep: 1, replaceables: { functions: 1 }, names: input.names })
   })
 
   it('keeps a save out of what is published: a start runs the published version unless it names one, and refuses a version never saved', async () => {
@@ -230,21 +203,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect(items).toHaveLength(2)
   })
 
-  it('writes the run trigger again on a schema of the version whose replays ran their run\'s version', async () => {
-    await pg.exec(`comment on function workflows.run_version() is 'Protobase workflows 13'`)
-    const upgrade = await workflowsMigration(db, workflows)
-    expect(upgrade).toContain('create or replace function "workflows"."run_version"()')
-    await pg.exec(upgrade!)
-    expect(await workflowsMigration(db, workflows)).toBeUndefined()
-  })
 
-  it('writes the schema again when the triggers table is gone', async () => {
-    await pg.exec('drop table workflows.triggers')
-    const repair = await workflowsMigration(db, workflows)
-    expect(repair).toContain('create table if not exists "workflows"."triggers"')
-    await pg.exec(repair!)
-    expect(await workflowsMigration(db, workflows)).toBeUndefined()
-  })
 
   it('answers a save with the row as saved, whose ETag the next save can send, and numbers no version for other fields', async () => {
     const id = await create('Tagged', definition({ Echo: { Type: 'Pass', End: true } }))
@@ -302,16 +261,6 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('workflows on the app\'s
     expect((await nested.json()).layout).toEqual({ pins: { Each: { x: 1, y: 1 }, 'Item%2Eone': { x: 24, y: 48 }, 'Item%2Eone.value': { x: 3, y: 3 } } })
   })
 
-  it('adds the layout to a schema of the version before it, empty on every workflow and version', async () => {
-    const id = await create('Before layouts', definition({ Echo: { Type: 'Pass', End: true } }))
-    await pg.exec(`alter table workflows.workflows drop column layout; alter table workflows.versions drop column layout;
-      comment on function workflows.run_version() is 'Protobase workflows 25'`)
-    const upgrade = await workflowsMigration(db, workflows)
-    expect(upgrade).toContain('alter table "workflows"."versions" add column if not exists "layout"')
-    await pg.exec(upgrade!)
-    expect(await workflowsMigration(db, workflows)).toBeUndefined()
-    expect((await sql<{ layout: unknown }>`select layout from workflows.workflows where id = ${id} union all select layout from workflows.versions where workflow_id = ${id}`.execute(db)).rows).toEqual([{ layout: {} }, { layout: {} }])
-  })
 
   it('runs a branch and a step per item, keeping each step with its input, output, logs and timing in the trace and none in the database', async () => {
     const id = await create('Prices', definition({

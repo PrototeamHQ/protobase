@@ -4,7 +4,9 @@ import { deleteUser } from '../src/better-auth/users'
 import type { HistoryStore } from '../src/notifications/history-store'
 import { historyPath } from '../src/notifications/paths'
 import { postgresHistoryStore } from '../src/notifications/postgres-history-store'
-import { checkNotificationsSchema } from '../src/notifications/schema'
+import { storeNames } from '../src/better-auth/store/store-names'
+import { notificationHistoryModule } from '../src/notifications/history-module'
+import { notificationsTargets } from '../src/notifications/notifications-targets'
 import { memoryHistoryStore } from '../src/notifications/testing/memory-history-store'
 import { origin, serve } from './support/notifications-app'
 
@@ -26,7 +28,7 @@ describe('the history with auth', () => {
     ]
   }
 
-  it("goes with its user, keeping everyone else's, and stops startup without that foreign key", async () => {
+  it("goes with its user, keeping everyone else's, and is refused by the baseline without that foreign key", async () => {
     const { pg, auth, alice, bob } = await serve()
     const history = postgresHistoryStore(pg.db)
     await history.record(alice.id, { title: 'Alice', body: null, url: null, data: null })
@@ -35,7 +37,7 @@ describe('the history with auth', () => {
     expect(await historyOf(pg, alice.id)).toEqual([])
     expect(await historyOf(pg, bob.id)).toEqual([{ title: 'Bob', read_at: null }])
     await pg.exec('alter table notifications.history drop constraint history_user_id_fkey')
-    await expect(checkNotificationsSchema(pg.db, {}, auth)).rejects.toThrow('The history table "notifications"."history" needs a foreign key from "user_id" to "user" with on delete cascade')
+    await expect(notificationHistoryModule.read(pg.db, notificationsTargets({}, storeNames(auth)).notification_history!)).rejects.toThrow('The history table "notifications"."history" needs a foreign key from "user_id" to "user" with on delete cascade')
   })
 
   it("serves the signed-in user's own, and refuses a signed-out token, a cookie alone and an issued token, changing nothing", async () => {

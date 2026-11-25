@@ -2,7 +2,7 @@ import { Kysely } from 'kysely'
 import { describe, expect, it } from 'vitest'
 import { tableIndexes } from '@protobase/query'
 import { f, resource } from '@protobase/schema'
-import { captureSchemaSql, commentsMigration, webhooksMigration, workflowsMigration } from '@protobase/server'
+import { captureSchemaSql, commentsMigration, webhooksSchemaSql, workflowsSchemaSql } from '@protobase/server'
 import type { MergedConfig } from '../../src/config/merge-config'
 import { builtInIndexIssues, builtInModels } from '../../src/doctor/built-in-models'
 import { indexIssues } from '../../src/doctor/index-issues'
@@ -43,8 +43,8 @@ describe('doctor on the resources Protobase adds', () => {
     await pg.exec('create table notes (id integer primary key, body text not null)')
     await pg.exec(captureSchemaSql([notes]))
     await pg.exec((await commentsMigration(db))!)
-    await pg.exec((await webhooksMigration(db, { deliveryLog: true }))!)
-    await pg.exec((await workflowsMigration(db, { storage: {}, customSteps: true }))!)
+    await pg.exec(webhooksSchemaSql({ deliveryLog: true }))
+    await pg.exec(workflowsSchemaSql({ storage: {}, customSteps: true }))
     const issues = async () => (await Promise.all(builtIn.models.map(async (model) => [...sortIssues(model, shapes), ...builtInIndexIssues(indexIssues(model, await tableIndexes(db, model), shapes))]))).flat()
     expect(await issues()).toEqual([])
 
@@ -66,7 +66,7 @@ describe('doctor on the resources Protobase adds', () => {
     // as it does the webhooks ones.
     await pg.exec('drop index changes.history_operation, comments.comments_record_key')
     expect((await issues()).filter((issue) => issue.resource === 'record_history' || issue.resource === 'record_comments').map((issue) => issue.severity)).toEqual(['error', 'error'])
-    for (const migration of [captureSchemaSql([notes]), await commentsMigration(db), await webhooksMigration(db, { deliveryLog: true })]) await pg.exec(migration!)
+    for (const migration of [captureSchemaSql([notes]), await commentsMigration(db), webhooksSchemaSql({ deliveryLog: true })]) await pg.exec(migration!)
     expect(await issues()).toEqual([])
     await db.destroy()
   })

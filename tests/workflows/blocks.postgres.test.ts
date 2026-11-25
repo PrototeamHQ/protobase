@@ -4,7 +4,7 @@ const trace = await traceFiles()
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { configExports, createAdmin, startJobs, workflowsMigration, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
+import { configExports, createAdmin, startJobs, workflowsSchemaSql, type JobsRuntime, type WorkflowsOptions } from '@protobase/server'
 import { workflowsModule } from '@protobase/server/internal'
 import { workflowRunTracePath } from '@protobase/schema/internal'
 import type { Plugin } from '@protobase/workflows/plugin'
@@ -78,7 +78,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))("blocks on the app's dat
     const workflows: WorkflowsOptions = { savedByRoles: async () => saverHolds, plugins: [{ plugin, source: 'acme' }], secrets: ['BLOCK_KEY'] }
     pg = await openPostgresDatabase('jobs')
     db = pg.db
-    await pg.exec((await workflowsMigration(db, workflows))!)
+    await pg.exec(workflowsSchemaSql(workflows))
     const { resources, views } = configExports(workflowsModule(workflows))
     admin = createAdmin({ resources, views, db, files: trace.files, authenticate: (request) => ({ user: { id: 'ada', roles: ['builder'] }, tenant: request.headers.get('x-tenant')! }), workflows, options: { statementTimeoutMs, roles } })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })

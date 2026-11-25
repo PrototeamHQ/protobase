@@ -5,7 +5,7 @@ const trace = await traceFiles()
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { authSchemaMigration, configExports, createAdmin, createUser, startJobs, workflowsMigration, type AdminAuth, type JobsRuntime, type Session, type WorkflowsOptions } from '@protobase/server'
+import { authSchemaMigration, configExports, createAdmin, createUser, startJobs, workflowsSchemaSql, type AdminAuth, type JobsRuntime, type Session, type WorkflowsOptions } from '@protobase/server'
 import { createAuth, workflowsModule } from '@protobase/server/internal'
 import { gmailPlugin } from '@protobase/workflow-plugins/gmail'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
@@ -70,7 +70,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('gmail:new_mail on the s
       workflowConnections: { declared: [{ plugin: 'gmail', name: 'google', declaration: fast.connections.google }], allowPrivateAddresses: true },
     })
     await pg.exec((await authSchemaMigration(auth))!)
-    await pg.exec((await workflowsMigration(db, workflows))!)
+    await pg.exec(workflowsSchemaSql(workflows))
     ada = String((await createUser(auth, { email: 'ada@example.com', password: 'correct horse battery', role: 'admin' })).id)
     const authenticate = (): Session => ({ user: { id: ada, roles: ['builder'] }, tenant: 1, organization: { id: 1 }, signIn: { staff: false } })
     vi.spyOn(console, 'log').mockImplementation(() => {})

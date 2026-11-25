@@ -21,7 +21,7 @@ export default defineConfig({
 })
 ```
 
-Then run `protobase migration`, which writes the [devices and history tables](#table-names), and the jobs schema that [sending](#sending) runs on, as a migration of the project's own, and apply it with the project's migrations. `protobase dev` and `protobase serve` refuse to start while a table is missing or lacks what notifications need, and name it. Without `notifications` there is none of it: no endpoints, no tables and no migration.
+Then run `protobase migration`, which writes the [devices and history tables](#table-names), and the jobs schema that [sending](#sending) runs on, as a migration of the project's own, and apply it with the project's migrations. `protobase dev` and `protobase serve` refuse to start while the [record of migrations](/guides/deploy/#the-record-of-migrations) lacks a table, and name it. Without `notifications` there is none of it: no endpoints, no tables and no migration.
 
 Every signed-in user gets [the bell](#the-bell), browsers receive push through [Web Push](#web-push), the Android app through [FCM](#android) and iOS devices through [APNs](#ios). `notifications: { ui: false }` keeps only the backend, [without the bell](#without-the-bell).
 
@@ -434,7 +434,7 @@ The default store keeps devices in the table `devices` of the schema `notificati
 | Column | |
 | --- | --- |
 | `id` | `uuid`, the id the endpoints answer with |
-| `user_id` | the user's id, of the same type as auth's users table's `id`; with Protobase's auth a foreign key to that table, so a deleted user's devices go with them |
+| `user_id` | the user's id: `uuid` when auth's users have uuid ids (`generateUserId: 'uuid'`), else `text`; with Protobase's auth a foreign key to its users table, or the one [`users.keyTable`](/reference/auth/#a-view-over-another-systems-users) names, so a deleted user's devices go with them |
 | `kind` | `web`, `apns` or `fcm` |
 | `token` | the token, or a browser's endpoint; unique |
 | `p256dh`, `auth` | a browser's keys |
@@ -444,7 +444,7 @@ The default store keeps devices in the table `devices` of the schema `notificati
 | `session_id` | the id of the sign-in session it was registered in, never its token; `NULL` when the app's `authenticate` names none |
 | `created_at`, `last_seen_at` | when the user registered it, and last refreshed it |
 
-`protobase migration` adds `session_id` to a devices table written before devices kept their session.
+[`protobase migration baseline`](/reference/cli/#migration) refuses a devices table written before devices kept their session or could be relay devices: bring it there with `protobase migration` of Protobase 0.14.2 first.
 
 You rename the schema, the table and each column, as auth takes `tables`, such as to keep devices in a table you already have:
 
@@ -475,4 +475,4 @@ notifications: {
 },
 ```
 
-A name is lowercase letters, digits and `_`, at most 63 characters. Startup stops, naming what is wrong, while a table lacks a configured column, while the devices table lacks a unique index on the token column alone, which moving a device relies on, or, with Protobase's auth, while either table lacks the foreign key from its user column to the users table with `on delete cascade`.
+A name is lowercase letters, digits and `_`, at most 63 characters. Once the tables are written, changing a name, or turning Protobase's auth on, is refused, since Protobase does not write renames. `protobase migration baseline`, which records a table you already have, refuses one, naming what is wrong, that lacks a configured column, a devices table without a unique index on the token column alone, which moving a device relies on, or, with Protobase's auth, a table without the foreign key from its user column to the users table with `on delete cascade`.
