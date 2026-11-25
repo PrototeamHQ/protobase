@@ -2981,58 +2981,6 @@
           },
           "additionalProperties": false
         },
-        "auth_migrations": {
-          "type": "object",
-          "properties": {
-            "name": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "$ref": "#/definitions/EnvValue"
-                }
-              ]
-            },
-            "columns": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "version": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
-                "applied_at": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                }
-              },
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
-        },
         "auth_steps": {
           "type": "object",
           "properties": {
@@ -3049,16 +2997,6 @@
             "columns": {
               "type": "object",
               "properties": {
-                "applied_at": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/EnvValue"
-                    }
-                  ]
-                },
                 "module": {
                   "anyOf": [
                     {
@@ -3080,6 +3018,16 @@
                   ]
                 },
                 "target": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "$ref": "#/definitions/EnvValue"
+                    }
+                  ]
+                },
+                "applied_at": {
                   "anyOf": [
                     {
                       "type": "string"

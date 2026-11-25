@@ -36,7 +36,7 @@ it("answers no route over the auth store's tables, in the app's own database and
 
   expect((await app.request('/api/v1/orders', { headers: admin })).status).toBe(200)
   expect((await app.request('/api/sb/rest/v1/orders', { headers: service })).status).toBe(200)
-  for (const table of ['user', 'session', 'account', 'jwks', 'member', 'oauth_client', 'auth_migrations']) {
+  for (const table of ['user', 'session', 'account', 'jwks', 'member', 'oauth_client', 'auth_steps']) {
     expect((await app.request(`/api/v1/${table}`, { headers: admin })).status, `/api/v1/${table}`).toBe(404)
     expect((await app.request(`/api/sb/rest/v1/${table}`, { headers: service })).status, `/api/sb/rest/v1/${table}`).toBe(404)
   }

@@ -1,4 +1,4 @@
-import { storeRecordNames, storeTableNames } from '@protobase/server/auth-store'
+import { storeRecordName, storeTableNames } from '@protobase/server/auth-store'
 import { definitionsSchema, userTablesSchema } from '@protobase/server/config-exports'
 import { tableKey } from '../db/model'
 import type { DbTable } from '../db/model'
@@ -28,7 +28,7 @@ const authStore = (schema: string, tables: DbTable[]) => {
   if (schema === 'auth') return tables
   const has = (name: string) => tables.some((table) => table.name === name)
   const user = userTableOf(schema, tables)
-  if (!storeRecordNames.some(has) && !(storeCore.every(has) && user !== undefined)) return []
+  if (!has(storeRecordName) && !(storeCore.every(has) && user !== undefined)) return []
   if (schema !== 'public') return tables
   return tables.filter((table) => storeTableNames.includes(table.name) || table.name === user)
 }

@@ -2,10 +2,10 @@
   "format": 1,
   "protobaseVersion": "0.14.2",
   "endsAt": {
-    "file": "038_jobs.sql",
-    "id": "56247cb0-8d3f-4cbc-be49-81d51ed36ad2"
+    "file": "039_auth.sql",
+    "id": "58c7ab0f-5997-41ac-9840-a9c3273ce301"
   },
-  "modelHash": "4f382e90d0c7664e21a82ad28b35fb86e705ffdef238e27343bf2b265813d522",
+  "modelHash": "93d204a5e2e78ed20f1e574f7feed2f0c3ef356bcf0b02c6107c68bc48aecb7e",
   "model": {
     "auth": {
       "schema": "auth",
@@ -15,7 +15,7 @@
       "scopedTablesCarryOrganization": true,
       "modules": {
         "auth": {
-          "lastStep": 5,
+          "lastStep": 6,
           "tables": {
             "user": {
               "name": "user",
@@ -111,16 +111,6 @@
                 "expires_at": "expires_at",
                 "alg": "alg",
                 "crv": "crv"
-              },
-              "indexes": {}
-            },
-            "auth_migrations": {
-              "name": "auth_migrations",
-              "scope": "global",
-              "columns": {
-                "version": "version",
-                "name": "name",
-                "applied_at": "applied_at"
               },
               "indexes": {}
             },
@@ -610,11 +600,6 @@
       "auth.account_provider_id_account_id_uidx",
       "auth.account_provider_id_single_subject_user_id_uidx",
       "auth.account_user_id_idx",
-      "auth.auth_migrations",
-      "auth.auth_migrations.applied_at",
-      "auth.auth_migrations.id",
-      "auth.auth_migrations.name",
-      "auth.auth_migrations.version",
       "auth.auth_steps",
       "auth.auth_steps.applied_at",
       "auth.auth_steps.id",

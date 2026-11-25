@@ -85,8 +85,8 @@ describe("the store's names", () => {
       const resolved = optionsWith([...features], tables)
       const found = betterAuthTables(resolved.options)
       expect(modelTables(resolved, Object.keys(found))).toEqual(found)
-      // The records of migrations and of steps and the From address verifications are the store's alone.
-      expect(Object.keys(found).length).toBe(Object.keys(resolved.names.tables).length - 3)
+      // The record of steps and the From address verifications are the store's alone.
+      expect(Object.keys(found).length).toBe(Object.keys(resolved.names.tables).length - 2)
     }
   })
 

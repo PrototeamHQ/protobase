@@ -19,7 +19,7 @@ describe('protobase migration', () => {
     expect(text.split('\n').slice(0, 4)).toEqual([
       '-- protobase:id 00000000-0000-4000-8000-000000000001',
       '-- protobase:version 1.0.0',
-      '-- protobase:steps auth=5 two_factor=1 passkeys=2 sign_in_policy=1 staff_sign_in=2',
+      '-- protobase:steps auth=6 two_factor=1 passkeys=2 sign_in_policy=1 staff_sign_in=2',
       `-- protobase:model ${(await readSnapshot(dir))!.modelHash}`,
     ])
     expect(text).toContain('\n-- The auth schema changes this version of Protobase needs.\n')
@@ -59,9 +59,10 @@ describe('protobase migration', () => {
     const text = await readFile(file!, 'utf8')
     expect(text).toContain('-- auth 4 verification_pattern_index:')
     expect(text).toContain('-- auth 5 user_name_search:')
+    expect(text).toContain('-- auth 6 drop_version_record:')
     expect(text).not.toContain('-- auth 3 ')
-    expect(text).not.toContain('auth_migrations" (\n')
-    expect((await readSnapshot(dir))!.model.auth!.modules.auth!.lastStep).toBe(5)
+    expect(text).not.toMatch(/create table[^(]*auth_migrations/)
+    expect((await readSnapshot(dir))!.model.auth!.modules.auth!.lastStep).toBe(6)
   })
 
   it('records that organizations were on', async () => {

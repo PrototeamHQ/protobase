@@ -36,12 +36,12 @@ describe('protobaseSchemas', () => {
   })
 
   it('takes only the store tables out of public: those its migrations make, its record and its user table, however named', () => {
-    const [found] = protobaseSchemas([...store('public', 'people', ['organization', 'member', 'oauth_client', 'auth_migrations']), table('public', 'orders'), table('public', 'user')], {})
-    expect(found!.tables.map((each) => each.name)).toEqual(['people', 'session', 'account', 'verification', 'jwks', 'organization', 'member', 'oauth_client', 'auth_migrations'])
+    const [found] = protobaseSchemas([...store('public', 'people', ['organization', 'member', 'oauth_client', 'auth_steps']), table('public', 'orders'), table('public', 'user')], {})
+    expect(found!.tables.map((each) => each.name)).toEqual(['people', 'session', 'account', 'verification', 'jwks', 'organization', 'member', 'oauth_client', 'auth_steps'])
   })
 
   it('finds a store by its record of migrations, and no store in tables merely named like its own', () => {
-    expect(protobaseSchemas([table('identity', 'auth_migrations'), table('identity', 'member')], {}).map(({ schema }) => schema)).toEqual(['identity'])
+    expect(protobaseSchemas([table('identity', 'auth_steps'), table('identity', 'member')], {}).map(({ schema }) => schema)).toEqual(['identity'])
     expect(protobaseSchemas(['session', 'account', 'verification'].map((name) => table('public', name)), {})).toEqual([])
   })
 })

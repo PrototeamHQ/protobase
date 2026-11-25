@@ -127,7 +127,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     expect(path.basename(file!)).toBe('001_auth.sql')
     const text = await readFile(file!, 'utf8')
     expect(text).toContain('create table if not exists "auth_steps"')
-    expect(textBeforeRecord(text)).not.toContain('auth_migrations')
+    expect(textBeforeRecord(text)).toContain('drop table if exists "auth_migrations"')
     expect(text).toContain('create table if not exists "user"')
     expect(text).toContain('"platform_sign_in" text not null')
     expect(text).toContain('-- mcp 1 mcp: ')
@@ -401,6 +401,30 @@ delete from auth_steps where module = 'mail_senders' and step = 3`,
     )
     expect(await readdir(folder)).toEqual([])
     expect(await query(databaseUrl, "select nspname from pg_namespace where nspname = 'protobase_auth_adoption'")).toEqual([])
+  })
+
+  it('drops the former record of versions of a store Protobase 0.130 left, once, and refuses a store that records versions alone', async () => {
+    const databaseUrl = await createDatabase()
+    const auth = authOn(databaseUrl)
+    const folder = await migrationsDir()
+    await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })
+    await applyAll(databaseUrl, folder)
+    const versionRecord = 'create table auth_migrations (version integer primary key, name text not null, applied_at timestamptz default current_timestamp not null)'
+    await query(databaseUrl, `delete from auth_steps where module = 'auth' and step = 6; ${versionRecord}`)
+
+    const file = await writeAuthMigration({ auth, projectDir: projectOf(folder), dir: folder, name: 'auth' })
+    const text = await readFile(file!, 'utf8')
+    expect(text.match(/^-- \w+ \d+ \w+/gm)).toEqual(['-- auth 6 drop_version_record'])
+    await query(databaseUrl, text)
+    expect(await query(databaseUrl, "select to_regclass('auth_migrations') is null as gone")).toEqual([{ gone: true }])
+    await expect(checkRecord(auth)).resolves.toBeUndefined()
+    expect(await versions(databaseUrl)).toEqual(everyOf(auth))
+
+    const older = await createDatabase()
+    await query(older, versionRecord)
+    await expect(authSchemaMigration(authOn(older))).rejects.toThrow(
+      'The auth store records its migrations by version in auth_migrations, without auth_steps, as a Protobase before 0.130 left it: bring the project to Protobase 0.130 first',
+    )
   })
 
   it('refuses a store a newer Protobase migrated', async () => {

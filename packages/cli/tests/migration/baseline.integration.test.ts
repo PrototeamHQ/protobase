@@ -24,8 +24,7 @@ const reachable = await databaseReachable(url)
 const maintenance = () => postgres(withDatabase(url, 'postgres'), { max: 1, onnotice: () => {} })
 // Every feature with tables of its own on, so every module is.
 const auth = { names: settingsStoreNames({ organizations: { enabled: true }, mcp: true, personalAccessTokens: { prefix: 'app_' }, personalMail: ['gmail'], signInDevices: true }), organizationsOn: true, organizations: testOrganizations }
-// The versions a store recorded in auth_migrations, the former chain's, and every version this Protobase ships, which
-// goes on past them.
+// The versions of the former chain, and every version this Protobase ships, which goes on past them.
 const former = Array.from({ length: 17 }, (_, at) => at + 1)
 const shipped = legacyVersions.map(({ version }) => version)
 
@@ -69,8 +68,8 @@ const applyAfter = async (databaseUrl: string, file: string) => {
 }
 
 // A project whose one auth migration came before the snapshot, applied to a database at the former chain's version
-// `last`, as a Protobase before auth_steps left it: the later parts are recorded while the file runs, so it skips them,
-// and the store then records the versions up to `last` in auth_migrations alone.
+// `last`, as Protobase 0.130 left it: the later parts are recorded while the file runs, so it skips them, and their
+// rows go again, so the store records the steps up to `last`, and still has the former record of versions.
 const olderStore = async (last: number) => {
   const databaseUrl = await createDatabase()
   const projectDir = await mkdtemp(path.join(tmpdir(), 'protobase-baseline-'))
@@ -85,7 +84,8 @@ const olderStore = async (last: number) => {
   await query(databaseUrl, file)
   await query(
     databaseUrl,
-    `drop table auth.auth_steps; create table auth.auth_migrations (version integer primary key, name text not null, applied_at timestamptz default current_timestamp not null);
+    `${later.map(({ module, step, target }) => `delete from auth.auth_steps where (module, step, target) = ('${module}', ${step}, '${target}');`).join('\n')}
+    create table auth.auth_migrations (version integer primary key, name text not null, applied_at timestamptz default current_timestamp not null);
     insert into auth.auth_migrations (version, name) select version, 'earlier' from unnest(array[${former.filter((version) => version <= last).join(', ')}]) as version`,
   )
   return { databaseUrl, projectDir, dir }
@@ -101,24 +101,21 @@ describe.skipIf(!reachable)('protobase migration baseline', () => {
     const file = await writeBaseline({ projectDir, dir, auth, modules: {}, url: databaseUrl, protobaseVersion: '1.0.0', newId: randomUUID })
     expect(path.basename(file)).toBe('002_baseline.sql')
     const text = await readFile(file, 'utf8')
-    // Its only statements make the record of the store's steps from the versions the store recorded.
-    expect(textBeforeRecord(text)).toContain('create table if not exists "auth"."auth_steps"')
-    expect(textBeforeRecord(text)).toContain('-- The steps the store recorded by version in auth_migrations, recorded by step.')
+    expect(textBeforeRecord(text)).not.toMatch(/^(create|insert|drop|alter|do) /m)
     await query(databaseUrl, text)
     expect(await query(databaseUrl, `select name from ${recordTable}`)).toEqual([{ name: '002_baseline' }])
     expect(await steps(databaseUrl)).toEqual(formerSteps)
-    // The former chain's record stays until a later release.
-    expect(await query(databaseUrl, 'select count(*)::int as count from auth.auth_migrations')).toEqual([{ count: 17 }])
     expect(await readSnapshot(projectDir)).toMatchObject({
       endsAt: { file: '002_baseline.sql' },
       decisions: { modules: { kept: [], archived: [] }, organizations: { everOn: true, defaultOrganization: testOrganizations.default } },
     })
 
     const next = (await migrate(projectDir, dir))!
-    expect((await readFile(next, 'utf8')).match(/^-- \w+ \d+ \w+/gm)).toEqual(['-- organizations 3 default_organization', '-- organizations 3 default_organization'])
+    expect((await readFile(next, 'utf8')).match(/^-- \w+ \d+ \w+/gm)).toEqual(['-- auth 6 drop_version_record', '-- organizations 3 default_organization', '-- organizations 3 default_organization'])
     await query(databaseUrl, await readFile(next, 'utf8'))
     await applyAfter(databaseUrl, next)
     expect(await steps(databaseUrl)).toEqual(everyStep)
+    expect(await query(databaseUrl, "select to_regclass('auth.auth_migrations') is null as gone")).toEqual([{ gone: true }])
     expect(await migrate(projectDir, dir)).toBeUndefined()
     expect(await checkMigrations(projectDir, dir, auth, {})).toEqual([])
   })
@@ -165,6 +162,14 @@ describe.skipIf(!reachable)('protobase migration baseline', () => {
     await query(databaseUrl, next)
     expect(await steps(databaseUrl)).toEqual(everyStep)
     expect(await migrate(projectDir, dir)).toBeUndefined()
+  })
+
+  it('refuses a store that records versions alone, as a Protobase before 0.130 left it, naming the release to migrate through', async () => {
+    const { databaseUrl, projectDir, dir } = await olderStore(17)
+    await query(databaseUrl, 'drop table auth.auth_steps')
+    await expect(writeBaseline({ projectDir, dir, auth, modules: {}, url: databaseUrl, protobaseVersion: '1.0.0', newId: randomUUID })).rejects.toThrow(
+      'The auth store records its migrations by version in auth_migrations, without auth_steps, as a Protobase before 0.130 left it: bring the project to Protobase 0.130 first',
+    )
   })
 
   it('refuses a second baseline once the project has the snapshot', async () => {

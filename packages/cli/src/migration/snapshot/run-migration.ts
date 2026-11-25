@@ -1,4 +1,4 @@
-import { schemaModules, type ModuleInput, type ModuleModel, type ModuleTargets, type OffChoice, type SchemaModuleId } from '@protobase/server/internal'
+import { droppedTableIds, schemaModules, type ModuleInput, type ModuleModel, type ModuleTargets, type OffChoice, type SchemaModuleId } from '@protobase/server/internal'
 import { authMigrationTitle } from '../../auth/migration-file'
 import type { MigrationPart } from '../parts'
 import { authDifference } from './auth-difference'
@@ -28,7 +28,7 @@ export type MigrationRun = {
    * (`trialContractions`), and what it has of a schema module (`SchemaModule.read`); `undefined` without `DATABASE_URL`.
    */
   database:
-    | { url: string; parts: MigrationPart[]; contractions: (sections: readonly Section[]) => Promise<SectionContractions[]>; readModule: (id: SchemaModuleId, input: ModuleInput) => Promise<ModuleModel | undefined> }
+    | { url: string; parts: MigrationPart[]; contractions: (sections: readonly Section[], dropped: readonly string[]) => Promise<SectionContractions[]>; readModule: (id: SchemaModuleId, input: ModuleInput) => Promise<ModuleModel | undefined> }
     | undefined
   protobaseVersion: string
   newId: () => string
@@ -118,7 +118,7 @@ export const runMigration = async (run: MigrationRun) => {
   // the file break it. What another part takes is refused. Without a database the file holds only the steps, read as
   // they lint (`step-lint.ts`).
   const own = new Set<string>(['auth', ...written.sections.map(({ name }) => name)])
-  const found = database ? await database.contractions(sections) : []
+  const found = database ? await database.contractions(sections, auth ? droppedTableIds(auth.names) : []) : []
   const refused = found.filter(({ name }) => !own.has(name))
   if (refused.length > 0) throw new Error(olderCodeRefusal(refused))
   const label = (name: string) => (name === 'auth' ? "The sign-in modules' steps" : schemaModules[name as SchemaModuleId].title)

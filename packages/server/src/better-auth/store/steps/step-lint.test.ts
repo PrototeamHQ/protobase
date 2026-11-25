@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { lintSteps } from './step-lint'
 
-const step = (sql: string, { made = [] as string[], checked = false } = {}) => ({ label: 'step', sql, made, checked })
-const rules = (sql: string, options?: { made?: string[]; checked?: boolean }) => lintSteps([step(sql, options)]).map(({ rule }) => rule)
+const step = (sql: string, { made = [] as string[], checked = false, drops = false } = {}) => ({ label: 'step', sql, made, checked, drops })
+const rules = (sql: string, options?: { made?: string[]; checked?: boolean; drops?: boolean }) => lintSteps([step(sql, options)]).map(({ rule }) => rule)
 
 describe('the step lint', () => {
   it('takes a new table, a nullable column, an index and a column with a default', () => {
@@ -14,6 +14,11 @@ describe('the step lint', () => {
   it('refuses a drop', () => {
     expect(rules('alter table "t" drop column "x";')).toEqual(['ban-drop-column'])
     expect(rules('drop table "t";')).toEqual(['ban-drop-table'])
+  })
+
+  it('takes the drop of a table from a step that declares it drops one, and nothing else that step contracts', () => {
+    expect(rules('drop table if exists "t";', { drops: true })).toEqual([])
+    expect(rules('alter table "t" drop column "x";', { drops: true })).toEqual(['ban-drop-column'])
   })
 
   it('refuses a type change', () => {

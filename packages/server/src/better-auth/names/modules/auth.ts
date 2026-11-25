@@ -1,6 +1,6 @@
 import { field, own, type ModuleDeclaration } from '../declaration'
 
-/** Sign-in itself: users, with their roles and bans, sessions, accounts, codes, the token signing keys and the record of migrations. */
+/** Sign-in itself: users, with their roles and bans, sessions, accounts, codes, the token signing keys and the record of its steps. */
 export const auth = {
   id: 'auth',
   requires: [],
@@ -70,10 +70,6 @@ export const auth = {
       model: 'jwks',
       scope: 'global',
       columns: { public_key: field('publicKey'), private_key: field('privateKey'), created_at: field('createdAt'), expires_at: field('expiresAt'), alg: field('alg'), crv: field('crv') },
-    },
-    auth_migrations: {
-      scope: 'global',
-      columns: { version: field('version'), name: field('name'), applied_at: field('appliedAt') },
     },
     auth_steps: {
       scope: 'global',

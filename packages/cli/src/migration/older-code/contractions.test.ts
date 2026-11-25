@@ -66,6 +66,16 @@ describe('what a migration takes from older code', () => {
     expect(edit((after) => (after.enums[0]!.labels = ['open']))).toEqual(['removes the value closed of type sales.state'])
   })
 
+  it('takes the drop of a table a step of the auth store drops as nothing, and only its drop', () => {
+    const dropped = new Set(['1'])
+    const without = structuredClone(before)
+    without.relations = without.relations.filter(({ oid }) => oid !== '1')
+    expect(contractions(before, without, dropped)).toEqual([])
+    const remade = structuredClone(before)
+    remade.relations[0]!.oid = '7'
+    expect(contractions(before, remade, dropped)).toEqual(['drops table sales.orders and makes it again, losing its rows'])
+  })
+
   it('names a changed type or result, a column made required, and a new limit on a table there already', () => {
     expect(edit((after) => (after.columns[1]!.type = 'integer'))).toEqual(['changes the type of column sales.orders.code from text to integer'])
     expect(edit((after) => (after.columns[1]!.notNull = true))).toEqual(['makes column sales.orders.code not null'])

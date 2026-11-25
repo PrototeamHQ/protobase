@@ -32,8 +32,8 @@ describe('the steps Protobase ships', () => {
   it('are the only source of each module’s tables: every one is made by one step of its own module', () => {
     for (const module of builtInModules) {
       const made = moduleSteps[module.id].flatMap(({ tables }) => tables)
-      // The user table is made by the first step itself, as it may be another system's; the records of steps go first.
-      const declared = Object.keys(module.tables).filter((table) => table !== 'user' && table !== 'auth_migrations' && table !== 'auth_steps')
+      // The user table is made by the first step itself, as it may be another system's; the record of steps goes first.
+      const declared = Object.keys(module.tables).filter((table) => table !== 'user' && table !== 'auth_steps')
       expect(made.toSorted(), module.id).toEqual(declared.toSorted())
     }
   })
@@ -43,7 +43,7 @@ describe('the steps Protobase ships', () => {
     for (const steps of Object.values(moduleSteps)) for (const step of steps) expect(versions).toContain(step.version)
   })
 
-  // `auth_migrations` records versions, not steps, so a store that has a version has every step naming it: a step
+  // The former record held versions, not steps, so a store that has a version has every step naming it: a step
   // released at a version keeps it, and a new step takes a version after every released one that no other step has,
   // or stores past that version would skip it.
   it('keep the versions they were released with, and a new step takes a later one of its own', () => {
@@ -73,6 +73,12 @@ describe('the steps Protobase ships', () => {
     }
   })
 
+  it('drop a table in one step alone, the reviewed exception to the lint, and only one no module declares', () => {
+    const dropping = Object.entries(moduleSteps).flatMap(([module, steps]) => steps.filter((step) => step.drops).map((step) => [`${module} ${step.step}`, step.drops]))
+    expect(dropping).toEqual([['auth 6', ['auth_migrations']]])
+    for (const module of builtInModules) expect(Object.keys(module.tables)).not.toContain('auth_migrations')
+  })
+
   for (const [label, { input, users = {}, uuidIds = false }] of Object.entries(configs)) {
     it(`are each safe to apply unattended, with ${label}`, () => {
       const names = resolveNames(input)
@@ -82,6 +88,7 @@ describe('the steps Protobase ships', () => {
         sql: statementsSql([...statements, ...after(true)]),
         made: on ? [] : step.tables.map((table) => ddlText(ddl`${names.tables[table]!}`)),
         checked: check !== undefined,
+        drops: !on && step.drops !== undefined,
       }))
       expect(lintSteps(steps)).toEqual([])
     })

@@ -1,15 +1,15 @@
 import postgres from 'postgres'
-import { stepsOfVersions, type AppliedStep, type LiveStore, type StoreNames } from '@protobase/server/internal'
+import { versionRecordRefusal, versionRecordTable, type AppliedStep, type LiveStore, type StoreNames } from '@protobase/server/internal'
 
 /**
  * The auth store at `url` as its schema has it, read once in a read-only transaction: every relation of the store's
- * schema with its kind and columns, and the parts of steps it recorded: in `auth_steps`, or for a store without it, by
- * version in `auth_migrations`. Refuses a store with neither, one made before 0.48, which `protobase auth migration`
- * adopts first.
+ * schema with its kind and columns, and the parts of steps it recorded in `auth_steps`. Refuses a store without it:
+ * one that records versions instead, which Protobase 0.130 moves to `auth_steps` first, or one made before 0.48, which
+ * `protobase auth migration` adopts first.
  */
 export const readLiveStore = async (url: string, names: StoreNames): Promise<LiveStore> => {
   const sql = postgres(url, { max: 1, onnotice: () => {} })
-  const record = names.names.table('auth_migrations')
+  const record = versionRecordTable(names)
   const steps = names.names.table('auth_steps')
   try {
     return await sql.begin('read only', async (tx) => {
@@ -24,11 +24,8 @@ export const readLiveStore = async (url: string, names: StoreNames): Promise<Liv
         const applied = await tx.unsafe<AppliedStep[]>(`select ${String(module)} as module, ${String(step)} as step, ${String(target)} as target from ${String(steps)}`)
         return { applied: applied.map((part) => ({ ...part, step: Number(part.step) })), relations }
       }
-      if (!relations[record.name]) {
-        throw new Error(`The auth store has neither ${steps.name} nor ${record.name}, as a store made before 0.48: adopt it with \`protobase auth migration\` and apply that file first`)
-      }
-      const versions = await tx.unsafe<{ version: number }[]>(`select ${String(record.columns.version)} as version from ${String(record)} order by 1`)
-      return { applied: stepsOfVersions(versions.map(({ version }) => Number(version))), relations }
+      if (relations[record.name]) throw new Error(versionRecordRefusal(record.name))
+      throw new Error(`The auth store has no ${steps.name}, as a store made before 0.48: adopt it with \`protobase auth migration\` and apply that file first`)
     })
   } finally {
     await sql.end()

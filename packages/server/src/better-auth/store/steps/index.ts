@@ -1,9 +1,11 @@
 import type { ModuleId } from '../../names/modules'
+import type { StoreNames } from '../store-names'
 import { core } from './auth/001-core'
 import { accountKeys } from './auth/002-account-keys'
 import { userIndexes } from './auth/003-user-indexes'
 import { verificationPatternIndex } from './auth/004-verification-pattern-index'
 import { userNameSearch } from './auth/005-user-name-search'
+import { dropVersionRecord } from './auth/006-drop-version-record'
 import { mailSenders } from './mail-senders/001-mail-senders'
 import { mailSenderNames } from './mail-senders/002-mail-sender-names'
 import { senderAddressEvidence } from './mail-senders/003-sender-address-evidence'
@@ -21,11 +23,11 @@ import { signInPolicy } from './sign-in-policy/001-sign-in-policy'
 import { staffSignIn } from './staff-sign-in/001-staff-sign-in'
 import { staffSignInIndexes } from './staff-sign-in/002-staff-sign-in-indexes'
 import { twoFactor } from './two-factor/001-two-factor'
-import type { Step } from './step'
+import { migrationNames, type Step } from './step'
 
 /** Each module's chain of steps, the only source of its tables: a new step goes last in its module's chain, with the next number. */
 export const moduleSteps: Record<ModuleId, Step[]> = {
-  auth: [core, accountKeys, userIndexes, verificationPatternIndex, userNameSearch],
+  auth: [core, accountKeys, userIndexes, verificationPatternIndex, userNameSearch, dropVersionRecord],
   two_factor: [twoFactor],
   passkeys: [passkeys, rpIdIndex],
   sign_in_policy: [signInPolicy],
@@ -36,3 +38,9 @@ export const moduleSteps: Record<ModuleId, Step[]> = {
   mail_senders: [mailSenders, mailSenderNames, senderAddressEvidence, senderVerifications, senderSharing],
   platform_devices: [platformDevices],
 }
+
+/** The tables a step drops, by internal name, which no module declares any more. */
+export const droppedTables = Object.values(moduleSteps).flatMap((steps) => steps.flatMap((step) => step.drops ?? []))
+
+/** Those tables as the store's names name them, as SQL text: no older code reads them, so their drop takes nothing from it. */
+export const droppedTableIds = (names: StoreNames) => droppedTables.map((internal) => String(migrationNames(names).former(internal)))
