@@ -1,7 +1,7 @@
 import { sql, type Kysely } from 'kysely'
 import type { TenantValue } from '../../types'
 import { allModules } from '../names/modules-on'
-import { resolveNames, type ResolvedNames } from '../names/resolve-names'
+import { NameClash, resolveNames, type ResolvedNames } from '../names/resolve-names'
 import type { DefaultOrganization } from './options'
 
 // Organizations turned off after being on: the store keeps their tables, and the default organization stands in for
@@ -15,6 +15,19 @@ export type PinnedOrganization = { id: string; existingUsersRole?: string }
 
 /** The store's names with organizations on, as the tables they kept are named. */
 export const keptNames = (names: ResolvedNames) => resolveNames({ ...names.input, modules: allModules.filter((module) => module === 'organizations' || names.modules.includes(module)) })
+
+/**
+ * `keptNames`, or `undefined` when a name the config gives clashes with one of organizations', such as a user table
+ * named `member`: organizations were never on under these names, so the store keeps nothing of theirs.
+ */
+export const keptNamesOf = (names: ResolvedNames) => {
+  try {
+    return keptNames(names)
+  } catch (error) {
+    if (error instanceof NameClash) return
+    throw error
+  }
+}
 
 /** Why the server refuses to start once it finds the store holds organizations, or `undefined` when the config pins the default organization. */
 export const pinRefusal = (off: OrganizationsOff): string | undefined => {
@@ -30,13 +43,13 @@ export type PinRead = () => Promise<PinnedOrganization | undefined>
 
 /**
  * The organization pinned while organizations are off after being on, which the store says by still holding
- * organizations: `undefined` when it has no organization table, or no row in it, as a store from before organizations
+ * organizations, its tables named as `kept` names them: `undefined` when it has no organization table, or no row in it, as a store from before organizations
  * were a module of their own has, which made their tables whether they were on or not. A store that holds one is
  * refused without `default`, or with `tenant` other than its id (`pinRefusal`).
  */
-export const pinnedOrganization = async (db: Kysely<any>, names: ResolvedNames, off: OrganizationsOff): Promise<PinnedOrganization | undefined> => {
+export const pinnedOrganization = async (db: Kysely<any>, kept: ResolvedNames, off: OrganizationsOff): Promise<PinnedOrganization | undefined> => {
   const plain = db.withoutPlugins()
-  const organization = keptNames(names).table('organization')
+  const organization = kept.table('organization')
   const [table] = (await sql<{ kept: boolean }>`select to_regclass(${String(organization)}) is not null as kept`.execute(plain)).rows
   if (!table?.kept) return
   const [rows] = (await sql<{ held: boolean }>`select exists (select from ${organization}) as held`.execute(plain)).rows
@@ -50,10 +63,10 @@ export const pinnedOrganization = async (db: Kysely<any>, names: ResolvedNames, 
  * `pinnedOrganization`, read once its first caller asks, such as the server's startup checks, and kept: the store's
  * tables only change with a migration, which the server restarts after. A failed read is not kept, so the next asks again.
  */
-export const pinOnce = (db: Kysely<any>, names: ResolvedNames, off: OrganizationsOff): PinRead => {
+export const pinOnce = (db: Kysely<any>, kept: ResolvedNames, off: OrganizationsOff): PinRead => {
   let read: Promise<PinnedOrganization | undefined> | undefined
   return () => {
-    read ??= pinnedOrganization(db, names, off).catch((error: unknown) => {
+    read ??= pinnedOrganization(db, kept, off).catch((error: unknown) => {
       read = undefined
       throw error
     })

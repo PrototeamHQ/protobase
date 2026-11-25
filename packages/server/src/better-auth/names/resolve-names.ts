@@ -89,9 +89,12 @@ const checkConfig = (tables: TableNames, declared: Declared[]) => {
   }
 }
 
+/** The refusal of a name the store's names give twice, such as a table named as another module's. */
+export class NameClash extends Error {}
+
 const refuseTwice = (names: string[], what: string) => {
   const twice = names.find((name, i) => names.indexOf(name) !== i)
-  if (twice !== undefined) throw new Error(`auth.tables gives ${what} the name "${twice}" twice: give each its own`)
+  if (twice !== undefined) throw new NameClash(`auth.tables gives ${what} the name "${twice}" twice: give each its own`)
 }
 
 /** The name `tables` gives a table, by internal name: its own `name`, or its built-in one after the prefix. */

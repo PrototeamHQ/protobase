@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resolveNames } from '../names/resolve-names'
-import { keptNames, pinRefusal } from './kept-organizations'
+import { keptNames, keptNamesOf, pinRefusal } from './kept-organizations'
 
 const main = { id: 'main', name: 'Main', slug: 'main' }
 
@@ -17,6 +17,12 @@ describe('the organization pinned while organizations are off after being on', (
 
   it('refuses without a default organization', () => {
     expect(pinRefusal({ tenant: 'main' })).toContain('give auth.organizations.default the organization')
+  })
+
+  it('keeps nothing of organizations when a configured name clashes with theirs, as they were never on under it', () => {
+    const names = resolveNames({ schema: 'auth', tables: { user: { name: 'member' } }, modules: ['auth'] })
+    expect(keptNamesOf(names)).toBeUndefined()
+    expect(keptNamesOf(resolveNames({ schema: 'auth', modules: ['auth'] }))?.table('member').name).toBe('member')
   })
 
   it('reads the member table as organizations on name it', () => {
