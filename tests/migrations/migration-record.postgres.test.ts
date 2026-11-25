@@ -9,7 +9,7 @@ import { checkMigrationRecord } from '../../packages/server/src/migration-record
 import { writeBaseline } from '../../packages/cli/src/migration/baseline/write-baseline'
 import { runMigration } from '../../packages/cli/src/migration/snapshot/run-migration'
 import { f, resource, type ResourceModel } from '@protobase/schema'
-import { captureSchemaSql, jobsSchemaSql, neededModules, notificationsSchemaSql, webhooksSchemaSql, workflowsSchemaSql, type AdminAuth, type ModuleApp } from '../../packages/server/src/index'
+import { callsSchemaSql, captureSchemaSql, channelSendsSchemaSql, jobsSchemaSql, neededModules, notificationsSchemaSql, realtimeRelaySchemaSql, relaySchemaSql, statusSchemaSql, webhooksSchemaSql, workflowsSchemaSql, type AdminAuth, type ModuleApp } from '../../packages/server/src/index'
 import { createAuth, modelHash, noInput, plainStoreDb, runtimeModel, schemaModules, storeNames, storeNamesList, type ModuleTargets, type RecordModel } from '../../packages/server/src/internal'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 
@@ -248,6 +248,41 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
 
     await expect(migrateApp(project, auth, { webhooks: { schema: 'hooks' } }, 'renamed')).rejects.toThrow(`Not implemented: renaming what a migration made: the webhooks schema's schema is "webhooks" in the snapshot and "hooks" now`)
     await expect(check(auth, featureModules(auth, { webhooks: { schema: 'hooks' } }))).rejects.toThrow(`the webhooks schema's schema is "webhooks" in the database and "hooks" now`)
+    await rm(project, { recursive: true, force: true })
+  })
+
+  it('describes with a baseline the statuses table, the calls schema, the relay, and the schemas of several processes and SQL sends earlier migrations made, after which the next migration writes nothing', async () => {
+    const database = await openPostgresDatabase('empty')
+    const { auth, project } = await migratedByThisVersion(database, true)
+    const rooms = resource('rooms').table('rooms').fields({ id: f.integer(), members: f.json() }).primaryKey((r) => r.id).live().toModel()
+    const channels = { rooms: { members: { field: 'members' } } }
+    const app: Partial<ModuleApp> = { models: [rooms], status: {}, calls: {}, realtime: { relay: { channels }, processes: 'many', sqlSends: true } }
+    // What the migrations of the version before wrote, which wrote the same statements (`written-before-steps.test.ts`).
+    await database.exec(`create table rooms (id integer primary key, members jsonb);\n${jobsSchemaSql()}\n${captureSchemaSql([rooms])}\n${statusSchemaSql({}, auth)}\n${callsSchemaSql()}\n${relaySchemaSql(auth, channels, [rooms])}\n${realtimeRelaySchemaSql()}\n${channelSendsSchemaSql()}`)
+    const modules = featureModules(auth, app)
+    const file = await writeBaseline({ projectDir: project, dir: path.join(project, 'db/migrations'), auth: { names: storeNames(auth), organizationsOn: false, organizations: undefined }, modules, url: database.url, protobaseVersion: '1.0.0', newId: () => 'baseline-id' })
+    const text = await readFile(file, 'utf8')
+    expect(text).toContain("-- The statuses table of people's own status: at step 1 (statuses).")
+    expect(text).toContain('at step 2 (guests).')
+    expect(text).toContain('realtime.members with the triggers that keep it from the channel records that list their members: at step 1 (members)')
+    expect(text).toContain('-- The relay of Realtime broadcasts and presence between the processes serving the app: at step 1 (relay).')
+    expect(text).toContain("-- SQL's broadcasts to the record channels, channels.send(): at step 1 (sends)")
+    await database.exec(text)
+    expect(await migrateApp(project, auth, app, 'nothing', database)).toBeUndefined()
+    await expect(check(auth, modules)).resolves.toBeUndefined()
+    await rm(project, { recursive: true, force: true })
+  })
+
+  it("writes the relay on a fresh database after the auth store's steps in the same file, and refuses startup naming a module missing", async () => {
+    const database = await openPostgresDatabase('empty')
+    const auth = authOn(database)
+    const project = await mkdtemp(path.join(tmpdir(), 'protobase-migration-record-'))
+    const relay: Partial<ModuleApp> = { realtime: { relay: { channels: {} } } }
+    const text = await readFile((await migrateApp(project, auth, relay, 'fresh-id'))!, 'utf8')
+    expect(text.indexOf('-- The auth schema changes this version of Protobase needs.')).toBeLessThan(text.indexOf('create trigger relay_session_ended'))
+    await database.exec(text)
+    await expect(check(auth, featureModules(auth, relay))).resolves.toBeUndefined()
+    await expect(check(auth, featureModules(auth, { ...relay, status: {}, calls: {} }))).rejects.toThrow('the database lacks the statuses table of status, which this version needs at step 1 (statuses)')
     await rm(project, { recursive: true, force: true })
   })
 

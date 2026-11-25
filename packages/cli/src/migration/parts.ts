@@ -1,4 +1,4 @@
-import { appRelayChannels, callsMigration, channelSendsMigration, commentsMigration, computedMigration, derivedMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, queryRunnerMigration, realtimeRelayMigration, relayed, relayMigration, sqlSends, statusMigration, unsubscribesMigration, userTablesMigration } from '@protobase/server'
+import { commentsMigration, computedMigration, derivedMigration, mailFeedbackMigration, mailFeedbackResource, ownedDefinitionsMigration, queryRunnerMigration, unsubscribesMigration, userTablesMigration } from '@protobase/server'
 import type { MigrationProject } from './migration-project'
 
 /** What one feature still needs of the database, compared with it, written as a part of the next migration. */
@@ -8,15 +8,9 @@ export type MigrationPart = {
   /** What the statements are, the comment above them. */
   title: string
   /** The statements, compared with the database; `undefined` when it is current. */
-  sql: (run: PartsRun) => Promise<string | undefined>
+  sql: () => Promise<string | undefined>
   /** Whether it goes before the schema modules' statements: it makes a table their triggers go on. */
   beforeModules?: boolean
-}
-
-/** What the migration the parts go into writes besides them. */
-export type PartsRun = {
-  /** Whether it writes the auth store's steps, before the parts, so their tables exist once it is applied. */
-  authWritten: boolean
 }
 
 /**
@@ -25,8 +19,6 @@ export type PartsRun = {
  */
 export const migrationParts = (project: MigrationProject): MigrationPart[] => {
   const comments = project.models.some((model) => model.comments)
-  // The relay's channels the app uses or can be moved to by the platform's switch, which the developer's environment lacks.
-  const relayChannels = appRelayChannels(project.realtime?.relay, { views: project.views, models: project.models, signIn: Boolean(project.auth) })
   return [
     // Mail feedback's events are captured from its table, which goes before the change capture's triggers on it.
     ...(project.mailFeedback ? [{ name: 'mail_feedback', title: 'The table of the bounces and complaints of the mail the app sends', sql: () => mailFeedbackMigration(project.db), beforeModules: true }] : []),
@@ -39,17 +31,9 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
     // compared, so that the state of a derived value the config no longer has is dropped.
     { name: 'derived', title: "The state of the resources' derived values and what they read", sql: () => derivedMigration(project.db, project.models) },
     ...(comments ? [{ name: 'comments', title: 'The comments table of the resources with comments', sql: () => commentsMigration(project.db) }] : []),
-    ...(project.status ? [{ name: 'status', title: "The statuses table of people's own status", sql: () => statusMigration(project.db, project.status!, project.auth) }] : []),
     ...(project.unsubscribe ? [{ name: 'unsubscribes', title: 'The table of who unsubscribed from which topic of the bulk mail', sql: () => unsubscribesMigration(project.db) }] : []),
-    ...(project.calls ? [{ name: 'calls', title: 'The calls on records, who is in them, whom they ring, their guests, and the signals between the processes serving the app', sql: () => callsMigration(project.db, project.events) }] : []),
-    ...(relayed(project.realtime) ? [{ name: 'realtime_relay', title: 'The relay of Realtime broadcasts and presence between the processes serving the app', sql: () => realtimeRelayMigration(project.db) }] : []),
     ...(project.userTables ? [{ name: 'user_tables', title: 'The schemas of the tables users add and of their definitions, and pg_trgm', sql: () => userTablesMigration(project.db) }] : []),
     // Run after the deploy that brought the code of an ejected table, so its definition goes in a later deploy.
     ...(project.userTables ? [{ name: 'owned_definitions', title: 'The delete of the definitions of user tables that resources in code own now', sql: () => ownedDefinitionsMigration(project.db, project.models) }] : []),
-    // After the jobs schema, whose enqueue the trigger calls, and the auth store's steps, which create the sessions table.
-    ...(relayChannels
-      ? [{ name: 'relay', title: "The trigger that closes a deleted sign-in session's sockets on the realtime relay, and realtime.members with the triggers that keep it from the channel records that list their members", sql: ({ authWritten }: PartsRun) => relayMigration(project.db, project.auth, authWritten, relayChannels, project.models) }]
-      : []),
-    ...(sqlSends(project.realtime) ? [{ name: 'channel_sends', title: "SQL's broadcasts to the record channels, channels.send()", sql: () => channelSendsMigration(project.db) }] : []),
   ]
 }

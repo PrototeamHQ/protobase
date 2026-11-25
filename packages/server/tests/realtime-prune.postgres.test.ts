@@ -1,6 +1,6 @@
 import { Kysely, sql } from 'kysely'
 import { describe, expect, it, vi } from 'vitest'
-import { channelSendsMigration, createAdmin, realtimeRelayMigration } from '@protobase/server'
+import { channelSendsSchemaSql, createAdmin, realtimeRelaySchemaSql } from '@protobase/server'
 import { pruneBroadcasts } from '../src/realtime/broadcast-prune'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
@@ -69,7 +69,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('Pruning the realtime t
 
   it('with processes: many, deletes relay frames older than a minute and rate rows older than 60 s', async () => {
     const pg = await openPostgresDatabase('empty')
-    await pg.exec((await realtimeRelayMigration(pg.db))!)
+    await pg.exec(realtimeRelaySchemaSql())
     await pg.exec(`insert into realtime_relay.frames (process, kind, topic, private, event, payload, at) values
       (gen_random_uuid(), 'broadcast', 'old', false, 'e', '{}', now() - interval '2 minutes'),
       (gen_random_uuid(), 'broadcast', 'new', false, 'e', '{}', now())`)
@@ -84,7 +84,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('Pruning the realtime t
 
   it('with sqlSends, deletes the sends to the record channels more than 48 hours old', async () => {
     const pg = await openPostgresDatabase('empty')
-    await pg.exec((await channelSendsMigration(pg.db))!)
+    await pg.exec(channelSendsSchemaSql())
     await pg.exec(`insert into channels.sends (resource, key, event, payload, sent_at) values
       ('rooms', '1', 'old', '{}', now() - interval '3 days'), ('rooms', '1', 'recent', '{}', now() - interval '1 hour')`)
     const report = vi.fn()

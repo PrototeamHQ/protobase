@@ -20,7 +20,7 @@ export default defineConfig({
 })
 ```
 
-Then run `protobase migration`, which writes the statuses table, `status.statuses`, as a migration of the project's own, and apply it with the project's migrations. `status: { schema: 'presence' }` puts the table in another schema. `protobase dev` and `protobase serve` refuse to start while the table is missing. Without `status` there is none of it: no menu item, no endpoints, no table and no migration, and notifications go out as before.
+Then run `protobase migration`, which writes the statuses table, `status.statuses`, as a migration of the project's own, and apply it with the project's migrations. `status: { schema: 'presence' }` puts the table in another schema. Its user column points at the auth store's users table, or the one [`users.keyTable`](/reference/auth/#a-view-over-another-systems-users) names, and is `uuid` when auth's users have uuid ids, else `text`. `protobase dev` and `protobase serve` refuse to start while the [record of migrations](/guides/deploy/#the-record-of-migrations) lacks the table. Once it is written, changing `schema` is refused, since Protobase does not write renames. Without `status` there is none of it: no menu item, no endpoints, no table and no migration, and notifications go out as before.
 
 People see the statuses of those they share an [organization](/reference/auth/#organizations) with, so status needs organizations: an app without them stops at startup, and `protobase migration` says why.
 

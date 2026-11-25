@@ -4,7 +4,7 @@ import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js'
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { backgroundSettled, createAdmin, jwtVerifier, realtimeRelayMigration } from '@protobase/server'
+import { backgroundSettled, createAdmin, jwtVerifier, realtimeRelaySchemaSql } from '@protobase/server'
 import { npmWs } from './support/npm-ws'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
@@ -48,7 +48,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('Realtime across two ser
   beforeAll(async () => {
     pg = await openPostgresDatabase('jobs')
     await pg.exec(supabaseLike)
-    await pg.exec((await realtimeRelayMigration(pg.db))!)
+    await pg.exec(realtimeRelaySchemaSql())
     const pair = await generateKeyPair('ES256')
     const keys = createLocalJWKSet({ keys: [{ ...(await exportJWK(pair.publicKey)), alg: 'ES256', kid: 'k1' }] })
     tokenOf = (sub) => new SignJWT({ sub, role: 'authenticated' }).setProtectedHeader({ alg: 'ES256', kid: 'k1' }).setIssuer(issuer).setAudience(issuer).setExpirationTime('5m').sign(pair.privateKey)

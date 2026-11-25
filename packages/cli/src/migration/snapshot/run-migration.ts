@@ -102,7 +102,7 @@ export const runMigration = async (run: MigrationRun) => {
   if (database) await refuseUnrecorded(database.readModule, snapshot, written.sections, modules)
   const compared: (Section & { beforeModules?: boolean })[] = []
   for (const part of database?.parts ?? []) {
-    const sql = await part.sql({ authWritten: Boolean(difference.migration) })
+    const sql = await part.sql()
     if (sql !== undefined) compared.push({ name: part.name, text: section(part.title, sql), ...(part.beforeModules && { beforeModules: true }) })
   }
   // The schema modules go before the compared parts, whose triggers call into them, such as jobs.enqueue(), but for the

@@ -1,5 +1,5 @@
 import { chromium, firefox, type Browser } from 'playwright'
-import { callsSchemaSql } from '../../../packages/server/src/calls/calls-sql'
+import { callsSchemaSql } from '../../../packages/server/src/schema-modules/feature-schemas-sql'
 import { openPostgresDatabase } from '../../../test-support/postgres-database'
 import { bundleBrowserClient } from '../../e2e/support/bundle-client'
 
@@ -25,10 +25,10 @@ export const launchCallBrowser = (name: CallBrowser): Promise<Browser> =>
         },
       })
 
-/** A clone of the empty test template with the `calls` schema; closed by the caller. */
+/** A clone of the empty test template with the `calls` schema and the notices table; closed by the caller. */
 export const callsDatabase = async () => {
   const database = await openPostgresDatabase('empty')
-  await database.exec(`${callsSchemaSql};`)
+  await database.exec(callsSchemaSql())
   return database
 }
 

@@ -1,6 +1,7 @@
 /** The schema of SQL's broadcasts to the record channels. */
 export const sendsSchema = 'channels'
 
+// Step 1 of `channelSendsModule`: frozen once released, as every step is.
 /**
  * - `sends`: each broadcast SQL sent, inserted in the sender's transaction, taken out by a serving process once
  *   committed, or pruned after 48 hours when none read it.
@@ -8,7 +9,7 @@ export const sendsSchema = 'channels'
  *   so that no other role, such as one of `/api/sb/rest/v1`'s, sends as the server; a trigger function that sends for
  *   them is `security definer`.
  */
-export const sendsSchemaSql = `create schema if not exists ${sendsSchema};
+export const sendsTableSql = `create schema if not exists ${sendsSchema};
 
 create table if not exists ${sendsSchema}.sends (
   id bigint generated always as identity primary key,
@@ -19,9 +20,10 @@ create table if not exists ${sendsSchema}.sends (
   sent_at timestamptz not null default now()
 );
 
-create index if not exists sends_sent_at on ${sendsSchema}.sends (sent_at);
+create index if not exists sends_sent_at on ${sendsSchema}.sends (sent_at);`
 
-create or replace function ${sendsSchema}.send(resource text, key text, event text, payload jsonb) returns void
+/** `send()` at version 1 of `channelSendsModule`'s replaceable: a change to it bumps its version. */
+export const sendFunctionSql = `create or replace function ${sendsSchema}.send(resource text, key text, event text, payload jsonb) returns void
   language sql security definer set search_path = ''
   as $$ insert into ${sendsSchema}.sends (resource, key, event, payload) values (send.resource, send.key, send.event, send.payload) $$;
 

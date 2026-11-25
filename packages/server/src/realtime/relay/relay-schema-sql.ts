@@ -13,6 +13,7 @@ export type RelaySpace = 'topics' | 'records'
 /** The tables with a `space` column, which a relay schema written before it lacks. */
 export const spacedTables = ['frames', 'presences'] as const
 
+// Step 1 of `realtimeRelayModule`: frozen once released, as every step is.
 /**
  * - `frames`: what a process sends, a broadcast or a presence diff, read by the others and pruned after a minute.
  * - `space` in `frames` and `presences`: the channels they are of (`RelaySpace`), `topics` for a row written without

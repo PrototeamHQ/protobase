@@ -4,9 +4,9 @@ import { defineRoles, f, resource } from '@protobase/schema'
 import { createAdmin } from '../src/index'
 import { rosters } from '../src/calls/call-reads'
 import { sqlCallStore } from '../src/calls/calls-store'
-import { callsSchemaSql } from '../src/calls/calls-sql'
+import { callsSchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { ringsOf, startRings, stopEndedRings, stopRing, writeRingNotices } from '../src/calls/rings-sql'
-import { noticesAfter, noticesTableSql } from '../src/live/notices-sql'
+import { noticesAfter } from '../src/live/notices-sql'
 import { signTestToken, testAuthenticator } from '../../../test-support/server'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
@@ -29,8 +29,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('calls on records, on P
 
   beforeAll(async () => {
     database = await openPostgresDatabase('empty')
-    await database.exec(`${callsSchemaSql};
-      create schema changes; ${noticesTableSql('changes')};
+    await database.exec(`${callsSchemaSql()}
       create table meetings (id integer primary key, owner_id text not null, title text not null);
       insert into meetings values (1, 'alice', 'Standup'), (2, 'bob', 'Retro');`)
     store = sqlCallStore(database.db, 10_000)

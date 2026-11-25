@@ -3,7 +3,9 @@ import type { AddressInfo } from 'node:net'
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource, type AccessContext } from '@protobase/schema'
-import { backgroundSettled, channelSendsMigration, createAdmin, defineFunction, realtimeRelayMigration } from '@protobase/server'
+import { backgroundSettled, channelSendsSchemaSql, createAdmin, defineFunction, realtimeRelaySchemaSql } from '@protobase/server'
+import { realtimeRelayModule } from '../src/realtime/relay/realtime-relay-module'
+import { noInput } from '../src/schema-modules/schema-module'
 import { npmWs } from './support/npm-ws'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
@@ -34,8 +36,8 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('Record channels on rea
     pg = await openPostgresDatabase('empty')
     await pg.exec(`create table rooms (id integer generated always as identity primary key, team text not null);
       insert into rooms (team) values ('red'), ('blue');`)
-    await pg.exec((await realtimeRelayMigration(pg.db))!)
-    await pg.exec((await channelSendsMigration(pg.db))!)
+    await pg.exec(realtimeRelaySchemaSql())
+    await pg.exec(channelSendsSchemaSql())
     const serve = async () => {
       const admin = createAdmin({
         resources: [rooms],
@@ -225,13 +227,13 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('Record channels on rea
     await pg.exec(`revoke usage on schema channels from ${role}; drop role ${role}`)
   })
 
-  it('adds the space column to a relay schema written before the record channels', async () => {
+  it('reads a relay schema as its step 1, and refuses one written before the record channels', async () => {
     const old = await openPostgresDatabase('empty')
-    await old.exec((await realtimeRelayMigration(old.db))!)
+    expect(await realtimeRelayModule.read(old.db, noInput)).toBeUndefined()
+    await old.exec(realtimeRelaySchemaSql())
+    expect(await realtimeRelayModule.read(old.db, noInput)).toEqual({ lastStep: 1, replaceables: {} })
     await old.exec('alter table realtime_relay.frames drop column space; alter table realtime_relay.presences drop column space;')
-    const migration = await realtimeRelayMigration(old.db)
-    expect(migration).toBeDefined()
-    await old.exec(migration!)
-    expect(await realtimeRelayMigration(old.db)).toBeUndefined()
+    await expect(realtimeRelayModule.read(old.db, noInput)).rejects.toThrow('The realtime_relay schema lacks tables or columns no step of this version of Protobase records')
+    await old.close()
   })
 })

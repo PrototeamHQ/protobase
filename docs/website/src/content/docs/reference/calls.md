@@ -30,7 +30,7 @@ Or, with no media server, `backend: { kind: 'peer' }`: see [Peer to peer](#peer-
 - `maxMinutes`: how long a call lasts at most, 240 by default. Then it ends, whoever is still in it.
 - `processes`: `'many'` when several processes serve the app behind one address, so members that different processes serve meet in one call; `'one'`, the default, otherwise.
 
-Without `calls`, an app has none of it: the server loads no calls code, and only a page that imports `@protobase/client/calls` bundles the browser side. With `calls`, [`protobase migration`](/reference/cli/#migration) adds the `calls` schema, where calls and their members are kept; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while it is missing.
+Without `calls`, an app has none of it: the server loads no calls code, and only a page that imports `@protobase/client/calls` bundles the browser side. With `calls`, [`protobase migration`](/reference/cli/#migration) adds the `calls` schema, where calls and their members are kept, and the notices table rings reach open pages through; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while the [record of migrations](/guides/deploy/#the-record-of-migrations) lacks them.
 
 Running LiveKit on your own machine: `bun run calls:up` in the Protobase repository starts one from `docker-compose.yml`, at `ws://127.0.0.1:7880` with the key `devkey` and the secret `secretsecretsecretsecretsecretsecret`.
 

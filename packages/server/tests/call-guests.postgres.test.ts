@@ -3,11 +3,13 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { rosters } from '../src/calls/call-reads'
 import { sweepCalls } from '../src/calls/call-sweep'
 import { sqlCallStore } from '../src/calls/calls-store'
-import { callsMigration, callsSchemaSql, checkCalls } from '../src/calls/calls-sql'
+import { callsModule } from '../src/calls/calls-module'
+import { callsSchemaSql } from '../src/schema-modules/feature-schemas-sql'
+import { moduleDifference } from '../src/schema-modules/module-difference'
+import { noInput } from '../src/schema-modules/schema-module'
 import { guestStillAllowed } from '../src/calls/guest-checks-sql'
 import { sqlGuestStore } from '../src/calls/guest-store'
 import { guestMember, guestTokenPrefix, linkTokenPrefix, newToken, tokenHash } from '../src/calls/guest-tokens'
-import { noticesTableSql } from '../src/live/notices-sql'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
 // Guests on Postgres, where links, the lobby, admissions, revocations, the organization's switch and the end of a call
@@ -25,7 +27,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('guests of calls, on Po
 
   beforeAll(async () => {
     database = await openPostgresDatabase('empty')
-    await database.exec(`${callsSchemaSql}; create schema changes; ${noticesTableSql('changes')};`)
+    await database.exec(callsSchemaSql())
     calls = sqlCallStore(database.db, 10_000)
     guests = sqlGuestStore(database.db, 10_000, async (_trx, record) => organizations[record.key])
   })
@@ -292,14 +294,14 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('guests of calls, on Po
     })
   })
 
-  it('adds the guest tables to a calls schema without them, through the migration', async () => {
+  it('reads a calls schema without the guest tables at step 1, and writes its step 2 alone', async () => {
     await database.exec('drop table calls.guests, calls.guest_links, calls.organization_guests; alter table calls.members drop column name')
-    await expect(checkCalls(database.db, {}, undefined)).rejects.toThrow('The calls schema or the notices table that rings go through is missing')
-    const migration = await callsMigration(database.db)
+    const before = await callsModule.read(database.db, noInput)
+    expect(before).toEqual({ lastStep: 1, replaceables: {} })
+    const { sql: migration } = moduleDifference(callsModule, noInput, before)
     expect(migration).toContain('create table if not exists "calls"."guest_links"')
     expect(migration).not.toContain('create table if not exists "calls"."calls"')
     await database.exec(migration!)
-    await checkCalls(database.db, {}, undefined)
-    expect(await callsMigration(database.db)).toBeUndefined()
+    expect(await callsModule.read(database.db, noInput)).toEqual({ lastStep: 2, replaceables: {} })
   })
 })
