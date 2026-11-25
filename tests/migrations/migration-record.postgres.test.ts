@@ -175,14 +175,16 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
   it('describes with a baseline a change capture an earlier migration made, after which the next migration writes nothing', async () => {
     const database = await openPostgresDatabase('empty')
     const { auth, project } = await migratedByThisVersion(database, true)
-    const captured = [notes.events((e) => e.crud()).history().toModel(), refunds.toModel()]
-    await database.exec(`${tables}\n${jobsSchemaSql()}\n${captureSchemaSql(captured)}`)
+    // An update trigger that fires only when columns other than the ignored ones change, whose condition Postgres words otherwise.
+    const logs = resource('logs').table('logs').fields({ id: f.integer(), title: f.text(), views: f.integer() }).primaryKey((r) => r.id).history({ ignore: ['views'] })
+    const captured = [notes.events((e) => e.crud()).history().toModel(), refunds.toModel(), logs.toModel()]
+    await database.exec(`${tables} create table logs (id integer primary key, title text, views integer);\n${jobsSchemaSql()}\n${captureSchemaSql(captured)}`)
     await expect(migrateModels(project, auth, captured, 'refused', database)).rejects.toThrow('The database has the jobs schema, which protobase.snapshot.json does not record')
 
     const modules = neededModules({ models: captured, views: [], jobs: [], signIn: true })
     const file = await writeBaseline({ projectDir: project, dir: path.join(project, 'db/migrations'), auth: { names: storeNames(auth), organizationsOn: false, organizations: undefined }, modules, url: database.url, protobaseVersion: '1.0.0', newId: () => 'baseline-id' })
     const text = await readFile(file, 'utf8')
-    expect(text).toContain("-- The change capture the resources' events and history need: at step 1 (outbox), its capture at version 1, its triggers of notes.")
+    expect(text).toContain("-- The change capture the resources' events and history need: at step 1 (outbox), its capture at version 1, its triggers of notes, logs.")
     expect(text).toContain('-- The history table of the resources with history: at step 1 (history).')
     await database.exec(text)
     expect(await migrateModels(project, auth, captured, 'nothing', database)).toBeUndefined()

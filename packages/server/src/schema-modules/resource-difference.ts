@@ -20,10 +20,11 @@ export const wantedResources = (given: Record<string, ResourceInput>) => Object.
 
 /**
  * What brings one resource replaceable from the entries the database has, `had`, to what `given` asks: each resource's
- * statements under the title naming it, drops first, those of a resource moved to another table included; the entries the database has once they are applied; and what of
- * them the code before does not run on. A resource no longer in `given`, or only kept, keeps its objects while another
- * still needs them (`keptWhileOthers`), following its input when it has one, and loses them once none does, which
- * takes them from older code still running.
+ * statements under the title naming it, drops first, those of a resource moved to another table included; the entries
+ * the database has once they are applied; and what of them the code before does not run on. A resource no longer in
+ * `given`, or only kept, keeps its objects while another still needs them (`keptWhileOthers`), following its input
+ * when it has one, and loses them once none does, which takes them from older code still running. A table a resource
+ * needs takes only that resource's objects.
  */
 export const resourceDifference = (replaceable: ResourceReplaceable, names: ModuleNames, given: Record<string, ResourceInput>, had: Record<string, ResourceEntry>) => {
   const keeping = replaceable.keptWhileOthers && wantedResources(given).length > 0
@@ -46,13 +47,17 @@ export const resourceDifference = (replaceable: ResourceReplaceable, names: Modu
       breaks.push(`it replaces its ${replaceable.name} of ${key} at version ${before.version} with version ${replaceable.version}, which the code before does not run on`)
     }
   }
+  // A table a resource needs the objects on is its alone: the objects kept for another resource there were replaced
+  // by its own, so that resource is no longer recorded, and is written again once it needs them.
+  const wanted = wantedResources(given)
+  const claimed = (key: string, table: TableName) => wanted.some(([other, input]) => other !== key && sameTable(input.table, table))
   for (const [key, input] of Object.entries(given)) {
-    if (!input.kept || (keeping && had[key])) write(key, input)
+    if (!input.kept || (keeping && had[key] && !claimed(key, input.table))) write(key, input)
   }
   for (const [key, before] of Object.entries(had)) {
     if (entries[key]) continue
     if (keeping) {
-      entries[key] = before
+      if (!claimed(key, before.table)) entries[key] = before
       continue
     }
     drops.push(`-- ${replaceable.title} of ${key}, which no resource needs any more.\n${replaceable.drop(names, before.table).trim()}`)

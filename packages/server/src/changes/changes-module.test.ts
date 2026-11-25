@@ -102,4 +102,13 @@ describe('the change capture module', () => {
     const renamed = neededModules({ models: [orders.events((e) => e.crud()).toModel()], views: [], jobs: [], signIn: false, events: { schema: 'events' } }).changes!
     expect(() => moduleDifference(changesModule, renamed, before)).toThrow(`Not implemented: renaming what a migration made: the change capture's schema is "changes" in the snapshot and "events" now. Name it as before in the config`)
   })
+
+  it('forgets the triggers kept for a resource once another resource takes its table, and writes them again when it is captured again', () => {
+    const tickets = resource('tickets').table('tickets').fields({ id: f.integer() }).primaryKey((r) => r.id)
+    const fresh = resource('fresh').table('tickets').fields({ id: f.integer() }).primaryKey((r) => r.id)
+    const before = moduleDifference(changesModule, input([tickets.events((e) => e.crud()).toModel()]), undefined).model
+    const taken = moduleDifference(changesModule, input([fresh.events((e) => e.crud()).toModel()]), before)
+    expect(Object.keys(taken.model.resources!.triggers!)).toEqual(['fresh'])
+    expect(moduleDifference(changesModule, input([tickets.events((e) => e.crud()).toModel()]), taken.model).sql).toContain("-- The triggers that capture the changes of tickets.\n")
+  })
 })

@@ -2,7 +2,7 @@ import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import { resourceEntry } from '../schema-modules/resource-difference'
 import type { ModuleInput, ModuleModel, ResourceEntry, ResourceReplaceable, TableName } from '../schema-modules/schema-module'
-import { captureBody, quoteIdent, type ResourceCapture } from './capture-sql'
+import { captureBody, quoteIdent, rowsDiffer, type ResourceCapture, type TriggerSpec } from './capture-sql'
 
 /** The version of `capture()` this version of Protobase writes, by the replaceable that writes it. */
 export const captureVersion = 1
@@ -15,22 +15,29 @@ const triggerArgs = (hex: string) => {
   return new TextDecoder().decode(bytes).split('\0').slice(0, -1)
 }
 
-type FoundTrigger = { schema: string; table: string; name: string; type: number; args: string[]; enabled: boolean }
+type FoundTrigger = { schema: string; table: string; name: string; type: number; args: string[]; enabled: boolean; when: string }
+
+// A trigger's condition as text to compare, whether Postgres wrote it back or Protobase writes it (`rowsDiffer`): without
+// case, quotes, parentheses and spaces. One Postgres words otherwise does not compare equal, and is written again.
+const comparable = (condition: string) => condition.toLowerCase().replace(/["()\s]/g, '')
+
+// The condition `trigger` fires on: an update's, none for inserts and deletes.
+const condition = (trigger: TriggerSpec) => (trigger.type & 16 ? rowsDiffer(trigger.columns) : '')
 
 // Whether `found`, the triggers on a resource's table that call `capture()`, are the ones its input makes: the same
-// names, firing and arguments, and enabled. An update trigger's columns are part of its `when`, which its name and
-// arguments follow.
+// names, firing, condition and arguments, and enabled.
 const sameTriggers = (found: readonly FoundTrigger[], wanted: ResourceCapture) =>
   found.length === wanted.triggers.length &&
-  wanted.triggers.every((trigger) => found.some((one) => one.enabled && one.name === trigger.name && one.type === trigger.type && one.args.join('\0') === trigger.args.join('\0')))
+  wanted.triggers.every((trigger) => found.some((one) => one.enabled && one.name === trigger.name && one.type === trigger.type && one.args.join('\0') === trigger.args.join('\0') && comparable(one.when) === comparable(condition(trigger))))
 
 // Every trigger calling `capture()`, with the table it is on, in one read.
 const readTriggers = async (db: Db, captureOid: string): Promise<FoundTrigger[]> =>
   (
     await rowsOf(
       db,
-      sql<{ schema: string; table: string; name: string; type: number; args: string; enabled: boolean }>`select n.nspname as schema, c.relname as table, t.tgname as name,
-        t.tgtype::int as type, encode(t.tgargs, 'hex') as args, t.tgenabled <> 'D' as enabled
+      sql<{ schema: string; table: string; name: string; type: number; args: string; enabled: boolean; when: string }>`select n.nspname as schema, c.relname as table, t.tgname as name,
+        t.tgtype::int as type, encode(t.tgargs, 'hex') as args, t.tgenabled <> 'D' as enabled,
+        coalesce(substring(pg_get_triggerdef(t.oid) from ' WHEN (.*) EXECUTE FUNCTION '), '') as when
         from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace n on n.oid = c.relnamespace
         where not t.tgisinternal and t.tgfoid::text = ${captureOid} order by n.nspname, c.relname, t.tgname`,
     )

@@ -146,10 +146,13 @@ export const resourceTriggers = (model: ResourceModel): TriggerSpec[] => {
 
 export const dropTriggerSql = (name: string, table: string) => `drop trigger if exists ${quoteIdent(name)} on ${table}`
 
-const rowsDiffer = (columns?: string[]) => {
+/**
+ * The condition an update must meet to fire a trigger that names `columns`: any column changed without them. Each
+ * column is compared on its own, as Postgres words a row comparison back, so the catalogue's condition reads the same.
+ */
+export const rowsDiffer = (columns?: string[]) => {
   if (!columns) return 'old.* is distinct from new.*'
-  const row = (side: string) => `(${columns.map((column) => `${side}.${quoteIdent(column)}`).join(', ')})`
-  return `${row('old')} is distinct from ${row('new')}`
+  return columns.map((column) => `(old.${quoteIdent(column)} is distinct from new.${quoteIdent(column)})`).join(' or ')
 }
 
 export const createTriggerSql = (schema: string, trigger: TriggerSpec, table: string) => {
