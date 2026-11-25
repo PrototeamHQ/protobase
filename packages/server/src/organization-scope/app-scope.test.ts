@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
+import { scopedDb } from '@protobase/query'
+import { db } from '../../../../test-support/compile-sql'
 import { resolveNames } from '../better-auth/names/resolve-names'
 import { appScope } from './app-scope'
 
@@ -25,6 +27,12 @@ describe('appScope', () => {
     expect(scope.organizationOf(member)).toBe('main')
     expect(scope.organizationOf({ ...member, tenant: 'elsewhere' })).toBeUndefined()
     expect(scope.organizationOf(undefined)).toBeUndefined()
+  })
+
+  it('gives work in no organization, such as a recurring job, none of the kept rows while pinned, as with organizations on', async () => {
+    const { tables } = await appScope({ organizations: false, names: offNames, pinned: async () => ({ id: 'main' }) })()
+    expect(scopedDb(db, tables, undefined).selectFrom('auth.memberships').select('id').compile().sql).toBe('select "id" from "auth"."memberships" where false')
+    expect(scopedDb(db, tables, 'main').selectFrom('auth.memberships').select('id').compile().parameters).toEqual(['main'])
   })
 
   it('scopes nothing in an app whose organizations were never on, or without sign-in', async () => {
