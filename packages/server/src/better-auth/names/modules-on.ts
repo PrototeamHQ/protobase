@@ -12,14 +12,15 @@ export const checkRequiredModules = (on: readonly ModuleId[]) => {
 export const allModules: ModuleId[] = builtInModules.map(({ id }) => id)
 
 /** What `modulesOf` reads of the app's auth: the switches of the features whose modules have tables of their own. */
-export type ModuleSwitches = { organizations?: unknown; mcp?: unknown; openIdProvider?: unknown; personalAccessTokens?: unknown; personalMail?: readonly unknown[] }
+export type ModuleSwitches = { organizations?: unknown; mcp?: unknown; openIdProvider?: unknown; personalAccessTokens?: unknown; personalMail?: readonly unknown[]; signInProviders?: readonly { devices?: boolean }[]; signInDevices?: boolean }
 
 /**
  * The modules the app's auth turns on, the one place the CLI's migrations and the runtime read them from: each
  * feature's module is on while its switch is, `mcp` with the MCP endpoint or the OpenID provider, whose tables are the
- * same, and `mail_senders` with personal mail. The others are always on: sign-in itself, two-factor authentication,
- * passkeys, the sign-in policy and staff sign-in have no switch, and the platform's device sign-in providers may come
- * from its environment, which a migration is written without.
+ * same, `mail_senders` with personal mail, and `platform_devices` with `signInDevices` or a provider of
+ * `signInProviders` that signs in devices: the config alone, as a migration is written without the platform's
+ * environment. The others are always on: sign-in itself, two-factor authentication, passkeys, the sign-in policy and
+ * staff sign-in have no switch.
  */
 export const modulesOf = (settings: ModuleSwitches): ModuleId[] => {
   const on: Record<ModuleId, boolean> = {
@@ -28,7 +29,7 @@ export const modulesOf = (settings: ModuleSwitches): ModuleId[] => {
     passkeys: true,
     sign_in_policy: true,
     staff_sign_in: true,
-    platform_devices: true,
+    platform_devices: settings.signInDevices === true || (settings.signInProviders ?? []).some(({ devices }) => devices === true),
     organizations: Boolean(settings.organizations),
     mcp: Boolean(settings.mcp) || Boolean(settings.openIdProvider),
     personal_access_tokens: settings.personalAccessTokens !== undefined,

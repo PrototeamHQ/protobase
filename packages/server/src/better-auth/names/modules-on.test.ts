@@ -9,11 +9,18 @@ describe('the modules that are on', () => {
   })
 
   it('follow the switches of the features with tables of their own, the others always on', () => {
-    const always = ['auth', 'two_factor', 'passkeys', 'sign_in_policy', 'staff_sign_in', 'platform_devices']
+    const always = ['auth', 'two_factor', 'passkeys', 'sign_in_policy', 'staff_sign_in']
     expect(modulesOf({})).toEqual(always)
-    expect(modulesOf({ organizations: true, mcp: true, personalAccessTokens: {}, personalMail: ['gmail'] })).toEqual(allModules)
-    expect(modulesOf({ openIdProvider: true })).toEqual([...always.slice(0, 5), 'mcp', 'platform_devices'])
+    expect(modulesOf({ organizations: true, mcp: true, personalAccessTokens: {}, personalMail: ['gmail'], signInDevices: true })).toEqual(allModules)
+    expect(modulesOf({ openIdProvider: true })).toEqual([...always, 'mcp'])
     expect(modulesOf({ personalMail: [] })).toEqual(always)
+  })
+
+  it('have device sign-in on only when the config says a provider signs in devices', () => {
+    expect(modulesOf({ signInProviders: [{}, { devices: false }] })).not.toContain('platform_devices')
+    expect(modulesOf({ signInDevices: false })).not.toContain('platform_devices')
+    expect(modulesOf({ signInProviders: [{}, { devices: true }] })).toContain('platform_devices')
+    expect(modulesOf({ signInDevices: true })).toContain('platform_devices')
   })
 
   it('are refused with a module on while one it requires is off, naming both', () => {

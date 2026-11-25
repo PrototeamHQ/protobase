@@ -11,7 +11,7 @@ import type { StoreNames } from '../store-names'
  * no database, URL or secret. `ownUserIds`: the app's hooks give new users their ids (`generateUserId` in
  * auth/hooks.ts), which the hooks then decide over `generateUserId: 'uuid'`.
  */
-export const settingsStoreNames = (settings: Pick<AuthSettings, 'schema' | 'tables' | 'users' | 'generateUserId' | 'organizations' | 'mcp' | 'openIdProvider' | 'personalAccessTokens' | 'personalMail'>, ownUserIds = false): StoreNames => {
+export const settingsStoreNames = (settings: Pick<AuthSettings, 'schema' | 'tables' | 'users' | 'generateUserId' | 'organizations' | 'mcp' | 'openIdProvider' | 'personalAccessTokens' | 'personalMail' | 'signInProviders' | 'signInDevices'>, ownUserIds = false): StoreNames => {
   const schema = settings.schema ?? 'auth'
   return {
     schema,
