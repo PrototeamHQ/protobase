@@ -2,7 +2,8 @@ import { sql, type RawBuilder } from 'kysely'
 import { tableId, type TableId } from '../../names/identifiers'
 import type { ModuleId } from '../../names/modules'
 import type { DefaultOrganization } from '../../organizations/options'
-import { tableNameOf, type ResolvedNames } from '../../names/resolve-names'
+import { allModules } from '../../names/modules-on'
+import { resolveNames, tableNameOf, type ResolvedNames } from '../../names/resolve-names'
 import type { StoreNames } from '../store-names'
 
 /** The names a step's statements use, as `ddl` parts. */
@@ -21,7 +22,10 @@ export type MigrationNames = {
   id: RawBuilder<unknown>
   /** The type of a column that holds another table's id. */
   idRef: RawBuilder<unknown>
-  /** A table Protobase no longer declares, by internal name, as the store's names named it: in the store's schema, after the prefix. */
+  /**
+   * A table Protobase no longer declares, by internal name, as the store's names named it: in the store's schema, after
+   * the prefix. Refuses when a table the config names, of any module, or the user key table has that name (`formerTable`).
+   */
   former: (internal: string) => TableId
 }
 
@@ -91,6 +95,22 @@ export type Step = {
 }
 
 /**
+ * A table Protobase no longer declares, as `former` names it. Refuses when a table the config names, of a module on or
+ * off, or the user key table in the store's schema has that name, so a step that drops it never drops a table in use.
+ */
+export const formerTable = ({ schema, names, users }: Pick<StoreNames, 'schema' | 'names' | 'users'>, internal: string) => {
+  const id = tableId(schema, tableNameOf(names.input.tables ?? {}, internal))
+  const every = resolveNames({ ...names.input, modules: allModules })
+  const taken = Object.values(every.tables).find((table) => table.name === id.name)
+  const keyTable = users.keyTable && users.keyTable.schema === schema && users.keyTable.table === id.name
+  if (taken || keyTable) {
+    const which = taken ? `${taken.internal} table` : 'users.keyTable table'
+    throw new Error(`The auth store's ${which} is named ${id.name}, the name of the former ${internal} table that a step drops: give it another name in the config`)
+  }
+  return id
+}
+
+/**
  * The `ddl` parts of the store's names. `externalUser`: the user table is a relation Protobase did not make, which its
  * statements leave alone, as under `users.keyTable` or as a project's snapshot records it.
  */
@@ -102,5 +122,5 @@ export const migrationNames = ({ schema, names, users, uuidIds }: StoreNames, ex
   metadata: users.metadata,
   id: sql.raw(uuidIds ? 'uuid default pg_catalog.gen_random_uuid()' : 'text'),
   idRef: sql.raw(uuidIds ? 'uuid' : 'text'),
-  former: (internal) => tableId(schema, tableNameOf(names.input.tables ?? {}, internal)),
+  former: (internal) => formerTable({ schema, names, users }, internal),
 })

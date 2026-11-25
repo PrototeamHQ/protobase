@@ -25,4 +25,11 @@ describe('the former record of versions', () => {
     expect(String(versionRecordTable(settingsStoreNames({})))).toBe('"auth"."auth_migrations"')
     expect(String(versionRecordTable(settingsStoreNames({ tables: { prefix: 'app_' } })))).toBe('"auth"."app_auth_migrations"')
   })
+
+  it('is refused when a table the config names takes its name, so its drop never drops a table in use', () => {
+    expect(() => versionRecordTable(settingsStoreNames({ tables: { user: { name: 'auth_migrations' } } }))).toThrow(
+      "The auth store's user table is named auth_migrations, the name of the former auth_migrations table that a step drops: give it another name in the config",
+    )
+    expect(() => versionRecordTable(settingsStoreNames({ tables: { prefix: 'app_', passkey: { name: 'app_auth_migrations' } } }))).toThrow("The auth store's passkey table is named app_auth_migrations")
+  })
 })

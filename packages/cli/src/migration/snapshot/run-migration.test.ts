@@ -61,6 +61,7 @@ describe('protobase migration', () => {
     expect(text).toContain('-- auth 5 user_name_search:')
     expect(text).toContain('-- auth 6 drop_version_record:')
     expect(text).not.toContain('-- auth 3 ')
+    expect(text).not.toMatch(/create table[^(]*auth_migrations/)
     expect((await readSnapshot(dir))!.model.auth!.modules.auth!.lastStep).toBe(6)
   })
 
