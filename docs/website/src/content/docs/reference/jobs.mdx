@@ -69,7 +69,7 @@ select jobs.enqueue('send-invoice', '{"invoiceId": 7}', run_at => now() + interv
 select jobs.enqueue('sync-customer', '{"customerId": 3, "fields": ["email"]}', group_key => 'customer:3');
 ```
 
-`jobs.enqueue(job_name, payload, run_at, key, group_key, priority)` returns the job's id. The job works in no organization. The payload is stored as given, and the runtime keeps a job's organization under a top-level `~organization` key beside it, so never pass an object a request shapes, whose keys it chooses, as the whole payload. A `key` dedupes as `mode: 'dedupe'` does. The job takes its retry settings from its definition, as the workers last saw it; a job no worker has started yet gets pg-boss's defaults until one does.
+`jobs.enqueue(job_name, payload, run_at, key, group_key, priority)` returns the job's id. The job works in no organization. The payload is stored as given, and the runtime keeps a job's organization under a top-level `~organization` key beside it, so never pass an object a request shapes, whose keys it chooses, as the whole payload. <gap>`jobs.enqueue` cannot keep a payload's own `~organization` key as payload because an organization argument of its own is not implemented.</gap> A `key` dedupes as `mode: 'dedupe'` does. The job takes its retry settings from its definition, as the workers last saw it; a job no worker has started yet gets pg-boss's defaults until one does.
 
 ## Mail
 
