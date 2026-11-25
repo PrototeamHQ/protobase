@@ -22,9 +22,25 @@ export const forceSetting = 'protobase.force'
 // Every table of every module, under the store's names.
 const everyTable = (names: StoreNames) => resolveNames({ ...names.names.input, modules: allModules }).tables
 
-// The columns a module adds that the server still writes while it is off, which stay required: a personal access
-// token made while organizations are off after being on is made in the default organization.
-const writtenWhileOff: Partial<Record<ModuleId, Record<string, readonly string[]>>> = { organizations: { personal_access_token: ['organization_id'] } }
+// The columns a module adds that the server still writes while it is off, which stay required, each with the table
+// of the module its foreign key points at: a personal access token made while organizations are off after being on
+// is made in the default organization.
+const writtenWhileOff: Partial<Record<ModuleId, Record<string, Record<string, string>>>> = { organizations: { personal_access_token: { organization_id: 'organization' } } }
+
+/** The modules on whose tables `module` adds columns that stay written while it is off (`writtenWhileOff`), which its archive leaves as they are. */
+export const stillWrittenTargets = (module: ModuleId): ModuleId[] =>
+  Object.keys(writtenWhileOff[module] ?? {}).map((table) => builtInModules.find((declaration) => table in declaration.tables)!.id as ModuleId)
+
+/**
+ * The columns `module` adds that stay written while it is off, on the tables of `existing`, the modules the store has
+ * before the migration, each with the table its foreign key points at, under the store's names.
+ */
+export const stillWrittenColumns = (names: StoreNames, module: ModuleId, existing: readonly ModuleId[]) => {
+  const every = everyTable(names)
+  return Object.entries(writtenWhileOff[module] ?? {})
+    .filter(([table]) => existing.includes(every[table]!.module))
+    .flatMap(([table, columns]) => Object.entries(columns).map(([column, references]) => ({ table: every[table]!, column: every[table]!.columns[column]!, references: every[references]! })))
+}
 
 /**
  * The columns `module` adds to the tables of the modules that stay on, which retire once it is off: each table one of
@@ -42,7 +58,7 @@ export const retiredColumns = (names: StoreNames, module: ModuleId, existing: re
     })
     .flatMap(([table, columns]) =>
       Object.keys(columns)
-        .filter((column) => !writtenWhileOff[module]?.[table]?.includes(column))
+        .filter((column) => !(column in (writtenWhileOff[module]?.[table] ?? {})))
         .map((column) => ({ table: every[table]!, column: every[table]!.columns[column]! })),
     )
 }
@@ -56,6 +72,10 @@ export const keepStatements = (names: StoreNames, module: ModuleId, existing: re
   const columns = retiredColumns(names, module, existing, externalUser)
   return [...columns.map(({ table, column }) => ddl`alter table ${table} alter column ${column} drop not null`), ...watchStatements(columns)]
 }
+
+/** The columns `module` retires (`retiredColumns`) by the names of their tables and themselves, as a snapshot records them. */
+export const retiredNames = (names: StoreNames, module: ModuleId, existing: readonly ModuleId[], externalUser?: boolean) =>
+  retiredColumns(names, module, existing, externalUser).map(({ table, column }) => ({ table: table.name, column: column.name }))
 
 /** The tables of `module` its steps up to `step` made, under the store's names. */
 export const keptTables = (names: StoreNames, module: ModuleId, step: number) => {

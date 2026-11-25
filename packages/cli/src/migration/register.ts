@@ -44,7 +44,7 @@ export const registerMigration = (program: Command) => {
       .option('--custom <name>', 'write an empty numbered migration to fill by hand, and make the snapshot end at it')
       .option('--record-config', "with --custom: record the config's auth store names in the snapshot, which the file makes the store match")
       .option('--after', 'with --custom: write an empty .after.sql beside it too, for statements that cannot run in a transaction, such as create index concurrently')
-      .option('--off <choice>', 'what becomes of the tables of a sign-in module the config turns off, without asking: keep')
+      .option('--off <choice>', 'what becomes of the tables of a sign-in module the config turns off, without asking: keep, archive or delete')
       .option('--force', 'write the migration that turns a kept sign-in module on again even while its tables hold rows'),
   ).action(async (opts: FolderOptions & { custom?: string; recordConfig?: boolean; after?: boolean; off?: string; force?: boolean }) => {
     if (opts.recordConfig && !opts.custom) throw new Error('--record-config goes with --custom <name>')
@@ -118,6 +118,29 @@ export const registerMigration = (program: Command) => {
     .action(async (opts: { dir: string }) => {
       const { dropMigration } = await import('./snapshot/drop')
       out(`deleted ${await dropMigration(process.cwd(), path.resolve(opts.dir))} and took protobase.snapshot.json back\n`)
+    })
+
+  migration
+    .command('contract')
+    .description('Sign off the update that turned a sign-in module off with --off archive or delete: write the next migration, which archives what it retired once that update served long enough')
+    .option('--dir <dir>', 'migrations folder', 'db/migrations')
+    .option('--hours <hours>', 'the hours the file that turned it off must have been applied for, before the migration applies', '24')
+    .action(async (opts: { dir: string; hours: string }) => {
+      const [{ writeContract }, { signOffHours }] = await Promise.all([import('./sign-off/contract'), import('./sign-off/signed-off-file')])
+      const file = await writeContract({ projectDir: process.cwd(), dir: path.resolve(opts.dir), hours: signOffHours(opts.hours), protobaseVersion, newId: randomUUID })
+      out(`wrote ${path.relative(process.cwd(), file)} and protobase.snapshot.json: apply it with the project's migrations once the update has served for ${opts.hours} hours\n`)
+    })
+
+  migration
+    .command('delete')
+    .description('Write the next migration, which drops for good what `contract` archived of a sign-in module, once nothing wrote it for a period')
+    .argument('<module>', 'the archived module, such as organizations')
+    .option('--dir <dir>', 'migrations folder', 'db/migrations')
+    .option('--hours <hours>', 'the hours since the archive was applied, through which retired.writes must count no write of it', '168')
+    .action(async (module: string, opts: { dir: string; hours: string }) => {
+      const [{ writeDelete }, { signOffHours }] = await Promise.all([import('./sign-off/delete'), import('./sign-off/signed-off-file')])
+      const file = await writeDelete({ projectDir: process.cwd(), dir: path.resolve(opts.dir), module, hours: signOffHours(opts.hours), protobaseVersion, newId: randomUUID })
+      out(`wrote ${path.relative(process.cwd(), file)} and protobase.snapshot.json: apply it with the project's migrations\n`)
     })
 
   migration

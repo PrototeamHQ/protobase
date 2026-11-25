@@ -20,7 +20,7 @@ describe('turning a module off', () => {
   it('refuses without a choice, naming the module and the way through', async () => {
     const dir = await newProject()
     await migrate(dir, { auth: tokensOn })
-    await expect(migrate(dir, {})).rejects.toThrow('personal_access_tokens is off in the config while protobase.snapshot.json has its tables. Run `protobase migration` in a terminal to choose what becomes of its tables, or pass `--off keep`.')
+    await expect(migrate(dir, {})).rejects.toThrow('personal_access_tokens is off in the config while protobase.snapshot.json has its tables. Run `protobase migration` in a terminal to choose what becomes of its tables, or pass `--off keep`, `--off archive` or `--off delete`.')
     expect(await checkMigrations(dir, migrationsOf(dir), tokensOff, {})).toEqual(['the config turns personal_access_tokens off, which the migrations lack: run `protobase migration`'])
   })
 
@@ -65,11 +65,20 @@ describe('turning a module off', () => {
     expect(asked).toEqual(['personal_access_tokens'])
   })
 
-  it('refuses archive and delete, which are not available yet', async () => {
-    const dir = await newProject()
-    await migrate(dir, { auth: tokensOn })
-    await expect(migrate(dir, { off: 'archive' })).rejects.toThrow('--off archive is not available yet: a module turned off keeps its tables and rows (--off keep)')
-    await expect(migrate(dir, { off: 'delete' })).rejects.toThrow('--off delete is not available yet')
+  it('keeps its tables with archive or delete as with keep, and records the choice, the file and the columns it retires for the sign-off', async () => {
+    for (const choice of ['archive', 'delete'] as const) {
+      const dir = await newProject()
+      await migrate(dir, { auth: authOf({ organizations: { enabled: true } }, true) })
+      const file = (await migrate(dir, { auth: { ...authOf(), organizations: testOrganizations }, off: choice }))!
+      const text = await readFile(file, 'utf8')
+      expect(text).toContain('alter table "auth"."session" alter column "active_organization_id" drop not null;')
+      expect(text).not.toMatch(/\bdrop (table|column)|set schema|protobase:contract/)
+      const id = /^-- protobase:id (\S+)$/m.exec(text)![1]
+      const [kept] = (await readSnapshot(dir))!.decisions.modules.kept
+      expect(kept).toMatchObject({ module: 'organizations', off: { choice, file: id } })
+      expect(kept!.off!.columns).toContainEqual({ table: 'session', column: 'active_organization_id' })
+      expect(kept!.off!.columns).toContainEqual({ table: 'user', column: 'last_organization_id' })
+    }
   })
 })
 
