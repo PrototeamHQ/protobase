@@ -17,6 +17,7 @@ export const organizationsOffFacts = async (url: string, names: StoreNames, defa
   const organization = kept.table('organization')
   const { organization_id: memberOrganization, user_id: memberUser } = member.columns
   const { name, slug } = organization.columns
+  // Only tokens of a module that is on stop working: one kept while its module is off acts for no one either way.
   const token = names.names.modules.includes('personal_access_tokens') ? kept.table('personal_access_token') : undefined
   const sql = postgres(url, { max: 1, onnotice: () => {} })
   try {

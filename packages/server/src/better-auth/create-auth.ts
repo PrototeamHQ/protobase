@@ -785,6 +785,8 @@ export const createAuth = (options: CreateAuthOptions, plugins: AuthPlugins = {}
   if (resolvedConnections.length > 0) deletion.set('connections', releaseUserConnections({ connections: resolvedConnections, events, allowPrivateAddresses, context }))
   const lockedAccounts = platformLockedAccounts()
   const names = optionsNames(options)
+  // Every app the config serves passes `organizationsOff` (`appAuthOptions`); `createAuth` itself is internal, and its
+  // callers without the option, such as tests over a store with every module's tables, keep organizations out of sign-in.
   const kept = options.organizationsOff && !options.organizations ? keptNamesOf(names) : undefined
   const pin = kept && pinOnce(storeDb({ options }), kept, options.organizationsOff!)
   const authOptions = betterAuthOptions(options, { ...plugins, names, ...(kept && pin && { pinned: { kept, pin } }), mobile, deletion, mailSenderUse: senderUse, ...(verifications && { senderVerifications: verifications }), personalMailer: mailboxOf, sharedSenders, lockedAccounts, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, ...(signUpDomains && { signUpDomains }), signUpFields, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...(api && { api }), ...(openId && { openId }), ...(personalAccessTokens && { personalAccessTokens }), context, connections: { resolved: resolvedConnections, events, allowPrivateAddresses } })
