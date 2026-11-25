@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { authRequestOrganization } from './auth-request-organization'
+import { answerInOrganization, authRequestOrganization, conflictingOrganizations } from './auth-request-organization'
+import { signInOrganization } from './sign-in-organization'
 
-const at = (path: string, init: { body?: unknown } = {}) =>
+const at = (path: string, init: { body?: unknown; method?: string } = {}) =>
   new Request(`http://localhost/api/auth${path}`, {
-    method: init.body === undefined ? 'GET' : 'POST',
+    method: init.method ?? (init.body === undefined ? 'GET' : 'POST'),
     ...(init.body !== undefined && { headers: { 'content-type': 'application/json' }, body: JSON.stringify(init.body) }),
   })
 
@@ -19,6 +20,20 @@ describe('authRequestOrganization', () => {
   it('works in the organization a request names, in its query or its JSON body', async () => {
     expect(await authRequestOrganization(at('/organization/list-members?organizationId=other'), active)).toBe('other')
     expect(await authRequestOrganization(at('/organization/remove-member', { body: { organizationId: 'other', memberIdOrEmail: 'm1' } }), active)).toBe('other')
+  })
+
+  it('takes the organization from the input its endpoint reads: a GET its query, a POST its body', async () => {
+    expect(await authRequestOrganization(at('/organization/remove-member?organizationId=other', { body: { organizationId: 'acme', memberIdOrEmail: 'm1' } }), active)).toBe(conflictingOrganizations)
+    expect(await authRequestOrganization(at('/organization/remove-member?organizationId=acme', { body: { organizationId: 'acme', memberIdOrEmail: 'm1' } }), active)).toBe('acme')
+    expect(await authRequestOrganization(at('/organization/leave?organizationId=other', { body: {} }), active)).toBe('other')
+  })
+
+  it('refuses a request naming two organizations before Better Auth answers it', async () => {
+    let answered = false
+    const answer = answerInOrganization(async () => ((answered = true), new Response(String(signInOrganization()))), active)
+    const refused = await answer(at('/organization/remove-member?organizationId=other', { body: { organizationId: 'acme' } }))
+    expect([refused.status, ((await refused.json()) as { code: string }).code, answered]).toEqual([400, 'CONFLICTING_ORGANIZATIONS', false])
+    expect(await (await answer(at('/organization/remove-member', { body: { organizationId: 'acme' } }))).text()).toBe('acme')
   })
 
   it("works in the session's active organization for another organization endpoint, and in none elsewhere", async () => {

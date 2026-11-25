@@ -14,10 +14,8 @@ const acrossPaths: Record<string, string> = {
   '/organization/create': "creating an organization counts the creator's organizations and makes them the new one's first member",
 }
 
-// The organization a request names as `organizationId`, in its query or its JSON body.
-const namedOrganization = async (request: Request) => {
-  const inQuery = new URL(request.url).searchParams.get('organizationId')
-  if (inQuery) return inQuery
+// The `organizationId` of the JSON body of a POST.
+const bodyOrganization = async (request: Request) => {
   if (request.method !== 'POST' || !request.headers.get('content-type')?.includes('application/json')) return
   let body: unknown
   try {
@@ -31,14 +29,28 @@ const namedOrganization = async (request: Request) => {
   return typeof named === 'string' && named !== '' ? named : undefined
 }
 
+/** A request that names one organization in its query and another in its body, which is refused. */
+export const conflictingOrganizations: unique symbol = Symbol('the query and the body name different organizations')
+
+// The organization a request names as `organizationId` where its endpoint reads it: a GET's query, a POST's body. A
+// POST that names another in its query too is refused, as the scope would not be the organization the endpoint reads.
+const namedOrganization = async (request: Request) => {
+  const inQuery = new URL(request.url).searchParams.get('organizationId') || undefined
+  if (request.method !== 'POST') return inQuery
+  const inBody = await bodyOrganization(request)
+  if (inQuery !== undefined && inBody !== undefined && inQuery !== inBody) return conflictingOrganizations
+  return inBody ?? inQuery
+}
+
 /**
  * The organization an `/api/auth/*` request works in: every organization for the endpoints that read across them, saying
- * why; the one it names as `organizationId`, where Better Auth checks the caller's membership itself; for another
+ * why; the one it names as `organizationId` where its endpoint reads it, where Better Auth checks the caller's membership
+ * itself (`conflictingOrganizations` when a POST names two); for another
  * organization endpoint, the session's active organization (`activeOrganization`, read only then); none for the rest,
  * sign-in, sessions and tokens among them, whose reads of the organization's tables name the organization they read in
  * or why they cross organizations.
  */
-export const authRequestOrganization = async (request: Request, activeOrganization: () => Promise<Organization>): Promise<Organization | EveryOrganization> => {
+export const authRequestOrganization = async (request: Request, activeOrganization: () => Promise<Organization>): Promise<Organization | EveryOrganization | typeof conflictingOrganizations> => {
   const path = new URL(request.url).pathname.slice(authBasePath.length)
   const across = acrossPaths[path]
   if (across) return everyOrganization(across)
@@ -50,12 +62,16 @@ export const authRequestOrganization = async (request: Request, activeOrganizati
 
 /**
  * `answer`, Better Auth's handler, with each request's sign-in queries in the organization it works in
- * (`authRequestOrganization`); promises it starts, its background tasks too, stay there.
+ * (`authRequestOrganization`); promises it starts, its background tasks too, stay there. A request naming two
+ * organizations is refused with `400`.
  */
 export const answerInOrganization =
   (answer: (request: Request) => Promise<Response>, activeOrganization: (request: Request) => Promise<Organization>) =>
-  async (request: Request) =>
-    inSignInScope(await authRequestOrganization(request, () => activeOrganization(request)), () => answer(request))
+  async (request: Request) => {
+    const organization = await authRequestOrganization(request, () => activeOrganization(request))
+    if (organization === conflictingOrganizations) return Response.json({ code: 'CONFLICTING_ORGANIZATIONS', message: 'Name the organization once: the query and the body name different ones.' }, { status: 400 })
+    return inSignInScope(organization, () => answer(request))
+  }
 
 /** The active organization of the request's session, read without refreshing it; none without a session. */
 export const sessionActiveOrganization = (auth: AdminAuth) => async (request: Request): Promise<Organization> => {
