@@ -45,7 +45,51 @@ The server reads the record once at startup, with the model it builds from the c
 The database is behind Protobase 0.128.0, so the server will not start: the auth store's passkeys module is at step 1 (passkeys), and this version needs step 2 (rp_id_index). To bring the database up to 0.128.0, run `protobase migrate --plan` to see the migrations it will apply, then `protobase migrate`. Or run Protobase 0.127.5, the version the database matches.
 ```
 
-It refuses as well on a database ahead of it by a migration that is not additive after the newest one recording the model it reads, saying that rolling back to it is blocked and naming the version the database matches, while a unique index of an `.after.sql` is still building, and on a database that records no migration while the app reads the sign-in store or a schema module, such as one migrated before this record: `protobase auth migration` then writes the file that records the store, and [`protobase migration baseline`](/reference/cli/#migration) the one that records a schema an earlier version's migration made. An unfinished plain index does not keep it from starting. The server never migrates the database itself, and never turns a feature off because its tables are missing. Besides the record, with the built-in assistant it checks what the database has given the [query role](/reference/assistant/#the-built-in-backend), which a migration cannot promise. <gap>A migration that breaks older code without changing the model the record holds, such as a hand-written rename of a resource's column, cannot stop the version before from starting because recording the app's own release in `migrations.history` is not implemented.</gap> <gap>An app's CI cannot run its previous release's tests against the new schema because the older-code test is not implemented.</gap>
+It refuses as well on a database ahead of it by a migration that is not additive after the newest one recording the model it reads, saying that rolling back to it is blocked and naming the version the database matches, while a unique index of an `.after.sql` is still building, and on a database that records no migration while the app reads the sign-in store or a schema module, such as one migrated before this record: `protobase auth migration` then writes the file that records the store, and [`protobase migration baseline`](/reference/cli/#migration) the one that records a schema an earlier version's migration made. An unfinished plain index does not keep it from starting. The server never migrates the database itself, and never turns a feature off because its tables are missing. Besides the record, with the built-in assistant it checks what the database has given the [query role](/reference/assistant/#the-built-in-backend), which a migration cannot promise. <gap>A migration that breaks older code without changing the model the record holds, such as a hand-written rename of a resource's column, cannot stop the version before from starting because recording the app's own release in `migrations.history` is not implemented.</gap>
+
+### Test the version that serves on the new schema
+
+While a deploy migrates, the version that serves now keeps running on the new schema until the new one takes over. This workflow, as `.github/workflows/older-code.yml`, applies a branch's migrations to an empty Postgres 18 and runs the tests of the version that serves now, checked out with its own packages, against that database through `DATABASE_URL`. A failing test names what the version before needs and the branch's migrations take, such as a column they drop. It checks what the app's tests read from the database, so it proves as much as those tests open. Run it from the Actions tab, giving the tag, branch or commit that serves; add `pull_request:` under `on:` to run it on every pull request, against the branch it merges into. A branch with a migration marked `-- protobase:breaks-older-code` fails it by design, since the version before refuses to start on it.
+
+```yaml
+name: older-code
+on:
+  workflow_dispatch:
+    inputs:
+      previous:
+        description: The tag, branch or commit that serves now
+        default: main
+jobs:
+  older-code:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: --health-cmd "pg_isready -U app -d app" --health-interval 2s --health-retries 30
+    env:
+      DATABASE_URL: postgres://app:app@localhost:5432/app
+      PREVIOUS: ${{ inputs.previous || github.base_ref || 'main' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+      # This branch's migrations, the app's and the auth schema's, on an empty database.
+      - run: bun install --frozen-lockfile
+      - run: bun run db:migrate
+      # The version that serves now, with its own packages, and its tests on that database.
+      - run: |
+          commit=$(git rev-parse --verify --quiet "origin/$PREVIOUS^{commit}" || git rev-parse --verify "$PREVIOUS^{commit}")
+          git worktree add --detach "$RUNNER_TEMP/previous" "$commit"
+      - working-directory: ${{ runner.temp }}/previous
+        run: bun install --frozen-lockfile && bun run test
+```
 
 ## Images
 
