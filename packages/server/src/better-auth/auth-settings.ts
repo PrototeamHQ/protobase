@@ -10,6 +10,7 @@ import type { TenantValue } from '../types'
 import type { AddVerifier } from '../personal-mail/verifiers/sender-address-verifier'
 import { senderVerifierList } from '../personal-mail/verifiers/verifier-list'
 import { noOrganizationTables, organizationTables } from '../organization-scope/organization-tables'
+import { signInOrganization } from '../organization-scope/sign-in-organization'
 import { modulesOf } from './names/modules-on'
 import { resolveNames } from './names/resolve-names'
 
@@ -80,7 +81,10 @@ export type AuthSettings = Omit<CreateAuthOptions, 'database' | 'secret' | 'gene
 }
 
 export type AppAuthInput = {
-  /** The app's database: sign-in queries run through it as it is, its plugins included; each hook gets it kept to the organization it is about. */
+  /**
+   * The app's database: sign-in queries run through it, its plugins included, kept with organizations on to the
+   * organization the request works in (`signInOrganization`); each hook gets it kept to the organization it is about.
+   */
   db: Db
   hooks?: AuthHooks
   /** A mailer of the project's own, in place of the default. */
@@ -117,7 +121,7 @@ const organizationsOffOf = (organizations: AuthSettings['organizations'], tenant
 export const appAuthOptions = (settings: AuthSettings, { db, hooks = {}, mailer, workflowConnections, tenant }: AppAuthInput): CreateAuthOptions => {
   const { schema = 'auth', secret, generateUserId, mailer: mail, organizations, mcp, ...rest } = settings
   if (!secret) throw new Error("the auth secret is not set: give it the app's secret, PROTOBASE_SECRET, made with `openssl rand -base64 32`")
-  // The store's tables as the hooks see them; sign-in itself reads the store through `db` as it is.
+  // The store's tables as the hooks and sign-in see them.
   const on = organizationsEnabled(organizations)
   const scope = on ? organizationTables(resolveNames({ schema, tables: rest.tables, modules: modulesOf({ ...rest, mcp, organizations: on }) })) : noOrganizationTables
   const app: HookContexts = (organization) => ({ db: scopedDb(db, scope, organization) })
@@ -129,7 +133,7 @@ export const appAuthOptions = (settings: AuthSettings, { db, hooks = {}, mailer,
   const senderVerifiers = verifiers.freeze()
   return {
     ...rest,
-    database: { db, type: 'postgres', schemaName: schema, transaction: true },
+    database: { db: on ? scopedDb(db, scope, signInOrganization) : db, type: 'postgres', schemaName: schema, transaction: true },
     secret,
     ...(userId && { generateUserId: userId }),
     ...(onUserCreated && { onUserCreated }),

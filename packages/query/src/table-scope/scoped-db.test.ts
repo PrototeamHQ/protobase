@@ -1,7 +1,8 @@
-import { DummyDriver, Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler, sql, type Compilable, type RawBuilder } from 'kysely'
+import { DummyDriver, IdentifierNode, Kysely, OperationNodeTransformer, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler, sql, type Compilable, type RawBuilder, type TableNode } from 'kysely'
 import { describe, expect, it } from 'vitest'
 import { scoped, unscoped } from './raw-tables'
-import { ScopeRefused } from './scope-condition'
+import { everyOrganization, type EveryOrganization } from './organization-source'
+import { ScopeRefused, type Organization } from './scope-condition'
 import { scopedDb } from './scoped-db'
 import type { ScopedTables } from './scoped-tables'
 
@@ -135,6 +136,27 @@ describe('scopedDb', () => {
     expect(() => compiledText(none.insertInto('auth.member').values({ id: 'm1' }))).toThrow(ScopeRefused)
   })
 
+  it('reads the organization of a source as each query is built', () => {
+    let current: Organization | EveryOrganization = 'org-a'
+    const sourced = scopedDb(base, scope, () => current)
+    const query = sourced.selectFrom('auth.member').select('id')
+    expect(compiled(query).parameters).toEqual(['org-a'])
+    current = 'org-b'
+    expect(compiled(query).parameters).toEqual(['org-b'])
+    expect(sourced.organization).toBe('org-b')
+    current = undefined
+    expect(compiledText(query)).toBe('select "id" from "auth"."member" where false')
+    current = everyOrganization('a user lists their own memberships')
+    expect(compiledText(query)).toBe('select "id" from "auth"."member"')
+    expect(compiledText(sourced.insertInto('auth.member').values({ id: 'm1', organization_id: 'org-b' }))).toBe('insert into "auth"."member" ("id", "organization_id") values ($1, $2)')
+    expect(() => everyOrganization(' ')).toThrow('reason')
+  })
+
+  it("keeps the functions of db.fn, a callable with functions of its own, as Better Auth's counts use them", () => {
+    expect(compiledText(db.selectFrom('auth.member').select(db.fn.count('id').as('n')))).toBe('select count("id") as "n" from "auth"."member" where "auth"."member"."organization_id" = $1')
+    expect(compiledText(db.selectFrom('auth.member').select(db.fn('upper', ['role']).as('r')))).toBe('select upper("role") as "r" from "auth"."member" where "auth"."member"."organization_id" = $1')
+  })
+
   it('fails fast on joins it cannot scope', () => {
     expect(() => compiled(db.selectFrom('auth.member').rightJoin('auth.user', 'auth.user.id', 'auth.member.user_id').selectAll())).toThrow('Not implemented')
     expect(() => compiled(db.selectFrom('auth.user').fullJoin('auth.member', 'auth.user.id', 'auth.member.user_id').selectAll())).toThrow('Not implemented')
@@ -179,6 +201,20 @@ describe('scopedDb', () => {
     })
     expect(() => db.with('x', (q) => q.selectFrom('auth.user').select('id')).withoutPlugins()).toThrow("db.unscoped('<reason>')")
     expect(seen).toEqual(['select "id" from "auth"."member" where "auth"."member"."organization_id" = $1'])
+  })
+
+  it("scopes the names a query writes before the database's own plugins rename them, and renames the condition with them", () => {
+    class Renames extends OperationNodeTransformer {
+      protected override transformTable(node: TableNode): TableNode {
+        const table = super.transformTable(node)
+        return table.table.identifier.name === 'member' ? { ...table, table: { ...table.table, identifier: IdentifierNode.create('app_member') } } : table
+      }
+    }
+    const renames = new Renames()
+    const renamed = base.withPlugin({ transformQuery: ({ node }) => renames.transformNode(node), transformResult: async ({ result }) => result })
+    const kept = scopedDb(renamed, { tables: [{ schema: 'auth', table: 'member', column: 'organization_id' }] }, 'org-a')
+    expect(compiledText(kept.selectFrom('auth.member').select('id'))).toBe('select "id" from "auth"."app_member" where "auth"."app_member"."organization_id" = $1')
+    expect(compiledText(scopedDb(base.withSchema('auth'), scope, 'org-a').selectFrom('member').select('id'))).toBe('select "id" from "auth"."member" where "auth"."member"."organization_id" = $1')
   })
 
   it('scopes names withSchema qualifies', () => {

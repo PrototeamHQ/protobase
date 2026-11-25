@@ -1,5 +1,6 @@
 import { sql } from 'kysely'
 import type { AdminAuth } from '../../better-auth/create-auth'
+import { acrossOrganizations } from '../../organization-scope/sign-in-organization'
 import { effectiveRoles, globalRoles, parseAppRoles } from '../../better-auth/organizations/app-roles'
 import type { AuthContext } from '../../better-auth/organizations/store'
 import { resolveActiveRole } from '../../better-auth/roles/active-role'
@@ -32,8 +33,9 @@ const ownersRoles = async (auth: AdminAuth, owners: readonly Owner[]) => {
   const tenants = auth.organizations ? [...new Set(owners.flatMap((owner) => (owner.tenant !== undefined && standing.has(idOf(owner.id)) ? [idOf(String(owner.tenant))] : [])))].filter((id) => mayBeId(context.options, id)) : []
   const member = store.table('member')
   const m = member.columns
-  const { rows: members } = tenants.length === 0 ? { rows: [] } : await sql<MemberRow>`select ${m.user_id} as user_id, ${m.organization_id} as organization_id, ${m.app_roles} as app_roles from ${member}
-    where ${m.user_id} = any(${[...standing.keys()]}) and ${m.organization_id} = any(${tenants})`.execute(store.db)
+  const reason = "the owners of webhooks, workflows and comments act in their own organizations, one batch read for them all"
+  const { rows: members } = tenants.length === 0 ? { rows: [] } : await acrossOrganizations(reason, () => sql<MemberRow>`select ${m.user_id} as user_id, ${m.organization_id} as organization_id, ${m.app_roles} as app_roles from ${member}
+    where ${m.user_id} = any(${[...standing.keys()]}) and ${m.organization_id} = any(${tenants})`.execute(store.db))
   const memberships = new Map(members.map((member) => [memberKey(member.user_id, member.organization_id), parseAppRoles(member.app_roles)]))
   return owners.map(({ id, tenant }) => {
     const user = standing.get(idOf(id))

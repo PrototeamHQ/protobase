@@ -1,5 +1,6 @@
 import { APIError } from 'better-auth/api'
 import { sql } from 'kysely'
+import { acrossOrganizations } from '../../organization-scope/sign-in-organization'
 import { parseAppRoles } from './app-roles'
 import { invalidInvitation, invitationIdOf, verifyInvitationToken } from '../invitations/invitation-token'
 import { storeSqlOf } from '../store/store-sql'
@@ -18,7 +19,9 @@ export type StoredInvitation = {
 
 type InvitationRow = Omit<StoredInvitation, 'appRoles'> & { appRoles?: unknown }
 
-const findInvitation = (context: AuthContext, id: string) => context.adapter.findOne<InvitationRow>({ model: 'invitation', where: [{ field: 'id', value: id }] })
+// For the person it is addressed to, who is no member of its organization yet.
+const findInvitation = (context: AuthContext, id: string) =>
+  acrossOrganizations('an invitation is found by its id for the person it invites, before they are a member', () => context.adapter.findOne<InvitationRow>({ model: 'invitation', where: [{ field: 'id', value: id }] }))
 
 const pending = (row: InvitationRow): StoredInvitation => {
   if (row.status !== 'pending' || new Date(row.expiresAt).getTime() < Date.now()) throw new APIError('BAD_REQUEST', invalidInvitation)
@@ -56,7 +59,9 @@ export const acceptInvitation = async (context: AuthContext, invitation: StoredI
   const member = store.table('member')
   const m = member.columns
   const invitations = store.table('invitation')
-  return store.db.transaction().execute(async (trx): Promise<StoredMember> => {
+  // Its SQL names the invitation's organization in each statement.
+  const accepting = "accepting an invitation makes its person a member of the invitation's organization"
+  return acrossOrganizations(accepting, () => store.db.transaction().execute(async (trx): Promise<StoredMember> => {
     await sql`select from ${store.table('organization')} where id = ${invitation.organizationId} for update`.execute(trx)
     const { rows: [counted] } = await sql<{ members: number; joined: boolean }>`select count(*)::int as members, count(*) filter (where ${m.user_id} = ${user.id}) > 0 as joined
       from ${member} where ${m.organization_id} = ${invitation.organizationId}`.execute(trx)
@@ -69,5 +74,5 @@ export const acceptInvitation = async (context: AuthContext, invitation: StoredI
       values (${store.newId}, ${invitation.organizationId}, ${user.id}, ${invitation.role}, ${JSON.stringify(invitation.appRoles)}::jsonb, ${new Date()})
       returning id, ${m.organization_id} as "organizationId", ${m.user_id} as "userId", ${m.role} as role, ${m.created_at} as "createdAt"`.execute(trx)
     return { ...made!, appRoles: invitation.appRoles }
-  })
+  }))
 }

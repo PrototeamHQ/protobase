@@ -1,5 +1,6 @@
 import { APIError, createAuthEndpoint, sessionMiddleware } from 'better-auth/api'
 import { sql } from 'kysely'
+import { acrossOrganizations } from '../../organization-scope/sign-in-organization'
 import { storeSqlOf } from '../store/store-sql'
 import { findMember, type AuthContext } from './store'
 
@@ -28,7 +29,7 @@ export const peopleEndpoint = createAuthEndpoint('/organization/people', { metho
   const store = storeSqlOf(ctx.context as unknown as AuthContext)
   const users = store.table('user')
   const m = store.table('member').columns
-  const { rows } = await sql<UserRow>`select u.id, u.${users.columns.name} as name, u.${users.columns.image} as image
-    from ${users} u where exists (select from ${store.table('member')} m where m.${m.user_id} = u.id and m.${m.organization_id} = ${organizationId})`.execute(store.db)
+  const { rows } = await acrossOrganizations("users are read with their membership of the session's organization, which the SQL names itself", () => sql<UserRow>`select u.id, u.${users.columns.name} as name, u.${users.columns.image} as image
+    from ${users} u where exists (select from ${store.table('member')} m where m.${m.user_id} = u.id and m.${m.organization_id} = ${organizationId})`.execute(store.db))
   return ctx.json({ people: peopleOf(rows) })
 })

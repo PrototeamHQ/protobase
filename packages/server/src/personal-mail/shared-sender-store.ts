@@ -1,5 +1,6 @@
 import { sql } from 'kysely'
 import type { StoreSql } from '../better-auth/store/store-sql'
+import { acrossOrganizations } from '../organization-scope/sign-in-organization'
 import type { SharedSenderReader, SharedSenderRow } from './sender-store'
 
 export type { SharedSenderReader, SharedSenderRow }
@@ -35,7 +36,7 @@ export const sharedSenderReader =
       ? sql`and ${sender}.${c.user_id} in (select theirs.${member.columns.user_id} from ${member} as mine join ${member} as theirs on theirs.${member.columns.organization_id} = mine.${member.columns.organization_id} where mine.${member.columns.user_id} = ${userId})`
       : sql``
     const named = id === undefined ? sql`` : sql`and ${sender}.id = ${id}`
-    const { rows } = await sql<SharedSenderRow>`select ${sender}.id, ${sender}.${c.user_id} as "userId", ${sender}.${c.connection_id} as "connectionId", ${sender}.${c.address} as address,
+    const query = sql<SharedSenderRow>`select ${sender}.id, ${sender}.${c.user_id} as "userId", ${sender}.${c.connection_id} as "connectionId", ${sender}.${c.address} as address,
   ${sender}.${c.name} as name, ${sender}.${c.shared_at} as "sharedAt", ${sender}.${c.signature} as signature, false as "isDefault", ${sender}.${c.created_at} as "createdAt",
   ${sender}.${c.typed_at} as "typedAt", ${sender}.${c.listed_at} as "listedAt", ${sender}.${c.provider_state} as "providerState",
   ${sender}.${c.provider_state_read_at} as "providerStateReadAt", ${sender}.${c.removed_at} as "removedAt",
@@ -44,6 +45,8 @@ export const sharedSenderReader =
 from ${sender}
 left join ${account} on ${account}.id = ${sender}.${c.connection_id} and ${account}.${a.user_id} = ${sender}.${c.user_id}
 where ${sender}.${c.shared_at} is not null and ${sender}.${c.user_id} <> ${userId} ${named} ${inReach}
-order by ${sender}.${c.created_at}, ${sender}.${c.address_key}, ${sender}.id`.execute(s.db)
+order by ${sender}.${c.created_at}, ${sender}.${c.address_key}, ${sender}.id`
+    // The owners in reach share an organization with the person, in any of theirs.
+    const { rows } = await (member ? acrossOrganizations('a user reads the addresses shared with them by people of their own organizations', () => query.execute(s.db)) : query.execute(s.db))
     return rows.map((row) => ({ ...row, account: row.account && { ...row.account, createdAt: new Date(row.account.createdAt) } }))
   }

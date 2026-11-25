@@ -33,6 +33,7 @@ import { storageRoutes } from './storage/storage-routes'
 import { shownAppName } from './app-name'
 import { authStoreTables } from './better-auth/auth-tables'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
+import { answerInOrganization, sessionActiveOrganization } from './organization-scope/auth-request-organization'
 import { mcpDiscovery } from './better-auth/mcp/discovery-routes'
 import { mcpApprovals } from './mcp/mcp-approval-store'
 import { mcpAuthenticator } from './mcp/mcp-authenticator'
@@ -482,7 +483,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], use
     app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins), ...(locale && { locale }), ...(firstAdmin && { firstAdminUrl: firstAdmin }), appName, ...(appIcon && { appIcon }), runsOnNote }))
     if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db, mobile: Boolean(mobile) }))
     if (auth.mcp || auth.openIdProvider) mcpDiscovery(app, auth)
-    const answer = mobile ? auth.handleMobile : auth.handler
+    // With organizations, each request's sign-in queries keep to the organization it works in.
+    const handler = mobile ? auth.handleMobile : auth.handler
+    const answer = auth.organizations ? answerInOrganization(handler, sessionActiveOrganization(auth)) : handler
     app.on(['GET', 'POST'], `${authBasePath}/*`, async (c) => withoutSessionTokens(c.req.raw, await answer(c.req.raw)))
     // The same sign-in for supabase-js and @supabase/ssr, at the address and in the shape of Supabase's.
     app.route(goTruePath, goTrueRoutes(auth))

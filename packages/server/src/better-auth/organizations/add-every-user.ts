@@ -1,4 +1,5 @@
 import { sql } from 'kysely'
+import { acrossOrganizations } from '../../organization-scope/sign-in-organization'
 import type { AdminAuth } from '../create-auth'
 import { roleNames } from '../store/active-admin'
 import { storeSqlOf } from '../store/store-sql'
@@ -27,7 +28,8 @@ export const addEveryUser = async (auth: AdminAuth, organizationKey: string): Pr
   const m = member.columns
   const names = roleNames(sql`u.${u.role}`)
   const now = new Date()
-  return store.db.transaction().execute(async (trx) => {
+  // Its SQL names the organization in each statement.
+  return acrossOrganizations('everyone with an account joins the organization, whichever others they are a member of', () => store.db.transaction().execute(async (trx) => {
     await sql`select from ${store.table('organization')} where id = ${organization.id} for update`.execute(trx)
     const { rows } = await sql<JoinedUser>`with joined as (
       insert into ${member} (id, ${m.organization_id}, ${m.user_id}, ${m.role}, ${m.app_roles}, ${m.created_at})
@@ -46,5 +48,5 @@ export const addEveryUser = async (auth: AdminAuth, organizationKey: string): Pr
       join ${user} u on u.id = joined.user_id
       order by u.${u.created_at}, u.id`.execute(trx)
     return rows
-  })
+  }))
 }
