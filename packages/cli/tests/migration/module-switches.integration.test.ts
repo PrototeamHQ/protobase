@@ -49,11 +49,22 @@ const createDatabase = async () => {
   return withDatabase(url, name)
 }
 
-// The app's auth over the database, with personal access tokens on or off.
-const authOf = (databaseUrl: string, tokens: boolean) => {
+// The app's auth over the database, with personal access tokens and device sign-in on or off.
+const authOf = (databaseUrl: string, tokens: boolean, devices = false) => {
   const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 })
   pools.push(pool)
-  return createAuth({ database: pool, baseURL: origin, secret, mailer: false, operator: false, signInProviders: [], roles: { sales: 'Sales', support: 'Support' }, ...(tokens && { personalAccessTokens: { prefix } }) })
+  return createAuth({ database: pool, baseURL: origin, secret, mailer: false, operator: false, signInProviders: [], roles: { sales: 'Sales', support: 'Support' }, ...(tokens && { personalAccessTokens: { prefix } }), ...(devices && { signInDevices: true }) })
+}
+
+// The device sign-in tables the database has.
+const deviceTables = async (databaseUrl: string) => {
+  const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
+  try {
+    const rows = await sql<{ name: string }[]>`select table_name as name from information_schema.tables where table_name in ('refused_account', 'device_session') order by 1`
+    return rows.map(({ name }) => name)
+  } finally {
+    await sql.end()
+  }
 }
 
 const project = async () => {
@@ -105,6 +116,24 @@ const sessionOf = async (auth: AdminAuth, token: string) =>
     (session) => session.user.roles,
     (error: { status?: number }) => error.status,
   )
+
+describe.skipIf(!reachable)('device sign-in turned on', () => {
+  it('has no tables until the config turns it on, then writes its step and makes both', async () => {
+    const databaseUrl = await createDatabase()
+    const where = await project()
+    await migration(where, authOf(databaseUrl, false))
+    await migrate(databaseUrl, where.dir)
+    expect(await deviceTables(databaseUrl)).toEqual([])
+
+    const on = authOf(databaseUrl, false, true)
+    await expect(checkMigrationRecord(plainStoreDb(on), runtimeModel(on, {}), '1.0.0')).rejects.toThrow(/so the server will not start/)
+    const file = await migration(where, on)
+    expect(await readFile(file!, 'utf8')).toContain('-- platform_devices 1 platform_devices: ')
+    await migrate(databaseUrl, where.dir)
+    expect(await deviceTables(databaseUrl)).toEqual(['device_session', 'refused_account'])
+    await expect(checkMigrationRecord(plainStoreDb(on), runtimeModel(on, {}), '1.0.0')).resolves.toBeUndefined()
+  })
+})
 
 describe.skipIf(!reachable)('a sign-in module turned off and on again', () => {
   it('keeps its tables and rows, refuses them back without --force, and its tokens act again only as their user stands now', async () => {

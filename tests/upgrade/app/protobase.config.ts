@@ -11,6 +11,8 @@ export default {
     socialProviders: { google: { clientId: 'upgrade.apps.googleusercontent.com', clientSecret: 'upgrade' } },
     personalMail: ['gmail'],
     encryptOAuthTokens: true,
+    // Device sign-in keeps its own tables; no provider of the environment signs in here.
+    signInDevices: true,
   },
   webhooks: {},
   workflows: {},

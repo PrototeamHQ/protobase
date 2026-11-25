@@ -183,6 +183,17 @@ The OpenID Connect providers the platform adds for people who already have an ac
 export default defineConfig({ auth: { signInProviders: [] } })
 ```
 
+## auth.signInDevices
+
+- **Type:** `boolean`
+- **Default:** `false`
+
+Lets the platform's sign-in providers from the environment sign in [devices](/reference/auth/#device-accounts) (`PROTOBASE_SIGN_IN_DEVICES=true`), and makes their tables with the next `protobase migration`. Without it, such a provider stops the server at startup. A provider of `auth.signInProviders` with `devices: true` needs no switch.
+
+```ts
+export default defineConfig({ auth: { signInDevices: true } })
+```
+
 ## auth.operator
 
 - **Type:** `{ issuer: string; clientId: string; clientSecret: string; name?: string; group?: string; scopes?: string[]; acrValues?: string[]; sessionMinutes?: number } | false`

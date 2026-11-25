@@ -63,6 +63,7 @@ export const snapshotTemplates = {
       mcp: true,
       personalAccessTokens: { prefix: 'snapshot_' },
       personalMail: ['gmail'],
+      signInDevices: true,
       encryptOAuthTokens: true,
       socialProviders: { google: { clientId: 'client-1.apps.googleusercontent.com', clientSecret: 'client-secret' } },
     })
