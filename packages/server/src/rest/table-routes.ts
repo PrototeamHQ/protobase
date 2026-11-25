@@ -17,12 +17,20 @@ import { restError } from './rest-error'
 import { scanRefusal, uncoveredReads } from './rest-scan'
 import { deleteRows, insertRows, updateRows, type Returning, type WriteTarget, type Written } from './write-rows'
 
+/** Whether `entry` is over a table of the auth store: one the store's names give, or any in a schema it guards. */
+const overStore = (deps: RestDeps, entry: Entry) => {
+  if (!deps.storeTables) return false
+  const { name, schema = 'public' } = entry.model.table
+  return deps.storeTables.schemas.includes(schema) || deps.storeTables.tables.some((table) => table.name === name && (table.schema ?? 'public') === schema)
+}
+
 /**
  * The resource whose table `name` is, in the `public` schema or the search path's: `/api/sb/rest/v1` serves the tables the app
- * declares as resources, as PostgREST serves those of its exposed schema. Any other is 404 (PGRST205).
+ * declares as resources, as PostgREST serves those of its exposed schema, but never one of the auth store's, even under a
+ * resource. Any other is 404 (PGRST205).
  */
 const servedEntry = (deps: RestDeps, name: string) =>
-  deps.registry.entries.find((one) => one.model.table.name === name && (one.model.table.schema ?? 'public') === 'public')
+  deps.registry.entries.find((one) => one.model.table.name === name && (one.model.table.schema ?? 'public') === 'public' && !overStore(deps, one))
 
 const tableEntry = (deps: RestDeps, name: string) => {
   const entry = servedEntry(deps, name)

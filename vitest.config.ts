@@ -121,6 +121,7 @@ const snapshotIsolated = [
   'packages/server/tests/notifications-session-revoke.test.ts',
   'packages/server/tests/notifications-session-revoke-others.test.ts',
   'packages/server/tests/notifications-session-shared-token.test.ts',
+  'packages/server/tests/organization-tables-rest.test.ts',
   'packages/server/tests/organizations-off-after-on.test.ts',
   'packages/server/tests/organizations.test.ts',
   'packages/server/tests/origins.test.ts',
