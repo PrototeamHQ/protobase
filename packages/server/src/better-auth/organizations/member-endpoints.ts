@@ -1,5 +1,6 @@
 import { APIError, createAuthEndpoint, sessionMiddleware } from 'better-auth/api'
 import * as z from 'zod'
+import { inOrganization } from '../../organization-scope/sign-in-organization'
 import { checkAppRoleChange, effectiveRoles, globalRoles } from './app-roles'
 import type { ResolvedOrganizations } from './options'
 import { superuserRole } from './role-definitions'
@@ -33,7 +34,7 @@ export const memberEndpoints = ({ resolved }: { resolved: ResolvedOrganizations 
       const after = [...new Set(ctx.body.appRoles)]
       const refusal = checkAppRoleChange({ held: effectiveRoles(global, actor?.appRoles), before: target.appRoles, after, definitions: resolved.definitions })
       if (refusal) throw new APIError(refusal.status, { code: refusal.code, message: refusal.message })
-      await setAppRoles(adapter, target.id, after)
+      await setAppRoles(adapter, target, after)
       return ctx.json({ member: { ...target, appRoles: after } })
     },
   ),
@@ -52,10 +53,12 @@ export const memberEndpoints = ({ resolved }: { resolved: ResolvedOrganizations 
       const actor = await findMember(adapter, { organizationId: target.organizationId, userId: ctx.context.session.user.id })
       if (!actor || organizationRoleOf(actor) !== 'owner') throw new APIError('FORBIDDEN', { code: 'NOT_THE_OWNER', message: 'Only an owner can hand the organization over.' })
       if (actor.id === target.id) throw new APIError('BAD_REQUEST', { code: 'ALREADY_THE_OWNER', message: 'Choose another member to hand the organization over to.' })
-      await adapter.transaction(async (trx) => {
-        await trx.update({ model: 'member', where: [{ field: 'id', value: target.id }], update: { role: 'owner' } })
-        await trx.update({ model: 'member', where: [{ field: 'id', value: actor.id }], update: { role: ctx.body.keepAs ?? 'admin' } })
-      })
+      await inOrganization(target.organizationId, () =>
+        adapter.transaction(async (trx) => {
+          await trx.update({ model: 'member', where: [{ field: 'id', value: target.id }], update: { role: 'owner' } })
+          await trx.update({ model: 'member', where: [{ field: 'id', value: actor.id }], update: { role: ctx.body.keepAs ?? 'admin' } })
+        }),
+      )
       return ctx.json({ owner: target.id })
     },
   ),

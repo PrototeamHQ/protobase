@@ -65,7 +65,7 @@ A [public function](#public-functions-and-webhooks) has only `db`, `caller()`, `
 ### The organization's tables
 
 :::caution[Beta]
-Sign-in's own queries, jobs enqueued in a request, and the host commands are not kept to one organization yet, and no check in CI finds raw SQL that names these tables as plain text.
+Jobs enqueued in a request are not kept to one organization yet, the host commands read every organization, and no check in CI finds raw SQL that names these tables as plain text. Sign-in's own queries keep to one organization (see [the reference](/reference/auth/#organizations)).
 :::
 
 With [organizations](/reference/auth/#organizations) on, the tables of the auth store whose rows each belong to one organization, `member`, `invitation` and `personal_access_token` under the names the app gives them, show `db` only the caller's organization, the one their session works in. A read, update or delete of one gets `organization_id = <the organization>` in the select, update or delete that reads the table: in its `where`, or for a joined table in the join's `on`, so a `left join` keeps its other rows. Subqueries, common table expressions and `exists` filter their own tables, and a name a common table expression takes is not the table. An insert writes the organization, and one naming another organization, or an update moving a row to one, is refused with a `ScopeRefused` error before it reaches the database; so is an upsert's update of a row of another organization, which it leaves as it is. A table of the project's own with the same name in another schema is never taken for the store's. A right or full join, or a `merge`, of one of these tables throws, as the scope cannot keep it to the organization.

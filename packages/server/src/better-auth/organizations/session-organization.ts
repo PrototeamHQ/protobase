@@ -1,3 +1,4 @@
+import { acrossOrganizations } from '../../organization-scope/sign-in-organization'
 import { globalRoles } from './app-roles'
 import { findMember, findOrganization, organizationRoleOf, type AuthContext } from './store'
 
@@ -34,7 +35,9 @@ export const organizationClaims = async (adapter: Adapter, user: SessionUser, ac
 export const startingOrganization = async (adapter: Adapter, user: SessionUser & { lastOrganizationId?: string | null }) => {
   const last = user.lastOrganizationId
   if (last && ((await findMember(adapter, { organizationId: last, userId: user.id })) || (globalRoles(user.role).length > 0 && (await findOrganization(adapter, last)) !== null))) return last
-  const [oldest] = await adapter.findMany<{ organizationId: string }>({ model: 'member', where: [{ field: 'userId', value: user.id }], sortBy: { field: 'createdAt', direction: 'asc' }, limit: 1 })
+  const [oldest] = await acrossOrganizations("a new session starts in the oldest of the user's own memberships", () =>
+    adapter.findMany<{ organizationId: string }>({ model: 'member', where: [{ field: 'userId', value: user.id }], sortBy: { field: 'createdAt', direction: 'asc' }, limit: 1 }),
+  )
   return oldest?.organizationId
 }
 

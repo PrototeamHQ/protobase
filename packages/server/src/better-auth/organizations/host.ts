@@ -3,6 +3,7 @@ import type { AdminAuth } from '../create-auth'
 import { pageOf } from '../store/page-of'
 import { mayBeId } from '../store/store-reads'
 import { storeSqlOf } from '../store/store-sql'
+import { acrossOrganizations } from '../../organization-scope/sign-in-organization'
 import { parseAppRoles } from './app-roles'
 import { membershipRoles } from './role-definitions'
 import { findMember, isOwner, organizationRoleOf, setAppRoles, type AuthContext, type OrganizationRole, type StoredMember, type StoredOrganization } from './store'
@@ -10,6 +11,12 @@ import { findMember, isOwner, organizationRoleOf, setAppRoles, type AuthContext,
 // Host side only, like `createUser`: the CLI and scripts act as a superuser, so they may give any role. Storage goes
 // through Better Auth's adapter, and a question about many rows goes to Postgres as one statement. Written against
 // better-auth 1.7.7.
+
+// The host, the CLI and scripts, works across every organization, as a superuser of the app.
+const asHost =
+  <Args extends unknown[], Result>(work: (...args: Args) => Promise<Result>) =>
+  (...args: Args) =>
+    acrossOrganizations('the host, the CLI and scripts, acts as a superuser of every organization', () => work(...args))
 
 // The instance's context is typed by its own options; the store functions take the context of any instance.
 const contextOf = async (auth: AdminAuth) => (await auth.$context) as unknown as AuthContext
@@ -40,7 +47,7 @@ const userByEmail = async (auth: AdminAuth, email: string) => {
 }
 
 /** An organization by its id or slug. */
-export const findOrganizationByKey = async (auth: AdminAuth, key: string) => {
+export const findOrganizationByKey = asHost(async (auth: AdminAuth, key: string) => {
   const context = await contextOf(auth)
   const { adapter } = context
   // Where the ids are uuids, a key that is none is a slug.
@@ -49,7 +56,7 @@ export const findOrganizationByKey = async (auth: AdminAuth, key: string) => {
     (await adapter.findOne<StoredOrganization>({ model: 'organization', where: [{ field: 'slug', value: key }] }))
   if (!found) throw new Error(`No organization "${key}"`)
   return found
-}
+})
 
 const slugPattern = /^[a-z0-9][a-z0-9-]{0,62}$/
 
@@ -59,7 +66,7 @@ export type NewOrganization = { name: string; slug: string; owner: string; id?: 
  * Creates an organization with `owner` (an email) as its owner, holding the creator's app roles. `id` keeps an existing
  * tenant value, for an app that had one organization before; otherwise the configured `generateId` makes one.
  */
-export const createOrganization = async (auth: AdminAuth, input: NewOrganization) => {
+export const createOrganization = asHost(async (auth: AdminAuth, input: NewOrganization) => {
   const settings = settingsOf(auth)
   if (!input.name.trim()) throw new Error('The organization needs a name')
   if (!slugPattern.test(input.slug)) throw new Error(`Invalid slug "${input.slug}": lowercase letters, digits and "-", at most 63`)
@@ -83,12 +90,12 @@ export const createOrganization = async (auth: AdminAuth, input: NewOrganization
   const stored = { ...member, appRoles: [...settings.creatorAppRoles] }
   await settings.options.onCreated?.({ organization, member: stored })
   return { organization, member: stored }
-}
+})
 
 export type MemberInput = { organization: string; email: string; role?: string; appRoles?: string[] }
 
 /** Adds someone with an account as a member: organization role `member` unless given, and the app roles given. */
-export const addMember = async (auth: AdminAuth, input: MemberInput) => {
+export const addMember = asHost(async (auth: AdminAuth, input: MemberInput) => {
   const organization = await findOrganizationByKey(auth, input.organization)
   const user = await userByEmail(auth, input.email)
   const { adapter } = await contextOf(auth)
@@ -96,7 +103,7 @@ export const addMember = async (auth: AdminAuth, input: MemberInput) => {
   const role = checkOrganizationRole(input.role ?? 'member')
   const appRoles = checkAppRoles(auth, input.appRoles ?? [])
   return adapter.create<Record<string, unknown>, StoredMember>({ model: 'member', data: { organizationId: organization.id, userId: user.id, role, appRoles, createdAt: new Date() } })
-}
+})
 
 const memberOrThrow = async (auth: AdminAuth, organizationKey: string, email: string) => {
   const organization = await findOrganizationByKey(auth, organizationKey)
@@ -118,7 +125,7 @@ const refuseLastOwner = async (auth: AdminAuth, member: StoredMember, action: st
 }
 
 /** Changes a member's organization role, app roles, or both. */
-export const setMemberRoles = async (auth: AdminAuth, input: MemberInput) => {
+export const setMemberRoles = asHost(async (auth: AdminAuth, input: MemberInput) => {
   const { member } = await memberOrThrow(auth, input.organization, input.email)
   const { adapter } = await contextOf(auth)
   if (input.role !== undefined) {
@@ -126,16 +133,16 @@ export const setMemberRoles = async (auth: AdminAuth, input: MemberInput) => {
     if (role !== 'owner') await refuseLastOwner(auth, member, 'demote')
     await adapter.update({ model: 'member', where: [{ field: 'id', value: member.id }], update: { role } })
   }
-  if (input.appRoles !== undefined) await setAppRoles(adapter, member.id, checkAppRoles(auth, input.appRoles))
+  if (input.appRoles !== undefined) await setAppRoles(adapter, member, checkAppRoles(auth, input.appRoles))
   return findMember(adapter, { organizationId: member.organizationId, userId: member.userId })
-}
+})
 
 /** Removes a member; refuses the last owner. */
-export const removeMember = async (auth: AdminAuth, input: { organization: string; email: string }) => {
+export const removeMember = asHost(async (auth: AdminAuth, input: { organization: string; email: string }) => {
   const { member } = await memberOrThrow(auth, input.organization, input.email)
   await refuseLastOwner(auth, member, 'remove')
   await (await contextOf(auth)).adapter.delete({ model: 'member', where: [{ field: 'id', value: member.id }] })
-}
+})
 
 export type OrganizationsCursor = { createdAt: string; id: string }
 
@@ -151,7 +158,7 @@ export const organizationsPageSize = 100
  * A page of the organizations, oldest first, each with its members' emails and roles, oldest member first: `size` of
  * them from `after`, the `next` of the page before, as Postgres pages them, and their members in one join.
  */
-export const listOrganizations = async (auth: AdminAuth, { after, size = organizationsPageSize }: { after?: OrganizationsCursor; size?: number } = {}): Promise<OrganizationsPage> => {
+export const listOrganizations = asHost(async (auth: AdminAuth, { after, size = organizationsPageSize }: { after?: OrganizationsCursor; size?: number } = {}): Promise<OrganizationsPage> => {
   settingsOf(auth)
   const store = storeSqlOf(await contextOf(auth))
   const organization = store.table('organization')
@@ -183,14 +190,14 @@ export const listOrganizations = async (auth: AdminAuth, { after, size = organiz
     members: (membersOf.get(id) ?? []).map((member) => ({ email: member.email, role: organizationRoleOf(member), appRoles: parseAppRoles(member.appRoles) })),
   }))
   return { organizations, ...(page.next && { next: { createdAt: page.next[0]!, id: page.next[1]! } }) }
-}
+})
 
 /**
  * Makes `userId` the owner, with the creator's app roles, of every organization without members, in one statement: for
  * the first user of an app whose organizations were made before anyone could own them, such as by its seed. Returns
  * how many.
  */
-export const ownOrganizationsWithoutMembers = async (auth: AdminAuth, userId: string) => {
+export const ownOrganizationsWithoutMembers = asHost(async (auth: AdminAuth, userId: string) => {
   const settings = settingsOf(auth)
   const store = storeSqlOf(await contextOf(auth))
   const member = store.table('member')
@@ -200,13 +207,13 @@ export const ownOrganizationsWithoutMembers = async (auth: AdminAuth, userId: st
     where not exists (select from ${member} m where m.${m.organization_id} = o.id)
     returning id`.execute(store.db)
   return rows.length
-}
+})
 
 /**
  * Gives an app role to every owner of every organization who lacks it, in one statement, for a role the project adds
  * once organizations exist. Returns how many owners got it.
  */
-export const addAppRoleToOwners = async (auth: AdminAuth, appRole: string) => {
+export const addAppRoleToOwners = asHost(async (auth: AdminAuth, appRole: string) => {
   checkAppRoles(auth, [appRole])
   const store = storeSqlOf(await contextOf(auth))
   const member = store.table('member')
@@ -216,4 +223,4 @@ export const addAppRoleToOwners = async (auth: AdminAuth, appRole: string) => {
     where ${isOwner(sql`${role}`)} and not ${held} @> jsonb_build_array(${appRole}::text)
     returning id`.execute(store.db)
   return rows.length
-}
+})
