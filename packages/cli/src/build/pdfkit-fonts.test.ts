@@ -20,11 +20,11 @@ describe('pdfkitFonts', () => {
     const { code } = transform(await readFile(nodeBuild, 'utf8'))!
     expect(code).toMatch(/^import __pdfkitFontHelvetica from '\.\/standard-fonts\/Helvetica\.mjs'$/m)
     expect(code).toContain("Helvetica: () => __pdfkitFontHelvetica,")
-    expect(code).not.toContain("'#standard-fonts/")
+    expect(code).not.toContain("'./standard-fonts/Helvetica.cjs'")
   })
 
   it('leaves every other module as it is', () => {
-    expect(transform("require('#standard-fonts/Helvetica')", '/x/node_modules/other/index.mjs')).toBeUndefined()
+    expect(transform("require('./standard-fonts/Helvetica.cjs')", '/x/node_modules/other/index.mjs')).toBeUndefined()
   })
 
   it('stops the build when pdfkit loads its fonts another way', () => {
