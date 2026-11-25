@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { DefaultOrganization } from '@protobase/server'
-import { modelHash as recordModelHash, type KeptModule, type ModulesModel, type StoreModel } from '@protobase/server/internal'
+import { modelHash as recordModelHash, type ArchivedModule, type KeptModule, type ModulesModel, type StoreModel } from '@protobase/server/internal'
 
 // `protobase.snapshot.json`: the schema the project's migrations make, which `protobase migration` compares with what
 // the config and this version of Protobase would make. Each migration it writes rewrites it, so the change shows in review.
@@ -10,7 +10,7 @@ import { modelHash as recordModelHash, type KeptModule, type ModulesModel, type 
 export const snapshotFile = 'protobase.snapshot.json'
 
 /** A module turned off whose tables and rows the database keeps: the last step it had, and its tables' names then. */
-export type { KeptModule }
+export type { ArchivedModule, KeptModule }
 
 /** The format this version of Protobase reads and writes; `protobase migration up` upgrades an older one. */
 export const snapshotFormat = 1
@@ -30,8 +30,11 @@ export type Snapshot = {
   model: { auth?: StoreModel; modules?: ModulesModel }
   /** What the migrations decided that the model does not show. */
   decisions: {
-    /** The modules kept once turned off, each at the last step it had then, and those archived. */
-    modules: { kept: KeptModule[]; archived: string[] }
+    /**
+     * The modules kept once turned off, each at the last step it had then, with the choice that awaits the sign-off
+     * when it is archive or delete; and those `protobase migration contract` archived, until `delete` drops them.
+     */
+    modules: { kept: KeptModule[]; archived: ArchivedModule[] }
     /**
      * Whether organizations were ever on, and the organization that stands in while they are off, as the config's
      * `organizations.default` gave it; `null` before it did.

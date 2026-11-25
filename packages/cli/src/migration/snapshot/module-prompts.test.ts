@@ -9,7 +9,9 @@ describe('the questions about modules turned off and on again', () => {
     expect(await chooseOff(answering('k'))([{ module: 'mcp' }])).toBe('keep')
     expect(offQuestion([{ module: 'personal_access_tokens' }])).toContain('Its tokens stay valid unless deleted')
     expect(offQuestion([{ module: 'mcp' }])).not.toContain('tokens stay valid')
-    await expect(chooseOff(answering('delete'))([{ module: 'mcp' }])).rejects.toThrow('"delete" is not a choice: keep is the only one for now')
+    expect(await chooseOff(answering('a'))([{ module: 'mcp' }])).toBe('archive')
+    expect(await chooseOff(answering('delete'))([{ module: 'mcp' }])).toBe('delete')
+    await expect(chooseOff(answering('drop'))([{ module: 'mcp' }])).rejects.toThrow('"drop" is not a choice: answer keep, archive or delete')
   })
 
   it('brings back kept rows only when told yes, and names the count and the way through when refused', async () => {

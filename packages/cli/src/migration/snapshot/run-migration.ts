@@ -95,7 +95,9 @@ export const runMigration = async (run: MigrationRun) => {
   }
   const { off: turnedOff } = moduleChanges(snapshot, auth)
   const off = run.off ?? (turnedOff.length > 0 && run.chooseOff ? await run.chooseOff(turnedOff, await offFacts(run, turnedOff)) : undefined)
-  const difference = authDifference(snapshot, auth, off)
+  // The file's id, which a module turned off with archive or delete records, for its sign-off to name.
+  const id = newId()
+  const difference = authDifference(snapshot, auth, off, id)
   if (database) await checkRevivals(database.url, run, difference.changes.revived)
   if (database && difference.migration && difference.migration.checks.length > 0) await runPreconditions(database.url, difference.migration.checks)
   const written = moduleSections(snapshot, modules)
@@ -136,5 +138,5 @@ export const runMigration = async (run: MigrationRun) => {
   }
   const decisions = snapshot && { ...snapshot.decisions, modules: { ...snapshot.decisions.modules, kept: difference.kept } }
   const draft = { previous: snapshot, auth: difference.model, modules: written.model, organizations: organizationsNow(auth), protobaseVersion, ...(decisions && { decisions }) }
-  return writeMigrationFile(projectDir, dir, content, draft, newId())
+  return writeMigrationFile(projectDir, dir, content, draft, id)
 }

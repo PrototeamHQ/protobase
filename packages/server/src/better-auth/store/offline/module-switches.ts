@@ -57,6 +57,10 @@ export const keepStatements = (names: StoreNames, module: ModuleId, existing: re
   return [...columns.map(({ table, column }) => ddl`alter table ${table} alter column ${column} drop not null`), ...watchStatements(columns)]
 }
 
+/** The columns `module` retires (`retiredColumns`) by the names of their tables and themselves, as a snapshot records them. */
+export const retiredNames = (names: StoreNames, module: ModuleId, existing: readonly ModuleId[], externalUser?: boolean) =>
+  retiredColumns(names, module, existing, externalUser).map(({ table, column }) => ({ table: table.name, column: column.name }))
+
 /** The tables of `module` its steps up to `step` made, under the store's names. */
 export const keptTables = (names: StoreNames, module: ModuleId, step: number) => {
   const every = everyTable(names)
