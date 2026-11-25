@@ -3,12 +3,17 @@ import { pinnedSessionHooks } from './pinned-sessions'
 import type { AuthContext } from './store'
 
 // The store with the members and users the hooks read, each found by every field the lookup names.
-const contextWith = (members: Record<string, unknown>[], users: { id: string; email: string }[]) => {
+const contextWith = (members: Record<string, unknown>[], users: { id: string; email: string }[], refused?: Error) => {
   const created: Record<string, unknown>[] = []
+  const deleted: string[] = []
   const findOne = async ({ where }: { where: { field: string; value: unknown }[] }) => [...members, ...created].find((row) => where.every(({ field, value }) => row[field] === value)) ?? null
-  const create = async ({ data }: { data: Record<string, unknown> }) => (created.push(data), data)
-  const context = { adapter: { findOne, create }, internalAdapter: { findUserById: async (id: string) => users.find((user) => user.id === id) ?? null } } as unknown as AuthContext
-  return { created, context: async () => context }
+  const create = async ({ data }: { data: Record<string, unknown> }) => {
+    if (refused) throw refused
+    return (created.push(data), data)
+  }
+  const internalAdapter = { findUserById: async (id: string) => users.find((user) => user.id === id) ?? null, deleteUser: async (id: string) => void deleted.push(id) }
+  const context = { adapter: { findOne, create }, internalAdapter } as unknown as AuthContext
+  return { created, deleted, context: async () => context }
 }
 
 const pin = async () => ({ id: 'main', existingUsersRole: 'sales' })
@@ -30,6 +35,13 @@ describe('sign-in while organizations are off after being on', () => {
     await expect(hooks.session({ userId: 'cy' }, signUp)).resolves.toBeUndefined()
     await hooks.user.after({ id: 'cy' })
     expect(created).toEqual([{ organizationId: 'main', userId: 'cy', role: 'member', createdAt: expect.any(Date), appRoles: ['sales'] }])
+  })
+
+  it('deletes the user it made again when joining fails, and fails with the error', async () => {
+    const refused = new Error('connection lost')
+    const { context, deleted } = contextWith([], [], refused)
+    await expect(pinnedSessionHooks(pin, context).user.after({ id: 'cy' })).rejects.toBe(refused)
+    expect(deleted).toEqual(['cy'])
   })
 
   it('checks nothing while no organization is pinned', async () => {

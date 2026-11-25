@@ -26,14 +26,19 @@ export const pinnedSessionHooks = (pin: PinRead, context: () => Promise<AuthCont
         emails.add(user.email.toLowerCase())
         created.set(request, emails)
       },
-      // Not in the user's transaction, which Better Auth commits first. A failed insert fails the request that made the
-      // user, who is then refused, never let in without membership: an admin removes the account and makes it again.
+      // Not in the user's transaction, which Better Auth commits first. When joining fails, the user it just made is
+      // deleted again and the request fails, so the address signs up or is created anew; the failure is rethrown.
       // Sign-in never adds a member itself, since it cannot tell such a user from one who was removed.
       after: async (user: { id: string }) => {
-        const pinned = await pin()
-        if (!pinned) return
-        const { adapter } = await context()
-        await joinPinned(adapter, pinned, user.id)
+        const { adapter, internalAdapter } = await context()
+        const join = async () => {
+          const pinned = await pin()
+          if (pinned) await joinPinned(adapter, pinned, user.id)
+        }
+        await join().catch(async (error: unknown) => {
+          await internalAdapter.deleteUser(user.id)
+          throw error
+        })
       },
     },
     session: async (session: { userId: string }, request: HookContext) => {
