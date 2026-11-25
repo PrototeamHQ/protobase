@@ -75,8 +75,20 @@ export const storeNamesList = (model: StoreModel) => {
   ].sort()
 }
 
-/** A module turned off whose tables and rows the store keeps: the last step it had, and its tables' names then. */
-export type KeptModule = { module: ModuleId; step: number; tables: Record<string, ModelTable> }
+/** A column a module turned off retired from a table still on, by their names. */
+export type RetiredName = { table: string; column: string }
+
+/**
+ * What awaits the sign-off of a module turned off with `--off archive` or `--off delete`: the choice, the id of the
+ * migration that turned it off, and the columns it retired then.
+ */
+export type DeferredOff = { choice: 'archive' | 'delete'; file: string; columns: RetiredName[] }
+
+/**
+ * A module turned off whose tables and rows the store keeps: the last step it had, and its tables' names then; `off`
+ * once it awaits the sign-off that archives it.
+ */
+export type KeptModule = { module: ModuleId; step: number; tables: Record<string, ModelTable>; off?: DeferredOff }
 
 /** `module` kept at `step`, its tables named as `names` would name them with it on. */
 export const keptModule = ({ schema, names, users, uuidIds }: StoreNames, module: ModuleId, step: number): KeptModule => {

@@ -24,15 +24,23 @@ const darkNote = (module: KeptModule['module'], facts: OrganizationsOffFacts | u
 
 /** The question that chooses what becomes of the tables of the modules turned off, saying what goes dark with organizations (`facts`). */
 export const offQuestion = (modules: readonly Pick<KeptModule, 'module'>[], facts?: OrganizationsOffFacts) =>
-  `${modules.map(({ module }) => module).join(', ')} is off in the config. What becomes of its tables and rows?\n  keep: they stay as they are, and turning it on again goes on from them. Archive and delete are coming soon.${modules.map(({ module }) => rowsNote(module) + darkNote(module, facts)).join('')}\n  [k]eep (k): `
+  `${modules.map(({ module }) => module).join(', ')} is off in the config. What becomes of its tables and rows?
+  keep: they stay as they are, and turning it on again goes on from them.
+  archive: they stay as they are until \`protobase migration contract\` signs the update off, which moves them to an archive the app cannot use.
+  delete: as archive, and once it is archived, \`protobase migration delete\` removes it for good.${modules.map(({ module }) => rowsNote(module) + darkNote(module, facts)).join('')}
+  [k]eep, [a]rchive or [d]elete (k): `
 
-/** Asks what becomes of the tables of the modules turned off: keep, the default and for now the only choice. */
+// The answers each choice takes.
+const answers: Record<OffChoice, readonly string[]> = { keep: ['', 'k', 'keep'], archive: ['a', 'archive'], delete: ['d', 'delete'] }
+
+/** Asks what becomes of the tables of the modules turned off: keep, the default, archive or delete. */
 export const chooseOff =
   (ask: Ask) =>
   async (modules: readonly Pick<KeptModule, 'module'>[], facts?: OrganizationsOffFacts): Promise<OffChoice> => {
     const answer = (await ask(offQuestion(modules, facts))).trim().toLowerCase()
-    if (answer === '' || answer === 'k' || answer === 'keep') return 'keep'
-    throw new Error(`"${answer}" is not a choice: keep is the only one for now`)
+    const choice = (Object.keys(answers) as OffChoice[]).find((known) => answers[known].includes(answer))
+    if (!choice) throw new Error(`"${answer}" is not a choice: answer keep, archive or delete`)
+    return choice
   }
 
 /** The refusal of a module turned on again while its kept tables hold rows, with the way through. */

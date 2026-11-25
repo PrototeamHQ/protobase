@@ -1,6 +1,6 @@
 import { rm } from 'node:fs/promises'
 import path from 'node:path'
-import { storeNamesList, type LastSteps, type StoreModel } from '@protobase/server/internal'
+import { contractMark, storeNamesList, type LastSteps, type StoreModel } from '@protobase/server/internal'
 import { afterFileOf } from '../record/after-file'
 import { refuseInconsistent } from './consistency'
 import { protobaseFiles, readMigrationFiles } from './migration-files'
@@ -28,6 +28,10 @@ export const dropMigration = async (projectDir: string, dir: string) => {
   const written = protobaseFiles(files)
   const newest = written.at(-1)!
   const previous = written.at(-2)
+  // A sign-off or delete changes what the snapshot decided, which its lines do not record.
+  if (newest.text.includes(contractMark(''))) {
+    throw new Error(`${newest.file} signs off or deletes what an earlier migration retired, which changes ${snapshotFile}'s decisions: delete it by hand and take ${snapshotFile} from before it from version control`)
+  }
   // The migration with its `.after.sql`, when it has one.
   const remove = async () => {
     await rm(path.join(dir, newest.file))
