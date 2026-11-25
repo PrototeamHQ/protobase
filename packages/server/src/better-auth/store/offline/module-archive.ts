@@ -72,32 +72,42 @@ export const archiveStatements = (store: string | null, schema: string, kept: Ke
 }
 
 /**
- * The statements that take from every role that owns or holds a privilege on a table of `schema`, and from everyone,
- * the use of the schema and of its tables and sequences, the role applying the migration included: written once the
- * file has moved every table there, which needs the schema.
+ * The statements that take from every role that owns or holds a privilege on a table of `schema`, one of its columns
+ * or the schema itself, and from everyone, the use of its tables and sequences, then of the schema, the role applying
+ * the migration included, each with the grants made from them: written once the file has moved every table there,
+ * which needs the schema. The schema goes last, as revoking on its tables looks it up.
  */
-export const revokeStatements = (schema: string) => [
-  ddl`do $revoke$
+export const revokeStatements = (schema: string) => {
+  const at = sql.lit(schema)
+  return [
+    ddl`do $revoke$
 declare
+  holders text[];
   holder text;
 begin
-  for holder in
-    select distinct holders.role::regrole::text from (
-      select relowner as role from pg_class where relnamespace = ${sql.lit(schema)}::regnamespace
-      union all
-      select privilege.grantee from pg_class, aclexplode(relacl) as privilege where relnamespace = ${sql.lit(schema)}::regnamespace and privilege.grantee <> 0
-    ) as holders
-  loop
-    execute format('revoke all on all tables in schema %I from %s', ${sql.lit(schema)}, holder);
-    execute format('revoke all on all sequences in schema %I from %s', ${sql.lit(schema)}, holder);
-    execute format('revoke all on schema %I from %s', ${sql.lit(schema)}, holder);
+  select array_agg(distinct found.role::regrole::text) into holders from (
+    select relowner as role from pg_class where relnamespace = ${at}::regnamespace
+    union all
+    select privilege.grantee from pg_class, aclexplode(relacl) as privilege where relnamespace = ${at}::regnamespace and privilege.grantee <> 0
+    union all
+    select privilege.grantee from pg_class join pg_attribute on attrelid = pg_class.oid, aclexplode(attacl) as privilege where relnamespace = ${at}::regnamespace and privilege.grantee <> 0
+    union all
+    select privilege.grantee from pg_namespace, aclexplode(nspacl) as privilege where pg_namespace.oid = ${at}::regnamespace and privilege.grantee <> 0
+  ) as found;
+  foreach holder in array coalesce(holders, '{}') loop
+    execute format('revoke all on all tables in schema %I from %s cascade', ${at}, holder);
+    execute format('revoke all on all sequences in schema %I from %s cascade', ${at}, holder);
+  end loop;
+  execute format('revoke all on all tables in schema %I from public cascade', ${at});
+  execute format('revoke all on all sequences in schema %I from public cascade', ${at});
+  foreach holder in array coalesce(holders, '{}') loop
+    execute format('revoke all on schema %I from %s cascade', ${at}, holder);
   end loop;
 end
 $revoke$`,
-  ddl`revoke all on all tables in schema ${schema} from public`,
-  ddl`revoke all on all sequences in schema ${schema} from public`,
-  ddl`revoke all on schema ${schema} from public, current_user`,
-]
+    ddl`revoke all on schema ${schema} from public, current_user cascade`,
+  ]
+}
 
 /** The snapshot's record of `kept` once archived to `schema` by the migration `file`. */
 export const archivedModule = (store: string | null, schema: string, kept: KeptModule & { off: DeferredOff }, file: string): ArchivedModule => ({

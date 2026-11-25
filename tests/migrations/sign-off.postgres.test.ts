@@ -18,13 +18,13 @@ const organizationsOn = authOf({ organizations: { enabled: true } }, true)
 const organizationsOff = { ...authOf(), organizations: testOrganizations }
 
 // A project and a database with organizations on, a user, a member and a session in them, and an app role that uses the store.
-const project = async () => {
+const project = async (on = organizationsOn) => {
   const database = await openPostgresDatabase('empty')
   const projectDir = await newProject()
   const dir = migrationsOf(projectDir)
   const sql = postgres(database.url, { max: 1, onnotice: () => {} })
   const ids = counterIds()
-  const migration = (run: Partial<MigrationRun>) => runMigration({ projectDir, dir, auth: organizationsOn, modules: {}, protobaseVersion: '1.0.0', newId: ids, database: undefined, ...run })
+  const migration = (run: Partial<MigrationRun>) => runMigration({ projectDir, dir, auth: on, modules: {}, protobaseVersion: '1.0.0', newId: ids, database: undefined, ...run })
   const migrate = () => applyMigrations(sql, dir, () => {})
   const run = { projectDir, dir, protobaseVersion: '1.0.0', newId: ids }
   const idOf = async (file: string) => /^-- protobase:id (\S+)$/m.exec(await readFile(file, 'utf8'))![1]!
@@ -69,6 +69,9 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('signing off and deleti
       expect(await schemaOf(sql, 'member')).toEqual(['auth'])
       expect((await sql`select is_nullable from information_schema.columns where table_name = 'session' and column_name = 'active_organization_id'`)[0]!.is_nullable).toBe('YES')
 
+      // A role that holds only a column of a table loses it too.
+      await sql.unsafe(`revoke all on auth.member from ${app}; grant select (id) on auth.member to ${app}`)
+
       // The sign-off refuses before a later migration and before the period, archiving nothing.
       const contract = await writeContract({ ...run, hours: 24 })
       await expect(migrate()).rejects.toThrow('is followed by a migration applied after it')
@@ -89,6 +92,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('signing off and deleti
       await expect(asApp((tx) => tx`select from protobase_archive_3.member`)).rejects.toThrow('permission denied for schema protobase_archive_3')
       await sql.unsafe(`grant usage on schema protobase_archive_3 to ${app}`)
       await expect(asApp((tx) => tx`select from protobase_archive_3.member`)).rejects.toThrow('permission denied for table member')
+      await expect(asApp((tx) => tx`select id from protobase_archive_3.member`)).rejects.toThrow('permission denied for table member')
       await sql.unsafe(`revoke usage on schema protobase_archive_3 from ${app}`)
       expect(await asApp((tx) => tx`select id from auth.session`)).toEqual([{ id: 's1' }])
 
@@ -132,6 +136,28 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('signing off and deleti
         { column_name: 'active_organization_id_archive' },
       ])
       await expect(asApp((tx) => tx`select from protobase_archive_3.member`)).rejects.toThrow('permission denied for schema protobase_archive_3')
+    } finally {
+      await sql.end()
+    }
+  })
+
+  it("keeps a token's organization through the archive, and points it at the new organizations once on again", async () => {
+    const both = authOf({ organizations: { enabled: true }, personalAccessTokens: { prefix: 'app_' } }, true)
+    const { sql, migration, migrate, run, idOf, appliedAgo } = await project(both)
+    const tokenKeys = () => sql`select confrelid::regclass::text as target from pg_constraint where conrelid = 'auth.personal_access_token'::regclass and contype = 'f' and conkey = array[(select attnum from pg_attribute where attrelid = 'auth.personal_access_token'::regclass and attname = 'organization_id')]`
+    try {
+      const offId = await idOf((await migration({ auth: { ...authOf({ personalAccessTokens: { prefix: 'app_' } }), organizations: testOrganizations }, off: 'archive' }))!)
+      await migrate()
+      await writeContract({ ...run, hours: 24 })
+      await appliedAgo(offId, 25)
+      await migrate()
+      expect(await tokenKeys()).toEqual([])
+      expect(await sql`select is_nullable from information_schema.columns where table_name = 'personal_access_token' and column_name = 'organization_id'`).toEqual([{ is_nullable: 'NO' }])
+
+      await migration({})
+      await migrate()
+      expect(await tokenKeys()).toEqual([{ target: 'auth.organization' }])
+      expect(await schemaOf(sql, 'organization')).toEqual(expect.arrayContaining(['auth', 'protobase_archive_3']))
     } finally {
       await sql.end()
     }

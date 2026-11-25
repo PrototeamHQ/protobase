@@ -16,13 +16,13 @@ const organizationsOn = authOf({ organizations: { enabled: true } }, true)
 const organizationsOff = { ...authOf(), organizations: testOrganizations }
 
 // A project with organizations on, then turned off with `off`.
-const turnedOff = async (off: MigrationRun['off']) => {
+const turnedOff = async (off: MigrationRun['off'], on = organizationsOn, offAuth: MigrationRun['auth'] = organizationsOff) => {
   const projectDir = await newProject()
   const dir = migrationsOf(projectDir)
   const ids = counterIds()
-  const migrate = (run: Partial<MigrationRun>) => runMigration({ projectDir, dir, auth: organizationsOn, modules: {}, database: undefined, protobaseVersion: '1.0.0', newId: ids, ...run })
+  const migrate = (run: Partial<MigrationRun>) => runMigration({ projectDir, dir, auth: on, modules: {}, database: undefined, protobaseVersion: '1.0.0', newId: ids, ...run })
   await migrate({})
-  const offFile = (await migrate({ auth: organizationsOff, off }))!
+  const offFile = (await migrate({ auth: offAuth, off }))!
   const run = { projectDir, dir, protobaseVersion: '1.0.0', newId: ids }
   return { projectDir, dir, run, migrate, offId: /^-- protobase:id (\S+)$/m.exec(await readFile(offFile, 'utf8'))![1]! }
 }
@@ -40,7 +40,7 @@ describe('protobase migration contract', () => {
     expect(text).toContain('if not exists (select from migrations.history where applied_at > applied) then')
     expect(text).toContain('alter table "auth"."member" set schema "protobase_archive_3";')
     expect(text).toContain('alter table "auth"."session" rename column "active_organization_id" to "active_organization_id_archive";')
-    expect(text).toContain('revoke all on schema "protobase_archive_3" from public, current_user;')
+    expect(text).toContain('revoke all on schema "protobase_archive_3" from public, current_user cascade;')
     // Each statement before the record block carries the mark.
     const chunks = text.slice(text.indexOf(contractIntro) + contractIntro.length, text.indexOf('-- protobase:record')).split('\n\n')
     const statements = chunks.filter((chunk) => chunk.split('\n').some((line) => line.trim() !== '' && !line.startsWith('-- ')))
@@ -73,7 +73,7 @@ describe('protobase migration delete', () => {
     expect(text).toContain("where hour >= date_trunc('hour', now() - '168 hours'::interval)")
     expect(text).toMatch(/drop table "protobase_archive_3"\."[a-z]+", /)
     expect(text).toContain('alter table "auth"."session" drop column "active_organization_id_archive";')
-    expect(text).toContain(`delete from "auth"."auth_steps" where "module" = 'organizations' or "target" = 'organizations';`)
+    expect(text).toContain(`delete from "auth"."auth_steps" where ("module" = 'organizations' and "target" not in ('personal_access_tokens')) or "target" = 'organizations';`)
     expect((await readSnapshot(projectDir))!.decisions.modules.archived).toEqual([])
   })
 
@@ -81,10 +81,32 @@ describe('protobase migration delete', () => {
     const { run, migrate } = await turnedOff('archive')
     await writeContract({ ...run, hours: 24 })
     const on = await readFile((await migrate({}))!, 'utf8')
-    expect(on).toContain(`delete from "auth"."auth_steps" where "module" = 'organizations' or "target" = 'organizations';`)
+    expect(on).toContain(`delete from "auth"."auth_steps" where ("module" = 'organizations' and "target" not in ('personal_access_tokens')) or "target" = 'organizations';`)
     expect(on.indexOf('delete from "auth"."auth_steps"')).toBeLessThan(on.indexOf('-- organizations 1 '))
     await expect(migrate({ auth: organizationsOff, off: 'archive' })).rejects.toThrow('organizations has an archive from an earlier time it was off: delete it first')
     const text = await readFile(await writeDelete({ ...run, hours: 168, module: 'organizations' }), 'utf8')
     expect(text).not.toContain('delete from "auth"."auth_steps"')
+  })
+
+  it('leaves the steps of a module kept again after its archive, both on again and in the delete', async () => {
+    const { run, migrate } = await turnedOff('archive')
+    await writeContract({ ...run, hours: 24 })
+    await migrate({})
+    await migrate({ auth: organizationsOff, off: 'keep' })
+    const again = await readFile((await migrate({ force: true }))!, 'utf8')
+    expect(again).toContain('-- organizations on again: its kept tables must be empty')
+    expect(again).not.toContain('delete from "auth"."auth_steps"')
+    await migrate({ auth: organizationsOff, off: 'keep' })
+    expect(await readFile(await writeDelete({ ...run, hours: 168, module: 'organizations' }), 'utf8')).not.toContain('delete from "auth"."auth_steps"')
+  })
+
+  it("keeps the steps on the tables whose columns stay written while off, such as a token's organization, and gives back its foreign key", async () => {
+    const both = authOf({ organizations: { enabled: true }, personalAccessTokens: { prefix: 'app_' } }, true)
+    const tokensOnly = { ...authOf({ personalAccessTokens: { prefix: 'app_' } }), organizations: testOrganizations }
+    const { run, migrate } = await turnedOff('archive', both, tokensOnly)
+    await writeContract({ ...run, hours: 24 })
+    const on = await readFile((await migrate({ auth: both }))!, 'utf8')
+    expect(on).toContain(`delete from "auth"."auth_steps" where ("module" = 'organizations' and "target" not in ('personal_access_tokens')) or "target" = 'organizations';`)
+    expect(on).toContain('alter table "auth"."personal_access_token" add constraint "personal_access_token_organization_id_fkey" foreign key ("organization_id") references "auth"."organization" (id) on delete cascade not valid;')
   })
 })

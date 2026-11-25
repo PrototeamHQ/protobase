@@ -35,6 +35,7 @@ export { forceSetting, keepSql, keptTables, offChoices, retiredNames, revivalChe
 export { contractMark, markedSql, signOffGate, type SignedOff } from './better-auth/store/offline/contract-gate'
 export { archiveSchema, archiveStatements, archivedColumn, archivedModule, revokeStatements, type ArchivedModule } from './better-auth/store/offline/module-archive'
 export { deleteStatements, forgetStepsSql, stepRecordOf, type StepRecord } from './better-auth/store/offline/module-delete'
+export { restoredKeysSql } from './better-auth/store/offline/archive-revival'
 export { bucketsCommentPrefix } from './computed/buckets-sql'
 export { retiredSchema } from './better-auth/store/offline/retired-watch'
 export { baselineStore, type LiveStore } from './better-auth/store/offline/baseline-store'

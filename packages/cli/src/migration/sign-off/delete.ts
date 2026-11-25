@@ -23,8 +23,9 @@ export const writeDelete = async ({ projectDir, dir, hours, protobaseVersion, ne
     throw new Error(`${module} has no archive to delete: ${listed} archived in ${snapshotFile}. A module turned off is archived by \`protobase migration contract\` once turned off with \`--off archive\` or \`--off delete\``)
   }
   const archive = signedOffFile(files, entry.file)
-  // A module on again after its archive started its steps again, whose rows stay.
-  const steps = snapshot.model.auth.modules[entry.module] ? undefined : stepRecordOf(snapshot.model.auth)
+  // A module on again after its archive started its steps again, and one kept since has them too: their rows stay.
+  const live = snapshot.model.auth.modules[entry.module] !== undefined || snapshot.decisions.modules.kept.some((kept) => kept.module === entry.module)
+  const steps = live ? undefined : stepRecordOf(snapshot.model.auth)
   const body = [
     `-- Written by \`protobase migration delete ${module}\`: it drops for good what ${archive.name} archived of ${module}.\n`,
     `-- It applies once ${archive.name} was applied ${hours} hours ago, and while retired.writes counts no write of what it drops within them.\n${markedSql(archive.id, [signOffGate(archive, hours, `Deleting ${module}`, false), ...deleteStatements(entry, hours, steps)])}\n`,

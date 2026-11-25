@@ -1,4 +1,4 @@
-import { forgetStepsSql, keepSql, latestSteps, nameChanges, resolveNames, offlineStepsMigration, retiredNames, revivalCheckSql, stepRecordOf, storeModel, unwatchSql, type KeptModule, type LastSteps, type ModuleId, type OffChoice, type SnapshotStore, type StoreModel } from '@protobase/server/internal'
+import { forgetStepsSql, keepSql, restoredKeysSql, latestSteps, nameChanges, resolveNames, offlineStepsMigration, retiredNames, revivalCheckSql, stepRecordOf, storeModel, unwatchSql, type KeptModule, type LastSteps, type ModuleId, type OffChoice, type SnapshotStore, type StoreModel } from '@protobase/server/internal'
 import type { AuthTarget } from './auth-target'
 import { keptAfter, moduleChanges } from './module-changes'
 import { modelHash, snapshotFile, type Snapshot } from './snapshot-file'
@@ -90,11 +90,22 @@ const refuseArchivedAgain = (snapshot: Snapshot | undefined, off: readonly KeptM
   throw new Error(`${again.map(({ module }) => module).join(', ')} has an archive from an earlier time it was off: delete it first with \`protobase migration delete <module>\`, or pass \`--off keep\``)
 }
 
-// The statements that forget the steps of each archived module the config turns on again, which starts again from its first step under the live names.
-const forgetArchived = (snapshot: Snapshot | undefined, before: StoreModel | undefined, target: AuthTarget) => {
+// The archived modules the config turns on again, which are neither on nor kept in the snapshot: each starts again from
+// its first step under the live names, while its archive stays as it is.
+const freshAfterArchive = (snapshot: Snapshot | undefined, before: StoreModel | undefined, target: AuthTarget) =>
+  (snapshot?.decisions.modules.archived ?? []).filter(
+    ({ module }) => target.names.names.modules.includes(module) && !before?.modules[module] && !snapshot!.decisions.modules.kept.some((kept) => kept.module === module),
+  )
+
+// The modules the config turns on that the snapshot neither has on nor keeps: for the first time, or again after an
+// archive, deleted since or not, whose columns left in use get back the foreign key the archive took.
+const turnedOn = (snapshot: Snapshot | undefined, before: StoreModel | undefined, target: AuthTarget) =>
+  before ? target.names.names.modules.filter((module) => !before.modules[module] && !snapshot!.decisions.modules.kept.some((kept) => kept.module === module)) : []
+
+// The statements that forget the steps of each, before the steps.
+const forgetArchived = (fresh: ReturnType<typeof freshAfterArchive>, before: StoreModel | undefined) => {
   const steps = before && stepRecordOf(before)
-  const fresh = (snapshot?.decisions.modules.archived ?? []).filter(({ module }) => target.names.names.modules.includes(module) && !before?.modules[module])
-  if (!steps || fresh.length === 0) return []
+  if (!steps) return []
   return fresh.map(({ module }) => `-- ${module} on again after its archive: it starts again from its first step, and the archive stays as it is until \`protobase migration delete ${module}\`.\n${forgetStepsSql(steps, module)}`)
 }
 
@@ -121,11 +132,13 @@ export const authDifference = (snapshot: Snapshot | undefined, target: AuthTarge
   // Archive and delete keep the tables as keep does, until the sign-off archives them.
   const deferred = off === 'archive' || off === 'delete' ? changes.off.map((module) => ({ ...module, off: { choice: off, file, columns: retiredNames(target.names, module.module, existing, external) } })) : changes.off
   const kept = keptAfter(snapshot?.decisions.modules.kept ?? [], { ...changes, off: deferred })
+  const fresh = freshAfterArchive(snapshot, before, target)
   const parts = [
-    ...forgetArchived(snapshot, before, target),
+    ...forgetArchived(fresh, before),
     ...changes.off.map(({ module }) => keepSql(target.names, module, existing, external)),
     ...changes.revived.flatMap(({ module, step }) => [revivalCheckSql(target.names, module, step), ...[unwatchSql(target.names, module, existing, external)].filter((text) => text !== undefined)]),
     ...(steps ? [steps.sql] : []),
+    ...turnedOn(snapshot, before, target).flatMap((module) => [restoredKeysSql(target.names, module, existing)].filter((text) => text !== undefined)),
   ]
   const model = storeModel(target.names, steps || !before ? latestSteps(target.names.names.modules) : snapshotStore(snapshot)!.lastSteps)
   // A store this version describes otherwise, such as a table whose rows now belong to an organization, is recorded anew.

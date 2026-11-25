@@ -3,6 +3,8 @@ import { columnId, tableId, type TableId } from '../../names/identifiers'
 import { ddl } from '../ddl'
 import { statementsSql } from '../migration-sql'
 import { archivedColumn, tableWatchTrigger, type ArchivedModule } from './module-archive'
+import type { ModuleId } from '../../names/modules'
+import { stillWrittenTargets } from './module-switches'
 import { retiredSchema, watchTriggerName, wholeTable } from './retired-watch'
 import type { StoreModel } from './store-model'
 
@@ -25,12 +27,13 @@ const watched = (entry: ArchivedModule) => [
 export const stillWritten = (entry: ArchivedModule, hours: number) => `${entry.module} was written within the last ${hours} hours, which retired.writes counts: %s. Find what still writes it, and delete it once nothing has for that long`
 
 /**
- * The block that refuses unless every table and column archive of `entry` is watched, and the watch counts no write of
- * any within the last `hours`: a write names each one written and its count.
+ * The block that refuses unless every table and column archive of `entry` is watched, by a trigger that fires for the
+ * app's writes (enabled, or always), and the watch counts no write of any within the last `hours`: a write names each
+ * one written and its count.
  */
 export const unwrittenCheck = (entry: ArchivedModule, hours: number) => {
   const parts = watched(entry)
-  const triggers = parts.map(({ table, trigger }) => ddl`exists (select from pg_trigger where tgrelid = ${sql.lit(String(table))}::regclass and tgname = ${sql.lit(trigger)})`)
+  const triggers = parts.map(({ table, trigger }) => ddl`exists (select from pg_trigger where tgrelid = ${sql.lit(String(table))}::regclass and tgname = ${sql.lit(trigger)} and tgenabled in ('O', 'A'))`)
   const keys = parts.map(({ schema, name, column }) => ddl`(format('%I.%I', ${schema}, ${sql.lit(name)}), ${sql.lit(column)})`)
   return ddl`do $unwritten$
 declare
@@ -62,12 +65,20 @@ export const stepRecordOf = (model: StoreModel): StepRecord | undefined => {
   return { table: tableId(model.schema ?? undefined, table.name), module: table.columns.module!, target: table.columns.target! }
 }
 
-/** The statement that forgets the steps of `module` and those applied to its tables, so it starts again from its first. */
-export const forgetSteps = ({ table, module, target }: StepRecord, id: string) =>
-  ddl`delete from ${table} where ${columnId(table, module)} = ${sql.lit(id)} or ${columnId(table, target)} = ${sql.lit(id)}`
+/**
+ * The statement that forgets the steps of the module `id` and those applied to its tables, so it starts again from its
+ * first, but its parts on the tables of the modules whose columns it leaves in use while off (`stillWrittenTargets`),
+ * which stay as they are and are not applied again.
+ */
+export const forgetSteps = ({ table, module, target }: StepRecord, id: ModuleId) => {
+  const kept = stillWrittenTargets(id)
+  const own = ddl`${columnId(table, module)} = ${sql.lit(id)}`
+  const parts = kept.length === 0 ? own : ddl`(${own} and ${columnId(table, target)} not in (${sql.join(kept.map((other) => sql.lit(other)))}))`
+  return ddl`delete from ${table} where ${parts} or ${columnId(table, target)} = ${sql.lit(id)}`
+}
 
 /** `forgetSteps` as SQL text. */
-export const forgetStepsSql = (steps: StepRecord, id: string) => statementsSql([forgetSteps(steps, id)])
+export const forgetStepsSql = (steps: StepRecord, id: ModuleId) => statementsSql([forgetSteps(steps, id)])
 
 /**
  * The statements that delete `entry` for good once nothing wrote it for `hours` (`unwrittenCheck`): the use of its
