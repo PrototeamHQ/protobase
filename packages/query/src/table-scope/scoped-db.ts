@@ -1,5 +1,6 @@
 import { ConnectionBuilder, ControlledTransactionBuilder, Kysely, QueryCreator, TransactionBuilder, type KyselyPlugin } from 'kysely'
 import type { Db } from '../db'
+import { currentOrganization, type EveryOrganization, type ScopeOrganization } from './organization-source'
 import type { Organization } from './scope-condition'
 import { ScopePlugin } from './scope-plugin'
 import type { ScopedTables } from './scoped-tables'
@@ -16,8 +17,8 @@ export type ScopedDb = {
   withPlugin(plugin: KyselyPlugin): ScopedDb
   withTables<T extends Record<string, Record<string, any>>>(): ScopedDb
 } & Kysely<any> & {
-    /** The organization it works in; undefined for none. */
-    readonly organization: Organization
+    /** The organization it works in now; undefined for none, `{ unscoped }` while its source gives every organization. */
+    readonly organization: Organization | EveryOrganization
     unscoped(reason: string): Db
   }
 
@@ -32,8 +33,11 @@ const withoutScope = <Instance extends Kysely<any>>(instance: Instance) =>
     .plugins.filter((plugin) => !(plugin instanceof ScopePlugin))
     .reduce<Kysely<any>>((done, plugin) => done.withPlugin(plugin), instance.withoutPlugins())
 
-/** `db` kept to `organization` on the scoped tables of `scope`. */
-export const scopedDb = (db: Db, scope: ScopedTables, organization: Organization): ScopedDb => {
+/**
+ * `db` kept to `organization` on the scoped tables of `scope`: a fixed one, or an `OrganizationSource` read as each
+ * query is built, for a database made once that serves many organizations, such as from the request a query runs for.
+ */
+export const scopedDb = (db: Db, scope: ScopedTables, organization: ScopeOrganization): ScopedDb => {
   const unscopedOf = (instance: Kysely<any>) => (reason: string) => {
     if (typeof reason !== 'string' || reason.trim() === '') throw new Error('db.unscoped needs a reason: say why this work reads every organization')
     return withoutScope(instance)
@@ -59,7 +63,13 @@ export const scopedDb = (db: Db, scope: ScopedTables, organization: Organization
       },
     })
 
-  const guardDb = (instance: Kysely<any>) => guarded(instance, { unscoped: unscopedOf(instance), organization })
+  const guardDb = (instance: Kysely<any>) =>
+    guarded(instance, {
+      unscoped: unscopedOf(instance),
+      get organization() {
+        return currentOrganization(organization)
+      },
+    })
 
   // A transaction or connection builder: the database its callback gets, or its `execute` resolves to, is guarded.
   const guardBuilder = <Builder extends object>(builder: Builder) =>

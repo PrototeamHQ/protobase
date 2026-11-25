@@ -1,7 +1,8 @@
 import { DummyDriver, Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler, sql, type Compilable, type RawBuilder } from 'kysely'
 import { describe, expect, it } from 'vitest'
 import { scoped, unscoped } from './raw-tables'
-import { ScopeRefused } from './scope-condition'
+import { everyOrganization, type EveryOrganization } from './organization-source'
+import { ScopeRefused, type Organization } from './scope-condition'
 import { scopedDb } from './scoped-db'
 import type { ScopedTables } from './scoped-tables'
 
@@ -133,6 +134,22 @@ describe('scopedDb', () => {
   it('sees no row and writes none without an organization', () => {
     expect(compiledText(none.selectFrom('auth.member').select('id'))).toBe('select "id" from "auth"."member" where false')
     expect(() => compiledText(none.insertInto('auth.member').values({ id: 'm1' }))).toThrow(ScopeRefused)
+  })
+
+  it('reads the organization of a source as each query is built', () => {
+    let current: Organization | EveryOrganization = 'org-a'
+    const sourced = scopedDb(base, scope, () => current)
+    const query = sourced.selectFrom('auth.member').select('id')
+    expect(compiled(query).parameters).toEqual(['org-a'])
+    current = 'org-b'
+    expect(compiled(query).parameters).toEqual(['org-b'])
+    expect(sourced.organization).toBe('org-b')
+    current = undefined
+    expect(compiledText(query)).toBe('select "id" from "auth"."member" where false')
+    current = everyOrganization('a user lists their own memberships')
+    expect(compiledText(query)).toBe('select "id" from "auth"."member"')
+    expect(compiledText(sourced.insertInto('auth.member').values({ id: 'm1', organization_id: 'org-b' }))).toBe('insert into "auth"."member" ("id", "organization_id") values ($1, $2)')
+    expect(() => everyOrganization(' ')).toThrow('reason')
   })
 
   it('fails fast on joins it cannot scope', () => {
