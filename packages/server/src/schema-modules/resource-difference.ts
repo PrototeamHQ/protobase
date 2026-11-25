@@ -20,8 +20,10 @@ export const resourceEntry = (replaceable: ResourceReplaceable, names: ModuleNam
 
 const sameTable = (a: TableName, b: TableName) => a.name === b.name && a.schema === b.schema
 
-// Whether two entries are on the same table and column.
-const samePlace = (a: Pick<ResourceEntry, 'table' | 'column'>, b: Pick<ResourceEntry, 'table' | 'column'>) => sameTable(a.table, b.table) && a.column === b.column
+// Whether two entries are on the same table and column of the database: a table named without a schema is taken to be
+// in `public`, as Protobase's own SQL names it, so naming that schema or leaving it out is no move.
+const samePlace = (a: Pick<ResourceEntry, 'table' | 'column'>, b: Pick<ResourceEntry, 'table' | 'column'>) =>
+  a.table.name === b.table.name && (a.table.schema ?? 'public') === (b.table.schema ?? 'public') && a.column === b.column
 
 const sameEntry = (a: ResourceEntry, b: ResourceEntry) => a.version === b.version && a.digest === b.digest && samePlace(a, b)
 
@@ -35,8 +37,9 @@ export const wantedResources = (given: Record<string, ResourceInput>) => Object.
  * (`after`); the entries the database has once they are applied; and what of them the code before does not run on. A
  * resource no longer in `given`, or only kept, keeps its objects while another still needs them (`keptWhileOthers`),
  * following its input when it has one, and loses them once none does, which takes them from older code still running;
- * a replaceable without `drop` leaves them, and keeps their entry, so a resource that needs them again finds them. A
- * table a resource needs takes only that resource's objects.
+ * a replaceable without `drop` leaves them, and keeps their entry, so a resource that needs them again finds them, as
+ * does a resource under another key at the same place, such as a field renamed over the same column. A table a
+ * resource needs takes only that resource's objects.
  */
 export const resourceDifference = (replaceable: ResourceReplaceable, names: ModuleNames, given: Record<string, ResourceInput>, had: Record<string, ResourceEntry>) => {
   const keeping = replaceable.keptWhileOthers && wantedResources(given).length > 0
@@ -45,6 +48,8 @@ export const resourceDifference = (replaceable: ResourceReplaceable, names: Modu
   const after: string[] = []
   const breaks: string[] = []
   const entries: Record<string, ResourceEntry> = {}
+  // The keys of objects left at a place a resource under another key now has, which that resource takes over.
+  const taken = new Set<string>()
   const dropped = (key: string, before: ResourceEntry, why: string, broken: string) => {
     if (!replaceable.drop) return
     drops.push(`-- ${replaceable.title} of ${key}${why}.\n${replaceable.drop(names, before.table, before.column, key).trim()}`)
@@ -53,7 +58,9 @@ export const resourceDifference = (replaceable: ResourceReplaceable, names: Modu
   const write = (key: string, input: ResourceInput) => {
     const entry = resourceEntry(replaceable, names, input)
     entries[key] = entry
-    const before = had[key]
+    const left = replaceable.drop || had[key] ? undefined : Object.entries(had).find(([other, found]) => other !== key && !given[other] && !taken.has(other) && samePlace(found, entry))
+    if (left) taken.add(left[0])
+    const before = had[key] ?? left?.[1]
     if (before && sameEntry(before, entry)) return
     // Its objects on the place it had go with the other drops, before any write, which may make them there.
     if (before && !samePlace(before, entry)) dropped(key, before, ' on the table it had', `it drops its ${replaceable.name} of ${key} on the table it had, which the code before still runs with`)
@@ -73,7 +80,7 @@ export const resourceDifference = (replaceable: ResourceReplaceable, names: Modu
     if (!input.kept || (keeping && had[key] && !claimed(key, input.table))) write(key, input)
   }
   for (const [key, before] of Object.entries(had)) {
-    if (entries[key]) continue
+    if (entries[key] || taken.has(key)) continue
     if (keeping) {
       if (!claimed(key, before.table)) entries[key] = before
       continue

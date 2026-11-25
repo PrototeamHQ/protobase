@@ -59,7 +59,7 @@ describe('the rollups and formulas module', () => {
     ])
     expect(sql).toContain('drop function if exists "rollups"."orders_total"() cascade;')
     expect(sql).toContain('-- Any index on the column goes with it, and has to be created again.\nalter table "public"."lines" drop column "amount";')
-    expect(sql).toContain('-- It keeps "public"."orders"."total", numeric(12,2), from the formula quantity * price * 2.')
+    expect(sql).toContain('-- It keeps "public"."orders"."total", numeric(12,2), from the formula ((("quantity"::numeric * "price"::numeric) * 2::numeric))::numeric(12,2).')
     expect(sql!.indexOf('drop function')).toBeLessThan(sql!.indexOf('drop column'))
     expect(after).toContain('update "public"."orders"')
   })
@@ -81,5 +81,50 @@ describe('the rollups and formulas module', () => {
     const retired = retiredDifference(computedModule, first.model)
     expect(retired.sql).toBe(removed.sql)
     expect(Object.keys(retired.model.resources!)).toEqual(['rollup_columns', 'formulas', 'time_rollups'])
+  })
+
+  it('makes the rollup that reads a formula again when only the formula column type changes', () => {
+    const wider = resource('lines')
+      .table('lines')
+      .fields({ id: f.integer().readOnly(), order_id: f.relation('orders'), quantity: f.integer(), price: f.decimal({ precision: 10, scale: 2 }), amount: f.decimal({ precision: 14, scale: 2 }).formula('quantity * price') })
+      .primaryKey((r) => r.id)
+    const { sql } = moduleDifference(computedModule, computedInput(models(orders(), wider, readings, hourly)), first.model)
+    expect(sql!.indexOf('drop function if exists "rollups"."orders_total"() cascade;')).toBeLessThan(sql!.indexOf('drop column "amount"'))
+  })
+
+  it('makes a formula that reads a rollup again around that rollup column, dropped before it and added after it', () => {
+    const order = (precision: number) =>
+      resource('orders')
+        .table('orders')
+        .fields({ id: f.integer().readOnly(), total: f.decimal({ precision, scale: 2 }).rollup({ from: 'lines', via: 'order_id', fn: 'sum', field: 'quantity' }), doubled: f.decimal({ precision: 16, scale: 2 }).formula('total * 2') })
+        .primaryKey((r) => r.id)
+    const plain = resource('lines').table('lines').fields({ id: f.integer().readOnly(), order_id: f.relation('orders'), quantity: f.integer() }).primaryKey((r) => r.id)
+    const before = moduleDifference(computedModule, computedInput(models(order(12), plain)), undefined)
+    const { sql } = moduleDifference(computedModule, computedInput(models(order(14), plain)), before.model)
+    const at = (text: string) => sql!.indexOf(text)
+    expect(at('drop column "doubled"')).toBeGreaterThan(-1)
+    expect(at('drop column "doubled"')).toBeLessThan(at('drop column "total"'))
+    expect(at('add column "total"')).toBeLessThan(at('add column "doubled"'))
+  })
+
+  it('takes over the column of a field renamed over it, writing nothing when it is the same', () => {
+    const renamed = resource('lines')
+      .table('lines')
+      .fields({ id: f.integer().readOnly(), order_id: f.relation('orders'), quantity: f.integer(), price: f.decimal({ precision: 10, scale: 2 }), line_amount: f.decimal({ precision: 12, scale: 2 }).column('amount').formula('quantity * price') })
+      .primaryKey((r) => r.id)
+    const order = resource('orders')
+      .table('orders')
+      .fields({ id: f.integer().readOnly(), total: f.decimal({ precision: 12, scale: 2 }).rollup({ from: 'lines', via: 'order_id', fn: 'sum', field: 'line_amount' }) })
+      .primaryKey((r) => r.id)
+    const { sql, model } = moduleDifference(computedModule, computedInput(models(order, renamed, readings, hourly)), first.model)
+    expect(sql ?? '').not.toContain('column "amount"')
+    expect(Object.keys(model.resources!.formulas!)).toEqual(['lines.line_amount'])
+  })
+
+  it('takes a table named without a schema and one named in public as the same place, made again there rather than over it', () => {
+    // Its refresh function is named for the schema the resource names, so its statements change, and it is made again.
+    const qualified = resource('readings_hourly').table('public.readings_hourly').bucketsOf(readings, { time: (r) => r.taken_at, every: 'hour', by: () => [], late: '2 hours' })
+    const { sql } = moduleDifference(computedModule, computedInput(models(orders(), lines(), readings, qualified)), first.model)
+    expect(sql).toMatch(/drop table "public"\."readings_hourly";[\s\S]*create table "public"\."readings_hourly"/)
   })
 })

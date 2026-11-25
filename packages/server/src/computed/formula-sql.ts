@@ -13,6 +13,20 @@ const expressionSql = (node: FormulaNode, model: ResourceModel): string => {
   return `round(${expressionSql(node.value, model)}${node.digits === undefined ? '' : `, ${node.digits}`})`
 }
 
+/** The fields a formula reads, by name. */
+export const formulaFields = (formula: string) => {
+  const names = new Set<string>()
+  const visit = (node: FormulaNode): void => {
+    if (node.kind === 'field') names.add(node.name)
+    if (node.kind === 'negate') visit(node.operand)
+    if (node.kind === 'binary') [node.left, node.right].forEach(visit)
+    if (node.kind === 'coalesce') node.args.forEach(visit)
+    if (node.kind === 'round') visit(node.value)
+  }
+  visit(parseFormula(formula))
+  return names
+}
+
 /** A formula field's generation expression, cast to its column's type. */
 export const formulaSql = (model: ResourceModel, field: FieldModel) => `(${expressionSql(parseFormula(field.formula!), model)})::${columnType(field)}`
 

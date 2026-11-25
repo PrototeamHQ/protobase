@@ -24,15 +24,20 @@ const rollupColumns: ResourceReplaceable = {
   keptWhileOthers: false,
 }
 
-/** Each formula's generated column, marked with its expression. */
+/**
+ * Each formula's generated column, marked with its expression. Its statements name the rollup columns it reads, so a
+ * rollup column made again takes the formula with it: dropped before it, the last replaceable's removals first, and
+ * added after it.
+ */
 const formulas: ResourceReplaceable = {
   name: 'formulas',
   title: 'The generated column of a formula field',
   version: 1,
   compatibleFrom: 1,
   sql: (_names, input) => {
-    const { table, model, field } = input as FormulaInput
-    return statements(addFormulaSql(table, model, field))
+    const { table, model, field, readsRollups } = input as FormulaInput
+    const reads = readsRollups.length === 0 ? '' : `-- It reads the rollup columns ${readsRollups.join(', ')}.\n`
+    return `${reads}${statements(addFormulaSql(table, model, field))}`
   },
   replace: (_names, table, column) => dropColumn(table, column),
   keptWhileOthers: false,

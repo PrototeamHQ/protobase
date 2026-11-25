@@ -12,7 +12,7 @@ import { rollupBody, rollupFunctionName, rollupsSchema, rollupTriggerName } from
 const rowsOf = async <R>(db: Db, query: ReturnType<typeof sql<R>>) => (await query.execute(db)).rows
 
 type FoundColumn = { table: string; column: string; generated: boolean; type: string; comment: string | null }
-type FoundFunction = { name: string; source: string; definer: boolean; triggers: { table: string; name: string }[] }
+type FoundFunction = { name: string; source: string; definer: boolean; triggers: { table: string; name: string; enabled: string }[] }
 type FoundTable = { table: string; catalogue: string; comment: string | null }
 
 const placeKey = (table: string, column: string) => JSON.stringify([table, column])
@@ -40,7 +40,7 @@ const readFunctions = async (db: Db) =>
   rowsOf(
     db,
     sql<FoundFunction>`select p.proname as name, p.prosrc as source, p.prosecdef as definer,
-      coalesce((select json_agg(json_build_object('table', format('%I.%I', ns.nspname, c.relname), 'name', t.tgname)) from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace ns on ns.oid = c.relnamespace where t.tgfoid = p.oid and not t.tgisinternal), '[]') as triggers
+      coalesce((select json_agg(json_build_object('table', format('%I.%I', ns.nspname, c.relname), 'name', t.tgname, 'enabled', t.tgenabled)) from pg_trigger t join pg_class c on c.oid = t.tgrelid join pg_namespace ns on ns.oid = c.relnamespace where t.tgfoid = p.oid and not t.tgisinternal), '[]') as triggers
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = ${rollupsSchema}`,
   )
 
@@ -92,7 +92,9 @@ export const readComputed = async (db: Db, input: ModuleInput, replaceables: rea
     if (!fn) continue
     const from = tables.get(target.fromTable)?.catalogue
     const body = fn.source === rollupBody(target) || fn.source === rollupBody(catalogued(target))
-    const triggered = fn.triggers.length === 1 && fn.triggers[0]!.name === rollupTriggerName(target) && fn.triggers[0]!.table === from
+    // Fired on every write but those of replication alone: 'O' fires in the origin and local roles, 'A' always.
+    const [trigger] = fn.triggers
+    const triggered = fn.triggers.length === 1 && trigger!.name === rollupTriggerName(target) && trigger!.table === from && ['O', 'A'].includes(trigger!.enabled)
     record(rollups, key, entry, fn.definer && body && triggered)
   }
   for (const [key, entry] of given('time_rollups')) {

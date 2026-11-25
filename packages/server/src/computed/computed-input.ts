@@ -3,6 +3,8 @@ import { quoteIdent } from '../changes/capture-sql'
 import type { ModuleInput, ResourceInput, TableName } from '../schema-modules/schema-module'
 import { bucketModels, bucketsTarget, hasBuckets } from './buckets-targets'
 import type { RollupTarget } from './rollup-sql'
+import { formulaFields, formulaSql } from './formula-sql'
+import { columnType } from './column-sql'
 import { rollupTargets } from './rollup-targets'
 
 /** Whether a resource has rollup or formula fields. */
@@ -18,10 +20,16 @@ const tableOf = ({ table }: ResourceModel): TableName => ({ ...(table.schema !==
 
 const modelTable = (model: ResourceModel) => qualifiedTable(model.table)
 
-/** A formula field with the table its column is on. */
-export type FormulaInput = { table: string; model: ResourceModel; field: FieldModel }
+/**
+ * A formula field with the table its column is on, and the column and type of each rollup field of its resource it
+ * reads, such as `"total" numeric(12,2)`: its generated column depends on theirs, so it is made again when one is.
+ */
+export type FormulaInput = { table: string; model: ResourceModel; field: FieldModel; readsRollups: string[] }
 
-/** A rollup with the formula of the field it reads, when it reads one, whose column its trigger names. */
+/**
+ * A rollup with the generated expression of the field it reads, its type included, when it is a formula, whose column
+ * its trigger names, so it is made again when that column is.
+ */
 export type RollupInput = RollupTarget & { readsFormula?: string }
 
 const fieldKey = (model: ResourceModel, field: FieldModel) => `${model.name}.${field.name}`
@@ -36,12 +44,20 @@ const columnInput = (model: ResourceModel, field: FieldModel, input: unknown): R
 export const computedInput = (models: readonly ResourceModel[]): ModuleInput => {
   const rollups = rollupTargets(models, modelTable)
   const formulas = models.flatMap((model) => Object.values(model.fields).filter((field) => field.formula !== undefined).map((field) => ({ model, field })))
-  const readFormula = ({ from, field }: RollupTarget) => (field.rollup!.field === undefined ? undefined : from.fields[field.rollup!.field]!.formula)
+  const readFormula = ({ from, field }: RollupTarget) => {
+    const read = field.rollup!.field === undefined ? undefined : from.fields[field.rollup!.field]!
+    return read?.formula === undefined ? undefined : formulaSql(from, read)
+  }
+  // The rollup fields of a formula's resource whose columns its expression names.
+  const readRollups = (model: ResourceModel, field: FieldModel) =>
+    Object.values(model.fields)
+      .filter((other) => other.rollup && formulaFields(field.formula!).has(other.name))
+      .map((other) => `${quoteIdent(other.column)} ${columnType(other)}`)
   return {
     names: {},
     resources: {
       rollup_columns: Object.fromEntries(rollups.map((target) => [fieldKey(target.model, target.field), columnInput(target.model, target.field, target)])),
-      formulas: Object.fromEntries(formulas.map(({ model, field }) => [fieldKey(model, field), columnInput(model, field, { table: modelTable(model), model, field } satisfies FormulaInput)])),
+      formulas: Object.fromEntries(formulas.map(({ model, field }) => [fieldKey(model, field), columnInput(model, field, { table: modelTable(model), model, field, readsRollups: readRollups(model, field) } satisfies FormulaInput)])),
       rollups: Object.fromEntries(
         rollups.map((target) => {
           const formula = readFormula(target)
