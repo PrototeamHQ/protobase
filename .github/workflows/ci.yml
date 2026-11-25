@@ -395,6 +395,66 @@ jobs:
       - *postgres-suite
       - *pgbouncer-remove
 
+  # The previous release's tests on this checkout's schema, as the code still serving meets it while a deploy migrates
+  # (docs/ci.md): the integration templates built from this checkout's migrations and sign-in steps, then the tests of
+  # the newest release tag before it that touch the sign-in store, the migrations and the parts, run from a worktree of
+  # that tag. A push runs it when its changes reach the steps, the parts or the migration files (`olderCode`,
+  # scripts/affected-older-code.mjs); a pull request and a run by hand always do. It skips the tests when every migration
+  # added since the release is marked `-- protobase:breaks-older-code` (scripts/older-code/skip-rule.ts).
+  older-code:
+    if: github.event_name != 'schedule'
+    concurrency:
+      group: older-code-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
+      cancel-in-progress: true
+    runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    services: *postgres-services
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - *check-base
+      - name: Find whether the changes reach the steps, the parts or the migrations
+        id: gate
+        run: bun scripts/affected-older-code.mjs
+      - if: steps.gate.outputs.run == 'true'
+        run: bun install --frozen-lockfile
+      - if: steps.gate.outputs.run == 'true'
+        name: Find the release and whether its tests run on the migrations added since
+        id: older
+        run: bun scripts/older-code/decide.ts
+      - if: steps.older.outputs.run == 'true'
+        name: Point the tests at the service's Postgres
+        env:
+          POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
+        run: echo "TEST_POSTGRES_URL=postgres://protobase:protobase@localhost:$POSTGRES_PORT/postgres" >> "$GITHUB_ENV"
+      - if: steps.older.outputs.run == 'true'
+        name: Turn off the service Postgres' durability
+        run: >-
+          docker exec ${{ job.services.postgres.id }} psql -U protobase -d protobase -v ON_ERROR_STOP=1
+          -c "alter system set fsync = off" -c "alter system set synchronous_commit = off"
+          -c "alter system set full_page_writes = off" -c "select pg_reload_conf()"
+      - if: steps.older.outputs.run == 'true'
+        run: bun run test:db
+      - if: steps.older.outputs.run == 'true'
+        name: Check out and install the release
+        env:
+          RELEASE: ${{ steps.older.outputs.release }}
+        # A self-hosted runner keeps the checkout, and with it the record of the worktree an earlier job left.
+        run: |
+          git worktree prune
+          git worktree add --detach "$RUNNER_TEMP/release" "$RELEASE"
+          bun install --cwd "$RUNNER_TEMP/release" --frozen-lockfile
+      # The release's own scripts/test-db hashes its own sources, so it would refuse templates built from this checkout's.
+      - if: steps.older.outputs.run == 'true'
+        run: bun scripts/older-code/stamp-templates.ts "$RUNNER_TEMP/release"
+      - if: steps.older.outputs.run == 'true'
+        name: Run the release's tests of the sign-in store, the migrations and the parts
+        working-directory: ${{ runner.temp }}/release
+        run: bun run test:integration tests/migrations packages/cli/tests/migration tests/changes packages/server/tests tests/examples
+
   # The snapshot tests' recordings (`bun run test:record`): every snapshot test run again on real Postgres, its SQL and
   # answers written to its `*.sql.json`. A recording that differs from the committed one means Postgres now answers the
   # same queries differently (a schema, fixture or Postgres change), which replay alone cannot see, and fails the job;

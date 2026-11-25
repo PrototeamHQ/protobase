@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-// The record and postgres jobs run these gates before `bun install`, which they run only when the gate says the suite
-// must run, so a gate and everything it imports load nothing but Node's built-ins and the repository's own modules.
-const gates = ['scripts/affected-recordings.mjs', 'scripts/affected-postgres.mjs', 'scripts/affected-snapshots.mjs']
+// The record, postgres and older-code jobs run these gates before `bun install`, which they run only when the gate says
+// the suite must run, so a gate and everything it imports load nothing but Node's built-ins and the repository's own modules.
+const gates = ['scripts/affected-recordings.mjs', 'scripts/affected-postgres.mjs', 'scripts/affected-snapshots.mjs', 'scripts/affected-older-code.mjs']
 
 const root = path.resolve(import.meta.dirname, '..', '..')
 const specifier = /(?:\bfrom\s+|\bimport\s*\(\s*|^\s*import\s+)['"]([^'"]+)['"]/gm
