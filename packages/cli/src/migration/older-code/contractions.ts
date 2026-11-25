@@ -1,3 +1,4 @@
+import { retiredSchema } from '@protobase/server/internal'
 import type { Catalog, CatalogColumn, CatalogLimit, CatalogRelation, CatalogTrigger } from './catalog'
 
 // What a migration takes from the code still running while it deploys, and from the version before once rolled back:
@@ -20,10 +21,13 @@ const eventBits = [
   [32, 'truncate'],
 ] as const
 
-// The events the enabled triggers calling each function fire on, by function.
+// The functions of the watch on retired columns, whose triggers only count what older code writes, for no code to read.
+const watchesRetired = (fn: string) => fn.startsWith(`${retiredSchema}.`)
+
+// The events the enabled triggers calling each function fire on, by function, the watch's left out.
 const firedEvents = (triggers: readonly CatalogTrigger[]) => {
   const events = new Map<string, number>()
-  for (const trigger of triggers.filter(({ enabled }) => enabled !== 'D')) events.set(trigger.function, (events.get(trigger.function) ?? 0) | (trigger.type & 60))
+  for (const trigger of triggers.filter(({ enabled, function: fn }) => enabled !== 'D' && !watchesRetired(fn))) events.set(trigger.function, (events.get(trigger.function) ?? 0) | (trigger.type & 60))
   return events
 }
 

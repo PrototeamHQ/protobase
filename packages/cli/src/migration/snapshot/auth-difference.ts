@@ -1,4 +1,4 @@
-import { keepSql, latestSteps, nameChanges, resolveNames, offlineStepsMigration, revivalCheckSql, storeModel, type LastSteps, type ModuleId, type OffChoice, type SnapshotStore, type StoreModel } from '@protobase/server/internal'
+import { keepSql, latestSteps, nameChanges, resolveNames, offlineStepsMigration, revivalCheckSql, storeModel, unwatchSql, type LastSteps, type ModuleId, type OffChoice, type SnapshotStore, type StoreModel } from '@protobase/server/internal'
 import type { AuthTarget } from './auth-target'
 import { keptAfter, moduleChanges } from './module-changes'
 import { modelHash, snapshotFile, type Snapshot } from './snapshot-file'
@@ -100,9 +100,11 @@ export const authDifference = (snapshot: Snapshot | undefined, target: AuthTarge
   if (changes.off.length > 0 && off !== 'keep') throw new Error(`--off ${off} is not available yet: a module turned off keeps its tables and rows (--off keep)`)
   const before = snapshot?.model.auth
   const steps = stepsAfter(snapshot, target)
+  const existing = Object.keys(before?.modules ?? {}) as ModuleId[]
+  const external = externalUser(snapshot, target) || target.names.users.keyTable !== undefined
   const parts = [
-    ...changes.off.map(({ module }) => keepSql(target.names, module, Object.keys(before?.modules ?? {}) as ModuleId[], externalUser(snapshot, target) || target.names.users.keyTable !== undefined)),
-    ...changes.revived.map(({ module, step }) => revivalCheckSql(target.names, module, step)),
+    ...changes.off.map(({ module }) => keepSql(target.names, module, existing, external)),
+    ...changes.revived.flatMap(({ module, step }) => [revivalCheckSql(target.names, module, step), ...[unwatchSql(target.names, module, existing, external)].filter((text) => text !== undefined)]),
     ...(steps ? [steps.sql] : []),
   ]
   const model = storeModel(target.names, steps || !before ? latestSteps(target.names.names.modules) : snapshotStore(snapshot)!.lastSteps)

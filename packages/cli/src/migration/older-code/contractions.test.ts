@@ -87,4 +87,13 @@ describe('what a migration takes from older code', () => {
     })
     expect(unique).toEqual(['adds the constraint orders_code_key to sales.orders, which rows written by older code may break', 'adds the unique index orders_code_lower to sales.orders, which rows written by older code may break'])
   })
+
+  it('leaves out the triggers of the watch on retired columns, which no code reads', () => {
+    const watched = structuredClone(before)
+    watched.functions.push({ key: 'retired.count_write()', result: 'trigger' })
+    watched.triggers.push({ relation: '1', function: 'retired.count_write()', enabled: 'O', type: 1 | 4 | 16 })
+    const unwatched = structuredClone(watched)
+    unwatched.triggers = unwatched.triggers.filter(({ function: fn }) => fn !== 'retired.count_write()')
+    expect(contractions(watched, unwatched)).toEqual([])
+  })
 })
