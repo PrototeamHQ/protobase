@@ -24,6 +24,13 @@ describe('nameChanges', () => {
     expect(nameChanges(earlier, now)).toEqual([])
   })
 
+  it('takes a table a step drops, gone now, as no change', () => {
+    const now = model({}, { auth: 6 })
+    const versions = { name: 'auth_migrations', scope: 'global' as const, columns: { version: 'version' }, indexes: {} }
+    const earlier = { ...now, modules: { auth: { lastStep: 5, tables: { ...now.modules.auth!.tables, auth_migrations: versions } } } }
+    expect(nameChanges(earlier, now)).toEqual([])
+  })
+
   it('takes a module the snapshot lacks as new', () => {
     expect(nameChanges(model({}, { auth: 5 }), model({}, { auth: 5, passkeys: 2 } as never))).toEqual([])
   })

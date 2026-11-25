@@ -73,7 +73,7 @@ export const registerMigration = (program: Command) => {
     const project = url ? await migrationProject(config, url) : undefined
     try {
       const asks = process.stdin.isTTY ? prompts.terminalPrompts() : undefined
-      const database = project && url ? { url, parts: migrationParts(project), contractions: (sections: Parameters<typeof trialContractions>[1]) => trialContractions(url, sections), readModule: (id: keyof typeof schemaModules, input: Parameters<(typeof schemaModules)[typeof id]['read']>[1]) => schemaModules[id].read(project.db, input) } : undefined
+      const database = project && url ? { url, parts: migrationParts(project), contractions: (sections: Parameters<typeof trialContractions>[1], dropped: readonly string[]) => trialContractions(url, sections, dropped), readModule: (id: keyof typeof schemaModules, input: Parameters<(typeof schemaModules)[typeof id]['read']>[1]) => schemaModules[id].read(project.db, input) } : undefined
       const modules = project ? project.modules : await configModules(config)
       const file = await runMigration({ projectDir: process.cwd(), dir, auth, modules, database, protobaseVersion, newId: randomUUID, ...(off && { off }), force: Boolean(opts.force), ...asks?.prompts }).finally(() => asks?.close())
       out(migrationSummary(file, process.cwd(), { hasAuth: Boolean(auth), compared: Boolean(project) }))

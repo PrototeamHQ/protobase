@@ -28,6 +28,7 @@ describe('rendering the steps', () => {
       'auth 3',
       'auth 4',
       'auth 5',
+      'auth 6',
       'two_factor 1',
       'two_factor 1 on auth',
       'organizations 1',
@@ -41,17 +42,17 @@ describe('rendering the steps', () => {
   })
 
   it('renders nothing of a module that is off, nor what other modules add to its tables', () => {
-    expect(render(['auth', 'organizations'])).toEqual(['auth 1', 'auth 2', 'auth 3', 'auth 4', 'auth 5', 'organizations 1', 'organizations 1 on auth', 'organizations 2', 'organizations 3'])
+    expect(render(['auth', 'organizations'])).toEqual(['auth 1', 'auth 2', 'auth 3', 'auth 4', 'auth 5', 'auth 6', 'organizations 1', 'organizations 1 on auth', 'organizations 2', 'organizations 3'])
   })
 
   it('renders only the steps a store lacks after an upgrade', () => {
-    expect(render(['auth', 'passkeys', 'staff_sign_in'], upTo({ auth: 3, passkeys: 1, staff_sign_in: 2 }))).toEqual(['auth 4', 'auth 5', 'passkeys 2'])
-    expect(render(['auth', 'passkeys'], upTo({ auth: 5, passkeys: 2 }))).toEqual([])
+    expect(render(['auth', 'passkeys', 'staff_sign_in'], upTo({ auth: 3, passkeys: 1, staff_sign_in: 2 }))).toEqual(['auth 4', 'auth 5', 'auth 6', 'passkeys 2'])
+    expect(render(['auth', 'passkeys'], upTo({ auth: 6, passkeys: 2 }))).toEqual([])
   })
 
   it('renders a module turned on whole, with what the modules the store has add to its tables', () => {
-    expect(render(['auth', 'organizations', 'personal_access_tokens'], upTo({ auth: 5, organizations: 3 }))).toEqual(['personal_access_tokens 1', 'organizations 1 on personal_access_tokens', 'organizations 3 on personal_access_tokens'])
-    expect(render(['auth', 'organizations', 'personal_access_tokens'], upTo({ auth: 5, personal_access_tokens: 1 }))).toEqual([
+    expect(render(['auth', 'organizations', 'personal_access_tokens'], upTo({ auth: 6, organizations: 3 }))).toEqual(['personal_access_tokens 1', 'organizations 1 on personal_access_tokens', 'organizations 3 on personal_access_tokens'])
+    expect(render(['auth', 'organizations', 'personal_access_tokens'], upTo({ auth: 6, personal_access_tokens: 1 }))).toEqual([
       'organizations 1',
       'organizations 1 on auth',
       'organizations 1 on personal_access_tokens',
@@ -62,7 +63,7 @@ describe('rendering the steps', () => {
   })
 
   it('renders what a step added to a module that was off while it ran, once that module is on again', () => {
-    const had: Had = (module, step, target) => upTo({ auth: 5, organizations: 3, personal_access_tokens: 1 })(module, step, target) && !(module === 'organizations' && target === 'personal_access_tokens')
+    const had: Had = (module, step, target) => upTo({ auth: 6, organizations: 3, personal_access_tokens: 1 })(module, step, target) && !(module === 'organizations' && target === 'personal_access_tokens')
     expect(render(['auth', 'organizations', 'personal_access_tokens'], had)).toEqual(['organizations 1 on personal_access_tokens', 'organizations 3 on personal_access_tokens'])
   })
 

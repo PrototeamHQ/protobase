@@ -16,7 +16,7 @@ describe('authStoreTables', () => {
     expect(schemas).toEqual([])
     expect(tables).toContainEqual({ schema: 'app_auth', name: 'users' })
     expect(tables).toContainEqual({ schema: 'app_auth', name: 'account' })
-    expect(tables).toContainEqual({ schema: 'app_auth', name: 'auth_migrations' })
+    expect(tables).toContainEqual({ schema: 'app_auth', name: 'auth_steps' })
     expect(tables.every((table) => table.schema === 'app_auth')).toBe(true)
   })
 

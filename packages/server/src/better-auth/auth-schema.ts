@@ -3,7 +3,7 @@ import { allModules } from './names/modules-on'
 import { recordedSteps } from './store/offline/baseline-store'
 import { keptModule } from './store/offline/store-model'
 import { planAdoption, storeHasTables, adoptionSql } from './store/adoption'
-import { appliedVersions, stepRecordMigration, stepsOfVersions } from './store/legacy-record'
+import { refuseVersionRecord, stepsOfVersions } from './store/legacy-record'
 import { stepRecordSql, stepsSql } from './store/migration-sql'
 import { appliedSteps, hadOf } from './store/step-record'
 import { renderSteps, type Had } from './store/steps/render'
@@ -25,18 +25,18 @@ const pendingSql = (auth: AdminAuth, names: StoreNames, had: Had) => {
 /**
  * The SQL that brings the admin store to this version of Protobase: the parts of the modules that are on it has not
  * applied, each followed by its row in `auth_steps`; for a store without that table, the table first. A store that
- * recorded versions of the former chain in `auth_migrations` gets its parts recorded from them; one an earlier
- * Protobase made without any record is adopted: the versions it matches are recorded as applied (`planAdoption`), the
- * others' steps follow. `undefined` when the store is current. The SQL never drops anything.
+ * records versions of the former chain instead is refused (`refuseVersionRecord`); one an earlier Protobase made
+ * without any record is adopted: the versions it matches are recorded as applied (`planAdoption`), the
+ * others' steps follow. `undefined` when the store is current. The SQL drops nothing but the former record of versions
+ * (`steps/auth/006-drop-version-record.ts`).
  */
 export const authSchemaMigration = async (auth: AdminAuth) => {
   const names = storeNames(auth)
   const db = plainStoreDb(auth)
   const applied = await appliedSteps(db, names)
   if (applied !== undefined) return pendingSql(auth, names, hadOf(applied))[0]
+  await refuseVersionRecord(db, names)
   const record = stepRecordSql(names)
-  const versions = await appliedVersions(db, names)
-  if (versions !== undefined) return [stepRecordMigration(names), ...pendingSql(auth, names, hadOf(stepsOfVersions(versions)))].join('\n\n')
   if (!(await storeHasTables(db, names))) return [record, ...pendingSql(auth, names, hadOf([]))].join('\n\n')
   const { adopted, pending } = await planAdoption(db, names)
   const rest = pending.length === 0 ? [] : pendingSql(auth, names, hadOf(stepsOfVersions(adopted.map(({ migration }) => migration.version))))
@@ -49,15 +49,15 @@ const adoptedVersions = async (db: ReturnType<typeof plainStoreDb>, names: Store
 
 /**
  * The modules the config turns off whose steps the store has, each at its last step, which a project's first snapshot
- * keeps: the store has their tables. Read from `auth_steps`, or from `auth_migrations`, or for a store with neither,
- * from the versions its adoption finds it has.
+ * keeps: the store has their tables. Read from `auth_steps`, or for a store without any record, from the versions its
+ * adoption finds it has; a store that records versions instead is refused.
  */
 export const keptStoreModules = async (auth: AdminAuth) => {
   const names = storeNames(auth)
   const db = plainStoreDb(auth)
   const steps = await appliedSteps(db, names)
-  const versions = steps === undefined ? ((await appliedVersions(db, names)) ?? (await adoptedVersions(db, names))) : undefined
-  const applied = steps ?? stepsOfVersions(versions ?? [])
+  if (steps === undefined) await refuseVersionRecord(db, names)
+  const applied = steps ?? stepsOfVersions(await adoptedVersions(db, names))
   const recorded = recordedSteps(applied)
   return allModules.filter((module) => !names.names.modules.includes(module) && recorded[module] !== undefined).map((module) => keptModule(names, module, recorded[module]!))
 }

@@ -7,7 +7,7 @@ import type { StoreNames } from '../store-names'
 import { keptModule, type KeptModule, type LastSteps } from './store-model'
 
 // What `protobase migration baseline` reads of a store, to start a project's snapshot from it as it is: the parts of
-// steps it recorded, in `auth_steps` or by version in `auth_migrations`, and its relations in the store's schema, read once.
+// steps it recorded in `auth_steps`, and its relations in the store's schema, read once.
 
 /** A relation in the store's schema: its `pg_class.relkind` and its columns. */
 export type LiveRelation = { kind: string; columns: string[] }
@@ -17,9 +17,9 @@ export type LiveStore = { applied: AppliedStep[]; relations: Record<string, Live
 
 /**
  * What the store is: each module's last step, the modules off that have tables, whether organizations were ever on,
- * the relations Protobase did not make, and whether it has `auth_steps`.
+ * and the relations Protobase did not make.
  */
-export type BaselineStore = { lastSteps: LastSteps; kept: KeptModule[]; organizationsEverOn: boolean; external: string[]; stepRecord: boolean }
+export type BaselineStore = { lastSteps: LastSteps; kept: KeptModule[]; organizationsEverOn: boolean; external: string[] }
 
 // An ordinary or partitioned table: anything else, such as a view, is a relation another system or the app made.
 const tableKinds = ['r', 'p']
@@ -78,5 +78,5 @@ export const baselineStore = (names: StoreNames, live: LiveStore): BaselineStore
     return table.scope === 'organization' && column !== undefined && (relationOf(live, table.name)?.columns.includes(column.name) ?? false)
   })
   const prefix = names.schema === undefined ? '' : `${names.schema}.`
-  return { lastSteps, kept, organizationsEverOn, external: externalUser ? [`${prefix}${user.name}`] : [], stepRecord: has('auth_steps') }
+  return { lastSteps, kept, organizationsEverOn, external: externalUser ? [`${prefix}${user.name}`] : [] }
 }

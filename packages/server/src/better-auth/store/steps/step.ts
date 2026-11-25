@@ -2,7 +2,7 @@ import { sql, type RawBuilder } from 'kysely'
 import { tableId, type TableId } from '../../names/identifiers'
 import type { ModuleId } from '../../names/modules'
 import type { DefaultOrganization } from '../../organizations/options'
-import type { ResolvedNames } from '../../names/resolve-names'
+import { tableNameOf, type ResolvedNames } from '../../names/resolve-names'
 import type { StoreNames } from '../store-names'
 
 /** The names a step's statements use, as `ddl` parts. */
@@ -21,6 +21,8 @@ export type MigrationNames = {
   id: RawBuilder<unknown>
   /** The type of a column that holds another table's id. */
   idRef: RawBuilder<unknown>
+  /** A table Protobase no longer declares, by internal name, as the store's names named it: in the store's schema, after the prefix. */
+  former: (internal: string) => TableId
 }
 
 /** The organizations' settings a step writes rows from: the default organization, and the app role of the users there already. */
@@ -57,7 +59,7 @@ type After = (names: MigrationNames, input: StepInput, concurrent: boolean) => R
  * another system's, which the statements leave alone.
  *
  * A step only adds: a table, a nullable column, an index, or a column whose default or fill comes from data already
- * there (`step-lint.ts`). One that assumes something of the rows already there, such as a unique index over them, holds
+ * there (`step-lint.ts`), or drops a table Protobase no longer declares (`drops`). One that assumes something of the rows already there, such as a unique index over them, holds
  * a `check` that refuses before anything changes.
  */
 export type Step = {
@@ -66,13 +68,14 @@ export type Step = {
   /** What it makes, the comment above its statements. */
   title: string
   /**
-   * The version of the store's former single chain this step came from, as `auth_migrations` recorded it, which fills
-   * `auth_steps` for a store that recorded versions: a new step takes the next version after the latest
-   * (`legacy-versions.ts`), which no store recorded.
+   * The version of the store's former single chain this step came from, which adopting a store without any record
+   * maps onto its steps: a new step takes the next version after the latest (`legacy-versions.ts`).
    */
   version: number
   /** The tables it makes, besides the user table, by internal name. */
   tables: string[]
+  /** The tables it drops, by internal name, which Protobase no longer declares: a reviewed exception to the step lint. */
+  drops?: string[]
   /**
    * A `do` block that refuses, before the statements, when the rows already there break what the step assumes: it names
    * the rows and says to fix them in a migration of the project's own written before this one.
@@ -91,7 +94,7 @@ export type Step = {
  * The `ddl` parts of the store's names. `externalUser`: the user table is a relation Protobase did not make, which its
  * statements leave alone, as under `users.keyTable` or as a project's snapshot records it.
  */
-export const migrationNames = ({ names, users, uuidIds }: StoreNames, externalUser = users.keyTable !== undefined): MigrationNames => ({
+export const migrationNames = ({ schema, names, users, uuidIds }: StoreNames, externalUser = users.keyTable !== undefined): MigrationNames => ({
   table: names.table,
   user: users.keyTable ? tableId(users.keyTable.schema, users.keyTable.table) : names.table('user'),
   userDdl: (statements) => (externalUser ? [] : statements),
@@ -99,4 +102,5 @@ export const migrationNames = ({ names, users, uuidIds }: StoreNames, externalUs
   metadata: users.metadata,
   id: sql.raw(uuidIds ? 'uuid default pg_catalog.gen_random_uuid()' : 'text'),
   idRef: sql.raw(uuidIds ? 'uuid' : 'text'),
+  former: (internal) => tableId(schema, tableNameOf(names.input.tables ?? {}, internal)),
 })

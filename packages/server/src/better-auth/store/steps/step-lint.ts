@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 // Whether a step is safe to apply unattended: it only adds a table, a nullable column, an index, or a column with a
-// default. Squawk reads each step as a file of its own, so a table an earlier step made counts as one with rows; the
+// default, or drops a table Protobase no longer declares. Squawk reads each step as a file of its own, so a table an earlier step made counts as one with rows; the
 // tests run this over every step Protobase ships.
 
 /** The Squawk rules a statement that takes from older code what it reads, writes or relies on breaks. */
@@ -35,8 +35,12 @@ export const lockingRules = ['adding-not-nullable-field', 'changing-column-type'
  */
 const refusedRules = ['syntax-error', ...contractingRules]
 
-/** A rendered step: `made`, the tables it makes as its SQL names them; `checked`, whether it starts with a check. */
-export type LintedStep = { label: string; sql: string; made: string[]; checked: boolean }
+/**
+ * A rendered step: `made`, the tables it makes as its SQL names them; `checked`, whether it starts with a check;
+ * `drops`, whether it is a step that drops a table Protobase no longer declares (`Step.drops`), the reviewed exception
+ * to `ban-drop-table`.
+ */
+export type LintedStep = { label: string; sql: string; made: string[]; checked: boolean; drops?: boolean }
 
 export type StepFinding = { step: string; rule: string; message: string }
 
@@ -61,9 +65,11 @@ export const squawkReport = (steps: readonly Pick<LintedStep, 'label' | 'sql'>[]
   return (JSON.parse(run.stdout) as SquawkOutput[]).map((finding) => ({ step: steps[files.indexOf(finding.file)]!.label, rule: finding.rule_name, message: finding.message, line: finding.line }))
 }
 
+const reviewedDrop = (steps: LintedStep[], finding: StepFinding) => finding.rule === 'ban-drop-table' && steps.some((step) => step.label === finding.step && step.drops)
+
 const squawkFindings = (steps: LintedStep[], squawk: string): StepFinding[] =>
   squawkReport(steps, squawk)
-    .filter((finding) => refusedRules.includes(finding.rule))
+    .filter((finding) => refusedRules.includes(finding.rule) && !reviewedDrop(steps, finding))
     .map(({ step, rule, message }) => ({ step, rule, message }))
 
 // Keywords in any case and after any indentation; the table as the SQL writes it.

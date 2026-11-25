@@ -1,8 +1,8 @@
-// The versions of the store's former single chain, as `auth_migrations` recorded them, one row each: every step names
-// the one it came from, which maps a store's versions onto its steps (`legacy-record.ts`). A new step takes the next
-// version and goes last here.
+// The versions of the store's former single chain, as its former record of versions held them: every step names the one
+// it came from, which maps the versions adopting a store finds onto its steps (`legacy-record.ts`). A new step takes the
+// next version and goes last here.
 
-/** Each version with the name its row in `auth_migrations` holds. */
+/** Each version with its name. */
 export const legacyVersions = [
   { version: 1, name: 'core' },
   { version: 2, name: 'two_factor' },
@@ -22,6 +22,7 @@ export const legacyVersions = [
   { version: 16, name: 'sender_verifications' },
   { version: 17, name: 'sender_sharing' },
   { version: 18, name: 'default_organization' },
+  { version: 19, name: 'drop_version_record' },
 ]
 
 export type LegacyVersion = (typeof legacyVersions)[number]

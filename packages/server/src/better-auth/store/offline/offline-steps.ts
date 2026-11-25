@@ -1,5 +1,5 @@
 import type { ModuleId } from '../../names/modules'
-import { stepRecordMigration } from '../legacy-record'
+import { versionRecordRefusal, versionRecordTable } from '../legacy-record'
 import { afterStepsSql, guardedStepsSql, stepRecordSql, statementsSql } from '../migration-sql'
 import { moduleSteps } from '../steps'
 import { renderSteps, type Had, type RenderedStep } from '../steps/render'
@@ -12,7 +12,7 @@ import type { LastSteps } from './store-model'
 
 /**
  * The store as a project's snapshot has it: each module's last step, those kept while off included; the modules that
- * are on; and whether it has `auth_steps`, which a store a version before it made lacks.
+ * are on; and whether it has `auth_steps`, which a store a Protobase before 0.130 made lacks.
  */
 export type SnapshotStore = { lastSteps: LastSteps; on: readonly ModuleId[]; stepRecord: boolean }
 
@@ -36,7 +36,7 @@ const snapshotHad =
 /**
  * The parts of the modules that are on that the snapshot's store lacks, each followed by its row in `auth_steps`, each
  * run only while that table lacks it, so a database that has it already skips it; for a store the snapshot has none of
- * (`store` undefined), that table first, and for one without it, that table, filled from `auth_migrations`. `checks`:
+ * (`store` undefined), that table first; one without it, which records versions instead, is refused. `checks`:
  * the checks of the parts on tables the store has already, which refuse when its rows break what a step assumes;
  * `after`, what the parts leave for the migration's `.after.sql`, when they leave anything. `undefined` when the
  * snapshot's store has every part. `externalUser`: the snapshot records the user table as a relation Protobase did
@@ -45,10 +45,11 @@ const snapshotHad =
  */
 export const offlineStepsMigration = (names: StoreNames, store: SnapshotStore | undefined, organizations: OrganizationsInput | undefined, externalUser = false) => {
   if (store) refuseNewer(store.lastSteps)
+  if (store && !store.stepRecord) throw new Error(versionRecordRefusal(versionRecordTable(names).name))
   const had = store ? snapshotHad(store) : () => false
   const migration = migrationNames(names, externalUser || names.users.keyTable !== undefined)
   const rendered = renderSteps(migration, names.names.modules, had, organizations)
-  const record = !store ? [stepRecordSql(names)] : store.stepRecord ? [] : [stepRecordMigration(names)]
+  const record = store ? [] : [stepRecordSql(names)]
   if (rendered.length === 0 && record.length === 0) return
   const steps = rendered.length === 0 ? [] : [guardedStepsSql(names, rendered)]
   // A part's check reads the tables it changes: those of its own module, or of the module it adds to.

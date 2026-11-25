@@ -68,9 +68,10 @@ const newLimits = (relation: CatalogRelation, what: string, before: CatalogLimit
     .filter((limit) => !before.some((had) => had.name === limit.name && had.definition === limit.definition))
     .map((limit) => `adds the ${what} ${limit.name} to ${relation.name}, which rows written by older code may break`)
 
-const relationChanges = (before: Catalog, after: Catalog, relation: CatalogRelation) => {
+const relationChanges = (before: Catalog, after: Catalog, relation: CatalogRelation, dropped: ReadonlySet<string>) => {
   const now = after.relations.find((found) => found.name === relation.name)
   const kind = kindNames[relation.kind]!
+  if (!now && dropped.has(relation.oid)) return []
   if (!now) return [`drops, renames or moves ${kind} ${relation.name}`]
   if (now.kind !== relation.kind) return [`makes ${kind} ${relation.name} a ${kindNames[now.kind]!}`]
   const columns = [byRelation(before.columns, relation.oid), byRelation(after.columns, now.oid)] as const
@@ -104,9 +105,12 @@ const enumChanges = (before: Catalog, after: Catalog) =>
     return had.labels.filter((label) => !now.labels.includes(label)).map((label) => `removes the value ${label} of type ${had.name}`)
   })
 
-/** What the change from `before` to `after` takes from older code, one line each; none when it only adds. */
-export const contractions = (before: Catalog, after: Catalog) => [
-  ...before.relations.flatMap((relation) => relationChanges(before, after, relation)),
+/**
+ * What the change from `before` to `after` takes from older code, one line each; none when it only adds. `dropped`: the
+ * oids of the tables a step of the auth store drops, which no older code reads (`Step.drops`), whose drop takes nothing.
+ */
+export const contractions = (before: Catalog, after: Catalog, dropped: ReadonlySet<string> = new Set()) => [
+  ...before.relations.flatMap((relation) => relationChanges(before, after, relation, dropped)),
   ...functionChanges(before, after),
   ...enumChanges(before, after),
 ]

@@ -20,7 +20,7 @@ describe('offlineStepsMigration', () => {
     expect(migration.sql).toContain('create table if not exists "auth"."auth_steps" (')
     expect(migration.sql).toContain('-- auth 1 core:')
     expect(migration.sql).toContain(`values ('auth', 5, 'auth', now())`)
-    expect(migration.sql).not.toContain('auth_migrations')
+    expect(migration.sql).toContain('-- auth 6 drop_version_record:')
     expect(migration.checks).toEqual([])
   })
 
@@ -28,11 +28,17 @@ describe('offlineStepsMigration', () => {
     expect(offlineStepsMigration(names, store(latest), organizations)).toBeUndefined()
   })
 
-  it('writes the record of steps, filled from auth_migrations, for a snapshot whose store has every step but no such record', () => {
-    const migration = offlineStepsMigration(names, store(latest, false), organizations)!
-    expect(migration.sql).toContain('create table if not exists "auth"."auth_steps" (')
-    expect(migration.sql).toContain('-- The steps the store recorded by version in auth_migrations, recorded by step.')
-    expect(migration.sql).not.toContain('-- auth ')
+  it('refuses a snapshot whose store records versions instead of steps, naming the release to migrate through', () => {
+    expect(() => offlineStepsMigration(names, store({ ...latest, auth: 5 }, false), organizations)).toThrow(
+      'The auth store records its migrations by version in auth_migrations, without auth_steps, as a Protobase before 0.130 left it: bring the project to Protobase 0.130 first',
+    )
+  })
+
+  it('drops the former record of versions after the last step a store of Protobase 0.130 had', () => {
+    const migration = offlineStepsMigration(names, store({ ...latest, auth: 5 }), organizations)!
+    expect(migration.sql).toMatch(/^-- auth 6 drop_version_record: The drop of the former record of versions, which auth_steps replaced\.\ndo \$step\$ begin\nif not exists/)
+    expect(migration.sql).toContain('execute $statement$drop table if exists "auth"."auth_migrations"$statement$;')
+    expect(migration.sql).toContain(`values ('auth', 6, 'auth', now())`)
   })
 
   it("writes only the steps after the snapshot's, with the checks over rows the store has", () => {
@@ -56,7 +62,7 @@ end $step$;`)
   })
 
   it('refuses a step this version does not ship', () => {
-    expect(() => offlineStepsMigration(names, store({ ...latest, auth: moduleSteps.auth.length + 1 }), organizations)).toThrow('The snapshot has step 6 of the auth module, which this version of Protobase does not ship; upgrade Protobase')
+    expect(() => offlineStepsMigration(names, store({ ...latest, auth: moduleSteps.auth.length + 1 }), organizations)).toThrow('The snapshot has step 7 of the auth module, which this version of Protobase does not ship; upgrade Protobase')
   })
 
   it('writes nothing of a module that is off, nor what other modules add to its tables', () => {

@@ -22,7 +22,7 @@ const liveStore = (last: number, userKind = 'r'): LiveStore => ({
 
 describe('recordedSteps', () => {
   it('refuses a step this Protobase does not ship, rather than stopping before it', () => {
-    expect(() => recordedSteps([...stepsTo(17), { module: 'auth', step: 6, target: 'auth' }])).toThrow('The auth store records step 6 of auth, which this version of Protobase does not ship; upgrade Protobase')
+    expect(() => recordedSteps([...stepsTo(17), { module: 'auth', step: 7, target: 'auth' }])).toThrow('The auth store records step 7 of auth, which this version of Protobase does not ship; upgrade Protobase')
   })
 
   it("maps the former chain's versions 1 to 8 onto each module's first steps", () => {
@@ -41,7 +41,7 @@ describe('recordedSteps', () => {
 
 describe('baselineStore', () => {
   it('records each module that is on at its step, organizations as ever on, nothing kept and nothing external', () => {
-    expect(baselineStore(names, liveStore(8))).toEqual({ lastSteps: recordedSteps(stepsTo(8)), kept: [], organizationsEverOn: true, external: [], stepRecord: true })
+    expect(baselineStore(names, liveStore(8))).toEqual({ lastSteps: recordedSteps(stepsTo(8)), kept: [], organizationsEverOn: true, external: [] })
   })
 
   it('records a module that is off but has tables as kept, such as personal access tokens', () => {

@@ -61,6 +61,6 @@ export const olderProject = async (step: number) => {
   model.auth!.modules.auth!.lastStep = step
   await writeSnapshot(dir, { ...snapshot, model, modelHash: modelHash(model) })
   const first = path.join(migrationsOf(dir), '001_auth.sql')
-  await writeFile(first, (await readFile(first, 'utf8')).replace('auth=5', `auth=${step}`).replace(snapshot.modelHash, modelHash(model)))
+  await writeFile(first, (await readFile(first, 'utf8')).replace(/ auth=\d+/, ` auth=${step}`).replace(snapshot.modelHash, modelHash(model)))
   return dir
 }

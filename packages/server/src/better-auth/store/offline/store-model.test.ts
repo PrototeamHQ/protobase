@@ -8,7 +8,7 @@ describe('the store model', () => {
   it('holds every module at its last step, with each table, column and index as the config names them', () => {
     const model = storeModel(names, latestSteps(names.names.modules))
     expect(model).toMatchObject({ schema: 'auth', ids: 'text', userKeyTable: null, userMetadata: null, scopedTablesCarryOrganization: true })
-    expect(model.modules.auth?.lastStep).toBe(5)
+    expect(model.modules.auth?.lastStep).toBe(6)
     expect(model.modules.auth?.tables.user).toMatchObject({ name: 'users', scope: 'global' })
     expect(model.modules.auth?.tables.user?.columns.role).toBe('app_role')
     expect(model.modules.passkeys?.tables.passkey?.indexes).toEqual({ passkey_user_id_idx: 'passkey_user_id_idx', passkey_credential_id_idx: 'passkey_credential_id_idx', passkey_rp_id_idx: 'passkey_rp_id_idx' })
@@ -28,7 +28,7 @@ describe('the store model', () => {
     const list = storeNamesList(storeModel(names, { auth: 5 }))
     expect(list[0]).toBe('auth')
     expect(list).toContain('auth.users.app_role')
-    expect(list).toContain('auth.auth_migrations')
+    expect(list).toContain('auth.auth_steps')
     expect(list).toEqual([...list].sort())
   })
 })
