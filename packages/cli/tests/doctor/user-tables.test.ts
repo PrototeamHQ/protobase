@@ -1,7 +1,7 @@
 import { Kysely } from 'kysely'
 import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { userTablesMigration } from '@protobase/server'
+import { userTablesSchemaSql } from '@protobase/server'
 import { userTableModels } from '../../src/doctor/user-table-models'
 import { openSnapshotDb } from '../../../../test-support/sql-snapshot'
 
@@ -11,7 +11,7 @@ describe('doctor on the tables users add', () => {
   it('reports a definition whose column is missing as an error, and one a resource in code takes over, and checks the rest', async () => {
     const pg = await openSnapshotDb('empty')
     const db = new Kysely<any>({ dialect: pg.dialect })
-    await pg.exec((await userTablesMigration(db))!)
+    await pg.exec(userTablesSchemaSql())
     await pg.exec(`
       create table user_tables.notes (id bigint generated always as identity primary key, title text not null);
       create table user_tables.tasks (id bigint generated always as identity primary key, title text not null);

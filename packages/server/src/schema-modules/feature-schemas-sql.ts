@@ -2,6 +2,7 @@ import type { ResourceModel } from '@protobase/schema'
 import { storeNames, type StoreNamesSource } from '../better-auth/store/store-names'
 import { changesSchema, type EventsOptions } from '../changes/events-options'
 import { computedInput } from '../computed/computed-input'
+import { derivedInput } from '../derived/derived-module'
 import { notificationsTargets } from '../notifications/notifications-targets'
 import type { NotificationsOptions } from '../notifications/options'
 import type { RealtimeRelaySettings } from '../relay/relay-options'
@@ -44,3 +45,9 @@ export const channelSendsSchemaSql = () => modulesSql({ channel_sends: noInput }
 
 /** The rollups and formulas of `models`, with their values set and their time rollups filled. */
 export const computedSchemaSql = (models: readonly ResourceModel[]) => modulesSql({ computed: computedInput(models) })
+
+/** The derived schema, with each derived value of `models` declared and its fill enqueued into the jobs schema. */
+export const derivedSchemaSql = (models: readonly ResourceModel[]) => modulesSql({ derived: derivedInput(models) })
+
+/** The schemas of user tables and of their definitions, and pg_trgm. */
+export const userTablesSchemaSql = () => modulesSql({ user_tables: noInput })

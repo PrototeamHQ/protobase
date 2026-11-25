@@ -1,6 +1,6 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
-import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkComments, checkDerived, checkQueryRunner, checkResourcesOutsideAuthStore, checkUserTablesSchema, checkMigrationRecord, configExports, hasUsers } from '@protobase/server'
+import { apiKeySettings, assistantSettings, authSchemaDrift, authStoreTables, checkAi, checkComments, checkQueryRunner, checkResourcesOutsideAuthStore, checkMigrationRecord, configExports, hasUsers } from '@protobase/server'
 import { modelHash } from '@protobase/server/internal'
 import { projectIcons } from '../build/app-icons'
 import { projectResources } from '../config/project-parts'
@@ -45,16 +45,14 @@ if (store.__protobaseRecordChecked !== modelHash(model)) {
 await project.auth?.pinnedOrganization()
 
 // On every load, since editing the config can add a resource over a table of the auth store, give a resource events or
-// history or rollups, whose objects the record of migrations holds, or comments whose table it lacks.
+// history, rollups or derived values, whose objects the record of migrations holds, or comments whose table it lacks.
 if (project.auth) await checkResourcesOutsideAuthStore(db, resources.map((resource) => resource.toModel()), project.auth)
 await checkComments(db, resources.map((resource) => resource.toModel()))
-await checkDerived(db, resources.map((resource) => resource.toModel()))
 // The built-in assistant's read-only queries run as a role of their own, which must not read the auth store.
 if (assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in') await checkQueryRunner(db, project.auth ? authStoreTables(project.auth) : { tables: [], schemas: [] })
 // AI fields and actions call the model of PROTOBASE_ASSISTANT_API_KEY, which other commands need not have.
 checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
 checkProjectRelay({ ...project, models: resources.map((resource) => resource.toModel()), views: views.map((view) => view.toModel()) }, process.env)
-if (project.userTables) await checkUserTablesSchema(db)
 
 // Functions moved from Supabase read Supabase's variables, of this app, unless .env sets them.
 setMissing(process.env, supabaseEnv({

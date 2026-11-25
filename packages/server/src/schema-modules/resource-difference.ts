@@ -47,7 +47,7 @@ export const resourceDifference = (replaceable: ResourceReplaceable, names: Modu
   const entries: Record<string, ResourceEntry> = {}
   const dropped = (key: string, before: ResourceEntry, why: string, broken: string) => {
     if (!replaceable.drop) return
-    drops.push(`-- ${replaceable.title} of ${key}${why}.\n${replaceable.drop(names, before.table, before.column).trim()}`)
+    drops.push(`-- ${replaceable.title} of ${key}${why}.\n${replaceable.drop(names, before.table, before.column, key).trim()}`)
     breaks.push(broken)
   }
   const write = (key: string, input: ResourceInput) => {

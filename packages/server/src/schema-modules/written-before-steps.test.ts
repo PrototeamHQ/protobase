@@ -3,17 +3,21 @@ import { describe, expect, it } from 'vitest'
 import { settingsStoreNames } from '../better-auth/store/offline/settings-names'
 import { relayInput } from '../relay/relay-targets'
 import { statusTargets } from '../status/status-targets'
-import { callsSchemaSql, channelSendsSchemaSql, notificationsSchemaSql, realtimeRelaySchemaSql, webhooksSchemaSql, workflowsSchemaSql } from './feature-schemas-sql'
+import { f, resource } from '@protobase/schema'
+import { callsSchemaSql, channelSendsSchemaSql, derivedSchemaSql, notificationsSchemaSql, realtimeRelaySchemaSql, userTablesSchemaSql, webhooksSchemaSql, workflowsSchemaSql } from './feature-schemas-sql'
 import { modulesSql } from './modules-sql'
 import { sqlStatements } from './testing/sql-statements'
 
 // Each `written-before-steps.sql` is what the feature's migration wrote on an empty database before it was a module:
 // webhooks with the delivery log, workflows with storage and custom steps, notifications without sign-in, status and the
 // relay with auth's default tables, the relay without listed channels, calls with the notices table, several processes
-// and SQL's sends. Its steps and
+// and SQL's sends, derived values with one value declared, and user tables. Its steps and
 // replaceables write the same statements, in another order; the relay's no longer deletes the members of resources not
 // listed, which an empty database has none of.
 const before = (path: string) => readFileSync(new URL(`../${path}/written-before-steps.sql`, import.meta.url), 'utf8')
+
+// A resource with one derived value.
+const notes = resource('notes').table('notes').fields({ id: f.integer(), summary: f.text().optional().readOnly() }).primaryKey((r) => r.id).derived('summary', { into: (r) => r.summary, reads: [] })
 
 describe('the schema modules that had a migration of their own before', () => {
   it.each([
@@ -25,6 +29,8 @@ describe('the schema modules that had a migration of their own before', () => {
     ['relay', () => modulesSql({ relay: relayInput({}, [], settingsStoreNames({})) })],
     ['realtime/relay', () => realtimeRelaySchemaSql()],
     ['channels', () => channelSendsSchemaSql()],
+    ['derived', () => derivedSchemaSql([notes.toModel()])],
+    ['user-tables', () => userTablesSchemaSql()],
   ])('write on an empty database the statements %s wrote before it had steps', (path, now) => {
     expect(sqlStatements(now())).toEqual(sqlStatements(before(path)))
   })

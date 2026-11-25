@@ -11,6 +11,7 @@ const names: Record<SchemaModuleId, ModuleNames> = {
   computed: {},
   changes: { schema: 'changes' },
   history: { schema: 'changes' },
+  derived: {},
   notices: { schema: 'changes' },
   webhooks: { schema: 'webhooks', changes: 'changes' },
   webhook_delivery_log: { schema: 'webhooks' },
@@ -24,6 +25,7 @@ const names: Record<SchemaModuleId, ModuleNames> = {
   relay: { sessions: '"auth"."session"' },
   realtime_relay: {},
   channel_sends: {},
+  user_tables: {},
 }
 
 // The SHA-256 of each step's statements, by module and step. Steps that call builders shared with other code, such as
@@ -47,6 +49,8 @@ const pinned: Record<string, string> = {
   'relay 1': '3cc7f6bbecb6ec6a',
   'realtime_relay 1': '38dc32ccc845ebdd',
   'channel_sends 1': 'a28df48b0ec89ee7',
+  'derived 1': 'ce48df951c75a615',
+  'user_tables 1': '11c037437f43c712',
 }
 
 const digests = () =>

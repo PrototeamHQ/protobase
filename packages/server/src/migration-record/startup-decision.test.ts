@@ -141,6 +141,23 @@ describe('startupRefusal', () => {
     })
   })
 
+  describe('with derived values and user tables', () => {
+    const notes = resource('notes').table('notes').fields({ id: f.integer(), summary: f.text().optional().readOnly() }).primaryKey((r) => r.id).derived('summary', { into: (r) => r.summary, reads: [] })
+    const app = (rest: Partial<Parameters<typeof neededModules>[0]> = {}) => ({ modules: latestModules(neededModules({ models: [notes.toModel()], views: [], jobs: [], signIn: false, ...rest })) })
+
+    it('refuses a database whose record lacks them, naming the module and its step', () => {
+      const { derived: _, ...withoutDerived } = app().modules
+      expect(startupRefusal(app(), state({ modules: withoutDerived }), '0.15.0')).toContain('the database lacks the derived schema, which this version needs at step 1 (derived)')
+      expect(startupRefusal(app({ userTables: true }), state(app()), '0.15.0')).toContain('the database lacks the table_definitions and user_tables schemas of user tables, which this version needs at step 1 (user_tables)')
+    })
+
+    it('refuses a derived value the record does not declare, and starts on a record that holds them', () => {
+      const { derived } = app().modules
+      expect(startupRefusal(app(), state({ modules: { ...app().modules, derived: { ...derived!, resources: { values: {} } } } }), '0.15.0')).toContain('the derived schema lacks its values of notes.summary')
+      expect(startupRefusal(app({ userTables: true }), state(app({ userTables: true }), { matched: true }), '0.15.0')).toBeUndefined()
+    })
+  })
+
   describe('with webhooks, workflows and notifications', () => {
     const app = (rest: Partial<Parameters<typeof neededModules>[0]>) => ({ modules: latestModules(neededModules({ models: [], views: [], jobs: [], signIn: false, ...rest })) })
 

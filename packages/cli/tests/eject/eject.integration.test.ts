@@ -6,7 +6,9 @@ import { Kysely, PostgresDialect } from 'kysely'
 import pg from 'pg'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { ownedDefinitionsMigration, userTablesMigration } from '@protobase/server'
+import { ownedDefinitionsMigration, userTablesSchemaSql } from '@protobase/server'
+import { noInput } from '@protobase/server/internal'
+import { recordModules } from '../support/recorded-modules'
 import { runDoctor } from '../../src/doctor/run'
 import { runEject } from '../../src/eject/run'
 import { loadDataConfig } from '../../src/project/load-data-config'
@@ -58,11 +60,12 @@ const catalog = async (database: string) => {
   return { columns: [...columns], constraints: [...constraints], indexes: [...indexes], rows: counted!.rows }
 }
 
-// The schemas of user tables, as the project's earlier migration makes them.
+// The schemas of user tables, as the project's earlier migration makes them and records them.
 const addUserTablesSchemas = async (database: string) => {
   const db = new Kysely<any>({ dialect: new PostgresDialect({ pool: new pg.Pool({ connectionString: withDatabase(url, database), max: 1 }) }) })
   const sql = connection(database)
-  await sql.unsafe((await userTablesMigration(db))!)
+  await sql.unsafe(userTablesSchemaSql())
+  await recordModules(db, { user_tables: noInput })
   await Promise.all([db.destroy(), sql.end()])
 }
 

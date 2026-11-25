@@ -5,6 +5,8 @@ import { changesInput } from '../changes/changes-input'
 import { changesSchema, type EventsOptions } from '../changes/events-options'
 import { hasBuckets } from '../computed/buckets-targets'
 import { computedInput, computedOn } from '../computed/computed-input'
+import { derivedInput } from '../derived/derived-module'
+import { derivedNames } from '../derived/derived-sql'
 import { mailFeedbackResource } from '../mail/feedback/mail-feedback-resource'
 import type { NotificationsOptions } from '../notifications/options'
 import { notificationsTargets } from '../notifications/notifications-targets'
@@ -38,6 +40,8 @@ export type ModuleApp = {
   realtime?: RealtimeOptions
   /** Where captured changes live (`events` in `protobase.config.ts`). */
   events?: EventsOptions
+  /** Whether the tables users add serve (`userTables`). */
+  userTables?: boolean
 }
 
 /**
@@ -63,6 +67,7 @@ export const neededModules = (app: ModuleApp): ModuleTargets => {
     ...(app.models.some(computedOn) && { computed: computedInput(app.models) }),
     ...(changes && { changes: changesInput(captured, app.events) }),
     ...(app.models.some((model) => model.history) && { history: events }),
+    ...(derivedNames(app.models).length > 0 && { derived: derivedInput(app.models) }),
     ...((app.models.some((model) => model.live) || Boolean(app.calls)) && { notices: events }),
     ...(app.webhooks && webhooksTargets(app.webhooks, app.events)),
     ...(app.workflows && workflowsTargets(app.workflows)),
@@ -72,5 +77,6 @@ export const neededModules = (app: ModuleApp): ModuleTargets => {
     ...(relayChannels && { relay: relayInput(relayChannels, app.models, app.authStore) }),
     ...(relayed(app.realtime) && { realtime_relay: noInput }),
     ...(sqlSends(app.realtime) && { channel_sends: noInput }),
+    ...(app.userTables && { user_tables: noInput }),
   }
 }

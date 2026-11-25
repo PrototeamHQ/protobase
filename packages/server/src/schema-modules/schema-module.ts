@@ -51,7 +51,8 @@ export type ResourceReplaceable = {
   version: number
   compatibleFrom: number
   sql: (names: ModuleNames, input: unknown) => string
-  drop?: (names: ModuleNames, table: TableName, column?: string) => string
+  /** `key`: the resource's key in the input, such as a derived value's name. */
+  drop?: (names: ModuleNames, table: TableName, column: string | undefined, key: string) => string
   replace?: (names: ModuleNames, table: TableName, column?: string) => string
   after?: (names: ModuleNames, input: unknown) => string
   keptWhileOthers: boolean

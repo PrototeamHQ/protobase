@@ -125,11 +125,11 @@ create table rooms_b partition of rooms for values from (100) to (200)`).execute
     const entries = (await relayModule.read(db, input({ rooms })))!.resources!.members!
     expect(entries.rooms!.digest).toEqual(expect.stringMatching(/.+/))
     expect(entries['rooms on rooms_old']).toMatchObject({ digest: '', table: { schema: 'public', name: 'rooms_old' } })
-    await sql.raw(relayModule.resourceReplaceables[0]!.drop!({}, { schema: 'public', name: 'rooms_old' })).execute(db)
+    await sql.raw(relayModule.resourceReplaceables[0]!.drop!({}, { schema: 'public', name: 'rooms_old' }, undefined, 'rooms on rooms_old')).execute(db)
   })
 
   it("drops a table's triggers, on its partitions too, and the members of the resource they kept", async () => {
-    await sql.raw(relayModule.resourceReplaceables[0]!.drop!({}, { name: 'rooms' })).execute(db)
+    await sql.raw(relayModule.resourceReplaceables[0]!.drop!({}, { name: 'rooms' }, undefined, 'rooms')).execute(db)
     expect((await sql<{ count: number }>`select count(*)::int as count from pg_trigger where tgname like 'realtime_members%' and tgrelid::regclass::text like 'rooms%'`.execute(db)).rows[0]!.count).toBe(0)
     expect((await sql<{ count: number }>`select count(*)::int as count from realtime.members where resource = 'rooms'`.execute(db)).rows[0]!.count).toBe(0)
   })

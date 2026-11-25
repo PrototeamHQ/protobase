@@ -9,7 +9,7 @@ import { checkMigrationRecord } from '../../packages/server/src/migration-record
 import { writeBaseline } from '../../packages/cli/src/migration/baseline/write-baseline'
 import { runMigration } from '../../packages/cli/src/migration/snapshot/run-migration'
 import { f, resource, type ResourceModel } from '@protobase/schema'
-import { callsSchemaSql, captureSchemaSql, channelSendsSchemaSql, computedSchemaSql, jobsSchemaSql, neededModules, notificationsSchemaSql, realtimeRelaySchemaSql, relaySchemaSql, statusSchemaSql, webhooksSchemaSql, workflowsSchemaSql, type AdminAuth, type ModuleApp } from '../../packages/server/src/index'
+import { callsSchemaSql, captureSchemaSql, channelSendsSchemaSql, computedSchemaSql, derivedSchemaSql, userTablesSchemaSql, jobsSchemaSql, neededModules, notificationsSchemaSql, realtimeRelaySchemaSql, relaySchemaSql, statusSchemaSql, webhooksSchemaSql, workflowsSchemaSql, type AdminAuth, type ModuleApp } from '../../packages/server/src/index'
 import { createAuth, modelHash, noInput, plainStoreDb, recordTable, runtimeModel, schemaModules, storeNames, storeNamesList, type ModuleTargets, type RecordModel } from '../../packages/server/src/internal'
 import { rollupFunctionSql } from '../../packages/server/src/computed/rollup-sql'
 import { rollupTargets } from '../../packages/server/src/computed/rollup-targets'
@@ -355,5 +355,35 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('the startup read of th
     expect(await migrateModels(project, auth, computed, 'nothing', database)).toBeUndefined()
     await expect(check(auth, modules)).resolves.toBeUndefined()
     await rm(project, { recursive: true, force: true })
+  })
+
+  it('writes the derived schema and the schemas of user tables on a fresh database, refuses startup while one is missing, and baselines them as an earlier migration made them', async () => {
+    const database = await openPostgresDatabase('empty')
+    const { auth, project } = await migratedByThisVersion(database, true)
+    await database.exec('create table notes (id integer primary key, body text not null, summary text)')
+    const summarised = [notes.fields({ id: f.integer(), body: f.text(), summary: f.text().optional().readOnly() }).derived('summary', { into: (r) => r.summary, reads: [] }).toModel()]
+    const modules = (userTables: boolean) => neededModules({ models: summarised, views: [], jobs: [], signIn: true, userTables })
+    await expect(check(auth, modules(true))).rejects.toThrow('the database lacks the derived schema, which this version needs at step 1 (derived)')
+
+    const migrate = (dir: string, owner: AdminAuth, id: string, live?: PostgresDatabase) =>
+      runMigration({ projectDir: dir, dir: path.join(dir, 'db/migrations'), auth: { names: storeNames(owner), organizationsOn: false, organizations: undefined }, modules: modules(true), database: live && { url: live.url, parts: [], contractions: async () => [], readModule: (module, input) => schemaModules[module].read(live.db, input) }, protobaseVersion: '1.0.0', newId: () => id })
+    const file = (await migrate(project, auth, 'derived-id'))!
+    expect(path.basename(file)).toBe('002_jobs_changes_derived_user_tables.sql')
+    await database.exec(await readFile(file, 'utf8'))
+    await expect(check(auth, modules(true))).resolves.toBeUndefined()
+    expect((await sql<{ name: string }>`select name from derived.declared`.execute(database.db)).rows).toEqual([{ name: 'notes.summary' }])
+    await rm(project, { recursive: true, force: true })
+
+    const earlier = await openPostgresDatabase('empty')
+    const second = await migratedByThisVersion(earlier, true)
+    await earlier.exec(`create table notes (id integer primary key, body text not null, summary text);\n${jobsSchemaSql()}\n${captureSchemaSql(summarised)}\n${derivedSchemaSql(summarised)}\n${userTablesSchemaSql()}`)
+    const baseline = await writeBaseline({ projectDir: second.project, dir: path.join(second.project, 'db/migrations'), auth: { names: storeNames(second.auth), organizationsOn: false, organizations: undefined }, modules: modules(true), url: earlier.url, protobaseVersion: '1.0.0', newId: () => 'baseline-id' })
+    const text = await readFile(baseline, 'utf8')
+    expect(text).toContain("-- The state of the resources' derived values and what they read: at step 1 (derived), its values of notes.summary.")
+    expect(text).toContain('-- The schemas of the tables users add and of their definitions, and pg_trgm: at step 1 (user_tables).')
+    await earlier.exec(text)
+    expect(await migrate(second.project, second.auth, 'nothing', earlier)).toBeUndefined()
+    await expect(check(second.auth, modules(true))).resolves.toBeUndefined()
+    await rm(second.project, { recursive: true, force: true })
   })
 })

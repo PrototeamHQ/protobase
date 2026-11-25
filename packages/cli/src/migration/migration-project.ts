@@ -20,7 +20,7 @@ export const migrationProject = async (config: MergedConfig, url: string | undef
   const exported = configExports(resources)
   const models = exported.resources.map((source) => source.toModel())
   const views = exported.views.map((source) => source.toModel())
-  const app = { models, views, jobs, signIn: Boolean(auth), ...(auth && { authStore: storeNames(auth) }), mailFeedback: mailFeedbackOn(config), webhooks, workflows: config.workflows, notifications, ...(config.status && { status: checkStatusOptions(config.status) }), calls: config.calls, realtime: config.realtime, events: config.events }
+  const app = { models, views, jobs, signIn: Boolean(auth), ...(auth && { authStore: storeNames(auth) }), mailFeedback: mailFeedbackOn(config), webhooks, workflows: config.workflows, notifications, ...(config.status && { status: checkStatusOptions(config.status) }), calls: config.calls, realtime: config.realtime, events: config.events, userTables: userTablesOn(config) }
   return {
     models,
     views,
