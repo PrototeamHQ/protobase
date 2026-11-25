@@ -120,6 +120,44 @@ describe('startupRefusal', () => {
     })
   })
 
+  describe('with rollups, formulas and time rollups', () => {
+    const lines = resource('lines').table('lines').fields({ id: f.integer(), order_id: f.relation('orders'), amount: f.integer() }).primaryKey((r) => r.id)
+    const orders = (fn: 'sum' | 'max' = 'sum') => resource('orders').table('orders').fields({ id: f.integer(), total: f.integer().optional().rollup({ from: 'lines', via: 'order_id', fn, field: 'amount' }) }).primaryKey((r) => r.id)
+    const app = (order = orders()) => ({ modules: latestModules(neededModules({ models: [order.toModel(), lines.toModel()], views: [], jobs: [], signIn: false })) })
+
+    it('refuses a database whose record lacks them, naming the module and its step', () => {
+      expect(startupRefusal(app(), state({}), '0.15.0')).toContain('the database lacks the rollups and formulas, which this version needs at step 1 (rollups)')
+    })
+
+    it('refuses a rollup the record lacks or has otherwise', () => {
+      const { computed } = app().modules
+      const without = { ...computed!, resources: { ...computed!.resources, rollups: {} } }
+      expect(startupRefusal(app(), state({ modules: { computed: without } }), '0.15.0')).toContain('the rollups and formulas lacks its rollups of orders.total')
+      expect(startupRefusal(app(orders('max')), state(app()), '0.15.0')).toContain('the rollups and formulas has its rollups of orders.total otherwise than this version writes them for the config')
+    })
+
+    it('starts on a record that holds them', () => {
+      expect(startupRefusal(app(), state(app(), { matched: true }), '0.15.0')).toBeUndefined()
+    })
+  })
+
+  describe('with derived values and user tables', () => {
+    const notes = resource('notes').table('notes').fields({ id: f.integer(), summary: f.text().optional().readOnly() }).primaryKey((r) => r.id).derived('summary', { into: (r) => r.summary, reads: [] })
+    const app = (rest: Partial<Parameters<typeof neededModules>[0]> = {}) => ({ modules: latestModules(neededModules({ models: [notes.toModel()], views: [], jobs: [], signIn: false, ...rest })) })
+
+    it('refuses a database whose record lacks them, naming the module and its step', () => {
+      const { derived: _, ...withoutDerived } = app().modules
+      expect(startupRefusal(app(), state({ modules: withoutDerived }), '0.15.0')).toContain('the database lacks the derived schema, which this version needs at step 1 (derived)')
+      expect(startupRefusal(app({ userTables: true }), state(app()), '0.15.0')).toContain('the database lacks the table_definitions and user_tables schemas of user tables, which this version needs at step 1 (user_tables)')
+    })
+
+    it('refuses a derived value the record does not declare, and starts on a record that holds them', () => {
+      const { derived } = app().modules
+      expect(startupRefusal(app(), state({ modules: { ...app().modules, derived: { ...derived!, resources: { values: {} } } } }), '0.15.0')).toContain('the derived schema lacks its values of notes.summary')
+      expect(startupRefusal(app({ userTables: true }), state(app({ userTables: true }), { matched: true }), '0.15.0')).toBeUndefined()
+    })
+  })
+
   describe('with webhooks, workflows and notifications', () => {
     const app = (rest: Partial<Parameters<typeof neededModules>[0]>) => ({ modules: latestModules(neededModules({ models: [], views: [], jobs: [], signIn: false, ...rest })) })
 

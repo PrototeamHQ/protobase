@@ -5,7 +5,7 @@ import { defineRoles } from '@protobase/schema'
 import { createAdmin } from '../../packages/server/src/create-admin'
 import { readDefinitionsVersion } from '../../packages/server/src/user-tables/definitions-version'
 import { reloadingAdmin } from '../../packages/server/src/user-tables/reloading-admin'
-import { userTablesMigration } from '../../packages/server/src/user-tables/schema'
+import { userTablesSchemaSql } from '../../packages/server/src/schema-modules/feature-schemas-sql'
 import { userTableResources } from '../../packages/server/src/user-tables/user-table-resources'
 import { createLookups } from '../../packages/ui/src/app/import/lookups'
 import { createTableOps } from '../../packages/ui/src/app/import/new-table/create-table-ops'
@@ -28,7 +28,7 @@ describe('a table from a file', () => {
   beforeAll(async () => {
     pg = await openSnapshotDb('empty')
     db = new Kysely({ dialect: pg.dialect })
-    await pg.exec((await userTablesMigration(db))!)
+    await pg.exec(userTablesSchemaSql())
     const build = (tables: Awaited<ReturnType<typeof userTableResources>>) => createAdmin({ resources: [], userTables: tables, db, authenticate: testAuthenticator, options: { roles } })
     const app = reloadingAdmin({ first: build(await userTableResources(db)), version: await readDefinitionsVersion(db), readVersion: () => readDefinitionsVersion(db), readTables: () => userTableResources(db), build })
     client = createClient({ baseUrl: 'http://localhost/api/v1', fetch: async (input, init) => app.request(String(input), { ...init, headers: { ...Object.fromEntries(new Headers(init?.headers)), ...as(1, 'admin') } }) })

@@ -19,7 +19,30 @@ describe('neededModules', () => {
     expect(ids(app([tickets.toModel(), thread.toModel()]))).toEqual(['jobs', 'changes', 'notices'])
     const readings = resource('readings').table('readings').fields({ id: f.bigint().readOnly(), taken_at: f.timestamp() }).primaryKey((r) => r.id)
     const hourly = resource('readings_hourly').table('readings_hourly').bucketsOf(readings, { time: (r) => r.taken_at, every: 'hour', by: () => [], late: '2 hours' })
-    expect(ids(app([readings.toModel(), hourly.toModel()]))).toEqual(['jobs'])
+    expect(ids(app([readings.toModel(), hourly.toModel()]))).toEqual(['jobs', 'computed'])
+  })
+
+  it('needs the rollups and formulas module for rollup and formula fields and time rollups, with their objects by field and rollup', () => {
+    const orders = resource('orders').table('orders').fields({ id: f.integer(), total: f.integer().rollup({ from: 'lines', via: 'order_id', fn: 'sum', field: 'amount' }) }).primaryKey((r) => r.id)
+    const lines = resource('lines').table('sales.lines').fields({ id: f.integer(), order_id: f.relation('orders'), amount: f.integer().formula('id * 2') }).primaryKey((r) => r.id)
+    const computed = neededModules(app([orders.toModel(), lines.toModel()])).computed!
+    expect(Object.keys(neededModules(app([orders.toModel(), lines.toModel()])))).toEqual(['computed'])
+    expect(Object.fromEntries(Object.entries(computed.resources).map(([name, entries]) => [name, Object.fromEntries(Object.entries(entries).map(([key, { table, column }]) => [key, { table, column }]))]))).toEqual({
+      rollup_columns: { 'orders.total': { table: { name: 'orders' }, column: 'total' } },
+      formulas: { 'lines.amount': { table: { schema: 'sales', name: 'lines' }, column: 'amount' } },
+      rollups: { 'orders.total': { table: { name: 'orders' }, column: 'total' } },
+      time_rollups: {},
+    })
+    expect(ids(app([tickets.toModel()]))).not.toContain('computed')
+  })
+
+  it('needs the derived schema for derived values, with each by its name across resources, and the schemas of user tables with userTables', () => {
+    const notes = resource('notes').table('notes').fields({ id: f.integer(), summary: f.text().optional().readOnly() }).primaryKey((r) => r.id).derived('summary', { into: (r) => r.summary, reads: [] })
+    const needed = neededModules(app([notes.toModel()]))
+    expect(Object.keys(needed)).toEqual(['jobs', 'changes', 'derived'])
+    expect(needed.derived).toEqual({ names: {}, resources: { values: { 'notes.summary': { table: { name: 'notes' }, input: 'notes.summary' } } } })
+    expect(ids(app([], { userTables: true }))).toEqual(['user_tables'])
+    expect(ids(app([tickets.toModel()]))).not.toContain('derived')
   })
 
   it('needs the jobs schema for webhooks, workflows, notifications and mail feedback, whose events a job dispatches, and their own tables', () => {

@@ -2,7 +2,7 @@ import { sql } from 'kysely'
 import pg from 'pg'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
-import { computedMigration, createAdmin } from '../src/index'
+import { computedSchemaSql, createAdmin } from '../src/index'
 import { signTestToken, testAuthenticator } from '../../../test-support/server'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
@@ -45,7 +45,7 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('parent checks on Postg
     await database.exec(`
       create table vms (id integer primary key, tenant_id integer not null, owner_id text, name text not null, deleted_at timestamptz);
       create table operations (id integer generated always as identity primary key, tenant_id integer not null, vm_id integer not null references vms, kind text not null);`)
-    await database.exec((await computedMigration(database.db, [vms.toModel(), operations.toModel()]))!)
+    await database.exec(computedSchemaSql([vms.toModel(), operations.toModel()]))
     // The writes here wait on locks for as long as the test takes to see them waiting, which a busy machine stretches
     // past the API's default second.
     app = createAdmin({ resources: [vms, operations], db: database.db, authenticate: testAuthenticator, options: { roles, statementTimeoutMs: 30_000 } })

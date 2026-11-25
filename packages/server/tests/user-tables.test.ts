@@ -2,7 +2,9 @@ import { Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
-import { checkUserTablesSchema, userTablesMigration } from '../src/user-tables/schema'
+import { userTablesSchemaSql } from '../src/schema-modules/feature-schemas-sql'
+import { noInput } from '../src/schema-modules/schema-module'
+import { userTablesModule } from '../src/user-tables/user-tables-module'
 import { userTableResources, type UserTables } from '../src/user-tables/user-table-resources'
 import { as, json, testAuthenticator } from '../../../test-support/server'
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
@@ -15,12 +17,12 @@ let pg: SnapshotDb
 let db: Kysely<any>
 let tables: UserTables
 let app: ReturnType<typeof createAdmin>
-let migration: string | undefined
+let migration: string
 beforeAll(async () => {
   pg = await openSnapshotDb('empty')
   db = new Kysely({ dialect: pg.dialect })
-  migration = await userTablesMigration(db)
-  await pg.exec(migration!)
+  migration = userTablesSchemaSql()
+  await pg.exec(migration)
   await pg.exec(`
     create table orders (id integer generated always as identity primary key, amount integer not null);
     create table user_tables.notes (id bigint generated always as identity primary key, title text not null, body text);
@@ -46,11 +48,10 @@ const call = (roles: string | undefined, path: string, init: RequestInit = {}) =
   app.request(path.startsWith('/api/') ? path : `/api/v1${path}`, { ...init, headers: { ...(roles !== undefined && as(1, roles)), ...(init.headers as Record<string, string>) } })
 
 describe('the migration of user tables', () => {
-  it('adds the two schemas, their tables and pg_trgm, and nothing once the database is current', async () => {
+  it('adds the two schemas, their tables and pg_trgm as its first step, which a baseline reads back', async () => {
     expect(migration).toContain('create schema if not exists table_definitions')
     expect(migration).toContain('create schema if not exists user_tables')
-    expect(await userTablesMigration(db)).toBeUndefined()
-    await expect(checkUserTablesSchema(db)).resolves.toBeUndefined()
+    await expect(userTablesModule.read(db, noInput)).resolves.toEqual({ lastStep: 1, replaceables: {} })
   })
   it('refuses a definition whose name is no safe identifier, in the database too', async () => {
     await expect(pg.exec(`insert into table_definitions.tables (name, singular_label, plural_label, version) values ('Bad"name', 'Bad', 'Bad', 1)`)).rejects.toThrow(/violates check constraint/)

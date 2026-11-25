@@ -1,5 +1,7 @@
 import { callsModule } from '../calls/calls-module'
 import { channelSendsModule } from '../channels/sends-module'
+import { computedModule } from '../computed/computed-module'
+import { derivedModule } from '../derived/derived-module'
 import { changesModule } from '../changes/changes-module'
 import { historyModule } from '../history/history-module'
 import { jobsModule } from '../jobs/jobs-module'
@@ -14,18 +16,23 @@ import { webhooksSchemaModule } from '../webhooks/table/webhooks-schema-module'
 import { workflowCustomStepsModule } from '../workflows/custom-steps/custom-steps-module'
 import { workflowStorageModule } from '../workflows/storage/storage-module'
 import { workflowsSchemaModule } from '../workflows/workflows-schema-module'
+import { userTablesModule } from '../user-tables/user-tables-module'
 import type { ModuleInput, ModuleModel, SchemaModule } from './schema-module'
 import { latestModel } from './module-difference'
 
-// The built-in schemas that are modules with step chains, in the order their statements are written: the webhooks
+// The built-in schemas that are modules with step chains, in the order their statements are written: the rollups and
+// formulas before the change capture, whose triggers may name their columns, the webhooks
 // schema after the jobs schema its view reads, an option's own tables after the module whose tables they point at,
-// and the relay after the jobs schema whose enqueue its trigger calls. Every module goes after the auth store's steps,
+// the derived schema after the jobs schema its fill enqueues into, and the relay after the jobs schema whose enqueue
+// its trigger calls. Every module goes after the auth store's steps,
 // so the relay's trigger finds the sessions table.
 // Each other built-in schema still compares itself with the database (`migrationParts`) until it moves here.
 export const schemaModules = {
   jobs: jobsModule,
+  computed: computedModule,
   changes: changesModule,
   history: historyModule,
+  derived: derivedModule,
   notices: noticesModule,
   webhooks: webhooksSchemaModule,
   webhook_delivery_log: webhookDeliveryLogModule,
@@ -39,6 +46,7 @@ export const schemaModules = {
   relay: relayModule,
   realtime_relay: realtimeRelayModule,
   channel_sends: channelSendsModule,
+  user_tables: userTablesModule,
 } satisfies Record<string, SchemaModule>
 
 export type SchemaModuleId = keyof typeof schemaModules

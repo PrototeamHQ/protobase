@@ -6,7 +6,9 @@ import { createAdmin } from '../src/create-admin'
 import type { ResourceSource } from '../src/resource-source'
 import { readDefinitionsVersion } from '../src/user-tables/definitions-version'
 import { reloadingAdmin } from '../src/user-tables/reloading-admin'
-import { userTablesMigration } from '../src/user-tables/schema'
+import { userTablesSchemaSql } from '../src/schema-modules/feature-schemas-sql'
+import { noInput } from '../src/schema-modules/schema-module'
+import { userTablesModule } from '../src/user-tables/user-tables-module'
 import { userTableResources } from '../src/user-tables/user-table-resources'
 import { as, json, testAuthenticator } from '../../../test-support/server'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
@@ -37,7 +39,7 @@ let other: Awaited<ReturnType<typeof serving>>
 beforeAll(async () => {
   if (!ready) return
   database = await openPostgresDatabase('empty')
-  await database.exec((await userTablesMigration(database.db))!)
+  await database.exec(userTablesSchemaSql())
   await database.exec('create table orders (id integer generated always as identity primary key, amount integer not null)')
   app = await serving()
   other = await serving()
@@ -266,12 +268,11 @@ describe.skipIf(!ready)('the definitions in the database', () => {
     for (const statement of refusals) await expect(database.exec(statement)).rejects.toMatchObject({ code: '23514' })
   })
 
-  it('take the default of a new version from the migration, in a database made before it', async () => {
+  it('are read as their first step, and a definitions table without the default of a new version is refused, as no step records it', async () => {
+    await expect(userTablesModule.read(database.db, noInput)).resolves.toEqual({ lastStep: 1, replaceables: {} })
     await database.exec('alter table table_definitions.tables alter column version drop default')
-    const migration = await userTablesMigration(database.db)
-    expect(migration).toContain('alter table table_definitions.tables alter column version set default 1')
-    await database.exec(migration!)
-    expect(await userTablesMigration(database.db)).toBeUndefined()
+    await expect(userTablesModule.read(database.db, noInput)).rejects.toThrow("lacks the default of a definition's version")
+    await database.exec('alter table table_definitions.tables alter column version set default 1')
   })
 
   it('reserve the words Postgres reserves', async () => {

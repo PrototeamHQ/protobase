@@ -68,7 +68,7 @@ Runs are `derived.compute` jobs, four at a time per worker, retried like any [jo
 
 ## State
 
-`protobase migration` adds a `derived` schema, applied with the project's other migrations, and `protobase dev` and `protobase serve` do not start without it:
+`protobase migration` writes the `derived` schema from the project's snapshot as numbered steps, applied with the project's other migrations, with each derived value declared and the job that computes its records once enqueued; a value the config no longer declares loses its state in the next migration, so declaring it again fills it again. `protobase dev` and `protobase serve` do not start while the [record of migrations](/guides/deploy/#the-record-of-migrations) lacks the schema or a declared value. [`protobase migration baseline`](/reference/cli/#migration) records a schema an earlier version made, and refuses one without the versions sequence, the pending table or their indexes:
 
 | Table | |
 | --- | --- |

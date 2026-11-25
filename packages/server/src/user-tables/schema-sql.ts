@@ -33,9 +33,6 @@ export const nameIndexesSql = () => [
   `create unique index tables_organization_name_key on ${definitionsSchema}.tables (organization_id, name) where organization_id is not null`,
 ]
 
-/** Gives a definitions table made before new definitions started at version 1 that default. */
-export const versionDefaultSql = () => `alter table ${definitionsSchema}.tables alter column version set default 1`
-
 /**
  * The fields of each definition, in order, each with its label and type; a decimal names its precision and scale. A
  * field belongs to its table's organization: the foreign key compares both, so no field reaches another organization's
@@ -62,20 +59,6 @@ export const fieldsSql = () => `create table ${definitionsSchema}.fields (
  * `position` only from an index that reaches it with `table_id` pinned. It also reaches a fields table made before it.
  */
 export const fieldsPositionIndexSql = () => `create index if not exists fields_position_idx on ${definitionsSchema}.fields (table_id, position)`
-
-/**
- * Brings a definitions table made before organizations to the shape of `tablesSql`: a name unique per organization and
- * the served name.
- */
-export const organizationsSql = () => [
-  `alter table ${definitionsSchema}.tables add column organization_id text, add column ${tableNameColumn}, add column ${tenantKeyColumn}, add unique (id, tenant_key)`,
-  `alter table ${definitionsSchema}.tables drop constraint tables_name_key`,
-  ...nameIndexesSql(),
-]
-
-/** Ties the fields made before organizations to their table's organization, as `fieldsSql` does. */
-export const fieldsOrganizationSql = () =>
-  `alter table ${definitionsSchema}.fields add column organization_id text, add column ${tenantKeyColumn}, add foreign key (table_id, tenant_key) references ${definitionsSchema}.tables (id, tenant_key) on delete cascade`
 
 // The app's role, the one the migrations run as, may create in the data schema; nothing grants CREATE on the
 // definitions schema, and no other role creates in either. The role owns both, so the grant states the intent rather

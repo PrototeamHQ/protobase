@@ -5,7 +5,7 @@ import { defineRoles, f, resource } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { readDefinitionsVersion } from '../src/user-tables/definitions-version'
 import { reloadingAdmin } from '../src/user-tables/reloading-admin'
-import { userTablesMigration } from '../src/user-tables/schema'
+import { userTablesSchemaSql } from '../src/schema-modules/feature-schemas-sql'
 import { userTableResources } from '../src/user-tables/user-table-resources'
 import { as, json, testAuthenticator } from '../../../test-support/server'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
@@ -32,7 +32,7 @@ let two: Awaited<ReturnType<typeof serving>>
 beforeAll(async () => {
   if (!ready) return
   database = await openPostgresDatabase('empty')
-  await database.exec((await userTablesMigration(database.db))!)
+  await database.exec(userTablesSchemaSql())
   await database.exec('create table orders (id integer generated always as identity primary key, amount integer not null)')
   one = await serving(database.url)
   two = await serving(database.url)

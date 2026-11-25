@@ -5,7 +5,9 @@ import { createAdmin } from '../src/create-admin'
 import type { Authenticator } from '../src/types'
 import { readDefinitionsVersion } from '../src/user-tables/definitions-version'
 import { reloadingAdmin } from '../src/user-tables/reloading-admin'
-import { userTablesMigration } from '../src/user-tables/schema'
+import { userTablesSchemaSql } from '../src/schema-modules/feature-schemas-sql'
+import { noInput } from '../src/schema-modules/schema-module'
+import { userTablesModule } from '../src/user-tables/user-tables-module'
 import { userTableResources } from '../src/user-tables/user-table-resources'
 import { as, json, testAuthenticator } from '../../../test-support/server'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
@@ -28,7 +30,7 @@ let app: ReturnType<typeof reloadingAdmin>
 beforeAll(async () => {
   if (!ready) return
   database = await openPostgresDatabase('empty')
-  await database.exec((await userTablesMigration(database.db))!)
+  await database.exec(userTablesSchemaSql())
   await database.exec('create table orders (id integer generated always as identity primary key, amount integer not null)')
   db = new Kysely<any>({ dialect: new PostgresDialect({ pool: database.pool({ max: 3 }) }) })
   const build = (tables: Awaited<ReturnType<typeof userTableResources>>) => createAdmin({ resources: [orders], userTables: { ...tables, organizations: true }, db, authenticate: withOrganizationRole })
@@ -192,20 +194,11 @@ const beforeOrganizations = `
   insert into table_definitions.fields (table_id, name, label, type, required, position) values (1, 'title', 'Title', 'text', false, 1);
 `
 
-describe.skipIf(!ready)('the migration of a definitions schema made before organizations', () => {
-  it('keeps its definitions served under their names, and ties each field to its table', async () => {
+describe.skipIf(!ready)('a definitions schema made before organizations', () => {
+  it('is refused by a baseline, as no step records it', async () => {
     const old = await openPostgresDatabase('empty')
     await old.exec(beforeOrganizations)
-    const migration = (await userTablesMigration(old.db))!
-    expect(migration).toContain('drop constraint tables_name_key')
-    expect(migration).toContain('create index if not exists fields_position_idx on table_definitions.fields (table_id, position)')
-    await old.exec(migration)
-    expect(await userTablesMigration(old.db)).toBeUndefined()
-    const served = await userTableResources(old.db)
-    expect(served.problems).toEqual([])
-    expect(served.resources.map((source) => source.toModel().name)).toEqual(['notes'])
-    expect((await sql.raw(`select table_name, tenant_key from table_definitions.tables`).execute(old.db)).rows).toEqual([{ table_name: 'notes', tenant_key: '-' }])
-    await expect(old.exec(`insert into table_definitions.tables (name, organization_id, singular_label, plural_label) values ('notes', 'a', 'Note', 'Notes')`)).resolves.toBeUndefined()
-    await expect(old.exec(`insert into table_definitions.fields (table_id, organization_id, name, label, type, required, position) values (1, 'a', 'planted', 'Planted', 'text', false, 2)`)).rejects.toThrow(/foreign key/)
+    await expect(userTablesModule.read(old.db, noInput)).rejects.toThrow("lacks the default of a definition's version, a definition's organization")
+    await old.close()
   })
 })

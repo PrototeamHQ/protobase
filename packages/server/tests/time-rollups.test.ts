@@ -1,7 +1,7 @@
 import { Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { checkComputed, computedMigration, createAdmin, type JobContext } from '../src/index'
+import { computedSchemaSql, createAdmin, type JobContext } from '../src/index'
 import { as, testAuthenticator } from '../../../test-support/server'
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
@@ -55,15 +55,25 @@ beforeAll(async () => {
 afterAll(async () => { await db.destroy() })
 
 describe('a time rollup', () => {
-  it('refuses to start before its migration', async () => {
-    await expect(checkComputed(db, models)).rejects.toThrow('time rollups readings_hourly are not kept by the database as declared')
+  it('is created and filled by the migration, with the counts and sums of a GROUP BY over the source', async () => {
+    await pg.exec(computedSchemaSql(models))
+    expect((await pg.query(compared)).rows).toEqual([{ expected: 648, actual: 648, differ: 0 }])
   })
 
-  it('is created and filled by the migration, with the counts and sums of a GROUP BY over the source', async () => {
-    await pg.exec((await computedMigration(db, models))!)
-    expect((await pg.query(compared)).rows).toEqual([{ expected: 648, actual: 648, differ: 0 }])
-    expect(await computedMigration(db, models)).toBeUndefined()
-    await expect(checkComputed(db, models)).resolves.toBeUndefined()
+  it('takes the column types of its source and of the aggregates', async () => {
+    const types = `select attname as name, format_type(atttypid, atttypmod) as type, attnotnull as "notNull" from pg_attribute where attrelid = 'readings_hourly'::regclass and attnum > 0 and not attisdropped order by attnum`
+    expect((await pg.query(types)).rows).toEqual([
+      { name: 'bucket', type: 'timestamp with time zone', notNull: true },
+      { name: 'org_id', type: 'integer', notNull: true },
+      { name: 'kind', type: 'text', notNull: true },
+      { name: 'events', type: 'bigint', notNull: true },
+      { name: 'watts_sum', type: 'bigint', notNull: false },
+      { name: 'watts_max', type: 'integer', notNull: false },
+      { name: 'cost_sum', type: 'numeric', notNull: false },
+      { name: 'watts_count', type: 'bigint', notNull: true },
+      { name: 'cost_count', type: 'bigint', notNull: true },
+      { name: 'id', type: 'bigint', notNull: true },
+    ])
   })
 
   it('recomputes the buckets from the one a refresh starts in, with their counts of values, dropping those left without records', async () => {

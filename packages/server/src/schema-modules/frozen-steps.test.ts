@@ -8,8 +8,10 @@ import type { ModuleNames } from './schema-module'
 const notifications = notificationsTargets({}, undefined)
 const names: Record<SchemaModuleId, ModuleNames> = {
   jobs: {},
+  computed: {},
   changes: { schema: 'changes' },
   history: { schema: 'changes' },
+  derived: {},
   notices: { schema: 'changes' },
   webhooks: { schema: 'webhooks', changes: 'changes' },
   webhook_delivery_log: { schema: 'webhooks' },
@@ -23,12 +25,14 @@ const names: Record<SchemaModuleId, ModuleNames> = {
   relay: { sessions: '"auth"."session"' },
   realtime_relay: {},
   channel_sends: {},
+  user_tables: {},
 }
 
 // The SHA-256 of each step's statements, by module and step. Steps that call builders shared with other code, such as
 // the workflows' tables, are pinned here so an edit to one of them fails this test.
 const pinned: Record<string, string> = {
   'jobs 1': '5b539ac15e3656f8',
+  'computed 1': '847f661dba56a7b8',
   'changes 1': '5889c9ed5e886936',
   'history 1': '43a670bbef1d4916',
   'notices 1': 'd2b58c96a65b1012',
@@ -45,6 +49,8 @@ const pinned: Record<string, string> = {
   'relay 1': '3cc7f6bbecb6ec6a',
   'realtime_relay 1': '38dc32ccc845ebdd',
   'channel_sends 1': 'a28df48b0ec89ee7',
+  'derived 1': 'ce48df951c75a615',
+  'user_tables 1': '11c037437f43c712',
 }
 
 const digests = () =>

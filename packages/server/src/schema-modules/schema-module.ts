@@ -35,8 +35,14 @@ export type TableName = { schema?: string; name: string }
 /**
  * Derived objects of each of the app's resources that need them, such as the triggers that capture a resource's
  * changes, written whole for one resource from its input (`ResourceInput`) at a version, as a `Replaceable` is: once
- * more when its statements change. `drop` removes what it made on `table`; a resource that no longer needs them keeps
- * them while another resource still does when `keptWhileOthers`, and loses them once none does.
+ * more when its statements change. `drop` removes what it made on `table`, and `column` when its objects are a
+ * column's; without `drop` they stay once no resource needs them, for a migration of the project's own to drop a
+ * deploy later, and the model keeps them, so a resource that needs them again finds them. A resource that no longer needs them keeps them while another resource
+ * still does when `keptWhileOthers`, and loses them once none does. `replace` removes what an earlier input made at the
+ * same place before its statements are written again, where they cannot replace it themselves, such as a generated
+ * column; the removals of every resource replaceable go before any writes, the last replaceable's first. `after`
+ * rebuilds what the objects derive from the data, such as a rollup's values, once the migration's transaction commits,
+ * in its `.after.sql`: each statement recomputes from the source, so running it again is safe.
  */
 export type ResourceReplaceable = {
   name: string
@@ -45,15 +51,19 @@ export type ResourceReplaceable = {
   version: number
   compatibleFrom: number
   sql: (names: ModuleNames, input: unknown) => string
-  drop: (names: ModuleNames, table: TableName) => string
+  /** `key`: the resource's key in the input, such as a derived value's name. */
+  drop?: (names: ModuleNames, table: TableName, column: string | undefined, key: string) => string
+  replace?: (names: ModuleNames, table: TableName, column?: string) => string
+  after?: (names: ModuleNames, input: unknown) => string
   keptWhileOthers: boolean
 }
 
 /**
- * One resource's input to a `ResourceReplaceable`: the table its objects are on, and what its statements are made
- * from. `kept`: the resource no longer needs them, so they are written only to follow it while they are kept.
+ * One resource's input to a `ResourceReplaceable`: the table its objects are on, the column when they are a column's,
+ * and what its statements are made from. `kept`: the resource no longer needs them, so they are written only to follow
+ * it while they are kept.
  */
-export type ResourceInput = { table: TableName; input: unknown; kept?: boolean }
+export type ResourceInput = { table: TableName; column?: string; input: unknown; kept?: boolean }
 
 /** What the app gives a module: its names, and each resource replaceable's input by resource. */
 export type ModuleInput = { names: ModuleNames; resources: Record<string, Record<string, ResourceInput>> }
@@ -61,8 +71,8 @@ export type ModuleInput = { names: ModuleNames; resources: Record<string, Record
 /** The input of a module that takes nothing from the app. */
 export const noInput: ModuleInput = { names: {}, resources: {} }
 
-/** One resource's objects as the model holds them: their version, a digest of their statements, and their table. */
-export type ResourceEntry = { version: number; digest: string; table: TableName }
+/** One resource's objects as the model holds them: their version, a digest of their statements, their table and column. */
+export type ResourceEntry = { version: number; digest: string; table: TableName; column?: string }
 
 /**
  * What a module has in the database, as the snapshot, the record and the runtime hold it: `names` and `resources`, by

@@ -4,6 +4,7 @@ import { authTarget } from '../migration/snapshot/auth-target'
 import type { BuiltProject } from './build-project'
 import { mailFeedbackOn } from './mail-feedback-config'
 import type { MergedConfig } from './merge-config'
+import { userTablesOn } from './user-tables-config'
 import { projectJobs, projectNotifications, projectResources, projectWebhooks } from './project-parts'
 
 // The schema modules an app needs (`neededModules`), from the app as it serves or from its config alone, which
@@ -29,6 +30,7 @@ export const builtModules = (project: BuiltProject) =>
     calls: project.calls,
     realtime: project.realtime,
     events: project.events,
+    userTables: project.userTables,
   })
 
 /** The model the app `project` reads of its database's record of migrations (`runtimeModel`). */
@@ -50,5 +52,6 @@ export const configModules = async (config: MergedConfig) => {
     calls: config.calls,
     realtime: config.realtime,
     events: config.events,
+    userTables: userTablesOn(config),
   })
 }

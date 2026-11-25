@@ -1,11 +1,19 @@
 import { sql, type Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { captureSchemaSql, checkDerived, createAdmin, derivedMigration, startJobs, type DerivedCompute, type JobsRuntime } from '@protobase/server'
+import type { ResourceModel } from '@protobase/schema'
+import { captureSchemaSql, createAdmin, derivedSchemaSql, neededModules, startJobs, type DerivedCompute, type JobsRuntime } from '@protobase/server'
+import { moduleDifference, retiredDifference, schemaModules, type ModuleModel } from '@protobase/server/internal'
 import { fieldTypes } from '../../packages/server/src/derived/affected'
 import { claim, keep, markStale } from '../../packages/server/src/derived/derived-state'
 import { runDerived } from '../../packages/server/src/derived/run-derived'
 import { openPostgresDatabase, postgresTemplateReady, statementTimeoutMs, type PostgresDatabase } from '../../test-support/postgres-database'
+
+// The derived module as the snapshot holds it once `migration` wrote it for `models` after `applied`.
+const written = (models: ResourceModel[], applied: ModuleModel | undefined) => {
+  const input = neededModules({ models, views: [], jobs: [], signIn: false }).derived
+  return input ? moduleDifference(schemaModules.derived, input, applied) : retiredDifference(schemaModules.derived, applied!)
+}
 
 // Workers poll on real timers, which a busy machine stretches.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -43,6 +51,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
   let db: Kysely<any>
   let runtime: JobsRuntime
   let admin: ReturnType<typeof createAdmin>
+  let applied: ModuleModel | undefined
   const errors: unknown[] = []
 
   beforeAll(async () => {
@@ -51,10 +60,12 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
     await pg.exec(`create table objectives (id integer generated always as identity primary key, title text not null, verdict text);
       create table tasks (id integer generated always as identity primary key, objective_id integer not null, status text not null, created_at timestamptz not null default now())`)
     const models = [objectives.toModel(), tasks.toModel()]
-    await expect(checkDerived(db, models)).rejects.toThrow('The derived schema is missing')
+    expect(await schemaModules.derived.read(db, neededModules({ models, views: [], jobs: [], signIn: false }).derived!)).toBeUndefined()
     await pg.exec(captureSchemaSql(models))
-    await pg.exec((await derivedMigration(db, models))!)
-    expect(await derivedMigration(db, models)).toBeUndefined()
+    const first = written(models, undefined)
+    await pg.exec(first.sql!)
+    applied = first.model
+    expect(written(models, applied).sql).toBeUndefined()
     admin = createAdmin({ resources: [objectives, tasks], db, authenticate: () => ({ user: { id: 'u1', roles: ['admin'] } }), derived: { 'objectives.verdict': verdict }, options: { statementTimeoutMs } })
     runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
   })
@@ -201,33 +212,28 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('derived values on Postg
     await settled(objective.id, 'late')
   })
 
-  it('keeps what was declared when an upgrade adds the version sequence and pending table, starts the sequence past every version, and widens older reads', async () => {
+  it('is read by a baseline as its first step with each value declared, and refused without the version sequence and pending table, which no step records', async () => {
     const models = [objectives.toModel(), tasks.toModel()]
-    await pg.exec(`drop sequence derived.versions; drop table derived.pending;
-      insert into derived.reads (name, key, resource, eq_field, eq_value, condition) values ('objectives.verdict', 'old', 'tasks', 'objectiveId', '0007', '{"maybe": true}')`)
-    await expect(checkDerived(db, models)).rejects.toThrow('The derived schema is missing')
-    const upgrade = (await derivedMigration(db, models))!
-    expect(upgrade).not.toContain('jobs.enqueue')
-    await pg.exec(upgrade)
-    expect(await derivedMigration(db, models)).toBeUndefined()
-    const { rows } = await sql<{ above: boolean }>`select nextval('derived.versions') > (select max(version) from derived.values) as above`.execute(db)
-    expect(rows[0]!.above).toBe(true)
-    expect((await sql`select eq_field, eq_value from derived.reads where key = 'old'`.execute(db)).rows).toEqual([{ eq_field: null, eq_value: null }])
-    await sql`delete from derived.reads where key = 'old'`.execute(db)
+    const input = neededModules({ models, views: [], jobs: [], signIn: false }).derived!
+    expect(moduleDifference(schemaModules.derived, input, await schemaModules.derived.read(db, input)).sql).toBeUndefined()
+    await pg.exec('alter sequence derived.versions rename to versions_kept')
+    await expect(schemaModules.derived.read(db, input)).rejects.toThrow('The derived schema lacks its versions sequence, pending table or indexes')
+    await pg.exec('alter sequence derived.versions_kept rename to versions')
   })
 
   it('forgets a derived value no longer declared, so declaring it again fills it again', async () => {
     const models = [objectives.toModel(), tasks.toModel()]
-    const removal = await derivedMigration(db, [{ ...models[0]!, derived: [] }, models[1]!])
+    const removal = written([{ ...models[0]!, derived: [] }, models[1]!], applied).sql
     expect(removal).toContain(`delete from "derived"."declared" where "name" = 'objectives.verdict'`)
     await pg.exec(removal!)
+    applied = written([{ ...models[0]!, derived: [] }, models[1]!], applied).model
     expect(await sql`select 1 from derived.values where name = 'objectives.verdict'`.execute(db)).toMatchObject({ rows: [] })
     // A worker that started before the removal brings no state back.
     const ref = { name: 'objectives.verdict', key: '1' }
     expect(await claim(db, ref)).toBeUndefined()
     await markStale(db, [ref])
     expect(await sql`select 1 from derived.values where name = 'objectives.verdict'`.execute(db)).toMatchObject({ rows: [] })
-    expect(await derivedMigration(db, models)).toContain(`select jobs.enqueue('derived.fill'`)
+    expect(written(models, applied).sql).toContain(`select jobs.enqueue('derived.fill'`)
   })
 })
 
@@ -240,7 +246,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('filling a newly declare
       insert into objectives (title) select 'Objective ' || i from generate_series(1, 1200) i`)
     const models = [objectives.toModel(), tasks.toModel()]
     await pg.exec(captureSchemaSql(models))
-    await pg.exec((await derivedMigration(db, models))!)
+    await pg.exec(derivedSchemaSql(models))
     // Once the first page is queued, ten of its records go: paging by offset would then pass over ten of the next page.
     await pg.exec(`create table deleted_once (done boolean);
       create function delete_once() returns trigger language plpgsql as $$ begin
