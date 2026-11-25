@@ -12,6 +12,10 @@ on:
         description: Run the Postgres suite whatever changed
         type: boolean
         default: false
+      release:
+        description: The release workflow's run, whose upgrade check counts as main's push (upgrade.yml)
+        type: boolean
+        default: false
   # Run by hand, every test and step runs, as on a pull request.
   workflow_dispatch:
   # Weekly, the Postgres suite and the snapshot recording alone, to catch a moved postgres:18 tag when nothing in the
@@ -574,3 +578,5 @@ jobs:
   upgrade:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/'))
     uses: ./.github/workflows/upgrade.yml
+    with:
+      release: ${{ inputs.release || false }}
