@@ -22,7 +22,7 @@ describe('protobase migration with a schema module', () => {
     const file = (await withJobs(dir))!
     expect(path.basename(file)).toBe('001_auth_jobs.sql')
     const text = await readFile(file, 'utf8')
-    expect(text).toContain('\n-- protobase:modules {"jobs":{"lastStep":1,"replaceables":{"functions":3}}}\n')
+    expect(text).toContain(`\n-- protobase:modules {"jobs":{"lastStep":1,"replaceables":{"functions":${functionsVersion}}}}\n`)
     expect(text.indexOf('-- The jobs schema this version of Protobase needs.\n')).toBeGreaterThan(text.indexOf('-- The auth schema changes this version of Protobase needs.\n'))
     expect(text).toContain("-- pg-boss's tables at its schema version 45.\nSELECT pg_advisory_xact_lock")
     expect(text).not.toContain('protobase:breaks-older-code')

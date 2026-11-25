@@ -1,5 +1,7 @@
+import { organizationKey } from './job-data'
+
 /** Bumped whenever the objects below change, so the next migration writes them again. */
-export const functionsVersion = 3
+export const functionsVersion = 4
 
 /** The comment each Protobase function in the jobs schema carries, which the startup check reads. */
 export const functionsComment = `Protobase jobs ${functionsVersion}`
@@ -89,12 +91,14 @@ comment on function ${schema}.next_due() is '${functionsComment}';`
 
 /**
  * `jobs.failed`: the failed jobs, for the admin app's page, with their last error. Updating `retry` to true retries a
- * job, as pg-boss's `retry()` does: one more attempt, from now; deleting a row deletes the job.
+ * job, as pg-boss's `retry()` does: one more attempt, from now; deleting a row deletes the job. Its `payload` is the
+ * job's payload alone, without the organization the runtime stores beside it (`jobData`).
  */
 const failed = (schema: string) => `create index if not exists job_failed_i on ${schema}.job (completed_on) where state = 'failed';
 drop view if exists ${schema}.failed;
 create view ${schema}.failed as
-select id, name, data as payload, retry_count + 1 as attempts,
+select id, name,
+  case when jsonb_typeof(data) = 'object' and data ? '${organizationKey}' then data -> 'payload' else data end as payload, retry_count + 1 as attempts,
   coalesce(output ->> 'message', output -> 'value' ->> 'message', output ->> 'value') as error,
   output, completed_on as failed_at, created_on as created_at, singleton_key as key, false as retry
 from ${schema}.job where state = 'failed';
