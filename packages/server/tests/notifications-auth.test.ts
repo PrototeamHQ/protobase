@@ -33,10 +33,13 @@ describe.each([
 })
 
 describe('the devices endpoints with auth', () => {
-  it("are refused by the baseline while the devices table's user column does not go with the user", async () => {
+  it("are refused by the baseline while the devices table's user column does not go with the user's id", async () => {
     const { pg, auth } = await serve()
+    const read = () => notificationDevicesModule.read(pg.db, notificationsTargets({}, storeNames(auth)).notification_devices!)
     await pg.exec('alter table notifications.devices drop constraint devices_user_id_fkey')
-    await expect(notificationDevicesModule.read(pg.db, notificationsTargets({}, storeNames(auth)).notification_devices!)).rejects.toThrow('needs a foreign key from "user_id" to "user" with on delete cascade')
+    await expect(read()).rejects.toThrow('needs a foreign key from "user_id" to "user" with on delete cascade')
+    await pg.exec('alter table notifications.devices add constraint devices_user_email_fkey foreign key (user_id) references "user" (email) on delete cascade')
+    await expect(read()).rejects.toThrow('needs a foreign key from "user_id" to "user" with on delete cascade')
   })
 
   it('are an unknown route without notifications()', async () => {

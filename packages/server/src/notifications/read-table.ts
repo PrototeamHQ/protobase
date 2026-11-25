@@ -13,11 +13,12 @@ export const columnNumbers = async <C extends string>(db: Db, oid: number, names
   return Object.fromEntries(Object.entries<string>(names.columns).map(([column, name]) => [column, found.find((row) => row.name === name)?.num])) as Record<C, number | undefined>
 }
 
-/** Whether a unique index without a condition holds exactly the column. */
+/** Whether a valid unique index without a condition holds exactly the column: one an interrupted concurrent build left does not. */
 export const uniqueOn = async (db: Db, oid: number, num: number) =>
-  (await sql<{ found: boolean }>`select exists (select from pg_index where indrelid = ${oid} and indisunique and indpred is null and indexprs is null and indnatts = 1 and indkey[0] = ${num}) as found`.execute(db)).rows[0]!.found
+  (await sql<{ found: boolean }>`select exists (select from pg_index where indrelid = ${oid} and indisunique and indisvalid and indpred is null and indexprs is null and indnatts = 1 and indkey[0] = ${num}) as found`.execute(db)).rows[0]!.found
 
-/** Whether a foreign key from exactly the column points at the users table and deletes with it. */
+/** Whether a foreign key from exactly the column points at the users table's `id` and deletes with it. */
 export const cascadesFrom = async (db: Db, oid: number, num: number, users: string) =>
   (await sql<{ found: boolean }>`select exists (select from pg_constraint where conrelid = ${oid} and contype = 'f' and confdeltype = 'c'
-    and conkey = array[${num}]::int2[] and confrelid = to_regclass(${users})) as found`.execute(db)).rows[0]!.found
+    and conkey = array[${num}]::int2[] and confrelid = to_regclass(${users})
+    and confkey = array[(select attnum from pg_attribute where attrelid = to_regclass(${users}) and attname = 'id' and not attisdropped)]::int2[]) as found`.execute(db)).rows[0]!.found

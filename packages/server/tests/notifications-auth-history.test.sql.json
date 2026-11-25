@@ -51,7 +51,7 @@
         ["created_at","7"],
         ["read_at","8"]
       ]}},
-      {"sql":"select exists (select from pg_constraint where conrelid = $1 and contype = 'f' and confdeltype = 'c'\n    and conkey = array[$2]::int2[] and confrelid = to_regclass($3)) as found","params":["{{oid:1}}","2","\"user\""],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["f"]]}}
+      {"sql":"select exists (select from pg_constraint where conrelid = $1 and contype = 'f' and confdeltype = 'c'\n    and conkey = array[$2]::int2[] and confrelid = to_regclass($3)\n    and confkey = array[(select attnum from pg_attribute where attrelid = to_regclass($4) and attname = 'id' and not attisdropped)]::int2[]) as found","params":["{{oid:1}}","2","\"user\"","\"user\""],"result":{"command":"SELECT","rowCount":1,"columns":[["found",16]],"rows":[["f"]]}}
     ]
   },
   "the history with auth > serves the signed-in user's own, and refuses a signed-out token, a cookie alone and an issued token, changing nothing": {
