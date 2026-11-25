@@ -11,6 +11,7 @@ export default {
     socialProviders: { google: { clientId: 'upgrade.apps.googleusercontent.com', clientSecret: 'upgrade' } },
     personalMail: ['gmail'],
     encryptOAuthTokens: true,
+    mcp: true,
   },
   webhooks: {},
   workflows: {},
