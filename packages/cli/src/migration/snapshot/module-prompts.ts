@@ -50,7 +50,7 @@ export const confirmRevival =
 
 /** The way on once the store's only organization is chosen as the default: the config's entry for it, then a new run. */
 export const defaultChosen = ({ id, name, slug }: DefaultOrganization) =>
-  `Nothing was written. Add \`default: { id: ${JSON.stringify(id)}, name: ${JSON.stringify(name)}, slug: ${JSON.stringify(slug)} }\` to \`auth.organizations\` in your config, then run \`protobase migration\` again.`
+  `Nothing was written. Add \`default: { id: ${JSON.stringify(id)}, name: ${JSON.stringify(name)}, slug: ${JSON.stringify(slug)} }\` to \`auth.organizations\` in your config, and set \`authenticate.tenant\` to ${JSON.stringify(id)}. Then run \`protobase migration\` again.`
 
 /** Asks whether the store's only organization, which is not the default one, becomes the default. */
 export const offerDefault =

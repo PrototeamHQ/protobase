@@ -36,7 +36,7 @@ describe('the questions about turning organizations off', () => {
     const only = { id: 'acme', name: "Acme's", slug: 'acme' }
     expect(await offerDefault(answering('y'))(only)).toBe(true)
     expect(await offerDefault(answering(''))(only)).toBe(false)
-    expect(defaultChosen(only)).toBe('Nothing was written. Add `default: { id: "acme", name: "Acme\'s", slug: "acme" }` to `auth.organizations` in your config, then run `protobase migration` again.')
+    expect(defaultChosen(only)).toBe('Nothing was written. Add `default: { id: "acme", name: "Acme\'s", slug: "acme" }` to `auth.organizations` in your config, and set `authenticate.tenant` to "acme". Then run `protobase migration` again.')
   })
 })
 
