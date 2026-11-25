@@ -124,10 +124,11 @@ describe.skipIf(!(await postgresTemplateReady('empty')))("protobase-serve migrat
     expect(await migrateRelease(database.url)).toMatchObject({ status: 0, stdout: 'the database is up to date\n' })
   })
 
+  // A host passes the secret in the environment, as the bundle carries none.
   it('serves the bundle on the database it brought to the release', async () => {
     let child: ChildProcess | undefined
     const served = await serveOnFreePort((port) => {
-      child = spawn(process.execPath, [...typescriptArgs(runtime), 'serve', path.join(projectDir, 'dist')], { cwd: root, env: { ...process.env, DATABASE_URL: database.url, PORT: String(port) } })
+      child = spawn(process.execPath, [...typescriptArgs(runtime), 'serve', path.join(projectDir, 'dist')], { cwd: root, env: { ...process.env, DATABASE_URL: database.url, PORT: String(port), PROTOBASE_SECRET: 'release-steps-test-secret-release-steps' } })
       return child
     }, 60_000)
     expect((await fetch(`${served.base}/api/v1/`)).status).toBeLessThan(500)
