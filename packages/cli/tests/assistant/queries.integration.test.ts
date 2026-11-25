@@ -4,7 +4,7 @@ import postgres from 'postgres'
 import { sql } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
-import { queryRunnerMigration, runReadOnlyQuery, runReadWriteQuery } from '@protobase/server'
+import { querySchemaSql, runReadOnlyQuery, runReadWriteQuery } from '@protobase/server'
 import { createPgDb } from '../../src/project/pg-db'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
 import { withDatabase } from '../support/serve-process'
@@ -33,7 +33,7 @@ describe.skipIf(!reachable)('assistant queries on Postgres over node-postgres', 
       create sequence ${schema}.tickets;
     `).execute(db)
     const notes = resource('notes').table(`${schema}.notes`).fields({ id: f.integer() }).primaryKey((r) => r.id).toModel()
-    await sql.raw((await queryRunnerMigration(db, [notes], { tables: [], schemas: [] }))!).execute(db)
+    await sql.raw(querySchemaSql([notes])).execute(db)
   })
   afterAll(async () => {
     // Roles belong to the whole server, so the query role goes with the database.

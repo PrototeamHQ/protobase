@@ -1,4 +1,4 @@
-import { ownedDefinitionsMigration, queryRunnerMigration } from '@protobase/server'
+import { ownedDefinitionsMigration } from '@protobase/server'
 import type { MigrationProject } from './migration-project'
 
 /** What one feature still needs of the database, compared with it, written as a part of the next migration. */
@@ -17,9 +17,6 @@ export type MigrationPart = {
  */
 export const migrationParts = (project: MigrationProject): MigrationPart[] => {
   return [
-    ...(project.readOnlyQueries
-      ? [{ name: 'query', title: "The role the assistant's read-only queries run as, which reads only the resources' tables", sql: () => queryRunnerMigration(project.db, project.models, project.authTables) }]
-      : []),
     // Run after the deploy that brought the code of an ejected table, so its definition goes in a later deploy.
     ...(project.userTables ? [{ name: 'owned_definitions', title: 'The delete of the definitions of user tables that resources in code own now', sql: () => ownedDefinitionsMigration(project.db, project.models) }] : []),
   ]

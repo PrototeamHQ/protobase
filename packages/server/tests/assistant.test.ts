@@ -6,7 +6,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource, type AssistantEvent, type AssistantState } from '@protobase/schema'
 import { applyAssistantEvent, emptyAssistantState, readEventStream } from '@protobase/schema/internal'
 import { createAdmin } from '../src/create-admin'
-import { queryRunnerMigration } from '../src/assistant/query-runner/query-runner'
+import { queryInput } from '../src/assistant/query-runner/query-input'
+import { modulesSql } from '../src/schema-modules/modules-sql'
 import { defineTool } from '../src/assistant/tools'
 import { widget } from '../src/assistant/widget'
 import type { AdminOptions } from '../src/admin-options'
@@ -31,7 +32,7 @@ beforeAll(async () => {
   await pg.exec('create table tasks (id integer generated always as identity primary key, title text not null, status text not null)')
   await pg.exec('create table proposals (id integer generated always as identity primary key, title text not null, status text not null, decided_by text)')
   db = new Kysely({ dialect: pg.dialect })
-  await pg.exec((await queryRunnerMigration(db, [tasks.toModel(), proposals.toModel()], { tables: [], schemas: [] }))!)
+  await pg.exec(modulesSql({ query: queryInput([tasks.toModel(), proposals.toModel()], undefined) }))
   chats = await mkdtemp(path.join(tmpdir(), 'protobase-assistant-'))
 })
 afterAll(async () => {

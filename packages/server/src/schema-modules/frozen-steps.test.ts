@@ -29,6 +29,7 @@ const names: Record<SchemaModuleId, ModuleNames> = {
   channel_sends: {},
   user_tables: {},
   unsubscribes: {},
+  query: {},
 }
 
 // The SHA-256 of each step's statements, by module and step. Steps that call builders shared with other code, such as
@@ -57,6 +58,7 @@ const pinned: Record<string, string> = {
   'derived 1': 'ce48df951c75a615',
   'user_tables 1': '11c037437f43c712',
   'unsubscribes 1': 'e4eaab53ba7582c7',
+  'query 1': '2d150fd084bd7092',
 }
 
 const digests = () =>

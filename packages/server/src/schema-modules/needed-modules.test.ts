@@ -107,6 +107,14 @@ describe('neededModules', () => {
     expect(ids(app([], { realtime: { processes: 'one', sqlSends: false } }))).toEqual([])
   })
 
+  it("needs the query module, last, with the built-in assistant's read-only queries, its grants by resource but an auth table's", () => {
+    const people = resource('people').table('auth.user').fields({ id: f.text() }).primaryKey((r) => r.id)
+    const targets = neededModules(app([tickets.toModel(), people.toModel()], { readOnlyQueries: true, jobs: [{}], signIn: true, authStore: settingsStoreNames({}) }))
+    expect(Object.keys(targets)).toEqual(['jobs', 'query'])
+    expect(targets.query).toEqual({ names: {}, resources: { grants: { tickets: { table: { name: 'tickets' }, input: { name: 'tickets' } } } } })
+    expect(ids(app([tickets.toModel()]))).not.toContain('query')
+  })
+
   it('needs the calls schema and the notices table rings reach open pages through, in the schema events names', () => {
     const calls = neededModules(app([], { calls: {}, events: { schema: 'events' } }))
     expect(Object.keys(calls)).toEqual(['notices', 'calls'])

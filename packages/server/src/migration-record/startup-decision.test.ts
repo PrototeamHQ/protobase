@@ -223,4 +223,22 @@ describe('startupRefusal', () => {
       expect(startupRefusal(all, state(all, { matched: true }), '0.15.0')).toBeUndefined()
     })
   })
+
+  describe("with the built-in assistant's read-only queries", () => {
+    const tickets = resource('tickets').table('tickets').fields({ id: f.integer() }).primaryKey((r) => r.id)
+    const notes = resource('notes').table('notes').fields({ id: f.integer() }).primaryKey((r) => r.id)
+    const app = (models = [tickets.toModel()]) => ({ modules: latestModules(neededModules({ models, views: [], jobs: [], signIn: false, readOnlyQueries: true })) })
+
+    it('refuses a database whose record lacks the query module, naming it and its step', () => {
+      expect(startupRefusal(app(), state({}), '0.15.0')).toContain("the database lacks the query role of the assistant's read-only queries, which this version needs at step 1 (role)")
+    })
+
+    it("refuses a resource's grants the record lacks, naming the resource", () => {
+      expect(startupRefusal(app([tickets.toModel(), notes.toModel()]), state(app()), '0.15.0')).toContain("the query role of the assistant's read-only queries lacks its grants of notes")
+    })
+
+    it('starts on a record that holds them', () => {
+      expect(startupRefusal(app(), state(app(), { matched: true }), '0.15.0')).toBeUndefined()
+    })
+  })
 })

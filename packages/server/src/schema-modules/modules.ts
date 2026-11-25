@@ -20,6 +20,7 @@ import { workflowCustomStepsModule } from '../workflows/custom-steps/custom-step
 import { workflowStorageModule } from '../workflows/storage/storage-module'
 import { workflowsSchemaModule } from '../workflows/workflows-schema-module'
 import { userTablesModule } from '../user-tables/user-tables-module'
+import { queryModule } from '../assistant/query-runner/query-module'
 import type { ModuleInput, ModuleModel, SchemaModule } from './schema-module'
 import { latestModel } from './module-difference'
 
@@ -27,9 +28,7 @@ import { latestModel } from './module-difference'
 // table and the rollups and formulas before the change capture, whose triggers go on the one and may name the others' columns, the webhooks
 // schema after the jobs schema its view reads, an option's own tables after the module whose tables they point at,
 // the derived schema after the jobs schema its fill enqueues into, and the relay after the jobs schema whose enqueue
-// its trigger calls. Every module goes after the auth store's steps,
-// so the relay's trigger finds the sessions table.
-// Each other built-in schema still compares itself with the database (`migrationParts`) until it moves here.
+// its trigger calls. Every module goes after the auth store's steps, so the relay's trigger finds the sessions table.
 export const schemaModules = {
   jobs: jobsModule,
   mail_feedback: mailFeedbackModule,
@@ -53,6 +52,7 @@ export const schemaModules = {
   channel_sends: channelSendsModule,
   user_tables: userTablesModule,
   unsubscribes: unsubscribesModule,
+  query: queryModule,
 } satisfies Record<string, SchemaModule>
 
 export type SchemaModuleId = keyof typeof schemaModules
